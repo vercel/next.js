@@ -343,7 +343,6 @@ pub enum InfoMessage {
 
 #[derive(Debug, Clone, TaskInput, Hash, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-
 pub struct WebpackResolveOptions {
     alias_fields: Option<Vec<RcStr>>,
     condition_names: Option<Vec<RcStr>>,
@@ -704,7 +703,7 @@ async fn dir_dependency(glob: Vc<ReadGlobResult>) -> Result<Vc<Completion>> {
     let glob = glob.await?;
     glob.inner
         .values()
-        .map(|&inner| dir_dependency(inner))
+        .map(|&inner| dir_dependency(*inner))
         .try_join()
         .await?;
     shallow.await?;
@@ -820,7 +819,7 @@ impl Issue for EvaluateErrorLoggingIssue {
     }
 
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<OptionStyledString>> {
+    fn description(&self) -> Vc<OptionStyledString> {
         fn fmt_args(prefix: String, args: &[JsonValue]) -> String {
             let mut iter = args.iter();
             let Some(first) = iter.next() else {
@@ -854,6 +853,6 @@ impl Issue for EvaluateErrorLoggingIssue {
                 }
             })
             .collect::<Vec<_>>();
-        Ok(Vc::cell(Some(StyledString::Stack(lines).cell())))
+        Vc::cell(Some(StyledString::Stack(lines).cell()))
     }
 }

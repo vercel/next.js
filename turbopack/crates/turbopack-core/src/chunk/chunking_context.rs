@@ -104,6 +104,7 @@ pub trait ChunkingContext {
     ) -> Vc<ChunkGroupResult>;
 
     /// Generates an output chunk that:
+    /// * loads the given extra_chunks in addition to the generated chunks; and
     /// * evaluates the given assets; and
     /// * exports the result of evaluating the given module as a CommonJS default export.
     fn entry_chunk_group(
@@ -111,6 +112,7 @@ pub trait ChunkingContext {
         path: Vc<FileSystemPath>,
         module: Vc<Box<dyn Module>>,
         evaluatable_assets: Vc<EvaluatableAssets>,
+        extra_chunks: Vc<OutputAssets>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Result<Vc<EntryChunkGroupResult>>;
 
@@ -153,6 +155,7 @@ pub trait ChunkingContextExt {
         path: Vc<FileSystemPath>,
         module: Vc<Box<dyn Module>>,
         evaluatable_assets: Vc<EvaluatableAssets>,
+        extra_chunks: Vc<OutputAssets>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Vc<Box<dyn OutputAsset>>
     where
@@ -162,6 +165,7 @@ pub trait ChunkingContextExt {
         self: Vc<Self>,
         path: Vc<FileSystemPath>,
         module: Vc<Box<dyn Module>>,
+        extra_chunks: Vc<OutputAssets>,
         evaluatable_assets: Vc<EvaluatableAssets>,
     ) -> Vc<EntryChunkGroupResult>
     where
@@ -171,6 +175,7 @@ pub trait ChunkingContextExt {
         self: Vc<Self>,
         path: Vc<FileSystemPath>,
         module: Vc<Box<dyn Module>>,
+        extra_chunks: Vc<OutputAssets>,
         evaluatable_assets: Vc<EvaluatableAssets>,
     ) -> Vc<Box<dyn OutputAsset>>
     where
@@ -219,6 +224,7 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
         path: Vc<FileSystemPath>,
         module: Vc<Box<dyn Module>>,
         evaluatable_assets: Vc<EvaluatableAssets>,
+        extra_chunks: Vc<OutputAssets>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Vc<Box<dyn OutputAsset>> {
         entry_chunk_group_asset(
@@ -226,6 +232,7 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
             Vc::upcast(self),
             module,
             evaluatable_assets,
+            extra_chunks,
             availability_info,
         )
     }
@@ -234,12 +241,14 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
         self: Vc<Self>,
         path: Vc<FileSystemPath>,
         module: Vc<Box<dyn Module>>,
+        extra_chunks: Vc<OutputAssets>,
         evaluatable_assets: Vc<EvaluatableAssets>,
     ) -> Vc<EntryChunkGroupResult> {
         self.entry_chunk_group(
             path,
             module,
             evaluatable_assets,
+            extra_chunks,
             Value::new(AvailabilityInfo::Root),
         )
     }
@@ -248,6 +257,7 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
         self: Vc<Self>,
         path: Vc<FileSystemPath>,
         module: Vc<Box<dyn Module>>,
+        extra_chunks: Vc<OutputAssets>,
         evaluatable_assets: Vc<EvaluatableAssets>,
     ) -> Vc<Box<dyn OutputAsset>> {
         entry_chunk_group_asset(
@@ -255,6 +265,7 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
             Vc::upcast(self),
             module,
             evaluatable_assets,
+            extra_chunks,
             Value::new(AvailabilityInfo::Root),
         )
     }
@@ -295,10 +306,17 @@ async fn entry_chunk_group_asset(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     module: Vc<Box<dyn Module>>,
     evaluatable_assets: Vc<EvaluatableAssets>,
+    extra_chunks: Vc<OutputAssets>,
     availability_info: Value<AvailabilityInfo>,
 ) -> Result<Vc<Box<dyn OutputAsset>>> {
     Ok(chunking_context
-        .entry_chunk_group(path, module, evaluatable_assets, availability_info)
+        .entry_chunk_group(
+            path,
+            module,
+            evaluatable_assets,
+            extra_chunks,
+            availability_info,
+        )
         .await?
         .asset)
 }

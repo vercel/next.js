@@ -139,7 +139,8 @@ function esmImport(sourceModule, id) {
 }
 // Add a simple runtime require so that environments without one can still pass
 // `typeof require` CommonJS checks so that exports are correctly registered.
-const runtimeRequire = typeof require === "function" ? require : function require1() {
+const runtimeRequire = // @ts-ignore
+typeof require === "function" ? require : function require1() {
     throw new Error("Unexpected use of runtime require");
 };
 function commonJsRequire(sourceModule, id) {
@@ -330,6 +331,11 @@ relativeURL.prototype = URL.prototype;
  */ function invariant(never, computeMessage) {
     throw new Error(`Invariant: ${computeMessage(never)}`);
 }
+/**
+ * A stub function to make `require` available but non-functional in ESM.
+ */ function requireStub(_moduleId) {
+    throw new Error("dynamic usage of require is not supported");
+}
 /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../shared/runtime-utils.ts" />
 /// A 'base' utilities to support runtime can have externals.
 /// Currently this is for node.js / edge runtime both.
@@ -494,10 +500,18 @@ async function loadChunkAsync(source, chunkData) {
     const resolved = path.resolve(RUNTIME_ROOT, chunkPath);
     try {
         const contents = await fs.readFile(resolved, "utf-8");
+        const localRequire = (id)=>{
+            let resolvedId = require.resolve(id, {
+                paths: [
+                    path.dirname(resolved)
+                ]
+            });
+            return require(resolvedId);
+        };
         const module1 = {
             exports: {}
         };
-        vm.runInThisContext("(function(module, exports, require, __dirname, __filename) {" + contents + "\n})", resolved)(module1, module1.exports, require, path.dirname(resolved), resolved);
+        vm.runInThisContext("(function(module, exports, require, __dirname, __filename) {" + contents + "\n})", resolved)(module1, module1.exports, localRequire, path.dirname(resolved), resolved);
         const chunkModules = module1.exports;
         for (const [moduleId, moduleFactory] of Object.entries(chunkModules)){
             if (!moduleFactories[moduleId]) {
@@ -599,6 +613,7 @@ function instantiateModule(id, source) {
             U: relativeURL,
             R: createResolvePathFromModule(r),
             b: getWorkerBlobURL,
+            z: requireStub,
             __dirname: typeof module1.id === "string" ? module1.id.replace(/(^|\/)\/+$/, "") : module1.id
         });
     } catch (error) {
@@ -614,7 +629,8 @@ function instantiateModule(id, source) {
 }
 /**
  * Retrieves a module from the cache, or instantiate it if it is not cached.
- */ function getOrInstantiateModuleFromParent(id, sourceModule) {
+ */ // @ts-ignore
+function getOrInstantiateModuleFromParent(id, sourceModule) {
     const module1 = moduleCache[id];
     if (sourceModule.children.indexOf(id) === -1) {
         sourceModule.children.push(id);
@@ -640,7 +656,8 @@ function instantiateModule(id, source) {
 }
 /**
  * Retrieves a module from the cache, or instantiate it as a runtime module if it is not cached.
- */ function getOrInstantiateRuntimeModule(moduleId, chunkPath) {
+ */ // @ts-ignore TypeScript doesn't separate this module space from the browser runtime
+function getOrInstantiateRuntimeModule(moduleId, chunkPath) {
     const module1 = moduleCache[moduleId];
     if (module1) {
         if (module1.error) {

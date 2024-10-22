@@ -1,9 +1,8 @@
 use std::io::Write;
 
 use anyhow::{bail, Result};
-use indexmap::indexmap;
 use serde::Serialize;
-use turbo_tasks::{RcStr, Value, Vc};
+use turbo_tasks::{fxindexmap, FxIndexMap, RcStr, Value, Vc};
 use turbo_tasks_fs::{rope::RopeBuilder, File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -65,7 +64,7 @@ pub async fn create_page_ssr_entry_module(
     const INNER_DOCUMENT: &str = "INNER_DOCUMENT";
     const INNER_APP: &str = "INNER_APP";
 
-    let mut replacements = indexmap! {
+    let mut replacements = fxindexmap! {
         "VAR_DEFINITION_PAGE" => definition_page.clone(),
         "VAR_DEFINITION_PATHNAME" => definition_pathname.clone(),
         "VAR_USERLAND" => INNER.into(),
@@ -81,8 +80,8 @@ pub async fn create_page_ssr_entry_module(
         template_file,
         project_root,
         replacements,
-        indexmap! {},
-        indexmap! {},
+        FxIndexMap::default(),
+        FxIndexMap::default(),
     )
     .await?;
 
@@ -110,7 +109,7 @@ pub async fn create_page_ssr_entry_module(
         ));
     }
 
-    let mut inner_assets = indexmap! {
+    let mut inner_assets = fxindexmap! {
         INNER.into() => ssr_module,
     };
 
@@ -166,16 +165,13 @@ pub async fn create_page_ssr_entry_module(
 }
 
 #[turbo_tasks::function]
-async fn process_global_item(
+fn process_global_item(
     item: Vc<PagesStructureItem>,
     reference_type: Value<ReferenceType>,
     module_context: Vc<Box<dyn AssetContext>>,
-) -> Result<Vc<Box<dyn Module>>> {
+) -> Vc<Box<dyn Module>> {
     let source = Vc::upcast(FileSource::new(item.project_path()));
-
-    let module = module_context.process(source, reference_type).module();
-
-    Ok(module)
+    module_context.process(source, reference_type).module()
 }
 
 #[turbo_tasks::function]
@@ -211,14 +207,14 @@ async fn wrap_edge_page(
     let source = load_next_js_template(
         "edge-ssr.js",
         project_root,
-        indexmap! {
+        fxindexmap! {
             "VAR_USERLAND" => INNER.into(),
             "VAR_PAGE" => pathname.clone(),
             "VAR_MODULE_DOCUMENT" => INNER_DOCUMENT.into(),
             "VAR_MODULE_APP" => INNER_APP.into(),
             "VAR_MODULE_GLOBAL_ERROR" => INNER_ERROR.into(),
         },
-        indexmap! {
+        fxindexmap! {
             "pagesType" => StringifyJs("pages").to_string().into(),
             "sriEnabled" => serde_json::Value::Bool(sri_enabled).to_string().into(),
             "nextConfig" => serde_json::to_string(next_config)?.into(),
@@ -227,7 +223,7 @@ async fn wrap_edge_page(
             "errorRouteModuleOptions" => serde_json::to_string(&get_route_module_options("/_error".into(), "/_error".into()))?.into(),
             "user500RouteModuleOptions" => serde_json::to_string(&get_route_module_options("/500".into(), "/500".into()))?.into(),
         },
-        indexmap! {
+        fxindexmap! {
             // TODO
             "incrementalCacheHandler" => None,
             "userland500Page" => None,
@@ -235,7 +231,7 @@ async fn wrap_edge_page(
     )
     .await?;
 
-    let inner_assets = indexmap! {
+    let inner_assets = fxindexmap! {
         INNER.into() => entry,
         INNER_DOCUMENT.into() => process_global_item(pages_structure.document(), reference_type.clone(), asset_context),
         INNER_APP.into() => process_global_item(pages_structure.app(), reference_type.clone(), asset_context),

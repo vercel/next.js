@@ -15,8 +15,8 @@ import {
 import { LeftRightDialogHeader } from '../components/LeftRightDialogHeader'
 import { Overlay } from '../components/Overlay'
 import { Toast } from '../components/Toast'
-import { getErrorByType } from '../helpers/getErrorByType'
-import type { ReadyRuntimeError } from '../helpers/getErrorByType'
+import { getErrorByType } from '../helpers/get-error-by-type'
+import type { ReadyRuntimeError } from '../helpers/get-error-by-type'
 import { noop as css } from '../helpers/noop-template'
 import { CloseIcon } from '../icons/CloseIcon'
 import { RuntimeError } from './RuntimeError'
@@ -31,6 +31,7 @@ import {
 } from '../helpers/hydration-error-info'
 import { NodejsInspectorCopyButton } from '../components/nodejs-inspector'
 import { CopyButton } from '../components/copy-button'
+import { ConsoleError } from '../helpers/console-error'
 
 export type SupportedErrorEvent = {
   id: number
@@ -51,6 +52,26 @@ type DisplayState = 'minimized' | 'fullscreen' | 'hidden'
 
 function isNextjsLink(text: string): boolean {
   return text.startsWith('https://nextjs.org')
+}
+
+function ErrorDescription({
+  error,
+  hydrationWarning,
+}: {
+  error: Error
+  hydrationWarning: string | null
+}) {
+  const isFromConsoleError = error instanceof ConsoleError
+  // If there's hydration warning or console error, skip displaying the error name
+  return (
+    <>
+      {isFromConsoleError || hydrationWarning ? '' : error.name + ': '}
+      <HotlinkedText
+        text={hydrationWarning || error.message}
+        matcher={isNextjsLink}
+      />
+    </>
+  )
 }
 
 function getErrorSignature(ev: SupportedErrorEvent): string {
@@ -236,6 +257,7 @@ export function Errors({
   const isServerError = ['server', 'edge-server'].includes(
     getErrorSource(error) || ''
   )
+  const isFromConsoleError = error instanceof ConsoleError
 
   const errorDetails: HydrationErrorState = (error as any).details || {}
   const notes = errorDetails.notes || ''
@@ -284,7 +306,11 @@ export function Errors({
                 id="nextjs__container_errors_label"
                 className="nextjs__container_errors_label"
               >
-                {isServerError ? 'Server Error' : 'Unhandled Runtime Error'}
+                {isServerError
+                  ? 'Server Error'
+                  : isFromConsoleError
+                    ? 'Console Error'
+                    : 'Unhandled Runtime Error'}
               </h1>
               <span>
                 <CopyButton
@@ -304,11 +330,9 @@ export function Errors({
               id="nextjs__container_errors_desc"
               className="nextjs__container_errors_desc"
             >
-              {/* If there's hydration warning, skip displaying the error name */}
-              {hydrationWarning ? '' : error.name + ': '}
-              <HotlinkedText
-                text={hydrationWarning || error.message}
-                matcher={isNextjsLink}
+              <ErrorDescription
+                error={error}
+                hydrationWarning={hydrationWarning}
               />
             </p>
             {notes ? (
@@ -320,6 +344,14 @@ export function Errors({
                   {notes}
                 </p>
               </>
+            ) : null}
+            {hydrationWarning ? (
+              <p
+                id="nextjs__container_errors__link"
+                className="nextjs__container_errors__link"
+              >
+                <HotlinkedText text="See more info here: https://nextjs.org/docs/messages/react-hydration-error" />
+              </p>
             ) : null}
 
             {hydrationWarning &&
@@ -387,6 +419,12 @@ export const styles = css`
     font-weight: bold;
     color: var(--color-text-color-red-1);
     background-color: var(--color-text-background-red-1);
+  }
+  p.nextjs__container_errors__link {
+    margin: var(--size-gap-double) auto;
+    color: var(--color-text-color-red-1);
+    font-weight: 600;
+    font-size: 15px;
   }
   p.nextjs__container_errors__notes {
     margin: var(--size-gap-double) auto;

@@ -22,7 +22,212 @@ Replacing `<transform>` and `<path>` with appropriate values.
 - `--dry` Do a dry-run, no code will be edited
 - `--print` Prints the changed output for comparison
 
-## Next.js Codemods
+## Codemods
+
+### 15.0
+
+#### Transform App Router Route Segment Config `runtime` value from `experimental-edge` to `edge`
+
+##### `app-dir-runtime-config-experimental-edge`
+
+> **Note**: This codemod is App Router specific.
+
+```bash filename="Terminal"
+npx @next/codemod@latest app-dir-runtime-config-experimental-edge .
+```
+
+This codemod transforms [Route Segment Config `runtime`](https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config#runtime) value `experimental-edge` to `edge`.
+
+For example:
+
+```ts
+export const runtime = 'experimental-edge'
+```
+
+Transforms into:
+
+```ts
+export const runtime = 'edge'
+```
+
+#### Migrate to async Dynamic APIs
+
+APIs that opted into dynamic rendering that previously supported synchronous access are now asynchronous. You can read more about this breaking change in the [upgrade guide](/docs/app/building-your-application/upgrading/version-15).
+
+##### `next-async-request-api`
+
+```bash filename="Terminal"
+npx @next/codemod@latest next-async-request-api .
+```
+
+This codemod will transform dynamic APIs (`cookies()`, `headers()` and `draftMode()` from `next/headers`) that are now asynchronous to be properly awaited or wrapped with `React.use()` if applicable.
+When an automatic migration isn't possible, the codemod will either add a typecast (if a TypeScript file) or a comment to inform the user that it needs to be manually reviewed & updated.
+
+For example:
+
+```tsx
+import { cookies, headers } from 'next/headers'
+const token = cookies().get('token')
+
+function useToken() {
+  const token = cookies().get('token')
+  return token
+}
+
+export default function Page() {
+  const name = cookies().get('name')
+}
+
+function getHeader() {
+  return headers().get('x-foo')
+}
+```
+
+Transforms into:
+
+```tsx
+import { use } from 'react'
+import { cookies, headers, type UnsafeUnwrappedCookies } from 'next/headers'
+
+const token = (await cookies()).get('token')
+
+function useToken() {
+  const token = use(cookies()).get('token')
+  return token
+}
+
+export default function Page() {
+  const name = (await cookies()).get('name')
+}
+
+function getHeader() {
+  return (headers() as UnsafeUnwrappedCookies).get('x-foo')
+}
+```
+
+When we detect property access on the `params` or `searchParams` props in the page / route entries (`page.js`, `layout.js`, `route.js`, or `default.js`) or the `generateMetadata` / `generateViewport` APIs,
+it will attempt to transform the callsite from a sync to an async function, and await the property access. If it can't be made async (such as with a client component), it will use `React.use` to unwrap the promise .
+
+For example:
+
+```tsx
+// page.tsx
+export default function Page({
+  params,
+  searchParams,
+}: {
+  params: { slug: string }
+  searchParams: { [key: string]: string | string[] | undefined }
+}) {
+  const { value } = searchParams
+  if (value === 'foo') {
+    // ...
+  }
+}
+
+export function generateMetadata({ params }: { params: { slug: string } }) {
+  return {
+    title: `My Page - ${slug}`,
+  }
+}
+```
+
+Transforms into:
+
+```tsx
+// page.tsx
+export default function Page(props: {
+  params: { slug: string }
+  searchParams: { [key: string]: string | string[] | undefined }
+}) {
+  const { value } = await props.searchParams
+  if (value === 'foo') {
+    // ...
+  }
+}
+
+export function generateMetadata(props: { params: { slug: string } }) {
+  const { slug } = await props.params
+  return {
+    title: `My Page - ${slug}`,
+  }
+}
+```
+
+> **Good to know:** When this codemod identifies a spot that might require manual intervention, but we aren't able to determine the exact fix, it will add a comment or typecast to the code to inform the user that it needs to be manually updated. These comments are prefixed with **@next/codemod**, and typecasts are prefixed with `UnsafeUnwrapped`.
+> Your build will error until these comments are explicitly removed. [Read more](/docs/messages/sync-dynamic-apis).
+
+#### Replace `geo` and `ip` properties of `NextRequest` with `@vercel/functions`
+
+##### `next-request-geo-ip`
+
+```bash filename="Terminal"
+npx @next/codemod@latest next-request-geo-ip .
+```
+
+This codemod installs `@vercel/functions` and transforms `geo` and `ip` properties of `NextRequest` with corresponding `@vercel/functions` features.
+
+For example:
+
+```ts
+import type { NextRequest } from 'next/server'
+
+export function GET(req: NextRequest) {
+  const { geo, ip } = req
+}
+```
+
+Transforms into:
+
+```ts
+import type { NextRequest } from 'next/server'
+import { geolocation, ipAddress } from '@vercel/functions'
+
+export function GET(req: NextRequest) {
+  const geo = geolocation(req)
+  const ip = ipAddress(req)
+}
+```
+
+#### Transform `next/dynamic` imports accessing named exports to return an object with a `default` property
+
+##### `next-dynamic-access-named-export`
+
+```bash filename="Terminal"
+npx @next/codemod@latest next-dynamic-access-named-export .
+```
+
+This codemod transforms dynamic imports using `next/dynamic` to ensure they return an object with a `default` property when accessing named exports. This aligns the behavior with `React.lazy` and addresses issues with accessing named exports from client components in server components.
+
+For example:
+
+```js
+import dynamic from 'next/dynamic'
+
+const ComponentA = dynamic(() =>
+  import('../components/a').then((mod) => mod.default)
+)
+
+const ComponentB = dynamic(() =>
+  import('../components/b').then((mod) => mod.ComponentB)
+)
+```
+
+Transforms into:
+
+```js
+import dynamic from 'next/dynamic'
+
+const ComponentA = dynamic(() =>
+  import('../components/a').then((mod) => ({ default: mod.default }))
+)
+
+const ComponentB = dynamic(() =>
+  import('../components/b').then((mod) => ({ default: mod.ComponentB }))
+)
+```
+
+> **Good to know**: This codemod only affects dynamic imports using `next/dynamic` and access named exports.
 
 ### 14.0
 

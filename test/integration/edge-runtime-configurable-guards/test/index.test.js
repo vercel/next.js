@@ -45,9 +45,9 @@ describe('Edge runtime configurable guards', () => {
     context.logs = { output: '', stdout: '', stderr: '' }
   })
 
-  afterEach(() => {
+  afterEach(async () => {
     if (context.app) {
-      killApp(context.app)
+      await killApp(context.app)
     }
     context.api.restore()
     context.middleware.restore()

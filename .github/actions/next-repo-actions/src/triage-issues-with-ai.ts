@@ -40,7 +40,7 @@ async function main() {
     const guidelines = await res.text()
 
     const {
-      object: { explanation, isSevere, number, title, url },
+      object: { explanation, isSevere, number, title, html_url },
     } = await generateObject({
       model: openai(model),
       schema: z.object({
@@ -48,7 +48,7 @@ async function main() {
         isSevere: z.boolean().describe('Whether the issue is severe.'),
         number: z.number().describe('The issue number.'),
         title: z.string().describe('The issue title.'),
-        url: z.string().describe('The issue URL.'),
+        html_url: z.string().describe('The issue html URL.'),
       }),
       system:
         'Your job is to determine the severity of a GitHub issue using the triage guidelines and the latest versions of Next.js. Succinctly explain why you chose the severity, without paraphrasing the triage guidelines. Report to Slack the explanation only if the severity is considered severe.',
@@ -63,7 +63,7 @@ async function main() {
     if (isSevere) {
       const blocks = BlockCollection([
         Section({
-          text: `:github2: <${url}|#${number}>: ${title}\n_Note: This issue was evaluated and reported on Slack with *${model}*._`,
+          text: `:github2: <${html_url}|#${number}>: ${title}\n_Note: This issue was evaluated and reported on Slack with *${model}*._`,
         }),
         Divider(),
         Section({
@@ -83,7 +83,7 @@ async function main() {
 
     // the ai will also provide a reason why the issue was not severe enough to report on slack
     info(
-      `Explanation: ${explanation}\nhtml_url: ${url}\nnumber: ${number}\ntitle: ${title}`
+      `Explanation: ${explanation}\nhtml_url: ${html_url}\nnumber: ${number}\ntitle: ${title}`
     )
   } catch (error) {
     setFailed(error)

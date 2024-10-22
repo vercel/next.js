@@ -106,7 +106,7 @@ impl ModuleReference for WebpackChunkAssetReference {
                 )))
                 .into()
             }
-            WebpackRuntime::None => ModuleResolveResult::unresolveable().into(),
+            WebpackRuntime::None => ModuleResolveResult::unresolvable().into(),
         })
     }
 }
@@ -114,13 +114,13 @@ impl ModuleReference for WebpackChunkAssetReference {
 #[turbo_tasks::value_impl]
 impl ValueToString for WebpackChunkAssetReference {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
+    async fn to_string(&self) -> Vc<RcStr> {
         let chunk_id = match &self.chunk_id {
             Lit::Str(str) => str.value.to_string(),
             Lit::Num(num) => format!("{num}"),
             _ => todo!(),
         };
-        Ok(Vc::cell(format!("webpack chunk {}", chunk_id).into()))
+        Vc::cell(format!("webpack chunk {}", chunk_id).into())
     }
 }
 
@@ -147,8 +147,8 @@ impl ModuleReference for WebpackEntryAssetReference {
 #[turbo_tasks::value_impl]
 impl ValueToString for WebpackEntryAssetReference {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell("webpack entry".into()))
+    fn to_string(&self) -> Vc<RcStr> {
+        Vc::cell("webpack entry".into())
     }
 }
 

@@ -45,6 +45,8 @@ use crate::{
 /// some_ref.some_method_on_t();
 /// ```
 #[must_use]
+#[derive(Serialize, Deserialize)]
+#[serde(transparent, bound = "")]
 pub struct Vc<T>
 where
     T: ?Sized + Send,
@@ -231,27 +233,6 @@ where
 
 impl<T> Eq for Vc<T> where T: ?Sized + Send {}
 
-impl<T> Serialize for Vc<T>
-where
-    T: ?Sized + Send,
-{
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        self.node.serialize(serializer)
-    }
-}
-
-impl<'de, T> Deserialize<'de> for Vc<T>
-where
-    T: ?Sized + Send,
-{
-    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        Ok(Vc {
-            node: RawVc::deserialize(deserializer)?,
-            _t: PhantomData,
-        })
-    }
-}
-
 // TODO(alexkirsz) This should not be implemented for Vc. Instead, users should
 // use the `ValueDebug` implementation to get a `D: Debug`.
 impl<T> std::fmt::Debug for Vc<T>
@@ -340,18 +321,6 @@ where
     /// Returns the `RawVc` corresponding to this `Vc`.
     pub fn into_raw(vc: Self) -> RawVc {
         vc.node
-    }
-
-    /// Creates a `Vc` from a `RawVc`.
-    ///
-    /// # Safety
-    ///
-    /// The caller must ensure that `RawVc` points to a value of type `T`.
-    pub(crate) unsafe fn from_raw(vc: RawVc) -> Self {
-        Vc {
-            node: vc,
-            _t: std::marker::PhantomData,
-        }
     }
 
     /// Upcasts the given `Vc<T>` to a `Vc<Box<dyn K>>`.

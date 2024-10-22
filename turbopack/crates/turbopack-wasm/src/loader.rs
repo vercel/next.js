@@ -62,9 +62,7 @@ pub(crate) async fn instantiating_loader_source(
 /// Create a javascript loader to compile the WebAssembly module and export it
 /// without instantiating.
 #[turbo_tasks::function]
-pub(crate) async fn compiling_loader_source(
-    source: Vc<WebAssemblySource>,
-) -> Result<Vc<Box<dyn Source>>> {
+pub(crate) fn compiling_loader_source(source: Vc<WebAssemblySource>) -> Vc<Box<dyn Source>> {
     let code: RcStr = formatdoc! {
         r#"
             import wasmPath from "WASM_PATH";
@@ -76,8 +74,8 @@ pub(crate) async fn compiling_loader_source(
     }
     .into();
 
-    Ok(Vc::upcast(VirtualSource::new(
+    Vc::upcast(VirtualSource::new(
         source.ident().path().append("_.loader.mjs".into()),
         AssetContent::file(File::from(code).into()),
-    )))
+    ))
 }

@@ -125,12 +125,12 @@ impl BeforeResolvePlugin for InvalidImportResolvePlugin {
     }
 
     #[turbo_tasks::function]
-    async fn before_resolve(
+    fn before_resolve(
         &self,
         lookup_path: Vc<FileSystemPath>,
         _reference_type: Value<ReferenceType>,
         _request: Vc<Request>,
-    ) -> Result<Vc<ResolveResultOption>> {
+    ) -> Vc<ResolveResultOption> {
         InvalidImportModuleIssue {
             file_path: lookup_path,
             messages: self.message.clone(),
@@ -140,12 +140,12 @@ impl BeforeResolvePlugin for InvalidImportResolvePlugin {
         .cell()
         .emit();
 
-        Ok(ResolveResultOption::some(
+        ResolveResultOption::some(
             ResolveResult::primary(ResolveResultItem::Error(Vc::cell(
                 self.message.join("\n").into(),
             )))
             .cell(),
-        ))
+        )
     }
 }
 

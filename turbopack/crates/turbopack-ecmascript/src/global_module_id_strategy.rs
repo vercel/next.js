@@ -1,9 +1,7 @@
-use std::collections::{HashMap, HashSet};
-
 use anyhow::Result;
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
-    RcStr, TryJoinIterExt, ValueToString, Vc,
+    FxIndexMap, FxIndexSet, RcStr, TryJoinIterExt, ValueToString, Vc,
 };
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
@@ -19,7 +17,7 @@ pub struct PreprocessedChildrenIdents {
     // ident.to_string() -> full hash
     // We save the full hash to avoid re-hashing in `merge_preprocessed_module_ids`
     // if this endpoint did not change.
-    modules_idents: HashMap<RcStr, u64>,
+    modules_idents: FxIndexMap<RcStr, u64>,
 }
 
 #[derive(Clone, Hash)]
@@ -49,7 +47,7 @@ pub struct ReferencedModules(Vec<Vc<ReferencedModule>>);
 async fn referenced_modules(module: Vc<Box<dyn Module>>) -> Result<Vc<ReferencedModules>> {
     let references = module.references().await?;
 
-    let mut set = HashSet::new();
+    let mut set = FxIndexSet::default();
     let modules_and_async_loaders: ModulesAndAsyncLoaders = references
         .iter()
         .map(|reference| async move {
@@ -134,7 +132,7 @@ pub async fn children_modules_idents(
         .into_reverse_topological();
 
     // module_id -> full hash
-    let mut modules_idents = HashMap::new();
+    let mut modules_idents = FxIndexMap::default();
     for child_module in children_modules_iter {
         match *child_module.await? {
             ReferencedModule::Module(module) => {
@@ -164,58 +162,43 @@ pub async fn children_modules_idents(
     Ok(PreprocessedChildrenIdents { modules_idents }.cell())
 }
 
+const JS_MAX_SAFE_INTEGER: u64 = (1u64 << 53) - 1;
+
 // Note(LichuAcu): This could be split into two functions: one that merges the preprocessed module
 // ids and another that generates the final, optimized module ids. Thoughts?
 pub async fn merge_preprocessed_module_ids(
     preprocessed_module_ids: Vec<Vc<PreprocessedChildrenIdents>>,
-) -> Result<HashMap<RcStr, Vc<ModuleId>>> {
-    let mut module_id_map: HashMap<RcStr, Vc<ModuleId>> = HashMap::new();
-    let mut used_ids: HashSet<u64> = HashSet::new();
+) -> Result<FxIndexMap<RcStr, ModuleId>> {
+    let mut merged_module_ids = FxIndexMap::default();
 
     for preprocessed_module_ids in preprocessed_module_ids {
-        for (module_ident, full_hash) in preprocessed_module_ids.await?.modules_idents.iter() {
-            process_module(
-                module_ident.clone(),
-                *full_hash,
-                &mut module_id_map,
-                &mut used_ids,
-            )
-            .await?;
+        for (module_ident, full_hash) in &preprocessed_module_ids.await?.modules_idents {
+            merged_module_ids.insert(module_ident.clone(), *full_hash);
         }
+    }
+
+    // 5% fill rate, as done in Webpack
+    // https://github.com/webpack/webpack/blob/27cf3e59f5f289dfc4d76b7a1df2edbc4e651589/lib/ids/IdHelpers.js#L366-L405
+    let optimal_range = merged_module_ids.len() * 20;
+    let digit_mask = std::cmp::min(
+        10u64.pow((optimal_range as f64).log10().ceil() as u32),
+        JS_MAX_SAFE_INTEGER,
+    );
+
+    let mut module_id_map = FxIndexMap::default();
+    let mut used_ids = FxIndexSet::default();
+
+    for (module_ident, full_hash) in merged_module_ids.iter() {
+        let mut trimmed_hash = full_hash % digit_mask;
+        let mut i = 1;
+        while used_ids.contains(&trimmed_hash) {
+            // If the id is already used, seek to find another available id.
+            trimmed_hash = hash_xxh3_hash64(full_hash + i) % digit_mask;
+            i += 1;
+        }
+        used_ids.insert(trimmed_hash);
+        module_id_map.insert(module_ident.clone(), ModuleId::Number(trimmed_hash));
     }
 
     Ok(module_id_map)
-}
-
-pub async fn process_module(
-    ident_str: RcStr,
-    full_hash: u64,
-    id_map: &mut HashMap<RcStr, Vc<ModuleId>>,
-    used_ids: &mut HashSet<u64>,
-) -> Result<()> {
-    if id_map.contains_key(&ident_str) {
-        return Ok(());
-    }
-
-    let mut trimmed_hash = full_hash % 10;
-    let mut power = 10;
-    while used_ids.contains(&trimmed_hash) {
-        if power >= u64::MAX / 10 {
-            // We don't want to take the next power as it would overflow
-            if used_ids.contains(&full_hash) {
-                return Err(anyhow::anyhow!("This is a... 64-bit hash collision?"));
-            }
-            trimmed_hash = full_hash;
-            break;
-        }
-        power *= 10;
-        trimmed_hash = full_hash % power;
-    }
-
-    let hashed_module_id = ModuleId::Number(trimmed_hash);
-
-    id_map.insert(ident_str, hashed_module_id.cell());
-    used_ids.insert(trimmed_hash);
-
-    Ok(())
 }

@@ -1,6 +1,13 @@
-/* __next_internal_action_entry_do_not_use__ {"6d53ce510b2e36499b8f56038817b9bad86cabb4":"$$ACTION_0"} */ import { registerServerReference } from "private-next-rsc-server-reference";
+/* __next_internal_action_entry_do_not_use__ {"c18c215a6b7cdc64bf709f3a714ffdef1bf9651d":"default"} */ import { registerServerReference } from "private-next-rsc-server-reference";
 import { encryptActionBoundArgs, decryptActionBoundArgs } from "private-next-rsc-action-encryption";
-export default registerServerReference("6d53ce510b2e36499b8f56038817b9bad86cabb4", $$ACTION_0);
-export async function $$ACTION_0() {}
+export default $$RSC_SERVER_ACTION_0 = ()=>{};
+var $$RSC_SERVER_ACTION_0;
+Object.defineProperty($$RSC_SERVER_ACTION_0, "name", {
+    "value": "default",
+    "writable": false
+});
 import { ensureServerEntryExports } from "private-next-rsc-action-validate";
-ensureServerEntryExports([]);
+ensureServerEntryExports([
+    $$RSC_SERVER_ACTION_0
+]);
+registerServerReference($$RSC_SERVER_ACTION_0, "c18c215a6b7cdc64bf709f3a714ffdef1bf9651d", null);

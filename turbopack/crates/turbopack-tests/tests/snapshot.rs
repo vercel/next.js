@@ -1,3 +1,4 @@
+#![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 #![cfg(test)]
 
 mod util;
@@ -45,7 +46,7 @@ use turbopack_core::{
     free_var_references,
     issue::{Issue, IssueDescriptionExt},
     module::Module,
-    output::OutputAsset,
+    output::{OutputAsset, OutputAssets},
     reference_type::{EntryReferenceSubType, ReferenceType},
     source::Source,
 };
@@ -397,6 +398,7 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                             runtime_entries
                                 .unwrap_or_else(EvaluatableAssets::empty)
                                 .with_entry(Vc::upcast(ecmascript)),
+                            OutputAssets::empty(),
                             Value::new(AvailabilityInfo::Root),
                         )
                         .await?

@@ -12,7 +12,7 @@ use async_trait::async_trait;
 use auto_hash_map::AutoSet;
 use serde::Serialize;
 use turbo_tasks::{
-    emit, CollectiblesSource, RawVc, RcStr, ReadRef, TransientInstance, TransientValue,
+    emit, CollectiblesSource, RawVc, RcStr, ReadRef, ResolvedVc, TransientInstance, TransientValue,
     TryJoinIterExt, Upcast, ValueToString, Vc,
 };
 use turbo_tasks_fs::{FileContent, FileLine, FileLinesContent, FileSystemPath};
@@ -223,15 +223,14 @@ impl ValueToString for IssueProcessingPathItem {
 #[turbo_tasks::value_impl]
 impl IssueProcessingPathItem {
     #[turbo_tasks::function]
-    pub async fn into_plain(self: Vc<Self>) -> Result<Vc<PlainIssueProcessingPathItem>> {
-        let this = self.await?;
+    pub async fn into_plain(&self) -> Result<Vc<PlainIssueProcessingPathItem>> {
         Ok(PlainIssueProcessingPathItem {
-            file_path: if let Some(context) = this.file_path {
+            file_path: if let Some(context) = self.file_path {
                 Some(context.to_string().await?)
             } else {
                 None
             },
-            description: this.description.await?,
+            description: self.description.await?,
         }
         .cell())
     }
@@ -354,7 +353,7 @@ where
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct Issues(Vec<Vc<Box<dyn Issue>>>);
+pub struct Issues(Vec<ResolvedVc<Box<dyn Issue>>>);
 
 /// A list of issues captured with [`Issue::peek_issues_with_path`] and
 /// [`Issue::take_issues_with_path`].
@@ -369,8 +368,8 @@ pub struct CapturedIssues {
 #[turbo_tasks::value_impl]
 impl CapturedIssues {
     #[turbo_tasks::function]
-    pub async fn is_empty(self: Vc<Self>) -> Result<Vc<bool>> {
-        Ok(Vc::cell(self.await?.is_empty_ref()))
+    pub fn is_empty(&self) -> Vc<bool> {
+        Vc::cell(self.is_empty_ref())
     }
 }
 
@@ -553,6 +552,27 @@ impl IssueSource {
     #[turbo_tasks::function]
     pub fn file_path(&self) -> Vc<FileSystemPath> {
         self.source.ident().path()
+    }
+}
+
+impl IssueSource {
+    /// Returns bytes offsets corresponding the source range in the format used by swc's Spans.
+    pub async fn to_swc_offsets(&self) -> Result<Option<(usize, usize)>> {
+        Ok(match self.range {
+            Some(range) => match &*range.await? {
+                SourceRange::ByteOffset(start, end) => Some((*start + 1, *end + 1)),
+                SourceRange::LineColumn(start, end) => {
+                    if let FileLinesContent::Lines(lines) = &*self.source.content().lines().await? {
+                        let start = find_offset(lines.as_ref(), *start) + 1;
+                        let end = find_offset(lines.as_ref(), *end) + 1;
+                        Some((start, end))
+                    } else {
+                        None
+                    }
+                }
+            },
+            _ => None,
+        })
     }
 }
 
@@ -762,8 +782,8 @@ impl PlainIssue {
     /// same issue to pass from multiple processing paths, making for overly
     /// verbose logging.
     #[turbo_tasks::function]
-    pub async fn internal_hash(self: Vc<Self>, full: bool) -> Result<Vc<u64>> {
-        Ok(Vc::cell(self.await?.internal_hash_ref(full)))
+    pub fn internal_hash(&self, full: bool) -> Vc<u64> {
+        Vc::cell(self.internal_hash_ref(full))
     }
 }
 
@@ -777,16 +797,15 @@ pub struct PlainIssueSource {
 #[turbo_tasks::value_impl]
 impl IssueSource {
     #[turbo_tasks::function]
-    pub async fn into_plain(self: Vc<Self>) -> Result<Vc<PlainIssueSource>> {
-        let this = self.await?;
+    pub async fn into_plain(&self) -> Result<Vc<PlainIssueSource>> {
         Ok(PlainIssueSource {
-            asset: PlainSource::from_source(this.source).await?,
-            range: match this.range {
+            asset: PlainSource::from_source(self.source).await?,
+            range: match self.range {
                 Some(range) => match &*range.await? {
                     SourceRange::LineColumn(start, end) => Some((*start, *end)),
                     SourceRange::ByteOffset(start, end) => {
                         if let FileLinesContent::Lines(lines) =
-                            &*this.source.content().lines().await?
+                            &*self.source.content().lines().await?
                         {
                             let start = find_line_and_column(lines.as_ref(), *start);
                             let end = find_line_and_column(lines.as_ref(), *end);
@@ -1031,4 +1050,9 @@ fn find_line_and_column(lines: &[FileLine], offset: usize) -> SourcePos {
             }
         }
     }
+}
+
+fn find_offset(lines: &[FileLine], pos: SourcePos) -> usize {
+    let line = &lines[pos.line];
+    line.bytes_offset + pos.column
 }

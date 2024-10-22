@@ -32,10 +32,10 @@ describe('Middleware development errors', () => {
     })
   })
 
-  afterEach(() => {
+  afterEach(async () => {
     context.middleware.restore()
     if (context.app) {
-      killApp(context.app)
+      await killApp(context.app)
     }
   })
 

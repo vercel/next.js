@@ -1,4 +1,3 @@
-use anyhow::Result;
 use turbo_tasks::Vc;
 
 use crate::{transition::Transition, ModuleAssetContext};
@@ -12,8 +11,8 @@ pub struct FullContextTransition {
 #[turbo_tasks::value_impl]
 impl FullContextTransition {
     #[turbo_tasks::function]
-    pub async fn new(module_context: Vc<ModuleAssetContext>) -> Result<Vc<FullContextTransition>> {
-        Ok(FullContextTransition { module_context }.cell())
+    pub fn new(module_context: Vc<ModuleAssetContext>) -> Vc<FullContextTransition> {
+        FullContextTransition { module_context }.cell()
     }
 }
 

@@ -39,6 +39,7 @@ jsonc-parser = { version = "0.21.0", features = ["serde"] }
 mime = { workspace = true }
 notify = { workspace = true }
 parking_lot = { workspace = true }
+rayon = { workspace = true }
 serde = { workspace = true, features = ["rc"] }
 serde_bytes = { workspace = true }
 serde_json = { workspace = true }

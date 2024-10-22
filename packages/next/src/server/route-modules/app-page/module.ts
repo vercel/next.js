@@ -13,7 +13,7 @@ import {
 import * as vendoredContexts from './vendored/contexts/entrypoints'
 import type { BaseNextRequest, BaseNextResponse } from '../../base-http'
 import type { ServerComponentsHmrCache } from '../../response-cache'
-import type { FallbackRouteParams } from '../../../client/components/fallback-params'
+import type { FallbackRouteParams } from '../../request/fallback-params'
 
 let vendoredReactRSC
 let vendoredReactSSR

@@ -9,8 +9,9 @@ use crate::{
     next_config::NextConfig,
     next_shared::transforms::{
         get_next_dynamic_transform_rule, get_next_font_transform_rule, get_next_image_rule,
-        get_next_modularize_imports_rule, get_next_pages_transforms_rule,
-        get_server_actions_transform_rule, next_amp_attributes::get_next_amp_attr_rule,
+        get_next_lint_transform_rule, get_next_modularize_imports_rule,
+        get_next_pages_transforms_rule, get_server_actions_transform_rule,
+        next_amp_attributes::get_next_amp_attr_rule,
         next_cjs_optimizer::get_next_cjs_optimizer_rule,
         next_disallow_re_export_all_in_page::get_next_disallow_export_all_in_page_rule,
         next_page_config::get_next_page_config_rule,
@@ -29,9 +30,11 @@ pub async fn get_next_client_transforms_rules(
 ) -> Result<Vec<ModuleRule>> {
     let mut rules = vec![];
 
-    let modularize_imports_config = &next_config.await?.modularize_imports;
+    let modularize_imports_config = &next_config.modularize_imports().await?;
     let enable_mdx_rs = next_config.mdx_rs().await?.is_some();
-    if let Some(modularize_imports_config) = modularize_imports_config {
+    rules.push(get_next_lint_transform_rule(enable_mdx_rs));
+
+    if !modularize_imports_config.is_empty() {
         rules.push(get_next_modularize_imports_rule(
             modularize_imports_config,
             enable_mdx_rs,

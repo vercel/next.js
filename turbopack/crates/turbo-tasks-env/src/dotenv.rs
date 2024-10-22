@@ -1,8 +1,7 @@
 use std::{env, sync::MutexGuard};
 
 use anyhow::{anyhow, Context, Result};
-use indexmap::IndexMap;
-use turbo_tasks::{RcStr, ValueToString, Vc};
+use turbo_tasks::{FxIndexMap, RcStr, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 
 use crate::{sorted_env_vars, EnvMap, ProcessEnv, GLOBAL_ENV_LOCK};
@@ -12,23 +11,25 @@ use crate::{sorted_env_vars, EnvMap, ProcessEnv, GLOBAL_ENV_LOCK};
 /// from.
 #[turbo_tasks::value]
 pub struct DotenvProcessEnv {
-    prior: Option<Vc<Box<dyn ProcessEnv>>>,
+    prior: Option<ResolvedVc<Box<dyn ProcessEnv>>>,
     path: Vc<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
 impl DotenvProcessEnv {
     #[turbo_tasks::function]
-    pub fn new(prior: Option<Vc<Box<dyn ProcessEnv>>>, path: Vc<FileSystemPath>) -> Vc<Self> {
+    pub fn new(
+        prior: Option<ResolvedVc<Box<dyn ProcessEnv>>>,
+        path: Vc<FileSystemPath>,
+    ) -> Vc<Self> {
         DotenvProcessEnv { prior, path }.cell()
     }
 
     #[turbo_tasks::function]
-    pub async fn read_prior(self: Vc<Self>) -> Result<Vc<EnvMap>> {
-        let this = self.await?;
-        match this.prior {
-            None => Ok(EnvMap::empty()),
-            Some(p) => Ok(p.read_all()),
+    pub fn read_prior(&self) -> Vc<EnvMap> {
+        match self.prior {
+            None => EnvMap::empty(),
+            Some(p) => p.read_all(),
         }
     }
 
@@ -77,14 +78,18 @@ impl DotenvProcessEnv {
 #[turbo_tasks::value_impl]
 impl ProcessEnv for DotenvProcessEnv {
     #[turbo_tasks::function]
-    async fn read_all(self: Vc<Self>) -> Result<Vc<EnvMap>> {
+    fn read_all(self: Vc<Self>) -> Vc<EnvMap> {
         let prior = self.read_prior();
-        Ok(self.read_all_with_prior(prior))
+        self.read_all_with_prior(prior)
     }
 }
 
 /// Restores the global env variables to mirror `to`.
-fn restore_env(from: &IndexMap<RcStr, RcStr>, to: &IndexMap<RcStr, RcStr>, _lock: &MutexGuard<()>) {
+fn restore_env(
+    from: &FxIndexMap<RcStr, RcStr>,
+    to: &FxIndexMap<RcStr, RcStr>,
+    _lock: &MutexGuard<()>,
+) {
     for key in from.keys() {
         if !to.contains_key(key) {
             env::remove_var(key);

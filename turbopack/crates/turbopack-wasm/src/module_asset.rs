@@ -1,6 +1,5 @@
 use anyhow::{bail, Context, Result};
-use indexmap::indexmap;
-use turbo_tasks::{RcStr, Value, Vc};
+use turbo_tasks::{fxindexmap, RcStr, Value, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -73,7 +72,7 @@ impl WebAssemblyModuleAsset {
 
         let module = this.asset_context.process(
             loader_source,
-            Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
+            Value::new(ReferenceType::Internal(Vc::cell(fxindexmap! {
                 "WASM_PATH".into() => Vc::upcast(RawWebAssemblyModuleAsset::new(this.source, this.asset_context)),
             }))),
         ).module();
@@ -117,7 +116,7 @@ impl Module for WebAssemblyModuleAsset {
     }
 
     #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Vc<ModuleReferences> {
+    fn references(self: Vc<Self>) -> Vc<ModuleReferences> {
         self.loader().references()
     }
 }
@@ -133,17 +132,17 @@ impl Asset for WebAssemblyModuleAsset {
 #[turbo_tasks::value_impl]
 impl ChunkableModule for WebAssemblyModuleAsset {
     #[turbo_tasks::function]
-    async fn as_chunk_item(
+    fn as_chunk_item(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
-        Ok(Vc::upcast(
+    ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
+        Vc::upcast(
             ModuleChunkItem {
                 module: self,
                 chunking_context,
             }
             .cell(),
-        ))
+        )
     }
 }
 
@@ -192,17 +191,17 @@ impl ChunkItem for ModuleChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn references(&self) -> Result<Vc<ModuleReferences>> {
+    fn references(&self) -> Vc<ModuleReferences> {
         let loader = self
             .module
             .loader()
             .as_chunk_item(Vc::upcast(self.chunking_context));
 
-        Ok(loader.references())
+        loader.references()
     }
 
     #[turbo_tasks::function]
-    async fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
+    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
         Vc::upcast(self.chunking_context)
     }
 

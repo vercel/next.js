@@ -9,7 +9,7 @@ export default async function Page({ searchParams }) {
       </section>
       <section id="searchparams">
         <h3>searchParams</h3>
-        {Object.entries(searchParams).map(([key, value]) => {
+        {Object.entries(await searchParams).map(([key, value]) => {
           return (
             <div key={key}>
               <h4>{key}</h4>

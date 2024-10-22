@@ -3,7 +3,7 @@ use turbo_tasks::{RcStr, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
+    chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext, MinifyType},
     context::AssetContext,
     ident::AssetIdent,
     module::Module,
@@ -40,6 +40,7 @@ pub struct CssModuleAsset {
     asset_context: Vc<Box<dyn AssetContext>>,
     import_context: Option<Vc<ImportContext>>,
     ty: CssModuleAssetType,
+    minify_type: MinifyType,
     use_swc_css: bool,
 }
 
@@ -51,6 +52,7 @@ impl CssModuleAsset {
         source: Vc<Box<dyn Source>>,
         asset_context: Vc<Box<dyn AssetContext>>,
         ty: CssModuleAssetType,
+        minify_type: MinifyType,
         use_swc_css: bool,
         import_context: Option<Vc<ImportContext>>,
     ) -> Vc<Self> {
@@ -59,14 +61,15 @@ impl CssModuleAsset {
             asset_context,
             import_context,
             ty,
+            minify_type,
             use_swc_css,
         })
     }
 
     /// Retrns the asset ident of the source without the "css" modifier
     #[turbo_tasks::function]
-    pub async fn source_ident(self: Vc<Self>) -> Result<Vc<AssetIdent>> {
-        Ok(self.await?.source.ident())
+    pub fn source_ident(&self) -> Vc<AssetIdent> {
+        self.source.ident()
     }
 }
 
@@ -90,20 +93,21 @@ impl ParseCss for CssModuleAsset {
 #[turbo_tasks::value_impl]
 impl ProcessCss for CssModuleAsset {
     #[turbo_tasks::function]
-    async fn get_css_with_placeholder(self: Vc<Self>) -> Result<Vc<CssWithPlaceholderResult>> {
+    fn get_css_with_placeholder(self: Vc<Self>) -> Vc<CssWithPlaceholderResult> {
         let parse_result = self.parse_css();
 
-        Ok(process_css_with_placeholder(parse_result))
+        process_css_with_placeholder(parse_result)
     }
 
     #[turbo_tasks::function]
-    async fn finalize_css(
+    fn finalize_css(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<FinalCssResult>> {
+        minify_type: MinifyType,
+    ) -> Vc<FinalCssResult> {
         let process_result = self.get_css_with_placeholder();
 
-        Ok(finalize_css(process_result, chunking_context))
+        finalize_css(process_result, chunking_context, minify_type)
     }
 }
 
@@ -192,7 +196,7 @@ impl ChunkItem for CssModuleChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
+    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
         Vc::upcast(self.chunking_context)
     }
 
@@ -281,7 +285,10 @@ impl CssChunkItem for CssModuleChunkItem {
             }
         }
 
-        let result = self.module.finalize_css(chunking_context).await?;
+        let result = self
+            .module
+            .finalize_css(chunking_context, self.module.await?.minify_type)
+            .await?;
 
         if let FinalCssResult::Ok {
             output_code,

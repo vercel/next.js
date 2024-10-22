@@ -1,4 +1,4 @@
-use std::{any::Any, fmt::Debug, future::Future, hash::Hash};
+use std::{any::Any, fmt::Debug, future::Future, hash::Hash, time::Duration};
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
@@ -42,7 +42,8 @@ impl_task_input! {
     usize,
     RcStr,
     TaskId,
-    ValueTypeId
+    ValueTypeId,
+    Duration
 }
 
 impl<T> TaskInput for Vec<T>
@@ -109,6 +110,8 @@ where
     }
 }
 
+// `TaskInput` isn't needed/used for a bare `ResolvedVc`, as we'll expose `ResolvedVc` arguments as
+// `Vc`, but it is useful for structs that contain `ResolvedVc` and want to derive `TaskInput`.
 impl<T> TaskInput for ResolvedVc<T>
 where
     T: Send,
@@ -118,7 +121,11 @@ where
     }
 
     fn is_transient(&self) -> bool {
-        self.node.node.get_task_id().is_transient()
+        self.node.is_transient()
+    }
+
+    async fn resolve(&self) -> Result<Self> {
+        Ok(*self)
     }
 }
 

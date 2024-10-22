@@ -6,16 +6,14 @@ use turbopack_core::resolve::{options::ImportMapping, ExternalType};
 use crate::next_import_map::get_next_package;
 
 #[turbo_tasks::function]
-pub async fn get_postcss_package_mapping(
-    project_path: Vc<FileSystemPath>,
-) -> Result<Vc<ImportMapping>> {
-    Ok(ImportMapping::Alternatives(vec![
+pub async fn get_postcss_package_mapping(project_path: Vc<FileSystemPath>) -> Vc<ImportMapping> {
+    ImportMapping::Alternatives(vec![
         // Prefer the local installed version over the next.js version
         ImportMapping::PrimaryAlternative("postcss".into(), Some(project_path)).cell(),
         ImportMapping::PrimaryAlternative("postcss".into(), Some(get_next_package(project_path)))
             .cell(),
     ])
-    .cell())
+    .cell()
 }
 
 #[turbo_tasks::function]

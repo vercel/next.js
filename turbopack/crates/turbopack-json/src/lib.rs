@@ -7,6 +7,7 @@
 
 #![feature(min_specialization)]
 #![feature(arbitrary_self_types)]
+#![feature(arbitrary_self_types_pointers)]
 
 use std::fmt::Write;
 
@@ -63,14 +64,14 @@ impl Asset for JsonModuleAsset {
 #[turbo_tasks::value_impl]
 impl ChunkableModule for JsonModuleAsset {
     #[turbo_tasks::function]
-    async fn as_chunk_item(
+    fn as_chunk_item(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
-        Ok(Vc::upcast(JsonChunkItem::cell(JsonChunkItem {
+    ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
+        Vc::upcast(JsonChunkItem::cell(JsonChunkItem {
             module: self,
             chunking_context,
-        })))
+        }))
     }
 }
 
@@ -101,7 +102,7 @@ impl ChunkItem for JsonChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
+    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
         Vc::upcast(self.chunking_context)
     }
 

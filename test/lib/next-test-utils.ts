@@ -10,7 +10,7 @@ import { promisify } from 'util'
 import http from 'http'
 import path from 'path'
 
-import cheerio from 'cheerio'
+import type cheerio from 'cheerio'
 import spawn from 'cross-spawn'
 import { writeFile } from 'fs-extra'
 import getPort from 'get-port'
@@ -681,7 +681,7 @@ export async function startCleanStaticServer(dir: string) {
 
 /**
  * Check for content in 1 second intervals timing out after 30 seconds.
- *
+ * @deprecated use retry + expect instead
  * @param {() => Promise<unknown> | unknown} contentFn
  * @param {RegExp | string | number} regex
  * @param {boolean} hardError
@@ -893,7 +893,7 @@ export async function hasErrorToast(
 }
 
 export async function waitForAndOpenRuntimeError(browser: BrowserInterface) {
-  return browser.waitForElementByCss('[data-nextjs-toast]').click()
+  return browser.waitForElementByCss('[data-nextjs-toast]', 5000).click()
 }
 
 export async function getRedboxHeader(browser: BrowserInterface) {
@@ -916,10 +916,8 @@ export async function getRedboxHeader(browser: BrowserInterface) {
 }
 
 export async function getRedboxTotalErrorCount(browser: BrowserInterface) {
-  return parseInt(
-    (await getRedboxHeader(browser)).match(/\d+ of (\d+) error/)?.[1],
-    10
-  )
+  const header = (await getRedboxHeader(browser)) || ''
+  return parseInt(header.match(/\d+ of (\d+) error/)?.[1], 10)
 }
 
 export async function getRedboxSource(browser: BrowserInterface) {
@@ -987,6 +985,29 @@ export async function getRedboxDescriptionWarning(browser: BrowserInterface) {
   )
 }
 
+export async function getRedboxErrorLink(
+  browser: BrowserInterface
+): Promise<string | undefined> {
+  return retry(
+    () =>
+      evaluate(browser, () => {
+        const portal = [].slice
+          .call(document.querySelectorAll('nextjs-portal'))
+          .find((p) =>
+            p.shadowRoot.querySelector('[data-nextjs-dialog-header]')
+          )
+        const root = portal.shadowRoot
+        const text = root.querySelector(
+          '#nextjs__container_errors__link'
+        )?.innerText
+        return text
+      }),
+    3000,
+    500,
+    'getRedboxDescriptionWarning'
+  )
+}
+
 export function getBrowserBodyText(browser: BrowserInterface) {
   return browser.eval('document.getElementsByTagName("body")[0].innerText')
 }
@@ -1001,6 +1022,10 @@ function readJson(path: string) {
 
 export function getBuildManifest(dir: string) {
   return readJson(path.join(dir, '.next/build-manifest.json'))
+}
+
+export function getImagesManifest(dir: string) {
+  return readJson(path.join(dir, '.next/images-manifest.json'))
 }
 
 export function getPageFilesFromBuildManifest(dir: string, page: string) {
@@ -1242,7 +1267,7 @@ export async function getRedboxCallStack(
 ): Promise<string> {
   await browser.waitForElementByCss('[data-nextjs-call-stack-frame]', 30000)
 
-  const callStackFrameElements: any = await browser.elementsByCss(
+  const callStackFrameElements = await browser.elementsByCss(
     '[data-nextjs-call-stack-frame]'
   )
   const callStackFrameTexts = await Promise.all(
@@ -1250,6 +1275,23 @@ export async function getRedboxCallStack(
   )
 
   return callStackFrameTexts.join('\n').trim()
+}
+
+export async function getRedboxCallStackCollapsed(
+  browser: BrowserInterface
+): Promise<string> {
+  await browser.waitForElementByCss('.nextjs-container-errors-body', 30000)
+
+  const callStackFrameElements = await browser.elementsByCss(
+    '.nextjs-container-errors-body > [data-nextjs-codeframe] > :first-child, ' +
+      '.nextjs-container-errors-body > [data-nextjs-call-stack-frame], ' +
+      '.nextjs-container-errors-body > [data-nextjs-collapsed-call-stack-details] > summary'
+  )
+  const callStackFrameTexts = await Promise.all(
+    callStackFrameElements.map((f) => f.innerText())
+  )
+
+  return callStackFrameTexts.join('\n---\n').trim()
 }
 
 export async function getVersionCheckerText(

@@ -41,8 +41,8 @@ impl NextFontLocalOptions {
     }
 
     #[turbo_tasks::function]
-    pub async fn font_family(self: Vc<Self>) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(self.await?.variable_name.clone()))
+    pub fn font_family(&self) -> Vc<RcStr> {
+        Vc::cell(self.variable_name.clone())
     }
 }
 

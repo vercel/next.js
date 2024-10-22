@@ -2,10 +2,10 @@
 #![feature(trivial_bounds)]
 #![feature(min_specialization)]
 #![feature(map_try_insert)]
-#![feature(option_get_or_insert_default)]
 #![feature(hash_set_entry)]
 #![recursion_limit = "256"]
 #![feature(arbitrary_self_types)]
+#![feature(arbitrary_self_types_pointers)]
 
 pub mod evaluate_context;
 mod graph;
@@ -30,7 +30,7 @@ use ecmascript::{
 use graph::{aggregate, AggregatedGraph, AggregatedGraphNodeContent};
 use module_options::{ModuleOptions, ModuleOptionsContext, ModuleRuleEffect, ModuleType};
 use tracing::Instrument;
-use turbo_tasks::{Completion, RcStr, Value, ValueToString, Vc};
+use turbo_tasks::{Completion, RcStr, ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 pub use turbopack_core::condition;
 use turbopack_core::{
@@ -230,7 +230,9 @@ async fn apply_module_type(
                                     }
                                 }
                                 _ => bail!(
-                                    "Invalid module part for reexports only tree shaking mode"
+                                    "Invalid module part \"{}\" for reexports only tree shaking \
+                                     mode",
+                                    part.to_string().await?
                                 ),
                             }
                         } else if *module.get_exports().needs_facade().await? {
@@ -262,6 +264,11 @@ async fn apply_module_type(
             source,
             Vc::upcast(module_asset_context),
             *ty,
+            module_asset_context
+                .module_options_context()
+                .await?
+                .css
+                .minify_type,
             *use_swc_css,
             if let ReferenceType::Css(CssReferenceSubType::AtImport(import)) =
                 reference_type.into_value()
@@ -325,7 +332,7 @@ pub struct ModuleAssetContext {
     pub module_options_context: Vc<ModuleOptionsContext>,
     pub resolve_options_context: Vc<ResolveOptionsContext>,
     pub layer: Vc<RcStr>,
-    transition: Option<Vc<Box<dyn Transition>>>,
+    transition: Option<ResolvedVc<Box<dyn Transition>>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -355,7 +362,7 @@ impl ModuleAssetContext {
         module_options_context: Vc<ModuleOptionsContext>,
         resolve_options_context: Vc<ResolveOptionsContext>,
         layer: Vc<RcStr>,
-        transition: Vc<Box<dyn Transition>>,
+        transition: ResolvedVc<Box<dyn Transition>>,
     ) -> Vc<Self> {
         Self::cell(ModuleAssetContext {
             transitions,
@@ -368,18 +375,18 @@ impl ModuleAssetContext {
     }
 
     #[turbo_tasks::function]
-    pub async fn module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
-        Ok(self.await?.module_options_context)
+    pub fn module_options_context(&self) -> Vc<ModuleOptionsContext> {
+        self.module_options_context
     }
 
     #[turbo_tasks::function]
-    pub async fn resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
-        Ok(self.await?.resolve_options_context)
+    pub fn resolve_options_context(&self) -> Vc<ResolveOptionsContext> {
+        self.resolve_options_context
     }
 
     #[turbo_tasks::function]
-    pub async fn is_types_resolving_enabled(self: Vc<Self>) -> Result<Vc<bool>> {
-        let resolve_options_context = self.await?.resolve_options_context.await?;
+    pub async fn is_types_resolving_enabled(&self) -> Result<Vc<bool>> {
+        let resolve_options_context = self.resolve_options_context.await?;
         Ok(Vc::cell(
             resolve_options_context.enable_types && resolve_options_context.enable_typescript,
         ))
@@ -769,12 +776,8 @@ impl AssetContext for ModuleAssetContext {
     }
 
     #[turbo_tasks::function]
-    async fn side_effect_free_packages(self: Vc<Self>) -> Result<Vc<Glob>> {
-        let pkgs = &*self
-            .await?
-            .module_options_context
-            .await?
-            .side_effect_free_packages;
+    async fn side_effect_free_packages(&self) -> Result<Vc<Glob>> {
+        let pkgs = &*self.module_options_context.await?.side_effect_free_packages;
 
         let mut globs = Vec::with_capacity(pkgs.len());
 
@@ -787,7 +790,7 @@ impl AssetContext for ModuleAssetContext {
 }
 
 #[turbo_tasks::function]
-pub async fn emit_with_completion(
+pub fn emit_with_completion(
     asset: Vc<Box<dyn OutputAsset>>,
     output_dir: Vc<FileSystemPath>,
 ) -> Vc<Completion> {
@@ -795,7 +798,7 @@ pub async fn emit_with_completion(
 }
 
 #[turbo_tasks::function]
-async fn emit_assets_aggregated(
+fn emit_assets_aggregated(
     asset: Vc<Box<dyn OutputAsset>>,
     output_dir: Vc<FileSystemPath>,
 ) -> Vc<Completion> {
@@ -820,7 +823,7 @@ async fn emit_aggregated_assets(
 }
 
 #[turbo_tasks::function]
-pub async fn emit_asset(asset: Vc<Box<dyn OutputAsset>>) -> Vc<Completion> {
+pub fn emit_asset(asset: Vc<Box<dyn OutputAsset>>) -> Vc<Completion> {
     asset.content().write(asset.ident().path())
 }
 

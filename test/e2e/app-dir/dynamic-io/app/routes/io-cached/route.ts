@@ -4,7 +4,7 @@ import { unstable_cache as cache } from 'next/cache'
 
 import { getSentinelValue } from '../../getSentinelValue'
 
-export async function GET(request: NextRequest, { params }: { params: {} }) {
+export async function GET(request: NextRequest) {
   const messagea = await getCachedMessage('hello cached fast', 0)
   const messageb = await getCachedMessage('hello cached slow', 20)
   return new Response(

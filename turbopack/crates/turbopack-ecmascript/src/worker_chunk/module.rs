@@ -67,16 +67,16 @@ impl Asset for WorkerLoaderModule {
 #[turbo_tasks::value_impl]
 impl ChunkableModule for WorkerLoaderModule {
     #[turbo_tasks::function]
-    async fn as_chunk_item(
+    fn as_chunk_item(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
-        Ok(Vc::upcast(
+    ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
+        Vc::upcast(
             WorkerLoaderChunkItem {
                 chunking_context,
                 module: self,
             }
             .cell(),
-        ))
+        )
     }
 }

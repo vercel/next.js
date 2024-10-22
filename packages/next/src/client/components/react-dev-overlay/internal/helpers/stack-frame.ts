@@ -62,6 +62,7 @@ function getOriginalStackFrame(
 
   if (
     source.file === '<anonymous>' ||
+    source.file === 'file://' ||
     source.file?.match(/^node:/) ||
     source.file?.match(/https?:\/\//)
   ) {
@@ -103,8 +104,15 @@ export function getOriginalStackFrames(
 }
 
 const webpackRegExes = [
+  /^(rsc:\/\/React\/[^/]+\/)?webpack-internal:\/\/\/(\.)?(\((\w+)\))?/,
+  /^(webpack:\/\/\/(\.)?|webpack:\/\/(_N_E\/)?)(\((\w+)\))?/,
+]
+
+const replacementRegExes = [
+  /^(rsc:\/\/React\/[^/]+\/)/,
   /^webpack-internal:\/\/\/(\.)?(\((\w+)\))?/,
   /^(webpack:\/\/\/(\.)?|webpack:\/\/(_N_E\/)?)(\((\w+)\))?/,
+  /\?\d+$/, // React's fakeFunctionIdx query param
 ]
 
 function isWebpackBundled(file: string) {
@@ -114,6 +122,7 @@ function isWebpackBundled(file: string) {
 /**
  * Format the webpack internal id to original file path
  * webpack-internal:///./src/hello.tsx => ./src/hello.tsx
+ * rsc://React/Server/webpack-internal:///(rsc)/./src/hello.tsx?42 => ./src/hello.tsx
  * webpack://_N_E/./src/hello.tsx => ./src/hello.tsx
  * webpack://./src/hello.tsx => ./src/hello.tsx
  * webpack:///./src/hello.tsx => ./src/hello.tsx
@@ -122,43 +131,54 @@ function isWebpackBundled(file: string) {
  */
 function formatFrameSourceFile(file: string) {
   if (file === '<anonymous>') return ''
-  for (const regex of webpackRegExes) file = file.replace(regex, '')
+
+  for (const regex of replacementRegExes) {
+    file = file.replace(regex, '')
+  }
+
   return file
 }
 
 export function getFrameSource(frame: StackFrame): string {
   if (!frame.file) return ''
 
+  const isWebpackFrame = isWebpackBundled(frame.file)
+
   let str = ''
-  try {
-    const u = new URL(frame.file)
+  // Skip URL parsing for webpack internal file paths.
+  if (isWebpackFrame) {
+    str = formatFrameSourceFile(frame.file)
+  } else {
+    try {
+      const u = new URL(frame.file)
 
-    // Strip the origin for same-origin scripts.
-    if (globalThis.location?.origin !== u.origin) {
-      // URLs can be valid without an `origin`, so long as they have a
-      // `protocol`. However, `origin` is preferred.
-      if (u.origin === 'null') {
-        str += u.protocol
-      } else {
-        str += u.origin
+      let parsedPath = ''
+      // Strip the origin for same-origin scripts.
+      if (globalThis.location?.origin !== u.origin) {
+        // URLs can be valid without an `origin`, so long as they have a
+        // `protocol`. However, `origin` is preferred.
+        if (u.origin === 'null') {
+          parsedPath += u.protocol
+        } else {
+          parsedPath += u.origin
+        }
       }
-    }
 
-    // Strip query string information as it's typically too verbose to be
-    // meaningful.
-    str += u.pathname
-    str += ' '
-    str = formatFrameSourceFile(str)
-  } catch {
-    str += formatFrameSourceFile(frame.file || '') + ' '
+      // Strip query string information as it's typically too verbose to be
+      // meaningful.
+      parsedPath += u.pathname
+      str = formatFrameSourceFile(parsedPath)
+    } catch {
+      str = formatFrameSourceFile(frame.file)
+    }
   }
 
   if (!isWebpackBundled(frame.file) && frame.lineNumber != null) {
     if (frame.column != null) {
-      str += `(${frame.lineNumber}:${frame.column}) `
+      str += ` (${frame.lineNumber}:${frame.column})`
     } else {
-      str += `(${frame.lineNumber}) `
+      str += ` (${frame.lineNumber})`
     }
   }
-  return str.slice(0, -1)
+  return str
 }

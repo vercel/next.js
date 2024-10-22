@@ -1,4 +1,3 @@
-use anyhow::Result;
 use turbo_tasks::Vc;
 
 use crate::source::Source;
@@ -14,13 +13,9 @@ pub struct SourceTransforms(Vec<Vc<Box<dyn SourceTransform>>>);
 #[turbo_tasks::value_impl]
 impl SourceTransforms {
     #[turbo_tasks::function]
-    pub async fn transform(
-        self: Vc<Self>,
-        source: Vc<Box<dyn Source>>,
-    ) -> Result<Vc<Box<dyn Source>>> {
-        Ok(self
-            .await?
+    pub fn transform(&self, source: Vc<Box<dyn Source>>) -> Vc<Box<dyn Source>> {
+        self.0
             .iter()
-            .fold(source, |source, transform| transform.transform(source)))
+            .fold(source, |source, transform| transform.transform(source))
     }
 }

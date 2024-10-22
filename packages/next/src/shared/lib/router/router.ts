@@ -43,7 +43,7 @@ import { isBot } from './utils/is-bot'
 import { omit } from './utils/omit'
 import { interpolateAs } from './utils/interpolate-as'
 import { handleSmoothScroll } from './utils/handle-smooth-scroll'
-import type { Params } from '../../../client/components/params'
+import type { Params } from '../../../server/request/params'
 
 declare global {
   interface Window {

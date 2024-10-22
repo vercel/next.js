@@ -106,7 +106,7 @@ impl MiddlewareEndpoint {
             .context("Entry module must be evaluatable")?;
         evaluatable_assets.push(evaluatable);
 
-        let edge_chunking_context = self.project.edge_chunking_context(true);
+        let edge_chunking_context = self.project.edge_chunking_context(false);
 
         let edge_files = edge_chunking_context.evaluated_chunk_group_assets(
             module.ident(),
@@ -183,29 +183,26 @@ impl MiddlewareEndpoint {
                     let has_locale = matcher.locale;
 
                     if has_i18n_locales && has_locale {
-                        source = format!(
-                            "/:nextInternalLocale((?!_next/)[^/.]{{1,}}){}",
-                            if is_root {
-                                "".to_string()
-                            } else {
-                                source.to_string()
-                            }
-                        );
+                        if is_root {
+                            source.clear();
+                        }
+                        source.insert_str(0, "/:nextInternalLocale((?!_next/)[^/.]{1,})");
                     }
 
-                    let last_part = if is_root {
-                        format!(
-                            "({}/?index|/?index\\\\.json)?",
-                            if has_i18n { "|\\\\.json|" } else { "" }
-                        )
+                    if is_root {
+                        source.push('(');
+                        if has_i18n {
+                            source.push_str("|\\\\.json|");
+                        }
+                        source.push_str("/?index|/?index\\\\.json)?")
                     } else {
-                        "(.json)?".into()
+                        source.push_str("(.json)?")
                     };
 
-                    source = format!("/:nextData(_next/data/[^/]{{1,}})?{}{}", source, last_part);
+                    source.insert_str(0, "/:nextData(_next/data/[^/]{1,})?");
 
                     if let Some(base_path) = base_path {
-                        source = format!("{}{}", base_path, source);
+                        source.insert_str(0, base_path);
                     }
 
                     // TODO: The implementation of getMiddlewareMatchers outputs a regex here using
@@ -255,16 +252,13 @@ impl MiddlewareEndpoint {
     }
 
     #[turbo_tasks::function]
-    async fn userland_module(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
-        let this = self.await?;
-
-        Ok(this
-            .asset_context
+    fn userland_module(&self) -> Vc<Box<dyn Module>> {
+        self.asset_context
             .process(
-                this.source,
+                self.source,
                 Value::new(ReferenceType::Entry(EntryReferenceSubType::Middleware)),
             )
-            .module())
+            .module()
     }
 }
 
@@ -313,7 +307,7 @@ impl Endpoint for MiddlewareEndpoint {
     }
 
     #[turbo_tasks::function]
-    fn root_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
-        Ok(Vc::cell(vec![self.userland_module()]))
+    fn root_modules(self: Vc<Self>) -> Vc<Modules> {
+        Vc::cell(vec![self.userland_module()])
     }
 }

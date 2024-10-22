@@ -61,8 +61,8 @@ impl EcmascriptDevChunkList {
 #[turbo_tasks::value_impl]
 impl ValueToString for EcmascriptDevChunkList {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell("Ecmascript Dev Chunk List".into()))
+    fn to_string(&self) -> Vc<RcStr> {
+        Vc::cell("Ecmascript Dev Chunk List".into())
     }
 }
 
@@ -111,8 +111,8 @@ impl OutputAsset for EcmascriptDevChunkList {
     }
 
     #[turbo_tasks::function]
-    async fn references(&self) -> Result<Vc<OutputAssets>> {
-        Ok(self.chunks)
+    fn references(&self) -> Vc<OutputAssets> {
+        self.chunks
     }
 }
 

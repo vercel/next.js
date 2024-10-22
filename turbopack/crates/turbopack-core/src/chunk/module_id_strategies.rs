@@ -1,7 +1,5 @@
-use std::collections::HashMap;
-
 use anyhow::Result;
-use turbo_tasks::{RcStr, ValueToString, Vc};
+use turbo_tasks::{FxIndexMap, RcStr, ValueToString, Vc};
 use turbo_tasks_hash::hash_xxh3_hash64;
 
 use super::ModuleId;
@@ -31,11 +29,11 @@ impl ModuleIdStrategy for DevModuleIdStrategy {
 
 #[turbo_tasks::value]
 pub struct GlobalModuleIdStrategy {
-    module_id_map: HashMap<RcStr, Vc<ModuleId>>,
+    module_id_map: FxIndexMap<RcStr, ModuleId>,
 }
 
 impl GlobalModuleIdStrategy {
-    pub async fn new(module_id_map: HashMap<RcStr, Vc<ModuleId>>) -> Result<Vc<Self>> {
+    pub async fn new(module_id_map: FxIndexMap<RcStr, ModuleId>) -> Result<Vc<Self>> {
         Ok(GlobalModuleIdStrategy { module_id_map }.cell())
     }
 }
@@ -43,13 +41,11 @@ impl GlobalModuleIdStrategy {
 #[turbo_tasks::value_impl]
 impl ModuleIdStrategy for GlobalModuleIdStrategy {
     #[turbo_tasks::function]
-    async fn get_module_id(self: Vc<Self>, ident: Vc<AssetIdent>) -> Result<Vc<ModuleId>> {
+    async fn get_module_id(&self, ident: Vc<AssetIdent>) -> Result<Vc<ModuleId>> {
         let ident_string = ident.to_string().await?.clone_value();
-        if let Some(module_id) = self.await?.module_id_map.get(&ident_string) {
-            // dbg!(format!("Hit {}", ident.to_string().await?));
-            return Ok(*module_id);
+        if let Some(module_id) = self.module_id_map.get(&ident_string) {
+            return Ok(module_id.clone().cell());
         }
-        // dbg!(format!("Miss {}", ident.to_string().await?));
         Ok(ModuleId::String(
             hash_xxh3_hash64(ident.to_string().await?)
                 .to_string()

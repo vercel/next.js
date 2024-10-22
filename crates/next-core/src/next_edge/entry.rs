@@ -1,7 +1,5 @@
-use anyhow::Result;
-use indexmap::indexmap;
 use indoc::formatdoc;
-use turbo_tasks::{RcStr, Value, Vc};
+use turbo_tasks::{fxindexmap, RcStr, Value, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent, context::AssetContext, module::Module, reference_type::ReferenceType,
@@ -15,7 +13,7 @@ pub async fn wrap_edge_entry(
     project_root: Vc<FileSystemPath>,
     entry: Vc<Box<dyn Module>>,
     pathname: RcStr,
-) -> Result<Vc<Box<dyn Module>>> {
+) -> Vc<Box<dyn Module>> {
     // The wrapped module could be an async module, we handle that with the proxy
     // here. The comma expression makes sure we don't call the function with the
     // module as the "this" arg.
@@ -34,15 +32,14 @@ pub async fn wrap_edge_entry(
         AssetContent::file(file.into()),
     );
 
-    let inner_assets = indexmap! {
+    let inner_assets = fxindexmap! {
         "MODULE".into() => entry
     };
 
-    let module = asset_context
+    asset_context
         .process(
             Vc::upcast(virtual_source),
             Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
         )
-        .module();
-    Ok(module)
+        .module()
 }

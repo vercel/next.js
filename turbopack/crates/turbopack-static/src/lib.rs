@@ -10,6 +10,7 @@
 
 #![feature(min_specialization)]
 #![feature(arbitrary_self_types)]
+#![feature(arbitrary_self_types_pointers)]
 
 pub mod fixed;
 pub mod output_asset;
@@ -60,11 +61,8 @@ impl StaticModuleAsset {
     }
 
     #[turbo_tasks::function]
-    async fn static_asset(
-        self: Vc<Self>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<StaticAsset>> {
-        Ok(StaticAsset::new(chunking_context, self.await?.source))
+    fn static_asset(&self, chunking_context: Vc<Box<dyn ChunkingContext>>) -> Vc<StaticAsset> {
+        StaticAsset::new(chunking_context, self.source)
     }
 }
 
@@ -90,15 +88,15 @@ impl Asset for StaticModuleAsset {
 #[turbo_tasks::value_impl]
 impl ChunkableModule for StaticModuleAsset {
     #[turbo_tasks::function]
-    async fn as_chunk_item(
+    fn as_chunk_item(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
-        Ok(Vc::upcast(ModuleChunkItem::cell(ModuleChunkItem {
+    ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
+        Vc::upcast(ModuleChunkItem::cell(ModuleChunkItem {
             module: self,
             chunking_context,
             static_asset: self.static_asset(Vc::upcast(chunking_context)),
-        })))
+        }))
     }
 }
 
@@ -139,7 +137,7 @@ impl ChunkItem for ModuleChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
+    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
         Vc::upcast(self.chunking_context)
     }
 

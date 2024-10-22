@@ -100,15 +100,15 @@ fn single_item_modifier() -> Vc<RcStr> {
 #[turbo_tasks::value_impl]
 impl OutputAsset for SingleItemCssChunk {
     #[turbo_tasks::function]
-    async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        Ok(AssetIdent::from_path(
+    fn ident(&self) -> Vc<AssetIdent> {
+        AssetIdent::from_path(
             self.chunking_context.chunk_path(
                 self.item
                     .asset_ident()
                     .with_modifier(single_item_modifier()),
                 ".css".into(),
             ),
-        ))
+        )
     }
 
     #[turbo_tasks::function]

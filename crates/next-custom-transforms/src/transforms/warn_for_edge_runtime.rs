@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use rustc_hash::FxHashSet;
 use swc_core::{
     atoms::Atom,
     common::{errors::HANDLER, SourceMap, Span},
@@ -27,20 +26,31 @@ pub fn warn_for_edge_runtime(
         should_add_guards: false,
         guarded_symbols: Default::default(),
         guarded_process_props: Default::default(),
+        guarded_runtime: false,
         is_production,
     }
 }
 
+/// This is a very simple visitor that currently only checks if a condition (be it an if-statement
+/// or ternary expression) contains a reference to disallowed globals/etc.
+/// It does not know the difference between
+/// ```js
+/// if(typeof clearImmediate === "function") clearImmediate();
+/// ```
+/// and
+/// ```js
+/// if(typeof clearImmediate !== "function") clearImmediate();
+/// ```
 struct WarnForEdgeRuntime {
     cm: Arc<SourceMap>,
     ctx: ExprCtx,
     should_error_for_node_apis: bool,
 
     should_add_guards: bool,
-    /// We don't drop guards because a user may write a code like
-    /// `if(typeof clearImmediate !== "function") clearImmediate();`
-    guarded_symbols: FxHashSet<Atom>,
-    guarded_process_props: FxHashSet<Atom>,
+    guarded_symbols: Vec<Atom>,
+    guarded_process_props: Vec<Atom>,
+    // for process.env.NEXT_RUNTIME
+    guarded_runtime: bool,
     is_production: bool,
 }
 
@@ -136,6 +146,10 @@ const NODEJS_MODULE_NAMES: &[&str] = &[
 
 impl WarnForEdgeRuntime {
     fn warn_if_nodejs_module(&self, span: Span, module_specifier: &str) -> Option<()> {
+        if self.guarded_runtime {
+            return None;
+        }
+
         // Node.js modules can be loaded with `node:` prefix or directly
         if module_specifier.starts_with("node:") || NODEJS_MODULE_NAMES.contains(&module_specifier)
         {
@@ -157,10 +171,11 @@ Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime",
     }
 
     fn emit_unsupported_api_error(&self, span: Span, api_name: &str) -> Option<()> {
-        if self
-            .guarded_symbols
-            .iter()
-            .any(|guarded| guarded == api_name)
+        if self.guarded_runtime
+            || self
+                .guarded_symbols
+                .iter()
+                .any(|guarded| guarded == api_name)
         {
             return None;
         }
@@ -193,7 +208,7 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime",
         if !self.is_in_middleware_layer() || prop.sym == "env" {
             return;
         }
-        if self.guarded_process_props.contains(&prop.sym) {
+        if self.guarded_runtime || self.guarded_process_props.contains(&prop.sym) {
             return;
         }
 
@@ -214,12 +229,21 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime",
 
         match test {
             Expr::Ident(ident) => {
-                self.guarded_symbols.insert(ident.sym.clone());
+                self.guarded_symbols.push(ident.sym.clone());
             }
             Expr::Member(member) => {
+                if member.prop.is_ident_with("NEXT_RUNTIME") {
+                    if let Expr::Member(obj_member) = &*member.obj {
+                        if obj_member.obj.is_global_ref_to(&self.ctx, "process")
+                            && obj_member.prop.is_ident_with("env")
+                        {
+                            self.guarded_runtime = true;
+                        }
+                    }
+                }
                 if member.obj.is_global_ref_to(&self.ctx, "process") {
                     if let MemberProp::Ident(prop) = &member.prop {
-                        self.guarded_process_props.insert(prop.sym.clone());
+                        self.guarded_process_props.push(prop.sym.clone());
                     }
                 }
             }
@@ -247,6 +271,17 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime",
             });
         }
     }
+
+    fn with_new_scope(&mut self, f: impl FnOnce(&mut Self)) {
+        let old_guarded_symbols_len = self.guarded_symbols.len();
+        let old_guarded_process_props_len = self.guarded_symbols.len();
+        let old_guarded_runtime = self.guarded_runtime;
+        f(self);
+        self.guarded_symbols.truncate(old_guarded_symbols_len);
+        self.guarded_process_props
+            .truncate(old_guarded_process_props_len);
+        self.guarded_runtime = old_guarded_runtime;
+    }
 }
 
 impl Visit for WarnForEdgeRuntime {
@@ -263,8 +298,21 @@ impl Visit for WarnForEdgeRuntime {
     fn visit_bin_expr(&mut self, node: &BinExpr) {
         match node.op {
             op!("&&") | op!("||") | op!("??") => {
-                self.add_guards(&node.left);
-                node.right.visit_with(self);
+                if self.should_add_guards {
+                    // This is a condition and not a shorthand for if-then
+                    self.add_guards(&node.left);
+                    node.right.visit_with(self);
+                } else {
+                    self.with_new_scope(move |this| {
+                        this.add_guards(&node.left);
+                        node.right.visit_with(this);
+                    });
+                }
+            }
+            op!("==") | op!("===") => {
+                self.add_guard_for_test(&node.left);
+                self.add_guard_for_test(&node.right);
+                node.visit_children_with(self);
             }
             _ => {
                 node.visit_children_with(self);
@@ -272,10 +320,12 @@ impl Visit for WarnForEdgeRuntime {
         }
     }
     fn visit_cond_expr(&mut self, node: &CondExpr) {
-        self.add_guards(&node.test);
+        self.with_new_scope(move |this| {
+            this.add_guards(&node.test);
 
-        node.cons.visit_with(self);
-        node.alt.visit_with(self);
+            node.cons.visit_with(this);
+            node.alt.visit_with(this);
+        });
     }
 
     fn visit_expr(&mut self, n: &Expr) {
@@ -299,10 +349,12 @@ impl Visit for WarnForEdgeRuntime {
     }
 
     fn visit_if_stmt(&mut self, node: &IfStmt) {
-        self.add_guards(&node.test);
+        self.with_new_scope(move |this| {
+            this.add_guards(&node.test);
 
-        node.cons.visit_with(self);
-        node.alt.visit_with(self);
+            node.cons.visit_with(this);
+            node.alt.visit_with(this);
+        });
     }
 
     fn visit_import_decl(&mut self, n: &ImportDecl) {

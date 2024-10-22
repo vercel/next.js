@@ -41,7 +41,11 @@ Must be one of the following:
 - A [statically imported](/docs/pages/building-your-application/optimizing/images#local-images) image file
 - A path string. This can be either an absolute external URL, or an internal path depending on the [loader](#loader) prop or [loader configuration](#loader-configuration).
 
-When using an external URL, you must add it to [remotePatterns](#remote-patterns) in `next.config.js`.
+When using the default [loader](#loader), also consider the following for source images:
+
+- When src is an external URL, you must also configure [remotePatterns](#remote-patterns)
+- When src is [animated](#animated-images) or not a known format (JPEG, PNG, WebP, AVIF, GIF, TIFF) the image will be served as-is
+- When src is SVG format, it will be blocked unless `unoptimized` or `dangerouslyAllowSVG` is enabled
 
 ### width
 
@@ -221,12 +225,6 @@ The `onLoadingComplete` function accepts one parameter, an object with the follo
 
 ### loading
 
-> **Attention**: This property is only meant for advanced usage. Switching an
-> image to load with `eager` will normally **hurt performance**.
->
-> We recommend using the [`priority`](#priority) property instead, which
-> properly loads the image eagerly for nearly all use cases.
-
 The loading behavior of the image. Defaults to `lazy`.
 
 When `lazy`, defer loading the image until it reaches a calculated distance from
@@ -362,15 +360,16 @@ module.exports = {
         hostname: 'example.com',
         port: '',
         pathname: '/account123/**',
+        search: '',
       },
     ],
   },
 }
 ```
 
-> **Good to know**: The example above will ensure the `src` property of `next/legacy/image` must start with `https://example.com/account123/`. Any other protocol, hostname, port, or unmatched path will respond with 400 Bad Request.
+> **Good to know**: The example above will ensure the `src` property of `next/legacy/image` must start with `https://example.com/account123/` and must not have a query string. Any other protocol, hostname, port, or unmatched path will respond with 400 Bad Request.
 
-Below is another example of the `remotePatterns` property in the `next.config.js` file:
+Below is an example of the `remotePatterns` property in the `next.config.js` file using a wildcard pattern in the `hostname`:
 
 ```js filename="next.config.js"
 module.exports = {
@@ -380,13 +379,14 @@ module.exports = {
         protocol: 'https',
         hostname: '**.example.com',
         port: '',
+        search: '',
       },
     ],
   },
 }
 ```
 
-> **Good to know**: The example above will ensure the `src` property of `next/legacy/image` must start with `https://img1.example.com` or `https://me.avatar.example.com` or any number of subdomains. Any other protocol, port, or unmatched hostname will respond with 400 Bad Request.
+> **Good to know**: The example above will ensure the `src` property of `next/legacy/image` must start with `https://img1.example.com` or `https://me.avatar.example.com` or any number of subdomains. It cannot have a port or query string. Any other protocol or unmatched hostname will respond with 400 Bad Request.
 
 Wildcard patterns can be used for both `pathname` and `hostname` and have the following syntax:
 
@@ -395,7 +395,25 @@ Wildcard patterns can be used for both `pathname` and `hostname` and have the fo
 
 The `**` syntax does not work in the middle of the pattern.
 
-> **Good to know**: When omitting `protocol`, `port` or `pathname`, then the wildcard `**` is implied. This is not recommended because it may allow malicious actors to optimize urls you did not intend.
+> **Good to know**: When omitting `protocol`, `port`, `pathname`, or `search` then the wildcard `**` is implied. This is not recommended because it may allow malicious actors to optimize urls you did not intend.
+
+Below is an example of the `remotePatterns` property in the `next.config.js` file using `search`:
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'assets.example.com',
+        search: '?v=1727111025337',
+      },
+    ],
+  },
+}
+```
+
+> **Good to know**: The example above will ensure the `src` property of `next/legacy/image` must start with `https://assets.example.com` and must have the exact query string `?v=1727111025337`. Any other protocol or query string will respond with 400 Bad Request.
 
 ### Domains
 
@@ -479,9 +497,9 @@ module.exports = {
 
 ### Acceptable Formats
 
-The default [Image Optimization API](#loader-configuration) will automatically detect the browser's supported image formats via the request's `Accept` header.
+The default [Image Optimization API](#loader-configuration) will automatically detect the browser's supported image formats via the request's `Accept` header in order to determine the best output format.
 
-If the `Accept` head matches more than one of the configured formats, the first match in the array is used. Therefore, the array order matters. If there is no match (or the source image is [animated](#animated-images)), the Image Optimization API will fallback to the original image's format.
+If the `Accept` header matches more than one of the configured formats, the first match in the array is used. Therefore, the array order matters. If there is no match (or the source image is [animated](#animated-images)), the Image Optimization API will fallback to the original image's format.
 
 If no configuration is provided, the default below is used.
 
@@ -493,7 +511,7 @@ module.exports = {
 }
 ```
 
-You can enable AVIF support with the following configuration.
+You can enable AVIF support and still fallback to WebP with the following configuration.
 
 ```js filename="next.config.js"
 module.exports = {
@@ -503,7 +521,7 @@ module.exports = {
 }
 ```
 
-> **Good to know**: AVIF generally takes 20% longer to encode but it compresses 20% smaller compared to WebP. This means that the first time an image is requested, it will typically be slower and then subsequent requests that are cached will be faster.
+> **Good to know**: AVIF generally takes 50% longer to encode but it compresses 20% smaller compared to WebP. This means that the first time an image is requested, it will typically be slower and then subsequent requests that are cached will be faster.
 
 ## Caching Behavior
 

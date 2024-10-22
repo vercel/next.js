@@ -30,15 +30,14 @@ pub struct AsyncLoaderChunkItem {
 #[turbo_tasks::value_impl]
 impl AsyncLoaderChunkItem {
     #[turbo_tasks::function]
-    pub(super) async fn chunks(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
-        let this = self.await?;
-        let module = this.module.await?;
+    pub(super) async fn chunks(&self) -> Result<Vc<OutputAssets>> {
+        let module = self.module.await?;
         if let Some(chunk_items) = module.availability_info.available_chunk_items() {
             if chunk_items
                 .get(
                     module
                         .inner
-                        .as_chunk_item(Vc::upcast(this.chunking_context))
+                        .as_chunk_item(Vc::upcast(self.chunking_context))
                         .resolve()
                         .await?,
                 )
@@ -48,7 +47,7 @@ impl AsyncLoaderChunkItem {
                 return Ok(Vc::cell(vec![]));
             }
         }
-        Ok(this.chunking_context.chunk_group_assets(
+        Ok(self.chunking_context.chunk_group_assets(
             Vc::upcast(module.inner),
             Value::new(module.availability_info),
         ))
@@ -197,7 +196,7 @@ impl ChunkItem for AsyncLoaderChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
+    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
         Vc::upcast(self.chunking_context)
     }
 

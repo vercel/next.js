@@ -89,6 +89,7 @@ impl BrowserChunkingContextBuilder {
 }
 
 /// A chunking context for development mode.
+///
 /// It uses readable filenames and module ids to improve development.
 /// It also uses a chunking heuristic that is incremental and cacheable.
 /// It splits "node_modules" separately as these are less likely to change
@@ -478,17 +479,15 @@ impl ChunkingContext for BrowserChunkingContext {
         _path: Vc<FileSystemPath>,
         _module: Vc<Box<dyn Module>>,
         _evaluatable_assets: Vc<EvaluatableAssets>,
+        _extra_chunks: Vc<OutputAssets>,
         _availability_info: Value<AvailabilityInfo>,
     ) -> Result<Vc<EntryChunkGroupResult>> {
         bail!("Browser chunking context does not support entry chunk groups")
     }
 
     #[turbo_tasks::function]
-    async fn chunk_item_id_from_ident(
-        self: Vc<Self>,
-        ident: Vc<AssetIdent>,
-    ) -> Result<Vc<ModuleId>> {
-        Ok(self.await?.module_id_strategy.get_module_id(ident))
+    fn chunk_item_id_from_ident(&self, ident: Vc<AssetIdent>) -> Vc<ModuleId> {
+        self.module_id_strategy.get_module_id(ident)
     }
 
     #[turbo_tasks::function]

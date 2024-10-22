@@ -7,8 +7,7 @@
 export interface DeprecatedMetadataFields {
   /**
    * Deprecated options that have a preferred method
-   * @deprecated Use appWebApp to configure apple-mobile-web-app-capable which provides
-   * @see https://www.appsloveworld.com/coding/iphone/11/difference-between-apple-mobile-web-app-capable-and-apple-touch-fullscreen-ipho
+   * @deprecated Use appWebApp to configure mobile-web-app-capable which provides
    */
   'apple-touch-fullscreen'?: never
 
@@ -155,4 +154,32 @@ export type ResolvedIcons = {
 export type ThemeColorDescriptor = {
   color: string
   media?: string
+}
+
+export type Restriction = {
+  relationship: 'allow' | 'deny'
+  content: string
+}
+
+export type Videos = {
+  title: string
+  thumbnail_loc: string
+  description: string
+  content_loc?: string
+  player_loc?: string
+  duration?: number
+  expiration_date?: Date | string
+  rating?: number
+  view_count?: number
+  publication_date?: Date | string
+  family_friendly?: 'yes' | 'no'
+  restriction?: Restriction
+  platform?: Restriction
+  requires_subscription?: 'yes' | 'no'
+  uploader?: {
+    info?: string
+    content?: string
+  }
+  live?: 'yes' | 'no'
+  tag?: string
 }

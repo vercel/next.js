@@ -1,12 +1,13 @@
 use anyhow::Result;
-use indexmap::IndexSet;
 use serde::{Deserialize, Serialize};
 use swc_core::{
     common::DUMMY_SP,
-    ecma::ast::{ArrayLit, ArrayPat, Expr, Ident, Program},
+    ecma::ast::{ArrayLit, ArrayPat, Expr, Ident},
     quote,
 };
-use turbo_tasks::{trace::TraceRawVcs, ReadRef, TryFlatJoinIterExt, TryJoinIterExt, Vc};
+use turbo_tasks::{
+    trace::TraceRawVcs, FxIndexSet, ReadRef, TryFlatJoinIterExt, TryJoinIterExt, Vc,
+};
 use turbopack_core::{
     chunk::{
         AsyncModuleInfo, ChunkableModule, ChunkableModuleReference, ChunkingContext, ChunkingType,
@@ -16,7 +17,7 @@ use turbopack_core::{
 };
 
 use super::esm::base::ReferencedAsset;
-use crate::{code_gen::CodeGeneration, create_visitor, references::esm::base::insert_hoisted_stmt};
+use crate::code_gen::{CodeGeneration, CodeGenerationHoistedStmt};
 
 /// Information needed for generating the async module wrapper for
 /// [EcmascriptChunkItem](crate::chunk::EcmascriptChunkItem)s.
@@ -74,7 +75,7 @@ impl OptionAsyncModule {
 }
 
 #[turbo_tasks::value(transparent)]
-struct AsyncModuleIdents(IndexSet<String>);
+struct AsyncModuleIdents(FxIndexSet<String>);
 
 async fn get_inherit_async_referenced_asset(
     r: Vc<Box<dyn ModuleReference>>,
@@ -134,13 +135,13 @@ impl AsyncModule {
                         }
                     }
                     ReferencedAsset::External(..) => None,
-                    ReferencedAsset::None => None,
+                    ReferencedAsset::None | ReferencedAsset::Unresolvable => None,
                 })
             })
             .try_flat_join()
             .await?;
 
-        Ok(Vc::cell(IndexSet::from_iter(reference_idents)))
+        Ok(Vc::cell(FxIndexSet::from_iter(reference_idents)))
     }
 
     #[turbo_tasks::function]
@@ -173,17 +174,17 @@ impl AsyncModule {
 
     /// Returns
     #[turbo_tasks::function]
-    pub async fn module_options(
-        self: Vc<Self>,
+    pub fn module_options(
+        &self,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
-    ) -> Result<Vc<OptionAsyncModuleOptions>> {
+    ) -> Vc<OptionAsyncModuleOptions> {
         if async_module_info.is_none() {
-            return Ok(Vc::cell(None));
+            return Vc::cell(None);
         }
 
-        Ok(Vc::cell(Some(AsyncModuleOptions {
-            has_top_level_await: self.await?.has_top_level_await,
-        })))
+        Vc::cell(Some(AsyncModuleOptions {
+            has_top_level_await: self.has_top_level_await,
+        }))
     }
 
     #[turbo_tasks::function]
@@ -193,57 +194,51 @@ impl AsyncModule {
         async_module_info: Option<Vc<AsyncModuleInfo>>,
         references: Vc<ModuleReferences>,
     ) -> Result<Vc<CodeGeneration>> {
-        let mut visitors = Vec::new();
-
         if let Some(async_module_info) = async_module_info {
             let async_idents = self
                 .get_async_idents(chunking_context, async_module_info, references)
                 .await?;
 
             if !async_idents.is_empty() {
-                visitors.push(create_visitor!(visit_mut_program(program: &mut Program) {
-                    add_async_dependency_handler(program, &async_idents);
-                }));
+                let idents = async_idents
+                    .iter()
+                    .map(|ident: &String| {
+                        Ident::new(ident.clone().into(), DUMMY_SP, Default::default())
+                    })
+                    .collect::<Vec<_>>();
+
+                return Ok(CodeGeneration::hoisted_stmts([
+                    CodeGenerationHoistedStmt::new("__turbopack_async_dependencies__".into(),
+                        quote!(
+                            "var __turbopack_async_dependencies__ = __turbopack_handle_async_dependencies__($deps);"
+                                as Stmt,
+                            deps: Expr = Expr::Array(ArrayLit {
+                                span: DUMMY_SP,
+                                elems: idents
+                                    .iter()
+                                    .map(|ident| { Some(Expr::Ident(ident.clone()).into()) })
+                                    .collect(),
+                            })
+                        )
+                    ),
+                    CodeGenerationHoistedStmt::new("__turbopack_async_dependencies__ await".into(),
+                        quote!(
+                            "($deps = __turbopack_async_dependencies__.then ? (await \
+                            __turbopack_async_dependencies__)() : __turbopack_async_dependencies__);" as Stmt,
+                            deps: AssignTarget = ArrayPat {
+                                span: DUMMY_SP,
+                                elems: idents
+                                    .into_iter()
+                                    .map(|ident| { Some(ident.into()) })
+                                    .collect(),
+                                optional: false,
+                                type_ann: None,
+                            }.into(),
+                        )),
+                ].to_vec()));
             }
         }
 
-        Ok(CodeGeneration { visitors }.into())
+        Ok(CodeGeneration::empty())
     }
-}
-
-fn add_async_dependency_handler(program: &mut Program, idents: &IndexSet<String>) {
-    let idents = idents
-        .iter()
-        .map(|ident| Ident::new(ident.clone().into(), DUMMY_SP, Default::default()))
-        .collect::<Vec<_>>();
-
-    let stmt = quote!(
-        "var __turbopack_async_dependencies__ = __turbopack_handle_async_dependencies__($deps);"
-            as Stmt,
-        deps: Expr = Expr::Array(ArrayLit {
-            span: DUMMY_SP,
-            elems: idents
-                .iter()
-                .map(|ident| { Some(Expr::Ident(ident.clone()).into()) })
-                .collect(),
-        }),
-    );
-
-    insert_hoisted_stmt(program, stmt);
-
-    let stmt = quote!(
-        "($deps = __turbopack_async_dependencies__.then ? (await \
-         __turbopack_async_dependencies__)() : __turbopack_async_dependencies__);" as Stmt,
-        deps: AssignTarget = ArrayPat {
-            span: DUMMY_SP,
-            elems: idents
-                .into_iter()
-                .map(|ident| { Some(ident.into()) })
-                .collect(),
-            optional: false,
-            type_ann: None,
-        }.into(),
-    );
-
-    insert_hoisted_stmt(program, stmt);
 }

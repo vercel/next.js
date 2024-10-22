@@ -194,7 +194,7 @@ impl<'a> TaskAggregationContext<'a> {
 }
 
 #[cfg(debug_assertions)]
-impl<'a> Drop for TaskAggregationContext<'a> {
+impl Drop for TaskAggregationContext<'_> {
     fn drop(&mut self) {
         let tasks_to_schedule = self.dirty_tasks_to_schedule.get_mut();
         if let Some(tasks_to_schedule) = tasks_to_schedule.as_ref() {
@@ -211,8 +211,11 @@ impl<'a> Drop for TaskAggregationContext<'a> {
     }
 }
 
-impl<'a> AggregationContext for TaskAggregationContext<'a> {
-    type Guard<'l> = TaskGuard<'l> where Self: 'l;
+impl AggregationContext for TaskAggregationContext<'_> {
+    type Guard<'l>
+        = TaskGuard<'l>
+    where
+        Self: 'l;
     type Data = Aggregated;
     type DataChange = TaskChange;
     type NodeRef = TaskId;
@@ -452,7 +455,7 @@ impl<'l> TaskGuard<'l> {
     }
 }
 
-impl<'l> Deref for TaskGuard<'l> {
+impl Deref for TaskGuard<'_> {
     type Target = AggregationNode<
         <Self as AggregationNodeGuard>::NodeRef,
         <Self as AggregationNodeGuard>::Data,
@@ -468,7 +471,7 @@ impl<'l> Deref for TaskGuard<'l> {
     }
 }
 
-impl<'l> DerefMut for TaskGuard<'l> {
+impl DerefMut for TaskGuard<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         match self.guard {
             TaskMetaStateWriteGuard::Full(ref mut guard) => &mut guard.aggregation_node,
@@ -483,7 +486,10 @@ impl<'l> AggregationNodeGuard for TaskGuard<'l> {
     type Data = Aggregated;
     type NodeRef = TaskId;
     type DataChange = TaskChange;
-    type ChildrenIter<'a> = impl Iterator<Item = TaskId> + 'a where Self: 'a;
+    type ChildrenIter<'a>
+        = impl Iterator<Item = TaskId> + 'a
+    where
+        Self: 'a;
 
     fn children(&self) -> Self::ChildrenIter<'_> {
         match self.guard {
@@ -574,7 +580,7 @@ impl<'l> AggregationNodeGuard for TaskGuard<'l> {
                     for (&(trait_type_id, collectible), count) in collectibles.iter() {
                         change
                             .collectibles
-                            .push((trait_type_id, collectible, -count));
+                            .push((trait_type_id, collectible, -*count));
                     }
                 }
                 if let TaskStateType::InProgress(box InProgressState {

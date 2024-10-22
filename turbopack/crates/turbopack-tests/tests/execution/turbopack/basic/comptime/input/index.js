@@ -166,3 +166,9 @@ it("should keep side-effects in if statements", () => {
     expect(ok).toBe(2);
   }
 });
+
+it('should analyze numeric additions',()=>{
+  if (1 +2 !==3) {
+    require("fail");
+  }
+})

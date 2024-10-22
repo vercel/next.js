@@ -16,6 +16,7 @@
     "typescript",
     "typescriptreact"
   ],
+  "eslint.useFlatConfig": false,
   // Set Jest runMode to on-demand as otherwise it will start running all tests the first time.
   // Equivalent to deprecated option "jest.autoRun": "off"
   "jest.runMode": "on-demand",
@@ -57,13 +58,32 @@
     "RUST_BACKTRACE": "0"
   },
   "cSpell.words": [
+    "codemod",
+    "codemods",
+    "Destructuring",
+    "buildtime",
+    "callsites",
+    "codemod",
+    "datastream",
+    "deduped",
+    "draftmode",
     "Entrypoints",
+    "jscodeshift",
     "napi",
+    "navigations",
     "nextjs",
     "opentelemetry",
+    "Preinit",
     "prerendered",
+    "prerendering",
+    "proxied",
+    "renderable",
+    "revalidates",
+    "subresource",
+    "thenables",
     "Threadsafe",
     "Turbopack",
+    "unproxied",
     "zipkin"
   ],
   "grammarly.selectors": [
@@ -77,5 +97,6 @@
     "--ignore-revs-file",
     "${workspaceRoot}/.git-blame-ignore-revs"
   ],
-  "astGrep.serverPath": "node_modules/@ast-grep/cli/ast-grep"
+  "astGrep.serverPath": "node_modules/@ast-grep/cli/ast-grep",
+  "rust-analyzer.imports.prefix": "crate"
 }

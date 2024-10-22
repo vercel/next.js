@@ -72,8 +72,6 @@ const ComponentC = dynamic(() => import('../components/C'), { ssr: false })
 If you dynamically import a Server Component, only the Client Components that are children of the Server Component will be lazy-loaded - not the Server Component itself.
 It will also help preload the static assets such as CSS when you're using it in Server Components.
 
-> **Note:** `ssr: false` option is not supported in Server Components.
-
 ```jsx filename="app/page.js"
 import dynamic from 'next/dynamic'
 
@@ -88,6 +86,9 @@ export default function ServerComponentExample() {
   )
 }
 ```
+
+> **Note:** `ssr: false` option is not supported in Server Components. You will see an error if you try to use it in Server Components.
+> `ssr: false` is not allowed with `next/dynamic` in Server Components. Please move it into a client component.
 
 ### Loading External Libraries
 

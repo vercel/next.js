@@ -14,7 +14,7 @@ import type { FetchEventResult } from './web/types'
 import type { PrerenderManifest } from '../build'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
-import type { Params } from '../client/components/params'
+import type { Params } from './request/params'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { RouteMatch } from './route-matches/route-match'
 import type { IncomingMessage, ServerResponse } from 'http'
@@ -22,7 +22,7 @@ import type { PagesAPIRouteModule } from './route-modules/pages-api/module'
 import type { UrlWithParsedQuery } from 'url'
 import type { ParsedUrlQuery } from 'querystring'
 import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
-import type { Revalidate, SwrDelta } from './lib/revalidate'
+import type { Revalidate, ExpireTime } from './lib/revalidate'
 
 import fs from 'fs'
 import { join, resolve } from 'path'
@@ -363,6 +363,22 @@ export default class NextNodeServer extends BaseServer<
       )
     }
 
+    const { cacheHandlers } = this.nextConfig.experimental
+
+    if (!(globalThis as any).__nextCacheHandlers && cacheHandlers) {
+      ;(globalThis as any).__nextCacheHandlers = {}
+
+      for (const key of Object.keys(cacheHandlers)) {
+        if (cacheHandlers[key]) {
+          ;(globalThis as any).__nextCacheHandlers[key] = interopDefault(
+            await dynamicImportEsmDefault(
+              formatDynamicImportPath(this.distDir, cacheHandlers[key])
+            )
+          )
+        }
+      }
+    }
+
     // incremental-cache is request specific
     // although can have shared caches in module scope
     // per-cache handler
@@ -371,6 +387,7 @@ export default class NextNodeServer extends BaseServer<
       dev,
       requestHeaders,
       requestProtocol,
+      dynamicIO: Boolean(this.nextConfig.experimental.dynamicIO),
       allowedRevalidateHeaderKeys:
         this.nextConfig.experimental.allowedRevalidateHeaderKeys,
       minimalMode: this.minimalMode,
@@ -464,7 +481,7 @@ export default class NextNodeServer extends BaseServer<
       generateEtags: boolean
       poweredByHeader: boolean
       revalidate: Revalidate | undefined
-      swrDelta: SwrDelta | undefined
+      expireTime: ExpireTime | undefined
     }
   ): Promise<void> {
     return sendRenderResult({
@@ -475,7 +492,7 @@ export default class NextNodeServer extends BaseServer<
       generateEtags: options.generateEtags,
       poweredByHeader: options.poweredByHeader,
       revalidate: options.revalidate,
-      swrDelta: options.swrDelta,
+      expireTime: options.expireTime,
     })
   }
 
@@ -1465,6 +1482,7 @@ export default class NextNodeServer extends BaseServer<
         page,
         body: getRequestMeta(params.request, 'clonableBody'),
         signal: signalFromNodeResponse(params.response.originalResponse),
+        waitUntil: this.getWaitUntil(),
       },
       useCache: true,
       onWarning: params.onWarning,
@@ -1768,6 +1786,7 @@ export default class NextNodeServer extends BaseServer<
         },
         body: getRequestMeta(params.req, 'clonableBody'),
         signal: signalFromNodeResponse(params.res.originalResponse),
+        waitUntil: this.getWaitUntil(),
       },
       useCache: true,
       onError: params.onError,

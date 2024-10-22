@@ -80,7 +80,7 @@ impl ModuleReference for TsReferencePathAssetReference {
                     .origin
                     .asset_context()
                     .process(
-                        Vc::upcast(FileSource::new(*path)),
+                        Vc::upcast(FileSource::new(**path)),
                         Value::new(ReferenceType::TypeScript(
                             TypeScriptReferenceSubType::Undefined,
                         )),
@@ -88,7 +88,7 @@ impl ModuleReference for TsReferencePathAssetReference {
                     .module();
                 ModuleResolveResult::module(module).cell()
             } else {
-                ModuleResolveResult::unresolveable().cell()
+                ModuleResolveResult::unresolvable().cell()
             },
         )
     }
@@ -97,10 +97,8 @@ impl ModuleReference for TsReferencePathAssetReference {
 #[turbo_tasks::value_impl]
 impl ValueToString for TsReferencePathAssetReference {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!("typescript reference path comment {}", self.path,).into(),
-        ))
+    async fn to_string(&self) -> Vc<RcStr> {
+        Vc::cell(format!("typescript reference path comment {}", self.path,).into())
     }
 }
 
@@ -138,9 +136,7 @@ impl ModuleReference for TsReferenceTypeAssetReference {
 #[turbo_tasks::value_impl]
 impl ValueToString for TsReferenceTypeAssetReference {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!("typescript reference type comment {}", self.module,).into(),
-        ))
+    async fn to_string(&self) -> Vc<RcStr> {
+        Vc::cell(format!("typescript reference type comment {}", self.module,).into())
     }
 }

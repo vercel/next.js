@@ -5,15 +5,6 @@ import { RSC_MODULE_TYPES } from '../../../shared/lib/constants'
 const imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'avif', 'ico', 'svg']
 const imageRegex = new RegExp(`\\.(${imageExtensions.join('|')})$`)
 
-// Determine if the whole module is server action, 'use server' in the top level of module
-export function isActionServerLayerEntryModule(mod: {
-  resource: string
-  buildInfo?: any
-}) {
-  const rscInfo = mod.buildInfo.rsc
-  return !!(rscInfo?.actions && rscInfo?.type === RSC_MODULE_TYPES.server)
-}
-
 // Determine if the whole module is client action, 'use server' in nested closure in the client module
 function isActionClientLayerModule(mod: { resource: string; buildInfo?: any }) {
   const rscInfo = mod.buildInfo.rsc
@@ -60,9 +51,13 @@ export function getActionsFromBuildInfo(mod: {
   return mod.buildInfo?.rsc?.actions
 }
 
-export function generateActionId(filePath: string, exportName: string) {
+export function generateActionId(
+  hashSalt: string,
+  filePath: string,
+  exportName: string
+) {
   return createHash('sha1')
-    .update(filePath + ':' + exportName)
+    .update(hashSalt + filePath + ':' + exportName)
     .digest('hex')
 }
 

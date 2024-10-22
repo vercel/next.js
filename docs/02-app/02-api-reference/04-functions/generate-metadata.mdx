@@ -90,7 +90,7 @@ export async function generateMetadata(
   parent: ResolvingMetadata
 ): Promise<Metadata> {
   // read route params
-  const id = params.id
+  const id = (await params).id
 
   // fetch data
   const product = await fetch(`https://.../${id}`).then((res) => res.json())
@@ -112,7 +112,7 @@ export default function Page({ params, searchParams }: Props) {}
 ```jsx filename="app/products/[id]/page.js" switcher
 export async function generateMetadata({ params, searchParams }, parent) {
   // read route params
-  const id = params.id
+  const id = (await params).id
 
   // fetch data
   const product = await fetch(`https://.../${id}`).then((res) => res.json())
@@ -809,7 +809,7 @@ export const metadata = {
   name="apple-itunes-app"
   content="app-id=myAppStoreID, app-argument=myAppArgument"
 />
-<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-title" content="Apple Web App" />
 <link
   href="/assets/startup/apple-touch-startup-image-768x1004.png"

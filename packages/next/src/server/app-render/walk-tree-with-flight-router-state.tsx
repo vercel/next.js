@@ -65,11 +65,11 @@ export async function walkTreeWithFlightRouterState({
     componentMod: { tree: loaderTree },
   } = ctx
 
-  const [segment, parallelRoutes, components] = loaderTreeToFilter
+  const [segment, parallelRoutes, modules] = loaderTreeToFilter
 
   const parallelRoutesKeys = Object.keys(parallelRoutes)
 
-  const { layout } = components
+  const { layout } = modules
   const isLayout = typeof layout !== 'undefined'
 
   /**
@@ -117,7 +117,7 @@ export async function walkTreeWithFlightRouterState({
   const shouldSkipComponentTree =
     !experimental.isRoutePPREnabled &&
     isPrefetch &&
-    !Boolean(components.loading) &&
+    !Boolean(modules.loading) &&
     !hasLoadingComponentInTree(loaderTree)
 
   if (!parentRendered && renderComponentsOnThisLevel) {

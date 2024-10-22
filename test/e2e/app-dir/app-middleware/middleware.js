@@ -21,7 +21,7 @@ export async function middleware(request) {
   }
 
   if (request.nextUrl.searchParams.get('draft')) {
-    draftMode().enable()
+    ;(await draftMode()).enable()
   }
 
   const removeHeaders = request.nextUrl.searchParams.get('remove-headers')

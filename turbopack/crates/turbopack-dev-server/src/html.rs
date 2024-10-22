@@ -126,10 +126,8 @@ impl DevHtmlAsset {
     }
 
     #[turbo_tasks::function]
-    async fn chunks(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
-        let this = self.await?;
-
-        let all_assets = this
+    async fn chunks(&self) -> Result<Vc<OutputAssets>> {
+        let all_assets = self
             .entries
             .iter()
             .map(|entry| async move {
@@ -180,13 +178,11 @@ impl DevHtmlAssetContent {
 #[turbo_tasks::value_impl]
 impl DevHtmlAssetContent {
     #[turbo_tasks::function]
-    async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
-        let this = self.await?;
-
+    async fn content(&self) -> Result<Vc<AssetContent>> {
         let mut scripts = Vec::new();
         let mut stylesheets = Vec::new();
 
-        for relative_path in &*this.chunk_paths {
+        for relative_path in &*self.chunk_paths {
             if relative_path.ends_with(".js") {
                 scripts.push(format!("<script src=\"{}\"></script>", relative_path));
             } else if relative_path.ends_with(".css") {
@@ -199,7 +195,7 @@ impl DevHtmlAssetContent {
             }
         }
 
-        let body = match &this.body {
+        let body = match &self.body {
             Some(body) => body.as_str(),
             None => "",
         };
@@ -245,7 +241,7 @@ struct DevHtmlAssetVersion {
 #[turbo_tasks::value_impl]
 impl Version for DevHtmlAssetVersion {
     #[turbo_tasks::function]
-    async fn id(&self) -> Result<Vc<RcStr>> {
+    fn id(&self) -> Vc<RcStr> {
         let mut hasher = Xxh3Hash64Hasher::new();
         for relative_path in &*self.content.chunk_paths {
             hasher.write_ref(relative_path);
@@ -255,6 +251,6 @@ impl Version for DevHtmlAssetVersion {
         }
         let hash = hasher.finish();
         let hex_hash = encode_hex(hash);
-        Ok(Vc::cell(hex_hash.into()))
+        Vc::cell(hex_hash.into())
     }
 }

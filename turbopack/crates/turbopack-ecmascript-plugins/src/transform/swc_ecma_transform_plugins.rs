@@ -8,6 +8,7 @@ use turbopack_ecmascript::{CustomTransformer, TransformContext};
 
 /// A wrapper around an SWC's ecma transform wasm plugin module bytes, allowing
 /// it to operate with the turbo_tasks caching requirements.
+///
 /// Internally this contains a `CompiledPluginModuleBytes`, which points to the
 /// compiled, serialized wasmer::Module instead of raw file bytes to reduce the
 /// cost of the compilation.
@@ -64,11 +65,9 @@ impl Issue for UnsupportedSwcEcmaTransformPluginsIssue {
     }
 
     #[turbo_tasks::function]
-    async fn title(&self) -> Result<Vc<StyledString>> {
-        Ok(StyledString::Text(
-            "Unsupported SWC EcmaScript transform plugins on this platform.".into(),
-        )
-        .cell())
+    fn title(&self) -> Vc<StyledString> {
+        StyledString::Text("Unsupported SWC EcmaScript transform plugins on this platform.".into())
+            .cell()
     }
 
     #[turbo_tasks::function]
@@ -93,12 +92,14 @@ impl Issue for UnsupportedSwcEcmaTransformPluginsIssue {
 #[derive(Debug)]
 pub struct SwcEcmaTransformPluginsTransformer {
     #[cfg(feature = "swc_ecma_transform_plugin")]
-    plugins: Vec<(Vc<SwcPluginModule>, serde_json::Value)>,
+    plugins: Vec<(turbo_tasks::ResolvedVc<SwcPluginModule>, serde_json::Value)>,
 }
 
 impl SwcEcmaTransformPluginsTransformer {
     #[cfg(feature = "swc_ecma_transform_plugin")]
-    pub fn new(plugins: Vec<(Vc<SwcPluginModule>, serde_json::Value)>) -> Self {
+    pub fn new(
+        plugins: Vec<(turbo_tasks::ResolvedVc<SwcPluginModule>, serde_json::Value)>,
+    ) -> Self {
         Self { plugins }
     }
 

@@ -51,7 +51,7 @@ export default function Page() {
 > **Good to know**:
 >
 > - The `<Link>` component automatically prefetch routes as they become visible in the viewport.
-> - `refresh()` could re-produce the same result if fetch requests are cached. Other dynamic functions like `cookies` and `headers` could also change the response.
+> - `refresh()` could re-produce the same result if fetch requests are cached. Other Dynamic APIs like `cookies` and `headers` could also change the response.
 
 ### Migrating from `next/router`
 
@@ -112,7 +112,7 @@ export default function Layout({ children }) {
 
 > **Good to know**: `<NavigationEvents>` is wrapped in a [`Suspense` boundary](/docs/app/building-your-application/routing/loading-ui-and-streaming#example) because[`useSearchParams()`](/docs/app/api-reference/functions/use-search-params) causes client-side rendering up to the closest `Suspense` boundary during [static rendering](/docs/app/building-your-application/rendering/server-components#static-rendering-default). [Learn more](/docs/app/api-reference/functions/use-search-params#behavior).
 
-### Disabling scroll restoration
+### Disabling scroll to top
 
 By default, Next.js will scroll to the top of the page when navigating to a new route. You can disable this behavior by passing `scroll: false` to `router.push()` or `router.replace()`.
 

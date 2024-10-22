@@ -65,7 +65,7 @@ impl NextFontLocalResolvePlugin {
 #[turbo_tasks::value_impl]
 impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
     #[turbo_tasks::function]
-    async fn before_resolve_condition(&self) -> Vc<BeforeResolvePluginCondition> {
+    fn before_resolve_condition(&self) -> Vc<BeforeResolvePluginCondition> {
         BeforeResolvePluginCondition::from_request_glob(Glob::new(
             "{next,@vercel/turbopack-next/internal}/font/local/*".into(),
         ))
@@ -321,8 +321,8 @@ impl Issue for FontResolvingIssue {
     }
 
     #[turbo_tasks::function]
-    async fn file_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
-        Ok(self.await?.origin_path)
+    fn file_path(&self) -> Vc<FileSystemPath> {
+        self.origin_path
     }
 
     #[turbo_tasks::function]

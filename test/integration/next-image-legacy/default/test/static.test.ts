@@ -153,8 +153,8 @@ describe('Static Image Component Tests', () => {
         html = await renderViaHTTP(appPort, '/static-img')
         browser = await webdriver(appPort, '/static-img')
       })
-      afterAll(() => {
-        killApp(app)
+      afterAll(async () => {
+        await killApp(app)
       })
       runTests()
     }

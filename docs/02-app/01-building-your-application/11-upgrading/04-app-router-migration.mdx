@@ -474,8 +474,14 @@ In addition, the new `useRouter` hook has the following changes:
 - `basePath` has been removed. The alternative will not be part of `useRouter`. It has not yet been implemented.
 - `asPath` has been removed because the concept of `as` has been removed from the new router.
 - `isReady` has been removed because it is no longer necessary. During [static rendering](/docs/app/building-your-application/rendering/server-components#static-rendering-default), any component that uses the [`useSearchParams()`](/docs/app/api-reference/functions/use-search-params) hook will skip the prerendering step and instead be rendered on the client at runtime.
+- `route` has been removed. `usePathname` or `useSelectedLayoutSegments()` provide an alternative.
 
 [View the `useRouter()` API reference](/docs/app/api-reference/functions/use-router).
+
+#### Sharing components between `pages` and `app`
+
+To keep components compatible between the `pages` and `app` routers, refer to the [`useRouter` hook from `next/compat/router`](/docs/pages/api-reference/functions/use-router#the-nextcompatrouter-export).
+This is the `useRouter` hook from the `pages` directory, but intented to be used while sharing components between routers. Once you are ready to use it only on the `app` router, update to the new [`useRouter` from `next/navigation`](/docs/app/api-reference/functions/use-router).
 
 ### Step 6: Migrating Data Fetching Methods
 
@@ -623,23 +629,23 @@ export default function Page(props) {
 
 The `app` directory exposes new read-only functions to retrieve request data:
 
-- [`headers()`](/docs/app/api-reference/functions/headers): Based on the Web Headers API, and can be used inside [Server Components](/docs/app/building-your-application/rendering/server-components) to retrieve request headers.
-- [`cookies()`](/docs/app/api-reference/functions/cookies): Based on the Web Cookies API, and can be used inside [Server Components](/docs/app/building-your-application/rendering/server-components) to retrieve cookies.
+- [`headers`](/docs/app/api-reference/functions/headers): Based on the Web Headers API, and can be used inside [Server Components](/docs/app/building-your-application/rendering/server-components) to retrieve request headers.
+- [`cookies`](/docs/app/api-reference/functions/cookies): Based on the Web Cookies API, and can be used inside [Server Components](/docs/app/building-your-application/rendering/server-components) to retrieve cookies.
 
 ```tsx filename="app/page.tsx" switcher
 // `app` directory
 import { cookies, headers } from 'next/headers'
 
 async function getData() {
-  const authHeader = headers().get('authorization')
+  const authHeader = (await headers()).get('authorization')
 
   return '...'
 }
 
 export default async function Page() {
-  // You can use `cookies()` or `headers()` inside Server Components
+  // You can use `cookies` or `headers` inside Server Components
   // directly or in your data fetching function
-  const theme = cookies().get('theme')
+  const theme = (await cookies()).get('theme')
   const data = await getData()
   return '...'
 }
@@ -650,15 +656,15 @@ export default async function Page() {
 import { cookies, headers } from 'next/headers'
 
 async function getData() {
-  const authHeader = headers().get('authorization')
+  const authHeader = (await headers()).get('authorization')
 
   return '...'
 }
 
 export default async function Page() {
-  // You can use `cookies()` or `headers()` inside Server Components
+  // You can use `cookies` or `headers` inside Server Components
   // directly or in your data fetching function
-  const theme = cookies().get('theme')
+  const theme = (await cookies()).get('theme')
   const data = await getData()
   return '...'
 }

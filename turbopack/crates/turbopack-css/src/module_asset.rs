@@ -1,11 +1,10 @@
 use std::{fmt::Write, sync::Arc};
 
 use anyhow::{bail, Context, Result};
-use indexmap::IndexMap;
 use indoc::formatdoc;
 use lightningcss::css_modules::CssModuleReference;
 use swc_core::common::{BytePos, FileName, LineCol, SourceMap};
-use turbo_tasks::{RcStr, Value, ValueToString, Vc};
+use turbo_tasks::{FxIndexMap, RcStr, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -49,14 +48,11 @@ pub struct ModuleCssAsset {
 #[turbo_tasks::value_impl]
 impl ModuleCssAsset {
     #[turbo_tasks::function]
-    pub async fn new(
-        source: Vc<Box<dyn Source>>,
-        asset_context: Vc<Box<dyn AssetContext>>,
-    ) -> Result<Vc<Self>> {
-        Ok(Self::cell(ModuleCssAsset {
+    pub fn new(source: Vc<Box<dyn Source>>, asset_context: Vc<Box<dyn AssetContext>>) -> Vc<Self> {
+        Self::cell(ModuleCssAsset {
             source,
             asset_context,
-        }))
+        })
     }
 }
 
@@ -147,17 +143,16 @@ enum ModuleCssClass {
 /// 3. class3: [Local("exported_class3), Import("class4", "./other.module.css")]
 #[turbo_tasks::value(transparent)]
 #[derive(Debug, Clone)]
-struct ModuleCssClasses(IndexMap<String, Vec<ModuleCssClass>>);
+struct ModuleCssClasses(FxIndexMap<String, Vec<ModuleCssClass>>);
 
 #[turbo_tasks::value_impl]
 impl ModuleCssAsset {
     #[turbo_tasks::function]
-    async fn inner(self: Vc<Self>) -> Result<Vc<ProcessResult>> {
-        let this = self.await?;
-        Ok(this.asset_context.process(
-            this.source,
+    fn inner(&self) -> Vc<ProcessResult> {
+        self.asset_context.process(
+            self.source,
             Value::new(ReferenceType::Css(CssReferenceSubType::Internal)),
-        ))
+        )
     }
 
     #[turbo_tasks::function]
@@ -169,7 +164,7 @@ impl ModuleCssAsset {
             .context("inner asset should be CSS processable")?;
 
         let result = inner.get_css_with_placeholder().await?;
-        let mut classes = IndexMap::default();
+        let mut classes = FxIndexMap::default();
 
         // TODO(alexkirsz) Should we report an error on parse error here?
         if let CssWithPlaceholderResult::Ok {
@@ -235,17 +230,17 @@ impl ModuleCssAsset {
 #[turbo_tasks::value_impl]
 impl ChunkableModule for ModuleCssAsset {
     #[turbo_tasks::function]
-    async fn as_chunk_item(
+    fn as_chunk_item(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
-        Ok(Vc::upcast(
+    ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
+        Vc::upcast(
             ModuleChunkItem {
                 chunking_context,
                 module: self,
             }
             .cell(),
-        ))
+        )
     }
 }
 
@@ -289,7 +284,7 @@ impl ChunkItem for ModuleChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
+    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
         Vc::upcast(self.chunking_context)
     }
 
@@ -440,11 +435,9 @@ impl Issue for CssModuleComposesIssue {
     }
 
     #[turbo_tasks::function]
-    async fn title(&self) -> Result<Vc<StyledString>> {
-        Ok(StyledString::Text(
-            "An issue occurred while resolving a CSS module `composes:` rule".into(),
-        )
-        .cell())
+    fn title(&self) -> Vc<StyledString> {
+        StyledString::Text("An issue occurred while resolving a CSS module `composes:` rule".into())
+            .cell()
     }
 
     #[turbo_tasks::function]

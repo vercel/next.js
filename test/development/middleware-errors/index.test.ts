@@ -8,7 +8,7 @@ import stripAnsi from 'strip-ansi'
 import { nextTestSetup } from 'e2e-utils'
 
 describe('middleware - development errors', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
     env: { __NEXT_TEST_WITH_DEVTOOL: '1' },
   })
@@ -33,7 +33,7 @@ describe('middleware - development errors', () => {
       await next.fetch('/')
       const output = stripAnsi(next.cliOutput)
       await check(() => {
-        if (process.env.TURBOPACK) {
+        if (isTurbopack) {
           expect(stripAnsi(next.cliOutput)).toMatch(
             /middleware.js \(\d+:\d+\) @ __TURBOPACK__default__export__/
           )
@@ -152,9 +152,15 @@ describe('middleware - development errors', () => {
       await next.fetch('/')
       const output = stripAnsi(next.cliOutput)
       await check(() => {
-        expect(stripAnsi(next.cliOutput)).toMatch(
-          /middleware.js \(\d+:\d+\) @ <unknown>/
-        )
+        if (isTurbopack) {
+          expect(stripAnsi(next.cliOutput)).toMatch(
+            /middleware.js \(\d+:\d+\) @ \[project\]\/middleware\.js \[middleware\] \(ecmascript\)/
+          )
+        } else {
+          expect(stripAnsi(next.cliOutput)).toMatch(
+            /middleware.js \(\d+:\d+\) @ <unknown>/
+          )
+        }
         expect(stripAnsi(next.cliOutput)).toMatch(/booooom!/)
         return 'success'
       }, 'success')

@@ -38,13 +38,13 @@ async function collectStdoutFromBuild(appDir) {
 }
 
 describe('Config Experimental Warning', () => {
-  afterEach(() => {
+  afterEach(async () => {
     configFile.write('')
     configFile.delete()
     configFileMjs.write('')
     configFileMjs.delete()
     if (app) {
-      killApp(app)
+      await killApp(app)
       app = undefined
     }
   })
