@@ -75,9 +75,15 @@ const cwd = process.cwd()
 
 export async function runUpgrade(
   revision: string | undefined,
-  options: { verbose: boolean }
+  options: { verbose: boolean; dry: boolean }
 ): Promise<void> {
-  const { verbose } = options
+  const { verbose, dry } = options
+
+  if (dry) {
+    console.log(pc.bold('Running in dry-run mode.'))
+    console.log() // new line
+  }
+
   const appPackageJsonPath = path.resolve(cwd, 'package.json')
   let appPackageJson = JSON.parse(fs.readFileSync(appPackageJsonPath, 'utf8'))
 
@@ -109,15 +115,21 @@ export async function runUpgrade(
     console.log(
       `${pc.green('✓')} Current Next.js version is already on the target version "v${targetNextVersion}".`
     )
-    endMessage()
-    return
+
+    if (!dry) {
+      endMessage()
+      return
+    }
   }
   if (compareVersions(installedNextVersion, targetNextVersion) > 0) {
     console.log(
       `${pc.green('✓')} Current Next.js version is higher than the target version "v${targetNextVersion}".`
     )
-    endMessage()
-    return
+
+    if (!dry) {
+      endMessage()
+      return
+    }
   }
 
   const installedReactVersion = getInstalledReactVersion()
@@ -207,7 +219,12 @@ export async function runUpgrade(
     execCommand = execCommandMap[packageManager]
   }
 
-  fs.writeFileSync(appPackageJsonPath, JSON.stringify(appPackageJson, null, 2))
+  if (!dry) {
+    fs.writeFileSync(
+      appPackageJsonPath,
+      JSON.stringify(appPackageJson, null, 2)
+    )
+  }
 
   const dependenciesToInstall: [string, string][] = []
   const devDependenciesToInstall: [string, string][] = []
@@ -312,44 +329,78 @@ export async function runUpgrade(
     addPackageDependency(appPackageJson, dep, version, true)
   }
 
-  fs.writeFileSync(
-    appPackageJsonPath,
-    JSON.stringify(appPackageJson, null, 2) +
-      // Common IDE formatters would add a newline as well.
-      os.EOL
-  )
-
-  runInstallation(packageManager)
-
-  for (const codemod of codemods) {
-    await runTransform(codemod, cwd, { force: true, verbose })
-  }
-
-  // To reduce user-side burden of selecting which codemods to run as it needs additional
-  // understanding of the codemods, we run all of the applicable codemods.
-  if (shouldRunReactCodemods) {
-    // https://react.dev/blog/2024/04/25/react-19-upgrade-guide#run-all-react-19-codemods
-    execSync(
-      // `--no-interactive` skips the interactive prompt that asks for confirmation
-      // https://github.com/codemod-com/codemod/blob/c0cf00d13161a0ec0965b6cc6bc5d54076839cc8/apps/cli/src/flags.ts#L160
-      `${execCommand} codemod@latest react/19/migration-recipe --no-interactive`,
-      { stdio: 'inherit' }
+  if (!dry) {
+    fs.writeFileSync(
+      appPackageJsonPath,
+      JSON.stringify(appPackageJson, null, 2) +
+        // Common IDE formatters would add a newline as well.
+        os.EOL
     )
+    runInstallation(packageManager)
+
+    for (const codemod of codemods) {
+      await runTransform(codemod, cwd, { force: true, verbose })
+    }
+
+    // To reduce user-side burden of selecting which codemods to run as it needs additional
+    // understanding of the codemods, we run all of the applicable codemods.
+    if (shouldRunReactCodemods) {
+      // https://react.dev/blog/2024/04/25/react-19-upgrade-guide#run-all-react-19-codemods
+      execSync(
+        // `--no-interactive` skips the interactive prompt that asks for confirmation
+        // https://github.com/codemod-com/codemod/blob/c0cf00d13161a0ec0965b6cc6bc5d54076839cc8/apps/cli/src/flags.ts#L160
+        `${execCommand} codemod@latest react/19/migration-recipe --no-interactive`,
+        { stdio: 'inherit' }
+      )
+    }
+
+    if (shouldRunReactTypesCodemods) {
+      // https://react.dev/blog/2024/04/25/react-19-upgrade-guide#typescript-changes
+      // `--yes` skips prompts and applies all codemods automatically
+      // https://github.com/eps1lon/types-react-codemod/blob/8463103233d6b70aad3cd6bee1814001eae51b28/README.md?plain=1#L52
+      execSync(`${execCommand} types-react-codemod@latest --yes preset-19 .`, {
+        stdio: 'inherit',
+      })
+    }
   }
 
-  if (shouldRunReactTypesCodemods) {
-    // https://react.dev/blog/2024/04/25/react-19-upgrade-guide#typescript-changes
-    // `--yes` skips prompts and applies all codemods automatically
-    // https://github.com/eps1lon/types-react-codemod/blob/8463103233d6b70aad3cd6bee1814001eae51b28/README.md?plain=1#L52
-    execSync(`${execCommand} types-react-codemod@latest --yes preset-19 .`, {
-      stdio: 'inherit',
-    })
-  }
   console.log() // new line
   if (codemods.length > 0) {
     console.log(`${pc.green('✔')} Codemods have been applied successfully.`)
   }
   endMessage()
+
+  if (dry) {
+    console.log() // new line
+    console.log(pc.bold('Dry-run Output:'))
+    console.log() // new line
+    console.log(
+      JSON.stringify(
+        {
+          revision,
+          verbose,
+          installedNextVersion,
+          installedReactVersion,
+          targetNextVersion,
+          targetReactVersion,
+          packageManager,
+          usesAppDir,
+          usesPagesDir,
+          isPureAppRouter,
+          isMixedApp,
+          shouldStayOnReact18,
+          codemods,
+          shouldRunReactCodemods,
+          shouldRunReactTypesCodemods,
+          execCommand,
+          dependenciesToInstall,
+          devDependenciesToInstall,
+        },
+        null,
+        2
+      )
+    )
+  }
 }
 
 function getInstalledNextVersion(): string {

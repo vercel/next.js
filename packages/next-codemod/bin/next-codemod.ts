@@ -69,6 +69,7 @@ program
   )
   .usage('[revision] [options]')
   .option('--verbose', 'Verbose output', false)
+  .option('-d, --dry', 'Dry run (no changes are made to files)')
   .action(async (revision, options) => {
     try {
       await runUpgrade(revision, options)
