@@ -9,7 +9,7 @@ use std::{
     path::PathBuf,
     sync::Arc,
     thread::{self, JoinHandle},
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use anyhow::Result;
@@ -131,7 +131,10 @@ impl TraceReader {
         let mut format: Option<Box<dyn TraceFormat>> = None;
 
         let mut current_read = 0;
-        let mut initial_read = { file.seek(SeekFrom::End(0)).ok() };
+        let mut initial_read = file
+            .seek(SeekFrom::End(0))
+            .ok()
+            .map(|total| (total, Instant::now()));
         if file.seek(SeekFrom::Start(0)).is_err() {
             return false;
         }
@@ -193,7 +196,7 @@ impl TraceReader {
                             }
                             let prev_read = current_read;
                             current_read += bytes_read as u64;
-                            if let Some(total) = &mut initial_read {
+                            if let Some((total, start)) = &mut initial_read {
                                 let old_mbs = prev_read / (97 * 1024 * 1024);
                                 let new_mbs = current_read / (97 * 1024 * 1024);
                                 if old_mbs != new_mbs {
@@ -207,7 +210,13 @@ impl TraceReader {
                                     let uncompressed = current_read / (1024 * 1024);
                                     let total = *total / (1024 * 1024);
                                     let stats = format.stats();
-                                    print!("{}% read ({}/{} MB)", percentage, read, total);
+                                    print!(
+                                        "{}% read ({}/{} MB, {} MB/s)",
+                                        percentage,
+                                        read,
+                                        total,
+                                        read * 1000 / (start.elapsed().as_millis() + 1) as u64
+                                    );
                                     if uncompressed != read {
                                         print!(" ({} MB uncompressed)", uncompressed);
                                     }
@@ -249,19 +258,23 @@ impl TraceReader {
     fn wait_for_more_data(
         &mut self,
         file: &mut TraceFile,
-        initial_read: &mut Option<u64>,
+        initial_read: &mut Option<(u64, Instant)>,
         format: Option<&dyn TraceFormat>,
     ) -> Option<bool> {
         let Ok(pos) = file.stream_position() else {
             return Some(true);
         };
-        if let Some(total) = initial_read.take() {
+        if let Some((total, start)) = initial_read.take() {
             if let Some(format) = format {
                 let stats = format.stats();
                 println!("{}", stats);
             }
             if total > MIN_INITIAL_REPORT_SIZE {
-                println!("Initial read completed ({} MB)", total / (1024 * 1024));
+                println!(
+                    "Initial read completed ({} MB, {}s)",
+                    total / (1024 * 1024),
+                    (start.elapsed().as_millis() / 100) as f32 / 10.0
+                );
             }
         }
         loop {
