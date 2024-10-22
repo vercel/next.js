@@ -193,7 +193,7 @@ async fn static_route_source(
         is_open_graph = is_open_graph,
         file_size_limit = file_size_limit,
         img_name = img_name,
-        path = path.to_string().await?,
+        path = StringifyJs(&path.to_string().await?.replace("\\", "\\\\")),
     };
 
     let file = File::from(code);
