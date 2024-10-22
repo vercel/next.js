@@ -40,7 +40,7 @@ smallvec = { workspace = true }
 tokio = { workspace = true }
 tokio-scoped = "0.2.0"
 tracing = { workspace = true }
-thread_local = { version = "1.1.8" }
+thread_local = { workspace = true }
 turbo-prehash = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-hash = { workspace = true }
