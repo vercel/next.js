@@ -104,14 +104,14 @@ export function getOriginalStackFrames(
 }
 
 const webpackRegExes = [
-  /^(rsc:\/\/React\/[^/]+\/)?webpack-internal:\/\/\/(\.)?(\((\w+)\))?/,
-  /^(webpack:\/\/\/(\.)?|webpack:\/\/(_N_E\/)?)(\((\w+)\))?/,
+  /^(rsc:\/\/React\/[^/]+\/)?webpack-internal:\/\/\/(\([\w-]+\)\/)?/,
+  /^(webpack:\/\/\/|webpack:\/\/(_N_E\/)?)(\((\w+)\))?/,
 ]
 
 const replacementRegExes = [
   /^(rsc:\/\/React\/[^/]+\/)/,
-  /^webpack-internal:\/\/\/(\.)?(\((\w+)\))?/,
-  /^(webpack:\/\/\/(\.)?|webpack:\/\/(_N_E\/)?)(\((\w+)\))?/,
+  /^webpack-internal:\/\/\/(\([\w-]+\)\/)?/,
+  /^(webpack:\/\/\/|webpack:\/\/(_N_E\/)?)(\([\w-]+\)\/)?/,
   /\?\d+$/, // React's fakeFunctionIdx query param
 ]
 
@@ -129,7 +129,7 @@ function isWebpackBundled(file: string) {
  *
  * <anonymous> => ''
  */
-function formatFrameSourceFile(file: string) {
+export function formatFrameSourceFile(file: string) {
   if (file === '<anonymous>') return ''
 
   for (const regex of replacementRegExes) {
