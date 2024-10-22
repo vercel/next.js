@@ -14,6 +14,11 @@ describe('webpack-module-path', () => {
           'rsc://React/Server/webpack:///(rsc)/./src/hello.tsx?42'
         )
       ).toBe(true)
+      expect(
+        isWebpackBundled(
+          'rsc://React/Server/webpack:///(app-pages-browser)/./src/hello.tsx?42'
+        )
+      ).toBe(true)
       expect(isWebpackBundled('webpack://_N_E/./src/hello.tsx')).toBe(true)
       expect(isWebpackBundled('webpack://./src/hello.tsx')).toBe(true)
       expect(isWebpackBundled('webpack:///./src/hello.tsx')).toBe(true)
@@ -38,6 +43,11 @@ describe('webpack-module-path', () => {
       expect(
         formatFrameSourceFile(
           'rsc://React/Server/webpack:///(rsc)/./src/hello.tsx?42'
+        )
+      ).toBe('./src/hello.tsx')
+      expect(
+        formatFrameSourceFile(
+          'rsc://React/Server/webpack:///(app-pages-browser)/./src/hello.tsx?42'
         )
       ).toBe('./src/hello.tsx')
       expect(formatFrameSourceFile('webpack://_N_E/./src/hello.tsx')).toBe(
