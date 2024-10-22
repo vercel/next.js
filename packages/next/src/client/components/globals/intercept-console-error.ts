@@ -1,3 +1,4 @@
+import isError from '../../../lib/is-error'
 import { isNextRouterError } from '../is-next-router-error'
 import { handleClientError } from '../react-dev-overlay/internal/helpers/use-error-handler'
 
@@ -65,11 +66,7 @@ function matchReplayedError(...args: unknown[]): Error | null {
     typeof args[3] === 'string'
   ) {
     const maybeError = args[4]
-    if (
-      maybeError &&
-      typeof maybeError === 'object' &&
-      maybeError instanceof Error
-    ) {
+    if (isError(maybeError)) {
       return maybeError
     }
   }
