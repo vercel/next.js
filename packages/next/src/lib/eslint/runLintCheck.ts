@@ -45,6 +45,11 @@ const requiredPackages = [
     pkg: 'eslint-config-next',
     exportsRestrict: false,
   },
+  {
+    file: '@eslint/eslintrc',
+    pkg: '@eslint/eslintrc',
+    exportsRestrict: false,
+  },
 ]
 
 async function cliPrompt(cwd: string): Promise<{ config?: any }> {
@@ -388,8 +393,23 @@ export async function runLintCheck(
       packageJsonConfig = CommentJson.parse(pkgJsonContent)
     }
 
+    if (!lintDuringBuild) {
+      // Check if necessary deps installed, and install any that are missing
+      const deps = await hasNecessaryDependencies(baseDir, requiredPackages)
+
+      if (deps.missing.length > 0) {
+        deps.missing.forEach((dep) => {
+          if (dep.pkg === 'eslint') {
+            // pin to v9 to avoid breaking changes
+            dep.pkg = 'eslint@^9'
+          }
+        })
+
+        await installDependencies(baseDir, deps.missing, true)
+      }
+    }
+
     const config = await hasEslintConfiguration(eslintrcFile, packageJsonConfig)
-    let deps
 
     if (config.exists) {
       // Run if ESLint config exists
@@ -427,19 +447,6 @@ export async function runLintCheck(
           )
           return null
         } else {
-          // Check if necessary deps installed, and install any that are missing
-          deps = await hasNecessaryDependencies(baseDir, requiredPackages)
-          if (deps.missing.length > 0) {
-            deps.missing.forEach((dep) => {
-              if (dep.pkg === 'eslint') {
-                // pin to v9 to avoid breaking changes
-                dep.pkg = 'eslint@^9'
-              }
-            })
-
-            await installDependencies(baseDir, deps.missing, true)
-          }
-
           // Write default ESLint config.
           // Check for /pages and src/pages is to make sure this happens in Next.js folder
           if (
@@ -447,14 +454,7 @@ export async function runLintCheck(
               existsSync(path.join(baseDir, dir))
             )
           ) {
-            await writeDefaultConfig(
-              baseDir,
-              config,
-              selectedConfig,
-              eslintrcFile,
-              pkgJsonPath,
-              packageJsonConfig
-            )
+            await writeDefaultConfig(baseDir, config, selectedConfig)
           }
         }
 
