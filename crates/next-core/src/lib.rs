@@ -33,6 +33,7 @@ pub mod next_server;
 mod next_server_component;
 mod next_shared;
 pub mod next_telemetry;
+pub mod nft_json;
 mod page_loader;
 pub mod pages_structure;
 pub mod tracing_presets;

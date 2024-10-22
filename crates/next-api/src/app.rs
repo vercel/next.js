@@ -32,6 +32,7 @@ use next_core::{
         get_server_module_options_context, get_server_resolve_options_context,
         get_server_runtime_entries, ServerContextType,
     },
+    nft_json::NftJsonAsset,
     parse_segment_config_from_source,
     util::NextRuntime,
 };
@@ -45,7 +46,6 @@ use turbo_tasks_env::{CustomProcessEnv, ProcessEnv};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack::{
     module_options::{transition_rule::TransitionRule, ModuleOptionsContext, RuleCondition},
-    nft_json::NftJsonAsset,
     resolve_options_context::ResolveOptionsContext,
     transition::{ContextTransition, FullContextTransition, Transition, TransitionOptions},
     ModuleAssetContext,

@@ -4,11 +4,11 @@ use next_core::{
     next_edge::entry::wrap_edge_entry,
     next_manifests::{InstrumentationDefinition, MiddlewaresManifestV2},
     next_server::{get_server_runtime_entries, ServerContextType},
+    nft_json::NftJsonAsset,
 };
 use tracing::Instrument;
 use turbo_tasks::{Completion, RcStr, Value, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
-use turbopack::nft_json::NftJsonAsset;
 use turbopack_core::{
     asset::AssetContent,
     chunk::{

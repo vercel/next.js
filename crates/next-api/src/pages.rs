@@ -19,6 +19,7 @@ use next_core::{
         get_server_module_options_context, get_server_resolve_options_context,
         get_server_runtime_entries, ServerContextType,
     },
+    nft_json::NftJsonAsset,
     pages_structure::{
         find_pages_structure, PagesDirectoryStructure, PagesStructure, PagesStructureItem,
     },
@@ -35,7 +36,6 @@ use turbo_tasks_fs::{
 };
 use turbopack::{
     module_options::ModuleOptionsContext,
-    nft_json::NftJsonAsset,
     resolve_options_context::ResolveOptionsContext,
     transition::{ContextTransition, TransitionOptions},
     ModuleAssetContext,
