@@ -522,12 +522,29 @@ async function generateDynamicFlightRenderResult(
     onFlightDataRenderError
   )
 
-  const rscPayload = await generateDynamicRSCPayload(ctx, options)
+  const RSCPayload = await generateDynamicRSCPayload(ctx, options)
+
+  if (
+    process.env.NODE_ENV === 'development' &&
+    renderOpts.experimental.dynamicIO
+  ) {
+    const [resolveValidation, validationOutlet] = createValidationOutlet()
+    ;(RSCPayload as any)._validation = validationOutlet
+
+    spawnDynamicValidationInDev(
+      resolveValidation,
+      ctx.componentMod.tree,
+      ctx,
+      false,
+      ctx.clientReferenceManifest,
+      ctx.workStore.route
+    )
+  }
 
   // For app dir, use the bundled version of Flight server renderer (renderToReadableStream)
   // which contains the subset React.
   const flightReadableStream = ctx.componentMod.renderToReadableStream(
-    rscPayload,
+    RSCPayload,
     ctx.clientReferenceManifest.clientModules,
     {
       onError,
