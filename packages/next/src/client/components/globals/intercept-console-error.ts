@@ -33,6 +33,9 @@ export function patchConsoleError() {
         handleClientError(
           // replayed errors have their own complex format string that should be used,
           // but if we pass the error directly, `handleClientError` will ignore it
+          //
+          // TODO: not passing an error here will make `handleClientError`
+          // create a new Error, so we'll lose the stack. we should make it smarter
           isReplayed ? undefined : maybeError,
           args
         )
