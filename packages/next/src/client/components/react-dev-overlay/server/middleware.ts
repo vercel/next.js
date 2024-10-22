@@ -13,7 +13,7 @@ import {
   noContent,
   type OriginalStackFrameResponse,
 } from './shared'
-import { NEXT_PROJECT_ROOT } from '../../../../build/webpack-config'
+import { NEXT_PROJECT_ROOT } from '../../../../build/next-dir-paths'
 export { getServerError } from '../internal/helpers/node-stack-frames'
 export { parseStack } from '../internal/helpers/parse-stack'
 export { getSourceMapFromFile }
@@ -21,7 +21,7 @@ export { getSourceMapFromFile }
 import type { IncomingMessage, ServerResponse } from 'http'
 import type webpack from 'webpack'
 import type { RawSourceMap } from 'next/dist/compiled/source-map08'
-import { formatFrameSourceFile } from '../internal/helpers/stack-frame'
+import { formatFrameSourceFile } from '../internal/helpers/webpack-module-path'
 
 type Source =
   | {
