@@ -33,30 +33,18 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
       }
     }, [error.frames])
 
-  const [all, setAll] = React.useState(firstFrame == null)
+  const { leadingFramesGroupedByFramework, stackFramesGroupedByFramework } =
+    React.useMemo(() => {
+      const leadingFrames = allLeadingFrames.filter((f) => f.expanded)
 
-  const {
-    canShowMore,
-    leadingFramesGroupedByFramework,
-    stackFramesGroupedByFramework,
-  } = React.useMemo(() => {
-    const leadingFrames = allLeadingFrames.filter((f) => f.expanded || all)
-    const visibleCallStackFrames = allCallStackFrames.filter(
-      (f) => f.expanded || all
-    )
+      return {
+        stackFramesGroupedByFramework:
+          groupStackFramesByFramework(allCallStackFrames),
 
-    return {
-      canShowMore:
-        allCallStackFrames.length !== visibleCallStackFrames.length ||
-        (all && firstFrame != null),
-
-      stackFramesGroupedByFramework:
-        groupStackFramesByFramework(allCallStackFrames),
-
-      leadingFramesGroupedByFramework:
-        groupStackFramesByFramework(leadingFrames),
-    }
-  }, [all, allCallStackFrames, allLeadingFrames, firstFrame])
+        leadingFramesGroupedByFramework:
+          groupStackFramesByFramework(leadingFrames),
+      }
+    }, [allCallStackFrames, allLeadingFrames])
 
   return (
     <React.Fragment>
@@ -82,32 +70,11 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
           />
         </React.Fragment>
       ) : undefined}
-      {canShowMore ? (
-        <React.Fragment>
-          <button
-            tabIndex={10}
-            data-nextjs-data-runtime-error-collapsed-action
-            type="button"
-            onClick={() => setAll(!all)}
-          >
-            {all ? 'Hide' : 'Show'} collapsed frames
-          </button>
-        </React.Fragment>
-      ) : undefined}
     </React.Fragment>
   )
 }
 
 export const styles = css`
-  button[data-nextjs-data-runtime-error-collapsed-action] {
-    background: none;
-    border: none;
-    padding: 0;
-    font-size: var(--size-font-small);
-    line-height: var(--size-font-bigger);
-    color: var(--color-accents-3);
-  }
-
   [data-nextjs-call-stack-frame]:not(:last-child),
   [data-nextjs-component-stack-frame]:not(:last-child) {
     margin-bottom: var(--size-gap-double);
