@@ -55,11 +55,7 @@ const PLUGIN_NAME = 'FlightClientEntryPlugin'
 type Actions = {
   [actionId: string]: {
     workers: {
-      [name: string]:
-        | { moduleId: string | number; async: boolean }
-        // TODO: This is legacy for Turbopack, and needs to be changed to the
-        // object above.
-        | string
+      [name: string]: { moduleId: string | number; async: boolean }
     }
     // Record which layer the action is in (rsc or sc_action), in the specific entry.
     layer: {

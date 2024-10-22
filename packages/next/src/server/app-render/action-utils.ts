@@ -26,7 +26,6 @@ export function createServerModuleMap({
 
         let workerEntry:
           | { moduleId: string | number; async: boolean }
-          | string
           | undefined
 
         if (workStore) {
@@ -44,10 +43,6 @@ export function createServerModuleMap({
 
         if (!workerEntry) {
           return undefined
-        }
-
-        if (typeof workerEntry === 'string') {
-          return { id: workerEntry, name: id, chunks: [] }
         }
 
         const { moduleId, async } = workerEntry
