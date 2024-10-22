@@ -106,7 +106,7 @@ export default function RootLayout({
 }
 ```
 
-```jsx filename="app/layout.js" switcher
+```jsx filename="app/layout.jsx" switcher
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
@@ -124,7 +124,7 @@ export default function Page() {
 }
 ```
 
-```jsx filename="app/page.js" switcher
+```jsx filename="app/page.jsx" switcher
 export default function Page() {
   return <h1>Hello, Next.js!</h1>
 }
@@ -146,7 +146,7 @@ export default function Page() {
 }
 ```
 
-```jsx filename="pages/index.js" switcher
+```jsx filename="pages/index.jsx" switcher
 export default function Page() {
   return <h1>Hello, Next.js!</h1>
 }
@@ -162,7 +162,7 @@ export default function App({ Component, pageProps }: AppProps) {
 }
 ```
 
-```jsx filename="pages/_app.js" switcher
+```jsx filename="pages/_app.jsx" switcher
 export default function App({ Component, pageProps }) {
   return <Component {...pageProps} />
 }
@@ -186,7 +186,7 @@ export default function Document() {
 }
 ```
 
-```jsx filename="pages/_document.js" switcher
+```jsx filename="pages/_document.jsx" switcher
 import { Html, Head, Main, NextScript } from 'next/document'
 
 export default function Document() {
