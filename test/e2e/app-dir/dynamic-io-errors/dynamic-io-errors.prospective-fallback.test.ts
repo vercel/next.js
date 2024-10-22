@@ -27,6 +27,7 @@ describe(`Dynamic IO Prospective Fallback`, () => {
         // we expect the build to fail
       }
 
+      // TODO: Assert on component stack
       expect(next.cliOutput).toContain(
         'In Route "/blog/[slug]" this component accessed data without a Suspense boundary above it to provide a fallback UI.'
       )
