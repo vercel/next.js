@@ -234,7 +234,7 @@ describe('create-next-app --app (App Router)', () => {
           '--ts',
           '--app',
           '--eslint',
-          '--turbo',
+          '--turbopack',
           '--no-src-dir',
           '--no-tailwind',
           '--no-import-alias',
@@ -248,7 +248,7 @@ describe('create-next-app --app (App Router)', () => {
       expect(exitCode).toBe(0)
       const projectRoot = join(cwd, projectName)
       const pkgJson = require(join(projectRoot, 'package.json'))
-      expect(pkgJson.scripts.dev).toBe('next dev --turbo')
+      expect(pkgJson.scripts.dev).toBe('next dev --turbopack')
     })
   })
 })
