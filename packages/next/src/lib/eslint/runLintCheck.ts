@@ -454,7 +454,12 @@ export async function runLintCheck(
               existsSync(path.join(baseDir, dir))
             )
           ) {
-            await writeDefaultConfig(baseDir, config, selectedConfig)
+            await writeDefaultConfig(
+              baseDir,
+              config,
+              selectedConfig,
+              eslintrcFile
+            )
           }
         }
 
