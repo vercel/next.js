@@ -403,16 +403,16 @@ function isUsingAppDir(projectPath: string): boolean {
  * Heuristics are used to determine whether to Turbopack is enabled or not and
  * to determine how to update the dev script.
  *
- * 1. If the dev script contains `--turbo` option, we assume that Turbopack is
+ * 1. If the dev script contains `--turbopack` option, we assume that Turbopack is
  *    already enabled.
  * 2. If the dev script contains the string `next dev`, we replace it to
- *    `next dev --turbo`.
- * 3. Otherwise, we ask the user to manually add `--turbo` to their dev command,
+ *    `next dev --turbopack`.
+ * 3. Otherwise, we ask the user to manually add `--turbopack` to their dev command,
  *    showing the current dev command as the initial value.
  */
 async function suggestTurbopack(packageJson: any): Promise<void> {
   const devScript: string = packageJson.scripts['dev']
-  if (devScript.includes('--turbo')) return
+  if (devScript.includes('--turbopack')) return
 
   const responseTurbopack = await prompts(
     {
@@ -431,7 +431,7 @@ async function suggestTurbopack(packageJson: any): Promise<void> {
   if (devScript.includes('next dev')) {
     packageJson.scripts['dev'] = devScript.replace(
       'next dev',
-      'next dev --turbo'
+      'next dev --turbopack'
     )
     return
   }
@@ -444,7 +444,7 @@ async function suggestTurbopack(packageJson: any): Promise<void> {
     {
       type: 'text',
       name: 'customDevScript',
-      message: 'Please manually add "--turbo" to your dev command.',
+      message: 'Please manually add "--turbopack" to your dev command.',
       initial: devScript,
     },
     { onCancel }
