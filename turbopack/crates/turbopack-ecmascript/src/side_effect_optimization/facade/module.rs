@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use anyhow::{bail, Result};
-use turbo_tasks::{ValueToString, Vc};
+use turbo_tasks::Vc;
 use turbo_tasks_fs::{glob::Glob, File, FileContent};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -64,7 +64,7 @@ impl Module for EcmascriptModuleFacadeModule {
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         let inner = self.module.ident();
 
-        Ok(inner.with_modifier(self.ty.to_string()))
+        Ok(inner.with_part(self.ty))
     }
 
     #[turbo_tasks::function]
