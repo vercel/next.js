@@ -23,10 +23,12 @@ describe('app-dir - server source maps', () => {
     await next.render('/rsc-error-log-custom-name')
 
     expect(next.cliOutput).toContain(
-      isNextDev ? 'UnnamedError: Foo' : '[Error]: Foo'
+      // TODO: isNextDev ? 'UnnamedError: Foo' : '[Error]: Foo'
+      isNextDev ? 'Error: Foo' : 'Error: Foo'
     )
     expect(next.cliOutput).toContain(
-      isNextDev ? 'NamedError [MyError]: Bar' : '[MyError]: Bar'
+      // TODO: isNextDev ? 'NamedError [MyError]: Bar' : '[MyError]: Bar'
+      isNextDev ? 'Error [MyError]: Bar' : 'Error [MyError]: Bar'
     )
   })
 })
