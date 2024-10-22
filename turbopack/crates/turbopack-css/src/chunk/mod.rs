@@ -214,8 +214,8 @@ impl OutputChunk for CssChunk {
             .map(|item| Vc::upcast(SingleItemCssChunk::new(self.chunking_context, *item)))
             .collect();
         Ok(OutputChunkRuntimeInfo {
-            included_ids: Some(Vc::cell(included_ids)),
-            module_chunks: Some(Vc::cell(module_chunks)),
+            included_ids: Some(ResolvedVc::cell(included_ids)),
+            module_chunks: Some(ResolvedVc::cell(module_chunks)),
             ..Default::default()
         }
         .cell())
