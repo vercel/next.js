@@ -9,6 +9,8 @@
   },
   "dependencies": {
     "next": "workspace:*",
-    "keyv": "3.1.0"
+    "keyv": "3.1.0",
+    "sqlite": "4.0.22",
+    "sqlite3": "5.0.3"
   }
 }
