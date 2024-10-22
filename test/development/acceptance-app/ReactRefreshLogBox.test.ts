@@ -1288,7 +1288,7 @@ export default function Home() {
       expect(stack).toMatchInlineSnapshot(`
         "app/utils.ts (1:7) @ eval
         ---
-        (app-pages-browser)/./app/utils.ts
+        ./app/utils.ts
         file://TEST_DIR/.next/static/chunks/app/page.js (39:1)
         ---
         Next.js
@@ -1300,8 +1300,7 @@ export default function Home() {
         file://TEST_DIR/.next/static/chunks/app/page.js (28:1)
         ---
         Next.js
-        ---
-        React"
+        "
       `)
     }
 
