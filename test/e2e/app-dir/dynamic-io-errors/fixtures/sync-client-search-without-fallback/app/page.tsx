@@ -7,7 +7,6 @@ import { IndirectionOne, IndirectionTwo, IndirectionThree } from './indirection'
 
 type SearchParams = { foo: string | string[] | undefined }
 export default function Page(props: { searchParams: Promise<SearchParams> }) {
-  const searchParams = use(props.searchParams)
   return (
     <>
       <p>
@@ -17,7 +16,7 @@ export default function Page(props: { searchParams: Promise<SearchParams> }) {
       </p>
       <Suspense fallback={<Fallback />}>
         <IndirectionOne>
-          <SearchParamsReadingComponent searchParams={searchParams} />
+          <SearchParamsReadingComponent searchParams={props.searchParams} />
         </IndirectionOne>
       </Suspense>
       <IndirectionTwo>

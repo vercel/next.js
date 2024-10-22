@@ -11,7 +11,7 @@ export default async function Home(props) {
       <div>
         Random # from Root Page: <span id="random-number">{Math.random()}</span>
       </div>
-      <UpdateSearchParamsButton searchParams={await searchParams} />
+      <UpdateSearchParamsButton searchParams={searchParams} />
     </main>
   )
 }

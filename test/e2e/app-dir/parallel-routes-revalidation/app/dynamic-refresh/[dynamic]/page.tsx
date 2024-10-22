@@ -3,7 +3,6 @@ import { UpdateSearchParamsButton } from '../../components/UpdateSearchParamsBut
 
 export default async function Home(props) {
   const searchParams = await props.searchParams
-  const sp = await searchParams
   return (
     <main>
       <Link href="/dynamic-refresh/foo/login">
@@ -12,7 +11,7 @@ export default async function Home(props) {
       <div>
         Random # from Root Page: <span id="random-number">{Math.random()}</span>
       </div>
-      <UpdateSearchParamsButton searchParams={sp} />
+      <UpdateSearchParamsButton searchParams={searchParams} />
     </main>
   )
 }
