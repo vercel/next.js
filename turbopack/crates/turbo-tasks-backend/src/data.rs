@@ -369,6 +369,10 @@ pub enum CachedDataItem {
         task: TaskId,
         value: i32,
     },
+    PersistentUpperCount {
+        // Only counting persistent tasks
+        value: u32,
+    },
 
     // Aggregated Data
     AggregatedDirtyContainer {
@@ -453,6 +457,7 @@ impl CachedDataItem {
             CachedDataItem::AggregationNumber { .. } => true,
             CachedDataItem::Follower { task, .. } => !task.is_transient(),
             CachedDataItem::Upper { task, .. } => !task.is_transient(),
+            CachedDataItem::PersistentUpperCount { .. } => true,
             CachedDataItem::AggregatedDirtyContainer { task, .. } => !task.is_transient(),
             CachedDataItem::AggregatedCollectible { collectible, .. } => {
                 !collectible.cell.task.is_transient()
@@ -518,6 +523,7 @@ impl CachedDataItemKey {
             CachedDataItemKey::AggregationNumber { .. } => true,
             CachedDataItemKey::Follower { task, .. } => !task.is_transient(),
             CachedDataItemKey::Upper { task, .. } => !task.is_transient(),
+            CachedDataItemKey::PersistentUpperCount {} => true,
             CachedDataItemKey::AggregatedDirtyContainer { task, .. } => !task.is_transient(),
             CachedDataItemKey::AggregatedCollectible { collectible, .. } => {
                 !collectible.cell.task.is_transient()
@@ -562,6 +568,7 @@ impl CachedDataItemKey {
             | CachedDataItemKey::Dirty { .. }
             | CachedDataItemKey::Follower { .. }
             | CachedDataItemKey::Upper { .. }
+            | CachedDataItemKey::PersistentUpperCount { .. }
             | CachedDataItemKey::AggregatedDirtyContainer { .. }
             | CachedDataItemKey::AggregatedCollectible { .. }
             | CachedDataItemKey::AggregatedDirtyContainerCount { .. }

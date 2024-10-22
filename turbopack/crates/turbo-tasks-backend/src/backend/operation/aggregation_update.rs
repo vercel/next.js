@@ -1,5 +1,5 @@
 use std::{
-    cmp::{max, Ordering},
+    cmp::{max, Ordering, Reverse},
     collections::{hash_map::Entry as HashMapEntry, VecDeque},
     num::NonZeroU32,
 };
@@ -16,7 +16,7 @@ use crate::{
             invalidate::{make_task_dirty, TaskDirtyCause},
             ExecuteContext, Operation, TaskGuard,
         },
-        storage::{get, get_many, iter_many, remove, update, update_count},
+        storage::{get, get_many, iter_many, remove, update, update_count, update_ucount_and_get},
         TaskDataCategory,
     },
     data::{
@@ -343,6 +343,7 @@ pub struct AggregationUpdateQueue {
     find_and_schedule: FxIndexSet<TaskId>,
     done_find_and_schedule: FxHashSet<TaskId>,
     balance_queue: FxIndexSet<(TaskId, TaskId)>,
+    optimize_queue: FxIndexSet<TaskId>,
 }
 
 impl AggregationUpdateQueue {
@@ -354,6 +355,7 @@ impl AggregationUpdateQueue {
             find_and_schedule: FxIndexSet::default(),
             done_find_and_schedule: FxHashSet::default(),
             balance_queue: FxIndexSet::default(),
+            optimize_queue: FxIndexSet::default(),
         }
     }
 
@@ -434,6 +436,10 @@ impl AggregationUpdateQueue {
                 .into_iter()
                 .filter(|task_id| !self.done_find_and_schedule.contains(task_id)),
         );
+    }
+
+    pub fn push_optimize_task(&mut self, task_id: TaskId) {
+        self.optimize_queue.insert(task_id);
     }
 
     pub fn run(job: AggregationUpdateJob, ctx: &mut impl ExecuteContext) {
@@ -604,6 +610,17 @@ impl AggregationUpdateQueue {
                 }
             }
             false
+        } else if !self.optimize_queue.is_empty() {
+            let mut remaining: usize = MAX_COUNT_BEFORE_YIELD;
+            while remaining > 0 {
+                if let Some(task_id) = self.optimize_queue.pop() {
+                    self.optimize_task(ctx, task_id);
+                    remaining -= 1;
+                } else {
+                    break;
+                }
+            }
+            false
         } else if !self.find_and_schedule.is_empty() {
             let mut remaining = MAX_COUNT_BEFORE_YIELD;
             while remaining > 0 {
@@ -642,6 +659,14 @@ impl AggregationUpdateQueue {
 
                     // Add the same amount of upper edges
                     if update_count!(task, Upper { task: upper_id }, count) {
+                        if !upper_id.is_transient() {
+                            #[allow(clippy::collapsible_if, reason = "readablility")]
+                            if update_ucount_and_get!(task, PersistentUpperCount, 1)
+                                .is_power_of_two()
+                            {
+                                self.optimize_queue.insert(task_id);
+                            }
+                        }
                         // When this is a new inner node, update aggregated data and
                         // followers
                         let data = AggregatedDataUpdate::from_task(&mut task);
@@ -688,6 +713,10 @@ impl AggregationUpdateQueue {
                     value: count,
                 }),
                 Ordering::Greater => {
+                    if !upper_id.is_transient() {
+                        update_ucount_and_get!(task, PersistentUpperCount, -1);
+                    }
+
                     let upper_ids: Vec<_> = get_uppers(&upper);
 
                     // Add the same amount of follower edges
@@ -723,24 +752,13 @@ impl AggregationUpdateQueue {
             }
         } else {
             // both nodes have the same aggregation number
-            // We need to change the aggregation number of the task or of upper
-            let upper_uppers = iter_uppers(&upper).count();
-            let task_uppers = iter_uppers(&task).count();
-            if upper_uppers > task_uppers {
-                let current = get!(upper, AggregationNumber).copied().unwrap_or_default();
-                self.push(AggregationUpdateJob::UpdateAggregationNumber {
-                    task_id: upper_id,
-                    base_aggregation_number: current.base + 1,
-                    distance: None,
-                });
-            } else {
-                let current = get!(task, AggregationNumber).copied().unwrap_or_default();
-                self.push(AggregationUpdateJob::UpdateAggregationNumber {
-                    task_id,
-                    base_aggregation_number: current.base + 1,
-                    distance: None,
-                });
-            }
+            // We need to change the aggregation number of the task
+            let current = get!(task, AggregationNumber).copied().unwrap_or_default();
+            self.push(AggregationUpdateJob::UpdateAggregationNumber {
+                task_id,
+                base_aggregation_number: current.base + 1,
+                distance: None,
+            });
         }
     }
 
@@ -798,6 +816,7 @@ impl AggregationUpdateQueue {
     ) {
         let mut follower = ctx.task(lost_follower_id, TaskDataCategory::Meta);
         let mut follower_in_upper_ids = Vec::new();
+        let mut persistent_uppers = 0;
         upper_ids.retain(|&upper_id| {
             let mut keep_upper = false;
             update!(follower, Upper { task: upper_id }, |old| {
@@ -811,6 +830,9 @@ impl AggregationUpdateQueue {
                 }
                 if old == 1 {
                     keep_upper = true;
+                    if !upper_id.is_transient() {
+                        persistent_uppers += 1;
+                    }
                     return None;
                 }
                 Some(old - 1)
@@ -818,6 +840,8 @@ impl AggregationUpdateQueue {
             keep_upper
         });
         if !upper_ids.is_empty() {
+            update_ucount_and_get!(follower, PersistentUpperCount, -persistent_uppers);
+
             let data = AggregatedDataUpdate::from_task(&mut follower).invert();
             let followers: Vec<_> = get_followers(&follower);
             drop(follower);
@@ -890,6 +914,10 @@ impl AggregationUpdateQueue {
                 Some(old - 1)
             });
             if remove_upper {
+                if !upper_id.is_transient() {
+                    update_ucount_and_get!(follower, PersistentUpperCount, -1);
+                }
+
                 let data = AggregatedDataUpdate::from_task(&mut follower).invert();
                 let followers: Vec<_> = get_followers(&follower);
                 drop(follower);
@@ -977,9 +1005,20 @@ impl AggregationUpdateQueue {
 
         if !upper_ids.is_empty() {
             let mut follower = ctx.task(new_follower_id, TaskDataCategory::Meta);
+            let mut uppers_count: Option<usize> = None;
+            let mut persistent_uppers = 0;
             upper_ids.retain(|&upper_id| {
                 if update_count!(follower, Upper { task: upper_id }, 1) {
                     // It's a new upper
+                    let uppers_count = uppers_count.get_or_insert_with(|| {
+                        let count =
+                            iter_many!(follower, Upper { .. } count if *count > 0 => ()).count();
+                        count - 1
+                    });
+                    *uppers_count += 1;
+                    if !upper_id.is_transient() {
+                        persistent_uppers += 1;
+                    }
                     true
                 } else {
                     // It's already an upper
@@ -987,6 +1026,12 @@ impl AggregationUpdateQueue {
                 }
             });
             if !upper_ids.is_empty() {
+                if update_ucount_and_get!(follower, PersistentUpperCount, persistent_uppers)
+                    .is_power_of_two()
+                {
+                    self.optimize_queue.insert(new_follower_id);
+                }
+
                 let data = AggregatedDataUpdate::from_task(&mut follower);
                 let children: Vec<_> = get_followers(&follower);
                 drop(follower);
@@ -1071,6 +1116,13 @@ impl AggregationUpdateQueue {
         for &(follower_id, _) in followers_with_aggregation_number.iter() {
             let mut follower = ctx.task(follower_id, TaskDataCategory::Meta);
             if update_count!(follower, Upper { task: upper_id }, 1) {
+                if !upper_id.is_transient() {
+                    #[allow(clippy::collapsible_if, reason = "readablility")]
+                    if update_ucount_and_get!(follower, PersistentUpperCount, 1).is_power_of_two() {
+                        self.optimize_queue.insert(follower_id);
+                    }
+                }
+
                 // It's a new upper
                 let data = AggregatedDataUpdate::from_task(&mut follower);
                 let children: Vec<_> = get_followers(&follower);
@@ -1171,6 +1223,12 @@ impl AggregationUpdateQueue {
             drop(upper);
             let mut follower = ctx.task(new_follower_id, TaskDataCategory::Meta);
             if update_count!(follower, Upper { task: upper_id }, 1) {
+                if !upper_id.is_transient() {
+                    #[allow(clippy::collapsible_if, reason = "readablility")]
+                    if update_ucount_and_get!(follower, PersistentUpperCount, 1).is_power_of_two() {
+                        self.optimize_queue.insert(new_follower_id);
+                    }
+                }
                 // It's a new upper
                 let data = AggregatedDataUpdate::from_task(&mut follower);
                 let children: Vec<_> = get_followers(&follower);
@@ -1277,6 +1335,109 @@ impl AggregationUpdateQueue {
                     });
                 }
             }
+        }
+    }
+
+    fn optimize_task(&mut self, ctx: &mut impl ExecuteContext<'_>, task_id: TaskId) {
+        let task = ctx.task(task_id, TaskDataCategory::Meta);
+        let aggregation_number = get!(task, AggregationNumber).copied().unwrap_or_default();
+        if is_root_node(aggregation_number.effective) {
+            return;
+        }
+        let upper_count = get!(task, PersistentUpperCount)
+            .copied()
+            .unwrap_or_default();
+        if upper_count <= aggregation_number.effective {
+            // Doesn't need optimization
+            return;
+        }
+        let uppers = get_uppers(&task);
+        drop(task);
+
+        if !is_aggregating_node(aggregation_number.effective) {
+            self.push(AggregationUpdateJob::UpdateAggregationNumber {
+                task_id,
+                base_aggregation_number: LEAF_NUMBER,
+                distance: None,
+            });
+            return;
+        }
+
+        let mut root_uppers = 0;
+
+        let mut uppers_aggregation_numbers = uppers
+            .iter()
+            .filter_map(|upper_id| {
+                if upper_id.is_transient() {
+                    return None;
+                }
+                let upper = ctx.task(*upper_id, TaskDataCategory::Meta);
+                let n = get_aggregation_number(&upper);
+                if is_root_node(n) {
+                    root_uppers += 1;
+                    None
+                } else {
+                    Some(Reverse(n))
+                }
+            })
+            .collect::<Vec<_>>();
+        uppers_aggregation_numbers.sort_unstable();
+
+        // This is the aggregation number where work is minimal
+        let min_work_aggregation_number = if let Some(upper) = uppers_aggregation_numbers.first() {
+            upper.0 + 1
+        } else {
+            return;
+        };
+        let minimal_work = root_uppers;
+
+        let mut new_aggregation_number = max(
+            min_work_aggregation_number,
+            minimal_work.try_into().unwrap_or(u32::MAX),
+        );
+
+        let mut i = 0;
+        loop {
+            // A smaller aggregation number will conflict
+            let mut next_aggregation_number = new_aggregation_number - 1;
+
+            // Find a possible smaller aggregation number to is valid
+            while let Some(n) = uppers_aggregation_numbers.get(i) {
+                match n.0.cmp(&next_aggregation_number) {
+                    std::cmp::Ordering::Less => {
+                        i += 1;
+                    }
+                    std::cmp::Ordering::Equal => {
+                        next_aggregation_number -= 1;
+                        i += 1;
+                    }
+                    std::cmp::Ordering::Greater => break,
+                }
+            }
+
+            // Compute the work for that case
+            let work = root_uppers + i;
+            if work > next_aggregation_number as usize {
+                break;
+            }
+
+            // Find the smallest number in that range
+            let min_aggregation_number = if let Some(upper) = uppers_aggregation_numbers.get(i) {
+                upper.0 + 1
+            } else {
+                aggregation_number.effective
+            };
+            new_aggregation_number =
+                max(min_aggregation_number, work.try_into().unwrap_or(u32::MAX));
+        }
+
+        if aggregation_number.effective != new_aggregation_number {
+            self.push(AggregationUpdateJob::UpdateAggregationNumber {
+                task_id,
+                base_aggregation_number: new_aggregation_number
+                    .saturating_sub(aggregation_number.distance),
+                distance: None,
+            });
         }
     }
 }

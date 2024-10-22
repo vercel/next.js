@@ -12,7 +12,7 @@ use crate::{
             },
             is_root_node, ExecuteContext, Operation, TaskGuard,
         },
-        storage::{get, update},
+        storage::{get, update_ucount_and_get},
         TaskDataCategory,
     },
     data::{CachedDataItem, CachedDataItemKey},
@@ -46,17 +46,12 @@ impl ConnectChildOperation {
             task: child_task_id,
             value: (),
         }) {
-            // Update the children count
-            let mut children_count = 0;
-            update!(parent_task, ChildrenCount, |count: Option<u32>| {
-                children_count = count.unwrap_or_default() + 1;
-                Some(children_count)
-            });
-
-            // Update the task aggregation
             let mut queue = AggregationUpdateQueue::new();
 
-            // Compute new parent aggregation number based on the number of children
+            // Update the children count
+            let children_count = update_ucount_and_get!(parent_task, ChildrenCount, 1);
+
+            // Compute future parent aggregation number based on the number of children
             let current_parent_aggregation = get!(parent_task, AggregationNumber)
                 .copied()
                 .unwrap_or_default();
