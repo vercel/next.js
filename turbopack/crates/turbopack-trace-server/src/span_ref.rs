@@ -5,6 +5,8 @@ use std::{
     vec,
 };
 
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+
 use crate::{
     bottom_up::build_bottom_up_graph,
     span::{Span, SpanEvent, SpanExtra, SpanGraphEvent, SpanIndex, SpanNames, SpanTimeData},
@@ -193,6 +195,17 @@ impl<'a> SpanRef<'a> {
         })
     }
 
+    pub fn children_par(&self) -> impl ParallelIterator<Item = SpanRef<'a>> + 'a {
+        self.span.events.par_iter().filter_map(|event| match event {
+            SpanEvent::SelfTime { .. } => None,
+            SpanEvent::Child { index } => Some(SpanRef {
+                span: &self.store.spans[index.get()],
+                store: self.store,
+                index: index.get(),
+            }),
+        })
+    }
+
     pub fn total_time(&self) -> u64 {
         *self.time_data().total_time.get_or_init(|| {
             self.children()
@@ -256,18 +269,23 @@ impl<'a> SpanRef<'a> {
     pub fn corrected_self_time(&self) -> u64 {
         let store = self.store;
         *self.time_data().corrected_self_time.get_or_init(|| {
-            let mut self_time = 0;
-            for event in self.span.events.iter() {
-                if let SpanEvent::SelfTime { start, end } = event {
-                    let duration = end - start;
-                    if duration == 0 {
-                        continue;
+            let mut self_time = self
+                .span
+                .events
+                .par_iter()
+                .filter_map(|event| {
+                    if let SpanEvent::SelfTime { start, end } = event {
+                        let duration = end - start;
+                        if duration != 0 {
+                            store.set_max_self_time_lookup(*end);
+                            let concurrent_time =
+                                store.self_time_tree.lookup_range_count(*start, *end);
+                            return Some(duration * duration / concurrent_time);
+                        }
                     }
-                    store.set_max_self_time_lookup(*end);
-                    let concurrent_time = store.self_time_tree.lookup_range_count(*start, *end);
-                    self_time += duration * duration / concurrent_time;
-                }
-            }
+                    None
+                })
+                .sum();
             if self.children().next().is_none() {
                 self_time = max(self_time, 1);
             }
@@ -277,10 +295,9 @@ impl<'a> SpanRef<'a> {
 
     pub fn corrected_total_time(&self) -> u64 {
         *self.time_data().corrected_total_time.get_or_init(|| {
-            self.children()
+            self.children_par()
                 .map(|child| child.corrected_total_time())
-                .reduce(|a, b| a + b)
-                .unwrap_or_default()
+                .sum::<u64>()
                 + self.corrected_self_time()
         })
     }
