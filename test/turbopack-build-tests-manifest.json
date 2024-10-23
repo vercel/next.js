@@ -1269,10 +1269,10 @@
       "runtimeError": false
     },
     "test/e2e/app-dir/app/standalone-gsp.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "output: standalone with getStaticProps should work correctly with output standalone"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
