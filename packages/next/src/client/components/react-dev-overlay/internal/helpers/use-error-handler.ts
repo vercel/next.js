@@ -4,7 +4,7 @@ import { isNextRouterError } from '../../../is-next-router-error'
 import { storeHydrationErrorStateFromConsoleArgs } from './hydration-error-info'
 import { formatConsoleArgs } from '../../../../lib/console'
 import isError from '../../../../../lib/is-error'
-import { ConsoleError } from './console-error'
+import { createUnhandledError } from './console-error'
 import { enqueueConsecutiveDedupedError } from './enqueue-client-error'
 
 export type ErrorHandler = (error: Error) => void
@@ -22,7 +22,9 @@ export function handleClientError(
   if (!originError || !isError(originError)) {
     // If it's not an error, format the args into an error
     const formattedErrorMessage = formatConsoleArgs(consoleErrorArgs)
-    error = new ConsoleError(formattedErrorMessage)
+    const firstLineOfMessage =
+      formattedErrorMessage.split('\n')[0] || formattedErrorMessage
+    error = createUnhandledError(firstLineOfMessage)
   } else {
     error = originError
   }
@@ -75,14 +77,14 @@ function onUnhandledRejection(ev: WindowEventMap['unhandledrejection']): void {
     return
   }
 
-  if (!isError(reason)) {
-    // A non-error was thrown, we don't have anything to show. :-(
-    return
+  let error = reason
+  if (error && !isError(error)) {
+    error = createUnhandledError(error + '')
   }
 
-  rejectionQueue.push(reason)
+  rejectionQueue.push(error)
   for (const handler of rejectionHandlers) {
-    handler(reason)
+    handler(error)
   }
 }
 

@@ -3,6 +3,7 @@ import {
   assertHasRedbox,
   assertNoRedbox,
   waitForAndOpenRuntimeError,
+  getRedboxDescription,
 } from 'next-test-utils'
 
 // TODO: parse the location and assert them in the future
@@ -203,5 +204,19 @@ describe('app-dir - owner-stack', () => {
       at MessagePort.performWorkUntilDeadline 
       The above error occurred in the <Page> component. It was handled by the <ReactDevOverlay> error boundary."
     `)
+  })
+
+  it('should capture unhandled promise rejections', async () => {
+    const browser = await next.browser('/browser/reject-promise')
+
+    await waitForAndOpenRuntimeError(browser)
+    await assertHasRedbox(browser)
+
+    const description = await getRedboxDescription(browser)
+    expect(description).toMatchInlineSnapshot(`"string in rejected promise"`)
+
+    // Promise rejection has no owner stack
+    const stackFramesContent = await getStackFramesContent(browser)
+    expect(stackFramesContent).toMatchInlineSnapshot(`""`)
   })
 })

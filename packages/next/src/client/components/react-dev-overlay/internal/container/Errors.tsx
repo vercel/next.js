@@ -31,7 +31,7 @@ import {
 } from '../helpers/hydration-error-info'
 import { NodejsInspectorCopyButton } from '../components/nodejs-inspector'
 import { CopyButton } from '../components/copy-button'
-import { ConsoleError } from '../helpers/console-error'
+import { isUnhandledConsoleOrRejection } from '../helpers/console-error'
 
 export type SupportedErrorEvent = {
   id: number
@@ -61,11 +61,11 @@ function ErrorDescription({
   error: Error
   hydrationWarning: string | null
 }) {
-  const isFromConsoleError = error instanceof ConsoleError
+  const isUnhandledError = isUnhandledConsoleOrRejection(error)
   // If there's hydration warning or console error, skip displaying the error name
   return (
     <>
-      {isFromConsoleError || hydrationWarning ? '' : error.name + ': '}
+      {isUnhandledError || hydrationWarning ? '' : error.name + ': '}
       <HotlinkedText
         text={hydrationWarning || error.message}
         matcher={isNextjsLink}
@@ -257,8 +257,7 @@ export function Errors({
   const isServerError = ['server', 'edge-server'].includes(
     getErrorSource(error) || ''
   )
-  const isFromConsoleError = error instanceof ConsoleError
-
+  const isUnhandledError = isUnhandledConsoleOrRejection(error)
   const errorDetails: HydrationErrorState = (error as any).details || {}
   const notes = errorDetails.notes || ''
   const [warningTemplate, serverContent, clientContent] =
@@ -308,7 +307,7 @@ export function Errors({
               >
                 {isServerError
                   ? 'Server Error'
-                  : isFromConsoleError
+                  : isUnhandledError
                     ? 'Console Error'
                     : 'Unhandled Runtime Error'}
               </h1>
