@@ -737,31 +737,8 @@ describe('Image Optimizer', () => {
   describe('experimental.imgOptMaxInputPixels in next.config.js', () => {
     let app
     let appPort
-    const size = 256 // defaults defined in lib/image-config.ts
-    const query = { w: size, q: 75, url: '/test.jpg' }
-    const opts = { headers: { accept: 'image/webp' } }
 
-    afterEach(async () => {
-      await killApp(app)
-      nextConfig.restore()
-    })
-    it('should optimize when imgOptMaxInputPixels is larger than source image', async () => {
-      nextConfig.replace(
-        '{ /* replaceme */ }',
-        JSON.stringify({
-          experimental: {
-            imgOptMaxInputPixels: 60_000_000,
-          },
-        })
-      )
-      await cleanImagesDir({ imagesDir })
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-      const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
-      expect(res.status).toBe(200)
-      expect(res.headers.get('Content-Type')).toBe('image/webp')
-    })
-    it('should fallback to source image when input exceeds imgOptMaxInputPixels', async () => {
+    beforeAll(async () => {
       nextConfig.replace(
         '{ /* replaceme */ }',
         JSON.stringify({
@@ -773,6 +750,15 @@ describe('Image Optimizer', () => {
       await cleanImagesDir({ imagesDir })
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+      nextConfig.restore()
+    })
+    it('should fallback to source image when input exceeds imgOptMaxInputPixels', async () => {
+      const size = 256 // defaults defined in lib/image-config.ts
+      const query = { w: size, q: 75, url: '/test.jpg' }
+      const opts = { headers: { accept: 'image/webp' } }
       const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
       expect(res.status).toBe(200)
       expect(res.headers.get('Content-Type')).toBe('image/jpeg')

@@ -314,6 +314,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         forceSwcTransforms: z.boolean().optional(),
         fullySpecified: z.boolean().optional(),
         gzipSize: z.boolean().optional(),
+        imgOptConcurrency: z.number().int().optional().nullable(),
         imgOptTimeoutInSeconds: z.number().int().optional(),
         imgOptMaxInputPixels: z.number().int().optional(),
         internal_disableSyncDynamicAPIWarnings: z.boolean().optional(),

@@ -47,7 +47,7 @@ const BLUR_QUALITY = 70 // should match `next-image-loader`
 
 let _sharp: typeof import('sharp')
 
-function getSharp() {
+function getSharp(concurrency: number | null | undefined) {
   if (_sharp) {
     return _sharp
   }
@@ -59,7 +59,7 @@ function getSharp() {
       // https://sharp.pixelplumbing.com/api-utility#concurrency
       const divisor = process.env.NODE_ENV === 'development' ? 4 : 2
       _sharp.concurrency(
-        Math.floor(Math.max(_sharp.concurrency() / divisor, 1))
+        concurrency ?? Math.floor(Math.max(_sharp.concurrency() / divisor, 1))
       )
     }
   } catch (e: unknown) {
@@ -512,6 +512,7 @@ export async function optimizeImage({
   quality,
   width,
   height,
+  concurrency,
   limitInputPixels,
   timeoutInSeconds,
 }: {
@@ -520,10 +521,11 @@ export async function optimizeImage({
   quality: number
   width: number
   height?: number
+  concurrency?: number | null
   limitInputPixels?: number
   timeoutInSeconds?: number
 }): Promise<Buffer> {
-  const sharp = getSharp()
+  const sharp = getSharp(concurrency)
   const transformer = sharp(buffer, {
     limitInputPixels,
   })
@@ -643,7 +645,7 @@ export async function imageOptimizer(
   nextConfig: {
     experimental: Pick<
       NextConfigComplete['experimental'],
-      'imgOptMaxInputPixels' | 'imgOptTimeoutInSeconds'
+      'imgOptConcurrency' | 'imgOptMaxInputPixels' | 'imgOptTimeoutInSeconds'
     >
     images: Pick<
       NextConfigComplete['images'],
@@ -749,6 +751,7 @@ export async function imageOptimizer(
       contentType,
       quality,
       width,
+      concurrency: nextConfig.experimental.imgOptConcurrency,
       limitInputPixels: nextConfig.experimental.imgOptMaxInputPixels,
       timeoutInSeconds: nextConfig.experimental.imgOptTimeoutInSeconds,
     })
