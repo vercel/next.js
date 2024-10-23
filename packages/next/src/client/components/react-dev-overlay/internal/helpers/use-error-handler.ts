@@ -75,19 +75,14 @@ function onUnhandledRejection(ev: WindowEventMap['unhandledrejection']): void {
     return
   }
 
-  if (
-    !reason ||
-    !(reason instanceof Error) ||
-    typeof reason.stack !== 'string'
-  ) {
+  if (!isError(reason)) {
     // A non-error was thrown, we don't have anything to show. :-(
     return
   }
 
-  const e = reason
-  rejectionQueue.push(e)
+  rejectionQueue.push(reason)
   for (const handler of rejectionHandlers) {
-    handler(e)
+    handler(reason)
   }
 }
 
@@ -99,7 +94,6 @@ export function handleGlobalErrors() {
     } catch {}
 
     window.addEventListener('error', onUnhandledError)
-
     window.addEventListener('unhandledrejection', onUnhandledRejection)
   }
 }
