@@ -60,6 +60,26 @@ pub fn lmdb_backing_storage(
     )
 }
 
+#[cfg(feature = "rocksdb")]
+pub type RocksDBBackingStorage =
+    KeyValueDatabaseBackingStorage<crate::database::rocksdb::RocksDbKeyValueDatabase>;
+
+#[cfg(feature = "rocksdb")]
+pub fn rocksdb_backing_storage(
+    base_path: &Path,
+    version_info: &GitVersionInfo,
+    is_ci: bool,
+) -> Result<RocksDBBackingStorage> {
+    KeyValueDatabaseBackingStorage::open_versioned_on_disk(
+        base_path.to_owned(),
+        version_info,
+        is_ci,
+        |versioned_path| {
+            crate::database::rocksdb::RocksDbKeyValueDatabase::new(&versioned_path)
+        },
+    )
+}
+
 pub type TurboBackingStorage = KeyValueDatabaseBackingStorage<TurboKeyValueDatabase>;
 
 pub fn turbo_backing_storage(
@@ -81,6 +101,18 @@ pub fn noop_backing_storage() -> NoopBackingStorage {
     KeyValueDatabaseBackingStorage::new_in_memory(NoopKvDb)
 }
 
+#[cfg(feature = "rocksdb")]
+pub type DefaultBackingStorage = RocksDBBackingStorage;
+
+#[cfg(feature = "rocksdb")]
+pub fn default_backing_storage(
+    path: &Path,
+    version_info: &GitVersionInfo,
+    is_ci: bool,
+) -> Result<DefaultBackingStorage> {
+    rocksdb_backing_storage(path, version_info, is_ci)
+}
+
 #[cfg(feature = "lmdb")]
 pub type DefaultBackingStorage = LmdbBackingStorage;
 
@@ -93,10 +125,10 @@ pub fn default_backing_storage(
     lmdb_backing_storage(path, version_info, is_ci)
 }
 
-#[cfg(not(feature = "lmdb"))]
+#[cfg(not(any(feature = "rocksdb", feature = "lmdb")))]
 pub type DefaultBackingStorage = TurboBackingStorage;
 
-#[cfg(not(feature = "lmdb"))]
+#[cfg(not(any(feature = "rocksdb", feature = "lmdb")))]
 pub fn default_backing_storage(
     path: &Path,
     version_info: &GitVersionInfo,

@@ -37,6 +37,16 @@ impl WriteBuffer<'_> {
     }
 }
 
+impl AsRef<[u8]> for WriteBuffer<'_> {
+    fn as_ref(&self) -> &[u8] {
+        match self {
+            WriteBuffer::Borrowed(b) => b,
+            WriteBuffer::Vec(v) => v.as_ref(),
+            WriteBuffer::SmallVec(sv) => sv.as_ref(),
+        }
+    }
+}
+
 impl Deref for WriteBuffer<'_> {
     type Target = [u8];
 

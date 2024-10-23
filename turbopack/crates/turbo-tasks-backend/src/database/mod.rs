@@ -10,6 +10,8 @@ pub mod lmdb;
 pub mod noop_kv;
 #[cfg(feature = "lmdb")]
 pub mod read_transaction_cache;
+#[cfg(feature = "rocksdb")]
+pub mod rocksdb;
 #[cfg(feature = "lmdb")]
 pub mod startup_cache;
 pub mod turbo;
