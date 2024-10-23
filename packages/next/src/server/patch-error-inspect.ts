@@ -9,9 +9,13 @@ import { getOriginalCodeFrame } from '../client/components/react-dev-overlay/ser
 const inspectSymbol = Symbol.for('nodejs.util.inspect.custom')
 
 function frameToString(frame: StackFrame): string {
+  let sourceLocation = frame.lineNumber !== null ? `:${frame.lineNumber}` : ''
+  if (frame.column !== null && sourceLocation !== '') {
+    sourceLocation += `:${frame.column}`
+  }
   return frame.methodName
-    ? `    at ${frame.methodName} (${frame.file}:${frame.lineNumber}:${frame.column})`
-    : `    at ${frame.file}:${frame.lineNumber}:${frame.column}`
+    ? `    at ${frame.methodName} (${frame.file}${sourceLocation})`
+    : `    at ${frame.file}${frame.lineNumber}:${frame.column}`
 }
 
 function prepareUnsourcemappedStackTrace(
