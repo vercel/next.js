@@ -943,6 +943,7 @@ pub async fn get_server_chunking_context_with_client_assets(
     )
     .asset_prefix(asset_prefix)
     .minify_type(next_mode.minify_type())
+    .tracing(next_mode.is_production())
     .module_id_strategy(module_id_strategy)
     .build())
 }
@@ -969,6 +970,7 @@ pub async fn get_server_chunking_context(
         next_mode.runtime_type(),
     )
     .minify_type(next_mode.minify_type())
+    .tracing(next_mode.is_production())
     .module_id_strategy(module_id_strategy)
     .build())
 }

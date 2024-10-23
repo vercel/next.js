@@ -388,8 +388,7 @@ async fn graph_node_to_referenced_nodes(
                 .into_iter()
                 .map(|&module| async move {
                     if chunking_type == ChunkingType::Traced {
-                        // TODO only if tracing
-                        if true {
+                        if *chunking_context.is_tracing_enabled().await? {
                             return Ok((
                                 Some(ChunkGraphEdge {
                                     key: None,
