@@ -197,7 +197,7 @@ import { Table } from './table'
 export default function Page({
   searchParams,
 }: {
-  searchParams: { sort: string }
+  searchParams: Promise<{ sort: string }>
 }) {
   return (
     <section>
