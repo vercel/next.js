@@ -1,7 +1,10 @@
 import * as os from 'os'
 import prompts from 'prompts'
 import fs from 'fs'
-import compareVersions from 'semver/functions/compare'
+import {
+  satisfies as satisfiesSemver,
+  compare as compareVersions,
+} from 'semver'
 import { execSync } from 'child_process'
 import path from 'path'
 import pc from 'picocolors'
@@ -353,6 +356,9 @@ export async function runUpgrade(
   if (codemods.length > 0) {
     console.log(`${pc.green('✔')} Codemods have been applied successfully.`)
   }
+
+  await warnPeerDependencies(appPackageJson, versionMapping, allDependencies)
+
   endMessage()
 }
 
@@ -631,5 +637,101 @@ function writeOverridesField(
         packageJson.overrides[key] = value
       }
     }
+  }
+}
+
+async function warnPeerDependencies(
+  appPackageJson: any,
+  versionMapping: Record<string, { version: string; required: boolean }>,
+  allDependencies: Record<string, string>
+) {
+  const versionMappingKeys = Object.keys(versionMapping)
+  const incompatiblePeerDependencies = new Map<
+    string,
+    { current: string; expected: string; from: string }
+  >()
+
+  if ('peerDependencies' in appPackageJson) {
+    const peerDeps = appPackageJson.peerDependencies
+    const peerDepsKeys = Object.keys(peerDeps)
+    const commonKeys = versionMappingKeys.filter((versionMappingKey) =>
+      peerDepsKeys.includes(versionMappingKey)
+    )
+
+    if (commonKeys.length > 0) {
+      for (const key of commonKeys) {
+        const peerDepVersion = peerDeps[key]
+        const { version } = versionMapping[key]
+
+        if (!satisfiesSemver(version, peerDepVersion)) {
+          incompatiblePeerDependencies.set(key, {
+            current: version,
+            expected: peerDepVersion,
+            from: key,
+          })
+        }
+      }
+    }
+  }
+
+  // loop through allDependencies and require package.json, if peerDependencies exists, check satisfiesSemver
+  for (const [dependency] of Object.entries(allDependencies)) {
+    const pkgJson = require(
+      require.resolve(
+        path.resolve(cwd, 'node_modules', dependency, 'package.json')
+      )
+    )
+
+    if ('peerDependencies' in pkgJson) {
+      const peerDeps = pkgJson.peerDependencies
+      const peerDepsKeys = Object.keys(peerDeps)
+      const commonKeys = versionMappingKeys.filter((versionMappingKey) =>
+        peerDepsKeys.includes(versionMappingKey)
+      )
+
+      if (commonKeys.length > 0) {
+        for (const key of commonKeys) {
+          const peerDepVersion = peerDeps[key]
+          const { version } = versionMapping[key]
+
+          if (!satisfiesSemver(version, peerDepVersion)) {
+            incompatiblePeerDependencies.set(key, {
+              current: version,
+              expected: peerDepVersion,
+              from: dependency,
+            })
+          }
+        }
+      }
+    }
+  }
+
+  if (incompatiblePeerDependencies.size > 0) {
+    console.log() // new line
+    console.log(`${pc.bgYellow(' WARN ')} Issues with peer dependencies found`)
+    const groupedDependencies = new Map<
+      string,
+      Map<string, { current: string; expected: string }>
+    >()
+
+    incompatiblePeerDependencies.forEach((value, key) => {
+      if (!groupedDependencies.has(value.from)) {
+        groupedDependencies.set(value.from, new Map())
+      }
+      groupedDependencies
+        .get(value.from)!
+        .set(key, { current: value.current, expected: value.expected })
+    })
+
+    groupedDependencies.forEach((deps, packageName) => {
+      console.log(`${packageName} ${pc.gray(allDependencies[packageName])}`)
+      const depsArray = Array.from(deps)
+      depsArray.forEach(([depName, value], index) => {
+        const prefix = index === depsArray.length - 1 ? '  └── ' : '  ├── '
+        console.log(
+          `${prefix}${pc.yellow('✕ unmet peer')} ${depName}@"${value.expected}": found ${value.current}`
+        )
+      })
+    })
   }
 }
