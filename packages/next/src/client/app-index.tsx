@@ -27,8 +27,6 @@ import { MissingSlotContext } from '../shared/lib/app-router-context.shared-runt
 
 /// <reference types="react-dom/experimental" />
 
-const isReactOwnerStackEnabled = !!process.env.__NEXT_REACT_OWNER_STACK
-
 const appElement: HTMLElement | Document | null = document
 
 const encoder = new TextEncoder()
@@ -234,7 +232,8 @@ export function hydrate() {
   const hasMissingTags = !!rootLayoutMissingTags?.length
 
   const errorCallbacks =
-    isReactOwnerStackEnabled && process.env.NODE_ENV !== 'production'
+    typeof (React as any).captureOwnerStack === 'function' &&
+    process.env.NODE_ENV !== 'production'
       ? {
           onCaughtError,
           onUncaughtError,

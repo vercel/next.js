@@ -145,7 +145,6 @@ export function getDefineEnv({
 
   const isPPREnabled = checkIsAppPPREnabled(config.experimental.ppr)
   const isDynamicIOEnabled = !!config.experimental.dynamicIO
-  const isOwnerStackEnabled = Boolean(config.experimental.reactOwnerStack)
 
   const defineEnv: DefineEnv = {
     // internal field to identify the plugin config
@@ -189,8 +188,6 @@ export function getDefineEnv({
     ),
     'process.env.__NEXT_PPR': isPPREnabled,
     'process.env.__NEXT_DYNAMIC_IO': isDynamicIOEnabled,
-    'process.env.__NEXT_REACT_OWNER_STACK':
-      isPPREnabled || isDynamicIOEnabled || isOwnerStackEnabled,
     'process.env.__NEXT_AFTER': config.experimental.after ?? false,
     'process.env.NEXT_DEPLOYMENT_ID': config.deploymentId || false,
     'process.env.__NEXT_FETCH_CACHE_KEY_PREFIX': fetchCacheKeyPrefix ?? '',
