@@ -6,7 +6,7 @@ title: Cannot access data without either defining a fallback UI to use while the
 
 When the experimental flag `dynamicIO` is enabled, Next.js expects you to explicitly describe whether data accessed during render should be evaluated ahead of time, while prerendering, or at Request time while rendering.
 
-Data in this context refers to both reading from the Request using Next.js built-in Request functions like `cookies()`, `headers()`, `draftMode()`, and `connection()` functions, Next.js built-in Request props `params`, and `searchParams`, as well as any asynchronous data fetching technique such as `fetch()` or other network request library or database clients and more.
+Data in this context refers to both reading from the request using Next.js built-in Request functions like `cookies()`, `headers()`, `draftMode()`, and `connection()` functions, Next.js built-in request props `params`, and `searchParams`, as well as any asynchronous data fetching technique such as `fetch()` or other network request library or database clients and more.
 
 By default, any data accessed during render is treated as if it should be evaluated at Request time. To explicitly communicate to Next.js that some data should be prerenderable you must explicitly cache it using `"use cache"` or `unstable_cache`.
 
