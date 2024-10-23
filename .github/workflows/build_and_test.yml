@@ -86,7 +86,7 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: npm dist-tag add latest@15.0.1 && pnpm lint-no-typescript && pnpm check-examples
+      afterBuild: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc; npm dist-tag add latest@15.0.1 && pnpm lint-no-typescript && pnpm check-examples
       stepName: 'lint'
     secrets: inherit
 
