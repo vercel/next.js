@@ -87,6 +87,8 @@ jobs:
     with:
       afterBuild: npm dist-tag add latest@15.0.1 && pnpm lint-no-typescript && pnpm check-examples
       stepName: 'lint'
+    env:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN_ELEVATED }}
     secrets: inherit
 
   validate-docs-links:
