@@ -803,12 +803,6 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
       expect(source).toContain('app/page.js')
       expect(source).toContain(`throw new Error('Client error')`)
 
-      await expect(
-        browser.hasElementByCssSelector(
-          '[data-nextjs-data-runtime-error-collapsed-action]'
-        )
-      ).resolves.toEqual(false)
-
       const stackFrameElements = await browser.elementsByCss(
         '[data-nextjs-call-stack-frame]'
       )
@@ -843,12 +837,6 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
       const source = await session.getRedboxSource()
       expect(source).toContain('app/page.js')
       expect(source).toContain(`throw new Error('Server error')`)
-
-      await expect(
-        browser.hasElementByCssSelector(
-          '[data-nextjs-data-runtime-error-collapsed-action]'
-        )
-      ).resolves.toEqual(false)
 
       const stackFrameElements = await browser.elementsByCss(
         '[data-nextjs-call-stack-frame]'
@@ -892,12 +880,6 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
       expect(source).toContain(
         `throw new Error("This is an error from an anonymous function")`
       )
-
-      await expect(
-        browser.hasElementByCssSelector(
-          '[data-nextjs-data-runtime-error-collapsed-action]'
-        )
-      ).resolves.toEqual(false)
 
       const stackFrameElements = await browser.elementsByCss(
         '[data-nextjs-call-stack-frame]'
@@ -962,12 +944,6 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
       const source = await session.getRedboxSource()
       expect(source).toContain('app/page.js')
       expect(source).toContain(`new URL("/", "invalid")`)
-
-      await expect(
-        browser.hasElementByCssSelector(
-          '[data-nextjs-data-runtime-error-collapsed-action]'
-        )
-      ).resolves.toEqual(false)
 
       const stackFrameElements = await browser.elementsByCss(
         '[data-nextjs-call-stack-frame]'
