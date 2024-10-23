@@ -51,7 +51,9 @@ This example demonstrates a basic server-side data fetch using the `fetch` API i
 
 - [`fetch`](/docs/app/api-reference/functions/fetch)
 - React [`cache`](https://react.dev/reference/react/cache)
-- Next.js [`unstable_cache`](/docs/app/api-reference/functions/unstable_cache)
+- Next.js [`use cache`](/docs/app/api-reference/directives/use-cache)
+- Next.js [`cacheLife`](/docs/app/api-reference/directives/use-cache#time-based-revalidation-with-cachelife)
+- Next.js [`cacheTag`](/docs/app/api-reference/directives/use-cache#revalidating-on-demand-with-cachetag)
 
 ## Examples
 
@@ -131,14 +133,6 @@ export default async function Page() {
 
 If you are not using any [Dynamic APIs](/docs/app/building-your-application/rendering/server-components#dynamic-rendering) anywhere else in this route, it will be prerendered during `next build` to a static page. The data can then be updated using [Incremental Static Regeneration](/docs/app/building-your-application/data-fetching/incremental-static-regeneration).
 
-To prevent the page from prerendering, you can add the following to your file:
-
-```js
-export const dynamic = 'force-dynamic'
-```
-
-However, you will commonly use functions like `cookies`, `headers`, or reading the incoming `searchParams` from the page props, which will automatically make the page render dynamically. In this case, you do _not_ need to explicitly use `force-dynamic`.
-
 ### Fetching data on the client
 
 We recommend first attempting to fetch data on the server-side.
@@ -205,19 +199,18 @@ export function Posts() {
 
 ### Caching data with an ORM or Database
 
-You can use the `unstable_cache` API to cache the response to allow pages to be prerendered when running `next build`.
+You can use the [`use cache`](/docs/app/api-reference/directives/use-cache) directive in combination with the [`cacheLife`](/docs/app/api-reference/directives/use-cache#time-based-revalidation-with-cachelife), and [`cacheTag`](/docs/app/api-reference/directives/use-cache#revalidating-on-demand-with-cachetag) functions to cache the response to allow pages to be prerendered when running `next build`.
 
 ```tsx filename="app/page.tsx" switcher
-import { unstable_cache } from 'next/cache'
+import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag } from 'next/cache'
 import { db, posts } from '@/lib/db'
 
-const getPosts = unstable_cache(
-  async () => {
-    return await db.select().from(posts)
-  },
-  ['posts'],
-  { revalidate: 3600, tags: ['posts'] }
-)
+async function getPosts() {
+  'use cache'
+  cacheLife('hours')
+  cacheTag('posts')
+  return await db.select().from(posts)
+}
 
 export default async function Page() {
   const allPosts = await getPosts()
@@ -233,16 +226,15 @@ export default async function Page() {
 ```
 
 ```jsx filename="app/page.js" switcher
-import { unstable_cache } from 'next/cache'
+import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag } from 'next/cache'
 import { db, posts } from '@/lib/db'
 
-const getPosts = unstable_cache(
-  async () => {
-    return await db.select().from(posts)
-  },
-  ['posts'],
-  { revalidate: 3600, tags: ['posts'] }
-)
+async function getPosts() {
+  'use cache'
+  cacheLife('hours')
+  cacheTag('posts')
+  return await db.select().from(posts)
+}
 
 export default async function Page() {
   const allPosts = await getPosts()

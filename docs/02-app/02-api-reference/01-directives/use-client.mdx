@@ -1,7 +1,6 @@
 ---
 title: `use client`
 description: Learn how to use the `use client` directive to render a component on the client.
-version: canary
 related:
   description: React documentation for `use client`.
   links: 
@@ -9,6 +8,8 @@ related:
 ---
 
 The `use client` directive designates a component to be rendered on the **client side** and should be used when creating interactive user interfaces (UI) that require client-side JavaScript capabilities, such as state management, event handling, and access to browser APIs.
+
+## Usage
 
 To designate a component as a Client Component, add the `use client` directive **at the top of the file**, before any imports:
 
@@ -53,8 +54,6 @@ Combining Server and Client Components allows you to build applications that are
 1. **Server Components**: Use for static content, data fetching, and SEO-friendly elements.
 2. **Client Components**: Use for interactive elements that require state, effects, or browser APIs.
 3. **Component composition**: Nest Client Components within Server Components as needed for a clear separation of server and client logic.
-
-### Nesting Client and Server Components example
 
 In the following example:
 

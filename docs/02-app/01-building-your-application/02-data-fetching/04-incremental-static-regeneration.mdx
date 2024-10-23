@@ -24,15 +24,18 @@ Here's a minimal example:
 <AppOnly>
 
 ```tsx filename="app/blog/[id]/page.tsx" switcher
+'use cache'
+import { unstable_cacheLife as cacheLife } from 'next/cache'
+
+// Next.js will invalidate the cache when a
+// request comes in, at most once every 60 seconds.
+cacheLife('seconds')
+
 interface Post {
   id: string
   title: string
   content: string
 }
-
-// Next.js will invalidate the cache when a
-// request comes in, at most once every 60 seconds.
-export const revalidate = 60
 
 // We'll prerender only the params from `generateStaticParams` at build time.
 // If a request comes in for a path that hasn't been generated,
@@ -62,9 +65,12 @@ export default async function Page({ params }: { params: { id: string } }) {
 ```
 
 ```jsx filename="app/blog/[id]/page.jsx" switcher
+'use cache'
+import { unstable_cacheLife as cacheLife } from 'next/cache'
+
 // Next.js will invalidate the cache when a
 // request comes in, at most once every 60 seconds.
-export const revalidate = 60;
+cacheLife('seconds')
 
 // We'll prerender only the params from `generateStaticParams` at build time.
 // If a request comes in for a path that hasn't been generated,
@@ -208,6 +214,8 @@ Here's how this example works:
 
 - [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath)
 - [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag)
+- [`cacheLife`](/docs/app/api-reference/directives/use-cache#time-based-revalidation-with-cachelife)
+- [`cacheTag`](/docs/app/api-reference/directives/use-cache#revalidating-on-demand-with-cachetag)
 
 </AppOnly>
 
@@ -268,33 +276,36 @@ export async function createPost() {
 
 [View a demo](https://on-demand-isr.vercel.app) and [explore the source code](https://github.com/vercel/on-demand-isr).
 
-### On-demand revalidation with `revalidateTag`
+### On-demand revalidation with `revalidateTag` and `cacheTag`
 
-For most use cases, prefer revalidating entire paths. If you need more granular control, you can use the `revalidateTag` function. For example, you can tag individual `fetch` calls:
+For most use cases, prefer revalidating entire paths. If you need more granular control, you can use the `revalidateTag` function in combination with the `cacheTag` function. For example, you can tag individual `fetch` calls:
 
 ```jsx
+'use cache'
+import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag } from 'next/cache'
+
+cacheLife('weeks')
+cacheTag('posts')
+
 export default async function Page() {
-  const data = await fetch('https://api.vercel.app/blog', {
-    next: { tags: ['posts'] },
-  })
+  const data = await fetch('https://api.vercel.app/blog')
   const posts = await data.json()
   // ...
 }
 ```
 
-If you are using an ORM or connecting to a database, you can use `unstable_cache`:
+If you are using an ORM or connecting to a database, you can use `use cache` and `cacheTag`:
 
 ```jsx
-import { unstable_cache } from 'next/cache'
+import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag } from 'next/cache'
 import { db, posts } from '@/lib/db'
 
-const getCachedPosts = unstable_cache(
-  async () => {
-    return await db.select().from(posts)
-  },
-  ['posts'],
-  { revalidate: 3600, tags: ['posts'] }
-)
+async function getPosts() {
+  'use cache'
+  cacheLife('weeks')
+  cacheTag('posts')
+  return await db.select().from(posts)
+}
 
 export default async function Page() {
   const posts = getCachedPosts()

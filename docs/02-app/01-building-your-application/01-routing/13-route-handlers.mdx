@@ -46,10 +46,10 @@ In addition to supporting the native [Request](https://developer.mozilla.org/doc
 
 ### Caching
 
-Route Handlers are not cached by default. You can, however, opt into caching for `GET` methods. Other supported HTTP methods are **not** cached. To cache a `GET` method, use a [route config option](/docs/app/api-reference/file-conventions/route-segment-config#dynamic) such as `export const dynamic = 'force-static'` in your Route Handler file.
+Route Handlers are not cached by default. You can, however, opt into caching for `GET` methods. Other supported HTTP methods are **not** cached. To cache a `GET` method, use the [`use cache`](/docs/app/api-reference/directives/use-cache) directive.
 
 ```ts filename="app/items/route.ts" switcher
-export const dynamic = 'force-static'
+"use cache"
 
 export async function GET() {
   const res = await fetch('https://data.mongodb-api.com/...', {
@@ -65,7 +65,7 @@ export async function GET() {
 ```
 
 ```js filename="app/items/route.js" switcher
-export const dynamic = 'force-static'
+"use cache"
 
 export async function GET() {
   const res = await fetch('https://data.mongodb-api.com/...', {
@@ -117,10 +117,15 @@ The following examples show how to combine Route Handlers with other Next.js API
 
 ### Revalidating Cached Data
 
-You can [revalidate cached data](/docs/app/building-your-application/data-fetching/incremental-static-regeneration) using Incremental Static Regeneration (ISR):
+You can [revalidate cached data](/docs/app/building-your-application/data-fetching/incremental-static-regeneration) using Incremental Static Regeneration (ISR), and the [`cacheLife`](/docs/app/api-reference/directives/use-cache#revalidating) function in combination with the [`use cache`](/docs/app/api-reference/directives/use-cache) directive.
+
+In the example below, the `GET` methods output will be cached for 1 week:
 
 ```ts filename="app/posts/route.ts" switcher
-export const revalidate = 60
+'use cache'
+import { unstable_cacheLife as cacheLife } from 'next/cache'
+
+cacheLife('weeks')
 
 export async function GET() {
   let data = await fetch('https://api.vercel.app/blog')
@@ -131,6 +136,11 @@ export async function GET() {
 ```
 
 ```js filename="app/posts/route.js" switcher
+'use cache'
+import { unstable_cacheLife as cacheLife } from 'next/cache'
+
+cacheLife('weeks')
+
 export async function GET() {
   let data = await fetch('https://api.vercel.app/blog')
   let posts = await data.json()
