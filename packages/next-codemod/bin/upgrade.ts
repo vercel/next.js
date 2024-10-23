@@ -412,7 +412,7 @@ function isUsingAppDir(projectPath: string): boolean {
  */
 async function suggestTurbopack(packageJson: any): Promise<void> {
   const devScript: string = packageJson.scripts['dev']
-  if (devScript && devScript.includes('--turbo')) return
+  if (devScript && devScript.includes('--turbopack')) return
 
   const responseTurbopack = await prompts(
     {
