@@ -8,13 +8,20 @@ const cache =
     ? React.cache
     : (fn: (key: unknown) => void) => fn
 
+// When Dynamic IO is enabled, we record these as errors so that they
+// are captured by the dev overlay as it's more critical to fix these
+// when enabled.
+const logErrorOrWarn = process.env.__NEXT_DYNAMIC_IO
+  ? console.error
+  : console.warn
+
 // We don't want to dedupe across requests.
 // The developer might've just attempted to fix the warning so we should warn again if it still happens.
 const flushCurrentErrorIfNew = cache(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- cache key
   (key: unknown) => {
     try {
-      console.error(errorRef.current)
+      logErrorOrWarn(errorRef.current)
     } finally {
       errorRef.current = null
     }
@@ -41,7 +48,7 @@ export function createDedupedByCallsiteServerErrorLoggerDev<Args extends any[]>(
     if (process.env.NODE_ENV !== 'production') {
       const callStackFrames = new Error().stack?.split('\n')
       if (callStackFrames === undefined || callStackFrames.length < 4) {
-        console.error(message)
+        logErrorOrWarn(message)
       } else {
         // Error:
         //   logDedupedError
@@ -53,7 +60,7 @@ export function createDedupedByCallsiteServerErrorLoggerDev<Args extends any[]>(
         flushCurrentErrorIfNew(key)
       }
     } else {
-      console.error(message)
+      logErrorOrWarn(message)
     }
   }
 }
