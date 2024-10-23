@@ -37,8 +37,7 @@ use turbopack_core::{
     compile_time_info::CompileTimeInfo,
     context::{AssetContext, ProcessResult},
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
-    ident::AssetIdent,
-    issue::{Issue, IssueExt, IssueStage, OptionStyledString, StyledString},
+    issue::{module::ModuleIssue, IssueExt, StyledString},
     module::Module,
     output::OutputAsset,
     raw_module::RawModule,
@@ -70,36 +69,6 @@ use self::{
     module_options::CustomModuleType,
     transition::{Transition, TransitionOptions},
 };
-
-#[turbo_tasks::value]
-struct ModuleIssue {
-    ident: Vc<AssetIdent>,
-    title: Vc<StyledString>,
-    description: Vc<StyledString>,
-}
-
-#[turbo_tasks::value_impl]
-impl Issue for ModuleIssue {
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::ProcessModule.cell()
-    }
-
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.ident.path()
-    }
-
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        self.title
-    }
-
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(self.description))
-    }
-}
 
 #[turbo_tasks::function]
 async fn apply_module_type(
@@ -631,30 +600,14 @@ async fn process_default_internal(
         }
     }
 
-    let module_type = match current_module_type {
-        Some(module_type) => module_type,
-        None => {
-            ModuleIssue {
-                ident,
-                title: StyledString::Text("Unknown module type".into()).cell(),
-                description: StyledString::Text(
-                    r"This module doesn't have an associated type. Use a known file extension, or register a loader for it.
-
-Read more: https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders".into(),
-                )
-                .cell(),
-            }
-            .cell()
-            .emit();
-
-            return Ok(ProcessResult::Ignore.cell());
-        }
-    }.cell();
+    let Some(module_type) = current_module_type else {
+        return Ok(ProcessResult::Unknown(current_source).cell());
+    };
 
     Ok(apply_module_type(
         current_source,
         module_asset_context,
-        module_type,
+        module_type.cell(),
         Value::new(reference_type.clone()),
         part,
         inner_assets,
@@ -739,6 +692,7 @@ impl AssetContext for ModuleAssetContext {
             origin_path.resolve().await?,
             result.resolve().await?,
             reference_type,
+            request.request_pattern().await?.has_dynamic_parts(),
         );
 
         if *self.is_types_resolving_enabled().await? {
@@ -759,6 +713,7 @@ impl AssetContext for ModuleAssetContext {
         origin_path: Vc<FileSystemPath>,
         result: Vc<ResolveResult>,
         reference_type: Value<ReferenceType>,
+        ignore_unknown: bool,
     ) -> Result<Vc<ModuleResolveResult>> {
         let this = self.await?;
 
@@ -772,6 +727,12 @@ impl AssetContext for ModuleAssetContext {
                             match &*self.process(source, reference_type).await? {
                                 ProcessResult::Module(module) => {
                                     ModuleResolveResultItem::Module(*module)
+                                }
+                                ProcessResult::Unknown(source) => {
+                                    if !ignore_unknown {
+                                        ProcessResult::emit_unknown_error(*source).await?;
+                                    }
+                                    ModuleResolveResultItem::Ignore
                                 }
                                 ProcessResult::Ignore => ModuleResolveResultItem::Ignore,
                             }

@@ -48,12 +48,13 @@ impl Transition for NextDynamicTransition {
                 module_asset_context,
                 Value::new(ReferenceType::Undefined),
             )
+            .try_into_module()
             .await?
         {
-            ProcessResult::Module(client_module) => {
+            Some(client_module) => {
                 ProcessResult::Module(Vc::upcast(NextDynamicEntryModule::new(client_module)))
             }
-            ProcessResult::Ignore => ProcessResult::Ignore,
+            None => ProcessResult::Ignore,
         }
         .cell())
     }

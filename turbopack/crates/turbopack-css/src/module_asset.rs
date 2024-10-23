@@ -81,12 +81,12 @@ impl Module for ModuleCssAsset {
             .await?
             .iter()
             .copied()
-            .chain(match *self.inner().await? {
-                ProcessResult::Module(inner) => {
-                    Some(Vc::upcast(InternalCssAssetReference::new(inner)))
-                }
-                ProcessResult::Ignore => None,
-            })
+            .chain(
+                self.inner()
+                    .try_into_module()
+                    .await?
+                    .map(|inner| Vc::upcast(InternalCssAssetReference::new(inner))),
+            )
             .collect();
 
         Ok(Vc::cell(references))

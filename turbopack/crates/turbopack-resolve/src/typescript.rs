@@ -448,6 +448,7 @@ pub async fn type_resolve(
         origin.origin_path().parent(),
         result,
         ty.clone(),
+        false,
     ));
     handle_resolve_error(
         result,
