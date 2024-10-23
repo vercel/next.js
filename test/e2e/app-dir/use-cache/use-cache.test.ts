@@ -232,18 +232,13 @@ describe('use-cache', () => {
     })
   }
 
-  // TODO: There's a bug with the server actions manifest singleton during next
-  // build that would make this test flaky. Enable the test for isNextStart when
-  // the singleton has been replaced with a proper solution.
-  if (!isNextStart) {
-    it('can reference server actions in "use cache" functions', async () => {
-      const browser = await next.browser('/with-server-action')
-      expect(await browser.elementByCss('p').text()).toBe('initial')
-      await browser.elementByCss('button').click()
+  it('can reference server actions in "use cache" functions', async () => {
+    const browser = await next.browser('/with-server-action')
+    expect(await browser.elementByCss('p').text()).toBe('initial')
+    await browser.elementByCss('button').click()
 
-      await retry(async () => {
-        expect(await browser.elementByCss('p').text()).toBe('result')
-      })
+    await retry(async () => {
+      expect(await browser.elementByCss('p').text()).toBe('result')
     })
-  }
+  })
 })
