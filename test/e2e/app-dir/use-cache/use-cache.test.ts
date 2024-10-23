@@ -275,4 +275,13 @@ describe('use-cache', () => {
 
     expect(await browser.elementByCss('#random').text()).toBe(initialValue)
   })
+
+  it('should override fetch with cookies/auth in use cache properly', async () => {
+    const browser = await next.browser('/cache-fetch-auth-header')
+
+    const initialValue = await browser.elementByCss('#random').text()
+    await browser.refresh()
+
+    expect(await browser.elementByCss('#random').text()).toBe(initialValue)
+  })
 })
