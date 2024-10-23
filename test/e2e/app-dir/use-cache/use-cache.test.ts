@@ -266,4 +266,13 @@ describe('use-cache', () => {
     // const time4 = await browser.waitForElementByCss('#t').text()
     // expect(time4).toBe(time3);
   })
+
+  it('should override fetch with no-store in use cache properly', async () => {
+    const browser = await next.browser('/cache-fetch-no-store')
+
+    const initialValue = await browser.elementByCss('#random').text()
+    await browser.refresh()
+
+    expect(await browser.elementByCss('#random').text()).toBe(initialValue)
+  })
 })
