@@ -104,7 +104,6 @@ impl ValueToString for AssetIdent {
                     write!(s, " <{}>", part)?;
                 }
             }
-            s.push(')');
         }
 
         Ok(Vc::cell(s.into()))
