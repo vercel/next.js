@@ -11,8 +11,10 @@ The `turbo` option lets you customize [Turbopack](/docs/architecture/turbopack) 
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  turbo: {
-    // ...
+  experimental: {
+    turbo: {
+      // ...
+    },
   },
 }
 
@@ -22,8 +24,10 @@ export default nextConfig
 ```js filename="next.config.js" switcher
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  turbo: {
-    // ...
+  experimental: {
+    turbo: {
+      // ...
+    },
   },
 }
 
@@ -76,11 +80,13 @@ To configure loaders, add the names of the loaders you've installed and any opti
 
 ```js filename="next.config.js"
 module.exports = {
-  turbo: {
-    rules: {
-      '*.svg': {
-        loaders: ['@svgr/webpack'],
-        as: '*.js',
+  experimental: {
+    turbo: {
+      rules: {
+        '*.svg': {
+          loaders: ['@svgr/webpack'],
+          as: '*.js',
+        },
       },
     },
   },
@@ -97,10 +103,12 @@ To configure resolve aliases, map imported patterns to their new destination in 
 
 ```js filename="next.config.js"
 module.exports = {
-  turbo: {
-    resolveAlias: {
-      underscore: 'lodash',
-      mocha: { browser: 'mocha/browser-entry.js' },
+  experimental: {
+    turbo: {
+      resolveAlias: {
+        underscore: 'lodash',
+        mocha: { browser: 'mocha/browser-entry.js' },
+      },
     },
   },
 }
@@ -118,9 +126,11 @@ To configure resolve extensions, use the `resolveExtensions` field in `next.conf
 
 ```js filename="next.config.js"
 module.exports = {
-  turbo: {
-    resolveExtensions: ['.mdx', '.tsx', '.ts', '.jsx', '.js', '.mjs', '.json'],
-  },
+    experimental: {
+      turbo: {
+        resolveExtensions: ['.mdx', '.tsx', '.ts', '.jsx', '.js', '.mjs', '.json'],
+      },
+    },
 }
 ```
 
@@ -141,8 +151,10 @@ To configure the module IDs strategy, use the `moduleIdStrategy` field in `next.
 
 ```js filename="next.config.js"
 module.exports = {
-  turbo: {
-    moduleIdStrategy: 'deterministic',
+  experimental: {
+    turbo: {
+      moduleIdStrategy: 'deterministic',
+    },
   },
 }
 ```
