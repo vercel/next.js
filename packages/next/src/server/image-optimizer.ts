@@ -523,7 +523,7 @@ export async function optimizeImage({
   const transformer = sharp(buffer, {
     limitInputPixels: process.env.__NEXT_EXPERIMENTAL_IMAGE_PIXELS
       ? Number(process.env.__NEXT_EXPERIMENTAL_IMAGE_PIXELS)
-      : 67_108_864,
+      : undefined,
   })
     .timeout({
       seconds: process.env.__NEXT_EXPERIMENTAL_IMAGE_TIMEOUT
