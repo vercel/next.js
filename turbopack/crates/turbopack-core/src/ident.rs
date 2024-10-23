@@ -96,11 +96,13 @@ impl ValueToString for AssetIdent {
         }
 
         if !self.parts.is_empty() {
-            for (i, part) in self.parts.iter().enumerate() {
+            for part in self.parts.iter() {
                 let part = part.to_string().await?;
-                // Note: facade should be included in ident because the asset type is not
-                // exactly the same.
-                write!(s, " <{}>", part)?;
+                // facade is not included in ident as switching between facade and non-facade
+                // shouldn't change the ident
+                if part.as_str() != "facade" {
+                    write!(s, " <{}>", part)?;
+                }
             }
             s.push(')');
         }
