@@ -3,10 +3,10 @@ use std::io::Write;
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{trace::TraceRawVcs, Upcast, ValueToString, Vc};
-use turbo_tasks_fs::rope::Rope;
+use turbo_tasks_fs::{rope::Rope, FileSystemPath};
 use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkItem, ChunkItemExt, ChunkingContext},
-    code_builder::{Code, CodeBuilder},
+    code_builder::{fileify_source_map, Code, CodeBuilder},
     error::PrettyPrintError,
     issue::{code_gen::CodeGenerationIssue, IssueExt, IssueSeverity, StyledString},
     source_map::GenerateSourceMap,
@@ -24,6 +24,7 @@ pub struct EcmascriptChunkItemContent {
     pub inner_code: Rope,
     pub source_map: Option<Vc<Box<dyn GenerateSourceMap>>>,
     pub options: EcmascriptChunkItemOptions,
+    pub rewrite_source_path: Option<Vc<FileSystemPath>>,
     pub placeholder_for_future_extensions: (),
 }
 
@@ -46,6 +47,11 @@ impl EcmascriptChunkItemContent {
         let async_module = async_module_options.await?.clone_value();
 
         Ok(EcmascriptChunkItemContent {
+            rewrite_source_path: if *chunking_context.should_use_file_source_map_uris().await? {
+                Some(chunking_context.context_path())
+            } else {
+                None
+            },
             inner_code: content.inner_code.clone(),
             source_map: content.source_map,
             options: if content.is_esm {
@@ -144,7 +150,19 @@ impl EcmascriptChunkItemContent {
             code += "{\n";
         }
 
-        code.push_source(&self.inner_code, self.source_map);
+        let source_map = if let Some(rewrite_source_path) = self.rewrite_source_path {
+            let source_map = self.source_map.map(|m| m.generate_source_map());
+            match source_map {
+                Some(map) => fileify_source_map(map, rewrite_source_path)
+                    .await?
+                    .map(Vc::upcast),
+                None => None,
+            }
+        } else {
+            self.source_map
+        };
+
+        code.push_source(&self.inner_code, source_map);
 
         if let Some(opts) = &self.options.async_module {
             write!(

@@ -4,14 +4,20 @@ use std::{
     ops,
 };
 
-use anyhow::Result;
+use anyhow::{Context, Result};
+use indexmap::IndexMap;
 use turbo_tasks::Vc;
-use turbo_tasks_fs::rope::{Rope, RopeBuilder};
+use turbo_tasks_fs::{
+    rope::{Rope, RopeBuilder},
+    util::uri_from_file,
+    DiskFileSystem, FileSystemPath,
+};
 use turbo_tasks_hash::hash_xxh3_hash64;
 
 use crate::{
     source_map::{GenerateSourceMap, OptionSourceMap, SourceMap, SourceMapSection},
     source_pos::SourcePos,
+    SOURCE_MAP_PREFIX,
 };
 
 /// A mapping of byte-offset in the code string to an associated source map.
@@ -196,4 +202,50 @@ impl Code {
         let hash = hash_xxh3_hash64(code.source_code());
         Vc::cell(hash)
     }
+}
+
+/// Turns `turbopack://[project]`` references in sourcemap sources into absolute
+/// `file://` uris. This is useful for debugging environments.
+#[turbo_tasks::function]
+pub async fn fileify_source_map(
+    map: Vc<OptionSourceMap>,
+    context_path: Vc<FileSystemPath>,
+) -> Result<Vc<OptionSourceMap>> {
+    let Some(map) = &*map.await? else {
+        return Ok(OptionSourceMap::none());
+    };
+
+    let flattened = map.await?.to_source_map().await?;
+    let flattened = flattened.as_regular_source_map();
+
+    let Some(flattened) = flattened else {
+        return Ok(OptionSourceMap::none());
+    };
+
+    let context_fs = context_path.fs();
+    let context_fs = &*Vc::try_resolve_downcast_type::<DiskFileSystem>(context_fs)
+        .await?
+        .context("Expected the chunking context to have a DiskFileSystem")?
+        .await?;
+    let prefix = format!("{}[{}]/", SOURCE_MAP_PREFIX, context_fs.name);
+
+    let mut transformed = flattened.into_owned();
+    let mut updates = IndexMap::new();
+    for (src_id, src) in transformed.sources().enumerate() {
+        let src = {
+            match src.strip_prefix(&prefix) {
+                Some(src) => uri_from_file(context_path, Some(src)).await?,
+                None => src.to_string(),
+            }
+        };
+        updates.insert(src_id, src);
+    }
+
+    for (src_id, src) in updates {
+        transformed.set_source(src_id as _, &src);
+    }
+
+    Ok(Vc::cell(Some(
+        SourceMap::new_decoded(sourcemap::DecodedMap::Regular(transformed)).cell(),
+    )))
 }

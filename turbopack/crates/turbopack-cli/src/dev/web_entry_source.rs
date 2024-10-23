@@ -46,6 +46,7 @@ pub fn get_client_chunking_context(
             RuntimeType::Development,
         )
         .hot_module_replacement()
+        .use_file_source_map_uris()
         .build(),
     )
 }

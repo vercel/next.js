@@ -8596,6 +8596,7 @@ dependencies = [
  "turbo-tasks-memory",
  "turbo-tasks-testing",
  "unicode-segmentation",
+ "urlencoding",
 ]
 
 [[package]]
