@@ -59,7 +59,7 @@ export default async function Page() {
 }
 ```
 
-If you are accessing external data that should be up to date on every single Request you should find an appropriate component to wrap in Suspense and provide a fallback UI to use while this data loads.
+If you are accessing external data that should be up to date on every single request, you should find an appropriate component to wrap in Suspense and provide a fallback UI to use while this data loads.
 
 Before:
 
