@@ -79,6 +79,7 @@ where
 
 fn closure_to_name<T>(value: &T) -> String {
     let name = std::any::type_name_of_val(value);
+    println!("Closure name: {}", name);
     name.replace("::{{closure}}", "").replace("::", "_")
 }
 
@@ -90,7 +91,8 @@ where
     F: Future<Output = Result<T>> + Send + 'static,
     T: Debug + PartialEq + Eq + TraceRawVcs + Send + 'static,
 {
-    run_with_tt(registration, move |tt| run_once(tt, fut())).await
+    let name = closure_to_name(&fut);
+    run_internal(registration, name, move |tt| run_once(tt, fut())).await
 }
 
 pub async fn run_with_tt<T, F>(
@@ -101,9 +103,21 @@ where
     F: Future<Output = Result<T>> + Send + 'static,
     T: Debug + PartialEq + Eq + TraceRawVcs + Send + 'static,
 {
+    let name = closure_to_name(&fut);
+    run_internal(registration, name, fut).await
+}
+
+pub async fn run_internal<T, F>(
+    registration: &Registration,
+    name: String,
+    fut: impl Fn(Arc<dyn TurboTasksApi>) -> F + Send + 'static,
+) -> Result<()>
+where
+    F: Future<Output = Result<T>> + Send + 'static,
+    T: Debug + PartialEq + Eq + TraceRawVcs + Send + 'static,
+{
     registration.ensure_registered();
 
-    let name = closure_to_name(&fut);
     let tt = registration.create_turbo_tasks(&name, true);
     println!("Run #1 (without cache)");
     let start = std::time::Instant::now();
@@ -117,6 +131,10 @@ where
     let start = std::time::Instant::now();
     tt.stop_and_wait().await;
     println!("Stopping TurboTasks took {:?}", start.elapsed());
+    assert_eq!(Arc::strong_count(&tt), 1);
+    let start = std::time::Instant::now();
+    drop(tt);
+    println!("Dropping TurboTasks took {:?}", start.elapsed());
     let tt = registration.create_turbo_tasks(&name, false);
     println!("Run #3 (with persistent cache if available, new TurboTasks instance)");
     let start = std::time::Instant::now();
@@ -125,6 +143,10 @@ where
     let start = std::time::Instant::now();
     tt.stop_and_wait().await;
     println!("Stopping TurboTasks took {:?}", start.elapsed());
+    assert_eq!(Arc::strong_count(&tt), 1);
+    let start = std::time::Instant::now();
+    drop(tt);
+    println!("Dropping TurboTasks took {:?}", start.elapsed());
     assert_eq!(first, third);
     Ok(())
 }

@@ -13,11 +13,12 @@ bench = false
 workspace = true
 
 [features]
-default = []
+default = ["rocksdb"]
 verify_serialization = []
 trace_aggregation_update = []
 trace_find_and_schedule = []
 lmdb = ["dep:lmdb-rkv"]
+rocksdb = ["dep:rocksdb"]
 
 [dependencies]
 anyhow = { workspace = true }
@@ -35,6 +36,7 @@ parking_lot = { workspace = true }
 pot = "3.0.0"
 rand = { workspace = true }
 rayon = { workspace = true }
+rocksdb = { version = "0.22.0", optional = true}
 rustc-hash = { workspace = true }
 serde = { workspace = true }
 serde_path_to_error = { workspace = true }

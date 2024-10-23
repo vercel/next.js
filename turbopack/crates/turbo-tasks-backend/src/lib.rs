@@ -5,7 +5,7 @@
 mod backend;
 mod backing_storage;
 mod data;
-mod database;
+pub mod database;
 mod kv_backing_storage;
 mod utils;
 
@@ -23,8 +23,10 @@ use crate::database::{
 
 #[cfg(feature = "lmdb")]
 pub type LmdbBackingStorage = KeyValueDatabaseBackingStorage<
-    ReadTransactionCache<
-        StartupCacheLayer<FreshDbOptimization<crate::database::lmdb::LmbdKeyValueDatabase>>,
+    crate::database::read_transaction_cache::ReadTransactionCache<
+        crate::database::startup_cache::StartupCacheLayer<
+            FreshDbOptimization<crate::database::lmdb::LmbdKeyValueDatabase>,
+        >,
     >,
 >;
 
@@ -45,6 +47,17 @@ pub fn lmdb_backing_storage(path: &Path) -> Result<LmdbBackingStorage> {
     Ok(KeyValueDatabaseBackingStorage::new(database))
 }
 
+#[cfg(feature = "rocksdb")]
+pub type RocksDBBackingStorage =
+    KeyValueDatabaseBackingStorage<crate::database::rocksdb::RocksDbKeyValueDatabase>;
+
+#[cfg(feature = "rocksdb")]
+pub fn rocksdb_backing_storage(path: &Path) -> Result<RocksDBBackingStorage> {
+    let path = handle_db_versioning(path)?;
+    let database = crate::database::rocksdb::RocksDbKeyValueDatabase::new(&path)?;
+    Ok(KeyValueDatabaseBackingStorage::new(database))
+}
+
 pub type TurboBackingStorage = KeyValueDatabaseBackingStorage<TurboKeyValueDatabase>;
 
 pub fn turbo_backing_storage(path: &Path) -> Result<TurboBackingStorage> {
@@ -59,18 +72,26 @@ pub fn noop_backing_storage() -> NoopBackingStorage {
     KeyValueDatabaseBackingStorage::new(NoopKvDb)
 }
 
+#[cfg(feature = "rocksdb")]
+pub type DefaultBackingStorage = RocksDBBackingStorage;
+
+#[cfg(feature = "rocksdb")]
+pub fn default_backing_storage(path: &Path) -> Result<DefaultBackingStorage> {
+    rocksdb_backing_storage(path)
+}
+
 #[cfg(feature = "lmdb")]
 pub type DefaultBackingStorage = LmdbBackingStorage;
 
 #[cfg(feature = "lmdb")]
 pub fn default_backing_storage(path: &Path) -> Result<DefaultBackingStorage> {
-    lmdb_backing_storage(path)
+    rocksdb_backing_storage(path)
 }
 
-#[cfg(not(feature = "lmdb"))]
+#[cfg(not(any(feature = "rocksdb", feature = "lmdb")))]
 pub type DefaultBackingStorage = TurboBackingStorage;
 
-#[cfg(not(feature = "lmdb"))]
+#[cfg(not(any(feature = "rocksdb", feature = "lmdb")))]
 pub fn default_backing_storage(path: &Path) -> Result<DefaultBackingStorage> {
     turbo_backing_storage(path)
 }
