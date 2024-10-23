@@ -2484,12 +2484,16 @@ async function prerenderToStream(
           ) as Promise<ReactServerPrerenderResolveToType>
         ).catch((err) => {
           if (
-            (process.env.NEXT_DEBUG_BUILD ||
-              process.env.__NEXT_VERBOSE_LOGGING) &&
-            !prospectiveRenderFlightController.signal.aborted &&
-            !isPrerenderInterruptedError(err) &&
-            !isDynamicServerError(err)
+            prospectiveRenderFlightController.signal.aborted ||
+            isPrerenderInterruptedError(err)
           ) {
+            // These are expected errors that might error the prerender. we ignore them.
+          } else if (
+            process.env.NEXT_DEBUG_BUILD ||
+            process.env.__NEXT_VERBOSE_LOGGING
+          ) {
+            // We don't normally log these errors because we are going to retry anyway but
+            // it can be useful for debugging Next.js itself to get visibility here when needed
             printDebugThrownValueForProspectiveRender(err, workStore.route)
           }
         })
@@ -2861,8 +2865,6 @@ async function prerenderToStream(
         // We need to scope the dynamic IO state per render because we don't want to leak
         // details between the prospective render and the final render
         const prospectiveRenderFlightController = new AbortController()
-        const prospectiveRenderFlightSignal =
-          prospectiveRenderFlightController.signal
 
         const cacheSignal = new CacheSignal()
         const prospectiveRenderPrerenderStore: PrerenderStore =
@@ -2870,7 +2872,7 @@ async function prerenderToStream(
             type: 'prerender',
             phase: 'render',
             implicitTags: ctx.requestStore.implicitTags,
-            renderSignal: prospectiveRenderFlightSignal,
+            renderSignal: prospectiveRenderFlightController.signal,
             cacheSignal,
             controller: null,
             dynamicTracking: null,
@@ -2894,7 +2896,7 @@ async function prerenderToStream(
           if (isPrerenderInterruptedError(err)) {
             reactServerIsDynamic = true
             return err.digest
-          } else if (prospectiveRenderFlightSignal.aborted) {
+          } else if (prospectiveRenderFlightController.signal.aborted) {
             reactServerIsDynamic = true
             return PRERENDER_COMPLETE
           } else if (process.env.NEXT_DEBUG_BUILD) {
@@ -2916,7 +2918,7 @@ async function prerenderToStream(
             clientReferenceManifest.clientModules,
             {
               onError: prospectiveRenderOnError,
-              signal: prospectiveRenderFlightSignal,
+              signal: prospectiveRenderFlightController.signal,
             }
           ) as ReadableStream<Uint8Array>
 
@@ -2929,11 +2931,16 @@ async function prerenderToStream(
           await warmFlightResponse(prospectiveStream, clientReferenceManifest)
         } catch (err) {
           if (
-            process.env.NEXT_DEBUG_BUILD &&
-            err !== abortReason &&
-            !isPrerenderInterruptedError(err) &&
-            !isDynamicServerError(err)
+            prospectiveRenderFlightController.signal.aborted ||
+            isPrerenderInterruptedError(err)
           ) {
+            // These are expected errors that might error the prerender. we ignore them.
+          } else if (
+            process.env.NEXT_DEBUG_BUILD ||
+            process.env.__NEXT_VERBOSE_LOGGING
+          ) {
+            // We don't normally log these errors because we are going to retry anyway but
+            // it can be useful for debugging Next.js itself to get visibility here when needed
             printDebugThrownValueForProspectiveRender(err, workStore.route)
           }
         }
