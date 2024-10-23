@@ -235,9 +235,7 @@ export async function Table({
 ```
 
 ```jsx filename="app/table.js" switcher
-export async function Table({ searchParams }: {
-  searchParams: Promise<{ sort: string }>
-}) {
+export async function Table({ searchParams }) {
   const sort = (await searchParams).sort === 'true';
   return '...'
 }
