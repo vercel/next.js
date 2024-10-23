@@ -2407,9 +2407,6 @@ async function prerenderToStream(
          * and the reactServerIsDynamic value to determine how to treat the resulting render
          */
 
-        const PRERENDER_COMPLETE = 'NEXT_PRERENDER_COMPLETE'
-        const abortReason = new Error(PRERENDER_COMPLETE)
-
         const prospectiveRenderFlightController = new AbortController()
         const prospectiveRenderFlightSignal =
           prospectiveRenderFlightController.signal
@@ -2438,12 +2435,12 @@ async function prerenderToStream(
 
         let reactServerIsDynamic = false
         function prospectiveRenderOnError(err: unknown) {
-          if (isPrerenderInterruptedError(err)) {
+          if (
+            prospectiveRenderFlightSignal.aborted ||
+            isPrerenderInterruptedError(err)
+          ) {
             reactServerIsDynamic = true
-            return err.digest
-          } else if (prospectiveRenderFlightSignal.aborted) {
-            reactServerIsDynamic = true
-            return PRERENDER_COMPLETE
+            return
           } else if (
             process.env.NEXT_DEBUG_BUILD ||
             process.env.__NEXT_VERBOSE_LOGGING
@@ -2500,7 +2497,7 @@ async function prerenderToStream(
 
         // When this resolves the cache has no inflight reads and we can ascertain the dynamic outcome
         await cacheSignal.cacheReady()
-        prospectiveRenderFlightController.abort(abortReason)
+        prospectiveRenderFlightController.abort()
 
         // When PPR is enabled we don't synchronously abort the render when performing a prospective render
         // because it might prevent us from discovering all caches during the render which is essential
@@ -2537,7 +2534,7 @@ async function prerenderToStream(
             return err.digest
           } else if (finalRenderFlightSignal.aborted) {
             reactServerIsDynamic = true
-            return PRERENDER_COMPLETE
+            return
           }
 
           return serverComponentsErrorHandler(err)
@@ -2568,7 +2565,7 @@ async function prerenderToStream(
                   }
                 ),
               () => {
-                finalRenderFlightController.abort(abortReason)
+                finalRenderFlightController.abort()
               }
             )
           ))
@@ -2657,7 +2654,7 @@ async function prerenderToStream(
               }
             ),
           () => {
-            SSRController.abort(abortReason)
+            SSRController.abort()
           }
         )
 
@@ -2722,7 +2719,7 @@ async function prerenderToStream(
                 }
               ),
             () => {
-              finalSSRController.abort(abortReason)
+              finalSSRController.abort()
             }
           ))
         }
@@ -2859,9 +2856,6 @@ async function prerenderToStream(
           )
         }
 
-        const PRERENDER_COMPLETE = 'NEXT_PRERENDER_COMPLETE'
-        const abortReason = new Error(PRERENDER_COMPLETE)
-
         // We need to scope the dynamic IO state per render because we don't want to leak
         // details between the prospective render and the final render
         const prospectiveRenderFlightController = new AbortController()
@@ -2898,7 +2892,7 @@ async function prerenderToStream(
             return err.digest
           } else if (prospectiveRenderFlightController.signal.aborted) {
             reactServerIsDynamic = true
-            return PRERENDER_COMPLETE
+            return
           } else if (process.env.NEXT_DEBUG_BUILD) {
             printDebugThrownValueForProspectiveRender(err, workStore.route)
           }
@@ -2926,7 +2920,7 @@ async function prerenderToStream(
           await cacheSignal.cacheReady()
           // Even though we could detect whether a sync dynamic API was used we still need to render SSR to
           // do error validation so we just abort and re-render.
-          prospectiveRenderFlightController.abort(abortReason)
+          prospectiveRenderFlightController.abort()
 
           await warmFlightResponse(prospectiveStream, clientReferenceManifest)
         } catch (err) {
@@ -3007,7 +3001,7 @@ async function prerenderToStream(
             return err.digest
           } else if (finalRenderFlightSignal.aborted) {
             reactServerIsDynamic = true
-            return PRERENDER_COMPLETE
+            return
           }
 
           return serverComponentsErrorHandler(err)
@@ -3087,8 +3081,8 @@ async function prerenderToStream(
               return prelude
             },
             () => {
-              SSRController.abort(abortReason)
-              finalRenderFlightController.abort(abortReason)
+              SSRController.abort()
+              finalRenderFlightController.abort()
             }
           )
         } catch (err) {
@@ -3208,8 +3202,8 @@ async function prerenderToStream(
                 return prelude
               },
               () => {
-                finalSSRController.abort(abortReason)
-                thirdRenderFlightController.abort(abortReason)
+                finalSSRController.abort()
+                thirdRenderFlightController.abort()
               }
             )
           } catch (err) {
