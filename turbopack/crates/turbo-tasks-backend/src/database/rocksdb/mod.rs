@@ -1,4 +1,4 @@
-use std::{path::Path, thread::available_parallelism};
+use std::{path::Path, thread::available_parallelism, time::Instant};
 
 use anyhow::{Context, Result};
 use rocksdb::{
@@ -153,12 +153,16 @@ impl<'a> WriteBatch<'a> for RocksDbWriteBatch<'a> {
     }
 
     fn commit(self) -> Result<()> {
+        let start = Instant::now();
         let mut write_options = WriteOptions::default();
         write_options.disable_wal(true);
         self.this.db.write_opt(self.batch, &write_options)?;
+        println!("Write took {:?}", start.elapsed());
+        let start = Instant::now();
         let mut wait_for_compact_options = WaitForCompactOptions::default();
         wait_for_compact_options.set_flush(true);
         self.this.db.wait_for_compact(&wait_for_compact_options)?;
+        println!("Flush took {:?}", start.elapsed());
         Ok(())
     }
 }
