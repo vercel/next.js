@@ -371,39 +371,6 @@ export async function runUpgrade(
   warnDependenciesOutOfRange(dependenciesOutOfRange, allDependenciesToInstall)
 
   endMessage()
-
-  if (dry) {
-    console.log() // new line
-    console.log(pc.bold('Dry-run Output:'))
-    console.log() // new line
-    console.log(
-      JSON.stringify(
-        {
-          revision,
-          verbose,
-          installedNextVersion,
-          installedReactVersion,
-          targetNextVersion,
-          targetReactVersion,
-          packageManager,
-          usesAppDir,
-          usesPagesDir,
-          isPureAppRouter,
-          isMixedApp,
-          shouldStayOnReact18,
-          codemods,
-          shouldRunReactCodemods,
-          shouldRunReactTypesCodemods,
-          execCommand,
-          dependenciesToInstall,
-          devDependenciesToInstall,
-          dependenciesOutOfRange: Object.fromEntries(dependenciesOutOfRange),
-        },
-        null,
-        2
-      )
-    )
-  }
 }
 
 function getInstalledNextVersion(): string {
