@@ -205,7 +205,6 @@ graph TD
     Item11 --> Item9;
     Item11 --> Item10;
     Item12 --> Item11;
-    Item12 --> Item1;
     Item12 --> Item2;
     Item14 --> Item12;
 ```
@@ -238,7 +237,6 @@ graph TD
     Item11 --> Item9;
     Item11 --> Item10;
     Item12 --> Item11;
-    Item12 --> Item1;
     Item12 --> Item2;
     Item14 --> Item12;
 ```
@@ -271,7 +269,6 @@ graph TD
     Item11 --> Item9;
     Item11 --> Item10;
     Item12 --> Item11;
-    Item12 --> Item1;
     Item12 --> Item2;
     Item14 --> Item12;
     Item13 --> Item12;
@@ -303,7 +300,6 @@ graph TD
     N12 --> N10;
     N12 --> N11;
     N13 --> N12;
-    N13 --> N2;
     N13 --> N6;
     N1 --> N13;
     N0 --> N13;
@@ -505,9 +501,6 @@ export { MyDocument as j } from "__TURBOPACK_VAR__" assert {
 ```js
 import { j as MyDocument } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -12
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
@@ -730,9 +723,6 @@ export { MyDocument as j } from "__TURBOPACK_VAR__" assert {
 ```js
 import { j as MyDocument } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -12
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6

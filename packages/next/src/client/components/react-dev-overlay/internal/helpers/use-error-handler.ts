@@ -1,31 +1,36 @@
 import { useEffect } from 'react'
-import { isHydrationError } from '../../../is-hydration-error'
 import { attachHydrationErrorState } from './attach-hydration-error-state'
 import { isNextRouterError } from '../../../is-next-router-error'
+import { storeHydrationErrorStateFromConsoleArgs } from './hydration-error-info'
+import { formatConsoleArgs } from '../../../../lib/console'
+import isError from '../../../../../lib/is-error'
+import { ConsoleError } from './console-error'
+import { enqueueConsecutiveDedupedError } from './enqueue-client-error'
 
 export type ErrorHandler = (error: Error) => void
 
-let hasHydrationError = false
 const errorQueue: Array<Error> = []
 const errorHandlers: Array<ErrorHandler> = []
 const rejectionQueue: Array<Error> = []
 const rejectionHandlers: Array<ErrorHandler> = []
 
-export function handleClientError(error: unknown) {
-  if (!error || !(error instanceof Error) || typeof error.stack !== 'string') {
-    // A non-error was thrown, we don't have anything to show. :-(
-    return
+export function handleClientError(
+  originError: unknown,
+  consoleErrorArgs: any[]
+) {
+  let error: Error
+  if (!originError || !isError(originError)) {
+    // If it's not an error, format the args into an error
+    const formattedErrorMessage = formatConsoleArgs(consoleErrorArgs)
+    error = new ConsoleError(formattedErrorMessage)
+  } else {
+    error = originError
   }
 
+  storeHydrationErrorStateFromConsoleArgs(...consoleErrorArgs)
   attachHydrationErrorState(error)
 
-  // Only queue one hydration every time
-  if (isHydrationError(error)) {
-    if (!hasHydrationError) {
-      errorQueue.push(error)
-    }
-    hasHydrationError = true
-  }
+  enqueueConsecutiveDedupedError(errorQueue, error)
   for (const handler of errorHandlers) {
     handler(error)
   }
@@ -69,7 +74,7 @@ export function handleGlobalErrors() {
           event.preventDefault()
           return false
         }
-        handleClientError(event.error)
+        handleClientError(event.error, [])
       }
     )
 

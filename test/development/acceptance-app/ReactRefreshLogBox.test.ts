@@ -852,7 +852,17 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
       const stackFrames = await Promise.all(
         stackFrameElements.map((f) => f.innerText())
       )
-      expect(stackFrames).toEqual([])
+      expect(stackFrames).toEqual(
+        // TODO: Show useful stack
+        [
+          // Internal frames of React.
+          // Feel free to adjust until we show useful stacks.
+          '',
+          '',
+          '',
+          '',
+        ]
+      )
     } finally {
       await cleanup()
     }
@@ -909,12 +919,26 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
                 Page
                 app/page.js (5:6)
               `,
+              // TODO: Show useful stack
+              // Internal frames of React.
+              // Feel free to adjust until we show useful stacks.
+              '',
+              '',
+              '',
+              '',
             ]
           : [
               outdent`
                 Page
                 app/page.js (5:5)
               `,
+              // TODO: Show useful stack
+              // Internal frames of React.
+              // Feel free to adjust until we show useful stacks.
+              '',
+              '',
+              '',
+              '',
             ]
       )
     } finally {
@@ -957,7 +981,17 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
       const stackFrames = await Promise.all(
         stackFrameElements.map((f) => f.innerText())
       )
-      expect(stackFrames).toEqual([])
+      expect(stackFrames).toEqual(
+        // TODO: Show useful stack
+        [
+          // Internal frames of React.
+          // Feel free to adjust until we show useful stacks.
+          '',
+          '',
+          '',
+          '',
+        ]
+      )
     } finally {
       await cleanup()
     }
@@ -1254,20 +1288,18 @@ export default function Home() {
       expect(stack).toMatchInlineSnapshot(`
         "app/utils.ts (1:7) @ eval
         ---
-        (app-pages-browser)/./app/utils.ts
+        ./app/utils.ts
         file://TEST_DIR/.next/static/chunks/app/page.js (39:1)
         ---
         Next.js
         ---
         eval
-        (app-pages-browser)/./app/page.js
+        ./app/page.js
         ---
-        (app-pages-browser)/./app/page.js
+        ./app/page.js
         file://TEST_DIR/.next/static/chunks/app/page.js (28:1)
         ---
-        Next.js
-        ---
-        React"
+        Next.js"
       `)
     }
 

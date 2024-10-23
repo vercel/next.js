@@ -916,10 +916,8 @@ export async function getRedboxHeader(browser: BrowserInterface) {
 }
 
 export async function getRedboxTotalErrorCount(browser: BrowserInterface) {
-  return parseInt(
-    (await getRedboxHeader(browser)).match(/\d+ of (\d+) error/)?.[1],
-    10
-  )
+  const header = (await getRedboxHeader(browser)) || ''
+  return parseInt(header.match(/\d+ of (\d+) error/)?.[1], 10)
 }
 
 export async function getRedboxSource(browser: BrowserInterface) {
@@ -978,6 +976,29 @@ export async function getRedboxDescriptionWarning(browser: BrowserInterface) {
         const root = portal.shadowRoot
         const text = root.querySelector(
           '#nextjs__container_errors__notes'
+        )?.innerText
+        return text
+      }),
+    3000,
+    500,
+    'getRedboxDescriptionWarning'
+  )
+}
+
+export async function getRedboxErrorLink(
+  browser: BrowserInterface
+): Promise<string | undefined> {
+  return retry(
+    () =>
+      evaluate(browser, () => {
+        const portal = [].slice
+          .call(document.querySelectorAll('nextjs-portal'))
+          .find((p) =>
+            p.shadowRoot.querySelector('[data-nextjs-dialog-header]')
+          )
+        const root = portal.shadowRoot
+        const text = root.querySelector(
+          '#nextjs__container_errors__link'
         )?.innerText
         return text
       }),

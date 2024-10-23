@@ -234,7 +234,7 @@ declare module 'react-server-dom-webpack/static.edge' {
 }
 declare module 'react-server-dom-webpack/client.edge' {
   export interface Options {
-    ssrManifest: SSRManifest
+    serverConsumerManifest: ServerConsumerManifest
     nonce?: string
     encodeFormAction?: EncodeFormActionCallback
     temporaryReferences?: TemporaryReferenceSet
@@ -265,12 +265,17 @@ declare module 'react-server-dom-webpack/client.edge' {
     async?: boolean
   }
 
-  export interface SSRManifest {
-    moduleMap: SSRModuleMap
-    moduleLoading: ModuleLoading | null
+  export type ServerManifest = {
+    [id: string]: ImportManifestEntry
   }
 
-  export interface SSRModuleMap {
+  export interface ServerConsumerManifest {
+    moduleMap: ServerConsumerModuleMap
+    moduleLoading: ModuleLoading | null
+    serverModuleMap: null | ServerManifest
+  }
+
+  export interface ServerConsumerModuleMap {
     [clientId: string]: {
       [clientExportName: string]: ImportManifestEntry
     }
@@ -314,7 +319,10 @@ declare module 'react-server-dom-webpack/client.edge' {
 
   export function encodeReply(
     value: unknown,
-    options?: { temporaryReferences?: TemporaryReferenceSet }
+    options?: {
+      temporaryReferences?: TemporaryReferenceSet
+      signal?: AbortSignal
+    }
   ): Promise<string | FormData>
 }
 
@@ -529,10 +537,6 @@ declare module 'next/dist/compiled/jsonwebtoken' {
 }
 declare module 'next/dist/compiled/lodash.curry' {
   import m from 'lodash.curry'
-  export = m
-}
-declare module 'next/dist/compiled/lru-cache' {
-  import m from 'lru-cache'
   export = m
 }
 declare module 'next/dist/compiled/picomatch' {

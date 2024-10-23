@@ -28,7 +28,7 @@ type CacheLifeProfiles =
   | 'days'
   | 'weeks'
   | 'max'
-  | string
+  | (string & {})
 
 function validateCacheLife(profile: CacheLife) {
   if (profile.stale !== undefined) {

@@ -8,6 +8,10 @@ export var $$RSC_SERVER_CACHE_0 = $$cache__("default", "3128060c414d59f8552e4788
         foo: $$ACTION_ARG_1
     };
 });
+Object.defineProperty($$RSC_SERVER_CACHE_0, "name", {
+    "value": "fn",
+    "writable": false
+});
 async function Component({ foo }) {
     const a = 123;
     var fn = $$RSC_SERVER_REF_1.bind(null, encryptActionBoundArgs("3128060c414d59f8552e4788b846c0d2b7f74743", [

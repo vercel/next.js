@@ -21,18 +21,14 @@ import {
   getVariableDeclaratorId,
   NEXTJS_ENTRY_FILES,
   NEXT_CODEMOD_ERROR_PREFIX,
+  findFunctionBody,
+  containsReactHooksCallExpressions,
+  isParentUseCallExpression,
+  isParentPromiseAllCallExpression,
 } from './utils'
 import { createParserFromPath } from '../../../lib/parser'
 
 const PAGE_PROPS = 'props'
-
-function findFunctionBody(path: ASTPath<FunctionScope>) {
-  let functionBody = path.node.body
-  if (functionBody && functionBody.type === 'BlockStatement') {
-    return functionBody.body
-  }
-  return null
-}
 
 function awaitMemberAccessOfProp(
   propIdName: string,
@@ -77,51 +73,19 @@ function awaitMemberAccessOfProp(
     hasAwaited = true
   })
 
+  const hasReactHooksUsage = containsReactHooksCallExpressions(
+    path.get('body'),
+    j
+  )
+
   // If there's any awaited member access, we need to make the function async
   if (hasAwaited) {
-    if (!path.value.async) {
-      if ('async' in path.value) {
-        path.value.async = true
-        turnFunctionReturnTypeToAsync(path.value, j)
-      }
+    if (path.value.async === false && !hasReactHooksUsage) {
+      path.value.async = true
+      turnFunctionReturnTypeToAsync(path.value, j)
     }
   }
   return hasAwaited
-}
-
-function isParentUseCallExpression(path: ASTPath<any>, j: API['jscodeshift']) {
-  if (
-    // member access parentPath is argument
-    j.CallExpression.check(path.parent.value) &&
-    // member access is first argument
-    path.parent.value.arguments[0] === path.value &&
-    // function name is `use`
-    j.Identifier.check(path.parent.value.callee) &&
-    path.parent.value.callee.name === 'use'
-  ) {
-    return true
-  }
-  return false
-}
-
-function isParentPromiseAllCallExpression(
-  path: ASTPath<any>,
-  j: API['jscodeshift']
-) {
-  const argsParent = path.parent
-  const callParent = argsParent?.parent
-  if (
-    j.ArrayExpression.check(argsParent.value) &&
-    j.CallExpression.check(callParent.value) &&
-    j.MemberExpression.check(callParent.value.callee) &&
-    j.Identifier.check(callParent.value.callee.object) &&
-    callParent.value.callee.object.name === 'Promise' &&
-    j.Identifier.check(callParent.value.callee.property) &&
-    callParent.value.callee.property.name === 'all'
-  ) {
-    return true
-  }
-  return false
 }
 
 function applyUseAndRenameAccessedProp(
@@ -278,7 +242,6 @@ function modifyTypes(
             member.typeAnnotation.typeAnnotation = j.tsTypeReference(
               j.identifier('Promise'),
               j.tsTypeParameterInstantiation([
-                // @ts-ignore
                 member.typeAnnotation.typeAnnotation,
               ])
             )
@@ -337,6 +300,55 @@ function modifyTypes(
                 }
               }
             })
+          }
+        }
+
+        // Deal with type aliases
+        if (foundTypes.typeAliases.length > 0) {
+          const typeAliasDeclaration = foundTypes.typeAliases[0]
+          if (j.TSTypeAliasDeclaration.check(typeAliasDeclaration)) {
+            const typeAlias = typeAliasDeclaration.typeAnnotation
+            if (
+              j.TSTypeLiteral.check(typeAlias) &&
+              typeAlias.members.length > 0
+            ) {
+              const typeLiteral = typeAlias
+              typeLiteral.members.forEach((member) => {
+                if (
+                  j.TSPropertySignature.check(member) &&
+                  j.Identifier.check(member.key) &&
+                  TARGET_PROP_NAMES.has(member.key.name)
+                ) {
+                  // if it's already a Promise, don't wrap it again, return
+                  if (
+                    member.typeAnnotation &&
+                    member.typeAnnotation.typeAnnotation &&
+                    member.typeAnnotation.typeAnnotation.type ===
+                      'TSTypeReference' &&
+                    member.typeAnnotation.typeAnnotation.typeName.type ===
+                      'Identifier' &&
+                    member.typeAnnotation.typeAnnotation.typeName.name ===
+                      'Promise'
+                  ) {
+                    return
+                  }
+
+                  // Wrap the prop type in Promise<>
+                  if (
+                    member.typeAnnotation &&
+                    j.TSTypeLiteral.check(member.typeAnnotation.typeAnnotation)
+                  ) {
+                    member.typeAnnotation.typeAnnotation = j.tsTypeReference(
+                      j.identifier('Promise'),
+                      j.tsTypeParameterInstantiation([
+                        member.typeAnnotation.typeAnnotation,
+                      ])
+                    )
+                    modified = true
+                  }
+                }
+              })
+            }
           }
         }
       }
@@ -450,6 +462,13 @@ export function transformDynamicProps(
           modified ||= awaited
         }
 
+        modified ||= modifyTypes(
+          currentParam.typeAnnotation,
+          propsIdentifier,
+          root,
+          j
+        )
+
         // cases of passing down `props` into any function
         // Page(props) { callback(props) }
 
@@ -530,11 +549,13 @@ export function transformDynamicProps(
 
       // If it's sync default export, and it's also server component, make the function async
       if (isDefaultExport && !isClientComponent) {
-        if (!node.async) {
-          if ('async' in node) {
-            node.async = true
-            turnFunctionReturnTypeToAsync(node, j)
-          }
+        const hasReactHooksUsage = containsReactHooksCallExpressions(
+          path.get('body'),
+          j
+        )
+        if (node.async === false && !hasReactHooksUsage) {
+          node.async = true
+          turnFunctionReturnTypeToAsync(node, j)
         }
       }
 
@@ -566,6 +587,11 @@ export function transformDynamicProps(
       const isAsyncFunc = !!node.async
       const functionName = path.value.id?.name || 'default'
       const functionBody = findFunctionBody(path)
+      const functionBodyPath = path.get('body')
+      const hasReactHooksUsage = containsReactHooksCallExpressions(
+        functionBodyPath,
+        j
+      )
       const hasOtherProperties = allProperties.length > propertiesMap.size
 
       function createDestructuringDeclaration(
@@ -672,7 +698,6 @@ export function transformDynamicProps(
         // if propName is not used in lower scope, and it stars with unused prefix `_`,
         // also skip the transformation
 
-        const functionBodyPath = path.get('body')
         const hasUsedInBody =
           j(functionBodyPath)
             .find(j.Identifier, {
@@ -765,28 +790,25 @@ export function transformDynamicProps(
             insertedRenamedPropFunctionNames.add(uid)
           }
         } else {
-          // const isFromExport = true
-          if (!isClientComponent) {
+          if (
+            !isClientComponent &&
+            isFunctionType(node.type) &&
+            !hasReactHooksUsage
+          ) {
             // If it's export function, populate the function to async
-            if (
-              isFunctionType(node.type) &&
-              // Make TS happy
-              'async' in node
-            ) {
-              node.async = true
-              turnFunctionReturnTypeToAsync(node, j)
-              // Insert `const <propName> = await props.<propName>;` at the beginning of the function body
-              const paramAssignment = j.variableDeclaration('const', [
-                j.variableDeclarator(
-                  j.identifier(paramPropertyName),
-                  j.awaitExpression(accessedPropIdExpr)
-                ),
-              ])
+            node.async = true
+            turnFunctionReturnTypeToAsync(node, j)
+            // Insert `const <propName> = await props.<propName>;` at the beginning of the function body
+            const paramAssignment = j.variableDeclaration('const', [
+              j.variableDeclarator(
+                j.identifier(paramPropertyName),
+                j.awaitExpression(accessedPropIdExpr)
+              ),
+            ])
 
-              if (!insertedRenamedPropFunctionNames.has(uid) && functionBody) {
-                functionBody.unshift(paramAssignment)
-                insertedRenamedPropFunctionNames.add(uid)
-              }
+            if (!insertedRenamedPropFunctionNames.has(uid) && functionBody) {
+              functionBody.unshift(paramAssignment)
+              insertedRenamedPropFunctionNames.add(uid)
             }
           } else {
             const paramAssignment = j.variableDeclaration('const', [
