@@ -1060,6 +1060,7 @@ async function renderToHTMLOrFlightImpl(
   const serverModuleMap = createServerModuleMap({ serverActionsManifest })
 
   setReferenceManifestsSingleton({
+    page: workStore.page,
     clientReferenceManifest,
     serverActionsManifest,
     serverModuleMap,
