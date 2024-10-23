@@ -126,11 +126,19 @@ To configure resolve extensions, use the `resolveExtensions` field in `next.conf
 
 ```js filename="next.config.js"
 module.exports = {
-    experimental: {
-      turbo: {
-        resolveExtensions: ['.mdx', '.tsx', '.ts', '.jsx', '.js', '.mjs', '.json'],
-      },
+  experimental: {
+    turbo: {
+      resolveExtensions: [
+        '.mdx',
+        '.tsx',
+        '.ts',
+        '.jsx',
+        '.js',
+        '.mjs',
+        '.json',
+      ],
     },
+  },
 }
 ```
 
@@ -161,6 +169,6 @@ module.exports = {
 
 ## Version History
 
-| Version     | Changes                                           |
-| ----------- | ------------------------------------------------- |
-| `13.0.0`    | `experimental.turbo` introduced.                  |
+| Version  | Changes                          |
+| -------- | -------------------------------- |
+| `13.0.0` | `experimental.turbo` introduced. |
