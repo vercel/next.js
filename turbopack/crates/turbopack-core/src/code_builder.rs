@@ -182,7 +182,39 @@ impl GenerateSourceMap for Code {
                 None => SourceMap::empty(),
                 Some(map) => match *map.generate_source_map().await? {
                     None => SourceMap::empty(),
-                    Some(map) => map,
+                    Some(map) => {
+                        let map = &*map.await?;
+                        let map = map.to_source_map().await?;
+                        let map = map.as_regular_source_map().unwrap();
+                        let mut builder = SourceMapBuilder::new(map.get_file());
+                        builder.set_debug_id(map.get_debug_id());
+                        builder.set_source_root(map.get_source_root());
+                        let mut ignored_ids = IndexSet::new();
+                        for (src, src_contents) in map.sources().zip(map.source_contents()) {
+                            let new_src_id = builder.add_source(src);
+                            builder.set_source_contents(new_src_id, src_contents);
+                            if src.starts_with("turbopack://[next]")
+                                || src.starts_with("turbopack://[turbopack]")
+                                || src.contains("node_modules/")
+                            {
+                                ignored_ids.insert(new_src_id);
+                            }
+                        }
+
+                        for token in map.tokens() {
+                            builder.add_token(&token, true);
+                        }
+
+                        for ignored_id in ignored_ids {
+                            println!("adding {} for to ignore list", ignored_id);
+                            builder.add_to_ignore_list(ignored_id);
+                        }
+
+                        SourceMap::new_decoded(sourcemap::DecodedMap::Regular(
+                            builder.into_sourcemap(),
+                        ))
+                        .cell()
+                    }
                 },
             };
 
