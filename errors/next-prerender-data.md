@@ -16,7 +16,7 @@ This makes React's `Suspense` component an explicit opt-in to allow uncached dat
 
 To ensure you have a fully prerenderable route, you should omit any Suspense boundaries in your route. Suspense is useful for loading UI dynamically but if you have entirely prerenderable pages there is no need to have fallback UI because the primary UI will always be available.
 
-To allow uncached data anywhere in your application you can add a Suspense boundary just inside your `<body>` tag in your Root Layout. We don't recommend you do this however because you will likely want to scope Suspense boundaries around more granular component boundaries that provide fallback UI specific to individual Components.
+To allow uncached data anywhere in your application, you can add a Suspense boundary just inside your `<body>` tag in your Root Layout. However, we don't recommend you do this because you will likely want to scope Suspense boundaries around more granular component boundaries that provide fallback UI specific to individual Components.
 
 Hybrid applications will typically use a combination of both techniques, with your top level shared Layouts avoiding Suspense so they can be prerendered for static pages and your layouts that actually have data dependencies will define fallback UI.
 
