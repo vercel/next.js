@@ -419,7 +419,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
         Ok(ResolveResultOption::some(
             ResolveResult::primary(ResolveResultItem::External {
                 name: request_str.into(),
-                typ: external_type,
+                ty: external_type,
                 traced: ExternalTraced::Traced,
             })
             .cell(),

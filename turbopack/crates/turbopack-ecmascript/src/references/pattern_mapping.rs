@@ -314,7 +314,7 @@ async fn to_single_pattern_mapping(
         ModuleResolveResultItem::Module(module) => *module,
         ModuleResolveResultItem::External {
             name: s,
-            typ: ty,
+            ty,
             traced: _,
         } => {
             return Ok(SinglePatternMapping::External(s.clone(), *ty));

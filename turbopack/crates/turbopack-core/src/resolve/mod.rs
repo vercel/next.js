@@ -68,7 +68,7 @@ pub enum ModuleResolveResultItem {
     External {
         /// uri, path, reference, etc.
         name: RcStr,
-        typ: ExternalType,
+        ty: ExternalType,
         traced: Option<ResolvedVc<ModuleResolveResult>>,
     },
     Ignore,
@@ -417,7 +417,7 @@ pub enum ResolveResultItem {
     External {
         /// uri, path, reference, etc.
         name: RcStr,
-        typ: ExternalType,
+        ty: ExternalType,
         traced: ExternalTraced,
     },
     Ignore,
@@ -501,7 +501,7 @@ impl ValueToString for ResolveResult {
                 }
                 ResolveResultItem::External {
                     name: s,
-                    typ: ty,
+                    ty,
                     traced,
                 } => {
                     result.push_str("external ");
@@ -703,13 +703,13 @@ impl ResolveResult {
                                 ResolveResultItem::Source(source) => asset_fn(source).await?,
                                 ResolveResultItem::External {
                                     name,
-                                    typ,
+                                    ty,
                                     // TODO remove this whole function? it's easy to drop traced
                                     // externals now
                                     traced: _,
                                 } => ModuleResolveResultItem::External {
                                     name,
-                                    typ,
+                                    ty,
                                     traced: None,
                                 },
                                 ResolveResultItem::Ignore => ModuleResolveResultItem::Ignore,
@@ -1910,7 +1910,7 @@ async fn resolve_internal_inline(
                     RequestKey::new(uri.clone()),
                     ResolveResultItem::External {
                         name: uri,
-                        typ: ExternalType::Url,
+                        ty: ExternalType::Url,
                         traced: ExternalTraced::Untraced,
                     },
                 )

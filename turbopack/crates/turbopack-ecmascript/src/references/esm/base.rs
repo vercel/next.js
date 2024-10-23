@@ -85,10 +85,10 @@ impl ReferencedAsset {
             match result {
                 ModuleResolveResultItem::External {
                     name: request,
-                    typ,
+                    ty,
                     traced: _,
                 } => {
-                    return Ok(ReferencedAsset::External(request.clone(), *typ).cell());
+                    return Ok(ReferencedAsset::External(request.clone(), *ty).cell());
                 }
                 &ModuleResolveResultItem::Module(module) => {
                     if let Some(placeable) =

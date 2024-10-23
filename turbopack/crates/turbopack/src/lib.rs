@@ -776,12 +776,12 @@ impl AssetContext for ModuleAssetContext {
                                 ProcessResult::Ignore => ModuleResolveResultItem::Ignore,
                             }
                         }
-                        ResolveResultItem::External { name, typ, traced } => {
+                        ResolveResultItem::External { name, ty, traced } => {
                             let traced_module = match traced {
                                 ExternalTraced::Traced
                                     if self.module_options_context().await?.enable_tracing =>
                                 {
-                                    let externals_context = externals_tracing_module_context(typ);
+                                    let externals_context = externals_tracing_module_context(ty);
                                     Some(
                                         externals_context
                                             .resolve_asset(
@@ -801,7 +801,7 @@ impl AssetContext for ModuleAssetContext {
                             };
                             ModuleResolveResultItem::External {
                                 name,
-                                typ,
+                                ty,
                                 traced: traced_module,
                             }
                         }
@@ -1025,14 +1025,14 @@ pub async fn replace_externals(
     for item in result.primary.values_mut() {
         let ModuleResolveResultItem::External {
             name: request,
-            typ,
+            ty,
             traced,
         } = item
         else {
             continue;
         };
 
-        let external_type = match typ {
+        let external_type = match ty {
             ExternalType::CommonJs => CachedExternalType::CommonJs,
             ExternalType::EcmaScriptModule => {
                 if import_externals {

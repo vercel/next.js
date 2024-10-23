@@ -339,7 +339,7 @@ async fn import_mapping_to_result(
 
                 ResolveResultItem::External {
                     name,
-                    typ: *ty,
+                    ty: *ty,
                     traced: *traced,
                 }
             })

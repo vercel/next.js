@@ -244,7 +244,7 @@ impl AfterResolvePlugin for NextExternalResolvePlugin {
         Ok(Vc::cell(Some(
             ResolveResult::primary(ResolveResultItem::External {
                 name: specifier.clone(),
-                typ: ExternalType::CommonJs,
+                ty: ExternalType::CommonJs,
                 traced: ExternalTraced::Traced,
             })
             .into(),
