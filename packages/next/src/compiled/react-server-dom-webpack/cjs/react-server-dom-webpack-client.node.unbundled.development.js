@@ -2040,12 +2040,12 @@
             "\n//# sourceURL=rsc://React/" +
             encodeURIComponent(environmentName) +
             "/" +
-            filename +
+            encodeURI(filename) +
             "?" +
             fakeFunctionIdx++),
           (col += "\n//# sourceMappingURL=" + sourceMap))
         : (col = filename
-            ? col + ("\n//# sourceURL=" + filename)
+            ? col + ("\n//# sourceURL=" + encodeURI(filename))
             : col + "\n//# sourceURL=<anonymous>");
       try {
         var fn = (0, eval)(col)[name];
