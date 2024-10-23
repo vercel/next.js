@@ -524,18 +524,18 @@ export { userland as j } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 15
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 7
+import { g as AppRouteRouteModule } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -8,
+    __turbopack_original__: '../../server/future/route-modules/app-route/module.compiled'
 };
-import { AppRouteRouteModule } from "../../server/future/route-modules/app-route/module.compiled";
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
+import { h as RouteKind } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -10,
+    __turbopack_original__: '../../server/future/route-kind'
 };
-import { RouteKind } from "../../server/future/route-kind";
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
+import { j as userland } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -14,
+    __turbopack_original__: 'VAR_USERLAND'
 };
-import * as userland from "VAR_USERLAND";
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 13
 };
@@ -589,10 +589,10 @@ export { originalPathname as a } from "__TURBOPACK_VAR__" assert {
 import { f as workAsyncStorage } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -16
 };
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 11
+import { i as _patchFetch } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -12,
+    __turbopack_original__: '../../server/lib/patch-fetch'
 };
-import { patchFetch as _patchFetch } from "../../server/lib/patch-fetch";
 import { e as serverHooks } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -16
 };
@@ -803,18 +803,18 @@ export { userland as j } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 15
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 7
+import { g as AppRouteRouteModule } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -8,
+    __turbopack_original__: '../../server/future/route-modules/app-route/module.compiled'
 };
-import { AppRouteRouteModule } from "../../server/future/route-modules/app-route/module.compiled";
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
+import { h as RouteKind } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -10,
+    __turbopack_original__: '../../server/future/route-kind'
 };
-import { RouteKind } from "../../server/future/route-kind";
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
+import { j as userland } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -14,
+    __turbopack_original__: 'VAR_USERLAND'
 };
-import * as userland from "VAR_USERLAND";
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 13
 };
@@ -865,10 +865,10 @@ export { originalPathname as a } from "__TURBOPACK_VAR__" assert {
 import { f as workAsyncStorage } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -16
 };
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 11
+import { i as _patchFetch } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -12,
+    __turbopack_original__: '../../server/lib/patch-fetch'
 };
-import { patchFetch as _patchFetch } from "../../server/lib/patch-fetch";
 import { e as serverHooks } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -16
 };

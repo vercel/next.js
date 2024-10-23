@@ -190,10 +190,10 @@ export { Stream as b } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 4
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
+import { b as Stream } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -3,
+    __turbopack_original__: 'node:stream'
 };
-import Stream from "node:stream";
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
@@ -288,10 +288,10 @@ export { Stream as b } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 4
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
+import { b as Stream } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -3,
+    __turbopack_original__: 'node:stream'
 };
-import Stream from "node:stream";
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
