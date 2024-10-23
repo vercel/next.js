@@ -60,9 +60,6 @@ jobs:
       NEXT_SKIP_NATIVE_POSTINSTALL: 1
       NPM_TOKEN: ${{ secrets.NPM_TOKEN_ELEVATED }}
     steps:
-      - run: npm i -g npm@10.4.0 # need latest version for provenance (pinning to avoid bugs)
-      - run: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
-      - run: npm dist-tag next@15.0.1 latest
       - name: Setup node
         uses: actions/setup-node@v4
         with:
@@ -73,6 +70,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 25
+
+      - run: npm i -g npm@10.4.0 # need latest version for provenance (pinning to avoid bugs)
+      - run: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
+      - run: npm dist-tag next@15.0.1 latest
 
       - id: get-store-path
         run: echo STORE_PATH=$(pnpm store path) >> $GITHUB_OUTPUT
