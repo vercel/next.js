@@ -28,7 +28,7 @@ describe(`Dynamic IO Prospective Fallback`, () => {
       }
 
       expect(next.cliOutput).toContain(
-        'In Route "/blog/[slug]" this component accessed data without a fallback UI available somewhere above it using Suspense.'
+        'In Route "/blog/[slug]" this component accessed data without a Suspense boundary above it to provide a fallback UI.'
       )
     })
 
@@ -46,7 +46,7 @@ describe(`Dynamic IO Prospective Fallback`, () => {
       await next.start()
 
       expect(next.cliOutput).not.toContain(
-        'In Route "/blog/[slug]" this component accessed data without a fallback UI available somewhere above it using Suspense.'
+        'In Route "/blog/[slug]" this component accessed data without a Suspense boundary above it to provide a fallback UI.'
       )
     })
   }
