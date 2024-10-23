@@ -2110,10 +2110,15 @@ export default abstract class Server<
       routeModule = components.routeModule
     }
 
-    /**
-     * If the route being rendered is an app page, and the ppr feature has been
-     * enabled, then the given route _could_ support PPR.
-     */
+    // Get the route out of the prerender manifest, either the static route
+    // or the dynamic source route. We'll use it to pull data for PPR and for
+    // determining if we should render a route shell.
+    const prerenderRoute =
+      prerenderManifest.routes[toRoute(pathname)] ??
+      prerenderManifest.dynamicRoutes[toRoute(pathname)]
+
+    // If the route being rendered is an app page, and the ppr feature has been
+    // enabled, then the given route _could_ support PPR.
     const couldSupportPPR: boolean =
       this.isAppPPREnabled &&
       typeof routeModule !== 'undefined' &&
@@ -2135,10 +2140,7 @@ export default abstract class Server<
     // prerender manifest and this is an app page.
     const isRoutePPREnabled: boolean =
       couldSupportPPR &&
-      ((
-        prerenderManifest.routes[pathname] ??
-        prerenderManifest.dynamicRoutes[pathname]
-      )?.renderingMode === 'PARTIALLY_STATIC' ||
+      (prerenderRoute?.renderingMode === 'PARTIALLY_STATIC' ||
         // Ideally we'd want to check the appConfig to see if this page has PPR
         // enabled or not, but that would require plumbing the appConfig through
         // to the server during development. We assume that the page supports it
@@ -3201,10 +3203,13 @@ export default abstract class Server<
 
     // If we're not in minimal mode and the cache entry that was returned was a
     // app page fallback, then we need to kick off the dynamic shell generation.
+    // We'll only do this if the route was prerendered already (this route exists
+    // in the prerender manifest).
     if (
       ssgCacheKey &&
       !this.minimalMode &&
       isRoutePPREnabled &&
+      prerenderManifest.routes[resolvedUrlPathname] &&
       cacheEntry.value?.kind === CachedRouteKind.APP_PAGE &&
       cacheEntry.isFallback &&
       !isOnDemandRevalidate &&
