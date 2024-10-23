@@ -65,6 +65,7 @@ export function getOriginalCodeFrame(
         column: frame.column ?? 0,
       },
     },
+    // TODO: Only in TTY
     { forceColor: true }
   )
 }
