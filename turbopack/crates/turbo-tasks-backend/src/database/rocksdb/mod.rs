@@ -2,7 +2,8 @@ use std::{path::Path, thread::available_parallelism, time::Instant};
 
 use anyhow::{Context, Result};
 use rocksdb::{
-    ColumnFamily, Env, FlushOptions, SliceTransform, WriteBatch as RdbWriteBack, WriteOptions, DB,
+    ColumnFamily, Env, FlushOptions, SliceTransform, WaitForCompactOptions,
+    WriteBatch as RdbWriteBack, WriteOptions, DB,
 };
 
 use crate::database::key_value_database::{KeySpace, KeyValueDatabase, WriteBatch};
@@ -33,13 +34,16 @@ impl RocksDbKeyValueDatabase {
         cf_options.set_prefix_extractor(SliceTransform::create_noop());
         cf_options.set_memtable_factory(rocksdb::MemtableFactory::Vector);
         cf_options.set_compression_type(rocksdb::DBCompressionType::Lz4);
+        cf_options.set_compression_options(-14, 32767, 0, 1024);
+        cf_options.set_compression_options_parallel_threads(parallelism);
         cf_options.set_bottommost_compression_type(rocksdb::DBCompressionType::Zstd);
+        cf_options.set_bottommost_zstd_max_train_bytes(1024, true);
         cf_options.optimize_for_point_lookup(8);
         let db = DB::open_cf_with_opts(
             &options,
             path,
             [
-                ("infra", cf_options.clone()),
+                ("default", cf_options.clone()),
                 ("task-data", cf_options.clone()),
                 ("task-meta", cf_options.clone()),
                 ("forward-task-cache", cf_options.clone()),
@@ -52,7 +56,7 @@ impl RocksDbKeyValueDatabase {
     fn cf_handle(&self, key_space: KeySpace) -> Result<&ColumnFamily> {
         self.db
             .cf_handle(match key_space {
-                KeySpace::Infra => "infra",
+                KeySpace::Infra => "default",
                 KeySpace::TaskMeta => "task-meta",
                 KeySpace::TaskData => "task-data",
                 KeySpace::ForwardTaskCache => "forward-task-cache",
@@ -149,18 +153,9 @@ impl<'a> WriteBatch<'a> for RocksDbWriteBatch<'a> {
         self.this.db.write_opt(self.batch, &write_options)?;
         println!("Write took {:?}", start.elapsed());
         let start = Instant::now();
-        let mut flush_options = FlushOptions::default();
-        // flush_options.set_wait(false);
-        self.this.db.flush_cfs_opt(
-            &[
-                self.this.cf_handle(KeySpace::Infra)?,
-                self.this.cf_handle(KeySpace::TaskData)?,
-                self.this.cf_handle(KeySpace::TaskMeta)?,
-                self.this.cf_handle(KeySpace::ForwardTaskCache)?,
-                self.this.cf_handle(KeySpace::ReverseTaskCache)?,
-            ],
-            &flush_options,
-        )?;
+        let mut wait_for_compact_options = WaitForCompactOptions::default();
+        wait_for_compact_options.set_flush(true);
+        self.this.db.wait_for_compact(&wait_for_compact_options)?;
         println!("Flush took {:?}", start.elapsed());
         Ok(())
     }
