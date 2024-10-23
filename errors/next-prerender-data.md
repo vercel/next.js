@@ -10,7 +10,7 @@ Data in this context refers to both reading from the request using Next.js built
 
 By default, any data accessed during render is treated as if it should be evaluated at request time. To explicitly communicate to Next.js that some data should be prerenderable, you must explicitly cache it using `"use cache"` or `unstable_cache`.
 
-However, you may have taken great care to have a fully or partially prerenderable route and it would be quite easy to accidentally make such a route non-prerenderable by introducing a new data dependency you forgot to cache. To prevent this Next.js requires that data accessed without caching must be inside a Suspense boundary that defines a fallback UI to use while loading this data.
+However, you may have taken great care to have a fully or partially prerenderable route and it would be quite easy to accidentally make such a route non-prerenderable by introducing a new data dependency you forgot to cache. To prevent this, Next.js requires that data accessed without caching must be inside a Suspense boundary that defines a fallback UI to use while loading this data.
 
 This makes React's `Suspense` component an explicit opt-in to allowing uncached data access.
 
