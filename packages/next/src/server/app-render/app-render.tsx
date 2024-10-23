@@ -1592,6 +1592,12 @@ async function renderToStream(
               onError: serverComponentsErrorHandler,
               environmentName: () =>
                 requestStore.prerenderPhase === true ? 'Prerender' : 'Server',
+              filterStackFrame(url: string, _functionName: string): boolean {
+                // The default implementation filters out <anonymous> stack frames
+                // but we want to retain them because current Server Components and
+                // built-in Components in parent stacks don't have source location.
+                return !url.startsWith('node:') && !url.includes('node_modules')
+              },
             }
           )
         },
