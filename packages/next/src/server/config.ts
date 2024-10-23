@@ -810,7 +810,11 @@ function assignDefaults(
     }
   }
 
-  if (result.experimental?.cacheLife) {
+  if (result.experimental) {
+    result.experimental.cacheLife = {
+      ...defaultConfig.experimental?.cacheLife,
+      ...result.experimental.cacheLife,
+    }
     const defaultDefault = defaultConfig.experimental?.cacheLife?.['default']
     if (
       !defaultDefault ||

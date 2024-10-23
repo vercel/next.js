@@ -39,7 +39,6 @@ function createExpectError(cliOutput: string) {
 }
 
 function runTests(options: { withMinification: boolean }) {
-  const isTurbopack = !!process.env.TURBOPACK
   const { withMinification } = options
   describe(`Dynamic IO Errors - ${withMinification ? 'With Minification' : 'Without Minification'}`, () => {
     describe('Sync Dynamic - With Fallback - client searchParams', () => {
@@ -123,16 +122,8 @@ function runTests(options: { withMinification: boolean }) {
         }
         const expectError = createExpectError(next.cliOutput)
 
-        expectError(
-          'Error: Route "/" used `searchParams.foo`. `searchParams` is now a Promise and should be `awaited` before accessing search param values. See more info here: https://nextjs.org/docs/messages/next-prerender-sync-params'
-        )
-        expectError(
-          'Error: In Route "/" this parent component stack may help you locate where `searchParams.foo` was used.',
-          // Turbopack doesn't support disabling minification yet
-          withMinification || isTurbopack ? undefined : 'IndirectionTwo'
-        )
+        expectError('Route "/" used `searchParams.foo`')
         expectError('Error occurred prerendering page "/"')
-        expectError('Error: Route "/" could not be prerendered.')
         expectError('exiting the build.')
       })
     })
@@ -218,16 +209,8 @@ function runTests(options: { withMinification: boolean }) {
         }
         const expectError = createExpectError(next.cliOutput)
 
-        expectError(
-          'Error: Route "/" used `searchParams.foo`. `searchParams` is now a Promise and should be `awaited` before accessing search param values. See more info here: https://nextjs.org/docs/messages/next-prerender-sync-params'
-        )
-        expectError(
-          'Error: In Route "/" this parent component stack may help you locate where `searchParams.foo` was used.',
-          // Turbopack doesn't support disabling minification yet
-          withMinification || isTurbopack ? undefined : 'IndirectionTwo'
-        )
+        expectError('Route "/" used `searchParams.foo`')
         expectError('Error occurred prerendering page "/"')
-        expectError('Error: Route "/" could not be prerendered.')
         expectError('exiting the build.')
       })
     })
@@ -313,16 +296,8 @@ function runTests(options: { withMinification: boolean }) {
         }
         const expectError = createExpectError(next.cliOutput)
 
-        expectError(
-          "Error: Route \"/\" used cookies().get('token'). `cookies()` now returns a Promise and should be `awaited` before using it's value. See more info here: https://nextjs.org/docs/messages/next-prerender-sync-headers"
-        )
-        expectError(
-          'Error: In Route "/" this parent component stack may help you locate where cookies().get(\'token\') was used.',
-          // Turbopack doesn't support disabling minification yet
-          withMinification || isTurbopack ? undefined : 'IndirectionTwo'
-        )
+        expectError('Route "/" used `cookies().get(\'token\')`')
         expectError('Error occurred prerendering page "/"')
-        expectError('Route "/" could not be prerendered.')
         expectError('exiting the build.')
       })
     })

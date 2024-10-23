@@ -234,7 +234,7 @@ declare module 'react-server-dom-webpack/static.edge' {
 }
 declare module 'react-server-dom-webpack/client.edge' {
   export interface Options {
-    ssrManifest: SSRManifest
+    serverConsumerManifest: ServerConsumerManifest
     nonce?: string
     encodeFormAction?: EncodeFormActionCallback
     temporaryReferences?: TemporaryReferenceSet
@@ -265,12 +265,17 @@ declare module 'react-server-dom-webpack/client.edge' {
     async?: boolean
   }
 
-  export interface SSRManifest {
-    moduleMap: SSRModuleMap
-    moduleLoading: ModuleLoading | null
+  export type ServerManifest = {
+    [id: string]: ImportManifestEntry
   }
 
-  export interface SSRModuleMap {
+  export interface ServerConsumerManifest {
+    moduleMap: ServerConsumerModuleMap
+    moduleLoading: ModuleLoading | null
+    serverModuleMap: null | ServerManifest
+  }
+
+  export interface ServerConsumerModuleMap {
     [clientId: string]: {
       [clientExportName: string]: ImportManifestEntry
     }

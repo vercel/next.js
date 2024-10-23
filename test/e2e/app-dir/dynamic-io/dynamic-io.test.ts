@@ -16,9 +16,15 @@ describe('dynamic-io', () => {
   const itSkipTurbopack = isTurbopack ? it.skip : it
 
   it('should not have route specific errors', async () => {
-    expect(next.cliOutput).not.toMatch('Error: Route /')
+    expect(next.cliOutput).not.toMatch('Error: Route "/')
     expect(next.cliOutput).not.toMatch('Error occurred prerendering page')
   })
+
+  if (!isNextDev) {
+    it('should not warn about potential memory leak for even listeners on AbortSignal', async () => {
+      expect(next.cliOutput).not.toMatch('MaxListenersExceededWarning')
+    })
+  }
 
   it('should prerender fully static pages', async () => {
     let $ = await next.render$('/cases/static', {})

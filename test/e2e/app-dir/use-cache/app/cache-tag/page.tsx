@@ -1,4 +1,6 @@
+import React from 'react'
 import { unstable_cacheTag as cacheTag } from 'next/cache'
+import { RevalidateButtons } from './button'
 
 async function getCachedWithTag(tag) {
   'use cache'
@@ -11,8 +13,11 @@ export default async function Page() {
   const y = await getCachedWithTag('b')
   return (
     <p>
-      {x}
-      {y}
+      <p id="x">{x}</p>
+      <br />
+      <p id="y">{y}</p>
+      <br />
+      <RevalidateButtons />
     </p>
   )
 }

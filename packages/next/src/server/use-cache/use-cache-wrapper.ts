@@ -671,7 +671,7 @@ export function cache(kind: string, id: string, fn: any) {
       // the server, which is required to pick it up for replaying again on the client.
       const replayConsoleLogs = true
 
-      const ssrManifest = {
+      const serverConsumerManifest = {
         // moduleLoading must be null because we don't want to trigger preloads of ClientReferences
         // to be added to the consumer. Instead, we'll wait for any ClientReference to be emitted
         // which themselves will handle the preloading.
@@ -679,10 +679,11 @@ export function cache(kind: string, id: string, fn: any) {
         moduleMap: isEdgeRuntime
           ? clientReferenceManifest.edgeRscModuleMapping
           : clientReferenceManifest.rscModuleMapping,
+        serverModuleMap: null,
       }
 
       return createFromReadableStream(stream, {
-        ssrManifest,
+        serverConsumerManifest,
         temporaryReferences,
         replayConsoleLogs,
         environmentName: 'Cache',

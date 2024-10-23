@@ -23,7 +23,6 @@ const optionalNextjsPackages = [
   '@next/codemod',
   '@next/env',
   '@next/eslint-plugin-next',
-  '@next/font',
   '@next/mdx',
   '@next/plugin-storybook',
   '@next/polyfill-module',
@@ -72,12 +71,14 @@ function endMessage() {
   )
 }
 
+const cwd = process.cwd()
+
 export async function runUpgrade(
   revision: string | undefined,
   options: { verbose: boolean }
 ): Promise<void> {
   const { verbose } = options
-  const appPackageJsonPath = path.resolve(process.cwd(), 'package.json')
+  const appPackageJsonPath = path.resolve(cwd, 'package.json')
   let appPackageJson = JSON.parse(fs.readFileSync(appPackageJsonPath, 'utf8'))
 
   let targetNextPackageJson: {
@@ -125,6 +126,12 @@ export async function runUpgrade(
   console.log(`  - React: v${installedReactVersion}`)
   console.log(`  - Next.js: v${installedNextVersion}`)
   let shouldStayOnReact18 = false
+
+  const usesAppDir = isUsingAppDir(cwd)
+  const usesPagesDir = isUsingPagesDir(cwd)
+
+  const isPureAppRouter = usesAppDir && !usesPagesDir
+  const isMixedApp = usesPagesDir && usesAppDir
   if (
     // From release v14.3.0-canary.45, Next.js expects the React version to be 19.0.0-beta.0
     // If the user is on a version higher than this but is still on React 18, we ask them
@@ -134,13 +141,21 @@ export async function runUpgrade(
     // x-ref(PR): https://github.com/vercel/next.js/pull/65058
     // x-ref(release): https://github.com/vercel/next.js/releases/tag/v14.3.0-canary.45
     compareVersions(targetNextVersion, '14.3.0-canary.45') >= 0 &&
-    installedReactVersion.startsWith('18')
+    installedReactVersion.startsWith('18') &&
+    // Pure App Router always uses React 19
+    // The mixed case is tricky to handle from a types perspective.
+    // We'll recommend to upgrade in the prompt but users can decide to try 18.
+    !isPureAppRouter
   ) {
     const shouldStayOnReact18Res = await prompts(
       {
         type: 'confirm',
         name: 'shouldStayOnReact18',
-        message: `Are you using ${pc.underline('only the Pages Router')} (no App Router) and prefer to stay on React 18?`,
+        message:
+          `Do you prefer to stay on React 18?` +
+          (isMixedApp
+            ? " Since you're using both pages/ and app/, we recommend upgrading React to use a consistent version throughout your app."
+            : ''),
         initial: false,
         active: 'Yes',
         inactive: 'No',
@@ -169,7 +184,7 @@ export async function runUpgrade(
     installedNextVersion,
     targetNextVersion
   )
-  const packageManager: PackageManager = getPkgManager(process.cwd())
+  const packageManager: PackageManager = getPkgManager(cwd)
 
   let shouldRunReactCodemods = false
   let shouldRunReactTypesCodemods = false
@@ -307,7 +322,7 @@ export async function runUpgrade(
   runInstallation(packageManager)
 
   for (const codemod of codemods) {
-    await runTransform(codemod, process.cwd(), { force: true, verbose })
+    await runTransform(codemod, cwd, { force: true, verbose })
   }
 
   // To reduce user-side burden of selecting which codemods to run as it needs additional
@@ -341,12 +356,12 @@ function getInstalledNextVersion(): string {
   try {
     return require(
       require.resolve('next/package.json', {
-        paths: [process.cwd()],
+        paths: [cwd],
       })
     ).version
   } catch (error) {
     throw new BadInput(
-      `Failed to get the installed Next.js version at "${process.cwd()}".\nIf you're using a monorepo, please run this command from the Next.js app directory.`,
+      `Failed to get the installed Next.js version at "${cwd}".\nIf you're using a monorepo, please run this command from the Next.js app directory.`,
       {
         cause: error,
       }
@@ -358,12 +373,12 @@ function getInstalledReactVersion(): string {
   try {
     return require(
       require.resolve('react/package.json', {
-        paths: [process.cwd()],
+        paths: [cwd],
       })
     ).version
   } catch (error) {
     throw new BadInput(
-      `Failed to detect the installed React version in "${process.cwd()}".\nIf you're working in a monorepo, please run this command from the Next.js app directory.`,
+      `Failed to detect the installed React version in "${cwd}".\nIf you're working in a monorepo, please run this command from the Next.js app directory.`,
       {
         cause: error,
       }
@@ -371,20 +386,33 @@ function getInstalledReactVersion(): string {
   }
 }
 
+function isUsingPagesDir(projectPath: string): boolean {
+  return (
+    fs.existsSync(path.resolve(projectPath, 'pages')) ||
+    fs.existsSync(path.resolve(projectPath, 'src/pages'))
+  )
+}
+function isUsingAppDir(projectPath: string): boolean {
+  return (
+    fs.existsSync(path.resolve(projectPath, 'app')) ||
+    fs.existsSync(path.resolve(projectPath, 'src/app'))
+  )
+}
+
 /*
  * Heuristics are used to determine whether to Turbopack is enabled or not and
  * to determine how to update the dev script.
  *
- * 1. If the dev script contains `--turbo` option, we assume that Turbopack is
+ * 1. If the dev script contains `--turbopack` option, we assume that Turbopack is
  *    already enabled.
  * 2. If the dev script contains the string `next dev`, we replace it to
- *    `next dev --turbo`.
- * 3. Otherwise, we ask the user to manually add `--turbo` to their dev command,
+ *    `next dev --turbopack`.
+ * 3. Otherwise, we ask the user to manually add `--turbopack` to their dev command,
  *    showing the current dev command as the initial value.
  */
 async function suggestTurbopack(packageJson: any): Promise<void> {
   const devScript: string = packageJson.scripts['dev']
-  if (devScript.includes('--turbo')) return
+  if (devScript?.includes('--turbopack')) return
 
   const responseTurbopack = await prompts(
     {
@@ -403,7 +431,7 @@ async function suggestTurbopack(packageJson: any): Promise<void> {
   if (devScript.includes('next dev')) {
     packageJson.scripts['dev'] = devScript.replace(
       'next dev',
-      'next dev --turbo'
+      'next dev --turbopack'
     )
     return
   }
@@ -416,7 +444,7 @@ async function suggestTurbopack(packageJson: any): Promise<void> {
     {
       type: 'text',
       name: 'customDevScript',
-      message: 'Please manually add "--turbo" to your dev command.',
+      message: 'Please manually add "--turbopack" to your dev command.',
       initial: devScript,
     },
     { onCancel }
@@ -486,12 +514,10 @@ async function suggestCodemods(
 async function suggestReactCodemods(): Promise<boolean> {
   const { runReactCodemod } = await prompts(
     {
-      type: 'toggle',
+      type: 'confirm',
       name: 'runReactCodemod',
       message: 'Would you like to run the React 19 upgrade codemod?',
       initial: true,
-      active: 'Yes',
-      inactive: 'No',
     },
     { onCancel }
   )
@@ -502,12 +528,10 @@ async function suggestReactCodemods(): Promise<boolean> {
 async function suggestReactTypesCodemods(): Promise<boolean> {
   const { runReactTypesCodemod } = await prompts(
     {
-      type: 'toggle',
+      type: 'confirm',
       name: 'runReactTypesCodemod',
       message: 'Would you like to run the React 19 Types upgrade codemod?',
       initial: true,
-      active: 'Yes',
-      inactive: 'No',
     },
     { onCancel }
   )
