@@ -1278,11 +1278,11 @@
       "runtimeError": false
     },
     "test/e2e/app-dir/app/standalone.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "output: standalone with app dir should handle trace files correctly for route groups (nodejs only)",
         "output: standalone with app dir should work correctly with output standalone"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -2665,11 +2665,10 @@
         "app dir - not-found - basic with default runtime should use the not-found page for non-matching routes",
         "app dir - not-found - basic with runtime = edge should escalate notFound to parent layout if no not-found boundary present in current layer",
         "app dir - not-found - basic with runtime = edge should match dynamic route not-found boundary correctly",
-        "app dir - not-found - basic with runtime = edge should use the not-found page for non-matching routes"
-      ],
-      "failed": [
+        "app dir - not-found - basic with runtime = edge should use the not-found page for non-matching routes",
         "app dir - not-found - basic should include not found client reference manifest in the file trace"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -6136,12 +6135,10 @@
         "Prerender should support prerendered catchall-explicit route (nested)",
         "Prerender should support prerendered catchall-explicit route (single)",
         "Prerender should use correct caching headers for a no-revalidate page",
-        "Prerender should use correct caching headers for a revalidate page"
-      ],
-      "failed": [
-        "Prerender should handle fallback only page correctly HTML",
+        "Prerender should use correct caching headers for a revalidate page",
         "Prerender should output traces"
       ],
+      "failed": ["Prerender should handle fallback only page correctly HTML"],
       "pending": [
         "Prerender should reload page on failed data request, and retry"
       ],
@@ -16713,13 +16710,13 @@
       "runtimeError": false
     },
     "test/production/standalone-mode/response-cache/index.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "minimal-mode-response-cache app router revalidate should work with previous response cache",
         "minimal-mode-response-cache app router revalidate should work with previous response cache dynamic",
         "minimal-mode-response-cache should have correct \"Started server on\" log",
         "minimal-mode-response-cache should have correct responses"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
