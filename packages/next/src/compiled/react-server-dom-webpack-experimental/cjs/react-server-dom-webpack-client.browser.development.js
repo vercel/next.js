@@ -1918,12 +1918,12 @@
             "\n//# sourceURL=rsc://React/" +
             encodeURIComponent(environmentName) +
             "/" +
-            filename +
+            encodeURI(filename) +
             "?" +
             fakeFunctionIdx++),
           (col += "\n//# sourceMappingURL=" + sourceMap))
         : (col = filename
-            ? col + ("\n//# sourceURL=" + filename)
+            ? col + ("\n//# sourceURL=" + encodeURI(filename))
             : col + "\n//# sourceURL=<anonymous>");
       try {
         var fn = (0, eval)(col)[name];
@@ -2669,10 +2669,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.0.0-experimental-28668d39-20241023",
+      version: "19.0.0-experimental-1631855f-20241023",
       rendererPackageName: "react-server-dom-webpack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.0.0-experimental-28668d39-20241023",
+      reconcilerVersion: "19.0.0-experimental-1631855f-20241023",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }
