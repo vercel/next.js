@@ -828,7 +828,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       // ensure cookies set in middleware are merged and
       // not overridden by API routes/getServerSideProps
       const _res = (res as any).originalResponse || res
-      const origSetHeader = _res.setHeader.bind(_res)
+      const origSetHeader = _res && typeof _res.setHeader === 'function' ? _res.setHeader.bind(_res) : null
 
       _res.setHeader = (name: string, val: string | string[]) => {
         // When renders /_error after page is failed,
