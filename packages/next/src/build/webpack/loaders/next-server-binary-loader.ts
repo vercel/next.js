@@ -8,5 +8,6 @@ export default function nextErrorBrowserBinaryLoader(
   if (!relativePath.startsWith('.')) {
     relativePath = './' + relativePath
   }
+  // FIXME: the path resolving is not robust
   return `module.exports = __non_webpack_require__(${JSON.stringify(relativePath)})`
 }
