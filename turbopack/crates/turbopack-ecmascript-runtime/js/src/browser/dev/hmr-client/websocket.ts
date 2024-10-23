@@ -1,4 +1,4 @@
-// Adapted from https://github.com/vercel/next.js/blob/canary/packages/next/client/dev/error-overlay/websocket.ts
+// Adapted from https://github.com/vercel/next.js/blob/canary/packages/next/src/client/dev/error-overlay/websocket.ts
 
 let source: WebSocket;
 const eventCallbacks: ((msg: WebSocketMessage) => void)[] = [];

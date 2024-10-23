@@ -211,7 +211,7 @@ async function main() {
   ) {
     const { stdout, stderr } = await execa(
       'npm',
-      ['view', 'react@canary', 'version'],
+      ['--silent', 'view', 'react@canary', 'version'],
       {
         // Avoid "Usage Error: This project is configured to use pnpm".
         cwd: '/tmp',
