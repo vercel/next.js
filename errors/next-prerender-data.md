@@ -10,13 +10,13 @@ Data in this context refers to both reading from the request using Next.js built
 
 By default, any data accessed during render is treated as if it should be evaluated at request time. To explicitly communicate to Next.js that some data should be prerenderable, you must explicitly cache it using `"use cache"` or `unstable_cache`.
 
-However, you may have taken great care to have a fully or partially prerenderable route and it would be quite easy to accidentally make such a route non-prerenderable by introducing a new data dependency you forgot to cache. To prevent this, Next.js requires that data accessed without caching must be inside a Suspense boundary that defines a fallback UI to use while loading this data.
+However, even if you have carefully ensured that a route is fully or partially prerenderable, it's possible to inadvertently make it non-prerenderable by introducing a new data dependency that hasn't been cached. To prevent this, Next.js requires that data accessed without caching must be inside a Suspense boundary that defines a fallback UI to use while loading this data.
 
 This makes React's `Suspense` component an explicit opt-in to allow uncached data access.
 
 To ensure you have a fully prerenderable route, you should omit any Suspense boundaries in your route. Suspense is useful for loading UI dynamically but if you have entirely prerenderable pages there is no need to have fallback UI because the primary UI will always be available.
 
-To allow uncached data anywhere in your application, you can add a Suspense boundary just inside your `<body>` tag in your Root Layout. However, we don't recommend you do this because you will likely want to scope Suspense boundaries around more granular component boundaries that provide fallback UI specific to individual Components.
+To allow uncached data anywhere in your application, you can add a Suspense boundary inside your `<body>` tag in your Root Layout. However, we don't recommend you do this because you will likely want to scope Suspense boundaries around more granular component boundaries that provide fallback UI specific to individual Components.
 
 Hybrid applications will typically use a combination of both techniques, with your top level shared Layouts being prerendered for static pages (without Suspense), and your layouts that actually have data dependencies defining fallback UI.
 
