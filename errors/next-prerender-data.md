@@ -159,7 +159,7 @@ export default async function Page() {
 }
 ```
 
-If your request data cannot be moved you must provide a Suspense boundary somewhere above this component.
+If your request data cannot be moved, you must provide a Suspense boundary somewhere above this component.
 
 ### Useful Links
 
