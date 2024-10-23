@@ -2122,7 +2122,7 @@ describe('Prerender', () => {
           {
             page: '/_app',
             tests: [
-              /webpack-runtime\.js/,
+              /(webpack-runtime\.js|\[turbopack\]_runtime\.js)/,
               /node_modules\/react\/index\.js/,
               /node_modules\/react\/package\.json/,
               isReact18
@@ -2134,7 +2134,7 @@ describe('Prerender', () => {
           {
             page: '/another',
             tests: [
-              /webpack-runtime\.js/,
+              /(webpack-runtime\.js|\[turbopack\]_runtime\.js)/,
               /chunks\/.*?\.js/,
               /node_modules\/react\/index\.js/,
               /node_modules\/react\/package\.json/,
@@ -2151,7 +2151,7 @@ describe('Prerender', () => {
           {
             page: '/blog/[post]',
             tests: [
-              /webpack-runtime\.js/,
+              /(webpack-runtime\.js|\[turbopack\]_runtime\.js)/,
               /chunks\/.*?\.js/,
               /node_modules\/react\/index\.js/,
               /node_modules\/react\/package\.json/,
