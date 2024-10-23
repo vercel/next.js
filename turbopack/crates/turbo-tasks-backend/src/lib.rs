@@ -14,7 +14,7 @@ use anyhow::Result;
 pub use self::{backend::TurboTasksBackend, kv_backing_storage::KeyValueDatabaseBackingStorage};
 use crate::database::{
     handle_db_versioning, is_fresh, lmdb::LmbdKeyValueDatabase, FreshDbOptimization, NoopKvDb,
-    ReadTransactionCache, StartupCacheLayer,
+    ReadTransactionCache, RocksDbKeyValueDatabase, StartupCacheLayer,
 };
 
 pub type LmdbBackingStorage = KeyValueDatabaseBackingStorage<
@@ -28,6 +28,14 @@ pub fn lmdb_backing_storage(path: &Path) -> Result<LmdbBackingStorage> {
     let database = FreshDbOptimization::new(database, fresh_db);
     let database = StartupCacheLayer::new(database, path.join("startup.cache"), fresh_db)?;
     let database = ReadTransactionCache::new(database);
+    Ok(KeyValueDatabaseBackingStorage::new(database))
+}
+
+pub type RocksDBBackingStorage = KeyValueDatabaseBackingStorage<RocksDbKeyValueDatabase>;
+
+pub fn rocksdb_backing_storage(path: &Path) -> Result<RocksDBBackingStorage> {
+    let path = handle_db_versioning(path)?;
+    let database = RocksDbKeyValueDatabase::new(&path)?;
     Ok(KeyValueDatabaseBackingStorage::new(database))
 }
 
