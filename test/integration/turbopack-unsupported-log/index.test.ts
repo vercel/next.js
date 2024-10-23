@@ -26,7 +26,7 @@ describe('turbopack unsupported features log', () => {
 
       try {
         expect(await renderViaHTTP(appPort, '/')).toContain('hello world')
-        expect(output).toContain('(turbo)')
+        expect(output).toContain('(Turbopack)')
         expect(output).not.toContain(
           'You are using configuration and/or tools that are not yet'
         )
@@ -50,7 +50,7 @@ describe('turbopack unsupported features log', () => {
       })
 
       try {
-        expect(output).toContain('(turbo)')
+        expect(output).toContain('(Turbopack)')
         expect(output).not.toContain(
           'You are using configuration and/or tools that are not yet'
         )
@@ -84,7 +84,7 @@ describe('turbopack unsupported features log', () => {
 
       try {
         await check(() => {
-          expect(output).toContain('(turbo)')
+          expect(output).toContain('(Turbopack)')
           expect(output).toContain(
             'You are using configuration and/or tools that are not yet'
           )

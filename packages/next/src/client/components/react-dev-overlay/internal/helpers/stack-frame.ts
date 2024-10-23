@@ -1,6 +1,6 @@
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import type { OriginalStackFrameResponse } from '../../server/shared'
-
+import { isWebpackBundled, formatFrameSourceFile } from './webpack-module-path'
 export interface OriginalStackFrame extends OriginalStackFrameResponse {
   error: boolean
   reason: string | null
@@ -101,42 +101,6 @@ export function getOriginalStackFrames(
       getOriginalStackFrame(frame, type, isAppDir, errorMessage)
     )
   )
-}
-
-const webpackRegExes = [
-  /^(rsc:\/\/React\/[^/]+\/)?webpack-internal:\/\/\/(\.)?(\((\w+)\))?/,
-  /^(webpack:\/\/\/(\.)?|webpack:\/\/(_N_E\/)?)(\((\w+)\))?/,
-]
-
-const replacementRegExes = [
-  /^(rsc:\/\/React\/[^/]+\/)/,
-  /^webpack-internal:\/\/\/(\.)?(\((\w+)\))?/,
-  /^(webpack:\/\/\/(\.)?|webpack:\/\/(_N_E\/)?)(\((\w+)\))?/,
-  /\?\d+$/, // React's fakeFunctionIdx query param
-]
-
-function isWebpackBundled(file: string) {
-  return webpackRegExes.some((regEx) => regEx.test(file))
-}
-
-/**
- * Format the webpack internal id to original file path
- * webpack-internal:///./src/hello.tsx => ./src/hello.tsx
- * rsc://React/Server/webpack-internal:///(rsc)/./src/hello.tsx?42 => ./src/hello.tsx
- * webpack://_N_E/./src/hello.tsx => ./src/hello.tsx
- * webpack://./src/hello.tsx => ./src/hello.tsx
- * webpack:///./src/hello.tsx => ./src/hello.tsx
- *
- * <anonymous> => ''
- */
-function formatFrameSourceFile(file: string) {
-  if (file === '<anonymous>') return ''
-
-  for (const regex of replacementRegExes) {
-    file = file.replace(regex, '')
-  }
-
-  return file
 }
 
 export function getFrameSource(frame: StackFrame): string {

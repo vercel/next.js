@@ -1,7 +1,7 @@
 use anyhow::Result;
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
-    FxIndexMap, FxIndexSet, RcStr, TryJoinIterExt, ValueToString, Vc,
+    FxIndexMap, FxIndexSet, RcStr, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
 };
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
@@ -24,14 +24,14 @@ pub struct PreprocessedChildrenIdents {
 #[turbo_tasks::value(shared)]
 pub enum ReferencedModule {
     Module(Vc<Box<dyn Module>>),
-    AsyncLoaderModule(Vc<Box<dyn Module>>),
+    AsyncLoaderModule(ResolvedVc<Box<dyn Module>>),
 }
 
 impl ReferencedModule {
     fn module(&self) -> Vc<Box<dyn Module>> {
         match *self {
             ReferencedModule::Module(module) => module,
-            ReferencedModule::AsyncLoaderModule(module) => module,
+            ReferencedModule::AsyncLoaderModule(module) => *module,
         }
     }
 }
@@ -89,7 +89,10 @@ async fn referenced_modules(module: Vc<Box<dyn Module>>) -> Result<Vc<Referenced
         }
         if let Some(async_loader_module) = async_loader {
             if set.insert(async_loader_module) {
-                modules.push(ReferencedModule::AsyncLoaderModule(async_loader_module).cell());
+                modules.push(
+                    ReferencedModule::AsyncLoaderModule(async_loader_module.to_resolved().await?)
+                        .cell(),
+                );
             }
         }
     }

@@ -10,7 +10,7 @@ use swc_core::css::{
     ast::UrlValue,
     visit::{VisitMut, VisitMutWith},
 };
-use turbo_tasks::{debug::ValueDebug, RcStr, Value, ValueToString, Vc};
+use turbo_tasks::{debug::ValueDebug, RcStr, ResolvedVc, Value, ValueToString, Vc};
 use turbopack_core::{
     chunk::{
         ChunkableModule, ChunkableModuleReference, ChunkingContext, ChunkingType,
@@ -28,7 +28,7 @@ use crate::{embed::CssEmbed, StyleSheetLike};
 
 #[turbo_tasks::value(into = "new")]
 pub enum ReferencedAsset {
-    Some(Vc<Box<dyn OutputAsset>>),
+    Some(ResolvedVc<Box<dyn OutputAsset>>),
     None,
 }
 
@@ -68,7 +68,10 @@ impl UrlAssetReference {
                 if let Some(embeddable) =
                     Vc::try_resolve_downcast::<Box<dyn CssEmbed>>(chunk_item).await?
                 {
-                    return Ok(ReferencedAsset::Some(embeddable.embedded_asset()).into());
+                    return Ok(ReferencedAsset::Some(
+                        embeddable.embedded_asset().to_resolved().await?,
+                    )
+                    .into());
                 }
             }
             bail!(

@@ -24,10 +24,14 @@ export const CallStackFrame: React.FC<{
       : undefined
   )
 
+  // Format method to strip out the webpack layer prefix.
+  // e.g. (app-pages-browser)/./app/page.tsx -> ./app/page.tsx
+  const formattedMethod = f.methodName.replace(/^\([\w-]+\)\//, '')
+
   return (
     <div data-nextjs-call-stack-frame>
       <h3 data-nextjs-frame-expanded={Boolean(frame.expanded)}>
-        <HotlinkedText text={f.methodName} />
+        <HotlinkedText text={formattedMethod} />
       </h3>
       <div
         data-has-source={hasSource ? 'true' : undefined}

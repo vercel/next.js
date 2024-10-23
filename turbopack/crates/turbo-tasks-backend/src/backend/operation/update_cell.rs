@@ -2,7 +2,7 @@ use turbo_tasks::{backend::CellContent, CellId, TaskId};
 
 use crate::{
     backend::{
-        operation::{ExecuteContext, InvalidateOperation, TaskGuard},
+        operation::{invalidate::TaskDirtyCause, ExecuteContext, InvalidateOperation, TaskGuard},
         storage::{get_many, remove},
         TaskDataCategory,
     },
@@ -48,6 +48,12 @@ impl UpdateCellOperation {
         drop(task);
         drop(old_content);
 
-        InvalidateOperation::run(dependent, ctx);
+        InvalidateOperation::run(
+            dependent,
+            TaskDirtyCause::CellChange {
+                value_type: cell.type_id,
+            },
+            ctx,
+        );
     }
 }
