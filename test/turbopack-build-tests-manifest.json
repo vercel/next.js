@@ -6296,10 +6296,10 @@
         "streaming SSR with custom next configs should render styled-jsx styles in streaming",
         "streaming SSR with custom server should render page correctly under custom server"
       ],
-      "failed": [
+      "failed": [],
+      "pending": [
         "react 18 streaming SSR in minimal mode with node runtime should pass correct nextRuntime values"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
