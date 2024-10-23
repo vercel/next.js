@@ -109,8 +109,8 @@ pub(crate) struct ItemData {
     /// This value denotes the module specifier of the [ImportDecl] that declares this
     /// [ItemId].
     ///
-    /// Used to optimize `ImportBinding`.
-    pub binding_source: Option<(Str, ImportSpecifier)>,
+    /// Used to specify the original import source of an `ImportBinding`.
+    pub binding_source: Option<Str>,
 }
 
 impl fmt::Debug for ItemData {
@@ -501,55 +501,14 @@ impl DepGraph {
                 // Instead of importing the import binding fragment, we import the original module.
                 // In this way, we can preserve the import statement so that the other code analysis
                 // can work.
-                if dep_item_ids.len() == 1 {
+                let original_import_source = if dep_item_ids.len() == 1 {
                     let dep_item_id = &dep_item_ids[0];
                     let dep_item_data = data.get(dep_item_id).unwrap();
 
-                    if let Some((module_specifier, import_specifier)) =
-                        &dep_item_data.binding_source
-                    {
-                        // Preserve the order of the side effects by importing the
-                        // side-effect-import fragment first.
-
-                        if let Some(import_dep) = importer.get(&module_specifier.value) {
-                            if *import_dep != ix as u32 {
-                                part_deps
-                                    .entry(ix as u32)
-                                    .or_default()
-                                    .push(PartId::Internal(*import_dep, true));
-
-                                chunk.body.push(ModuleItem::ModuleDecl(ModuleDecl::Import(
-                                    ImportDecl {
-                                        span: DUMMY_SP,
-                                        specifiers: vec![],
-                                        src: Box::new(TURBOPACK_PART_IMPORT_SOURCE.into()),
-                                        type_only: false,
-                                        with: Some(Box::new(create_turbopack_part_id_assert(
-                                            PartId::Internal(*import_dep, true),
-                                        ))),
-                                        phase: Default::default(),
-                                    },
-                                )));
-                            }
-                        }
-
-                        let specifiers = vec![import_specifier.clone()];
-
-                        part_deps_done.insert(dep);
-
-                        chunk
-                            .body
-                            .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-                                span: DUMMY_SP,
-                                specifiers,
-                                src: Box::new(module_specifier.clone()),
-                                type_only: false,
-                                with: None,
-                                phase: Default::default(),
-                            })));
-                        continue;
-                    }
-                }
+                    dep_item_data.binding_source.clone()
+                } else {
+                    None
+                };
 
                 let specifiers = vec![ImportSpecifier::Named(ImportNamedSpecifier {
                     span: DUMMY_SP,
@@ -573,9 +532,10 @@ impl DepGraph {
                         specifiers,
                         src: Box::new(TURBOPACK_PART_IMPORT_SOURCE.into()),
                         type_only: false,
-                        with: Some(Box::new(create_turbopack_part_id_assert(PartId::Internal(
-                            dep, false,
-                        )))),
+                        with: Some(Box::new(add_original_import_source(
+                            create_turbopack_part_id_assert(PartId::Internal(dep, false)),
+                            original_import_source,
+                        ))),
                         phase: Default::default(),
                     })));
             }
@@ -1100,7 +1060,7 @@ impl DepGraph {
                                     specifiers: vec![s.clone()],
                                     ..item.clone()
                                 })),
-                                binding_source: Some((*item.src.clone(), s.clone())),
+                                binding_source: Some(*item.src.clone()),
                                 ..Default::default()
                             },
                         );
@@ -1424,6 +1384,7 @@ impl DepGraph {
 }
 
 const ASSERT_CHUNK_KEY: &str = "__turbopack_part__";
+const ASSERT_ORIGINAL_IMPORT_SOURCE_KEY: &str = "__turbopack_original__";
 
 #[derive(Debug, Clone)]
 pub(crate) enum PartId {
@@ -1432,6 +1393,21 @@ pub(crate) enum PartId {
     Export(RcStr),
     /// `(part_id, is_for_eval)`
     Internal(u32, bool),
+}
+
+pub(crate) fn add_original_import_source(mut item: ObjectLit, source: Option<Str>) -> ObjectLit {
+    if let Some(source) = source {
+        item.props
+            .push(PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+                key: PropName::Ident(IdentName::new(
+                    ASSERT_ORIGINAL_IMPORT_SOURCE_KEY.into(),
+                    DUMMY_SP,
+                )),
+                value: Box::new(Expr::Lit(Lit::Str(source))),
+            }))));
+    }
+
+    item
 }
 
 pub(crate) fn create_turbopack_part_id_assert(dep: PartId) -> ObjectLit {
