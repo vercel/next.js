@@ -45,8 +45,8 @@ pub fn noop_backing_storage(_path: &Path) -> Result<NoopBackingStorage> {
     Ok(KeyValueDatabaseBackingStorage::new(NoopKvDb))
 }
 
-pub type DefaultBackingStorage = LmdbBackingStorage;
+pub type DefaultBackingStorage = RocksDBBackingStorage;
 
 pub fn default_backing_storage(path: &Path) -> Result<DefaultBackingStorage> {
-    lmdb_backing_storage(path)
+    rocksdb_backing_storage(path)
 }
