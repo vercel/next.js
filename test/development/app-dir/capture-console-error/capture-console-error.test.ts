@@ -8,6 +8,8 @@ import {
   waitForAndOpenRuntimeError,
 } from 'next-test-utils'
 
+const isReactExperimental = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+
 async function getRedboxResult(browser: any) {
   const description = await getRedboxDescription(browser)
   const callStacks = await getRedboxCallStack(browser)
@@ -43,6 +45,24 @@ describe('app-dir - capture-console-error', () => {
           "count": 1,
           "description": "trigger an console <error>",
           "source": "app/browser/event/page.js (7:17) @ onClick
+
+           5 |     <button
+           6 |       onClick={() => {
+        >  7 |         console.error('trigger an console <%s>', 'error')
+             |                 ^
+           8 |       }}
+           9 |     >
+          10 |       click to error",
+        }
+      `)
+    } else if (isReactExperimental) {
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "callStacks": "button
+        app/browser/event/page.js (5:6)",
+          "count": 1,
+          "description": "trigger an console <error>",
+          "source": "app/browser/event/page.js (7:17) @ error
 
            5 |     <button
            6 |       onClick={() => {
