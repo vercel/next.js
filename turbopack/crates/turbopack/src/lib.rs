@@ -663,7 +663,7 @@ Read more: https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpac
 }
 
 #[turbo_tasks::function]
-async fn externals_tracing_module_context() -> Result<Vc<ModuleAssetContext>> {
+async fn externals_tracing_module_context(ty: ExternalType) -> Result<Vc<ModuleAssetContext>> {
     let env = Environment::new(Value::new(ExecutionEnvironment::NodeJsLambda(
         NodeJsEnvironment::default().cell(),
     )));
@@ -671,6 +671,11 @@ async fn externals_tracing_module_context() -> Result<Vc<ModuleAssetContext>> {
     let resolve_options = ResolveOptionsContext {
         emulate_environment: Some(env.to_resolved().await?),
         loose_errors: true,
+        custom_conditions: match ty {
+            ExternalType::CommonJs => vec!["require".into()],
+            ExternalType::EcmaScriptModule => vec!["import".into()],
+            ExternalType::Url => vec![],
+        },
         ..Default::default()
     };
 
@@ -776,7 +781,7 @@ impl AssetContext for ModuleAssetContext {
                                 ExternalTraced::Traced
                                     if self.module_options_context().await?.enable_tracing =>
                                 {
-                                    let externals_context = externals_tracing_module_context();
+                                    let externals_context = externals_tracing_module_context(typ);
                                     Some(
                                         externals_context
                                             .resolve_asset(
