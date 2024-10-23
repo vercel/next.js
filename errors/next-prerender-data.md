@@ -12,7 +12,7 @@ By default, any data accessed during render is treated as if it should be evalua
 
 However, you may have taken great care to have a fully or partially prerenderable route and it would be quite easy to accidentally make such a route non-prerenderable by introducing a new data dependency you forgot to cache. To prevent this, Next.js requires that data accessed without caching must be inside a Suspense boundary that defines a fallback UI to use while loading this data.
 
-This makes React's `Suspense` component an explicit opt-in to allowing uncached data access.
+This makes React's `Suspense` component an explicit opt-in to allow uncached data access.
 
 To ensure you have a fully prerenerable route you should omit any Suspense boundaries in your route. Suspense is useful for loading UI dynamically but if you have entirely prerenderable pages there is no need to have fallback UI because the primary UI will always be available.
 
