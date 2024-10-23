@@ -148,9 +148,9 @@ export const getParsedDebugAddress = (): DebugAddress => {
   // We expect to find the debug port in one of these options. The first one
   // found will be used.
   const address =
-    parsed['--inspect'][0] ??
-    parsed['--inspect-brk'][0] ??
-    parsed['--inspect_brk'][0]
+    parsed['--inspect']?.[0] ??
+    parsed['--inspect-brk']?.[0] ??
+    parsed['--inspect_brk']?.[0]
 
   if (!address || typeof address !== 'string') {
     return { host: undefined, port: 9229 }
@@ -271,8 +271,9 @@ export function getNodeDebugType(): NodeInspectType {
 
   const parsed = parseNodeArgs(args)
 
-  if (parsed.inspect) return 'inspect'
-  if (parsed['inspect-brk'] || parsed['inspect_brk']) return 'inspect-brk'
+  if (parsed['--inspect']?.length) return 'inspect'
+  if (parsed['--inspect-brk']?.length || parsed['--inspect_brk']?.length)
+    return 'inspect-brk'
 }
 
 /**
