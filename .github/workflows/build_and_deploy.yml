@@ -73,7 +73,7 @@ jobs:
 
       - run: npm i -g npm@10.4.0 # need latest version for provenance (pinning to avoid bugs)
       - run: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
-      - run: npm dist-tag add next@15.0.1 latest
+      - run: npm dist-tag add next@15.0.1 latest && npm dist-tag add eslint-config-next@15.0.1 latest && npm dist-tag add @next/mdx@15.0.1 latest && npm dist-tag add @next/bundle-analyzer@15.0.1 latest && npm dist-tag add @next/third-parties@15.0.1 latest && npm dist-tag add @next/env@15.0.1 latest
 
       - id: get-store-path
         run: echo STORE_PATH=$(pnpm store path) >> $GITHUB_OUTPUT
