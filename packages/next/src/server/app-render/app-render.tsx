@@ -3156,7 +3156,7 @@ async function prerenderToStream(
 
           try {
             htmlStream = await prerenderAndAbortInSequentialTasks(
-              () => {
+              async () => {
                 const teedStream = (
                   workUnitAsyncStorage.run(
                     // The store to scope
@@ -3176,11 +3176,11 @@ async function prerenderToStream(
                 reactServerStream = teedStream[0]
                 const rscForSSRStream = teedStream[1]
 
-                const renderToReadableStream = require('react-dom/server.edge')
-                  .renderToReadableStream as (typeof import('react-dom/server.edge'))['renderToReadableStream']
-                const pendingHTMLStream = workUnitAsyncStorage.run(
+                const prerender = require('react-dom/static.edge')
+                  .prerender as (typeof import('react-dom/static.edge'))['prerender']
+                const { prelude } = await workUnitAsyncStorage.run(
                   finalSSRPrerenderStore,
-                  renderToReadableStream,
+                  prerender,
                   <App
                     reactServerStream={rscForSSRStream}
                     preinitScripts={preinitScripts}
@@ -3198,8 +3198,7 @@ async function prerenderToStream(
                       : [bootstrapScript],
                   }
                 )
-                pendingHTMLStream.catch(() => {})
-                return pendingHTMLStream
+                return prelude
               },
               () => {
                 finalSSRController.abort(abortReason)

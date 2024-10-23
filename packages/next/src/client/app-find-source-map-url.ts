@@ -8,7 +8,10 @@ export const findSourceMapURL =
 
         url.searchParams.set(
           'filename',
-          filename.replace(new RegExp(`^${document.location.origin}`), '')
+          filename.replace(
+            new RegExp(`^${document.location.origin}${basePath}`),
+            ''
+          )
         )
 
         return url.href
