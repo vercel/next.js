@@ -303,7 +303,13 @@ async fn apply_reexport_tree_shaking(
             module: final_module,
             export_name: new_export,
             ..
-        } = &*follow_reexports(module, export.clone_value(), side_effect_free_packages).await?;
+        } = &*follow_reexports(
+            module,
+            export.clone_value(),
+            side_effect_free_packages,
+            false,
+        )
+        .await?;
         let module = if let Some(new_export) = new_export {
             if *new_export == *export {
                 Vc::upcast(*final_module)
