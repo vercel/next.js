@@ -512,23 +512,23 @@ export async function optimizeImage({
   quality,
   width,
   height,
+  limitInputPixels,
+  timeoutInSeconds,
 }: {
   buffer: Buffer
   contentType: string
   quality: number
   width: number
   height?: number
+  limitInputPixels?: number
+  timeoutInSeconds?: number
 }): Promise<Buffer> {
   const sharp = getSharp()
   const transformer = sharp(buffer, {
-    limitInputPixels: process.env.__NEXT_EXPERIMENTAL_IMAGE_PIXELS
-      ? Number(process.env.__NEXT_EXPERIMENTAL_IMAGE_PIXELS)
-      : undefined,
+    limitInputPixels,
   })
     .timeout({
-      seconds: process.env.__NEXT_EXPERIMENTAL_IMAGE_TIMEOUT
-        ? Number(process.env.__NEXT_EXPERIMENTAL_IMAGE_TIMEOUT)
-        : 7,
+      seconds: timeoutInSeconds ?? 7,
     })
     .rotate()
 
@@ -641,6 +641,10 @@ export async function imageOptimizer(
     'href' | 'width' | 'quality' | 'mimeType'
   >,
   nextConfig: {
+    experimental: Pick<
+      NextConfigComplete['experimental'],
+      'imgOptMaxInputPixels' | 'imgOptTimeoutInSeconds'
+    >
     images: Pick<
       NextConfigComplete['images'],
       'dangerouslyAllowSVG' | 'minimumCacheTTL'
@@ -745,6 +749,8 @@ export async function imageOptimizer(
       contentType,
       quality,
       width,
+      limitInputPixels: nextConfig.experimental.imgOptMaxInputPixels,
+      timeoutInSeconds: nextConfig.experimental.imgOptTimeoutInSeconds,
     })
     if (optimizedBuffer) {
       if (isDev && width <= BLUR_IMG_SIZE && quality === BLUR_QUALITY) {

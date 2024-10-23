@@ -286,6 +286,8 @@ export interface ExperimentalConfig {
   extensionAlias?: Record<string, any>
   allowedRevalidateHeaderKeys?: string[]
   fetchCacheKeyPrefix?: string
+  imgOptTimeoutInSeconds?: number
+  imgOptMaxInputPixels?: number
   optimisticClientCache?: boolean
   /**
    * @deprecated use config.expireTime instead
