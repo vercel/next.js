@@ -89,9 +89,20 @@ pub trait Transition {
         module_asset_context: Vc<ModuleAssetContext>,
         reference_type: Value<ReferenceType>,
     ) -> Result<Vc<ProcessResult>> {
+        Ok(self.process_ignore_unknown(asset, module_asset_context, reference_type, false))
+    }
+
+    /// Apply modification on the processing of the asset
+    async fn process_ignore_unknown(
+        self: Vc<Self>,
+        asset: Vc<Box<dyn Source>>,
+        module_asset_context: Vc<ModuleAssetContext>,
+        reference_type: Value<ReferenceType>,
+        ignore_unknown: bool,
+    ) -> Result<Vc<ProcessResult>> {
         let asset = self.process_source(asset);
         let module_asset_context = self.process_context(module_asset_context);
-        let m = module_asset_context.process_default(asset, reference_type);
+        let m = module_asset_context.process_default(asset, reference_type, ignore_unknown);
         Ok(match *m.await? {
             ProcessResult::Module(m) => ProcessResult::Module(
                 self.process_module(*m, module_asset_context)

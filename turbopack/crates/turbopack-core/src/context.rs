@@ -67,11 +67,27 @@ pub trait AssetContext {
         reference_type: Value<ReferenceType>,
     ) -> Vc<ProcessResult>;
 
+    /// Process a source into a module.
+    fn process_ignore_unknown(
+        self: Vc<Self>,
+        asset: Vc<Box<dyn Source>>,
+        reference_type: Value<ReferenceType>,
+        ignore_unknown: bool,
+    ) -> Vc<ProcessResult>;
+
     /// Process an [ResolveResult] into an [ModuleResolveResult].
     fn process_resolve_result(
         self: Vc<Self>,
         result: Vc<ResolveResult>,
         reference_type: Value<ReferenceType>,
+    ) -> Vc<ModuleResolveResult>;
+
+    /// Process an [ResolveResult] into an [ModuleResolveResult].
+    fn process_resolve_result_ignore_unknown(
+        self: Vc<Self>,
+        result: Vc<ResolveResult>,
+        reference_type: Value<ReferenceType>,
+        ignore_unknown: bool,
     ) -> Vc<ModuleResolveResult>;
 
     /// Gets a new AssetContext with the transition applied.
