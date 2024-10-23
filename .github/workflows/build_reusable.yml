@@ -84,6 +84,7 @@ env:
   TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
   NEXT_TEST_JOB: 1
   VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
+  NPM_TOKEN: ${{ secrets.NPM_TOKEN_ELEVATED }}
   VERCEL_TEST_TEAM: vtest314-next-e2e-tests
 
 jobs:
