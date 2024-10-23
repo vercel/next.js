@@ -197,6 +197,14 @@ export function patchErrorInspect() {
     // TODO: Ensure `class MyError extends Error {}` prints `MyError` as the name
     newError.stack = parseAndSourceMap(this)
 
+    for (const key in this) {
+      if (!Object.prototype.hasOwnProperty.call(newError, key)) {
+        // @ts-expect-error -- We're copying all enumerable properties.
+        // So they definitely exist on `this` and obviously have no type on `newError` (yet)
+        newError[key] = this[key]
+      }
+    }
+
     const originalCustomInspect = (newError as any)[inspectSymbol]
     // Prevent infinite recursion.
     // { customInspect: false } would result in `error.cause` not using our inspect.
