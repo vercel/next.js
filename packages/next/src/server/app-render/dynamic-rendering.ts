@@ -605,9 +605,7 @@ export function trackAllowedDynamicAccess(
     dynamicValidation.hasSyncDynamicErrors = true
     return
   } else {
-    // The thrownValue must have been the RENDER_COMPLETE abortReason because the only kinds of errors tracked here are
-    // interrupts or render completes
-    const message = `In Route "${route}" this component accessed data without a fallback UI available somewhere above it using Suspense.`
+    const message = `In Route "${route}" this component accessed data without a Suspense boundary above it to provide a fallback UI. See more info: https://nextjs.org/docs/messages/next-prerender-data`
     const error = createErrorWithComponentStack(message, componentStack)
     dynamicValidation.dynamicErrors.push(error)
     return
