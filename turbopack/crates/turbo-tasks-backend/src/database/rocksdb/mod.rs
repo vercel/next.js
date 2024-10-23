@@ -2,8 +2,8 @@ use std::{path::Path, thread::available_parallelism, time::Instant};
 
 use anyhow::{Context, Result};
 use rocksdb::{
-    ColumnFamily, Env, FlushOptions, SliceTransform, WaitForCompactOptions,
-    WriteBatch as RdbWriteBack, WriteOptions, DB,
+    ColumnFamily, Env, SliceTransform, WaitForCompactOptions, WriteBatch as RdbWriteBack,
+    WriteOptions, DB,
 };
 
 use crate::database::key_value_database::{KeySpace, KeyValueDatabase, WriteBatch};
