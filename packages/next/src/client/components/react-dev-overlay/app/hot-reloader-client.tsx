@@ -55,10 +55,20 @@ let reloading = false
 let startLatency: number | null = null
 
 let pendingHotUpdateWebpack = Promise.resolve()
+let pendingFastRefresh = Promise.resolve()
 let resolvePendingHotUpdateWebpack: () => void = () => {}
+let resolvePendingFastRefresh: () => void = () => {}
 function setPendingHotUpdateWebpack() {
   pendingHotUpdateWebpack = new Promise((resolve) => {
     resolvePendingHotUpdateWebpack = () => {
+      resolve()
+    }
+  })
+}
+
+function setPendingFastRefresh() {
+  pendingFastRefresh = new Promise((resolve) => {
+    resolvePendingFastRefresh = () => {
       resolve()
     }
   })
@@ -83,6 +93,7 @@ function handleSuccessfulHotUpdateWebpack(
   updatedModules: ReadonlyArray<string>
 ) {
   resolvePendingHotUpdateWebpack()
+  resolvePendingFastRefresh()
   dispatcher.onBuildOk()
   reportHmrLatency(sendMessage, updatedModules)
 
@@ -429,7 +440,6 @@ function processMessage(
       )
 
       if (obj.action === HMR_ACTIONS_SENT_TO_BROWSER.BUILT) {
-        // Handle hot updates
         handleHotUpdate()
       }
       return
@@ -471,7 +481,9 @@ function processMessage(
         reloading = true
         return window.location.reload()
       }
-      resolvePendingHotUpdateWebpack()
+
+      setPendingFastRefresh()
+
       startTransition(() => {
         router.hmrRefresh()
         dispatcher.onRefresh()
@@ -532,7 +544,12 @@ export default function HotReload({
   const dispatcher = useMemo<Dispatcher>(() => {
     return {
       onBuildOk() {
-        dispatch({ type: ACTION_BUILD_OK })
+        // If fast refresh is triggered and causes server errors and then BUILT action
+        // comes in after, we'll be resetting the errors that were set by the refresh action.
+        // We make sure that the refresh action finished before applying the update
+        pendingFastRefresh.then(() => {
+          dispatch({ type: ACTION_BUILD_OK })
+        })
       },
       onBuildError(message) {
         dispatch({ type: ACTION_BUILD_ERROR, message })
