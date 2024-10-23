@@ -503,6 +503,7 @@ export class FlightClientEntryPlugin {
       for (const [dep, actions] of actionEntryImports) {
         const remainingActionNames = []
         for (const action of actions) {
+          // `action` is a [id, name] pair.
           if (!createdActionIds.has(action[0])) {
             remainingActionNames.push(action)
           }
