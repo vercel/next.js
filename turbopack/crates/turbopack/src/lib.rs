@@ -639,7 +639,7 @@ async fn process_default_internal(
                     description: StyledString::Text(
                         r"This module doesn't have an associated type. Use a known file extension, or register a loader for it.
 
-Read more: https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders".into(),
+    Read more: https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders".into(),
                     )
                     .cell(),
                 }
@@ -708,6 +708,15 @@ impl AssetContext for ModuleAssetContext {
             request,
             resolve_options,
         );
+        // if context_path.await?.path.contains("/node-gyp/") {
+        //     println!(
+        //         "resolve_asset: {} {} {:?} {:?}",
+        //         context_path.to_string().await?,
+        //         request.request_pattern().await?,
+        //         &*reference_type,
+        //         result.dbg().await?
+        //     );
+        // }
         let mut result = self.process_resolve_result_ignore_unknown(
             result.resolve().await?,
             reference_type,
