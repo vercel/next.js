@@ -4682,11 +4682,10 @@
         "edge-render-getserversideprops should have correct query/params on rewrite",
         "edge-render-getserversideprops should have data routes in routes-manifest",
         "edge-render-getserversideprops should respond to _next/data for [id] correctly",
-        "edge-render-getserversideprops should respond to _next/data for index correctly"
-      ],
-      "failed": [
+        "edge-render-getserversideprops should respond to _next/data for index correctly",
         "edge-render-getserversideprops should not output trace files for edge routes"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
