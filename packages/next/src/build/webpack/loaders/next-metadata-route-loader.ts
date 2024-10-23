@@ -76,7 +76,7 @@ async function getStaticAssetRouteCode(
   resourcePath: string,
   fileBaseName: string
 ) {
-  resourcePath &&= path.posix.normalize(resourcePath)
+  resourcePath = path.posix.normalize(resourcePath)
 
   const cache =
     fileBaseName === 'favicon'
