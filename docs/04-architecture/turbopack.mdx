@@ -7,12 +7,12 @@ description: Turbopack is an incremental bundler optimized for JavaScript and Ty
 
 ## Usage
 
-Turbopack can be used in Next.js in both the `pages` and `app` directories for faster local development. To enable Turbopack, use the `--turbo` flag when running the Next.js development server.
+Turbopack can be used in Next.js in both the `pages` and `app` directories for faster local development. To enable Turbopack, use the `--turbopack` flag when running the Next.js development server.
 
 ```json filename="package.json" highlight={3}
 {
   "scripts": {
-    "dev": "next dev --turbo",
+    "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
@@ -43,7 +43,7 @@ These features are currently not supported:
   - A subset of [Webpack loaders](/docs/app/api-reference/next-config-js/turbo#configuring-webpack-loaders) are supported in Turbopack.
 - Babel (`.babelrc`)
   - Turbopack leverages the [SWC](/docs/architecture/nextjs-compiler#why-swc) compiler for all transpilation and optimizations. This means that Babel is not included by default.
-  - If you have a `.babelrc` file, you might no longer need it because Next.js includes common Babel plugins as SWC transforms that can be enabled. You can read more about this in the [compiler documentation](docs/architecture/nextjs-compiler#supported-features).
+  - If you have a `.babelrc` file, you might no longer need it because Next.js includes common Babel plugins as SWC transforms that can be enabled. You can read more about this in the [compiler documentation](/docs/architecture/nextjs-compiler#supported-features).
   - If you still need to use Babel after verifying your particular use case is not covered, you can leverage Turbopack's [support for custom webpack loaders](/docs/app/api-reference/next-config-js/turbo#configuring-webpack-loaders) to include `babel-loader`.
 - Creating a root layout automatically in App Router.
   - This behavior is currently not supported since it changes input files, instead, an error will be shown for you to manually add a root layout in the desired location.
@@ -76,6 +76,6 @@ These features are currently not supported:
 
 ## Generating Trace Files
 
-Trace files allow the Next.js team to investigate and improve performance metrics and memory usage. To generate a trace file, append `NEXT_TURBOPACK_TRACING=1` to the `next dev --turbo` command, this will generate a `.next/trace.log` file.
+Trace files allow the Next.js team to investigate and improve performance metrics and memory usage. To generate a trace file, append `NEXT_TURBOPACK_TRACING=1` to the `next dev --turbopack` command, this will generate a `.next/trace.log` file.
 
 When reporting issues related to Turbopack performance and memory usage, please include the trace file in your [GitHub](https://github.com/vercel/next.js) issue.

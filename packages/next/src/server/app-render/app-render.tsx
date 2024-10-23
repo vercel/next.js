@@ -522,12 +522,36 @@ async function generateDynamicFlightRenderResult(
     onFlightDataRenderError
   )
 
-  const rscPayload = await generateDynamicRSCPayload(ctx, options)
+  const RSCPayload: RSCPayload & {
+    /** Only available during dynamicIO development builds. Used for logging errors. */
+    _validation?: Promise<React.ReactNode>
+  } = await generateDynamicRSCPayload(ctx, options)
+
+  if (
+    // We only want this behavior when running `next dev`
+    renderOpts.dev &&
+    // We only want this behavior when we have React's dev builds available
+    process.env.NODE_ENV === 'development' &&
+    // We only have a Prerender environment for projects opted into dynamicIO
+    renderOpts.experimental.dynamicIO
+  ) {
+    const [resolveValidation, validationOutlet] = createValidationOutlet()
+    RSCPayload._validation = validationOutlet
+
+    spawnDynamicValidationInDev(
+      resolveValidation,
+      ctx.componentMod.tree,
+      ctx,
+      false,
+      ctx.clientReferenceManifest,
+      ctx.workStore.route
+    )
+  }
 
   // For app dir, use the bundled version of Flight server renderer (renderToReadableStream)
   // which contains the subset React.
   const flightReadableStream = ctx.componentMod.renderToReadableStream(
-    rscPayload,
+    RSCPayload,
     ctx.clientReferenceManifest.clientModules,
     {
       onError,
@@ -1033,10 +1057,7 @@ async function renderToHTMLOrFlightImpl(
   // TODO: fix this typescript
   const clientReferenceManifest = renderOpts.clientReferenceManifest!
 
-  const serverModuleMap = createServerModuleMap({
-    serverActionsManifest,
-    pageName: renderOpts.page,
-  })
+  const serverModuleMap = createServerModuleMap({ serverActionsManifest })
 
   setReferenceManifestsSingleton({
     clientReferenceManifest,
@@ -1546,7 +1567,10 @@ async function renderToStream(
       renderOpts.experimental.dynamicIO
     ) {
       // This is a dynamic render. We don't do dynamic tracking because we're not prerendering
-      const RSCPayload = await workUnitAsyncStorage.run(
+      const RSCPayload: InitialRSCPayload & {
+        /** Only available during dynamicIO development builds. Used for logging errors. */
+        _validation?: Promise<React.ReactNode>
+      } = await workUnitAsyncStorage.run(
         requestStore,
         getRSCPayload,
         tree,
@@ -1554,7 +1578,7 @@ async function renderToStream(
         res.statusCode === 404
       )
       const [resolveValidation, validationOutlet] = createValidationOutlet()
-      ;(RSCPayload as any)._validation = validationOutlet
+      RSCPayload._validation = validationOutlet
 
       const reactServerStream = await workUnitAsyncStorage.run(
         requestStore,
@@ -3132,7 +3156,7 @@ async function prerenderToStream(
 
           try {
             htmlStream = await prerenderAndAbortInSequentialTasks(
-              () => {
+              async () => {
                 const teedStream = (
                   workUnitAsyncStorage.run(
                     // The store to scope
@@ -3152,11 +3176,11 @@ async function prerenderToStream(
                 reactServerStream = teedStream[0]
                 const rscForSSRStream = teedStream[1]
 
-                const renderToReadableStream = require('react-dom/server.edge')
-                  .renderToReadableStream as (typeof import('react-dom/server.edge'))['renderToReadableStream']
-                const pendingHTMLStream = workUnitAsyncStorage.run(
+                const prerender = require('react-dom/static.edge')
+                  .prerender as (typeof import('react-dom/static.edge'))['prerender']
+                const { prelude } = await workUnitAsyncStorage.run(
                   finalSSRPrerenderStore,
-                  renderToReadableStream,
+                  prerender,
                   <App
                     reactServerStream={rscForSSRStream}
                     preinitScripts={preinitScripts}
@@ -3174,8 +3198,7 @@ async function prerenderToStream(
                       : [bootstrapScript],
                   }
                 )
-                pendingHTMLStream.catch(() => {})
-                return pendingHTMLStream
+                return prelude
               },
               () => {
                 finalSSRController.abort(abortReason)

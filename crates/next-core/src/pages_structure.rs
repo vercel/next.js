@@ -1,6 +1,6 @@
 use anyhow::Result;
 use tracing::Instrument;
-use turbo_tasks::{RcStr, ValueToString, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{
     DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath, FileSystemPathOption,
 };
@@ -12,7 +12,7 @@ use crate::next_import_map::get_next_package;
 pub struct PagesStructureItem {
     pub base_path: Vc<FileSystemPath>,
     pub extensions: Vc<Vec<RcStr>>,
-    pub fallback_path: Option<Vc<FileSystemPath>>,
+    pub fallback_path: Option<ResolvedVc<FileSystemPath>>,
 
     /// Pathname of this item in the Next.js router.
     pub next_router_path: Vc<FileSystemPath>,
@@ -29,7 +29,7 @@ impl PagesStructureItem {
     fn new(
         base_path: Vc<FileSystemPath>,
         extensions: Vc<Vec<RcStr>>,
-        fallback_path: Option<Vc<FileSystemPath>>,
+        fallback_path: Option<ResolvedVc<FileSystemPath>>,
         next_router_path: Vc<FileSystemPath>,
         original_path: Vc<FileSystemPath>,
     ) -> Vc<Self> {
@@ -53,7 +53,7 @@ impl PagesStructureItem {
             }
         }
         if let Some(fallback_path) = self.fallback_path {
-            Ok(fallback_path)
+            Ok(*fallback_path)
         } else {
             Ok(self.base_path)
         }

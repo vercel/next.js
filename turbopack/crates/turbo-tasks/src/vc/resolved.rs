@@ -22,6 +22,7 @@ use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    debug::{ValueDebug, ValueDebugFormat, ValueDebugFormatString},
     trace::{TraceRawVcs, TraceRawVcsContext},
     vc::Vc,
     RcStr, ResolveTypeError, Upcast, VcRead, VcTransparentRead, VcValueTrait, VcValueType,
@@ -212,6 +213,16 @@ where
 {
     fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
         TraceRawVcs::trace_raw_vcs(&self.node, trace_context);
+    }
+}
+
+impl<T> ValueDebugFormat for ResolvedVc<T>
+where
+    T: ?Sized + Send,
+    T: Upcast<Box<dyn ValueDebug>>,
+{
+    fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString {
+        self.node.value_debug_format(depth)
     }
 }
 

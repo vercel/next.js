@@ -21,7 +21,6 @@ if (rscManifest && rscServerManifest) {
     serverActionsManifest: rscServerManifest,
     serverModuleMap: createServerModuleMap({
       serverActionsManifest: rscServerManifest,
-      pageName: 'VAR_PAGE',
     }),
   })
 }

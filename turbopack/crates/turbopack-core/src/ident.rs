@@ -23,7 +23,7 @@ pub struct AssetIdent {
     /// The part of the asset that is a (ECMAScript) module
     pub part: Option<ResolvedVc<ModulePart>>,
     /// The asset layer the asset was created from.
-    pub layer: Option<Vc<RcStr>>,
+    pub layer: Option<ResolvedVc<RcStr>>,
 }
 
 impl AssetIdent {
@@ -158,7 +158,7 @@ impl AssetIdent {
     }
 
     #[turbo_tasks::function]
-    pub fn with_layer(&self, layer: Vc<RcStr>) -> Vc<Self> {
+    pub fn with_layer(&self, layer: ResolvedVc<RcStr>) -> Vc<Self> {
         let mut this = self.clone();
         this.layer = Some(layer);
         Self::new(Value::new(this))
