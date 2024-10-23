@@ -520,7 +520,17 @@ export async function optimizeImage({
   height?: number
 }): Promise<Buffer> {
   const sharp = getSharp()
-  const transformer = sharp(buffer).timeout({ seconds: 7 }).rotate()
+  const transformer = sharp(buffer, {
+    limitInputPixels: process.env.__NEXT_EXPERIMENTAL_IMAGE_PIXELS
+      ? Number(process.env.__NEXT_EXPERIMENTAL_IMAGE_PIXELS)
+      : 67_108_864,
+  })
+    .timeout({
+      seconds: process.env.__NEXT_EXPERIMENTAL_IMAGE_TIMEOUT
+        ? Number(process.env.__NEXT_EXPERIMENTAL_IMAGE_TIMEOUT)
+        : 7,
+    })
+    .rotate()
 
   if (height) {
     transformer.resize(width, height)
