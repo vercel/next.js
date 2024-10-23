@@ -18,11 +18,18 @@ function frameToString(frame: StackFrame): string {
     : `    at ${frame.file}${frame.lineNumber}:${frame.column}`
 }
 
+function computeErrorName(error: Error): string {
+  // TODO: Node.js seems to use a different algorithm
+  // class ReadonlyRequestCookiesError extends Error {}` would read `ReadonlyRequestCookiesError: [...]`
+  // in the stack i.e. seems like under certain conditions it favors the constructor name.
+  return error.name || 'Error'
+}
+
 function prepareUnsourcemappedStackTrace(
   error: Error,
   structuredStackTrace: any[]
 ): string {
-  const name = error.name || 'Error'
+  const name = computeErrorName(error)
   const message = error.message || ''
   let stack = name + ': ' + message
   for (let i = 0; i < structuredStackTrace.length; i++) {
@@ -34,15 +41,15 @@ function prepareUnsourcemappedStackTrace(
 function shouldIgnoreListByDefault(file: string): boolean {
   return (
     // TODO: Solve via `ignoreList` instead. Tricky because node internals are not part of the sourcemap.
-    file.startsWith('node:') ||
+    file.startsWith('node:')
     // C&P from setup-dev-bundler
     // TODO: Taken from setup-dev-bundler but these seem too broad
     // file.includes('web/adapter') ||
     // file.includes('web/globals') ||
     // file.includes('sandbox/context') ||
     // TODO: Seems too aggressive?
-    file.includes('<anonymous>') ||
-    file.startsWith('eval')
+    // file.includes('<anonymous>') ||
+    // file.startsWith('eval')
   )
 }
 
@@ -101,18 +108,24 @@ function getSourcemappedFrameIfPossible(
     arguments: [],
   }
 
+  const codeFrame =
+    process.env.NODE_ENV !== 'production'
+      ? getOriginalCodeFrame(originalFrame, sourceContent)
+      : null
+
   return {
     stack: originalFrame,
-    code:
-      process.env.NODE_ENV !== 'production'
-        ? getOriginalCodeFrame(originalFrame, sourceContent)
-        : null,
+    code: codeFrame,
   }
 }
 
 function parseAndSourceMap(error: Error): string {
   // We overwrote Error.prepareStackTrace earlier so error.stack is not sourcemapped.
   let unparsedStack = String(error.stack)
+  // We could just read it from `error.stack`.
+  // This works around cases where a 3rd party `Error.prepareStackTrace` implementation
+  // doesn't implement the name computation correctly.
+  const errorName = computeErrorName(error)
 
   let idx = unparsedStack.indexOf('react-stack-bottom-frame')
   if (idx !== -1) {
@@ -155,6 +168,8 @@ function parseAndSourceMap(error: Error): string {
   }
 
   return (
+    errorName +
+    ': ' +
     error.message +
     sourceMappedStack +
     (sourceFrameDEV !== null ? '\n' + sourceFrameDEV : '')
