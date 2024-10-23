@@ -566,8 +566,6 @@ export default function HotReload({
       const warning = errorDetails?.warning
       const stitchedError = getReactStitchedError(error)
 
-      RuntimeErrorHandler.hadRuntimeError = true
-
       dispatch({
         type: ACTION_UNHANDLED_ERROR,
         reason: stitchedError,
