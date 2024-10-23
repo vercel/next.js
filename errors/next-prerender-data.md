@@ -20,7 +20,7 @@ To allow uncached data anywhere in your application, you can add a Suspense boun
 
 Hybrid applications will typically use a combination of both techniques, with your top level shared Layouts being prerendered for static pages (without Suspense), and your layouts that actually have data dependencies defining fallback UI.
 
-Note: While external data can be accessed inside `"use cache"` and `unstable_cache()`, Request data such as `cookies()` cannot because we don't know about cookies before a Request actually occurs. If your application needs to read cookies the only recourse you have is to opt into allowing this data read using `Suspense`.
+> **Note**: While external data can be accessed inside `"use cache"` and `unstable_cache()`, Request data such as `cookies()` cannot because we don't know about cookies before a Request actually occurs. If your application needs to read cookies the only recourse you have is to opt into allowing this data read using `Suspense`.
 
 #### Possible Ways to Fix It
 
