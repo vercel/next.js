@@ -43,11 +43,12 @@ export function useFlightStream<T>(
   }
 
   const newResponse = createFromReadableStream(flightStream, {
-    ssrManifest: {
+    serverConsumerManifest: {
       moduleLoading: clientReferenceManifest.moduleLoading,
       moduleMap: isEdgeRuntime
         ? clientReferenceManifest.edgeSSRModuleMapping
         : clientReferenceManifest.ssrModuleMapping,
+      serverModuleMap: null,
     },
     nonce,
   })

@@ -35,8 +35,6 @@ export function register() {
 
 ### `onRequestError` (optional)
 
-> This API is available in Next.js canary.
-
 You can optionally export an `onRequestError` function to track **server** errors to any custom observability provider.
 
 - If you're running any async tasks in `onRequestError`, make sure they're awaited. `onRequestError` will be triggered when the Next.js server captures the error.

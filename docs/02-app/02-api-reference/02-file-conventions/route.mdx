@@ -7,13 +7,13 @@ Route Handlers allow you to create custom request handlers for a given route usi
 
 ```ts filename="route.ts" switcher
 export async function GET() {
-  return new Response.json({ message: 'Hello World' })
+  return Response.json({ message: 'Hello World' })
 }
 ```
 
 ```js filename="route.js" switcher
 export async function GET() {
-  return new Response.json({ message: 'Hello World' })
+  return Response.json({ message: 'Hello World' })
 }
 ```
 

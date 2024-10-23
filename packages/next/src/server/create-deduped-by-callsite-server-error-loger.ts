@@ -1,6 +1,6 @@
 import * as React from 'react'
 
-const errorRef: { current: null | string } = { current: null }
+const errorRef: { current: null | Error } = { current: null }
 
 // React.cache is currently only available in canary/experimental React channels.
 const cache =
@@ -33,7 +33,7 @@ const flushCurrentErrorIfNew = cache(
  * @returns
  */
 export function createDedupedByCallsiteServerErrorLoggerDev<Args extends any[]>(
-  getMessage: (...args: Args) => string
+  getMessage: (...args: Args) => Error
 ) {
   return function logDedupedError(...args: Args) {
     const message = getMessage(...args)
@@ -48,7 +48,7 @@ export function createDedupedByCallsiteServerErrorLoggerDev<Args extends any[]>(
         //   asyncApiBeingAccessedSynchronously
         //   <userland callsite>
         // TODO: This breaks if sourcemaps with ignore lists are enabled.
-        const key = callStackFrames[3]
+        const key = callStackFrames[4]
         errorRef.current = message
         flushCurrentErrorIfNew(key)
       }
