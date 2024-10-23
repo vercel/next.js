@@ -25,7 +25,6 @@ import {
 } from '../../../shared/lib/constants'
 import {
   getActionsFromBuildInfo,
-  generateActionId,
   isClientComponentEntryModule,
   isCSSMod,
   regexCSS,
@@ -42,6 +41,8 @@ import { PAGE_TYPES } from '../../../lib/page-types'
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getAssumedSourceType } from '../loaders/next-flight-loader'
 import { isAppRouteRoute } from '../../../lib/is-app-route-route'
+
+type ActionIdNamePair = [id: string, name: string]
 
 interface Options {
   dev: boolean
@@ -283,14 +284,17 @@ export class FlightClientEntryPlugin {
 
     const addActionEntryList: Array<ReturnType<typeof this.injectActionEntry>> =
       []
-    const actionMapsPerEntry: Record<string, Map<string, string[]>> = {}
-    const createdActions = new Set<string>()
+    const actionMapsPerEntry: Record<
+      string,
+      Map<string, ActionIdNamePair[]>
+    > = {}
+    const createdActionIds = new Set<string>()
 
     // For each SC server compilation entry, we need to create its corresponding
     // client component entry.
     forEachEntryModule(compilation, ({ name, entryModule }) => {
       const internalClientComponentEntryImports: ClientComponentImports = {}
-      const actionEntryImports = new Map<string, string[]>()
+      const actionEntryImports = new Map<string, ActionIdNamePair[]>()
       const clientEntriesToInject = []
       const mergedCSSimports: CssImports = {}
 
@@ -310,8 +314,8 @@ export class FlightClientEntryPlugin {
             resolvedModule: connection.resolvedModule,
           })
 
-        actionImports.forEach(([dep, names]) =>
-          actionEntryImports.set(dep, names)
+        actionImports.forEach(([dep, actions]) =>
+          actionEntryImports.set(dep, actions)
         )
 
         const isAbsoluteRequest = path.isAbsolute(entryRequest)
@@ -429,7 +433,7 @@ export class FlightClientEntryPlugin {
           actions: actionEntryImports,
           entryName: name,
           bundlePath: name,
-          createdActions,
+          createdActionIds,
         })
       )
     }
@@ -458,7 +462,10 @@ export class FlightClientEntryPlugin {
     await Promise.all(addActionEntryList)
 
     const addedClientActionEntryList: Promise<any>[] = []
-    const actionMapsPerClientEntry: Record<string, Map<string, string[]>> = {}
+    const actionMapsPerClientEntry: Record<
+      string,
+      Map<string, ActionIdNamePair[]>
+    > = {}
 
     // We need to create extra action entries that are created from the
     // client layer.
@@ -492,13 +499,12 @@ export class FlightClientEntryPlugin {
       // This is to avoid duplicate action instances and make sure the module
       // state is shared.
       let remainingClientImportedActions = false
-      const remainingActionEntryImports = new Map<string, string[]>()
-      for (const [dep, actionNames] of actionEntryImports) {
+      const remainingActionEntryImports = new Map<string, ActionIdNamePair[]>()
+      for (const [dep, actions] of actionEntryImports) {
         const remainingActionNames = []
-        for (const actionName of actionNames) {
-          const id = name + '@' + dep + '@' + actionName
-          if (!createdActions.has(id)) {
-            remainingActionNames.push(actionName)
+        for (const action of actions) {
+          if (!createdActionIds.has(action[0])) {
+            remainingActionNames.push(action)
           }
         }
         if (remainingActionNames.length > 0) {
@@ -516,7 +522,7 @@ export class FlightClientEntryPlugin {
             entryName: name,
             bundlePath: name,
             fromClient: true,
-            createdActions,
+            createdActionIds,
           })
         )
       }
@@ -533,7 +539,7 @@ export class FlightClientEntryPlugin {
     dependencies: ReturnType<typeof webpack.EntryPlugin.createDependency>[]
   }) {
     // action file path -> action names
-    const collectedActions = new Map<string, string[]>()
+    const collectedActions = new Map<string, ActionIdNamePair[]>()
 
     // Keep track of checked modules to avoid infinite loops with recursive imports.
     const visitedModule = new Set<string>()
@@ -558,7 +564,7 @@ export class FlightClientEntryPlugin {
 
         const actions = getActionsFromBuildInfo(mod)
         if (actions) {
-          collectedActions.set(modResource, actions)
+          collectedActions.set(modResource, Object.entries(actions))
         }
 
         // Collect used exported actions transversely.
@@ -617,14 +623,14 @@ export class FlightClientEntryPlugin {
   }): {
     cssImports: CssImports
     clientComponentImports: ClientComponentImports
-    actionImports: [string, string[]][]
+    actionImports: [string, ActionIdNamePair[]][]
   } {
     // Keep track of checked modules to avoid infinite loops with recursive imports.
     const visitedOfClientComponentsTraverse = new Set()
 
     // Info to collect.
     const clientComponentImports: ClientComponentImports = {}
-    const actionImports: [string, string[]][] = []
+    const actionImports: [string, ActionIdNamePair[]][] = []
     const CSSImports = new Set<string>()
 
     const filterClientComponents = (
@@ -652,7 +658,7 @@ export class FlightClientEntryPlugin {
 
       const actions = getActionsFromBuildInfo(mod)
       if (actions) {
-        actionImports.push([modResource, actions])
+        actionImports.push([modResource, Object.entries(actions)])
       }
 
       if (isCSSMod(mod)) {
@@ -839,20 +845,20 @@ export class FlightClientEntryPlugin {
     entryName,
     bundlePath,
     fromClient,
-    createdActions,
+    createdActionIds,
   }: {
     compiler: webpack.Compiler
     compilation: webpack.Compilation
-    actions: Map<string, string[]>
+    actions: Map<string, ActionIdNamePair[]>
     entryName: string
     bundlePath: string
-    createdActions: Set<string>
+    createdActionIds: Set<string>
     fromClient?: boolean
   }) {
     const actionsArray = Array.from(actions.entries())
-    for (const [dep, actionNames] of actions) {
-      for (const actionName of actionNames) {
-        createdActions.add(entryName + '@' + dep + '@' + actionName)
+    for (const [, actionsFromModule] of actions) {
+      for (const [id] of actionsFromModule) {
+        createdActionIds.add(id)
       }
     }
 
@@ -862,7 +868,6 @@ export class FlightClientEntryPlugin {
 
     const actionLoader = `next-flight-action-entry-loader?${stringify({
       actions: JSON.stringify(actionsArray),
-      encryptionKey: this.encryptionKey,
       __client_imported__: fromClient,
     })}!`
 
@@ -870,9 +875,8 @@ export class FlightClientEntryPlugin {
       ? pluginState.edgeServerActions
       : pluginState.serverActions
 
-    for (const [actionFilePath, actionNames] of actionsArray) {
-      for (const name of actionNames) {
-        const id = generateActionId(this.encryptionKey, actionFilePath, name)
+    for (const [, actionsFromModule] of actionsArray) {
+      for (const [id] of actionsFromModule) {
         if (typeof currentCompilerServerActions[id] === 'undefined') {
           currentCompilerServerActions[id] = {
             workers: {},
