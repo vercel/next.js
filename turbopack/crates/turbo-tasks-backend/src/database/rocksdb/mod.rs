@@ -28,6 +28,9 @@ impl RocksDbKeyValueDatabase {
         options.set_allow_mmap_writes(true);
         options.increase_parallelism(parallelism);
         options.set_max_background_jobs(parallelism);
+        options.set_enable_blob_files(true);
+        options.set_enable_blob_gc(true);
+        options.set_min_blob_size(1 * 1024 * 1024);
         let mut cf_options = rocksdb::Options::default();
         cf_options.set_compaction_style(rocksdb::DBCompactionStyle::Universal);
         cf_options.set_allow_concurrent_memtable_write(false);
@@ -39,6 +42,9 @@ impl RocksDbKeyValueDatabase {
         cf_options.set_bottommost_compression_type(rocksdb::DBCompressionType::Zstd);
         cf_options.set_bottommost_zstd_max_train_bytes(1024, true);
         cf_options.optimize_for_point_lookup(8);
+        cf_options.set_min_blob_size(1 * 1024 * 1024);
+        cf_options.set_enable_blob_files(true);
+        cf_options.set_blob_compression_type(rocksdb::DBCompressionType::Zstd);
         let db = DB::open_cf_with_opts(
             &options,
             path,
