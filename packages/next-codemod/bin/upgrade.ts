@@ -2,7 +2,7 @@ import * as os from 'os'
 import prompts from 'prompts'
 import fs from 'fs'
 import {
-  satisfies as satisfiesSemver,
+  satisfies as semverSatisfies,
   compare as compareVersions,
 } from 'semver'
 import { execSync } from 'child_process'
@@ -309,7 +309,7 @@ export async function runUpgrade(
   }
 
   console.log(
-    `Upgrading your project to ${pc.blue('Next.js ' + targetNextVersion)}...\n`
+    `Upgrading your project to ${pc.blue('Next.js ' + targetNextVersion)}...`
   )
 
   for (const [dep, version] of dependenciesToInstall) {
@@ -357,9 +357,45 @@ export async function runUpgrade(
     console.log(`${pc.green('✔')} Codemods have been applied successfully.`)
   }
 
-  await warnPeerDependencies(appPackageJson, versionMapping, allDependencies)
+  const peerDepsOutOfRange = warnPeerDependencies(
+    appPackageJson,
+    versionMapping
+  )
 
   endMessage()
+
+  if (dry) {
+    console.log() // new line
+    console.log(pc.bold('Dry-run Output:'))
+    console.log() // new line
+    console.log(
+      JSON.stringify(
+        {
+          revision,
+          verbose,
+          installedNextVersion,
+          installedReactVersion,
+          targetNextVersion,
+          targetReactVersion,
+          packageManager,
+          usesAppDir,
+          usesPagesDir,
+          isPureAppRouter,
+          isMixedApp,
+          shouldStayOnReact18,
+          codemods,
+          shouldRunReactCodemods,
+          shouldRunReactTypesCodemods,
+          execCommand,
+          dependenciesToInstall,
+          devDependenciesToInstall,
+          peerDepsOutOfRange,
+        },
+        null,
+        2
+      )
+    )
+  }
 }
 
 function getInstalledNextVersion(): string {
@@ -640,13 +676,16 @@ function writeOverridesField(
   }
 }
 
-async function warnPeerDependencies(
+function warnPeerDependencies(
   appPackageJson: any,
-  versionMapping: Record<string, { version: string; required: boolean }>,
-  allDependencies: Record<string, string>
+  versionMapping: Record<string, { version: string; required: boolean }>
 ) {
   const versionMappingKeys = Object.keys(versionMapping)
-  const incompatiblePeerDependencies = new Map<
+  const allDependenciesToInstall = {
+    ...appPackageJson.dependencies,
+    ...appPackageJson.devDependencies,
+  }
+  const peerDepsOutOfRange = new Map<
     string,
     { current: string; expected: string; from: string }
   >()
@@ -663,8 +702,12 @@ async function warnPeerDependencies(
         const peerDepVersion = peerDeps[key]
         const { version } = versionMapping[key]
 
-        if (!satisfiesSemver(version, peerDepVersion)) {
-          incompatiblePeerDependencies.set(key, {
+        if (
+          !semverSatisfies(version, peerDepVersion, {
+            includePrerelease: true,
+          })
+        ) {
+          peerDepsOutOfRange.set(key, {
             current: version,
             expected: peerDepVersion,
             from: key,
@@ -674,11 +717,12 @@ async function warnPeerDependencies(
     }
   }
 
-  // loop through allDependencies and require package.json, if peerDependencies exists, check satisfiesSemver
-  for (const [dependency] of Object.entries(allDependencies)) {
-    const pkgJson = require(
-      require.resolve(
-        path.resolve(cwd, 'node_modules', dependency, 'package.json')
+  for (const dependency of Object.keys(allDependenciesToInstall)) {
+    // use readFile to ensure it reads after the install is complete
+    const pkgJson = JSON.parse(
+      fs.readFileSync(
+        path.join(cwd, 'node_modules', dependency, 'package.json'),
+        'utf8'
       )
     )
 
@@ -694,8 +738,12 @@ async function warnPeerDependencies(
           const peerDepVersion = peerDeps[key]
           const { version } = versionMapping[key]
 
-          if (!satisfiesSemver(version, peerDepVersion)) {
-            incompatiblePeerDependencies.set(key, {
+          if (
+            !semverSatisfies(version, peerDepVersion, {
+              includePrerelease: true,
+            })
+          ) {
+            peerDepsOutOfRange.set(key, {
               current: version,
               expected: peerDepVersion,
               from: dependency,
@@ -706,25 +754,31 @@ async function warnPeerDependencies(
     }
   }
 
-  if (incompatiblePeerDependencies.size > 0) {
-    console.log() // new line
-    console.log(`${pc.bgYellow(' WARN ')} Issues with peer dependencies found`)
+  const size = peerDepsOutOfRange.size
+  if (size > 0) {
+    console.log(
+      `${pc.yellow('⚠')} Found ${size} peer ${
+        size === 1 ? 'dependency' : 'dependencies'
+      } out of range from the direct dependencies.`
+    )
     const groupedDependencies = new Map<
       string,
       Map<string, { current: string; expected: string }>
     >()
 
-    incompatiblePeerDependencies.forEach((value, key) => {
+    peerDepsOutOfRange.forEach((value, key) => {
       if (!groupedDependencies.has(value.from)) {
         groupedDependencies.set(value.from, new Map())
       }
       groupedDependencies
-        .get(value.from)!
+        .get(value.from)
         .set(key, { current: value.current, expected: value.expected })
     })
 
     groupedDependencies.forEach((deps, packageName) => {
-      console.log(`${packageName} ${pc.gray(allDependencies[packageName])}`)
+      console.log(
+        `${pc.bold(packageName)} ${pc.gray(allDependenciesToInstall[packageName])}`
+      )
       const depsArray = Array.from(deps)
       depsArray.forEach(([depName, value], index) => {
         const prefix = index === depsArray.length - 1 ? '  └── ' : '  ├── '
@@ -734,4 +788,6 @@ async function warnPeerDependencies(
       })
     })
   }
+
+  return Object.fromEntries(peerDepsOutOfRange)
 }
