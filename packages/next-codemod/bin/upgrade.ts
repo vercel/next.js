@@ -412,23 +412,34 @@ function isUsingAppDir(projectPath: string): boolean {
  */
 async function suggestTurbopack(packageJson: any): Promise<void> {
   const devScript: string = packageJson.scripts['dev']
-  if (devScript?.includes('--turbopack')) return
 
-  const responseTurbopack = await prompts(
-    {
-      type: 'confirm',
-      name: 'enable',
-      message: 'Enable Turbopack for next dev?',
-      initial: true,
-    },
-    { onCancel }
-  )
-
-  if (!responseTurbopack.enable) {
+  if (!devScript) {
+    console.log(
+      `${pc.red('⨯')} Could not find a "dev" script in your package.json.`
+    )
     return
   }
 
   if (devScript.includes('next dev')) {
+    // covers "--turbopack" as well
+    if (devScript.includes('--turbo')) {
+      return
+    }
+
+    const responseTurbopack = await prompts(
+      {
+        type: 'confirm',
+        name: 'enable',
+        message: `Enable Turbopack for ${pc.bold('next dev')}?`,
+        initial: true,
+      },
+      { onCancel }
+    )
+
+    if (!responseTurbopack.enable) {
+      return
+    }
+
     packageJson.scripts['dev'] = devScript.replace(
       'next dev',
       'next dev --turbopack'
