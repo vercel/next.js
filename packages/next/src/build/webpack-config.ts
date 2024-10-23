@@ -1202,7 +1202,6 @@ export default async function getBaseWebpackConfig(
         'next-metadata-route-loader',
         'modularize-import-loader',
         'next-barrel-loader',
-        'next-server-binary-loader',
         'next-error-browser-binary-loader',
       ].reduce(
         (alias, loader) => {
