@@ -133,25 +133,77 @@ describe('use-cache', () => {
 
   it('should cache results for cached funtions imported from client components', async () => {
     const browser = await next.browser('/imported-from-client')
-    expect(await browser.elementByCss('p').text()).toBe('0 0')
+    expect(await browser.elementByCss('p').text()).toBe('0 0 0')
     await browser.elementById('submit-button').click()
 
-    let twoRandomValues: string
+    let threeRandomValues: string
 
     await retry(async () => {
-      twoRandomValues = await browser.elementByCss('p').text()
-      expect(twoRandomValues).toMatch(/\d\.\d+ \d\.\d+/)
+      threeRandomValues = await browser.elementByCss('p').text()
+      expect(threeRandomValues).toMatch(/\d\.\d+ \d\.\d+/)
     })
 
     await browser.elementById('reset-button').click()
-    expect(await browser.elementByCss('p').text()).toBe('0 0')
+    expect(await browser.elementByCss('p').text()).toBe('0 0 0')
 
     await browser.elementById('submit-button').click()
 
     await retry(async () => {
-      expect(await browser.elementByCss('p').text()).toBe(twoRandomValues)
+      expect(await browser.elementByCss('p').text()).toBe(threeRandomValues)
     })
   })
+
+  it('should cache results for cached funtions passed client components', async () => {
+    const browser = await next.browser('/passed-to-client')
+    expect(await browser.elementByCss('p').text()).toBe('0 0 0')
+    await browser.elementById('submit-button').click()
+
+    let threeRandomValues: string
+
+    await retry(async () => {
+      threeRandomValues = await browser.elementByCss('p').text()
+      expect(threeRandomValues).toMatch(/\d\.\d+ \d\.\d+/)
+    })
+
+    await browser.elementById('reset-button').click()
+    expect(await browser.elementByCss('p').text()).toBe('0 0 0')
+
+    await browser.elementById('submit-button').click()
+
+    await retry(async () => {
+      expect(await browser.elementByCss('p').text()).toBe(threeRandomValues)
+    })
+  })
+
+  // TODO: pending tags handling on deploy
+  if (!isNextDeploy) {
+    it('should update after revalidateTag correctly', async () => {
+      const browser = await next.browser('/cache-tag')
+
+      const initialX = await browser.elementByCss('#x').text()
+      const initialY = await browser.elementByCss('#y').text()
+      let updatedX
+      let updatedY
+
+      await browser.elementByCss('#revalidate-a').click()
+      await retry(async () => {
+        updatedX = await browser.elementByCss('#x').text()
+        expect(updatedX).not.toBe(initialX)
+      })
+
+      await browser.elementByCss('#revalidate-b').click()
+      await retry(async () => {
+        updatedY = await browser.elementByCss('#y').text()
+        expect(updatedY).not.toBe(initialY)
+      })
+
+      await browser.elementByCss('#revalidate-c').click()
+      await retry(async () => {
+        expect(await browser.elementByCss('#x').text()).not.toBe(updatedX)
+        expect(await browser.elementByCss('#y').text()).not.toBe(updatedY)
+      })
+    })
+  }
 
   if (isNextStart) {
     it('should match the expected revalidate config on the prerender manifest', async () => {

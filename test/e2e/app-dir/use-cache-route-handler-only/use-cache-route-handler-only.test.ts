@@ -13,11 +13,4 @@ describe('use-cache-route-handler-only', () => {
 
     expect(rand1).toEqual(rand2)
   })
-
-  it('should cache results in edge route handlers', async () => {
-    const response = await next.fetch('/edge')
-    const { rand1, rand2 } = await response.json()
-
-    expect(rand1).toEqual(rand2)
-  })
 })

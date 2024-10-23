@@ -3,8 +3,8 @@ use std::{collections::BTreeMap, future::Future, pin::Pin};
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexSet, RcStr, TryJoinIterExt, Value,
-    ValueToString, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexSet, RcStr, ResolvedVc, TryJoinIterExt,
+    Value, ValueToString, Vc,
 };
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 
@@ -31,7 +31,7 @@ pub struct ExcludedExtensions(pub FxIndexSet<RcStr>);
 pub enum ResolveModules {
     /// when inside of path, use the list of directories to
     /// resolve inside these
-    Nested(Vc<FileSystemPath>, Vec<RcStr>),
+    Nested(ResolvedVc<FileSystemPath>, Vec<RcStr>),
     /// look into that directory, unless the request has an excluded extension
     Path {
         dir: Vc<FileSystemPath>,
@@ -95,7 +95,7 @@ pub enum ResolveInPackage {
 pub enum ImportMapping {
     External(Option<RcStr>, ExternalType),
     /// An already resolved result that will be returned directly.
-    Direct(Vc<ResolveResult>),
+    Direct(ResolvedVc<ResolveResult>),
     /// A request alias that will be resolved first, and fall back to resolving
     /// the original request if it fails. Useful for the tsconfig.json
     /// `compilerOptions.paths` option and Next aliases.
@@ -152,7 +152,7 @@ impl AliasTemplate for Vc<ImportMapping> {
                 ImportMapping::PrimaryAlternative(name, context) => {
                     ReplacedImportMapping::PrimaryAlternative((*name).clone().into(), *context)
                 }
-                ImportMapping::Direct(v) => ReplacedImportMapping::Direct(*v),
+                ImportMapping::Direct(v) => ReplacedImportMapping::Direct(**v),
                 ImportMapping::Ignore => ReplacedImportMapping::Ignore,
                 ImportMapping::Empty => ReplacedImportMapping::Empty,
                 ImportMapping::Alternatives(alternatives) => ReplacedImportMapping::Alternatives(
@@ -189,7 +189,7 @@ impl AliasTemplate for Vc<ImportMapping> {
                         *context,
                     )
                 }
-                ImportMapping::Direct(v) => ReplacedImportMapping::Direct(*v),
+                ImportMapping::Direct(v) => ReplacedImportMapping::Direct(**v),
                 ImportMapping::Ignore => ReplacedImportMapping::Ignore,
                 ImportMapping::Empty => ReplacedImportMapping::Empty,
                 ImportMapping::Alternatives(alternatives) => ReplacedImportMapping::Alternatives(

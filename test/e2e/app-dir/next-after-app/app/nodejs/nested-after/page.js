@@ -4,7 +4,7 @@ import { cliLog } from '../../../utils/log'
 
 const thing = cache(() => Symbol('cache me please'))
 
-export default async function Index({ params }) {
+export default async function Index(props) {
   await connection()
   const valueFromRender = thing()
 

@@ -244,6 +244,7 @@ export async function collectBuildTraces({
       ]
 
       const { cacheHandler } = config
+      const { cacheHandlers } = config.experimental
 
       // ensure we trace any dependencies needed for custom
       // incremental cache handler
@@ -255,6 +256,20 @@ export async function collectBuildTraces({
               : path.join(dir, cacheHandler)
           )
         )
+      }
+
+      if (cacheHandlers) {
+        for (const handlerPath of Object.values(cacheHandlers)) {
+          if (handlerPath) {
+            sharedEntriesSet.push(
+              require.resolve(
+                path.isAbsolute(handlerPath)
+                  ? handlerPath
+                  : path.join(dir, handlerPath)
+              )
+            )
+          }
+        }
       }
 
       const serverEntries = [

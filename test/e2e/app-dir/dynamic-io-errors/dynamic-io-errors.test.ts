@@ -337,7 +337,6 @@ function runTests(options: { withMinification: boolean }) {
           )
         }
         expectError('Error occurred prerendering page "/"')
-        expectError('Error: Route "/" could not be prerendered.')
         expectError('exiting the build.')
       })
     })

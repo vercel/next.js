@@ -40,6 +40,7 @@ import { flushAllTraces, trace } from '../trace'
 
 export type NextDevOptions = {
   turbo?: boolean
+  turbopack?: boolean
   port: number
   hostname?: string
   experimentalHttps?: boolean
@@ -232,7 +233,7 @@ const nextDev = async (
     hostname: host,
   }
 
-  if (options.turbo) {
+  if (options.turbo || options.turbopack) {
     process.env.TURBOPACK = '1'
   }
 
