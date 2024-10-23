@@ -85,7 +85,7 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: pnpm lint-no-typescript && pnpm check-examples
+      afterBuild: npm dist-tag add latest@15.0.1 && pnpm lint-no-typescript && pnpm check-examples
       stepName: 'lint'
     secrets: inherit
 
