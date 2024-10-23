@@ -679,7 +679,7 @@ export function cache(kind: string, id: string, fn: any) {
         moduleMap: isEdgeRuntime
           ? clientReferenceManifest.edgeRscModuleMapping
           : clientReferenceManifest.rscModuleMapping,
-        serverModuleMap: null,
+        serverModuleMap: getServerModuleMap(),
       }
 
       return createFromReadableStream(stream, {

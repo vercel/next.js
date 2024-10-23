@@ -231,4 +231,14 @@ describe('use-cache', () => {
       expect(meta.headers['x-next-cache-tags']).toContain('a,c,b')
     })
   }
+
+  it('can reference server actions in "use cache" functions', async () => {
+    const browser = await next.browser('/with-server-action')
+    expect(await browser.elementByCss('p').text()).toBe('initial')
+    await browser.elementByCss('button').click()
+
+    await retry(async () => {
+      expect(await browser.elementByCss('p').text()).toBe('result')
+    })
+  })
 })
