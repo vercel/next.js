@@ -24,7 +24,7 @@ Hybrid applications will typically use a combination of both techniques, with yo
 
 #### Possible Ways to Fix It
 
-If you are accessing external data that doesn't change often and your use case can tolerate stale results while revalidating the data after it gets too old you should wrap the data fetch in a `"use cache"` function. This will instruct Next.js to cache this data and allow it to be accessed without defining a fallback UI for the component that is accessing this data.
+If you are accessing external data that doesn't change often and your use case can tolerate stale results while revalidating the data after it gets too old, you should wrap the data fetch in a `"use cache"` function. This will instruct Next.js to cache this data and allow it to be accessed without defining a fallback UI for the component that is accessing this data.
 
 Before:
 
