@@ -42,6 +42,12 @@
         async: 4 === metadata.length
       };
     }
+    function resolveServerReference(bundlerConfig, id) {
+      var idx = id.lastIndexOf("#");
+      bundlerConfig = id.slice(0, idx);
+      id = id.slice(idx + 1);
+      return { specifier: bundlerConfig, name: id };
+    }
     function preloadModule(metadata) {
       var existingPromise = asyncModuleCache.get(metadata.specifier);
       if (existingPromise)
@@ -65,6 +71,17 @@
       );
       asyncModuleCache.set(metadata.specifier, modulePromise);
       return modulePromise;
+    }
+    function requireModule(metadata) {
+      var moduleExports = asyncModuleCache.get(metadata.specifier);
+      if ("fulfilled" === moduleExports.status)
+        moduleExports = moduleExports.value;
+      else throw moduleExports.reason;
+      return "*" === metadata.name
+        ? moduleExports
+        : "" === metadata.name
+          ? moduleExports.default
+          : moduleExports[metadata.name];
     }
     function prepareDestinationWithChunks(
       moduleLoading,
@@ -1204,16 +1221,7 @@
     }
     function initializeModuleChunk(chunk) {
       try {
-        var metadata = chunk.value,
-          promise = asyncModuleCache.get(metadata.specifier);
-        if ("fulfilled" === promise.status) var moduleExports = promise.value;
-        else throw promise.reason;
-        var value =
-          "*" === metadata.name
-            ? moduleExports
-            : "" === metadata.name
-              ? moduleExports.default
-              : moduleExports[metadata.name];
+        var value = requireModule(chunk.value);
         chunk.status = "fulfilled";
         chunk.value = value;
       } catch (error) {
@@ -1265,7 +1273,7 @@
             }
           value = value[path[i]];
         }
-        i = map(response, value);
+        i = map(response, value, parentObject, key);
         parentObject[key] = i;
         "" === key && null === handler.value && (handler.value = i);
         if (
@@ -1324,13 +1332,91 @@
       referencedChunk.then(fulfill, reject);
       return null;
     }
-    function createServerReferenceProxy(response, metaData) {
-      return createBoundServerReference(
-        metaData,
-        response._callServer,
-        response._encodeFormAction,
-        response._debugFindSourceMapURL
+    function loadServerReference(response, metaData, parentObject, key) {
+      if (!response._serverReferenceConfig)
+        return createBoundServerReference(
+          metaData,
+          response._callServer,
+          response._encodeFormAction,
+          response._debugFindSourceMapURL
+        );
+      var serverReference = resolveServerReference(
+        response._serverReferenceConfig,
+        metaData.id
       );
+      if ((response = preloadModule(serverReference)))
+        metaData.bound && (response = Promise.all([response, metaData.bound]));
+      else if (metaData.bound) response = Promise.resolve(metaData.bound);
+      else return requireModule(serverReference);
+      if (initializingHandler) {
+        var handler = initializingHandler;
+        handler.deps++;
+      } else
+        handler = initializingHandler = {
+          parent: null,
+          chunk: null,
+          value: null,
+          deps: 1,
+          errored: !1
+        };
+      response.then(
+        function () {
+          var resolvedValue = requireModule(serverReference);
+          if (metaData.bound) {
+            var boundArgs = metaData.bound.value.slice(0);
+            boundArgs.unshift(null);
+            resolvedValue = resolvedValue.bind.apply(resolvedValue, boundArgs);
+          }
+          parentObject[key] = resolvedValue;
+          "" === key &&
+            null === handler.value &&
+            (handler.value = resolvedValue);
+          if (
+            parentObject[0] === REACT_ELEMENT_TYPE &&
+            "object" === typeof handler.value &&
+            null !== handler.value &&
+            handler.value.$$typeof === REACT_ELEMENT_TYPE
+          )
+            switch (((boundArgs = handler.value), key)) {
+              case "3":
+                boundArgs.props = resolvedValue;
+                break;
+              case "4":
+                boundArgs._owner = resolvedValue;
+            }
+          handler.deps--;
+          0 === handler.deps &&
+            ((resolvedValue = handler.chunk),
+            null !== resolvedValue &&
+              "blocked" === resolvedValue.status &&
+              ((boundArgs = resolvedValue.value),
+              (resolvedValue.status = "fulfilled"),
+              (resolvedValue.value = handler.value),
+              null !== boundArgs && wakeChunk(boundArgs, handler.value)));
+        },
+        function (error) {
+          if (!handler.errored) {
+            var blockedValue = handler.value;
+            handler.errored = !0;
+            handler.value = error;
+            var chunk = handler.chunk;
+            null !== chunk &&
+              "blocked" === chunk.status &&
+              ("object" === typeof blockedValue &&
+                null !== blockedValue &&
+                blockedValue.$$typeof === REACT_ELEMENT_TYPE &&
+                ((blockedValue = {
+                  name: getComponentNameFromType(blockedValue.type) || "",
+                  owner: blockedValue._owner
+                }),
+                (chunk._debugInfo || (chunk._debugInfo = [])).push(
+                  blockedValue
+                )),
+              triggerErrorOnChunk(chunk, error));
+          }
+        }
+      );
+      return null;
     }
     function getOutlinedModel(response, reference, parentObject, key, map) {
       reference = reference.split(":");
@@ -1360,7 +1446,7 @@
                 );
             value = value[reference[i]];
           }
-          response = map(response, value);
+          response = map(response, value, parentObject, key);
           id._debugInfo &&
             ("object" !== typeof response ||
               null === response ||
@@ -1460,7 +1546,7 @@
                 value,
                 parentObject,
                 key,
-                createServerReferenceProxy
+                loadServerReference
               )
             );
           case "T":
@@ -1564,6 +1650,7 @@
     }
     function ResponseInstance(
       bundlerConfig,
+      serverReferenceConfig,
       moduleLoading,
       callServer,
       encodeFormAction,
@@ -1575,6 +1662,7 @@
     ) {
       var chunks = new Map();
       this._bundlerConfig = bundlerConfig;
+      this._serverReferenceConfig = serverReferenceConfig;
       this._moduleLoading = moduleLoading;
       this._callServer = void 0 !== callServer ? callServer : missingCall;
       this._encodeFormAction = encodeFormAction;
@@ -2419,10 +2507,15 @@
       replayConsoleWithCallStackInDEV = replayConsoleWithCallStack[
         "react-stack-bottom-frame"
       ].bind(replayConsoleWithCallStack);
-    exports.createFromNodeStream = function (stream, ssrManifest, options) {
+    exports.createFromNodeStream = function (
+      stream,
+      serverConsumerManifest,
+      options
+    ) {
       var response = new ResponseInstance(
-        ssrManifest.moduleMap,
-        ssrManifest.moduleLoading,
+        serverConsumerManifest.moduleMap,
+        serverConsumerManifest.serverModuleMap,
+        serverConsumerManifest.moduleLoading,
         noServerCall,
         options ? options.encodeFormAction : void 0,
         options && "string" === typeof options.nonce ? options.nonce : void 0,

@@ -10,8 +10,8 @@ use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 use tracing::{Instrument, Level};
 use turbo_tasks::{
-    fxindexmap, fxindexset, trace::TraceRawVcs, FxIndexMap, RcStr, TaskInput, TryJoinIterExt,
-    Value, ValueToString, Vc,
+    fxindexmap, fxindexset, trace::TraceRawVcs, FxIndexMap, RcStr, ResolvedVc, TaskInput,
+    TryJoinIterExt, Value, ValueToString, Vc,
 };
 use turbo_tasks_fs::{
     util::normalize_request, FileSystemEntryType, FileSystemPath, RealPathResult,
@@ -67,7 +67,7 @@ pub enum ModuleResolveResultItem {
     OutputAsset(Vc<Box<dyn OutputAsset>>),
     External(RcStr, ExternalType),
     Ignore,
-    Error(Vc<RcStr>),
+    Error(ResolvedVc<RcStr>),
     Empty,
     Custom(u8),
 }
@@ -675,7 +675,9 @@ impl ResolveResult {
                                 }
                                 ResolveResultItem::Ignore => ModuleResolveResultItem::Ignore,
                                 ResolveResultItem::Empty => ModuleResolveResultItem::Empty,
-                                ResolveResultItem::Error(e) => ModuleResolveResultItem::Error(e),
+                                ResolveResultItem::Error(e) => {
+                                    ModuleResolveResultItem::Error(e.to_resolved().await?)
+                                }
                                 ResolveResultItem::Custom(u8) => {
                                     ModuleResolveResultItem::Custom(u8)
                                 }
@@ -1202,8 +1204,8 @@ pub async fn find_context_file_or_package_key(
 
 #[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, Debug)]
 enum FindPackageItem {
-    PackageDirectory(Vc<FileSystemPath>),
-    PackageFile(Vc<FileSystemPath>),
+    PackageDirectory(ResolvedVc<FileSystemPath>),
+    PackageFile(ResolvedVc<FileSystemPath>),
 }
 
 #[turbo_tasks::value]
@@ -1236,7 +1238,9 @@ async fn find_package(
                             if let Some(fs_path) =
                                 dir_exists(fs_path, &mut affecting_sources).await?
                             {
-                                packages.push(FindPackageItem::PackageDirectory(fs_path));
+                                packages.push(FindPackageItem::PackageDirectory(
+                                    fs_path.to_resolved().await?,
+                                ));
                             }
                         }
                     }
@@ -1259,10 +1263,14 @@ async fn find_package(
                 {
                     match ty {
                         FileSystemEntryType::Directory => {
-                            packages.push(FindPackageItem::PackageDirectory(package_dir));
+                            packages.push(FindPackageItem::PackageDirectory(
+                                package_dir.to_resolved().await?,
+                            ));
                         }
                         FileSystemEntryType::File => {
-                            packages.push(FindPackageItem::PackageFile(package_dir));
+                            packages.push(FindPackageItem::PackageFile(
+                                package_dir.to_resolved().await?,
+                            ));
                         }
                         _ => {}
                     }
@@ -1274,7 +1282,9 @@ async fn find_package(
                     let package_file = package_dir.append(extension.clone());
                     if let Some(package_file) = exists(package_file, &mut affecting_sources).await?
                     {
-                        packages.push(FindPackageItem::PackageFile(package_file));
+                        packages.push(FindPackageItem::PackageFile(
+                            package_file.to_resolved().await?,
+                        ));
                     }
                 }
             }
@@ -1435,7 +1445,7 @@ pub async fn url_resolve(
     origin: Vc<Box<dyn ResolveOrigin>>,
     request: Vc<Request>,
     reference_type: Value<ReferenceType>,
-    issue_source: Option<Vc<IssueSource>>,
+    issue_source: Option<ResolvedVc<IssueSource>>,
     is_optional: bool,
 ) -> Result<Vc<ModuleResolveResult>> {
     let resolve_options = origin.resolve_options(reference_type.clone());
@@ -2006,41 +2016,41 @@ async fn resolve_relative_request(
 
     if options_value.enable_typescript_with_output_extension {
         new_path.replace_final_constants(&|c: &RcStr| -> Option<Pattern> {
-            let result = match c.rsplit_once(".") {
-                Some((base, "js")) => Some((
+            let (base, replacement) = match c.rsplit_once(".") {
+                Some((base, "js")) => (
                     base,
                     vec![
                         Pattern::Constant(".ts".into()),
                         Pattern::Constant(".tsx".into()),
                         Pattern::Constant(".js".into()),
                     ],
-                )),
-                Some((base, "mjs")) => Some((
+                ),
+                Some((base, "mjs")) => (
                     base,
                     vec![
                         Pattern::Constant(".mts".into()),
-                        Pattern::Constant(".js".into()),
+                        Pattern::Constant(".mjs".into()),
                     ],
-                )),
-                Some((base, "cjs")) => Some((
+                ),
+                Some((base, "cjs")) => (
                     base,
                     vec![
                         Pattern::Constant(".cts".into()),
-                        Pattern::Constant(".js".into()),
+                        Pattern::Constant(".cjs".into()),
                     ],
-                )),
-                _ => None,
-            };
-            result.map(|(base, replacement)| {
-                if base.is_empty() {
-                    Pattern::Alternatives(replacement)
-                } else {
-                    Pattern::Concatenation(vec![
-                        Pattern::Constant(base.into()),
-                        Pattern::Alternatives(replacement),
-                    ])
+                ),
+                _ => {
+                    return None;
                 }
-            })
+            };
+            if base.is_empty() {
+                Some(Pattern::Alternatives(replacement))
+            } else {
+                Some(Pattern::Concatenation(vec![
+                    Pattern::Constant(base.into()),
+                    Pattern::Alternatives(replacement),
+                ]))
+            }
         });
         new_path.normalize();
     }
@@ -2362,7 +2372,7 @@ async fn resolve_module_request(
             FindPackageItem::PackageDirectory(package_path) => {
                 results.push(resolve_into_package(
                     Value::new(path.clone()),
-                    package_path,
+                    *package_path,
                     query,
                     fragment,
                     options,
@@ -2372,7 +2382,7 @@ async fn resolve_module_request(
                 if path.is_match("") {
                     let resolved = resolved(
                         RequestKey::new(".".into()),
-                        package_path,
+                        *package_path,
                         lookup_path,
                         request,
                         options_value,
@@ -2721,7 +2731,7 @@ pub async fn handle_resolve_error(
     request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
     is_optional: bool,
-    source: Option<Vc<IssueSource>>,
+    source: Option<ResolvedVc<IssueSource>>,
 ) -> Result<Vc<ModuleResolveResult>> {
     async fn is_unresolvable(result: Vc<ModuleResolveResult>) -> Result<bool> {
         Ok(*result.resolve().await?.is_unresolvable().await?)
@@ -2765,7 +2775,7 @@ pub async fn handle_resolve_source_error(
     request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
     is_optional: bool,
-    source: Option<Vc<IssueSource>>,
+    source: Option<ResolvedVc<IssueSource>>,
 ) -> Result<Vc<ResolveResult>> {
     async fn is_unresolvable(result: Vc<ResolveResult>) -> Result<bool> {
         Ok(*result.resolve().await?.is_unresolvable().await?)
@@ -2809,7 +2819,7 @@ async fn emit_resolve_error_issue(
     request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
     err: anyhow::Error,
-    source: Option<Vc<IssueSource>>,
+    source: Option<ResolvedVc<IssueSource>>,
 ) -> Result<()> {
     let severity = if is_optional || resolve_options.await?.loose_errors {
         IssueSeverity::Warning.cell()
@@ -2836,7 +2846,7 @@ async fn emit_unresolvable_issue(
     reference_type: Value<ReferenceType>,
     request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
-    source: Option<Vc<IssueSource>>,
+    source: Option<ResolvedVc<IssueSource>>,
 ) -> Result<()> {
     let severity = if is_optional || resolve_options.await?.loose_errors {
         IssueSeverity::Warning.cell()
@@ -2875,7 +2885,7 @@ pub enum ModulePart {
     /// all exports are unused.
     Evaluation,
     /// Represents an export of a module.
-    Export(Vc<RcStr>),
+    Export(ResolvedVc<RcStr>),
     /// Represents a renamed export of a module.
     RenamedExport {
         original_export: Vc<RcStr>,
@@ -2902,7 +2912,7 @@ impl ModulePart {
     }
     #[turbo_tasks::function]
     pub fn export(export: RcStr) -> Vc<Self> {
-        ModulePart::Export(Vc::cell(export)).cell()
+        ModulePart::Export(ResolvedVc::cell(export)).cell()
     }
     #[turbo_tasks::function]
     pub fn renamed_export(original_export: RcStr, export: RcStr) -> Vc<Self> {

@@ -649,12 +649,20 @@ const staticWorkerExposedMethods = [
 type StaticWorker = typeof import('./worker') & Worker
 export function createStaticWorker(
   config: NextConfigComplete,
-  onActivity?: () => void
+  progress?: {
+    run: () => void
+    clear: () => void
+  }
 ): StaticWorker {
   return new Worker(staticWorkerPath, {
     logger: Log,
     numWorkers: getNumberOfWorkers(config),
-    onActivity,
+    onActivity: () => {
+      progress?.run()
+    },
+    onActivityAbort: () => {
+      progress?.clear()
+    },
     forkOptions: {
       env: process.env,
     },
@@ -1516,7 +1524,7 @@ export default async function build(
                   remainingRampup--
                   sema.release()
                 }
-                progress()
+                progress.run()
               }
             })()
           )
@@ -2421,10 +2429,37 @@ export default async function build(
                   pageDuration: undefined,
                   ssgPageDurations: undefined,
                   hasEmptyPrelude: undefined,
+                  unsupportedSegmentConfigs:
+                    staticInfo && 'unsupportedSegmentConfigs' in staticInfo
+                      ? staticInfo.unsupportedSegmentConfigs
+                      : undefined,
                 })
               })
             })
         )
+
+        // When dynamicIO is enabled, certain segment configs are not supported as they conflict with dynamicIO behavior.
+        // This will print all the pages along with the segment configs that were used.
+        if (config.experimental.dynamicIO) {
+          const pagesWithSegmentConfigs: string[] = []
+
+          pageInfos.forEach((pageInfo, page) => {
+            if (
+              pageInfo.unsupportedSegmentConfigs &&
+              pageInfo.unsupportedSegmentConfigs.length > 0
+            ) {
+              const configs = pageInfo.unsupportedSegmentConfigs.join(', ')
+              pagesWithSegmentConfigs.push(`${page}: ${configs}`)
+            }
+          })
+
+          if (pagesWithSegmentConfigs.length > 0) {
+            Log.error(
+              `The following pages used segment configs which are not supported with "experimental.dynamicIO" and must be removed to build your application:\n${pagesWithSegmentConfigs.join('\n')}\n`
+            )
+            process.exit(1)
+          }
+        }
 
         if (hadUnsupportedValue) {
           Log.error(
@@ -2485,6 +2520,16 @@ export default async function build(
       const requiredServerFilesManifest = nextBuildSpan
         .traceChild('generate-required-server-files')
         .traceFn(() => {
+          const normalizedCacheHandlers: Record<string, string> = {}
+
+          for (const [key, value] of Object.entries(
+            config.experimental.cacheHandlers || {}
+          )) {
+            if (key && value) {
+              normalizedCacheHandlers[key] = path.relative(distDir, value)
+            }
+          }
+
           const serverFilesManifest: RequiredServerFilesManifest = {
             version: 1,
             config: {
@@ -2500,6 +2545,7 @@ export default async function build(
                 : config.cacheHandler,
               experimental: {
                 ...config.experimental,
+                cacheHandlers: normalizedCacheHandlers,
                 trustHostHeader: ciEnvironment.hasNextSupport,
 
                 // @ts-expect-error internal field TODO: fix this, should use a separate mechanism to pass the info.

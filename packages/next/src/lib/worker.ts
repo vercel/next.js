@@ -4,6 +4,8 @@ import {
   getParsedNodeOptionsWithoutInspect,
   formatNodeOptions,
 } from '../server/lib/utils'
+import { Transform } from 'stream'
+
 type FarmOptions = ConstructorParameters<typeof JestWorker>[1]
 
 const RESTARTED = Symbol('restarted')
@@ -24,6 +26,7 @@ export class Worker {
     options: FarmOptions & {
       timeout?: number
       onActivity?: () => void
+      onActivityAbort?: () => void
       onRestart?: (method: string, args: any[], attempts: number) => void
       logger?: Pick<typeof console, 'error' | 'info' | 'warn'>
       exposedMethods: ReadonlyArray<string>
@@ -37,6 +40,11 @@ export class Worker {
     let activeTasks = 0
 
     this._worker = undefined
+
+    // ensure we end workers if they weren't before exit
+    process.on('exit', () => {
+      this.close()
+    })
 
     const createWorker = () => {
       // Get the node options without inspect and also remove the
@@ -101,6 +109,26 @@ export class Worker {
         }
       }
 
+      let aborted = false
+      const onActivityAbort = () => {
+        if (!aborted) {
+          options.onActivityAbort?.()
+          aborted = true
+        }
+      }
+
+      // Listen to the worker's stdout and stderr, if there's any thing logged, abort the activity first
+      const abortActivityStreamOnLog = new Transform({
+        transform(_chunk, _encoding, callback) {
+          onActivityAbort()
+          callback()
+        },
+      })
+      // Stop the activity if there's any output from the worker
+      this._worker.getStdout().pipe(abortActivityStreamOnLog)
+      this._worker.getStderr().pipe(abortActivityStreamOnLog)
+
+      // Pipe the worker's stdout and stderr to the parent process
       this._worker.getStdout().pipe(process.stdout)
       this._worker.getStderr().pipe(process.stderr)
     }

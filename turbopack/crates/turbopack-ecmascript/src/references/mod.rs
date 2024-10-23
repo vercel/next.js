@@ -50,7 +50,9 @@ use swc_core::{
     },
 };
 use tracing::Instrument;
-use turbo_tasks::{FxIndexSet, RcStr, TryJoinIterExt, Upcast, Value, ValueToString, Vc};
+use turbo_tasks::{
+    FxIndexSet, RcStr, ResolvedVc, TryJoinIterExt, Upcast, Value, ValueToString, Vc,
+};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     compile_time_info::{
@@ -168,7 +170,7 @@ pub struct AnalyzeEcmascriptModuleResultBuilder {
     exports: EcmascriptExports,
     async_module: Vc<OptionAsyncModule>,
     successful: bool,
-    source_map: Option<Vc<OptionSourceMap>>,
+    source_map: Option<ResolvedVc<OptionSourceMap>>,
     bindings: Vec<EsmBinding>,
 }
 
@@ -253,7 +255,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     }
 
     /// Sets the analysis result ES export.
-    pub fn set_source_map(&mut self, source_map: Vc<OptionSourceMap>) {
+    pub fn set_source_map(&mut self, source_map: ResolvedVc<OptionSourceMap>) {
         self.source_map = Some(source_map);
     }
 
@@ -324,7 +326,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
         let source_map = if let Some(source_map) = self.source_map {
             source_map
         } else {
-            OptionSourceMap::none()
+            OptionSourceMap::none().to_resolved().await?
         };
         Ok(AnalyzeEcmascriptModuleResult::cell(
             AnalyzeEcmascriptModuleResult {
@@ -336,7 +338,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                 exports: self.exports.into(),
                 async_module: self.async_module,
                 successful: self.successful,
-                source_map,
+                source_map: *source_map,
             },
         ))
     }
@@ -458,7 +460,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     } = *module.determine_module_type().await?;
 
     if let Some(package_json) = referenced_package_json {
-        analysis.add_reference(PackageJsonReference::new(package_json));
+        analysis.add_reference(PackageJsonReference::new(*package_json));
     }
 
     if analyze_types {
@@ -546,18 +548,20 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             let reference = SourceMapReference::new(origin_path, source_map_origin);
             analysis.add_reference(reference);
             let source_map = reference.generate_source_map();
-            analysis.set_source_map(convert_to_turbopack_source_map(
-                source_map,
-                source_map_origin,
-            ));
+            analysis.set_source_map(
+                convert_to_turbopack_source_map(source_map, source_map_origin)
+                    .to_resolved()
+                    .await?,
+            );
             source_map_from_comment = true;
         } else if path.starts_with("data:application/json;base64,") {
             let source_map_origin = origin_path;
             let source_map = maybe_decode_data_url(path.into());
-            analysis.set_source_map(convert_to_turbopack_source_map(
-                source_map,
-                source_map_origin,
-            ));
+            analysis.set_source_map(
+                convert_to_turbopack_source_map(source_map, source_map_origin)
+                    .to_resolved()
+                    .await?,
+            );
             source_map_from_comment = true;
         }
     }
@@ -566,10 +570,14 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(source).await?
         {
             let source_map_origin = source.ident().path();
-            analysis.set_source_map(convert_to_turbopack_source_map(
-                generate_source_map.generate_source_map(),
-                source_map_origin,
-            ));
+            analysis.set_source_map(
+                convert_to_turbopack_source_map(
+                    generate_source_map.generate_source_map(),
+                    source_map_origin,
+                )
+                .to_resolved()
+                .await?,
+            );
         }
     }
 
@@ -761,7 +769,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         }
         .cell();
 
-        EcmascriptExports::EsmExports(esm_exports)
+        EcmascriptExports::EsmExports(esm_exports.to_resolved().await?)
     } else if specified_type == SpecifiedModuleType::EcmaScript {
         match detect_dynamic_export(program) {
             DetectedDynamicExportType::CommonJs => {
@@ -777,7 +785,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                         exports: Default::default(),
                         star_exports: Default::default(),
                     }
-                    .cell(),
+                    .resolved_cell(),
                 )
             }
             DetectedDynamicExportType::Namespace => EcmascriptExports::DynamicNamespace,
@@ -788,7 +796,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     exports: Default::default(),
                     star_exports: Default::default(),
                 }
-                .cell(),
+                .resolved_cell(),
             ),
         }
     } else {
@@ -801,7 +809,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     exports: Default::default(),
                     star_exports: Default::default(),
                 }
-                .cell(),
+                .resolved_cell(),
             ),
             DetectedDynamicExportType::None => EcmascriptExports::EmptyCommonJs,
         }
@@ -2191,7 +2199,7 @@ async fn handle_free_var_reference(
                 lookup_path.map_or(state.origin, |lookup_path| {
                     Vc::upcast(PlainResolveOrigin::new(
                         state.origin.asset_context(),
-                        lookup_path,
+                        *lookup_path,
                     ))
                 }),
                 Request::parse(Value::new(request.clone().into())),
