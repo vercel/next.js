@@ -98,9 +98,6 @@ impl ValueToString for AssetIdent {
         if !self.parts.is_empty() {
             s.push_str(" (");
             for (i, part) in self.parts.iter().enumerate() {
-                if i > 0 {
-                    s.push_str(", ");
-                }
                 let part = part.to_string().await?;
                 // Note: facade should be included in ident because the asset type is not
                 // exactly the same.
