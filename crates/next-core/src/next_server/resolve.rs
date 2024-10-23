@@ -12,8 +12,8 @@ use turbopack_core::{
         parse::Request,
         pattern::Pattern,
         plugin::{AfterResolvePlugin, AfterResolvePluginCondition},
-        resolve, ExternalType, FindContextFileResult, ResolveResult, ResolveResultItem,
-        ResolveResultOption,
+        resolve, ExternalTraced, ExternalType, FindContextFileResult, ResolveResult,
+        ResolveResultItem, ResolveResultOption,
     },
     source::Source,
 };
@@ -420,7 +420,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
             ResolveResult::primary(ResolveResultItem::External {
                 name: request_str.into(),
                 typ: external_type,
-                source: Some(result),
+                traced: ExternalTraced::Traced,
             })
             .cell(),
         ))

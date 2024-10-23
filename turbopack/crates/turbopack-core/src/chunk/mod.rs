@@ -204,7 +204,7 @@ type AsyncInfo = FxIndexMap<Vc<Box<dyn ChunkItem>>, Vec<Vc<Box<dyn ChunkItem>>>>
 pub struct ChunkContentResult {
     pub chunk_items: FxIndexSet<Vc<Box<dyn ChunkItem>>>,
     pub async_modules: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
-    pub traced_modules: FxIndexSet<ResolvedVc<Box<dyn Module>>>,
+    pub traced_modules: FxIndexSet<Vc<Box<dyn Module>>>,
     pub external_module_references: FxIndexSet<Vc<Box<dyn ModuleReference>>>,
     /// A map from local module to all children from which the async module
     /// status is inherited

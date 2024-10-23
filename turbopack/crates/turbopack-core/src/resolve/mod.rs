@@ -69,7 +69,7 @@ pub enum ModuleResolveResultItem {
         /// uri, path, reference, etc.
         name: RcStr,
         typ: ExternalType,
-        module: Option<Vc<Box<dyn Module>>>,
+        traced: Option<ResolvedVc<ModuleResolveResult>>,
     },
     Ignore,
     Error(ResolvedVc<RcStr>),
@@ -377,6 +377,23 @@ impl ModuleResolveResult {
 #[derive(
     Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize, TraceRawVcs, TaskInput,
 )]
+pub enum ExternalTraced {
+    Untraced,
+    Traced,
+}
+
+impl Display for ExternalTraced {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ExternalTraced::Untraced => write!(f, "Untraced"),
+            ExternalTraced::Traced => write!(f, "Traced"),
+        }
+    }
+}
+
+#[derive(
+    Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize, TraceRawVcs, TaskInput,
+)]
 pub enum ExternalType {
     Url,
     CommonJs,
@@ -401,7 +418,7 @@ pub enum ResolveResultItem {
         /// uri, path, reference, etc.
         name: RcStr,
         typ: ExternalType,
-        source: Option<Vc<Box<dyn Source>>>,
+        traced: ExternalTraced,
     },
     Ignore,
     Error(Vc<RcStr>),
@@ -485,20 +502,11 @@ impl ValueToString for ResolveResult {
                 ResolveResultItem::External {
                     name: s,
                     typ: ty,
-                    source: opt_source,
+                    traced,
                 } => {
                     result.push_str("external ");
                     result.push_str(s);
-                    write!(
-                        result,
-                        " ({}) {}",
-                        ty,
-                        if opt_source.is_some() {
-                            "with source"
-                        } else {
-                            ""
-                        }
-                    )?;
+                    write!(result, " ({}, {})", ty, traced)?;
                 }
                 ResolveResultItem::Ignore => {
                     result.push_str("ignore");
@@ -696,11 +704,13 @@ impl ResolveResult {
                                 ResolveResultItem::External {
                                     name,
                                     typ,
-                                    source: _,
+                                    // TODO remove this whole function? it's easy to drop traced
+                                    // externals now
+                                    traced: _,
                                 } => ModuleResolveResultItem::External {
                                     name,
                                     typ,
-                                    module: None,
+                                    traced: None,
                                 },
                                 ResolveResultItem::Ignore => ModuleResolveResultItem::Ignore,
                                 ResolveResultItem::Empty => ModuleResolveResultItem::Empty,
@@ -1526,9 +1536,11 @@ pub async fn url_resolve(
     } else {
         rel_result
     };
-    let result = origin
-        .asset_context()
-        .process_resolve_result(result, reference_type.clone());
+    let result = origin.asset_context().process_resolve_result(
+        origin.origin_path(),
+        result,
+        reference_type.clone(),
+    );
     handle_resolve_error(
         result,
         reference_type,
@@ -1899,7 +1911,7 @@ async fn resolve_internal_inline(
                     ResolveResultItem::External {
                         name: uri,
                         typ: ExternalType::Url,
-                        source: None,
+                        traced: ExternalTraced::Untraced,
                     },
                 )
                 .into()

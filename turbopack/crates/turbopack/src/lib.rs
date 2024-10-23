@@ -48,8 +48,9 @@ use turbopack_core::{
         ReferenceType,
     },
     resolve::{
-        options::ResolveOptions, origin::PlainResolveOrigin, parse::Request, resolve, ExternalType,
-        ModulePart, ModuleResolveResult, ModuleResolveResultItem, ResolveResult, ResolveResultItem,
+        options::ResolveOptions, origin::PlainResolveOrigin, parse::Request, resolve,
+        ExternalTraced, ExternalType, ModulePart, ModuleResolveResult, ModuleResolveResultItem,
+        ResolveResult, ResolveResultItem,
     },
     source::Source,
 };
@@ -662,24 +663,24 @@ Read more: https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpac
 }
 
 #[turbo_tasks::function]
-fn externals_tracing_module_context() -> Vc<ModuleAssetContext> {
+async fn externals_tracing_module_context() -> Result<Vc<ModuleAssetContext>> {
     let env = Environment::new(Value::new(ExecutionEnvironment::NodeJsLambda(
         NodeJsEnvironment::default().cell(),
     )));
 
     let resolve_options = ResolveOptionsContext {
-        emulate_environment: Some(env),
+        emulate_environment: Some(env.to_resolved().await?),
         loose_errors: true,
         ..Default::default()
     };
 
-    ModuleAssetContext::new_without_replace_externals(
+    Ok(ModuleAssetContext::new_without_replace_externals(
         Default::default(),
         CompileTimeInfo::builder(env).cell(),
         ModuleOptionsContext::default().cell(),
         resolve_options.cell(),
         Vc::cell("externals-tracing".into()),
-    )
+    ))
 }
 
 #[turbo_tasks::value_impl]
@@ -729,7 +730,11 @@ impl AssetContext for ModuleAssetContext {
             request,
             resolve_options,
         );
-        let mut result = self.process_resolve_result(result.resolve().await?, reference_type);
+        let mut result = self.process_resolve_result(
+            origin_path.resolve().await?,
+            result.resolve().await?,
+            reference_type,
+        );
 
         if *self.is_types_resolving_enabled().await? {
             let types_result = type_resolve(
@@ -746,6 +751,7 @@ impl AssetContext for ModuleAssetContext {
     #[turbo_tasks::function]
     async fn process_resolve_result(
         self: Vc<Self>,
+        origin_path: Vc<FileSystemPath>,
         result: Vc<ResolveResult>,
         reference_type: Value<ReferenceType>,
     ) -> Result<Vc<ModuleResolveResult>> {
@@ -765,24 +771,33 @@ impl AssetContext for ModuleAssetContext {
                                 ProcessResult::Ignore => ModuleResolveResultItem::Ignore,
                             }
                         }
-                        ResolveResultItem::External { name, typ, source } => {
+                        ResolveResultItem::External { name, typ, traced } => {
+                            let traced_module = match traced {
+                                ExternalTraced::Traced
+                                    if self.module_options_context().await?.enable_tracing =>
+                                {
+                                    let externals_context = externals_tracing_module_context();
+                                    Some(
+                                        externals_context
+                                            .resolve_asset(
+                                                origin_path,
+                                                Request::parse_string(name.clone()),
+                                                externals_context.resolve_options(
+                                                    origin_path,
+                                                    reference_type.clone(),
+                                                ),
+                                                reference_type,
+                                            )
+                                            .to_resolved()
+                                            .await?,
+                                    )
+                                }
+                                _ => None,
+                            };
                             ModuleResolveResultItem::External {
                                 name,
                                 typ,
-                                module: match source {
-                                    Some(source)
-                                        if self.module_options_context().await?.enable_tracing =>
-                                    {
-                                        match &*externals_tracing_module_context()
-                                            .process(source, reference_type)
-                                            .await?
-                                        {
-                                            ProcessResult::Module(module) => Some(*module),
-                                            ProcessResult::Ignore => None,
-                                        }
-                                    }
-                                    _ => None,
-                                },
+                                traced: traced_module,
                             }
                         }
                         ResolveResultItem::Ignore => ModuleResolveResultItem::Ignore,
@@ -1006,7 +1021,7 @@ pub async fn replace_externals(
         let ModuleResolveResultItem::External {
             name: request,
             typ,
-            module,
+            traced,
         } = item
         else {
             continue;
@@ -1027,15 +1042,22 @@ pub async fn replace_externals(
             }
         };
 
-        let mut affecting_sources_refs = affecting_sources_refs.clone();
-        if let Some(module) = module {
-            affecting_sources_refs.push(Vc::upcast(TracedModuleReference::new(*module)));
-        }
+        let mut additional_refs = affecting_sources_refs.clone();
+        if let Some(traced) = traced {
+            let traced = (*traced).await?;
+            additional_refs.extend(
+                traced
+                    .primary_modules_iter()
+                    .map(|m| Vc::upcast(TracedModuleReference::new(m)))
+                    .chain(traced.affecting_sources.iter().map(|s| {
+                        Vc::upcast(TracedModuleReference::new(Vc::upcast(RawModule::new(*s))))
+                    })),
+            );
+        };
 
-        let module =
-            CachedExternalModule::new(request.clone(), external_type, affecting_sources_refs)
-                .resolve()
-                .await?;
+        let module = CachedExternalModule::new(request.clone(), external_type, additional_refs)
+            .resolve()
+            .await?;
 
         *item = ModuleResolveResultItem::Module(Vc::upcast(module));
     }

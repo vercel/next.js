@@ -70,6 +70,7 @@ pub trait AssetContext {
     /// Process an [ResolveResult] into an [ModuleResolveResult].
     fn process_resolve_result(
         self: Vc<Self>,
+        origin_path: Vc<FileSystemPath>,
         result: Vc<ResolveResult>,
         reference_type: Value<ReferenceType>,
     ) -> Vc<ModuleResolveResult>;

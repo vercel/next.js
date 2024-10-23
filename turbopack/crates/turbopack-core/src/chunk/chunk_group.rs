@@ -2,7 +2,9 @@ use std::collections::HashSet;
 
 use anyhow::Result;
 use auto_hash_map::AutoSet;
-use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, Vc};
+use turbo_tasks::{
+    FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, Vc,
+};
 use turbo_tasks_fs::{FileSystem, VirtualFileSystem};
 
 use super::{

@@ -86,7 +86,7 @@ impl ReferencedAsset {
                 ModuleResolveResultItem::External {
                     name: request,
                     typ,
-                    module: _,
+                    traced: _,
                 } => {
                     return Ok(ReferencedAsset::External(request.clone(), *typ).cell());
                 }
