@@ -43,12 +43,11 @@ impl Transition for NextEcmascriptClientReferenceTransition {
     }
 
     #[turbo_tasks::function]
-    async fn process_ignore_unknown(
+    async fn process(
         self: Vc<Self>,
         source: Vc<Box<dyn Source>>,
         module_asset_context: Vc<ModuleAssetContext>,
         reference_type: Value<ReferenceType>,
-        ignore_unknown: bool,
     ) -> Result<Vc<ProcessResult>> {
         let part = match &*reference_type {
             ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::ImportPart(
@@ -78,13 +77,12 @@ impl Transition for NextEcmascriptClientReferenceTransition {
         } else {
             source
         };
-        let client_module = this.client_transition.process_ignore_unknown(
+        let client_module = this.client_transition.process(
             client_source,
             module_asset_context,
             Value::new(ReferenceType::Entry(
                 EntryReferenceSubType::AppClientComponent,
             )),
-            ignore_unknown,
         );
         let ProcessResult::Module(client_module) = *client_module.await? else {
             return Ok(ProcessResult::Ignore.cell());

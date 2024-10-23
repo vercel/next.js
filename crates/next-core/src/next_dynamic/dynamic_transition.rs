@@ -31,12 +31,11 @@ impl Transition for NextDynamicTransition {
     }
 
     #[turbo_tasks::function]
-    async fn process_ignore_unknown(
+    async fn process(
         self: Vc<Self>,
         source: Vc<Box<dyn Source>>,
         module_asset_context: Vc<ModuleAssetContext>,
         _reference_type: Value<ReferenceType>,
-        ignore_unknown: bool,
     ) -> Result<Vc<ProcessResult>> {
         let module_asset_context = self.process_context(module_asset_context);
 
@@ -44,11 +43,10 @@ impl Transition for NextDynamicTransition {
 
         Ok(match *this
             .client_transition
-            .process_ignore_unknown(
+            .process(
                 source,
                 module_asset_context,
                 Value::new(ReferenceType::Undefined),
-                ignore_unknown,
             )
             .await?
         {

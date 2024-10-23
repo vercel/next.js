@@ -435,7 +435,6 @@ impl ModuleAssetContext {
         self: Vc<Self>,
         source: Vc<Box<dyn Source>>,
         reference_type: Value<ReferenceType>,
-        ignore_unknown: bool,
     ) -> Result<Vc<ProcessResult>> {
         let this = self.await?;
         Ok(
@@ -445,9 +444,9 @@ impl ModuleAssetContext {
                 .get_by_rules(source, &reference_type)
                 .await?
             {
-                transition.process_ignore_unknown(source, self, reference_type, ignore_unknown)
+                transition.process(source, self, reference_type)
             } else {
-                self.process_default(source, reference_type, ignore_unknown)
+                self.process_default(source, reference_type)
             },
         )
     }
@@ -458,9 +457,8 @@ impl ModuleAssetContext {
         self: Vc<Self>,
         source: Vc<Box<dyn Source>>,
         reference_type: Value<ReferenceType>,
-        ignore_unknown: bool,
     ) -> Vc<ProcessResult> {
-        process_default(self, source, reference_type, Vec::new(), ignore_unknown)
+        process_default(self, source, reference_type, Vec::new())
     }
 }
 
@@ -470,7 +468,6 @@ async fn process_default(
     source: Vc<Box<dyn Source>>,
     reference_type: Value<ReferenceType>,
     processed_rules: Vec<usize>,
-    ignore_unknown: bool,
 ) -> Result<Vc<ProcessResult>> {
     let span = tracing::info_span!(
         "process module",
@@ -482,7 +479,6 @@ async fn process_default(
         source,
         reference_type,
         processed_rules,
-        ignore_unknown,
     )
     .instrument(span)
     .await
@@ -493,7 +489,6 @@ async fn process_default_internal(
     source: Vc<Box<dyn Source>>,
     reference_type: Value<ReferenceType>,
     processed_rules: Vec<usize>,
-    ignore_unknown: bool,
 ) -> Result<Vc<ProcessResult>> {
     let ident = source.ident().resolve().await?;
     let path_ref = ident.path().await?;
@@ -550,11 +545,10 @@ async fn process_default_internal(
                                 .get_by_rules(current_source, &reference_type)
                                 .await?
                             {
-                                return Ok(transition.process_ignore_unknown(
+                                return Ok(transition.process(
                                     current_source,
                                     module_asset_context,
                                     Value::new(reference_type),
-                                    ignore_unknown,
                                 ));
                             } else {
                                 let mut processed_rules = processed_rules.clone();
@@ -564,7 +558,6 @@ async fn process_default_internal(
                                     current_source,
                                     Value::new(reference_type),
                                     processed_rules,
-                                    ignore_unknown,
                                 ));
                             }
                         }
@@ -632,20 +625,19 @@ async fn process_default_internal(
     let module_type = match current_module_type {
         Some(module_type) => module_type,
         None => {
-            if !ignore_unknown {
-                ModuleIssue {
-                    ident,
-                    title: StyledString::Text("Unknown module type".into()).cell(),
-                    description: StyledString::Text(
-                        r"This module doesn't have an associated type. Use a known file extension, or register a loader for it.
+            ModuleIssue {
+                ident,
+                title: StyledString::Text("Unknown module type".into()).cell(),
+                description: StyledString::Text(
+                    r"This module doesn't have an associated type. Use a known file extension, or register a loader for it.
 
-    Read more: https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders".into(),
-                    )
-                    .cell(),
-                }
-                .cell()
-                .emit();
+Read more: https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders".into(),
+                )
+                .cell(),
             }
+            .cell()
+            .emit();
+
             return Ok(ProcessResult::Ignore.cell());
         }
     }.cell();
@@ -708,20 +700,7 @@ impl AssetContext for ModuleAssetContext {
             request,
             resolve_options,
         );
-        // if context_path.await?.path.contains("/node-gyp/") {
-        //     println!(
-        //         "resolve_asset: {} {} {:?} {:?}",
-        //         context_path.to_string().await?,
-        //         request.request_pattern().await?,
-        //         &*reference_type,
-        //         result.dbg().await?
-        //     );
-        // }
-        let mut result = self.process_resolve_result_ignore_unknown(
-            result.resolve().await?,
-            reference_type,
-            request.request_pattern().await?.has_dynamic_parts(),
-        );
+        let mut result = self.process_resolve_result(result.resolve().await?, reference_type);
 
         if *self.is_types_resolving_enabled().await? {
             let types_result = type_resolve(
@@ -741,31 +720,25 @@ impl AssetContext for ModuleAssetContext {
         result: Vc<ResolveResult>,
         reference_type: Value<ReferenceType>,
     ) -> Result<Vc<ModuleResolveResult>> {
-        Ok(self.process_resolve_result_ignore_unknown(result, reference_type, false))
-    }
-
-    #[turbo_tasks::function]
-    async fn process_resolve_result_ignore_unknown(
-        self: Vc<Self>,
-        result: Vc<ResolveResult>,
-        reference_type: Value<ReferenceType>,
-        ignore_unknown: bool,
-    ) -> Result<Vc<ModuleResolveResult>> {
         let this = self.await?;
+        let transition = this.transition;
+
         let result = result
             .await?
             .map_module(|source| {
                 let reference_type = reference_type.clone();
                 async move {
-                    Ok(
-                        match &*self
-                            .process_ignore_unknown(*source, reference_type, ignore_unknown)
-                            .await?
-                        {
-                            ProcessResult::Module(m) => ModuleResolveResultItem::Module(*m),
-                            ProcessResult::Ignore => ModuleResolveResultItem::Ignore,
-                        },
-                    )
+                    let process_result = if let Some(transition) = transition {
+                        transition.process(*source, self, reference_type)
+                    } else {
+                        self.process_with_transition_rules(*source, reference_type)
+                    };
+                    Ok(match *process_result.await? {
+                        ProcessResult::Module(m) => {
+                            ModuleResolveResultItem::Module(ResolvedVc::upcast(m))
+                        }
+                        ProcessResult::Ignore => ModuleResolveResultItem::Ignore,
+                    })
                 }
             })
             .await?;
@@ -788,21 +761,11 @@ impl AssetContext for ModuleAssetContext {
         asset: Vc<Box<dyn Source>>,
         reference_type: Value<ReferenceType>,
     ) -> Result<Vc<ProcessResult>> {
-        Ok(self.process_ignore_unknown(asset, reference_type, false))
-    }
-
-    #[turbo_tasks::function]
-    async fn process_ignore_unknown(
-        self: Vc<Self>,
-        asset: Vc<Box<dyn Source>>,
-        reference_type: Value<ReferenceType>,
-        ignore_unknown: bool,
-    ) -> Result<Vc<ProcessResult>> {
         let this = self.await?;
         if let Some(transition) = this.transition {
-            Ok(transition.process_ignore_unknown(asset, self, reference_type, ignore_unknown))
+            Ok(transition.process(asset, self, reference_type))
         } else {
-            Ok(self.process_with_transition_rules(asset, reference_type, ignore_unknown))
+            Ok(self.process_with_transition_rules(asset, reference_type))
         }
     }
 
