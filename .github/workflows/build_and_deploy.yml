@@ -58,7 +58,11 @@ jobs:
       # we build a dev binary for use in CI so skip downloading
       # canary next-swc binaries in the monorepo
       NEXT_SKIP_NATIVE_POSTINSTALL: 1
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN_ELEVATED }}
     steps:
+      - run: npm i -g npm@10.4.0 # need latest version for provenance (pinning to avoid bugs)
+      - run: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
+      - run: npm dist-tag next@15.0.1 latest
       - name: Setup node
         uses: actions/setup-node@v4
         with:
