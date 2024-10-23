@@ -22,9 +22,7 @@ export function handleClientError(
   if (!originError || !isError(originError)) {
     // If it's not an error, format the args into an error
     const formattedErrorMessage = formatConsoleArgs(consoleErrorArgs)
-    const firstLineOfMessage =
-      formattedErrorMessage.split('\n')[0] || formattedErrorMessage
-    error = createUnhandledError(firstLineOfMessage)
+    error = createUnhandledError(formattedErrorMessage)
   } else {
     error = originError
   }
