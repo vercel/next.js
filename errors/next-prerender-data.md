@@ -18,7 +18,7 @@ To ensure you have a fully prerenderable route, you should omit any Suspense bou
 
 To allow uncached data anywhere in your application, you can add a Suspense boundary just inside your `<body>` tag in your Root Layout. However, we don't recommend you do this because you will likely want to scope Suspense boundaries around more granular component boundaries that provide fallback UI specific to individual Components.
 
-Hybrid applications will typically use a combination of both techniques, with your top level shared Layouts avoiding Suspense so they can be prerendered for static pages and your layouts that actually have data dependencies will define fallback UI.
+Hybrid applications will typically use a combination of both techniques, with your top level shared Layouts being prerendered for static pages (without Suspense), and your layouts that actually have data dependencies defining fallback UI.
 
 Note: While external data can be accessed inside `"use cache"` and `unstable_cache()`, Request data such as `cookies()` cannot because we don't know about cookies before a Request actually occurs. If your application needs to read cookies the only recourse you have is to opt into allowing this data read using `Suspense`.
 
