@@ -11,6 +11,7 @@
     "next": "workspace:*",
     "keyv": "3.1.0",
     "sqlite": "4.0.22",
-    "sqlite3": "5.0.3"
+    "sqlite3": "5.0.3",
+    "swr": "^2.2.4"
   }
 }

@@ -620,6 +620,9 @@ importers:
       sqlite3:
         specifier: 5.0.3
         version: 5.0.3(encoding@0.1.13)
+      swr:
+        specifier: ^2.2.4
+        version: 2.2.4(react@19.0.0-rc-f90a6bcc-20240827)
 
   bench/fuzzponent:
     dependencies:
@@ -31081,6 +31084,12 @@ snapshots:
       react: 19.0.0-rc-603e6108-20241029
       use-sync-external-store: 1.2.0(react@19.0.0-rc-603e6108-20241029)
 
+  swr@2.2.4(react@19.0.0-rc-f90a6bcc-20240827):
+    dependencies:
+      client-only: 0.0.1
+      react: 19.0.0-rc-f90a6bcc-20240827
+      use-sync-external-store: 1.2.0(react@19.0.0-rc-f90a6bcc-20240827)
+
   symbol-observable@1.0.1: {}
 
   symbol-tree@3.2.4: {}
@@ -31866,6 +31875,10 @@ snapshots:
   use-sync-external-store@1.2.0(react@19.0.0-rc-603e6108-20241029):
     dependencies:
       react: 19.0.0-rc-603e6108-20241029
+
+  use-sync-external-store@1.2.0(react@19.0.0-rc-f90a6bcc-20240827):
+    dependencies:
+      react: 19.0.0-rc-f90a6bcc-20240827
 
   util-deprecate@1.0.2: {}
 
