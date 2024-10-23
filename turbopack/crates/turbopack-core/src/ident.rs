@@ -100,7 +100,7 @@ impl ValueToString for AssetIdent {
                 let part = part.to_string().await?;
                 // Note: facade should be included in ident because the asset type is not
                 // exactly the same.
-                write!(s, "<{}>", part)?;
+                write!(s, " <{}>", part)?;
             }
             s.push(')');
         }
