@@ -1057,10 +1057,7 @@ async function renderToHTMLOrFlightImpl(
   // TODO: fix this typescript
   const clientReferenceManifest = renderOpts.clientReferenceManifest!
 
-  const serverModuleMap = createServerModuleMap({
-    serverActionsManifest,
-    pageName: renderOpts.page,
-  })
+  const serverModuleMap = createServerModuleMap({ serverActionsManifest })
 
   setReferenceManifestsSingleton({
     clientReferenceManifest,
