@@ -7,8 +7,8 @@ use futures::{
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    duration_span, mark_finished, prevent_gc, util::SharedError, RawVc, TaskInput, ValueToString,
-    Vc,
+    duration_span, mark_finished, prevent_gc, util::SharedError, RawVc, ResolvedVc, TaskInput,
+    ValueToString, Vc,
 };
 use turbo_tasks_bytes::{Bytes, Stream};
 use turbo_tasks_env::ProcessEnv;
@@ -46,7 +46,7 @@ pub enum StaticResult {
         headers: Vc<HeaderList>,
         body: Body,
     },
-    Rewrite(Vc<Rewrite>),
+    Rewrite(ResolvedVc<Rewrite>),
 }
 
 #[turbo_tasks::value_impl]
@@ -66,7 +66,7 @@ impl StaticResult {
     }
 
     #[turbo_tasks::function]
-    pub fn rewrite(rewrite: Vc<Rewrite>) -> Vc<Self> {
+    pub fn rewrite(rewrite: ResolvedVc<Rewrite>) -> Vc<Self> {
         StaticResult::Rewrite(rewrite).cell()
     }
 }

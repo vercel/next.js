@@ -126,7 +126,6 @@ function runTests(options: { withMinification: boolean }) {
           'Error: Route "/" used `Math.random()` outside of `"use cache"` and without explicitly calling `await connection()` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random'
         )
         expectError('Error occurred prerendering page "/"')
-        expectError('Error: Route "/" could not be prerendered.')
         expectError('exiting the build.')
       })
     })

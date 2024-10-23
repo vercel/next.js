@@ -13,6 +13,7 @@ import {
   noContent,
   type OriginalStackFrameResponse,
 } from './shared'
+import { NEXT_PROJECT_ROOT } from '../../../../build/next-dir-paths'
 export { getServerError } from '../internal/helpers/node-stack-frames'
 export { parseStack } from '../internal/helpers/parse-stack'
 export { getSourceMapFromFile }
@@ -20,6 +21,7 @@ export { getSourceMapFromFile }
 import type { IncomingMessage, ServerResponse } from 'http'
 import type webpack from 'webpack'
 import type { RawSourceMap } from 'next/dist/compiled/source-map08'
+import { formatFrameSourceFile } from '../internal/helpers/webpack-module-path'
 
 type Source =
   | {
@@ -111,7 +113,7 @@ export async function createOriginalStackFrame({
   rootDirectory: string
   frame: StackFrame
   errorMessage?: string
-}): Promise<OriginalStackFrameResponse | undefined> {
+}): Promise<OriginalStackFrameResponse | null> {
   const { lineNumber, column } = frame
   const moduleNotFound = findModuleNotFoundFromError(errorMessage)
   const result = await (async () => {
@@ -134,7 +136,7 @@ export async function createOriginalStackFrame({
   })()
 
   if (!result?.sourcePosition.source) {
-    return undefined
+    return null
   }
 
   const { sourcePosition, sourceContent } = result
@@ -149,10 +151,12 @@ export async function createOriginalStackFrame({
     )
   )
 
+  const resolvedFilePath = sourceContent
+    ? path.relative(rootDirectory, filePath)
+    : sourcePosition.source
+
   const traced = {
-    file: sourceContent
-      ? path.relative(rootDirectory, filePath)
-      : sourcePosition.source,
+    file: resolvedFilePath,
     lineNumber: sourcePosition.line,
     column: (sourcePosition.column ?? 0) + 1,
     methodName:
@@ -286,7 +290,16 @@ export function getOverlayMiddleware(options: {
         return badRequest(res)
       }
 
+      const formattedFilePath = formatFrameSourceFile(frame.file)
+      const filePath = path.join(rootDirectory, formattedFilePath)
+      const isNextjsSource = filePath.startsWith(NEXT_PROJECT_ROOT)
+
       let source: Source | undefined
+
+      if (isNextjsSource) {
+        sourcePackage = 'next'
+        return json(res, { sourcePackage })
+      }
 
       try {
         source = await getSource(frame.file, {
