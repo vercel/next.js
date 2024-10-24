@@ -42,27 +42,9 @@ describe('app-dir - capture-console-error', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "callStacks": "",
-          "count": 1,
+          "count": ${isReactExperimental ? 1 : 2},
           "description": "trigger an console <error>",
           "source": "app/browser/event/page.js (7:17) @ onClick
-
-           5 |     <button
-           6 |       onClick={() => {
-        >  7 |         console.error('trigger an console <%s>', 'error')
-             |                 ^
-           8 |       }}
-           9 |     >
-          10 |       click to error",
-        }
-      `)
-    } else if (isReactExperimental) {
-      expect(result).toMatchInlineSnapshot(`
-        {
-          "callStacks": "button
-        app/browser/event/page.js (5:6)",
-          "count": 1,
-          "description": "trigger an console <error>",
-          "source": "app/browser/event/page.js (7:17) @ error
 
            5 |     <button
            6 |       onClick={() => {
@@ -76,8 +58,13 @@ describe('app-dir - capture-console-error', () => {
     } else {
       expect(result).toMatchInlineSnapshot(`
         {
-          "callStacks": "",
-          "count": 1,
+          "callStacks": ${
+            isReactExperimental
+              ? `"button
+        app/browser/event/page.js (5:6)"`
+              : ''
+          },
+          "count": ${isReactExperimental ? 1 : 2},
           "description": "trigger an console <error>",
           "source": "app/browser/event/page.js (7:17) @ error
 
@@ -105,7 +92,7 @@ describe('app-dir - capture-console-error', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "callStacks": "",
-          "count": 2,
+          "count": ${isReactExperimental ? 1 : 2},
           "description": "trigger an console.error in render",
           "source": "app/browser/render/page.js (4:11) @ Page
 
@@ -122,7 +109,7 @@ describe('app-dir - capture-console-error', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "callStacks": "",
-          "count": 2,
+          "count": ${isReactExperimental ? 1 : 2},
           "description": "trigger an console.error in render",
           "source": "app/browser/render/page.js (4:11) @ error
 
@@ -150,7 +137,7 @@ describe('app-dir - capture-console-error', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "callStacks": "",
-          "count": 2,
+          "count": ${isReactExperimental ? 1 : 2},
           "description": "trigger an console.error in render",
           "source": "app/browser/render/page.js (4:11) @ Page
 
@@ -167,7 +154,7 @@ describe('app-dir - capture-console-error', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "callStacks": "",
-          "count": 2,
+          "count": ${isReactExperimental ? 1 : 2},
           "description": "trigger an console.error in render",
           "source": "app/browser/render/page.js (4:11) @ error
 
@@ -195,7 +182,7 @@ describe('app-dir - capture-console-error', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "callStacks": "",
-          "count": 2,
+          "count": ${isReactExperimental ? 1 : 2},
           "description": "ssr console error:client",
           "source": "app/ssr/page.js (4:11) @ Page
 
@@ -212,7 +199,7 @@ describe('app-dir - capture-console-error', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "callStacks": "",
-          "count": 2,
+          "count": ${isReactExperimental ? 1 : 2},
           "description": "ssr console error:client",
           "source": "app/ssr/page.js (4:11) @ error
 
