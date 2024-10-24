@@ -28,11 +28,19 @@ export function patchConsoleError() {
 
     if (!isNextRouterError(maybeError)) {
       if (process.env.NODE_ENV !== 'production') {
+        // Create an origin stack that pointing to the origin location of the error
+        const originStack = (new Error().stack || '')
+          .split('\n')
+          // Remove error message and the stack of patched `window.console.error` call
+          .slice(2)
+          .join('\n')
+
         handleClientError(
           // replayed errors have their own complex format string that should be used,
           // but if we pass the error directly, `handleClientError` will ignore it
           maybeError,
-          args
+          args,
+          originStack
         )
       }
 
