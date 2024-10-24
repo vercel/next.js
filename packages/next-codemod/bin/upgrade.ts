@@ -2,7 +2,7 @@ import * as os from 'os'
 import prompts from 'prompts'
 import fs from 'fs'
 import {
-  satisfies as semverSatisfies,
+  satisfies as satisfiesVersionRange,
   compare as compareVersions,
 } from 'semver'
 import { execSync } from 'child_process'
@@ -678,7 +678,7 @@ function warnDependenciesOutOfRange(
         const expectedVersionRange = peerDeps[depName]
         const { version: currentVersion } = versionMapping[depName]
         if (
-          !semverSatisfies(currentVersion, expectedVersionRange, {
+          !satisfiesVersionRange(currentVersion, expectedVersionRange, {
             includePrerelease: true,
           })
         ) {
