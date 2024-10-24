@@ -67,27 +67,7 @@ describe('Dynamic IO Dev Errors', () => {
         "stack": "Page [Server]
       <anonymous> (2:1)
       Root [Server]
-      <anonymous> (2:1)
-      RedirectErrorBoundary
-      ./dist/esm/server/route-modules/app-page/module.js
-      RedirectBoundary
-      ./dist/esm/server/route-modules/app-page/module.js
-      ReactDevOverlay
-      ./dist/esm/client/components/react-dev-overlay/app/hot-reloader-client.js
-      HotReload
-      ./dist/esm/client/components/react-dev-overlay/app/hot-reloader-client.js
-      Router
-      ./dist/esm/server/route-modules/app-page/module.js
-      ErrorBoundaryHandler
-      ./dist/esm/server/route-modules/app-page/module.js
-      ErrorBoundary
-      ./dist/esm/server/route-modules/app-page/module.js
-      AppRouter
-      ./dist/esm/server/route-modules/app-page/module.js
-      ServerInsertedHTMLProvider
-      ./dist/esm/server/route-modules/app-page/module.js
-      App
-      ./dist/esm/server/route-modules/app-page/module.js",
+      <anonymous> (2:1)",
       }
     `)
   })
