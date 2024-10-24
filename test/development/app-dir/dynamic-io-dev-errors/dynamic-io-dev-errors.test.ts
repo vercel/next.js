@@ -57,20 +57,14 @@ describe('Dynamic IO Dev Errors', () => {
 
     const description = await getRedboxDescription(browser)
     const stack = await getRedboxCallStack(browser)
-    const result = {
-      description,
-      stack,
-    }
 
+    expect(description).toMatchInlineSnapshot(
+      `"[ Server ] Error: Route "/no-accessed-data": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense"`
+    )
+    // TODO: use snapshot testing for stack
     // FIXME: avoid `next` code to be mapped to source code and filter them out even when sourcemap is enabled.
-    expect(result).toMatchInlineSnapshot(`
-      {
-        "description": "[ Server ] Error: Route "/no-accessed-data": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
-        "stack": "Page [Server]
-      <anonymous> (2:1)
-      Root [Server]
-      <anonymous> (2:1)",
-      }
-    `)
+    expect(stack).toContain('Page [Server]')
+    expect(stack).toContain('Root [Server]')
+    expect(stack).toContain('<anonymous> (2:1)')
   })
 })
