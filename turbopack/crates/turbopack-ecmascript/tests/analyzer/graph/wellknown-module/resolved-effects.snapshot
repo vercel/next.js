@@ -1,0 +1,31 @@
+0 -> 1 free var = FreeVar(run)
+
+0 -> 3 call = ???*0*(path*1*)
+- *0* FreeVar(run)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *1* path: The Node.js path module: https://nodejs.org/api/path.html
+
+0 -> 4 free var = FreeVar(run)
+
+0 -> 6 call = ???*0*(path*1*)
+- *0* FreeVar(run)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *1* path: The Node.js path module: https://nodejs.org/api/path.html
+
+0 -> 7 free var = FreeVar(run)
+
+0 -> 9 call = ???*0*(path*1*)
+- *0* FreeVar(run)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *1* path: The Node.js path module: https://nodejs.org/api/path.html
+
+0 -> 10 free var = FreeVar(run)
+
+0 -> 12 call = ???*0*(path*1*)
+- *0* FreeVar(run)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *1* path: The Node.js path module: https://nodejs.org/api/path.html

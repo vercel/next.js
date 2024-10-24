@@ -3959,7 +3959,9 @@ mod tests {
     use swc_core::{
         common::{comments::SingleThreadedComments, Mark},
         ecma::{
-            ast::EsVersion, parser::parse_file_as_program, transforms::base::resolver,
+            ast::EsVersion,
+            parser::{parse_file_as_program, EsSyntax, Syntax},
+            transforms::base::resolver,
             visit::VisitMutWith,
         },
         testing::{fixture, run_test, NormalizedOutput},
@@ -3997,7 +3999,10 @@ mod tests {
                 let comments = SingleThreadedComments::default();
                 let mut m = parse_file_as_program(
                     &fm,
-                    Default::default(),
+                    Syntax::Es(EsSyntax {
+                        import_attributes: true,
+                        ..Default::default()
+                    }),
                     EsVersion::latest(),
                     Some(&comments),
                     &mut vec![],

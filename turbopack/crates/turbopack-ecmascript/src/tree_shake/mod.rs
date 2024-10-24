@@ -17,6 +17,7 @@ use turbopack_core::{ident::AssetIdent, resolve::ModulePart, source::Source};
 
 pub(crate) use self::graph::{
     create_turbopack_part_id_assert, find_turbopack_part_id_in_asserts, PartId,
+    ASSERT_ORIGINAL_IMPORT_SOURCE_KEY,
 };
 use self::graph::{DepGraph, ItemData, ItemId, ItemIdGroupKind, Mode, SplitModuleResult};
 use crate::{analyzer::graph::EvalContext, parse::ParseResult, EcmascriptModuleAsset};
