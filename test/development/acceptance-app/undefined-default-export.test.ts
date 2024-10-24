@@ -26,7 +26,7 @@ describe('Undefined default export', () => {
        "label": "Build Error",
        "source": "./app/(group)/specific-path/server/page.js
      Ecmascript file had an error
-     A page file need to have a React Component exported via \`export default\`.
+     A page file needs to have a React Component exported via \`export default\`.
      See https://nextjs.org/docs/app/building-your-application/routing/pages",
        "stack": [],
      }
@@ -55,7 +55,7 @@ describe('Undefined default export', () => {
        "label": "Build Error",
        "source": "./app/(group)/specific-path/server/layout.js
      Ecmascript file had an error
-     A layout file need to have a React Component exported via \`export default\`.
+     A layout file needs to have a React Component exported via \`export default\`.
      See https://nextjs.org/docs/app/building-your-application/routing/layouts-and-templates#layouts",
        "stack": [],
      }
@@ -134,7 +134,7 @@ describe('Undefined default export', () => {
        "label": "Build Error",
        "source": "./app/page.js
      Ecmascript file had an error
-     A page file need to have a React Component exported via \`export default\`.
+     A page file needs to have a React Component exported via \`export default\`.
      See https://nextjs.org/docs/app/building-your-application/routing/pages",
        "stack": [],
      }
@@ -162,7 +162,7 @@ describe('Undefined default export', () => {
        "label": "Build Error",
        "source": "./app/server-with-errors/page-export-initial-error/page.js
      Ecmascript file had an error
-     A page file need to have a React Component exported via \`export default\`.
+     A page file needs to have a React Component exported via \`export default\`.
      See https://nextjs.org/docs/app/building-your-application/routing/pages",
        "stack": [],
      }
