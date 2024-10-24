@@ -1,7 +1,10 @@
 import * as os from 'os'
 import prompts from 'prompts'
 import fs from 'fs'
-import compareVersions from 'semver/functions/compare'
+import {
+  satisfies as satisfiesVersionRange,
+  compare as compareVersions,
+} from 'semver'
 import { execSync } from 'child_process'
 import path from 'path'
 import pc from 'picocolors'
@@ -302,7 +305,7 @@ export async function runUpgrade(
   }
 
   console.log(
-    `Upgrading your project to ${pc.blue('Next.js ' + targetNextVersion)}...\n`
+    `Upgrading your project to ${pc.blue('Next.js ' + targetNextVersion)}...`
   )
 
   for (const [dep, version] of dependenciesToInstall) {
@@ -349,6 +352,9 @@ export async function runUpgrade(
   if (codemods.length > 0) {
     console.log(`${pc.green('✔')} Codemods have been applied successfully.`)
   }
+
+  warnDependenciesOutOfRange(appPackageJson, versionMapping)
+
   endMessage()
 }
 
@@ -414,7 +420,7 @@ async function suggestTurbopack(
   packageJson: any,
   targetNextVersion: string
 ): Promise<void> {
-  const devScript: string = packageJson.scripts['dev']
+  const devScript: string = packageJson?.scripts?.dev
   // Turbopack flag was changed from `--turbo` to `--turbopack` in v15.0.1-canary.3
   // PR: https://github.com/vercel/next.js/pull/71657
   // Release: https://github.com/vercel/next.js/releases/tag/v15.0.1-canary.3
@@ -627,5 +633,91 @@ function writeOverridesField(
         packageJson.overrides[key] = value
       }
     }
+  }
+}
+
+function warnDependenciesOutOfRange(
+  appPackageJson: any,
+  versionMapping: Record<string, { version: string; required: boolean }>
+) {
+  const allDependenciesToInstall = {
+    ...appPackageJson.dependencies,
+    ...appPackageJson.devDependencies,
+  }
+
+  const dependenciesOutOfRange = new Map<
+    string,
+    {
+      [dependency: string]: {
+        currentVersion: string
+        expectedVersionRange: string
+      }
+    }
+  >()
+
+  for (const dependency of Object.keys(allDependenciesToInstall)) {
+    let pkgJson
+    try {
+      pkgJson = require(
+        require.resolve(`${dependency}/package.json`, { paths: [cwd] })
+      )
+    } catch (error) {
+      if (error.code === 'ERR_PACKAGE_PATH_NOT_EXPORTED') {
+        pkgJson = JSON.parse(
+          fs.readFileSync(
+            path.join(cwd, 'node_modules', dependency, 'package.json'),
+            'utf8'
+          )
+        )
+      } else {
+        throw error
+      }
+    }
+
+    if ('peerDependencies' in pkgJson) {
+      const peerDeps = pkgJson.peerDependencies
+      const peerDepsNames = Object.keys(peerDeps)
+      const depsToCheck = Object.keys(versionMapping).filter(
+        (versionMappingKey) => peerDepsNames.includes(versionMappingKey)
+      )
+
+      for (const depName of depsToCheck) {
+        const expectedVersionRange = peerDeps[depName]
+        const { version: currentVersion } = versionMapping[depName]
+        if (
+          !satisfiesVersionRange(currentVersion, expectedVersionRange, {
+            includePrerelease: true,
+          })
+        ) {
+          dependenciesOutOfRange.set(dependency, {
+            ...dependenciesOutOfRange.get(dependency),
+            [depName]: {
+              currentVersion,
+              expectedVersionRange,
+            },
+          })
+        }
+      }
+    }
+  }
+
+  const size = dependenciesOutOfRange.size
+  if (size > 0) {
+    console.log(
+      `${pc.yellow('⚠')} Found ${size} ${
+        size === 1 ? 'dependency' : 'dependencies'
+      } out of range from their peer dependencies.`
+    )
+    dependenciesOutOfRange.forEach((deps, packageName) => {
+      console.log(
+        `${packageName} ${pc.gray(allDependenciesToInstall[packageName])}`
+      )
+      Object.entries(deps).forEach(([depName, value], index, depsArray) => {
+        const prefix = index === depsArray.length - 1 ? '  └── ' : '  ├── '
+        console.log(
+          `${prefix}${pc.yellow('✕ unmet peer')} ${depName}@"${value.expectedVersionRange}": found ${value.currentVersion}`
+        )
+      })
+    })
   }
 }
