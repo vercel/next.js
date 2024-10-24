@@ -100,7 +100,7 @@ fn react_server_components_errors(input: PathBuf) {
         syntax(),
         &|tr| {
             server_components(
-                FileName::Real(PathBuf::from("/some-project/src/page.js")).into(),
+                FileName::Real(PathBuf::from("/some-project/src/app/page.js")).into(),
                 Config::WithOptions(Options {
                     is_react_server_layer,
                     dynamic_io_enabled,

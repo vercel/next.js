@@ -602,10 +602,10 @@ fn collect_top_level_directives_and_imports(
 }
 
 static RE_LAYOUT: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"^(src[\\/])?app[\\/](([^_\\/][^\\/]*)?[\\/])*layout\.(ts|js)x?$").unwrap()
+    Regex::new(r"(^|[\\/])app[\\/](([^_\\/][^\\/]*)?[\\/])*layout\.(ts|js)x?$").unwrap()
 });
 static RE_PAGE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"^(src[\\/])?app[\\/](([^_\\/][^\\/]*)?[\\/])*page\.(ts|js)x?$").unwrap()
+    Regex::new(r"(^|[\\/])app[\\/](([^_\\/][^\\/]*)?[\\/])*page\.(ts|js)x?$").unwrap()
 });
 
 /// A visitor to assert given module file is a valid React server component.
