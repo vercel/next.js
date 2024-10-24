@@ -1,7 +1,9 @@
+"use client";
+
 import * as React from "react";
-import Head from "next/head";
 import { useForm, SubmitHandler } from "react-hook-form";
-import styles from "../styles/login.module.css";
+
+import styles from "../_styles/main.module.css";
 
 interface User {
   name: string;
@@ -13,7 +15,7 @@ interface LoginFormValues {
   remember: boolean;
 }
 
-export default function Page() {
+export default function Main() {
   const [user, setUser] = React.useState<User | null>(null);
   const {
     register,
@@ -31,11 +33,6 @@ export default function Page() {
 
   return (
     <div className={styles.container}>
-      <Head>
-        <title>Login</title>
-        <meta name="description" content="Login to your account" />
-        <link rel="icon" href="/favicon.ico" />
-      </Head>
       {user ? (
         <div className={styles.greeting}>
           <h2>Welcome back, {user.name}!</h2>
