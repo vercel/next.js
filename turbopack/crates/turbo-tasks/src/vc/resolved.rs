@@ -96,6 +96,7 @@ macro_rules! into_future {
 
 into_future!(ResolvedVc<T>);
 into_future!(&ResolvedVc<T>);
+into_future!(&mut ResolvedVc<T>);
 
 impl<T> ResolvedVc<T>
 where
