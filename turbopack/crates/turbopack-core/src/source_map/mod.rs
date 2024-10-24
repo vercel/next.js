@@ -414,10 +414,9 @@ impl SourceMap {
                 .enumerate()
             {
                 let (source, name) = resolve_source(source, source_content, origin).await?;
-                // dbg!(src_id, &source);
                 if source.starts_with("turbopack://[next]")
                     || source.starts_with("turbopack://[turbopack]")
-                    || source.contains("node_modules")
+                    || source.contains("/node_modules/")
                 {
                     ignored_sources.insert(src_id);
                 }
