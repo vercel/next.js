@@ -2,7 +2,9 @@ use std::collections::HashSet;
 
 use anyhow::Result;
 use auto_hash_map::AutoSet;
-use turbo_tasks::{FxIndexMap, FxIndexSet, TryFlatJoinIterExt, TryJoinIterExt, Value, Vc};
+use turbo_tasks::{
+    FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, Vc,
+};
 
 use super::{
     availability_info::AvailabilityInfo, available_chunk_items::AvailableChunkItemInfo,
@@ -12,7 +14,7 @@ use super::{
 use crate::{module::Module, output::OutputAssets, reference::ModuleReference};
 
 pub struct MakeChunkGroupResult {
-    pub chunks: Vec<Vc<Box<dyn Chunk>>>,
+    pub chunks: Vec<ResolvedVc<Box<dyn Chunk>>>,
     pub availability_info: AvailabilityInfo,
 }
 
@@ -104,14 +106,17 @@ pub async fn make_chunk_group(
     let availability_info = {
         let map = chunk_items
             .iter()
-            .map(|(&chunk_item, async_info)| {
-                (
-                    chunk_item,
+            .map(|(&chunk_item, async_info)| async move {
+                Ok((
+                    chunk_item.to_resolved().await?,
                     AvailableChunkItemInfo {
                         is_async: async_info.is_some(),
                     },
-                )
+                ))
             })
+            .try_join()
+            .await?
+            .into_iter()
             .collect();
         let map = Vc::cell(map);
         availability_info.with_chunk_items(map).await?
@@ -121,7 +126,7 @@ pub async fn make_chunk_group(
     let async_loaders = async_modules
         .into_iter()
         .map(|module| {
-            chunking_context.async_loader_chunk_item(module, Value::new(availability_info))
+            chunking_context.async_loader_chunk_item(*module, Value::new(availability_info))
         })
         .collect::<Vec<_>>();
     let has_async_loaders = !async_loaders.is_empty();
@@ -164,8 +169,15 @@ pub async fn make_chunk_group(
         chunks.extend(async_loader_chunks.iter().copied());
     }
 
+    // Convert chunks to ResolvedVc
+    let resolved_chunks = chunks
+        .into_iter()
+        .map(|chunk| chunk.to_resolved())
+        .try_join()
+        .await?;
+
     Ok(MakeChunkGroupResult {
-        chunks,
+        chunks: resolved_chunks,
         availability_info,
     })
 }

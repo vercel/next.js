@@ -373,7 +373,7 @@ impl ChunkingContext for BrowserChunkingContext {
 
             let mut assets: Vec<Vc<Box<dyn OutputAsset>>> = chunks
                 .iter()
-                .map(|chunk| self.generate_chunk(*chunk))
+                .map(|chunk| self.generate_chunk(**chunk))
                 .collect();
 
             if this.enable_hot_module_replacement {
@@ -442,7 +442,7 @@ impl ChunkingContext for BrowserChunkingContext {
 
             let mut assets: Vec<Vc<Box<dyn OutputAsset>>> = chunks
                 .iter()
-                .map(|chunk| self.generate_chunk(*chunk))
+                .map(|chunk| self.generate_chunk(**chunk))
                 .collect();
 
             let other_assets = Vc::cell(assets.clone());

@@ -71,7 +71,8 @@ pub async fn get_client_runtime_entries(
                 request.to_resolved().await?,
                 project_path.join("_".into()).to_resolved().await?,
             )
-            .cell(),
+            .resolved_cell()
+            .into(),
         )
     };
 
@@ -81,7 +82,8 @@ pub async fn get_client_runtime_entries(
                 .to_resolved()
                 .await?,
         ))
-        .cell(),
+        .resolved_cell()
+        .into(),
     );
 
     Ok(Vc::cell(runtime_entries))

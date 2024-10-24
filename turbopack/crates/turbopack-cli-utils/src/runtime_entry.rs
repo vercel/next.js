@@ -62,7 +62,7 @@ impl RuntimeEntry {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct RuntimeEntries(Vec<Vc<RuntimeEntry>>);
+pub struct RuntimeEntries(Vec<ResolvedVc<RuntimeEntry>>);
 
 #[turbo_tasks::value_impl]
 impl RuntimeEntries {

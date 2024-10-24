@@ -190,7 +190,7 @@ type AsyncInfo = FxIndexMap<Vc<Box<dyn ChunkItem>>, Vec<Vc<Box<dyn ChunkItem>>>>
 
 pub struct ChunkContentResult {
     pub chunk_items: FxIndexSet<Vc<Box<dyn ChunkItem>>>,
-    pub async_modules: FxIndexSet<Vc<Box<dyn ChunkableModule>>>,
+    pub async_modules: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
     pub external_module_references: FxIndexSet<Vc<Box<dyn ModuleReference>>>,
     /// A map from local module to all children from which the async module
     /// status is inherited
@@ -245,7 +245,7 @@ enum ChunkContentGraphNode {
     /// will be inherited.
     InheritAsyncInfo {
         item: Vc<Box<dyn ChunkItem>>,
-        references: Vec<(Vc<Box<dyn ChunkItem>>, InheritAsyncEdge)>,
+        references: Vec<(ResolvedVc<Box<dyn ChunkItem>>, InheritAsyncEdge)>,
     },
 }
 
@@ -413,7 +413,10 @@ async fn graph_node_to_referenced_nodes(
                                         ident: module.ident().to_string().await?,
                                     },
                                 }),
-                                Some((chunk_item, InheritAsyncEdge::LocalModule)),
+                                Some((
+                                    chunk_item.to_resolved().await?,
+                                    InheritAsyncEdge::LocalModule,
+                                )),
                             ))
                         }
                         ChunkingType::Passthrough => {
@@ -590,9 +593,9 @@ async fn chunk_content_internal_parallel(
             Ok(Some(ChunkGraphEdge {
                 key: Some(entry.to_resolved().await?),
                 node: ChunkContentGraphNode::ChunkItem {
-                    item: chunkable_module
+                    item: *chunkable_module
                         .as_chunk_item(chunking_context)
-                        .resolve()
+                        .to_resolved()
                         .await?,
                     ident: chunkable_module.ident().to_string().await?,
                 },
@@ -626,10 +629,10 @@ async fn chunk_content_internal_parallel(
         match graph_node {
             ChunkContentGraphNode::PassthroughChunkItem { .. } => {}
             ChunkContentGraphNode::ChunkItem { item, .. } => {
-                chunk_items.insert(item);
+                chunk_items.insert(*item.to_resolved().await?);
             }
             ChunkContentGraphNode::AsyncModule { module } => {
-                let module = module.resolve().await?;
+                let module = module.to_resolved().await?;
                 async_modules.insert(module);
             }
             ChunkContentGraphNode::ExternalModuleReference(reference) => {
@@ -640,12 +643,12 @@ async fn chunk_content_internal_parallel(
                 for &(reference, ty) in &references {
                     match ty {
                         InheritAsyncEdge::LocalModule => local_back_edges_inherit_async
-                            .entry(reference)
+                            .entry(*reference)
                             .or_insert_with(Vec::new)
                             .push(item),
                         InheritAsyncEdge::AvailableAsyncModule => {
                             available_async_modules_back_edges_inherit_async
-                                .entry(reference)
+                                .entry(*reference)
                                 .or_insert_with(Vec::new)
                                 .push(item)
                         }
@@ -654,7 +657,7 @@ async fn chunk_content_internal_parallel(
                 forward_edges_inherit_async
                     .entry(item)
                     .or_insert_with(Vec::new)
-                    .extend(references.into_iter().map(|(r, _)| r));
+                    .extend(references.into_iter().map(|(r, _)| *r));
             }
         }
     }
@@ -733,17 +736,24 @@ pub struct ChunkItems(pub Vec<Vc<Box<dyn ChunkItem>>>);
 
 #[turbo_tasks::value]
 pub struct AsyncModuleInfo {
-    pub referenced_async_modules: AutoSet<Vc<Box<dyn ChunkItem>>>,
+    pub referenced_async_modules: AutoSet<ResolvedVc<Box<dyn ChunkItem>>>,
 }
 
 #[turbo_tasks::value_impl]
 impl AsyncModuleInfo {
     #[turbo_tasks::function]
-    pub fn new(referenced_async_modules: Vec<Vc<Box<dyn ChunkItem>>>) -> Vc<Self> {
-        Self {
-            referenced_async_modules: referenced_async_modules.into_iter().collect(),
+    pub async fn new(referenced_async_modules: Vec<Vc<Box<dyn ChunkItem>>>) -> Result<Vc<Self>> {
+        let resolved_modules = futures::future::try_join_all(
+            referenced_async_modules
+                .into_iter()
+                .map(|m| m.to_resolved()),
+        )
+        .await?;
+
+        Ok(Self {
+            referenced_async_modules: resolved_modules.into_iter().collect(),
         }
-        .cell()
+        .cell())
     }
 }
 

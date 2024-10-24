@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{RcStr, ValueToString, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, ValueToString, Vc};
 
 use super::{
     utils::{children_from_output_assets, content_to_details},
@@ -8,15 +8,20 @@ use super::{
 use crate::{asset::Asset, output::OutputAsset};
 
 #[turbo_tasks::value]
-pub struct IntrospectableOutputAsset(Vc<Box<dyn OutputAsset>>);
+pub struct IntrospectableOutputAsset(ResolvedVc<Box<dyn OutputAsset>>);
 
 #[turbo_tasks::value_impl]
 impl IntrospectableOutputAsset {
     #[turbo_tasks::function]
     pub async fn new(asset: Vc<Box<dyn OutputAsset>>) -> Result<Vc<Box<dyn Introspectable>>> {
-        Ok(Vc::try_resolve_sidecast::<Box<dyn Introspectable>>(asset)
-            .await?
-            .unwrap_or_else(|| Vc::upcast(IntrospectableOutputAsset(asset).cell())))
+        let resolved_asset = asset.to_resolved().await?;
+        Ok(
+            *ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(resolved_asset)
+                .await?
+                .unwrap_or_else(|| {
+                    ResolvedVc::upcast(IntrospectableOutputAsset(resolved_asset).resolved_cell())
+                }),
+        )
     }
 }
 

@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use anyhow::Result;
-use turbo_tasks::{FxIndexMap, RcStr, Vc};
+use turbo_tasks::{FxIndexMap, RcStr, ResolvedVc, Vc};
 
 use crate::{module::Module, resolve::ModulePart};
 
@@ -42,7 +42,7 @@ pub enum ImportWithType {
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Debug, Default, Clone, Hash)]
 pub enum EcmaScriptModulesReferenceSubType {
-    ImportPart(Vc<ModulePart>),
+    ImportPart(ResolvedVc<ModulePart>),
     Import,
     ImportWithType(ImportWithType),
     DynamicImport,

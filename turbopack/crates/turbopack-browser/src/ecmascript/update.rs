@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{FxIndexMap, ReadRef, Vc};
+use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, Vc};
 use turbopack_core::{chunk::ModuleId, code_builder::Code};
 
 use super::{content::EcmascriptDevChunkContent, version::EcmascriptDevChunkVersion};
@@ -11,9 +11,9 @@ pub(super) enum EcmascriptChunkUpdate {
 }
 
 pub(super) struct EcmascriptChunkPartialUpdate {
-    pub added: FxIndexMap<ReadRef<ModuleId>, (u64, Vc<Code>)>,
+    pub added: FxIndexMap<ReadRef<ModuleId>, (u64, ResolvedVc<Code>)>,
     pub deleted: FxIndexMap<ReadRef<ModuleId>, u64>,
-    pub modified: FxIndexMap<ReadRef<ModuleId>, Vc<Code>>,
+    pub modified: FxIndexMap<ReadRef<ModuleId>, ResolvedVc<Code>>,
 }
 
 pub(super) async fn update_ecmascript_chunk(
@@ -40,7 +40,8 @@ pub(super) async fn update_ecmascript_chunk(
     for (id, from_hash) in &from.entries_hashes {
         if let Some(entry) = entries.get(id) {
             if *entry.hash.await? != *from_hash {
-                modified.insert(id.clone(), entry.code);
+                let resolved_code = entry.code.to_resolved().await?;
+                modified.insert(id.clone(), resolved_code);
             }
         } else {
             deleted.insert(id.clone(), *from_hash);
@@ -50,7 +51,10 @@ pub(super) async fn update_ecmascript_chunk(
     // Remaining entries are added
     for (id, entry) in entries.iter() {
         if !from.entries_hashes.contains_key(id) {
-            added.insert(id.clone(), (*entry.hash.await?, entry.code));
+            added.insert(
+                id.clone(),
+                (*entry.hash.await?, entry.code.to_resolved().await?),
+            );
         }
     }
 
