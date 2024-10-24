@@ -11,8 +11,15 @@ The `turbo` option lets you customize [Turbopack](/docs/architecture/turbopack) 
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
+<<<<<<< HEAD
   turbo: {
     // ...
+=======
+  experimental: {
+    turbo: {
+      // ...
+    },
+>>>>>>> canary
   },
 }
 
@@ -22,8 +29,15 @@ export default nextConfig
 ```js filename="next.config.js" switcher
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+<<<<<<< HEAD
   turbo: {
     // ...
+=======
+  experimental: {
+    turbo: {
+      // ...
+    },
+>>>>>>> canary
   },
 }
 
@@ -35,6 +49,8 @@ module.exports = nextConfig
 > - Turbopack for Next.js does not require loaders nor loader configuration for built-in functionality. Turbopack has built-in support for CSS and compiling modern JavaScript, so there's no need for `css-loader`, `postcss-loader`, or `babel-loader` if you're using `@babel/preset-env`.
 
 ## Reference
+<<<<<<< HEAD
+=======
 
 ### Options
 
@@ -52,6 +68,63 @@ The following options are available for the `turbo` configuration:
 
 ### Supported loaders
 
+The following loaders have been tested to work with Turbopack's webpack loader implementation:
+
+- [`babel-loader`](https://www.npmjs.com/package/babel-loader)
+- [`@svgr/webpack`](https://www.npmjs.com/package/@svgr/webpack)
+- [`svg-inline-loader`](https://www.npmjs.com/package/svg-inline-loader)
+- [`yaml-loader`](https://www.npmjs.com/package/yaml-loader)
+- [`string-replace-loader`](https://www.npmjs.com/package/string-replace-loader)
+- [`raw-loader`](https://www.npmjs.com/package/raw-loader)
+- [`sass-loader`](https://www.npmjs.com/package/sass-loader)
+
+## Examples
+
+### Configuring webpack loaders
+>>>>>>> canary
+
+### Options
+
+<<<<<<< HEAD
+The following options are available for the `turbo` configuration:
+
+| Option              | Description                                                               |
+| ------------------- | ------------------------------------------------------------------------- |
+| `rules`             | List of unsupported webpack loaders to apply when running with Turbopack. |
+| `resolveAlias`      | Map aliased imports to modules to load in their place.                    |
+| `resolveExtensions` | List of extensions to resolve when importing files.                       |
+| `moduleIdStrategy`  | Assign module IDs                                                         |
+| `useSwcCss`         | Use `swc_css` instead of `lightningcss` for Turbopack                     |
+| `treeshaking`       | Enable tree shaking for the turbopack dev server and build.               |
+| `memoryLimit`       | A target memory limit for turbo, in bytes.                                |
+=======
+- Only a core subset of the webpack loader API is implemented. Currently, there is enough coverage for some popular loaders, and we'll expand our API support in the future.
+- Only loaders that return JavaScript code are supported. Loaders that transform files like stylesheets or images are not currently supported.
+- Options passed to webpack loaders must be plain JavaScript primitives, objects, and arrays. For example, it's not possible to pass `require()` plugin modules as option values.
+
+To configure loaders, add the names of the loaders you've installed and any options in `next.config.js`, mapping file extensions to a list of loaders:
+
+```js filename="next.config.js"
+module.exports = {
+  experimental: {
+    turbo: {
+      rules: {
+        '*.svg': {
+          loaders: ['@svgr/webpack'],
+          as: '*.js',
+        },
+      },
+    },
+  },
+}
+```
+
+> **Good to know**: Prior to Next.js version 13.4.4, `turbo.rules` was named `turbo.loaders` and only accepted file extensions like `.mdx` instead of `*.mdx`.
+>>>>>>> canary
+
+### Resolving aliases
+
+<<<<<<< HEAD
 The following loaders have been tested to work with Turbopack's webpack loader implementation:
 
 - [`babel-loader`](https://www.npmjs.com/package/babel-loader)
@@ -91,6 +164,8 @@ module.exports = {
 
 ### Resolving aliases
 
+=======
+>>>>>>> canary
 Turbopack can be configured to modify module resolution through aliases, similar to webpack's [`resolve.alias`](https://webpack.js.org/configuration/resolve/#resolvealias) configuration.
 
 To configure resolve aliases, map imported patterns to their new destination in `next.config.js`:
@@ -108,7 +183,7 @@ module.exports = {
 
 This aliases imports of the `underscore` package to the `lodash` package. In other words, `import underscore from 'underscore'` will load the `lodash` module instead of `underscore`.
 
-Turbopack also supports conditional aliasing through this field, similar to Node.js's [conditional exports](https://nodejs.org/docs/latest-v18.x/api/packages.html#conditional-exports). At the moment only the `browser` condition is supported. In the case above, imports of the `mocha` module will be aliased to `mocha/browser-entry.js` when Turbopack targets browser environments.
+Turbopack also supports conditional aliasing through this field, similar to Node.js' [conditional exports](https://nodejs.org/docs/latest-v18.x/api/packages.html#conditional-exports). At the moment only the `browser` condition is supported. In the case above, imports of the `mocha` module will be aliased to `mocha/browser-entry.js` when Turbopack targets browser environments.
 
 ### Resolving custom extensions
 
@@ -149,7 +224,13 @@ module.exports = {
 
 ## Version History
 
+<<<<<<< HEAD
 | Version     | Changes                                           |
 | ----------- | ------------------------------------------------- |
 | `15.0.0-RC` | `turbo` is now stable and no longer experimental. |
 | `13.0.0`    | `experimental.turbo` introduced.                  |
+=======
+| Version  | Changes                          |
+| -------- | -------------------------------- |
+| `13.0.0` | `experimental.turbo` introduced. |
+>>>>>>> canary

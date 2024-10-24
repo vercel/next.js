@@ -5,7 +5,6 @@ use std::{
 };
 
 use anyhow::Result;
-use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use swc_core::{
     common::DUMMY_SP,
@@ -15,7 +14,7 @@ use swc_core::{
     },
     quote, quote_expr,
 };
-use turbo_tasks::{trace::TraceRawVcs, RcStr, TryFlatJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{trace::TraceRawVcs, FxIndexMap, RcStr, TryFlatJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
     chunk::ChunkingContext,
@@ -219,12 +218,12 @@ async fn handle_declared_export(
                     .await?
                 {
                     return Ok(ControlFlow::Break(FollowExportsResult {
-                        module,
+                        module: *module,
                         export_name: Some(name.clone()),
                         ty: FoundExportType::SideEffects,
                     }));
                 }
-                return Ok(ControlFlow::Continue((module, name.clone())));
+                return Ok(ControlFlow::Continue((*module, name.clone())));
             }
         }
         EsmExport::ImportedNamespace(reference) => {
@@ -232,7 +231,7 @@ async fn handle_declared_export(
                 *ReferencedAsset::from_resolve_result(reference.resolve_reference()).await?
             {
                 return Ok(ControlFlow::Break(FollowExportsResult {
-                    module: m,
+                    module: *m,
                     export_name: None,
                     ty: FoundExportType::Found,
                 }));
@@ -262,7 +261,7 @@ async fn handle_declared_export(
 
 #[turbo_tasks::value]
 struct AllExportNamesResult {
-    esm_exports: IndexMap<RcStr, Vc<Box<dyn EcmascriptChunkPlaceable>>>,
+    esm_exports: FxIndexMap<RcStr, Vc<Box<dyn EcmascriptChunkPlaceable>>>,
     dynamic_exporting_modules: Vec<Vc<Box<dyn EcmascriptChunkPlaceable>>>,
 }
 
@@ -273,14 +272,14 @@ async fn get_all_export_names(
     let exports = module.get_exports().await?;
     let EcmascriptExports::EsmExports(exports) = &*exports else {
         return Ok(AllExportNamesResult {
-            esm_exports: IndexMap::new(),
+            esm_exports: FxIndexMap::default(),
             dynamic_exporting_modules: vec![module],
         }
         .cell());
     };
 
     let exports = exports.await?;
-    let mut esm_exports = IndexMap::new();
+    let mut esm_exports = FxIndexMap::default();
     let mut dynamic_exporting_modules = Vec::new();
     esm_exports.extend(exports.exports.keys().cloned().map(|n| (n, module)));
     let star_export_names = exports
@@ -291,7 +290,7 @@ async fn get_all_export_names(
                 if let ReferencedAsset::Some(m) =
                     *ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?
                 {
-                    Some(get_all_export_names(m))
+                    Some(get_all_export_names(*m))
                 } else {
                     None
                 },
@@ -342,8 +341,8 @@ pub async fn expand_star_exports(
                     if let ReferencedAsset::Some(asset) =
                         &*ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?
                     {
-                        if checked_modules.insert(*asset) {
-                            queue.push((*asset, asset.get_exports()));
+                        if checked_modules.insert(**asset) {
+                            queue.push((**asset, asset.get_exports()));
                         }
                     }
                 }
@@ -445,7 +444,7 @@ impl EsmExports {
                 continue;
             };
 
-            let export_info = expand_star_exports(*asset).await?;
+            let export_info = expand_star_exports(**asset).await?;
 
             for export in &export_info.star_exports {
                 if !exports.contains_key(export) {
@@ -457,7 +456,7 @@ impl EsmExports {
             }
 
             if export_info.has_dynamic_exports {
-                dynamic_exports.push(*asset);
+                dynamic_exports.push(**asset);
             }
         }
 

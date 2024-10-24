@@ -2,7 +2,6 @@ use std::collections::{HashMap, HashSet};
 
 use anyhow::{bail, Result};
 use futures::Future;
-use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use swc_core::ecma::{
     ast::{CallExpr, Callee, Expr, Ident, Lit},
@@ -12,7 +11,7 @@ use tracing::{Instrument, Level};
 use turbo_tasks::{
     graph::{GraphTraversal, NonDeterministic, VisitControlFlow, VisitedNodes},
     trace::TraceRawVcs,
-    RcStr, ReadRef, TryJoinIterExt, Value, ValueToString, Vc,
+    FxIndexMap, RcStr, ReadRef, ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc,
 };
 use turbopack_core::{
     chunk::{
@@ -20,7 +19,6 @@ use turbopack_core::{
         EvaluatableAsset,
     },
     context::AssetContext,
-    issue::IssueSeverity,
     module::Module,
     output::OutputAssets,
     reference::primary_referenced_modules,
@@ -30,7 +28,7 @@ use turbopack_core::{
 use turbopack_ecmascript::{parse::ParseResult, resolve::esm_resolve, EcmascriptParsable};
 
 async fn collect_chunk_group_inner<F, Fu>(
-    dynamic_import_entries: IndexMap<Vc<Box<dyn Module>>, DynamicImportedModules>,
+    dynamic_import_entries: FxIndexMap<Vc<Box<dyn Module>>, DynamicImportedModules>,
     mut build_chunk: F,
 ) -> Result<Vc<DynamicImportedChunks>>
 where
@@ -38,7 +36,7 @@ where
     Fu: Future<Output = Result<Vc<OutputAssets>>> + Send,
 {
     let mut chunks_hash: HashMap<RcStr, Vc<OutputAssets>> = HashMap::new();
-    let mut dynamic_import_chunks = IndexMap::new();
+    let mut dynamic_import_chunks = FxIndexMap::default();
 
     // Iterate over the collected import mappings, and create a chunk for each
     // dynamic import.
@@ -76,7 +74,7 @@ where
 
 pub(crate) async fn collect_chunk_group(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-    dynamic_import_entries: IndexMap<Vc<Box<dyn Module>>, DynamicImportedModules>,
+    dynamic_import_entries: FxIndexMap<Vc<Box<dyn Module>>, DynamicImportedModules>,
     availability_info: Value<AvailabilityInfo>,
 ) -> Result<Vc<DynamicImportedChunks>> {
     collect_chunk_group_inner(dynamic_import_entries, |module| async move {
@@ -87,7 +85,7 @@ pub(crate) async fn collect_chunk_group(
 
 pub(crate) async fn collect_evaluated_chunk_group(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-    dynamic_import_entries: IndexMap<Vc<Box<dyn Module>>, DynamicImportedModules>,
+    dynamic_import_entries: FxIndexMap<Vc<Box<dyn Module>>, DynamicImportedModules>,
 ) -> Result<Vc<DynamicImportedChunks>> {
     collect_chunk_group_inner(dynamic_import_entries, |module| async move {
         if let Some(module) = Vc::try_resolve_downcast::<Box<dyn EvaluatableAsset>>(module).await? {
@@ -105,7 +103,7 @@ pub(crate) async fn collect_evaluated_chunk_group(
 
 #[turbo_tasks::value(shared)]
 pub struct NextDynamicImportsResult {
-    pub client_dynamic_imports: IndexMap<Vc<Box<dyn Module>>, DynamicImportedModules>,
+    pub client_dynamic_imports: FxIndexMap<Vc<Box<dyn Module>>, DynamicImportedModules>,
     pub visited_modules: Vc<VisitedDynamicImportModules>,
 }
 
@@ -164,7 +162,7 @@ pub(crate) async fn collect_next_dynamic_imports(
                     .iter()
                     .map(|module| async move {
                         Ok(NextDynamicVisitEntry::Module(
-                            module.resolve().await?,
+                            module.to_resolved().await?,
                             module.ident().to_string().await?,
                         ))
                     })
@@ -188,8 +186,8 @@ pub(crate) async fn collect_next_dynamic_imports(
         });
 
         // Consolidate import mappings into a single indexmap
-        let mut import_mappings: IndexMap<Vc<Box<dyn Module>>, DynamicImportedModules> =
-            IndexMap::new();
+        let mut import_mappings: FxIndexMap<Vc<Box<dyn Module>>, DynamicImportedModules> =
+            FxIndexMap::default();
 
         for module_mapping in imported_modules_mapping {
             let (origin_module, dynamic_imports) = &*module_mapping.await?;
@@ -211,8 +209,8 @@ pub(crate) async fn collect_next_dynamic_imports(
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, TraceRawVcs, Serialize, Deserialize)]
 enum NextDynamicVisitEntry {
-    Module(Vc<Box<dyn Module>>, ReadRef<RcStr>),
-    DynamicImportsMap(Vc<DynamicImportsMap>),
+    Module(ResolvedVc<Box<dyn Module>>, ReadRef<RcStr>),
+    DynamicImportsMap(ResolvedVc<DynamicImportsMap>),
 }
 
 #[turbo_tasks::value(transparent)]
@@ -229,7 +227,7 @@ async fn get_next_dynamic_edges(
         .iter()
         .map(|&referenced_module| async move {
             Ok(NextDynamicVisitEntry::Module(
-                referenced_module,
+                referenced_module.to_resolved().await?,
                 referenced_module.ident().to_string().await?,
             ))
         })
@@ -238,7 +236,7 @@ async fn get_next_dynamic_edges(
     if let Some(dynamic_imports_map) = *dynamic_imports_map.await? {
         edges.reserve_exact(1);
         edges.push(NextDynamicVisitEntry::DynamicImportsMap(
-            dynamic_imports_map,
+            dynamic_imports_map.to_resolved().await?,
         ));
     }
     Ok(Vc::cell(edges))
@@ -266,7 +264,7 @@ impl turbo_tasks::graph::Visit<NextDynamicVisitEntry> for NextDynamicVisit {
         };
         let client_asset_context = self.client_asset_context;
         async move {
-            Ok(get_next_dynamic_edges(client_asset_context, module)
+            Ok(get_next_dynamic_edges(client_asset_context, *module)
                 .await?
                 .into_iter()
                 .cloned())
@@ -318,7 +316,7 @@ async fn build_dynamic_imports_map_for_module(
             )),
             Request::parse(Value::new(Pattern::Constant(import.clone()))),
             Value::new(EcmaScriptModulesReferenceSubType::DynamicImport),
-            IssueSeverity::Error.cell(),
+            false,
             None,
         )
         .first_module()
@@ -424,4 +422,4 @@ pub struct DynamicImportsMap(pub (Vc<Box<dyn Module>>, DynamicImportedModules));
 pub struct OptionDynamicImportsMap(Option<Vc<DynamicImportsMap>>);
 
 #[turbo_tasks::value(transparent)]
-pub struct DynamicImportedChunks(pub IndexMap<Vc<Box<dyn Module>>, DynamicImportedOutputAssets>);
+pub struct DynamicImportedChunks(pub FxIndexMap<Vc<Box<dyn Module>>, DynamicImportedOutputAssets>);

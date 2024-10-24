@@ -1,10 +1,9 @@
 use std::collections::HashSet;
 
 use anyhow::{bail, Context, Result};
-use indexmap::IndexMap;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value as JsonValue;
-use turbo_tasks::{trace::TraceRawVcs, RcStr, TaskInput, Vc};
+use turbo_tasks::{trace::TraceRawVcs, FxIndexMap, RcStr, ResolvedVc, TaskInput, Vc};
 use turbo_tasks_env::EnvMap;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{
@@ -37,7 +36,7 @@ struct CustomRoutes {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct ModularizeImports(IndexMap<String, ModularizeImportPackageConfig>);
+pub struct ModularizeImports(FxIndexMap<String, ModularizeImportPackageConfig>);
 
 #[turbo_tasks::value(serialization = "custom", eq = "manual")]
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
@@ -53,14 +52,14 @@ pub struct NextConfig {
     /// custom path to a cache handler to use
     pub cache_handler: Option<RcStr>,
 
-    pub env: IndexMap<String, JsonValue>,
+    pub env: FxIndexMap<String, JsonValue>,
     pub experimental: ExperimentalConfig,
     pub images: ImageConfig,
     pub page_extensions: Vec<RcStr>,
     pub react_production_profiling: Option<bool>,
     pub react_strict_mode: Option<bool>,
     pub transpile_packages: Option<Vec<RcStr>>,
-    pub modularize_imports: Option<IndexMap<String, ModularizeImportPackageConfig>>,
+    pub modularize_imports: Option<FxIndexMap<String, ModularizeImportPackageConfig>>,
     pub dist_dir: Option<RcStr>,
     sass_options: Option<serde_json::Value>,
     pub trailing_slash: Option<bool>,
@@ -108,8 +107,8 @@ pub struct NextConfig {
     on_demand_entries: OnDemandEntriesConfig,
     powered_by_header: bool,
     production_browser_source_maps: bool,
-    public_runtime_config: IndexMap<String, serde_json::Value>,
-    server_runtime_config: IndexMap<String, serde_json::Value>,
+    public_runtime_config: FxIndexMap<String, serde_json::Value>,
+    server_runtime_config: FxIndexMap<String, serde_json::Value>,
     static_page_generation_timeout: f64,
     target: Option<String>,
     typescript: TypeScriptConfig,
@@ -398,8 +397,8 @@ pub enum RemotePatternProtocal {
 pub struct ExperimentalTurboConfig {
     /// This option has been replaced by `rules`.
     pub loaders: Option<JsonValue>,
-    pub rules: Option<IndexMap<RcStr, RuleConfigItemOrShortcut>>,
-    pub resolve_alias: Option<IndexMap<RcStr, JsonValue>>,
+    pub rules: Option<FxIndexMap<RcStr, RuleConfigItemOrShortcut>>,
+    pub resolve_alias: Option<FxIndexMap<RcStr, JsonValue>>,
     pub resolve_extensions: Option<Vec<RcStr>>,
     pub use_swc_css: Option<bool>,
     pub tree_shaking: Option<bool>,
@@ -425,7 +424,7 @@ pub enum RuleConfigItemOrShortcut {
 #[serde(rename_all = "camelCase", untagged)]
 pub enum RuleConfigItem {
     Options(RuleConfigItemOptions),
-    Conditional(IndexMap<RcStr, RuleConfigItem>),
+    Conditional(FxIndexMap<RcStr, RuleConfigItem>),
     Boolean(bool),
 }
 
@@ -482,7 +481,7 @@ pub enum ReactCompilerOptionsOrBoolean {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct OptionalReactCompilerOptions(Option<Vc<ReactCompilerOptions>>);
+pub struct OptionalReactCompilerOptions(Option<ResolvedVc<ReactCompilerOptions>>);
 
 #[turbo_tasks::value(eq = "manual")]
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -528,6 +527,7 @@ pub struct ExperimentalConfig {
     after: Option<bool>,
     amp: Option<serde_json::Value>,
     app_document_preloading: Option<bool>,
+    cache_life: Option<FxIndexMap<String, CacheLifeProfile>>,
     case_sensitive_routes: Option<bool>,
     cpus: Option<f64>,
     cra_compat: Option<bool>,
@@ -561,6 +561,7 @@ pub struct ExperimentalConfig {
     /// directory.
     ppr: Option<ExperimentalPartialPrerendering>,
     taint: Option<bool>,
+    react_owner_stack: Option<bool>,
     #[serde(rename = "dynamicIO")]
     dynamic_io: Option<bool>,
     proxy_timeout: Option<f64>,
@@ -580,6 +581,61 @@ pub struct ExperimentalConfig {
     /// (doesn't apply to Turbopack).
     webpack_build_worker: Option<bool>,
     worker_threads: Option<bool>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[serde(rename_all = "camelCase")]
+pub struct CacheLifeProfile {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stale: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub revalidate: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expire: Option<u32>,
+}
+
+#[test]
+fn test_cache_life_profiles() {
+    let json = serde_json::json!({
+        "cacheLife": {
+            "frequent": {
+                "stale": 19,
+                "revalidate": 100,
+            },
+        }
+    });
+
+    let config: ExperimentalConfig = serde_json::from_value(json).unwrap();
+    let mut expected_cache_life = FxIndexMap::default();
+
+    expected_cache_life.insert(
+        "frequent".to_string(),
+        CacheLifeProfile {
+            stale: Some(19),
+            revalidate: Some(100),
+            expire: None,
+        },
+    );
+
+    assert_eq!(config.cache_life, Some(expected_cache_life));
+}
+
+#[test]
+fn test_cache_life_profiles_invalid() {
+    let json = serde_json::json!({
+        "cacheLife": {
+            "invalid": {
+                "stale": "invalid_value",
+            },
+        }
+    });
+
+    let result: Result<ExperimentalConfig, _> = serde_json::from_value(json);
+
+    assert!(
+        result.is_err(),
+        "Deserialization should fail due to invalid 'stale' value type"
+    );
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
@@ -864,7 +920,7 @@ impl NextConfig {
             return Vc::cell(None);
         }
         let active_conditions = active_conditions.into_iter().collect::<HashSet<_>>();
-        let mut rules = IndexMap::new();
+        let mut rules = FxIndexMap::default();
         for (ext, rule) in turbo_rules.iter() {
             fn transform_loaders(loaders: &[LoaderItem]) -> Vc<WebpackLoaderItems> {
                 Vc::cell(
@@ -1025,11 +1081,11 @@ impl NextConfig {
                         compilation_mode: None,
                         panic_threshold: None,
                     }
-                    .cell(),
+                    .resolved_cell(),
                 ))
             }
             Some(ReactCompilerOptionsOrBoolean::Option(options)) => OptionalReactCompilerOptions(
-                Some(ReactCompilerOptions { ..options.clone() }.cell()),
+                Some(ReactCompilerOptions { ..options.clone() }.resolved_cell()),
             ),
             _ => OptionalReactCompilerOptions(None),
         };
@@ -1094,6 +1150,13 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
+    pub async fn enable_react_owner_stack(self: Vc<Self>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(
+            self.await?.experimental.react_owner_stack.unwrap_or(false),
+        ))
+    }
+
+    #[turbo_tasks::function]
     pub fn use_swc_css(&self) -> Vc<bool> {
         Vc::cell(
             self.experimental
@@ -1140,15 +1203,25 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn tree_shaking_mode_for_user_code(
-        self: Vc<Self>,
-        is_development: bool,
-    ) -> Vc<OptionTreeShaking> {
-        Vc::cell(Some(if is_development {
-            TreeShakingMode::ReexportsOnly
-        } else {
-            TreeShakingMode::ModuleFragments
-        }))
+    pub fn tree_shaking_mode_for_user_code(&self, is_development: bool) -> Vc<OptionTreeShaking> {
+        let tree_shaking = self
+            .experimental
+            .turbo
+            .as_ref()
+            .and_then(|v| v.tree_shaking);
+
+        OptionTreeShaking(match tree_shaking {
+            Some(false) => Some(TreeShakingMode::ReexportsOnly),
+            Some(true) => Some(TreeShakingMode::ModuleFragments),
+            None => {
+                if is_development {
+                    Some(TreeShakingMode::ReexportsOnly)
+                } else {
+                    Some(TreeShakingMode::ModuleFragments)
+                }
+            }
+        })
+        .cell()
     }
 
     #[turbo_tasks::function]

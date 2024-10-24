@@ -26,7 +26,6 @@ use std::{
 use anyhow::{bail, Result};
 use constant_condition::{ConstantCondition, ConstantConditionValue};
 use constant_value::ConstantValue;
-use indexmap::IndexSet;
 use lazy_static::lazy_static;
 use num_traits::Zero;
 use once_cell::sync::Lazy;
@@ -51,7 +50,9 @@ use swc_core::{
     },
 };
 use tracing::Instrument;
-use turbo_tasks::{RcStr, TryJoinIterExt, Upcast, Value, ValueToString, Vc};
+use turbo_tasks::{
+    FxIndexSet, RcStr, ResolvedVc, TryJoinIterExt, Upcast, Value, ValueToString, Vc,
+};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     compile_time_info::{
@@ -161,25 +162,25 @@ pub struct AnalyzeEcmascriptModuleResult {
 /// A temporary analysis result builder to pass around, to be turned into an
 /// `Vc<AnalyzeEcmascriptModuleResult>` eventually.
 pub struct AnalyzeEcmascriptModuleResultBuilder {
-    references: IndexSet<Vc<Box<dyn ModuleReference>>>,
-    local_references: IndexSet<Vc<Box<dyn ModuleReference>>>,
-    reexport_references: IndexSet<Vc<Box<dyn ModuleReference>>>,
-    evaluation_references: IndexSet<Vc<Box<dyn ModuleReference>>>,
+    references: FxIndexSet<Vc<Box<dyn ModuleReference>>>,
+    local_references: FxIndexSet<Vc<Box<dyn ModuleReference>>>,
+    reexport_references: FxIndexSet<Vc<Box<dyn ModuleReference>>>,
+    evaluation_references: FxIndexSet<Vc<Box<dyn ModuleReference>>>,
     code_gens: Vec<CodeGen>,
     exports: EcmascriptExports,
     async_module: Vc<OptionAsyncModule>,
     successful: bool,
-    source_map: Option<Vc<OptionSourceMap>>,
+    source_map: Option<ResolvedVc<OptionSourceMap>>,
     bindings: Vec<EsmBinding>,
 }
 
 impl AnalyzeEcmascriptModuleResultBuilder {
     pub fn new() -> Self {
         Self {
-            references: IndexSet::new(),
-            local_references: IndexSet::new(),
-            reexport_references: IndexSet::new(),
-            evaluation_references: IndexSet::new(),
+            references: FxIndexSet::default(),
+            local_references: FxIndexSet::default(),
+            reexport_references: FxIndexSet::default(),
+            evaluation_references: FxIndexSet::default(),
             code_gens: Vec::new(),
             exports: EcmascriptExports::None,
             async_module: Vc::cell(None),
@@ -254,7 +255,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     }
 
     /// Sets the analysis result ES export.
-    pub fn set_source_map(&mut self, source_map: Vc<OptionSourceMap>) {
+    pub fn set_source_map(&mut self, source_map: ResolvedVc<OptionSourceMap>) {
         self.source_map = Some(source_map);
     }
 
@@ -325,7 +326,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
         let source_map = if let Some(source_map) = self.source_map {
             source_map
         } else {
-            OptionSourceMap::none()
+            OptionSourceMap::none().to_resolved().await?
         };
         Ok(AnalyzeEcmascriptModuleResult::cell(
             AnalyzeEcmascriptModuleResult {
@@ -337,7 +338,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                 exports: self.exports.into(),
                 async_module: self.async_module,
                 successful: self.successful,
-                source_map,
+                source_map: *source_map,
             },
         ))
     }
@@ -447,7 +448,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
 
     let parsed = if let Some(part) = part {
         let parsed = parse(source, ty, transforms);
-        let split_data = split(source.ident(), source, parsed, options.special_exports);
+        let split_data = split(source.ident(), source, parsed);
         part_of_module(split_data, part)
     } else {
         module.failsafe_parse()
@@ -459,7 +460,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     } = *module.determine_module_type().await?;
 
     if let Some(package_json) = referenced_package_json {
-        analysis.add_reference(PackageJsonReference::new(package_json));
+        analysis.add_reference(PackageJsonReference::new(*package_json));
     }
 
     if analyze_types {
@@ -547,18 +548,20 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             let reference = SourceMapReference::new(origin_path, source_map_origin);
             analysis.add_reference(reference);
             let source_map = reference.generate_source_map();
-            analysis.set_source_map(convert_to_turbopack_source_map(
-                source_map,
-                source_map_origin,
-            ));
+            analysis.set_source_map(
+                convert_to_turbopack_source_map(source_map, source_map_origin)
+                    .to_resolved()
+                    .await?,
+            );
             source_map_from_comment = true;
         } else if path.starts_with("data:application/json;base64,") {
             let source_map_origin = origin_path;
             let source_map = maybe_decode_data_url(path.into());
-            analysis.set_source_map(convert_to_turbopack_source_map(
-                source_map,
-                source_map_origin,
-            ));
+            analysis.set_source_map(
+                convert_to_turbopack_source_map(source_map, source_map_origin)
+                    .to_resolved()
+                    .await?,
+            );
             source_map_from_comment = true;
         }
     }
@@ -567,10 +570,14 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(source).await?
         {
             let source_map_origin = source.ident().path();
-            analysis.set_source_map(convert_to_turbopack_source_map(
-                generate_source_map.generate_source_map(),
-                source_map_origin,
-            ));
+            analysis.set_source_map(
+                convert_to_turbopack_source_map(
+                    generate_source_map.generate_source_map(),
+                    source_map_origin,
+                )
+                .to_resolved()
+                .await?,
+            );
         }
     }
 
@@ -762,7 +769,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         }
         .cell();
 
-        EcmascriptExports::EsmExports(esm_exports)
+        EcmascriptExports::EsmExports(esm_exports.to_resolved().await?)
     } else if specified_type == SpecifiedModuleType::EcmaScript {
         match detect_dynamic_export(program) {
             DetectedDynamicExportType::CommonJs => {
@@ -778,7 +785,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                         exports: Default::default(),
                         star_exports: Default::default(),
                     }
-                    .cell(),
+                    .resolved_cell(),
                 )
             }
             DetectedDynamicExportType::Namespace => EcmascriptExports::DynamicNamespace,
@@ -789,7 +796,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     exports: Default::default(),
                     star_exports: Default::default(),
                 }
-                .cell(),
+                .resolved_cell(),
             ),
         }
     } else {
@@ -802,7 +809,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     exports: Default::default(),
                     star_exports: Default::default(),
                 }
-                .cell(),
+                .resolved_cell(),
             ),
             DetectedDynamicExportType::None => EcmascriptExports::EmptyCommonJs,
         }
@@ -2192,7 +2199,7 @@ async fn handle_free_var_reference(
                 lookup_path.map_or(state.origin, |lookup_path| {
                     Vc::upcast(PlainResolveOrigin::new(
                         state.origin.asset_context(),
-                        lookup_path,
+                        *lookup_path,
                     ))
                 }),
                 Request::parse(Value::new(request.clone().into())),
@@ -2567,7 +2574,7 @@ async fn require_resolve_visitor(
     Ok(if args.len() == 1 {
         let pat = js_value_to_pattern(&args[0]);
         let request = Request::parse(Value::new(pat.clone()));
-        let resolved = cjs_resolve_source(origin, request, None, IssueSeverity::Warning.cell())
+        let resolved = cjs_resolve_source(origin, request, None, true)
             .resolve()
             .await?;
         let mut values = resolved
@@ -2587,7 +2594,7 @@ async fn require_resolve_visitor(
                     args,
                 ),
                 false,
-                "unresolveable request",
+                "unresolvable request",
             ),
             1 => values.pop().unwrap(),
             _ => JsValue::alternatives(values),
@@ -2634,7 +2641,7 @@ async fn require_context_visitor(
         options.include_subdirs,
         Vc::cell(options.filter),
         None,
-        IssueSeverity::Warning.cell(),
+        true,
     );
 
     Ok(JsValue::WellKnownFunction(

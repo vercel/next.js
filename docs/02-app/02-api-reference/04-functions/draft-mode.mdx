@@ -39,7 +39,11 @@ The following methods and properties are available:
 ## Good to know
 
 - `draftMode` is an **asynchronous** function that returns a promise. You must use `async/await` or React's [`use`](https://react.dev/reference/react/use) function.
+<<<<<<< HEAD
   - In version 14 and earlier, `draftMode` was a synchronous function. To help with backwards compatability, you can still access it synchronoulsy in Next.js 15, but this behavior will be deprecated in the future.
+=======
+  - In version 14 and earlier, `draftMode` was a synchronous function. To help with backwards compatability, you can still access it synchronously in Next.js 15, but this behavior will be deprecated in the future.
+>>>>>>> canary
 - A new bypass cookie value will be generated each time you run `next build`. This ensures that the bypass cookie can’t be guessed.
 - To test Draft Mode locally over HTTP, your browser will need to allow third-party cookies and local storage access.
 
@@ -53,7 +57,12 @@ To enable Draft Mode, create a new [Route Handler](/docs/app/building-your-appli
 import { draftMode } from 'next/headers'
 
 export async function GET(request: Request) {
+<<<<<<< HEAD
   await draftMode().enable()
+=======
+  const draft = await draftMode()
+  draft().enable()
+>>>>>>> canary
   return new Response('Draft mode is enabled')
 }
 ```
@@ -62,7 +71,12 @@ export async function GET(request: Request) {
 import { draftMode } from 'next/headers'
 
 export async function GET(request) {
+<<<<<<< HEAD
   await draftMode().enable()
+=======
+  const draft = await draftMode()
+  draft().enable()
+>>>>>>> canary
   return new Response('Draft mode is enabled')
 }
 ```
@@ -77,7 +91,12 @@ To disable Draft Mode manually, call the `disable()` method in your [Route Handl
 import { draftMode } from 'next/headers'
 
 export async function GET(request: Request) {
+<<<<<<< HEAD
   await draftMode().disable()
+=======
+  const draft = await draftMode()
+  draft().disable()
+>>>>>>> canary
   return new Response('Draft mode is disabled')
 }
 ```
@@ -86,7 +105,12 @@ export async function GET(request: Request) {
 import { draftMode } from 'next/headers'
 
 export async function GET(request) {
+<<<<<<< HEAD
   await draftMode().disable()
+=======
+  const draft = await draftMode()
+  draft().disable()
+>>>>>>> canary
   return new Response('Draft mode is disabled')
 }
 ```
@@ -131,7 +155,10 @@ export default async function Page() {
 | ------------ | --------------------------------------------------------------------------------------------------------------------------- |
 | `v15.0.0-RC` | `draftMode` is now an async function. A [codemod](/docs/app/building-your-application/upgrading/codemods#150) is available. |
 | `v13.4.0`    | `draftMode` introduced.                                                                                                     |
+<<<<<<< HEAD
 
 ```
 
 ```
+=======
+>>>>>>> canary

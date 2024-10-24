@@ -3,25 +3,33 @@ import type { RequestLifecycleOpts } from '../base-server'
 import type { AfterCallback, AfterTask } from './after'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { isThenable } from '../../shared/lib/is-thenable'
-import { workAsyncStorage } from '../../client/components/work-async-storage.external'
+import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { withExecuteRevalidates } from './revalidation-utils'
-import { bindSnapshot } from '../../client/components/async-local-storage'
+import { bindSnapshot } from '../app-render/async-local-storage'
+import {
+  workUnitAsyncStorage,
+  type WorkUnitStore,
+} from '../app-render/work-unit-async-storage.external'
 
 export type AfterContextOpts = {
   waitUntil: RequestLifecycleOpts['waitUntil'] | undefined
   onClose: RequestLifecycleOpts['onClose'] | undefined
+  onTaskError: RequestLifecycleOpts['onAfterTaskError'] | undefined
 }
 
 export class AfterContext {
   private waitUntil: RequestLifecycleOpts['waitUntil'] | undefined
   private onClose: RequestLifecycleOpts['onClose'] | undefined
+  private onTaskError: RequestLifecycleOpts['onAfterTaskError'] | undefined
 
   private runCallbacksOnClosePromise: Promise<void> | undefined
   private callbackQueue: PromiseQueue
+  private workUnitStores = new Set<WorkUnitStore>()
 
-  constructor({ waitUntil, onClose }: AfterContextOpts) {
+  constructor({ waitUntil, onClose, onTaskError }: AfterContextOpts) {
     this.waitUntil = waitUntil
     this.onClose = onClose
+    this.onTaskError = onTaskError
 
     this.callbackQueue = new PromiseQueue()
     this.callbackQueue.pause()
@@ -29,11 +37,10 @@ export class AfterContext {
 
   public after(task: AfterTask): void {
     if (isThenable(task)) {
-      task.catch(() => {}) // avoid unhandled rejection crashes
       if (!this.waitUntil) {
         errorWaitUntilNotAvailable()
       }
-      this.waitUntil(task)
+      this.waitUntil(task.catch((error) => this.reportTaskError(error)))
     } else if (typeof task === 'function') {
       // TODO(after): implement tracing
       this.addCallback(task)
@@ -55,6 +62,14 @@ export class AfterContext {
       )
     }
 
+    const workUnitStore = workUnitAsyncStorage.getStore()
+    if (!workUnitStore) {
+      throw new InvariantError(
+        'Missing workUnitStore in AfterContext.addCallback'
+      )
+    }
+    this.workUnitStores.add(workUnitStore)
+
     // this should only happen once.
     if (!this.runCallbacksOnClosePromise) {
       this.runCallbacksOnClosePromise = this.runCallbacksOnClose()
@@ -69,12 +84,8 @@ export class AfterContext {
     const wrappedCallback = bindSnapshot(async () => {
       try {
         await callback()
-      } catch (err) {
-        // TODO(after): this is fine for now, but will need better intergration with our error reporting.
-        console.error(
-          'An error occurred in a function passed to `unstable_after()`:',
-          err
-        )
+      } catch (error) {
+        this.reportTaskError(error)
       }
     })
 
@@ -89,13 +100,43 @@ export class AfterContext {
   private async runCallbacks(): Promise<void> {
     if (this.callbackQueue.size === 0) return
 
-    const workStore = workAsyncStorage.getStore()
+    for (const workUnitStore of this.workUnitStores) {
+      workUnitStore.phase = 'after'
+    }
 
-    // TODO(after): Change phase in workUnitStore to disable e.g. `cookies().set()`
+    const workStore = workAsyncStorage.getStore()
+    if (!workStore) {
+      throw new InvariantError('Missing workStore in AfterContext.runCallbacks')
+    }
+
     return withExecuteRevalidates(workStore, () => {
       this.callbackQueue.start()
       return this.callbackQueue.onIdle()
     })
+  }
+
+  private reportTaskError(error: unknown) {
+    // TODO(after): this is fine for now, but will need better intergration with our error reporting.
+    // TODO(after): should we log this if we have a onTaskError callback?
+    console.error(
+      'An error occurred in a function passed to `unstable_after()`:',
+      error
+    )
+    if (this.onTaskError) {
+      // this is very defensive, but we really don't want anything to blow up in an error handler
+      try {
+        this.onTaskError?.(error)
+      } catch (handlerError) {
+        console.error(
+          new InvariantError(
+            '`onTaskError` threw while handling an error thrown from an `unstable_after` task',
+            {
+              cause: handlerError,
+            }
+          )
+        )
+      }
+    }
   }
 }
 

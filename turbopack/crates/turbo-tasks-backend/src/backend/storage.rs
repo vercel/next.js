@@ -97,23 +97,24 @@ impl PersistanceState {
     }
 
     pub fn add_persisting_item(&mut self) {
-        self.value += 1;
+        // TODO add when we need to track unpersisted items
+        // self.value += 1;
     }
 
-    pub fn add_persisting_items(&mut self, count: u32) {
-        self.value += count;
+    pub fn add_persisting_items(&mut self, _count: u32) {
+        // TODO add when we need to track unpersisted items
+        // self.value += count;
     }
 
-    pub fn finish_persisting_items(&mut self, count: u32) {
-        self.value -= count;
+    // TODO remove when we need to track unpersisted items
+    #[allow(dead_code)]
+    pub fn finish_persisting_items(&mut self, _count: u32) {
+        // TODO add when we need to track unpersisted items
+        // self.value -= count;
     }
 
     pub fn is_restored(&self, category: TaskDataCategory) -> bool {
-        self.value & category.flag() == 0
-    }
-
-    pub fn is_fully_persisted(&self) -> bool {
-        self.value & !TaskDataCategory::All.flag() == 0
+        (self.value & category.flag()) == 0
     }
 }
 
@@ -192,11 +193,19 @@ where
         }
     }
 
-    fn get_map_mut(&mut self, key: &T::Key) -> &mut AutoMap<T::Key, T::Value> {
+    fn get_or_create_map_mut(&mut self, key: &T::Key) -> &mut AutoMap<T::Key, T::Value> {
         self.check_threshold();
         match self {
             InnerStorage::Plain { map, .. } => map,
             InnerStorage::Indexed { map, .. } => map.entry(key.index()).or_default(),
+        }
+    }
+
+    fn get_map_mut(&mut self, key: &T::Key) -> Option<&mut AutoMap<T::Key, T::Value>> {
+        self.check_threshold();
+        match self {
+            InnerStorage::Plain { map, .. } => Some(map),
+            InnerStorage::Indexed { map, .. } => map.get_mut(&key.index()),
         }
     }
 
@@ -216,7 +225,7 @@ where
 
     pub fn add(&mut self, item: T) -> bool {
         let (key, value) = item.into_key_and_value();
-        match self.get_map_mut(&key).entry(key) {
+        match self.get_or_create_map_mut(&key).entry(key) {
             Entry::Occupied(_) => false,
             Entry::Vacant(e) => {
                 e.insert(value);
@@ -227,15 +236,19 @@ where
 
     pub fn insert(&mut self, item: T) -> Option<T::Value> {
         let (key, value) = item.into_key_and_value();
-        self.get_map_mut(&key).insert(key, value)
+        self.get_or_create_map_mut(&key).insert(key, value)
     }
 
     pub fn remove(&mut self, key: &T::Key) -> Option<T::Value> {
-        self.get_map_mut(key).remove(key)
+        self.get_map_mut(key).and_then(|m| m.remove(key))
     }
 
     pub fn get(&self, key: &T::Key) -> Option<&T::Value> {
         self.get_map(key).and_then(|m| m.get(key))
+    }
+
+    pub fn get_mut(&mut self, key: &T::Key) -> Option<&mut T::Value> {
+        self.get_map_mut(key).and_then(|m| m.get_mut(key))
     }
 
     pub fn has_key(&self, key: &T::Key) -> bool {
@@ -279,7 +292,7 @@ where
         key: &T::Key,
         update: impl FnOnce(Option<T::Value>) -> Option<T::Value>,
     ) {
-        let map = self.get_map_mut(key);
+        let map = self.get_or_create_map_mut(key);
         if let Some(value) = map.get_mut(key) {
             let v = take(value);
             if let Some(v) = update(Some(v)) {
@@ -290,23 +303,6 @@ where
         } else if let Some(v) = update(None) {
             map.insert(key.clone(), v);
         }
-    }
-}
-
-impl<T: KeyValuePair + Default> InnerStorage<T>
-where
-    T::Key: Indexed,
-    T::Value: PartialEq,
-{
-    pub fn has(&self, item: &mut T) -> bool {
-        let (key, value) = take(item).into_key_and_value();
-        let result = if let Some(stored_value) = self.get(&key) {
-            *stored_value == value
-        } else {
-            false
-        };
-        *item = T::from_key_and_value(key, value);
-        result
     }
 }
 
@@ -391,59 +387,87 @@ where
 }
 
 macro_rules! get {
-    ($task:ident, $key:ident $input:tt) => {
-        if let Some($crate::data::CachedDataItemValue::$key { value }) = $task.get(&$crate::data::CachedDataItemKey::$key $input).as_ref() {
+    ($task:ident, $key:ident $input:tt) => {{
+        #[allow(unused_imports)]
+        use $crate::backend::operation::TaskGuard;
+        if let Some($crate::data::CachedDataItemValue::$key {
+            value,
+        }) = $task.get(&$crate::data::CachedDataItemKey::$key $input).as_ref() {
             Some(value)
         } else {
             None
         }
-    };
+    }};
     ($task:ident, $key:ident) => {
         $crate::backend::storage::get!($task, $key {})
     };
 }
 
-macro_rules! iter_many {
-    ($task:ident, $key:ident $input:tt => $value:ident) => {
-        $task
-            .iter($crate::data::indicies::$key)
-            .filter_map(|(key, _)| match *key {
-                $crate::data::CachedDataItemKey::$key $input => Some($value),
-                _ => None,
-            })
-    };
-    ($task:ident, $key:ident $input:tt $value_ident:ident => $value:expr) => {
-        $task
-            .iter($crate::data::indicies::$key)
-            .filter_map(|(key, value)| match (key, value) {
-                (&$crate::data::CachedDataItemKey::$key $input, &$crate::data::CachedDataItemValue::$key { value: $value_ident }) => Some($value),
-                _ => None,
-            })
-    };
-    ($task:ident, $key:ident $input:tt $value_ident:ident if $cond:expr => $value:expr) => {
-        $task
-            .iter($crate::data::indicies::$key)
-            .filter_map(|(key, value)| match (key, value) {
-                (&$crate::data::CachedDataItemKey::$key $input, &$crate::data::CachedDataItemValue::$key { value: $value_ident }) if $cond => Some($value),
-                _ => None,
-            })
+macro_rules! get_mut {
+    ($task:ident, $key:ident $input:tt) => {{
+        #[allow(unused_imports)]
+        use $crate::backend::operation::TaskGuard;
+        if let Some($crate::data::CachedDataItemValue::$key {
+            value,
+        }) = $task.get_mut(&$crate::data::CachedDataItemKey::$key $input).as_mut() {
+            let () = $crate::data::allow_mut_access::$key;
+            Some(value)
+        } else {
+            None
+        }
+    }};
+    ($task:ident, $key:ident) => {
+        $crate::backend::storage::get_mut!($task, $key {})
     };
 }
 
+/// Creates an iterator over all [`CachedDataItemKey::$key`][crate::data::CachedDataItemKey]s in
+/// `$task` matching the given `$key_pattern`, optional `$value_pattern`, and optional `if $cond`.
+///
+/// Each element in the iterator is determined by `$iter_item`, which may use fields extracted by
+/// `$key_pattern` or `$value_pattern`.
+macro_rules! iter_many {
+    ($task:ident, $key:ident $key_pattern:tt $(if $cond:expr)? => $iter_item:expr) => {{
+        #[allow(unused_imports)]
+        use $crate::backend::operation::TaskGuard;
+        $task
+            .iter($crate::data::indicies::$key)
+            .filter_map(|(key, _)| match key {
+                $crate::data::CachedDataItemKey::$key $key_pattern $(if $cond)? => Some(
+                    $iter_item
+                ),
+                _ => None,
+            })
+    }};
+    ($task:ident, $key:ident $input:tt $value_pattern:tt $(if $cond:expr)? => $iter_item:expr) => {{
+        #[allow(unused_imports)]
+        use $crate::backend::operation::TaskGuard;
+        $task
+            .iter($crate::data::indicies::$key)
+            .filter_map(|(key, value)| match (key, value) {
+                (
+                    $crate::data::CachedDataItemKey::$key $input,
+                    $crate::data::CachedDataItemValue::$key { value: $value_pattern }
+                ) $(if $cond)? => Some($iter_item),
+                _ => None,
+            })
+    }};
+}
+
+/// A thin wrapper around [`iter_many`] that calls [`Iterator::collect`].
+///
+/// Note that the return type of [`Iterator::collect`] may be ambiguous in certain contexts, so
+/// using this macro may require explicit type annotations on variables.
 macro_rules! get_many {
-    ($task:ident, $key:ident $input:tt => $value:ident) => {
-        $crate::backend::storage::iter_many!($task, $key $input => $value).collect()
-    };
-    ($task:ident, $key:ident $input:tt $value_ident:ident => $value:expr) => {
-        $crate::backend::storage::iter_many!($task, $key $input $value_ident => $value).collect()
-    };
-    ($task:ident, $key:ident $input:tt $value_ident:ident if $cond:expr => $value:expr) => {
-        $crate::backend::storage::iter_many!($task, $key $input $value_ident if $cond => $value).collect()
+    ($($args:tt)*) => {
+        $crate::backend::storage::iter_many!($($args)*).collect()
     };
 }
 
 macro_rules! update {
-    ($task:ident, $key:ident $input:tt, $update:expr) => {
+    ($task:ident, $key:ident $input:tt, $update:expr) => {{
+        #[allow(unused_imports)]
+        use $crate::backend::operation::TaskGuard;
         #[allow(unused_mut)]
         match $update {
             mut update => $task.update(&$crate::data::CachedDataItemKey::$key $input, |old| {
@@ -457,7 +481,7 @@ macro_rules! update {
                 .map(|new| $crate::data::CachedDataItemValue::$key { value: new })
             })
         }
-    };
+    }};
     ($task:ident, $key:ident, $update:expr) => {
         $crate::backend::storage::update!($task, $key {}, $update)
     };
@@ -488,13 +512,17 @@ macro_rules! update_count {
 }
 
 macro_rules! remove {
-    ($task:ident, $key:ident $input:tt) => {
-        if let Some($crate::data::CachedDataItemValue::$key { value }) = $task.remove(&$crate::data::CachedDataItemKey::$key $input) {
+    ($task:ident, $key:ident $input:tt) => {{
+        #[allow(unused_imports)]
+        use $crate::backend::operation::TaskGuard;
+        if let Some($crate::data::CachedDataItemValue::$key { value }) = $task.remove(
+            &$crate::data::CachedDataItemKey::$key $input
+        ) {
             Some(value)
         } else {
             None
         }
-    };
+    }};
     ($task:ident, $key:ident) => {
         $crate::backend::storage::remove!($task, $key {})
     };
@@ -502,6 +530,7 @@ macro_rules! remove {
 
 pub(crate) use get;
 pub(crate) use get_many;
+pub(crate) use get_mut;
 pub(crate) use iter_many;
 pub(crate) use remove;
 pub(crate) use update;

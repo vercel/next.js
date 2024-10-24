@@ -128,14 +128,15 @@ import { unstable_cacheLife as cacheLife } from 'next/cache'
 cacheLife('weeks')
 
 export async function GET() {
-  let data = await fetch('https://api.vercel.app/blog')
-  let posts = await data.json()
+  const data = await fetch('https://api.vercel.app/blog')
+  const posts = await data.json()
 
   return Response.json(posts)
 }
 ```
 
 ```js filename="app/posts/route.js" switcher
+<<<<<<< HEAD
 'use cache'
 import { unstable_cacheLife as cacheLife } from 'next/cache'
 
@@ -144,8 +145,15 @@ cacheLife('weeks')
 export async function GET() {
   let data = await fetch('https://api.vercel.app/blog')
   let posts = await data.json()
+=======
+export const revalidate = 60
+>>>>>>> canary
 
-  return Response.json(data)
+export async function GET() {
+  const data = await fetch('https://api.vercel.app/blog')
+  const posts = await data.json()
+
+  return Response.json(posts)
 }
 ```
 

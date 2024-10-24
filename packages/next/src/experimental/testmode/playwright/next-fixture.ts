@@ -77,6 +77,7 @@ export async function applyNextFixture(
   const fixture = new NextFixtureImpl(testInfo, nextOptions, nextWorker, page)
 
   await fixture.setup()
+  // eslint-disable-next-line react-hooks/rules-of-hooks -- not React.use()
   await use(fixture)
 
   fixture.teardown()

@@ -65,7 +65,11 @@ To learn more about these options, see the [MDN docs](https://developer.mozilla.
 ## Good to know
 
 - `cookies` is an **asynchronous** function that returns a promise. You must use `async/await` or React's [`use`](https://react.dev/reference/react/use) function to access cookies.
+<<<<<<< HEAD
   - In version 14 and earlier, `cookies` was a synchronous function. To help with backwards compatability, you can still access it synchronoulsy in Next.js 15, but this behavior will be deprecated in the future.
+=======
+  - In version 14 and earlier, `cookies` was a synchronous function. To help with backwards compatability, you can still access it synchronously in Next.js 15, but this behavior will be deprecated in the future.
+>>>>>>> canary
 - `cookies` is a [Dynamic API](/docs/app/building-your-application/rendering/server-components#dynamic-apis) whose returned values cannot be known ahead of time. Using it in a layout or page will opt a route into [dynamic rendering](/docs/app/building-your-application/rendering/server-components#dynamic-rendering).
 - The `.delete` method can only be called:
   - In a [Server Action](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) or [Route Handler](/docs/app/building-your-application/routing/route-handlers).
@@ -140,11 +144,21 @@ You can use the `cookies().set(name, value, options)` method in a [Server Action
 import { cookies } from 'next/headers'
 
 export async function create(data) {
+<<<<<<< HEAD
   await cookies().set('name', 'lee')
   // or
   await cookies().set('name', 'lee', { secure: true })
   // or
   await cookies().set({
+=======
+  const cookieStore = await cookies()
+
+  cookieStore().set('name', 'lee')
+  // or
+  cookieStore().set('name', 'lee', { secure: true })
+  // or
+  cookieStore().set({
+>>>>>>> canary
     name: 'name',
     value: 'lee',
     httpOnly: true,
@@ -159,11 +173,21 @@ export async function create(data) {
 import { cookies } from 'next/headers'
 
 export async function create(data) {
+<<<<<<< HEAD
   await cookies().set('name', 'lee')
   // or
   await cookies().set('name', 'lee', { secure: true })
   // or
   await cookies().set({
+=======
+  const cookieStore = await cookies()
+
+  cookieStore().set('name', 'lee')
+  // or
+  cookieStore().set('name', 'lee', { secure: true })
+  // or
+  cookieStore().set({
+>>>>>>> canary
     name: 'name',
     value: 'lee',
     httpOnly: true,
@@ -208,7 +232,11 @@ Using the `delete()` method:
 import { cookies } from 'next/headers'
 
 export async function delete(data) {
+<<<<<<< HEAD
   await cookies().delete('name')
+=======
+  (await cookies()).delete('name')
+>>>>>>> canary
 }
 ```
 
@@ -218,7 +246,11 @@ export async function delete(data) {
 import { cookies } from 'next/headers'
 
 export async function delete(data) {
+<<<<<<< HEAD
   await cookies().delete('name')
+=======
+  (await cookies()).delete('name')
+>>>>>>> canary
 }
 ```
 
@@ -230,7 +262,11 @@ Setting a new cookie with the same name and an empty value:
 import { cookies } from 'next/headers'
 
 export async function delete(data) {
+<<<<<<< HEAD
   await cookies().set('name', '')
+=======
+  (await cookies()).set('name', '')
+>>>>>>> canary
 }
 ```
 
@@ -240,7 +276,11 @@ export async function delete(data) {
 import { cookies } from 'next/headers'
 
 export async function delete(data) {
+<<<<<<< HEAD
   await cookies().set('name', '')
+=======
+  (await cookies()).set('name', '')
+>>>>>>> canary
 }
 ```
 
@@ -252,7 +292,11 @@ Setting the `maxAge` to 0 will immediately expire a cookie. `maxAge` accepts a v
 import { cookies } from 'next/headers'
 
 export async function delete(data) {
+<<<<<<< HEAD
   await cookies().set('name', 'value', { maxAge: 0 })
+=======
+  (await cookies()).set('name', 'value', { maxAge: 0 })
+>>>>>>> canary
 }
 ```
 
@@ -262,7 +306,12 @@ export async function delete(data) {
 import { cookies } from 'next/headers'
 
 export async function delete(data) {
+<<<<<<< HEAD
   await cookies().set('name', 'value', { maxAge: 0 })
+=======
+  (await cookies()).set('name', 'value', { maxAge: 0 })
+``
+>>>>>>> canary
 }
 ```
 

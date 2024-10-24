@@ -5,11 +5,10 @@ use std::{
     sync::Arc,
 };
 
-use indexmap::IndexMap;
 use serde::Deserialize;
 
 use super::TraceFormat;
-use crate::{span::SpanIndex, store_container::StoreContainer};
+use crate::{span::SpanIndex, store_container::StoreContainer, FxIndexMap};
 
 pub struct NextJsFormat {
     store: Arc<StoreContainer>,
@@ -134,7 +133,7 @@ struct NextJsSpan<'a> {
     timestamp: u64,
     id: u64,
     parent_id: Option<u64>,
-    tags: IndexMap<Cow<'a, str>, Option<TagValue<'a>>>,
+    tags: FxIndexMap<Cow<'a, str>, Option<TagValue<'a>>>,
     #[allow(dead_code)]
     start_time: u64,
     #[allow(dead_code)]

@@ -1,17 +1,13 @@
 use std::collections::BTreeMap;
 
 use anyhow::{bail, Context, Result};
-use indexmap::{
-    indexmap,
-    map::{Entry, OccupiedEntry},
-    IndexMap,
-};
+use indexmap::map::{Entry, OccupiedEntry};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, RcStr, ResolvedVc, TaskInput, TryJoinIterExt,
-    ValueDefault, ValueToString, Vc,
+    debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs, FxIndexMap, RcStr, ResolvedVc,
+    TaskInput, TryJoinIterExt, ValueDefault, ValueToString, Vc,
 };
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath};
 use turbopack_core::issue::{
@@ -398,7 +394,7 @@ async fn get_directory_tree_internal(
 pub struct AppPageLoaderTree {
     pub page: AppPage,
     pub segment: RcStr,
-    pub parallel_routes: IndexMap<RcStr, AppPageLoaderTree>,
+    pub parallel_routes: FxIndexMap<RcStr, AppPageLoaderTree>,
     pub modules: AppDirModules,
     pub global_metadata: Vc<GlobalMetadata>,
 }
@@ -517,7 +513,7 @@ impl Entrypoint {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct Entrypoints(IndexMap<AppPath, Entrypoint>);
+pub struct Entrypoints(FxIndexMap<AppPath, Entrypoint>);
 
 fn is_parallel_route(name: &str) -> bool {
     name.starts_with('@')
@@ -564,7 +560,7 @@ fn conflict_issue(
 
 fn add_app_page(
     app_dir: Vc<FileSystemPath>,
-    result: &mut IndexMap<AppPath, Entrypoint>,
+    result: &mut FxIndexMap<AppPath, Entrypoint>,
     page: AppPage,
     loader_tree: ResolvedVc<AppPageLoaderTree>,
 ) {
@@ -623,7 +619,7 @@ fn add_app_page(
 
 fn add_app_route(
     app_dir: Vc<FileSystemPath>,
-    result: &mut IndexMap<AppPath, Entrypoint>,
+    result: &mut FxIndexMap<AppPath, Entrypoint>,
     page: AppPage,
     path: ResolvedVc<FileSystemPath>,
     root_layouts: ResolvedVc<FileSystemPathVec>,
@@ -666,7 +662,7 @@ fn add_app_route(
 
 fn add_app_metadata_route(
     app_dir: Vc<FileSystemPath>,
-    result: &mut IndexMap<AppPath, Entrypoint>,
+    result: &mut FxIndexMap<AppPath, Entrypoint>,
     page: AppPage,
     metadata: MetadataItem,
 ) {
@@ -867,7 +863,7 @@ fn directory_tree_to_loader_tree_internal(
     let mut tree = AppPageLoaderTree {
         page: app_page.clone(),
         segment: directory_name.clone(),
-        parallel_routes: IndexMap::new(),
+        parallel_routes: FxIndexMap::default(),
         modules: modules.without_leafs(),
         global_metadata,
     };
@@ -887,7 +883,7 @@ fn directory_tree_to_loader_tree_internal(
             AppPageLoaderTree {
                 page: app_page.clone(),
                 segment: "__PAGE__".into(),
-                parallel_routes: IndexMap::new(),
+                parallel_routes: FxIndexMap::default(),
                 modules: AppDirModules {
                     page: Some(page),
                     metadata: modules.metadata,
@@ -1031,7 +1027,7 @@ fn default_route_tree(
     AppPageLoaderTree {
         page: app_page.clone(),
         segment: "__DEFAULT__".into(),
-        parallel_routes: IndexMap::new(),
+        parallel_routes: FxIndexMap::default(),
         modules: if let Some(default) = default_component {
             AppDirModules {
                 default: Some(default),
@@ -1081,7 +1077,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
     app_page: AppPage,
     root_layouts: ResolvedVc<FileSystemPathVec>,
 ) -> Result<Vc<Entrypoints>> {
-    let mut result = IndexMap::new();
+    let mut result = FxIndexMap::default();
 
     let directory_tree_vc = directory_tree;
     let directory_tree = &*directory_tree.await?;
@@ -1184,15 +1180,15 @@ async fn directory_tree_to_entrypoints_internal_untraced(
         let not_found_tree = AppPageLoaderTree {
                 page: app_page.clone(),
                 segment: directory_name.clone(),
-                parallel_routes: indexmap! {
+                parallel_routes: fxindexmap! {
                     "children".into() => AppPageLoaderTree {
                         page: app_page.clone(),
                         segment: "/_not-found".into(),
-                        parallel_routes: indexmap! {
+                        parallel_routes: fxindexmap! {
                             "children".into() => AppPageLoaderTree {
                                 page: app_page.clone(),
                                 segment: "__PAGE__".into(),
-                                parallel_routes: IndexMap::new(),
+                                parallel_routes: FxIndexMap::default(),
                                 modules: AppDirModules {
                                     page: modules.not_found.or_else(|| Some(get_next_package(app_dir).join("dist/client/components/not-found-error.js".into()))),
                                     ..Default::default()

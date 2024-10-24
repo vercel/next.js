@@ -31,6 +31,8 @@ You can self-host Next.js in three different ways:
 - [A Docker container](#docker-image)
 - [A static export](#static-html-export)
 
+> **🎥 Watch:** Learn more about self-hosting Next.js → [YouTube (45 minutes)](https://www.youtube.com/watch?v=sIVL4JMqRfc).
+
 ### Node.js Server
 
 Next.js can be deployed to any hosting provider that supports Node.js. Ensure your `package.json` has the `"build"` and `"start"` scripts:
@@ -101,6 +103,7 @@ Next.js can support both build time and runtime environment variables.
 <PagesOnly>
 
 To read runtime environment variables, we recommend using `getServerSideProps` or [incrementally adopting the App Router](/docs/app/building-your-application/upgrading/app-router-migration).
+<<<<<<< HEAD
 
 </PagesOnly>
 
@@ -112,6 +115,19 @@ You safely read environment variables on the server during dynamic rendering.
 import { connection } from 'next/server'
 
 export default function Component() {
+=======
+
+</PagesOnly>
+
+<AppOnly>
+
+You safely read environment variables on the server during dynamic rendering.
+
+```tsx filename="app/page.ts" switcher
+import { connection } from 'next/server'
+
+export default async function Component() {
+>>>>>>> canary
   await connection()
   // cookies, headers, and other Dynamic APIs
   // will also opt into dynamic rendering, meaning
@@ -124,7 +140,11 @@ export default function Component() {
 ```jsx filename="app/page.js" switcher
 import { connection } from 'next/server'
 
+<<<<<<< HEAD
 export default function Component() {
+=======
+export default async function Component() {
+>>>>>>> canary
   await connection()
   // cookies, headers, and other Dynamic APIs
   // will also opt into dynamic rendering, meaning

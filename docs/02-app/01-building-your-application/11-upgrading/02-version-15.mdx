@@ -7,22 +7,16 @@ description: Upgrade your Next.js Application from Version 14 to 15.
 
 ## Upgrading from 14 to 15
 
-To update to Next.js version 15, run the following command using your preferred package manager:
+To update to Next.js version 15, you can use the `upgrade` codemod:
 
 ```bash filename="Terminal"
-npm i next@rc react@rc react-dom@rc eslint-config-next@rc
+npx @next/codemod@canary upgrade latest
 ```
 
-```bash filename="Terminal"
-yarn add next@rc react@rc react-dom@rc eslint-config-next@rc
-```
+If you prefer to do it manually, ensure that you're installing the latest Next & React RC, e.g.:
 
 ```bash filename="Terminal"
-pnpm up next@rc react@rc react-dom@rc eslint-config-next@rc
-```
-
-```bash filename="Terminal"
-bun add next@rc react@rc react-dom@rc eslint-config-next@rc
+npm i next@canary react@rc react-dom@rc eslint-config-next@rc
 ```
 
 > **Good to know:**
@@ -32,7 +26,11 @@ bun add next@rc react@rc react-dom@rc eslint-config-next@rc
 
 ## React 19
 
+<<<<<<< HEAD
 - The minimum `react` and `react-dom` is now 19.
+=======
+- The minimum versions of `react` and `react-dom` is now 19.
+>>>>>>> canary
 - `useFormState` has been replaced by `useActionState`. The `useFormState` hook is still available in React 19, but it is deprecated and will be removed in a future release. `useActionState` is recommended and includes additional properties like reading the `pending` state directly. [Learn more](https://react.dev/reference/react/useActionState).
 - `useFormStatus` now includes additional keys like `data`, `method`, and `action`. If you are not using React 19, only the `pending` key is available. [Learn more](https://react.dev/reference/react-dom/hooks/useFormStatus).
 - Read more in the [React 19 upgrade guide](https://react.dev/blog/2024/04/25/react-19-upgrade-guide).
@@ -51,6 +49,11 @@ To ease the burden of migration, a [codemod is available](/docs/app/building-you
 
 ### `cookies`
 
+<<<<<<< HEAD
+=======
+#### Recommended Async Usage
+
+>>>>>>> canary
 ```tsx
 import { cookies } from 'next/headers'
 
@@ -58,6 +61,7 @@ import { cookies } from 'next/headers'
 const cookieStore = cookies()
 const token = cookieStore.get('token')
 
+<<<<<<< HEAD
 // After (Preferred usage)
 const cookieStore = await cookies()
 const token = cookieStore.get('token')
@@ -73,13 +77,50 @@ const token = cookieStore.get('token')
 const cookieStore = cookies()
 const token = cookieStore.get('token')
 
+=======
+>>>>>>> canary
 // After
 const cookieStore = await cookies()
 const token = cookieStore.get('token')
 ```
 
+<<<<<<< HEAD
 ### `headers`
 
+=======
+#### Temporary Synchronous Usage
+
+```tsx filename="app/page.tsx" switcher
+import { cookies, type UnsafeUnwrappedCookies } from 'next/headers'
+
+// Before
+const cookieStore = cookies()
+const token = cookieStore.get('token')
+
+// After
+const cookieStore = cookies() as unknown as UnsafeUnwrappedCookies
+// will log a warning in dev
+const token = cookieStore.get('token')
+```
+
+```jsx filename="app/page.js" switcher
+import { cookies } from 'next/headers'
+
+// Before
+const cookieStore = cookies()
+const token = cookieStore.get('token')
+
+// After
+const cookieStore = cookies()
+// will log a warning in dev
+const token = cookieStore.get('token')
+```
+
+### `headers`
+
+#### Recommended Async Usage
+
+>>>>>>> canary
 ```tsx
 import { headers } from 'next/headers'
 
@@ -87,6 +128,7 @@ import { headers } from 'next/headers'
 const headersList = headers()
 const userAgent = headersList.get('user-agent')
 
+<<<<<<< HEAD
 // After (Preferred usage)
 const headersList = await headers()
 const userAgent = headersList.get('user-agent')
@@ -102,19 +144,57 @@ const userAgent = headersList.get('user-agent')
 const headersList = headers()
 const userAgent = headersList.get('user-agent')
 
+=======
+>>>>>>> canary
 // After
 const headersList = await headers()
 const userAgent = headersList.get('user-agent')
 ```
 
+<<<<<<< HEAD
 ### `draftMode`
 
+=======
+#### Temporary Synchronous Usage
+
+```tsx filename="app/page.tsx" switcher
+import { headers, type UnsafeUnwrappedHeaders } from 'next/headers'
+
+// Before
+const headersList = headers()
+const userAgent = headersList.get('user-agent')
+
+// After
+const headersList = headers() as unknown as UnsafeUnwrappedHeaders
+// will log a warning in dev
+const userAgent = headersList.get('user-agent')
+```
+
+```jsx filename="app/page.js" switcher
+import { headers } from 'next/headers'
+
+// Before
+const headersList = headers()
+const userAgent = headersList.get('user-agent')
+
+// After
+const headersList = headers()
+// will log a warning in dev
+const userAgent = headersList.get('user-agent')
+```
+
+### `draftMode`
+
+#### Recommended Async Usage
+
+>>>>>>> canary
 ```tsx
 import { draftMode } from 'next/headers'
 
 // Before
 const { isEnabled } = draftMode()
 
+<<<<<<< HEAD
 // After (Preferred usage)
 const { isEnabled } = await draftMode()
 
@@ -127,10 +207,13 @@ const { isEnabled } = draftMode() as unknown as DangerouslyUnwrapDraftMode
 // Before
 const { isEnabled } = draftMode()
 
+=======
+>>>>>>> canary
 // After
 const { isEnabled } = await draftMode()
 ```
 
+<<<<<<< HEAD
 ### `params`
 
 `layout`
@@ -141,6 +224,98 @@ type Params = { slug: string }
 export function generateMetadata({ params }: { params: Params }) {
   const slug = params.slug
 }
+=======
+#### Temporary Synchronous Usage
+
+```tsx filename="app/page.tsx" switcher
+import { draftMode, type UnsafeUnwrappedDraftMode } from 'next/headers'
+
+// Before
+const { isEnabled } = draftMode()
+
+// After
+// will log a warning in dev
+const { isEnabled } = draftMode() as unknown as UnsafeUnwrappedDraftMode
+```
+
+```jsx filename="app/page.js" switcher
+import { draftMode } from 'next/headers'
+
+// Before
+const { isEnabled } = draftMode()
+
+// After
+// will log a warning in dev
+const { isEnabled } = draftMode()
+```
+
+### `params` & `searchParams`
+
+#### Asynchronous Layout
+
+```tsx filename="app/layout.tsx" switcher
+// Before
+type Params = { slug: string }
+
+export function generateMetadata({ params }: { params: Params }) {
+  const { slug } = params
+}
+
+export default async function Layout({
+  children,
+  params,
+}: {
+  children: React.ReactNode
+  params: Params
+}) {
+  const { slug } = params
+}
+
+// After
+type Params = Promise<{ slug: string }>
+
+export async function generateMetadata({ params }: { params: Params }) {
+  const { slug } = await params
+}
+
+export default async function Layout({
+  children,
+  params,
+}: {
+  children: React.ReactNode
+  params: Params
+}) {
+  const { slug } = await params
+}
+```
+
+```jsx filename="app/layout.js" switcher
+// Before
+export function generateMetadata({ params }) {
+  const { slug } = params
+}
+
+export default async function Layout({ children, params }) {
+  const { slug } = params
+}
+
+// After
+export async function generateMetadata({ params }) {
+  const { slug } = await params
+}
+
+export default async function Layout({ children, params }) {
+  const { slug } = await params
+}
+```
+
+#### Synchronous Layout
+
+```tsx filename="app/layout.tsx" switcher
+// Before
+type Params = { slug: string }
+
+>>>>>>> canary
 export default function Layout({
   children,
   params,
@@ -148,6 +323,7 @@ export default function Layout({
   children: React.ReactNode
   params: Params
 }) {
+<<<<<<< HEAD
   const slug = params.slug
 }
 
@@ -200,10 +376,41 @@ export async function generateMetadata({ params }) {
 }
 export default async function Layout() {
   const slug = (await params).slug
+=======
+  const { slug } = params
+}
+
+// After
+import { use } from 'react'
+
+type Params = Promise<{ slug: string }>
+
+export default function Layout(props: {
+  children: React.ReactNode
+  params: Params
+}) {
+  const params = use(props.params)
+  const slug = params.slug
+}
+```
+
+```jsx filename="app/layout.js" switcher
+// Before
+export default function Layout({ children, params }) {
+  const { slug } = params
+}
+
+// After
+import { use } from 'react'
+export default async function Layout(props) {
+  const params = use(props.params)
+  const slug = params.slug
+>>>>>>> canary
 }
 
 ```
 
+<<<<<<< HEAD
 `page`
 
 ```tsx
@@ -257,38 +464,168 @@ export async function Page({ params }) {
 ```
 
 `layout` and `page` (Client Component)
+=======
+#### Asynchronous Page
+
+```tsx filename="app/page.tsx" switcher
+// Before
+type Params = { slug: string }
+type SearchParams = { [key: string]: string | string[] | undefined }
+
+export function generateMetadata({
+  params,
+  searchParams,
+}: {
+  params: Params
+  searchParams: SearchParams
+}) {
+  const { slug } = params
+  const { query } = searchParams
+}
+
+export default async function Page({
+  params,
+  searchParams,
+}: {
+  params: Params
+  searchParams: SearchParams
+}) {
+  const { slug } = params
+  const { query } = searchParams
+}
+
+// After
+type Params = Promise<{ slug: string }>
+type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>
+
+export async function generateMetadata(props: {
+  params: Params
+  searchParams: SearchParams
+}) {
+  const params = await props.params
+  const searchParams = await props.searchParams
+  const slug = params.slug
+  const query = searchParams.query
+}
+
+export default async function Page(props: {
+  params: Params
+  searchParams: SearchParams
+}) {
+  const params = await props.params
+  const searchParams = await props.searchParams
+  const slug = params.slug
+  const query = searchParams.query
+}
+```
+
+```jsx filename="app/page.js" switcher
+// Before
+export function generateMetadata({ params, searchParams }) {
+  const { slug } = params
+  const { query } = searchParams
+}
+
+export default function Page({ params, searchParams }) {
+  const { slug } = params
+  const { query } = searchParams
+}
+
+// After
+export async function generateMetadata(props) {
+  const params = await props.params
+  const searchParams = await props.searchParams
+  const slug = params.slug
+  const query = searchParams.query
+}
+
+export async function Page(props) {
+  const params = await props.params
+  const searchParams = await props.searchParams
+  const slug = params.slug
+  const query = searchParams.query
+}
+```
+
+#### Synchronous Page
+>>>>>>> canary
 
 ```tsx
 'use client'
 
 // Before
 type Params = { slug: string }
+<<<<<<< HEAD
 export default function Page({ params }: { params: Params }) {
   const slug = params.slug
+=======
+type SearchParams = { [key: string]: string | string[] | undefined }
+
+export default function Page({
+  params,
+  searchParams,
+}: {
+  params: Params
+  searchParams: SearchParams
+}) {
+  const { slug } = params
+  const { query } = searchParams
+>>>>>>> canary
 }
 
 // After
 import { use } from 'react'
+<<<<<<< HEAD
 type Params = Promise<{ slug: string }>
 export default function Page({ params }: { params: Params }) {
   const slug = use(params).slug
+=======
+
+type Params = Promise<{ slug: string }>
+type SearchParams = { [key: string]: string | string[] | undefined }
+
+export default function Page(props: {
+  params: Params
+  searchParams: SearchParams
+}) {
+  const params = use(props.params)
+  const searchParams = use(props.searchParams)
+  const slug = params.slug
+  const query = searchParams.query
+>>>>>>> canary
 }
 ```
 
 ```jsx
 // Before
+<<<<<<< HEAD
 export default function Page({ params }) {
 const slug = params.slug
+=======
+export default function Page({ params, searchParams }) {
+  const { slug } = params
+  const { query } = searchParams
+>>>>>>> canary
 }
 
 // After
 import { use } from "react"
+<<<<<<< HEAD
 export default function Page({ params }) {
 const slug = use(params).slug
+=======
+
+export default function Page(props) {
+  const params = use(props.params)
+  const searchParams = use(props.searchParams)
+  const slug = params.slug
+  const query = searchParams.query
+>>>>>>> canary
 }
 
 ```
 
+<<<<<<< HEAD
 `default`
 
 ```tsx
@@ -346,10 +683,37 @@ export async function GET(request: Request, { params }: { params: Params }) {
 ```
 // Before
 export async function GET(request, { params }) {
+=======
+#### Route Handlers
+
+```tsx filename="app/api/route.ts"
+// Before
+type Params = { slug: string }
+
+export async function GET(request: Request, segmentData: { params: Params }) {
+  const params = segmentData.params
   const slug = params.slug
 }
 
 // After
+type Params = Promise<{ slug: string }>
+
+export async function GET(request: Request, segmentData: { params: Params }) {
+  const params = await segmentData.params
+  const slug = params.slug
+}
+```
+
+```js filename="app/api/route.js"
+// Before
+export async function GET(request, segmentData) {
+  const params = segmentData.params
+>>>>>>> canary
+  const slug = params.slug
+}
+
+// After
+<<<<<<< HEAD
 export async function GET(request, { params }) {
   const slug = (await params).slug
 }
@@ -511,6 +875,21 @@ export default function Page({ searchParams }) {
 }
 
 ```
+=======
+export async function GET(request, segmentData) {
+  const params = await segmentData.params
+  const slug = params.slug
+}
+```
+
+<AppOnly>
+
+## `runtime` configuration (Breaking change)
+
+The `runtime` [segment configuration](/docs/app/api-reference/file-conventions/route-segment-config#runtime) previously supported a value of `experimental-edge` in addition to `edge`. Both configurations refer to the same thing, and to simplify the options, we will now error if `experimental-edge` is used. To fix this, update your `runtime` configuration to `edge`. A [codemod](/docs/app/building-your-application/upgrading/codemods#app-dir-runtime-config-experimental-edge) is available to automatically do this.
+
+</AppOnly>
+>>>>>>> canary
 
 ## `fetch` requests
 

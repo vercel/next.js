@@ -637,7 +637,11 @@ The `app` directory exposes new read-only functions to retrieve request data:
 import { cookies, headers } from 'next/headers'
 
 async function getData() {
+<<<<<<< HEAD
   const authHeader = await headers().get('authorization')
+=======
+  const authHeader = (await headers()).get('authorization')
+>>>>>>> canary
 
   return '...'
 }
@@ -645,7 +649,11 @@ async function getData() {
 export default async function Page() {
   // You can use `cookies` or `headers` inside Server Components
   // directly or in your data fetching function
+<<<<<<< HEAD
   const theme = await cookies().get('theme')
+=======
+  const theme = (await cookies()).get('theme')
+>>>>>>> canary
   const data = await getData()
   return '...'
 }
@@ -656,7 +664,11 @@ export default async function Page() {
 import { cookies, headers } from 'next/headers'
 
 async function getData() {
+<<<<<<< HEAD
   const authHeader = await headers().get('authorization')
+=======
+  const authHeader = (await headers()).get('authorization')
+>>>>>>> canary
 
   return '...'
 }
@@ -664,7 +676,11 @@ async function getData() {
 export default async function Page() {
   // You can use `cookies` or `headers` inside Server Components
   // directly or in your data fetching function
+<<<<<<< HEAD
   const theme = await cookies().get('theme')
+=======
+  const theme = (await cookies()).get('theme')
+>>>>>>> canary
   const data = await getData()
   return '...'
 }

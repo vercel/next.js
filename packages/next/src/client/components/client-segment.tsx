@@ -26,7 +26,7 @@ export function ClientSegmentRoot({
 }) {
   if (typeof window === 'undefined') {
     const { workAsyncStorage } =
-      require('./work-async-storage.external') as typeof import('./work-async-storage.external')
+      require('../../server/app-render/work-async-storage.external') as typeof import('../../server/app-render/work-async-storage.external')
 
     let clientParams: Promise<Params>
     // We are going to instrument the searchParams prop with tracking for the
@@ -38,16 +38,10 @@ export function ClientSegmentRoot({
       )
     }
 
-    const { createPrerenderParamsFromClient } =
+    const { createParamsFromClient } =
       require('../../server/request/params') as typeof import('../../server/request/params')
+    clientParams = createParamsFromClient(params, store)
 
-    if (store.isStaticGeneration) {
-      clientParams = createPrerenderParamsFromClient(params, store)
-    } else {
-      const { createRenderParamsFromClient } =
-        require('../../server/request/params') as typeof import('../../server/request/params')
-      clientParams = createRenderParamsFromClient(params, store)
-    }
     return <Component {...slots} params={clientParams} />
   } else {
     const { createRenderParamsFromClient } =

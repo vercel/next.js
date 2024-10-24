@@ -123,7 +123,7 @@ export class MinifyPlugin {
         }
       }
 
-      // The limit in the SWC minifier  will be handled by Node.js
+      // The limit in the SWC minifier will be handled by Node.js
       const limit = pLimit(Infinity)
       const scheduledTasks = []
 

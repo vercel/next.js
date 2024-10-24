@@ -5,6 +5,7 @@ describe('Node Extensions', () => {
     describe('Dynamic IO', () => {
       const { next, skipped } = nextTestSetup({
         files: __dirname + '/fixtures/random/dynamic-io',
+        skipDeployment: true,
       })
 
       if (skipped) {
@@ -52,16 +53,6 @@ describe('Node Extensions', () => {
         expect(res.status).toBe(200)
         $ = await next.render$('/app/rendered/use-cache')
         expect($('li').length).toBe(2)
-
-        res = await next.fetch('/app/edge/uncached')
-        expect(res.status).toBe(200)
-        $ = await next.render$('/app/edge/uncached')
-        expect($('li').length).toBe(2)
-
-        res = await next.fetch('/app/edge/unstable-cache')
-        expect(res.status).toBe(200)
-        $ = await next.render$('/app/edge/unstable-cache')
-        expect($('li').length).toBe(2)
       })
 
       it('should not error when accessing routes that use Math.random() in App Router', async () => {
@@ -108,22 +99,6 @@ describe('Node Extensions', () => {
         })
 
         res = await next.fetch('/app/rendered/use-cache/api')
-        expect(res.status).toBe(200)
-        body = await res.json()
-        expect(body).toEqual({
-          rand1: expect.any(Number),
-          rand2: expect.any(Number),
-        })
-
-        res = await next.fetch('/app/edge/uncached/api')
-        expect(res.status).toBe(200)
-        body = await res.json()
-        expect(body).toEqual({
-          rand1: expect.any(Number),
-          rand2: expect.any(Number),
-        })
-
-        res = await next.fetch('/app/edge/unstable-cache/api')
         expect(res.status).toBe(200)
         body = await res.json()
         expect(body).toEqual({
@@ -215,16 +190,6 @@ describe('Node Extensions', () => {
         expect(res.status).toBe(200)
         $ = await next.render$('/app/rendered/unstable-cache')
         expect($('li').length).toBe(2)
-
-        res = await next.fetch('/app/edge/uncached')
-        expect(res.status).toBe(200)
-        $ = await next.render$('/app/edge/uncached')
-        expect($('li').length).toBe(2)
-
-        res = await next.fetch('/app/edge/unstable-cache')
-        expect(res.status).toBe(200)
-        $ = await next.render$('/app/edge/unstable-cache')
-        expect($('li').length).toBe(2)
       })
 
       it('should not error when accessing routes that use Math.random() in App Router', async () => {
@@ -255,22 +220,6 @@ describe('Node Extensions', () => {
         })
 
         res = await next.fetch('/app/rendered/unstable-cache/api')
-        expect(res.status).toBe(200)
-        body = await res.json()
-        expect(body).toEqual({
-          rand1: expect.any(Number),
-          rand2: expect.any(Number),
-        })
-
-        res = await next.fetch('/app/edge/uncached/api')
-        expect(res.status).toBe(200)
-        body = await res.json()
-        expect(body).toEqual({
-          rand1: expect.any(Number),
-          rand2: expect.any(Number),
-        })
-
-        res = await next.fetch('/app/edge/unstable-cache/api')
         expect(res.status).toBe(200)
         body = await res.json()
         expect(body).toEqual({

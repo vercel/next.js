@@ -12,12 +12,18 @@ pub struct InvalidatorMap {
     map: Mutex<HashMap<String, HashSet<Invalidator>>>,
 }
 
-impl InvalidatorMap {
-    pub fn new() -> Self {
+impl Default for InvalidatorMap {
+    fn default() -> Self {
         Self {
             queue: ConcurrentQueue::unbounded(),
             map: Default::default(),
         }
+    }
+}
+
+impl InvalidatorMap {
+    pub fn new() -> Self {
+        Self::default()
     }
 
     pub fn lock(&self) -> LockResult<MutexGuard<'_, HashMap<String, HashSet<Invalidator>>>> {

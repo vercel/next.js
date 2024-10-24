@@ -32,7 +32,11 @@ import type {
 } from './types/metadata-interface'
 import { isNotFoundError } from '../../client/components/not-found'
 import type { MetadataContext } from './types/resolvers'
-import type { WorkStore } from '../../client/components/work-async-storage.external'
+import type { WorkStore } from '../../server/app-render/work-async-storage.external'
+import {
+  METADATA_BOUNDARY_NAME,
+  VIEWPORT_BOUNDARY_NAME,
+} from './metadata-constants'
 
 // Use a promise to share the status of the metadata resolving,
 // returning two components `MetadataTree` and `MetadataOutlet`
@@ -110,6 +114,7 @@ export function createMetadataComponents({
       return null
     }
   }
+  Viewport.displayName = VIEWPORT_BOUNDARY_NAME
 
   async function metadata() {
     return getResolvedMetadata(
@@ -146,6 +151,7 @@ export function createMetadataComponents({
       return null
     }
   }
+  Metadata.displayName = METADATA_BOUNDARY_NAME
 
   async function getMetadataAndViewportReady(): Promise<void> {
     await viewport()

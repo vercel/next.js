@@ -1,5 +1,5 @@
 import type { WithStore } from './with-store'
-import type { WorkStore } from '../../client/components/work-async-storage.external'
+import type { WorkStore } from '../app-render/work-async-storage.external'
 import type { AsyncLocalStorage } from 'async_hooks'
 import type { IncrementalCache } from '../lib/incremental-cache'
 import type { RenderOpts } from '../app-render/types'
@@ -7,6 +7,7 @@ import type { FetchMetric } from '../base-http'
 import type { RequestLifecycleOpts } from '../base-server'
 import type { FallbackRouteParams } from '../request/fallback-params'
 import type { AppSegmentConfig } from '../../build/segment-config/app/app-segment-config'
+import type { CacheLife } from '../use-cache/cache-life'
 
 import { AfterContext } from '../after/after-context'
 
@@ -26,6 +27,7 @@ export type WorkStoreContext = {
   requestEndedState?: { ended?: boolean }
   isPrefetchRequest?: boolean
   renderOpts: {
+    cacheLifeProfiles?: { [profile: string]: CacheLife }
     incrementalCache?: IncrementalCache
     isOnDemandRevalidate?: boolean
     fetchCache?: AppSegmentConfig['fetchCache']
@@ -108,6 +110,7 @@ export const withWorkStore: WithStore<WorkStore, WorkStoreContext> = <Result>(
       // we fallback to a global incremental cache for edge-runtime locally
       // so that it can access the fs cache without mocks
       renderOpts.incrementalCache || (globalThis as any).__incrementalCache,
+    cacheLifeProfiles: renderOpts.cacheLifeProfiles,
     isRevalidate: renderOpts.isRevalidate,
     isPrerendering: renderOpts.nextExport,
     fetchCache: renderOpts.fetchCache,
@@ -139,6 +142,6 @@ function createAfterContext(
   if (!isAfterEnabled) {
     return undefined
   }
-  const { waitUntil, onClose } = renderOpts
-  return new AfterContext({ waitUntil, onClose })
+  const { waitUntil, onClose, onAfterTaskError } = renderOpts
+  return new AfterContext({ waitUntil, onClose, onTaskError: onAfterTaskError })
 }

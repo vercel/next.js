@@ -1,6 +1,7 @@
 ---
 title: unstable_after
 description: API Reference for the after function.
+<<<<<<< HEAD
 version: RC
 ---
 
@@ -9,6 +10,15 @@ version: RC
 It can be used in [Server Components](/docs/app/building-your-application/rendering/server-components) (including [`generateMetadata`](https://nextjs.org/docs/app/api-reference/functions/generate-metadata)), [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations), [Route Handlers](/docs/app/building-your-application/routing/route-handlers), and [Middleware](/docs/app/building-your-application/routing/middleware).
 
 The function accepts a callback that will be executed after the response is finished:
+=======
+---
+
+`unstable_after` allows you to schedule work to be executed after a response (or prerender) is finished. This is useful for tasks and other side effects that should not block the response, such as logging and analytics.
+
+It can be used in [Server Components](/docs/app/building-your-application/rendering/server-components) (including [`generateMetadata`](https://nextjs.org/docs/app/api-reference/functions/generate-metadata)), [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations), [Route Handlers](/docs/app/building-your-application/routing/route-handlers), and [Middleware](/docs/app/building-your-application/routing/middleware).
+
+The function accepts a callback that will be executed after the response (or prerender) is finished:
+>>>>>>> canary
 
 ```tsx filename="app/layout.tsx switcher
 import { unstable_after as after } from 'next/server'
@@ -38,22 +48,41 @@ export default function Layout({ children }) {
 }
 ```
 
+<<<<<<< HEAD
 ## Reference
 
 ### Parameters
+=======
+> **Good to know:** `unstable_after` is not a [Dynamic API](/docs/app/building-your-application/rendering/server-components#dynamic-apis) and calling it does not cause a route to become dynamic. If it's used within a static page, the callback will execute at build time, or whenever a page is revalidated.
 
-- A callback function which will be executed after the response is finished.
+## Reference
+>>>>>>> canary
+
+### Parameters
+
+<<<<<<< HEAD
+### Serverless function duration
+
+=======
+- A callback function which will be executed after the response (or prerender) is finished.
 
 ### Serverless function duration
 
+>>>>>>> canary
 `unstable_after` will run for the platform's default or configured max duration of a serverless function. If your platform supports it, you can configure the timeout limit using the [`maxDuration`](/docs/app/api-reference/file-conventions/route-segment-config#maxduration) route segment config.
 
 ## Good to know
 
 - `unstable_after` will be executed even if the response didn't complete successfully. Including when an error is thrown or when `notFound` or `redirect` is called.
+<<<<<<< HEAD
 - `unstable_after` is a [Dynamic API](/docs/app/building-your-application/rendering/server-components#dynamic-apis) that will opt a route into dynamic rendering. This behavior can be overridden with the [`export dynamic = "force-static"`](/docs/app/api-reference/file-conventions/route-segment-config#dynamic) segment config.
 - You can use React `cache` to deduplicate functions called inside `unstable_after`.
 - [`cookies`](/docs/app/api-reference/functions/cookies) cannot be set inside `unstable_after` since the response has already been sent.
+=======
+- You can use React `cache` to deduplicate functions called inside `unstable_after`.
+- [`cookies`](/docs/app/api-reference/functions/cookies) cannot be set inside `unstable_after` since the response has already been sent.
+- [Dynamic APIs](/docs/app/building-your-application/rendering/server-components#dynamic-apis) cannot be called within `unstable_after`. Call them outside of `unstable_after` and use the object they returned.
+>>>>>>> canary
 - `unstable_after` can be nested inside other `unstable_after` calls, for example, you can create utility functions that wrap `unstable_after` calls to add additional functionality.
 
 ## Alternatives

@@ -192,6 +192,7 @@ Next.js can support both build time and runtime environment variables.
 <PagesOnly>
 
 To read runtime environment variables, we recommend using `getServerSideProps` or [incrementally adopting the App Router](/docs/app/building-your-application/upgrading/app-router-migration).
+<<<<<<< HEAD
 
 </PagesOnly>
 
@@ -203,6 +204,19 @@ You can safely read environment variables on the server during dynamic rendering
 import { connection } from 'next/server'
 
 export default function Component() {
+=======
+
+</PagesOnly>
+
+<AppOnly>
+
+You can safely read environment variables on the server during dynamic rendering:
+
+```tsx filename="app/page.ts" switcher
+import { connection } from 'next/server'
+
+export default async function Component() {
+>>>>>>> canary
   await connection()
   // cookies, headers, and other Dynamic APIs
   // will also opt into dynamic rendering, meaning
@@ -215,7 +229,11 @@ export default function Component() {
 ```jsx filename="app/page.js" switcher
 import { connection } from 'next/server'
 
+<<<<<<< HEAD
 export default function Component() {
+=======
+export default async function Component() {
+>>>>>>> canary
   await connection()
   // cookies, headers, and other Dynamic APIs
   // will also opt into dynamic rendering, meaning

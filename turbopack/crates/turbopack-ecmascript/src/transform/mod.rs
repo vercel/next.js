@@ -18,7 +18,7 @@ use swc_core::{
     },
     quote,
 };
-use turbo_tasks::{RcStr, ValueDefault, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     environment::Environment,
@@ -30,7 +30,7 @@ use turbopack_core::{
 pub enum EcmascriptInputTransform {
     CommonJs,
     Plugin(Vc<TransformPlugin>),
-    PresetEnv(Vc<Environment>),
+    PresetEnv(ResolvedVc<Environment>),
     React {
         #[serde(default)]
         development: bool,
@@ -80,17 +80,6 @@ pub trait CustomTransformer: Debug {
 )]
 #[derive(Debug)]
 pub struct TransformPlugin(#[turbo_tasks(trace_ignore)] Box<dyn CustomTransformer + Send + Sync>);
-
-#[turbo_tasks::value(transparent)]
-pub struct OptionTransformPlugin(Option<Vc<TransformPlugin>>);
-
-#[turbo_tasks::value_impl]
-impl ValueDefault for OptionTransformPlugin {
-    #[turbo_tasks::function]
-    fn value_default() -> Vc<Self> {
-        Vc::cell(None)
-    }
-}
 
 #[async_trait]
 impl CustomTransformer for TransformPlugin {
@@ -220,9 +209,8 @@ impl EcmascriptInputTransform {
             EcmascriptInputTransform::CommonJs => {
                 // Explicit type annotation to ensure that we don't duplicate transforms in the
                 // final binary
-                program.visit_mut_with(&mut swc_core::ecma::transforms::module::common_js::<
-                    &dyn Comments,
-                >(
+                program.visit_mut_with(&mut swc_core::ecma::transforms::module::common_js(
+                    swc_core::ecma::transforms::module::path::Resolver::Default,
                     unresolved_mark,
                     swc_core::ecma::transforms::module::util::Config {
                         allow_top_level_this: true,
@@ -232,7 +220,6 @@ impl EcmascriptInputTransform {
                         ..Default::default()
                     },
                     swc_core::ecma::transforms::base::feature::FeatureFlag::all(),
-                    Some(&comments),
                 ));
             }
             EcmascriptInputTransform::PresetEnv(env) => {

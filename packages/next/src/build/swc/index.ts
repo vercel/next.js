@@ -757,6 +757,10 @@ function bindingToApi(
       return binding.projectGetSourceForAsset(this._nativeProject, filePath)
     }
 
+    getSourceMap(filePath: string): Promise<string | null> {
+      return binding.projectGetSourceMap(this._nativeProject, filePath)
+    }
+
     updateInfoSubscribe(aggregationMs: number) {
       return subscribe<TurbopackResult<UpdateMessage>>(true, async (callback) =>
         binding.projectUpdateInfoSubscribe(

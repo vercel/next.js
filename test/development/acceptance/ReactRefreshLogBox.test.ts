@@ -1,7 +1,7 @@
 /* eslint-env jest */
 import { sandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
-import { describeVariants as describe, expandCallStack } from 'next-test-utils'
+import { describeVariants as describe } from 'next-test-utils'
 import path from 'path'
 import { outdent } from 'outdent'
 
@@ -765,8 +765,6 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
 
     await session.assertHasRedbox()
 
-    await expandCallStack(browser)
-
     // Expect more than the default amount of frames
     // The default stackTraceLimit results in max 9 [data-nextjs-call-stack-frame] elements
     const callStackFrames = await browser.elementsByCss(
@@ -805,7 +803,6 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
       ])
     )
     await session.assertHasRedbox()
-    await expandCallStack(browser)
     let callStackFrames = await browser.elementsByCss(
       '[data-nextjs-call-stack-frame]'
     )
@@ -835,7 +832,6 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
       ])
     )
     await session.assertHasRedbox()
-    await expandCallStack(browser)
 
     // Should still show the errored line in source code
     const source = await session.getRedboxSource()
