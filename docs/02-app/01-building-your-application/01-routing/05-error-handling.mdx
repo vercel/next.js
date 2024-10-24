@@ -58,7 +58,7 @@ Then, you can pass your action to the `useFormState` hook and use the returned `
 ```tsx filename="app/ui/signup.tsx" highlight={11,18-20} switcher
 'use client'
 
-import { useFormState } from 'react'
+import { useFormState } from 'react-dom'
 import { createUser } from '@/app/actions'
 
 const initialState = {
@@ -83,7 +83,7 @@ export function Signup() {
 ```jsx filename="app/ui/signup.js" highlight={11,18-20} switcher
 'use client'
 
-import { useFormState } from 'react'
+import { useFormState } from 'react-dom'
 import { createUser } from '@/app/actions'
 
 const initialState = {
