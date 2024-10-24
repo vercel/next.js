@@ -1468,9 +1468,10 @@ pub async fn url_resolve(
     } else {
         rel_result
     };
-    let result = origin
-        .asset_context()
-        .process_resolve_result(result, reference_type.clone());
+    let result =
+        origin
+            .asset_context()
+            .process_resolve_result(result, reference_type.clone(), false);
     handle_resolve_error(
         result,
         reference_type,
