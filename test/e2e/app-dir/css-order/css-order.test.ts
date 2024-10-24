@@ -217,7 +217,9 @@ const options = (mode: string) => ({
       : `
             module.exports = {
               experimental: {
-                cssChunking: ${JSON.stringify(mode)}
+                cssChunking: {
+                  style: ${JSON.stringify(mode)}
+                }
               }
             }`,
   },
