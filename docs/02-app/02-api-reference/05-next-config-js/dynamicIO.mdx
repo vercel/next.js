@@ -15,15 +15,15 @@ It is expected to be used in conjunction with [`use cache`](/docs/app/api-refere
 To enable the `dynamicIO` flag, set it to `true` in the `experimental` section of your `next.config.ts` file:
 
 ```ts filename="next.config.ts"
-import type { NextConfig } from 'next';
- 
+import type { NextConfig } from 'next'
+
 const nextConfig: NextConfig = {
   experimental: {
     dynamicIO: true,
-  }
-};
- 
-export default nextConfig;
+  },
+}
+
+export default nextConfig
 ```
 
 When `dynamicIO` is enabled, you can use the following cache functions and configurations:

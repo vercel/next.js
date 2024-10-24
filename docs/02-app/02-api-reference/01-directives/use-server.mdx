@@ -3,7 +3,7 @@ title: use server
 description: Learn how to use the use server directive to execute code on the server.
 related:
   description: React documentation for use server.
-  links: 
+  links:
     - https://react.dev/reference/rsc/use-server
 ---
 
@@ -79,14 +79,13 @@ export default function MyButton() {
 }
 ```
 
-
 ## Using `use server` inline
 
 In the following example, `use server` is used inline at the top of a function to mark it as a [Server Function](https://19.react.dev/reference/rsc/server-functions):
 
 ```tsx filename="app/page.tsx" highlight={5} switcher
 import { db } from '@/lib/db' // Your database client
- 
+
 export default function UserList() {
   async function fetchUsers() {
     'use server'
@@ -100,14 +99,14 @@ export default function UserList() {
 
 ```jsx filename="app/page.js" highlight={5} switcher
 import { db } from '@/lib/db' // Your database client
- 
+
 export default function UserList() {
   async function fetchUsers() {
     'use server'
     const users = await db.user.findMany()
     return users
   }
-  
+
   return <button onClick={() => fetchUsers()}>Fetch Users</button>
 }
 ```
@@ -126,7 +125,10 @@ Always authenticate and authorize users before performing sensitive server-side 
 import { db } from '@/lib/db' // Your database client
 import { authenticate } from '@/lib/auth' // Your authentication library
 
-export async function createUser(data: { name: string; email: string }, token: string) {
+export async function createUser(
+  data: { name: string; email: string },
+  token: string
+) {
   const user = authenticate(token)
   if (!user) {
     throw new Error('Unauthorized')
@@ -151,7 +153,6 @@ export async function createUser(data, token) {
   return newUser
 }
 ```
-
 
 ## Reference
 

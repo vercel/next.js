@@ -18,22 +18,22 @@ The `cacheTag` function allows you to tag cached data for on-demand invalidation
 To use `cacheTag`, enable the [`dynamicIO` flag](/docs/app/api-reference/next-config-js/dynamicIO) in your `next.config.js` and import `cacheTag` from `next/cache`:
 
 ```ts filename="next.config.ts"
-import type { NextConfig } from 'next';
- 
+import type { NextConfig } from 'next'
+
 const nextConfig: NextConfig = {
   experimental: {
     dynamicIO: true,
-  }
-};
- 
-export default nextConfig;
+  },
+}
+
+export default nextConfig
 ```
 
 ```tsx filename="app/actions.ts"
 import { unstable_cacheTag as cacheTag } from 'next/cache'
 
 export async function getData() {
-  "use cache"
+  'use cache'
   cacheTag('my-data')
   const data = await fetch('/api/data')
   return data
@@ -62,15 +62,17 @@ export default async function submit() {
 Tag your cached data by calling `cacheTag` within a cached function or component:
 
 ```tsx filename="app/components/bookings.tsx"
-import { unstable_cacheTag as cacheTag, unstable_cacheLife as cacheLife } from 'next/cache'
-
+import {
+  unstable_cacheTag as cacheTag,
+  unstable_cacheLife as cacheLife,
+} from 'next/cache'
 
 interface BookingsProps {
   type: string
 }
 
-export async function Bookings({type = 'massage'}: BookingsProps) {
-  "use cache"
+export async function Bookings({ type = 'massage' }: BookingsProps) {
+  'use cache'
   cacheLife('minutes')
   cacheTag('bookings-data')
 
@@ -88,15 +90,18 @@ export async function Bookings({type = 'massage'}: BookingsProps) {
 You can use the data returned from an async function to tag the cache entry.
 
 ```tsx filename="app/components/bookings.tsx"
-import { unstable_cacheTag as cacheTag, unstable_cacheLife as cacheLife } from 'next/cache'
+import {
+  unstable_cacheTag as cacheTag,
+  unstable_cacheLife as cacheLife,
+} from 'next/cache'
 
 interface BookingsProps {
   type: string
 }
 
-export async function Bookings({type = 'massage'}: BookingsProps) {
+export async function Bookings({ type = 'massage' }: BookingsProps) {
   async function getBookingsData() {
-    "use cache"
+    'use cache'
     cacheLife('minutes')
     const data = await fetch(`/api/bookings?type=${encodeURIComponent(type)}`)
     cacheTag('bookings-data', data.id)
@@ -125,7 +130,7 @@ export async function updateBookings() {
 
 - **Idempotent Tags**: Applying the same tag multiple times has no additional effect.
 - **Multiple Tags**: You can assign multiple tags to a single cache entry by passing an array to `cacheTag`.
-  
+
 ```tsx
 cacheTag(['tag-one', 'tag-two'])
 ```
