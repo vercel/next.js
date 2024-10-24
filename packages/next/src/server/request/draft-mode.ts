@@ -238,7 +238,7 @@ function trackDynamicDraftMode(expression: string) {
         )
       } else if (workUnitStore.type === 'unstable-cache') {
         throw new Error(
-          `Route ${store.route} used "${expression}" inside a function cached with "unstable_cache(...)". The enabled status of draftMode can be read in caches but you must not enable or disable draftMode inside a cache. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
+          `Route ${store.route} used "${expression}" inside a function cached with "unstable_cache(...)". The enabled status of draftMode can be read in caches but you must not enable or disable draftMode inside a cache. See more info here: https://nextjs.org/docs/canary/app/api-reference/legacy-apis/unstable_cache`
         )
       }
     }

@@ -181,7 +181,7 @@ export function getExpectedRequestStore(
       )
     } else if (workUnitStore.type === 'unstable-cache') {
       throw new Error(
-        `\`${callingExpression}\` cannot be called inside unstable_cache. Call it outside and pass an argument instead. Read more: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
+        `\`${callingExpression}\` cannot be called inside unstable_cache. Call it outside and pass an argument instead. Read more: https://nextjs.org/docs/canary/app/api-reference/legacy-apis/unstable_cache`
       )
     }
   }

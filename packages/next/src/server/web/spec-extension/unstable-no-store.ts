@@ -15,7 +15,7 @@ import { markCurrentScopeAsDynamic } from '../../app-render/dynamic-rendering'
  *
  * @note It expects to be called within App Router and will error otherwise.
  *
- * Read more: [Next.js Docs: `unstable_noStore`](https://nextjs.org/docs/app/api-reference/functions/unstable_noStore)
+ * Read more: [Next.js Docs: `unstable_noStore`](https://nextjs.org/docs/canary/app/api-reference/legacy-apis/unstable_noStore)
  */
 export function unstable_noStore() {
   const callingExpression = 'unstable_noStore()'
