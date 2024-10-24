@@ -41,7 +41,7 @@ describe('app-dir - capture-console-error', () => {
     if (process.env.TURBOPACK) {
       expect(result).toMatchInlineSnapshot(`
         {
-          "callStacks": null,
+          "callStacks": "",
           "count": 1,
           "description": "trigger an console <error>",
           "source": "app/browser/event/page.js (7:17) @ onClick
@@ -58,7 +58,8 @@ describe('app-dir - capture-console-error', () => {
     } else if (isReactExperimental) {
       expect(result).toMatchInlineSnapshot(`
         {
-          "callStacks": null,
+          "callStacks": "button
+        app/browser/event/page.js (5:6)",
           "count": 1,
           "description": "trigger an console <error>",
           "source": "app/browser/event/page.js (7:17) @ error
@@ -75,7 +76,7 @@ describe('app-dir - capture-console-error', () => {
     } else {
       expect(result).toMatchInlineSnapshot(`
         {
-          "callStacks": null,
+          "callStacks": "",
           "count": 1,
           "description": "trigger an console <error>",
           "source": "app/browser/event/page.js (7:17) @ error
@@ -103,7 +104,7 @@ describe('app-dir - capture-console-error', () => {
     if (process.env.TURBOPACK) {
       expect(result).toMatchInlineSnapshot(`
         {
-          "callStacks": null,
+          "callStacks": "",
           "count": 2,
           "description": "trigger an console.error in render",
           "source": "app/browser/render/page.js (4:11) @ Page
@@ -120,8 +121,8 @@ describe('app-dir - capture-console-error', () => {
     } else {
       expect(result).toMatchInlineSnapshot(`
         {
-          "callStacks": null,
-          "count": 2,
+          "callStacks": "",
+          "count": 1,
           "description": "trigger an console.error in render",
           "source": "app/browser/render/page.js (4:11) @ error
 
@@ -148,7 +149,7 @@ describe('app-dir - capture-console-error', () => {
     if (process.env.TURBOPACK) {
       expect(result).toMatchInlineSnapshot(`
         {
-          "callStacks": null,
+          "callStacks": "",
           "count": 2,
           "description": "trigger an console.error in render",
           "source": "app/browser/render/page.js (4:11) @ Page
@@ -165,8 +166,8 @@ describe('app-dir - capture-console-error', () => {
     } else {
       expect(result).toMatchInlineSnapshot(`
         {
-          "callStacks": null,
-          "count": 2,
+          "callStacks": "",
+          "count": 1,
           "description": "trigger an console.error in render",
           "source": "app/browser/render/page.js (4:11) @ error
 
@@ -193,7 +194,7 @@ describe('app-dir - capture-console-error', () => {
     if (process.env.TURBOPACK) {
       expect(result).toMatchInlineSnapshot(`
         {
-          "callStacks": null,
+          "callStacks": "",
           "count": 2,
           "description": "ssr console error:client",
           "source": "app/ssr/page.js (4:11) @ Page
@@ -210,8 +211,8 @@ describe('app-dir - capture-console-error', () => {
     } else {
       expect(result).toMatchInlineSnapshot(`
         {
-          "callStacks": null,
-          "count": 2,
+          "callStacks": "",
+          "count": 1,
           "description": "ssr console error:client",
           "source": "app/ssr/page.js (4:11) @ error
 
@@ -238,7 +239,7 @@ describe('app-dir - capture-console-error', () => {
     if (process.env.TURBOPACK) {
       expect(result).toMatchInlineSnapshot(`
         {
-          "callStacks": null,
+          "callStacks": "",
           "count": 1,
           "description": "[ Server ] Error: boom",
           "source": "app/rsc/page.js (2:17) @ Page
@@ -254,7 +255,7 @@ describe('app-dir - capture-console-error', () => {
     } else {
       expect(result).toMatchInlineSnapshot(`
         {
-          "callStacks": null,
+          "callStacks": "",
           "count": 1,
           "description": "[ Server ] Error: boom",
           "source": "app/rsc/page.js (2:17) @ Page

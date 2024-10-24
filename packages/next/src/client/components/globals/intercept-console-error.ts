@@ -20,10 +20,12 @@ export function patchConsoleError() {
   const namedLoggerInstance = {
     [NEXT_CONSOLE_STACK_FRAME](...args: any[]) {
       let maybeError: unknown
+      let isReplayedError = false
 
       if (process.env.NODE_ENV !== 'production') {
         const replayedError = matchReplayedError(...args)
         if (replayedError) {
+          isReplayedError = true
           maybeError = replayedError
         } else {
           // See https://github.com/facebook/react/blob/d50323eb845c5fde0d720cae888bf35dedd05506/packages/react-reconciler/src/ReactFiberErrorLogger.js#L78
@@ -46,7 +48,7 @@ export function patchConsoleError() {
             // but if we pass the error directly, `handleClientError` will ignore it
             maybeError,
             args,
-            strippedStack
+            isReplayedError ? '' : strippedStack
           )
         }
 

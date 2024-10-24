@@ -1256,14 +1256,6 @@ export async function toggleCollapseComponentStack(
 export async function getRedboxCallStack(
   browser: BrowserInterface
 ): Promise<string | null> {
-  await assertHasRedbox(browser)
-
-  if (
-    !(await browser.hasElementByCssSelector('[data-nextjs-call-stack-frame]'))
-  ) {
-    return null
-  }
-
   await browser.waitForElementByCss('[data-nextjs-call-stack-frame]', 30000)
 
   const callStackFrameElements = await browser.elementsByCss(

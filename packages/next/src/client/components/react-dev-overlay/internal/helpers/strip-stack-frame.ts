@@ -11,7 +11,7 @@ export function stripStackByFrame(
   const isOriginalReactError = indexOfSplit >= 0 // has the frame pivot
   const strippedStack = isOriginalReactError
     ? stripAfter
-      ? // Keep the frames before pivot
+      ? // Keep the frames before pivot, from 1st line of stack (error.message) to the pivot
         stackLines.slice(0, indexOfSplit).join('\n')
       : // Keep the frames after pivot
         stackLines.slice(indexOfSplit + 1).join('\n')
