@@ -1,47 +1,68 @@
 ---
 title: use cache
-description: Learn how to use the `use cache` directive to cache data in your Next.js application.
+description: Learn how to use the use cache directive to cache data in your Next.js application.
+version: experimental
+related:
+  title: Related
+  description: View related API references.
+  links:
+    - app/api-reference/next-config-js/dynamicIO
+    - app/api-reference/next-config-js/cacheLife
+    - app/api-reference/functions/cacheTag
+    - app/api-reference/functions/revalidateTag
+    - app/api-reference/functions/unstable_cache
 ---
 
-Enable `use cache` with the `dynamicIO` flag in your `next.config.js`:
+Enable `use cache` with the `dynamicIO` flag in your `next.config.ts` file:
 
-```js
-const nextConfig = {
+```ts filename="next.config.ts"
+import type { NextConfig } from 'next';
+ 
+const nextConfig: NextConfig = {
   experimental: {
     dynamicIO: true,
-  },
-}
-
-module.exports = nextConfig
+  }
+};
+ 
+export default nextConfig;
 ```
+
+> The `use cache` directive will be available separately from the`dynamicIO` flag in the future.
 
 Caching is a technique to improve the performance of web applications by storing the results of computations or data fetches. In Next.js you can use caching to optimize your applications rendering performance.
 
-Next.js treats all asynchronous operations as potentially dynamic, unless you specify otherwise. You need to indicate to Next.js how you want it to handle rendering. If you define a fallback using a `Suspense` boundary, everything within that boundary is potentially dynamic. By contrast if you don't use a `Suspense` boundary, Next.js will prerender the whole component tree.
+To explicitly cache certain asynchronous operations and achieve static behavior, use the `use cache` directive. This directive allows you to optimize rendering performance by caching results from asynchronous data requests while still enabling dynamic rendering when needed.
 
-To explicitly cache certain asynchronous operations and achieve static behavior, you can use the  `use cache` directive. This allows you to optimize rendering performance by caching results from async data requests, while still enabling dynamic rendering where needed.
+The `use cache` directive is an experimental Next.js feature that aims to replace the [`unstable_cache`](/docs/canary/app/api-reference/functions/unstable_cache) function. Unlike `unstable_cache`, which is limited to caching JSON data and requires manual definition of revalidation periods and tags, `use cache` offers more flexibility. It allows you to cache a wider range of data, including anything that React Server Components (RSC) can serialize, as well as data-fetching outputs and component outputs.
+
+Additionally, `use cache` automatically manages complexities by tracking both inputs and outputs, making it less likely for you to accidentally poison your cache. Since it serializes both inputs and outputs, you can avoid issues with incorrect cache retrieval.
 
 ## `use cache` directive
 
 The Next.js `use cache` directive allows you to cache entire routes, components, and the return value of functions. When you have an asynchronous function, you can mark it as cacheable by adding `use cache` at the top of the file or inside the function scope. This informs Next.js that the return value can be cached and reused for subsequent renders.  
 
-```tsx filename="app/components/my-component.tsx" highlight={1}
+```tsx
+// File level
 "use cache"
 
+export default function Page() {
+	// ...
+}
+
+// Component level
 export function MyComponent() {
+  "use cache"
 	return <></>
+}
+
+// Function level
+export async function getData() {
+  "use cache"
+  return fetch('/api/data')
 }
 ```
 
 > **Good to know**: Functions that use the `use cache` directive must not have any side-effects, such as modifying state, directly manipulating the DOM, or setting timers to execute code at intervals
-
-### Whats the difference between `unstable_cache` and `use cache`?
-
-[`unstable_cache`](/docs/canary/app/api-reference/functions/unstable_cache) is limited to caching JSON data and requires you to define revalidation periods and tags manually. Because it involves more setup there's a higher chance of making mistakes. For example, if you use the wrong cache key to retrieve your cached data, you might not get the results you expected.
-
-The `use cache` directive allows you to cache a wider range of data, including anything that React Server Components (RSC) can serialize, as well as data fetching outputs and component outputs. It automatically manages some of the complexities by tracking both inputs and outputs.
-
-In addition to this, `use cache` serializes both inputs and outputs making it harder to accidentally poison your cache.
 
 ## Revalidating
 
@@ -55,6 +76,8 @@ While this may be useful for content you don't expect to change often, you can u
 Both of these APIs integrate across the client and server caching layers, meaning you can configure your caching semantics in one place and have them apply everywhere.
 
 **Basic example**:
+
+The example below shows how to use the `cacheLife` function at the function level to set a revalidation period of one day on the functions output:
 
 ```tsx filename="app/components/my-component.tsx" highlight={1,5,6}
 import { unstable_cacheLife as cacheLife} from 'next/cache'
@@ -112,6 +135,7 @@ Next.js provides a set of named cache profiles modeled on various timescales. If
 | `max` | 5 minutes | 1 month | INFINITE_CACHE | For very stable content that rarely needs updating |
 
 **Basic example**:
+
 ```tsx filename="app/page.tsx" highlight={4}
 "use cache"
 import { unstable_cacheLife as cacheLife} from 'next/cache'
