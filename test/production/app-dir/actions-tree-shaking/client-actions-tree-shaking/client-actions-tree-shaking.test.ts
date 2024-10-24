@@ -32,9 +32,10 @@ describe('app-dir - client-actions-tree-shaking', () => {
   it('should not bundle unused server reference id in client bundles', async () => {
     const appDir = next.testDir
 
-    const appBuildManifest = require(
-      join(appDir, '.next/app-build-manifest.json')
-    )
+    const appBuildManifest = require(join(
+      appDir,
+      '.next/app-build-manifest.json'
+    ))
 
     const bundle1Files = appBuildManifest.pages['/route-1/page']
     const bundle2Files = appBuildManifest.pages['/route-2/page']

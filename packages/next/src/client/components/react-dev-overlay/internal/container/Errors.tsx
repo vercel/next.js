@@ -225,7 +225,9 @@ export function Errors({
     return (
       <Toast
         data-nextjs-toast
-        className={`nextjs-toast-errors-parent${hasStaticIndicator ? ' nextjs-error-with-static' : ''}`}
+        className={`nextjs-toast-errors-parent${
+          hasStaticIndicator ? ' nextjs-error-with-static' : ''
+        }`}
         onClick={fullscreen}
       >
         <div className="nextjs-toast-errors">
@@ -319,8 +321,8 @@ export function Errors({
                 {isServerError
                   ? 'Server Error'
                   : isUnhandledError
-                    ? 'Console Error'
-                    : 'Unhandled Runtime Error'}
+                  ? 'Console Error'
+                  : 'Unhandled Runtime Error'}
               </h1>
               <span>
                 <CopyButton

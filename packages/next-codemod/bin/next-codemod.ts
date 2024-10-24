@@ -64,8 +64,8 @@ program
     packageJson.version.includes('-canary.')
       ? 'canary'
       : packageJson.version.includes('-rc.')
-        ? 'rc'
-        : 'latest'
+      ? 'rc'
+      : 'latest'
   )
   .usage('[revision] [options]')
   .option('--verbose', 'Verbose output', false)

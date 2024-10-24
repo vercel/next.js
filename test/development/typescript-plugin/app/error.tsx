@@ -5,8 +5,8 @@ import { useEffect } from 'react'
 export default function Error({
   error,
   reset,
-  //^^^ fine because it's the special reset prop in an error file
-}: {
+}: //^^^ fine because it's the special reset prop in an error file
+{
   error: Error & { digest?: string }
   reset: () => void
 }) {

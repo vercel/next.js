@@ -7,7 +7,7 @@ function nextFlightActionEntryLoader(this: any) {
 
   const actionList = JSON.parse(actions) as [
     string,
-    [id: string, name: string][],
+    [id: string, name: string][]
   ][]
   const individualActions = actionList
     .map(([path, actionsFromModule]) => {

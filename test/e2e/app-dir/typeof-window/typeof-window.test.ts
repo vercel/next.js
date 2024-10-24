@@ -8,7 +8,10 @@ describe('typeof-window', () => {
     // It also doesn't seem particularly useful to test when deployed
     skipDeployment: true,
     dependencies: {
-      'my-differentiated-files': `file:${path.join(__dirname, 'my-differentiated-files.tar')}`,
+      'my-differentiated-files': `file:${path.join(
+        __dirname,
+        'my-differentiated-files.tar'
+      )}`,
     },
   })
 

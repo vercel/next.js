@@ -63,15 +63,15 @@ async function main() {
     semverType === 'major'
       ? 'premajor'
       : semverType === 'minor'
-        ? 'preminor'
-        : 'prerelease'
+      ? 'preminor'
+      : 'prerelease'
 
   const child = execa(
     isCanary
       ? `pnpm lerna version ${preleaseType} --preid canary --force-publish -y && pnpm release --pre --skip-questions --show-url`
       : isReleaseCandidate
-        ? `pnpm lerna version ${preleaseType} --preid rc --force-publish -y && pnpm release --pre --skip-questions --show-url`
-        : `pnpm lerna version ${semverType} --force-publish -y`,
+      ? `pnpm lerna version ${preleaseType} --preid rc --force-publish -y && pnpm release --pre --skip-questions --show-url`
+      : `pnpm lerna version ${semverType} --force-publish -y`,
     {
       stdio: 'pipe',
       shell: true,

@@ -297,8 +297,9 @@ describe.each([
             basePath + '/hmr/style-dynamic-component'
           )
           // Check whether the this page has reloaded or not.
-          const editedDiv =
-            await secondBrowser.elementByCss('#dynamic-component')
+          const editedDiv = await secondBrowser.elementByCss(
+            '#dynamic-component'
+          )
           const editedClientClassName = await editedDiv.getAttribute('class')
           const editedFontSize = await editedDiv.getComputedCss('font-size')
           const browserHtml = await secondBrowser.eval(

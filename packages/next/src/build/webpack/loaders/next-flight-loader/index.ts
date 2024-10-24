@@ -142,7 +142,9 @@ export default function transformSource(
       let esmSource = `\
 import { createProxy } from "${MODULE_PROXY_PATH}"
 
-const proxy = ${isEdgeServer ? '' : 'await'} createProxy(String.raw\`${resourceKey}\`)
+const proxy = ${
+        isEdgeServer ? '' : 'await'
+      } createProxy(String.raw\`${resourceKey}\`)
 `
       let cnt = 0
       for (const ref of clientRefs) {

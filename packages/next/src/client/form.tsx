@@ -15,7 +15,7 @@ import type { NextRouter } from './router'
 const DISALLOWED_FORM_PROPS = ['method', 'encType', 'target'] as const
 
 type HTMLFormProps = HTMLProps<HTMLFormElement>
-type DisallowedFormProps = (typeof DISALLOWED_FORM_PROPS)[number]
+type DisallowedFormProps = typeof DISALLOWED_FORM_PROPS[number]
 
 type InternalFormProps = {
   /**

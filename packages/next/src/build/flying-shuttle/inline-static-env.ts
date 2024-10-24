@@ -40,7 +40,9 @@ export async function inlineStaticEnv({
   )
 
   const builtRegEx = new RegExp(
-    `[\\w]{1,}\\.env\\.(?:NEXT_PUBLIC_[\\w]{1,}${nextConfigEnvKeys.length ? '|' + nextConfigEnvKeys.join('|') : ''})`,
+    `[\\w]{1,}\\.env\\.(?:NEXT_PUBLIC_[\\w]{1,}${
+      nextConfigEnvKeys.length ? '|' + nextConfigEnvKeys.join('|') : ''
+    })`,
     'g'
   )
 

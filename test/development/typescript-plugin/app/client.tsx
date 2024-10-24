@@ -10,8 +10,8 @@ export function ClientComponent({
   foo,
   //^ "Error(TS71007): Props must be serializable for components in the "use client" entry file, "foo" is invalid.ts(71007)
   bar,
-  //^ "Error(TS71007): Props must be serializable for components in the "use client" entry file, "bar" is invalid.ts(71007)
-}: {
+}: //^ "Error(TS71007): Props must be serializable for components in the "use client" entry file, "bar" is invalid.ts(71007)
+{
   unknownAction: () => void
   unknown: () => void
   foo: new () => Error

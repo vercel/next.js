@@ -17,8 +17,8 @@ describe('esm-externals', () => {
     const expectedHtml = isTurbopack
       ? 'Hello World+World+World+World+World+World'
       : url === '/static'
-        ? 'Hello World+World+Alternative+World+World+World'
-        : 'Hello World+World+Alternative+World+World+Alternative'
+      ? 'Hello World+World+Alternative+World+World+World'
+      : 'Hello World+World+Alternative+World+World+Alternative'
 
     // On the client side, webpack always bundles, so it uses the non-esm-flagged module too.
     const expectedText =
@@ -49,8 +49,8 @@ describe('esm-externals', () => {
     const expectedText = isTurbopack
       ? 'Hello World+World+World'
       : url === '/client'
-        ? 'Hello World+World+World'
-        : 'Hello World+World+Alternative'
+      ? 'Hello World+World+World'
+      : 'Hello World+World+Alternative'
 
     it('should return the correct SSR HTML', async () => {
       const $ = await next.render$(url)

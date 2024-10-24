@@ -32,9 +32,7 @@ function MyApp({ Component, pageProps }) {
         .page-transition-enter-active {
           opacity: 1;
           transform: translate3d(0, 0, 0);
-          transition:
-            opacity ${TIMEOUT}ms,
-            transform ${TIMEOUT}ms;
+          transition: opacity ${TIMEOUT}ms, transform ${TIMEOUT}ms;
         }
         .page-transition-exit {
           opacity: 1;

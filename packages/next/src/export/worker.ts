@@ -452,11 +452,17 @@ export async function exportPages(
           // Otherwise, we have more attempts to make. Wait before retrying
           if (err instanceof TimeoutError) {
             console.info(
-              `Failed to build ${pageKey} (attempt ${attempt + 1} of ${maxAttempts}) because it took more than ${nextConfig.staticPageGenerationTimeout} seconds. Retrying again shortly.`
+              `Failed to build ${pageKey} (attempt ${
+                attempt + 1
+              } of ${maxAttempts}) because it took more than ${
+                nextConfig.staticPageGenerationTimeout
+              } seconds. Retrying again shortly.`
             )
           } else {
             console.info(
-              `Failed to build ${pageKey} (attempt ${attempt + 1} of ${maxAttempts}). Retrying again shortly.`
+              `Failed to build ${pageKey} (attempt ${
+                attempt + 1
+              } of ${maxAttempts}). Retrying again shortly.`
             )
           }
           await new Promise((r) => setTimeout(r, Math.random() * 500))

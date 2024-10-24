@@ -123,7 +123,9 @@ async function getChangelogFromGitHub(baseSha, newSha) {
     })
     if (!response.ok) {
       throw new Error(
-        `${response.url}: Failed to fetch commit log from GitHub:\n${response.statusText}\n${await response.text()}`
+        `${response.url}: Failed to fetch commit log from GitHub:\n${
+          response.statusText
+        }\n${await response.text()}`
       )
     }
     const data = await response.json()
@@ -143,7 +145,12 @@ async function getChangelogFromGitHub(baseSha, newSha) {
         changelog.push(`- https://github.com/facebook/react/pull/${prNum}`)
       } else {
         changelog.push(
-          `- [${commit.message.split('\n')[0]} facebook/react@${sha.slice(0, 9)}](https://github.com/facebook/react/commit/${sha}) (${commit.author.name})`
+          `- [${commit.message.split('\n')[0]} facebook/react@${sha.slice(
+            0,
+            9
+          )}](https://github.com/facebook/react/commit/${sha}) (${
+            commit.author.name
+          })`
         )
       }
     }
@@ -192,8 +199,9 @@ async function main() {
 
   if (createPull && !actor) {
     throw new Error(
-      `Pull Request cannot be created without a GitHub actor (received '${String(actor)}'). ` +
-        'Pass an actor via `--actor "some-actor"`.'
+      `Pull Request cannot be created without a GitHub actor (received '${String(
+        actor
+      )}'). ` + 'Pass an actor via `--actor "some-actor"`.'
     )
   }
   const githubToken = process.env.GITHUB_TOKEN

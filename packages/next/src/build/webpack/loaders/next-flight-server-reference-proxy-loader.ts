@@ -21,7 +21,9 @@ const flightServerReferenceProxyLoader: webpack.LoaderDefinitionFunction<{
 import { createServerReference, callServer, findSourceMapURL } from 'private-next-rsc-action-client-wrapper'
 export ${
     name === 'default' ? 'default' : `const ${name} =`
-  } /*#__PURE__*/createServerReference(${JSON.stringify(id)}, callServer, undefined, findSourceMapURL, ${JSON.stringify(name)})`
+  } /*#__PURE__*/createServerReference(${JSON.stringify(
+    id
+  )}, callServer, undefined, findSourceMapURL, ${JSON.stringify(name)})`
 }
 
 export default flightServerReferenceProxyLoader

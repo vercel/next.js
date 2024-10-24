@@ -54,7 +54,9 @@ export function getDynamicHTMLPostponedState(
   const replacementsString = JSON.stringify(replacements)
 
   // Serialized as `<length><replacements><data>`
-  return `${replacementsString.length}${replacementsString}${JSON.stringify(data)}`
+  return `${replacementsString.length}${replacementsString}${JSON.stringify(
+    data
+  )}`
 }
 
 export function getDynamicDataPostponedState(): string {

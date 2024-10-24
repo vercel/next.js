@@ -60,8 +60,8 @@ const cwd = process.cwd()
           ...(isCanary
             ? ['--tag', 'canary']
             : isReleaseCandidate
-              ? ['--tag', 'rc']
-              : []),
+            ? ['--tag', 'rc']
+            : []),
         ],
         { stdio: 'pipe' }
       )

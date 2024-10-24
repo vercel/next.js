@@ -412,8 +412,9 @@ describe('app dir - next/font', () => {
         const browser = await next.browser('/navigation')
 
         // Before navigation, root layout imports the font
-        const preloadBeforeNavigation =
-          await browser.elementsByCss('link[as="font"]')
+        const preloadBeforeNavigation = await browser.elementsByCss(
+          'link[as="font"]'
+        )
         expect(preloadBeforeNavigation.length).toBe(1)
         const href = await preloadBeforeNavigation[0].getAttribute('href')
         if (process.env.TURBOPACK) {
@@ -427,8 +428,9 @@ describe('app dir - next/font', () => {
         await browser.waitForElementByCss('#page-with-same-font')
 
         // After navigating
-        const preloadAfterNavigation =
-          await browser.elementsByCss('link[as="font"]')
+        const preloadAfterNavigation = await browser.elementsByCss(
+          'link[as="font"]'
+        )
         expect(preloadAfterNavigation.length).toBe(1)
 
         const href2 = await preloadAfterNavigation[0].getAttribute('href')

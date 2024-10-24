@@ -108,7 +108,7 @@ describe('MutableRequestCookiesAdapter', () => {
 
 describe('wrapWithMutableAccessCheck', () => {
   const createMockRequestStore = (phase: RequestStore['phase']) =>
-    ({ type: 'request', phase }) as RequestStore
+    ({ type: 'request', phase } as RequestStore)
 
   it('prevents setting cookies in the render phase', () => {
     const requestStore = createMockRequestStore('action')

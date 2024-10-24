@@ -144,7 +144,7 @@ const WEBPACK_LAYERS_NAMES = {
 } as const
 
 export type WebpackLayerName =
-  (typeof WEBPACK_LAYERS_NAMES)[keyof typeof WEBPACK_LAYERS_NAMES]
+  typeof WEBPACK_LAYERS_NAMES[keyof typeof WEBPACK_LAYERS_NAMES]
 
 const WEBPACK_LAYERS = {
   ...WEBPACK_LAYERS_NAMES,

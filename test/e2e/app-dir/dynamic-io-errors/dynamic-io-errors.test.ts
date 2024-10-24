@@ -41,7 +41,9 @@ function createExpectError(cliOutput: string) {
 function runTests(options: { withMinification: boolean }) {
   const isTurbopack = !!process.env.TURBOPACK
   const { withMinification } = options
-  describe(`Dynamic IO Errors - ${withMinification ? 'With Minification' : 'Without Minification'}`, () => {
+  describe(`Dynamic IO Errors - ${
+    withMinification ? 'With Minification' : 'Without Minification'
+  }`, () => {
     describe('Dynamic Metadata - Static Route', () => {
       const { next, isNextDev, skipped } = nextTestSetup({
         files: __dirname + '/fixtures/dynamic-metadata-static-route',

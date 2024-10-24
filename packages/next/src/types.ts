@@ -163,7 +163,7 @@ export type PreviewData = string | false | object | undefined
  */
 export type GetStaticPropsContext<
   Params extends ParsedUrlQuery = ParsedUrlQuery,
-  Preview extends PreviewData = PreviewData,
+  Preview extends PreviewData = PreviewData
 > = {
   params?: Params
   preview?: boolean
@@ -198,7 +198,7 @@ export type GetStaticPropsResult<Props> =
 export type GetStaticProps<
   Props extends { [key: string]: any } = { [key: string]: any },
   Params extends ParsedUrlQuery = ParsedUrlQuery,
-  Preview extends PreviewData = PreviewData,
+  Preview extends PreviewData = PreviewData
 > = (
   context: GetStaticPropsContext<Params, Preview>
 ) => Promise<GetStaticPropsResult<Props>> | GetStaticPropsResult<Props>
@@ -218,7 +218,7 @@ export type GetStaticPathsContext = {
  * @link https://nextjs.org/docs/api-reference/data-fetching/get-static-paths#getstaticpaths-return-values
  */
 export type GetStaticPathsResult<
-  Params extends ParsedUrlQuery = ParsedUrlQuery,
+  Params extends ParsedUrlQuery = ParsedUrlQuery
 > = {
   paths: Array<string | { params: Params; locale?: string }>
   fallback: GetStaticPathsFallback
@@ -245,7 +245,7 @@ export type GetStaticPaths<Params extends ParsedUrlQuery = ParsedUrlQuery> = (
  */
 export type GetServerSidePropsContext<
   Params extends ParsedUrlQuery = ParsedUrlQuery,
-  Preview extends PreviewData = PreviewData,
+  Preview extends PreviewData = PreviewData
 > = {
   req: IncomingMessage & {
     cookies: NextApiRequestCookies
@@ -284,7 +284,7 @@ export type GetServerSidePropsResult<Props> =
 export type GetServerSideProps<
   Props extends { [key: string]: any } = { [key: string]: any },
   Params extends ParsedUrlQuery = ParsedUrlQuery,
-  Preview extends PreviewData = PreviewData,
+  Preview extends PreviewData = PreviewData
 > = (
   context: GetServerSidePropsContext<Params, Preview>
 ) => Promise<GetServerSidePropsResult<Props>>
@@ -308,7 +308,7 @@ declare global {
         | Float32Array
         | Float64Array
         | DataView
-        | null,
+        | null
     >(
       array: T
     ): T

@@ -479,8 +479,9 @@ describe('next.rs api', () => {
         switch (route.type) {
           case 'page': {
             await route.htmlEndpoint.writeToDisk()
-            serverSideSubscription =
-              await route.dataEndpoint.serverChanged(false)
+            serverSideSubscription = await route.dataEndpoint.serverChanged(
+              false
+            )
             break
           }
           case 'app-page': {

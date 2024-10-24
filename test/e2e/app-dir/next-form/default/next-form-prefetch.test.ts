@@ -198,7 +198,9 @@ class RequestInterceptor {
 
         if (this.pendingRequests.has(requestKey)) {
           throw new Error(
-            `Interceptor received duplicate request (key: ${JSON.stringify(requestKey)}, url: ${JSON.stringify(url)})`
+            `Interceptor received duplicate request (key: ${JSON.stringify(
+              requestKey
+            )}, url: ${JSON.stringify(url)})`
           )
         }
 

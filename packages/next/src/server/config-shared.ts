@@ -342,7 +342,7 @@ export interface ExperimentalConfig {
     algorithm?: SubresourceIntegrityAlgorithm
   }
 
-  webVitalsAttribution?: Array<(typeof WEB_VITALS)[number]>
+  webVitalsAttribution?: Array<typeof WEB_VITALS[number]>
 
   /**
    * Automatically apply the "modularizeImports" optimization to imports of the specified packages.

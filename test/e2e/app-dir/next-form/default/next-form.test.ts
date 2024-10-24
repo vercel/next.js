@@ -237,7 +237,9 @@ describe.each(['app', 'pages'])('%s dir - form', (type) => {
     const fileInputSelector = 'input[type="file"]'
     // Fake a file to upload
     await session.eval(`
-      const fileInput = document.querySelector(${JSON.stringify(fileInputSelector)});
+      const fileInput = document.querySelector(${JSON.stringify(
+        fileInputSelector
+      )});
       const file = new File(['hello'], 'hello.txt', { type: 'text/plain' });
       const list = new DataTransfer(); 
       list.items.add(file); 

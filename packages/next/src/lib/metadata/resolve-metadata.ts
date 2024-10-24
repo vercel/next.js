@@ -70,7 +70,7 @@ type ViewportResolver = (
 export type MetadataItems = [
   Metadata | MetadataResolver | null,
   StaticMetadata,
-  Viewport | ViewportResolver | null,
+  Viewport | ViewportResolver | null
 ][]
 
 type TitleTemplates = {
@@ -617,7 +617,7 @@ function postProcessMetadata(
     // If there's openGraph information but not configured in twitter,
     // inherit them from openGraph metadata.
     let autoFillProps: Partial<{
-      [Key in (typeof commonOgKeys)[number]]: NonNullable<
+      [Key in typeof commonOgKeys[number]]: NonNullable<
         ResolvedMetadata['openGraph']
       >[Key]
     }> = {}

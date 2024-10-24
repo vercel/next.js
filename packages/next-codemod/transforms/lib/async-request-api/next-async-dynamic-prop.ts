@@ -608,8 +608,8 @@ export function transformDynamicProps(
             const keyName = j.Identifier.check(property.key)
               ? property.key.name
               : j.Literal.check(property.key)
-                ? property.key.value
-                : null // for computed properties
+              ? property.key.value
+              : null // for computed properties
 
             if (typeof keyName === 'string') {
               propsToKeep.push(property)

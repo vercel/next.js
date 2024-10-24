@@ -107,14 +107,18 @@ export async function runUpgrade(
 
   if (compareVersions(installedNextVersion, targetNextVersion) === 0) {
     console.log(
-      `${pc.green('✓')} Current Next.js version is already on the target version "v${targetNextVersion}".`
+      `${pc.green(
+        '✓'
+      )} Current Next.js version is already on the target version "v${targetNextVersion}".`
     )
     endMessage()
     return
   }
   if (compareVersions(installedNextVersion, targetNextVersion) > 0) {
     console.log(
-      `${pc.green('✓')} Current Next.js version is higher than the target version "v${targetNextVersion}".`
+      `${pc.green(
+        '✓'
+      )} Current Next.js version is higher than the target version "v${targetNextVersion}".`
     )
     endMessage()
     return
@@ -354,11 +358,9 @@ export async function runUpgrade(
 
 function getInstalledNextVersion(): string {
   try {
-    return require(
-      require.resolve('next/package.json', {
-        paths: [cwd],
-      })
-    ).version
+    return require(require.resolve('next/package.json', {
+      paths: [cwd],
+    })).version
   } catch (error) {
     throw new BadInput(
       `Failed to get the installed Next.js version at "${cwd}".\nIf you're using a monorepo, please run this command from the Next.js app directory.`,
@@ -371,11 +373,9 @@ function getInstalledNextVersion(): string {
 
 function getInstalledReactVersion(): string {
   try {
-    return require(
-      require.resolve('react/package.json', {
-        paths: [cwd],
-      })
-    ).version
+    return require(require.resolve('react/package.json', {
+      paths: [cwd],
+    })).version
   } catch (error) {
     throw new BadInput(
       `Failed to detect the installed React version in "${cwd}".\nIf you're working in a monorepo, please run this command from the Next.js app directory.`,
@@ -424,7 +424,9 @@ async function suggestTurbopack(
 
   if (!devScript) {
     console.log(
-      `${pc.yellow('⚠')} No "dev" script found in your package.json. Skipping Turbopack suggestion.`
+      `${pc.yellow(
+        '⚠'
+      )} No "dev" script found in your package.json. Skipping Turbopack suggestion.`
     )
     return
   }
@@ -435,7 +437,9 @@ async function suggestTurbopack(
       if (isAfterTurbopackFlagChange && !devScript.includes('--turbopack')) {
         console.log() // new line
         console.log(
-          `${pc.green('✔')} Replaced "--turbo" with "--turbopack" in your dev script.`
+          `${pc.green(
+            '✔'
+          )} Replaced "--turbo" with "--turbopack" in your dev script.`
         )
         console.log() // new line
         packageJson.scripts['dev'] = devScript.replace('--turbo', '--turbopack')
@@ -466,7 +470,9 @@ async function suggestTurbopack(
   }
 
   console.log(
-    `${pc.yellow('⚠')} Could not find "${pc.bold('next dev')}" in your dev script.`
+    `${pc.yellow('⚠')} Could not find "${pc.bold(
+      'next dev'
+    )}" in your dev script.`
   )
 
   const responseCustomDevScript = await prompts(
@@ -524,7 +530,9 @@ async function suggestCodemods(
     {
       type: 'multiselect',
       name: 'codemods',
-      message: `The following ${pc.blue('codemods')} are recommended for your upgrade. Select the ones to apply.`,
+      message: `The following ${pc.blue(
+        'codemods'
+      )} are recommended for your upgrade. Select the ones to apply.`,
       choices: relevantCodemods.reverse().map(({ title, value, version }) => {
         return {
           title: `(v${version}) ${value}`,

@@ -338,8 +338,9 @@ export function createRSCAliases(
   }
 
   if (reactProductionProfiling) {
-    alias['react-dom/client$'] =
-      `next/dist/compiled/react-dom${bundledReactChannel}/profiling`
+    alias[
+      'react-dom/client$'
+    ] = `next/dist/compiled/react-dom${bundledReactChannel}/profiling`
   }
 
   alias[

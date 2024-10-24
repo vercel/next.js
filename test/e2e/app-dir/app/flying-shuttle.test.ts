@@ -255,7 +255,7 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
           )
         }
 
-        const checkNav = async (testPath: (typeof testPaths)[0]) => {
+        const checkNav = async (testPath: typeof testPaths[0]) => {
           await browser.eval(`window.next.router.push("${testPath.path}")`)
 
           await retry(async () => {

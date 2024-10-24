@@ -179,7 +179,7 @@ declare module 'react-server-dom-webpack/server.node' {
     unknown /* actual state value */,
     string /* key path */,
     string /* Server Reference ID */,
-    number /* number of bound arguments */,
+    number /* number of bound arguments */
   ]
 
   export function createTemporaryReferenceSet(

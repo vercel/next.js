@@ -229,13 +229,15 @@ export async function startServer(
         !hostname || actualHostname === '0.0.0.0'
           ? 'localhost'
           : actualHostname === '[::]'
-            ? '[::1]'
-            : formatHostname(hostname)
+          ? '[::1]'
+          : formatHostname(hostname)
 
       port = typeof addr === 'object' ? addr?.port || port : port
 
       const networkUrl = hostname
-        ? `${selfSignedCertificate ? 'https' : 'http'}://${actualHostname}:${port}`
+        ? `${
+            selfSignedCertificate ? 'https' : 'http'
+          }://${actualHostname}:${port}`
         : null
       const appUrl = `${
         selfSignedCertificate ? 'https' : 'http'

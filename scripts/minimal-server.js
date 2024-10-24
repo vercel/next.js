@@ -132,9 +132,11 @@ const path = require('path')
 
 const distDir = '.next'
 
-const compiledConfig = require(
-  path.join(absoluteAppDir, distDir, 'required-server-files.json')
-).config
+const compiledConfig = require(path.join(
+  absoluteAppDir,
+  distDir,
+  'required-server-files.json'
+)).config
 
 const nextServer = new NextServer({
   conf: compiledConfig,

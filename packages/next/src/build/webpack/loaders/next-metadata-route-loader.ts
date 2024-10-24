@@ -82,8 +82,8 @@ async function getStaticAssetRouteCode(
     fileBaseName === 'favicon'
       ? 'public, max-age=0, must-revalidate'
       : process.env.NODE_ENV !== 'production'
-        ? cacheHeader.none
-        : cacheHeader.longCache
+      ? cacheHeader.none
+      : cacheHeader.longCache
 
   const isTwitter = fileBaseName === 'twitter-image'
   const isOpenGraph = fileBaseName === 'opengraph-image'

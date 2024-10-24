@@ -243,8 +243,8 @@ export function createPatchedFetcher(
           return typeof init?.next?.[field] !== 'undefined'
             ? init?.next?.[field]
             : isRequestInput
-              ? (input as any).next?.[field]
-              : undefined
+            ? (input as any).next?.[field]
+            : undefined
         }
         // RequestInit doesn't keep extra fields e.g. next so it's
         // only available if init is used separate

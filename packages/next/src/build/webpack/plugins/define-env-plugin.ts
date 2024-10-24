@@ -177,8 +177,8 @@ export function getDefineEnv({
     'process.env.NEXT_RUNTIME': isEdgeServer
       ? 'edge'
       : isNodeServer
-        ? 'nodejs'
-        : '',
+      ? 'nodejs'
+      : '',
     'process.env.NEXT_MINIMAL': '',
     'process.env.__NEXT_APP_NAV_FAIL_HANDLING': Boolean(
       config.experimental.appNavFailHandling

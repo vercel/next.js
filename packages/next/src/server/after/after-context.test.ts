@@ -584,7 +584,9 @@ const createMockWorkStore = (afterContext: AfterContext): WorkStore => {
         return target[key as keyof typeof target]
       }
       throw new Error(
-        `WorkStore property not mocked: '${typeof key === 'symbol' ? key.toString() : key}'`
+        `WorkStore property not mocked: '${
+          typeof key === 'symbol' ? key.toString() : key
+        }'`
       )
     },
   })

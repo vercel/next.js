@@ -29,7 +29,9 @@ module.exports = function (task) {
         if (stats.hasWarnings()) {
           this.emit('plugin_warning', {
             plugin: 'taskfile-webpack',
-            warning: `webpack compiled ${options.name} with warnings:\n${stats.toString('errors-warnings')}`,
+            warning: `webpack compiled ${
+              options.name
+            } with warnings:\n${stats.toString('errors-warnings')}`,
           })
         }
 

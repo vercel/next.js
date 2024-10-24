@@ -237,8 +237,9 @@ async function createTreeCodeFromPath(
           nestedCollectedDeclarations.push([varName, resolvedPagePath])
 
           // Use '' for segment as it's the page. There can't be a segment called '' so this is the safest way to add it.
-          props[normalizeParallelKey(parallelKey)] =
-            `['${PAGE_SEGMENT_KEY}', {}, {
+          props[
+            normalizeParallelKey(parallelKey)
+          ] = `['${PAGE_SEGMENT_KEY}', {}, {
           page: [${varName}, ${JSON.stringify(resolvedPagePath)}],
           ${createMetadataExportsCode(metadata)}
         }]`
@@ -348,8 +349,8 @@ async function createTreeCodeFromPath(
         parallelSegmentKey === PARALLEL_CHILDREN_SEGMENT
           ? 'children'
           : parallelSegmentKey === PAGE_SEGMENT
-            ? PAGE_SEGMENT_KEY
-            : parallelSegmentKey
+          ? PAGE_SEGMENT_KEY
+          : parallelSegmentKey
 
       const normalizedParallelKey = normalizeParallelKey(parallelKey)
       let subtreeCode
@@ -401,8 +402,9 @@ async function createTreeCodeFromPath(
       ]`
     }
 
-    const adjacentParallelSegments =
-      await resolveAdjacentParallelSegments(segmentPath)
+    const adjacentParallelSegments = await resolveAdjacentParallelSegments(
+      segmentPath
+    )
 
     for (const adjacentParallelSegment of adjacentParallelSegments) {
       if (!props[normalizeParallelKey(adjacentParallelSegment)]) {

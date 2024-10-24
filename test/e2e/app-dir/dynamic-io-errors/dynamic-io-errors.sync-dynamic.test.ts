@@ -40,7 +40,9 @@ function createExpectError(cliOutput: string) {
 
 function runTests(options: { withMinification: boolean }) {
   const { withMinification } = options
-  describe(`Dynamic IO Errors - ${withMinification ? 'With Minification' : 'Without Minification'}`, () => {
+  describe(`Dynamic IO Errors - ${
+    withMinification ? 'With Minification' : 'Without Minification'
+  }`, () => {
     describe('Sync Dynamic - With Fallback - client searchParams', () => {
       const { next, isNextDev, skipped } = nextTestSetup({
         files: __dirname + '/fixtures/sync-client-search-with-fallback',

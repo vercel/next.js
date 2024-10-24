@@ -606,7 +606,7 @@ export async function setupFsCheck(opts: {
                 'nextStaticFolder',
                 'publicFolder',
                 'legacyStaticFolder',
-              ] as (typeof type)[]
+              ] as typeof type[]
             ).includes(type)
 
             if (isStaticAsset && itemsRoot) {

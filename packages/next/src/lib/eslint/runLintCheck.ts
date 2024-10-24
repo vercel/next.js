@@ -32,7 +32,7 @@ type Config = {
 
 // 0 is off, 1 is warn, 2 is error. See https://eslint.org/docs/user-guide/configuring/rules#configuring-rules
 const VALID_SEVERITY = ['off', 'warn', 'error'] as const
-type Severity = (typeof VALID_SEVERITY)[number]
+type Severity = typeof VALID_SEVERITY[number]
 
 function isValidSeverity(severity: string): severity is Severity {
   return VALID_SEVERITY.includes(severity as Severity)
@@ -125,8 +125,8 @@ async function lint(
             (packageManager === 'yarn'
               ? 'yarn add --dev'
               : packageManager === 'pnpm'
-                ? 'pnpm install --save-dev'
-                : 'npm install --save-dev') + ' eslint'
+              ? 'pnpm install --save-dev'
+              : 'npm install --save-dev') + ' eslint'
           )
         )}`
       )
@@ -301,12 +301,10 @@ async function lint(
         lintFix: !!options.fix,
         nextEslintPluginVersion:
           nextEslintPluginIsEnabled && deps.resolved.has('eslint-config-next')
-            ? require(
-                path.join(
-                  path.dirname(deps.resolved.get('eslint-config-next')!),
-                  'package.json'
-                )
-              ).version
+            ? require(path.join(
+                path.dirname(deps.resolved.get('eslint-config-next')!),
+                'package.json'
+              )).version
             : null,
         nextEslintPluginErrorsCount: formattedResult.totalNextPluginErrorCount,
         nextEslintPluginWarningsCount:

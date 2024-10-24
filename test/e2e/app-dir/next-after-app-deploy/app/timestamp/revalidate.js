@@ -22,7 +22,9 @@ function getSleepDuration() {
   const parsed = Number.parseInt(raw)
   if (Number.isNaN(parsed)) {
     throw new Error(
-      `WAIT_BEFORE_REVALIDATING must be a valid number, got: ${JSON.stringify(raw)}`
+      `WAIT_BEFORE_REVALIDATING must be a valid number, got: ${JSON.stringify(
+        raw
+      )}`
     )
   }
   return parsed

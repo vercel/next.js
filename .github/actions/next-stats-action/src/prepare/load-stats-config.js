@@ -10,9 +10,11 @@ function loadStatsConfig() {
   for (const configPath of allowedConfigLocations) {
     try {
       relativeStatsAppDir = configPath
-      statsConfig = require(
-        path.join(diffRepoDir, configPath, 'stats-config.js')
-      )
+      statsConfig = require(path.join(
+        diffRepoDir,
+        configPath,
+        'stats-config.js'
+      ))
       break
     } catch (err) {
       if (err.code !== 'MODULE_NOT_FOUND') {

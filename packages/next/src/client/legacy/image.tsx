@@ -45,7 +45,7 @@ if (typeof window === 'undefined') {
 }
 
 const VALID_LOADING_VALUES = ['lazy', 'eager', undefined] as const
-type LoadingValue = (typeof VALID_LOADING_VALUES)[number]
+type LoadingValue = typeof VALID_LOADING_VALUES[number]
 type ImageConfig = ImageConfigComplete & { allSizes: number[] }
 export type ImageLoader = (resolverProps: ImageLoaderProps) => string
 
@@ -221,7 +221,7 @@ const VALID_LAYOUT_VALUES = [
   'responsive',
   undefined,
 ] as const
-type LayoutValue = (typeof VALID_LAYOUT_VALUES)[number]
+type LayoutValue = typeof VALID_LAYOUT_VALUES[number]
 
 type PlaceholderValue = 'blur' | 'empty'
 

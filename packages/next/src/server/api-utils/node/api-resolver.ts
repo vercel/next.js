@@ -152,8 +152,8 @@ function setDraftMode<T>(
     ...(typeof previous === 'string'
       ? [previous]
       : Array.isArray(previous)
-        ? previous
-        : []),
+      ? previous
+      : []),
     serialize(COOKIE_NAME_PRERENDER_BYPASS, options.previewModeId, {
       httpOnly: true,
       sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
@@ -218,8 +218,8 @@ function setPreviewData<T>(
     ...(typeof previous === 'string'
       ? [previous]
       : Array.isArray(previous)
-        ? previous
-        : []),
+      ? previous
+      : []),
     serialize(COOKIE_NAME_PRERENDER_BYPASS, options.previewModeId, {
       httpOnly: true,
       sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',

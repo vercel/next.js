@@ -6,7 +6,7 @@ describe('router autoscrolling on navigation with css modules', () => {
     files: __dirname,
   })
 
-  type BrowserInterface = Awaited<ReturnType<(typeof next)['browser']>>
+  type BrowserInterface = Awaited<ReturnType<typeof next['browser']>>
 
   const getTopScroll = async (browser: BrowserInterface) =>
     await browser.eval('document.documentElement.scrollTop')

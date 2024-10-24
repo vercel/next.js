@@ -3,8 +3,8 @@
 export default function GlobalError({
   error,
   reset,
-  //^^^ fine because it's the special reset prop in a global-error file
-}: {
+}: //^^^ fine because it's the special reset prop in a global-error file
+{
   error: Error & { digest?: string }
   reset: () => void
 }) {

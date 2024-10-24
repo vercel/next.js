@@ -148,10 +148,10 @@ export function getResolveRoutes(
     const initUrl = (config.experimental as any).trustHostHeader
       ? `https://${req.headers.host || 'localhost'}${req.url}`
       : opts.port
-        ? `${protocol}://${formatHostname(opts.hostname || 'localhost')}:${
-            opts.port
-          }${req.url}`
-        : req.url || ''
+      ? `${protocol}://${formatHostname(opts.hostname || 'localhost')}:${
+          opts.port
+        }${req.url}`
+      : req.url || ''
 
     addRequestMeta(req, 'initURL', initUrl)
     addRequestMeta(req, 'initQuery', { ...parsedUrl.query })
@@ -313,7 +313,7 @@ export function getResolveRoutes(
     }
 
     async function handleRoute(
-      route: (typeof routes)[0]
+      route: typeof routes[0]
     ): Promise<UnwrapPromise<ReturnType<typeof resolveRoutes>> | void> {
       let curPathname = parsedUrl.pathname || '/'
 
@@ -472,8 +472,9 @@ export function getResolveRoutes(
               await ensureMiddleware(req.url)
             }
 
-            const serverResult =
-              await renderServer?.initialize(renderServerOpts)
+            const serverResult = await renderServer?.initialize(
+              renderServerOpts
+            )
 
             if (!serverResult) {
               throw new Error(`Failed to initialize render server "middleware"`)

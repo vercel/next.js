@@ -39,7 +39,9 @@ export const getExtensionRegexString = (
   if (!dynamicExtensions) {
     return `\\.(?:${staticExtensions.join('|')})`
   }
-  return `(?:\\.(${staticExtensions.join('|')})|((\\[\\])?\\.(${dynamicExtensions.join('|')})))`
+  return `(?:\\.(${staticExtensions.join(
+    '|'
+  )})|((\\[\\])?\\.(${dynamicExtensions.join('|')})))`
 }
 
 // When you only pass the file extension as `[]`, it will only match the static convention files

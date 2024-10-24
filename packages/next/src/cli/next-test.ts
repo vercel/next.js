@@ -20,7 +20,7 @@ export interface NextTestOptions {
 }
 
 export const SUPPORTED_TEST_RUNNERS_LIST = ['playwright'] as const
-export type SupportedTestRunners = (typeof SUPPORTED_TEST_RUNNERS_LIST)[number]
+export type SupportedTestRunners = typeof SUPPORTED_TEST_RUNNERS_LIST[number]
 
 const requiredPackagesByTestRunner: {
   [k in SupportedTestRunners]: MissingDependency[]

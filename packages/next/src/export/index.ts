@@ -299,9 +299,11 @@ async function exportAppImpl(
 
   let serverActionsManifest
   if (enabledDirectories.app) {
-    serverActionsManifest = require(
-      join(distDir, SERVER_DIRECTORY, SERVER_REFERENCE_MANIFEST + '.json')
-    )
+    serverActionsManifest = require(join(
+      distDir,
+      SERVER_DIRECTORY,
+      SERVER_REFERENCE_MANIFEST + '.json'
+    ))
     if (nextConfig.output === 'export') {
       if (
         Object.keys(serverActionsManifest.node).length > 0 ||
@@ -342,9 +344,11 @@ async function exportAppImpl(
     serverActions: nextConfig.experimental.serverActions,
     serverComponents: enabledDirectories.app,
     cacheLifeProfiles: nextConfig.experimental.cacheLife,
-    nextFontManifest: require(
-      join(distDir, 'server', `${NEXT_FONT_MANIFEST}.json`)
-    ),
+    nextFontManifest: require(join(
+      distDir,
+      'server',
+      `${NEXT_FONT_MANIFEST}.json`
+    )),
     images: nextConfig.images,
     ...(enabledDirectories.app
       ? {
@@ -451,9 +455,11 @@ async function exportAppImpl(
 
   if (!options.buildExport) {
     try {
-      const middlewareManifest = require(
-        join(distDir, SERVER_DIRECTORY, MIDDLEWARE_MANIFEST)
-      ) as MiddlewareManifest
+      const middlewareManifest = require(join(
+        distDir,
+        SERVER_DIRECTORY,
+        MIDDLEWARE_MANIFEST
+      )) as MiddlewareManifest
 
       hasMiddleware = Object.keys(middlewareManifest.middleware).length > 0
     } catch {}

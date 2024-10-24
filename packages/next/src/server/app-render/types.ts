@@ -63,7 +63,7 @@ export type FlightRouterState = [
    *   It uses the "url" property above to determine where to fetch from.
    */
   refresh?: 'refetch' | 'refresh' | null,
-  isRootLayout?: boolean,
+  isRootLayout?: boolean
 ]
 
 /**
@@ -79,7 +79,7 @@ export type FlightSegmentPath =
       segment: Segment,
       parallelRouterKey: string,
       segment: Segment,
-      parallelRouterKey: string,
+      parallelRouterKey: string
     ]
 
 /**
@@ -95,14 +95,14 @@ export type CacheNodeSeedData = [
   parallelRoutes: {
     [parallelRouterKey: string]: CacheNodeSeedData | null
   },
-  loading: LoadingModuleData,
+  loading: LoadingModuleData
 ]
 
 export type FlightDataSegment = [
   /* segment of the rendered slice: */ Segment,
   /* treePatch */ FlightRouterState,
   /* cacheNodeSeedData */ CacheNodeSeedData | null, // Can be null during prefetch if there's no loading component
-  /* head */ React.ReactNode | null,
+  /* head */ React.ReactNode | null
 ]
 
 export type FlightDataPath =
@@ -112,7 +112,7 @@ export type FlightDataPath =
   | [
       // Holds full path to the segment.
       ...FlightSegmentPath[],
-      ...FlightDataSegment,
+      ...FlightDataSegment
     ]
 
 /**

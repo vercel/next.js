@@ -120,12 +120,12 @@ const { args } = program
 const packageManager: PackageManager = !!opts.useNpm
   ? 'npm'
   : !!opts.usePnpm
-    ? 'pnpm'
-    : !!opts.useYarn
-      ? 'yarn'
-      : !!opts.useBun
-        ? 'bun'
-        : getPkgManager()
+  ? 'pnpm'
+  : !!opts.useYarn
+  ? 'yarn'
+  : !!opts.useBun
+  ? 'bun'
+  : getPkgManager()
 
 async function run(): Promise<void> {
   const conf = new Conf({ projectName: 'create-next-app' })

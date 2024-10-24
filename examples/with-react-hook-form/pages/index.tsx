@@ -55,7 +55,9 @@ export default function Page() {
                   message: "Username must be at least 3 characters",
                 },
               })}
-              className={`${styles.input} ${errors.username ? styles.errorInput : ""}`}
+              className={`${styles.input} ${
+                errors.username ? styles.errorInput : ""
+              }`}
               placeholder="Enter your username"
             />
             {errors.username && (
@@ -70,7 +72,9 @@ export default function Page() {
               id="password"
               type="password"
               {...register("password", { required: "Password is required" })}
-              className={`${styles.input} ${errors.password ? styles.errorInput : ""}`}
+              className={`${styles.input} ${
+                errors.password ? styles.errorInput : ""
+              }`}
               placeholder="Enter your password"
             />
             {errors.password && (

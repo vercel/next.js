@@ -4,10 +4,7 @@ html,
 body {
   padding: 0;
   margin: 0;
-  font-family:
-    "Source Code Pro",
-    Courier New,
-    monospace;
+  font-family: "Source Code Pro", Courier New, monospace;
 }
 
 a {

@@ -37,7 +37,7 @@ const maybeGlobalAsyncLocalStorage =
   typeof globalThis !== 'undefined' && (globalThis as any).AsyncLocalStorage
 
 export function createAsyncLocalStorage<
-  Store extends {},
+  Store extends {}
 >(): AsyncLocalStorage<Store> {
   if (maybeGlobalAsyncLocalStorage) {
     return new maybeGlobalAsyncLocalStorage()

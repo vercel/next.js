@@ -106,8 +106,8 @@ export function generateClientManifest(
   const compilationSpan = compilation
     ? spans.get(compilation)
     : compiler
-      ? spans.get(compiler)
-      : new Span({ name: 'client-manifest' })
+    ? spans.get(compiler)
+    : new Span({ name: 'client-manifest' })
 
   const genClientManifestSpan = compilationSpan?.traceChild(
     'NextJsBuildManifest-generateClientManifest'

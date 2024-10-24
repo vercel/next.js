@@ -17,10 +17,10 @@ module.exports = {
     flyingShuttle: Boolean(process.env.NEXT_PRIVATE_FLYING_SHUTTLE_STORE_ONLY)
       ? { mode: 'store-only' }
       : Boolean(process.env.NEXT_PRIVATE_FLYING_SHUTTLE)
-        ? {
-            mode: 'full',
-          }
-        : undefined,
+      ? {
+          mode: 'full',
+        }
+      : undefined,
   },
   // output: 'standalone',
   rewrites: async () => {

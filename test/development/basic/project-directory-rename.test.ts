@@ -48,10 +48,9 @@ describe.skip('Project Directory Renaming', () => {
       // should still HMR correctly
       await next.patchFile(
         'pages/index.js',
-        (await next.readFile('pages/index.js')).replace(
-          'hello world',
-          'hello again'
-        )
+        (
+          await next.readFile('pages/index.js')
+        ).replace('hello world', 'hello again')
       )
       await check(async () => {
         if (!(await browser.eval('!!window.next'))) {
@@ -62,10 +61,9 @@ describe.skip('Project Directory Renaming', () => {
     } finally {
       await next.patchFile(
         'pages/index.js',
-        (await next.readFile('pages/index.js')).replace(
-          'hello again',
-          'hello world'
-        )
+        (
+          await next.readFile('pages/index.js')
+        ).replace('hello again', 'hello world')
       )
     }
   })

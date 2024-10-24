@@ -61,8 +61,8 @@ class NextRootCommand extends Command {
           process.env.NODE_ENV === 'development'
             ? ['start', 'build']
             : process.env.NODE_ENV === 'production'
-              ? ['dev']
-              : []
+            ? ['dev']
+            : []
 
         if (isNotStandard || shouldWarnCommands.includes(commandName)) {
           warn(NON_STANDARD_NODE_ENV)

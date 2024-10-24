@@ -122,7 +122,9 @@ function warnCustomizedOption(
 
   if (!silent && current !== defaultValue) {
     Log.warn(
-      `The "${key}" option has been modified. ${customMessage ? customMessage + '. ' : ''}It should be removed from your ${configFileName}.`
+      `The "${key}" option has been modified. ${
+        customMessage ? customMessage + '. ' : ''
+      }It should be removed from your ${configFileName}.`
     )
   }
 }
@@ -860,7 +862,9 @@ function assignDefaults(
 
     if (typeof result.experimental.cacheHandlers !== 'object') {
       throw new Error(
-        `Invalid "experimental.cacheHandlers" provided, expected an object e.g. { default: '/my-handler.js' }, received ${JSON.stringify(result.experimental.cacheHandlers)}`
+        `Invalid "experimental.cacheHandlers" provided, expected an object e.g. { default: '/my-handler.js' }, received ${JSON.stringify(
+          result.experimental.cacheHandlers
+        )}`
       )
     }
 
@@ -885,7 +889,9 @@ function assignDefaults(
       }
       if (invalidHandlerItems.length) {
         throw new Error(
-          `Invalid handler fields configured for "experimental.cacheHandler":\n${invalidHandlerItems.map((item) => `${key}: ${item.reason}`).join('\n')}`
+          `Invalid handler fields configured for "experimental.cacheHandler":\n${invalidHandlerItems
+            .map((item) => `${key}: ${item.reason}`)
+            .join('\n')}`
         )
       }
     }

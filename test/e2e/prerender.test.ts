@@ -2117,7 +2117,9 @@ describe('Prerender', () => {
               )
             )
           } catch (error) {
-            error.message += `\n\nPage: ${check.page}\nFiles:\n${files.join('\n')}`
+            error.message += `\n\nPage: ${check.page}\nFiles:\n${files.join(
+              '\n'
+            )}`
             throw error
           }
 

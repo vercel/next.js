@@ -105,7 +105,9 @@ async function main() {
           throw new Error('objcopy-zstd is only supported on Linux')
         }
         await Promise.all(
-          (await nextSwcBinaries()).map((bin) =>
+          (
+            await nextSwcBinaries()
+          ).map((bin) =>
             execAsyncWithOutput(
               'Compressing debug symbols in next-swc native binary',
               ['objcopy', '--compress-debug-sections=zstd', '--', bin]

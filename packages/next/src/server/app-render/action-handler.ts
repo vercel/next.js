@@ -491,11 +491,11 @@ export async function handleAction({
         value: forwardedHostHeader,
       }
     : hostHeader
-      ? {
-          type: HostType.Host,
-          value: hostHeader,
-        }
-      : undefined
+    ? {
+        type: HostType.Host,
+        value: hostHeader,
+      }
+    : undefined
 
   let warning: string | undefined = undefined
 
@@ -713,9 +713,7 @@ export async function handleAction({
           decodeReplyFromBusboy,
           decodeAction,
           decodeFormState,
-        } = require(
-          `./react-server.node`
-        ) as typeof import('./react-server.node')
+        } = require(`./react-server.node`) as typeof import('./react-server.node')
 
         temporaryReferences = createTemporaryReferenceSet()
 

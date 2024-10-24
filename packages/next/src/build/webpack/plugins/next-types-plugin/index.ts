@@ -91,7 +91,11 @@ checkFields<Diff<{
   }
 }, TEntry, ''>>()
 
-${options.type === 'route' ? `type RouteContext = { params: Promise<SegmentParams> }` : ''}
+${
+  options.type === 'route'
+    ? `type RouteContext = { params: Promise<SegmentParams> }`
+    : ''
+}
 ${
   options.type === 'route'
     ? HTTP_METHODS.map(
@@ -607,7 +611,9 @@ function createCustomCacheLifeDefinitions(cacheLife: {
      * This cache may be stale on clients indefinitely before checking with the server.`
     } else {
       description += `
-     * This cache may be stale on clients for ${formatTimespan(profile.stale)} before checking with the server.`
+     * This cache may be stale on clients for ${formatTimespan(
+       profile.stale
+     )} before checking with the server.`
     }
     if (
       profile.revalidate !== undefined &&
@@ -615,7 +621,9 @@ function createCustomCacheLifeDefinitions(cacheLife: {
       profile.revalidate >= profile.expire
     ) {
       description += `
-     * This cache will expire after ${formatTimespan(profile.expire)}. The next request will recompute it.`
+     * This cache will expire after ${formatTimespan(
+       profile.expire
+     )}. The next request will recompute it.`
     } else {
       if (profile.revalidate === undefined) {
         description += `
@@ -624,7 +632,9 @@ function createCustomCacheLifeDefinitions(cacheLife: {
         // Nothing to mention.
       } else {
         description += `
-     * If the server receives a new request after ${formatTimespan(profile.revalidate)}, start revalidating new values in the background.`
+     * If the server receives a new request after ${formatTimespan(
+       profile.revalidate
+     )}, start revalidating new values in the background.`
       }
       if (profile.expire === undefined) {
         description += `
@@ -634,13 +644,17 @@ function createCustomCacheLifeDefinitions(cacheLife: {
      * It lives for the maximum age of the server cache. If this entry has no traffic for a while, it may serve an old value the next request.`
       } else {
         description += `
-     * If this entry has no traffic for ${formatTimespan(profile.expire)} it will expire. The next request will recompute it.`
+     * If this entry has no traffic for ${formatTimespan(
+       profile.expire
+     )} it will expire. The next request will recompute it.`
       }
     }
 
     overloads += `
     /**
-     * Cache this \`"use cache"\` for a timespan defined by the \`${JSON.stringify(profileName)}\` profile.
+     * Cache this \`"use cache"\` for a timespan defined by the \`${JSON.stringify(
+       profileName
+     )}\` profile.
      * \`\`\`
      *   stale:      ${formatTimespanWithSeconds(profile.stale)}
      *   revalidate: ${formatTimespanWithSeconds(profile.revalidate)}
@@ -648,7 +662,9 @@ function createCustomCacheLifeDefinitions(cacheLife: {
      * \`\`\`
      * ${description}
      */
-    export function unstable_cacheLife(profile: ${JSON.stringify(profileName)}): void
+    export function unstable_cacheLife(profile: ${JSON.stringify(
+      profileName
+    )}): void
     `
   }
 
@@ -795,8 +811,8 @@ export class NextTypesPlugin {
     const assetDirRelative = this.dev
       ? '..'
       : this.isEdgeServer
-        ? '..'
-        : '../..'
+      ? '..'
+      : '../..'
 
     const handleModule = async (mod: webpack.NormalModule, assets: any) => {
       if (!mod.resource) return

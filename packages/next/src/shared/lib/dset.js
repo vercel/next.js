@@ -28,9 +28,9 @@ export function dset(obj, keys, val) {
       i === l
         ? val
         : typeof (x = t[k]) === typeof keys
-          ? x
-          : keys[i] * 0 !== 0 || !!~('' + keys[i]).indexOf('.')
-            ? {}
-            : []
+        ? x
+        : keys[i] * 0 !== 0 || !!~('' + keys[i]).indexOf('.')
+        ? {}
+        : []
   }
 }

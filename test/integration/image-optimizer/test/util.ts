@@ -168,7 +168,9 @@ export function runTests(ctx: RunTestsCtx) {
 
   if (domains.length > 0) {
     it('should normalize invalid status codes', async () => {
-      const url = `http://localhost:${slowImageServer.port}/slow.png?delay=${1}&status=308`
+      const url = `http://localhost:${
+        slowImageServer.port
+      }/slow.png?delay=${1}&status=308`
       const query = { url, w: ctx.w, q: 39 }
       const opts: RequestInit = {
         headers: { accept: 'image/webp' },
@@ -180,7 +182,9 @@ export function runTests(ctx: RunTestsCtx) {
     })
 
     it('should timeout for upstream image exceeding 7 seconds', async () => {
-      const url = `http://localhost:${slowImageServer.port}/slow.png?delay=${8000}`
+      const url = `http://localhost:${
+        slowImageServer.port
+      }/slow.png?delay=${8000}`
       const query = { url, w: ctx.w, q: 100 }
       const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
       expect(res.status).toBe(504)

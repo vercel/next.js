@@ -99,9 +99,7 @@ const Home = (props: Props) => {
           text-decoration: none;
           border: 1px solid #eaeaea;
           border-radius: 10px;
-          transition:
-            color 0.15s ease,
-            border-color 0.15s ease;
+          transition: color 0.15s ease, border-color 0.15s ease;
         }
 
         .card:hover,
@@ -134,17 +132,8 @@ const Home = (props: Props) => {
         body {
           padding: 0;
           margin: 0;
-          font-family:
-            -apple-system,
-            BlinkMacSystemFont,
-            Segoe UI,
-            Roboto,
-            Oxygen,
-            Ubuntu,
-            Cantarell,
-            Fira Sans,
-            Droid Sans,
-            Helvetica Neue,
+          font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto,
+            Oxygen, Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue,
             sans-serif;
         }
 

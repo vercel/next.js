@@ -36,15 +36,12 @@ export function runTests(
       delete packageJson.dependencies['react-dom']
 
       next = await createNext({
-        files: srcFiles.reduce(
-          (prev, file) => {
-            if (file !== 'package.json') {
-              prev[file] = new FileRef(join(srcDir, file))
-            }
-            return prev
-          },
-          {} as { [key: string]: FileRef }
-        ),
+        files: srcFiles.reduce((prev, file) => {
+          if (file !== 'package.json') {
+            prev[file] = new FileRef(join(srcDir, file))
+          }
+          return prev
+        }, {} as { [key: string]: FileRef }),
         dependencies: {
           ...packageJson.dependencies,
           ...packageJson.devDependencies,

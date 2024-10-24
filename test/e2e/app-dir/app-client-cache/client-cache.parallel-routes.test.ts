@@ -31,8 +31,9 @@ describe('app dir client cache with parallel routes', () => {
     })
 
     it('should prefetch the full page', async () => {
-      const { getRequests, clearRequests } =
-        await createRequestsListener(browser)
+      const { getRequests, clearRequests } = await createRequestsListener(
+        browser
+      )
       await check(() => {
         return getRequests().some(
           ([url, didPartialPrefetch]) =>

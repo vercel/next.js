@@ -122,8 +122,8 @@ function getPageBundleType(pageBundlePath: string): PAGE_TYPES {
   return pageBundlePath.startsWith('pages/')
     ? PAGE_TYPES.PAGES
     : pageBundlePath.startsWith('app/')
-      ? PAGE_TYPES.APP
-      : PAGE_TYPES.ROOT
+    ? PAGE_TYPES.APP
+    : PAGE_TYPES.ROOT
 }
 
 function getEntrypointsFromTree(
@@ -238,7 +238,7 @@ const normalizeOutputPath = (dir: string) => dir.replace(/[/\\]server$/, '')
 
 export const getEntries = (
   dir: string
-): NonNullable<ReturnType<(typeof entriesMap)['get']>> => {
+): NonNullable<ReturnType<typeof entriesMap['get']>> => {
   dir = normalizeOutputPath(dir)
   const entries = entriesMap.get(dir) || {}
   entriesMap.set(dir, entries)
@@ -315,7 +315,7 @@ class Invalidator {
 }
 
 function disposeInactiveEntries(
-  entries: NonNullable<ReturnType<(typeof entriesMap)['get']>>,
+  entries: NonNullable<ReturnType<typeof entriesMap['get']>>,
   maxInactiveAge: number
 ) {
   Object.keys(entries).forEach((entryKey) => {

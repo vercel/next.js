@@ -13,7 +13,7 @@ export function getRequiredScripts(
   pagePath: string
 ): [
   () => void,
-  { src: string; integrity?: string; crossOrigin?: string | undefined },
+  { src: string; integrity?: string; crossOrigin?: string | undefined }
 ] {
   let preinitScripts: () => void
   let preinitScriptCommands: string[] = []

@@ -169,7 +169,9 @@ async function main() {
   }
 
   console.info(
-    `When this job is completed, a Next.js preview build will be available under ${packagesByVersion.get('next')}`
+    `When this job is completed, a Next.js preview build will be available under ${packagesByVersion.get(
+      'next'
+    )}`
   )
 }
 

@@ -51,12 +51,12 @@ function logIncomingRequest(options: IncomingRequestOptions): void {
     statusCode < 200
       ? white
       : statusCode < 300
-        ? green
-        : statusCode < 400
-          ? blue
-          : statusCode < 500
-            ? yellow
-            : red
+      ? green
+      : statusCode < 400
+      ? blue
+      : statusCode < 500
+      ? yellow
+      : red
 
   const coloredStatus = statusCodeColor(statusCode.toString())
 
@@ -93,7 +93,9 @@ function logFetchMetric(
 
     writeLine(
       white(
-        `${method} ${url} ${status} in ${Math.round(end - start)}ms ${formatCacheStatus(cacheStatus)}`
+        `${method} ${url} ${status} in ${Math.round(
+          end - start
+        )}ms ${formatCacheStatus(cacheStatus)}`
       ),
       1
     )
@@ -101,7 +103,9 @@ function logFetchMetric(
     if (cacheStatus === 'skip' || cacheStatus === 'miss') {
       writeLine(
         gray(
-          `Cache ${cacheStatus === 'skip' ? 'skipped' : 'missed'} reason: (${white(cacheReason)})`
+          `Cache ${
+            cacheStatus === 'skip' ? 'skipped' : 'missed'
+          } reason: (${white(cacheReason)})`
         ),
         2
       )
