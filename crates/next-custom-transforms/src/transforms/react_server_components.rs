@@ -90,6 +90,17 @@ enum RSCErrorKind {
     NextRscErrDeprecatedApi((String, String, Span)),
     NextSsrDynamicFalseNotAllowed(Span),
     NextRscErrIncompatibleRouteSegmentConfig(Span, String, NextConfigProperty),
+    EmptyFile {
+        is_layout: bool,
+    },
+    NoComponentExport {
+        is_layout: bool,
+    },
+    NoComponentExportWithRecommendation {
+        is_layout: bool,
+        export_name: String,
+        span: Span,
+    },
 }
 
 #[derive(Clone, Debug, Copy)]
@@ -354,6 +365,52 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
             format!("Route segment config \"{}\" is not compatible with `nextConfig.{}`. Please remove it.", segment, property),
             vec![span],
         ),
+        RSCErrorKind::EmptyFile {
+            is_layout: true
+        } => (
+            // TODO propose a copyable template, but check if it's a root layout and/or if it should be TypeScript
+            "The layout file is still empty. Start by adding a component to file.\n\n\
+            See https://nextjs.org/docs/app/building-your-application/routing/layouts-and-templates#layouts".to_string(),
+            DUMMY_SP
+        ),
+        RSCErrorKind::EmptyFile {
+            is_layout: false
+        } => (
+            "The page file is still empty. Start by adding a component to file:\n\n\
+            export default function Page() {\n\
+            \x20 return <h1>Page</h1>;\n\
+            }\n\n\
+            See https://nextjs.org/docs/app/building-your-application/routing/pages".to_string(),
+            DUMMY_SP
+        ),
+        RSCErrorKind::NoComponentExport { is_layout: true } => (
+            "A layout file need to have a component exported via `export default`.\n\n\
+            See https://nextjs.org/docs/app/building-your-application/routing/layouts-and-templates#layouts".to_string(),
+            DUMMY_SP
+        ),
+        RSCErrorKind::NoComponentExport { is_layout: false } => (
+            "A page file need to have a component exported via `export default`.\n\n\
+            See https://nextjs.org/docs/app/building-your-application/routing/pages".to_string(),
+            DUMMY_SP
+        ),
+        RSCErrorKind::NoComponentExportWithRecommendation { is_layout: true, export_name, span } => (
+            format!(
+                "A layout file need to have a component exported via `export default`.\n\
+                Maybe you did mean to default export `{}`?.\n\n\
+                See https://nextjs.org/docs/app/building-your-application/routing/layouts-and-templates#layouts",
+                export_name
+            ),
+            span,
+        ),
+        RSCErrorKind::NoComponentExportWithRecommendation { is_layout: false, export_name, span } => (
+            format!(
+                "A page file need to have a component exported via `export default`.\n\
+                Maybe you did mean to default export `{}`?.\n\n\
+                See https://nextjs.org/docs/app/building-your-application/routing/pages",
+                export_name
+            ),
+            span,
+        ),
     };
 
     HANDLER.with(|handler| handler.struct_span_err(spans, msg.as_str()).emit())
@@ -543,6 +600,9 @@ fn collect_top_level_directives_and_imports(
 
     (is_client_entry, is_action_file, imports, export_names)
 }
+
+static RE_LAYOUT: Lazy<Regex> = Lazy::new(|| Regex::new(r"[\\/]layout\.(ts|js)x?$").unwrap());
+static RE_PAGE: Lazy<Regex> = Lazy::new(|| Regex::new(r"[\\/]page\.(ts|js)x?$").unwrap());
 
 /// A visitor to assert given module file is a valid React server component.
 struct ReactServerComponentValidator {
@@ -794,13 +854,97 @@ impl ReactServerComponentValidator {
         }
     }
 
+    fn assert_component_export(&self, module: &Module) {
+        let mut default_export = false;
+        let mut potential_component_export = None;
+
+        let is_layout = RE_LAYOUT.is_match(&self.filepath);
+        let is_page = RE_PAGE.is_match(&self.filepath);
+        let is_layout_or_page = is_layout || is_page;
+
+        if !is_layout_or_page {
+            return;
+        }
+
+        let mut check_export = |name: &str, span: Span| {
+            println!("name: {}", name);
+            if name.chars().next().map_or(false, |c| c.is_uppercase()) {
+                potential_component_export = Some((name.to_string(), span));
+            }
+            if name == "default" {
+                default_export = true;
+            }
+        };
+
+        for export in &module.body {
+            match export.as_module_decl() {
+                Some(ModuleDecl::ExportNamed(export)) => {
+                    for specifier in &export.specifiers {
+                        if let ExportSpecifier::Named(named) = specifier {
+                            let name = if let Some(exported) = &named.exported {
+                                match &exported {
+                                    ModuleExportName::Ident(i) => &i.sym,
+                                    ModuleExportName::Str(s) => &s.value,
+                                }
+                            } else {
+                                match &named.orig {
+                                    ModuleExportName::Ident(i) => &i.sym,
+                                    ModuleExportName::Str(s) => &s.value,
+                                }
+                            };
+                            check_export(name.as_str(), named.span);
+                        }
+                    }
+                }
+                Some(ModuleDecl::ExportDecl(export)) => match &export.decl {
+                    Decl::Fn(f) => {
+                        check_export(f.ident.sym.as_str(), export.span);
+                    }
+                    Decl::Var(v) => {
+                        for decl in &v.decls {
+                            if let Pat::Ident(i) = &decl.name {
+                                check_export(i.sym.as_str(), export.span);
+                            }
+                        }
+                    }
+                    _ => {}
+                },
+                Some(ModuleDecl::ExportDefaultExpr(e)) => {
+                    check_export("default", e.span);
+                }
+                Some(ModuleDecl::ExportDefaultDecl(d)) => {
+                    check_export("default", d.span);
+                }
+                _ => {}
+            }
+        }
+
+        if !default_export {
+            report_error(
+                &self.app_dir,
+                &self.filepath,
+                if module.body.is_empty() {
+                    RSCErrorKind::EmptyFile { is_layout }
+                } else if let Some((export_name, span)) = potential_component_export {
+                    RSCErrorKind::NoComponentExportWithRecommendation {
+                        is_layout,
+                        export_name,
+                        span,
+                    }
+                } else {
+                    RSCErrorKind::NoComponentExport { is_layout }
+                },
+            );
+        }
+    }
+
     fn assert_invalid_api(&self, module: &Module, is_client_entry: bool) {
         if self.is_from_node_modules(&self.filepath) {
             return;
         }
-        static RE: Lazy<Regex> =
-            Lazy::new(|| Regex::new(r"[\\/](page|layout)\.(ts|js)x?$").unwrap());
-        let is_layout_or_page = RE.is_match(&self.filepath);
+        let is_layout = RE_LAYOUT.is_match(&self.filepath);
+        let is_page = RE_PAGE.is_match(&self.filepath);
+        let is_layout_or_page = is_layout || is_page;
 
         if is_layout_or_page {
             let mut possibly_invalid_exports: FxIndexMap<Atom, (InvalidExportKind, Span)> =
@@ -856,22 +1000,26 @@ impl ReactServerComponentValidator {
                 };
 
             for export in &module.body {
-                match export {
-                    ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(export)) => {
+                match export.as_module_decl() {
+                    Some(ModuleDecl::ExportNamed(export)) => {
                         for specifier in &export.specifiers {
                             if let ExportSpecifier::Named(named) = specifier {
-                                match &named.orig {
-                                    ModuleExportName::Ident(i) => {
-                                        collect_possibly_invalid_exports(&i.sym, &named.span);
+                                let name = if let Some(exported) = &named.exported {
+                                    match &exported {
+                                        ModuleExportName::Ident(i) => &i.sym,
+                                        ModuleExportName::Str(s) => &s.value,
                                     }
-                                    ModuleExportName::Str(s) => {
-                                        collect_possibly_invalid_exports(&s.value, &named.span);
+                                } else {
+                                    match &named.orig {
+                                        ModuleExportName::Ident(i) => &i.sym,
+                                        ModuleExportName::Str(s) => &s.value,
                                     }
-                                }
+                                };
+                                collect_possibly_invalid_exports(name, &named.span);
                             }
                         }
                     }
-                    ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(export)) => match &export.decl {
+                    Some(ModuleDecl::ExportDecl(export)) => match &export.decl {
                         Decl::Fn(f) => {
                             collect_possibly_invalid_exports(&f.ident.sym, &f.ident.span);
                         }
@@ -990,6 +1138,18 @@ impl Visit for ReactServerComponentValidator {
     fn visit_script(&mut self, script: &swc_core::ecma::ast::Script) {
         if script.body.is_empty() {
             self.visit_module(&Module::dummy());
+        } else {
+            let is_layout = RE_LAYOUT.is_match(&self.filepath);
+            let is_page = RE_PAGE.is_match(&self.filepath);
+            let is_layout_or_page = is_layout || is_page;
+
+            if is_layout_or_page {
+                report_error(
+                    &self.app_dir,
+                    &self.filepath,
+                    RSCErrorKind::NoComponentExport { is_layout },
+                );
+            }
         }
     }
 
@@ -1002,6 +1162,8 @@ impl Visit for ReactServerComponentValidator {
     }
 
     fn visit_module(&mut self, module: &Module) {
+        self.assert_component_export(module);
+
         self.imports = ImportMap::analyze(module);
 
         let (is_client_entry, is_action_file, imports, export_names) =
