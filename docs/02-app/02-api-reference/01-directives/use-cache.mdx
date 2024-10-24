@@ -268,7 +268,7 @@ A `cacheTag` is used in combination with [`revalidateTag`](/docs/app/api-referen
 
 In the below example the `getData` function uses the “weeks” cache profile, and defines a `cacheTag` on the functions cached output:
 
-```tsx filename="app/actions.ts" highlight={4,5}
+```tsx filename="app/actions.ts" highlight={7,8,9}
 import {
   unstable_cacheTag as cacheTag,
   unstable_cacheLife as cacheLife,
@@ -286,7 +286,7 @@ export async function getData() {
 
 You can then purge the cache on-demand using revalidateTag in another function, for examples, a [route handler](/docs/app/building-your-application/routing/route-handlers) or [Server Action](/docs/app/building-your-application/data-fetching/server-actions-and-mutations):
 
-```tsx filename="app/submit.ts" highlight={4,5}
+```tsx filename="app/submit.ts" highlight={7}
 'use server'
 
 import { revalidateTag } from 'next/cache'
@@ -346,7 +346,7 @@ You can use `use cache` at the component level to cache any fetches or computati
 
 The props are serialized and form part of the cache key. If you use the same component in multiple places in your application, the cache entry will be reused as long as the serialized props produce the same value in each instance.
 
-```tsx filename="app/components/bookings.tsx" highlight={4,5}
+```tsx filename="app/components/bookings.tsx" highlight={8,9}
 import { unstable_cacheLife as cacheLife } from 'next/cache'
 
 interface BookingsProps {
