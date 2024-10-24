@@ -5,7 +5,7 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use indexmap::IndexMap;
+use indexmap::{IndexMap, IndexSet};
 use turbo_tasks::Vc;
 use turbo_tasks_fs::{
     rope::{Rope, RopeBuilder},
@@ -182,7 +182,31 @@ impl GenerateSourceMap for Code {
                 None => SourceMap::empty(),
                 Some(map) => match *map.generate_source_map().await? {
                     None => SourceMap::empty(),
-                    Some(map) => map,
+                    Some(map) => {
+                        let map = &*map.await?;
+                        let map = map.to_source_map().await?;
+                        match map.as_regular_source_map() {
+                            None => SourceMap::empty(),
+                            Some(map) => {
+                                let mut map = map.into_owned();
+                                let mut ignored_ids = IndexSet::new();
+                                for (src_id, src) in map.sources().enumerate() {
+                                    if src.starts_with("turbopack://[next]")
+                                        || src.starts_with("turbopack://[turbopack]")
+                                        || src.contains("/node_modules/")
+                                    {
+                                        ignored_ids.insert(src_id);
+                                    }
+                                }
+
+                                for ignored_id in ignored_ids {
+                                    map.add_to_ignore_list(ignored_id as _);
+                                }
+
+                                SourceMap::new_decoded(sourcemap::DecodedMap::Regular(map)).cell()
+                            }
+                        }
+                    }
                 },
             };
 
