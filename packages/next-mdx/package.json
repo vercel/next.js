@@ -20,6 +20,6 @@
     }
   },
   "dependencies": {
-    "source-map": "^0.7.0"
+    "source-map": "0.7.4"
   }
 }
