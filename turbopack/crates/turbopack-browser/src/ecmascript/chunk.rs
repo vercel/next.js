@@ -47,12 +47,12 @@ impl ValueToString for EcmascriptDevChunk {
 #[turbo_tasks::value_impl]
 impl OutputChunk for EcmascriptDevChunk {
     #[turbo_tasks::function]
-    fn runtime_info(&self) -> Vc<OutputChunkRuntimeInfo> {
-        OutputChunkRuntimeInfo {
-            included_ids: Some(self.chunk.entry_ids()),
+    async fn runtime_info(&self) -> Result<Vc<OutputChunkRuntimeInfo>> {
+        Ok(OutputChunkRuntimeInfo {
+            included_ids: Some(self.chunk.entry_ids().to_resolved().await?),
             ..Default::default()
         }
-        .cell()
+        .cell())
     }
 }
 

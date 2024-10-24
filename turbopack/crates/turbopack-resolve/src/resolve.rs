@@ -292,7 +292,7 @@ pub async fn resolve_options(
         let tsconfig = find_context_file(resolve_path, tsconfig()).await?;
         match *tsconfig {
             FindContextFileResult::Found(path, _) => {
-                apply_tsconfig_resolve_options(resolve_options, tsconfig_resolve_options(path))
+                apply_tsconfig_resolve_options(resolve_options, tsconfig_resolve_options(*path))
             }
             FindContextFileResult::NotFound(_) => resolve_options,
         }

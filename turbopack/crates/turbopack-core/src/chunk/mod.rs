@@ -136,12 +136,12 @@ pub trait Chunk: Asset {
 #[turbo_tasks::value(shared)]
 #[derive(Default)]
 pub struct OutputChunkRuntimeInfo {
-    pub included_ids: Option<Vc<ModuleIds>>,
+    pub included_ids: Option<ResolvedVc<ModuleIds>>,
     pub excluded_ids: Option<ResolvedVc<ModuleIds>>,
     /// List of paths of chunks containing individual modules that are part of
     /// this chunk. This is useful for selectively loading modules from a chunk
     /// without loading the whole chunk.
-    pub module_chunks: Option<Vc<OutputAssets>>,
+    pub module_chunks: Option<ResolvedVc<OutputAssets>>,
     pub placeholder_for_future_extensions: (),
 }
 
@@ -251,8 +251,8 @@ enum ChunkContentGraphNode {
 
 #[derive(Debug, Clone, Copy, TaskInput, PartialEq, Eq, Hash, Serialize, Deserialize)]
 enum ChunkGraphNodeToReferences {
-    PassthroughChunkItem(Vc<Box<dyn ChunkItem>>),
-    ChunkItem(Vc<Box<dyn ChunkItem>>),
+    PassthroughChunkItem(ResolvedVc<Box<dyn ChunkItem>>),
+    ChunkItem(ResolvedVc<Box<dyn ChunkItem>>),
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, TraceRawVcs)]
@@ -483,7 +483,7 @@ async fn graph_node_to_referenced_nodes(
                     graph_nodes.push(ChunkGraphEdge {
                         key: None,
                         node: ChunkContentGraphNode::InheritAsyncInfo {
-                            item: parent,
+                            item: *parent,
                             references: inherit_async_references,
                         },
                     })
@@ -540,10 +540,10 @@ impl Visit<ChunkContentGraphNode, ()> for ChunkContentVisit {
         async move {
             let node = match node {
                 ChunkContentGraphNode::PassthroughChunkItem { item } => {
-                    ChunkGraphNodeToReferences::PassthroughChunkItem(item)
+                    ChunkGraphNodeToReferences::PassthroughChunkItem(item.to_resolved().await?)
                 }
                 ChunkContentGraphNode::ChunkItem { item, .. } => {
-                    ChunkGraphNodeToReferences::ChunkItem(item)
+                    ChunkGraphNodeToReferences::ChunkItem(item.to_resolved().await?)
                 }
                 _ => {
                     return Ok(None.into_iter().flatten());

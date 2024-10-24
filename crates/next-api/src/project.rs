@@ -989,7 +989,7 @@ impl Project {
         let FindContextFileResult::Found(fs_path, _) = *middleware.await? else {
             return Ok(Vc::upcast(EmptyEndpoint::new()));
         };
-        let source = Vc::upcast(FileSource::new(fs_path));
+        let source = Vc::upcast(FileSource::new(*fs_path));
         let app_dir = *find_app_dir(self.project_path()).await?;
         let ecmascript_client_reference_transition_name = (*self.app_project().await?)
             .as_ref()
@@ -1123,7 +1123,7 @@ impl Project {
         let FindContextFileResult::Found(fs_path, _) = *instrumentation.await? else {
             return Ok(Vc::upcast(EmptyEndpoint::new()));
         };
-        let source = Vc::upcast(FileSource::new(fs_path));
+        let source = Vc::upcast(FileSource::new(*fs_path));
         let app_dir = *find_app_dir(self.project_path()).await?;
         let ecmascript_client_reference_transition_name = (*self.app_project().await?)
             .as_ref()

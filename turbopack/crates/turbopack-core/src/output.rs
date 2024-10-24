@@ -1,10 +1,10 @@
 use anyhow::Result;
-use turbo_tasks::{FxIndexSet, Vc};
+use turbo_tasks::{FxIndexSet, ResolvedVc, Vc};
 
 use crate::{asset::Asset, ident::AssetIdent};
 
 #[turbo_tasks::value(transparent)]
-pub struct OptionOutputAsset(Option<Vc<Box<dyn OutputAsset>>>);
+pub struct OptionOutputAsset(Option<ResolvedVc<Box<dyn OutputAsset>>>);
 
 /// An asset that should be outputted, e. g. written to disk or served from a
 /// server.
