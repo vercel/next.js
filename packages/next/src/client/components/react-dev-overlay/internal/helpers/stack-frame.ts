@@ -141,10 +141,17 @@ export function getFrameSource(frame: StackFrame): string {
   }
 
   if (!isWebpackInternalResource(frame.file) && frame.lineNumber != null) {
-    if (frame.column != null) {
-      str += ` (${frame.lineNumber}:${frame.column})`
-    } else {
-      str += ` (${frame.lineNumber})`
+    // If the method name is replayed from server, e.g. Page [Server],
+    // and it's formatted to empty string, recover it as <anonymous> to display it.
+    if (!str && frame.methodName.endsWith(' [Server]')) {
+      str = '<anonymous>'
+    }
+    if (str) {
+      if (frame.column != null) {
+        str += ` (${frame.lineNumber}:${frame.column})`
+      } else {
+        str += ` (${frame.lineNumber})`
+      }
     }
   }
   return str

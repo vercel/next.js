@@ -1,5 +1,6 @@
 import isError from '../../../lib/is-error'
 import { isNextRouterError } from '../is-next-router-error'
+import { createUnhandledError } from '../react-dev-overlay/internal/helpers/console-error'
 import { handleClientError } from '../react-dev-overlay/internal/helpers/use-error-handler'
 
 export const originConsoleError = window.console.error
@@ -65,7 +66,11 @@ function matchReplayedError(...args: unknown[]): Error | null {
   ) {
     const maybeError = args[4]
     if (isError(maybeError)) {
-      return maybeError
+      const unhandledError = createUnhandledError(
+        `[${args[2]}] ${maybeError.message}`
+      )
+      unhandledError.stack = maybeError.stack
+      return unhandledError
     }
   }
 

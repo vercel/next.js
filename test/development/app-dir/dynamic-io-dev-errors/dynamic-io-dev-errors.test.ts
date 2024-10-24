@@ -22,7 +22,7 @@ describe('Dynamic IO Dev Errors', () => {
       await waitForAndOpenRuntimeError(browser)
 
       expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
-        `"[ Server ]  Error: Route "/error" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random"`
+        `"[ Server ] Route "/error" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random"`
       )
     })
   })
@@ -40,7 +40,7 @@ describe('Dynamic IO Dev Errors', () => {
       await waitForAndOpenRuntimeError(browser)
 
       expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
-        `"[ Server ]  Error: Route "/error" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random"`
+        `"[ Server ] Route "/error" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random"`
       )
     })
   })
@@ -63,8 +63,11 @@ describe('Dynamic IO Dev Errors', () => {
 
     expect(result).toMatchInlineSnapshot(`
       {
-        "description": "Error: In Route "/no-accessed-data" this component accessed data without a Suspense boundary above it to provide a fallback UI. See more info: https://nextjs.org/docs/messages/next-prerender-data",
-        "stack": "",
+        "description": "[ Server ] In Route "/no-accessed-data" this component accessed data without a Suspense boundary above it to provide a fallback UI. See more info: https://nextjs.org/docs/messages/next-prerender-data",
+        "stack": "Page [Server]
+      <anonymous> (2:1)
+      Root [Server]
+      <anonymous> (2:1)",
       }
     `)
   })
