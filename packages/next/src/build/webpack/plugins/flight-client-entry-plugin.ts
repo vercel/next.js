@@ -491,7 +491,7 @@ export class FlightClientEntryPlugin {
       }
     }
 
-    for (const [name, actionEntryImports] of Object.entries(
+    for (const [entryName, actionEntryImports] of Object.entries(
       actionMapsPerClientEntry
     )) {
       // If an action method is already created in the server layer, we don't
@@ -504,7 +504,7 @@ export class FlightClientEntryPlugin {
         const remainingActionNames = []
         for (const action of actions) {
           // `action` is a [id, name] pair.
-          if (!createdActionIds.has(action[0])) {
+          if (!createdActionIds.has(entryName + '@' + action[0])) {
             remainingActionNames.push(action)
           }
         }
@@ -520,8 +520,8 @@ export class FlightClientEntryPlugin {
             compiler,
             compilation,
             actions: remainingActionEntryImports,
-            entryName: name,
-            bundlePath: name,
+            entryName,
+            bundlePath: entryName,
             fromClient: true,
             createdActionIds,
           })
@@ -859,7 +859,7 @@ export class FlightClientEntryPlugin {
     const actionsArray = Array.from(actions.entries())
     for (const [, actionsFromModule] of actions) {
       for (const [id] of actionsFromModule) {
-        createdActionIds.add(id)
+        createdActionIds.add(entryName + '@' + id)
       }
     }
 
