@@ -332,9 +332,9 @@ async function Users() {
 
 export default Page() {
   return (
-	  <main>
-		  <Users/>
-		</main>
+    <main>
+      <Users/>
+    </main>
   )
 }
 ```
@@ -348,7 +348,11 @@ The props are serialized and form part of the cache key. If you use the same com
 ```tsx filename="app/components/bookings.tsx" highlight={4,5}
 import { unstable_cacheLife as cacheLife} from 'next/cache'
 
-export function Bookings(type = 'massage') {
+interface BookingsProps {
+  type: string
+}
+
+export async function Bookings({type = 'massage'}: BookingsProps) {
   "use cache"
   cacheLife('minutes')
 	
