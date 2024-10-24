@@ -61,11 +61,16 @@ function ErrorDescription({
   error: Error
   hydrationWarning: string | null
 }) {
-  const isUnhandledError = isUnhandledConsoleOrRejection(error)
-  // If there's hydration warning or console error, skip displaying the error name
+  const isUnhandledOrReplayError =
+    isUnhandledConsoleOrRejection(error) || 'environmentName' in error
+  // If the error is:
+  // - hydration warning
+  // - captured console error or unhandled rejection
+  // - replayed error
+  // skip displaying the error name
   return (
     <>
-      {isUnhandledError || hydrationWarning ? '' : error.name + ': '}
+      {isUnhandledOrReplayError || hydrationWarning ? '' : error.name + ': '}
       <HotlinkedText
         text={hydrationWarning || error.message}
         matcher={isNextjsLink}

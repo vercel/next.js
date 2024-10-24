@@ -21,10 +21,15 @@ export function handleClientError(
   let error: Error
   if (!originError || !isError(originError)) {
     // If it's not an error, format the args into an error
+    // `[${args[2]}] ${maybeError.message}`
     const formattedErrorMessage = formatConsoleArgs(consoleErrorArgs)
     error = createUnhandledError(formattedErrorMessage)
   } else {
     error = originError
+    // Handle formatting environment name
+    if ('environmentName' in error) {
+      error.message = `[ ${error.environmentName} ] ${error.message}`
+    }
   }
 
   storeHydrationErrorStateFromConsoleArgs(...consoleErrorArgs)

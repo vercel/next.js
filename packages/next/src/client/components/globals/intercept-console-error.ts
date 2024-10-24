@@ -1,6 +1,5 @@
 import isError from '../../../lib/is-error'
 import { isNextRouterError } from '../is-next-router-error'
-import { createUnhandledError } from '../react-dev-overlay/internal/helpers/console-error'
 import { handleClientError } from '../react-dev-overlay/internal/helpers/use-error-handler'
 
 export const originConsoleError = window.console.error
@@ -27,16 +26,12 @@ export function patchConsoleError() {
       maybeError = args[0]
     }
 
-    if (!isNextRouterError(maybeError)) {
-      if (process.env.NODE_ENV !== 'production' && isError(maybeError)) {
-        const unhandledError = createUnhandledError(
-          `[${args[2]}] ${maybeError.message}`
-        )
-        unhandledError.stack = maybeError.stack
+    if (!isNextRouterError(maybeError) && isError(maybeError)) {
+      if (process.env.NODE_ENV !== 'production') {
         handleClientError(
           // replayed errors have their own complex format string that should be used,
           // but if we pass the error directly, `handleClientError` will ignore it
-          unhandledError,
+          maybeError,
           args
         )
       }
