@@ -371,7 +371,7 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
             // TODO propose a copyable template, but check if it's a root layout and/or if it should be TypeScript
             "The layout file is still empty. Start by adding a component to file.\n\n\
             See https://nextjs.org/docs/app/building-your-application/routing/layouts-and-templates#layouts".to_string(),
-            DUMMY_SP
+            vec![]
         ),
         RSCErrorKind::EmptyFile {
             is_layout: false
@@ -381,17 +381,17 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
             \x20 return <h1>Page</h1>;\n\
             }\n\n\
             See https://nextjs.org/docs/app/building-your-application/routing/pages".to_string(),
-            DUMMY_SP
+            vec![]
         ),
         RSCErrorKind::NoComponentExport { is_layout: true } => (
             "A layout file need to have a component exported via `export default`.\n\n\
             See https://nextjs.org/docs/app/building-your-application/routing/layouts-and-templates#layouts".to_string(),
-            DUMMY_SP
+            vec![]
         ),
         RSCErrorKind::NoComponentExport { is_layout: false } => (
             "A page file need to have a component exported via `export default`.\n\n\
             See https://nextjs.org/docs/app/building-your-application/routing/pages".to_string(),
-            DUMMY_SP
+            vec![]
         ),
         RSCErrorKind::NoComponentExportWithRecommendation { is_layout: true, export_name, span } => (
             format!(
@@ -400,7 +400,7 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
                 See https://nextjs.org/docs/app/building-your-application/routing/layouts-and-templates#layouts",
                 export_name
             ),
-            span,
+            vec![span],
         ),
         RSCErrorKind::NoComponentExportWithRecommendation { is_layout: false, export_name, span } => (
             format!(
@@ -409,7 +409,7 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
                 See https://nextjs.org/docs/app/building-your-application/routing/pages",
                 export_name
             ),
-            span,
+            vec![span],
         ),
     };
 
