@@ -21,7 +21,7 @@ Also, don’t forget to add a `README.md` file with the following format:
 - Examples should be TypeScript first, if possible.
 - Omit the `name` and `version` fields from your `package.json`.
 - Ensure all your dependencies are up to date.
-- Ensure you’re using [`next/image`](https://nextjs.org/docs/api-reference/next/image).
+- Ensure you’re using [`next/image`](https://nextjs.org/docs/app/api-reference/components/image).
 - To add additional installation instructions, please add them where appropriate.
 - To add additional notes, add `## Notes` section at the end.
 - Remove the `Deploy your own` section if your example can’t be immediately deployed to Vercel.
@@ -57,5 +57,5 @@ pnpm create next-app --example DIRECTORY_NAME DIRECTORY_NAME-app
 bunx create-next-app --example DIRECTORY_NAME DIRECTORY_NAME-app
 ```
 
-Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/app/building-your-application/deploying)).
 ````
