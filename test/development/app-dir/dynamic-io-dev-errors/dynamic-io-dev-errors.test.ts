@@ -22,7 +22,7 @@ describe('Dynamic IO Dev Errors', () => {
       await waitForAndOpenRuntimeError(browser)
 
       expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
-        `"[ Server ] Route "/error" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random"`
+        `"[ Server ] Error: Route "/error" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random"`
       )
     })
   })
@@ -40,7 +40,7 @@ describe('Dynamic IO Dev Errors', () => {
       await waitForAndOpenRuntimeError(browser)
 
       expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
-        `"[ Server ] Route "/error" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random"`
+        `"[ Server ] Error: Route "/error" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random"`
       )
     })
   })
@@ -63,11 +63,31 @@ describe('Dynamic IO Dev Errors', () => {
 
     expect(result).toMatchInlineSnapshot(`
       {
-        "description": "[ Server ] In Route "/no-accessed-data" this component accessed data without a Suspense boundary above it to provide a fallback UI. See more info: https://nextjs.org/docs/messages/next-prerender-data",
+        "description": "[ Server ] Error: In Route "/no-accessed-data" this component accessed data without a Suspense boundary above it to provide a fallback UI. See more info: https://nextjs.org/docs/messages/next-prerender-data",
         "stack": "Page [Server]
       <anonymous> (2:1)
       Root [Server]
-      <anonymous> (2:1)",
+      <anonymous> (2:1)
+      RedirectErrorBoundary
+      ./dist/esm/server/route-modules/app-page/module.js
+      RedirectBoundary
+      ./dist/esm/server/route-modules/app-page/module.js
+      ReactDevOverlay
+      ./dist/esm/client/components/react-dev-overlay/app/hot-reloader-client.js
+      HotReload
+      ./dist/esm/client/components/react-dev-overlay/app/hot-reloader-client.js
+      Router
+      ./dist/esm/server/route-modules/app-page/module.js
+      ErrorBoundaryHandler
+      ./dist/esm/server/route-modules/app-page/module.js
+      ErrorBoundary
+      ./dist/esm/server/route-modules/app-page/module.js
+      AppRouter
+      ./dist/esm/server/route-modules/app-page/module.js
+      ServerInsertedHTMLProvider
+      ./dist/esm/server/route-modules/app-page/module.js
+      App
+      ./dist/esm/server/route-modules/app-page/module.js",
       }
     `)
   })
