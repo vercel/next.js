@@ -34,17 +34,17 @@ impl Issue for ResolvingIssue {
 
     #[turbo_tasks::function]
     async fn title(&self) -> Result<Vc<StyledString>> {
-        let module_not_found = StyledString::Strong("Module not found".into());
-
-        Ok(match self.request.await?.request() {
-            Some(request) => StyledString::Line(vec![
-                module_not_found,
-                StyledString::Text(": Can't resolve '".into()),
-                StyledString::Code(request),
-                StyledString::Text("'".into()),
-            ]),
-            None => module_not_found,
-        }
+        let request = self
+            .request
+            .request_pattern()
+            .to_string()
+            .await?
+            .clone_value();
+        Ok(StyledString::Line(vec![
+            StyledString::Strong("Module not found".into()),
+            StyledString::Text(": Can't resolve ".into()),
+            StyledString::Code(request),
+        ])
         .cell())
     }
 

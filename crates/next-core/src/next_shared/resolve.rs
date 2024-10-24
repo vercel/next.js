@@ -15,7 +15,7 @@ use turbopack_core::{
             AfterResolvePlugin, AfterResolvePluginCondition, BeforeResolvePlugin,
             BeforeResolvePluginCondition,
         },
-        ExternalType, ResolveResult, ResolveResultItem, ResolveResultOption,
+        ExternalTraced, ExternalType, ResolveResult, ResolveResultItem, ResolveResultOption,
     },
 };
 
@@ -233,18 +233,20 @@ impl AfterResolvePlugin for NextExternalResolvePlugin {
         _reference_type: Value<ReferenceType>,
         _request: Vc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
-        let raw_fs_path = &*fs_path.await?;
-        let path = raw_fs_path.path.to_string();
+        let path = fs_path.await?.path.to_string();
         // Find the starting index of 'next/dist' and slice from that point. It should
         // always be found since the glob pattern above is specific enough.
         let starting_index = path.find("next/dist").unwrap();
+        let specifier = &path[starting_index..];
         // Replace '/esm/' with '/' to match the CJS version of the file.
-        let modified_path = path[starting_index..].replace("/esm/", "/");
+        let specifier: RcStr = specifier.replace("/esm/", "/").into();
+
         Ok(Vc::cell(Some(
-            ResolveResult::primary(ResolveResultItem::External(
-                modified_path.into(),
-                ExternalType::CommonJs,
-            ))
+            ResolveResult::primary(ResolveResultItem::External {
+                name: specifier.clone(),
+                ty: ExternalType::CommonJs,
+                traced: ExternalTraced::Traced,
+            })
             .into(),
         )))
     }

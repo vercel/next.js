@@ -1,7 +1,15 @@
-export default () => 'Hello World'
+import useSWR from 'swr'
 
-export function getServerSideProps() {
+console.log(useSWR)
+
+export default function Home() {
+  return <h1>Hello</h1>
+}
+
+export async function getStaticProps() {
   return {
-    props: {},
+    props: {
+      foo: 'bar',
+    },
   }
 }

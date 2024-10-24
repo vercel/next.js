@@ -203,18 +203,14 @@ async fn extra_configs_changed(
         .map(|path| async move {
             Ok(
                 if matches!(&*path.get_type().await?, FileSystemEntryType::File) {
-                    match *asset_context
+                    asset_context
                         .process(
                             Vc::upcast(FileSource::new(path)),
                             Value::new(ReferenceType::Internal(InnerAssets::empty())),
                         )
+                        .try_into_module()
                         .await?
-                    {
-                        ProcessResult::Module(module) => {
-                            Some(any_content_changed_of_module(module))
-                        }
-                        ProcessResult::Ignore => None,
-                    }
+                        .map(any_content_changed_of_module)
                 } else {
                     None
                 },

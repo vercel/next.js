@@ -13,22 +13,44 @@ describe('edge-render-getserversideprops', () => {
   if ((global as any).isNextStart) {
     it('should not output trace files for edge routes', async () => {
       expect(await fs.pathExists(join(next.testDir, '.next/pages'))).toBe(false)
-      expect(
-        await fs.pathExists(join(next.testDir, '.next/server/pages/[id].js'))
-      ).toBe(true)
-      expect(
-        await fs.pathExists(
-          join(next.testDir, '.next/server/pages/[id].js.nft.json')
-        )
-      ).toBe(false)
-      expect(
-        await fs.pathExists(join(next.testDir, '.next/server/pages/index.js'))
-      ).toBe(true)
-      expect(
-        await fs.pathExists(
-          join(next.testDir, '.next/server/pages/index.js.nft.json')
-        )
-      ).toBe(false)
+      if (process.env.TURBOPACK) {
+        expect(
+          await fs.pathExists(
+            join(
+              next.testDir,
+              '.next/server/pages/[id]/middleware-manifest.json'
+            )
+          )
+        ).toBe(true)
+      } else {
+        expect(
+          await fs.pathExists(join(next.testDir, '.next/server/pages/[id].js'))
+        ).toBe(true)
+        expect(
+          await fs.pathExists(
+            join(next.testDir, '.next/server/pages/[id].js.nft.json')
+          )
+        ).toBe(false)
+      }
+      if (process.env.TURBOPACK) {
+        expect(
+          await fs.pathExists(
+            join(
+              next.testDir,
+              '.next/server/pages/index/middleware-manifest.json'
+            )
+          )
+        ).toBe(true)
+      } else {
+        expect(
+          await fs.pathExists(join(next.testDir, '.next/server/pages/index.js'))
+        ).toBe(true)
+        expect(
+          await fs.pathExists(
+            join(next.testDir, '.next/server/pages/index.js.nft.json')
+          )
+        ).toBe(false)
+      }
     })
   }
 

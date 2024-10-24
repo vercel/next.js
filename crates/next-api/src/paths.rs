@@ -108,6 +108,16 @@ pub(crate) async fn get_wasm_paths_from_root(
     get_paths_from_root(root, output_assets, |path| path.ends_with(".wasm")).await
 }
 
+pub(crate) async fn get_asset_paths_from_root(
+    root: &FileSystemPath,
+    output_assets: &[Vc<Box<dyn OutputAsset>>],
+) -> Result<Vec<RcStr>> {
+    get_paths_from_root(root, output_assets, |path| {
+        !path.ends_with(".js") && !path.ends_with(".map") && !path.ends_with(".wasm")
+    })
+    .await
+}
+
 pub(crate) async fn get_font_paths_from_root(
     root: &FileSystemPath,
     output_assets: &[Vc<Box<dyn OutputAsset>>],

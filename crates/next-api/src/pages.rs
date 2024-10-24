@@ -19,6 +19,7 @@ use next_core::{
         get_server_module_options_context, get_server_resolve_options_context,
         get_server_runtime_entries, ServerContextType,
     },
+    nft_json::NftJsonAsset,
     pages_structure::{
         find_pages_structure, PagesDirectoryStructure, PagesStructure, PagesStructureItem,
     },
@@ -28,7 +29,7 @@ use next_core::{
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_tasks::{
-    trace::TraceRawVcs, Completion, FxIndexMap, RcStr, TaskInput, TryJoinIterExt, Value, Vc,
+    fxindexmap, trace::TraceRawVcs, Completion, FxIndexMap, RcStr, TaskInput, Value, Vc,
 };
 use turbo_tasks_fs::{
     self, File, FileContent, FileSystem, FileSystemPath, FileSystemPathOption, VirtualFileSystem,
@@ -49,7 +50,7 @@ use turbopack_core::{
     file_source::FileSource,
     ident::AssetIdent,
     module::{Module, Modules},
-    output::{OutputAsset, OutputAssets},
+    output::{OptionOutputAsset, OutputAsset, OutputAssets},
     reference_type::{EcmaScriptModulesReferenceSubType, EntryReferenceSubType, ReferenceType},
     resolve::{origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
     source::Source,
@@ -66,7 +67,7 @@ use crate::{
     font::create_font_manifest,
     loadable_manifest::create_react_loadable_manifest,
     paths::{
-        all_paths_in_root, all_server_paths, get_js_paths_from_root, get_paths_from_root,
+        all_paths_in_root, all_server_paths, get_asset_paths_from_root, get_js_paths_from_root,
         get_wasm_paths_from_root, paths_to_bindings, wasm_paths_to_bindings,
     },
     project::Project,
@@ -876,9 +877,30 @@ impl PageEndpoint {
                 )
                 .await?;
 
+                let nft = if this
+                    .pages_project
+                    .project()
+                    .next_mode()
+                    .await?
+                    .is_production()
+                {
+                    Vc::cell(Some(Vc::upcast(NftJsonAsset::new(
+                        ssr_module,
+                        Some(ssr_entry_chunk),
+                        true,
+                        this.pages_project.project().output_fs(),
+                        this.pages_project.project().project_fs(),
+                        this.pages_project.project().client_fs(),
+                        vec![],
+                    ))))
+                } else {
+                    Vc::cell(None)
+                };
+
                 Ok(SsrChunk::NodeJs {
                     entry: ssr_entry_chunk,
                     dynamic_import_entries,
+                    nft,
                 }
                 .cell())
             }
@@ -990,37 +1012,21 @@ impl PageEndpoint {
     ) -> Result<Vc<Box<dyn OutputAsset>>> {
         let node_root = self.pages_project.project().node_root();
         let client_relative_path = self.pages_project.project().client_relative_path();
-        let client_relative_path_ref = client_relative_path.await?;
         let build_manifest = BuildManifest {
-            pages: [(
-                self.pathname.await?.clone_value(),
-                client_chunks
-                    .await?
-                    .iter()
-                    .copied()
-                    .map(|chunk| {
-                        let client_relative_path_ref = client_relative_path_ref.clone();
-                        async move {
-                            let chunk_path = chunk.ident().path().await?;
-                            Ok(client_relative_path_ref
-                                .get_path_to(&chunk_path)
-                                .context("client chunk entry path must be inside the client root")?
-                                .into())
-                        }
-                    })
-                    .try_join()
-                    .await?,
-            )]
-            .into_iter()
-            .collect(),
+            pages: fxindexmap!(self.pathname.await?.clone_value() => client_chunks),
             ..Default::default()
         };
         let manifest_path_prefix = get_asset_prefix_from_pathname(&self.pathname.await?);
-        Ok(Vc::upcast(VirtualOutputAsset::new(
-            node_root
-                .join(format!("server/pages{manifest_path_prefix}/build-manifest.json",).into()),
-            AssetContent::file(File::from(serde_json::to_string_pretty(&build_manifest)?).into()),
-        )))
+        Ok(Vc::upcast(
+            build_manifest
+                .build_output(
+                    node_root.join(
+                        format!("server/pages{manifest_path_prefix}/build-manifest.json",).into(),
+                    ),
+                    client_relative_path,
+                )
+                .await?,
+        ))
     }
 
     #[turbo_tasks::function]
@@ -1092,10 +1098,14 @@ impl PageEndpoint {
             SsrChunk::NodeJs {
                 entry,
                 dynamic_import_entries,
+                nft,
             } => {
                 let pages_manifest = self.pages_manifest(entry);
                 server_assets.push(pages_manifest);
                 server_assets.push(entry);
+                if let Some(nft) = &*nft.await? {
+                    server_assets.push(*nft);
+                }
 
                 let loadable_manifest_output = self.react_loadable_manifest(dynamic_import_entries);
                 server_assets.extend(loadable_manifest_output.await?.iter().copied());
@@ -1141,8 +1151,7 @@ impl PageEndpoint {
                     .extend(get_wasm_paths_from_root(&node_root_value, &all_output_assets).await?);
 
                 let all_assets =
-                    get_paths_from_root(&node_root_value, &all_output_assets, |_asset| true)
-                        .await?;
+                    get_asset_paths_from_root(&node_root_value, &all_output_assets).await?;
 
                 let named_regex = get_named_middleware_regex(&pathname).into();
                 let matchers = MiddlewareMatcher {
@@ -1372,6 +1381,7 @@ pub enum SsrChunk {
     NodeJs {
         entry: Vc<Box<dyn OutputAsset>>,
         dynamic_import_entries: Vc<DynamicImportedChunks>,
+        nft: Vc<OptionOutputAsset>,
     },
     Edge {
         files: Vc<OutputAssets>,

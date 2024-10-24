@@ -4,6 +4,7 @@ use next_core::{
     next_edge::entry::wrap_edge_entry,
     next_manifests::{InstrumentationDefinition, MiddlewaresManifestV2},
     next_server::{get_server_runtime_entries, ServerContextType},
+    nft_json::NftJsonAsset,
 };
 use tracing::Instrument;
 use turbo_tasks::{Completion, RcStr, Value, Vc};
@@ -86,6 +87,15 @@ impl InstrumentationEndpoint {
             edge_entry_module,
         }
         .cell()
+    }
+
+    #[turbo_tasks::function]
+    async fn entry_module(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
+        if self.await?.is_edge {
+            Ok(self.core_modules().await?.edge_entry_module)
+        } else {
+            Ok(self.core_modules().await?.userland_module)
+        }
     }
 
     #[turbo_tasks::function]
@@ -204,7 +214,20 @@ impl InstrumentationEndpoint {
 
             Ok(Vc::cell(output_assets))
         } else {
-            Ok(Vc::cell(vec![self.node_chunk()]))
+            let chunk = self.node_chunk();
+            let mut output_assets = vec![chunk];
+            if this.project.next_mode().await?.is_production() {
+                output_assets.push(Vc::upcast(NftJsonAsset::new(
+                    self.entry_module(),
+                    Some(chunk),
+                    true,
+                    this.project.output_fs(),
+                    this.project.project_fs(),
+                    this.project.client_fs(),
+                    vec![],
+                )));
+            }
+            Ok(Vc::cell(output_assets))
         }
     }
 }

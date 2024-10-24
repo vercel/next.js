@@ -65,7 +65,12 @@ use crate::{error::PrettyPrintError, issue::IssueSeverity};
 pub enum ModuleResolveResultItem {
     Module(Vc<Box<dyn Module>>),
     OutputAsset(Vc<Box<dyn OutputAsset>>),
-    External(RcStr, ExternalType),
+    External {
+        /// uri, path, reference, etc.
+        name: RcStr,
+        ty: ExternalType,
+        traced: Option<ResolvedVc<ModuleResolveResult>>,
+    },
     Ignore,
     Error(ResolvedVc<RcStr>),
     Empty,
@@ -372,6 +377,23 @@ impl ModuleResolveResult {
 #[derive(
     Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize, TraceRawVcs, TaskInput,
 )]
+pub enum ExternalTraced {
+    Untraced,
+    Traced,
+}
+
+impl Display for ExternalTraced {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ExternalTraced::Untraced => write!(f, "Untraced"),
+            ExternalTraced::Traced => write!(f, "Traced"),
+        }
+    }
+}
+
+#[derive(
+    Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize, TraceRawVcs, TaskInput,
+)]
 pub enum ExternalType {
     Url,
     CommonJs,
@@ -392,7 +414,12 @@ impl Display for ExternalType {
 #[derive(Clone, Debug)]
 pub enum ResolveResultItem {
     Source(Vc<Box<dyn Source>>),
-    External(RcStr, ExternalType),
+    External {
+        /// uri, path, reference, etc.
+        name: RcStr,
+        ty: ExternalType,
+        traced: ExternalTraced,
+    },
     Ignore,
     Error(Vc<RcStr>),
     Empty,
@@ -472,10 +499,14 @@ impl ValueToString for ResolveResult {
                 ResolveResultItem::Source(a) => {
                     result.push_str(&a.ident().to_string().await?);
                 }
-                ResolveResultItem::External(s, ty) => {
+                ResolveResultItem::External {
+                    name: s,
+                    ty,
+                    traced,
+                } => {
                     result.push_str("external ");
                     result.push_str(s);
-                    write!(result, " ({})", ty)?;
+                    write!(result, " ({}, {})", ty, traced)?;
                 }
                 ResolveResultItem::Ignore => {
                     result.push_str("ignore");
@@ -670,9 +701,17 @@ impl ResolveResult {
                             request,
                             match item {
                                 ResolveResultItem::Source(source) => asset_fn(source).await?,
-                                ResolveResultItem::External(s, ty) => {
-                                    ModuleResolveResultItem::External(s, ty)
-                                }
+                                ResolveResultItem::External {
+                                    name,
+                                    ty,
+                                    // TODO remove this whole function? it's easy to drop traced
+                                    // externals now
+                                    traced: _,
+                                } => ModuleResolveResultItem::External {
+                                    name,
+                                    ty,
+                                    traced: None,
+                                },
                                 ResolveResultItem::Ignore => ModuleResolveResultItem::Ignore,
                                 ResolveResultItem::Empty => ModuleResolveResultItem::Empty,
                                 ResolveResultItem::Error(e) => {
@@ -684,6 +723,29 @@ impl ResolveResult {
                             },
                         ))
                     }
+                })
+                .try_join()
+                .await?
+                .into_iter()
+                .collect(),
+            affecting_sources: self.affecting_sources.clone(),
+        })
+    }
+
+    pub async fn map_items_module<A, AF>(&self, source_fn: A) -> Result<ModuleResolveResult>
+    where
+        A: Fn(ResolveResultItem) -> AF,
+        AF: Future<Output = Result<ModuleResolveResultItem>>,
+    {
+        Ok(ModuleResolveResult {
+            primary: self
+                .primary
+                .iter()
+                .map(|(request, item)| {
+                    let asset_fn = &source_fn;
+                    let request = request.clone();
+                    let item = item.clone();
+                    async move { Ok((request, asset_fn(item).await?)) }
                 })
                 .try_join()
                 .await?
@@ -1468,9 +1530,12 @@ pub async fn url_resolve(
     } else {
         rel_result
     };
-    let result = origin
-        .asset_context()
-        .process_resolve_result(result, reference_type.clone());
+    let result = origin.asset_context().process_resolve_result(
+        origin.origin_path(),
+        result,
+        reference_type.clone(),
+        false,
+    );
     handle_resolve_error(
         result,
         reference_type,
@@ -1835,7 +1900,11 @@ async fn resolve_internal_inline(
                 let uri: RcStr = format!("{}{}", protocol, remainder).into();
                 ResolveResult::primary_with_key(
                     RequestKey::new(uri.clone()),
-                    ResolveResultItem::External(uri, ExternalType::Url),
+                    ResolveResultItem::External {
+                        name: uri,
+                        ty: ExternalType::Url,
+                        traced: ExternalTraced::Untraced,
+                    },
                 )
                 .into()
             }

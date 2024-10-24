@@ -444,11 +444,12 @@ pub async fn type_resolve(
             options,
         )
     };
-    let result = as_typings_result(
-        origin
-            .asset_context()
-            .process_resolve_result(result, ty.clone()),
-    );
+    let result = as_typings_result(origin.asset_context().process_resolve_result(
+        origin.origin_path().parent(),
+        result,
+        ty.clone(),
+        false,
+    ));
     handle_resolve_error(
         result,
         ty,

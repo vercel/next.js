@@ -24,7 +24,7 @@ use turbopack_ecmascript::chunk::EcmascriptChunkPlaceable;
 
 use crate::{
     paths::{
-        all_paths_in_root, all_server_paths, get_js_paths_from_root, get_paths_from_root,
+        all_paths_in_root, all_server_paths, get_asset_paths_from_root, get_js_paths_from_root,
         get_wasm_paths_from_root, paths_to_bindings, wasm_paths_to_bindings,
     },
     project::Project,
@@ -138,8 +138,7 @@ impl MiddlewareEndpoint {
         let wasm_paths_from_root =
             get_wasm_paths_from_root(&node_root_value, &all_output_assets).await?;
 
-        let all_assets =
-            get_paths_from_root(&node_root_value, &all_output_assets, |_asset| true).await?;
+        let all_assets = get_asset_paths_from_root(&node_root_value, &all_output_assets).await?;
 
         // Awaited later for parallelism
         let config = config.await?;

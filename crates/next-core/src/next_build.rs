@@ -1,7 +1,7 @@
 use anyhow::Result;
 use turbo_tasks::{RcStr, Vc};
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_core::resolve::{options::ImportMapping, ExternalType};
+use turbopack_core::resolve::{options::ImportMapping, ExternalTraced, ExternalType};
 
 use crate::next_import_map::get_next_package;
 
@@ -23,6 +23,7 @@ pub async fn get_external_next_compiled_package_mapping(
     Ok(ImportMapping::Alternatives(vec![ImportMapping::External(
         Some(format!("next/dist/compiled/{}", &*package_name.await?).into()),
         ExternalType::CommonJs,
+        ExternalTraced::Traced,
     )
     .into()])
     .cell())

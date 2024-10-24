@@ -160,10 +160,12 @@ pub async fn resolve_node_pre_gyp_files(
                     )
                     .into();
                     let resolved_file_vc = config_file_dir.join(node_file_path.clone());
-                    sources.insert(
-                        node_file_path,
-                        Vc::upcast(FileSource::new(resolved_file_vc)),
-                    );
+                    if *resolved_file_vc.get_type().await? == FileSystemEntryType::File {
+                        sources.insert(
+                            node_file_path,
+                            Vc::upcast(FileSource::new(resolved_file_vc)),
+                        );
+                    }
                 }
                 for (key, entry) in config_file_dir
                     // TODO
