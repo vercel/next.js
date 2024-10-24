@@ -2258,7 +2258,9 @@ export default async function build(
                               !hasGenerateStaticParams
                             ) {
                               throw new Error(
-                                `Page "${page}" is missing "generateStaticParams()" so it cannot be used with "output: export" config.`
+                                workerResult.prerenderedRoutes === undefined
+                                  ? `Page "${page}" is missing "generateStaticParams()" so it cannot be used with "output: export" config.`
+                                  : `Page "${page}" returned an empty array in "generateStaticParams()", it is not allowed on "output: export" config.`
                               )
                             }
 
