@@ -3,7 +3,7 @@ title: use client
 description: Learn how to use the use client directive to render a component on the client.
 related:
   description: React documentation for use client.
-  links: 
+  links:
     - https://react.dev/reference/rsc/use-client
 ---
 
@@ -13,7 +13,7 @@ The `use client` directive designates a component to be rendered on the **client
 
 To designate a component as a Client Component, add the `use client` directive **at the top of the file**, before any imports:
 
-````tsx filename="app/components/counter.tsx" highlight={1} switcher
+```tsx filename="app/components/counter.tsx" highlight={1} switcher
 'use client'
 
 import { useState } from 'react'
@@ -28,9 +28,9 @@ export default function Counter() {
     </div>
   )
 }
-````
+```
 
-````jsx filename="app/components/counter.js" highlight={1} switcher
+```jsx filename="app/components/counter.js" highlight={1} switcher
 'use client'
 
 import { useState } from 'react'
@@ -45,7 +45,7 @@ export default function Counter() {
     </div>
   )
 }
-````
+```
 
 ## Nesting Client Components within Server Components
 
@@ -88,8 +88,6 @@ export default function Page() {
 }
 ```
 
-
 ## Reference
 
 See the [React documentation](https://react.dev/reference/rsc/use-client) for more information on `use client`.
-
