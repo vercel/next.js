@@ -7,8 +7,8 @@ export function enqueueConsecutiveDedupedError(
 ) {
   const isFront = isHydrationError(error)
   const previousError = isFront ? queue[0] : queue[queue.length - 1]
-  // Only check message to see if it's the same error, as message is representative display in the console.
-  if (previousError && previousError.message === error.message) {
+  // Compare the error stack to dedupe the consecutive errors
+  if (previousError && previousError.stack === error.stack) {
     return
   }
   // TODO: change all to push error into errorQueue,

@@ -1,10 +1,11 @@
 import React from 'react'
 import isError from '../../../../../lib/is-error'
+import { stripStackByFrame } from './strip-stack-frame'
 
 const REACT_ERROR_STACK_BOTTOM_FRAME = 'react-stack-bottom-frame'
-const REACT_ERROR_STACK_BOTTOM_FRAME_REGEX = new RegExp(
-  `(at ${REACT_ERROR_STACK_BOTTOM_FRAME} )|(${REACT_ERROR_STACK_BOTTOM_FRAME}\\@)`
-)
+
+const stripAfterReactBottomFrame = (stack: string) =>
+  stripStackByFrame(stack, REACT_ERROR_STACK_BOTTOM_FRAME, true)
 
 export function getReactStitchedError<T = unknown>(err: T): Error | T {
   if (typeof (React as any).captureOwnerStack !== 'function') {
@@ -14,14 +15,7 @@ export function getReactStitchedError<T = unknown>(err: T): Error | T {
   const isErrorInstance = isError(err)
   const originStack = isErrorInstance ? err.stack || '' : ''
   const originMessage = isErrorInstance ? err.message : ''
-  const stackLines = originStack.split('\n')
-  const indexOfSplit = stackLines.findIndex((line) =>
-    REACT_ERROR_STACK_BOTTOM_FRAME_REGEX.test(line)
-  )
-  const isOriginalReactError = indexOfSplit >= 0 // has the react-stack-bottom-frame
-  let newStack = isOriginalReactError
-    ? stackLines.slice(0, indexOfSplit).join('\n')
-    : originStack
+  let newStack = stripAfterReactBottomFrame(originStack)
 
   const newError = new Error(originMessage)
   // Copy all enumerable properties, e.g. digest
