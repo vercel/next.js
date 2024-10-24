@@ -29,6 +29,28 @@ const mjsCjsLinting = join(__dirname, '../mjs-cjs-linting')
 const dirTypescript = join(__dirname, '../with-typescript')
 const formatterAsync = join(__dirname, '../formatter-async/format.js')
 
+const getEslintConfigSnapshot = (compatExtendsStr) => {
+  return `
+        "import { dirname } from 'node:path';
+        import { fileURLToPath } from 'node:url';
+        import { FlatCompat } from '@eslint/eslintrc';
+
+        const __filename = fileURLToPath(import.meta.url);
+        const __dirname = dirname(__filename);
+
+        const compat = new FlatCompat({
+          baseDirectory: __dirname,
+        });
+
+        const eslintConfig = [
+          ...compat.extends(${compatExtendsStr}),
+        ];
+
+        export default eslintConfig;
+        "
+      `
+}
+
 describe('Next Lint', () => {
   describe('First Time Setup ', () => {
     async function nextLintTemp(setupCallback, isApp = false) {
@@ -49,19 +71,20 @@ describe('Next Lint', () => {
         const pkgJson = JSON.parse(
           await fs.readFile(join(folder, 'package.json'), 'utf8')
         )
-        const eslintrcJson = JSON.parse(
-          await fs.readFile(join(folder, '.eslintrc.json'), 'utf8')
+        const eslintConfigStr = await fs.readFile(
+          join(folder, 'eslint.config.mjs'),
+          'utf8'
         )
 
-        return { stdout, pkgJson, eslintrcJson }
+        return { stdout, pkgJson, eslintConfigStr }
       } finally {
         await fs.remove(folder)
       }
     }
 
     test('show a prompt to set up ESLint if no configuration detected', async () => {
-      const eslintrcJson = join(dirFirstTimeSetup, '.eslintrc.json')
-      await fs.writeFile(eslintrcJson, '')
+      const eslintConfig = join(dirFirstTimeSetup, 'eslint.config.mjs')
+      await fs.writeFile(eslintConfig, '')
 
       const { stdout, stderr } = await nextLint(dirFirstTimeSetup, [], {
         stdout: true,
@@ -91,9 +114,11 @@ describe('Next Lint', () => {
         )
         expect(stdout).toContain('eslint')
         expect(stdout).toContain('eslint-config-next')
+        expect(stdout).toContain('@eslint/eslintrc')
         expect(stdout).toContain(packageManger)
         expect(pkgJson.devDependencies).toHaveProperty('eslint')
         expect(pkgJson.devDependencies).toHaveProperty('eslint-config-next')
+        expect(pkgJson.devDependencies).toHaveProperty('@eslint/eslintrc')
 
         // App Router
         const { stdout: appStdout, pkgJson: appPkgJson } = await nextLintTemp(
@@ -108,30 +133,36 @@ describe('Next Lint', () => {
         )
         expect(appStdout).toContain('eslint')
         expect(appStdout).toContain('eslint-config-next')
+        expect(appStdout).toContain('@eslint/eslintrc')
         expect(appStdout).toContain(packageManger)
         expect(appPkgJson.devDependencies).toHaveProperty('eslint')
         expect(appPkgJson.devDependencies).toHaveProperty('eslint-config-next')
+        expect(appPkgJson.devDependencies).toHaveProperty('@eslint/eslintrc')
       })
     }
 
-    test('creates .eslintrc.json file with a default configuration', async () => {
-      const { stdout, eslintrcJson } = await nextLintTemp()
+    test('creates eslint.config.mjs file with a default configuration', async () => {
+      const { stdout, eslintConfigStr } = await nextLintTemp()
 
       expect(stdout).toContain(
-        'We created the .eslintrc.json file for you and included your selected configuration'
+        'We created the eslint.config.mjs file for you and included your selected configuration'
       )
-      expect(eslintrcJson).toMatchObject({ extends: 'next/core-web-vitals' })
+      expect(eslintConfigStr).toMatchInlineSnapshot(
+        getEslintConfigSnapshot("'next/core-web-vitals'")
+      )
     })
 
-    test('creates .eslintrc.json file with a default app router configuration', async () => {
+    test('creates eslint.config.mjs file with a default app router configuration', async () => {
       // App Router
-      const { stdout: appStdout, eslintrcJson: appEslintrcJson } =
+      const { stdout: appStdout, eslintConfigStr: appEslintConfigStr } =
         await nextLintTemp(null, true)
 
       expect(appStdout).toContain(
-        'We created the .eslintrc.json file for you and included your selected configuration'
+        'We created the eslint.config.mjs file for you and included your selected configuration'
       )
-      expect(appEslintrcJson).toMatchObject({ extends: 'next/core-web-vitals' })
+      expect(appEslintConfigStr).toMatchInlineSnapshot(
+        getEslintConfigSnapshot("'next/core-web-vitals'")
+      )
     })
 
     test('shows a successful message when completed', async () => {
@@ -313,22 +344,53 @@ describe('Next Lint', () => {
   })
 
   test('success message when no warnings or errors', async () => {
-    const eslintrcJson = join(dirFirstTimeSetup, '.eslintrc.json')
-    await fs.writeFile(eslintrcJson, '{ "extends": "next", "root": true }\n')
+    const folder = join(os.tmpdir(), Math.random().toString(36).substring(2))
+    const eslintConfigPath = join(folder, 'eslint.config.mjs')
 
-    const { stdout, stderr } = await nextLint(dirFirstTimeSetup, [], {
-      stdout: true,
-      stderr: true,
-    })
+    try {
+      await fs.mkdirp(folder)
+      await fs.copy(dirFirstTimeSetup, folder)
+      await fs.writeFile(
+        eslintConfigPath,
+        `import { dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { FlatCompat } from '@eslint/eslintrc';
 
-    const output = stdout + stderr
-    expect(output).toContain('No ESLint warnings or errors')
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+const compat = new FlatCompat({
+  baseDirectory: __dirname,
+});
+
+const eslintConfig = [
+  ...compat.extends('next'),
+];
+
+export default eslintConfig;\n`
+      )
+
+      await nextLint(folder, [], {})
+
+      const { stdout, stderr } = await nextLint(folder, [], {
+        stdout: true,
+        stderr: true,
+      })
+
+      const output = stdout + stderr
+      expect(output).toContain('No ESLint warnings or errors')
+    } finally {
+      await fs.remove(folder)
+    }
   })
 
-  test("don't create .eslintrc file if package.json has eslintConfig field", async () => {
-    const eslintrcFile =
+  test("don't create eslint.config.mjs file if package.json has eslintConfig field", async () => {
+    const eslintConfigFile =
       (await findUp(
         [
+          'eslint.config.js',
+          'eslint.config.mjs',
+          'eslint.config.cjs',
           '.eslintrc.js',
           '.eslintrc.cjs',
           '.eslintrc.yaml',
@@ -343,8 +405,8 @@ describe('Next Lint', () => {
 
     try {
       // If we found a .eslintrc file, it's probably config from root Next.js directory. Rename it during the test
-      if (eslintrcFile) {
-        await fs.move(eslintrcFile, `${eslintrcFile}.original`)
+      if (eslintConfigFile) {
+        await fs.move(eslintConfigFile, `${eslintConfigFile}.original`)
       }
 
       const { stdout, stderr } = await nextLint(dirConfigInPackageJson, [], {
@@ -354,12 +416,12 @@ describe('Next Lint', () => {
 
       const output = stdout + stderr
       expect(output).not.toContain(
-        'We created the .eslintrc file for you and included your selected configuration'
+        'We created the eslint.config.mjs file for you and included your selected configuration'
       )
     } finally {
-      // Restore original .eslintrc file
-      if (eslintrcFile) {
-        await fs.move(`${eslintrcFile}.original`, eslintrcFile)
+      // Restore original eslint.config.mjs file
+      if (eslintConfigFile) {
+        await fs.move(`${eslintConfigFile}.original`, eslintConfigFile)
       }
     }
   })
