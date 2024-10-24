@@ -369,14 +369,14 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
             is_layout: true
         } => (
             // TODO propose a copyable template, but check if it's a root layout and/or if it should be TypeScript
-            "The layout file is still empty. Start by adding a component to file.\n\n\
+            "The layout file is still empty. Start by adding a React Component to file.\n\n\
             See https://nextjs.org/docs/app/building-your-application/routing/layouts-and-templates#layouts".to_string(),
             vec![]
         ),
         RSCErrorKind::EmptyFile {
             is_layout: false
         } => (
-            "The page file is still empty. Start by adding a component to file:\n\n\
+            "The page file is still empty. Start by adding a React Component to file:\n\n\
             export default function Page() {\n\
             \x20 return <h1>Page</h1>;\n\
             }\n\n\
@@ -384,18 +384,18 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
             vec![]
         ),
         RSCErrorKind::NoComponentExport { is_layout: true } => (
-            "A layout file need to have a component exported via `export default`.\n\n\
+            "A layout file need to have a React Component exported via `export default`.\n\n\
             See https://nextjs.org/docs/app/building-your-application/routing/layouts-and-templates#layouts".to_string(),
             vec![]
         ),
         RSCErrorKind::NoComponentExport { is_layout: false } => (
-            "A page file need to have a component exported via `export default`.\n\n\
+            "A page file need to have a React Component exported via `export default`.\n\n\
             See https://nextjs.org/docs/app/building-your-application/routing/pages".to_string(),
             vec![]
         ),
         RSCErrorKind::NoComponentExportWithRecommendation { is_layout: true, export_name, span } => (
             format!(
-                "A layout file need to have a component exported via `export default`.\n\
+                "A layout file need to have a React Component exported via `export default`.\n\
                 Maybe you did mean to default export `{}`?.\n\n\
                 See https://nextjs.org/docs/app/building-your-application/routing/layouts-and-templates#layouts",
                 export_name
@@ -404,7 +404,7 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
         ),
         RSCErrorKind::NoComponentExportWithRecommendation { is_layout: false, export_name, span } => (
             format!(
-                "A page file need to have a component exported via `export default`.\n\
+                "A page file need to have a React Component exported via `export default`.\n\
                 Maybe you did mean to default export `{}`?.\n\n\
                 See https://nextjs.org/docs/app/building-your-application/routing/pages",
                 export_name
