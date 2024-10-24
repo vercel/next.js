@@ -42,9 +42,9 @@ describe('tokenizeArgs', () => {
 describe('formatNodeOptions', () => {
   it('wraps values with spaces in quotes', () => {
     const result = formatNodeOptions({
-      spaces: 'thing with spaces',
-      spacesAndQuotes: 'thing with "spaces"',
-      normal: '1234',
+      '--spaces': ['thing with spaces'],
+      '--spacesAndQuotes': ['thing with "spaces"'],
+      '--normal': ['1234'],
     })
 
     expect(result).toBe(
@@ -100,6 +100,28 @@ describe('getFormattedNodeOptionsWithoutInspect', () => {
     expect(result).toBe(
       '--require="./file with spaces to-require-with-node-require-option.js"'
     )
+  })
+
+  describe('preserves options and assume the following positional to be the value', () => {
+    it('short', () => {
+      process.env.NODE_OPTIONS =
+        '-r ./first-file-to-require-with-node-require-option.js -r ./second-file-to-require-with-node-require-option.js'
+      const result = getFormattedNodeOptionsWithoutInspect()
+
+      expect(result).toBe(
+        '-r ./first-file-to-require-with-node-require-option.js -r ./second-file-to-require-with-node-require-option.js'
+      )
+    })
+
+    it('long', () => {
+      process.env.NODE_OPTIONS =
+        '--require ./first-file-to-require-with-node-require-option.js --require ./second-file-to-require-with-node-require-option.js'
+      const result = getFormattedNodeOptionsWithoutInspect()
+
+      expect(result).toBe(
+        '--require=./first-file-to-require-with-node-require-option.js --require=./second-file-to-require-with-node-require-option.js'
+      )
+    })
   })
 
   it('removes --inspect option with parameters', () => {
