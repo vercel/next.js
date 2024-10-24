@@ -77,7 +77,7 @@ export type ImageConfigComplete = {
   /** @see [Device sizes documentation](https://nextjs.org/docs/api-reference/next/image#device-sizes) */
   deviceSizes: number[]
 
-  /** @see [Image sizing documentation](https://nextjs.org/docs/basic-features/image-optimization#image-sizing) */
+  /** @see [Image sizing documentation](https://nextjs.org/docs/app/building-your-application/optimizing/images#image-sizing) */
   imageSizes: number[]
 
   /** @see [Image loaders configuration](https://nextjs.org/docs/api-reference/next/legacy/image#loader) */
