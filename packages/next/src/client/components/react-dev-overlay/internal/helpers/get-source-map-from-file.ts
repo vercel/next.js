@@ -16,10 +16,10 @@ export async function getSourceMapFromFile(
 
   try {
     fileContents = await fs.readFile(filename, 'utf-8')
-  } catch (error) {
-    throw new Error(`Failed to read file contents of ${filename}.`, {
-      cause: error,
-    })
+  } catch {
+    // We intentionally don't throw if the file does not exist. It might just be
+    // incorrectly source mapped, for example.
+    return undefined
   }
 
   const sourceUrl = getSourceMapUrl(fileContents)
