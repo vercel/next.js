@@ -42,7 +42,7 @@ describe('app-dir - capture-console-error', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "callStacks": "",
-          "count": ${isReactExperimental ? 1 : 2},
+          "count": 1,
           "description": "trigger an console <error>",
           "source": "app/browser/event/page.js (7:17) @ onClick
 
@@ -62,9 +62,9 @@ describe('app-dir - capture-console-error', () => {
             isReactExperimental
               ? `"button
         app/browser/event/page.js (5:6)"`
-              : ''
+              : `""`
           },
-          "count": ${isReactExperimental ? 1 : 2},
+          "count": 1,
           "description": "trigger an console <error>",
           "source": "app/browser/event/page.js (7:17) @ error
 
