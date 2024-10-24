@@ -153,7 +153,7 @@ impl ModuleReference for EsmAssetReference {
         let ty = if matches!(self.annotations.module_type(), Some("json")) {
             EcmaScriptModulesReferenceSubType::ImportWithType(ImportWithType::Json)
         } else if let Some(part) = &self.export_name {
-            EcmaScriptModulesReferenceSubType::ImportPart(**part)
+            EcmaScriptModulesReferenceSubType::ImportPart(part.to_resolved().await?)
         } else {
             EcmaScriptModulesReferenceSubType::Import
         };

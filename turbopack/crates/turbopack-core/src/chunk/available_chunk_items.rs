@@ -17,7 +17,9 @@ pub struct AvailableChunkItemInfo {
 pub struct OptionAvailableChunkItemInfo(Option<AvailableChunkItemInfo>);
 
 #[turbo_tasks::value(transparent)]
-pub struct AvailableChunkItemInfoMap(FxIndexMap<Vc<Box<dyn ChunkItem>>, AvailableChunkItemInfo>);
+pub struct AvailableChunkItemInfoMap(
+    FxIndexMap<ResolvedVc<Box<dyn ChunkItem>>, AvailableChunkItemInfo>,
+);
 
 /// Allows to gather information about which assets are already available.
 /// Adding more roots will form a linked list like structure to allow caching
@@ -49,7 +51,7 @@ impl AvailableChunkItems {
             .into_iter()
             .map(|(&chunk_item, &info)| async move {
                 Ok(self
-                    .get(chunk_item)
+                    .get(*chunk_item)
                     .await?
                     .is_none()
                     .then_some((chunk_item, info)))
@@ -89,7 +91,8 @@ impl AvailableChunkItems {
         &self,
         chunk_item: Vc<Box<dyn ChunkItem>>,
     ) -> Result<Vc<OptionAvailableChunkItemInfo>> {
-        if let Some(&info) = self.chunk_items.await?.get(&chunk_item) {
+        let resolved_chunk_item = chunk_item.to_resolved().await?;
+        if let Some(&info) = self.chunk_items.await?.get(&resolved_chunk_item) {
             return Ok(Vc::cell(Some(info)));
         };
         if let Some(parent) = self.parent {

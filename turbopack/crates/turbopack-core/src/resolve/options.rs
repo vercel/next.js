@@ -117,7 +117,7 @@ pub enum ReplacedImportMapping {
     Ignore,
     Empty,
     Alternatives(Vec<Vc<ReplacedImportMapping>>),
-    Dynamic(Vc<Box<dyn ImportMappingReplacement>>),
+    Dynamic(ResolvedVc<Box<dyn ImportMappingReplacement>>),
 }
 
 impl ImportMapping {
@@ -162,7 +162,9 @@ impl AliasTemplate for Vc<ImportMapping> {
                         .try_join()
                         .await?,
                 ),
-                ImportMapping::Dynamic(replacement) => ReplacedImportMapping::Dynamic(*replacement),
+                ImportMapping::Dynamic(replacement) => {
+                    ReplacedImportMapping::Dynamic(replacement.to_resolved().await?)
+                }
             }
             .cell())
         })
@@ -300,14 +302,18 @@ impl ImportMap {
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Default)]
 pub struct ResolvedMap {
-    pub by_glob: Vec<(Vc<FileSystemPath>, Vc<Glob>, Vc<ImportMapping>)>,
+    pub by_glob: Vec<(
+        ResolvedVc<FileSystemPath>,
+        ResolvedVc<Glob>,
+        ResolvedVc<ImportMapping>,
+    )>,
 }
 
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
 pub enum ImportMapResult {
     Result(Vc<ResolveResult>),
-    Alias(Vc<Request>, Option<Vc<FileSystemPath>>),
+    Alias(ResolvedVc<Request>, Option<ResolvedVc<FileSystemPath>>),
     Alternatives(Vec<ImportMapResult>),
     NoEntry,
 }
@@ -318,27 +324,32 @@ async fn import_mapping_to_result(
     request: Vc<Request>,
 ) -> Result<ImportMapResult> {
     Ok(match &*mapping.await? {
-        ReplacedImportMapping::Direct(result) => ImportMapResult::Result(*result),
+        ReplacedImportMapping::Direct(result) => {
+            ImportMapResult::Result(*result.to_resolved().await?)
+        }
         ReplacedImportMapping::External(name, ty) => ImportMapResult::Result(
-            ResolveResult::primary(if let Some(name) = name {
+            *ResolveResult::primary(if let Some(name) = name {
                 ResolveResultItem::External(name.clone(), *ty)
             } else if let Some(request) = request.await?.request() {
                 ResolveResultItem::External(request, *ty)
             } else {
                 bail!("Cannot resolve external reference without request")
             })
-            .cell(),
+            .resolved_cell(),
         ),
-        ReplacedImportMapping::Ignore => {
-            ImportMapResult::Result(ResolveResult::primary(ResolveResultItem::Ignore).into())
-        }
-        ReplacedImportMapping::Empty => {
-            ImportMapResult::Result(ResolveResult::primary(ResolveResultItem::Empty).into())
-        }
+        ReplacedImportMapping::Ignore => ImportMapResult::Result(
+            *ResolveResult::primary(ResolveResultItem::Ignore).resolved_cell(),
+        ),
+        ReplacedImportMapping::Empty => ImportMapResult::Result(
+            *ResolveResult::primary(ResolveResultItem::Empty).resolved_cell(),
+        ),
         ReplacedImportMapping::PrimaryAlternative(name, context) => {
             let request = Request::parse(Value::new(name.clone()));
-
-            ImportMapResult::Alias(request, *context)
+            let context = match context {
+                Some(c) => Some((*c).to_resolved().await?),
+                None => None,
+            };
+            ImportMapResult::Alias(request.to_resolved().await?, context)
         }
         ReplacedImportMapping::Alternatives(list) => ImportMapResult::Alternatives(
             list.iter()

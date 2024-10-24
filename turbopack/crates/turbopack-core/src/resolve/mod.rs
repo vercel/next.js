@@ -1070,7 +1070,7 @@ async fn exports_field(package_json_path: Vc<FileSystemPath>) -> Result<Vc<Expor
 enum ImportsFieldResult {
     Some(
         #[turbo_tasks(debug_ignore, trace_ignore)] ImportsField,
-        Vc<FileSystemPath>,
+        ResolvedVc<FileSystemPath>,
     ),
     None,
 }
@@ -1094,7 +1094,9 @@ async fn imports_field(lookup_path: Vc<FileSystemPath>) -> Result<Vc<ImportsFiel
         return Ok(ImportsFieldResult::None.cell());
     };
     match imports.try_into() {
-        Ok(imports) => Ok(ImportsFieldResult::Some(imports, **package_json_path).cell()),
+        Ok(imports) => {
+            Ok(ImportsFieldResult::Some(imports, package_json_path.to_resolved().await?).cell())
+        }
         Err(err) => {
             PackageJsonIssue {
                 path: **package_json_path,
@@ -2522,14 +2524,17 @@ async fn resolve_import_map_result(
         ImportMapResult::Result(result) => Some(*result),
         ImportMapResult::Alias(request, alias_lookup_path) => {
             let request = *request;
-            let lookup_path = alias_lookup_path.unwrap_or(lookup_path);
+            let lookup_path = match alias_lookup_path {
+                Some(path) => path,
+                None => &lookup_path.to_resolved().await?,
+            };
             // We must avoid cycles during resolving
-            if request.resolve().await? == original_request
-                && lookup_path.resolve().await? == original_lookup_path
+            if request.resolve().await? == original_request.to_resolved().await?
+                && *lookup_path == original_lookup_path.to_resolved().await?
             {
                 None
             } else {
-                let result = resolve_internal(lookup_path, request, options);
+                let result = resolve_internal(**lookup_path, *request, options);
                 Some(result.with_replaced_request_key_pattern(
                     request.request_pattern(),
                     original_request.request_pattern(),
@@ -2717,7 +2722,7 @@ async fn resolve_package_internal_with_imports_field(
 
     handle_exports_imports_field(
         package_json_path.parent(),
-        *package_json_path,
+        **package_json_path,
         resolve_options,
         imports,
         specifier,
