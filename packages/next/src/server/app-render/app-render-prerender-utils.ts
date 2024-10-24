@@ -18,6 +18,7 @@ export function prerenderAndAbortInSequentialTasks<R>(
       setImmediate(() => {
         try {
           pendingResult = prerender()
+          pendingResult.catch(() => {})
         } catch (err) {
           reject(err)
         }
