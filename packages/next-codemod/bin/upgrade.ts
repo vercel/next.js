@@ -660,12 +660,23 @@ function warnDependenciesOutOfRange(
   >()
 
   for (const dependency of Object.keys(allDependenciesToInstall)) {
-    const pkgJson = JSON.parse(
-      fs.readFileSync(
-        path.join(cwd, 'node_modules', dependency, 'package.json'),
-        'utf8'
+    let pkgJson
+    try {
+      pkgJson = require(
+        require.resolve(`${dependency}/package.json`, { paths: [cwd] })
       )
-    )
+    } catch (error) {
+      if (error.code === 'ERR_PACKAGE_PATH_NOT_EXPORTED') {
+        pkgJson = JSON.parse(
+          fs.readFileSync(
+            path.join(cwd, 'node_modules', dependency, 'package.json'),
+            'utf8'
+          )
+        )
+      } else {
+        throw error
+      }
+    }
 
     if ('peerDependencies' in pkgJson) {
       const peerDeps = pkgJson.peerDependencies
