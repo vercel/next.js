@@ -13,6 +13,7 @@ export const onCaughtError: HydrationOptions['onCaughtError'] = (
   err,
   errorInfo
 ) => {
+  console.log('onCaughtError', err)
   // Skip certain custom errors which are not expected to be reported on client
   if (isBailoutToCSRError(err) || isNextRouterError(err)) return
 

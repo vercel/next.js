@@ -1,6 +1,9 @@
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import type { OriginalStackFrameResponse } from '../../server/shared'
-import { isWebpackBundled, formatFrameSourceFile } from './webpack-module-path'
+import {
+  isWebpackInternalResource,
+  formatFrameSourceFile,
+} from './webpack-module-path'
 export interface OriginalStackFrame extends OriginalStackFrameResponse {
   error: boolean
   reason: string | null
@@ -106,7 +109,7 @@ export function getOriginalStackFrames(
 export function getFrameSource(frame: StackFrame): string {
   if (!frame.file) return ''
 
-  const isWebpackFrame = isWebpackBundled(frame.file)
+  const isWebpackFrame = isWebpackInternalResource(frame.file)
 
   let str = ''
   // Skip URL parsing for webpack internal file paths.
@@ -137,7 +140,7 @@ export function getFrameSource(frame: StackFrame): string {
     }
   }
 
-  if (!isWebpackBundled(frame.file) && frame.lineNumber != null) {
+  if (!isWebpackInternalResource(frame.file) && frame.lineNumber != null) {
     if (frame.column != null) {
       str += ` (${frame.lineNumber}:${frame.column})`
     } else {
