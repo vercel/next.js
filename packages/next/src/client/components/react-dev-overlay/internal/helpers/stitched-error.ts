@@ -6,7 +6,7 @@ const REACT_ERROR_STACK_BOTTOM_FRAME_REGEX = new RegExp(
   `(at ${REACT_ERROR_STACK_BOTTOM_FRAME} )|(${REACT_ERROR_STACK_BOTTOM_FRAME}\\@)`
 )
 
-export function stripAfterReactBottomFrame(stack: string): string {
+function stripAfterReactBottomFrame(stack: string): string {
   const stackLines = stack.split('\n')
   const indexOfSplit = stackLines.findIndex((line) =>
     REACT_ERROR_STACK_BOTTOM_FRAME_REGEX.test(line)

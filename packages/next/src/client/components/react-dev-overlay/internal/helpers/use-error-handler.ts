@@ -6,7 +6,6 @@ import { formatConsoleArgs } from '../../../../lib/console'
 import isError from '../../../../../lib/is-error'
 import { createUnhandledError } from './console-error'
 import { enqueueConsecutiveDedupedError } from './enqueue-client-error'
-import { stripAfterReactBottomFrame } from './stitched-error'
 
 export type ErrorHandler = (error: Error) => void
 
@@ -27,7 +26,7 @@ export function handleClientError(
     error = createUnhandledError(formattedErrorMessage)
     // When the originStack is provided, strip the stack after the react-bottom-stack-frame
     if (originStack) {
-      error.stack = stripAfterReactBottomFrame(originStack)
+      error.stack = originStack
     }
   } else {
     error = originError

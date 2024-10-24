@@ -104,7 +104,7 @@ describe('app-dir - capture-console-error', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "callStacks": null,
-          "count": 1,
+          "count": 2,
           "description": "trigger an console.error in render",
           "source": "app/browser/render/page.js (4:11) @ Page
 
@@ -121,7 +121,52 @@ describe('app-dir - capture-console-error', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "callStacks": null,
-          "count": 1,
+          "count": 2,
+          "description": "trigger an console.error in render",
+          "source": "app/browser/render/page.js (4:11) @ error
+
+          2 |
+          3 | export default function Page() {
+        > 4 |   console.error('trigger an console.error in render')
+            |           ^
+          5 |   return <p>render</p>
+          6 | }
+          7 |",
+        }
+      `)
+    }
+  })
+
+  it('should capture browser console error in render and dedupe when multi same errors logged', async () => {
+    const browser = await next.browser('/browser/render')
+
+    await waitForAndOpenRuntimeError(browser)
+    await assertHasRedbox(browser)
+
+    const result = await getRedboxResult(browser)
+
+    if (process.env.TURBOPACK) {
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "callStacks": null,
+          "count": 2,
+          "description": "trigger an console.error in render",
+          "source": "app/browser/render/page.js (4:11) @ Page
+
+          2 |
+          3 | export default function Page() {
+        > 4 |   console.error('trigger an console.error in render')
+            |           ^
+          5 |   return <p>render</p>
+          6 | }
+          7 |",
+        }
+      `)
+    } else {
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "callStacks": null,
+          "count": 2,
           "description": "trigger an console.error in render",
           "source": "app/browser/render/page.js (4:11) @ error
 
@@ -149,7 +194,7 @@ describe('app-dir - capture-console-error', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "callStacks": null,
-          "count": 1,
+          "count": 2,
           "description": "ssr console error:client",
           "source": "app/ssr/page.js (4:11) @ Page
 
@@ -166,7 +211,7 @@ describe('app-dir - capture-console-error', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "callStacks": null,
-          "count": 1,
+          "count": 2,
           "description": "ssr console error:client",
           "source": "app/ssr/page.js (4:11) @ error
 
