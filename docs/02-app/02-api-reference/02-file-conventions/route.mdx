@@ -57,6 +57,18 @@ export async function PATCH(request) {}
 export async function OPTIONS(request) {}
 ```
 
+## Custom exports
+
+In addition to the supported [HTTP methods](/docs/app/api-reference/file-conventions/route#http-methods) and [Route Segment Config](/docs/app/api-reference/file-conventions/route-segment-config), you can export your own custom keys with the `"_"` prefix.
+
+```ts filename="route.ts" switcher
+export const _customConfig = {}
+```
+
+```js filename="route.js" switcher
+export const _customConfig = {}
+```
+
 ### Parameters
 
 #### `request` (optional)
