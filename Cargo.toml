@@ -216,3 +216,6 @@ unsize = "1.1.0"
 url = "2.2.2"
 urlencoding = "2.1.2"
 webbrowser = "0.8.7"
+
+[patch.crates-io]
+sourcemap = { git = "https://github.com/wbinnssmith/rust-sourcemap", branch = "wbinnssmith/ignore-list" }
