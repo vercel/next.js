@@ -12,7 +12,7 @@ import {
   decrypt,
   encrypt,
   getActionEncryptionKey,
-  getClientReferenceManifestSingleton,
+  getClientReferenceManifestForRsc,
   getServerModuleMap,
   stringToUint8Array,
 } from './encryption-utils'
@@ -70,11 +70,11 @@ async function encodeActionBoundArg(actionId: string, arg: string) {
 
 // Encrypts the action's bound args into a string.
 export async function encryptActionBoundArgs(actionId: string, args: any[]) {
-  const clientReferenceManifestSingleton = getClientReferenceManifestSingleton()
+  const { clientModules } = getClientReferenceManifestForRsc()
 
   // Using Flight to serialize the args into a string.
   const serialized = await streamToString(
-    renderToReadableStream(args, clientReferenceManifestSingleton.clientModules)
+    renderToReadableStream(args, clientModules)
   )
 
   // Encrypt the serialized string with the action id as the salt.
@@ -90,16 +90,17 @@ export async function decryptActionBoundArgs(
   actionId: string,
   encrypted: Promise<string>
 ) {
-  const clientReferenceManifestSingleton = getClientReferenceManifestSingleton()
+  const { edgeRscModuleMapping, rscModuleMapping } =
+    getClientReferenceManifestForRsc()
 
   // Decrypt the serialized string with the action id as the salt.
-  const decryped = await decodeActionBoundArg(actionId, await encrypted)
+  const decrypted = await decodeActionBoundArg(actionId, await encrypted)
 
   // Using Flight to deserialize the args from the string.
   const deserialized = await createFromReadableStream(
     new ReadableStream({
       start(controller) {
-        controller.enqueue(textEncoder.encode(decryped))
+        controller.enqueue(textEncoder.encode(decrypted))
         controller.close()
       },
     }),
@@ -109,9 +110,7 @@ export async function decryptActionBoundArgs(
         // to be added to the current execution. Instead, we'll wait for any ClientReference
         // to be emitted which themselves will handle the preloading.
         moduleLoading: null,
-        moduleMap: isEdgeRuntime
-          ? clientReferenceManifestSingleton.edgeRscModuleMapping
-          : clientReferenceManifestSingleton.rscModuleMapping,
+        moduleMap: isEdgeRuntime ? edgeRscModuleMapping : rscModuleMapping,
         serverModuleMap: getServerModuleMap(),
       },
     }

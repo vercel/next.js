@@ -286,6 +286,9 @@ export interface ExperimentalConfig {
   extensionAlias?: Record<string, any>
   allowedRevalidateHeaderKeys?: string[]
   fetchCacheKeyPrefix?: string
+  imgOptConcurrency?: number | null
+  imgOptTimeoutInSeconds?: number
+  imgOptMaxInputPixels?: number
   optimisticClientCache?: boolean
   /**
    * @deprecated use config.expireTime instead
@@ -1112,6 +1115,9 @@ export const defaultConfig: NextConfig = {
         (os.cpus() || { length: 1 }).length) - 1
     ),
     memoryBasedWorkersCount: false,
+    imgOptConcurrency: null,
+    imgOptTimeoutInSeconds: 7,
+    imgOptMaxInputPixels: 268_402_689, // https://sharp.pixelplumbing.com/api-constructor#:~:text=%5Boptions.limitInputPixels%5D
     isrFlushToDisk: true,
     workerThreads: false,
     proxyTimeout: undefined,

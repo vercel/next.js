@@ -25,15 +25,15 @@
     function resolveClientReference(bundlerConfig, metadata) {
       if (bundlerConfig) {
         var moduleExports = bundlerConfig[metadata[0]];
-        if ((bundlerConfig = moduleExports[metadata[2]]))
+        if ((bundlerConfig = moduleExports && moduleExports[metadata[2]]))
           moduleExports = bundlerConfig.name;
         else {
-          bundlerConfig = moduleExports["*"];
+          bundlerConfig = moduleExports && moduleExports["*"];
           if (!bundlerConfig)
             throw Error(
               'Could not find the module "' +
                 metadata[0] +
-                '" in the React SSR Manifest. This is probably a bug in the React Server Components bundler.'
+                '" in the React Server Consumer Manifest. This is probably a bug in the React Server Components bundler.'
             );
           moduleExports = metadata[2];
         }
@@ -1862,11 +1862,13 @@
             "\n//# sourceURL=rsc://React/" +
             encodeURIComponent(environmentName) +
             "/" +
-            filename +
+            encodeURI(filename) +
             "?" +
             fakeFunctionIdx++),
           (col += "\n//# sourceMappingURL=" + sourceMap))
-        : filename && (col += "\n//# sourceURL=" + filename);
+        : (col = filename
+            ? col + ("\n//# sourceURL=" + encodeURI(filename))
+            : col + "\n//# sourceURL=<anonymous>");
       try {
         var fn = (0, eval)(col)[name];
       } catch (x) {
@@ -2448,10 +2450,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.0.0-rc-45804af1-20241021",
+      version: "19.0.0-rc-1631855f-20241023",
       rendererPackageName: "react-server-dom-turbopack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.0.0-rc-45804af1-20241021",
+      reconcilerVersion: "19.0.0-rc-1631855f-20241023",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }

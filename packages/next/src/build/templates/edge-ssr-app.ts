@@ -56,6 +56,7 @@ const interceptionRouteRewrites =
 
 if (rscManifest && rscServerManifest) {
   setReferenceManifestsSingleton({
+    page: 'VAR_PAGE',
     clientReferenceManifest: rscManifest,
     serverActionsManifest: rscServerManifest,
     serverModuleMap: createServerModuleMap({
