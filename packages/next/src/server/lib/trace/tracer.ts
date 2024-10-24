@@ -49,7 +49,7 @@ export function isBubbledError(error: unknown): error is BubbledError {
   return error instanceof BubbledError
 }
 
-const closeSpanWithError = (span: Span, error?: Error) => {
+const recordErrorOnSpan = (span: Span, error?: Error) => {
   if (isBubbledError(error) && error.bubble) {
     span.setAttribute('next.bubble', true)
   } else {
@@ -58,7 +58,6 @@ const closeSpanWithError = (span: Span, error?: Error) => {
     }
     span.setStatus({ code: SpanStatusCode.ERROR, message: error?.message })
   }
-  span.end()
 }
 
 type TracerSpanOptions = Omit<SpanOptions, 'attributes'> & {
@@ -66,6 +65,7 @@ type TracerSpanOptions = Omit<SpanOptions, 'attributes'> & {
   spanName?: string
   attributes?: Partial<Record<AttributeNames, AttributeValue | undefined>>
   hideSpan?: boolean
+  manualSpanEnd?: boolean
 }
 
 interface NextTracer {
@@ -332,6 +332,12 @@ class NextTracerImpl implements NextTracer {
             }
           }
 
+          const endSpan = () => {
+            if (!options.manualSpanEnd) {
+              span.end()
+            }
+          }
+
           if (isRootSpan) {
             rootSpanAttributesStore.set(
               spanId,
@@ -345,7 +351,10 @@ class NextTracerImpl implements NextTracer {
           }
           try {
             if (fn.length > 1) {
-              return fn(span, (err) => closeSpanWithError(span, err))
+              return fn(span, (err) => {
+                recordErrorOnSpan(span, err)
+                endSpan()
+              })
             }
 
             const result = fn(span)
@@ -353,24 +362,25 @@ class NextTracerImpl implements NextTracer {
               // If there's error make sure it throws
               return result
                 .then((res) => {
-                  span.end()
                   // Need to pass down the promise result,
                   // it could be react stream response with error { error, stream }
                   return res
                 })
                 .catch((err) => {
-                  closeSpanWithError(span, err)
+                  recordErrorOnSpan(span, err)
+                  endSpan()
                   throw err
                 })
                 .finally(onCleanup)
             } else {
-              span.end()
+              endSpan()
               onCleanup()
             }
 
             return result
           } catch (err: any) {
-            closeSpanWithError(span, err)
+            recordErrorOnSpan(span, err)
+            endSpan()
             onCleanup()
             throw err
           }
