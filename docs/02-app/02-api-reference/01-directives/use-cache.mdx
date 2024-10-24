@@ -10,7 +10,7 @@ related:
     - app/api-reference/next-config-js/cacheLife
     - app/api-reference/functions/cacheTag
     - app/api-reference/functions/revalidateTag
-    - app/api-reference/functions/unstable_cache
+    - app/api-reference/legacy-apis/unstable_cache
 ---
 
 The `use cache` directive designates a component, function, or file to be cached. It can be used at the top of a file to indicate that all functions in the file are cacheable, or inline at the top of a function to mark the function as cacheable. This is an experimental Next.js feature, and not a native React feature like `use client` or `use server`.
@@ -35,7 +35,7 @@ Caching is a technique to improve the performance of web applications by storing
 
 To explicitly cache certain asynchronous operations and achieve static behavior, you can use the `use cache` directive. This allows you to optimize rendering performance by caching results from async data requests, while still enabling dynamic rendering when needed.
 
-The `use cache` directive is an experimental feature that aims to replace the [`unstable_cache`](/docs/app/api-reference/functions/unstable_cache) function. Unlike `unstable_cache`, which is limited to caching JSON data and requires manual definition of revalidation periods and tags, `use cache` offers more flexibility. It allows you to cache a wider range of data, including anything that React Server Components (RSC) can serialize, as well as data-fetching outputs and component outputs.
+The `use cache` directive is an experimental feature that aims to replace the [`unstable_cache`](/docs/app/api-reference/legacy-apis/unstable_cache) function. Unlike `unstable_cache`, which is limited to caching JSON data and requires manual definition of revalidation periods and tags, `use cache` offers more flexibility. It allows you to cache a wider range of data, including anything that React Server Components (RSC) can serialize, as well as data-fetching outputs and component outputs.
 
 Additionally, `use cache` automatically manages complexities by tracking both inputs and outputs, making it less likely for you to accidentally poison your cache. Since it serializes both inputs and outputs, you can avoid issues with incorrect cache retrieval.
 
@@ -69,7 +69,7 @@ export async function getData() {
 
 ## Revalidating
 
-By default when using the `use cache` directive Next.js sets a **[revalidation period](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#revalidating-data) of fifteen minutes** with a near infinite expiration duration, meaning it's suitable for content that doesn't need frequent updates.
+By default when using the `use cache` directive Next.js sets a **[revalidation period](/docs/app/building-your-application/data-fetching/fetching#revalidating-cached-data) of fifteen minutes** with a near infinite expiration duration, meaning it's suitable for content that doesn't need frequent updates.
 
 While this may be useful for content you don't expect to change often, you can use the `cacheLife` and `cacheTag` APIs for more granular caching control:
 

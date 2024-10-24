@@ -8,7 +8,7 @@ The `dynamicIO` flag is an experimental feature in Next.js that causes data fetc
 
 It is useful if your application requires fresh data fetching during runtime rather than serving from a pre-rendered cache.
 
-It is expected to be used in conjunction with [`use cache`](/docs/app/api-reference/directives/use-cache) so that your data fetching happens at runtime by default unless you define specific parts of your application to be cached with `use cache` at the page, function, or component level.
+It is expected to be used in conjunction with [`use cache`](/docs/canary/app/api-reference/directives/use-cache) so that your data fetching happens at runtime by default unless you define specific parts of your application to be cached with `use cache` at the page, function, or component level.
 
 ## Usage
 
@@ -28,9 +28,9 @@ export default nextConfig
 
 When `dynamicIO` is enabled, you can use the following cache functions and configurations:
 
-- The [`use cache` directive](/docs/app/api-reference/directives/use-cache)
-- The [`cacheLife` function](/docs/app/api-reference/next-config-js/cacheLife) with `use cache`
-- The [`cacheTag` function](/docs/app/api-reference/functions/cacheTag)
+- The [`use cache` directive](/docs/canary/app/api-reference/directives/use-cache)
+- The [`cacheLife` function](/docs/canary/app/api-reference/next-config-js/cacheLife) with `use cache`
+- The [`cacheTag` function](/docs/canary/app/api-reference/functions/cacheTag)
 
 ## Notes
 
