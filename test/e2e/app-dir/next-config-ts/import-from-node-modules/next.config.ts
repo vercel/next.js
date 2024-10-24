@@ -1,10 +1,10 @@
-import type { NextConfig } from 'next'
+import { defineConfig } from 'next/config'
 import { foo } from 'foo'
 
-const nextConfig: NextConfig = {
+const nextConfig = defineConfig({
   env: {
     foo,
   },
-}
+})
 
 export default nextConfig

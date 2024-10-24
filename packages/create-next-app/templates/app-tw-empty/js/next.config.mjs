@@ -1,4 +1,4 @@
-/** @type {import('next').NextConfig} */
-const nextConfig = {};
+const { defineConfig } = require("next/config");
+const nextConfig = defineConfig({});
 
 export default nextConfig;

@@ -1,12 +1,12 @@
-import type { NextConfig } from 'next'
+import { defineConfig } from 'next/config'
 
 const nextConfigAsyncFunction = async (phase, { defaultConfig }) => {
-  const nextConfig: NextConfig = {
+  const nextConfig = defineConfig({
     ...defaultConfig,
     env: {
       foo: phase ? 'foo' : 'bar',
     },
-  }
+  })
   return nextConfig
 }
 
