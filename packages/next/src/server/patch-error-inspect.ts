@@ -157,7 +157,7 @@ function parseAndSourceMap(error: Error): string {
         if (
           process.env.NODE_ENV !== 'production' &&
           sourcemappedFrame.code !== null &&
-          sourceFrameDEV !== null
+          sourceFrameDEV === null
         ) {
           sourceFrameDEV = sourcemappedFrame.code
         }
