@@ -58,8 +58,7 @@ describe('app-dir - capture-console-error', () => {
     } else if (isReactExperimental) {
       expect(result).toMatchInlineSnapshot(`
         {
-          "callStacks": "button
-        app/browser/event/page.js (5:6)",
+          "callStacks": null,
           "count": 1,
           "description": "trigger an console <error>",
           "source": "app/browser/event/page.js (7:17) @ error
