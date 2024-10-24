@@ -64,7 +64,12 @@ Tag your cached data by calling `cacheTag` within a cached function or component
 ```tsx filename="app/components/bookings.tsx"
 import { unstable_cacheTag as cacheTag, unstable_cacheLife as cacheLife } from 'next/cache'
 
-export function Bookings(type = 'massage') {
+
+interface BookingsProps {
+  type: string
+}
+
+export async function Bookings({type = 'massage'}: BookingsProps) {
   "use cache"
   cacheLife('minutes')
   cacheTag('bookings-data')
@@ -74,6 +79,29 @@ export function Bookings(type = 'massage') {
     return data
   }
 
+  return //...
+}
+```
+
+### Tagging using data
+
+You can use the data returned from an async function to tag the cache entry.
+
+```tsx filename="app/components/bookings.tsx"
+import { unstable_cacheTag as cacheTag, unstable_cacheLife as cacheLife } from 'next/cache'
+
+interface BookingsProps {
+  type: string
+}
+
+export async function Bookings({type = 'massage'}: BookingsProps) {
+  async function getBookingsData() {
+    "use cache"
+    cacheLife('minutes')
+    const data = await fetch(`/api/bookings?type=${encodeURIComponent(type)}`)
+    cacheTag('bookings-data', data.id)
+    return data
+  }
   return //...
 }
 ```
@@ -97,10 +125,7 @@ export async function updateBookings() {
 
 - **Idempotent Tags**: Applying the same tag multiple times has no additional effect.
 - **Multiple Tags**: You can assign multiple tags to a single cache entry by passing an array to `cacheTag`.
-- **Use data to tag cache entries**: The data returned from the an async function can be used to tag the cache entry.
   
 ```tsx
 cacheTag(['tag-one', 'tag-two'])
-  
-cacheTag('bookings', data.id)
 ```

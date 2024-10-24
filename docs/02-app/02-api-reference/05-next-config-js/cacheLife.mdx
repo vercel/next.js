@@ -31,16 +31,16 @@ You can now use this custom `blog` configuration in your component, function or 
 import { unstable_cacheLife as cacheLife} from 'next/cache'
 
 export async function getCachedData() {
-    "use cache"
-    cacheLife('blog')
-    const data = await fetch('/api/data')
-    return data
+  "use cache"
+  cacheLife('blog')
+  const data = await fetch('/api/data')
+  return data
 }
 ```
 
-## Configuration Structure
+## Configuration structure
 
-The configuration object has key values with the following `CacheLife` format:
+The configuration object has key values with the following format:
 
 | **Property** | **Value** | **Description** | **Requirement** |
 | --- | --- | --- | --- |
