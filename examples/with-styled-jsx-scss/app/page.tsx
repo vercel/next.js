@@ -1,22 +1,26 @@
+"use client";
+
 const backgroundColor = "#eee";
+const hoverColor = "red";
 
 export default function Home() {
   return (
     <div className="hello">
       <p>Hello World</p>
       <style jsx>{`
-        $color: red;
-
         .hello {
           background-color: ${backgroundColor};
           padding: 100px;
           text-align: center;
-          transition: 100ms ease-in background;
-          &:hover {
-            color: $color;
-          }
+          transition: background 100ms ease-in;
+        }
 
-          @media only screen and (max-width: 480px) {
+        .hello:hover {
+          color: ${hoverColor};
+        }
+
+        @media only screen and (max-width: 480px) {
+          .hello {
             font-size: 20px;
           }
         }
