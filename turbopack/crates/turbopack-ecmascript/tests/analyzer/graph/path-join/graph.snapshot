@@ -71,6 +71,41 @@
         ),
     ),
     (
+        "z1_resolved",
+        MemberCall(
+            5,
+            Variable(
+                (
+                    "path",
+                    #2,
+                ),
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "resolve",
+                    ),
+                ),
+            ),
+            [
+                Constant(
+                    Str(
+                        Word(
+                            "foo",
+                        ),
+                    ),
+                ),
+                Constant(
+                    Str(
+                        Word(
+                            "bar",
+                        ),
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
         "z2_joined",
         MemberCall(
             5,
@@ -92,6 +127,48 @@
                     Str(
                         Word(
                             "foo/",
+                        ),
+                    ),
+                ),
+                Constant(
+                    Str(
+                        Word(
+                            "bar",
+                        ),
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "z2_resolved",
+        MemberCall(
+            6,
+            Variable(
+                (
+                    "path",
+                    #2,
+                ),
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "resolve",
+                    ),
+                ),
+            ),
+            [
+                Constant(
+                    Str(
+                        Word(
+                            "/",
+                        ),
+                    ),
+                ),
+                Constant(
+                    Str(
+                        Word(
+                            "foo",
                         ),
                     ),
                 ),
@@ -141,6 +218,55 @@
         ),
     ),
     (
+        "z3_resolved",
+        MemberCall(
+            7,
+            Variable(
+                (
+                    "path",
+                    #2,
+                ),
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "resolve",
+                    ),
+                ),
+            ),
+            [
+                Constant(
+                    Str(
+                        Word(
+                            "pre",
+                        ),
+                    ),
+                ),
+                Constant(
+                    Str(
+                        Word(
+                            "/",
+                        ),
+                    ),
+                ),
+                Constant(
+                    Str(
+                        Word(
+                            "foo",
+                        ),
+                    ),
+                ),
+                Constant(
+                    Str(
+                        Word(
+                            "bar",
+                        ),
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
         "z4_joined",
         MemberCall(
             5,
@@ -169,6 +295,55 @@
                     Str(
                         Word(
                             "/bar",
+                        ),
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "z4_resolved",
+        MemberCall(
+            7,
+            Variable(
+                (
+                    "path",
+                    #2,
+                ),
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "resolve",
+                    ),
+                ),
+            ),
+            [
+                Constant(
+                    Str(
+                        Word(
+                            "pre",
+                        ),
+                    ),
+                ),
+                Constant(
+                    Str(
+                        Word(
+                            "\\\\",
+                        ),
+                    ),
+                ),
+                Constant(
+                    Str(
+                        Word(
+                            "foo",
+                        ),
+                    ),
+                ),
+                Constant(
+                    Str(
+                        Word(
+                            "bar",
                         ),
                     ),
                 ),
@@ -235,6 +410,148 @@
                     Str(
                         Word(
                             "foo",
+                        ),
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "z5_resolved",
+        MemberCall(
+            7,
+            Variable(
+                (
+                    "path",
+                    #2,
+                ),
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "resolve",
+                    ),
+                ),
+            ),
+            [
+                Constant(
+                    Str(
+                        Word(
+                            "pre",
+                        ),
+                    ),
+                ),
+                Variable(
+                    (
+                        "z5_tern",
+                        #2,
+                    ),
+                ),
+                Constant(
+                    Str(
+                        Word(
+                            "foo",
+                        ),
+                    ),
+                ),
+                Constant(
+                    Str(
+                        Word(
+                            "bar",
+                        ),
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "z5_tern",
+        Tenary(
+            4,
+            FreeVar(
+                "global",
+            ),
+            Constant(
+                Str(
+                    Word(
+                        "/",
+                    ),
+                ),
+            ),
+            Constant(
+                Str(
+                    Word(
+                        "\\\\",
+                    ),
+                ),
+            ),
+        ),
+    ),
+    (
+        "z6_alt",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Constant(
+                    Str(
+                        Word(
+                            "/",
+                        ),
+                    ),
+                ),
+                Constant(
+                    Str(
+                        Word(
+                            "\\\\",
+                        ),
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "z6_resolved",
+        MemberCall(
+            7,
+            Variable(
+                (
+                    "path",
+                    #2,
+                ),
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "resolve",
+                    ),
+                ),
+            ),
+            [
+                Constant(
+                    Str(
+                        Word(
+                            "pre",
+                        ),
+                    ),
+                ),
+                Variable(
+                    (
+                        "z6_alt",
+                        #2,
+                    ),
+                ),
+                Constant(
+                    Str(
+                        Word(
+                            "foo",
+                        ),
+                    ),
+                ),
+                Constant(
+                    Str(
+                        Word(
+                            "bar",
                         ),
                     ),
                 ),
