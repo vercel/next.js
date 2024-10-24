@@ -267,6 +267,8 @@ const nextDev = async (
         delete nodeOptions['max_old_space_size']
       }
 
+      nodeOptions['enable-source-maps'] = true
+
       if (nodeDebugType) {
         const address = getParsedDebugAddress()
         address.port = address.port + 1

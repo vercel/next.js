@@ -480,6 +480,10 @@ ${ENDGROUP}`)
         // unset CI env so CI behavior is only explicitly
         // tested when enabled
         CI: '',
+        // But some tests need to fork based on machine? CI? behavior differences
+        // Only use read this in tests.
+        // For implementation forks, use `process.env.CI` instead
+        NEXT_TEST_CI: process.env.CI,
 
         ...(options.local
           ? {}

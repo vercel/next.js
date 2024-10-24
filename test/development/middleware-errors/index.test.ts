@@ -3,6 +3,7 @@ import {
   assertNoRedbox,
   check,
   getRedboxSource,
+  retry,
 } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 import { nextTestSetup } from 'e2e-utils'
@@ -150,22 +151,18 @@ describe('middleware - development errors', () => {
 
     it('logs the error correctly', async () => {
       await next.fetch('/')
-      const output = stripAnsi(next.cliOutput)
-      await check(() => {
-        if (isTurbopack) {
-          expect(stripAnsi(next.cliOutput)).toMatch(
-            /middleware.js \(\d+:\d+\) @ \[project\]\/middleware\.js \[middleware\] \(ecmascript\)/
-          )
-        } else {
-          expect(stripAnsi(next.cliOutput)).toMatch(
-            /middleware.js \(\d+:\d+\) @ <unknown>/
-          )
-        }
-        expect(stripAnsi(next.cliOutput)).toMatch(/booooom!/)
-        return 'success'
-      }, 'success')
-      expect(output).not.toContain(
-        'webpack-internal:///(middleware)/./middleware.js'
+
+      await retry(() => {
+        expect(next.cliOutput).toContain(`Error: booooom!`)
+      })
+
+      expect(stripAnsi(next.cliOutput)).toContain(
+        isTurbopack
+          ? '\n ⨯ middleware.js (3:13) @ [project]/middleware.js [middleware] (ecmascript)' +
+              '\n ⨯ Error: booooom!' +
+              '\n    at <unknown> ([project]/middleware.js [middleware] (ecmascript) (./middleware.js:3:13)'
+          : '\n ⨯ Error: booooom!' +
+              '\n    at <unknown> (webpack://_N_E/middleware.js'
       )
     })
 
