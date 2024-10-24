@@ -2892,6 +2892,9 @@ export default abstract class Server<
       //
       // We use the `resolvedUrlPathname` for the development case when this
       // is an app path since it doesn't include locale information.
+      //
+      // We decode the `resolvedUrlPathname` to correctly match the app path
+      // with prerendered paths.
       let staticPathKey = ssgCacheKey
       if (!staticPathKey && opts.dev && isAppPath) {
         staticPathKey = Server.decode(resolvedUrlPathname)
