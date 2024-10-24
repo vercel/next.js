@@ -1,6 +1,7 @@
 use std::{
     cmp::{max, min},
     collections::HashSet,
+    env,
     mem::replace,
     num::NonZeroUsize,
     sync::{atomic::AtomicU64, OnceLock},
@@ -18,7 +19,7 @@ const CUT_OFF_DEPTH: u32 = 150;
 
 pub struct Store {
     pub(crate) spans: Vec<Span>,
-    pub(crate) self_time_tree: SelfTimeTree<SpanIndex>,
+    pub(crate) self_time_tree: Option<SelfTimeTree<SpanIndex>>,
     max_self_time_lookup_time: AtomicU64,
 }
 
@@ -52,7 +53,10 @@ impl Store {
     pub fn new() -> Self {
         Self {
             spans: vec![new_root_span()],
-            self_time_tree: SelfTimeTree::new(),
+            self_time_tree: env::var("NO_CORRECTED_TIME")
+                .ok()
+                .is_none()
+                .then(SelfTimeTree::new),
             max_self_time_lookup_time: AtomicU64::new(0),
         }
     }
@@ -60,12 +64,16 @@ impl Store {
     pub fn reset(&mut self) {
         self.spans.truncate(1);
         self.spans[0] = new_root_span();
-        self.self_time_tree = SelfTimeTree::new();
+        if let Some(tree) = self.self_time_tree.as_mut() {
+            *tree = SelfTimeTree::new();
+        }
         *self.max_self_time_lookup_time.get_mut() = 0;
     }
 
     pub fn has_time_info(&self) -> bool {
-        self.self_time_tree.len() > 0
+        self.self_time_tree
+            .as_ref()
+            .map_or(true, |tree| tree.len() > 0)
     }
 
     pub fn add_span(
@@ -152,13 +160,14 @@ impl Store {
         span_index: SpanIndex,
         outdated_spans: &mut HashSet<SpanIndex>,
     ) {
-        if *self.max_self_time_lookup_time.get_mut() >= start {
-            self.self_time_tree
-                .for_each_in_range(start, end, |_, _, span| {
+        if let Some(tree) = self.self_time_tree.as_mut() {
+            if *self.max_self_time_lookup_time.get_mut() >= start {
+                tree.for_each_in_range(start, end, |_, _, span| {
                     outdated_spans.insert(*span);
                 });
+            }
+            tree.insert(start, end, span_index);
         }
-        self.self_time_tree.insert(start, end, span_index);
     }
 
     pub fn add_self_time(
