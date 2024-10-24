@@ -1,23 +1,11 @@
 import React from 'react'
 import isError from '../../../../../lib/is-error'
+import { stripStackByFrame } from './strip-stack-frame'
 
 const REACT_ERROR_STACK_BOTTOM_FRAME = 'react-stack-bottom-frame'
-const REACT_ERROR_STACK_BOTTOM_FRAME_REGEX = new RegExp(
-  `(at ${REACT_ERROR_STACK_BOTTOM_FRAME} )|(${REACT_ERROR_STACK_BOTTOM_FRAME}\\@)`
-)
 
-function stripAfterReactBottomFrame(stack: string): string {
-  const stackLines = stack.split('\n')
-  const indexOfSplit = stackLines.findIndex((line) =>
-    REACT_ERROR_STACK_BOTTOM_FRAME_REGEX.test(line)
-  )
-  const isOriginalReactError = indexOfSplit >= 0 // has the react-stack-bottom-frame
-  const strippedStack = isOriginalReactError
-    ? stackLines.slice(0, indexOfSplit).join('\n')
-    : stack
-
-  return strippedStack
-}
+const stripAfterReactBottomFrame = (stack: string) =>
+  stripStackByFrame(stack, REACT_ERROR_STACK_BOTTOM_FRAME, true)
 
 export function getReactStitchedError<T = unknown>(err: T): Error | T {
   if (typeof (React as any).captureOwnerStack !== 'function') {
