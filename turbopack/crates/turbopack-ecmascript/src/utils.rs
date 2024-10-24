@@ -8,9 +8,12 @@ use swc_core::{
 };
 use turbopack_core::{chunk::ModuleId, resolve::pattern::Pattern};
 
-use crate::analyzer::{
-    ConstantNumber, ConstantValue, JsValue, JsValueUrlKind, ModuleValue, WellKnownFunctionKind,
-    WellKnownObjectKind,
+use crate::{
+    analyzer::{
+        ConstantNumber, ConstantValue, JsValue, JsValueUrlKind, ModuleValue, WellKnownFunctionKind,
+        WellKnownObjectKind,
+    },
+    tree_shake::ASSERT_ORIGINAL_IMPORT_SOURCE_KEY,
 };
 
 pub fn unparen(expr: &Expr) -> &Expr {
@@ -159,7 +162,11 @@ pub enum AstPathRange {
 /// Converts a module value (ie an import) to a well known object,
 /// which we specifically handle.
 pub fn module_value_to_well_known_object(module_value: &ModuleValue) -> Option<JsValue> {
-    Some(match &*module_value.module {
+    let module_name = module_value
+        .annotations
+        .get(&ASSERT_ORIGINAL_IMPORT_SOURCE_KEY.into())
+        .unwrap_or(&*module_value.module);
+    Some(match module_name {
         "node:path" | "path" => JsValue::WellKnownObject(WellKnownObjectKind::PathModule),
         "node:fs/promises" | "fs/promises" => {
             JsValue::WellKnownObject(WellKnownObjectKind::FsModule)

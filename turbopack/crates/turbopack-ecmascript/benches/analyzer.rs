@@ -5,7 +5,7 @@ use swc_core::{
     common::{FilePathMapping, Mark, SourceMap, GLOBALS},
     ecma::{
         ast::{EsVersion, Program},
-        parser::parse_file_as_program,
+        parser::{parse_file_as_program, EsSyntax, Syntax},
         transforms::base::resolver,
         visit::VisitMutWith,
     },
@@ -44,7 +44,10 @@ pub fn benchmark(c: &mut Criterion) {
             GLOBALS.set(&swc_core::common::Globals::new(), || {
                 let mut program = parse_file_as_program(
                     &fm,
-                    Default::default(),
+                    Syntax::Es(EsSyntax {
+                        import_attributes: true,
+                        ..Default::default()
+                    }),
                     EsVersion::latest(),
                     None,
                     &mut vec![],

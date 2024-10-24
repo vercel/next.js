@@ -1384,7 +1384,7 @@ impl DepGraph {
 }
 
 const ASSERT_CHUNK_KEY: &str = "__turbopack_part__";
-const ASSERT_ORIGINAL_IMPORT_SOURCE_KEY: &str = "__turbopack_original__";
+pub(crate) const ASSERT_ORIGINAL_IMPORT_SOURCE_KEY: &str = "__turbopack_original__";
 
 #[derive(Debug, Clone)]
 pub(crate) enum PartId {
