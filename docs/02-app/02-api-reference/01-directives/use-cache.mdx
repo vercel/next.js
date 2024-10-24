@@ -47,7 +47,7 @@ The Next.js `use cache` directive allows you to cache entire routes, components,
 // File level
 "use cache"
 
-export default function Page() {
+export default async function Page() {
   // ...
 }
 
@@ -85,7 +85,7 @@ The example below shows how to use the `cacheLife` function at the function leve
 ```tsx filename="app/components/my-component.tsx" highlight={1,5,6}
 import { unstable_cacheLife as cacheLife} from 'next/cache'
 
-export function MyComponent() {
+export async function MyComponent() {
   async function getData() {
     "use cache"
     cacheLife('days')
@@ -240,7 +240,7 @@ For example, if you add the `use cache` directive to your page, without specifyi
 // Parent component
 import { unstable_cacheLife as cacheLife} from 'next/cache'
 
-export default function ParentComponent() {
+export async function ParentComponent() {
   "use cache"
   cacheLife('days')
 
@@ -254,7 +254,7 @@ export default function ParentComponent() {
 // Child component
 import { unstable_cacheLife as cacheLife} from 'next/cache'
 
-function ChildComponent() {
+export async function ChildComponent() {
   "use cache"
   cacheLife('hours')
 
@@ -271,7 +271,7 @@ In the below example the `getData` function uses the “weeks” cache profile, 
 ```tsx filename="app/actions.ts" highlight={4,5}
 import { 
   unstable_cacheTag as cacheTag,
-	unstable_cacheLife as cacheLife
+  unstable_cacheLife as cacheLife
 } from 'next/cache'
 
 export async function getData() {
