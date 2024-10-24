@@ -1502,3 +1502,29 @@ pub(crate) fn encode_base54(init: &mut usize, skip_reserved: bool) -> JsWord {
 
     s
 }
+
+pub fn get_import_source(import: &ImportDecl) -> &Str {
+    import
+        .with
+        .as_deref()
+        .and_then(|e| {
+            for prop in e.props.iter() {
+                let PropOrSpread::Prop(box Prop::KeyValue(prop)) = prop else {
+                    continue;
+                };
+
+                let key = prop.key.as_str()?;
+                let value = prop.value.as_lit()?;
+                let value = match value {
+                    Lit::Str(s) => s,
+                    _ => return None,
+                };
+
+                if key.value == ASSERT_ORIGINAL_IMPORT_SOURCE_KEY {
+                    return Some(value);
+                }
+            }
+            None
+        })
+        .unwrap_or(&import.src)
+}

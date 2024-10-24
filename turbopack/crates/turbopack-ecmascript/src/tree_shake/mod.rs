@@ -15,6 +15,7 @@ use swc_core::{
 use turbo_tasks::{FxIndexSet, RcStr, ValueToString, Vc};
 use turbopack_core::{ident::AssetIdent, resolve::ModulePart, source::Source};
 
+pub use self::graph::get_import_source;
 pub(crate) use self::graph::{
     create_turbopack_part_id_assert, find_turbopack_part_id_in_asserts, PartId,
 };

@@ -10,6 +10,8 @@ use swc_core::{
     },
 };
 
+use crate::transforms::dynamic::get_import_source;
+
 #[derive(Debug, Default)]
 pub(crate) struct ImportMap {
     /// Map from module name to (module path, exported symbol)
@@ -70,7 +72,9 @@ impl Visit for Analyzer<'_> {
     noop_visit_type!();
 
     fn visit_import_decl(&mut self, import: &ImportDecl) {
-        self.data.imported_modules.insert(import.src.value.clone());
+        let src = get_import_source(import);
+
+        self.data.imported_modules.insert(src.value.clone());
 
         for s in &import.specifiers {
             let (local, orig_sym) = match s {
@@ -84,14 +88,14 @@ impl Visit for Analyzer<'_> {
                 ImportSpecifier::Namespace(s) => {
                     self.data
                         .namespace_imports
-                        .insert(s.local.to_id(), import.src.value.clone());
+                        .insert(s.local.to_id(), src.value.clone());
                     continue;
                 }
             };
 
             self.data
                 .imports
-                .insert(local, (import.src.value.clone(), orig_sym));
+                .insert(local, (src.value.clone(), orig_sym));
         }
     }
 }

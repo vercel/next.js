@@ -88,6 +88,7 @@ use self::{
     chunk::{EcmascriptChunkItemContent, EcmascriptChunkType, EcmascriptExports},
     code_gen::{CodeGen, CodeGenerateableWithAsyncModuleInfo, CodeGenerateables},
 };
+pub use crate::tree_shake::get_import_source;
 use crate::{
     chunk::EcmascriptChunkPlaceable,
     references::{analyse_ecmascript_module, async_module::OptionAsyncModule},

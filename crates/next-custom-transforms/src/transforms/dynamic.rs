@@ -134,12 +134,8 @@ impl Fold for NextDynamicPatcher {
     }
 
     fn fold_import_decl(&mut self, decl: ImportDecl) -> ImportDecl {
-        let ImportDecl {
-            ref src,
-            ref specifiers,
-            ..
-        } = decl;
-        if &src.value == "next/dynamic" {
+        let ImportDecl { ref specifiers, .. } = decl;
+        if get_import_source(&decl).value == "next/dynamic" {
             for specifier in specifiers {
                 if let ImportSpecifier::Default(default_specifier) = specifier {
                     self.dynamic_bindings.push(default_specifier.local.to_id());
@@ -693,4 +689,32 @@ fn with_prop(key: &str, value: &str) -> PropOrSpread {
         key: PropName::Str(key.into()),
         value: Box::new(Expr::Lit(value.into())),
     })))
+}
+
+pub fn get_import_source(import: &ImportDecl) -> &Str {
+    const ASSERT_ORIGINAL_IMPORT_SOURCE_KEY: &str = "__turbopack_original__";
+
+    import
+        .with
+        .as_deref()
+        .and_then(|e| {
+            for prop in e.props.iter() {
+                let PropOrSpread::Prop(box Prop::KeyValue(prop)) = prop else {
+                    continue;
+                };
+
+                let key = prop.key.as_str()?;
+                let value = prop.value.as_lit()?;
+                let value = match value {
+                    Lit::Str(s) => s,
+                    _ => return None,
+                };
+
+                if key.value == ASSERT_ORIGINAL_IMPORT_SOURCE_KEY {
+                    return Some(value);
+                }
+            }
+            None
+        })
+        .unwrap_or(&import.src)
 }

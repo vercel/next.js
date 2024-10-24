@@ -25,7 +25,9 @@ use turbopack_core::{
     reference_type::EcmaScriptModulesReferenceSubType,
     resolve::{origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
 };
-use turbopack_ecmascript::{parse::ParseResult, resolve::esm_resolve, EcmascriptParsable};
+use turbopack_ecmascript::{
+    get_import_source, parse::ParseResult, resolve::esm_resolve, EcmascriptParsable,
+};
 
 async fn collect_chunk_group_inner<F, Fu>(
     dynamic_import_entries: FxIndexMap<Vc<Box<dyn Module>>, DynamicImportedModules>,
@@ -349,7 +351,7 @@ impl DynamicImportVisitor {
 impl Visit for DynamicImportVisitor {
     fn visit_import_decl(&mut self, decl: &swc_core::ecma::ast::ImportDecl) {
         // find import decl from next/dynamic, i.e import dynamic from 'next/dynamic'
-        if decl.src.value == *"next/dynamic" {
+        if get_import_source(decl).value == *"next/dynamic" {
             if let Some(specifier) = decl.specifiers.first().and_then(|s| s.as_default()) {
                 self.dynamic_ident = Some(specifier.local.clone());
             }
