@@ -1,5 +1,5 @@
 import { NextInstance, nextTestSetup } from 'e2e-utils'
-import { links, locales } from './components/page'
+import { links, locales } from './components/test-page'
 import glob from 'glob'
 import { promisify } from 'node:util'
 import { waitForHydration } from 'development-sandbox'

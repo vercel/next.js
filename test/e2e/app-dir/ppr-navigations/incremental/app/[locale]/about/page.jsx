@@ -1,4 +1,4 @@
-import { TestPage } from '../../../components/page'
+import { TestPage } from '../../../components/test-page'
 
 export const experimental_ppr = true
 

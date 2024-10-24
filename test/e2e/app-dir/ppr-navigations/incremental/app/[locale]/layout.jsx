@@ -1,4 +1,4 @@
-import { locales } from '../../components/page'
+import { locales } from '../../components/test-page'
 
 export async function generateStaticParams() {
   return locales.map((locale) => ({ locale }))
