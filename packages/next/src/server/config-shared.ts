@@ -179,6 +179,12 @@ export interface ExperimentalTurboOptions {
    * directory can be resolved by turbopack.
    */
   root?: string
+
+  /**
+   * Replaces variables in your code during compile time. Each key will be
+   * replaced with the respective values.
+   */
+  define?: Record<string, string>
 }
 
 export interface WebpackConfigContext {
