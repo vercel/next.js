@@ -871,7 +871,6 @@ impl ReactServerComponentValidator {
         }
 
         let mut check_export = |name: &str, span: Span| {
-            println!("name: {}", name);
             if name.chars().next().map_or(false, |c| c.is_uppercase()) {
                 potential_component_export = Some((name.to_string(), span));
             }
