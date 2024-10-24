@@ -28,11 +28,15 @@ export function patchConsoleError() {
     }
 
     if (!isNextRouterError(maybeError)) {
-      if (process.env.NODE_ENV !== 'production') {
+      if (process.env.NODE_ENV !== 'production' && isError(maybeError)) {
+        const unhandledError = createUnhandledError(
+          `[${args[2]}] ${maybeError.message}`
+        )
+        unhandledError.stack = maybeError.stack
         handleClientError(
           // replayed errors have their own complex format string that should be used,
           // but if we pass the error directly, `handleClientError` will ignore it
-          maybeError,
+          unhandledError,
           args
         )
       }
@@ -66,11 +70,7 @@ function matchReplayedError(...args: unknown[]): Error | null {
   ) {
     const maybeError = args[4]
     if (isError(maybeError)) {
-      const unhandledError = createUnhandledError(
-        `[${args[2]}] ${maybeError.message}`
-      )
-      unhandledError.stack = maybeError.stack
-      return unhandledError
+      return maybeError
     }
   }
 
