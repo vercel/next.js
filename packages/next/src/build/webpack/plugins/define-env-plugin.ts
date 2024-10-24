@@ -169,7 +169,6 @@ export function getDefineEnv({
         }),
     'process.turbopack': isTurbopack,
     'process.env.TURBOPACK': isTurbopack,
-    ...(isTurbopack ? config.experimental.turbo?.define : {}),
     // TODO: enforce `NODE_ENV` on `process.env`, and add a test:
     'process.env.NODE_ENV':
       dev || config.experimental.allowDevelopmentBuild
@@ -289,6 +288,17 @@ export function getDefineEnv({
         }
       : undefined),
   }
+
+  const userDefines = isTurbopack ? config.experimental.turbo?.define : {}
+  for (const key in userDefines) {
+    if (defineEnv.hasOwnProperty(key)) {
+      throw new Error(
+        `The \`turbo.define\` option is configured to replace the \`${key}\` variable. This variable is either part of a Next.js built-in or is already configured via the \`env\` option.`
+      )
+    }
+    defineEnv[key] = userDefines[key]
+  }
+
   const serializedDefineEnv = serializeDefineEnv(defineEnv)
 
   if (!dev && Boolean(config.experimental.flyingShuttle)) {
