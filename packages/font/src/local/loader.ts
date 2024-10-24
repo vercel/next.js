@@ -24,64 +24,117 @@ const nextFontLocalFontLoader: FontLoader = async ({
     src,
     display,
     fallback,
-    preload,
     variable,
     adjustFontFallback,
-    declarations,
+    declarations: defaultDeclarations,
     weight: defaultWeight,
     style: defaultStyle,
   } = validateLocalFontFunctionCall(functionName, data[0])
+  const resolveFont = async ({
+    path,
+    ext,
+    preload,
+  }: {
+    path: string
+    ext: string
+    preload: boolean
+  }) => {
+    const resolved = await resolve(path)
+    const fileBuffer = await promisify(loaderContext.fs.readFile)(resolved)
+    const fontUrl = emitFontFile(
+      fileBuffer,
+      ext,
+      preload,
+      typeof adjustFontFallback === 'undefined' || !!adjustFontFallback
+    )
+
+    return { resolved, fileBuffer, fontUrl }
+  }
+
+  const generateFontFaceSrc = async ({
+    path,
+    ext,
+    format,
+    preload,
+  }: {
+    path: string
+    ext: string
+    format: string
+    preload: boolean
+  }) => {
+    const { fontUrl } = await resolveFont({ path, ext, preload })
+
+    return `url(${fontUrl}) format('${format}')`
+  }
 
   // Load all font files and emit them to the .next output directory
   // Also generate a @font-face CSS for each font file
   const fontFiles = await Promise.all(
-    src.map(async ({ path, style, weight, ext, format }) => {
-      const resolved = await resolve(path)
-      const fileBuffer = await promisify(loaderContext.fs.readFile)(resolved)
-      const fontUrl = emitFontFile(
-        fileBuffer,
-        ext,
-        preload,
-        typeof adjustFontFallback === 'undefined' || !!adjustFontFallback
-      )
-
-      // Try to load font metadata from the font file using fontkit.
-      // The data is used to calculate the fallback font override values.
-      let fontMetadata: any
-      try {
-        fontMetadata = fontFromBuffer?.(fileBuffer)
-      } catch (e) {
-        console.error(`Failed to load font file: ${resolved}\n${e}`)
-      }
-
-      // Get all values that should be added to the @font-face declaration
-      const fontFaceProperties = [
-        ...(declarations
-          ? declarations.map(({ prop, value }) => [prop, value])
-          : []),
-        ['font-family', variableName],
-        ['src', `url(${fontUrl}) format('${format}')`],
-        ['font-display', display],
-        ...(weight ?? defaultWeight
-          ? [['font-weight', weight ?? defaultWeight]]
-          : []),
-        ...(style ?? defaultStyle
-          ? [['font-style', style ?? defaultStyle]]
-          : []),
-      ]
-
-      // Generate the @font-face CSS from the font-face properties
-      const css = `@font-face {\n${fontFaceProperties
-        .map(([property, value]) => `${property}: ${value};`)
-        .join('\n')}\n}\n`
-
-      return {
-        css,
-        fontMetadata,
-        weight,
+    src.map(
+      async ({
+        path,
+        pathFallback,
         style,
+        weight,
+        ext,
+        format,
+        preload,
+        declarations,
+      }) => {
+        const { resolved, fileBuffer, fontUrl } = await resolveFont({
+          path,
+          ext,
+          preload,
+        })
+
+        // Try to load font metadata from the font file using fontkit.
+        // The data is used to calculate the fallback font override values.
+        let fontMetadata: any
+        try {
+          fontMetadata = fontFromBuffer?.(fileBuffer)
+        } catch (e) {
+          console.error(`Failed to load font file: ${resolved}\n${e}`)
+        }
+
+        const fontDeclarations = (defaultDeclarations ?? []).concat(
+          declarations ?? []
+        )
+
+        // Get all values that should be added to the @font-face declaration
+        const fontFaceProperties = [
+          ...(fontDeclarations
+            ? fontDeclarations.map(({ prop, value }) => [prop, value])
+            : []),
+          ['font-family', variableName],
+          [
+            'src',
+            [
+              `url(${fontUrl}) format('${format}')`,
+              ...(await Promise.all(pathFallback.map(generateFontFaceSrc))),
+            ].join(',\n  '),
+          ],
+          ['font-display', display],
+          ...(weight ?? defaultWeight
+            ? [['font-weight', weight ?? defaultWeight]]
+            : []),
+          ...(style ?? defaultStyle
+            ? [['font-style', style ?? defaultStyle]]
+            : []),
+        ]
+
+        // Generate the @font-face CSS from the font-face properties
+        const css = `@font-face {\n${fontFaceProperties
+          .map(([property, value]) => `${property}: ${value};`)
+          .join('\n')}\n}\n`
+
+        return {
+          css,
+          fontMetadata,
+          weight,
+          style,
+        }
       }
-    })
+    )
   )
 
   // Calculate the fallback font override values using the font file metadata
