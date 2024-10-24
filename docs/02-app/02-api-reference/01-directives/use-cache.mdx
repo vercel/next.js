@@ -35,7 +35,7 @@ Caching is a technique to improve the performance of web applications by storing
 
 To explicitly cache certain asynchronous operations and achieve static behavior, you can use the `use cache` directive. This allows you to optimize rendering performance by caching results from async data requests, while still enabling dynamic rendering when needed.
 
-The `use cache` directive is an experimental feature that aims to replace the [`unstable_cache`](/docs/canary/app/api-reference/legacy-apis/unstable_cache) function. Unlike `unstable_cache`, which is limited to caching JSON data and requires manual definition of revalidation periods and tags, `use cache` offers more flexibility. It allows you to cache a wider range of data, including anything that React Server Components (RSC) can serialize, as well as data-fetching outputs and component outputs.
+The `use cache` directive is an experimental feature that aims to replace the [`unstable_cache`](/docs/app/api-reference/legacy-apis/unstable_cache) function. Unlike `unstable_cache`, which is limited to caching JSON data and requires manual definition of revalidation periods and tags, `use cache` offers more flexibility. It allows you to cache a wider range of data, including anything that React Server Components (RSC) can serialize, as well as data-fetching outputs and component outputs.
 
 Additionally, `use cache` automatically manages complexities by tracking both inputs and outputs, making it less likely for you to accidentally poison your cache. Since it serializes both inputs and outputs, you can avoid issues with incorrect cache retrieval.
 

@@ -66,7 +66,7 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
         )
       } else if (workUnitStore.type === 'unstable-cache') {
         throw new Error(
-          `Route ${workStore.route} used "cookies" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "cookies" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/canary/app/api-reference/legacy-apis/unstable_cache`
+          `Route ${workStore.route} used "cookies" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "cookies" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/legacy-apis/unstable_cache`
         )
       } else if (workUnitStore.phase === 'after') {
         throw new Error(
@@ -143,7 +143,7 @@ function createEmptyCookies(): ReadonlyRequestCookies {
   return RequestCookiesAdapter.seal(new RequestCookies(new Headers({})))
 }
 
-interface CacheLifetime {}
+type CacheLifetime = {}
 const CachedCookies = new WeakMap<
   CacheLifetime,
   Promise<ReadonlyRequestCookies>
@@ -166,7 +166,7 @@ function makeDynamicallyTrackedExoticCookies(
 
   Object.defineProperties(promise, {
     [Symbol.iterator]: {
-      value: function () {
+      value: () => {
         const expression = '`cookies()[Symbol.iterator]()`'
         const error = createCookiesAccessError(route, expression)
         abortAndThrowOnSynchronousRequestDataAccess(
@@ -263,7 +263,7 @@ function makeDynamicallyTrackedExoticCookies(
       },
     },
     delete: {
-      value: function () {
+      value: () => {
         let expression: string
         if (arguments.length === 0) {
           expression = '`cookies().delete()`'
@@ -389,7 +389,7 @@ function makeUntrackedExoticCookiesWithDevWarnings(
 
   Object.defineProperties(promise, {
     [Symbol.iterator]: {
-      value: function () {
+      value: () => {
         const expression = '`...cookies()` or similar iteration'
         syncIODev(route, expression)
         return underlyingCookies[Symbol.iterator]
@@ -474,7 +474,7 @@ function makeUntrackedExoticCookiesWithDevWarnings(
       writable: false,
     },
     delete: {
-      value: function () {
+      value: () => {
         let expression: string
         if (arguments.length === 0) {
           expression = '`cookies().delete()`'

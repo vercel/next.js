@@ -1100,7 +1100,7 @@ export function trackDynamic(
       )
     } else if (workUnitStore.type === 'unstable-cache') {
       throw new Error(
-        `Route ${store.route} used "${expression}" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "${expression}" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/canary/app/api-reference/legacy-apis/unstable_cache`
+        `Route ${store.route} used "${expression}" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "${expression}" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/legacy-apis/unstable_cache`
       )
     }
   }
