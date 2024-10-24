@@ -1,4 +1,4 @@
-import { TestPage } from '../../../components/test-page'
+import { TestPage } from '../../../components/page'
 
 export default async function Page(props) {
   const params = await props.params

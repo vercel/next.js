@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { locales } from '../components/test-page'
+import { locales } from '../components/page'
 
 export default () => {
   // Redirect to the default locale
