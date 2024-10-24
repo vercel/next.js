@@ -267,6 +267,15 @@ describe('use-cache', () => {
     // expect(time4).toBe(time3);
   })
 
+  it('should cache fetch without no-store', async () => {
+    const browser = await next.browser('/cache-fetch')
+
+    const initialValue = await browser.elementByCss('#random').text()
+    await browser.refresh()
+
+    expect(await browser.elementByCss('#random').text()).toBe(initialValue)
+  })
+
   it('should override fetch with no-store in use cache properly', async () => {
     const browser = await next.browser('/cache-fetch-no-store')
 
@@ -274,5 +283,14 @@ describe('use-cache', () => {
     await browser.refresh()
 
     expect(await browser.elementByCss('#random').text()).toBe(initialValue)
+  })
+
+  it('should use revalidate config in fetch', async () => {
+    const browser = await next.browser('/fetch-revalidate')
+
+    const initialValue = await browser.elementByCss('#random').text()
+    await browser.refresh()
+
+    expect(await browser.elementByCss('#random').text()).not.toBe(initialValue)
   })
 })
