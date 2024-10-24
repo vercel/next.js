@@ -84,6 +84,7 @@ import { generateEncryptionKeyBase64 } from '../app-render/encryption-utils-serv
 import { isAppPageRouteDefinition } from '../route-definitions/app-page-route-definition'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { getNodeDebugType } from '../lib/utils'
+import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
 // import { getSupportedBrowsers } from '../../build/utils'
 
 const wsServer = new ws.Server({ noServer: true })
@@ -483,6 +484,7 @@ export async function createHotReloaderTurbopack(
       // reload, only this client is out of date.
       const reloadAction: ReloadPageAction = {
         action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE,
+        data: `error in HMR event subscription for ${id}: ${e}`,
       }
       sendToClient(client, reloadAction)
       client.close()
@@ -567,7 +569,7 @@ export async function createHotReloaderTurbopack(
 
   const middlewares = [
     getOverlayMiddleware(project),
-    getSourceMapMiddleware(project),
+    getSourceMapMiddleware(project, distDir),
   ]
 
   const versionInfoPromise = getVersionInfo(
@@ -936,10 +938,17 @@ export async function createHotReloaderTurbopack(
       }
 
       const isInsideAppDir = routeDef.bundlePath.startsWith('app/')
-      const normalizedAppPage = normalizedPageToTurbopackStructureRoute(
-        page,
-        extname(routeDef.filename)
+      const isEntryMetadataRouteFile = isMetadataRouteFile(
+        routeDef.filename.replace(opts.appDir || '', ''),
+        nextConfig.pageExtensions,
+        true
       )
+      const normalizedAppPage = isEntryMetadataRouteFile
+        ? normalizedPageToTurbopackStructureRoute(
+            page,
+            extname(routeDef.filename)
+          )
+        : page
 
       const route = isInsideAppDir
         ? currentEntrypoints.app.get(normalizedAppPage)

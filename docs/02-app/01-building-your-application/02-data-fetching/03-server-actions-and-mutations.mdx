@@ -838,14 +838,16 @@ You can `get`, `set`, and `delete` cookies inside a Server Action using the [`co
 import { cookies } from 'next/headers'
 
 export async function exampleAction() {
+  const cookieStore = await cookies()
+
   // Get cookie
-  const value = cookies().get('name')?.value
+  cookieStore.get('name')?.value
 
   // Set cookie
-  cookies().set('name', 'Delba')
+  cookieStore.set('name', 'Delba')
 
   // Delete cookie
-  cookies().delete('name')
+  cookieStore.delete('name')
 }
 ```
 
@@ -856,13 +858,16 @@ import { cookies } from 'next/headers'
 
 export async function exampleAction() {
   // Get cookie
-  const value = cookies().get('name')?.value
+  const cookieStore = await cookies()
+
+  // Get cookie
+  cookieStore.get('name')?.value
 
   // Set cookie
-  cookies().set('name', 'Delba')
+  cookieStore.set('name', 'Delba')
 
   // Delete cookie
-  cookies().delete('name')
+  cookieStore.delete('name')
 }
 ```
 
@@ -870,9 +875,37 @@ See [additional examples](/docs/app/api-reference/functions/cookies#deleting-coo
 
 ## Security
 
+By default, when a Server Action is created and exported, it creates a public HTTP endpoint
+and should be treated with the same security assumptions and authorization checks. This means, even if a Server Action or utility function is not imported elsewhere in your code, it’s still a publicly accessible.
+
+To improve security, Next.js has the following built-in features:
+
+- **Secure action IDs:** Next.js creates encrypted, non-deterministic IDs to allow the client to reference and call the Server Action. These IDs are periodically recalculated between builds for enhanced security.
+- **Dead code elimination:** Unused Server Actions (referenced by their IDs) are removed from client bundle to avoid public access by third-party.
+
+> **Good to know**:
+>
+> The IDs are created during compilation and are cached for a maximum of 14 days. They will be regenerated when a new build is initiated or when the build cache is invalidated.
+> This security improvement reduces the risk in cases where an authentication layer is missing. However, you should still treat Server Actions like public HTTP endpoints.
+
+```jsx
+// app/actions.js
+'use server'
+
+// This action **is** used in our application, so Next.js
+// will create a secure ID to allow the client to reference
+// and call the Server Action.
+export async function updateUserAction(formData) {}
+
+// This action **is not** used in our application, so Next.js
+// will automatically remove this code during `next build`
+// and will not create a public endpoint.
+export async function deleteUserAction(formData) {}
+```
+
 ### Authentication and authorization
 
-You should treat Server Actions as you would public-facing API endpoints, and ensure that the user is authorized to perform the action. For example:
+You should ensure that the user is authorized to perform the action. For example:
 
 ```tsx filename="app/actions.ts"
 'use server'

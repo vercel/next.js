@@ -121,6 +121,7 @@ describe('createInitialRouterState', () => {
             treeAtTimeOfPrefetch: initialTree,
             status: PrefetchCacheEntryStatus.fresh,
             url: new URL('/linking', 'https://localhost'),
+            staleTime: -1,
           },
         ],
       ]),

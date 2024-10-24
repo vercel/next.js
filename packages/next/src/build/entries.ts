@@ -67,7 +67,7 @@ import {
   isInternalComponent,
   isNonRoutePagesPage,
 } from '../lib/is-internal-component'
-import { isMetadataRoute } from '../lib/metadata/is-metadata-route'
+import { isMetadataRouteFile } from '../lib/metadata/is-metadata-route'
 import { RouteKind } from '../server/route-kind'
 import { encodeToBase64 } from './webpack/loaders/utils'
 import { normalizeCatchAllRoutes } from './normalize-catchall-routes'
@@ -159,6 +159,18 @@ export async function getStaticInfoIncludingLayouts({
         page,
         pageType: isInsideAppDir ? PAGE_TYPES.APP : PAGE_TYPES.PAGES,
       })
+
+      if (layoutStaticInfo.unsupportedSegmentConfigs) {
+        // Merge unsupported segment configs from the layout into the page
+        // while deduping the list as it's possible for overlap
+        layoutStaticInfo.unsupportedSegmentConfigs =
+          layoutStaticInfo.unsupportedSegmentConfigs.concat(
+            pageStaticInfo.unsupportedSegmentConfigs || []
+          )
+        pageStaticInfo.unsupportedSegmentConfigs = [
+          ...new Set(layoutStaticInfo.unsupportedSegmentConfigs),
+        ]
+      }
 
       segments.unshift(layoutStaticInfo)
     }
@@ -267,7 +279,10 @@ export async function createPagesMapping({
 
     let route = pagesType === 'app' ? normalizeMetadataRoute(pageKey) : pageKey
 
-    if (isMetadataRoute(route) && pagesType === 'app') {
+    if (
+      pagesType === 'app' &&
+      isMetadataRouteFile(pagePath, pageExtensions, true)
+    ) {
       const filePath = join(appDir!, pagePath)
       const staticInfo = await getPageStaticInfo({
         nextConfig: {},
@@ -373,7 +388,7 @@ export function getEdgeServerEntry(opts: {
       absolutePagePath: opts.absolutePagePath,
       page: opts.page,
       appDirLoader: Buffer.from(opts.appDirLoader || '').toString('base64'),
-      nextConfigOutput: opts.config.output,
+      nextConfig: Buffer.from(JSON.stringify(opts.config)).toString('base64'),
       preferredRegion: opts.preferredRegion,
       middlewareConfig: Buffer.from(
         JSON.stringify(opts.middlewareConfig || {})
@@ -438,6 +453,7 @@ export function getEdgeServerEntry(opts: {
       JSON.stringify(opts.middlewareConfig || {})
     ).toString('base64'),
     serverActions: opts.config.experimental.serverActions,
+    cacheHandlers: JSON.stringify(opts.config.experimental.cacheHandlers || {}),
   }
 
   return {

@@ -10,7 +10,7 @@ import {
 import type { Revalidate } from '../revalidate'
 import type { DeepReadonly } from '../../../shared/lib/deep-readonly'
 
-import { cacheScopeAsyncLocalStorage } from '../../async-storage/cache-scope'
+import { cacheScopeAsyncLocalStorage } from '../../async-storage/cache-scope.external'
 import FetchCache from './fetch-cache'
 import FileSystemCache from './file-system-cache'
 import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
@@ -120,22 +120,37 @@ export class IncrementalCache implements IncrementalCacheType {
   }) {
     const debug = !!process.env.NEXT_PRIVATE_DEBUG_CACHE
     this.hasCustomCacheHandler = Boolean(CurCacheHandler)
-    if (!CurCacheHandler) {
-      if (fs && serverDistDir) {
-        if (debug) {
-          console.log('using filesystem cache handler')
-        }
-        CurCacheHandler = FileSystemCache
+
+    const cacheHandlersSymbol = Symbol.for('@next/cache-handlers')
+    const _globalThis: typeof globalThis & {
+      [cacheHandlersSymbol]?: {
+        FetchCache?: typeof CacheHandler
       }
-      if (
-        FetchCache.isAvailable({ _requestHeaders: requestHeaders }) &&
-        minimalMode &&
-        fetchCache
-      ) {
-        if (debug) {
-          console.log('using fetch cache handler')
+    } = globalThis
+
+    if (!CurCacheHandler) {
+      // if we have a global cache handler available leverage it
+      const globalCacheHandler = _globalThis[cacheHandlersSymbol]
+
+      if (globalCacheHandler?.FetchCache) {
+        CurCacheHandler = globalCacheHandler.FetchCache
+      } else {
+        if (fs && serverDistDir) {
+          if (debug) {
+            console.log('using filesystem cache handler')
+          }
+          CurCacheHandler = FileSystemCache
         }
-        CurCacheHandler = FetchCache
+        if (
+          FetchCache.isAvailable({ _requestHeaders: requestHeaders }) &&
+          minimalMode &&
+          fetchCache
+        ) {
+          if (debug) {
+            console.log('using fetch cache handler')
+          }
+          CurCacheHandler = FetchCache
+        }
       }
     } else if (debug) {
       console.log('using custom cache handler', CurCacheHandler.name)
@@ -383,6 +398,25 @@ export class IncrementalCache implements IncrementalCacheType {
       isFallback: boolean | undefined
     }
   ): Promise<IncrementalCacheEntry | null> {
+    // unlike other caches if we have a cacheScope we use it even if
+    // testmode would normally disable it or if requestHeaders say 'no-cache'.
+    if (this.hasDynamicIO && ctx.kind === IncrementalCacheKind.FETCH) {
+      const cacheScope = cacheScopeAsyncLocalStorage.getStore()
+
+      if (cacheScope) {
+        const memoryCacheData = cacheScope.cache.get(cacheKey)
+
+        if (memoryCacheData?.kind === CachedRouteKind.FETCH) {
+          return {
+            isStale: false,
+            value: memoryCacheData,
+            revalidateAfter: false,
+            isFallback: false,
+          }
+        }
+      }
+    }
+
     // we don't leverage the prerender cache in dev mode
     // so that getStaticProps is always called for easier debugging
     if (
@@ -402,23 +436,6 @@ export class IncrementalCache implements IncrementalCacheType {
     )
     let entry: IncrementalCacheEntry | null = null
     let revalidate = ctx.revalidate
-
-    if (this.hasDynamicIO && ctx.kind === IncrementalCacheKind.FETCH) {
-      const cacheScope = cacheScopeAsyncLocalStorage.getStore()
-
-      if (cacheScope?.cache) {
-        const memoryCacheData = cacheScope.cache.get(cacheKey)
-
-        if (memoryCacheData?.kind === CachedRouteKind.FETCH) {
-          return {
-            isStale: false,
-            value: memoryCacheData,
-            revalidateAfter: false,
-            isFallback: false,
-          }
-        }
-      }
-    }
 
     const cacheData = await this.cacheHandler?.get(cacheKey, ctx)
 
@@ -523,17 +540,21 @@ export class IncrementalCache implements IncrementalCacheType {
       isFallback?: boolean
     }
   ) {
-    if (this.disableForTestmode || (this.dev && !ctx.fetchCache)) return
-
-    pathname = this._getPathname(pathname, ctx.fetchCache)
-
+    // Even if we otherwise disable caching for testMode or if no fetchCache is configured
+    // we still always stash results in the cacheScope if one exists. This is because this
+    // is a transient in memory cache that populates caches ahead of a dynamic render in dev mode
+    // to allow the RSC debug info to have the right environment associated to it.
     if (this.hasDynamicIO && data?.kind === CachedRouteKind.FETCH) {
       const cacheScope = cacheScopeAsyncLocalStorage.getStore()
 
-      if (cacheScope?.cache) {
+      if (cacheScope) {
         cacheScope.cache.set(pathname, data)
       }
     }
+
+    if (this.disableForTestmode || (this.dev && !ctx.fetchCache)) return
+
+    pathname = this._getPathname(pathname, ctx.fetchCache)
 
     // FetchCache has upper limit of 2MB per-entry currently
     const itemSize = JSON.stringify(data).length

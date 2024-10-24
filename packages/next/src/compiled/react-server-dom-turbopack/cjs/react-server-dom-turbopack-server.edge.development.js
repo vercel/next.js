@@ -1961,7 +1961,14 @@
             return (
               null != value._owner &&
                 outlineComponentInfo(request, value._owner),
+              "object" === typeof value.type &&
+                null !== value.type &&
+                doNotLimit.add(value.type),
+              "object" === typeof value.key &&
+                null !== value.key &&
+                doNotLimit.add(value.key),
               doNotLimit.add(value.props),
+              null !== value._owner && doNotLimit.add(value._owner),
               [
                 REACT_ELEMENT_TYPE,
                 value.type,
@@ -3382,7 +3389,7 @@
       }
     };
     var frameRegExp =
-        /^ {3} at (?:(.+) \((.+):(\d+):(\d+)\)|(?:async )?(.+):(\d+):(\d+))$/,
+        /^ {3} at (?:(.+) \((?:(.+):(\d+):(\d+)|<anonymous>)\)|(?:async )?(.+):(\d+):(\d+)|<anonymous>)$/,
       supportsRequestStorage = "function" === typeof AsyncLocalStorage,
       requestStorage = supportsRequestStorage ? new AsyncLocalStorage() : null,
       supportsComponentStorage = supportsRequestStorage,

@@ -2257,7 +2257,14 @@
         switch (value.$$typeof) {
           case REACT_ELEMENT_TYPE:
             null != value._owner && outlineComponentInfo(request, value._owner);
+            "object" === typeof value.type &&
+              null !== value.type &&
+              doNotLimit.add(value.type);
+            "object" === typeof value.key &&
+              null !== value.key &&
+              doNotLimit.add(value.key);
             doNotLimit.add(value.props);
+            null !== value._owner && doNotLimit.add(value._owner);
             counter = null;
             if (null != value._debugStack)
               for (
@@ -2829,7 +2836,9 @@
               '" in the React Server Manifest. This is probably a bug in the React Server Components bundler.'
           );
       }
-      return [resolvedModuleData.id, resolvedModuleData.chunks, name];
+      return resolvedModuleData.async
+        ? [resolvedModuleData.id, resolvedModuleData.chunks, name, 1]
+        : [resolvedModuleData.id, resolvedModuleData.chunks, name];
     }
     function requireAsyncModule(id) {
       var promise = __webpack_require__(id);
@@ -3768,7 +3777,7 @@
       }
     };
     var frameRegExp =
-        /^ {3} at (?:(.+) \((.+):(\d+):(\d+)\)|(?:async )?(.+):(\d+):(\d+))$/,
+        /^ {3} at (?:(.+) \((?:(.+):(\d+):(\d+)|<anonymous>)\)|(?:async )?(.+):(\d+):(\d+)|<anonymous>)$/,
       TEMPORARY_REFERENCE_TAG = Symbol.for("react.temporary.reference"),
       proxyHandlers = {
         get: function (target, name) {

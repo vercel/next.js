@@ -106,7 +106,7 @@ async fn apply_module_type(
     module_type: Vc<ModuleType>,
     reference_type: Value<ReferenceType>,
     part: Option<Vc<ModulePart>>,
-    inner_assets: Option<Vc<InnerAssets>>,
+    inner_assets: Option<ResolvedVc<InnerAssets>>,
     runtime_code: bool,
 ) -> Result<Vc<ProcessResult>> {
     let module_type = &*module_type.await?;
@@ -264,6 +264,11 @@ async fn apply_module_type(
             source,
             Vc::upcast(module_asset_context),
             *ty,
+            module_asset_context
+                .module_options_context()
+                .await?
+                .css
+                .minify_type,
             *use_swc_css,
             if let ReferenceType::Css(CssReferenceSubType::AtImport(import)) =
                 reference_type.into_value()

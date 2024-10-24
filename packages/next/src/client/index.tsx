@@ -1,7 +1,6 @@
 /* global location */
 // imports polyfill from `@next/polyfill-module` after build.
 import '../build/polyfills/polyfill-module'
-
 import type Router from '../shared/lib/router/router'
 import type {
   AppComponent,
@@ -46,7 +45,7 @@ import {
   SearchParamsContext,
   PathParamsContext,
 } from '../shared/lib/hooks-client-context.shared-runtime'
-import { onRecoverableError } from './on-recoverable-error'
+import { onRecoverableError } from './react-client-callbacks/shared'
 import tracer from './tracing/tracer'
 import reportToSocket from './tracing/report-to-socket'
 

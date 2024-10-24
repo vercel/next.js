@@ -1,9 +1,8 @@
 use anyhow::Result;
-use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, TryFlatJoinIterExt, TryJoinIterExt, ValueToString,
-    Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, ResolvedVc, TryFlatJoinIterExt,
+    TryJoinIterExt, ValueToString, Vc,
 };
 use turbo_tasks_hash::Xxh3Hash64Hasher;
 
@@ -18,14 +17,14 @@ pub struct AvailableChunkItemInfo {
 pub struct OptionAvailableChunkItemInfo(Option<AvailableChunkItemInfo>);
 
 #[turbo_tasks::value(transparent)]
-pub struct AvailableChunkItemInfoMap(IndexMap<Vc<Box<dyn ChunkItem>>, AvailableChunkItemInfo>);
+pub struct AvailableChunkItemInfoMap(FxIndexMap<Vc<Box<dyn ChunkItem>>, AvailableChunkItemInfo>);
 
 /// Allows to gather information about which assets are already available.
 /// Adding more roots will form a linked list like structure to allow caching
 /// `include` queries.
 #[turbo_tasks::value]
 pub struct AvailableChunkItems {
-    parent: Option<Vc<AvailableChunkItems>>,
+    parent: Option<ResolvedVc<AvailableChunkItems>>,
     chunk_items: Vc<AvailableChunkItemInfoMap>,
 }
 
@@ -58,7 +57,7 @@ impl AvailableChunkItems {
             .try_flat_join()
             .await?;
         Ok(AvailableChunkItems {
-            parent: Some(self),
+            parent: Some(self.to_resolved().await?),
             chunk_items: Vc::cell(chunk_items.into_iter().collect()),
         }
         .cell())

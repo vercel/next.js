@@ -38,8 +38,11 @@ export type RequestStore = {
   }
 
   readonly headers: ReadonlyHeaders
-  readonly cookies: ReadonlyRequestCookies
+  // This is mutable because we need to reassign it when transitioning from the action phase to the render phase.
+  // The cookie object itself is deliberately read only and thus can't be updated.
+  cookies: ReadonlyRequestCookies
   readonly mutableCookies: ResponseCookies
+  readonly userspaceMutableCookies: ResponseCookies
   readonly draftMode: DraftModeProvider
   readonly isHmrRefresh?: boolean
   readonly serverComponentsHmrCache?: ServerComponentsHmrCache
@@ -48,6 +51,7 @@ export type RequestStore = {
 
   // DEV-only
   usedDynamic?: boolean
+  prerenderPhase?: boolean
 } & PhasePartial
 
 /**
@@ -87,7 +91,15 @@ export type PrerenderStoreModern = {
 
   // Collected revalidate times and tags for this document during the prerender.
   revalidate: number // in seconds. 0 means dynamic. INFINITE_CACHE and higher means never revalidate.
+  expire: number // server expiration time
+  stale: number // client expiration time
   tags: null | string[]
+
+  // DEV ONLY
+  // When used this flag informs certain APIs to skip logging because we're
+  // not part of the primary render path and are just prerendering to produce
+  // validation results
+  validating?: boolean
 } & PhasePartial
 
 export type PrerenderStorePPR = {
@@ -96,6 +108,8 @@ export type PrerenderStorePPR = {
   readonly dynamicTracking: null | DynamicTrackingState
   // Collected revalidate times and tags for this document during the prerender.
   revalidate: number // in seconds. 0 means dynamic. INFINITE_CACHE and higher means never revalidate.
+  expire: number // server expiration time
+  stale: number // client expiration time
   tags: null | string[]
 } & PhasePartial
 
@@ -104,6 +118,8 @@ export type PrerenderStoreLegacy = {
   readonly implicitTags: string[]
   // Collected revalidate times and tags for this document during the prerender.
   revalidate: number // in seconds. 0 means dynamic. INFINITE_CACHE and higher means never revalidate.
+  expire: number // server expiration time
+  stale: number // client expiration time
   tags: null | string[]
 } & PhasePartial
 
@@ -117,7 +133,11 @@ export type UseCacheStore = {
   readonly implicitTags: string[]
   // Collected revalidate times and tags for this cache entry during the cache render.
   revalidate: number // implicit revalidate time from inner caches / fetches
+  expire: number // server expiration time
+  stale: number // client expiration time
   explicitRevalidate: undefined | number // explicit revalidate time from cacheLife() calls
+  explicitExpire: undefined | number // server expiration time
+  explicitStale: undefined | number // client expiration time
   tags: null | string[]
 } & PhasePartial
 

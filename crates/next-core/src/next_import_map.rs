@@ -1,8 +1,7 @@
 use std::collections::{BTreeMap, HashMap};
 
 use anyhow::{Context, Result};
-use indexmap::{indexmap, IndexMap};
-use turbo_tasks::{RcStr, Value, Vc};
+use turbo_tasks::{fxindexmap, FxIndexMap, RcStr, Value, Vc};
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack_core::{
     reference_type::{CommonJsReferenceSubType, ReferenceType},
@@ -117,12 +116,14 @@ pub async fn get_next_client_import_map(
     match ty.into_value() {
         ClientContextType::Pages { .. } => {}
         ClientContextType::App { app_dir } => {
-            let react_flavor =
-                if *next_config.enable_ppr().await? || *next_config.enable_taint().await? {
-                    "-experimental"
-                } else {
-                    ""
-                };
+            let react_flavor = if *next_config.enable_ppr().await?
+                || *next_config.enable_taint().await?
+                || *next_config.enable_react_owner_stack().await?
+            {
+                "-experimental"
+            } else {
+                ""
+            };
 
             import_map.insert_exact_alias(
                 "react",
@@ -209,7 +210,7 @@ pub async fn get_next_client_import_map(
     insert_exact_alias_map(
         &mut import_map,
         project_path,
-        indexmap! {
+        fxindexmap! {
             "server-only" => "next/dist/compiled/server-only/index".to_string(),
             "client-only" => "next/dist/compiled/client-only/index".to_string(),
             "next/dist/compiled/server-only" => "next/dist/compiled/server-only/index".to_string(),
@@ -382,7 +383,7 @@ pub async fn get_next_edge_import_map(
     insert_wildcard_alias_map(
         &mut import_map,
         project_path,
-        indexmap! {
+        fxindexmap! {
             "next/dist/build/" => "next/dist/esm/build/*".to_string(),
             "next/dist/client/" => "next/dist/esm/client/*".to_string(),
             "next/dist/shared/" => "next/dist/esm/shared/*".to_string(),
@@ -397,7 +398,7 @@ pub async fn get_next_edge_import_map(
     insert_exact_alias_map(
         &mut import_map,
         project_path,
-        indexmap! {
+        fxindexmap! {
             "next/app" => "next/dist/api/app".to_string(),
             "next/document" => "next/dist/api/document".to_string(),
             "next/dynamic" => "next/dist/api/dynamic".to_string(),
@@ -617,7 +618,7 @@ async fn insert_next_server_special_aliases(
             insert_exact_alias_map(
                 import_map,
                 project_path,
-                indexmap! {
+                fxindexmap! {
                     "server-only" => "next/dist/compiled/server-only/empty".to_string(),
                     "client-only" => "next/dist/compiled/client-only/index".to_string(),
                     "next/dist/compiled/server-only" => "next/dist/compiled/server-only/empty".to_string(),
@@ -634,7 +635,7 @@ async fn insert_next_server_special_aliases(
             insert_exact_alias_map(
                 import_map,
                 project_path,
-                indexmap! {
+                fxindexmap! {
                     "server-only" => "next/dist/compiled/server-only/empty".to_string(),
                     "client-only" => "next/dist/compiled/client-only/error".to_string(),
                     "next/dist/compiled/server-only" => "next/dist/compiled/server-only/empty".to_string(),
@@ -646,7 +647,7 @@ async fn insert_next_server_special_aliases(
             insert_exact_alias_map(
                 import_map,
                 project_path,
-                indexmap! {
+                fxindexmap! {
                     "server-only" => "next/dist/compiled/server-only/index".to_string(),
                     "client-only" => "next/dist/compiled/client-only/index".to_string(),
                     "next/dist/compiled/server-only" => "next/dist/compiled/server-only/index".to_string(),
@@ -684,17 +685,22 @@ async fn rsc_aliases(
 ) -> Result<()> {
     let ppr = *next_config.enable_ppr().await?;
     let taint = *next_config.enable_taint().await?;
-    let react_channel = if ppr || taint { "-experimental" } else { "" };
+    let react_owner_stack = *next_config.enable_react_owner_stack().await?;
+    let react_channel = if ppr || taint || react_owner_stack {
+        "-experimental"
+    } else {
+        ""
+    };
     let react_client_package = get_react_client_package(&next_config).await?;
 
-    let mut alias = IndexMap::new();
+    let mut alias = FxIndexMap::default();
     if matches!(
         ty,
         ServerContextType::AppSSR { .. }
             | ServerContextType::AppRSC { .. }
             | ServerContextType::AppRoute { .. }
     ) {
-        alias.extend(indexmap! {
+        alias.extend(fxindexmap! {
             "react" => format!("next/dist/compiled/react{react_channel}"),
             "react-dom" => format!("next/dist/compiled/react-dom{react_channel}"),
             "react/jsx-runtime" => format!("next/dist/compiled/react{react_channel}/jsx-runtime"),
@@ -709,7 +715,7 @@ async fn rsc_aliases(
             "react-dom/server.browser" => format!("next/dist/compiled/react-dom{react_channel}/server.browser"),
         });
     }
-    alias.extend(indexmap! {
+    alias.extend(fxindexmap! {
         "react-server-dom-webpack/client" => format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/client"),
         "react-server-dom-webpack/client.edge" => format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/client.edge"),
         "react-server-dom-webpack/server.edge" => format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.edge"),
@@ -725,7 +731,7 @@ async fn rsc_aliases(
     if runtime == NextRuntime::NodeJs {
         match ty {
             ServerContextType::AppSSR { .. } => {
-                alias.extend(indexmap! {
+                alias.extend(fxindexmap! {
                     "react/jsx-runtime" => format!("next/dist/server/route-modules/app-page/vendored/ssr/react-jsx-runtime"),
                     "react/jsx-dev-runtime" => format!("next/dist/server/route-modules/app-page/vendored/ssr/react-jsx-dev-runtime"),
                     "react/compiler-runtime" => format!("next/dist/server/route-modules/app-page/vendored/ssr/react-compiler-runtime"),
@@ -739,7 +745,7 @@ async fn rsc_aliases(
             | ServerContextType::AppRoute { .. }
             | ServerContextType::Middleware { .. }
             | ServerContextType::Instrumentation { .. } => {
-                alias.extend(indexmap! {
+                alias.extend(fxindexmap! {
                     "react/jsx-runtime" => format!("next/dist/server/route-modules/app-page/vendored/rsc/react-jsx-runtime"),
                     "react/jsx-dev-runtime" => format!("next/dist/server/route-modules/app-page/vendored/rsc/react-jsx-dev-runtime"),
                     "react/compiler-runtime" => format!("next/dist/server/route-modules/app-page/vendored/rsc/react-compiler-runtime"),
@@ -762,7 +768,7 @@ async fn rsc_aliases(
     }
 
     if runtime == NextRuntime::Edge && ty.supports_react_server() {
-        alias.extend(indexmap! {
+        alias.extend(fxindexmap! {
             "react" => format!("next/dist/compiled/react{react_channel}/react.react-server"),
             "next/dist/compiled/react" => format!("next/dist/compiled/react{react_channel}/react.react-server"),
             "next/dist/compiled/react-experimental" =>  format!("next/dist/compiled/react-experimental/react.react-server"),
@@ -799,7 +805,7 @@ async fn insert_optimized_module_aliases(
     insert_exact_alias_map(
         import_map,
         project_path,
-        indexmap! {
+        fxindexmap! {
             "unfetch" => "next/dist/build/polyfills/fetch/index.js".to_string(),
             "isomorphic-unfetch" => "next/dist/build/polyfills/fetch/index.js".to_string(),
             "whatwg-fetch" => "next/dist/build/polyfills/fetch/whatwg-fetch.js".to_string(),
@@ -1021,7 +1027,7 @@ fn export_value_to_import_mapping(
 fn insert_exact_alias_map(
     import_map: &mut ImportMap,
     project_path: Vc<FileSystemPath>,
-    map: IndexMap<&'static str, String>,
+    map: FxIndexMap<&'static str, String>,
 ) {
     for (pattern, request) in map {
         import_map.insert_exact_alias(pattern, request_to_import_mapping(project_path, &request));
@@ -1031,7 +1037,7 @@ fn insert_exact_alias_map(
 fn insert_wildcard_alias_map(
     import_map: &mut ImportMap,
     project_path: Vc<FileSystemPath>,
-    map: IndexMap<&'static str, String>,
+    map: FxIndexMap<&'static str, String>,
 ) {
     for (pattern, request) in map {
         import_map

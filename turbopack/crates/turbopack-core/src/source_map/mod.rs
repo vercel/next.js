@@ -1,13 +1,13 @@
 use std::{borrow::Cow, io::Write, ops::Deref, sync::Arc};
 
 use anyhow::Result;
-use indexmap::IndexMap;
+use indexmap::IndexSet;
 use once_cell::sync::Lazy;
 use ref_cast::RefCast;
 use regex::Regex;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use sourcemap::{DecodedMap, SourceMap as RegularMap, SourceMapBuilder, SourceMapIndex};
-use turbo_tasks::{RcStr, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{RcStr, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::{
     rope::{Rope, RopeBuilder},
     File, FileContent, FileSystem, FileSystemPath, VirtualFileSystem,
@@ -55,9 +55,6 @@ pub enum SourceMap {
     /// different regions of the file.
     Sectioned(#[turbo_tasks(trace_ignore)] SectionedSourceMap),
 }
-
-#[turbo_tasks::value(transparent)]
-pub struct SectionMapping(IndexMap<String, ResolvedVc<Box<dyn GenerateSourceMap>>>);
 
 #[turbo_tasks::value(transparent)]
 pub struct OptionSourceMap(Option<Vc<SourceMap>>);
@@ -410,18 +407,30 @@ impl SourceMap {
                 .collect::<Vec<_>>();
             let mut new_sources = Vec::with_capacity(count);
             let mut new_source_contents = Vec::with_capacity(count);
-            for (source, source_content) in sources.into_iter().zip(source_contents.into_iter()) {
+            let mut ignored_sources = IndexSet::new();
+            for (src_id, (source, source_content)) in sources
+                .into_iter()
+                .zip(source_contents.into_iter())
+                .enumerate()
+            {
                 let (source, name) = resolve_source(source, source_content, origin).await?;
+                if source.starts_with("turbopack://[next]")
+                    || source.starts_with("turbopack://[turbopack]")
+                    || source.contains("/node_modules/")
+                {
+                    ignored_sources.insert(src_id);
+                }
                 new_sources.push(source);
                 new_source_contents.push(Some(name));
             }
-            Ok(RegularMap::new(
-                file,
-                tokens,
-                names,
-                new_sources,
-                Some(new_source_contents),
-            ))
+            let mut map =
+                RegularMap::new(file, tokens, names, new_sources, Some(new_source_contents));
+
+            for ignored_source in ignored_sources {
+                map.add_to_ignore_list(ignored_source as _);
+            }
+
+            Ok(map)
         }
         async fn decoded_map_with_resolved_sources(
             map: &CrateMapWrapper,

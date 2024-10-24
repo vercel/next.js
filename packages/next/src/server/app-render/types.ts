@@ -5,7 +5,7 @@ import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
 import type { ParsedUrlQuery } from 'querystring'
 import type { AppPageModule } from '../route-modules/app-page/module'
-import type { SwrDelta } from '../lib/revalidate'
+import type { ExpireTime } from '../lib/revalidate'
 import type { LoadingModuleData } from '../../shared/lib/app-router-context.shared-runtime'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import type { __ApiPreviewProps } from '../api-utils'
@@ -147,6 +147,9 @@ export interface RenderOptsPartial {
   nextFontManifest?: DeepReadonly<NextFontManifest>
   isBot?: boolean
   incrementalCache?: import('../lib/incremental-cache').IncrementalCache
+  cacheLifeProfiles?: {
+    [profile: string]: import('../use-cache/cache-life').CacheLife
+  }
   setAppIsrStatus?: (key: string, value: boolean | null) => void
   isRevalidate?: boolean
   nextExport?: boolean
@@ -168,13 +171,14 @@ export interface RenderOptsPartial {
   }
   params?: ParsedUrlQuery
   isPrefetch?: boolean
+  isDevWarmup?: boolean
   experimental: {
     /**
      * When true, it indicates that the current page supports partial
      * prerendering.
      */
     isRoutePPREnabled?: boolean
-    swrDelta: SwrDelta | undefined
+    expireTime: ExpireTime | undefined
     clientTraceMetadata: string[] | undefined
     after: boolean
     dynamicIO: boolean
