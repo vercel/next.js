@@ -13,7 +13,7 @@ export class PrefetchCacheScopes {
 
   private evict() {
     for (const [key, value] of this.cacheScopes) {
-      if (value.timestamp < Date.now() - 30_000) {
+      if (value.timestamp < Date.now() - 5_000) {
         this.cacheScopes.delete(key)
       }
     }
@@ -23,7 +23,14 @@ export class PrefetchCacheScopes {
   // filter _rsc query
   get(url: string) {
     setImmediate(() => this.evict())
-    return this.cacheScopes.get(url)?.cache
+    const currentScope = this.cacheScopes.get(url)
+    if (currentScope) {
+      if (currentScope.timestamp < Date.now() - 5_000) {
+        return undefined
+      }
+      return currentScope.cache
+    }
+    return undefined
   }
 
   set(url: string, cache: CacheScopeStore['cache']) {

@@ -1942,6 +1942,7 @@ async function spawnDynamicValidationInDev(
 ): Promise<void> {
   const { componentMod: ComponentMod } = ctx
 
+  const cacheSignal = new CacheSignal()
   const firstAttemptServerController = new AbortController()
   let serverDynamicTracking = createDynamicTrackingState(false)
 
@@ -1950,7 +1951,7 @@ async function spawnDynamicValidationInDev(
     phase: 'render',
     implicitTags: [],
     renderSignal: firstAttemptServerController.signal,
-    cacheSignal: null,
+    cacheSignal,
     // During the prospective render we don't want to synchronously abort on dynamic access
     // because it could prevent us from discovering all caches in siblings. So we omit the controller
     // from the prerender store this time.
@@ -1958,12 +1959,12 @@ async function spawnDynamicValidationInDev(
     // With PPR during Prerender we don't need to track individual dynamic reasons
     // because we will always do a final render after caches have filled and we
     // will track it again there
-    dynamicTracking: serverDynamicTracking,
+    dynamicTracking: null,
     revalidate: INFINITE_CACHE,
     expire: INFINITE_CACHE,
     stale: INFINITE_CACHE,
     tags: [],
-    // Dev only property that allows certain logs to be supressed
+    // Dev only property that allows certain logs to be suppressed
     validating: true,
   }
 
@@ -1977,79 +1978,69 @@ async function spawnDynamicValidationInDev(
 
   let reactServerStream = await workUnitAsyncStorage.run(
     firstAttemptServerPrerenderStore,
-    scheduleInSequentialTasks,
-    () => {
-      const stream = ComponentMod.renderToReadableStream(
-        firstAttemptRSCPayload,
-        clientReferenceManifest.clientModules,
-        {
-          signal: firstAttemptServerController.signal,
-          onError: () => {},
-        }
-      )
-      return asHaltedStream(stream, firstAttemptServerController.signal)
-    },
-    () => {
-      firstAttemptServerController.abort()
+    ComponentMod.renderToReadableStream,
+    firstAttemptRSCPayload,
+    clientReferenceManifest.clientModules,
+    {
+      signal: firstAttemptServerController.signal,
+      onError: () => {},
     }
   )
 
-  if (serverDynamicTracking.syncDynamicErrorWithStack) {
-    // If we had a sync dynamic error then we need to retry without
-    reactServerStream.cancel()
+  await cacheSignal.cacheReady()
+  firstAttemptServerController.abort()
 
-    const secondAttemptServerController = new AbortController()
-    serverDynamicTracking = createDynamicTrackingState(false)
+  const secondAttemptServerController = new AbortController()
+  serverDynamicTracking = createDynamicTrackingState(false)
 
-    const secondAttemptServerPrerenderStore: PrerenderStore = {
-      type: 'prerender',
-      phase: 'render',
-      implicitTags: [],
-      renderSignal: secondAttemptServerController.signal,
-      cacheSignal: null,
-      // During the prospective render we don't want to synchronously abort on dynamic access
-      // because it could prevent us from discovering all caches in siblings. So we omit the controller
-      // from the prerender store this time.
-      controller: secondAttemptServerController,
-      // With PPR during Prerender we don't need to track individual dynamic reasons
-      // because we will always do a final render after caches have filled and we
-      // will track it again there
-      dynamicTracking: serverDynamicTracking,
-      revalidate: INFINITE_CACHE,
-      expire: INFINITE_CACHE,
-      stale: INFINITE_CACHE,
-      tags: [],
-      // Dev only property that allows certain logs to be supressed
-      validating: true,
-    }
-
-    const secondAttemptRSCPayload = await workUnitAsyncStorage.run(
-      secondAttemptServerPrerenderStore,
-      getRSCPayload,
-      tree,
-      ctx,
-      isNotFound
-    )
-
-    reactServerStream = await workUnitAsyncStorage.run(
-      secondAttemptServerPrerenderStore,
-      scheduleInSequentialTasks,
-      () => {
-        const stream = ComponentMod.renderToReadableStream(
-          secondAttemptRSCPayload,
-          clientReferenceManifest.clientModules,
-          {
-            signal: secondAttemptServerController.signal,
-            onError: () => {},
-          }
-        )
-        return asHaltedStream(stream, secondAttemptServerController.signal)
-      },
-      () => {
-        secondAttemptServerController.abort()
-      }
-    )
+  const secondAttemptServerPrerenderStore: PrerenderStore = {
+    type: 'prerender',
+    phase: 'render',
+    implicitTags: [],
+    renderSignal: secondAttemptServerController.signal,
+    cacheSignal: null,
+    // During the prospective render we don't want to synchronously abort on dynamic access
+    // because it could prevent us from discovering all caches in siblings. So we omit the controller
+    // from the prerender store this time.
+    controller: secondAttemptServerController,
+    // With PPR during Prerender we don't need to track individual dynamic reasons
+    // because we will always do a final render after caches have filled and we
+    // will track it again there
+    dynamicTracking: serverDynamicTracking,
+    revalidate: INFINITE_CACHE,
+    expire: INFINITE_CACHE,
+    stale: INFINITE_CACHE,
+    tags: [],
+    // Dev only property that allows certain logs to be suppressed
+    validating: true,
   }
+
+  const secondAttemptRSCPayload = await workUnitAsyncStorage.run(
+    secondAttemptServerPrerenderStore,
+    getRSCPayload,
+    tree,
+    ctx,
+    isNotFound
+  )
+
+  reactServerStream = await workUnitAsyncStorage.run(
+    secondAttemptServerPrerenderStore,
+    scheduleInSequentialTasks,
+    () => {
+      const stream = ComponentMod.renderToReadableStream(
+        secondAttemptRSCPayload,
+        clientReferenceManifest.clientModules,
+        {
+          signal: secondAttemptServerController.signal,
+          onError: () => {},
+        }
+      )
+      return asHaltedStream(stream, secondAttemptServerController.signal)
+    },
+    () => {
+      secondAttemptServerController.abort()
+    }
+  )
 
   const [warmupStream, renderStream] = reactServerStream.tee()
 
