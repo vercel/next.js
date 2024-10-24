@@ -459,9 +459,10 @@ export { random };
 ```
 ## Part 5
 ```js
-import { e as urlAlphabet } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -9
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 8
 };
+import { urlAlphabet } from "./url-alphabet/index.js";
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 17
 };
@@ -479,7 +480,7 @@ import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
 };
 import crypto from 'crypto';
-export { crypto as f } from "__TURBOPACK_VAR__" assert {
+export { crypto as e } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -498,7 +499,7 @@ import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 8
 };
 import { urlAlphabet } from './url-alphabet/index.js';
-export { urlAlphabet as e } from "__TURBOPACK_VAR__" assert {
+export { urlAlphabet as f } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -535,9 +536,10 @@ import { h as pool } from "__TURBOPACK_PART__" assert {
 import { g as POOL_SIZE_MULTIPLIER } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -10
 };
-import { f as crypto } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -7
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
 };
+import crypto from "crypto";
 import { i as poolOffset } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -12
 };
@@ -627,9 +629,10 @@ import { j as fillPool } from "__TURBOPACK_PART__" assert {
 import { i as poolOffset } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -12
 };
-import { e as urlAlphabet } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -9
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 8
 };
+import { urlAlphabet } from "./url-alphabet/index.js";
 import { h as pool } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -11
 };
@@ -744,9 +747,10 @@ export { random };
 ```
 ## Part 5
 ```js
-import { e as urlAlphabet } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -9
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 8
 };
+import { urlAlphabet } from "./url-alphabet/index.js";
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 17
 };
@@ -764,7 +768,7 @@ import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
 };
 import crypto from 'crypto';
-export { crypto as f } from "__TURBOPACK_VAR__" assert {
+export { crypto as e } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -783,7 +787,7 @@ import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 8
 };
 import { urlAlphabet } from './url-alphabet/index.js';
-export { urlAlphabet as e } from "__TURBOPACK_VAR__" assert {
+export { urlAlphabet as f } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -820,9 +824,10 @@ import { h as pool } from "__TURBOPACK_PART__" assert {
 import { g as POOL_SIZE_MULTIPLIER } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -10
 };
-import { f as crypto } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -7
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
 };
+import crypto from "crypto";
 import { i as poolOffset } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -12
 };
@@ -912,9 +917,10 @@ import { j as fillPool } from "__TURBOPACK_PART__" assert {
 import { i as poolOffset } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -12
 };
-import { e as urlAlphabet } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -9
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 8
 };
+import { urlAlphabet } from "./url-alphabet/index.js";
 import { h as pool } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -11
 };
