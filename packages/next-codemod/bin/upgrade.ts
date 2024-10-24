@@ -357,18 +357,7 @@ export async function runUpgrade(
     console.log(`${pc.green('✔')} Codemods have been applied successfully.`)
   }
 
-  const allDependenciesToInstall = {
-    ...appPackageJson.dependencies,
-    ...appPackageJson.devDependencies,
-  }
-
-  const dependenciesOutOfRange = getDependenciesOutOfRange(
-    appPackageJson,
-    versionMapping,
-    allDependenciesToInstall
-  )
-
-  warnDependenciesOutOfRange(dependenciesOutOfRange, allDependenciesToInstall)
+  warnDependenciesOutOfRange(appPackageJson, versionMapping)
 
   endMessage()
 }
@@ -651,44 +640,26 @@ function writeOverridesField(
   }
 }
 
-function getDependenciesOutOfRange(
+function warnDependenciesOutOfRange(
   appPackageJson: any,
-  versionMapping: Record<string, { version: string; required: boolean }>,
-  allDependenciesToInstall: Record<string, string>
+  versionMapping: Record<string, { version: string; required: boolean }>
 ) {
-  const versionMappingKeys = Object.keys(versionMapping)
-  const dependenciesOutOfRange = new Map<
-    string,
-    { current: string; expected: string; from: string }
-  >()
-
-  if ('peerDependencies' in appPackageJson) {
-    const peerDeps = appPackageJson.peerDependencies
-    const peerDepsKeys = Object.keys(peerDeps)
-    const commonKeys = versionMappingKeys.filter((versionMappingKey) =>
-      peerDepsKeys.includes(versionMappingKey)
-    )
-
-    for (const key of commonKeys) {
-      const peerDepVersion = peerDeps[key]
-      const { version } = versionMapping[key]
-
-      if (
-        !semverSatisfies(version, peerDepVersion, {
-          includePrerelease: true,
-        })
-      ) {
-        dependenciesOutOfRange.set(key, {
-          current: version,
-          expected: peerDepVersion,
-          from: key,
-        })
-      }
-    }
+  const allDependenciesToInstall = {
+    ...appPackageJson.dependencies,
+    ...appPackageJson.devDependencies,
   }
 
+  const dependenciesOutOfRange = new Map<
+    string,
+    {
+      [dependency: string]: {
+        currentVersion: string
+        expectedVersionRange: string
+      }
+    }
+  >()
+
   for (const dependency of Object.keys(allDependenciesToInstall)) {
-    // use readFile to ensure it reads after the install is complete
     const pkgJson = JSON.parse(
       fs.readFileSync(
         path.join(cwd, 'node_modules', dependency, 'package.json'),
@@ -698,71 +669,48 @@ function getDependenciesOutOfRange(
 
     if ('peerDependencies' in pkgJson) {
       const peerDeps = pkgJson.peerDependencies
-      const peerDepsKeys = Object.keys(peerDeps)
-      const commonKeys = versionMappingKeys.filter((versionMappingKey) =>
-        peerDepsKeys.includes(versionMappingKey)
+      const peerDepsNames = Object.keys(peerDeps)
+      const depsToCheck = Object.keys(versionMapping).filter(
+        (versionMappingKey) => peerDepsNames.includes(versionMappingKey)
       )
 
-      for (const key of commonKeys) {
-        const peerDepVersion = peerDeps[key]
-        const { version } = versionMapping[key]
-
+      for (const depName of depsToCheck) {
+        const expectedVersionRange = peerDeps[depName]
+        const { version: currentVersion } = versionMapping[depName]
         if (
-          !semverSatisfies(version, peerDepVersion, {
+          !semverSatisfies(currentVersion, expectedVersionRange, {
             includePrerelease: true,
           })
         ) {
-          dependenciesOutOfRange.set(key, {
-            current: version,
-            expected: peerDepVersion,
-            from: dependency,
+          dependenciesOutOfRange.set(dependency, {
+            ...dependenciesOutOfRange.get(dependency),
+            [depName]: {
+              currentVersion,
+              expectedVersionRange,
+            },
           })
         }
       }
     }
   }
 
-  return dependenciesOutOfRange
-}
-
-function warnDependenciesOutOfRange(
-  dependenciesOutOfRange: Map<
-    string,
-    { current: string; expected: string; from: string }
-  >,
-  allDependenciesToInstall: Record<string, string>
-) {
   const size = dependenciesOutOfRange.size
-
-  console.log(
-    `${pc.yellow('⚠')} Found ${size} peer ${
-      size === 1 ? 'dependency' : 'dependencies'
-    } out of range from the direct dependencies.`
-  )
-  const groupedDependencies = new Map<
-    string,
-    Map<string, { current: string; expected: string }>
-  >()
-
-  dependenciesOutOfRange.forEach((value, key) => {
-    if (!groupedDependencies.has(value.from)) {
-      groupedDependencies.set(value.from, new Map())
-    }
-    groupedDependencies
-      .get(value.from)
-      .set(key, { current: value.current, expected: value.expected })
-  })
-
-  groupedDependencies.forEach((deps, packageName) => {
+  if (size > 0) {
     console.log(
-      `${pc.bold(packageName)} ${pc.gray(allDependenciesToInstall[packageName])}`
+      `${pc.yellow('⚠')} Found ${size} ${
+        size === 1 ? 'dependency' : 'dependencies'
+      } out of range from their peer dependencies.`
     )
-    const depsArray = Array.from(deps)
-    depsArray.forEach(([depName, value], index) => {
-      const prefix = index === depsArray.length - 1 ? '  └── ' : '  ├── '
+    dependenciesOutOfRange.forEach((deps, packageName) => {
       console.log(
-        `${prefix}${pc.yellow('✕ unmet peer')} ${depName}@"${value.expected}": found ${value.current}`
+        `${packageName} ${pc.gray(allDependenciesToInstall[packageName])}`
       )
+      Object.entries(deps).forEach(([depName, value], index, depsArray) => {
+        const prefix = index === depsArray.length - 1 ? '  └── ' : '  ├── '
+        console.log(
+          `${prefix}${pc.yellow('✕ unmet peer')} ${depName}@"${value.expectedVersionRange}": found ${value.currentVersion}`
+        )
+      })
     })
-  })
+  }
 }
