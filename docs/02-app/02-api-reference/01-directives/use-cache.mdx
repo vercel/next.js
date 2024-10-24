@@ -69,7 +69,7 @@ export async function getData() {
 
 ## Revalidating
 
-By default when using the `use cache` directive Next.js sets a **[revalidation period](/docs/canary/app/building-your-application/data-fetching/fetching#revalidating-cached-data) of fifteen minutes** with a near infinite expiration duration, meaning it's suitable for content that doesn't need frequent updates.
+By default when using the `use cache` directive Next.js sets a **[revalidation period](/docs/app/building-your-application/data-fetching/fetching#revalidating-cached-data) of fifteen minutes** with a near infinite expiration duration, meaning it's suitable for content that doesn't need frequent updates.
 
 While this may be useful for content you don't expect to change often, you can use the `cacheLife` and `cacheTag` APIs for more granular caching control:
 
