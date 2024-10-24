@@ -18,6 +18,10 @@ For example, considering a dashboard, you can use parallel routes to simultaneou
   height="942"
 />
 
+> **Good to know**:
+>
+> - Parallel routes can only be defined in the root layout.
+
 ## Slots
 
 Parallel routes are created using named **slots**. Slots are defined with the `@folder` convention. For example, the following file structure defines two slots: `@analytics` and `@team`:
@@ -68,6 +72,7 @@ However, slots are **not** [route segments](/docs/app/building-your-application/
 
 > **Good to know**:
 >
+> - Slots must be defined under the root `app` folder.
 > - The `children` prop is an implicit slot that does not need to be mapped to a folder. This means `app/page.js` is equivalent to `app/@children/page.js`.
 
 ## Active state and navigation
