@@ -6,7 +6,7 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import type { UrlObject } from 'url'
 import type { RouteDefinition } from '../route-definitions/route-definition'
 
-import { webpack, StringXor } from 'next/dist/compiled/webpack/webpack'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
 import {
   getOverlayMiddleware,
   getSourceMapMiddleware,
@@ -57,7 +57,6 @@ import {
   difference,
   isInstrumentationHookFile,
   isMiddlewareFile,
-  isMiddlewareFilename,
 } from '../../build/utils'
 import { DecodeError } from '../../shared/lib/utils'
 import { type Span, trace } from '../../trace'
@@ -263,7 +262,6 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     installed: '0.0.0',
   }
   private devtoolsFrontendUrl: string | undefined
-  private reloadAfterInvalidation: boolean = false
 
   public serverStats: webpack.Stats | null
   public edgeServerStats: webpack.Stats | null
@@ -1139,157 +1137,6 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       this.multiCompiler.compilers[2]
     )
 
-    // Watch for changes to client/server page files so we can tell when just
-    // the server file changes and trigger a reload for GS(S)P pages
-    const changedClientPages = new Set<string>()
-    const changedServerPages = new Set<string>()
-    const changedEdgeServerPages = new Set<string>()
-
-    const changedServerComponentPages = new Set<string>()
-    const changedCSSImportPages = new Set<string>()
-
-    const prevClientPageHashes = new Map<string, string>()
-    const prevServerPageHashes = new Map<string, string>()
-    const prevEdgeServerPageHashes = new Map<string, string>()
-    const prevCSSImportModuleHashes = new Map<string, string>()
-
-    const pageExtensionRegex = new RegExp(
-      `\\.(?:${this.config.pageExtensions.join('|')})$`
-    )
-
-    const trackPageChanges =
-      (
-        pageHashMap: Map<string, string>,
-        changedItems: Set<string>,
-        serverComponentChangedItems?: Set<string>
-      ) =>
-      (stats: webpack.Compilation) => {
-        try {
-          stats.entrypoints.forEach((entry, key) => {
-            if (
-              key.startsWith('pages/') ||
-              key.startsWith('app/') ||
-              isMiddlewareFilename(key)
-            ) {
-              // TODO this doesn't handle on demand loaded chunks
-              entry.chunks.forEach((chunk) => {
-                if (chunk.id === key) {
-                  const modsIterable: any =
-                    stats.chunkGraph.getChunkModulesIterable(chunk)
-
-                  let hasCSSModuleChanges = false
-                  let chunksHash = new StringXor()
-                  let chunksHashServerLayer = new StringXor()
-
-                  modsIterable.forEach((mod: any) => {
-                    if (
-                      mod.resource &&
-                      mod.resource.replace(/\\/g, '/').includes(key) &&
-                      // Shouldn't match CSS modules, etc.
-                      pageExtensionRegex.test(mod.resource)
-                    ) {
-                      // use original source to calculate hash since mod.hash
-                      // includes the source map in development which changes
-                      // every time for both server and client so we calculate
-                      // the hash without the source map for the page module
-                      const hash = require('crypto')
-                        .createHash('sha1')
-                        .update(mod.originalSource().buffer())
-                        .digest()
-                        .toString('hex')
-
-                      if (
-                        mod.layer === WEBPACK_LAYERS.reactServerComponents &&
-                        mod?.buildInfo?.rsc?.type !== 'client'
-                      ) {
-                        chunksHashServerLayer.add(hash)
-                      }
-
-                      chunksHash.add(hash)
-                    } else {
-                      // for non-pages we can use the module hash directly
-                      const hash = stats.chunkGraph.getModuleHash(
-                        mod,
-                        chunk.runtime
-                      )
-
-                      if (
-                        mod.layer === WEBPACK_LAYERS.reactServerComponents &&
-                        mod?.buildInfo?.rsc?.type !== 'client'
-                      ) {
-                        chunksHashServerLayer.add(hash)
-                      }
-
-                      chunksHash.add(hash)
-
-                      // Both CSS import changes from server and client
-                      // components are tracked.
-                      if (
-                        key.startsWith('app/') &&
-                        /\.(css|scss|sass)$/.test(mod.resource || '')
-                      ) {
-                        const resourceKey = mod.layer + ':' + mod.resource
-                        const prevHash =
-                          prevCSSImportModuleHashes.get(resourceKey)
-                        if (prevHash && prevHash !== hash) {
-                          hasCSSModuleChanges = true
-                        }
-                        prevCSSImportModuleHashes.set(resourceKey, hash)
-                      }
-                    }
-                  })
-
-                  const prevHash = pageHashMap.get(key)
-                  const curHash = chunksHash.toString()
-                  if (prevHash && prevHash !== curHash) {
-                    changedItems.add(key)
-                  }
-                  pageHashMap.set(key, curHash)
-
-                  if (serverComponentChangedItems) {
-                    const serverKey =
-                      WEBPACK_LAYERS.reactServerComponents + ':' + key
-                    const prevServerHash = pageHashMap.get(serverKey)
-                    const curServerHash = chunksHashServerLayer.toString()
-                    if (prevServerHash && prevServerHash !== curServerHash) {
-                      serverComponentChangedItems.add(key)
-                    }
-                    pageHashMap.set(serverKey, curServerHash)
-                  }
-
-                  if (hasCSSModuleChanges) {
-                    changedCSSImportPages.add(key)
-                  }
-                }
-              })
-            }
-          })
-        } catch (err) {
-          console.error(err)
-        }
-      }
-
-    this.multiCompiler.compilers[0].hooks.emit.tap(
-      'NextjsHotReloaderForClient',
-      trackPageChanges(prevClientPageHashes, changedClientPages)
-    )
-    this.multiCompiler.compilers[1].hooks.emit.tap(
-      'NextjsHotReloaderForServer',
-      trackPageChanges(
-        prevServerPageHashes,
-        changedServerPages,
-        changedServerComponentPages
-      )
-    )
-    this.multiCompiler.compilers[2].hooks.emit.tap(
-      'NextjsHotReloaderForServer',
-      trackPageChanges(
-        prevEdgeServerPageHashes,
-        changedEdgeServerPages,
-        changedServerComponentPages
-      )
-    )
-
     // This plugin watches for changes to _document.js and notifies the client side that it should reload the page
     this.multiCompiler.compilers[1].hooks.failed.tap(
       'NextjsHotReloaderForServer',
@@ -1369,58 +1216,6 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       }
     )
 
-    this.multiCompiler.hooks.done.tap('NextjsHotReloaderForServer', () => {
-      const reloadAfterInvalidation = this.reloadAfterInvalidation
-      this.reloadAfterInvalidation = false
-
-      const serverOnlyChanges = difference<string>(
-        changedServerPages,
-        changedClientPages
-      )
-
-      const edgeServerOnlyChanges = difference<string>(
-        changedEdgeServerPages,
-        changedClientPages
-      )
-
-      const pageChanges = serverOnlyChanges
-        .concat(edgeServerOnlyChanges)
-        .filter((key) => key.startsWith('pages/'))
-      const middlewareChanges = Array.from(changedEdgeServerPages).filter(
-        (name) => isMiddlewareFilename(name)
-      )
-
-      if (middlewareChanges.length > 0) {
-        this.send({
-          event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
-        })
-      }
-
-      if (pageChanges.length > 0) {
-        this.send({
-          event: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ONLY_CHANGES,
-          pages: serverOnlyChanges.map((pg) =>
-            denormalizePagePath(pg.slice('pages'.length))
-          ),
-        })
-      }
-
-      if (
-        changedServerComponentPages.size ||
-        changedCSSImportPages.size ||
-        reloadAfterInvalidation
-      ) {
-        this.resetFetch()
-        this.refreshServerComponents()
-      }
-
-      changedClientPages.clear()
-      changedServerPages.clear()
-      changedEdgeServerPages.clear()
-      changedServerComponentPages.clear()
-      changedCSSImportPages.clear()
-    })
-
     this.multiCompiler.compilers[0].hooks.failed.tap(
       'NextjsHotReloaderForClient',
       (err: Error) => {
@@ -1473,9 +1268,11 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     )
 
     this.webpackHotMiddleware = new WebpackHotMiddleware(
-      this.multiCompiler.compilers,
+      this.multiCompiler,
       this.versionInfo,
-      this.devtoolsFrontendUrl
+      this.devtoolsFrontendUrl,
+      this.config.pageExtensions,
+      this.resetFetch
     )
 
     let booted = false
@@ -1530,7 +1327,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     }
   ) {
     // Cache the `reloadAfterInvalidation` flag, and use it to reload the page when compilation is done
-    this.reloadAfterInvalidation = reloadAfterInvalidation
+    if (this.webpackHotMiddleware) {
+      this.webpackHotMiddleware.reloadAfterInvalidation =
+        reloadAfterInvalidation
+    }
     const outputPath = this.multiCompiler?.outputPath
     if (outputPath) {
       getInvalidator(outputPath)?.invalidate()
