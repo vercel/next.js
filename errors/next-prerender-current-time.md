@@ -49,7 +49,6 @@ Before:
 
 ```jsx filename="app/page.js"
 async function InformationTable() {
-  "use cache"
   const data = await fetch(...)
   return (
     <section>
