@@ -17,10 +17,31 @@ describe('Undefined default export', () => {
     )
 
     await session.assertHasRedbox()
-    expect(await session.getRedboxDescription()).toInclude(
-      'The default export is not a React Component in "/specific-path/server/page"'
+    expect(await session.getRedboxDescription()).toInclude('Failed to compile')
+    expect(await session.getRedboxSource()).toInclude(
+      'A page file needs to have a React Component exported via `export default`.'
     )
 
+    await cleanup()
+  })
+
+  it('should error if page component does not have default export (with recomendation)', async () => {
+    const { session, cleanup } = await sandbox(
+      next,
+      new Map([
+        ['app/(group)/specific-path/server/page.js', 'export const Page = 123'],
+      ]),
+      '/specific-path/server'
+    )
+
+    await session.assertHasRedbox()
+    expect(await session.getRedboxDescription()).toInclude('Failed to compile')
+    expect(await session.getRedboxSource()).toInclude(
+      'A page file needs to have a React Component exported via `export default`.'
+    )
+    expect(await session.getRedboxSource()).toInclude(
+      'Maybe you did mean to default export `Page`?.'
+    )
     await cleanup()
   })
 
@@ -54,8 +75,9 @@ describe('Undefined default export', () => {
     await next.patchFile('app/page.js', 'const a = 123')
 
     await session.assertHasRedbox()
-    expect(await session.getRedboxDescription()).toInclude(
-      'The default export is not a React Component in "/page"'
+    expect(await session.getRedboxDescription()).toInclude('Failed to compile')
+    expect(await session.getRedboxSource()).toInclude(
+      'A page file needs to have a React Component exported via `export default`.'
     )
 
     await cleanup()
@@ -74,8 +96,9 @@ describe('Undefined default export', () => {
     )
 
     await session.assertHasRedbox()
-    expect(await session.getRedboxDescription()).toInclude(
-      'The default export is not a React Component in "/server-with-errors/page-export/page"'
+    expect(await session.getRedboxDescription()).toInclude('Failed to compile')
+    expect(await session.getRedboxSource()).toInclude(
+      'A page file needs to have a React Component exported via `export default`.'
     )
 
     await cleanup()
@@ -94,8 +117,9 @@ describe('Undefined default export', () => {
     )
 
     await session.assertHasRedbox()
-    expect(await session.getRedboxDescription()).toInclude(
-      'The default export is not a React Component in "/server-with-errors/page-export-initial-error/page"'
+    expect(await session.getRedboxDescription()).toInclude('Failed to compile')
+    expect(await session.getRedboxSource()).toInclude(
+      'A page file needs to have a React Component exported via `export default`.'
     )
 
     await cleanup()

@@ -93,7 +93,7 @@ fn react_server_components_server_graph_errors(input: PathBuf) {
         syntax(),
         &|tr| {
             server_components(
-                FileName::Real(PathBuf::from("/some-project/src/layout.js")).into(),
+                FileName::Real(PathBuf::from("/some-project/src/app/layout.js")).into(),
                 Config::WithOptions(Options {
                     is_react_server_layer: true,
                 }),
@@ -118,7 +118,7 @@ fn react_server_components_client_graph_errors(input: PathBuf) {
         syntax(),
         &|tr| {
             server_components(
-                FileName::Real(PathBuf::from("/some-project/src/page.js")).into(),
+                FileName::Real(PathBuf::from("/some-project/src/app/page.js")).into(),
                 Config::WithOptions(Options {
                     is_react_server_layer: false,
                 }),
