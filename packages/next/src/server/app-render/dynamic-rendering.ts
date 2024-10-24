@@ -605,7 +605,7 @@ export function trackAllowedDynamicAccess(
     dynamicValidation.hasSyncDynamicErrors = true
     return
   } else {
-    const message = `In Route "${route}" this component accessed data without a Suspense boundary above it to provide a fallback UI. See more info: https://nextjs.org/docs/messages/next-prerender-data`
+    const message = `Route "${route}": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense`
     const error = createErrorWithComponentStack(message, componentStack)
     dynamicValidation.dynamicErrors.push(error)
     return
