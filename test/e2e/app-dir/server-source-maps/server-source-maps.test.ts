@@ -19,6 +19,15 @@ describe('app-dir - server source maps', () => {
     // TODO: Write test once we run with `--enable-source-maps` when `experimental.serverSourceMaps` is set
   })
 
+  it('stack frames are ignore-listed in ssr', async () => {
+    // TODO: hook up our error-inspect with `ignoreList` from sourcemaps
+  })
+
+  it('stack frames are ignore-listed in rsc', async () => {
+    // TODO: hook up our error-inspect with `ignoreList` from sourcemaps
+    // Note that browser (React replay) and server (Node.js) have different implementations for that
+  })
+
   it('logged errors preserve their name', async () => {
     await next.render('/rsc-error-log-custom-name')
 

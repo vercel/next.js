@@ -766,11 +766,109 @@ declare module 'next/dist/compiled/webpack-sources3' {
 
 declare module 'next/dist/compiled/webpack/webpack' {
   import type webpackSources from 'webpack-sources1'
+  import { type Compilation, Module } from 'webpack'
+
   export function init(): void
   export let BasicEvaluatedExpression: any
   export let GraphHelpers: any
   export let sources: typeof webpackSources
   export let StringXor: any
+  export class ConcatenatedModule extends Module {
+    rootModule: Module
+  }
+
+  /**
+   * Include source maps for modules based on their extension (defaults to .js and .css).
+   */
+  export type Rules = Rule[] | Rule
+  /**
+   * Include source maps for modules based on their extension (defaults to .js and .css).
+   */
+  export type Rule = RegExp | string
+
+  type PathData = unknown
+  type AssetInfo = unknown
+
+  // https://github.com/webpack/webpack/blob/e237b580e2bda705c5ab39973f786f7c5a7026bc/declarations/plugins/SourceMapDevToolPlugin.d.ts#L16
+  export interface SourceMapDevToolPluginOptions {
+    /**
+     * Appends the given value to the original asset. Usually the #sourceMappingURL comment. [url] is replaced with a URL to the source map file. false disables the appending.
+     */
+    append?:
+      | (false | null)
+      | string
+      | ((pathData: PathData, assetInfo?: AssetInfo) => string)
+    /**
+     * Indicates whether column mappings should be used (defaults to true).
+     */
+    columns?: boolean
+    /**
+     * Exclude modules that match the given value from source map generation.
+     */
+    exclude?: Rules
+    /**
+     * Generator string or function to create identifiers of modules for the 'sources' array in the SourceMap used only if 'moduleFilenameTemplate' would result in a conflict.
+     */
+    fallbackModuleFilenameTemplate?: string | Function
+    /**
+     * Path prefix to which the [file] placeholder is relative to.
+     */
+    fileContext?: string
+    /**
+     * Defines the output filename of the SourceMap (will be inlined if no value is provided).
+     */
+    filename?: (false | null) | string
+    /**
+     * Include source maps for module paths that match the given value.
+     */
+    include?: Rules
+    /**
+     * Indicates whether SourceMaps from loaders should be used (defaults to true).
+     */
+    module?: boolean
+    /**
+     * Generator string or function to create identifiers of modules for the 'sources' array in the SourceMap.
+     */
+    moduleFilenameTemplate?: string | Function
+    /**
+     * Namespace prefix to allow multiple webpack roots in the devtools.
+     */
+    namespace?: string
+    /**
+     * Omit the 'sourceContents' array from the SourceMap.
+     */
+    noSources?: boolean
+    /**
+     * Provide a custom public path for the SourceMapping comment.
+     */
+    publicPath?: string
+    /**
+     * Provide a custom value for the 'sourceRoot' property in the SourceMap.
+     */
+    sourceRoot?: string
+    /**
+     * Include source maps for modules based on their extension (defaults to .js and .css).
+     */
+    test?: Rules
+  }
+
+  // https://github.com/webpack/webpack/blob/e237b580e2bda705c5ab39973f786f7c5a7026bc/lib/SourceMapDevToolModuleOptionsPlugin.js#L13
+  export class SourceMapDevToolModuleOptionsPlugin {
+    constructor(options: SourceMapDevToolPluginOptions)
+    apply(compiler: Compilation): void
+  }
+
+  // https://github.com/webpack/webpack/blob/e237b580e2bda705c5ab39973f786f7c5a7026bc/lib/util/identifier.js#L288-L299
+  /**
+   * @param context context for relative path
+   * @param identifier identifier for path
+   * @returns a converted relative path
+   */
+  export function makePathsAbsolute(
+    context: string,
+    identifier: string,
+    associatedObjectForCache: object
+  ): string
   export {
     default as webpack,
     Compiler,
