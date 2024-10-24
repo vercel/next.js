@@ -122,7 +122,7 @@ describe('app-dir - capture-console-error', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "callStacks": "",
-          "count": 1,
+          "count": 2,
           "description": "trigger an console.error in render",
           "source": "app/browser/render/page.js (4:11) @ error
 
@@ -167,7 +167,7 @@ describe('app-dir - capture-console-error', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "callStacks": "",
-          "count": 1,
+          "count": 2,
           "description": "trigger an console.error in render",
           "source": "app/browser/render/page.js (4:11) @ error
 
@@ -212,7 +212,7 @@ describe('app-dir - capture-console-error', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "callStacks": "",
-          "count": 1,
+          "count": 2,
           "description": "ssr console error:client",
           "source": "app/ssr/page.js (4:11) @ error
 
