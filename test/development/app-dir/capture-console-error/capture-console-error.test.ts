@@ -196,7 +196,7 @@ describe('app-dir - capture-console-error', () => {
         {
           "callStacks": "",
           "count": 1,
-          "description": "[ Server ] boom",
+          "description": "[ Server ] Error: boom",
           "source": "app/rsc/page.js (2:17) @ Page
 
           1 | export default function Page() {
@@ -212,7 +212,7 @@ describe('app-dir - capture-console-error', () => {
         {
           "callStacks": "",
           "count": 1,
-          "description": "[ Server ] boom",
+          "description": "[ Server ] Error: boom",
           "source": "app/rsc/page.js (2:17) @ Page
 
           1 | export default function Page() {

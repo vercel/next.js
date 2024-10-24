@@ -26,7 +26,7 @@ export function patchConsoleError() {
       maybeError = args[0]
     }
 
-    if (!isNextRouterError(maybeError) && isError(maybeError)) {
+    if (!isNextRouterError(maybeError)) {
       if (process.env.NODE_ENV !== 'production') {
         handleClientError(
           // replayed errors have their own complex format string that should be used,
