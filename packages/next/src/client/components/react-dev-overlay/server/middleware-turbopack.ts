@@ -169,6 +169,10 @@ export function getSourceMapMiddleware(project: Project, distDir: string) {
       return badRequest(res)
     }
 
+    if (filename.startsWith('webpack://next/')) {
+      return noContent(res)
+    }
+
     try {
       if (filename.startsWith('/_next/static')) {
         filename = path.join(

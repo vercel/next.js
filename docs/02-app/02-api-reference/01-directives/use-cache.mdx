@@ -1,0 +1,382 @@
+---
+title: use cache
+description: Learn how to use the use cache directive to cache data in your Next.js application.
+version: experimental
+related:
+  title: Related
+  description: View related API references.
+  links:
+    - app/api-reference/next-config-js/dynamicIO
+    - app/api-reference/next-config-js/cacheLife
+    - app/api-reference/functions/cacheTag
+    - app/api-reference/functions/revalidateTag
+    - app/api-reference/legacy-apis/unstable_cache
+---
+
+The `use cache` directive designates a component, function, or file to be cached. It can be used at the top of a file to indicate that all functions in the file are cacheable, or inline at the top of a function to mark the function as cacheable. This is an experimental Next.js feature, and not a native React feature like `use client` or `use server`.
+
+Enable support for the `use cache` directive with the `dynamicIO` flag in your `next.config.ts` file:
+
+```ts filename="next.config.ts"
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  experimental: {
+    dynamicIO: true,
+  },
+}
+
+export default nextConfig
+```
+
+> The `use cache` directive will be available separately from the`dynamicIO` flag in the future.
+
+Caching is a technique to improve the performance of web applications by storing the results of computations or data fetches. In Next.js you can use caching to optimize your applications rendering performance.
+
+To explicitly cache certain asynchronous operations and achieve static behavior, you can use the `use cache` directive. This allows you to optimize rendering performance by caching results from async data requests, while still enabling dynamic rendering when needed.
+
+The `use cache` directive is an experimental feature that aims to replace the [`unstable_cache`](/docs/app/api-reference/legacy-apis/unstable_cache) function. Unlike `unstable_cache`, which is limited to caching JSON data and requires manual definition of revalidation periods and tags, `use cache` offers more flexibility. It allows you to cache a wider range of data, including anything that React Server Components (RSC) can serialize, as well as data-fetching outputs and component outputs.
+
+Additionally, `use cache` automatically manages complexities by tracking both inputs and outputs, making it less likely for you to accidentally poison your cache. Since it serializes both inputs and outputs, you can avoid issues with incorrect cache retrieval.
+
+## `use cache` directive
+
+The Next.js `use cache` directive allows you to cache entire routes, components, and the return value of functions. When you have an asynchronous function, you can mark it as cacheable by adding `use cache` at the top of the file or inside the function scope. This informs Next.js that the return value can be cached and reused for subsequent renders.
+
+```tsx
+// File level
+'use cache'
+
+export default async function Page() {
+  // ...
+}
+
+// Component level
+export async function MyComponent() {
+  'use cache'
+  return <></>
+}
+
+// Function level
+export async function getData() {
+  'use cache'
+  const data = await fetch('/api/data')
+  return data
+}
+```
+
+> **Good to know**: Functions that use the `use cache` directive must not have any side-effects, such as modifying state, directly manipulating the DOM, or setting timers to execute code at intervals
+
+## Revalidating
+
+By default when using the `use cache` directive Next.js sets a **[revalidation period](/docs/app/building-your-application/data-fetching/fetching#revalidating-cached-data) of fifteen minutes** with a near infinite expiration duration, meaning it's suitable for content that doesn't need frequent updates.
+
+While this may be useful for content you don't expect to change often, you can use the `cacheLife` and `cacheTag` APIs for more granular caching control:
+
+- [`cacheLife`](#time-based-revalidation-with-cachelife): For time-based revalidation periods.
+- [`cacheTag`](#revalidate-on-demand-with-cachetag): For on-demand revalidation.
+
+Both of these APIs integrate across the client and server caching layers, meaning you can configure your caching semantics in one place and have them apply everywhere.
+
+**Basic example**:
+
+The example below shows how to use the `cacheLife` function at the function level to set a revalidation period of one day on the functions output:
+
+```tsx filename="app/components/my-component.tsx" highlight={1,5,6}
+import { unstable_cacheLife as cacheLife } from 'next/cache'
+
+export async function MyComponent() {
+  async function getData() {
+    'use cache'
+    cacheLife('days')
+    const data = await fetch('/api/data')
+    return data
+  }
+
+  return // Use the data here
+}
+```
+
+### How cache revalidation works
+
+When a revalidation period of fifteen minutes is set, the following happens:
+
+1. **Cache HIT**: If a request is made within the 15 minute window, the cached data is served, and is a cache HIT.
+2. **Stale data**: If the request happens after 15 minutes the cached value is still served, but is now considered stale. Next.js will recompute a new cache entry in the background.
+3. **Cache MISS**: If the cache entry expires and a subsequent request is made, then Next.js will treat this as a cache MISS, and the data will be recomputed and fetched again from the source.
+
+## Time-based revalidation with `cacheLife`
+
+The `cacheLife` function can only be used where the `use cache` directive is present, and allows you to define time-based revalidation periods based on cache profiles.
+
+We recommend always adding a cache profile when using the `use cache` directive to explicitly define caching behavior.
+
+Cache profiles are objects that contain the following properties:
+
+| **Property** | **Value** | **Description**                                                                                                             | **Requirement**                             |
+| ------------ | --------- | --------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| `stale`      | `number`  | Duration the client should cache a value without checking the server.                                                       | Optional                                    |
+| `revalidate` | `number`  | Frequency at which the cache should refresh on the server; stale values may be served while revalidating.                   | Optional                                    |
+| `expire`     | `number`  | Maximum duration for which a value can remain stale before switching to dynamic fetching; must be longer than `revalidate`. | Optional - Must be longer than `revalidate` |
+
+The "stale" property differs from the [`staleTimes`](/docs/app/api-reference/next-config-js/staleTimes) setting in that it specifically controls client-side router caching. While `staleTimes` is a global setting that affects all instances of both dynamic and static data, the `cacheLife` configuration allows you to define "stale" times on a per-function or per-route basis.
+
+> **Good to know**: The “stale” property does not set the `Cache-control: max-age` header. It instead controls the client-side router cache.
+
+### Default cache profiles
+
+Next.js provides a set of named cache profiles modeled on various timescales. If you don't specify a cache profile in the `cacheLife` function alongside the `use cache` directive, Next.js will automatically apply the “default” cache profile.
+
+| **Profile** | **Stale** | **Revalidate** | **Expire**     | **Description**                                                          |
+| ----------- | --------- | -------------- | -------------- | ------------------------------------------------------------------------ |
+| `default`   | undefined | 15 minutes     | INFINITE_CACHE | Default profile, suitable for content that doesn't need frequent updates |
+| `seconds`   | undefined | 1 second       | 1 minute       | For rapidly changing content requiring near real-time updates            |
+| `minutes`   | 5 minutes | 1 minute       | 1 hour         | For content that updates frequently within an hour                       |
+| `hours`     | 5 minutes | 1 hour         | 1 day          | For content that updates daily but can be slightly stale                 |
+| `days`      | 5 minutes | 1 day          | 1 week         | For content that updates weekly but can be a day old                     |
+| `weeks`     | 5 minutes | 1 week         | 1 month        | For content that updates monthly but can be a week old                   |
+| `max`       | 5 minutes | 1 month        | INFINITE_CACHE | For very stable content that rarely needs updating                       |
+
+**Basic example**:
+
+```tsx filename="app/page.tsx" highlight={4}
+'use cache'
+import { unstable_cacheLife as cacheLife } from 'next/cache'
+
+cacheLife('minutes')
+```
+
+The string values used to reference cache profiles don't carry inherent meaning; instead they serve as semantic labels. This allows you to better understand and manage your cached content within your codebase.
+
+### Defining reusable cache profiles
+
+To create a reusable cache profile, choose a name that suits your use case. You can create as many custom cache profiles as needed. Each profile can be referenced by its name as a string value passed to the `cacheLife` function.
+
+```ts filename="next.config.ts"
+const nextConfig = {
+  experimental: {
+    dynamicIO: true,
+    cacheLife: {
+      biweekly: {
+        stale: 60 * 60 * 24 * 14, // 14 days
+        revalidate: 60 * 60 * 24, // 1 day
+        expire: 86400 60 * 60 * 24 * 14, // 14 days
+      },
+    },
+  },
+}
+
+module.exports = nextConfig
+```
+
+The example above caches for 14 days, checks for updates daily, and expires the cache after 14 days. You can then reference this profile throughout your application by its name:
+
+```tsx filename="app/page.tsx" highlight={4}
+'use cache'
+import { unstable_cacheLife as cacheLife } from 'next/cache'
+
+cacheLife('biweekly')
+
+// rest of code
+```
+
+### Overriding the default cache profiles
+
+While the default cache profiles provide a useful way to think about how fresh or stale any given part of cacheable output can be, you may prefer different named profiles to better align with your applications caching strategies.
+
+You can override the default named cache profiles by creating a new configuration with the same name as the defaults.
+
+The example below shows how to override the default “days” cache profile:
+
+```ts filename="next.config.ts"
+const nextConfig = {
+  experimental: {
+    dynamicIO: true,
+    cacheLife: {
+      days: {
+        stale: 3600, // 1 hour
+        revalidate: 900, // 15 minutes
+        expire: 86400, // 1 day
+      },
+    },
+  },
+}
+
+module.exports = nextConfig
+```
+
+### Defining inlining cache profiles
+
+For specific use cases, you can set a custom cache profile by passing an object to the `cacheLife` function:
+
+```tsx filename="app/page.tsx" highlight={5,6,7}
+'use cache'
+import { unstable_cacheLife as cacheLife } from 'next/cache'
+
+cacheLife({
+  stale: 3600, // 1 hour
+  revalidate: 900, // 15 minutes
+  expire: 86400, // 1 day
+})
+
+// rest of code
+```
+
+This inline cache profile will only be applied to the function or file it was created in. If you want to reuse the same profile throughout your application, you can [add the configuration](#defining-reusable-cache-profiles) to the `cacheLife` property of your `next.config.ts` file.
+
+### Nested usage of `use cache` and `cacheLife`
+
+When defining multiple caching behaviors, in the same route or component tree, if the inner caches specify their own `cacheLife` profile, the outer cache will respect the shortest cache duration among them. **This applies only if the outer cache does not have its own explicit `cacheLife` profile defined.**
+
+**Decision hierarchy for cache boundaries:**
+
+1. Next.js will use the shortest cache profile found within the whole `use cache` boundary, excluding inner `use cache`directives.
+2. If no cache profile exists then the shortest profile times from all inner `use cache` calls applies to this `use cache`. If there are no inner `use cache`'s then the default is used
+3. Inner caches at two levels deep, do not affect the outer cache since they have already provided their duration to their parent.
+
+For example, if you add the `use cache` directive to your page, without specifying a cache profile, the default cache profile will be applied implicitly (`cacheLife(”default”)`). If a component imported into the page also uses the `use cache` directive with its own cache profile, the outer and inner cache profiles are compared, and shortest duration set in the profiles will be applied.
+
+```tsx filename="app/components/parent.tsx" highlight={5,6,19,20}
+// Parent component
+import { unstable_cacheLife as cacheLife } from 'next/cache'
+
+export async function ParentComponent() {
+  'use cache'
+  cacheLife('days')
+
+  return (
+    <div>
+      <ChildComponent />
+    </div>
+  )
+}
+
+// Child component
+import { unstable_cacheLife as cacheLife } from 'next/cache'
+
+export async function ChildComponent() {
+  'use cache'
+  cacheLife('hours')
+
+  // This component's cache will respect the shorter 'hours' profile
+}
+```
+
+## Revalidate on-demand with `cacheTag`
+
+A `cacheTag` is used in combination with [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) to purge cache data, on-demand. The `cacheTag` function takes a single string value, or a string array.
+
+In the below example the `getData` function uses the “weeks” cache profile, and defines a `cacheTag` on the functions cached output:
+
+```tsx filename="app/actions.ts" highlight={4,5}
+import {
+  unstable_cacheTag as cacheTag,
+  unstable_cacheLife as cacheLife,
+} from 'next/cache'
+
+export async function getData() {
+  'use cache'
+  cacheLife('weeks')
+  cacheTag('my-data')
+
+  const data = await fetch('/api/data')
+  return data
+}
+```
+
+You can then purge the cache on-demand using revalidateTag in another function, for examples, a [route handler](/docs/app/building-your-application/routing/route-handlers) or [Server Action](/docs/app/building-your-application/data-fetching/server-actions-and-mutations):
+
+```tsx filename="app/submit.ts" highlight={4,5}
+'use server'
+
+import { revalidateTag } from 'next/cache'
+
+export default async function submit() {
+  await addPost()
+  revalidateTag('my-data')
+}
+```
+
+See the [revalidateTag](/docs/app/api-reference/functions/revalidateTag) docs for more information on purging cached data on-demand.
+
+## Examples
+
+### Caching entire routes with `use cache`
+
+The placement of `Suspense` boundaries in your application determines how dynamic your components can be. Components inside a `Suspense` boundary are allowed to be dynamic, but this doesn't mean they automatically are. If you cache everything or your content is static, Next.js will still generate a static application. Using `Suspense` indicates that dynamic behavior is allowed within the boundary.
+
+To ensure your route remains static, avoid using `Suspense` boundaries. If you must use them, you can maintain a static page by adding the `use cache` directive to both the layout and page components as they are treated as separate entry points in your application.
+
+This is recommended for applications that previously used the [`export const dynamic = "force-cache"`](/docs/app/building-your-application/caching#opting-out-1) option, and will ensure the entire route is prerendered.
+
+```tsx filename="app/layout.tsx"
+"use cache"
+import { unstable_cacheLife as cacheLife} from 'next/cache'
+cacheLife('minutes')
+
+export default Layout({children}: {children: ReactNode}) {
+  return <div>{children}</div>
+}
+```
+
+And in your `page.tsx` file you can add the `use cache` directive to the top of the file, and define a cache profile:
+
+```tsx filename="app/page.tsx"
+"use cache"
+import { unstable_cacheLife as cacheLife} from 'next/cache'
+cacheLife('minutes')
+
+async function Users() {
+  const users = await fetch('/api/users');
+  // loop through users
+}
+
+export default Page() {
+  return (
+    <main>
+      <Users/>
+    </main>
+  )
+}
+```
+
+### Caching component output with `use cache`
+
+You can use `use cache` at the component level to cache any fetches or computations performed within that component. When you reuse the component throughout your application it can share the same cache entry as long as the props maintain the same structure.
+
+The props are serialized and form part of the cache key. If you use the same component in multiple places in your application, the cache entry will be reused as long as the serialized props produce the same value in each instance.
+
+```tsx filename="app/components/bookings.tsx" highlight={4,5}
+import { unstable_cacheLife as cacheLife } from 'next/cache'
+
+interface BookingsProps {
+  type: string
+}
+
+export async function Bookings({ type = 'massage' }: BookingsProps) {
+  'use cache'
+  cacheLife('minutes')
+
+  async function getBookingsData() {
+    const data = await fetch(`/api/bookings?type=${encodeURIComponent(type)}`)
+    return data
+  }
+  return //...
+}
+```
+
+### Caching function output with `use cache`
+
+Since you can add `use cache` to any asynchronous function you aren't limited to caching components or routes only. You might want to cache a network request or database query or compute something that is very slow. By adding `use cache` to a function containing this type of work it becomes cacheable, and when reused, will share the same cache entry.
+
+```tsx filename="app/actions.ts" highlight={4,5}
+import { unstable_cacheLife as cacheLife } from 'next/cache'
+
+export async function getData() {
+  'use cache'
+  cacheLife('minutes')
+
+  const data = await fetch('/api/data')
+  return data
+}
+```

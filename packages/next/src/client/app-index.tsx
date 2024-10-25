@@ -9,7 +9,11 @@ import React, { use } from 'react'
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { createFromReadableStream } from 'react-server-dom-webpack/client'
 import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-runtime'
-import { onRecoverableError } from './on-recoverable-error'
+import { onRecoverableError } from './react-client-callbacks/shared'
+import {
+  onCaughtError,
+  onUncaughtError,
+} from './react-client-callbacks/app-router'
 import { callServer } from './app-call-server'
 import { findSourceMapURL } from './app-find-source-map-url'
 import {
@@ -213,6 +217,12 @@ function Root({ children }: React.PropsWithChildren<{}>) {
   return children
 }
 
+const reactRootOptions = {
+  onRecoverableError,
+  onCaughtError,
+  onUncaughtError,
+} satisfies ReactDOMClient.RootOptions
+
 export function hydrate() {
   const reactEl = (
     <StrictModeIfEnabled>
@@ -227,9 +237,6 @@ export function hydrate() {
   const rootLayoutMissingTags = window.__next_root_layout_missing_tags
   const hasMissingTags = !!rootLayoutMissingTags?.length
 
-  const options = {
-    onRecoverableError,
-  } satisfies ReactDOMClient.RootOptions
   const isError =
     document.documentElement.id === '__next_error__' || hasMissingTags
 
@@ -238,14 +245,18 @@ export function hydrate() {
       const createDevOverlayElement =
         require('./components/react-dev-overlay/client-entry').createDevOverlayElement
       const errorTree = createDevOverlayElement(reactEl)
-      ReactDOMClient.createRoot(appElement as any, options).render(errorTree)
+      ReactDOMClient.createRoot(appElement as any, reactRootOptions).render(
+        errorTree
+      )
     } else {
-      ReactDOMClient.createRoot(appElement as any, options).render(reactEl)
+      ReactDOMClient.createRoot(appElement as any, reactRootOptions).render(
+        reactEl
+      )
     }
   } else {
     React.startTransition(() =>
       (ReactDOMClient as any).hydrateRoot(appElement, reactEl, {
-        ...options,
+        ...reactRootOptions,
         formState: initialFormStateData,
       })
     )

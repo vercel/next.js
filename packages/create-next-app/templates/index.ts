@@ -13,7 +13,7 @@ import { GetTemplateFileArgs, InstallTemplateArgs } from "./types";
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.0.0-rc-69d4b800-20241021";
+const nextjsReactPeerVersion = "19.0.0-rc-1631855f-20241023";
 
 /**
  * Get the file path for a given file in a template, e.g. "next.config.js".
@@ -43,7 +43,7 @@ export const installTemplate = async ({
   srcDir,
   importAlias,
   skipInstall,
-  turbo,
+  turbopack,
 }: InstallTemplateArgs) => {
   console.log(bold(`Using ${packageManager}.`));
 
@@ -188,7 +188,7 @@ export const installTemplate = async ({
     version: "0.1.0",
     private: true,
     scripts: {
-      dev: `next dev${turbo ? " --turbo" : ""}`,
+      dev: `next dev${turbopack ? " --turbopack" : ""}`,
       build: "next build",
       start: "next start",
       lint: "next lint",
