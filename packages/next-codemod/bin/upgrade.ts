@@ -23,7 +23,6 @@ const optionalNextjsPackages = [
   '@next/codemod',
   '@next/env',
   '@next/eslint-plugin-next',
-  '@next/font',
   '@next/mdx',
   '@next/plugin-storybook',
   '@next/polyfill-module',
@@ -72,12 +71,14 @@ function endMessage() {
   )
 }
 
+const cwd = process.cwd()
+
 export async function runUpgrade(
   revision: string | undefined,
   options: { verbose: boolean }
 ): Promise<void> {
   const { verbose } = options
-  const appPackageJsonPath = path.resolve(process.cwd(), 'package.json')
+  const appPackageJsonPath = path.resolve(cwd, 'package.json')
   let appPackageJson = JSON.parse(fs.readFileSync(appPackageJsonPath, 'utf8'))
 
   let targetNextPackageJson: {
@@ -126,8 +127,8 @@ export async function runUpgrade(
   console.log(`  - Next.js: v${installedNextVersion}`)
   let shouldStayOnReact18 = false
 
-  const usesAppDir = isUsingAppDir(process.cwd())
-  const usesPagesDir = isUsingPagesDir(process.cwd())
+  const usesAppDir = isUsingAppDir(cwd)
+  const usesPagesDir = isUsingPagesDir(cwd)
 
   const isPureAppRouter = usesAppDir && !usesPagesDir
   const isMixedApp = usesPagesDir && usesAppDir
@@ -176,14 +177,14 @@ export async function runUpgrade(
       )
 
   if (compareVersions(targetNextVersion, '15.0.0-canary') >= 0) {
-    await suggestTurbopack(appPackageJson)
+    await suggestTurbopack(appPackageJson, targetNextVersion)
   }
 
   const codemods = await suggestCodemods(
     installedNextVersion,
     targetNextVersion
   )
-  const packageManager: PackageManager = getPkgManager(process.cwd())
+  const packageManager: PackageManager = getPkgManager(cwd)
 
   let shouldRunReactCodemods = false
   let shouldRunReactTypesCodemods = false
@@ -321,7 +322,7 @@ export async function runUpgrade(
   runInstallation(packageManager)
 
   for (const codemod of codemods) {
-    await runTransform(codemod, process.cwd(), { force: true, verbose })
+    await runTransform(codemod, cwd, { force: true, verbose })
   }
 
   // To reduce user-side burden of selecting which codemods to run as it needs additional
@@ -355,12 +356,12 @@ function getInstalledNextVersion(): string {
   try {
     return require(
       require.resolve('next/package.json', {
-        paths: [process.cwd()],
+        paths: [cwd],
       })
     ).version
   } catch (error) {
     throw new BadInput(
-      `Failed to get the installed Next.js version at "${process.cwd()}".\nIf you're using a monorepo, please run this command from the Next.js app directory.`,
+      `Failed to get the installed Next.js version at "${cwd}".\nIf you're using a monorepo, please run this command from the Next.js app directory.`,
       {
         cause: error,
       }
@@ -372,12 +373,12 @@ function getInstalledReactVersion(): string {
   try {
     return require(
       require.resolve('react/package.json', {
-        paths: [process.cwd()],
+        paths: [cwd],
       })
     ).version
   } catch (error) {
     throw new BadInput(
-      `Failed to detect the installed React version in "${process.cwd()}".\nIf you're working in a monorepo, please run this command from the Next.js app directory.`,
+      `Failed to detect the installed React version in "${cwd}".\nIf you're working in a monorepo, please run this command from the Next.js app directory.`,
       {
         cause: error,
       }
@@ -402,35 +403,64 @@ function isUsingAppDir(projectPath: string): boolean {
  * Heuristics are used to determine whether to Turbopack is enabled or not and
  * to determine how to update the dev script.
  *
- * 1. If the dev script contains `--turbo` option, we assume that Turbopack is
+ * 1. If the dev script contains `--turbopack` option, we assume that Turbopack is
  *    already enabled.
  * 2. If the dev script contains the string `next dev`, we replace it to
- *    `next dev --turbo`.
- * 3. Otherwise, we ask the user to manually add `--turbo` to their dev command,
+ *    `next dev --turbopack`.
+ * 3. Otherwise, we ask the user to manually add `--turbopack` to their dev command,
  *    showing the current dev command as the initial value.
  */
-async function suggestTurbopack(packageJson: any): Promise<void> {
+async function suggestTurbopack(
+  packageJson: any,
+  targetNextVersion: string
+): Promise<void> {
   const devScript: string = packageJson.scripts['dev']
-  if (devScript.includes('--turbo')) return
+  // Turbopack flag was changed from `--turbo` to `--turbopack` in v15.0.1-canary.3
+  // PR: https://github.com/vercel/next.js/pull/71657
+  // Release: https://github.com/vercel/next.js/releases/tag/v15.0.1-canary.3
+  const isAfterTurbopackFlagChange =
+    compareVersions(targetNextVersion, '15.0.1-canary.3') >= 0
+  const turboPackFlag = isAfterTurbopackFlagChange ? '--turbopack' : '--turbo'
 
-  const responseTurbopack = await prompts(
-    {
-      type: 'confirm',
-      name: 'enable',
-      message: 'Enable Turbopack for next dev?',
-      initial: true,
-    },
-    { onCancel }
-  )
-
-  if (!responseTurbopack.enable) {
+  if (!devScript) {
+    console.log(
+      `${pc.yellow('⚠')} No "dev" script found in your package.json. Skipping Turbopack suggestion.`
+    )
     return
   }
 
   if (devScript.includes('next dev')) {
+    // covers "--turbopack" as well
+    if (devScript.includes('--turbo')) {
+      if (isAfterTurbopackFlagChange && !devScript.includes('--turbopack')) {
+        console.log() // new line
+        console.log(
+          `${pc.green('✔')} Replaced "--turbo" with "--turbopack" in your dev script.`
+        )
+        console.log() // new line
+        packageJson.scripts['dev'] = devScript.replace('--turbo', '--turbopack')
+        return
+      }
+      return
+    }
+
+    const responseTurbopack = await prompts(
+      {
+        type: 'confirm',
+        name: 'enable',
+        message: `Enable Turbopack for ${pc.bold('next dev')}?`,
+        initial: true,
+      },
+      { onCancel }
+    )
+
+    if (!responseTurbopack.enable) {
+      return
+    }
+
     packageJson.scripts['dev'] = devScript.replace(
       'next dev',
-      'next dev --turbo'
+      `next dev ${turboPackFlag}`
     )
     return
   }
@@ -443,7 +473,7 @@ async function suggestTurbopack(packageJson: any): Promise<void> {
     {
       type: 'text',
       name: 'customDevScript',
-      message: 'Please manually add "--turbo" to your dev command.',
+      message: `Please manually add "${turboPackFlag}" to your dev command.`,
       initial: devScript,
     },
     { onCancel }
@@ -513,12 +543,10 @@ async function suggestCodemods(
 async function suggestReactCodemods(): Promise<boolean> {
   const { runReactCodemod } = await prompts(
     {
-      type: 'toggle',
+      type: 'confirm',
       name: 'runReactCodemod',
       message: 'Would you like to run the React 19 upgrade codemod?',
       initial: true,
-      active: 'Yes',
-      inactive: 'No',
     },
     { onCancel }
   )
@@ -529,12 +557,10 @@ async function suggestReactCodemods(): Promise<boolean> {
 async function suggestReactTypesCodemods(): Promise<boolean> {
   const { runReactTypesCodemod } = await prompts(
     {
-      type: 'toggle',
+      type: 'confirm',
       name: 'runReactTypesCodemod',
       message: 'Would you like to run the React 19 Types upgrade codemod?',
       initial: true,
-      active: 'Yes',
-      inactive: 'No',
     },
     { onCancel }
   )

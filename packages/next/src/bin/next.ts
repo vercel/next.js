@@ -157,7 +157,8 @@ program
       'If no directory is provided, the current directory will be used.'
     )}`
   )
-  .option('--turbo', 'Starts development mode using Turbopack (beta).')
+  .option('--turbo', 'Starts development mode using Turbopack.')
+  .option('--turbopack', 'Starts development mode using Turbopack.')
   .addOption(
     new Option(
       '-p, --port <port>',
