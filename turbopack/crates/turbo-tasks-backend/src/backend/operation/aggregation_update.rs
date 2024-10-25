@@ -590,19 +590,16 @@ impl AggregationUpdateQueue {
                             }
                             self.inner_of_uppers_has_new_follower(ctx, new_follower_id, upper_ids);
                         }
-                    } else {
-                        #[allow(clippy::collapsible_if, reason = "readablility")]
-                        if let Some(upper_id) = upper_ids.pop() {
-                            if !upper_ids.is_empty() {
-                                self.jobs.push_front(AggregationUpdateJobItem::new(
-                                    AggregationUpdateJob::InnerOfUppersHasNewFollowers {
-                                        upper_ids,
-                                        new_follower_ids: new_follower_ids.clone(),
-                                    },
-                                ));
-                            }
-                            self.inner_of_upper_has_new_followers(ctx, new_follower_ids, upper_id);
+                    } else if let Some(upper_id) = upper_ids.pop() {
+                        if !upper_ids.is_empty() {
+                            self.jobs.push_front(AggregationUpdateJobItem::new(
+                                AggregationUpdateJob::InnerOfUppersHasNewFollowers {
+                                    upper_ids,
+                                    new_follower_ids: new_follower_ids.clone(),
+                                },
+                            ));
                         }
+                        self.inner_of_upper_has_new_followers(ctx, new_follower_ids, upper_id);
                     }
                 }
                 AggregationUpdateJob::InnerOfUppersHasNewFollower {
@@ -647,19 +644,16 @@ impl AggregationUpdateQueue {
                             }
                             self.inner_of_uppers_lost_follower(ctx, lost_follower_id, upper_ids);
                         }
-                    } else {
-                        #[allow(clippy::collapsible_if, reason = "readablility")]
-                        if let Some(upper_id) = upper_ids.pop() {
-                            if !upper_ids.is_empty() {
-                                self.jobs.push_front(AggregationUpdateJobItem::new(
-                                    AggregationUpdateJob::InnerOfUppersLostFollowers {
-                                        upper_ids,
-                                        lost_follower_ids: lost_follower_ids.clone(),
-                                    },
-                                ));
-                            }
-                            self.inner_of_upper_lost_followers(ctx, lost_follower_ids, upper_id);
+                    } else if let Some(upper_id) = upper_ids.pop() {
+                        if !upper_ids.is_empty() {
+                            self.jobs.push_front(AggregationUpdateJobItem::new(
+                                AggregationUpdateJob::InnerOfUppersLostFollowers {
+                                    upper_ids,
+                                    lost_follower_ids: lost_follower_ids.clone(),
+                                },
+                            ));
                         }
+                        self.inner_of_upper_lost_followers(ctx, lost_follower_ids, upper_id);
                     }
                 }
                 AggregationUpdateJob::InnerOfUppersLostFollower {
@@ -799,13 +793,11 @@ impl AggregationUpdateQueue {
 
                     // Add the same amount of upper edges
                     if update_count!(task, Upper { task: upper_id }, count) {
-                        if !upper_id.is_transient() {
-                            #[allow(clippy::collapsible_if, reason = "readablility")]
-                            if update_ucount_and_get!(task, PersistentUpperCount, 1)
+                        if !upper_id.is_transient()
+                            && update_ucount_and_get!(task, PersistentUpperCount, 1)
                                 .is_power_of_two()
-                            {
-                                self.push_optimize_task(task_id);
-                            }
+                        {
+                            self.push_optimize_task(task_id);
                         }
                         // When this is a new inner node, update aggregated data and
                         // followers
@@ -1287,11 +1279,10 @@ impl AggregationUpdateQueue {
         for &(follower_id, _) in followers_with_aggregation_number.iter() {
             let mut follower = ctx.task(follower_id, TaskDataCategory::Meta);
             if update_count!(follower, Upper { task: upper_id }, 1) {
-                if !upper_id.is_transient() {
-                    #[allow(clippy::collapsible_if, reason = "readablility")]
-                    if update_ucount_and_get!(follower, PersistentUpperCount, 1).is_power_of_two() {
-                        self.push_optimize_task(follower_id);
-                    }
+                if !upper_id.is_transient()
+                    && update_ucount_and_get!(follower, PersistentUpperCount, 1).is_power_of_two()
+                {
+                    self.push_optimize_task(follower_id);
                 }
 
                 // It's a new upper
@@ -1408,11 +1399,10 @@ impl AggregationUpdateQueue {
             drop(upper);
             let mut follower = ctx.task(new_follower_id, TaskDataCategory::Meta);
             if update_count!(follower, Upper { task: upper_id }, 1) {
-                if !upper_id.is_transient() {
-                    #[allow(clippy::collapsible_if, reason = "readablility")]
-                    if update_ucount_and_get!(follower, PersistentUpperCount, 1).is_power_of_two() {
-                        self.push_optimize_task(new_follower_id);
-                    }
+                if !upper_id.is_transient()
+                    && update_ucount_and_get!(follower, PersistentUpperCount, 1).is_power_of_two()
+                {
+                    self.push_optimize_task(new_follower_id);
                 }
                 // It's a new upper
                 let data = AggregatedDataUpdate::from_task(&mut follower);
