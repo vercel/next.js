@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{FxIndexSet, RcStr, TryJoinIterExt, Value, ValueToString, Vc};
+use turbo_tasks::{FxIndexSet, RcStr, ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -39,7 +39,7 @@ pub struct ChunkGroupFilesAsset {
     pub module: Vc<Box<dyn ChunkableModule>>,
     pub client_root: Vc<FileSystemPath>,
     pub chunking_context: Vc<Box<dyn ChunkingContext>>,
-    pub runtime_entries: Option<Vc<EvaluatableAssets>>,
+    pub runtime_entries: Option<ResolvedVc<EvaluatableAssets>>,
 }
 
 #[turbo_tasks::function]
@@ -126,20 +126,22 @@ impl ChunkGroupFilesChunkItem {
     async fn chunks(&self) -> Result<Vc<OutputAssets>> {
         let inner = self.inner.await?;
         let chunks = if let Some(ecma) =
-            Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(inner.module).await?
+            ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(inner.module.to_resolved().await?)
+                .await?
         {
+            let empty_assets = EvaluatableAssets::empty().to_resolved().await?;
             inner.chunking_context.evaluated_chunk_group_assets(
                 inner.module.ident(),
                 inner
                     .runtime_entries
-                    .unwrap_or_else(EvaluatableAssets::empty)
-                    .with_entry(ecma),
+                    .unwrap_or_else(|| empty_assets)
+                    .with_entry(*ecma),
                 Value::new(AvailabilityInfo::Root),
             )
         } else {
             inner
                 .chunking_context
-                .root_chunk_group_assets(Vc::upcast(inner.module))
+                .root_chunk_group_assets(*ResolvedVc::upcast(inner.module.to_resolved().await?))
         };
         Ok(chunks)
     }

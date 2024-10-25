@@ -51,7 +51,7 @@ impl AggregatedGraph {
                 for reference in asset.references().await?.iter() {
                     let reference = reference.resolve().await?;
                     if asset != reference.to_resolved().await? {
-                        refs.insert(AggregatedGraph::leaf(reference));
+                        refs.insert(AggregatedGraph::leaf(reference).to_resolved().await?);
                     }
                 }
                 AggregatedGraphsSet { set: refs }.into()
@@ -64,7 +64,7 @@ impl AggregatedGraph {
                     .collect::<Vec<_>>()
                     .into_iter()
                 {
-                    set.insert(item.resolve().await?);
+                    set.insert(item.to_resolved().await?);
                 }
                 AggregatedGraphsSet { set }.into()
             }
@@ -96,12 +96,13 @@ impl AggregatedGraph {
             .collect::<Vec<_>>()
         {
             let cost = cost.await?.0;
+            let resolved_reference = reference.to_resolved().await?;
             if cost == 0 {
-                inner.insert(reference);
+                inner.insert(resolved_reference);
             } else if cost > self_cost {
-                references.insert(reference);
+                references.insert(resolved_reference);
             } else {
-                outer.insert(reference);
+                outer.insert(resolved_reference);
             }
         }
         Ok(AggregatedGraphsValuedReferences {
@@ -152,20 +153,20 @@ async fn aggregate_more(node: Vc<AggregatedGraph>) -> Result<Vc<AggregatedGraph>
         for valued_refs in valued_refs {
             let valued_refs = valued_refs.await?;
             for &reference in valued_refs.inner.iter() {
-                content.insert(reference);
+                content.insert(*reference);
             }
             for &reference in valued_refs.references.iter() {
                 if content.contains(&reference) {
                     continue;
                 }
-                references.insert(reference);
+                references.insert(*reference);
             }
             for &reference in valued_refs.outer.iter() {
                 if content.contains(&reference) {
                     continue;
                 }
                 references.remove(&reference);
-                in_progress.insert(reference);
+                in_progress.insert(*reference);
             }
         }
     }
@@ -182,7 +183,7 @@ async fn aggregate_more(node: Vc<AggregatedGraph>) -> Result<Vc<AggregatedGraph>
 
 #[turbo_tasks::value(shared)]
 struct AggregatedGraphsSet {
-    pub set: HashSet<Vc<AggregatedGraph>>,
+    pub set: HashSet<ResolvedVc<AggregatedGraph>>,
 }
 
 #[turbo_tasks::value(shared)]
@@ -193,7 +194,7 @@ pub enum AggregatedGraphNodeContent {
 
 #[turbo_tasks::value(shared)]
 struct AggregatedGraphsValuedReferences {
-    pub inner: HashSet<Vc<AggregatedGraph>>,
-    pub outer: HashSet<Vc<AggregatedGraph>>,
-    pub references: HashSet<Vc<AggregatedGraph>>,
+    pub inner: HashSet<ResolvedVc<AggregatedGraph>>,
+    pub outer: HashSet<ResolvedVc<AggregatedGraph>>,
+    pub references: HashSet<ResolvedVc<AggregatedGraph>>,
 }

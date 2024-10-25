@@ -14,7 +14,9 @@ use swc_core::{
     },
     quote, quote_expr,
 };
-use turbo_tasks::{trace::TraceRawVcs, FxIndexMap, RcStr, TryFlatJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{
+    trace::TraceRawVcs, FxIndexMap, RcStr, ResolvedVc, TryFlatJoinIterExt, ValueToString, Vc,
+};
 use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
     chunk::ChunkingContext,
@@ -425,7 +427,7 @@ pub struct EsmExports {
 pub struct ExpandedExports {
     pub exports: BTreeMap<RcStr, EsmExport>,
     /// Modules we couldn't analyse all exports of.
-    pub dynamic_exports: Vec<Vc<Box<dyn EcmascriptChunkPlaceable>>>,
+    pub dynamic_exports: Vec<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -456,7 +458,7 @@ impl EsmExports {
             }
 
             if export_info.has_dynamic_exports {
-                dynamic_exports.push(**asset);
+                dynamic_exports.push((**asset).to_resolved().await?);
             }
         }
 

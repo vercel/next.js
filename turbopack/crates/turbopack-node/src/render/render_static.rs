@@ -114,7 +114,7 @@ pub async fn render_static(
     };
 
     Ok(match first {
-        RenderItem::Response(response) => response,
+        RenderItem::Response(response) => *response,
         RenderItem::Headers(data) => {
             let body = stream.map(|item| match item {
                 Ok(RenderItem::BodyChunk(b)) => Ok(b),
@@ -183,7 +183,7 @@ async fn static_error(
 #[derive(Clone, Debug)]
 #[turbo_tasks::value]
 enum RenderItem {
-    Response(Vc<StaticResult>),
+    Response(ResolvedVc<StaticResult>),
     Headers(ResponseHeaders),
     BodyChunk(Bytes),
 }
@@ -317,7 +317,7 @@ async fn render_stream_internal(
             RenderStaticIncomingMessage::Headers { data } => yield RenderItem::Headers(data),
             RenderStaticIncomingMessage::Rewrite { path } => {
                 drop(guard);
-                yield RenderItem::Response(StaticResult::rewrite(RewriteBuilder::new(path).build()));
+                yield RenderItem::Response(StaticResult::rewrite(RewriteBuilder::new(path).build()).to_resolved().await?);
                 return;
             }
             RenderStaticIncomingMessage::Response {
@@ -326,11 +326,13 @@ async fn render_stream_internal(
                 body,
             } => {
                 drop(guard);
-                yield RenderItem::Response(StaticResult::content(
-                    AssetContent::file(File::from(body).into()),
-                    status_code,
-                    Vc::cell(headers),
-                ));
+                yield RenderItem::Response(
+                    StaticResult::content(
+                        AssetContent::file(File::from(body).into()),
+                        status_code,
+                        Vc::cell(headers),
+                    ).to_resolved().await?
+                );
                 return;
             }
             RenderStaticIncomingMessage::Error(error) => {
@@ -349,7 +351,7 @@ async fn render_stream_internal(
                         static_error(path, anyhow!(trace), Some(operation), fallback_page).await?,
                         500,
                         HeaderList::empty(),
-                    )
+                    ).to_resolved().await?
                 );
                 return;
             }

@@ -252,7 +252,7 @@ impl OutputAsset for CssChunk {
 
         let CssChunkContent { chunk_items, .. } = &*self.content.await?;
         let mut common_path = if let Some(chunk_item) = chunk_items.first() {
-            let path = chunk_item.asset_ident().path().resolve().await?;
+            let path = chunk_item.asset_ident().path().to_resolved().await?;
             Some((path, path.await?))
         } else {
             None
@@ -265,7 +265,7 @@ impl OutputAsset for CssChunk {
             if let Some((common_path_vc, common_path_ref)) = common_path.as_mut() {
                 let path = chunk_item.asset_ident().path().await?;
                 while !path.is_inside_or_equal_ref(common_path_ref) {
-                    let parent = common_path_vc.parent().resolve().await?;
+                    let parent = common_path_vc.parent().to_resolved().await?;
                     if parent == *common_path_vc {
                         common_path = None;
                         break;
@@ -274,21 +274,19 @@ impl OutputAsset for CssChunk {
                     *common_path_ref = (*common_path_vc).await?;
                 }
             }
-            assets.push((chunk_item_key, chunk_item.content_ident()));
-        }
-
-        // Make sure the idents are resolved
-        for (_, ident) in assets.iter_mut() {
-            *ident = ident.resolve().await?;
+            assets.push((
+                chunk_item_key.to_resolved().await?,
+                chunk_item.content_ident().to_resolved().await?,
+            ));
         }
 
         let ident = AssetIdent {
             path: if let Some((common_path, _)) = common_path {
-                common_path
+                *common_path
             } else {
-                ServerFileSystem::new().root()
+                *ServerFileSystem::new().root().to_resolved().await?
             },
-            query: Vc::<RcStr>::default(),
+            query: *Vc::<RcStr>::default().to_resolved().await?,
             fragment: None,
             assets,
             modifiers: Vec::new(),

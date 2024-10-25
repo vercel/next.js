@@ -2,8 +2,8 @@ use anyhow::{bail, Context, Result};
 use indoc::formatdoc;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    fxindexmap, trace::TraceRawVcs, Completion, Completions, RcStr, TaskInput, TryFlatJoinIterExt,
-    Value, Vc,
+    fxindexmap, trace::TraceRawVcs, Completion, Completions, RcStr, ResolvedVc, TaskInput,
+    TryFlatJoinIterExt, Value, Vc,
 };
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_fs::{
@@ -164,7 +164,7 @@ impl Asset for PostCssTransformedAsset {
 #[turbo_tasks::value]
 struct ProcessPostCssResult {
     content: Vc<AssetContent>,
-    assets: Vec<Vc<VirtualSource>>,
+    assets: Vec<ResolvedVc<VirtualSource>>,
 }
 
 #[turbo_tasks::function]
@@ -458,7 +458,7 @@ impl PostCssTransformedAsset {
         };
         let FileContent::Content(content) = &*file.await? else {
             return Ok(ProcessPostCssResult {
-                content: AssetContent::File(FileContent::NotFound.cell()).cell(),
+                content: AssetContent::File(*FileContent::NotFound.resolved_cell()).cell(),
                 assets: Vec::new(),
             }
             .cell());
@@ -501,7 +501,7 @@ impl PostCssTransformedAsset {
         let SingleValue::Single(val) = config_value.try_into_single().await? else {
             // An error happened, which has already been converted into an issue.
             return Ok(ProcessPostCssResult {
-                content: AssetContent::File(FileContent::NotFound.cell()).cell(),
+                content: AssetContent::File(*FileContent::NotFound.resolved_cell()).cell(),
                 assets: Vec::new(),
             }
             .cell());
@@ -511,9 +511,16 @@ impl PostCssTransformedAsset {
 
         // TODO handle SourceMap
         let file = File::from(processed_css.css);
-        let assets = emitted_assets_to_virtual_sources(processed_css.assets);
-        let content = AssetContent::File(FileContent::Content(file).cell()).cell();
-        Ok(ProcessPostCssResult { content, assets }.cell())
+        let mut resolved_assets = Vec::new();
+        for asset in emitted_assets_to_virtual_sources(processed_css.assets) {
+            resolved_assets.push(asset.to_resolved().await?);
+        }
+        let content = AssetContent::File(*FileContent::Content(file).resolved_cell()).cell();
+        Ok(ProcessPostCssResult {
+            content,
+            assets: resolved_assets,
+        }
+        .cell())
     }
 }
 

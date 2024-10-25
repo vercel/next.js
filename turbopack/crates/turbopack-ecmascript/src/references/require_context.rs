@@ -12,7 +12,7 @@ use swc_core::{
     },
     quote, quote_expr,
 };
-use turbo_tasks::{primitives::Regex, FxIndexMap, RcStr, Value, ValueToString, Vc};
+use turbo_tasks::{primitives::Regex, FxIndexMap, RcStr, ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -46,8 +46,8 @@ use crate::{
 #[turbo_tasks::value]
 #[derive(Debug)]
 pub(crate) enum DirListEntry {
-    File(Vc<FileSystemPath>),
-    Dir(Vc<DirList>),
+    File(ResolvedVc<FileSystemPath>),
+    Dir(ResolvedVc<DirList>),
 }
 
 #[turbo_tasks::value(transparent)]
@@ -83,7 +83,10 @@ impl DirList {
                 DirectoryEntry::File(path) => {
                     if let Some(relative_path) = root_val.get_relative_path_to(&*path.await?) {
                         if regex.is_match(&relative_path) {
-                            list.insert(relative_path, DirListEntry::File(**path));
+                            list.insert(
+                                relative_path,
+                                DirListEntry::File(path.to_resolved().await?),
+                            );
                         }
                     }
                 }
@@ -91,9 +94,11 @@ impl DirList {
                     if let Some(relative_path) = root_val.get_relative_path_to(&*path.await?) {
                         list.insert(
                             relative_path,
-                            DirListEntry::Dir(DirList::read_internal(
-                                root, **path, recursive, filter,
-                            )),
+                            DirListEntry::Dir(
+                                DirList::read_internal(root, **path, recursive, filter)
+                                    .to_resolved()
+                                    .await?,
+                            ),
                         );
                     }
                 }
@@ -119,7 +124,8 @@ impl DirList {
             for (k, entry) in &*dir {
                 match entry {
                     DirListEntry::File(path) => {
-                        list.insert(k.clone(), *path);
+                        // Don't dereference the path, store it as a Vc
+                        list.insert(k.clone(), path.resolve().await?);
                     }
                     DirListEntry::Dir(d) => {
                         queue.push_back(d.await?);

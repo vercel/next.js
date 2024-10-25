@@ -10,7 +10,7 @@ use anyhow::{bail, Result};
 pub use node_entry::{NodeEntry, NodeRenderingEntries, NodeRenderingEntry};
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
-    Completion, Completions, FxIndexSet, RcStr, TryJoinIterExt, ValueToString, Vc,
+    Completion, Completions, FxIndexSet, RcStr, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
 };
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::{to_sys_path, File, FileSystemPath};
@@ -133,8 +133,8 @@ async fn separate_assets(
     let intermediate_output_path = &*intermediate_output_path.await?;
     #[derive(PartialEq, Eq, Hash, Clone, Copy)]
     enum Type {
-        Internal(Vc<Box<dyn OutputAsset>>),
-        External(Vc<Box<dyn OutputAsset>>),
+        Internal(ResolvedVc<Box<dyn OutputAsset>>),
+        External(ResolvedVc<Box<dyn OutputAsset>>),
     }
     let get_asset_children = |asset| async move {
         let Type::Internal(asset) = asset else {
@@ -155,9 +155,9 @@ async fn separate_assets(
                     .await?
                     .is_inside_ref(intermediate_output_path)
                 {
-                    Ok(Type::Internal(*asset))
+                    Ok(Type::Internal(asset.to_resolved().await?))
                 } else {
-                    Ok(Type::External(*asset))
+                    Ok(Type::External(asset.to_resolved().await?))
                 }
             })
             .try_join()
@@ -166,7 +166,10 @@ async fn separate_assets(
 
     let graph = AdjacencyMap::new()
         .skip_duplicates()
-        .visit(once(Type::Internal(intermediate_asset)), get_asset_children)
+        .visit(
+            once(Type::Internal(intermediate_asset.to_resolved().await?)),
+            get_asset_children,
+        )
         .await
         .completed()?
         .into_inner();
@@ -177,10 +180,10 @@ async fn separate_assets(
     for item in graph.into_reverse_topological() {
         match item {
             Type::Internal(asset) => {
-                internal_assets.insert(asset);
+                internal_assets.insert(*asset);
             }
             Type::External(asset) => {
-                external_asset_entrypoints.insert(asset);
+                external_asset_entrypoints.insert(*asset);
             }
         }
     }
