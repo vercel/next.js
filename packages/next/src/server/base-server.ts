@@ -3103,9 +3103,15 @@ export default abstract class Server<
             )
           }
 
-          return runWithCacheScope({ cache }, () =>
+          const response = runWithCacheScope({ cache }, () =>
             originalResponseGenerator(state)
           )
+
+          // Clear the prefetch cache to ensure a clean slate for the next
+          // request.
+          this.prefetchCacheScopesDev.del(urlPathname)
+
+          return response
         }
 
         return originalResponseGenerator(state)
