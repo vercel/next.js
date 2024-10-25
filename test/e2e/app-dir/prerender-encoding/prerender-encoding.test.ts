@@ -6,9 +6,7 @@ describe('prerender-encoding', () => {
   })
 
   it('should respond with the prerendered page correctly', async () => {
-    const browser = await next.browser('/sticks%20%26%20stones')
-    expect(await browser.elementByCss('div').text()).toBe(
-      'params.id is sticks%20%26%20stones'
-    )
+    const $ = await next.render$('/sticks%20%26%20stones')
+    expect($('div').text()).toBe('params.id is sticks%20%26%20stones')
   })
 })
