@@ -11,6 +11,19 @@ export var $$RSC_SERVER_CACHE_0 = $$cache__("default", "c03128060c414d59f8552e47
         }
     ];
 });
+Object.defineProperty($$RSC_SERVER_CACHE_0, "name", {
+    "value": "cache",
+    "writable": false
+});
+export const $$RSC_SERVER_ACTION_2 = async function action($$ACTION_CLOSURE_BOUND, c) {
+    var [$$ACTION_ARG_0, $$ACTION_ARG_1] = await decryptActionBoundArgs("1c36b06e398c97abe5d5d7ae8c672bfddf4e1b91", $$ACTION_CLOSURE_BOUND);
+    const d = $$ACTION_ARG_0 + $$ACTION_ARG_1 + c;
+    var cache = $$RSC_SERVER_REF_1.bind(null, encryptActionBoundArgs("3128060c414d59f8552e4788b846c0d2b7f74743", [
+        d,
+        $$ACTION_ARG_0
+    ]));
+    return cache(d);
+};
 async function Component({ a }) {
     const b = 1;
     var action = registerServerReference($$RSC_SERVER_ACTION_2, "401c36b06e398c97abe5d5d7ae8c672bfddf4e1b91", null).bind(null, encryptActionBoundArgs("401c36b06e398c97abe5d5d7ae8c672bfddf4e1b91", [
@@ -21,6 +34,7 @@ async function Component({ a }) {
       <button>Submit</button>
     </form>;
 }
+<<<<<<< HEAD
 var $$RSC_SERVER_REF_1 = registerServerReference($$RSC_SERVER_CACHE_0, "c03128060c414d59f8552e4788b846c0d2b7f74743", null);
 export async function $$RSC_SERVER_ACTION_2($$ACTION_CLOSURE_BOUND, c) {
     var [$$ACTION_ARG_0, $$ACTION_ARG_1] = await decryptActionBoundArgs("401c36b06e398c97abe5d5d7ae8c672bfddf4e1b91", $$ACTION_CLOSURE_BOUND);
@@ -31,3 +45,6 @@ export async function $$RSC_SERVER_ACTION_2($$ACTION_CLOSURE_BOUND, c) {
     ]));
     return cache(d);
 }
+=======
+var $$RSC_SERVER_REF_1 = registerServerReference($$RSC_SERVER_CACHE_0, "3128060c414d59f8552e4788b846c0d2b7f74743", null);
+>>>>>>> canary

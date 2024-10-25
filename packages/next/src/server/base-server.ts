@@ -132,6 +132,7 @@ import {
 import {
   CACHE_ONE_YEAR,
   INFINITE_CACHE,
+  NEXT_CACHE_REVALIDATED_TAGS_HEADER,
   NEXT_CACHE_TAGS_HEADER,
   NEXT_RESUME_HEADER,
 } from '../lib/constants'
@@ -1391,6 +1392,29 @@ export default abstract class Server<
             | 'http'
             | 'https',
         })
+
+        const _globalThis: typeof globalThis & {
+          __nextCacheHandlers?: Record<
+            string,
+            import('./lib/cache-handlers/types').CacheHandler
+          >
+        } = globalThis
+
+        if (_globalThis.__nextCacheHandlers) {
+          const expiredTags: string[] =
+            (req.headers[NEXT_CACHE_REVALIDATED_TAGS_HEADER] as string)?.split(
+              ','
+            ) || []
+
+          for (const handler of Object.values(
+            _globalThis.__nextCacheHandlers
+          )) {
+            if (typeof handler.receiveExpiredTags === 'function') {
+              await handler.receiveExpiredTags(...expiredTags)
+            }
+          }
+        }
+
         incrementalCache.resetRequestCache()
         addRequestMeta(req, 'incrementalCache', incrementalCache)
         ;(globalThis as any).__incrementalCache = incrementalCache
@@ -3061,34 +3085,27 @@ export default abstract class Server<
         if (this.renderOpts.dev) {
           let cache = this.prefetchCacheScopesDev.get(urlPathname)
 
+          if (isServerAction || !cache) {
+            cache = new Map()
+            this.prefetchCacheScopesDev.set(urlPathname, cache)
+          }
+
           // we need to seed the prefetch cache scope in dev
           // since we did not have a prefetch cache available
           // and this is not a prefetch request
           if (
-            !cache &&
             !isPrefetchRSCRequest &&
             routeModule?.definition.kind === RouteKind.APP_PAGE &&
             !isServerAction
           ) {
-            cache = new Map()
-
             await runWithCacheScope({ cache }, () =>
               originalResponseGenerator({ ...state, isDevWarmup: true })
             )
-            this.prefetchCacheScopesDev.set(urlPathname, cache)
           }
 
-          if (cache) {
-            return runWithCacheScope({ cache }, () =>
-              originalResponseGenerator(state)
-            ).finally(() => {
-              if (isPrefetchRSCRequest) {
-                this.prefetchCacheScopesDev.set(urlPathname, cache)
-              } else {
-                this.prefetchCacheScopesDev.del(urlPathname)
-              }
-            })
-          }
+          return runWithCacheScope({ cache }, () =>
+            originalResponseGenerator(state)
+          )
         }
 
         return originalResponseGenerator(state)

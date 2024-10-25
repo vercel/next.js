@@ -90,7 +90,7 @@ impl ModuleReference for WorkerAssetReference {
         if let Some(worker_loader_module) = self.worker_loader_module().await? {
             Ok(ModuleResolveResult::module(Vc::upcast(worker_loader_module)).cell())
         } else {
-            Ok(ModuleResolveResult::unresolveable().cell())
+            Ok(ModuleResolveResult::unresolvable().cell())
         }
     }
 }

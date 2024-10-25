@@ -1,31 +1,24 @@
-/* eslint-disable jest/no-standalone-expect */
 import { nextTestSetup } from 'e2e-utils'
-import { retry } from 'next-test-utils'
+import { retry, waitFor } from 'next-test-utils'
 
 const GENERIC_RSC_ERROR =
   'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
 
 describe('use-cache', () => {
-  const { next, isNextDev, isNextDeploy, isNextStart, isTurbopack } =
-    nextTestSetup({
-      files: __dirname,
-    })
+  const { next, isNextDev, isNextDeploy, isNextStart } = nextTestSetup({
+    files: __dirname,
+  })
 
-  const itSkipTurbopack = isTurbopack ? it.skip : it
-
-  // TODO: Fix the following error with Turbopack:
-  // Error: Module [project]/app/client.tsx [app-client] (ecmascript) was
-  // instantiated because it was required from module...
-  itSkipTurbopack('should cache results', async () => {
-    const browser = await next.browser('/?n=1')
+  it('should cache results', async () => {
+    const browser = await next.browser(`/?n=1`)
     expect(await browser.waitForElementByCss('#x').text()).toBe('1')
     const random1a = await browser.waitForElementByCss('#y').text()
 
-    await browser.loadPage(new URL('/?n=2', next.url).toString())
+    await browser.loadPage(new URL(`/?n=2`, next.url).toString())
     expect(await browser.waitForElementByCss('#x').text()).toBe('2')
     const random2 = await browser.waitForElementByCss('#y').text()
 
-    await browser.loadPage(new URL('/?n=1&unrelated', next.url).toString())
+    await browser.loadPage(new URL(`/?n=1&unrelated`, next.url).toString())
     expect(await browser.waitForElementByCss('#x').text()).toBe('1')
     const random1b = await browser.waitForElementByCss('#y').text()
 
@@ -41,6 +34,35 @@ describe('use-cache', () => {
     // Client component child should have rendered but not invalidated the cache.
     expect(await browser.waitForElementByCss('#r').text()).toContain('rnd')
   })
+
+  if (!process.env.TURBOPACK_BUILD) {
+    it('should cache results custom handler', async () => {
+      const browser = await next.browser(`/custom-handler?n=1`)
+      expect(await browser.waitForElementByCss('#x').text()).toBe('1')
+      const random1a = await browser.waitForElementByCss('#y').text()
+
+      await browser.loadPage(
+        new URL(`/custom-handler?n=2`, next.url).toString()
+      )
+      expect(await browser.waitForElementByCss('#x').text()).toBe('2')
+      const random2 = await browser.waitForElementByCss('#y').text()
+
+      await browser.loadPage(
+        new URL(`/custom-handler?n=1&unrelated`, next.url).toString()
+      )
+      expect(await browser.waitForElementByCss('#x').text()).toBe('1')
+      const random1b = await browser.waitForElementByCss('#y').text()
+
+      // The two navigations to n=1 should use a cached value.
+      expect(random1a).toBe(random1b)
+
+      // The navigation to n=2 should be some other random value.
+      expect(random1a).not.toBe(random2)
+
+      // Client component child should have rendered but not invalidated the cache.
+      expect(await browser.waitForElementByCss('#r').text()).toContain('rnd')
+    })
+  }
 
   it('should cache complex args', async () => {
     // Use two bytes that can't be encoded as UTF-8 to ensure serialization works.
@@ -111,25 +133,77 @@ describe('use-cache', () => {
 
   it('should cache results for cached funtions imported from client components', async () => {
     const browser = await next.browser('/imported-from-client')
-    expect(await browser.elementByCss('p').text()).toBe('0 0')
+    expect(await browser.elementByCss('p').text()).toBe('0 0 0')
     await browser.elementById('submit-button').click()
 
-    let twoRandomValues: string
+    let threeRandomValues: string
 
     await retry(async () => {
-      twoRandomValues = await browser.elementByCss('p').text()
-      expect(twoRandomValues).toMatch(/\d\.\d+ \d\.\d+/)
+      threeRandomValues = await browser.elementByCss('p').text()
+      expect(threeRandomValues).toMatch(/\d\.\d+ \d\.\d+/)
     })
 
     await browser.elementById('reset-button').click()
-    expect(await browser.elementByCss('p').text()).toBe('0 0')
+    expect(await browser.elementByCss('p').text()).toBe('0 0 0')
 
     await browser.elementById('submit-button').click()
 
     await retry(async () => {
-      expect(await browser.elementByCss('p').text()).toBe(twoRandomValues)
+      expect(await browser.elementByCss('p').text()).toBe(threeRandomValues)
     })
   })
+
+  it('should cache results for cached funtions passed client components', async () => {
+    const browser = await next.browser('/passed-to-client')
+    expect(await browser.elementByCss('p').text()).toBe('0 0 0')
+    await browser.elementById('submit-button').click()
+
+    let threeRandomValues: string
+
+    await retry(async () => {
+      threeRandomValues = await browser.elementByCss('p').text()
+      expect(threeRandomValues).toMatch(/\d\.\d+ \d\.\d+/)
+    })
+
+    await browser.elementById('reset-button').click()
+    expect(await browser.elementByCss('p').text()).toBe('0 0 0')
+
+    await browser.elementById('submit-button').click()
+
+    await retry(async () => {
+      expect(await browser.elementByCss('p').text()).toBe(threeRandomValues)
+    })
+  })
+
+  // TODO: pending tags handling on deploy
+  if (!isNextDeploy) {
+    it('should update after revalidateTag correctly', async () => {
+      const browser = await next.browser('/cache-tag')
+
+      const initialX = await browser.elementByCss('#x').text()
+      const initialY = await browser.elementByCss('#y').text()
+      let updatedX
+      let updatedY
+
+      await browser.elementByCss('#revalidate-a').click()
+      await retry(async () => {
+        updatedX = await browser.elementByCss('#x').text()
+        expect(updatedX).not.toBe(initialX)
+      })
+
+      await browser.elementByCss('#revalidate-b').click()
+      await retry(async () => {
+        updatedY = await browser.elementByCss('#y').text()
+        expect(updatedY).not.toBe(initialY)
+      })
+
+      await browser.elementByCss('#revalidate-c').click()
+      await retry(async () => {
+        expect(await browser.elementByCss('#x').text()).not.toBe(updatedX)
+        expect(await browser.elementByCss('#y').text()).not.toBe(updatedY)
+      })
+    })
+  }
 
   if (isNextStart) {
     it('should match the expected revalidate config on the prerender manifest', async () => {
@@ -157,4 +231,48 @@ describe('use-cache', () => {
       expect(meta.headers['x-next-cache-tags']).toContain('a,c,b')
     })
   }
+
+  it('can reference server actions in "use cache" functions', async () => {
+    const browser = await next.browser('/with-server-action')
+    expect(await browser.elementByCss('p').text()).toBe('initial')
+    await browser.elementByCss('button').click()
+
+    await retry(async () => {
+      expect(await browser.elementByCss('p').text()).toBe('result')
+    })
+  })
+
+  it('should be able to revalidate a page using', async () => {
+    const browser = await next.browser(`/form`)
+    const time1 = await browser.waitForElementByCss('#t').text()
+
+    await browser.loadPage(new URL(`/form`, next.url).toString())
+
+    const time2 = await browser.waitForElementByCss('#t').text()
+
+    expect(time1).toBe(time2)
+
+    await browser.elementByCss('#refresh').click()
+
+    await waitFor(500)
+
+    const time3 = await browser.waitForElementByCss('#t').text()
+
+    expect(time3).not.toBe(time2)
+
+    // Reloading again should ideally be the same value but because the Action seeds
+    // the cache with real params as the argument it has a different cache key.
+    // await browser.loadPage(new URL(`/form?c`, next.url).toString())
+    // const time4 = await browser.waitForElementByCss('#t').text()
+    // expect(time4).toBe(time3);
+  })
+
+  it('should override fetch with no-store in use cache properly', async () => {
+    const browser = await next.browser('/cache-fetch-no-store')
+
+    const initialValue = await browser.elementByCss('#random').text()
+    await browser.refresh()
+
+    expect(await browser.elementByCss('#random').text()).toBe(initialValue)
+  })
 })

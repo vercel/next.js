@@ -283,13 +283,16 @@ export { _globalThis as e } from "__TURBOPACK_VAR__" assert {
 ## Part 8
 ```js
 import { c as DEFAULT_ENVIRONMENT } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -4
+    __turbopack_part__: -4,
+    __turbopack_original__: '../../utils/environment'
 };
 import { d as parseEnvironment } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -5
+    __turbopack_part__: -5,
+    __turbopack_original__: '../../utils/environment'
 };
 import { e as _globalThis } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -7
+    __turbopack_part__: -7,
+    __turbopack_original__: './globalThis'
 };
 function getEnv() {
     var globalEnv = parseEnvironment(_globalThis);
@@ -303,10 +306,12 @@ export { getEnv as a } from "__TURBOPACK_VAR__" assert {
 ## Part 9
 ```js
 import { e as _globalThis } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -7
+    __turbopack_part__: -7,
+    __turbopack_original__: './globalThis'
 };
 import { d as parseEnvironment } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -5
+    __turbopack_part__: -5,
+    __turbopack_original__: '../../utils/environment'
 };
 function getEnvWithoutDefaults() {
     return parseEnvironment(_globalThis);
@@ -424,13 +429,16 @@ export { _globalThis as e } from "__TURBOPACK_VAR__" assert {
 ## Part 8
 ```js
 import { c as DEFAULT_ENVIRONMENT } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -4
+    __turbopack_part__: -4,
+    __turbopack_original__: '../../utils/environment'
 };
 import { d as parseEnvironment } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -5
+    __turbopack_part__: -5,
+    __turbopack_original__: '../../utils/environment'
 };
 import { e as _globalThis } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -7
+    __turbopack_part__: -7,
+    __turbopack_original__: './globalThis'
 };
 function getEnv() {
     var globalEnv = parseEnvironment(_globalThis);
@@ -444,10 +452,12 @@ export { getEnv as a } from "__TURBOPACK_VAR__" assert {
 ## Part 9
 ```js
 import { e as _globalThis } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -7
+    __turbopack_part__: -7,
+    __turbopack_original__: './globalThis'
 };
 import { d as parseEnvironment } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -5
+    __turbopack_part__: -5,
+    __turbopack_original__: '../../utils/environment'
 };
 function getEnvWithoutDefaults() {
     return parseEnvironment(_globalThis);

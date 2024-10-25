@@ -6153,8 +6153,7 @@ dependencies = [
 [[package]]
 name = "sourcemap"
 version = "9.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dab08a862c70980b8e23698b507e272317ae52a608a164a844111f5372374f1f"
+source = "git+https://github.com/wbinnssmith/rust-sourcemap?branch=wbinnssmith%2Fignore-list#5ddd8f176e537ced3b024363d3bd04444d442cd7"
 dependencies = [
  "base64-simd",
  "bitvec",
@@ -8596,6 +8595,7 @@ dependencies = [
  "turbo-tasks-memory",
  "turbo-tasks-testing",
  "unicode-segmentation",
+ "urlencoding",
 ]
 
 [[package]]

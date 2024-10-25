@@ -54,7 +54,7 @@ const PLUGIN_NAME = 'FlightClientEntryPlugin'
 type Actions = {
   [actionId: string]: {
     workers: {
-      [name: string]: string | number
+      [name: string]: { moduleId: string | number; async: boolean }
     }
     // Record which layer the action is in (rsc or sc_action), in the specific entry.
     layer: {
@@ -80,15 +80,15 @@ const pluginState = getProxiedPluginState({
   actionModServerId: {} as Record<
     string,
     {
-      server?: string | number
-      client?: string | number
+      server?: { moduleId: string | number; async: boolean }
+      client?: { moduleId: string | number; async: boolean }
     }
   >,
   actionModEdgeServerId: {} as Record<
     string,
     {
-      server?: string | number
-      client?: string | number
+      server?: { moduleId: string | number; async: boolean }
+      client?: { moduleId: string | number; async: boolean }
     }
   >,
 
@@ -491,7 +491,7 @@ export class FlightClientEntryPlugin {
       }
     }
 
-    for (const [name, actionEntryImports] of Object.entries(
+    for (const [entryName, actionEntryImports] of Object.entries(
       actionMapsPerClientEntry
     )) {
       // If an action method is already created in the server layer, we don't
@@ -503,7 +503,8 @@ export class FlightClientEntryPlugin {
       for (const [dep, actions] of actionEntryImports) {
         const remainingActionNames = []
         for (const action of actions) {
-          if (!createdActionIds.has(action[0])) {
+          // `action` is a [id, name] pair.
+          if (!createdActionIds.has(entryName + '@' + action[0])) {
             remainingActionNames.push(action)
           }
         }
@@ -519,8 +520,8 @@ export class FlightClientEntryPlugin {
             compiler,
             compilation,
             actions: remainingActionEntryImports,
-            entryName: name,
-            bundlePath: name,
+            entryName,
+            bundlePath: entryName,
             fromClient: true,
             createdActionIds,
           })
@@ -858,7 +859,7 @@ export class FlightClientEntryPlugin {
     const actionsArray = Array.from(actions.entries())
     for (const [, actionsFromModule] of actions) {
       for (const [id] of actionsFromModule) {
-        createdActionIds.add(id)
+        createdActionIds.add(entryName + '@' + id)
       }
     }
 
@@ -883,7 +884,11 @@ export class FlightClientEntryPlugin {
             layer: {},
           }
         }
-        currentCompilerServerActions[id].workers[bundlePath] = ''
+        currentCompilerServerActions[id].workers[bundlePath] = {
+          moduleId: '', // TODO: What's the meaning of this?
+          async: false,
+        }
+
         currentCompilerServerActions[id].layer[bundlePath] = fromClient
           ? WEBPACK_LAYERS.actionBrowser
           : WEBPACK_LAYERS.reactServerComponents
@@ -932,6 +937,13 @@ export class FlightClientEntryPlugin {
           }
 
           compilation.hooks.succeedEntry.call(dependency, options, module)
+
+          compilation.moduleGraph
+            .getExportsInfo(module)
+            .setUsedInUnknownWay(
+              this.isEdgeServer ? EDGE_RUNTIME_WEBPACK : DEFAULT_RUNTIME_WEBPACK
+            )
+
           return resolve(module)
         }
       )
@@ -962,7 +974,10 @@ export class FlightClientEntryPlugin {
         if (!mapping[chunkGroup.name]) {
           mapping[chunkGroup.name] = {}
         }
-        mapping[chunkGroup.name][fromClient ? 'client' : 'server'] = modId
+        mapping[chunkGroup.name][fromClient ? 'client' : 'server'] = {
+          moduleId: modId,
+          async: compilation.moduleGraph.isAsync(mod),
+        }
       }
     })
 
