@@ -3865,6 +3865,7 @@ export default async function build(
         mode: 'build',
         projectDir: dir,
         distDir: loadedConfig.distDir,
+        isTurboSession: turboNextBuild,
         sync: true,
       })
     }
