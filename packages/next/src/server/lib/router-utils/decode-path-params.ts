@@ -18,7 +18,7 @@ function decodePathParams(pathname: string): string {
         seg = escapePathDelimiters(decodeURIComponent(seg), true)
       } catch (_) {
         // An improperly encoded URL was provided
-        throw new DecodeError('failed to decode param')
+        throw new DecodeError('Failed to decode path param(s).')
       }
       return seg
     })
