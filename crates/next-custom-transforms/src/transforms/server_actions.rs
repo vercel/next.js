@@ -213,6 +213,24 @@ impl<C: Comments> ServerActions<C> {
         hex_encode(result)
     }
 
+    fn gen_action_ident(&mut self) -> JsWord {
+        let id: JsWord = format!("$$RSC_SERVER_ACTION_{0}", self.reference_index).into();
+        self.reference_index += 1;
+        id
+    }
+
+    fn gen_cache_ident(&mut self) -> JsWord {
+        let id: JsWord = format!("$$RSC_SERVER_CACHE_{0}", self.reference_index).into();
+        self.reference_index += 1;
+        id
+    }
+
+    fn gen_ref_ident(&mut self) -> JsWord {
+        let id: JsWord = format!("$$RSC_SERVER_REF_{0}", self.reference_index).into();
+        self.reference_index += 1;
+        id
+    }
+
     // Check if the function or arrow function is an action or cache function
     fn get_body_info(&mut self, maybe_body: Option<&mut BlockStmt>) -> (bool, Option<String>) {
         let mut is_action_fn = false;
@@ -284,7 +302,7 @@ impl<C: Comments> ServerActions<C> {
         ids_from_closure: Vec<Name>,
         arrow: &mut ArrowExpr,
     ) -> Box<Expr> {
-        let action_name = gen_action_ident(&mut self.reference_index).to_string();
+        let action_name = self.gen_action_ident().to_string();
 
         self.has_action = true;
         self.export_actions.push(action_name.to_string());
@@ -442,7 +460,7 @@ impl<C: Comments> ServerActions<C> {
         function: &mut Box<Function>,
         fn_name: Option<Ident>,
     ) -> Box<Expr> {
-        let action_name: JsWord = gen_action_ident(&mut self.reference_index);
+        let action_name: JsWord = self.gen_action_ident();
 
         self.has_action = true;
         self.export_actions.push(action_name.to_string());
@@ -579,7 +597,7 @@ impl<C: Comments> ServerActions<C> {
         cache_type: &str,
         arrow: &mut ArrowExpr,
     ) -> Box<Expr> {
-        let cache_name: JsWord = gen_cache_ident(&mut self.reference_index);
+        let cache_name: JsWord = self.gen_cache_ident();
         let cache_ident = private_ident!(cache_name.clone());
         let export_name: JsWord = cache_name;
 
@@ -744,7 +762,7 @@ impl<C: Comments> ServerActions<C> {
         // register action expression to the top-level, and return the bind
         // expression inline.
         if !bound_args.is_empty() {
-            let ref_ident = private_ident!(gen_ref_ident(&mut self.reference_index));
+            let ref_ident = private_ident!(self.gen_ref_ident());
 
             let ref_decl = VarDecl {
                 span: DUMMY_SP,
@@ -779,7 +797,7 @@ impl<C: Comments> ServerActions<C> {
         cache_type: &str,
         function: &mut Box<Function>,
     ) -> Box<Expr> {
-        let cache_name: JsWord = gen_cache_ident(&mut self.reference_index);
+        let cache_name: JsWord = self.gen_cache_ident();
         let cache_ident = private_ident!(cache_name.clone());
 
         self.has_cache = true;
@@ -919,7 +937,7 @@ impl<C: Comments> ServerActions<C> {
         // register action expression to the top-level, and return the bind
         // expression inline.
         if !bound_args.is_empty() {
-            let ref_ident = private_ident!(gen_ref_ident(&mut self.reference_index));
+            let ref_ident = private_ident!(self.gen_ref_ident());
 
             let ref_decl = VarDecl {
                 span: DUMMY_SP,
@@ -1555,11 +1573,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                 // Use the span from the function expression
                                 let span = f.function.span;
 
-                                let new_ident = Ident::new(
-                                    gen_action_ident(&mut self.reference_index),
-                                    span,
-                                    self.private_ctxt,
-                                );
+                                let new_ident =
+                                    Ident::new(self.gen_action_ident(), span, self.private_ctxt);
 
                                 f.ident = Some(new_ident.clone());
 
@@ -1581,11 +1596,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                 // Use the span of the arrow function
                                 let span = arrow.span;
 
-                                let new_ident = Ident::new(
-                                    gen_action_ident(&mut self.reference_index),
-                                    span,
-                                    self.private_ctxt,
-                                );
+                                let new_ident =
+                                    Ident::new(self.gen_action_ident(), span, self.private_ctxt);
 
                                 self.exported_idents
                                     .push((new_ident.clone(), "default".into()));
@@ -1605,11 +1617,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                 // Determining a useful span here is tricky.
                                 let span = call.span;
 
-                                let new_ident = Ident::new(
-                                    gen_action_ident(&mut self.reference_index),
-                                    span,
-                                    self.private_ctxt,
-                                );
+                                let new_ident =
+                                    Ident::new(self.gen_action_ident(), span, self.private_ctxt);
 
                                 self.exported_idents
                                     .push((new_ident.clone(), "default".into()));
@@ -2099,24 +2108,6 @@ fn retain_names_from_declared_idents(
 
     // Replace the original child_names with the retained names
     *child_names = retained_names;
-}
-
-fn gen_action_ident(cnt: &mut u32) -> JsWord {
-    let id: JsWord = format!("$$RSC_SERVER_ACTION_{cnt}").into();
-    *cnt += 1;
-    id
-}
-
-fn gen_cache_ident(cnt: &mut u32) -> JsWord {
-    let id: JsWord = format!("$$RSC_SERVER_CACHE_{cnt}").into();
-    *cnt += 1;
-    id
-}
-
-fn gen_ref_ident(cnt: &mut u32) -> JsWord {
-    let id: JsWord = format!("$$RSC_SERVER_REF_{cnt}").into();
-    *cnt += 1;
-    id
 }
 
 fn wrap_cache_expr(expr: Box<Expr>, name: &str, id: &str) -> Box<Expr> {

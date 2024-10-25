@@ -2,7 +2,7 @@
 import { encryptActionBoundArgs, decryptActionBoundArgs } from "private-next-rsc-action-encryption";
 import deleteFromDb from 'db';
 export const $$RSC_SERVER_ACTION_0 = async function deleteItem($$ACTION_CLOSURE_BOUND) {
-    var [$$ACTION_ARG_0, $$ACTION_ARG_1] = await decryptActionBoundArgs("6a88810ecce4a4e8b59d53b8327d7e98bbf251d7", $$ACTION_CLOSURE_BOUND);
+    var [$$ACTION_ARG_0, $$ACTION_ARG_1] = await decryptActionBoundArgs("006a88810ecce4a4e8b59d53b8327d7e98bbf251d7", $$ACTION_CLOSURE_BOUND);
     await deleteFromDb($$ACTION_ARG_0);
     await deleteFromDb($$ACTION_ARG_1);
 };
@@ -17,13 +17,8 @@ export function Item({ id1, id2 }) {
         id2
     ]));
 }
-<<<<<<< HEAD
-export async function $$RSC_SERVER_ACTION_0($$ACTION_CLOSURE_BOUND) {
-    var [$$ACTION_ARG_0, $$ACTION_ARG_1] = await decryptActionBoundArgs("006a88810ecce4a4e8b59d53b8327d7e98bbf251d7", $$ACTION_CLOSURE_BOUND);
-=======
 export const $$RSC_SERVER_ACTION_1 = async function deleteItem($$ACTION_CLOSURE_BOUND) {
-    var [$$ACTION_ARG_0, $$ACTION_ARG_1] = await decryptActionBoundArgs("90b5db271335765a4b0eab01f044b381b5ebd5cd", $$ACTION_CLOSURE_BOUND);
->>>>>>> canary
+    var [$$ACTION_ARG_0, $$ACTION_ARG_1] = await decryptActionBoundArgs("0090b5db271335765a4b0eab01f044b381b5ebd5cd", $$ACTION_CLOSURE_BOUND);
     await deleteFromDb($$ACTION_ARG_0);
     await deleteFromDb($$ACTION_ARG_1);
 };
@@ -41,11 +36,3 @@ export function Item2({ id1, id2 }) {
         id2
     ]));
 }
-<<<<<<< HEAD
-export async function $$RSC_SERVER_ACTION_1($$ACTION_CLOSURE_BOUND) {
-    var [$$ACTION_ARG_0, $$ACTION_ARG_1] = await decryptActionBoundArgs("0090b5db271335765a4b0eab01f044b381b5ebd5cd", $$ACTION_CLOSURE_BOUND);
-    await deleteFromDb($$ACTION_ARG_0);
-    await deleteFromDb($$ACTION_ARG_1);
-}
-=======
->>>>>>> canary
