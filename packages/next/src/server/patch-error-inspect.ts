@@ -4,6 +4,7 @@ import { SourceMapConsumer as SyncSourceMapConsumer } from 'next/dist/compiled/s
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import { parseStack } from '../client/components/react-dev-overlay/server/middleware'
 import { getOriginalCodeFrame } from '../client/components/react-dev-overlay/server/shared'
+import { workUnitAsyncStorage } from './app-render/work-unit-async-storage.external'
 
 // TODO: Implement for Edge runtime
 const inspectSymbol = Symbol.for('nodejs.util.inspect.custom')
@@ -186,43 +187,46 @@ export function patchErrorInspect() {
     inspectOptions: util.InspectOptions,
     inspect: typeof util.inspect
   ): string {
-    // Create a new Error object with the source mapping applied and then use native
-    // Node.js formatting on the result.
-    const newError =
-      this.cause !== undefined
-        ? // Setting an undefined `cause` would print `[cause]: undefined`
-          new Error(this.message, { cause: this.cause })
-        : new Error(this.message)
+    // avoid false-positive dynamic i/o warnings e.g. due to usage of `Math.random` in `source-map`.
+    return workUnitAsyncStorage.exit(() => {
+      // Create a new Error object with the source mapping applied and then use native
+      // Node.js formatting on the result.
+      const newError =
+        this.cause !== undefined
+          ? // Setting an undefined `cause` would print `[cause]: undefined`
+            new Error(this.message, { cause: this.cause })
+          : new Error(this.message)
 
-    // TODO: Ensure `class MyError extends Error {}` prints `MyError` as the name
-    newError.stack = parseAndSourceMap(this)
+      // TODO: Ensure `class MyError extends Error {}` prints `MyError` as the name
+      newError.stack = parseAndSourceMap(this)
 
-    for (const key in this) {
-      if (!Object.prototype.hasOwnProperty.call(newError, key)) {
-        // @ts-expect-error -- We're copying all enumerable properties.
-        // So they definitely exist on `this` and obviously have no type on `newError` (yet)
-        newError[key] = this[key]
+      for (const key in this) {
+        if (!Object.prototype.hasOwnProperty.call(newError, key)) {
+          // @ts-expect-error -- We're copying all enumerable properties.
+          // So they definitely exist on `this` and obviously have no type on `newError` (yet)
+          newError[key] = this[key]
+        }
       }
-    }
 
-    const originalCustomInspect = (newError as any)[inspectSymbol]
-    // Prevent infinite recursion.
-    // { customInspect: false } would result in `error.cause` not using our inspect.
-    Object.defineProperty(newError, inspectSymbol, {
-      value: undefined,
-      enumerable: false,
-      writable: true,
-    })
-    try {
-      return inspect(newError, {
-        ...inspectOptions,
-        depth:
-          (inspectOptions.depth ??
-            // Default in Node.js
-            2) - depth,
+      const originalCustomInspect = (newError as any)[inspectSymbol]
+      // Prevent infinite recursion.
+      // { customInspect: false } would result in `error.cause` not using our inspect.
+      Object.defineProperty(newError, inspectSymbol, {
+        value: undefined,
+        enumerable: false,
+        writable: true,
       })
-    } finally {
-      ;(newError as any)[inspectSymbol] = originalCustomInspect
-    }
+      try {
+        return inspect(newError, {
+          ...inspectOptions,
+          depth:
+            (inspectOptions.depth ??
+              // Default in Node.js
+              2) - depth,
+        })
+      } finally {
+        ;(newError as any)[inspectSymbol] = originalCustomInspect
+      }
+    })
   }
 }
