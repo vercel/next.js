@@ -268,7 +268,9 @@ const nextDev = async (
         delete nodeOptions['max_old_space_size']
       }
 
-      if (!options.disableSourceMaps) {
+      if (options.disableSourceMaps) {
+        delete nodeOptions['enable-source-maps']
+      } else {
         nodeOptions['enable-source-maps'] = true
       }
 
