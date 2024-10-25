@@ -81,8 +81,8 @@ Dynamic metadata depends on **dynamic information**, such as the current route p
 import type { Metadata, ResolvingMetadata } from 'next'
 
 type Props = {
-  params: { id: string }
-  searchParams: { [key: string]: string | string[] | undefined }
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }
 
 export async function generateMetadata(
@@ -1154,8 +1154,8 @@ export async function generateMetadata(): Promise<Metadata> {
 import type { Metadata } from 'next'
 
 type Props = {
-  params: { id: string }
-  searchParams: { [key: string]: string | string[] | undefined }
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }
 
 export function generateMetadata({ params, searchParams }: Props): Metadata {
