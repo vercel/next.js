@@ -83,7 +83,7 @@ test.use({
         })
       }),
       // allow all non-mocked routes to pass through
-      http.get('*', () => {
+      http.all('*', () => {
         return passthrough()
       }),
     ],
