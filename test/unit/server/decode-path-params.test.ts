@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import { decodePathParams } from 'next/src/server/lib/router-utils/decode-path-params'
+import { decodePathParams } from '../../../packages/next/src/server/lib/router-utils/decode-path-params'
 
 describe('decoding path params', () => {
   it('should decode path params', () => {
