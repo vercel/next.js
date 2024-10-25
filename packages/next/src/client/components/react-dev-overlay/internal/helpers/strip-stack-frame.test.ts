@@ -1,36 +1,31 @@
-import { stripStackByFrame } from './strip-stack-frame'
+import { stripReactStackTrace } from './strip-stack-frame'
 
-describe('stripStackByFrame', () => {
+describe('stripReactStackTrace', () => {
   it('strips stack after frame', () => {
-    const stripStackByFrameBefore = (stack: string) =>
-      stripStackByFrame(stack, 'special-stack-frame', true)
-
     const stack = `Error: test
     at page (http://localhost:3000/_next/static/chunks/webpack.js:1:1)
-    at special-stack-frame (http://localhost:3000/_next/static/chunks/webpack.js:1:1)
+    at react-stack-bottom-frame (http://localhost:3000/_next/static/chunks/webpack.js:1:1)
     at foo (http://localhost:3000/_next/static/chunks/webpack.js:1:1)
     `
 
-    const strippedStack = stripStackByFrameBefore(stack)
+    const strippedStack = stripReactStackTrace(stack)
     expect(strippedStack).toMatchInlineSnapshot(`
-      "Error: test
-          at page (http://localhost:3000/_next/static/chunks/webpack.js:1:1)"
+      "    at foo (http://localhost:3000/_next/static/chunks/webpack.js:1:1)
+          "
     `)
   })
 
-  it('strips stack before frame', () => {
-    const stripStackByFrameAfter = (stack: string) =>
-      stripStackByFrame(stack, 'special-stack-frame', false)
-
+  it('strips nothing if there is no react stack', () => {
     const stack = `Error: test
     at page (http://localhost:3000/_next/static/chunks/webpack.js:1:1)
-    at special-stack-frame (http://localhost:3000/_next/static/chunks/webpack.js:1:1)
     at foo (http://localhost:3000/_next/static/chunks/webpack.js:1:1)
     `
 
-    const strippedStack = stripStackByFrameAfter(stack)
+    const strippedStack = stripReactStackTrace(stack)
     expect(strippedStack).toMatchInlineSnapshot(`
-      "    at foo (http://localhost:3000/_next/static/chunks/webpack.js:1:1)
+      "Error: test
+          at page (http://localhost:3000/_next/static/chunks/webpack.js:1:1)
+          at foo (http://localhost:3000/_next/static/chunks/webpack.js:1:1)
           "
     `)
   })

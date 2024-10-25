@@ -1,12 +1,9 @@
 import isError from '../../../lib/is-error'
 import { isNextRouterError } from '../is-next-router-error'
-import { stripStackByFrame } from '../react-dev-overlay/internal/helpers/strip-stack-frame'
+import { captureStackTrace } from '../react-dev-overlay/internal/helpers/capture-stack-trace'
 import { handleClientError } from '../react-dev-overlay/internal/helpers/use-error-handler'
 
 const NEXT_CONSOLE_STACK_FRAME = 'next-console-stack-frame'
-
-const stripBeforeNextConsoleFrame = (stack: string) =>
-  stripStackByFrame(stack, NEXT_CONSOLE_STACK_FRAME, false)
 
 export const originConsoleError = window.console.error
 
@@ -38,17 +35,15 @@ export function patchConsoleError() {
       if (!isNextRouterError(maybeError)) {
         if (process.env.NODE_ENV !== 'production') {
           // Create an origin stack that pointing to the origin location of the error
-          const captureStackErrorStackTrace = new Error().stack || ''
-          const strippedStack = stripBeforeNextConsoleFrame(
-            captureStackErrorStackTrace
-          )
+          if (!isReplayedError && isError(maybeError)) {
+            captureStackTrace(maybeError)
+          }
 
           handleClientError(
             // replayed errors have their own complex format string that should be used,
             // but if we pass the error directly, `handleClientError` will ignore it
             maybeError,
-            args,
-            isReplayedError ? '' : strippedStack
+            args
           )
         }
 

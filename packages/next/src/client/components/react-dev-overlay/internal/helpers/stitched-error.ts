@@ -1,11 +1,6 @@
 import React from 'react'
 import isError from '../../../../../lib/is-error'
-import { stripStackByFrame } from './strip-stack-frame'
-
-const REACT_ERROR_STACK_BOTTOM_FRAME = 'react-stack-bottom-frame'
-
-const stripAfterReactBottomFrame = (stack: string) =>
-  stripStackByFrame(stack, REACT_ERROR_STACK_BOTTOM_FRAME, true)
+import { stripReactStackTrace } from './strip-stack-frame'
 
 export function getReactStitchedError<T = unknown>(err: T): Error | T {
   if (typeof (React as any).captureOwnerStack !== 'function') {
@@ -15,7 +10,7 @@ export function getReactStitchedError<T = unknown>(err: T): Error | T {
   const isErrorInstance = isError(err)
   const originStack = isErrorInstance ? err.stack || '' : ''
   const originMessage = isErrorInstance ? err.message : ''
-  let newStack = stripAfterReactBottomFrame(originStack)
+  let newStack = stripReactStackTrace(originStack)
 
   const newError = new Error(originMessage)
   // Copy all enumerable properties, e.g. digest

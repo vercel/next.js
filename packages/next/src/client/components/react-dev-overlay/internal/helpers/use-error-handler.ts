@@ -16,18 +16,13 @@ const rejectionHandlers: Array<ErrorHandler> = []
 
 export function handleClientError(
   originError: unknown,
-  consoleErrorArgs: any[],
-  originStack?: string
+  consoleErrorArgs: any[]
 ) {
   let error: Error
   if (!originError || !isError(originError)) {
     // If it's not an error, format the args into an error
     const formattedErrorMessage = formatConsoleArgs(consoleErrorArgs)
     error = createUnhandledError(formattedErrorMessage)
-    // When the originStack is provided, strip the stack after the react-bottom-stack-frame
-    if (originStack) {
-      error.stack = originStack
-    }
   } else {
     error = originError
   }
