@@ -52,7 +52,7 @@
     "lint-staged": "lint-staged",
     "next-with-deps": "./scripts/next-with-deps.sh",
     "next": "cross-env NEXT_TELEMETRY_DISABLED=1 node --trace-deprecation --enable-source-maps packages/next/dist/bin/next",
-    "next-no-sourcemaps": "cross-env NEXT_TELEMETRY_DISABLED=1 node --trace-deprecation packages/next/dist/bin/next",
+    "next-no-sourcemaps": "echo 'No longer supported. Use `pnpm next --disable-source-maps` instead'; exit 1;",
     "clean-trace-jaeger": "node scripts/rm.mjs test/integration/basic/.next && TRACE_TARGET=JAEGER pnpm next build test/integration/basic",
     "debug": "cross-env NEXT_TELEMETRY_DISABLED=1 node --inspect --trace-deprecation --enable-source-maps packages/next/dist/bin/next",
     "postinstall": "node scripts/git-configure.mjs && node scripts/install-native.mjs",

@@ -40,6 +40,7 @@ import { flushAllTraces, trace } from '../trace'
 import { traceId } from '../trace/shared'
 
 export type NextDevOptions = {
+  disableSourceMaps: boolean
   turbo?: boolean
   turbopack?: boolean
   port: number
@@ -267,7 +268,9 @@ const nextDev = async (
         delete nodeOptions['max_old_space_size']
       }
 
-      nodeOptions['enable-source-maps'] = true
+      if (!options.disableSourceMaps) {
+        nodeOptions['enable-source-maps'] = true
+      }
 
       if (nodeDebugType) {
         const address = getParsedDebugAddress()
