@@ -85,7 +85,6 @@ import RenderResult from './render-result'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import * as Log from '../build/output/log'
-import escapePathDelimiters from '../shared/lib/router/utils/escape-path-delimiters'
 import { getUtils } from './server-utils'
 import isError, { getProperError } from '../lib/is-error'
 import {
@@ -143,6 +142,7 @@ import {
 } from './web/spec-extension/adapters/next-request'
 import { matchNextDataPathname } from './lib/match-next-data-pathname'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
+import { decodePathParams } from './lib/router-utils/decode-path-params'
 import { RSCPathnameNormalizer } from './normalizers/request/rsc'
 import { PostponedPathnameNormalizer } from './normalizers/request/postponed'
 import { stripFlightHeaders } from './app-render/strip-flight-headers'
@@ -1834,28 +1834,6 @@ export default abstract class Server<
     })
   }
 
-  // we only encode path delimiters for path segments from
-  // getStaticPaths so we need to attempt decoding the URL
-  // to match against and only escape the path delimiters
-  // this allows non-ascii values to be handled e.g. Japanese characters
-
-  // TODO: investigate adding this handling for non-SSG pages so
-  // non-ascii names work there also
-  private static decode(key: string) {
-    return key
-      .split('/')
-      .map((seg) => {
-        try {
-          seg = escapePathDelimiters(decodeURIComponent(seg), true)
-        } catch (_) {
-          // An improperly encoded URL was provided
-          throw new DecodeError('failed to decode param')
-        }
-        return seg
-      })
-      .join('/')
-  }
-
   private async renderImpl(
     req: ServerRequest,
     res: ServerResponse,
@@ -2380,7 +2358,7 @@ export default abstract class Server<
     }
 
     if (ssgCacheKey) {
-      ssgCacheKey = Server.decode(ssgCacheKey)
+      ssgCacheKey = decodePathParams(ssgCacheKey)
 
       // ensure /index and / is normalized to one key
       ssgCacheKey =
@@ -2897,7 +2875,7 @@ export default abstract class Server<
       // with prerendered paths.
       let staticPathKey = ssgCacheKey
       if (!staticPathKey && opts.dev && isAppPath) {
-        staticPathKey = Server.decode(resolvedUrlPathname)
+        staticPathKey = decodePathParams(resolvedUrlPathname)
       }
       if (staticPathKey && query.amp) {
         staticPathKey = staticPathKey.replace(/\.amp$/, '')
