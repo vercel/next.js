@@ -50,7 +50,7 @@ export function findSourcePackage({
 export function getOriginalCodeFrame(
   frame: StackFrame,
   source: string | null
-): string | null {
+): string | null | undefined {
   if (!source || isInternal(frame.file)) {
     return null
   }
