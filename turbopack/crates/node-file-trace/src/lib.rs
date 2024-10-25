@@ -23,8 +23,8 @@ use serde::Deserialize;
 use serde::Serialize;
 use tokio::sync::mpsc::channel;
 use turbo_tasks::{
-    backend::Backend, util::FormatDuration, RcStr, ReadConsistency, TaskId, TransientInstance,
-    TransientValue, TurboTasks, UpdateInfo, Value, Vc,
+    backend::Backend, util::FormatDuration, RcStr, ReadConsistency, ResolvedVc, TaskId,
+    TransientInstance, TransientValue, TurboTasks, UpdateInfo, Value, Vc,
 };
 use turbo_tasks_fs::{
     glob::Glob, DirectoryEntry, DiskFileSystem, FileSystem, FileSystemPath, ReadGlobResult,
@@ -565,7 +565,7 @@ async fn main_operation(
 
 #[turbo_tasks::function]
 async fn create_module_asset(
-    root: Vc<FileSystemPath>,
+    root: ResolvedVc<FileSystemPath>,
     process_cwd: Option<RcStr>,
     module_options: TransientInstance<ModuleOptionsContext>,
     resolve_options: TransientInstance<ResolveOptionsContext>,
@@ -580,14 +580,14 @@ async fn create_module_asset(
     let compile_time_info = CompileTimeInfo::builder(env).cell();
     let glob_mappings = vec![
         (
-            root.to_resolved().await?,
+            root,
             Glob::new("**/*/next/dist/server/next.js".into())
                 .to_resolved()
                 .await?,
             ImportMapping::Ignore.resolved_cell(),
         ),
         (
-            root.to_resolved().await?,
+            root,
             Glob::new("**/*/next/dist/bin/next".into())
                 .to_resolved()
                 .await?,

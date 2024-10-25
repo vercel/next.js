@@ -13,15 +13,14 @@ pub struct IntrospectableOutputAsset(ResolvedVc<Box<dyn OutputAsset>>);
 #[turbo_tasks::value_impl]
 impl IntrospectableOutputAsset {
     #[turbo_tasks::function]
-    pub async fn new(asset: Vc<Box<dyn OutputAsset>>) -> Result<Vc<Box<dyn Introspectable>>> {
-        let resolved_asset = asset.to_resolved().await?;
-        Ok(
-            *ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(resolved_asset)
-                .await?
-                .unwrap_or_else(|| {
-                    ResolvedVc::upcast(IntrospectableOutputAsset(resolved_asset).resolved_cell())
-                }),
-        )
+    pub async fn new(
+        asset: ResolvedVc<Box<dyn OutputAsset>>,
+    ) -> Result<Vc<Box<dyn Introspectable>>> {
+        Ok(*ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(asset)
+            .await?
+            .unwrap_or_else(|| {
+                ResolvedVc::upcast(IntrospectableOutputAsset(asset).resolved_cell())
+            }))
     }
 }
 

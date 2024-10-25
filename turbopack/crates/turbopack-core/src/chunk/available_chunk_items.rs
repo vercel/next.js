@@ -43,7 +43,7 @@ impl AvailableChunkItems {
 
     #[turbo_tasks::function]
     pub async fn with_chunk_items(
-        self: Vc<Self>,
+        self: ResolvedVc<Self>,
         chunk_items: Vc<AvailableChunkItemInfoMap>,
     ) -> Result<Vc<Self>> {
         let chunk_items = chunk_items
@@ -59,7 +59,7 @@ impl AvailableChunkItems {
             .try_flat_join()
             .await?;
         Ok(AvailableChunkItems {
-            parent: Some(self.to_resolved().await?),
+            parent: Some(self),
             chunk_items: Vc::cell(chunk_items.into_iter().collect()),
         }
         .cell())
@@ -89,14 +89,13 @@ impl AvailableChunkItems {
     #[turbo_tasks::function]
     pub async fn get(
         &self,
-        chunk_item: Vc<Box<dyn ChunkItem>>,
+        chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
     ) -> Result<Vc<OptionAvailableChunkItemInfo>> {
-        let resolved_chunk_item = chunk_item.to_resolved().await?;
-        if let Some(&info) = self.chunk_items.await?.get(&resolved_chunk_item) {
+        if let Some(&info) = self.chunk_items.await?.get(&chunk_item) {
             return Ok(Vc::cell(Some(info)));
         };
         if let Some(parent) = self.parent {
-            return Ok(parent.get(chunk_item));
+            return Ok(parent.get(*chunk_item));
         }
         Ok(Vc::cell(None))
     }

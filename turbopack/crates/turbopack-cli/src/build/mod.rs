@@ -118,7 +118,7 @@ impl TurbopackBuildBuilder {
                     self.entry_requests
                         .iter()
                         .cloned()
-                        .map(EntryRequest::resolved_cell) // Changed from cell() to resolved_cell()
+                        .map(EntryRequest::resolved_cell)
                         .collect(),
                 )
                 .cell(),

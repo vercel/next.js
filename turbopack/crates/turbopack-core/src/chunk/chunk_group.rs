@@ -169,7 +169,6 @@ pub async fn make_chunk_group(
         chunks.extend(async_loader_chunks.iter().copied());
     }
 
-    // Convert chunks to ResolvedVc
     let resolved_chunks = chunks
         .into_iter()
         .map(|chunk| chunk.to_resolved())

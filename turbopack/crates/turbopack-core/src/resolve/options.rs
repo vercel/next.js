@@ -324,9 +324,7 @@ async fn import_mapping_to_result(
     request: Vc<Request>,
 ) -> Result<ImportMapResult> {
     Ok(match &*mapping.await? {
-        ReplacedImportMapping::Direct(result) => {
-            ImportMapResult::Result(*result.to_resolved().await?)
-        }
+        ReplacedImportMapping::Direct(result) => ImportMapResult::Result(*result),
         ReplacedImportMapping::External(name, ty) => ImportMapResult::Result(
             *ResolveResult::primary(if let Some(name) = name {
                 ResolveResultItem::External(name.clone(), *ty)
@@ -345,11 +343,11 @@ async fn import_mapping_to_result(
         ),
         ReplacedImportMapping::PrimaryAlternative(name, context) => {
             let request = Request::parse(Value::new(name.clone()));
-            let context = match context {
+            let context_resolved = match context {
                 Some(c) => Some((*c).to_resolved().await?),
                 None => None,
             };
-            ImportMapResult::Alias(request.to_resolved().await?, context)
+            ImportMapResult::Alias(request.to_resolved().await?, context_resolved)
         }
         ReplacedImportMapping::Alternatives(list) => ImportMapResult::Alternatives(
             list.iter()

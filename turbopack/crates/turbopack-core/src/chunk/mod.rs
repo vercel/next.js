@@ -593,10 +593,7 @@ async fn chunk_content_internal_parallel(
             Ok(Some(ChunkGraphEdge {
                 key: Some(entry.to_resolved().await?),
                 node: ChunkContentGraphNode::ChunkItem {
-                    item: *chunkable_module
-                        .as_chunk_item(chunking_context)
-                        .to_resolved()
-                        .await?,
+                    item: chunkable_module.as_chunk_item(chunking_context),
                     ident: chunkable_module.ident().to_string().await?,
                 },
             }))
@@ -743,12 +740,11 @@ pub struct AsyncModuleInfo {
 impl AsyncModuleInfo {
     #[turbo_tasks::function]
     pub async fn new(referenced_async_modules: Vec<Vc<Box<dyn ChunkItem>>>) -> Result<Vc<Self>> {
-        let resolved_modules = futures::future::try_join_all(
-            referenced_async_modules
-                .into_iter()
-                .map(|m| m.to_resolved()),
-        )
-        .await?;
+        let resolved_modules = referenced_async_modules
+            .into_iter()
+            .map(|m| m.to_resolved())
+            .try_join()
+            .await?;
 
         Ok(Self {
             referenced_async_modules: resolved_modules.into_iter().collect(),
