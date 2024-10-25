@@ -172,7 +172,7 @@ async function nextMetadataImageLoader(
     const imageData = ${JSON.stringify(imageData)}
     const imageUrl = fillMetadataSegment(${JSON.stringify(
       pathnamePrefix
-    )}, props.params, ${JSON.stringify(pageSegment)})
+    )}, await props.params, ${JSON.stringify(pageSegment)})
 
     return [{
       ...imageData,
