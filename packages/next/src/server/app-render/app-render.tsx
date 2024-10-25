@@ -2055,27 +2055,6 @@ async function spawnDynamicValidationInDev(
   let clientDynamicTracking = createDynamicTrackingState(false)
   let dynamicValidation = createDynamicValidationState()
 
-  function SSROnError(err: unknown, errorInfo?: ErrorInfo) {
-    if (
-      isPrerenderInterruptedError(err) ||
-      firstAttemptServerController.signal.aborted
-    ) {
-      const componentStack: string | undefined = (errorInfo as any)
-        .componentStack
-      if (typeof componentStack === 'string' && err instanceof Error) {
-        trackAllowedDynamicAccess(
-          route,
-          componentStack,
-          dynamicValidation,
-          serverDynamicTracking,
-          clientDynamicTracking
-        )
-      }
-      return undefined
-    }
-    return undefined
-  }
-
   const firstAttemptClientController = new AbortController()
   const firstAttemptClientPrerenderStore: PrerenderStore = {
     type: 'prerender',
@@ -2116,7 +2095,27 @@ async function spawnDynamicValidationInDev(
             />,
             {
               signal: firstAttemptClientController.signal,
-              onError: SSROnError,
+              onError: (err: unknown, errorInfo: ErrorInfo) => {
+                if (
+                  isPrerenderInterruptedError(err) ||
+                  firstAttemptServerController.signal.aborted
+                ) {
+                  const componentStack: string | undefined = (errorInfo as any)
+                    .componentStack
+                  if (
+                    typeof componentStack === 'string' &&
+                    err instanceof Error
+                  ) {
+                    trackAllowedDynamicAccess(
+                      route,
+                      componentStack,
+                      dynamicValidation,
+                      serverDynamicTracking,
+                      clientDynamicTracking
+                    )
+                  }
+                }
+              },
             }
           )
           .catch(() => {})
@@ -2185,7 +2184,28 @@ async function spawnDynamicValidationInDev(
               />,
               {
                 signal: secondAttemptClientController.signal,
-                onError: SSROnError,
+                onError: (err: unknown, errorInfo: ErrorInfo) => {
+                  if (
+                    isPrerenderInterruptedError(err) ||
+                    secondAttemptClientController.signal.aborted
+                  ) {
+                    const componentStack: string | undefined = (
+                      errorInfo as any
+                    ).componentStack
+                    if (
+                      typeof componentStack === 'string' &&
+                      err instanceof Error
+                    ) {
+                      trackAllowedDynamicAccess(
+                        route,
+                        componentStack,
+                        dynamicValidation,
+                        serverDynamicTracking,
+                        clientDynamicTracking
+                      )
+                    }
+                  }
+                },
               }
             )
             .catch(() => {})
