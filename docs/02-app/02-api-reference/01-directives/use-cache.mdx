@@ -239,6 +239,7 @@ For example, if you add the `use cache` directive to your page, without specifyi
 ```tsx filename="app/components/parent.tsx" highlight={5,6,19,20}
 // Parent component
 import { unstable_cacheLife as cacheLife } from 'next/cache'
+import { ChildComponent } from './child'
 
 export async function ParentComponent() {
   'use cache'
@@ -257,6 +258,7 @@ import { unstable_cacheLife as cacheLife } from 'next/cache'
 export async function ChildComponent() {
   'use cache'
   cacheLife('hours')
+  return <div>Child Content</div>
 
   // This component's cache will respect the shorter 'hours' profile
 }
