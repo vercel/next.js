@@ -5,7 +5,7 @@ use swc_core::{
     ecma::ast::{Decl, Expr, ExprStmt, Ident, Stmt},
     quote,
 };
-use turbo_tasks::{RcStr, Value, ValueToString, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::{
@@ -40,9 +40,10 @@ use crate::{
 
 #[turbo_tasks::value]
 pub enum ReferencedAsset {
-    Some(Vc<Box<dyn EcmascriptChunkPlaceable>>),
+    Some(ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>),
     External(RcStr, ExternalType),
     None,
+    Unresolvable,
 }
 
 impl ReferencedAsset {
@@ -52,7 +53,7 @@ impl ReferencedAsset {
             ReferencedAsset::External(request, ty) => Some(magic_identifier::mangle(&format!(
                 "{ty} external {request}"
             ))),
-            ReferencedAsset::None => None,
+            ReferencedAsset::None | ReferencedAsset::Unresolvable => None,
         })
     }
 
@@ -72,7 +73,11 @@ impl ReferencedAsset {
     #[turbo_tasks::function]
     pub async fn from_resolve_result(resolve_result: Vc<ModuleResolveResult>) -> Result<Vc<Self>> {
         // TODO handle multiple keyed results
-        for (_key, result) in resolve_result.await?.primary.iter() {
+        let result = resolve_result.await?;
+        if result.primary.is_empty() {
+            return Ok(ReferencedAsset::Unresolvable.cell());
+        }
+        for (_key, result) in result.primary.iter() {
             match result {
                 ModuleResolveResultItem::External(request, ty) => {
                     return Ok(ReferencedAsset::External(request.clone(), *ty).cell());
@@ -82,14 +87,14 @@ impl ReferencedAsset {
                         Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkPlaceable>>(module)
                             .await?
                     {
-                        return Ok(ReferencedAsset::cell(ReferencedAsset::Some(placeable)));
+                        return Ok(ReferencedAsset::Some(placeable.to_resolved().await?).cell());
                     }
                 }
                 // TODO ignore should probably be handled differently
                 _ => {}
             }
         }
-        Ok(ReferencedAsset::cell(ReferencedAsset::None))
+        Ok(ReferencedAsset::None.cell())
     }
 }
 
@@ -100,13 +105,9 @@ pub struct EsmAssetReference {
     pub request: Vc<Request>,
     pub annotations: ImportAnnotations,
     pub issue_source: Vc<IssueSource>,
-    pub export_name: Option<Vc<ModulePart>>,
+    pub export_name: Option<ResolvedVc<ModulePart>>,
     pub import_externals: bool,
 }
-
-/// A list of [EsmAssetReference]s
-#[turbo_tasks::value(transparent)]
-pub struct EsmAssetReferences(Vec<Vc<EsmAssetReference>>);
 
 impl EsmAssetReference {
     fn get_origin(&self) -> Vc<Box<dyn ResolveOrigin>> {
@@ -126,7 +127,7 @@ impl EsmAssetReference {
         request: Vc<Request>,
         issue_source: Vc<IssueSource>,
         annotations: Value<ImportAnnotations>,
-        export_name: Option<Vc<ModulePart>>,
+        export_name: Option<ResolvedVc<ModulePart>>,
         import_externals: bool,
     ) -> Vc<Self> {
         Self::cell(EsmAssetReference {
@@ -152,7 +153,7 @@ impl ModuleReference for EsmAssetReference {
         let ty = if matches!(self.annotations.module_type(), Some("json")) {
             EcmaScriptModulesReferenceSubType::ImportWithType(ImportWithType::Json)
         } else if let Some(part) = &self.export_name {
-            EcmaScriptModulesReferenceSubType::ImportPart(*part)
+            EcmaScriptModulesReferenceSubType::ImportPart(**part)
         } else {
             EcmaScriptModulesReferenceSubType::Import
         };
@@ -166,7 +167,7 @@ impl ModuleReference for EsmAssetReference {
                             .expect("EsmAssetReference origin should be a EcmascriptModuleAsset");
 
                     return Ok(ModuleResolveResult::module(
-                        EcmascriptModulePartAsset::select_part(module, part),
+                        EcmascriptModulePartAsset::select_part(module, *part),
                     )
                     .cell());
                 }
@@ -179,7 +180,7 @@ impl ModuleReference for EsmAssetReference {
             self.get_origin().resolve().await?,
             self.request,
             Value::new(ty),
-            IssueSeverity::Error.cell(),
+            false,
             Some(self.issue_source),
         );
 
@@ -191,7 +192,7 @@ impl ModuleReference for EsmAssetReference {
                         let export = export_name.await?;
                         if *is_export_missing(module, export.clone_value()).await? {
                             InvalidExport {
-                                export: export_name,
+                                export: *export_name,
                                 module,
                                 source: self.issue_source,
                             }
@@ -248,28 +249,21 @@ impl CodeGenerateable for EsmAssetReference {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
         let this = &*self.await?;
-        let chunking_type = self.chunking_type().await?;
-        let resolved = self.resolve_reference().await?;
-
-        // Insert code that throws immediately at time of import if a request is
-        // unresolvable
-        if resolved.is_unresolveable_ref() {
-            let request = request_to_string(this.request).await?.to_string();
-            let stmt = Stmt::Expr(ExprStmt {
-                expr: Box::new(throw_module_not_found_expr(&request)),
-                span: DUMMY_SP,
-            });
-            return Ok(CodeGeneration::hoisted_stmt(
-                format!("throw {request}").into(),
-                stmt,
-            ));
-        }
 
         // only chunked references can be imported
-        let result = if chunking_type.is_some() {
-            let referenced_asset = self.get_referenced_asset().await?;
+        let result = if this.annotations.chunking_type() != Some("none") {
             let import_externals = this.import_externals;
-            if let Some(ident) = referenced_asset.get_ident().await? {
+            let referenced_asset = self.get_referenced_asset().await?;
+            if let ReferencedAsset::Unresolvable = &*referenced_asset {
+                // Insert code that throws immediately at time of import if a request is
+                // unresolvable
+                let request = request_to_string(this.request).await?.to_string();
+                let stmt = Stmt::Expr(ExprStmt {
+                    expr: Box::new(throw_module_not_found_expr(&request)),
+                    span: DUMMY_SP,
+                });
+                Some((format!("throw {request}").into(), stmt))
+            } else if let Some(ident) = referenced_asset.get_ident().await? {
                 let span = this
                     .issue_source
                     .await?
@@ -279,6 +273,9 @@ impl CodeGenerateable for EsmAssetReference {
                         Span::new(BytePos(start as u32), BytePos(end as u32))
                     });
                 match &*referenced_asset {
+                    ReferencedAsset::Unresolvable => {
+                        unreachable!()
+                    }
                     ReferencedAsset::Some(asset) => {
                         let id = asset
                             .as_chunk_item(Vc::upcast(chunking_context))

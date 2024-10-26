@@ -550,7 +550,7 @@ To create and manage stateless sessions, there are a few steps you need to follo
 
 1. Generate a secret key, which will be used to sign your session, and store it as an [environment variable](/docs/app/building-your-application/configuring/environment-variables).
 2. Write logic to encrypt/decrypt session data using a session management library.
-3. Manage cookies using the Next.js [`cookies()`](/docs/app/api-reference/functions/cookies) API.
+3. Manage cookies using the Next.js [`cookies`](/docs/app/api-reference/functions/cookies) API.
 
 In addition to the above, consider adding functionality to [update (or refresh)](#updating-or-refreshing-sessions) the session when the user returns to the application, and [delete](#deleting-the-session) the session when the user logs out.
 
@@ -641,7 +641,7 @@ export async function decrypt(session) {
 
 #### 3. Setting cookies (recommended options)
 
-To store the session in a cookie, use the Next.js [`cookies()`](/docs/app/api-reference/functions/cookies) API. The cookie should be set on the server, and include the recommended options:
+To store the session in a cookie, use the Next.js [`cookies`](/docs/app/api-reference/functions/cookies) API. The cookie should be set on the server, and include the recommended options:
 
 - **HttpOnly**: Prevents client-side JavaScript from accessing the cookie.
 - **Secure**: Use https to send the cookie.
@@ -657,15 +657,17 @@ import { cookies } from 'next/headers'
 
 export async function createSession(userId: string) {
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-  const session = await encrypt({ userId, expiresAt })
-
-  cookies().set('session', session, {
-    httpOnly: true,
-    secure: true,
-    expires: expiresAt,
-    sameSite: 'lax',
-    path: '/',
-  })
+  const session = await encrypt({ userId, expiresAt })(await cookies()).set(
+    'session',
+    session,
+    {
+      httpOnly: true,
+      secure: true,
+      expires: expiresAt,
+      sameSite: 'lax',
+      path: '/',
+    }
+  )
 }
 ```
 
@@ -676,8 +678,9 @@ import { cookies } from 'next/headers'
 export async function createSession(userId) {
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
   const session = await encrypt({ userId, expiresAt })
+  const cookieStore = await cookies()
 
-  cookies().set('session', session, {
+  cookieStore().set('session', session, {
     httpOnly: true,
     secure: true,
     expires: expiresAt,
@@ -738,7 +741,7 @@ import { cookies } from 'next/headers'
 import { decrypt } from '@/app/lib/session'
 
 export async function updateSession() {
-  const session = cookies().get('session')?.value
+  const session = (await cookies()).get('session')?.value
   const payload = await decrypt(session)
 
   if (!session || !payload) {
@@ -746,7 +749,9 @@ export async function updateSession() {
   }
 
   const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-  cookies().set('session', session, {
+
+  const cookieStore = await cookies()
+  cookieStore().set('session', session, {
     httpOnly: true,
     secure: true,
     expires: expires,
@@ -762,15 +767,16 @@ import { cookies } from 'next/headers'
 import { decrypt } from '@/app/lib/session'
 
 export async function updateSession() {
-  const session = cookies().get('session').value
+  const session = (await cookies()).get('session')?.value
   const payload = await decrypt(session)
 
   if (!session || !payload) {
     return null
   }
 
-  const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-  cookies().set('session', session, {
+  const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)(
+    await cookies()
+  ).set('session', session, {
     httpOnly: true,
     secure: true,
     expires: expires,
@@ -790,8 +796,9 @@ To delete the session, you can delete the cookie:
 import 'server-only'
 import { cookies } from 'next/headers'
 
-export function deleteSession() {
-  cookies().delete('session')
+export async function deleteSession() {
+  const cookieStore = await cookies()
+  cookieStore().delete('session')
 }
 ```
 
@@ -799,8 +806,9 @@ export function deleteSession() {
 import 'server-only'
 import { cookies } from 'next/headers'
 
-export function deleteSession() {
-  cookies().delete('session')
+export async function deleteSession() {
+  const cookieStore = await cookies()
+  cookieStore().delete('session')
 }
 ```
 
@@ -911,7 +919,8 @@ export async function createSession(id: number) {
   const session = await encrypt({ sessionId, expiresAt })
 
   // 3. Store the session in cookies for optimistic auth checks
-  cookies().set('session', session, {
+  const cookieStore = await cookies()
+  cookieStore().set('session', session, {
     httpOnly: true,
     secure: true,
     expires: expiresAt,
@@ -945,7 +954,8 @@ export async function createSession(id) {
   const session = await encrypt({ sessionId, expiresAt })
 
   // 3. Store the session in cookies for optimistic auth checks
-  cookies().set('session', session, {
+  const cookieStore = await cookies()
+  cookieStore().set('session', session, {
     httpOnly: true,
     secure: true,
     expires: expiresAt,
@@ -1056,7 +1066,7 @@ export default async function middleware(req: NextRequest) {
   const isPublicRoute = publicRoutes.includes(path)
 
   // 3. Decrypt the session from the cookie
-  const cookie = cookies().get('session')?.value
+  const cookie = (await cookies()).get('session')?.value
   const session = await decrypt(cookie)
 
   // 4. Redirect to /login if the user is not authenticated
@@ -1098,7 +1108,7 @@ export default async function middleware(req) {
   const isPublicRoute = publicRoutes.includes(path)
 
   // 3. Decrypt the session from the cookie
-  const cookie = cookies().get('session')?.value
+  const cookie = (await cookies()).get('session')?.value
   const session = await decrypt(cookie)
 
   // 5. Redirect to /login if the user is not authenticated
@@ -1149,7 +1159,7 @@ import { cookies } from 'next/headers'
 import { decrypt } from '@/app/lib/session'
 
 export const verifySession = cache(async () => {
-  const cookie = cookies().get('session')?.value
+  const cookie = (await cookies()).get('session')?.value
   const session = await decrypt(cookie)
 
   if (!session?.userId) {
@@ -1167,7 +1177,7 @@ import { cookies } from 'next/headers'
 import { decrypt } from '@/app/lib/session'
 
 export const verifySession = cache(async () => {
-  const cookie = cookies().get('session').value
+  const cookie = (await cookies()).get('session')?.value
   const session = await decrypt(cookie)
 
   if (!session.userId) {
@@ -1553,7 +1563,7 @@ export default function Profile() {
 }
 ```
 
-If session data is needed in Client Components (e.g. for client-side data fetching),use React’s [`taintUniqueValue`](https://react.dev/reference/react/experimental_taintUniqueValue) API to prevent sensitive session data from being exposed to the client.
+If session data is needed in Client Components (e.g. for client-side data fetching), use React’s [`taintUniqueValue`](https://react.dev/reference/react/experimental_taintUniqueValue) API to prevent sensitive session data from being exposed to the client.
 
 </AppOnly>
 
@@ -1635,12 +1645,11 @@ Now that you've learned about authentication in Next.js, here are Next.js-compat
 - [Auth0](https://auth0.com/docs/quickstart/webapp/nextjs/01-login)
 - [Clerk](https://clerk.com/docs/quickstarts/nextjs)
 - [Kinde](https://kinde.com/docs/developer-tools/nextjs-sdk)
-- [Lucia](https://lucia-auth.com/getting-started/nextjs-app)
 - [NextAuth.js](https://authjs.dev/getting-started/installation?framework=next.js)
 - [Stack Auth](https://docs.stack-auth.com/getting-started/setup)
 - [Supabase](https://supabase.com/docs/guides/getting-started/quickstarts/nextjs)
 - [Stytch](https://stytch.com/docs/guides/quickstarts/nextjs)
-- [WorkOS](https://workos.com/docs/user-management)
+- [WorkOS](https://workos.com/docs/user-management/nextjs)
 
 ### Session Management Libraries
 

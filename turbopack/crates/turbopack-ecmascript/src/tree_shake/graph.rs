@@ -1,15 +1,11 @@
-use std::{
-    fmt,
-    hash::{BuildHasherDefault, Hash},
-};
+use std::{fmt, hash::Hash};
 
-use indexmap::IndexSet;
 use petgraph::{
     algo::{condensation, has_path_connecting},
     graphmap::GraphMap,
     prelude::DiGraphMap,
 };
-use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
+use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
     common::{comments::Comments, util::take::Take, Spanned, SyntaxContext, DUMMY_SP},
     ecma::{
@@ -18,13 +14,13 @@ use swc_core::{
             ExportNamedSpecifier, ExportSpecifier, Expr, ExprStmt, FnDecl, Id, Ident, IdentName,
             ImportDecl, ImportNamedSpecifier, ImportSpecifier, ImportStarAsSpecifier, KeyValueProp,
             Lit, Module, ModuleDecl, ModuleExportName, ModuleItem, NamedExport, ObjectLit, Prop,
-            PropName, PropOrSpread, Stmt, VarDecl, VarDeclKind, VarDeclarator,
+            PropName, PropOrSpread, Stmt, Str, VarDecl, VarDeclKind, VarDeclarator,
         },
         atoms::JsWord,
         utils::{find_pat_ids, private_ident, quote_ident, ExprCtx, ExprExt},
     },
 };
-use turbo_tasks::RcStr;
+use turbo_tasks::{FxIndexSet, RcStr};
 
 use super::{
     util::{
@@ -71,8 +67,6 @@ impl fmt::Debug for ItemId {
     }
 }
 
-type FxBuildHasher = BuildHasherDefault<FxHasher>;
-
 /// Data about a module item
 pub(crate) struct ItemData {
     /// Is the module item hoisted?
@@ -83,10 +77,10 @@ pub(crate) struct ItemData {
     pub pure: bool,
 
     /// Variables declared or bound by this module item
-    pub var_decls: IndexSet<Id, FxBuildHasher>,
+    pub var_decls: FxIndexSet<Id>,
 
     /// Variables read by this module item during evaluation
-    pub read_vars: IndexSet<Id, FxBuildHasher>,
+    pub read_vars: FxIndexSet<Id>,
 
     /// Variables read by this module item eventually
     ///
@@ -97,13 +91,13 @@ pub(crate) struct ItemData {
     /// - Note: This doesn’t mean they are only read “after” initial evaluation. They might also be
     ///   read “during” initial evaluation on any module item with SIDE_EFFECTS. This kind of
     ///   interaction is handled by the module item with SIDE_EFFECTS.
-    pub eventual_read_vars: IndexSet<Id, FxBuildHasher>,
+    pub eventual_read_vars: FxIndexSet<Id>,
 
     /// Side effects that are triggered on local variables during evaluation
-    pub write_vars: IndexSet<Id, FxBuildHasher>,
+    pub write_vars: FxIndexSet<Id>,
 
     /// Side effects that are triggered on local variables eventually
-    pub eventual_write_vars: IndexSet<Id, FxBuildHasher>,
+    pub eventual_write_vars: FxIndexSet<Id>,
 
     /// Any other unknown side effects that are trigger during evaluation
     pub side_effects: bool,
@@ -111,6 +105,12 @@ pub(crate) struct ItemData {
     pub content: ModuleItem,
 
     pub export: Option<JsWord>,
+
+    /// This value denotes the module specifier of the [ImportDecl] that declares this
+    /// [ItemId].
+    ///
+    /// Used to specify the original import source of an `ImportBinding`.
+    pub binding_source: Option<Str>,
 }
 
 impl fmt::Debug for ItemData {
@@ -142,6 +142,7 @@ impl Default for ItemData {
             content: ModuleItem::dummy(),
             pure: Default::default(),
             export: Default::default(),
+            binding_source: Default::default(),
         }
     }
 }
@@ -152,7 +153,7 @@ where
     T: Eq + Hash + Clone,
 {
     pub(super) idx_graph: DiGraphMap<u32, Dependency>,
-    pub(super) graph_ix: IndexSet<T, BuildHasherDefault<FxHasher>>,
+    pub(super) graph_ix: FxIndexSet<T>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -269,6 +270,10 @@ impl DepGraph {
             exports.insert(Key::ModuleEvaluation, 0);
         }
 
+        // See https://github.com/vercel/next.js/pull/71234#issuecomment-2409810084
+        // ImportBinding should depend on actual import statements because those imports may have
+        // side effects.
+        let mut importer = FxHashMap::default();
         let mut declarator = FxHashMap::default();
         let mut exporter = FxHashMap::default();
 
@@ -282,6 +287,17 @@ impl DepGraph {
 
                 if let Some(export) = &item.export {
                     exporter.insert(export.clone(), ix as u32);
+                }
+
+                if let ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                    specifiers,
+                    src,
+                    ..
+                })) = &item.content
+                {
+                    if specifiers.is_empty() {
+                        importer.insert(src.value.clone(), ix as u32);
+                    }
                 }
             }
         }
@@ -314,7 +330,7 @@ impl DepGraph {
                         .chain(data.eventual_read_vars.iter())
                         .chain(data.eventual_write_vars.iter())
                 })
-                .collect::<IndexSet<_>>();
+                .collect::<FxIndexSet<_>>();
 
             for item in group {
                 if let ItemId::Group(ItemIdGroupKind::Export(id, _)) = item {
@@ -327,6 +343,38 @@ impl DepGraph {
 
                 for var in data.var_decls.iter() {
                     required_vars.remove(var);
+                }
+
+                // Depend on import statements from 'ImportBinding'
+                if let ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                    specifiers,
+                    src,
+                    ..
+                })) = &data.content
+                {
+                    if !specifiers.is_empty() {
+                        if let Some(dep) = importer.get(&src.value) {
+                            if *dep != ix as u32 {
+                                part_deps
+                                    .entry(ix as u32)
+                                    .or_default()
+                                    .push(PartId::Internal(*dep, true));
+
+                                chunk.body.push(ModuleItem::ModuleDecl(ModuleDecl::Import(
+                                    ImportDecl {
+                                        span: DUMMY_SP,
+                                        specifiers: vec![],
+                                        src: Box::new(TURBOPACK_PART_IMPORT_SOURCE.into()),
+                                        type_only: false,
+                                        with: Some(Box::new(create_turbopack_part_id_assert(
+                                            PartId::Internal(*dep, true),
+                                        ))),
+                                        phase: Default::default(),
+                                    },
+                                )));
+                            }
+                        }
+                    }
                 }
             }
 
@@ -445,6 +493,23 @@ impl DepGraph {
                     continue;
                 }
 
+                part_deps_done.insert(dep);
+
+                let dep_item_ids = groups.graph_ix.get_index(dep as usize).unwrap();
+
+                // Optimization & workaround for `ImportBinding` fragments.
+                // Instead of importing the import binding fragment, we import the original module.
+                // In this way, we can preserve the import statement so that the other code analysis
+                // can work.
+                let original_import_source = if dep_item_ids.len() == 1 {
+                    let dep_item_id = &dep_item_ids[0];
+                    let dep_item_data = data.get(dep_item_id).unwrap();
+
+                    dep_item_data.binding_source.clone()
+                } else {
+                    None
+                };
+
                 let specifiers = vec![ImportSpecifier::Named(ImportNamedSpecifier {
                     span: DUMMY_SP,
                     local: var.clone().into(),
@@ -454,8 +519,6 @@ impl DepGraph {
                     ))),
                     is_type_only: false,
                 })];
-
-                part_deps_done.insert(dep);
 
                 part_deps
                     .entry(ix as u32)
@@ -469,9 +532,10 @@ impl DepGraph {
                         specifiers,
                         src: Box::new(TURBOPACK_PART_IMPORT_SOURCE.into()),
                         type_only: false,
-                        with: Some(Box::new(create_turbopack_part_id_assert(PartId::Internal(
-                            dep, false,
-                        )))),
+                        with: Some(Box::new(add_original_import_source(
+                            create_turbopack_part_id_assert(PartId::Internal(dep, false)),
+                            original_import_source,
+                        ))),
                         phase: Default::default(),
                     })));
             }
@@ -481,6 +545,10 @@ impl DepGraph {
                 .idx_graph
                 .neighbors_directed(ix as u32, petgraph::Direction::Outgoing)
             {
+                if dep == ix as u32 {
+                    continue;
+                }
+
                 if !part_deps_done.insert(dep) {
                     continue;
                 }
@@ -594,9 +662,28 @@ impl DepGraph {
         let condensed = condensation(graph, false);
 
         let mut new_graph = InternedGraph::default();
+
+        // Sort the items to match the order of the original code.
+        for node in condensed.node_weights() {
+            let mut item_ids = node
+                .iter()
+                .map(|&ix| self.g.graph_ix[ix as usize].clone())
+                .collect::<Vec<_>>();
+            item_ids.sort();
+
+            debug_assert!(!item_ids.is_empty());
+
+            new_graph.node(&item_ids);
+        }
+
+        new_graph.graph_ix.sort_by(|a, b| a[0].cmp(&b[0]));
+
+        debug_assert_eq!(new_graph.idx_graph.node_count(), 0);
+        debug_assert_eq!(new_graph.idx_graph.edge_count(), 0);
+
         let mut done = FxHashSet::default();
 
-        let mapped = condensed.filter_map(
+        let mapped = condensed.map(
             |_, node| {
                 let mut item_ids = node
                     .iter()
@@ -608,9 +695,9 @@ impl DepGraph {
                     .collect::<Vec<_>>();
                 item_ids.sort();
 
-                Some(new_graph.node(&item_ids))
+                new_graph.node(&item_ids)
             },
-            |_, edge| Some(*edge),
+            |_, edge| *edge,
         );
 
         let map = GraphMap::from_graph(mapped);
@@ -973,6 +1060,7 @@ impl DepGraph {
                                     specifiers: vec![s.clone()],
                                     ..item.clone()
                                 })),
+                                binding_source: Some(*item.src.clone()),
                                 ..Default::default()
                             },
                         );
@@ -997,7 +1085,7 @@ impl DepGraph {
                         &top_level_vars,
                     );
                     let var_decls = {
-                        let mut v = IndexSet::with_capacity_and_hasher(1, Default::default());
+                        let mut v = FxIndexSet::with_capacity_and_hasher(1, Default::default());
                         v.insert(f.ident.to_id());
                         v
                     };
@@ -1028,7 +1116,7 @@ impl DepGraph {
                     let mut vars =
                         ids_used_by(&c.class, unresolved_ctxt, top_level_ctxt, &top_level_vars);
                     let var_decls = {
-                        let mut v = IndexSet::with_capacity_and_hasher(1, Default::default());
+                        let mut v = FxIndexSet::with_capacity_and_hasher(1, Default::default());
                         v.insert(c.ident.to_id());
                         v
                     };
@@ -1296,6 +1384,7 @@ impl DepGraph {
 }
 
 const ASSERT_CHUNK_KEY: &str = "__turbopack_part__";
+const ASSERT_ORIGINAL_IMPORT_SOURCE_KEY: &str = "__turbopack_original__";
 
 #[derive(Debug, Clone)]
 pub(crate) enum PartId {
@@ -1304,6 +1393,21 @@ pub(crate) enum PartId {
     Export(RcStr),
     /// `(part_id, is_for_eval)`
     Internal(u32, bool),
+}
+
+pub(crate) fn add_original_import_source(mut item: ObjectLit, source: Option<Str>) -> ObjectLit {
+    if let Some(source) = source {
+        item.props
+            .push(PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+                key: PropName::Ident(IdentName::new(
+                    ASSERT_ORIGINAL_IMPORT_SOURCE_KEY.into(),
+                    DUMMY_SP,
+                )),
+                value: Box::new(Expr::Lit(Lit::Str(source))),
+            }))));
+    }
+
+    item
 }
 
 pub(crate) fn create_turbopack_part_id_assert(dep: PartId) -> ObjectLit {

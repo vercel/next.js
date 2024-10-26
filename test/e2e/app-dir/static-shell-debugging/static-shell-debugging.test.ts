@@ -2,9 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 
 describe('static-shell-debugging', () => {
   describe.each([
-    { ppr: true, pprFallbacks: true, debugging: true },
-    { ppr: false, debugging: true },
-    { ppr: true, pprFallbacks: true, debugging: false },
+    { ppr: true, debugging: true },
     { ppr: false, debugging: false },
   ])('ppr = $ppr, debugging = $debugging', (context) => {
     const { next, skipped, isNextDev } = nextTestSetup({
@@ -18,7 +16,7 @@ describe('static-shell-debugging', () => {
           : undefined,
       },
       nextConfig: {
-        experimental: { ppr: context.ppr, pprFallbacks: context.pprFallbacks },
+        experimental: { ppr: context.ppr },
       },
     })
 

@@ -26,6 +26,7 @@ import {
 } from '../utils'
 import type { ChunkGroup } from 'webpack'
 import { encodeURIPath } from '../../../shared/lib/encode-uri-path'
+import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
 
 interface Options {
   dev: boolean
@@ -71,12 +72,21 @@ export interface ManifestNode {
   }
 }
 
-export type ClientReferenceManifest = {
+export interface ClientReferenceManifestForRsc {
+  clientModules: ManifestNode
+  rscModuleMapping: {
+    [moduleId: string]: ManifestNode
+  }
+  edgeRscModuleMapping: {
+    [moduleId: string]: ManifestNode
+  }
+}
+
+export interface ClientReferenceManifest extends ClientReferenceManifestForRsc {
   readonly moduleLoading: {
     prefix: string
     crossOrigin: string | null
   }
-  clientModules: ManifestNode
   ssrModuleMapping: {
     [moduleId: string]: ManifestNode
   }
@@ -88,12 +98,6 @@ export type ClientReferenceManifest = {
   }
   entryJSFiles?: {
     [entry: string]: string[]
-  }
-  rscModuleMapping: {
-    [moduleId: string]: ManifestNode
-  }
-  edgeRscModuleMapping: {
-    [moduleId: string]: ManifestNode
   }
 }
 
@@ -517,6 +521,12 @@ export class ClientReferenceManifestPlugin {
       // - app/foo/page.page
       if (/\/page(\.[^/]+)?$/.test(entryName)) {
         manifestEntryFiles.push(entryName.replace(/\/page(\.[^/]+)?$/, '/page'))
+      }
+
+      // We also need to create manifests for route handler entrypoints
+      // (excluding metadata route handlers) to enable `'use cache'`.
+      if (/\/route$/.test(entryName) && !isMetadataRoute(entryName)) {
+        manifestEntryFiles.push(entryName)
       }
 
       const groupName = entryNameToGroupName(entryName)

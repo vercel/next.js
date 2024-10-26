@@ -4,8 +4,9 @@ pub mod source_map;
 use std::fmt::Write;
 
 use anyhow::{bail, Result};
-use indexmap::IndexSet;
-use turbo_tasks::{RcStr, TryJoinIterExt, Value, ValueDefault, ValueToString, Vc};
+use turbo_tasks::{
+    FxIndexSet, RcStr, ResolvedVc, TryJoinIterExt, Value, ValueDefault, ValueToString, Vc,
+};
 use turbo_tasks_fs::{rope::Rope, File, FileSystem};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -13,7 +14,7 @@ use turbopack_core::{
         round_chunk_item_size, AsyncModuleInfo, Chunk, ChunkItem, ChunkItemWithAsyncModuleInfo,
         ChunkType, ChunkableModule, ChunkingContext, ModuleId, OutputChunk, OutputChunkRuntimeInfo,
     },
-    code_builder::{Code, CodeBuilder},
+    code_builder::{fileify_source_map, Code, CodeBuilder},
     ident::AssetIdent,
     introspect::{
         module::IntrospectableModule,
@@ -35,9 +36,6 @@ pub struct CssChunk {
     pub chunking_context: Vc<Box<dyn ChunkingContext>>,
     pub content: Vc<CssChunkContent>,
 }
-
-#[turbo_tasks::value(transparent)]
-pub struct CssChunks(Vec<Vc<CssChunk>>);
 
 #[turbo_tasks::value_impl]
 impl CssChunk {
@@ -66,7 +64,7 @@ impl CssChunk {
 
         let mut code = CodeBuilder::default();
         let mut body = CodeBuilder::default();
-        let mut external_imports = IndexSet::new();
+        let mut external_imports = FxIndexSet::default();
         for css_item in &this.content.await?.chunk_items {
             let id = &*css_item.id().await?;
 
@@ -80,7 +78,24 @@ impl CssChunk {
             writeln!(body, "/* {} */", id)?;
             let close = write_import_context(&mut body, content.import_context).await?;
 
-            body.push_source(&content.inner_code, content.source_map.map(Vc::upcast));
+            let source_map = if *self
+                .chunking_context()
+                .should_use_file_source_map_uris()
+                .await?
+            {
+                let source_map = content.source_map.map(|m| m.generate_source_map());
+                match source_map {
+                    Some(map) => {
+                        (*(fileify_source_map(map, self.chunking_context().context_path()).await?))
+                            .map(Vc::upcast)
+                    }
+                    None => None,
+                }
+            } else {
+                content.source_map.map(Vc::upcast)
+            };
+
+            body.push_source(&content.inner_code, source_map);
 
             writeln!(body, "{close}")?;
             writeln!(body)?;
@@ -216,8 +231,8 @@ impl OutputChunk for CssChunk {
             .map(|item| Vc::upcast(SingleItemCssChunk::new(self.chunking_context, *item)))
             .collect();
         Ok(OutputChunkRuntimeInfo {
-            included_ids: Some(Vc::cell(included_ids)),
-            module_chunks: Some(Vc::cell(module_chunks)),
+            included_ids: Some(ResolvedVc::cell(included_ids)),
+            module_chunks: Some(ResolvedVc::cell(module_chunks)),
             ..Default::default()
         }
         .cell())
@@ -350,15 +365,12 @@ impl CssChunkContext {
 #[turbo_tasks::value_trait]
 pub trait CssChunkPlaceable: ChunkableModule + Module + Asset {}
 
-#[turbo_tasks::value(transparent)]
-pub struct CssChunkPlaceables(Vec<Vc<Box<dyn CssChunkPlaceable>>>);
-
 #[derive(Clone, Debug)]
 #[turbo_tasks::value(shared)]
 pub enum CssImport {
     External(Vc<RcStr>),
-    Internal(Vc<ImportAssetReference>, Vc<Box<dyn CssChunkItem>>),
-    Composes(Vc<Box<dyn CssChunkItem>>),
+    Internal(ResolvedVc<ImportAssetReference>, Vc<Box<dyn CssChunkItem>>),
+    Composes(ResolvedVc<Box<dyn CssChunkItem>>),
 }
 
 #[derive(Debug)]

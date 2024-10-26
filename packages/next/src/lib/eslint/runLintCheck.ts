@@ -135,7 +135,27 @@ async function lint(
 
     const mod = await Promise.resolve(require(deps.resolved.get('eslint')!))
 
-    const { ESLint } = mod
+    // If V9 config was found, use flat config, or else use legacy.
+    const useFlatConfig = eslintrcFile
+      ? // eslintrcFile is absolute path
+        path.basename(eslintrcFile).startsWith('eslint.config.')
+      : false
+
+    let ESLint
+    // loadESLint is >= 8.57.0
+    // PR https://github.com/eslint/eslint/pull/18098
+    // Release https://github.com/eslint/eslint/releases/tag/v8.57.0
+    if ('loadESLint' in mod) {
+      // By default, configType is `flat`. If `useFlatConfig` is false, the return value is `LegacyESLint`.
+      // https://github.com/eslint/eslint/blob/1def4cdfab1f067c5089df8b36242cdf912b0eb6/lib/types/index.d.ts#L1609-L1613
+      ESLint = await mod.loadESLint({
+        useFlatConfig,
+      })
+    } else {
+      // eslint < 8.57.0, use legacy ESLint
+      ESLint = mod.ESLint
+    }
+
     let eslintVersion = ESLint?.version ?? mod.CLIEngine?.version
 
     if (!eslintVersion || semver.lt(eslintVersion, '7.0.0')) {
@@ -155,6 +175,23 @@ async function lint(
       ...eslintOptions,
     }
 
+    if (semver.gte(eslintVersion, '9.0.0') && useFlatConfig) {
+      for (const option of [
+        'useEslintrc',
+        'extensions',
+        'ignorePath',
+        'reportUnusedDisableDirectives',
+        'resolvePluginsRelativeTo',
+        'rulePaths',
+        'inlineConfig',
+        'maxWarnings',
+      ]) {
+        if (option in options) {
+          delete options[option]
+        }
+      }
+    }
+
     let eslint = new ESLint(options)
 
     let nextEslintPluginIsEnabled = false
@@ -163,10 +200,20 @@ async function lint(
     for (const configFile of [eslintrcFile, pkgJsonPath]) {
       if (!configFile) continue
 
-      const completeConfig: Config =
+      const completeConfig: Config | undefined =
         await eslint.calculateConfigForFile(configFile)
+      if (!completeConfig) continue
 
-      if (completeConfig.plugins?.includes('@next/next')) {
+      const plugins = completeConfig.plugins
+
+      const hasNextPlugin =
+        // in ESLint < 9, `plugins` value is string[]
+        Array.isArray(plugins)
+          ? plugins.includes('@next/next')
+          : // in ESLint >= 9, `plugins` value is Record<string, unknown>
+            '@next/next' in plugins
+
+      if (hasNextPlugin) {
         nextEslintPluginIsEnabled = true
         for (const [name, [severity]] of Object.entries(completeConfig.rules)) {
           if (!name.startsWith('@next/next/')) {
@@ -309,6 +356,17 @@ export async function runLintCheck(
     const eslintrcFile =
       (await findUp(
         [
+          // eslint v9
+          'eslint.config.js',
+          'eslint.config.mjs',
+          'eslint.config.cjs',
+          // TODO(jiwon): Support when it's stable.
+          // TS extensions are experimental and requires to install another package `jiti`.
+          // https://eslint.org/docs/latest/use/configure/configuration-files#typescript-configuration-files
+          // 'eslint.config.ts',
+          // 'eslint.config.mts',
+          // 'eslint.config.cts',
+          // eslint <= v8
           '.eslintrc.js',
           '.eslintrc.cjs',
           '.eslintrc.yaml',
@@ -374,8 +432,8 @@ export async function runLintCheck(
           if (deps.missing.length > 0) {
             deps.missing.forEach((dep) => {
               if (dep.pkg === 'eslint') {
-                // eslint v9 has breaking changes, so lock to 8 until dependency plugins fully support v9.
-                dep.pkg = 'eslint@^8'
+                // pin to v9 to avoid breaking changes
+                dep.pkg = 'eslint@^9'
               }
             })
 

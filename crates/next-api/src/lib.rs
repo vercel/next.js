@@ -18,6 +18,7 @@ pub mod project;
 pub mod route;
 mod server_actions;
 mod versioned_content_map;
+mod webpack_stats;
 
 // Declare build-time information variables generated in build.rs
 shadow_rs::shadow!(build);

@@ -249,6 +249,7 @@ export interface NapiUpdateInfo {
 }
 /**
  * Subscribes to lifecycle events of the compilation.
+ *
  * Emits an [UpdateMessage::Start] event when any computation starts.
  * Emits an [UpdateMessage::End] event when there was no computation for the
  * specified time (`aggregation_ms`). The [UpdateMessage::End] event contains
@@ -277,6 +278,10 @@ export function projectTraceSource(
   frame: StackFrame
 ): Promise<StackFrame | null>
 export function projectGetSourceForAsset(
+  project: { __napiType: 'Project' },
+  filePath: string
+): Promise<string | null>
+export function projectGetSourceMap(
   project: { __napiType: 'Project' },
   filePath: string
 ): Promise<string | null>

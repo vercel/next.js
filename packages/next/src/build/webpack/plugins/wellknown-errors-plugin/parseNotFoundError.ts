@@ -51,29 +51,40 @@ async function getSourceFrame(
   try {
     const loc =
       input.loc || input.dependencies.map((d: any) => d.loc).filter(Boolean)[0]
-    const originalSource = input.module.originalSource()
+    const module = input.module as webpack.Module
+    const originalSource = module.originalSource()
+    const sourceMap = originalSource?.map() ?? undefined
 
-    const result = await createOriginalStackFrame({
-      source: originalSource,
-      rootDirectory: compilation.options.context!,
-      modulePath: fileName,
-      frame: {
-        arguments: [],
-        file: fileName,
-        methodName: '',
-        lineNumber: loc.start.line,
-        column: loc.start.column,
-      },
-    })
+    if (sourceMap) {
+      const moduleId = compilation.chunkGraph.getModuleId(module)
 
-    return {
-      frame: result?.originalCodeFrame ?? '',
-      lineNumber: result?.originalStackFrame?.lineNumber?.toString() ?? '',
-      column: result?.originalStackFrame?.column?.toString() ?? '',
+      const result = await createOriginalStackFrame({
+        source: {
+          type: 'bundle',
+          sourceMap,
+          compilation,
+          moduleId,
+          modulePath: fileName,
+        },
+        rootDirectory: compilation.options.context!,
+        frame: {
+          arguments: [],
+          file: fileName,
+          methodName: '',
+          lineNumber: loc.start.line,
+          column: loc.start.column,
+        },
+      })
+
+      return {
+        frame: result?.originalCodeFrame ?? '',
+        lineNumber: result?.originalStackFrame?.lineNumber?.toString() ?? '',
+        column: result?.originalStackFrame?.column?.toString() ?? '',
+      }
     }
-  } catch {
-    return { frame: '', lineNumber: '', column: '' }
-  }
+  } catch {}
+
+  return { frame: '', lineNumber: '', column: '' }
 }
 
 function getFormattedFileName(

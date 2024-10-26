@@ -3,6 +3,7 @@ import type {
   ActionResult,
 } from '../../../../server/app-render/types'
 import { callServer } from '../../../app-call-server'
+import { findSourceMapURL } from '../../../app-find-source-map-url'
 import {
   ACTION_HEADER,
   NEXT_IS_PRERENDER_HEADER,
@@ -11,14 +12,11 @@ import {
   RSC_CONTENT_TYPE_HEADER,
 } from '../../app-router-headers'
 
-// Importing from dist so that we can define an alias if needed.
-import { findSourceMapURL } from 'next/dist/client/app-find-source-map-url'
-
 // // eslint-disable-next-line import/no-extraneous-dependencies
 // import { createFromFetch } from 'react-server-dom-webpack/client'
 // // eslint-disable-next-line import/no-extraneous-dependencies
 // import { encodeReply } from 'react-server-dom-webpack/client'
-const { createFromFetch, encodeReply } = (
+const { createFromFetch, createTemporaryReferenceSet, encodeReply } = (
   !!process.env.NEXT_RUNTIME
     ? // eslint-disable-next-line import/no-extraneous-dependencies
       require('react-server-dom-webpack/client.edge')
@@ -72,7 +70,8 @@ async function fetchServerAction(
   nextUrl: ReadonlyReducerState['nextUrl'],
   { actionId, actionArgs }: ServerActionAction
 ): Promise<FetchServerActionResult> {
-  const body = await encodeReply(actionArgs)
+  const temporaryReferences = createTemporaryReferenceSet()
+  const body = await encodeReply(actionArgs, { temporaryReferences })
 
   const res = await fetch('', {
     method: 'POST',
@@ -142,7 +141,7 @@ async function fetchServerAction(
   if (contentType?.startsWith(RSC_CONTENT_TYPE_HEADER)) {
     const response: ActionFlightResponse = await createFromFetch(
       Promise.resolve(res),
-      { callServer, findSourceMapURL }
+      { callServer, findSourceMapURL, temporaryReferences }
     )
 
     if (location) {
@@ -351,6 +350,9 @@ export function serverActionReducer(
               couldBeIntercepted: false,
               prerendered: false,
               postponed: false,
+              // TODO: We should be able to set this if the server action
+              // returned a fully static response.
+              staleTime: -1,
             },
             tree: state.tree,
             prefetchCache: state.prefetchCache,

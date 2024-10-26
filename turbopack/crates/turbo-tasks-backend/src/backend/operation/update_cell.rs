@@ -2,7 +2,7 @@ use turbo_tasks::{backend::CellContent, CellId, TaskId};
 
 use crate::{
     backend::{
-        operation::{ExecuteContext, InvalidateOperation},
+        operation::{invalidate::TaskDirtyCause, ExecuteContext, InvalidateOperation, TaskGuard},
         storage::{get_many, remove},
         TaskDataCategory,
     },
@@ -12,7 +12,7 @@ use crate::{
 pub struct UpdateCellOperation;
 
 impl UpdateCellOperation {
-    pub fn run(task_id: TaskId, cell: CellId, content: CellContent, mut ctx: ExecuteContext<'_>) {
+    pub fn run(task_id: TaskId, cell: CellId, content: CellContent, mut ctx: impl ExecuteContext) {
         let mut task = ctx.task(task_id, TaskDataCategory::All);
         let old_content = if let CellContent(Some(new_content)) = content {
             task.insert(CachedDataItem::CellData {
@@ -40,14 +40,20 @@ impl UpdateCellOperation {
 
         let dependent = get_many!(
             task,
-            CellDependent { cell: dependent_cell, task } _value
-            if dependent_cell == cell
-            => task
+            CellDependent { cell: dependent_cell, task }
+            if *dependent_cell == cell
+            => *task
         );
 
         drop(task);
         drop(old_content);
 
-        InvalidateOperation::run(dependent, ctx);
+        InvalidateOperation::run(
+            dependent,
+            TaskDirtyCause::CellChange {
+                value_type: cell.type_id,
+            },
+            ctx,
+        );
     }
 }
