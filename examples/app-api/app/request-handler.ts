@@ -5,6 +5,7 @@ type RouteHandler<T = Record<string, string | string[]>> = (
   ctx: { params: T },
 ) => Promise<Response> | Response;
 
+// Checks if the incoming request is from an allowed origin
 function isAllowedOrigin(req: NextRequest): boolean {
   const referer = req.headers.get("referer");
   const host = req.headers.get("host");
@@ -14,20 +15,22 @@ function isAllowedOrigin(req: NextRequest): boolean {
     const refererUrl = new URL(referer);
     return refererUrl.host === host;
   }
-
+  
+  // Allow requests from localhost (for development)
   if (host?.includes("localhost")) {
     return true;
   }
-
+  // Deny by default
   return false;
 }
 
+// Placeholder for actual authentication logic (to be implemented)
 async function checkAuth(req: NextRequest): Promise<boolean> {
-  // Placeholder authentication logic
-  // You can implement your actual auth check here
   const authToken = req.headers.get("authorization");
   console.log({ authToken });
-  return true; // For now, always return true
+
+  // Currently returns true for all requests; replace with actual auth logic
+  return true;
 }
 
 export function requestHandler<T = Record<string, string | string[]>>(
@@ -37,7 +40,7 @@ export function requestHandler<T = Record<string, string | string[]>>(
     try {
       console.log(`Middleware: Request to ${req.method} ${req.url}`);
 
-      // Check if the request is coming from an allowed origin
+      // Check if the request is from an allowed origin
       if (!isAllowedOrigin(req)) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
@@ -48,7 +51,7 @@ export function requestHandler<T = Record<string, string | string[]>>(
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
 
-      // Call the original handler
+      // Call the main handler if all checks pass
       const result = await handler(req, ctx);
 
       // Log after executing the handler
