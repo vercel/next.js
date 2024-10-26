@@ -96,13 +96,12 @@ impl AggregatedGraph {
             .collect::<Vec<_>>()
         {
             let cost = cost.await?.0;
-            let resolved_reference = reference.to_resolved().await?;
             if cost == 0 {
-                inner.insert(resolved_reference);
+                inner.insert(reference);
             } else if cost > self_cost {
-                references.insert(resolved_reference);
+                references.insert(reference);
             } else {
-                outer.insert(resolved_reference);
+                outer.insert(reference);
             }
         }
         Ok(AggregatedGraphsValuedReferences {

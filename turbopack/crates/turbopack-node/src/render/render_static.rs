@@ -317,7 +317,9 @@ async fn render_stream_internal(
             RenderStaticIncomingMessage::Headers { data } => yield RenderItem::Headers(data),
             RenderStaticIncomingMessage::Rewrite { path } => {
                 drop(guard);
-                yield RenderItem::Response(StaticResult::rewrite(RewriteBuilder::new(path).build()).to_resolved().await?);
+                yield RenderItem::Response(
+                    StaticResult::rewrite(RewriteBuilder::new(path).build()).to_resolved().await?
+                );
                 return;
             }
             RenderStaticIncomingMessage::Response {

@@ -511,16 +511,9 @@ impl PostCssTransformedAsset {
 
         // TODO handle SourceMap
         let file = File::from(processed_css.css);
-        let mut resolved_assets = Vec::new();
-        for asset in emitted_assets_to_virtual_sources(processed_css.assets) {
-            resolved_assets.push(asset.to_resolved().await?);
-        }
-        let content = AssetContent::File(*FileContent::Content(file).resolved_cell()).cell();
-        Ok(ProcessPostCssResult {
-            content,
-            assets: resolved_assets,
-        }
-        .cell())
+        let assets = emitted_assets_to_virtual_sources(processed_css.assets).await?;
+        let content = AssetContent::File(FileContent::Content(file).cell()).cell();
+        Ok(ProcessPostCssResult { content, assets }.cell())
     }
 }
 

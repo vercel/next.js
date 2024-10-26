@@ -286,7 +286,7 @@ impl OutputAsset for CssChunk {
             } else {
                 *ServerFileSystem::new().root().to_resolved().await?
             },
-            query: *Vc::<RcStr>::default().to_resolved().await?,
+            query: Vc::<RcStr>::default(),
             fragment: None,
             assets,
             modifiers: Vec::new(),

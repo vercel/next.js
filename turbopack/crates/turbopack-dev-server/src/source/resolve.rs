@@ -107,7 +107,7 @@ pub async fn resolve_source_request(
                     }
                     ContentSourceContent::Static(static_content) => {
                         return Ok(ResolveSourceRequestResult::Static(
-                            static_content.to_resolved().await?,
+                            *static_content,
                             HeaderList::new(response_header_overwrites)
                                 .to_resolved()
                                 .await?,

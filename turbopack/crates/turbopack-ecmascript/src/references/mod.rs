@@ -316,7 +316,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
         for c in self.code_gens.iter_mut() {
             match c {
                 CodeGen::CodeGenerateable(c) => {
-                    *c = *c.to_resolved().await?;
+                    *c = c.resolve().await?;
                 }
                 CodeGen::CodeGenerateableWithAsyncModuleInfo(c) => {
                     *c = c.to_resolved().await?;

@@ -334,7 +334,7 @@ impl RouteTree {
             match selector_segment {
                 BaseSegment::Static(value) => Ok(RouteTree {
                     base,
-                    static_segments: fxindexmap! { value => *inner.resolved_cell() },
+                    static_segments: fxindexmap! { value => inner.cell() },
                     ..Default::default()
                 }
                 .cell()),
@@ -380,9 +380,8 @@ impl RouteTree {
         for s in not_found_sources.iter_mut() {
             *s = mapper.map_get_content(*s);
         }
-
         for r in static_segments.values_mut() {
-            *r = *r.map_routes(mapper).to_resolved().await?;
+            *r = r.map_routes(mapper);
         }
         for r in dynamic_segments.iter_mut() {
             *r = r.map_routes(mapper).to_resolved().await?;

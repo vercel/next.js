@@ -127,7 +127,7 @@ pub async fn external_asset_entrypoints(
 /// assets.
 #[turbo_tasks::function]
 async fn separate_assets(
-    intermediate_asset: Vc<Box<dyn OutputAsset>>,
+    intermediate_asset: ResolvedVc<Box<dyn OutputAsset>>,
     intermediate_output_path: Vc<FileSystemPath>,
 ) -> Result<Vc<SeparatedAssets>> {
     let intermediate_output_path = &*intermediate_output_path.await?;
@@ -166,10 +166,7 @@ async fn separate_assets(
 
     let graph = AdjacencyMap::new()
         .skip_duplicates()
-        .visit(
-            once(Type::Internal(intermediate_asset.to_resolved().await?)),
-            get_asset_children,
-        )
+        .visit(once(Type::Internal(intermediate_asset)), get_asset_children)
         .await
         .completed()?
         .into_inner();

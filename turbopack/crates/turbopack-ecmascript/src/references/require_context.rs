@@ -83,10 +83,7 @@ impl DirList {
                 DirectoryEntry::File(path) => {
                     if let Some(relative_path) = root_val.get_relative_path_to(&*path.await?) {
                         if regex.is_match(&relative_path) {
-                            list.insert(
-                                relative_path,
-                                DirListEntry::File(path.to_resolved().await?),
-                            );
+                            list.insert(relative_path, DirListEntry::File(*path));
                         }
                     }
                 }
@@ -124,8 +121,7 @@ impl DirList {
             for (k, entry) in &*dir {
                 match entry {
                     DirListEntry::File(path) => {
-                        // Don't dereference the path, store it as a Vc
-                        list.insert(k.clone(), path.resolve().await?);
+                        list.insert(k.clone(), **path);
                     }
                     DirListEntry::Dir(d) => {
                         queue.push_back(d.await?);

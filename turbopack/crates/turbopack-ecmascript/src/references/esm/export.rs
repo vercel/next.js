@@ -458,7 +458,7 @@ impl EsmExports {
             }
 
             if export_info.has_dynamic_exports {
-                dynamic_exports.push((**asset).to_resolved().await?);
+                dynamic_exports.push(*asset);
             }
         }
 

@@ -126,22 +126,22 @@ impl ChunkGroupFilesChunkItem {
     async fn chunks(&self) -> Result<Vc<OutputAssets>> {
         let inner = self.inner.await?;
         let chunks = if let Some(ecma) =
-            ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(inner.module.to_resolved().await?)
-                .await?
+            Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(inner.module).await?
         {
-            let empty_assets = EvaluatableAssets::empty().to_resolved().await?;
             inner.chunking_context.evaluated_chunk_group_assets(
                 inner.module.ident(),
                 inner
                     .runtime_entries
-                    .unwrap_or_else(|| empty_assets)
-                    .with_entry(*ecma),
+                    .as_deref()
+                    .copied()
+                    .unwrap_or_else(EvaluatableAssets::empty)
+                    .with_entry(ecma),
                 Value::new(AvailabilityInfo::Root),
             )
         } else {
             inner
                 .chunking_context
-                .root_chunk_group_assets(*ResolvedVc::upcast(inner.module.to_resolved().await?))
+                .root_chunk_group_assets(Vc::upcast(inner.module))
         };
         Ok(chunks)
     }
