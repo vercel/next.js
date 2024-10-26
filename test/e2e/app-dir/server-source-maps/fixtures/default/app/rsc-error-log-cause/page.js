@@ -1,5 +1,3 @@
-export const dynamic = 'force-dynamic'
-
 function logError(cause) {
   const error = new Error('Boom', { cause })
   console.error(error)
