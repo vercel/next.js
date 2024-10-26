@@ -373,7 +373,7 @@ impl AppPageLoaderTreeBuilder {
         if let Some(global_error) = modules.global_error {
             let module = self
                 .base
-                .process_source(Vc::upcast(FileSource::new(global_error)));
+                .process_source(Vc::upcast(FileSource::new(*global_error)));
             self.base.inner_assets.insert(GLOBAL_ERROR.into(), module);
         };
 

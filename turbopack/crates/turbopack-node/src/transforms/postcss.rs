@@ -285,7 +285,7 @@ impl Asset for JsonSource {
                 Ok(AssetContent::file(File::from(value.to_string()).into()))
             }
             FileSystemEntryType::NotFound => {
-                Ok(AssetContent::File(FileContent::NotFound.cell()).cell())
+                Ok(AssetContent::File(FileContent::NotFound.resolved_cell()).cell())
             }
             _ => Err(anyhow::anyhow!("Invalid file type {:?}", file_type)),
         }
@@ -356,11 +356,11 @@ pub(crate) async fn config_loader_source(
 }
 
 #[turbo_tasks::function]
-fn postcss_executor(
+async fn postcss_executor(
     asset_context: Vc<Box<dyn AssetContext>>,
     project_path: Vc<FileSystemPath>,
     postcss_config_path: Vc<FileSystemPath>,
-) -> Vc<ProcessResult> {
+) -> Result<Vc<ProcessResult>> {
     let config_asset = asset_context
         .process(
             config_loader_source(project_path, postcss_config_path),
@@ -368,15 +368,20 @@ fn postcss_executor(
         )
         .module();
 
-    asset_context.process(
+    Ok(asset_context.process(
         Vc::upcast(VirtualSource::new(
             postcss_config_path.join("transform.ts".into()),
-            AssetContent::File(embed_file("transforms/postcss.ts".into())).cell(),
+            AssetContent::File(
+                embed_file("transforms/postcss.ts".into())
+                    .to_resolved()
+                    .await?,
+            )
+            .cell(),
         )),
         Value::new(ReferenceType::Internal(Vc::cell(fxindexmap! {
             "CONFIG".into() => config_asset
         }))),
-    )
+    ))
 }
 
 async fn find_config_in_location(
@@ -431,17 +436,6 @@ impl PostCssTransformedAsset {
             env,
         } = *self.execution_context.await?;
 
-        // For this postcss transform, there is no gaurantee that looking up for the
-        // source path will arrives specific project config for the postcss.
-        // i.e, this is possible
-        // - root
-        //  - node_modules
-        //     - somepkg/(some.module.css, postcss.config.js) // this could be symlinked local, or
-        //       actual remote pkg or anything
-        //  - packages // root of workspace pkgs
-        //     - pkg1/(postcss.config.js) // The actual config we're looking for
-        //
-        // We look for the config in the project path first, then the source path
         let Some(config_path) =
             find_config_in_location(project_path, self.config_location, self.source).await?
         else {
@@ -458,7 +452,7 @@ impl PostCssTransformedAsset {
         };
         let FileContent::Content(content) = &*file.await? else {
             return Ok(ProcessPostCssResult {
-                content: AssetContent::File(*FileContent::NotFound.resolved_cell()).cell(),
+                content: AssetContent::File(FileContent::NotFound.resolved_cell()).cell(),
                 assets: Vec::new(),
             }
             .cell());
@@ -501,7 +495,7 @@ impl PostCssTransformedAsset {
         let SingleValue::Single(val) = config_value.try_into_single().await? else {
             // An error happened, which has already been converted into an issue.
             return Ok(ProcessPostCssResult {
-                content: AssetContent::File(*FileContent::NotFound.resolved_cell()).cell(),
+                content: AssetContent::File(FileContent::NotFound.resolved_cell()).cell(),
                 assets: Vec::new(),
             }
             .cell());
@@ -512,7 +506,7 @@ impl PostCssTransformedAsset {
         // TODO handle SourceMap
         let file = File::from(processed_css.css);
         let assets = emitted_assets_to_virtual_sources(processed_css.assets).await?;
-        let content = AssetContent::File(FileContent::Content(file).cell()).cell();
+        let content = AssetContent::File(FileContent::Content(file).resolved_cell()).cell();
         Ok(ProcessPostCssResult { content, assets }.cell())
     }
 }

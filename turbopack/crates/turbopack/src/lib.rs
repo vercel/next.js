@@ -844,7 +844,7 @@ type OutputAssetSet = HashSet<Vc<Box<dyn OutputAsset>>>;
 
 #[turbo_tasks::value(shared)]
 struct ReferencesList {
-    referenced_by: HashMap<Vc<Box<dyn OutputAsset>>, OutputAssetSet>,
+    referenced_by: HashMap<ResolvedVc<Box<dyn OutputAsset>>, OutputAssetSet>,
 }
 
 #[turbo_tasks::function]
@@ -853,12 +853,16 @@ async fn compute_back_references(aggregated: Vc<AggregatedGraph>) -> Result<Vc<R
         &AggregatedGraphNodeContent::Asset(asset) => {
             let mut referenced_by = HashMap::new();
             for reference in asset.references().await?.iter() {
-                referenced_by.insert(*reference, [asset].into_iter().collect());
+                referenced_by.insert(
+                    reference.to_resolved().await?,
+                    [asset].into_iter().collect(),
+                );
             }
             ReferencesList { referenced_by }.into()
         }
         AggregatedGraphNodeContent::Children(children) => {
-            let mut referenced_by = HashMap::<Vc<Box<dyn OutputAsset>>, OutputAssetSet>::new();
+            let mut referenced_by =
+                HashMap::<ResolvedVc<Box<dyn OutputAsset>>, OutputAssetSet>::new();
             let lists = children
                 .iter()
                 .map(|child| compute_back_references(*child))
@@ -884,7 +888,7 @@ async fn top_references(list: Vc<ReferencesList>) -> Result<Vc<ReferencesList>> 
     let list = list.await?;
     const N: usize = 5;
     let mut top = Vec::<(
-        &Vc<Box<dyn OutputAsset>>,
+        &ResolvedVc<Box<dyn OutputAsset>>,
         &HashSet<Vc<Box<dyn OutputAsset>>>,
     )>::new();
     for tuple in list.referenced_by.iter() {
@@ -901,7 +905,7 @@ async fn top_references(list: Vc<ReferencesList>) -> Result<Vc<ReferencesList>> 
     Ok(ReferencesList {
         referenced_by: top
             .into_iter()
-            .map(|(asset, set)| (*asset, set.clone()))
+            .map(|(asset, set)| (asset.clone(), set.clone()))
             .collect(),
     }
     .into())

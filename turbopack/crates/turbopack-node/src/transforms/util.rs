@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
-use turbo_tasks::{RcStr, ResolvedVc, TryJoinIterExt};
+use turbo_tasks::{RcStr, ResolvedVc};
 use turbo_tasks_fs::{File, FileContent, FileSystem};
 use turbopack_core::{
     asset::AssetContent, server_fs::ServerFileSystem, virtual_source::VirtualSource,
@@ -20,7 +20,8 @@ pub struct EmittedAsset {
 pub async fn emitted_assets_to_virtual_sources(
     assets: Option<Vec<EmittedAsset>>,
 ) -> Result<Vec<ResolvedVc<VirtualSource>>> {
-    assets
+    let mut result = Vec::new();
+    let file_pairs: BTreeMap<_, _> = assets
         .into_iter()
         .flatten()
         .map(
@@ -30,17 +31,21 @@ pub async fn emitted_assets_to_virtual_sources(
                  source_map,
              }| (file, (content, source_map)),
         )
-        // Sort it to make it determinstic
-        .collect::<BTreeMap<_, _>>()
-        .into_iter()
-        .map(|(file, (content, _source_map))| {
-            // TODO handle SourceMap
-            VirtualSource::new(
-                ServerFileSystem::new().root().join(file),
-                AssetContent::File(FileContent::Content(File::from(content)).cell()).cell(),
-            )
+        .collect();
+
+    for (file, (content, _source_map)) in file_pairs {
+        // TODO handle SourceMap
+        let file_content = FileContent::Content(File::from(content))
+            .cell()
             .to_resolved()
-        })
-        .try_join()
-        .await
+            .await?;
+        let source = VirtualSource::new(
+            ServerFileSystem::new().root().join(file),
+            AssetContent::File(file_content).cell(),
+        )
+        .to_resolved()
+        .await?;
+        result.push(source);
+    }
+    Ok(result)
 }

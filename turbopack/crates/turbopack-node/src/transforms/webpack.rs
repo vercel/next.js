@@ -200,7 +200,7 @@ impl WebpackLoadersProcessedAsset {
         };
         let FileContent::Content(content) = &*file.await? else {
             return Ok(ProcessWebpackLoadersResult {
-                content: AssetContent::File(FileContent::NotFound.cell()).cell(),
+                content: AssetContent::File(FileContent::NotFound.resolved_cell()).cell(),
                 assets: Vec::new(),
                 source_map: None,
             }
@@ -245,7 +245,7 @@ impl WebpackLoadersProcessedAsset {
         let SingleValue::Single(val) = config_value.try_into_single().await? else {
             // An error happened, which has already been converted into an issue.
             return Ok(ProcessWebpackLoadersResult {
-                content: AssetContent::File(FileContent::NotFound.cell()).cell(),
+                content: AssetContent::File(FileContent::NotFound.resolved_cell()).cell(),
                 assets: Vec::new(),
                 source_map: None,
             }
@@ -258,9 +258,11 @@ impl WebpackLoadersProcessedAsset {
 
         // handle SourceMap
         let source_map = if let Some(source_map) = processed.map {
-            SourceMap::new_from_file_content(FileContent::Content(File::from(source_map)).cell())
-                .await?
-                .map(|source_map| source_map.cell())
+            SourceMap::new_from_file_content(
+                *FileContent::Content(File::from(source_map)).resolved_cell(),
+            )
+            .await?
+            .map(|source_map| source_map.cell())
         } else {
             None
         };
@@ -273,7 +275,7 @@ impl WebpackLoadersProcessedAsset {
             .into_iter()
             .map(|asset| *asset)
             .collect();
-        let content = AssetContent::File(FileContent::Content(file).cell()).cell();
+        let content = AssetContent::File(FileContent::Content(file).resolved_cell()).cell();
         Ok(ProcessWebpackLoadersResult {
             content,
             assets,
