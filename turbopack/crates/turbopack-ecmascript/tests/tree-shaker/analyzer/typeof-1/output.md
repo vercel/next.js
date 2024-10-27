@@ -265,13 +265,16 @@ export { MyModuleClientComponent as d } from "__TURBOPACK_VAR__" assert {
 ## Part 8
 ```js
 import { d as MyModuleClientComponent } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -7
+    __turbopack_part__: -7,
+    __turbopack_original__: 'my-module/MyModuleClientComponent'
 };
 import { b as NextResponse } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -3
+    __turbopack_part__: -3,
+    __turbopack_original__: 'next/server'
 };
 import { c as ClientComponent } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -5
+    __turbopack_part__: -5,
+    __turbopack_original__: '../../ClientComponent'
 };
 function GET() {
     return NextResponse.json({
@@ -386,13 +389,16 @@ export { MyModuleClientComponent as d } from "__TURBOPACK_VAR__" assert {
 ## Part 8
 ```js
 import { d as MyModuleClientComponent } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -7
+    __turbopack_part__: -7,
+    __turbopack_original__: 'my-module/MyModuleClientComponent'
 };
 import { b as NextResponse } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -3
+    __turbopack_part__: -3,
+    __turbopack_original__: 'next/server'
 };
 import { c as ClientComponent } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -5
+    __turbopack_part__: -5,
+    __turbopack_original__: '../../ClientComponent'
 };
 function GET() {
     return NextResponse.json({

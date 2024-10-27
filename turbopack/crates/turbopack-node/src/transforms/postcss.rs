@@ -391,7 +391,7 @@ async fn find_config_in_location(
     )
     .await?
     {
-        return Ok(Some(config_path));
+        return Ok(Some(*config_path));
     }
 
     if matches!(location, PostCssConfigLocation::ProjectPathOrLocalPath) {
@@ -402,7 +402,7 @@ async fn find_config_in_location(
         )
         .await?
         {
-            return Ok(Some(config_path));
+            return Ok(Some(*config_path));
         }
     }
 

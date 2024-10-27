@@ -1,5 +1,4 @@
 import type webpack from 'webpack'
-import { createHash } from 'crypto'
 import { RSC_MODULE_TYPES } from '../../../shared/lib/constants'
 
 const imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'avif', 'ico', 'svg']
@@ -47,25 +46,15 @@ export function isCSSMod(mod: {
 export function getActionsFromBuildInfo(mod: {
   resource: string
   buildInfo?: any
-}): undefined | string[] {
-  return mod.buildInfo?.rsc?.actions
+}): undefined | Record<string, string> {
+  return mod.buildInfo?.rsc?.actionIds
 }
 
-export function generateActionId(
-  hashSalt: string,
-  filePath: string,
-  exportName: string
-) {
-  return createHash('sha1')
-    .update(hashSalt + filePath + ':' + exportName)
-    .digest('hex')
-}
-
-export function encodeToBase64<T extends {}>(obj: T): string {
+export function encodeToBase64<T extends object>(obj: T): string {
   return Buffer.from(JSON.stringify(obj)).toString('base64')
 }
 
-export function decodeFromBase64<T extends {}>(str: string): T {
+export function decodeFromBase64<T extends object>(str: string): T {
   return JSON.parse(Buffer.from(str, 'base64').toString('utf8'))
 }
 

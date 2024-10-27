@@ -177,7 +177,7 @@ export async function runUpgrade(
       )
 
   if (compareVersions(targetNextVersion, '15.0.0-canary') >= 0) {
-    await suggestTurbopack(appPackageJson)
+    await suggestTurbopack(appPackageJson, targetNextVersion)
   }
 
   const codemods = await suggestCodemods(
@@ -410,28 +410,57 @@ function isUsingAppDir(projectPath: string): boolean {
  * 3. Otherwise, we ask the user to manually add `--turbopack` to their dev command,
  *    showing the current dev command as the initial value.
  */
-async function suggestTurbopack(packageJson: any): Promise<void> {
+async function suggestTurbopack(
+  packageJson: any,
+  targetNextVersion: string
+): Promise<void> {
   const devScript: string = packageJson.scripts['dev']
-  if (devScript?.includes('--turbopack')) return
+  // Turbopack flag was changed from `--turbo` to `--turbopack` in v15.0.1-canary.3
+  // PR: https://github.com/vercel/next.js/pull/71657
+  // Release: https://github.com/vercel/next.js/releases/tag/v15.0.1-canary.3
+  const isAfterTurbopackFlagChange =
+    compareVersions(targetNextVersion, '15.0.1-canary.3') >= 0
+  const turboPackFlag = isAfterTurbopackFlagChange ? '--turbopack' : '--turbo'
 
-  const responseTurbopack = await prompts(
-    {
-      type: 'confirm',
-      name: 'enable',
-      message: 'Enable Turbopack for next dev?',
-      initial: true,
-    },
-    { onCancel }
-  )
-
-  if (!responseTurbopack.enable) {
+  if (!devScript) {
+    console.log(
+      `${pc.yellow('⚠')} No "dev" script found in your package.json. Skipping Turbopack suggestion.`
+    )
     return
   }
 
   if (devScript.includes('next dev')) {
+    // covers "--turbopack" as well
+    if (devScript.includes('--turbo')) {
+      if (isAfterTurbopackFlagChange && !devScript.includes('--turbopack')) {
+        console.log() // new line
+        console.log(
+          `${pc.green('✔')} Replaced "--turbo" with "--turbopack" in your dev script.`
+        )
+        console.log() // new line
+        packageJson.scripts['dev'] = devScript.replace('--turbo', '--turbopack')
+        return
+      }
+      return
+    }
+
+    const responseTurbopack = await prompts(
+      {
+        type: 'confirm',
+        name: 'enable',
+        message: `Enable Turbopack for ${pc.bold('next dev')}?`,
+        initial: true,
+      },
+      { onCancel }
+    )
+
+    if (!responseTurbopack.enable) {
+      return
+    }
+
     packageJson.scripts['dev'] = devScript.replace(
       'next dev',
-      'next dev --turbopack'
+      `next dev ${turboPackFlag}`
     )
     return
   }
@@ -444,7 +473,7 @@ async function suggestTurbopack(packageJson: any): Promise<void> {
     {
       type: 'text',
       name: 'customDevScript',
-      message: 'Please manually add "--turbopack" to your dev command.',
+      message: `Please manually add "${turboPackFlag}" to your dev command.`,
       initial: devScript,
     },
     { onCancel }

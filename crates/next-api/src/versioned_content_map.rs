@@ -172,7 +172,8 @@ impl VersionedContentMap {
         };
 
         if let Some(generate_source_map) =
-            Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(*asset).await?
+            Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(*asset.to_resolved().await?)
+                .await?
         {
             Ok(if let Some(section) = section {
                 generate_source_map.by_section(section)
@@ -200,7 +201,7 @@ impl VersionedContentMap {
             side_effects.await?;
 
             if let Some(asset) = path_to_asset.get(&path) {
-                return Ok(Vc::cell(Some(*asset)));
+                return Ok(Vc::cell(Some(asset.to_resolved().await?)));
             } else {
                 let path = path.to_string().await?;
                 bail!(

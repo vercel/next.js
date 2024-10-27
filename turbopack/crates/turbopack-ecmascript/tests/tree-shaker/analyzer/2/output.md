@@ -633,7 +633,8 @@ import { d as foobar } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -8
 };
 import { f as upper } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -7
+    __turbopack_part__: -7,
+    __turbopack_original__: "module"
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 13
@@ -889,7 +890,8 @@ import { d as foobar } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -8
 };
 import { f as upper } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -7
+    __turbopack_part__: -7,
+    __turbopack_original__: "module"
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 13

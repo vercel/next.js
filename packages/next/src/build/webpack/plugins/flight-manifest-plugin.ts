@@ -72,12 +72,21 @@ export interface ManifestNode {
   }
 }
 
-export type ClientReferenceManifest = {
+export interface ClientReferenceManifestForRsc {
+  clientModules: ManifestNode
+  rscModuleMapping: {
+    [moduleId: string]: ManifestNode
+  }
+  edgeRscModuleMapping: {
+    [moduleId: string]: ManifestNode
+  }
+}
+
+export interface ClientReferenceManifest extends ClientReferenceManifestForRsc {
   readonly moduleLoading: {
     prefix: string
     crossOrigin: string | null
   }
-  clientModules: ManifestNode
   ssrModuleMapping: {
     [moduleId: string]: ManifestNode
   }
@@ -89,12 +98,6 @@ export type ClientReferenceManifest = {
   }
   entryJSFiles?: {
     [entry: string]: string[]
-  }
-  rscModuleMapping: {
-    [moduleId: string]: ManifestNode
-  }
-  edgeRscModuleMapping: {
-    [moduleId: string]: ManifestNode
   }
 }
 
