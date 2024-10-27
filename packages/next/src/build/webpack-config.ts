@@ -1136,7 +1136,9 @@ export default async function getBaseWebpackConfig(
       // However, Webpack's `resource-path` is relative to the app dir.
       // TODO: Either `sourceRoot` should be populated with the root and then we can use `[resource-path]`
       // or we need a way to resolve return `path.relative(sourceMapLocation, info.resourcePath)`
-      devtoolModuleFilenameTemplate: '[absolute-resource-path]',
+      devtoolModuleFilenameTemplate: dev
+        ? '[absolute-resource-path]'
+        : undefined,
       webassemblyModuleFilename: 'static/wasm/[modulehash].wasm',
       hashFunction: 'xxhash64',
       hashDigestLength: 16,
