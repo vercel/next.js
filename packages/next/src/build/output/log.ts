@@ -36,7 +36,9 @@ function prefixedLog(prefixType: keyof typeof prefixes, ...message: any[]) {
 }
 
 export function bootstrap(...message: string[]) {
-  // Add space after the prefix
+  // logging format: ' <prefix> <message>'
+  // e.g. ' ✓ Compiled successfully'
+  // Add spaces to align with the indent of other logs
   console.log('  ' + message.join(' '))
 }
 
