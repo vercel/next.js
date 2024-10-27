@@ -149,6 +149,7 @@ export function getRSCModuleInformation(
   return {
     type,
     actions,
+    actionIds: parsedActionsMeta,
     clientRefs,
     clientEntryType,
     isClientRef,

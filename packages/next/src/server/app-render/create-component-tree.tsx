@@ -53,8 +53,9 @@ function errorMissingDefaultExport(
   pagePath: string,
   convention: string
 ): never {
+  const normalizedPagePath = pagePath === '/' ? '' : pagePath
   throw new Error(
-    `The default export is not a React Component in "${pagePath}/${convention}"`
+    `The default export is not a React Component in "${normalizedPagePath}/${convention}"`
   )
 }
 

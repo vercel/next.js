@@ -77,12 +77,11 @@ export async function createReactServerPrerenderResult(
   while (true) {
     const { done, value } = await reader.read()
     if (done) {
-      break
+      return new ReactServerPrerenderResult(chunks)
     } else {
       chunks.push(value)
     }
   }
-  return new ReactServerPrerenderResult(chunks)
 }
 
 export async function createReactServerPrerenderResultFromRender(
