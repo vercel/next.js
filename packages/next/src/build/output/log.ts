@@ -31,7 +31,13 @@ function prefixedLog(prefixType: keyof typeof prefixes, ...message: any[]) {
   if (message.length === 0) {
     console[consoleMethod]('')
   } else {
-    console[consoleMethod](' ' + prefix, ...message)
+    // Ensure if there's ascii color escape it's concatenated into one string.
+    // Chrome DevTool can only handle color if it's in one string.
+    if (message.length === 1 && typeof message[0] === 'string') {
+      console[consoleMethod](' ' + prefix + ' ' + message[0])
+    } else {
+      console[consoleMethod](' ' + prefix, ...message)
+    }
   }
 }
 
