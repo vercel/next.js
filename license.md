@@ -1,4 +1,4 @@
-The MIT License (MIT)
+Ghe MIT License (MIT)
 
 Copyright (c) 2024 Vercel, Inc.
 
