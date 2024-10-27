@@ -41,15 +41,15 @@ export const onCaughtError: HydrationOptions['onCaughtError'] = (
 
     const errorLocation = `${componentErrorMessage} ${errorBoundaryMessage}`
 
-    const stitchedError = getReactStitchedError(err, errorLocation)
+    const stitchedError = getReactStitchedError(err)
     // TODO: change to passing down errorInfo later
     // In development mode, pass along the component stack to the error
     if (errorInfo.componentStack) {
       ;(stitchedError as any)._componentStack = errorInfo.componentStack
     }
 
-    // Log the error
-    originConsoleError(stitchedError)
+    // Log and report the error with location but without modifying the error stack
+    originConsoleError('%o\n\n%s', stitchedError, errorLocation)
 
     handleClientError(stitchedError, [])
   } else {
@@ -77,15 +77,15 @@ export const onUncaughtError: HydrationOptions['onUncaughtError'] = (
       ? `The above error occurred in the <${componentThatErroredName}> component.`
       : `The above error occurred in one of your components.`
 
-    const stitchedError = getReactStitchedError(err, errorLocation)
+    const stitchedError = getReactStitchedError(err)
     // TODO: change to passing down errorInfo later
     // In development mode, pass along the component stack to the error
     if (errorInfo.componentStack) {
       ;(stitchedError as any)._componentStack = errorInfo.componentStack
     }
 
-    // Log and report the error
-    originConsoleError(stitchedError)
+    // Log and report the error with location but without modifying the error stack
+    originConsoleError('%o\n\n%s', stitchedError, errorLocation)
     reportGlobalError(stitchedError)
   } else {
     reportGlobalError(err)

@@ -6,10 +6,7 @@ const REACT_ERROR_STACK_BOTTOM_FRAME_REGEX = new RegExp(
   `(at ${REACT_ERROR_STACK_BOTTOM_FRAME} )|(${REACT_ERROR_STACK_BOTTOM_FRAME}\\@)`
 )
 
-export function getReactStitchedError<T = unknown>(
-  err: T,
-  locationInfo?: string
-): Error | T {
+export function getReactStitchedError<T = unknown>(err: T): Error | T {
   if (typeof (React as any).captureOwnerStack !== 'function') {
     return err
   }
@@ -34,14 +31,9 @@ export function getReactStitchedError<T = unknown>(
   const ownerStack = (React as any).captureOwnerStack()
   if (ownerStack && newStack.endsWith(ownerStack) === false) {
     newStack += ownerStack
+    // Override stack
+    newError.stack = newStack
   }
-
-  if (locationInfo) {
-    newStack += `\n\n${locationInfo}`
-  }
-
-  // Override stack
-  newError.stack = newStack
 
   return newError
 }

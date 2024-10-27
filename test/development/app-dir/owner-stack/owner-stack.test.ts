@@ -74,7 +74,8 @@ describe('app-dir - owner-stack', () => {
 
     if (process.env.TURBOPACK) {
       expect(normalizeStackTrace(errorLog)).toMatchInlineSnapshot(`
-        "Error: browser error
+        "%o
+        %s Error: browser error
         at useThrowError 
         at useErrorHook 
         at Page 
@@ -82,12 +83,12 @@ describe('app-dir - owner-stack', () => {
         at DevRootNotFoundBoundary 
         at Router 
         at AppRouter 
-        at ServerRoot 
-        The above error occurred in the <Page> component. It was handled by the <ReactDevOverlay> error boundary."
+        at ServerRoot  The above error occurred in the <Page> component. It was handled by the <ReactDevOverlay> error boundary."
       `)
     } else {
       expect(normalizeStackTrace(errorLog)).toMatchInlineSnapshot(`
-        "Error: browser error
+        "%o
+        %s Error: browser error
         at useThrowError 
         at useErrorHook 
         at Page 
@@ -95,8 +96,7 @@ describe('app-dir - owner-stack', () => {
         at DevRootNotFoundBoundary 
         at Router 
         at AppRouter 
-        at ServerRoot 
-        The above error occurred in the <Page> component. It was handled by the <ReactDevOverlay> error boundary."
+        at ServerRoot  The above error occurred in the <Page> component. It was handled by the <ReactDevOverlay> error boundary."
       `)
     }
   })
@@ -132,14 +132,14 @@ describe('app-dir - owner-stack', () => {
     }
 
     expect(normalizeStackTrace(errorLog)).toMatchInlineSnapshot(`
-      "Error: browser error
+      "%o
+      %s Error: browser error
       at useThrowError 
       at useErrorHook 
       at Thrower 
       at Inner 
       at Page 
-      at ClientPageRoot 
-      The above error occurred in the <Thrower> component. It was handled by the <MyErrorBoundary> error boundary."
+      at ClientPageRoot  The above error occurred in the <Thrower> component. It was handled by the <MyErrorBoundary> error boundary."
     `)
   })
 
@@ -167,7 +167,8 @@ describe('app-dir - owner-stack', () => {
     }).message
 
     expect(normalizeStackTrace(errorLog)).toMatchInlineSnapshot(`
-      "Error: ssr error
+      "%o
+      %s Error: ssr error
       at useThrowError 
       at useErrorHook 
       at Page 
@@ -175,8 +176,7 @@ describe('app-dir - owner-stack', () => {
       at DevRootNotFoundBoundary 
       at Router 
       at AppRouter 
-      at ServerRoot 
-      The above error occurred in the <Page> component. It was handled by the <ReactDevOverlay> error boundary."
+      at ServerRoot  The above error occurred in the <Page> component. It was handled by the <ReactDevOverlay> error boundary."
     `)
   })
 
