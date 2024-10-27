@@ -49,7 +49,7 @@ export const onCaughtError: HydrationOptions['onCaughtError'] = (
     }
 
     // Log and report the error with location but without modifying the error stack
-    originConsoleError('%o\n\n%s', stitchedError, errorLocation)
+    originConsoleError('%o\n\n%s', err, errorLocation)
 
     handleClientError(stitchedError, [])
   } else {
@@ -85,7 +85,7 @@ export const onUncaughtError: HydrationOptions['onUncaughtError'] = (
     }
 
     // Log and report the error with location but without modifying the error stack
-    originConsoleError('%o\n\n%s', stitchedError, errorLocation)
+    originConsoleError('%o\n\n%s', err, errorLocation)
     reportGlobalError(stitchedError)
   } else {
     reportGlobalError(err)
