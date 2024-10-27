@@ -1084,7 +1084,7 @@ async fn imports_field(lookup_path: Vc<FileSystemPath>) -> Result<Vc<ImportsFiel
         return Ok(ImportsFieldResult::None.cell());
     };
 
-    let read = read_package_json(*package_json_path).await?;
+    let read = read_package_json(**package_json_path).await?;
     let package_json = match &*read {
         Some(json) => json,
         None => return Ok(ImportsFieldResult::None.cell()),
@@ -1094,10 +1094,10 @@ async fn imports_field(lookup_path: Vc<FileSystemPath>) -> Result<Vc<ImportsFiel
         return Ok(ImportsFieldResult::None.cell());
     };
     match imports.try_into() {
-        Ok(imports) => Ok(ImportsFieldResult::Some(imports, *package_json_path).cell()),
+        Ok(imports) => Ok(ImportsFieldResult::Some(imports, **package_json_path).cell()),
         Err(err) => {
             PackageJsonIssue {
-                path: *package_json_path,
+                path: **package_json_path,
                 error_message: err.to_string().into(),
             }
             .cell()
@@ -1114,7 +1114,7 @@ pub fn package_json() -> Vc<Vec<RcStr>> {
 
 #[turbo_tasks::value(shared)]
 pub enum FindContextFileResult {
-    Found(Vc<FileSystemPath>, Vec<Vc<Box<dyn Source>>>),
+    Found(ResolvedVc<FileSystemPath>, Vec<Vc<Box<dyn Source>>>),
     NotFound(Vec<Vc<Box<dyn Source>>>),
 }
 
@@ -1127,7 +1127,7 @@ pub async fn find_context_file(
     for name in &*names.await? {
         let fs_path = lookup_path.join(name.clone());
         if let Some(fs_path) = exists(fs_path, &mut refs).await? {
-            return Ok(FindContextFileResult::Found(fs_path, refs).into());
+            return Ok(FindContextFileResult::Found(fs_path.to_resolved().await?, refs).into());
         }
     }
     if lookup_path.await?.is_root() {
@@ -1167,14 +1167,18 @@ pub async fn find_context_file_or_package_key(
     if let Some(package_json_path) = exists(package_json_path, &mut refs).await? {
         if let Some(json) = &*read_package_json(package_json_path).await? {
             if json.get(&**package_key).is_some() {
-                return Ok(FindContextFileResult::Found(package_json_path, refs).into());
+                return Ok(FindContextFileResult::Found(
+                    package_json_path.to_resolved().await?,
+                    refs,
+                )
+                .into());
             }
         }
     }
     for name in &*names.await? {
         let fs_path = lookup_path.join(name.clone());
         if let Some(fs_path) = exists(fs_path, &mut refs).await? {
-            return Ok(FindContextFileResult::Found(fs_path, refs).into());
+            return Ok(FindContextFileResult::Found(fs_path.to_resolved().await?, refs).into());
         }
     }
     if lookup_path.await?.is_root() {
@@ -2188,7 +2192,7 @@ async fn apply_in_package(
             continue;
         };
 
-        let read = read_package_json(*package_json_path).await?;
+        let read = read_package_json(**package_json_path).await?;
         let Some(package_json) = &*read else {
             continue;
         };
@@ -2248,7 +2252,7 @@ async fn apply_in_package(
 
         ResolvingIssue {
             severity: error_severity(options).await?,
-            file_path: *package_json_path,
+            file_path: **package_json_path,
             request_type: format!("alias field ({field})"),
             request: Request::parse(Value::new(Pattern::Constant(request))),
             resolve_options: options,
@@ -2282,7 +2286,7 @@ async fn find_self_reference(
 ) -> Result<Vc<FindSelfReferencePackageResult>> {
     let package_json_context = find_context_file(lookup_path, package_json()).await?;
     if let FindContextFileResult::Found(package_json_path, _refs) = &*package_json_context {
-        let read = read_package_json(*package_json_path).await?;
+        let read = read_package_json(**package_json_path).await?;
         if let Some(json) = &*read {
             if json.get("exports").is_some() {
                 if let Some(name) = json["name"].as_str() {

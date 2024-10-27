@@ -466,7 +466,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     if analyze_types {
         match &*find_context_file(path.parent(), tsconfig()).await? {
             FindContextFileResult::Found(tsconfig, _) => {
-                analysis.add_reference(TsConfigReference::new(origin, *tsconfig));
+                analysis.add_reference(TsConfigReference::new(origin, **tsconfig));
             }
             FindContextFileResult::NotFound(_) => {}
         };

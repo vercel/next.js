@@ -37,6 +37,7 @@ import os from 'os'
 import { once } from 'node:events'
 import { clearTimeout } from 'timers'
 import { flushAllTraces, trace } from '../trace'
+import { traceId } from '../trace/shared'
 
 export type NextDevOptions = {
   turbo?: boolean
@@ -137,6 +138,7 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
       mode: 'dev',
       projectDir: dir,
       distDir: config.distDir,
+      isTurboSession,
     })
   }
 
@@ -277,6 +279,7 @@ const nextDev = async (
           ...defaultEnv,
           TURBOPACK: process.env.TURBOPACK,
           NEXT_PRIVATE_WORKER: '1',
+          NEXT_PRIVATE_TRACE_ID: traceId,
           NODE_EXTRA_CA_CERTS: startServerOptions.selfSignedCertificate
             ? startServerOptions.selfSignedCertificate.rootCA
             : defaultEnv.NODE_EXTRA_CA_CERTS,
@@ -309,6 +312,7 @@ const nextDev = async (
               mode: 'dev',
               projectDir: dir,
               distDir: config.distDir,
+              isTurboSession,
               sync: true,
             })
           }

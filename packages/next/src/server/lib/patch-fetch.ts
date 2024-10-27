@@ -278,11 +278,15 @@ export function createPatchedFetcher(
             ? []
             : workUnitStore.implicitTags
 
-        // Inside unstable-cache we treat it the same as force-no-store on the page.
+        // Inside unstable-cache or "use cache", we treat it the same as
+        // force-no-store on the page.
         const pageFetchCacheMode =
-          workUnitStore && workUnitStore.type === 'unstable-cache'
+          workUnitStore &&
+          (workUnitStore.type === 'unstable-cache' ||
+            workUnitStore.type === 'cache')
             ? 'force-no-store'
             : workStore.fetchCache
+
         const isUsingNoStore = !!workStore.isUnstableNoStore
 
         let currentFetchCacheConfig = getRequestMeta('cache')
@@ -304,16 +308,20 @@ export function createPatchedFetcher(
         if (currentFetchCacheConfig === 'force-cache') {
           currentFetchRevalidate = false
         } else if (
-          currentFetchCacheConfig === 'no-cache' ||
-          currentFetchCacheConfig === 'no-store' ||
-          pageFetchCacheMode === 'force-no-store' ||
-          pageFetchCacheMode === 'only-no-store' ||
-          // If no explicit fetch cache mode is set, but dynamic = `force-dynamic` is set,
-          // we shouldn't consider caching the fetch. This is because the `dynamic` cache
-          // is considered a "top-level" cache mode, whereas something like `fetchCache` is more
-          // fine-grained. Top-level modes are responsible for setting reasonable defaults for the
-          // other configurations.
-          (!pageFetchCacheMode && workStore.forceDynamic)
+          // if we are inside of "use cache"/"unstable_cache"
+          // we shouldn't set the revalidate to 0 as it's overridden
+          // by the cache context
+          workUnitStore?.type !== 'cache' &&
+          (currentFetchCacheConfig === 'no-cache' ||
+            currentFetchCacheConfig === 'no-store' ||
+            pageFetchCacheMode === 'force-no-store' ||
+            pageFetchCacheMode === 'only-no-store' ||
+            // If no explicit fetch cache mode is set, but dynamic = `force-dynamic` is set,
+            // we shouldn't consider caching the fetch. This is because the `dynamic` cache
+            // is considered a "top-level" cache mode, whereas something like `fetchCache` is more
+            // fine-grained. Top-level modes are responsible for setting reasonable defaults for the
+            // other configurations.
+            (!pageFetchCacheMode && workStore.forceDynamic))
         ) {
           currentFetchRevalidate = 0
         }

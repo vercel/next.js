@@ -289,6 +289,7 @@ async function startWatcher(opts: SetupOpts) {
     let enabledTypeScript = usingTypeScript
     let previousClientRouterFilters: any
     let previousConflictingPagePaths: Set<string> = new Set()
+    let previouslyHadSegmentError = false
 
     wp.on('aggregated', async () => {
       let middlewareMatchers: MiddlewareMatcher[] | undefined
@@ -569,6 +570,10 @@ async function startWatcher(opts: SetupOpts) {
           const errorMessage = `The following pages used segment configs which are not supported with "experimental.dynamicIO" and must be removed to build your application:\n${pagesWithIncompatibleSegmentConfigs.join('\n')}\n`
           Log.error(errorMessage)
           hotReloader.setHmrServerError(new Error(errorMessage))
+          previouslyHadSegmentError = true
+        } else if (previouslyHadSegmentError) {
+          hotReloader.clearHmrServerError()
+          previouslyHadSegmentError = false
         }
       }
 
