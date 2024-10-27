@@ -183,7 +183,7 @@ function ServerRoot(): React.ReactNode {
   const router = (
     <AppRouter
       actionQueue={actionQueue}
-      globalErrorComponent={initialRSCPayload.G}
+      globalErrorComponentAndStyles={initialRSCPayload.G}
       assetPrefix={initialRSCPayload.p}
     />
   )
