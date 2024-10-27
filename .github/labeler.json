@@ -39,7 +39,8 @@
       { "type": "user", "pattern": "timneutkens" },
       { "type": "user", "pattern": "unstubbable" },
       { "type": "user", "pattern": "wyattjoh" },
-      { "type": "user", "pattern": "ztanner" }
+      { "type": "user", "pattern": "ztanner" },
+      { "type": "user", "pattern": "gaojude" }
     ],
     "created-by: Next.js DevEx team": [
       { "type": "user", "pattern": "delbaoliveira" },
