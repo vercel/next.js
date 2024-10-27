@@ -296,7 +296,7 @@ export async function startServer(
         })
         process.on('uncaughtException', exception)
         process.on('unhandledRejection', exception)
-
+        process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
         const initResult = await getRequestHandlers({
           dir,
           port,
