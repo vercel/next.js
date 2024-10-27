@@ -58,7 +58,7 @@ impl Asset for FileSource {
                 Ok(AssetContent::File(self.path.read().to_resolved().await?).cell())
             }
             FileSystemEntryType::NotFound => {
-                Ok(AssetContent::File(FileContent::NotFound.cell().to_resolved().await?).cell())
+                Ok(AssetContent::File(FileContent::NotFound.resolved_cell()).cell())
             }
             _ => Err(anyhow::anyhow!("Invalid file type {:?}", file_type)),
         }

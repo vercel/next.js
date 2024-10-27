@@ -139,8 +139,8 @@ impl PagesProject {
             Ok(())
         }
 
-        if let Some(api) = api {
-            add_dir_to_routes(&mut routes, **api, |pathname, original_name, page| {
+        if let Some(api) = *api {
+            add_dir_to_routes(&mut routes, *api, |pathname, original_name, page| {
                 Route::PageApi {
                     endpoint: Vc::upcast(PageEndpoint::new(
                         PageEndpointType::Api,
@@ -174,8 +174,8 @@ impl PagesProject {
             )),
         };
 
-        if let Some(pages) = pages {
-            add_dir_to_routes(&mut routes, **pages, make_page_route).await?;
+        if let Some(pages) = *pages {
+            add_dir_to_routes(&mut routes, *pages, make_page_route).await?;
         }
 
         for route in routes.values_mut() {

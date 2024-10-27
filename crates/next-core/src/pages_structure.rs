@@ -197,13 +197,16 @@ async fn get_pages_structure_for_root_directory(
                     }
                     DirectoryEntry::Directory(dir_project_path) => match name.as_str() {
                         "api" => {
-                            let api_structure = get_pages_structure_for_directory(
-                                *dir_project_path,
-                                next_router_path.join(name.clone()),
-                                1,
-                                page_extensions,
+                            api_directory = Some(
+                                get_pages_structure_for_directory(
+                                    *dir_project_path,
+                                    next_router_path.join(name.clone()),
+                                    1,
+                                    page_extensions,
+                                )
+                                .to_resolved()
+                                .await?,
                             );
-                            api_directory = Some(api_structure.to_resolved().await?);
                         }
                         _ => {
                             children.push((

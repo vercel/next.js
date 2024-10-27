@@ -31,8 +31,8 @@ pub enum AssetContent {
 #[turbo_tasks::value_impl]
 impl AssetContent {
     #[turbo_tasks::function]
-    pub async fn file(file: Vc<FileContent>) -> Result<Vc<Self>> {
-        Ok(AssetContent::File(file.to_resolved().await?).cell())
+    pub async fn file(file: ResolvedVc<FileContent>) -> Result<Vc<Self>> {
+        Ok(AssetContent::File(file).cell())
     }
 
     #[turbo_tasks::function]

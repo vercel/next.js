@@ -53,7 +53,7 @@ impl NextDynamicEntries {
                         // traversal.
                     }
                     VisitDynamicNode::Dynamic(dynamic_asset, _) => {
-                        next_dynamics.push(dynamic_asset.resolve().await?);
+                        next_dynamics.push(*dynamic_asset);
                     }
                 }
             }
@@ -89,7 +89,7 @@ impl Visit<VisitDynamicNode> for VisitDynamic {
         async move {
             let module = match node {
                 VisitDynamicNode::Dynamic(dynamic_module, _) => ResolvedVc::upcast(dynamic_module),
-                VisitDynamicNode::Internal(module, _) => module.to_resolved().await?,
+                VisitDynamicNode::Internal(module, _) => module,
             };
 
             let referenced_modules = primary_referenced_modules(*module).await?;
@@ -106,7 +106,7 @@ impl Visit<VisitDynamicNode> for VisitDynamic {
                 }
 
                 Ok(VisitDynamicNode::Internal(
-                    module, // Removed the dereference since module is already a ResolvedVc
+                    module,
                     module.ident().to_string().await?,
                 ))
             });

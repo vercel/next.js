@@ -85,10 +85,11 @@ impl MiddlewareEndpoint {
 
         let mut evaluatable_assets = get_server_runtime_entries(
             Value::new(ServerContextType::Middleware {
-                app_dir: self.app_dir.map(|v| *v),
+                app_dir: self.app_dir.as_deref().copied(),
                 ecmascript_client_reference_transition_name: self
                     .ecmascript_client_reference_transition_name
-                    .map(|v| *v), // Dereference the ResolvedVc to get back a Vc
+                    .as_deref()
+                    .copied(),
             }),
             self.project.next_mode(),
         )

@@ -296,19 +296,18 @@ async fn get_directory_tree_internal(
                 if basename.ends_with(".d.ts") {
                     continue;
                 }
-                let resolved_file = file.to_resolved().await?;
                 if let Some((stem, ext)) = basename.split_once('.') {
                     if page_extensions_value.iter().any(|e| e == ext) {
                         match stem {
-                            "page" => modules.page = Some(*resolved_file),
-                            "layout" => modules.layout = Some(*resolved_file),
-                            "error" => modules.error = Some(*resolved_file),
-                            "global-error" => modules.global_error = Some(resolved_file),
-                            "loading" => modules.loading = Some(*resolved_file),
-                            "template" => modules.template = Some(*resolved_file),
-                            "not-found" => modules.not_found = Some(*resolved_file),
-                            "default" => modules.default = Some(*resolved_file),
-                            "route" => modules.route = Some(resolved_file),
+                            "page" => modules.page = Some(*file),
+                            "layout" => modules.layout = Some(*file),
+                            "error" => modules.error = Some(*file),
+                            "global-error" => modules.global_error = Some(file),
+                            "loading" => modules.loading = Some(*file),
+                            "template" => modules.template = Some(*file),
+                            "not-found" => modules.not_found = Some(*file),
+                            "default" => modules.default = Some(*file),
+                            "route" => modules.route = Some(file),
                             _ => {}
                         }
                     }
@@ -330,13 +329,9 @@ async fn get_directory_tree_internal(
                     "opengraph-image" => &mut metadata_open_graph,
                     "sitemap" => {
                         if dynamic {
-                            modules.metadata.sitemap = Some(MetadataItem::Dynamic {
-                                path: *resolved_file,
-                            });
+                            modules.metadata.sitemap = Some(MetadataItem::Dynamic { path: *file });
                         } else {
-                            modules.metadata.sitemap = Some(MetadataItem::Static {
-                                path: *resolved_file,
-                            });
+                            modules.metadata.sitemap = Some(MetadataItem::Static { path: *file });
                         }
                         continue;
                     }
@@ -344,12 +339,7 @@ async fn get_directory_tree_internal(
                 };
 
                 if dynamic {
-                    entry.push((
-                        number,
-                        MetadataWithAltItem::Dynamic {
-                            path: *resolved_file,
-                        },
-                    ));
+                    entry.push((number, MetadataWithAltItem::Dynamic { path: *file }));
                     continue;
                 }
 
@@ -365,7 +355,7 @@ async fn get_directory_tree_internal(
                 entry.push((
                     number,
                     MetadataWithAltItem::Static {
-                        path: *resolved_file,
+                        path: *file,
                         alt_path,
                     },
                 ));

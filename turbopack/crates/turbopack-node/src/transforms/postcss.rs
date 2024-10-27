@@ -436,6 +436,17 @@ impl PostCssTransformedAsset {
             env,
         } = *self.execution_context.await?;
 
+        // For this postcss transform, there is no gaurantee that looking up for the
+        // source path will arrives specific project config for the postcss.
+        // i.e, this is possible
+        // - root
+        //  - node_modules
+        //     - somepkg/(some.module.css, postcss.config.js) // this could be symlinked local, or
+        //       actual remote pkg or anything
+        //  - packages // root of workspace pkgs
+        //     - pkg1/(postcss.config.js) // The actual config we're looking for
+        //
+        // We look for the config in the project path first, then the source path
         let Some(config_path) =
             find_config_in_location(project_path, self.config_location, self.source).await?
         else {

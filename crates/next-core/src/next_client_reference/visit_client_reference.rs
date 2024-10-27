@@ -121,7 +121,7 @@ impl ClientReferenceGraphResult {
 
 #[turbo_tasks::function]
 pub async fn client_reference_graph(
-    entries: Vec<Vc<Box<dyn Module>>>,
+    entries: Vec<ResolvedVc<Box<dyn Module>>>,
     visited_nodes: Vc<VisitedClientReferenceGraphNodes>,
 ) -> Result<Vc<ClientReferenceGraphResult>> {
     async move {
@@ -141,13 +141,10 @@ pub async fn client_reference_graph(
                     .iter()
                     .copied()
                     .map(|module| async move {
-                        let resolved_module = module.to_resolved().await?;
                         Ok(VisitClientReferenceNode {
                             state: if let Some(server_component) =
-                                ResolvedVc::try_downcast_type::<NextServerComponentModule>(
-                                    resolved_module,
-                                )
-                                .await?
+                                ResolvedVc::try_downcast_type::<NextServerComponentModule>(module)
+                                    .await?
                             {
                                 VisitClientReferenceNodeState::InServerComponent {
                                     server_component: *server_component,
@@ -158,7 +155,7 @@ pub async fn client_reference_graph(
                                 }
                             },
                             ty: VisitClientReferenceNodeType::Internal(
-                                resolved_module,
+                                module,
                                 module.ident().to_string().await?,
                             ),
                         })
@@ -196,7 +193,7 @@ pub async fn client_reference_graph(
                     server_utils.push(**server_util);
                 }
                 VisitClientReferenceNodeType::ServerComponentEntry(server_component, _) => {
-                    server_component_entries.push(*server_component);
+                    server_component_entries.push(**server_component);
                 }
             }
         }
@@ -222,7 +219,7 @@ pub struct ServerEntries {
 }
 
 #[turbo_tasks::function]
-pub async fn find_server_entries(entry: Vc<Box<dyn Module>>) -> Result<Vc<ServerEntries>> {
+pub async fn find_server_entries(entry: ResolvedVc<Box<dyn Module>>) -> Result<Vc<ServerEntries>> {
     let graph = AdjacencyMap::new()
         .skip_duplicates()
         .visit(
@@ -232,10 +229,7 @@ pub async fn find_server_entries(entry: Vc<Box<dyn Module>>) -> Result<Vc<Server
                         entry_path: entry.ident().path().resolve().await?,
                     }
                 },
-                ty: VisitClientReferenceNodeType::Internal(
-                    entry.to_resolved().await?,
-                    entry.ident().to_string().await?,
-                ),
+                ty: VisitClientReferenceNodeType::Internal(entry, entry.ident().to_string().await?),
             }],
             VisitClientReference {
                 stop_at_server_entries: true,
@@ -253,7 +247,7 @@ pub async fn find_server_entries(entry: Vc<Box<dyn Module>>) -> Result<Vc<Server
                 server_utils.push(**server_util);
             }
             VisitClientReferenceNodeType::ServerComponentEntry(server_component, _) => {
-                server_component_entries.push(*server_component);
+                server_component_entries.push(**server_component);
             }
             VisitClientReferenceNodeType::Internal(_, _)
             | VisitClientReferenceNodeType::ClientReference(_, _) => {}
@@ -309,7 +303,7 @@ impl VisitClientReferenceNodeState {
 )]
 enum VisitClientReferenceNodeType {
     ClientReference(ClientReference, ReadRef<RcStr>),
-    ServerComponentEntry(Vc<NextServerComponentModule>, ReadRef<RcStr>),
+    ServerComponentEntry(ResolvedVc<NextServerComponentModule>, ReadRef<RcStr>),
     ServerUtilEntry(ResolvedVc<Box<dyn Module>>, ReadRef<RcStr>),
     Internal(ResolvedVc<Box<dyn Module>>, ReadRef<RcStr>),
 }
@@ -348,11 +342,9 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
                 // nodes' edges.
                 VisitClientReferenceNodeType::ClientReference(..) => return Ok(vec![]),
                 VisitClientReferenceNodeType::Internal(module, _) => module,
-                VisitClientReferenceNodeType::ServerUtilEntry(module, _) => {
-                    module.to_resolved().await?
-                }
+                VisitClientReferenceNodeType::ServerUtilEntry(module, _) => module,
                 VisitClientReferenceNodeType::ServerComponentEntry(module, _) => {
-                    ResolvedVc::upcast(module.to_resolved().await?)
+                    ResolvedVc::upcast(module)
                 }
             };
 
@@ -372,7 +364,7 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
                                     parent_module: *ResolvedVc::try_downcast_type::<
                                         EcmascriptClientReferenceProxyModule,
                                     >(
-                                        parent_module.to_resolved().await?
+                                        parent_module
                                     )
                                     .await?
                                     .unwrap(),
@@ -409,7 +401,7 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
                             server_component: *server_component_asset,
                         },
                         ty: VisitClientReferenceNodeType::ServerComponentEntry(
-                            *server_component_asset,
+                            server_component_asset,
                             server_component_asset.ident().to_string().await?,
                         ),
                     });
@@ -420,7 +412,7 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
                         return Ok(VisitClientReferenceNode {
                             state: VisitClientReferenceNodeState::InServerUtil,
                             ty: VisitClientReferenceNodeType::ServerUtilEntry(
-                                module.to_resolved().await?,
+                                module,
                                 module.ident().to_string().await?,
                             ),
                         });

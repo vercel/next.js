@@ -905,7 +905,7 @@ async fn top_references(list: Vc<ReferencesList>) -> Result<Vc<ReferencesList>> 
     Ok(ReferencesList {
         referenced_by: top
             .into_iter()
-            .map(|(asset, set)| (asset.clone(), set.clone()))
+            .map(|(asset, set)| (*asset, set.clone()))
             .collect(),
     }
     .into())
