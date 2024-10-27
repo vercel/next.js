@@ -35,8 +35,9 @@ function prefixedLog(prefixType: keyof typeof prefixes, ...message: any[]) {
   }
 }
 
-export function bootstrap(...message: any[]) {
-  console.log(' ', ...message)
+export function bootstrap(...message: string[]) {
+  // Add space after the prefix
+  console.log('  ' + message.join(' '))
 }
 
 export function wait(...message: any[]) {
