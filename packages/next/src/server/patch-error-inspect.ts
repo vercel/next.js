@@ -1,4 +1,6 @@
 import { findSourceMap, type SourceMapPayload } from 'module'
+import * as path from 'path'
+import { URL } from 'url'
 import type * as util from 'util'
 import { SourceMapConsumer as SyncSourceMapConsumer } from 'next/dist/compiled/source-map'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
@@ -27,9 +29,21 @@ function frameToString(frame: StackFrame): string {
   if (frame.column !== null && sourceLocation !== '') {
     sourceLocation += `:${frame.column}`
   }
+
+  const filePath =
+    frame.file !== null &&
+    frame.file.startsWith('file://') &&
+    URL.canParse(frame.file)
+      ? // If not relative to CWD, the path is ambiguous to IDEs and clicking will prompt to select the file first.
+        // In a multi-app repo, this leads to potentially larger file names but will make clicking snappy.
+        // There's no tradeoff for the cases where `dir` in `next dev [dir]` is omitted
+        // since relative to cwd is both the shortest and snappiest.
+        path.relative(process.cwd(), new URL(frame.file).pathname)
+      : frame.file
+
   return frame.methodName
-    ? `    at ${frame.methodName} (${frame.file}${sourceLocation})`
-    : `    at ${frame.file}${frame.lineNumber}:${frame.column}`
+    ? `    at ${frame.methodName} (${filePath}${sourceLocation})`
+    : `    at ${filePath}${frame.lineNumber}:${frame.column}`
 }
 
 function computeErrorName(error: Error): string {
