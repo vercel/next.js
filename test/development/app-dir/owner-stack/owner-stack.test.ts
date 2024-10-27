@@ -78,17 +78,11 @@ describe('app-dir - owner-stack', () => {
         at useThrowError 
         at useErrorHook 
         at Page 
-        at react-stack-bottom-frame 
-        at renderWithHooks 
-        at updateFunctionComponent 
-        at beginWork 
-        at runWithFiberInDEV 
-        at performUnitOfWork 
-        at workLoopSync 
-        at renderRootSync 
-        at performWorkOnRoot 
-        at performWorkOnRootViaSchedulerTask 
-        at MessagePort.performWorkUntilDeadline 
+        at NotFoundBoundary 
+        at DevRootNotFoundBoundary 
+        at Router 
+        at AppRouter 
+        at ServerRoot 
         The above error occurred in the <Page> component. It was handled by the <ReactDevOverlay> error boundary."
       `)
     } else {
@@ -97,17 +91,11 @@ describe('app-dir - owner-stack', () => {
         at useThrowError 
         at useErrorHook 
         at Page 
-        at react-stack-bottom-frame 
-        at renderWithHooks 
-        at updateFunctionComponent 
-        at beginWork 
-        at runWithFiberInDEV 
-        at performUnitOfWork 
-        at workLoopSync 
-        at renderRootSync 
-        at performWorkOnRoot 
-        at performWorkOnRootViaSchedulerTask 
-        at MessagePort.performWorkUntilDeadline 
+        at NotFoundBoundary 
+        at DevRootNotFoundBoundary 
+        at Router 
+        at AppRouter 
+        at ServerRoot 
         The above error occurred in the <Page> component. It was handled by the <ReactDevOverlay> error boundary."
       `)
     }
@@ -148,17 +136,9 @@ describe('app-dir - owner-stack', () => {
       at useThrowError 
       at useErrorHook 
       at Thrower 
-      at react-stack-bottom-frame 
-      at renderWithHooks 
-      at updateFunctionComponent 
-      at beginWork 
-      at runWithFiberInDEV 
-      at performUnitOfWork 
-      at workLoopSync 
-      at renderRootSync 
-      at performWorkOnRoot 
-      at performWorkOnRootViaSchedulerTask 
-      at MessagePort.performWorkUntilDeadline 
+      at Inner 
+      at Page 
+      at ClientPageRoot 
       The above error occurred in the <Thrower> component. It was handled by the <MyErrorBoundary> error boundary."
     `)
   })
@@ -191,17 +171,11 @@ describe('app-dir - owner-stack', () => {
       at useThrowError 
       at useErrorHook 
       at Page 
-      at react-stack-bottom-frame 
-      at renderWithHooks 
-      at updateFunctionComponent 
-      at beginWork 
-      at runWithFiberInDEV 
-      at performUnitOfWork 
-      at workLoopSync 
-      at renderRootSync 
-      at performWorkOnRoot 
-      at performWorkOnRootViaSchedulerTask 
-      at MessagePort.performWorkUntilDeadline 
+      at NotFoundBoundary 
+      at DevRootNotFoundBoundary 
+      at Router 
+      at AppRouter 
+      at ServerRoot 
       The above error occurred in the <Page> component. It was handled by the <ReactDevOverlay> error boundary."
     `)
   })
