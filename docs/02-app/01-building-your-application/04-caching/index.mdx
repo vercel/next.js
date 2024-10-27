@@ -389,7 +389,7 @@ The following table provides an overview of how different Next.js APIs affect ca
 | [`headers`, `searchParams`](#dynamic-apis)                              |                            | Opt out               |                       |             |
 | [`generateStaticParams`](#generatestaticparams)                         |                            | Cache                 |                       |             |
 | [`React.cache`](#react-cache-function)                                  |                            |                       |                       | Cache       |
-| [`unstable_cache`](/docs/app/api-reference/functions/unstable_cache)    |                            |                       | Cache                 |             |
+| [`unstable_cache`](/docs/app/api-reference/legacy-apis/unstable_cache)  |                            |                       | Cache                 |             |
 
 ### `<Link>`
 
@@ -451,7 +451,7 @@ See the [`fetch` API reference](/docs/app/api-reference/functions/fetch) for mor
 
 Next.js has a cache tagging system for fine-grained data caching and revalidation.
 
-1. When using `fetch` or [`unstable_cache`](/docs/app/api-reference/functions/unstable_cache), you have the option to tag cache entries with one or more tags.
+1. When using `fetch` or [`unstable_cache`](/docs/app/api-reference/legacy-apis/unstable_cache), you have the option to tag cache entries with one or more tags.
 2. Then, you can call `revalidateTag` to purge the cache entries associated with that tag.
 
 For example, you can set a tag when fetching data:

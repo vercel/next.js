@@ -1202,7 +1202,6 @@ export default async function getBaseWebpackConfig(
         'next-metadata-route-loader',
         'modularize-import-loader',
         'next-barrel-loader',
-        'next-server-binary-loader',
         'next-error-browser-binary-loader',
       ].reduce(
         (alias, loader) => {
@@ -1291,17 +1290,14 @@ export default async function getBaseWebpackConfig(
             or: WEBPACK_LAYERS.GROUP.neutralTarget,
           },
         },
-        {
-          test: /[\\/].*?\.node$/,
-          loader: isNodeServer
-            ? 'next-server-binary-loader'
-            : 'next-error-browser-binary-loader',
-          // On server side bundling, only apply to app router, do not apply to pages router;
-          // On client side or edge runtime bundling, always error.
-          ...(isNodeServer && {
-            issuerLayer: isWebpackBundledLayer,
-          }),
-        },
+        ...(isNodeServer
+          ? []
+          : [
+              {
+                test: /[\\/].*?\.node$/,
+                loader: 'next-error-browser-binary-loader',
+              },
+            ]),
         ...(hasAppDir
           ? [
               {

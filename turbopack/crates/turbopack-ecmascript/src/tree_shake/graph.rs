@@ -14,7 +14,7 @@ use swc_core::{
             ExportNamedSpecifier, ExportSpecifier, Expr, ExprStmt, FnDecl, Id, Ident, IdentName,
             ImportDecl, ImportNamedSpecifier, ImportSpecifier, ImportStarAsSpecifier, KeyValueProp,
             Lit, Module, ModuleDecl, ModuleExportName, ModuleItem, NamedExport, ObjectLit, Prop,
-            PropName, PropOrSpread, Stmt, VarDecl, VarDeclKind, VarDeclarator,
+            PropName, PropOrSpread, Stmt, Str, VarDecl, VarDeclKind, VarDeclarator,
         },
         atoms::JsWord,
         utils::{find_pat_ids, private_ident, quote_ident, ExprCtx, ExprExt},
@@ -105,6 +105,12 @@ pub(crate) struct ItemData {
     pub content: ModuleItem,
 
     pub export: Option<JsWord>,
+
+    /// This value denotes the module specifier of the [ImportDecl] that declares this
+    /// [ItemId].
+    ///
+    /// Used to specify the original import source of an `ImportBinding`.
+    pub binding_source: Option<Str>,
 }
 
 impl fmt::Debug for ItemData {
@@ -136,6 +142,7 @@ impl Default for ItemData {
             content: ModuleItem::dummy(),
             pure: Default::default(),
             export: Default::default(),
+            binding_source: Default::default(),
         }
     }
 }
@@ -486,6 +493,23 @@ impl DepGraph {
                     continue;
                 }
 
+                part_deps_done.insert(dep);
+
+                let dep_item_ids = groups.graph_ix.get_index(dep as usize).unwrap();
+
+                // Optimization & workaround for `ImportBinding` fragments.
+                // Instead of importing the import binding fragment, we import the original module.
+                // In this way, we can preserve the import statement so that the other code analysis
+                // can work.
+                let original_import_source = if dep_item_ids.len() == 1 {
+                    let dep_item_id = &dep_item_ids[0];
+                    let dep_item_data = data.get(dep_item_id).unwrap();
+
+                    dep_item_data.binding_source.clone()
+                } else {
+                    None
+                };
+
                 let specifiers = vec![ImportSpecifier::Named(ImportNamedSpecifier {
                     span: DUMMY_SP,
                     local: var.clone().into(),
@@ -495,8 +519,6 @@ impl DepGraph {
                     ))),
                     is_type_only: false,
                 })];
-
-                part_deps_done.insert(dep);
 
                 part_deps
                     .entry(ix as u32)
@@ -510,9 +532,10 @@ impl DepGraph {
                         specifiers,
                         src: Box::new(TURBOPACK_PART_IMPORT_SOURCE.into()),
                         type_only: false,
-                        with: Some(Box::new(create_turbopack_part_id_assert(PartId::Internal(
-                            dep, false,
-                        )))),
+                        with: Some(Box::new(add_original_import_source(
+                            create_turbopack_part_id_assert(PartId::Internal(dep, false)),
+                            original_import_source,
+                        ))),
                         phase: Default::default(),
                     })));
             }
@@ -1037,6 +1060,7 @@ impl DepGraph {
                                     specifiers: vec![s.clone()],
                                     ..item.clone()
                                 })),
+                                binding_source: Some(*item.src.clone()),
                                 ..Default::default()
                             },
                         );
@@ -1360,6 +1384,7 @@ impl DepGraph {
 }
 
 const ASSERT_CHUNK_KEY: &str = "__turbopack_part__";
+const ASSERT_ORIGINAL_IMPORT_SOURCE_KEY: &str = "__turbopack_original__";
 
 #[derive(Debug, Clone)]
 pub(crate) enum PartId {
@@ -1368,6 +1393,21 @@ pub(crate) enum PartId {
     Export(RcStr),
     /// `(part_id, is_for_eval)`
     Internal(u32, bool),
+}
+
+pub(crate) fn add_original_import_source(mut item: ObjectLit, source: Option<Str>) -> ObjectLit {
+    if let Some(source) = source {
+        item.props
+            .push(PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+                key: PropName::Ident(IdentName::new(
+                    ASSERT_ORIGINAL_IMPORT_SOURCE_KEY.into(),
+                    DUMMY_SP,
+                )),
+                value: Box::new(Expr::Lit(Lit::Str(source))),
+            }))));
+    }
+
+    item
 }
 
 pub(crate) fn create_turbopack_part_id_assert(dep: PartId) -> ObjectLit {

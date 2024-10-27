@@ -375,7 +375,7 @@ pub async fn get_client_chunking_context(
     .module_id_strategy(module_id_strategy);
 
     if next_mode.is_development() {
-        builder = builder.hot_module_replacement();
+        builder = builder.hot_module_replacement().use_file_source_map_uris();
     }
 
     Ok(Vc::upcast(builder.build()))

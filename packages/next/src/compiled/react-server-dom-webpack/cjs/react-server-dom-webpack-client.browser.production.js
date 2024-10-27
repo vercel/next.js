@@ -14,15 +14,15 @@ var ReactDOM = require("react-dom"),
 function resolveClientReference(bundlerConfig, metadata) {
   if (bundlerConfig) {
     var moduleExports = bundlerConfig[metadata[0]];
-    if ((bundlerConfig = moduleExports[metadata[2]]))
+    if ((bundlerConfig = moduleExports && moduleExports[metadata[2]]))
       moduleExports = bundlerConfig.name;
     else {
-      bundlerConfig = moduleExports["*"];
+      bundlerConfig = moduleExports && moduleExports["*"];
       if (!bundlerConfig)
         throw Error(
           'Could not find the module "' +
             metadata[0] +
-            '" in the React SSR Manifest. This is probably a bug in the React Server Components bundler.'
+            '" in the React Server Consumer Manifest. This is probably a bug in the React Server Components bundler.'
         );
       moduleExports = metadata[2];
     }
