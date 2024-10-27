@@ -25,6 +25,7 @@
       { "type": "user", "pattern": "devjiwonchoi" },
       { "type": "user", "pattern": "eps1lon" },
       { "type": "user", "pattern": "feedthejim" },
+      { "type": "user", "pattern": "gaojude" },
       { "type": "user", "pattern": "gnoff" },
       { "type": "user", "pattern": "huozhi" },
       { "type": "user", "pattern": "ijjk" },
@@ -39,8 +40,7 @@
       { "type": "user", "pattern": "timneutkens" },
       { "type": "user", "pattern": "unstubbable" },
       { "type": "user", "pattern": "wyattjoh" },
-      { "type": "user", "pattern": "ztanner" },
-      { "type": "user", "pattern": "gaojude" }
+      { "type": "user", "pattern": "ztanner" }
     ],
     "created-by: Next.js DevEx team": [
       { "type": "user", "pattern": "delbaoliveira" },
