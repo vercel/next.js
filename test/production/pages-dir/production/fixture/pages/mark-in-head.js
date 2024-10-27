@@ -1,16 +1,10 @@
-import Head from 'next/head'
+import Script from 'next/script'
 
 export default () => {
   return (
     <div>
       Hello
-      <Head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `performance.mark('custom-mark')`,
-          }}
-        />
-      </Head>
+      <Script id="custom-mark">{"performance.mark('custom-mark')"}</Script>
     </div>
   )
 }

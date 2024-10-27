@@ -1,0 +1,59 @@
+[
+    TypeOf {
+        arg: FreeVar(
+            "x",
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Unary,
+            ),
+        ],
+        span: 1..9,
+    },
+    FreeVar {
+        var: FreeVar(
+            "x",
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Unary,
+            ),
+            UnaryExpr(
+                Arg,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: 8..9,
+        in_try: false,
+    },
+]

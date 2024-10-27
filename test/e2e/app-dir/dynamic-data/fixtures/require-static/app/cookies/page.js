@@ -2,7 +2,7 @@ import { cookies } from 'next/headers'
 
 export const dynamic = 'error'
 
-export default async function Page({ searchParams }) {
+export default async function Page(props) {
   return (
     <div>
       <section>
@@ -11,22 +11,20 @@ export default async function Page({ searchParams }) {
       </section>
       <section id="cookies">
         <h3>cookies</h3>
-        {cookies()
-          .getAll()
-          .map((cookie) => {
-            const key = cookie.name
-            let value = cookie.value
+        {(await cookies()).getAll().map((cookie) => {
+          const key = cookie.name
+          let value = cookie.value
 
-            if (key === 'userCache') {
-              value = value.slice(0, 10) + '...'
-            }
-            return (
-              <div key={key}>
-                <h4>{key}</h4>
-                <pre className={key}>{value}</pre>
-              </div>
-            )
-          })}
+          if (key === 'userCache') {
+            value = value.slice(0, 10) + '...'
+          }
+          return (
+            <div key={key}>
+              <h4>{key}</h4>
+              <pre className={key}>{value}</pre>
+            </div>
+          )
+        })}
       </section>
     </div>
   )

@@ -6,18 +6,26 @@ import '../node-environment'
 import {
   buildAppStaticPaths,
   buildStaticPaths,
-  collectGenerateParams,
+  reduceAppConfig,
 } from '../../build/utils'
-import type { GenerateParamsResults } from '../../build/utils'
+import { collectSegments } from '../../build/segment-config/app/app-segments'
+import type { PartialStaticPathsResult } from '../../build/utils'
 import { loadComponents } from '../load-components'
 import { setHttpClientAndAgentOptions } from '../setup-http-agent-env'
 import type { IncrementalCache } from '../lib/incremental-cache'
-import { isAppRouteRouteModule } from '../future/route-modules/checks'
+import { isAppPageRouteModule } from '../route-modules/checks'
+import {
+  checkIsRoutePPREnabled,
+  type ExperimentalPPRConfig,
+} from '../lib/experimental/ppr'
+import { InvariantError } from '../../shared/lib/invariant-error'
 
 type RuntimeConfig = {
+  pprConfig: ExperimentalPPRConfig | undefined
   configFileName: string
   publicRuntimeConfig: { [key: string]: any }
   serverRuntimeConfig: { [key: string]: any }
+  dynamicIO: boolean
 }
 
 // we call getStaticPaths in a separate process to ensure
@@ -38,7 +46,9 @@ export async function loadStaticPaths({
   maxMemoryCacheSize,
   requestHeaders,
   cacheHandler,
-  ppr,
+  cacheLifeProfiles,
+  nextConfigOutput,
+  buildId,
 }: {
   dir: string
   distDir: string
@@ -54,12 +64,12 @@ export async function loadStaticPaths({
   maxMemoryCacheSize?: number
   requestHeaders: IncrementalCache['requestHeaders']
   cacheHandler?: string
-  ppr: boolean
-}): Promise<{
-  paths?: string[]
-  encodedPaths?: string[]
-  fallback?: boolean | 'blocking'
-}> {
+  cacheLifeProfiles?: {
+    [profile: string]: import('../../server/use-cache/cache-life').CacheLife
+  }
+  nextConfigOutput: 'standalone' | 'export' | undefined
+  buildId: string
+}): Promise<PartialStaticPathsResult> {
   // update work memory runtime-config
   require('../../shared/lib/runtime-config.external').setConfig(config)
   setHttpClientAndAgentOptions({
@@ -73,48 +83,40 @@ export async function loadStaticPaths({
     isAppPath,
   })
 
-  if (!components.getStaticPaths && !isAppPath) {
-    // we shouldn't get to this point since the worker should
-    // only be called for SSG pages with getStaticPaths
-    throw new Error(
-      `Invariant: failed to load page with getStaticPaths for ${pathname}`
-    )
-  }
-
   if (isAppPath) {
-    const { routeModule } = components
-    const generateParams: GenerateParamsResults =
-      routeModule && isAppRouteRouteModule(routeModule)
-        ? [
-            {
-              config: {
-                revalidate: routeModule.userland.revalidate,
-                dynamic: routeModule.userland.dynamic,
-                dynamicParams: routeModule.userland.dynamicParams,
-              },
-              generateStaticParams: routeModule.userland.generateStaticParams,
-              segmentPath: pathname,
-            },
-          ]
-        : await collectGenerateParams(components.ComponentMod.tree)
+    const segments = await collectSegments(components)
 
-    return await buildAppStaticPaths({
+    const isRoutePPREnabled =
+      isAppPageRouteModule(components.routeModule) &&
+      checkIsRoutePPREnabled(config.pprConfig, reduceAppConfig(segments))
+
+    return buildAppStaticPaths({
       dir,
       page: pathname,
-      generateParams,
+      dynamicIO: config.dynamicIO,
+      segments,
       configFileName: config.configFileName,
       distDir,
       requestHeaders,
       cacheHandler,
+      cacheLifeProfiles,
       isrFlushToDisk,
       fetchCacheKeyPrefix,
       maxMemoryCacheSize,
-      ppr,
       ComponentMod: components.ComponentMod,
+      nextConfigOutput,
+      isRoutePPREnabled,
+      buildId,
     })
+  } else if (!components.getStaticPaths) {
+    // We shouldn't get to this point since the worker should only be called for
+    // SSG pages with getStaticPaths.
+    throw new InvariantError(
+      `Failed to load page with getStaticPaths for ${pathname}`
+    )
   }
 
-  return await buildStaticPaths({
+  return buildStaticPaths({
     page: pathname,
     getStaticPaths: components.getStaticPaths,
     configFileName: config.configFileName,

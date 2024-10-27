@@ -1,0 +1,12 @@
+let a = "";
+a += "x";
+let b = 0;
+b -= 1;
+let c = 0;
+c++;
+let d = 0;
+d ||= 1;
+let e = 1;
+e &&= 2;
+let f = 1;
+f ??= 2;

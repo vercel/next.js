@@ -9,7 +9,6 @@ export function enableMemoryDebuggingMode(): void {
   // memory limit. It does not give any warning to the user though which
   // can be jarring. If memory is large, this may take a long time.
   if ('setHeapSnapshotNearHeapLimit' in v8) {
-    // @ts-expect-error - this method exists since Node 16.
     v8.setHeapSnapshotNearHeapLimit(1)
   }
 

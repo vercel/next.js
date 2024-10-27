@@ -5,7 +5,7 @@ async function Suspend() {
   await new Promise((resolve) => {
     setTimeout(resolve, 3000)
   })
-  cookies()
+  await cookies()
   return <p>suspended content</p>
 }
 

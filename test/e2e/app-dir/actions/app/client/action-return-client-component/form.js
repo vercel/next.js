@@ -1,8 +1,8 @@
 'use client'
-import { useFormState } from 'react-dom'
+import { useActionState } from 'react'
 
 export function Form({ action }) {
-  const [state, formAction] = useFormState(action, null)
+  const [state, formAction] = useActionState(action, null)
   return (
     <>
       <form action={formAction}>

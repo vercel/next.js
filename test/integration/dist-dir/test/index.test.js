@@ -25,7 +25,7 @@ describe('distDir', () => {
         beforeAll(async () => {
           await fs.remove(join(appDir, '.next'))
           await fs.remove(join(appDir, 'dist'))
-          await nextBuild(appDir)
+          await nextBuild(appDir, [], { lint: true })
           appPort = await findPort()
           app = await nextStart(appDir, appPort)
         })
@@ -79,7 +79,10 @@ describe('distDir', () => {
       it('should throw error with invalid distDir', async () => {
         const origNextConfig = await fs.readFile(nextConfig, 'utf8')
         await fs.writeFile(nextConfig, `module.exports = { distDir: '' }`)
-        const { stderr } = await nextBuild(appDir, [], { stderr: true })
+        const { stderr } = await nextBuild(appDir, [], {
+          stderr: true,
+          lint: true,
+        })
         await fs.writeFile(nextConfig, origNextConfig)
 
         expect(stderr).toContain(
@@ -93,7 +96,10 @@ describe('distDir', () => {
           nextConfig,
           `module.exports = { distDir: undefined, eslint: { ignoreDuringBuilds: true } }`
         )
-        const { stderr } = await nextBuild(appDir, [], { stderr: true })
+        const { stderr } = await nextBuild(appDir, [], {
+          stderr: true,
+          lint: true,
+        })
         await fs.writeFile(nextConfig, origNextConfig)
 
         expect(stderr.length).toBe(0)

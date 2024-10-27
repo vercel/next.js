@@ -12,9 +12,9 @@ const { parse } = require('url')
 const dev = process.env.NODE_ENV !== 'production'
 const dir = __dirname
 const port = process.env.PORT || 3000
-const { createServer } = require(process.env.USE_HTTPS === 'true'
-  ? 'https'
-  : 'http')
+const { createServer } = require(
+  process.env.USE_HTTPS === 'true' ? 'https' : 'http'
+)
 
 const app = next({ dev, hostname: 'localhost', port, dir })
 const handleNextRequests = app.getRequestHandler()

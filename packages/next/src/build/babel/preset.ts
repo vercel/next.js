@@ -154,9 +154,17 @@ export default (
         },
       ],
       require('next/dist/compiled/babel/plugin-syntax-dynamic-import'),
-      require('next/dist/compiled/babel/plugin-syntax-import-assertions'),
-      require('./plugins/react-loadable-plugin'),
       [
+        require('next/dist/compiled/babel/plugin-syntax-import-attributes'),
+        {
+          deprecatedAssertSyntax: true,
+        },
+      ],
+      require('./plugins/react-loadable-plugin'),
+      // only enable this plugin if custom config for it was provided
+      // otherwise we will only enable it if their browserslist triggers
+      // preset-env to pull it in
+      options['class-properties'] && [
         require('next/dist/compiled/babel/plugin-proposal-class-properties'),
         options['class-properties'] || {},
       ],

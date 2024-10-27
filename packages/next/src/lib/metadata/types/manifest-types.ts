@@ -1,3 +1,21 @@
+type ClientModeEnum =
+  | 'auto'
+  | 'focus-existing'
+  | 'navigate-existing'
+  | 'navigate-new'
+
+type File = {
+  name: string
+  accept: string | string[]
+}
+
+type Icon = {
+  src: string
+  type?: string
+  sizes?: string
+  purpose?: 'any' | 'maskable' | 'monochrome'
+}
+
 export type Manifest = {
   background_color?: string
   categories?: string[]
@@ -15,19 +33,13 @@ export type Manifest = {
     action: string
     accept: {
       [mimeType: string]: string[]
-    }[]
+    }
   }[]
-  icons?: {
-    src: string
-    type?: string
-    sizes?: string
-    purpose?: 'any' | 'maskable' | 'monochrome' | 'badge'
-  }[]
+  icons?: Icon[]
   id?: string
   lang?: string
   launch_handler?: {
-    platform?: 'windows' | 'macos' | 'linux'
-    url?: string
+    client_mode: ClientModeEnum | ClientModeEnum[]
   }
   name?: string
   orientation?:
@@ -43,7 +55,6 @@ export type Manifest = {
   protocol_handlers?: {
     protocol: string
     url: string
-    title?: string
   }[]
   related_applications?: {
     platform: string
@@ -52,35 +63,36 @@ export type Manifest = {
   }[]
   scope?: string
   screenshots?: {
+    form_factor?: 'narrow' | 'wide'
+    label?: string
+    platform?:
+      | 'android'
+      | 'chromeos'
+      | 'ipados'
+      | 'ios'
+      | 'kaios'
+      | 'macos'
+      | 'windows'
+      | 'xbox'
+      | 'chrome_web_store'
+      | 'itunes'
+      | 'microsoft-inbox'
+      | 'microsoft-store'
+      | 'play'
     src: string
     type?: string
     sizes?: string
   }[]
-  serviceworker?: {
-    src?: string
-    scope?: string
-    type?: string
-    update_via_cache?: 'import' | 'none' | 'all'
-  }
   share_target?: {
-    action?: string
-    method?: 'get' | 'post'
-    enctype?:
-      | 'application/x-www-form-urlencoded'
-      | 'multipart/form-data'
-      | 'text/plain'
-    params?: {
-      name: string
-      value: string
-      required?: boolean
-    }[]
-    url?: string
-    title?: string
-    text?: string
-    files?: {
-      accept?: string[]
-      name?: string
-    }[]
+    action: string
+    method?: 'get' | 'post' | 'GET' | 'POST'
+    enctype?: 'application/x-www-form-urlencoded' | 'multipart/form-data'
+    params: {
+      title?: string
+      text?: string
+      url?: string
+      files?: File | File[]
+    }
   }
   short_name?: string
   shortcuts?: {
@@ -88,12 +100,7 @@ export type Manifest = {
     short_name?: string
     description?: string
     url: string
-    icons?: {
-      src: string
-      type?: string
-      sizes?: string
-      purpose?: 'any' | 'maskable' | 'monochrome' | 'badge'
-    }[]
+    icons?: Icon[]
   }[]
   start_url?: string
   theme_color?: string

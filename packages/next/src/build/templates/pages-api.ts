@@ -1,5 +1,5 @@
-import { PagesAPIRouteModule } from '../../server/future/route-modules/pages-api/module.compiled'
-import { RouteKind } from '../../server/future/route-kind'
+import { PagesAPIRouteModule } from '../../server/route-modules/pages-api/module.compiled'
+import { RouteKind } from '../../server/route-kind'
 
 import { hoist } from './helpers'
 

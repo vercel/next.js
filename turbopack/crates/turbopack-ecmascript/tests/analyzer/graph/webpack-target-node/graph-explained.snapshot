@@ -1,0 +1,35 @@
+*arrow function 1213* = (...) => __webpack_require__(???*0*)
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+
+*arrow function 131* = (...) => undefined
+
+*arrow function 389* = (...) => handler
+
+__unused_webpack_module = arguments[0]
+
+__webpack_exec__ = *arrow function 1213*
+
+__webpack_exports__#3 = __webpack_exec__(5166)
+
+__webpack_exports__#4 = arguments[1]
+
+__webpack_require__#3 = FreeVar(require)("../../webpack-api-runtime.js")
+
+__webpack_require__#4 = arguments[2]
+
+_req = arguments[0]
+
+exports = {}
+
+handler = (...) => undefined
+
+hello = promises_namespaceObject["readFile"]("./hello.txt", "utf-8")
+
+moduleId = arguments[0]
+
+promises_namespaceObject = FreeVar(require)("fs/promises")
+
+res = arguments[1]
+
+users = [{"id": 1}, {"id": 2}, {"id": 3}]

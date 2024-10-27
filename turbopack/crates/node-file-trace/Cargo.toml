@@ -1,0 +1,47 @@
+[package]
+name = "node-file-trace"
+version = "0.1.0"
+description = "TBD"
+license = "MPL-2.0"
+edition = "2021"
+
+[[bin]]
+name = "node-file-trace"
+path = "src/main.rs"
+bench = false
+
+[features]
+default = ["cli", "custom_allocator"]
+cli = ["dep:clap", "turbo-tasks-malloc"]
+persistent_cache = []
+serializable = []
+tokio_console = [
+  "dep:console-subscriber",
+  "tokio/tracing",
+  "turbo-tasks/tokio_tracing",
+]
+node-api = []
+custom_allocator = ["turbo-tasks-malloc", "turbo-tasks-malloc/custom_allocator"]
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { workspace = true, optional = true, features = ["derive"] }
+console-subscriber = { workspace = true, optional = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+
+turbo-tasks = { workspace = true }
+turbo-tasks-fs = { workspace = true }
+turbo-tasks-malloc = { workspace = true, optional = true, default-features = false }
+turbo-tasks-memory = { workspace = true }
+turbopack = { workspace = true }
+turbopack-cli-utils = { workspace = true }
+turbopack-core = { workspace = true }
+turbopack-resolve = { workspace = true }
+
+[build-dependencies]
+turbo-tasks-build = { workspace = true }

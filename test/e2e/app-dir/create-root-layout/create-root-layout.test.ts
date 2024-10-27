@@ -73,10 +73,6 @@ import stripAnsi from 'strip-ansi'
                   path.join(__dirname, 'next.config.js')
                 ),
               },
-              dependencies: {
-                react: 'latest',
-                'react-dom': 'latest',
-              },
             })
           })
           afterAll(() => next.destroy())
@@ -126,10 +122,6 @@ import stripAnsi from 'strip-ansi'
                 'next.config.js': new FileRef(
                   path.join(__dirname, 'next.config.js')
                 ),
-              },
-              dependencies: {
-                react: 'latest',
-                'react-dom': 'latest',
               },
             })
           })
@@ -235,10 +227,6 @@ import stripAnsi from 'strip-ansi'
               'next.config.js': new FileRef(
                 path.join(__dirname, 'next.config.js')
               ),
-            },
-            dependencies: {
-              react: 'latest',
-              'react-dom': 'latest',
             },
           })
 

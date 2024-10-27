@@ -17,7 +17,7 @@ export = defineRule({
   create(context) {
     return {
       JSXOpeningElement(node) {
-        const paths = context.getFilename()
+        const paths = context.filename
 
         const isInAppDir = () =>
           paths.includes(`app${path.sep}`) ||

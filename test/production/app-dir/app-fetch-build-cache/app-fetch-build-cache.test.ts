@@ -1,33 +1,31 @@
-import { createNextDescribe } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 
-createNextDescribe(
-  'app fetch build cache',
-  {
+describe('app fetch build cache', () => {
+  const { next } = nextTestSetup({
     files: __dirname,
-  },
-  ({ next }) => {
-    let initialData
+  })
 
-    it('should have done initial build', async () => {
-      const $ = await next.render$('/')
-      expect($('#page').text()).toBe('index page')
+  let initialData
 
-      initialData = $('#data').text()
-      expect(initialData).toBeTruthy()
-    })
+  it('should have done initial build', async () => {
+    const $ = await next.render$('/')
+    expect($('#page').text()).toBe('index page')
 
-    it('should not use stale data if present', async () => {
-      await next.stop()
+    initialData = $('#data').text()
+    expect(initialData).toBeTruthy()
+  })
 
-      next.env['NOW_BUILDER'] = '1'
-      await next.start()
+  it('should not use stale data if present', async () => {
+    await next.stop()
 
-      const $ = await next.render$('/')
-      expect($('#page').text()).toBe('index page')
+    next.env['NOW_BUILDER'] = '1'
+    await next.start()
 
-      const newData = $('#data').text()
-      expect(newData).toBeTruthy()
-      expect(newData).not.toBe(initialData)
-    })
-  }
-)
+    const $ = await next.render$('/')
+    expect($('#page').text()).toBe('index page')
+
+    const newData = $('#data').text()
+    expect(newData).toBeTruthy()
+    expect(newData).not.toBe(initialData)
+  })
+})

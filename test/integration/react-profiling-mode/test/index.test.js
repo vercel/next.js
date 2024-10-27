@@ -1,12 +1,10 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import { nextBuild, nextStart, findPort, killApp } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
-const nextConfig = join(appDir, 'next.config.js')
 
 let appPort
 let app
@@ -17,20 +15,13 @@ describe('React Profiling Mode', () => {
     () => {
       describe('without config enabled', () => {
         beforeAll(async () => {
-          await fs.remove(nextConfig)
-          await nextBuild(appDir)
+          await nextBuild(appDir, [], {
+            env: { TEST_REACT_PRODUCTION_PROFILING: 'false' },
+          })
           appPort = await findPort()
           app = await nextStart(appDir, appPort)
         })
         afterAll(async () => {
-          await fs.writeFile(
-            nextConfig,
-            `
-        module.exports = {
-          reactProductionProfiling: true
-        }
-      `
-          )
           await killApp(app)
         })
 
@@ -44,7 +35,9 @@ describe('React Profiling Mode', () => {
 
       describe('with config enabled', () => {
         beforeAll(async () => {
-          await nextBuild(appDir, ['--profile'])
+          await nextBuild(appDir, ['--profile'], {
+            env: { TEST_REACT_PRODUCTION_PROFILING: 'true' },
+          })
           appPort = await findPort()
           app = await nextStart(appDir, appPort)
         })

@@ -1,10 +1,11 @@
 /* eslint-env jest */
 import {
+  assertHasRedbox,
+  assertNoRedbox,
   fetchViaHTTP,
   File,
   findPort,
   getRedboxHeader,
-  hasRedbox,
   killApp,
   launchApp,
 } from 'next-test-utils'
@@ -220,7 +221,7 @@ describe('config-output-export', () => {
       await killApp(app).catch(() => {})
       fs.rmSync(blog)
     }
-    expect(await hasRedbox(browser)).toBe(true)
+    await assertHasRedbox(browser)
     expect(await getRedboxHeader(browser)).toContain(
       'ISR cannot be used with "output: export".'
     )
@@ -255,7 +256,7 @@ describe('config-output-export', () => {
       await killApp(app).catch(() => {})
       fs.rmSync(blog)
     }
-    expect(await hasRedbox(browser)).toBe(false)
+    await assertNoRedbox(browser)
   })
 
   it('should work with getStaticProps and without revalidate', async () => {
@@ -283,7 +284,7 @@ describe('config-output-export', () => {
       await killApp(app).catch(() => {})
       fs.rmSync(blog)
     }
-    expect(await hasRedbox(browser)).toBe(false)
+    await assertNoRedbox(browser)
   })
 
   it('should error with getServerSideProps without fallback', async () => {
@@ -311,7 +312,7 @@ describe('config-output-export', () => {
       await killApp(app).catch(() => {})
       fs.rmSync(blog)
     }
-    expect(await hasRedbox(browser)).toBe(true)
+    await assertHasRedbox(browser)
     expect(await getRedboxHeader(browser)).toContain(
       'getServerSideProps cannot be used with "output: export".'
     )
@@ -351,7 +352,7 @@ describe('config-output-export', () => {
         output: 'export',
       })
       browser = await webdriver(result.port, '/posts/one')
-      expect(await hasRedbox(browser)).toBe(true)
+      await assertHasRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
         'getStaticPaths with "fallback: true" cannot be used with "output: export".'
       )
@@ -395,7 +396,7 @@ describe('config-output-export', () => {
         output: 'export',
       })
       browser = await webdriver(result.port, '/posts/one')
-      expect(await hasRedbox(browser)).toBe(true)
+      await assertHasRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
         'getStaticPaths with "fallback: blocking" cannot be used with "output: export".'
       )
@@ -445,7 +446,7 @@ describe('config-output-export', () => {
     }
     const h1 = await browser.elementByCss('h1')
     expect(await h1.text()).toContain('Hello from one')
-    expect(await hasRedbox(browser)).toBe(false)
+    await assertNoRedbox(browser)
     expect(result.stderr).toBeEmpty()
   })
 })

@@ -74,6 +74,8 @@ const searchParams = useSearchParams()
 > - `useSearchParams` is a [Client Component](/docs/app/building-your-application/rendering/client-components) hook and is **not supported** in [Server Components](/docs/app/building-your-application/rendering/server-components) to prevent stale values during [partial rendering](/docs/app/building-your-application/routing/linking-and-navigating#4-partial-rendering).
 > - If an application includes the `/pages` directory, `useSearchParams` will return `ReadonlyURLSearchParams | null`. The `null` value is for compatibility during migration since search params cannot be known during pre-rendering of a page that doesn't use `getServerSideProps`
 
+## Behavior
+
 ### Static Rendering
 
 If a route is [statically rendered](/docs/app/building-your-application/rendering/server-components#static-rendering-default), calling `useSearchParams` will cause the Client Component tree up to the closest [`Suspense` boundary](/docs/app/building-your-application/routing/loading-ui-and-streaming#example) to be client-side rendered.
@@ -169,8 +171,6 @@ export default function Page() {
   )
 }
 ```
-
-## Behavior
 
 ### Dynamic Rendering
 
@@ -269,6 +269,8 @@ Instead, use the Page [`searchParams`](/docs/app/api-reference/file-conventions/
 You can use [`useRouter`](/docs/app/api-reference/functions/use-router) or [`Link`](/docs/app/api-reference/components/link) to set new `searchParams`. After a navigation is performed, the current [`page.js`](/docs/app/api-reference/file-conventions/page) will receive an updated [`searchParams` prop](/docs/app/api-reference/file-conventions/page#searchparams-optional).
 
 ```tsx filename="app/example-client-component.tsx" switcher
+'use client'
+
 export default function ExampleClientComponent() {
   const router = useRouter()
   const pathname = usePathname()
@@ -315,6 +317,8 @@ export default function ExampleClientComponent() {
 ```
 
 ```jsx filename="app/example-client-component.js" switcher
+'use client'
+
 export default function ExampleClientComponent() {
   const router = useRouter()
   const pathname = usePathname()

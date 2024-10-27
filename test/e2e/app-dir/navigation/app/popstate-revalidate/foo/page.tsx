@@ -1,10 +1,10 @@
 'use client'
 
-import { useFormState } from 'react-dom'
+import { useActionState } from 'react'
 import { action } from './action'
 
 export default function Page() {
-  const [submitted, formAction] = useFormState(action, false)
+  const [submitted, formAction] = useActionState(action, false)
   if (submitted) {
     return <div>Form Submitted.</div>
   }

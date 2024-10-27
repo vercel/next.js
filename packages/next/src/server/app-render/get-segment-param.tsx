@@ -1,4 +1,4 @@
-import { INTERCEPTION_ROUTE_MARKERS } from '../future/helpers/interception-routes'
+import { INTERCEPTION_ROUTE_MARKERS } from '../lib/interception-routes'
 import type { DynamicParamTypes } from './types'
 
 /**

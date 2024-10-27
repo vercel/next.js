@@ -1,7 +1,10 @@
 'use client'
+import { accountForOverhead } from '../../account-for-overhead'
 
 export default function Form({ action }) {
-  const submit = (n) => action('a'.repeat(1024 * 1024 * n))
+  const submit = (megaBytes) =>
+    action('a'.repeat(accountForOverhead(megaBytes)))
+
   return (
     <>
       <button id="size-1mb" onClick={() => submit(1)}>

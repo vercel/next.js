@@ -16,7 +16,10 @@ import {
 } from '../shared/lib/router/utils/prepare-destination'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { normalizeRscURL } from '../shared/lib/router/utils/app-paths'
-import { NEXT_QUERY_PARAM_PREFIX } from '../lib/constants'
+import {
+  NEXT_INTERCEPTION_MARKER_PREFIX,
+  NEXT_QUERY_PARAM_PREFIX,
+} from '../lib/constants'
 
 export function normalizeVercelUrl(
   req: BaseNextRequest,
@@ -32,9 +35,17 @@ export function normalizeVercelUrl(
     delete (_parsedUrl as any).search
 
     for (const key of Object.keys(_parsedUrl.query)) {
+      const isNextQueryPrefix =
+        key !== NEXT_QUERY_PARAM_PREFIX &&
+        key.startsWith(NEXT_QUERY_PARAM_PREFIX)
+
+      const isNextInterceptionMarkerPrefix =
+        key !== NEXT_INTERCEPTION_MARKER_PREFIX &&
+        key.startsWith(NEXT_INTERCEPTION_MARKER_PREFIX)
+
       if (
-        (key !== NEXT_QUERY_PARAM_PREFIX &&
-          key.startsWith(NEXT_QUERY_PARAM_PREFIX)) ||
+        isNextQueryPrefix ||
+        isNextInterceptionMarkerPrefix ||
         (paramKeys || Object.keys(defaultRouteRegex.groups)).includes(key)
       ) {
         delete _parsedUrl.query[key]
@@ -59,25 +70,18 @@ export function interpolateDynamicPath(
       builtParam = `[${builtParam}]`
     }
 
-    const paramIdx = pathname!.indexOf(builtParam)
+    let paramValue: string
+    const value = params[param]
 
-    if (paramIdx > -1) {
-      let paramValue: string
-      const value = params[param]
-
-      if (Array.isArray(value)) {
-        paramValue = value.map((v) => v && encodeURIComponent(v)).join('/')
-      } else if (value) {
-        paramValue = encodeURIComponent(value)
-      } else {
-        paramValue = ''
-      }
-
-      pathname =
-        pathname.slice(0, paramIdx) +
-        paramValue +
-        pathname.slice(paramIdx + builtParam.length)
+    if (Array.isArray(value)) {
+      paramValue = value.map((v) => v && encodeURIComponent(v)).join('/')
+    } else if (value) {
+      paramValue = encodeURIComponent(value)
+    } else {
+      paramValue = ''
     }
+
+    pathname = pathname.replaceAll(builtParam, paramValue)
   }
 
   return pathname

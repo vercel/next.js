@@ -27,6 +27,7 @@ const dirNoConfig = join(__dirname, '../no-config')
 const dirFileLinting = join(__dirname, '../file-linting')
 const mjsCjsLinting = join(__dirname, '../mjs-cjs-linting')
 const dirTypescript = join(__dirname, '../with-typescript')
+const formatterAsync = join(__dirname, '../formatter-async/format.js')
 
 describe('Next Lint', () => {
   describe('First Time Setup ', () => {
@@ -120,7 +121,9 @@ describe('Next Lint', () => {
         'We created the .eslintrc.json file for you and included your selected configuration'
       )
       expect(eslintrcJson).toMatchObject({ extends: 'next/core-web-vitals' })
+    })
 
+    test('creates .eslintrc.json file with a default app router configuration', async () => {
       // App Router
       const { stdout: appStdout, eslintrcJson: appEslintrcJson } =
         await nextLintTemp(null, true)
@@ -439,6 +442,21 @@ describe('Next Lint', () => {
     expect(stdout).toContain('2 warnings found')
   })
 
+  test('format flag supports async formatters', async () => {
+    const { stdout, stderr } = await nextLint(
+      dirMaxWarnings,
+      ['-f', formatterAsync],
+      {
+        stdout: true,
+        stderr: true,
+      }
+    )
+
+    const output = stdout + stderr
+    expect(output).toContain('Async results:')
+    expect(stdout).toContain('Synchronous scripts should not be used.')
+  })
+
   test('file flag can selectively lint only a single file', async () => {
     const { stdout, stderr } = await nextLint(
       dirFileLinting,
@@ -486,7 +504,7 @@ describe('Next Lint', () => {
     expect(output).not.toContain('Synchronous scripts should not be used.')
   })
 
-  test('output flag create a file respecting the chosen format', async () => {
+  test('format flag "json" creates a file respecting the chosen format', async () => {
     const filePath = `${__dirname}/output/output.json`
     const { stdout, stderr } = await nextLint(
       dirFileLinting,
@@ -536,54 +554,6 @@ describe('Next Lint', () => {
         ])
       )
     }
-  })
-
-  test('output flag create a file respecting the chosen format', async () => {
-    const filePath = `${__dirname}/output/output.txt`
-    const { stdout, stderr } = await nextLint(
-      dirFileLinting,
-      ['--format', 'compact', '--output-file', filePath],
-      {
-        stdout: true,
-        stderr: true,
-      }
-    )
-
-    const cliOutput = stdout + stderr
-    const fileOutput = fs.readFileSync(filePath, 'utf8')
-
-    expect(cliOutput).toContain(`The output file has been created: ${filePath}`)
-
-    expect(fileOutput).toContain('file-linting/pages/bar.js')
-    expect(fileOutput).toContain(
-      'img elements must have an alt prop, either with meaningful text, or an empty string for decorative images.'
-    )
-    expect(fileOutput).toContain(
-      'Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element'
-    )
-
-    expect(fileOutput).toContain('file-linting/pages/index.js')
-    expect(fileOutput).toContain(
-      'Synchronous scripts should not be used. See: https://nextjs.org/docs/messages/no-sync-scripts'
-    )
-  })
-
-  test('show error message when the file path is a directory', async () => {
-    const filePath = `${__dirname}`
-    const { stdout, stderr } = await nextLint(
-      dirFileLinting,
-      ['--format', 'compact', '--output-file', filePath],
-      {
-        stdout: true,
-        stderr: true,
-      }
-    )
-
-    const cliOutput = stdout + stderr
-
-    expect(cliOutput).toContain(
-      `Cannot write to output file path, it is a directory: ${filePath}`
-    )
   })
 
   test('lint files with cjs and mjs file extension', async () => {

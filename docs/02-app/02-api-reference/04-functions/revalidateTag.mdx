@@ -26,7 +26,7 @@ fetch(url, { next: { tags: [...] } });
 
 ## Returns
 
-`revalidateTag` does not return any value.
+`revalidateTag` does not return a value.
 
 ## Examples
 
@@ -57,7 +57,7 @@ export default async function submit() {
 ### Route Handler
 
 ```ts filename="app/api/revalidate/route.ts" switcher
-import { NextRequest } from 'next/server'
+import type { NextRequest } from 'next/server'
 import { revalidateTag } from 'next/cache'
 
 export async function GET(request: NextRequest) {

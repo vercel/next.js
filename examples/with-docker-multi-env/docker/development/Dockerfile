@@ -46,6 +46,6 @@ USER nextjs
 
 EXPOSE 3000
 
-ENV PORT 3000
+ENV PORT=3000
 
-CMD HOSTNAME=localhost node server.js
+CMD HOSTNAME="0.0.0.0" node server.js

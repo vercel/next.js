@@ -7,8 +7,10 @@ function basic(context) {
   it('should handle json assertions', async () => {
     const esHtml = await renderViaHTTP(context.appPort, '/es')
     const tsHtml = await renderViaHTTP(context.appPort, '/ts')
-    expect(esHtml).toContain('foo')
-    expect(tsHtml).toContain('foo')
+    // checking json value `foo` is not suffecient, since parse error
+    // will include code stack include those values as source
+    expect(esHtml).toContain(`<div id="__next">foo</div>`)
+    expect(tsHtml).toContain(`<div id="__next">foo</div>`)
   })
 }
 

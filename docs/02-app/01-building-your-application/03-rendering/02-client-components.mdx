@@ -80,7 +80,7 @@ To optimize the initial page load, Next.js will use React's APIs to render a sta
 
 On the server:
 
-1. React renders Server Components into a special data format called the **React Server Component Payload (RSC Payload)**, which includes references to Client Components.
+1. React renders Server Components into a special data format called the [**React Server Component Payload (RSC Payload)**](/docs/app/building-your-application/rendering/server-components#what-is-the-react-server-component-payload-rsc), which includes references to Client Components.
 2. Next.js uses the RSC Payload and Client Component JavaScript instructions to render **HTML** for the route on the server.
 
 Then, on the client:
@@ -97,7 +97,7 @@ Then, on the client:
 
 On subsequent navigations, Client Components are rendered entirely on the client, without the server-rendered HTML.
 
-This means the Client Component JavaScript bundle is downloaded and parsed. Once the bundle is ready, React will use the RSC Payload to reconcile the Client and Server Component trees, and update the DOM.
+This means the Client Component JavaScript bundle is downloaded and parsed. Once the bundle is ready, React will use the [RSC Payload](/docs/app/building-your-application/rendering/server-components#what-is-the-react-server-component-payload-rsc) to reconcile the Client and Server Component trees, and update the DOM.
 
 ## Going back to the Server Environment
 

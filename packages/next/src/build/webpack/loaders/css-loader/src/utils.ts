@@ -30,11 +30,11 @@ function unescape(str: string) {
     return high !== high || escapedWhitespace
       ? escaped
       : high < 0
-      ? // BMP codepoint
-        String.fromCharCode(high + 0x10000)
-      : // Supplemental Plane codepoint (surrogate pair)
-        // eslint-disable-next-line no-bitwise
-        String.fromCharCode((high >> 10) | 0xd800, (high & 0x3ff) | 0xdc00)
+        ? // BMP codepoint
+          String.fromCharCode(high + 0x10000)
+        : // Supplemental Plane codepoint (surrogate pair)
+          // eslint-disable-next-line no-bitwise
+          String.fromCharCode((high >> 10) | 0xd800, (high & 0x3ff) | 0xdc00)
     /* eslint-enable line-comment-position */
   })
 }
@@ -216,7 +216,7 @@ function normalizeSourceMap(map: any, resourcePath: string) {
     // We should normalize path because previous loaders like `sass-loader` using backslash when generate source map
     newMap.sources = newMap.sources.map((source: string) => {
       // Non-standard syntax from `postcss`
-      if (source.indexOf('<') === 0) {
+      if (source.startsWith('<')) {
         return source
       }
 
@@ -297,7 +297,7 @@ function normalizeSourceMapForRuntime(map: any, loaderContext: any) {
 
     resultMap.sources = resultMap.sources.map((source: string) => {
       // Non-standard syntax from `postcss`
-      if (source.indexOf('<') === 0) {
+      if (source.startsWith('<')) {
         return source
       }
 

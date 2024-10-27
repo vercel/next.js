@@ -191,7 +191,7 @@ async function getBarrelMapping(
     let exportList = JSON.parse(matches[3].slice(1, -1)) as [
       string,
       string,
-      string
+      string,
     ][]
     const wildcardExports = [
       ...output.matchAll(/export \* from "([^"]+)"/g),
@@ -225,8 +225,6 @@ async function getBarrelMapping(
           if (targetMatches) {
             // Merge the export list
             exportList = exportList.concat(targetMatches.exportList)
-            // Inherit the client boundary from the target matched file
-            isClientEntry = isClientEntry || targetMatches.isClientEntry
           }
         })
       )

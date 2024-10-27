@@ -1,41 +1,39 @@
-import { createNextDescribe } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 
-createNextDescribe(
-  'children-page',
-  {
+describe('children-page', () => {
+  const { next } = nextTestSetup({
     files: __dirname,
-  },
-  ({ next }) => {
-    describe('with app dir', () => {
-      it('should show the content if you have a page named children', async () => {
-        const browser = await next.browser('/children')
+  })
 
-        const text = await browser.waitForElementByCss('#children-page').text()
+  describe('with app dir', () => {
+    it('should show the content if you have a page named children', async () => {
+      const browser = await next.browser('/children')
 
-        expect(text).toBe('children - app')
+      const text = await browser.waitForElementByCss('#children-page').text()
 
-        const currentDisplay = await browser.eval(
-          `window.getComputedStyle(document.querySelector('body')).display`
-        )
+      expect(text).toBe('children - app')
 
-        expect(currentDisplay).toBe('block')
-      })
+      const currentDisplay = await browser.eval(
+        `window.getComputedStyle(document.querySelector('body')).display`
+      )
+
+      expect(currentDisplay).toBe('block')
     })
+  })
 
-    describe('with pages dir', () => {
-      it('should show the content if you have a page named children', async () => {
-        const browser = await next.browser('/other/children')
+  describe('with pages dir', () => {
+    it('should show the content if you have a page named children', async () => {
+      const browser = await next.browser('/other/children')
 
-        const text = await browser.waitForElementByCss('#children-page').text()
+      const text = await browser.waitForElementByCss('#children-page').text()
 
-        expect(text).toBe('children - pages')
+      expect(text).toBe('children - pages')
 
-        const currentDisplay = await browser.eval(
-          `window.getComputedStyle(document.querySelector('body')).display`
-        )
+      const currentDisplay = await browser.eval(
+        `window.getComputedStyle(document.querySelector('body')).display`
+      )
 
-        expect(currentDisplay).toBe('block')
-      })
+      expect(currentDisplay).toBe('block')
     })
-  }
-)
+  })
+})

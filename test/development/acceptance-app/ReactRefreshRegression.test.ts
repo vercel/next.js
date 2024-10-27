@@ -11,9 +11,8 @@ describe('ReactRefreshRegression app', () => {
     dependencies: {
       'styled-components': '5.1.0',
       '@next/mdx': 'canary',
-      '@mdx-js/loader': '0.18.0',
-      react: 'latest',
-      'react-dom': 'latest',
+      '@mdx-js/loader': '2.2.1',
+      '@mdx-js/react': '2.2.1',
     },
     skipStart: true,
   })
@@ -76,7 +75,7 @@ describe('ReactRefreshRegression app', () => {
     )
 
     // Verify no hydration mismatch:
-    expect(await session.hasRedbox()).toBe(false)
+    await session.assertNoRedbox()
 
     await cleanup()
   })
@@ -281,7 +280,7 @@ describe('ReactRefreshRegression app', () => {
       `export default function () { throw new Error('boom'); }`
     )
 
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
 
     const source = await session.getRedboxSource()
     expect(source.split(/\r?\n/g).slice(2).join('\n')).toMatchInlineSnapshot(`
@@ -300,7 +299,7 @@ describe('ReactRefreshRegression app', () => {
       `export default function Page() { throw new Error('boom'); }`
     )
 
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
 
     const source = await session.getRedboxSource()
     expect(source.split(/\r?\n/g).slice(2).join('\n')).toMatchInlineSnapshot(`
@@ -322,7 +321,7 @@ describe('ReactRefreshRegression app', () => {
       `
     )
 
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
 
     const source = await session.getRedboxSource()
     expect(source.split(/\r?\n/g).slice(2).join('\n')).toMatchInlineSnapshot(`
@@ -335,15 +334,11 @@ describe('ReactRefreshRegression app', () => {
   })
 
   // https://github.com/vercel/next.js/issues/13574
-  // Test is skipped with Turbopack as the package uses webpack loaders
-  ;(process.env.TURBOPACK ? describe.skip : describe)(
-    'Turbopack skipped tests',
-    () => {
-      test('custom loader mdx should have Fast Refresh enabled', async () => {
-        const files = new Map()
-        files.set(
-          'next.config.js',
-          outdent`
+  test('custom loader mdx should have Fast Refresh enabled', async () => {
+    const files = new Map()
+    files.set(
+      'next.config.js',
+      outdent`
         const withMDX = require("@next/mdx")({
           extension: /\\.mdx?$/,
         });
@@ -351,46 +346,44 @@ describe('ReactRefreshRegression app', () => {
           pageExtensions: ["js", "mdx"],
         });
       `
-        )
-        files.set('app/content.mdx', `Hello World!`)
-        files.set(
-          'app/page.js',
-          outdent`
+    )
+    files.set('app/content.mdx', `Hello World!`)
+    files.set(
+      'app/page.js',
+      outdent`
         'use client'
         import MDX from './content.mdx'
         export default function Page() {
           return <div id="content"><MDX /></div>
         }
       `
-        )
+    )
 
-        const { session, cleanup } = await sandbox(next, files)
-        expect(
-          await session.evaluate(
-            () => document.querySelector('#content').textContent
-          )
-        ).toBe('Hello World!')
+    const { session, cleanup } = await sandbox(next, files)
+    expect(
+      await session.evaluate(
+        () => document.querySelector('#content').textContent
+      )
+    ).toBe('Hello World!')
 
-        let didNotReload = await session.patch('app/content.mdx', `Hello Foo!`)
-        expect(didNotReload).toBe(true)
-        expect(await session.hasRedbox()).toBe(false)
-        expect(
-          await session.evaluate(
-            () => document.querySelector('#content').textContent
-          )
-        ).toBe('Hello Foo!')
+    let didNotReload = await session.patch('app/content.mdx', `Hello Foo!`)
+    expect(didNotReload).toBe(true)
+    await session.assertNoRedbox()
+    expect(
+      await session.evaluate(
+        () => document.querySelector('#content').textContent
+      )
+    ).toBe('Hello Foo!')
 
-        didNotReload = await session.patch('app/content.mdx', `Hello Bar!`)
-        expect(didNotReload).toBe(true)
-        expect(await session.hasRedbox()).toBe(false)
-        expect(
-          await session.evaluate(
-            () => document.querySelector('#content').textContent
-          )
-        ).toBe('Hello Bar!')
+    didNotReload = await session.patch('app/content.mdx', `Hello Bar!`)
+    expect(didNotReload).toBe(true)
+    await session.assertNoRedbox()
+    expect(
+      await session.evaluate(
+        () => document.querySelector('#content').textContent
+      )
+    ).toBe('Hello Bar!')
 
-        await cleanup()
-      })
-    }
-  )
+    await cleanup()
+  })
 })

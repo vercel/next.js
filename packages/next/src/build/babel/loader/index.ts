@@ -9,11 +9,21 @@ async function nextBabelLoader(
   inputSourceMap: object | null | undefined
 ) {
   const filename = this.resourcePath
+
+  // Ensure `.d.ts` are not processed.
+  if (filename.endsWith('.d.ts')) {
+    return [inputSource, inputSourceMap]
+  }
+
   const target = this.target
-  const loaderOptions = parentTrace
+  const loaderOptions: any = parentTrace
     .traceChild('get-options')
     // @ts-ignore TODO: remove ignore once webpack 5 types are used
     .traceFn(() => this.getOptions())
+
+  if (loaderOptions.exclude && loaderOptions.exclude(filename)) {
+    return [inputSource, inputSourceMap]
+  }
 
   const loaderSpanInner = parentTrace.traceChild('next-babel-turbo-transform')
   const { code: transformedSource, map: outputSourceMap } =

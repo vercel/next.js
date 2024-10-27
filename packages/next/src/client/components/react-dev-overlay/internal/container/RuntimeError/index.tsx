@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { CodeFrame } from '../../components/CodeFrame'
-import type { ReadyRuntimeError } from '../../helpers/getErrorByType'
+import type { ReadyRuntimeError } from '../../helpers/get-error-by-type'
 import { noop as css } from '../../helpers/noop-template'
 import { groupStackFramesByFramework } from '../../helpers/group-stack-frames-by-framework'
 import { GroupedStackFrames } from './GroupedStackFrames'
@@ -10,13 +10,11 @@ export type RuntimeErrorProps = { error: ReadyRuntimeError }
 export function RuntimeError({ error }: RuntimeErrorProps) {
   const { firstFrame, allLeadingFrames, allCallStackFrames } =
     React.useMemo(() => {
-      const filteredFrames = error.frames.filter(
-        (f) =>
-          !(
-            f.sourceStackFrame.file === '<anonymous>' &&
-            ['stringify', '<unknown>'].includes(f.sourceStackFrame.methodName)
-          ) && !f.sourceStackFrame.file?.startsWith('node:internal')
-      )
+      const filteredFrames = error.frames
+        // Filter out nodejs internal frames since you can't do anything about them.
+        // e.g. node:internal/timers shows up pretty often due to timers, but not helpful to users.
+        // Only present the last line before nodejs internal trace.
+        .filter((f) => !f.sourceStackFrame.file?.startsWith('node:'))
 
       const firstFirstPartyFrameIndex = filteredFrames.findIndex(
         (entry) =>
@@ -35,30 +33,18 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
       }
     }, [error.frames])
 
-  const [all, setAll] = React.useState(firstFrame == null)
+  const { leadingFramesGroupedByFramework, stackFramesGroupedByFramework } =
+    React.useMemo(() => {
+      const leadingFrames = allLeadingFrames.filter((f) => f.expanded)
 
-  const {
-    canShowMore,
-    leadingFramesGroupedByFramework,
-    stackFramesGroupedByFramework,
-  } = React.useMemo(() => {
-    const leadingFrames = allLeadingFrames.filter((f) => f.expanded || all)
-    const visibleCallStackFrames = allCallStackFrames.filter(
-      (f) => f.expanded || all
-    )
+      return {
+        stackFramesGroupedByFramework:
+          groupStackFramesByFramework(allCallStackFrames),
 
-    return {
-      canShowMore:
-        allCallStackFrames.length !== visibleCallStackFrames.length ||
-        (all && firstFrame != null),
-
-      stackFramesGroupedByFramework:
-        groupStackFramesByFramework(allCallStackFrames),
-
-      leadingFramesGroupedByFramework:
-        groupStackFramesByFramework(leadingFrames),
-    }
-  }, [all, allCallStackFrames, allLeadingFrames, firstFrame])
+        leadingFramesGroupedByFramework:
+          groupStackFramesByFramework(leadingFrames),
+      }
+    }, [allCallStackFrames, allLeadingFrames])
 
   return (
     <React.Fragment>
@@ -67,7 +53,6 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
           <h2>Source</h2>
           <GroupedStackFrames
             groupedStackFrames={leadingFramesGroupedByFramework}
-            show={all}
           />
           <CodeFrame
             stackFrame={firstFrame.originalStackFrame!}
@@ -79,22 +64,10 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
       {stackFramesGroupedByFramework.length ? (
         <React.Fragment>
           <h2>Call Stack</h2>
+
           <GroupedStackFrames
             groupedStackFrames={stackFramesGroupedByFramework}
-            show={all}
           />
-        </React.Fragment>
-      ) : undefined}
-      {canShowMore ? (
-        <React.Fragment>
-          <button
-            tabIndex={10}
-            data-nextjs-data-runtime-error-collapsed-action
-            type="button"
-            onClick={() => setAll(!all)}
-          >
-            {all ? 'Hide' : 'Show'} collapsed frames
-          </button>
         </React.Fragment>
       ) : undefined}
     </React.Fragment>
@@ -102,18 +75,39 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
 }
 
 export const styles = css`
-  button[data-nextjs-data-runtime-error-collapsed-action] {
-    background: none;
-    border: none;
-    padding: 0;
-    font-size: var(--size-font-small);
-    line-height: var(--size-font-bigger);
-    color: var(--color-accents-3);
-  }
-
   [data-nextjs-call-stack-frame]:not(:last-child),
   [data-nextjs-component-stack-frame]:not(:last-child) {
     margin-bottom: var(--size-gap-double);
+  }
+
+  [data-nextjs-data-runtime-error-copy-button],
+  [data-nextjs-data-runtime-error-copy-button]:focus:not(:focus-visible) {
+    position: relative;
+    margin-left: var(--size-gap);
+    padding: 0;
+    border: none;
+    background: none;
+    outline: none;
+  }
+  [data-nextjs-data-runtime-error-copy-button] > svg {
+    vertical-align: middle;
+  }
+  .nextjs-data-runtime-error-copy-button {
+    color: inherit;
+  }
+  .nextjs-data-runtime-error-copy-button--initial:hover {
+    cursor: pointer;
+  }
+  .nextjs-data-runtime-error-copy-button[aria-disabled='true'] {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+  .nextjs-data-runtime-error-copy-button--error,
+  .nextjs-data-runtime-error-copy-button--error:hover {
+    color: var(--color-ansi-red);
+  }
+  .nextjs-data-runtime-error-copy-button--success {
+    color: var(--color-ansi-green);
   }
 
   [data-nextjs-call-stack-frame] > h3,
@@ -122,7 +116,7 @@ export const styles = css`
     margin-bottom: var(--size-gap);
     font-family: var(--font-stack-monospace);
     font-size: var(--size-font);
-    color: #222;
+    color: #666;
   }
   [data-nextjs-call-stack-frame] > h3[data-nextjs-frame-expanded='false'] {
     color: #666;
@@ -141,7 +135,6 @@ export const styles = css`
     height: var(--size-font-small);
     margin-left: var(--size-gap);
     flex-shrink: 0;
-
     display: none;
   }
 
@@ -200,10 +193,10 @@ export const styles = css`
     border: none;
     padding: 0;
   }
-  [data-nextjs-container-errors-pseudo-html--diff-add] {
+  [data-nextjs-container-errors-pseudo-html--diff='add'] {
     color: var(--color-ansi-green);
   }
-  [data-nextjs-container-errors-pseudo-html--diff-remove] {
+  [data-nextjs-container-errors-pseudo-html--diff='remove'] {
     color: var(--color-ansi-red);
   }
   [data-nextjs-container-errors-pseudo-html--tag-error] {

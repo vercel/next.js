@@ -10,51 +10,57 @@ function version(major: number, minor = 0, patch = 0): number {
 }
 
 function parseVersion(v: string) {
-  return v.split('.').reduce((acc, val) => {
-    if (!acc) {
-      return null
-    }
+  return v.split('.').reduce(
+    (acc, val) => {
+      if (!acc) {
+        return null
+      }
 
-    const parsed = parseInt(val, 10)
-    if (isNaN(parsed)) {
-      return null
-    }
-    acc.push(parsed)
-    return acc
-  }, [] as Array<number> | null)
+      const parsed = parseInt(val, 10)
+      if (isNaN(parsed)) {
+        return null
+      }
+      acc.push(parsed)
+      return acc
+    },
+    [] as Array<number> | null
+  )
 }
 
 function browserslistToTargets(targets: Array<string>) {
-  return targets.reduce((acc, value) => {
-    const [name, v] = value.split(' ')
-    const parsedVersion = parseVersion(v)
+  return targets.reduce(
+    (acc, value) => {
+      const [name, v] = value.split(' ')
+      const parsedVersion = parseVersion(v)
 
-    if (!parsedVersion) {
+      if (!parsedVersion) {
+        return acc
+      }
+      const versionDigit = version(
+        parsedVersion[0],
+        parsedVersion[1],
+        parsedVersion[2]
+      )
+
+      if (
+        name === 'and_qq' ||
+        name === 'and_uc' ||
+        name === 'baidu' ||
+        name === 'bb' ||
+        name === 'kaios' ||
+        name === 'op_mini'
+      ) {
+        return acc
+      }
+
+      if (acc[name] == null || versionDigit < acc[name]) {
+        acc[name] = versionDigit
+      }
+
       return acc
-    }
-    const versionDigit = version(
-      parsedVersion[0],
-      parsedVersion[1],
-      parsedVersion[2]
-    )
-
-    if (
-      name === 'and_qq' ||
-      name === 'and_uc' ||
-      name === 'baidu' ||
-      name === 'bb' ||
-      name === 'kaios' ||
-      name === 'op_mini'
-    ) {
-      return acc
-    }
-
-    if (acc[name] == null || versionDigit < acc[name]) {
-      acc[name] = versionDigit
-    }
-
-    return acc
-  }, {} as Record<string, number>)
+    },
+    {} as Record<string, number>
+  )
 }
 
 export const getTargets = (opts: { targets?: string[]; key: any }) => {

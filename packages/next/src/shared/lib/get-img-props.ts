@@ -7,6 +7,8 @@ import type {
   ImageLoaderPropsWithConfig,
 } from './image-config'
 
+import type { JSX } from 'react'
+
 export interface StaticImageData {
   src: string
   height: number
@@ -67,7 +69,7 @@ export type ImageProps = Omit<
   lazyRoot?: string
 }
 
-export type ImgProps = Omit<ImageProps, 'src' | 'alt' | 'loader'> & {
+export type ImgProps = Omit<ImageProps, 'src' | 'loader'> & {
   loading: LoadingValue
   width: number | undefined
   height: number | undefined
@@ -109,6 +111,7 @@ function isStaticImageData(
 
 function isStaticImport(src: string | StaticImport): src is StaticImport {
   return (
+    !!src &&
     typeof src === 'object' &&
     (isStaticRequire(src as StaticImport) ||
       isStaticImageData(src as StaticImport))
@@ -252,6 +255,7 @@ export function getImgProps(
     placeholder = 'empty',
     blurDataURL,
     fetchPriority,
+    decoding = 'async',
     layout,
     objectFit,
     objectPosition,
@@ -398,9 +402,6 @@ export function getImgProps(
     // through the built-in Image Optimization API.
     unoptimized = true
   }
-  if (priority) {
-    fetchPriority = 'high'
-  }
 
   const qualityInt = getInt(quality)
 
@@ -463,6 +464,18 @@ export function getImgProps(
         } else if (isNaN(heightInt)) {
           throw new Error(
             `Image with src "${src}" has invalid "height" property. Expected a numeric value in pixels but received "${height}".`
+          )
+        }
+        // eslint-disable-next-line no-control-regex
+        if (/^[\x00-\x20]/.test(src)) {
+          throw new Error(
+            `Image with src "${src}" cannot start with a space or control character. Use src.trimStart() to remove it or encodeURIComponent(src) to keep it.`
+          )
+        }
+        // eslint-disable-next-line no-control-regex
+        if (/[\x00-\x20]$/.test(src)) {
+          throw new Error(
+            `Image with src "${src}" cannot end with a space or control character. Use src.trimEnd() to remove it or encodeURIComponent(src) to keep it.`
           )
         }
       }
@@ -673,7 +686,7 @@ export function getImgProps(
     fetchPriority,
     width: widthInt,
     height: heightInt,
-    decoding: 'async',
+    decoding,
     className,
     style: { ...imgStyle, ...placeholderStyle },
     sizes: imgAttributes.sizes,

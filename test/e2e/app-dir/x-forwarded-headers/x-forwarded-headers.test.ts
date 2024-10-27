@@ -1,6 +1,15 @@
-import { createNextDescribe } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 
-createNextDescribe('x-forwarded-headers', { files: __dirname }, ({ next }) => {
+describe('x-forwarded-headers', () => {
+  const { next, skipped } = nextTestSetup({
+    files: __dirname,
+    // This test is skipped because it sends requests with manipulated host headers
+    // which doesn't work in a deployed environment
+    skipDeployment: true,
+  })
+
+  if (skipped) return
+
   it('should include x-forwarded-* headers', async () => {
     const res = await next.fetch('/')
     const headers = await res.json()

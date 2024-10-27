@@ -45,7 +45,9 @@
   font-weight: 400;
   line-height: 22px;
   letter-spacing: 0px;
-  transition: background-color 0.2s, box-shadow 0.2s;
+  transition:
+    background-color 0.2s,
+    box-shadow 0.2s;
   caret-color: #4ed9b2;
 }
 

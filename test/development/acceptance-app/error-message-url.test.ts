@@ -6,10 +6,6 @@ import { outdent } from 'outdent'
 describe('Error overlay - error message urls', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
-    dependencies: {
-      react: 'latest',
-      'react-dom': 'latest',
-    },
     skipStart: true,
   })
 
@@ -23,7 +19,7 @@ describe('Error overlay - error message urls', () => {
       content + '\nexport function getServerSideProps() {}'
     )
 
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
 
     const link = await browser.elementByCss('[data-nextjs-terminal] a')
     const text = await link.text()
@@ -56,7 +52,7 @@ describe('Error overlay - error message urls', () => {
 
     await session.waitForAndOpenRuntimeError()
 
-    const link = await browser.elementByCss('#nextjs__container_errors_desc a')
+    const link = await browser.elementByCss('#nextjs__container_errors__link a')
     const text = await link.text()
     const href = await link.getAttribute('href')
     expect(text).toEqual(

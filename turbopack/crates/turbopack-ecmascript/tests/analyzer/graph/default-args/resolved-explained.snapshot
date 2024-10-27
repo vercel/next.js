@@ -1,0 +1,17 @@
+*arrow function 105* = (...) => value2
+
+Fun = (...) => value
+
+Fun2 = (...) => value2
+
+value = (???*0* | module<./module.js, {}>["named"])
+- *0* ???*1*["value"]
+  ⚠️  unknown object
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+value2 = (???*0* | module<./module.js, {}>["named"])
+- *0* ???*1*["value2"]
+  ⚠️  unknown object
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet

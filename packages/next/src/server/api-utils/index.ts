@@ -25,7 +25,7 @@ export function wrapApiHandler<T extends (...args: any[]) => any>(
   handler: T
 ): T {
   return ((...args) => {
-    getTracer().getRootSpanAttributes()?.set('next.route', page)
+    getTracer().setRootSpanAttribute('next.route', page)
     // Call API route method
     return getTracer().trace(
       NodeSpan.runHandler,
@@ -120,8 +120,8 @@ export function clearPreviewData<T>(
     ...(typeof previous === 'string'
       ? [previous]
       : Array.isArray(previous)
-      ? previous
-      : []),
+        ? previous
+        : []),
     serialize(COOKIE_NAME_PRERENDER_BYPASS, '', {
       // To delete a cookie, set `expires` to a date in the past:
       // https://tools.ietf.org/html/rfc6265#section-4.1.1

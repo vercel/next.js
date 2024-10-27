@@ -4,7 +4,7 @@ import { NextInstance } from 'e2e-utils'
 import { check, waitFor } from 'next-test-utils'
 import webdriver, { BrowserInterface } from 'next-webdriver'
 
-import type { HistoryState } from '../../../packages/next/src/shared/lib/router/router'
+import type { HistoryState } from 'next/dist/shared/lib/router/router'
 
 const emitPopsStateEvent = (browser: BrowserInterface, state: HistoryState) =>
   browser.eval(

@@ -150,6 +150,7 @@ export const css = curry(async function css(
   const {
     prependData: sassPrependData,
     additionalData: sassAdditionalData,
+    implementation: sassImplementation,
     ...sassOptions
   } = ctx.sassOptions
 
@@ -167,6 +168,7 @@ export const css = curry(async function css(
     {
       loader: require.resolve('next/dist/compiled/sass-loader'),
       options: {
+        implementation: sassImplementation,
         // Source maps are required so that `resolve-url-loader` can locate
         // files original to their source directory.
         sourceMap: true,
@@ -211,9 +213,6 @@ export const css = curry(async function css(
   const nextFontLoaders: Array<[string | RegExp, string, any?]> = [
     [require.resolve('next/font/google/target.css'), googleLoader],
     [require.resolve('next/font/local/target.css'), localLoader],
-    // TODO: remove this in the next major version
-    [/node_modules[\\/]@next[\\/]font[\\/]google[\\/]target.css/, googleLoader],
-    [/node_modules[\\/]@next[\\/]font[\\/]local[\\/]target.css/, localLoader],
   ]
 
   nextFontLoaders.forEach(([fontLoaderTarget, fontLoaderPath]) => {
@@ -406,11 +405,11 @@ export const css = curry(async function css(
     const allowedPagesGlobalCSSIssuer = ctx.hasAppDir
       ? undefined
       : shouldIncludeExternalCSSImports
-      ? undefined
-      : {
-          and: [ctx.rootDirectory],
-          not: [/node_modules/],
-        }
+        ? undefined
+        : {
+            and: [ctx.rootDirectory],
+            not: [/node_modules/],
+          }
 
     fns.push(
       loader({
@@ -615,6 +614,17 @@ export const css = curry(async function css(
           // If this warning were to trigger, it'd be unactionable by the user,
           // but likely not valid -- so we disable it.
           ignoreOrder: true,
+          insert: function (linkTag: HTMLLinkElement) {
+            if (typeof _N_E_STYLE_LOAD === 'function') {
+              const { href, onload, onerror } = linkTag
+              _N_E_STYLE_LOAD(new URL(href).pathname).then(
+                () => onload?.call(linkTag, { type: 'load' } as Event),
+                () => onerror?.call(linkTag, {} as Event)
+              )
+            } else {
+              document.head.appendChild(linkTag)
+            }
+          },
         })
       )
     )

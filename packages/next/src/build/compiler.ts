@@ -47,7 +47,7 @@ export function runCompiler(
 ): Promise<
   [
     result: CompilerResult,
-    inputFileSystem?: webpack.Compiler['inputFileSystem']
+    inputFileSystem?: webpack.Compiler['inputFileSystem'],
   ]
 > {
   return new Promise((resolve, reject) => {

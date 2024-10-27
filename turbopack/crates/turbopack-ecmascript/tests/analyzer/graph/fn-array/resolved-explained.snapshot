@@ -1,0 +1,19 @@
+a = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+b = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+c = (...) => [`${a}${b}`, a]
+
+d = ["12", "1"]
+
+e = ("12" | ???*0*)
+- *0* unknown mutation
+  ⚠️  This value might have side effects
+
+f = ("1" | ???*0*)
+- *0* unknown mutation
+  ⚠️  This value might have side effects

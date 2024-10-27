@@ -4,11 +4,13 @@ import '../server/lib/cpu-profile'
 import type { StartServerOptions } from '../server/lib/start-server'
 import {
   RESTART_EXIT_CODE,
-  checkNodeDebugType,
-  getDebugPort,
+  getNodeDebugType,
+  getParsedDebugAddress,
   getMaxOldSpaceSize,
-  getNodeOptionsWithoutInspect,
+  getParsedNodeOptionsWithoutInspect,
   printAndExit,
+  formatNodeOptions,
+  formatDebugAddress,
 } from '../server/lib/utils'
 import * as Log from '../build/output/log'
 import { getProjectDir } from '../lib/get-project-dir'
@@ -33,9 +35,13 @@ import {
 } from '../lib/helpers/get-reserved-port'
 import os from 'os'
 import { once } from 'node:events'
+import { clearTimeout } from 'timers'
+import { flushAllTraces, trace } from '../trace'
+import { traceId } from '../trace/shared'
 
-type NextDevOptions = {
+export type NextDevOptions = {
   turbo?: boolean
+  turbopack?: boolean
   port: number
   hostname?: string
   experimentalHttps?: boolean
@@ -54,15 +60,35 @@ let isTurboSession = false
 let traceUploadUrl: string
 let sessionStopHandled = false
 let sessionStarted = Date.now()
+let sessionSpan = trace('next-dev')
+
+// How long should we wait for the child to cleanly exit after sending
+// SIGINT/SIGTERM to the child process before sending SIGKILL?
+const CHILD_EXIT_TIMEOUT_MS = parseInt(
+  process.env.NEXT_EXIT_TIMEOUT_MS ?? '100',
+  10
+)
 
 const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
-  if (child?.pid) child.kill(signal ?? 0)
+  if (signal != null && child?.pid) child.kill(signal)
   if (sessionStopHandled) return
   sessionStopHandled = true
 
-  if (child?.pid && child.exitCode === null && child.signalCode === null) {
+  if (
+    signal != null &&
+    child?.pid &&
+    child.exitCode === null &&
+    child.signalCode === null
+  ) {
+    let exitTimeout = setTimeout(() => {
+      child?.kill('SIGKILL')
+    }, CHILD_EXIT_TIMEOUT_MS)
     await once(child, 'exit').catch(() => {})
+    clearTimeout(exitTimeout)
   }
+
+  sessionSpan.stop()
+  await flushAllTraces({ end: true })
 
   try {
     const { eventCliSessionStopped } =
@@ -112,6 +138,7 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
       mode: 'dev',
       projectDir: dir,
       distDir: config.distDir,
+      isTurboSession,
     })
   }
 
@@ -122,8 +149,8 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
   process.exit(0)
 }
 
-process.on('SIGINT', () => handleSessionStop('SIGKILL'))
-process.on('SIGTERM', () => handleSessionStop('SIGKILL'))
+process.on('SIGINT', () => handleSessionStop('SIGINT'))
+process.on('SIGTERM', () => handleSessionStop('SIGTERM'))
 
 // exit event must be synchronous
 process.on('exit', () => child?.kill('SIGKILL'))
@@ -208,7 +235,7 @@ const nextDev = async (
     hostname: host,
   }
 
-  if (options.turbo) {
+  if (options.turbo || options.turbopack) {
     process.env.TURBOPACK = '1'
   }
 
@@ -225,23 +252,25 @@ const nextDev = async (
       let resolved = false
       const defaultEnv = (initialEnv || process.env) as typeof process.env
 
-      let NODE_OPTIONS = getNodeOptionsWithoutInspect()
-      let nodeDebugType = checkNodeDebugType()
+      const nodeOptions = getParsedNodeOptionsWithoutInspect()
+      const nodeDebugType = getNodeDebugType()
 
-      const maxOldSpaceSize = getMaxOldSpaceSize()
-
+      let maxOldSpaceSize: string | number | undefined = getMaxOldSpaceSize()
       if (!maxOldSpaceSize && !process.env.NEXT_DISABLE_MEM_OVERRIDE) {
         const totalMem = os.totalmem()
         const totalMemInMB = Math.floor(totalMem / 1024 / 1024)
-        NODE_OPTIONS = `${NODE_OPTIONS} --max-old-space-size=${Math.floor(
-          totalMemInMB * 0.5
-        )}`
+        maxOldSpaceSize = Math.floor(totalMemInMB * 0.5).toString()
+
+        nodeOptions['max-old-space-size'] = maxOldSpaceSize
+
+        // Ensure the max_old_space_size is not also set.
+        delete nodeOptions['max_old_space_size']
       }
 
       if (nodeDebugType) {
-        NODE_OPTIONS = `${NODE_OPTIONS} --${nodeDebugType}=${
-          getDebugPort() + 1
-        }`
+        const address = getParsedDebugAddress()
+        address.port = address.port + 1
+        nodeOptions[nodeDebugType] = formatDebugAddress(address)
       }
 
       child = fork(startServerPath, {
@@ -250,10 +279,11 @@ const nextDev = async (
           ...defaultEnv,
           TURBOPACK: process.env.TURBOPACK,
           NEXT_PRIVATE_WORKER: '1',
+          NEXT_PRIVATE_TRACE_ID: traceId,
           NODE_EXTRA_CA_CERTS: startServerOptions.selfSignedCertificate
             ? startServerOptions.selfSignedCertificate.rootCA
             : defaultEnv.NODE_EXTRA_CA_CERTS,
-          NODE_OPTIONS,
+          NODE_OPTIONS: formatNodeOptions(nodeOptions),
         },
       })
 
@@ -282,12 +312,15 @@ const nextDev = async (
               mode: 'dev',
               projectDir: dir,
               distDir: config.distDir,
+              isTurboSession,
               sync: true,
             })
           }
           return startServer(startServerOptions)
         }
-        await handleSessionStop(signal)
+        // Call handler (e.g. upload telemetry). Don't try to send a signal to
+        // the child, as it has already exited.
+        await handleSessionStop(/* signal */ null)
       })
     })
   }

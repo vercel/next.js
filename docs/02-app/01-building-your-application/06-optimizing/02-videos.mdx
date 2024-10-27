@@ -216,25 +216,21 @@ If you have subtitles for your video, you can easily add them using the `<track>
 
 ```jsx filename="app/page.jsx"
 async function VideoComponent({ fileName }) {
-  const {blobs} = await list({
+  const { blobs } = await list({
     prefix: fileName,
-    limit: 2
-  });
-  const { url } = blobs[0];
-  const { url: captionsUrl } = blobs[1];
+    limit: 2,
+  })
+  const { url } = blobs[0]
+  const { url: captionsUrl } = blobs[1]
 
   return (
     <video controls preload="none" aria-label="Video player">
       <source src={url} type="video/mp4" />
-      <track
-        src={captionsUrl}
-        kind="subtitles"
-        srcLang="en"
-        label="English">
+      <track src={captionsUrl} kind="subtitles" srcLang="en" label="English" />
       Your browser does not support the video tag.
     </video>
-  );
-};
+  )
+}
 ```
 
 By following this approach, you can effectively self-host and integrate videos into your Next.js applications.
@@ -271,3 +267,9 @@ Explore these video streaming platforms for integrating video into your Next.js 
 ### Fastly
 
 - Learn more about integrating Fastly's solutions for [video on demand](https://www.fastly.com/products/streaming-media/video-on-demand) and streaming media into Next.js.
+
+### ImageKit.io Integration
+
+- Check out the [official quick start guide](https://imagekit.io/docs/integration/nextjs) for integrating ImageKit with Next.js.
+- The integration provides an `<IKVideo>` component, offering [seamless video support](https://imagekit.io/docs/integration/nextjs#rendering-videos).
+- You can also explore other [ImageKit libraries](https://imagekit.io/docs), such as the Node.js SDK, which is also available.

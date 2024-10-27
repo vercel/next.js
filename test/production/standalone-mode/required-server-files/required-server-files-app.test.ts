@@ -10,11 +10,12 @@ import {
   initNextServerScript,
   killApp,
 } from 'next-test-utils'
+import { ChildProcess } from 'child_process'
 
 describe('required server files app router', () => {
   let next: NextInstance
-  let server
-  let appPort
+  let server: ChildProcess
+  let appPort: number | string
 
   const setupNext = async ({
     nextEnv,
@@ -72,9 +73,10 @@ describe('required server files app router', () => {
     const testServer = join(next.testDir, 'standalone/server.js')
     await fs.writeFile(
       testServer,
-      (
-        await fs.readFile(testServer, 'utf8')
-      ).replace('port:', `minimalMode: ${minimalMode},port:`)
+      (await fs.readFile(testServer, 'utf8')).replace(
+        'port:',
+        `minimalMode: ${minimalMode},port:`
+      )
     )
     appPort = await findPort()
     server = await initNextServerScript(
@@ -82,14 +84,13 @@ describe('required server files app router', () => {
       /- Local:/,
       {
         ...process.env,
-        PORT: appPort,
+        PORT: `${appPort}`,
       },
       undefined,
       {
         cwd: next.testDir,
       }
     )
-    appPort = `http://127.0.0.1:${appPort}`
   }
 
   beforeAll(async () => {
@@ -162,19 +163,19 @@ describe('required server files app router', () => {
     for (const [path, tags] of [
       [
         '/isr/first',
-        'isr-page,_N_T_/layout,_N_T_/isr/layout,_N_T_/isr/[slug]/layout,_N_T_/isr/[slug]/page,_N_T_/isr/first',
+        '_N_T_/layout,_N_T_/isr/layout,_N_T_/isr/[slug]/layout,_N_T_/isr/[slug]/page,_N_T_/isr/first,isr-page',
       ],
       [
         '/isr/second',
-        'isr-page,_N_T_/layout,_N_T_/isr/layout,_N_T_/isr/[slug]/layout,_N_T_/isr/[slug]/page,_N_T_/isr/second',
+        '_N_T_/layout,_N_T_/isr/layout,_N_T_/isr/[slug]/layout,_N_T_/isr/[slug]/page,_N_T_/isr/second,isr-page',
       ],
       [
         '/api/isr/first',
-        'isr-page,_N_T_/layout,_N_T_/api/layout,_N_T_/api/isr/layout,_N_T_/api/isr/[slug]/layout,_N_T_/api/isr/[slug]/route,_N_T_/api/isr/first',
+        '_N_T_/layout,_N_T_/api/layout,_N_T_/api/isr/layout,_N_T_/api/isr/[slug]/layout,_N_T_/api/isr/[slug]/route,_N_T_/api/isr/first,isr-page',
       ],
       [
         '/api/isr/second',
-        'isr-page,_N_T_/layout,_N_T_/api/layout,_N_T_/api/isr/layout,_N_T_/api/isr/[slug]/layout,_N_T_/api/isr/[slug]/route,_N_T_/api/isr/second',
+        '_N_T_/layout,_N_T_/api/layout,_N_T_/api/isr/layout,_N_T_/api/isr/[slug]/layout,_N_T_/api/isr/[slug]/route,_N_T_/api/isr/second,isr-page',
       ],
     ]) {
       require('console').error('checking', { path, tags })

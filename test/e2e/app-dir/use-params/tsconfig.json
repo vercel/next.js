@@ -2,7 +2,7 @@
   "compilerOptions": {
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
-    "skipLibCheck": true,
+    "skipLibCheck": false,
     "strict": false,
     "forceConsistentCasingInFileNames": true,
     "noEmit": true,
@@ -17,7 +17,9 @@
       {
         "name": "next"
       }
-    ]
+    ],
+    "target": "ES2017",
+    "strictNullChecks": true
   },
   "include": ["next-env.d.ts", ".next/types/**/*.ts", "**/*.ts", "**/*.tsx"],
   "exclude": ["node_modules"]

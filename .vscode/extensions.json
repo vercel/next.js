@@ -5,6 +5,7 @@
     "esbenp.prettier-vscode",
     "dbaeumer.vscode-eslint",
     "usernamehw.errorlens",
+    "ast-grep.ast-grep-vscode",
 
     // Testing
     "orta.vscode-jest",

@@ -111,13 +111,6 @@ exports[`next.rs api should detect the correct routes: diagnostics 1`] = `
     "category": "NextFeatureTelemetry_category_tbd",
     "name": "EVENT_BUILD_FEATURE_USAGE",
     "payload": {
-      "swcMinify": "true",
-    },
-  },
-  {
-    "category": "NextFeatureTelemetry_category_tbd",
-    "name": "EVENT_BUILD_FEATURE_USAGE",
-    "payload": {
       "swcReactRemoveProperties": "false",
     },
   },

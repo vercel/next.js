@@ -1,0 +1,9 @@
+@import "https://example.com/stylesheet1.css";
+@import "https://example.com/withquote\".css";
+@import "./other.css";
+@import "./withduplicateurl.css";
+@import url("https://example.com/stylesheet2.css");
+
+body {
+  background-color: blue;
+}

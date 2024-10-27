@@ -203,10 +203,7 @@ export class ProfilingPlugin {
           register(tapInfo: any) {
             const fn = tapInfo.fn
             tapInfo.fn = (loaderContext: any, callback: any) => {
-              const moduleSpan =
-                loaderContext.currentTraceSpan.traceChild(`read-resource`)
               fn(loaderContext, (err: any, result: any) => {
-                moduleSpan.stop()
                 callback(err, result)
               })
             }

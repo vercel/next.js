@@ -1,12 +1,7 @@
 import { test as base, defineConfig } from './index'
 import type { NextFixture } from './next-fixture'
 // eslint-disable-next-line import/no-extraneous-dependencies
-import {
-  type RequestHandler,
-  type MockedResponse,
-  MockedRequest,
-  handleRequest,
-} from 'msw'
+import { type RequestHandler, handleRequest } from 'msw'
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { Emitter } from 'strict-event-emitter'
 
@@ -33,39 +28,13 @@ export const test = base.extend<{
       const emitter = new Emitter()
 
       next.onFetch(async (request) => {
-        const {
-          body,
-          method,
-          headers,
-          credentials,
-          cache,
-          redirect,
-          integrity,
-          keepalive,
-          mode,
-          destination,
-          referrer,
-          referrerPolicy,
-        } = request
-        const mockedRequest = new MockedRequest(new URL(request.url), {
-          body: body ? await request.arrayBuffer() : undefined,
-          method,
-          headers: Object.fromEntries(headers),
-          credentials,
-          cache,
-          redirect,
-          integrity,
-          keepalive,
-          mode,
-          destination,
-          referrer,
-          referrerPolicy,
-        })
+        const requestId = Math.random().toString(16).slice(2)
         let isUnhandled = false
         let isPassthrough = false
-        let mockedResponse: MockedResponse | undefined
+        let mockedResponse
         await handleRequest(
-          mockedRequest,
+          request.clone(),
+          requestId,
           handlers.slice(0),
           {
             onUnhandledRequest: () => {
@@ -91,19 +60,7 @@ export const test = base.extend<{
         }
 
         if (mockedResponse) {
-          const {
-            status,
-            headers: responseHeaders,
-            body: responseBody,
-            delay,
-          } = mockedResponse
-          if (delay) {
-            await new Promise((resolve) => setTimeout(resolve, delay))
-          }
-          return new Response(responseBody, {
-            status,
-            headers: new Headers(responseHeaders),
-          })
+          return mockedResponse
         }
 
         return 'abort'

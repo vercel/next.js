@@ -10,7 +10,7 @@ export const ACTION_NAVIGATE = 'navigate'
 export const ACTION_RESTORE = 'restore'
 export const ACTION_SERVER_PATCH = 'server-patch'
 export const ACTION_PREFETCH = 'prefetch'
-export const ACTION_FAST_REFRESH = 'fast-refresh'
+export const ACTION_HMR_REFRESH = 'hmr-refresh'
 export const ACTION_SERVER_ACTION = 'server-action'
 
 export type RouterChangeByServerResponse = ({
@@ -38,6 +38,7 @@ export interface Mutable {
   hashFragment?: string
   shouldScroll?: boolean
   preserveCustomHistoryState?: boolean
+  onlyHashChange?: boolean
 }
 
 export interface ServerActionMutable extends Mutable {
@@ -54,8 +55,8 @@ export interface RefreshAction {
   origin: Location['origin']
 }
 
-export interface FastRefreshAction {
-  type: typeof ACTION_FAST_REFRESH
+export interface HmrRefreshAction {
+  type: typeof ACTION_HMR_REFRESH
   origin: Location['origin']
 }
 
@@ -111,6 +112,7 @@ export interface NavigateAction {
   locationSearch: Location['search']
   navigateType: 'push' | 'replace'
   shouldScroll: boolean
+  allowAliasing: boolean
 }
 
 /**
@@ -203,9 +205,11 @@ export type PrefetchCacheEntry = {
   data: Promise<FetchServerResponseResult>
   kind: PrefetchKind
   prefetchTime: number
+  staleTime: number
   lastUsedTime: number | null
   key: string
   status: PrefetchCacheEntryStatus
+  url: URL
 }
 
 export enum PrefetchCacheEntryStatus {
@@ -267,18 +271,6 @@ export type ReducerActions = Readonly<
   | RestoreAction
   | ServerPatchAction
   | PrefetchAction
-  | FastRefreshAction
+  | HmrRefreshAction
   | ServerActionAction
 >
-
-export function isThenable(value: any): value is Promise<AppRouterState> {
-  // TODO: We don't gain anything from this abstraction. It's unsound, and only
-  // makes sense in the specific places where we use it. So it's better to keep
-  // the type coercion inline, instead of leaking this to other places in
-  // the codebase.
-  return (
-    value &&
-    (typeof value === 'object' || typeof value === 'function') &&
-    typeof value.then === 'function'
-  )
-}

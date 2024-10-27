@@ -81,22 +81,6 @@ If an error is thrown inside `getServerSideProps`, it will show the `pages/500.j
 
 ## Edge Cases
 
-### Edge Runtime
-
-`getServerSideProps` can be used with both [Serverless and Edge Runtimes](/docs/pages/building-your-application/rendering/edge-and-nodejs-runtimes), and you can set props in both.
-
-However, currently in the Edge Runtime, you do not have access to the response object. This means that you cannot — for example — add cookies in `getServerSideProps`. To have access to the response object, you should **continue to use the Node.js runtime**, which is the default runtime.
-
-You can explicitly set the runtime on a per-page basis by modifying the `config`, for example:
-
-```jsx filename="pages/index.js"
-export const config = {
-  runtime: 'nodejs', // or "edge"
-}
-
-export const getServerSideProps = async () => {}
-```
-
 ### Caching with Server-Side Rendering (SSR)
 
 You can use caching headers (`Cache-Control`) inside `getServerSideProps` to cache dynamic responses. For example, using [`stale-while-revalidate`](https://web.dev/stale-while-revalidate/).

@@ -1,6 +1,6 @@
-import { execSync } from 'child_process'
-import dns from 'dns/promises'
-import url from 'url'
+import { execSync } from 'node:child_process'
+import { lookup } from 'node:dns/promises'
+import url from 'node:url'
 
 function getProxy(): string | undefined {
   if (process.env.https_proxy) {
@@ -17,7 +17,7 @@ function getProxy(): string | undefined {
 
 export async function getOnline(): Promise<boolean> {
   try {
-    await dns.lookup('registry.yarnpkg.com')
+    await lookup('registry.yarnpkg.com')
     // If DNS lookup succeeds, we are online
     return true
   } catch {
@@ -34,7 +34,7 @@ export async function getOnline(): Promise<boolean> {
     }
 
     try {
-      await dns.lookup(hostname)
+      await lookup(hostname)
       // If DNS lookup succeeds for the proxy server, we are online
       return true
     } catch {

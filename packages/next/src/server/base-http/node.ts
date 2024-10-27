@@ -162,4 +162,8 @@ export class NodeNextResponse extends BaseNextResponse<Writable> {
   send() {
     this._res.end(this.textBody)
   }
+
+  public onClose(callback: () => void) {
+    this.originalResponse.on('close', callback)
+  }
 }

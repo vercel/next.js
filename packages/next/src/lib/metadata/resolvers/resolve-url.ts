@@ -9,6 +9,16 @@ function createLocalMetadataBase() {
   return new URL(`http://localhost:${process.env.PORT || 3000}`)
 }
 
+function getPreviewDeploymentUrl(): URL | undefined {
+  const origin = process.env.VERCEL_BRANCH_URL || process.env.VERCEL_URL
+  return origin ? new URL(`https://${origin}`) : undefined
+}
+
+function getProductionDeploymentUrl(): URL | undefined {
+  const origin = process.env.VERCEL_PROJECT_PRODUCTION_URL
+  return origin ? new URL(`https://${origin}`) : undefined
+}
+
 // For deployment url for metadata routes, prefer to use the deployment url if possible
 // as these routes are unique to the deployments url.
 export function getSocialImageFallbackMetadataBase(metadataBase: URL | null): {
@@ -17,8 +27,8 @@ export function getSocialImageFallbackMetadataBase(metadataBase: URL | null): {
 } {
   const isMetadataBaseMissing = !metadataBase
   const defaultMetadataBase = createLocalMetadataBase()
-  const deploymentUrl =
-    process.env.VERCEL_URL && new URL(`https://${process.env.VERCEL_URL}`)
+  const previewDeploymentUrl = getPreviewDeploymentUrl()
+  const productionDeploymentUrl = getProductionDeploymentUrl()
 
   let fallbackMetadataBase
   if (process.env.NODE_ENV === 'development') {
@@ -26,10 +36,10 @@ export function getSocialImageFallbackMetadataBase(metadataBase: URL | null): {
   } else {
     fallbackMetadataBase =
       process.env.NODE_ENV === 'production' &&
-      deploymentUrl &&
+      previewDeploymentUrl &&
       process.env.VERCEL_ENV === 'preview'
-        ? deploymentUrl
-        : metadataBase || deploymentUrl || defaultMetadataBase
+        ? previewDeploymentUrl
+        : metadataBase || productionDeploymentUrl || defaultMetadataBase
   }
 
   return {
@@ -76,6 +86,13 @@ function resolveRelativeUrl(url: string | URL, pathname: string): string | URL {
   return url
 }
 
+// The regex is matching logic from packages/next/src/lib/load-custom-routes.ts
+const FILE_REGEX =
+  /^(?:\/((?!\.well-known(?:\/.*)?)(?:[^/]+\/)*[^/]+\.\w+))(\/?|$)/i
+function isFilePattern(pathname: string): boolean {
+  return FILE_REGEX.test(pathname)
+}
+
 // Resolve `pathname` if `url` is a relative path the compose with `metadataBase`.
 function resolveAbsoluteUrlWithPathname(
   url: string | URL,
@@ -100,18 +117,27 @@ function resolveAbsoluteUrlWithPathname(
   // - Doesn't have query
   if (trailingSlash && !resolvedUrl.endsWith('/')) {
     let isRelative = resolvedUrl.startsWith('/')
-    let isExternal = false
     let hasQuery = resolvedUrl.includes('?')
+    let isExternal = false
+    let isFileUrl = false
+
     if (!isRelative) {
       try {
         const parsedUrl = new URL(resolvedUrl)
         isExternal =
           metadataBase != null && parsedUrl.origin !== metadataBase.origin
+        isFileUrl = isFilePattern(parsedUrl.pathname)
       } catch {
         // If it's not a valid URL, treat it as external
         isExternal = true
       }
-      if (!isExternal && !hasQuery) return `${resolvedUrl}/`
+      if (
+        // Do not apply trailing slash for file like urls, aligning with the behavior with `trailingSlash`
+        !isFileUrl &&
+        !isExternal &&
+        !hasQuery
+      )
+        return `${resolvedUrl}/`
     }
   }
 

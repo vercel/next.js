@@ -6,10 +6,12 @@ import type {
 import type {
   AppleWebApp,
   AppLinks,
+  Facebook,
   FormatDetection,
   ItunesApp,
   ResolvedAppleWebApp,
   ResolvedAppLinks,
+  ResolvedFacebook,
   ViewportLayout,
 } from './extra-types'
 import type {
@@ -28,6 +30,7 @@ import type {
   TemplateString,
   Verification,
   ThemeColorDescriptor,
+  Videos,
 } from './metadata-types'
 import type { Manifest as ManifestFile } from './manifest-types'
 import type { OpenGraph, ResolvedOpenGraph } from './opengraph-types'
@@ -130,9 +133,9 @@ interface Metadata extends DeprecatedMetadataFields {
 
   /**
    * The theme color for the document.
+   * @deprecated Use `export const viewport: Viewport = { ... }` instead.
+   * @see https://nextjs.org/docs/app/api-reference/functions/generate-viewport#the-viewport-object
    * @example
-   * @deprecated
-   *
    * ```tsx
    * "#000000"
    * <meta name="theme-color" content="#000000" />
@@ -152,9 +155,9 @@ interface Metadata extends DeprecatedMetadataFields {
 
   /**
    * The color scheme for the document.
+   * @deprecated Use `export const viewport: Viewport = { ... }` instead.
+   * @see https://nextjs.org/docs/app/api-reference/functions/generate-viewport#the-viewport-object
    * @example
-   * @deprecated
-   *
    * ```tsx
    * "dark"
    * <meta name="color-scheme" content="dark" />
@@ -164,11 +167,10 @@ interface Metadata extends DeprecatedMetadataFields {
 
   /**
    * The viewport setting for the document.
+   * @deprecated Use `export const viewport: Viewport = { ... }` instead.
+   * @see https://nextjs.org/docs/app/api-reference/functions/generate-viewport#the-viewport-object
    * @example
-   * @deprecated
-   *
    * ```tsx
-   *
    * { width: "device-width", initialScale: 1 }
    * <meta name="viewport" content="width=device-width, initial-scale=1" />
    * ```
@@ -307,7 +309,7 @@ interface Metadata extends DeprecatedMetadataFields {
    * The Twitter metadata for the document.
    * @example
    * ```tsx
-   * { card: "summary_large_image", site: "@site", creator: "@creator", "images": "https://example.com/og.png" }
+   * { card: "summary_large_image", site: "@site", creator: "@creator", images: "https://example.com/og.png" }
    *
    * <meta name="twitter:card" content="summary_large_image" />
    * <meta name="twitter:site" content="@site" />
@@ -319,6 +321,25 @@ interface Metadata extends DeprecatedMetadataFields {
    *
    */
   twitter?: null | Twitter
+
+  /**
+   * The Facebook metadata for the document.
+   * You can specify either appId or admins, but not both.
+   * @example
+   * ```tsx
+   * { appId: "12345678" }
+   *
+   * <meta property="fb:app_id" content="12345678" />
+   * ```
+   *
+   * @example
+   * ```tsx
+   * { admins: ["12345678"] }
+   *
+   * <meta property="fb:admins" content="12345678" />
+   * ```
+   */
+  facebook?: null | Facebook
 
   /**
    * The common verification tokens for the document.
@@ -339,7 +360,7 @@ interface Metadata extends DeprecatedMetadataFields {
    * @example
    * ```tsx
    * { capable: true, title: "My Website", statusBarStyle: "black-translucent" }
-   * <meta name="apple-mobile-web-app-capable" content="yes" />
+   * <meta name="mobile-web-app-capable" content="yes" />
    * <meta name="apple-mobile-web-app-title" content="My Website" />
    * <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
    * ```
@@ -508,6 +529,8 @@ interface ResolvedMetadata extends DeprecatedMetadataFields {
 
   twitter: null | ResolvedTwitterMetadata
 
+  facebook: null | ResolvedFacebook
+
   // common verification tokens
   verification: null | ResolvedVerification
 
@@ -584,6 +607,8 @@ type SitemapFile = Array<{
   alternates?: {
     languages?: Languages<string>
   }
+  images?: string[]
+  videos?: Videos[]
 }>
 
 type ResolvingMetadata = Promise<ResolvedMetadata>

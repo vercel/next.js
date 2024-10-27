@@ -89,8 +89,8 @@ export const Terminal: React.FC<TerminalProps> = function Terminal({
               ...(entry.decoration === 'bold'
                 ? { fontWeight: 800 }
                 : entry.decoration === 'italic'
-                ? { fontStyle: 'italic' }
-                : undefined),
+                  ? { fontStyle: 'italic' }
+                  : undefined),
             }}
           >
             <HotlinkedText text={entry.content} />

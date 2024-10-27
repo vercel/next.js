@@ -102,6 +102,15 @@ describe('Middleware Runtime', () => {
   }
 
   function runTests({ i18n }: { i18n?: boolean }) {
+    it('should handle 404 on fallback: false route correctly', async () => {
+      const res = await next.fetch('/ssg-fallback-false/first')
+      expect(res.status).toBe(200)
+      expect(await res.text()).toContain('blog')
+
+      const res2 = await next.fetch('/ssg-fallback-false/non-existent')
+      expect(res2.status).toBe(404)
+    })
+
     it('should work with notFound: true correctly', async () => {
       const browser = await next.browser('/ssr-page')
       await browser.eval('window.next.router.push("/ssg/not-found-1")')
@@ -170,25 +179,30 @@ describe('Middleware Runtime', () => {
           ...manifest.middleware['/'],
         }
         const envs = {
-          ...middlewareWithoutEnvs.environments,
+          ...middlewareWithoutEnvs.env,
         }
-        delete middlewareWithoutEnvs.environments
+        delete middlewareWithoutEnvs.env
         expect(middlewareWithoutEnvs).toEqual({
-          files: expect.arrayContaining([
-            'server/edge-runtime-webpack.js',
-            'server/middleware.js',
-          ]),
+          // Turbopack creates more files as it can do chunking.
+          files: process.env.TURBOPACK
+            ? expect.toBeArray()
+            : expect.arrayContaining([
+                'server/edge-runtime-webpack.js',
+                'server/middleware.js',
+              ]),
           name: 'middleware',
           page: '/',
           matchers: [{ regexp: '^/.*$', originalSource: '/:path*' }],
           wasm: [],
-          assets: [],
+          assets: process.env.TURBOPACK ? expect.toBeArray() : [],
           regions: 'auto',
         })
         expect(envs).toContainAllKeys([
-          'previewModeEncryptionKey',
-          'previewModeId',
-          'previewModeSigningKey',
+          'NEXT_SERVER_ACTIONS_ENCRYPTION_KEY',
+          '__NEXT_BUILD_ID',
+          '__NEXT_PREVIEW_MODE_ENCRYPTION_KEY',
+          '__NEXT_PREVIEW_MODE_ID',
+          '__NEXT_PREVIEW_MODE_SIGNING_KEY',
         ])
       })
 
@@ -209,9 +223,12 @@ describe('Middleware Runtime', () => {
         )
         for (const key of Object.keys(manifest.middleware)) {
           const middleware = manifest.middleware[key]
-          expect(middleware.files).toContainEqual(
-            expect.stringContaining('server/edge-runtime-webpack')
-          )
+          if (!process.env.TURBOPACK) {
+            expect(middleware.files).toContainEqual(
+              expect.stringContaining('server/edge-runtime-webpack')
+            )
+          }
+
           expect(middleware.files).not.toContainEqual(
             expect.stringContaining('static/chunks/')
           )
@@ -559,7 +576,8 @@ describe('Middleware Runtime', () => {
       const payload = readMiddlewareJSON(response)
       expect('error' in payload).toBe(true)
       expect(payload.error.name).toBe('AbortError')
-      expect(payload.error.message).toContain('The operation was aborted')
+      // AbortError messages differ depending on the runtime
+      expect(payload.error.message).toMatch(/(This|The) operation was aborted/)
     })
 
     it(`should validate & parse request url from any route`, async () => {

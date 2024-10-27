@@ -61,7 +61,7 @@ const runTests = (isDev) => {
       await browser.waitForElementByCss('#onload-div')
       await waitFor(1000)
 
-      const logs = await browser.log('browser')
+      const logs = await browser.log()
       const filteredLogs = logs.filter(
         (log) =>
           !log.message.includes('Failed to load resource') &&
@@ -219,7 +219,9 @@ const runTests = (isDev) => {
     if (!isDev) {
       // Script is inserted before CSS
       expect(
-        $(`#inline-before ~ link[href^="/_next/static/css"]`).length
+        $(`#inline-before ~ link[href^="/_next/static/"]`).filter(
+          (i, element) => $(element).attr('href')?.endsWith('.css')
+        ).length
       ).toBeGreaterThan(0)
     }
   })

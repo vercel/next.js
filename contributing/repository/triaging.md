@@ -6,9 +6,9 @@ Repository maintainers triage every issue and PR opened in the repository.
 
 Issues are opened with one of these labels:
 
-- `template: bug` - unverified issue with Next.js itself
-- `template: documentation` - feedback for improvement or an unverified issue with the Next.js documentation
-- `area: examples` - an issue with one of the examples in the [`examples`](https://github.com/vercel/next.js/tree/canary/examples) folder
+- `bug` - issue with Next.js itself
+- `documentation` - feedback for improvement or an issue with the Next.js documentation
+- `examples` - an issue with one of the examples in the [`examples`](https://github.com/vercel/next.js/tree/canary/examples) folder
 
 ## Bug reports
 
@@ -16,7 +16,7 @@ Issues are opened with one of these labels:
 
 In case of a bug report, **if the reproduction is missing or insufficient, the issue is automatically closed**, and a comment is added with a correct course of action. The issue will receive [this comment](https://github.com/vercel/next.js/blob/canary/.github/invalid-link.md). We also add an `invalid link` label to mark the issue. To avoid your issue being closed, please follow the [bug report template](https://github.com/vercel/next.js/blob/canary/.github/ISSUE_TEMPLATE/1.bug_report.yml) carefully.
 
-If you filled out the "Which area(s) are affected? (Select all that apply)" section of the bug report template, we will add the corresponding `area:` label(s).
+If you fill out the "Which area(s) are affected? (Select all that apply)" section of the bug report template, we will add the corresponding [label(s)](https://github.com/vercel/next.js/labels).
 
 ### Manual triaging
 
@@ -26,7 +26,7 @@ A maintainer can also manually label an issue with one of the following labels, 
 
 1. `please add a complete reproduction`
 
-The provided reproduction is not enough for the maintainers to investigate. If a sufficient reproduction is not provided for more than 30 days, the issue becomes stale and will be automatically closed. If a reproduction is provided within 30 days, a `needs triage` label is added, indicating that the issue needs another look from a maintainer.
+The provided reproduction is not enough for the maintainers to investigate. If sufficient reproduction is not provided for more than 30 days, the issue becomes stale and will be automatically closed. If a reproduction is provided within 30 days, a `needs triage` label is added, indicating that the issue needs another look from a maintainer.
 
 The issue will receive [this comment](https://github.com/vercel/next.js/blob/canary/.github/comments/invalid-reproduction.md)
 
@@ -53,7 +53,7 @@ The issue will receive [this comment](https://github.com/vercel/next.js/blob/can
 
 ## Verified issues
 
-If an issue is verified, it will receive the `linear: next`, `linear: dx` or `linear: web` label and will be tracked by the maintainers. Additionally, one or more `area:` label(s) can be added to indicate which part of Next.js is affected.
+If an issue is verified, it will receive the `linear: next`, `linear: dx` or `linear: web` label and will be tracked by the maintainers. Additionally, one or more [label(s)](https://github.com/vercel/next.js/labels) can be added to indicate which part of Next.js is affected.
 
 Confirmed issues never become stale or are closed before resolution.
 

@@ -1,14 +1,16 @@
-import { createNextDescribe } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import crypto from 'crypto'
 import path from 'path'
 import cheerio from 'cheerio'
 
-createNextDescribe(
+// This test suite is skipped with Turbopack because it's testing an experimental feature. To be implemented after stable.
+;(process.env.TURBOPACK ? describe.skip : describe)(
   'Subresource Integrity',
-  {
-    files: path.join(__dirname, 'fixture'),
-  },
-  ({ next }) => {
+  () => {
+    const { next } = nextTestSetup({
+      files: path.join(__dirname, 'fixture'),
+    })
+
     function fetchWithPolicy(policy: string | null, reportOnly?: boolean) {
       const cspKey = reportOnly
         ? 'Content-Security-Policy-Report-Only'

@@ -5,13 +5,15 @@ import {
   getRedboxHeader,
   getRedboxSource,
   getVersionCheckerText,
-  hasRedbox,
+  assertHasRedbox,
+  assertNoRedbox,
   waitFor,
   waitForAndOpenRuntimeError,
   getRedboxDescriptionWarning,
   toggleCollapseComponentStack,
+  getRedboxErrorLink,
 } from './next-test-utils'
-import webdriver from './next-webdriver'
+import webdriver, { WebdriverOptions } from './next-webdriver'
 import { NextInstance } from './next-modes/base'
 import { BrowserInterface } from './browsers/base'
 
@@ -32,9 +34,9 @@ export function waitForHydration(browser: BrowserInterface): Promise<void> {
 
 export async function sandbox(
   next: NextInstance,
-  initialFiles?: Map<string, string>,
+  initialFiles?: Map<string, string | ((contents: string) => string)>,
   initialUrl: string = '/',
-  webDriverOptions: any = undefined
+  webDriverOptions: WebdriverOptions = undefined
 ) {
   await next.stop()
   await next.clean()
@@ -112,8 +114,11 @@ export async function sandbox(
           )
         }
       },
-      async hasRedbox() {
-        return hasRedbox(browser)
+      async assertHasRedbox() {
+        return assertHasRedbox(browser)
+      },
+      async assertNoRedbox() {
+        return assertNoRedbox(browser)
       },
       async waitForAndOpenRuntimeError() {
         return waitForAndOpenRuntimeError(browser)
@@ -126,6 +131,9 @@ export async function sandbox(
       },
       async getRedboxDescriptionWarning() {
         return getRedboxDescriptionWarning(browser)
+      },
+      async getRedboxErrorLink() {
+        return getRedboxErrorLink(browser)
       },
       async getRedboxSource(includeHeader = false) {
         const header = includeHeader ? await getRedboxHeader(browser) : ''

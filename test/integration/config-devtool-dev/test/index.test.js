@@ -1,10 +1,10 @@
 /* eslint-env jest */
 
 import {
+  assertHasRedbox,
   check,
   findPort,
   getRedboxSource,
-  hasRedbox,
   killApp,
   launchApp,
 } from 'next-test-utils'
@@ -35,7 +35,7 @@ const appDir = join(__dirname, '../')
       )
 
       const browser = await webdriver(appPort, '/')
-      expect(await hasRedbox(browser)).toBe(true)
+      await assertHasRedbox(browser)
       if (process.platform === 'win32') {
         // TODO: add win32 snapshot
       } else {
