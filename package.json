@@ -29,7 +29,9 @@
     "pretest": "npm run lint",
     "lint": "standard 'bin/*' 'client/**/*.js' 'examples/**/*.js' 'lib/**/*.js' 'server/**/*.js' 'test/**/*.js'",
     "prepublish": "npm run release",
-    "precommit": "lint-staged"
+    "postinstall": "husky install",
+    "prepublishOnly": "pinst --disable",
+    "postpublish": "pinst --enable"
   },
   "standard": {
     "parser": "babel-eslint",
@@ -54,8 +56,10 @@
   "devDependencies": {
     "@healthline/six-million": "^8.0.3",
     "babel-eslint": "10.0.3",
-    "lint-staged": "8.2.1",
+    "husky": ">=7",
+    "lint-staged": ">=10",
     "node-notifier": "6.0.0",
+    "pinst": ">=2",
     "react": "16.12.0",
     "react-dom": "16.12.0",
     "standard": "12.0.1"
