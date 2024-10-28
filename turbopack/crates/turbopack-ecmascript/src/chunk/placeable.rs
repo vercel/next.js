@@ -170,7 +170,7 @@ pub async fn is_marked_as_side_effect_free(
     let find_package_json = find_context_file(path.parent(), package_json()).await?;
 
     if let FindContextFileResult::Found(package_json, _) = *find_package_json {
-        match *side_effects_from_package_json(package_json).await? {
+        match *side_effects_from_package_json(*package_json).await? {
             SideEffectsValue::None => {}
             SideEffectsValue::Constant(side_effects) => return Ok(Vc::cell(!side_effects)),
             SideEffectsValue::Glob(glob) => {

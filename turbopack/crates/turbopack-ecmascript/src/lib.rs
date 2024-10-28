@@ -504,14 +504,14 @@ impl EcmascriptModuleAsset {
                         Some("commonjs") => SpecifiedModuleType::CommonJs,
                         _ => SpecifiedModuleType::Automatic,
                     },
-                    package_json,
+                    *package_json,
                 ));
             }
         }
 
         Ok(ModuleTypeResult::new_with_package_json(
             SpecifiedModuleType::Automatic,
-            package_json,
+            *package_json,
         ))
     }
 }
