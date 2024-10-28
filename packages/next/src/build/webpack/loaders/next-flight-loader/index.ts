@@ -2,8 +2,6 @@ import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { RSC_MOD_REF_PROXY_ALIAS } from '../../../../lib/constants'
 import {
   BARREL_OPTIMIZATION_PREFIX,
-  DEFAULT_RUNTIME_WEBPACK,
-  EDGE_RUNTIME_WEBPACK,
   RSC_MODULE_TYPES,
 } from '../../../../shared/lib/constants'
 import { warnOnce } from '../../../../shared/lib/utils/warn-once'
@@ -14,11 +12,6 @@ import type {
   javascript,
   LoaderContext,
 } from 'next/dist/compiled/webpack/webpack'
-import picomatch from 'next/dist/compiled/picomatch'
-
-export interface NextFlightLoaderOptions {
-  isEdgeServer: boolean
-}
 
 type SourceType = javascript.JavascriptParser['sourceType'] | 'commonjs'
 
@@ -26,10 +19,6 @@ const noopHeadPath = require.resolve('next/dist/client/components/noop-head')
 // For edge runtime it will be aliased to esm version by webpack
 const MODULE_PROXY_PATH =
   'next/dist/build/webpack/loaders/next-flight-loader/module-proxy'
-
-const isSharedRuntime = picomatch('**/next/dist/**/*.shared-runtime.js', {
-  dot: true, // required for .pnpm paths
-})
 
 export function getAssumedSourceType(
   mod: webpack.Module,
@@ -66,7 +55,7 @@ export function getAssumedSourceType(
 }
 
 export default function transformSource(
-  this: LoaderContext<NextFlightLoaderOptions>,
+  this: LoaderContext<undefined>,
   source: string,
   sourceMap: any
 ) {
@@ -75,8 +64,6 @@ export default function transformSource(
     throw new Error('Expected source to have been transformed to a string.')
   }
 
-  const options = this.getOptions()
-  const { isEdgeServer } = options
   const module = this._module!
 
   // Assign the RSC meta information to buildInfo.
@@ -122,18 +109,6 @@ export default function transformSource(
           )
         )
         return
-      }
-
-      if (!isSharedRuntime(resourceKey)) {
-        // Prevent module concatenation, and prevent export names from being
-        // mangled, in production builds, so that exports of client reference
-        // modules can be resolved by React using the metadata from the client
-        // manifest.
-        this._compilation!.moduleGraph.getExportsInfo(
-          module
-        ).setUsedInUnknownWay(
-          isEdgeServer ? EDGE_RUNTIME_WEBPACK : DEFAULT_RUNTIME_WEBPACK
-        )
       }
 
       let esmSource = `\
