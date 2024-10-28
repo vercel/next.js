@@ -1,6 +1,6 @@
 import { findSourceMap, type SourceMapPayload } from 'module'
 import * as path from 'path'
-import { URL } from 'url'
+import * as url from 'url'
 import type * as util from 'util'
 import { SourceMapConsumer as SyncSourceMapConsumer } from 'next/dist/compiled/source-map'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
@@ -38,7 +38,7 @@ function frameToString(frame: StackFrame): string {
         // In a multi-app repo, this leads to potentially larger file names but will make clicking snappy.
         // There's no tradeoff for the cases where `dir` in `next dev [dir]` is omitted
         // since relative to cwd is both the shortest and snappiest.
-        path.relative(process.cwd(), new URL(frame.file).pathname)
+        path.relative(process.cwd(), url.fileURLToPath(frame.file))
       : frame.file
 
   return frame.methodName
