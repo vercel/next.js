@@ -10,5 +10,5 @@ ensureServerEntryExports([
     dec,
     dec
 ]);
-registerServerReference(dec, "ff28baf972d345b86b747ad0df73d75a0088a42214", null);
-registerServerReference(dec, "ffc18c215a6b7cdc64bf709f3a714ffdef1bf9651d", null);
+registerServerReference(dec, "7f28baf972d345b86b747ad0df73d75a0088a42214", null);
+registerServerReference(dec, "7fc18c215a6b7cdc64bf709f3a714ffdef1bf9651d", null);

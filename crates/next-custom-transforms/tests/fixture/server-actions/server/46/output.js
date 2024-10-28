@@ -1,6 +1,6 @@
 // This is for testing the "information byte" of Server Action / Cache IDs.
 // Should be 1 110000 0, which is "e0" in hex.
-/* __next_internal_action_entry_do_not_use__ {"7f3128060c414d59f8552e4788b846c0d2b7f74743":"$$RSC_SERVER_CACHE_0","7f471a5eb0be1c31686dd4ba938a80328b80b1615d":"$$RSC_SERVER_CACHE_5","7f69348c79fce073bae2f70f139565a2fda1c74c74":"$$RSC_SERVER_CACHE_2","7f90b5db271335765a4b0eab01f044b381b5ebd5cd":"$$RSC_SERVER_ACTION_1","7f9ed0cc47abc4e1c64320cf42b74ae60b58c40f00":"$$RSC_SERVER_ACTION_3","7fa9b2939c1f39073a6bed227fd20233064c8b7869":"$$RSC_SERVER_ACTION_4"} */ import { registerServerReference } from "private-next-rsc-server-reference";
+/* __next_internal_action_entry_do_not_use__ {"6090b5db271335765a4b0eab01f044b381b5ebd5cd":"$$RSC_SERVER_ACTION_1","7c9ed0cc47abc4e1c64320cf42b74ae60b58c40f00":"$$RSC_SERVER_ACTION_3","7ea9b2939c1f39073a6bed227fd20233064c8b7869":"$$RSC_SERVER_ACTION_4","e03128060c414d59f8552e4788b846c0d2b7f74743":"$$RSC_SERVER_CACHE_0","ff471a5eb0be1c31686dd4ba938a80328b80b1615d":"$$RSC_SERVER_CACHE_5","ff69348c79fce073bae2f70f139565a2fda1c74c74":"$$RSC_SERVER_CACHE_2"} */ import { registerServerReference } from "private-next-rsc-server-reference";
 import { encryptActionBoundArgs, decryptActionBoundArgs } from "private-next-rsc-action-encryption";
 import { cache as $$cache__ } from "private-next-rsc-cache-wrapper";
 export var $$RSC_SERVER_CACHE_0 = $$cache__("default", "e03128060c414d59f8552e4788b846c0d2b7f74743", async function f1(a, b) {
@@ -14,7 +14,7 @@ Object.defineProperty($$RSC_SERVER_CACHE_0, "name", {
     "writable": false
 });
 var f1 = registerServerReference($$RSC_SERVER_CACHE_0, "e03128060c414d59f8552e4788b846c0d2b7f74743", null);
-export const // Should be 0 110000 1, which is "60" in hex.
+export const // Should be 0 110000 0, which is "60" in hex.
 $$RSC_SERVER_ACTION_1 = async function f2(a, b) {
     return [
         a,

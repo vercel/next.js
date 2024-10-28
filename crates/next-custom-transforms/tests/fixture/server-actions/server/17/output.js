@@ -8,5 +8,5 @@ ensureServerEntryExports([
     foo,
     bar
 ]);
-registerServerReference(foo, "ffab21efdafbe611287bc25c0462b1e0510d13e48b", null);
-registerServerReference(bar, "ffac840dcaf5e8197cb02b7f3a43c119b7a770b272", null);
+registerServerReference(foo, "7fab21efdafbe611287bc25c0462b1e0510d13e48b", null);
+registerServerReference(bar, "7fac840dcaf5e8197cb02b7f3a43c119b7a770b272", null);

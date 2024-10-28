@@ -115,13 +115,16 @@ struct ServerActions<C: Comments> {
     rewrite_default_fn_expr_to_proxy_expr: Option<Box<Expr>>,
     rewrite_expr_to_proxy_expr: Option<Box<Expr>>,
 
-    // (ident, export name)
-    exported_idents: Vec<(Ident, String)>,
+    exported_idents: Vec<(
+        /* ident */ Ident,
+        /* name */ String,
+        /* id */ String,
+    )>,
 
     annotations: Vec<Stmt>,
     extra_items: Vec<ModuleItem>,
     hoisted_extra_items: Vec<ModuleItem>,
-    export_actions: Vec<String>,
+    export_actions: Vec<(/* name */ String, /* id */ String)>,
 
     private_ctxt: SyntaxContext,
 
@@ -207,7 +210,7 @@ impl<C: Comments> ServerActions<C> {
             rest_args = 0b1;
         }
 
-        result.push(type_bit << 7 | arg_mask << 1 | rest_args);
+        result.push((type_bit << 7) | (arg_mask << 1) | rest_args);
         result.rotate_right(1);
 
         hex_encode(result)
@@ -284,7 +287,8 @@ impl<C: Comments> ServerActions<C> {
             }
         }
 
-        if self.in_exported_expr {
+        // Self-annotations take precedence over module-level annotations.
+        if self.in_exported_expr && !is_action_fn && cache_type.is_none() {
             if self.in_action_file {
                 // All export functions in a server file are actions
                 is_action_fn = true;
@@ -304,11 +308,12 @@ impl<C: Comments> ServerActions<C> {
     ) -> Box<Expr> {
         let action_name = self.gen_action_ident().to_string();
 
-        self.has_action = true;
-        self.export_actions.push(action_name.to_string());
-
         let action_ident = Ident::new(action_name.clone().into(), arrow.span, self.private_ctxt);
         let action_id = self.generate_server_reference_id(&action_name, false, Some(&arrow.params));
+
+        self.has_action = true;
+        self.export_actions
+            .push((action_name.to_string(), action_id.clone()));
 
         let register_action_expr = bind_args_to_ref_expr(
             annotate_ident_as_server_reference(action_ident.clone(), action_id.clone(), arrow.span),
@@ -462,15 +467,16 @@ impl<C: Comments> ServerActions<C> {
     ) -> Box<Expr> {
         let action_name: JsWord = self.gen_action_ident();
 
-        self.has_action = true;
-        self.export_actions.push(action_name.to_string());
-
         let action_ident = Ident::new(action_name.clone(), function.span, self.private_ctxt);
         let action_id = self.generate_server_reference_id(
             &action_name,
             false,
             Some(&function.params.iter().map(|p| p.pat.clone()).collect()),
         );
+
+        self.has_action = true;
+        self.export_actions
+            .push((action_name.to_string(), action_id.clone()));
 
         let register_action_expr = bind_args_to_ref_expr(
             annotate_ident_as_server_reference(
@@ -601,12 +607,13 @@ impl<C: Comments> ServerActions<C> {
         let cache_ident = private_ident!(cache_name.clone());
         let export_name: JsWord = cache_name;
 
-        self.has_cache = true;
-        self.has_action = true;
-        self.export_actions.push(export_name.to_string());
-
         let reference_id =
             self.generate_server_reference_id(&export_name, true, Some(&arrow.params));
+
+        self.has_cache = true;
+        self.has_action = true;
+        self.export_actions
+            .push((export_name.to_string(), reference_id.clone()));
 
         if let BlockStmtOrExpr::BlockStmt(block) = &mut *arrow.body {
             block.visit_mut_with(&mut ClosureReplacer {
@@ -800,15 +807,16 @@ impl<C: Comments> ServerActions<C> {
         let cache_name: JsWord = self.gen_cache_ident();
         let cache_ident = private_ident!(cache_name.clone());
 
-        self.has_cache = true;
-        self.has_action = true;
-        self.export_actions.push(cache_name.to_string());
-
         let reference_id = self.generate_server_reference_id(
             &cache_name,
             true,
             Some(&function.params.iter().map(|p| p.pat.clone()).collect()),
         );
+
+        self.has_cache = true;
+        self.has_action = true;
+        self.export_actions
+            .push((cache_name.to_string(), reference_id.clone()));
 
         let register_action_expr = annotate_ident_as_server_reference(
             cache_ident.clone(),
@@ -1483,13 +1491,17 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             }
         }
 
+        // Only track exported identifiers in action files or cache files.
+        let is_cache_file = self.in_cache_file.is_some();
+        let should_track_exports = self.in_action_file || is_cache_file;
+
         let old_annotations = self.annotations.take();
         let mut new = Vec::with_capacity(stmts.len());
 
         for mut stmt in stmts.take() {
             // For server boundary files, it's not allowed to export things other than async
             // functions.
-            if self.in_action_file || self.in_cache_file.is_some() {
+            if should_track_exports {
                 let mut disallowed_export_span = DUMMY_SP;
 
                 // Currently only function exports are allowed.
@@ -1498,18 +1510,57 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         match decl {
                             Decl::Fn(f) => {
                                 // export function foo() {}
-                                self.exported_idents
-                                    .push((f.ident.clone(), f.ident.sym.to_string()));
+
+                                let (is_action_fn, is_cache_fn) =
+                                    has_body_directive(&f.function.body);
+
+                                let ref_id = if is_action_fn {
+                                    false
+                                } else if is_cache_fn {
+                                    true
+                                } else {
+                                    is_cache_file
+                                };
+
+                                // If it's a self-annotated cache function, we need to skip
+                                // collecting the exported ident. Otherwise it will be double-
+                                // annotated.
+                                // TODO(shu): This is a workaround. We should have a better way
+                                // to skip self-annotated exports here.
+                                if !(is_cache_fn && self.config.is_react_server_layer) {
+                                    self.exported_idents.push((
+                                        f.ident.clone(),
+                                        f.ident.sym.to_string(),
+                                        self.generate_server_reference_id(
+                                            &f.ident.sym.to_string(),
+                                            ref_id,
+                                            Some(
+                                                &f.function
+                                                    .params
+                                                    .iter()
+                                                    .map(|p| p.pat.clone())
+                                                    .collect(),
+                                            ),
+                                        ),
+                                    ));
+                                }
                             }
                             Decl::Var(var) => {
                                 // export const foo = 1
                                 let mut idents: Vec<Ident> = Vec::new();
                                 collect_idents_in_var_decls(&var.decls, &mut idents);
-                                self.exported_idents.extend(
-                                    idents
-                                        .into_iter()
-                                        .map(|ident| (ident.clone(), ident.to_id().0.to_string())),
-                                );
+
+                                for ident in &idents {
+                                    self.exported_idents.push((
+                                        ident.clone(),
+                                        ident.sym.to_string(),
+                                        self.generate_server_reference_id(
+                                            &ident.sym.to_string(),
+                                            is_cache_file,
+                                            None,
+                                        ),
+                                    ));
+                                }
 
                                 for decl in &mut var.decls {
                                     if let Some(init) = &decl.init {
@@ -1541,17 +1592,38 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                             export_name
                                         {
                                             // export { foo as bar }
-                                            self.exported_idents
-                                                .push((ident.clone(), sym.to_string()));
+                                            self.exported_idents.push((
+                                                ident.clone(),
+                                                sym.to_string(),
+                                                self.generate_server_reference_id(
+                                                    &sym.to_string(),
+                                                    is_cache_file,
+                                                    None,
+                                                ),
+                                            ));
                                         } else if let ModuleExportName::Str(str) = export_name {
                                             // export { foo as "bar" }
-                                            self.exported_idents
-                                                .push((ident.clone(), str.value.to_string()));
+                                            self.exported_idents.push((
+                                                ident.clone(),
+                                                str.value.to_string(),
+                                                self.generate_server_reference_id(
+                                                    &str.value.to_string(),
+                                                    is_cache_file,
+                                                    None,
+                                                ),
+                                            ));
                                         }
                                     } else {
                                         // export { foo }
-                                        self.exported_idents
-                                            .push((ident.clone(), ident.sym.to_string()));
+                                        self.exported_idents.push((
+                                            ident.clone(),
+                                            ident.sym.to_string(),
+                                            self.generate_server_reference_id(
+                                                &ident.sym.to_string(),
+                                                is_cache_file,
+                                                None,
+                                            ),
+                                        ));
                                     }
                                 } else {
                                     disallowed_export_span = named.span;
@@ -1565,23 +1637,62 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         ..
                     })) => match decl {
                         DefaultDecl::Fn(f) => {
-                            if let Some(ident) = &f.ident {
-                                // export default function foo() {}
-                                self.exported_idents.push((ident.clone(), "default".into()));
+                            let (is_action_fn, is_cache_fn) = has_body_directive(&f.function.body);
+
+                            let is_cache = if is_action_fn {
+                                false
+                            } else if is_cache_fn {
+                                true
                             } else {
-                                // export default function() {}
-                                // Use the span from the function expression
-                                let span = f.function.span;
+                                is_cache_file
+                            };
 
-                                let new_ident =
-                                    Ident::new(self.gen_action_ident(), span, self.private_ctxt);
+                            // If it's a self-annotated cache function, we need to skip
+                            // collecting the exported ident. Otherwise it will be double-
+                            // annotated.
+                            // TODO(shu): This is a workaround. We should have a better way
+                            // to skip self-annotated exports here.
+                            if !(is_cache_fn && self.config.is_react_server_layer) {
+                                let ref_id = self.generate_server_reference_id(
+                                    "default".into(),
+                                    is_cache,
+                                    Some(
+                                        &f.function.params.iter().map(|p| p.pat.clone()).collect(),
+                                    ),
+                                );
 
-                                f.ident = Some(new_ident.clone());
+                                if let Some(ident) = &f.ident {
+                                    // export default function foo() {}
+                                    self.exported_idents.push((
+                                        ident.clone(),
+                                        "default".into(),
+                                        ref_id,
+                                    ));
+                                } else {
+                                    // export default function() {}
+                                    // Use the span from the function expression
+                                    let span = f.function.span;
 
-                                self.exported_idents
-                                    .push((new_ident.clone(), "default".into()));
+                                    let new_ident = Ident::new(
+                                        self.gen_action_ident(),
+                                        span,
+                                        self.private_ctxt,
+                                    );
 
-                                assign_name_to_ident(&new_ident, "default", &mut self.extra_items);
+                                    f.ident = Some(new_ident.clone());
+
+                                    self.exported_idents.push((
+                                        new_ident.clone(),
+                                        "default".into(),
+                                        ref_id,
+                                    ));
+
+                                    assign_name_to_ident(
+                                        &new_ident,
+                                        "default",
+                                        &mut self.extra_items,
+                                    );
+                                }
                             }
                         }
                         _ => {
@@ -1596,21 +1707,67 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                 // Use the span of the arrow function
                                 let span = arrow.span;
 
-                                let new_ident =
-                                    Ident::new(self.gen_action_ident(), span, self.private_ctxt);
+                                let (is_action_fn, is_cache_fn) =
+                                    has_body_directive(&if let BlockStmtOrExpr::BlockStmt(block) =
+                                        &*arrow.body
+                                    {
+                                        Some(block.clone())
+                                    } else {
+                                        None
+                                    });
 
-                                self.exported_idents
-                                    .push((new_ident.clone(), "default".into()));
+                                let is_cache = if is_action_fn {
+                                    false
+                                } else if is_cache_fn {
+                                    true
+                                } else {
+                                    is_cache_file
+                                };
 
-                                create_var_declarator(&new_ident, &mut self.extra_items);
-                                assign_name_to_ident(&new_ident, "default", &mut self.extra_items);
+                                // If it's a self-annotated cache function, we need to skip
+                                // collecting the exported ident. Otherwise it will be double-
+                                // annotated.
+                                // TODO(shu): This is a workaround. We should have a better way
+                                // to skip self-annotated exports here.
+                                if !(is_cache_fn && self.config.is_react_server_layer) {
+                                    let new_ident = Ident::new(
+                                        self.gen_action_ident(),
+                                        span,
+                                        self.private_ctxt,
+                                    );
 
-                                *default_expr.expr =
-                                    assign_arrow_expr(&new_ident, Expr::Arrow(arrow.clone()));
+                                    self.exported_idents.push((
+                                        new_ident.clone(),
+                                        "default".into(),
+                                        self.generate_server_reference_id(
+                                            "default".into(),
+                                            is_cache,
+                                            Some(&arrow.params),
+                                        ),
+                                    ));
+
+                                    create_var_declarator(&new_ident, &mut self.extra_items);
+                                    assign_name_to_ident(
+                                        &new_ident,
+                                        "default",
+                                        &mut self.extra_items,
+                                    );
+
+                                    *default_expr.expr =
+                                        assign_arrow_expr(&new_ident, Expr::Arrow(arrow.clone()));
+                                }
                             }
                             Expr::Ident(ident) => {
                                 // export default foo
-                                self.exported_idents.push((ident.clone(), "default".into()));
+                                self.exported_idents.push((
+                                    ident.clone(),
+                                    "default".into(),
+                                    self.generate_server_reference_id(
+                                        "default".into(),
+                                        is_cache_file,
+                                        None,
+                                    ),
+                                ));
                             }
                             Expr::Call(call) => {
                                 // export default fn()
@@ -1620,8 +1777,15 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                 let new_ident =
                                     Ident::new(self.gen_action_ident(), span, self.private_ctxt);
 
-                                self.exported_idents
-                                    .push((new_ident.clone(), "default".into()));
+                                self.exported_idents.push((
+                                    new_ident.clone(),
+                                    "default".into(),
+                                    self.generate_server_reference_id(
+                                        "default".into(),
+                                        is_cache_file,
+                                        None,
+                                    ),
+                                ));
 
                                 create_var_declarator(&new_ident, &mut self.extra_items);
                                 assign_name_to_ident(&new_ident, "default", &mut self.extra_items);
@@ -1693,9 +1857,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         let call_server_ident = private_ident!("callServer");
         let find_source_map_url_ident = private_ident!("findSourceMapURL");
 
-        if (self.in_action_file || self.in_cache_file.is_some())
-            && !self.config.is_react_server_layer
-        {
+        if should_track_exports && !self.config.is_react_server_layer {
             // import {
             //   createServerReference,
             //   callServer,
@@ -1737,15 +1899,9 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         }
 
         // If it's a "use server" or a "use cache" file, all exports need to be annotated.
-        if self.in_action_file || self.in_cache_file.is_some() {
-            for (ident, export_name) in self.exported_idents.iter() {
+        if should_track_exports {
+            for (ident, export_name, ref_id) in self.exported_idents.iter() {
                 if !self.config.is_react_server_layer {
-                    let ref_id = self.generate_server_reference_id(
-                        export_name,
-                        self.in_cache_file.is_some(),
-                        None,
-                    );
-
                     if export_name == "default" {
                         self.comments.add_pure_comment(ident.span.lo);
 
@@ -1758,7 +1914,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                         create_ref_ident.clone(),
                                     ))),
                                     args: vec![
-                                        ref_id.as_arg(),
+                                        ref_id.clone().as_arg(),
                                         call_server_ident.clone().as_arg(),
                                         Expr::undefined(DUMMY_SP).as_arg(),
                                         find_source_map_url_ident.clone().as_arg(),
@@ -1791,7 +1947,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                                 create_ref_ident.clone(),
                                             ))),
                                             args: vec![
-                                                ref_id.as_arg(),
+                                                ref_id.clone().as_arg(),
                                                 call_server_ident.clone().as_arg(),
                                                 Expr::undefined(DUMMY_SP).as_arg(),
                                                 find_source_map_url_ident.clone().as_arg(),
@@ -1807,27 +1963,29 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         new.push(export_expr);
                     }
                 } else if self.in_cache_file.is_none() {
-                    let cache_id = self.generate_server_reference_id(export_name, true, None);
-
                     self.annotations.push(Stmt::Expr(ExprStmt {
                         span: DUMMY_SP,
                         expr: Box::new(annotate_ident_as_server_reference(
                             ident.clone(),
-                            cache_id,
+                            ref_id.to_string(),
                             ident.span,
                         )),
                     }));
                 }
             }
 
+            // Ensure that the exports are functions by appending a runtime check:
+            //
+            //   import { ensureServerEntryExports } from 'private-next-rsc-action-validate'
+            //   ensureServerEntryExports([action1, action2, ...])
+            //
+            // But it's only needed for the server layer, because on the client
+            // layer they're transformed into references already.
             if self.config.is_react_server_layer {
                 new.append(&mut self.extra_items);
 
                 // For "use cache" files, there's no need to do extra annotations.
                 if self.in_cache_file.is_none() && !self.exported_idents.is_empty() {
-                    // Ensure that the exports are valid by appending a check
-                    // import { ensureServerEntryExports } from 'private-next-rsc-action-validate'
-                    // ensureServerEntryExports([action1, action2, ...])
                     let ensure_ident = private_ident!("ensureServerEntryExports");
                     new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                         span: DUMMY_SP,
@@ -1858,7 +2016,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                     elems: self
                                         .exported_idents
                                         .iter()
-                                        .map(|(ident, _span)| {
+                                        .map(|(ident, _, _)| {
                                             Some(ExprOrSpread {
                                                 spread: None,
                                                 expr: Box::new(Expr::Ident(ident.clone())),
@@ -1884,13 +2042,19 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             if self.in_action_file
                 || self.in_cache_file.is_some() && !self.config.is_react_server_layer
             {
-                actions.extend(self.exported_idents.iter().map(|e| e.1.clone()));
+                actions.extend(
+                    self.exported_idents
+                        .iter()
+                        .map(|e| (e.1.clone(), e.2.clone())),
+                );
             };
 
+            // Make it a hashmap of id -> name.
             let actions = actions
                 .into_iter()
-                .map(|name| (self.generate_server_reference_id(&name, false, None), name))
+                .map(|a| (a.1, a.0))
                 .collect::<ActionsMap>();
+
             // Prepend a special comment to the top of the file.
             self.comments.add_leading(
                 self.start_pos,
@@ -2485,6 +2649,37 @@ fn remove_server_directive_index_in_module(
         }
         true
     });
+}
+
+// Check if the function or arrow function has any action or cache directives,
+// without mutating the function body or erroring out.
+// This is used to quickly determine if we need to use the module-level
+// directives for this function or not.
+fn has_body_directive(maybe_body: &Option<BlockStmt>) -> (bool, bool) {
+    let mut is_action_fn = false;
+    let mut is_cache_fn = false;
+
+    if let Some(body) = maybe_body {
+        for stmt in body.stmts.iter() {
+            match stmt {
+                Stmt::Expr(ExprStmt {
+                    expr: box Expr::Lit(Lit::Str(Str { value, .. })),
+                    ..
+                }) => {
+                    if value == "use server" {
+                        is_action_fn = true;
+                        break;
+                    } else if value == "use cache" || value.starts_with("use cache: ") {
+                        is_cache_fn = true;
+                        break;
+                    }
+                }
+                _ => break,
+            }
+        }
+    }
+
+    (is_action_fn, is_cache_fn)
 }
 
 fn remove_server_directive_index_in_fn(

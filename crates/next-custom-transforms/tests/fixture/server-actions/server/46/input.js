@@ -6,7 +6,7 @@ async function f1(a, b) {
   return [a, b]
 }
 
-// Should be 0 110000 1, which is "60" in hex.
+// Should be 0 110000 0, which is "60" in hex.
 async function f2(a, b) {
   'use server'
   return [a, b]

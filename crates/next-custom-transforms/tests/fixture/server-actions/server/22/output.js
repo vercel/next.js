@@ -13,5 +13,5 @@ ensureServerEntryExports([
     action,
     $$RSC_SERVER_ACTION_0
 ]);
-registerServerReference(action, "fff14702b5a021dd117f7ec7a3c838f397c2046d3b", null);
-registerServerReference($$RSC_SERVER_ACTION_0, "ffc18c215a6b7cdc64bf709f3a714ffdef1bf9651d", null);
+registerServerReference(action, "7ff14702b5a021dd117f7ec7a3c838f397c2046d3b", null);
+registerServerReference($$RSC_SERVER_ACTION_0, "7fc18c215a6b7cdc64bf709f3a714ffdef1bf9651d", null);
