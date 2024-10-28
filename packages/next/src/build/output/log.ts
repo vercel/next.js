@@ -45,7 +45,7 @@ export function bootstrap(...message: string[]) {
   // logging format: ' <prefix> <message>'
   // e.g. ' ✓ Compiled successfully'
   // Add spaces to align with the indent of other logs
-  console.log('  ' + message.join(' '))
+  console.log('   ' + message.join(' '))
 }
 
 export function wait(...message: any[]) {
