@@ -8,7 +8,7 @@
       "id": "appDirname",
       "type": "promptString",
       "description": "Enter an app dirname from examples or test/e2e",
-      "default": "test/e2e/app-dir/use-cache"
+      "default": "examples/hello-world"
     },
     {
       "id": "nextCommand",
@@ -47,7 +47,6 @@
         "webpack://(?:_N_E)?/(?:../)*src/(.*)": "${workspaceFolder}/packages/next/src/$1",
         "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*",
         "webpack://next/./dist/compiled/*": "${workspaceFolder}/packages/next/src/compiled/*",
-        "webpack:///(?:../)*packages/next/dist/compiled/(.*)": "${workspaceFolder}/packages/next/src/compiled/$1",
         "webpack://next/./src/*": "${workspaceFolder}/packages/next/src/*",
         "webpack-internal:///\\(rsc\\)/(?:../)*packages/next/dist/(.*)": "${workspaceFolder}/packages/next/src/$1",
         "turbopack://[project]/*": "${workspaceFolder}/*"
