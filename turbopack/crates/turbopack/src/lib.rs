@@ -751,37 +751,49 @@ impl AssetContext for ModuleAssetContext {
                             let replacement = if replace_externals {
                                 let additional_refs = match traced {
                                     // TODO can we get away without module_context.enable_tracing ?
-                                    ExternalTraced::Traced
-                                        if self.module_options_context().await?.enable_tracing =>
-                                    {
-                                        let externals_context =
-                                            externals_tracing_module_context(ty);
-                                        let external_result = (externals_context.resolve_asset(
-                                            origin_path,
-                                            Request::parse_string(name.clone()),
-                                            externals_context.resolve_options(
-                                                origin_path,
-                                                reference_type.clone(),
-                                            ),
-                                            reference_type,
-                                        ))
-                                        .await?;
+                                    ExternalTraced::Traced => {
+                                        if let Some(out_dir) = self
+                                            .module_options_context()
+                                            .await?
+                                            .enable_tracing
+                                            .as_ref()
+                                        {
+                                            let externals_context =
+                                                externals_tracing_module_context(ty);
+                                            let out_dir = out_dir.join("index".into());
 
-                                        let modules = affecting_sources
-                                            .iter()
-                                            .chain(external_result.affecting_sources.iter())
-                                            .map(|s| {
-                                                Vc::upcast::<Box<dyn Module>>(RawModule::new(*s))
-                                            })
-                                            .chain(external_result.primary_modules_iter());
+                                            let external_result = (externals_context
+                                                .resolve_asset(
+                                                    out_dir,
+                                                    Request::parse_string(name.clone()),
+                                                    externals_context.resolve_options(
+                                                        out_dir,
+                                                        reference_type.clone(),
+                                                    ),
+                                                    reference_type,
+                                                ))
+                                            .await?;
 
-                                        modules
-                                            .map(|s| {
-                                                Vc::upcast::<Box<dyn ModuleReference>>(
-                                                    TracedModuleReference::new(s),
-                                                )
-                                            })
-                                            .collect()
+                                            let modules = affecting_sources
+                                                .iter()
+                                                .chain(external_result.affecting_sources.iter())
+                                                .map(|s| {
+                                                    Vc::upcast::<Box<dyn Module>>(RawModule::new(
+                                                        *s,
+                                                    ))
+                                                })
+                                                .chain(external_result.primary_modules_iter());
+
+                                            modules
+                                                .map(|s| {
+                                                    Vc::upcast::<Box<dyn ModuleReference>>(
+                                                        TracedModuleReference::new(s),
+                                                    )
+                                                })
+                                                .collect()
+                                        } else {
+                                            vec![]
+                                        }
                                     }
                                     _ => vec![],
                                 };

@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{trace::TraceRawVcs, FxIndexMap, RcStr, ResolvedVc, ValueDefault, Vc};
+use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::MinifyType, condition::ContextCondition, environment::Environment,
     resolve::options::ImportMapping,
@@ -126,7 +127,7 @@ pub struct ModuleOptionsContext {
 
     /// Generate (non-emitted) output assets for static assets and externals, to facilitate
     /// generating a list of all non-bundled files that will be required at runtime.
-    pub enable_tracing: bool,
+    pub enable_tracing: Option<Vc<FileSystemPath>>,
 
     /// Custom rules to be applied after all default rules.
     pub module_rules: Vec<ModuleRule>,
