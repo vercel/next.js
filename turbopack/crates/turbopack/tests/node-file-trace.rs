@@ -410,7 +410,7 @@ fn node_file_trace<B: Backend + 'static>(
                     package_root.clone(),
                     vec![],
                 ));
-                let input_dir = workspace_fs.root();
+                let input_dir = workspace_fs.root().to_resolved().await?;
                 let input = input_dir.join(format!("tests/{input_string}").into());
 
                 #[cfg(not(feature = "bench_against_node_nft"))]
@@ -452,7 +452,7 @@ fn node_file_trace<B: Backend + 'static>(
                 let module = module_asset_context
                     .process(Vc::upcast(source), Value::new(ReferenceType::Undefined))
                     .module();
-                let rebased = RebasedAsset::new(Vc::upcast(module), input_dir, output_dir);
+                let rebased = RebasedAsset::new(Vc::upcast(module), *input_dir, output_dir);
 
                 #[cfg(not(feature = "bench_against_node_nft"))]
                 let output_path = rebased.ident().path();

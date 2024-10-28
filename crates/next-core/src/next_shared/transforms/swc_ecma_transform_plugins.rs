@@ -61,7 +61,7 @@ pub async fn get_swc_ecma_transform_rule_impl(
         let resolve_options = resolve_options(
             project_path,
             ResolveOptionsContext {
-                enable_node_modules: Some(project_path.root().resolve().await?),
+                enable_node_modules: Some(project_path.root().to_resolved().await?),
                 enable_node_native_modules: true,
                 ..Default::default()
             }

@@ -609,7 +609,7 @@ async fn create_module_asset(
             ResolvedMap {
                 by_glob: glob_mappings,
             }
-            .cell(),
+            .resolved_cell(),
         );
     }
 
