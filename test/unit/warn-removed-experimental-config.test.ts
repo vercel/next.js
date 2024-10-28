@@ -2,11 +2,18 @@ import {
   warnOptionHasBeenMovedOutOfExperimental,
   warnOptionHasBeenDeprecated,
 } from 'next/dist/server/config'
+import stripAnsi from 'strip-ansi'
 
 describe('warnOptionHasBeenMovedOutOfExperimental', () => {
   let spy: jest.SpyInstance
   beforeAll(() => {
-    spy = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    spy = jest.spyOn(console, 'warn').mockImplementation((...args) => {
+      const [prefix, ...restArgs] = args
+      const formattedFirstArg = stripAnsi(prefix)
+      // pass the rest of the arguments to the spied console.warn
+      // @ts-expect-error accessing the mocked console.warn
+      console.warn.mock.calls.push([formattedFirstArg, ...restArgs])
+    })
   })
 
   it('should not log warning message without experimental config', () => {
@@ -46,7 +53,7 @@ describe('warnOptionHasBeenMovedOutOfExperimental', () => {
 
     expect(spy).toHaveBeenCalledWith(
       expect.stringContaining(
-        '`experimental.skipTrailingSlashRedirect` has been moved to `skipTrailingSlashRedirect`. Please update your next.config.js file accordingly.'
+        ' ⚠ `experimental.skipTrailingSlashRedirect` has been moved to `skipTrailingSlashRedirect`. Please update your next.config.js file accordingly.'
       )
     )
   })
@@ -66,7 +73,7 @@ describe('warnOptionHasBeenMovedOutOfExperimental', () => {
 
     expect(spy).toHaveBeenCalledWith(
       expect.stringContaining(
-        '`experimental.relay` has been moved to `compiler.relay`. Please update your next.config.js file accordingly.'
+        ' ⚠ `experimental.relay` has been moved to `compiler.relay`. Please update your next.config.js file accordingly.'
       )
     )
   })
@@ -124,7 +131,7 @@ describe('warnOptionHasBeenMovedOutOfExperimental', () => {
 
     expect(spy).toHaveBeenCalledWith(
       expect.stringContaining(
-        '`experimental.bundlePagesExternals` has been moved to `bundlePagesRouterDependencies`. Please update your next.config.js file accordingly.'
+        ' ⚠ `experimental.bundlePagesExternals` has been moved to `bundlePagesRouterDependencies`. Please update your next.config.js file accordingly.'
       )
     )
   })
