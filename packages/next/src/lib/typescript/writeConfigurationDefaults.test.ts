@@ -49,42 +49,42 @@ describe('writeConfigurationDefaults()', () => {
       const tsConfig = await readFile(tsConfigPath, { encoding: 'utf8' })
 
       expect(JSON.parse(tsConfig)).toMatchInlineSnapshot(`
-              {
-                "compilerOptions": {
-                  "allowJs": true,
-                  "esModuleInterop": true,
-                  "incremental": true,
-                  "isolatedModules": true,
-                  "jsx": "preserve",
-                  "lib": [
-                    "dom",
-                    "dom.iterable",
-                    "esnext",
-                  ],
-                  "module": "esnext",
-                  "moduleResolution": "node",
-                  "noEmit": true,
-                  "plugins": [
-                    {
-                      "name": "next",
-                    },
-                  ],
-                  "resolveJsonModule": true,
-                  "skipLibCheck": true,
-                  "strict": false,
-                  "target": "ES2017",
-                },
-                "exclude": [
-                  "node_modules",
-                ],
-                "include": [
-                  "next-env.d.ts",
-                  ".next/types/**/*.ts",
-                  "**/*.ts",
-                  "**/*.tsx",
-                ],
-              }
-          `)
+      {
+        "compilerOptions": {
+          "allowJs": true,
+          "esModuleInterop": true,
+          "incremental": true,
+          "isolatedModules": true,
+          "jsx": "preserve",
+          "lib": [
+            "dom",
+            "dom.iterable",
+            "esnext",
+          ],
+          "module": "esnext",
+          "moduleResolution": "node",
+          "noEmit": true,
+          "plugins": [
+            {
+              "name": "next",
+            },
+          ],
+          "resolveJsonModule": true,
+          "skipLibCheck": true,
+          "strict": false,
+          "target": "ES2017",
+        },
+        "exclude": [
+          "node_modules",
+        ],
+        "include": [
+          "next-env.d.ts",
+          ".next/types/**/*.ts",
+          "**/*.ts",
+          "**/*.tsx",
+        ],
+      }
+    `)
 
       expect(
         consoleLogSpy.mock.calls
