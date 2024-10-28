@@ -420,7 +420,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
             ResolveResult::primary(ResolveResultItem::External {
                 name: request_str.into(),
                 ty: external_type,
-                traced: ExternalTraced::Traced,
+                traced: ExternalTraced::Traced(self.project_path),
             })
             .cell(),
         ))

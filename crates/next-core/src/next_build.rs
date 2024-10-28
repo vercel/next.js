@@ -18,12 +18,14 @@ pub async fn get_postcss_package_mapping(project_path: Vc<FileSystemPath>) -> Vc
 
 #[turbo_tasks::function]
 pub async fn get_external_next_compiled_package_mapping(
+    project_path: Vc<FileSystemPath>,
     package_name: Vc<RcStr>,
 ) -> Result<Vc<ImportMapping>> {
     Ok(ImportMapping::Alternatives(vec![ImportMapping::External(
         Some(format!("next/dist/compiled/{}", &*package_name.await?).into()),
         ExternalType::CommonJs,
-        ExternalTraced::Traced,
+        ExternalTraced::Traced(project_path),
+        None,
     )
     .into()])
     .cell())

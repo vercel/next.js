@@ -204,14 +204,14 @@ pub(crate) fn get_invalid_styled_jsx_resolve_plugin(
 
 #[turbo_tasks::value]
 pub(crate) struct NextExternalResolvePlugin {
-    root: Vc<FileSystemPath>,
+    project_path: Vc<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
 impl NextExternalResolvePlugin {
     #[turbo_tasks::function]
-    pub fn new(root: Vc<FileSystemPath>) -> Vc<Self> {
-        NextExternalResolvePlugin { root }.cell()
+    pub fn new(project_path: Vc<FileSystemPath>) -> Vc<Self> {
+        NextExternalResolvePlugin { project_path }.cell()
     }
 }
 
@@ -220,7 +220,7 @@ impl AfterResolvePlugin for NextExternalResolvePlugin {
     #[turbo_tasks::function]
     fn after_resolve_condition(&self) -> Vc<AfterResolvePluginCondition> {
         AfterResolvePluginCondition::new(
-            self.root.root(),
+            self.project_path.root(),
             Glob::new("**/next/dist/**/*.{external,runtime.dev,runtime.prod}.js".into()),
         )
     }
@@ -245,7 +245,7 @@ impl AfterResolvePlugin for NextExternalResolvePlugin {
             ResolveResult::primary(ResolveResultItem::External {
                 name: specifier.clone(),
                 ty: ExternalType::CommonJs,
-                traced: ExternalTraced::Traced,
+                traced: ExternalTraced::Traced(self.project_path),
             })
             .into(),
         )))

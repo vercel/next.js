@@ -38,6 +38,7 @@ use crate::{
     raw_module::RawModule,
     reference_type::ReferenceType,
     resolve::{
+        node::{node_cjs_resolve_options, node_esm_resolve_options},
         pattern::{read_matches, PatternMatch},
         plugin::AfterResolvePlugin,
     },
@@ -374,20 +375,21 @@ impl ModuleResolveResult {
     }
 }
 
-#[derive(
-    Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize, TraceRawVcs, TaskInput,
-)]
+#[derive(Copy, Clone)]
+#[turbo_tasks::value(shared)]
 pub enum ExternalTraced {
     Untraced,
-    Traced,
+    Traced(Vc<FileSystemPath>),
 }
 
-impl Display for ExternalTraced {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ExternalTraced::Untraced => write!(f, "Untraced"),
-            ExternalTraced::Traced => write!(f, "Traced"),
-        }
+impl ExternalTraced {
+    async fn as_string(&self) -> Result<String> {
+        Ok(match self {
+            ExternalTraced::Untraced => "untraced".to_string(),
+            ExternalTraced::Traced(context) => {
+                format!("traced from {}", context.to_string().await?)
+            }
+        })
     }
 }
 
@@ -411,7 +413,7 @@ impl Display for ExternalType {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub enum ResolveResultItem {
     Source(Vc<Box<dyn Source>>),
     External {
@@ -470,7 +472,7 @@ impl RequestKey {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct ResolveResult {
     pub primary: FxIndexMap<RequestKey, ResolveResultItem>,
     pub affecting_sources: Vec<Vc<Box<dyn Source>>>,
@@ -506,7 +508,7 @@ impl ValueToString for ResolveResult {
                 } => {
                     result.push_str("external ");
                     result.push_str(s);
-                    write!(result, " ({}, {})", ty, traced)?;
+                    write!(result, " ({}, {})", ty, traced.as_string().await?)?;
                 }
                 ResolveResultItem::Ignore => {
                     result.push_str("ignore");
@@ -2610,6 +2612,48 @@ async fn resolve_import_map_result(
                     request.request_pattern(),
                     original_request.request_pattern(),
                 ))
+            }
+        }
+        ImportMapResult::External(name, ty, traced, primary_alt) => {
+            let result = Some(
+                ResolveResult::primary(ResolveResultItem::External {
+                    name: name.clone(),
+                    ty: *ty,
+                    traced: *traced,
+                })
+                .cell(),
+            );
+
+            if let Some(context_dir) = primary_alt {
+                let request = Request::parse_string(name.clone());
+
+                // We must avoid cycles during resolving
+                if request.resolve().await? == *original_request
+                    && context_dir.resolve().await? == *original_lookup_path
+                {
+                    None
+                } else {
+                    let resolve_internal = resolve_internal(
+                        *context_dir,
+                        request,
+                        match ty {
+                            ExternalType::Url => options,
+                            // TODO is that root correct?
+                            ExternalType::CommonJs => node_cjs_resolve_options(context_dir.root()),
+                            ExternalType::EcmaScriptModule => {
+                                node_esm_resolve_options(context_dir.root())
+                            }
+                        },
+                    );
+
+                    if *resolve_internal.is_unresolvable().await? {
+                        None
+                    } else {
+                        result
+                    }
+                }
+            } else {
+                result
             }
         }
         ImportMapResult::Alternatives(list) => {

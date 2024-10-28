@@ -278,6 +278,7 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
             Some("*".into()),
             ExternalType::EcmaScriptModule,
             ExternalTraced::Untraced,
+            None,
         )
         .cell(),
     );

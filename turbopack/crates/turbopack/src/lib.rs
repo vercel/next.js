@@ -710,7 +710,8 @@ impl AssetContext for ModuleAssetContext {
     #[turbo_tasks::function]
     async fn process_resolve_result(
         self: Vc<Self>,
-        origin_path: Vc<FileSystemPath>,
+        // TODO(michnic) this can probably be removed
+        _origin_path: Vc<FileSystemPath>,
         result: Vc<ResolveResult>,
         reference_type: Value<ReferenceType>,
         ignore_unknown: bool,
@@ -751,16 +752,17 @@ impl AssetContext for ModuleAssetContext {
                             let replacement = if replace_externals {
                                 let additional_refs = match traced {
                                     // TODO can we get away without module_context.enable_tracing ?
-                                    ExternalTraced::Traced => {
-                                        if let Some(out_dir) = self
+                                    ExternalTraced::Traced(tracing_root) => {
+                                        if self
                                             .module_options_context()
                                             .await?
                                             .enable_tracing
                                             .as_ref()
+                                            .is_some()
                                         {
                                             let externals_context =
                                                 externals_tracing_module_context(ty);
-                                            let out_dir = out_dir.join("index".into());
+                                            let out_dir = tracing_root.join("index".into());
 
                                             let external_result = (externals_context
                                                 .resolve_asset(
