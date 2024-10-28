@@ -22,6 +22,8 @@ const context = {
   appDir: join(__dirname, '../'),
 }
 
+const isTurbopack = process.env.TURBOPACK
+
 describe('Page using eval in development mode', () => {
   let output = ''
 
@@ -73,7 +75,7 @@ describe.each([
   },
 ])(
   '$title usage of dynamic code evaluation',
-  ({ extractValue, computeRoute }) => {
+  ({ extractValue, computeRoute, title }) => {
     ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
       'development mode',
       () => {
@@ -103,10 +105,26 @@ describe.each([
           expect(await extractValue(res)).toEqual(100)
           await waitFor(500)
           expect(output).toContain(EVAL_ERROR)
-          // TODO check why that has a backslash on windows
-          expect(output).toMatch(/lib[\\/]utils\.js/)
-          expect(output).toContain('usingEval')
-          expect(stripAnsi(output)).toContain("value: eval('100')")
+          if (title === 'Middleware') {
+            expect(output).toContain(
+              isTurbopack
+                ? // TODO(veil): Apply sourcemap
+                  '\n    at usingEval (/'
+                : '\n    at eval (../../test/integration/edge-runtime-dynamic-code/lib/utils.js:11:18)' +
+                    '\n    at usingEval (../../test/integration/edge-runtime-dynamic-code/middleware.js:12:53)' +
+                    // TODO(veil): Should be ignore-listed
+                    '\n    at eval (../packages/next/dist'
+            )
+          } else {
+            expect(output).toContain(
+              isTurbopack
+                ? // TODO(veil): Apply sourcemap
+                  '\n    at usingEval (/'
+                : '\n    at eval (../../test/integration/edge-runtime-dynamic-code/lib/utils.js:11:18)' +
+                    '\n    at usingEval (../../test/integration/edge-runtime-dynamic-code/pages/api/route.js:13:23)' +
+                    '\n   9 | export async function usingEval() {'
+            )
+          }
         })
 
         it('does not show warning when no code uses eval', async () => {
@@ -127,11 +145,42 @@ describe.each([
           expect(await extractValue(res)).toEqual(81)
           await waitFor(500)
           expect(output).toContain(WASM_COMPILE_ERROR)
-          expect(output).toMatch(/lib[\\/]wasm\.js/)
-          expect(output).toContain('usingWebAssemblyCompile')
-          expect(stripAnsi(output)).toContain(
-            'await WebAssembly.compile(SQUARE_WASM_BUFFER)'
-          )
+          if (title === 'Middleware') {
+            expect(output).toContain(
+              isTurbopack
+                ? // TODO(veil): Apply sourcemap
+                  '\n    at usingWebAssemblyCompile (/'
+                : '\n    at WebAssembly (../../test/integration/edge-runtime-dynamic-code/lib/wasm.js:22:23)' +
+                    '\n    at middleware (../../test/integration/edge-runtime-dynamic-code/middleware.js:24:68)' +
+                    // TODO(veil): Should be ignore-listed
+                    '\n    at eval (../packages/next'
+            )
+            if (isTurbopack) {
+              // TODO(veil): Display codeframe
+            } else {
+              expect(output).toContain(
+                '\n> 22 |   const module = await WebAssembly.compile(SQUARE_WASM_BUFFER)'
+              )
+            }
+          } else {
+            expect(output).toContain(
+              isTurbopack
+                ? // TODO(veil): Apply sourcemap
+                  '\n    at usingWebAssemblyCompile (/'
+                : '\n    at WebAssembly (../../test/integration/edge-runtime-dynamic-code/lib/wasm.js:22:23)' +
+                    '\n    at handler (../../test/integration/edge-runtime-dynamic-code/pages/api/route.js:17:42)' +
+                    // TODO(veil): Should be ignore-listed
+                    '\n    at'
+            )
+
+            if (isTurbopack) {
+              // TODO(veil): Display codeframe
+            } else {
+              expect(output).toContain(
+                '\n> 22 |   const module = await WebAssembly.compile(SQUARE_WASM_BUFFER)'
+              )
+            }
+          }
         })
 
         it('shows a warning when running WebAssembly.instantiate with a buffer parameter', async () => {
@@ -142,11 +191,39 @@ describe.each([
           expect(await extractValue(res)).toEqual(81)
           await waitFor(500)
           expect(output).toContain(WASM_INSTANTIATE_ERROR)
-          expect(output).toMatch(/lib[\\/]wasm\.js/)
-          expect(output).toContain('usingWebAssemblyInstantiateWithBuffer')
-          expect(stripAnsi(output)).toContain(
-            'await WebAssembly.instantiate(SQUARE_WASM_BUFFER, {})'
-          )
+          if (title === 'Middleware') {
+            expect(output).toContain(
+              isTurbopack
+                ? // TODO(veil): Apply sourcemap
+                  '\n    at async usingWebAssemblyInstantiateWithBuffer (/'
+                : '\n    at async usingWebAssemblyInstantiateWithBuffer (../../test/integration/edge-runtime-dynamic-code/lib/wasm.js:28:23)' +
+                    '\n    at async middleware (../../test/integration/edge-runtime-dynamic-code/middleware.js:37:29)' +
+                    // TODO(veil): Should be ignore-listed
+                    '\n    at '
+            )
+            expect(stripAnsi(output)).toContain(
+              isTurbopack
+                ? // TODO(veil): Use codeframe of a stackframe that's not ignore-listed
+                  '\n> 149 |         result = await edgeFunction({'
+                : '\n> 28 |   const { instance } = await WebAssembly.instantiate(SQUARE_WASM_BUFFER, {})'
+            )
+          } else {
+            expect(output).toContain(
+              isTurbopack
+                ? // TODO(veil): Apply sourcemap
+                  '\n    at async usingWebAssemblyInstantiateWithBuffer (/'
+                : '\n    at async usingWebAssemblyInstantiateWithBuffer (../../test/integration/edge-runtime-dynamic-code/lib/wasm.js:28:23)' +
+                    '\n    at async handler (../../test/integration/edge-runtime-dynamic-code/pages/api/route.js:21:16)' +
+                    // TODO(veil): Should be ignore-listed
+                    '\n    at '
+            )
+            expect(stripAnsi(output)).toContain(
+              isTurbopack
+                ? // TODO(veil): Use codeframe of a stackframe that's not ignore-listed
+                  '\n> 149 |         result = await edgeFunction({'
+                : '\n> 28 |   const { instance } = await WebAssembly.instantiate(SQUARE_WASM_BUFFER, {})'
+            )
+          }
         })
 
         it('does not show a warning when running WebAssembly.instantiate with a module parameter', async () => {

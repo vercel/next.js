@@ -316,12 +316,10 @@ export default class DevServer extends Server {
         // not really errors. They're just part of rendering.
         return
       }
-      this.logErrorWithOriginalStack(reason, 'unhandledRejection').catch(
-        () => {}
-      )
+      this.logErrorWithOriginalStack(reason, 'unhandledRejection')
     })
     process.on('uncaughtException', (err) => {
-      this.logErrorWithOriginalStack(err, 'uncaughtException').catch(() => {})
+      this.logErrorWithOriginalStack(err, 'uncaughtException')
     })
   }
 
@@ -559,7 +557,7 @@ export default class DevServer extends Server {
     } catch (error) {
       const err = getProperError(error)
       formatServerError(err)
-      this.logErrorWithOriginalStack(err).catch(() => {})
+      this.logErrorWithOriginalStack(err)
       if (!res.sent) {
         res.statusCode = 500
         try {
@@ -574,11 +572,11 @@ export default class DevServer extends Server {
     }
   }
 
-  protected async logErrorWithOriginalStack(
+  protected logErrorWithOriginalStack(
     err?: unknown,
     type?: 'unhandledRejection' | 'uncaughtException' | 'warning' | 'app-dir'
-  ): Promise<void> {
-    await this.bundlerService.logErrorWithOriginalStack(err, type)
+  ): void {
+    this.bundlerService.logErrorWithOriginalStack(err, type)
   }
 
   protected getPagesManifest(): PagesManifest | undefined {
@@ -911,7 +909,6 @@ export default class DevServer extends Server {
     await super.instrumentationOnRequestError(...args)
 
     const err = args[0]
-    // Safe catch to avoid floating promises
-    this.logErrorWithOriginalStack(err, 'app-dir').catch(() => {})
+    this.logErrorWithOriginalStack(err, 'app-dir')
   }
 }

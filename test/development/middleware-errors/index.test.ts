@@ -37,19 +37,23 @@ describe('middleware - development errors', () => {
       await retry(() => {
         expect(stripAnsi(next.cliOutput)).toContain('boom')
       })
-      // TODO: assert on full, ignore-listed stack
       expect(stripAnsi(next.cliOutput)).toContain(
         isTurbopack
-          ? '\n ⨯ middleware.js (3:15) @ __TURBOPACK__default__export__' +
-              '\n ⨯ Error: boom' +
-              '\n    at __TURBOPACK__default__export__ (./middleware.js:3:15)'
-          : '\n ⨯ middleware.js (3:15) @ default' +
-              '\n ⨯ boom' +
-              '\n  1 |' +
-              '\n  2 |       export default function () {' +
-              "\n> 3 |         throw new Error('boom')" +
-              '\n    |               ^'
+          ? '\n ⨯ Error: boom' +
+              // TODO(veil): Should be sourcemapped
+              '\n    at __TURBOPACK__default__export__ ('
+          : '\n ⨯ Error: boom' +
+              '\n    at default (middleware.js:3:14)' +
+              // TODO(veil): Should be ignore-listed
+              '\n    at eval (webpack'
       )
+      if (isTurbopack) {
+        // TODO(veil): Should have codeframe
+      } else {
+        expect(stripAnsi(next.cliOutput)).toContain(
+          "\n> 3 |         throw new Error('boom')"
+        )
+      }
     })
 
     it('renders the error correctly and recovers', async () => {
@@ -86,14 +90,23 @@ describe('middleware - development errors', () => {
           'unhandledRejection: Error: async boom!'
         )
       })
-      // TODO: assert on full, ignore-listed stack
       expect(stripAnsi(next.cliOutput)).toContain(
         isTurbopack
-          ? 'unhandledRejection: Error: async boom!\n    at throwError ('
-          : 'unhandledRejection: Error: async boom!' +
-              '\n    at throwError (webpack-internal:///(middleware)/./middleware.js:8:11)' +
-              '\n    at __WEBPACK_DEFAULT_EXPORT__ (webpack-internal:///(middleware)/./middleware.js:11:5)'
+          ? // TODO(veil): Should be sourcemapped
+            ' ⨯ unhandledRejection:  Error: async boom!\n    at throwError (/'
+          : '\n ⨯ unhandledRejection:  Error: async boom!' +
+              '\n    at throwError (middleware.js:4:14)' +
+              '\n    at throwError (middleware.js:7:8)' +
+              // TODO(veil): Should be ignore-listed
+              '\n    at eval (webpack'
       )
+      if (isTurbopack) {
+        // TODO(veil): Should have codeframe
+      } else {
+        expect(stripAnsi(next.cliOutput)).toContain(
+          "> 4 |         throw new Error('async boom!')"
+        )
+      }
     })
 
     it('does not render the error', async () => {
@@ -124,20 +137,19 @@ describe('middleware - development errors', () => {
       await retry(() => {
         expect(stripAnsi(next.cliOutput)).toContain('Dynamic Code Evaluation')
       })
-      // TODO: assert on full, ignore-listed stack
       if (isTurbopack) {
         // Locally, prefixes the "test is not defined".
         // In CI, it prefixes "Dynamic Code Evaluation".
         expect(stripAnsi(next.cliOutput)).toContain(
-          '\n ⚠ middleware.js (3:22) @ __TURBOPACK__default__export__' +
-            '\n ⨯ middleware.js (4:9) @ eval'
+          // TODO(veil): Should be sourcemapped
+          '\n    at __TURBOPACK__default__export__ (/'
         )
       }
       expect(stripAnsi(next.cliOutput)).toContain(
         isTurbopack
-          ? '\n ⨯ Error: test is not defined' +
-              '\n    at eval (./middleware.js:4:9)' +
-              '\n    at <unknown> (./middleware.js:4:9'
+          ? '\n ⨯ Error [ReferenceError]: test is not defined' +
+              // TODO(veil): Should be sourcemapped
+              '\n    at eval '
           : '\n ⨯ Error [ReferenceError]: test is not defined' +
               // TODO: Redundant and not clickable
               '\n    at eval (file://webpack-internal:///(middleware)/./middleware.js)' +
@@ -147,12 +159,15 @@ describe('middleware - development errors', () => {
       )
       expect(stripAnsi(next.cliOutput)).toContain(
         isTurbopack
-          ? "\n ⚠ Error: Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Edge Runtime" +
+          ? "\n ⚠ DynamicCodeEvaluationWarning: Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Edge Runtime" +
               '\nLearn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation' +
-              '\n    at __TURBOPACK__default__export__ (./middleware.js:3:22)'
-          : '\n ⚠ middleware.js (4:9) @ eval' +
-              "\n ⚠ Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Edge Runtime" +
-              '\nLearn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation'
+              // TODO(veil): Should be sourcemapped
+              '\n    at __TURBOPACK__default__export__ ('
+          : "\n ⚠ DynamicCodeEvaluationWarning: Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Edge Runtime" +
+              '\nLearn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation' +
+              '\n    at eval (middleware.js:4:8)' +
+              // TODO(veil): Should be ignore-listed
+              '\n    at eval (webpack'
       )
     })
 
@@ -195,9 +210,9 @@ describe('middleware - development errors', () => {
       })
       expect(stripAnsi(next.cliOutput)).toContain(
         isTurbopack
-          ? '\n ⨯ middleware.js (3:13) @ [project]/middleware.js [middleware] (ecmascript)' +
-              '\n ⨯ Error: booooom!' +
-              '\n    at <unknown> ([project]/middleware.js [middleware] (ecmascript) (./middleware.js:3:13)'
+          ? '\n ⨯ Error: booooom!' +
+              // TODO(veil): Should be sourcemapped
+              '\n    at [project]/middleware.js [middleware] (ecmascript)'
           : '\n ⨯ Error: booooom!' +
               // TODO: Should be anonymous method without a method name
               '\n    at <unknown> (middleware.js:3)' +
