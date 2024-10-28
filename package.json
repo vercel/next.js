@@ -47,14 +47,14 @@
   "dependencies": {
     "del": "^5.1.0",
     "htmlescape": "^1.1.1",
-    "minimist": "1.2.5",
+    "minimist": "1.2.6",
     "mitt": "^1.2.0",
     "prop-types": "^15.7.0",
     "querystring": "^0.2.0",
     "strip-ansi": "^6.0.0"
   },
   "devDependencies": {
-    "@healthline/six-million": "^8.0.3",
+    "@healthline/six-million": "~8.1.0",
     "babel-eslint": "10.0.3",
     "husky": ">=7",
     "lint-staged": ">=10",
