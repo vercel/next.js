@@ -114,7 +114,7 @@ export async function createStaticMetadataFromRoute(
           // WEBPACK_RESOURCE_QUERIES.metadata query here only for filtering out applying to image loader
         )}!${filepath}?${WEBPACK_RESOURCE_QUERIES.metadata}`
 
-        const imageModule = `(async (props) => (await import(/* webpackMode: "eager" */ ${JSON.stringify(
+        const imageModule = `(async (props) => await (await import(/* webpackMode: "eager" */ ${JSON.stringify(
           imageModuleImportSource
         )})).default(props))`
         hasStaticMetadataFiles = true
