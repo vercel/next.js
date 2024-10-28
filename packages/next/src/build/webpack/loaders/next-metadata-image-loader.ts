@@ -168,7 +168,7 @@ async function nextMetadataImageLoader(
   return `\
   import { fillMetadataSegment } from 'next/dist/lib/metadata/get-metadata-route'
 
-  export default (props) => {
+  export default async (props) => {
     const imageData = ${JSON.stringify(imageData)}
     const imageUrl = fillMetadataSegment(${JSON.stringify(
       pathnamePrefix
