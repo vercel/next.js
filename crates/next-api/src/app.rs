@@ -38,8 +38,8 @@ use next_core::{
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_tasks::{
-    fxindexset, trace::TraceRawVcs, Completion, FxIndexMap, FxIndexSet, RcStr, TryJoinIterExt,
-    Value, ValueToString, Vc,
+    fxindexset, trace::TraceRawVcs, Completion, FxIndexMap, FxIndexSet, RcStr, ResolvedVc,
+    TryJoinIterExt, Value, ValueToString, Vc,
 };
 use turbo_tasks_env::{CustomProcessEnv, ProcessEnv};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
@@ -611,7 +611,7 @@ impl AppProject {
         .await?
         .context("expected Next.js client runtime to resolve to a module")?;
 
-        Ok(client_main_module)
+        Ok(*client_main_module)
     }
 }
 
@@ -889,7 +889,7 @@ impl AppEndpoint {
                 let ServerEntries {
                     server_component_entries,
                     server_utils,
-                } = &*find_server_entries(rsc_entry).await?;
+                } = &*find_server_entries(*rsc_entry).await?;
 
                 let mut client_references = client_reference_graph(
                     server_utils.clone(),
@@ -901,7 +901,7 @@ impl AppEndpoint {
                 for module in server_component_entries
                     .iter()
                     .map(|m| Vc::upcast::<Box<dyn Module>>(*m))
-                    .chain(std::iter::once(rsc_entry))
+                    .chain(std::iter::once(*rsc_entry))
                 {
                     let current_client_references =
                         client_reference_graph(vec![module], client_references.visited_nodes)
@@ -1085,7 +1085,7 @@ impl AppEndpoint {
         let server_action_manifest_loader =
             if let Some(app_server_reference_modules) = app_server_reference_modules {
                 let server_action_manifest = create_server_actions_manifest(
-                    Vc::upcast(app_entry.rsc_entry),
+                    *ResolvedVc::upcast(app_entry.rsc_entry),
                     app_server_reference_modules,
                     this.app_project.project().project_path(),
                     node_root,
@@ -1240,7 +1240,7 @@ impl AppEndpoint {
 
                 // create react-loadable-manifest for next/dynamic
                 let mut dynamic_import_modules = collect_next_dynamic_imports(
-                    vec![Vc::upcast(app_entry.rsc_entry)],
+                    vec![*ResolvedVc::upcast(app_entry.rsc_entry)],
                     Vc::upcast(this.app_project.client_module_context()),
                     VisitedDynamicImportModules::empty(),
                 )
@@ -1290,7 +1290,7 @@ impl AppEndpoint {
                 // create react-loadable-manifest for next/dynamic
                 let availability_info = Value::new(AvailabilityInfo::Root);
                 let mut dynamic_import_modules = collect_next_dynamic_imports(
-                    vec![Vc::upcast(app_entry.rsc_entry)],
+                    vec![*ResolvedVc::upcast(app_entry.rsc_entry)],
                     Vc::upcast(this.app_project.client_module_context()),
                     VisitedDynamicImportModules::empty(),
                 )
@@ -1353,10 +1353,10 @@ impl AppEndpoint {
                     .edge_rsc_runtime_entries()
                     .await?
                     .clone_value();
-                let evaluatable = Vc::try_resolve_sidecast(app_entry.rsc_entry)
+                let evaluatable = ResolvedVc::try_sidecast(app_entry.rsc_entry)
                     .await?
                     .context("Entry module must be evaluatable")?;
-                evaluatable_assets.push(evaluatable);
+                evaluatable_assets.push(*evaluatable);
 
                 if let Some(server_action_manifest_loader) = server_action_manifest_loader {
                     evaluatable_assets.push(server_action_manifest_loader);
@@ -1461,7 +1461,7 @@ impl AppEndpoint {
                                 )
                                 .into(),
                             ),
-                            app_entry.rsc_entry,
+                            *app_entry.rsc_entry,
                             Vc::cell(evaluatable_assets),
                             current_chunks,
                             Value::new(current_availability_info),

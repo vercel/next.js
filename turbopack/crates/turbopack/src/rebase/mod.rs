@@ -56,7 +56,7 @@ impl OutputAsset for RebasedAsset {
             .iter()
         {
             references.push(Vc::upcast(RebasedAsset::new(
-                module,
+                *module,
                 self.input_dir,
                 self.output_dir,
             )));

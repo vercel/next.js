@@ -325,11 +325,17 @@ impl ModuleResolveResult {
     }
 
     #[turbo_tasks::function]
-    pub fn first_module(&self) -> Vc<OptionModule> {
-        Vc::cell(self.primary.iter().find_map(|(_, item)| match item {
+    pub async fn first_module(&self) -> Result<Vc<OptionModule>> {
+        let first = self.primary.iter().find_map(|(_, item)| match item {
             &ModuleResolveResultItem::Module(a) => Some(a),
             _ => None,
-        }))
+        });
+        let first_resolved = if let Some(first) = first {
+            Some(first.to_resolved().await?)
+        } else {
+            None
+        };
+        Ok(Vc::cell(first_resolved))
     }
 
     /// Returns a set (no duplicates) of primary modules in the result. All
@@ -340,17 +346,17 @@ impl ModuleResolveResult {
         let Some(first) = iter.next() else {
             return Ok(Vc::cell(vec![]));
         };
-        let first = first.resolve().await?;
+        let first = first.to_resolved().await?;
 
         let Some(second) = iter.next() else {
             return Ok(Vc::cell(vec![first]));
         };
-        let second = second.resolve().await?;
+        let second = second.to_resolved().await?;
 
         // We have at least two items, so we need to deduplicate them
         let mut set = fxindexset![first, second];
         for module in self.primary_modules_iter() {
-            set.insert(module.resolve().await?);
+            set.insert(module.to_resolved().await?);
         }
         Ok(Vc::cell(set.into_iter().collect()))
     }
