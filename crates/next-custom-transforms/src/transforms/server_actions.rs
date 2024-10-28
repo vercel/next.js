@@ -1532,7 +1532,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                         f.ident.clone(),
                                         f.ident.sym.to_string(),
                                         self.generate_server_reference_id(
-                                            &f.ident.sym.to_string(),
+                                            f.ident.sym.as_ref(),
                                             ref_id,
                                             Some(
                                                 &f.function
@@ -1555,7 +1555,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                         ident.clone(),
                                         ident.sym.to_string(),
                                         self.generate_server_reference_id(
-                                            &ident.sym.to_string(),
+                                            ident.sym.as_ref(),
                                             is_cache_file,
                                             None,
                                         ),
@@ -1596,7 +1596,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                                 ident.clone(),
                                                 sym.to_string(),
                                                 self.generate_server_reference_id(
-                                                    &sym.to_string(),
+                                                    sym.as_ref(),
                                                     is_cache_file,
                                                     None,
                                                 ),
@@ -1607,7 +1607,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                                 ident.clone(),
                                                 str.value.to_string(),
                                                 self.generate_server_reference_id(
-                                                    &str.value.to_string(),
+                                                    str.value.as_ref(),
                                                     is_cache_file,
                                                     None,
                                                 ),
@@ -1619,7 +1619,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                             ident.clone(),
                                             ident.sym.to_string(),
                                             self.generate_server_reference_id(
-                                                &ident.sym.to_string(),
+                                                ident.sym.as_ref(),
                                                 is_cache_file,
                                                 None,
                                             ),
@@ -1654,7 +1654,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             // to skip self-annotated exports here.
                             if !(is_cache_fn && self.config.is_react_server_layer) {
                                 let ref_id = self.generate_server_reference_id(
-                                    "default".into(),
+                                    "default",
                                     is_cache,
                                     Some(
                                         &f.function.params.iter().map(|p| p.pat.clone()).collect(),
@@ -1740,7 +1740,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                         new_ident.clone(),
                                         "default".into(),
                                         self.generate_server_reference_id(
-                                            "default".into(),
+                                            "default",
                                             is_cache,
                                             Some(&arrow.params),
                                         ),
@@ -1763,7 +1763,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                     ident.clone(),
                                     "default".into(),
                                     self.generate_server_reference_id(
-                                        "default".into(),
+                                        "default",
                                         is_cache_file,
                                         None,
                                     ),
@@ -1781,7 +1781,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                     new_ident.clone(),
                                     "default".into(),
                                     self.generate_server_reference_id(
-                                        "default".into(),
+                                        "default",
                                         is_cache_file,
                                         None,
                                     ),
