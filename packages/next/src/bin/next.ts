@@ -173,6 +173,11 @@ program
     'Specify a hostname on which to start the application (default: 0.0.0.0).'
   )
   .option(
+    '--disable-source-maps',
+    "Don't start the Dev server with `--enable-source-maps`.",
+    false
+  )
+  .option(
     '--experimental-https',
     'Starts the server with HTTPS and generates a self-signed certificate.'
   )
