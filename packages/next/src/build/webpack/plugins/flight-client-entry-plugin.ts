@@ -42,8 +42,6 @@ import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getAssumedSourceType } from '../loaders/next-flight-loader'
 import { isAppRouteRoute } from '../../../lib/is-app-route-route'
 
-type ActionIdNamePair = [id: string, name: string]
-
 interface Options {
   dev: boolean
   appDir: string
@@ -64,6 +62,8 @@ type Actions = {
     }
   }
 }
+
+type ActionIdNamePair = [id: string, name: string]
 
 export type ActionManifest = {
   // Assign a unique encryption key during production build.
