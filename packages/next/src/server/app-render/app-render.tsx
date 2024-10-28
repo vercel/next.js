@@ -161,6 +161,8 @@ import { InvariantError } from '../../shared/lib/invariant-error'
 
 import './clean-async-snapshot.external'
 import { INFINITE_CACHE } from '../../lib/constants'
+import { createComponentStylesAndScripts } from './create-component-styles-and-scripts'
+import { parseLoaderTree } from './parse-loader-tree'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -723,6 +725,8 @@ async function getRSCPayload(
     </React.Fragment>
   )
 
+  const globalErrorStyles = await getGlobalErrorStyles(tree, ctx)
+
   return {
     // See the comment above the `Preloads` component (below) for why this is part of the payload
     P: <Preloads preloadCallbacks={preloadCallbacks} />,
@@ -732,7 +736,7 @@ async function getRSCPayload(
     i: !!couldBeIntercepted,
     f: [[initialTree, seedData, initialHead]],
     m: missingSlots,
-    G: GlobalError,
+    G: [GlobalError, globalErrorStyles],
     s: typeof ctx.renderOpts.postponed === 'string',
     S: workStore.isStaticGeneration,
   }
@@ -817,6 +821,8 @@ async function getErrorRSCPayload(
     null,
   ]
 
+  const globalErrorStyles = await getGlobalErrorStyles(tree, ctx)
+
   return {
     b: ctx.renderOpts.buildId,
     p: ctx.assetPrefix,
@@ -824,7 +830,7 @@ async function getErrorRSCPayload(
     m: undefined,
     i: false,
     f: [[initialTree, initialSeedData, initialHead]],
-    G: GlobalError,
+    G: [GlobalError, globalErrorStyles],
     s: typeof ctx.renderOpts.postponed === 'string',
     S: workStore.isStaticGeneration,
   } satisfies InitialRSCPayload
@@ -881,7 +887,7 @@ function App<T>({
       <ServerInsertedHTMLProvider>
         <AppRouter
           actionQueue={actionQueue}
-          globalErrorComponent={response.G}
+          globalErrorComponentAndStyles={response.G}
           assetPrefix={response.p}
         />
       </ServerInsertedHTMLProvider>
@@ -930,7 +936,7 @@ function AppWithoutContext<T>({
   return (
     <AppRouter
       actionQueue={actionQueue}
-      globalErrorComponent={response.G}
+      globalErrorComponentAndStyles={response.G}
       assetPrefix={response.p}
     />
   )
@@ -3821,4 +3827,27 @@ export async function warmFlightResponse(
   return new Promise((r) => {
     chunkListeners.push(r)
   })
+}
+
+const getGlobalErrorStyles = async (
+  tree: LoaderTree,
+  ctx: AppRenderContext
+): Promise<React.ReactNode | undefined> => {
+  const {
+    modules: { 'global-error': globalErrorModule },
+  } = parseLoaderTree(tree)
+
+  let globalErrorStyles
+  if (globalErrorModule) {
+    const [, styles] = await createComponentStylesAndScripts({
+      ctx,
+      filePath: globalErrorModule[1],
+      getComponent: globalErrorModule[0],
+      injectedCSS: new Set(),
+      injectedJS: new Set(),
+    })
+    globalErrorStyles = styles
+  }
+
+  return globalErrorStyles
 }

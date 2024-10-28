@@ -43,6 +43,7 @@ export function isCSSMod(mod: {
   )
 }
 
+// Gives { id: name } record of actions from the build info.
 export function getActionsFromBuildInfo(mod: {
   resource: string
   buildInfo?: any

@@ -23,8 +23,8 @@ use serde::Deserialize;
 use serde::Serialize;
 use tokio::sync::mpsc::channel;
 use turbo_tasks::{
-    backend::Backend, util::FormatDuration, RcStr, ReadConsistency, TaskId, TransientInstance,
-    TransientValue, TurboTasks, UpdateInfo, Value, Vc,
+    backend::Backend, util::FormatDuration, RcStr, ReadConsistency, ResolvedVc, TaskId,
+    TransientInstance, TransientValue, TurboTasks, UpdateInfo, Value, Vc,
 };
 use turbo_tasks_fs::{
     glob::Glob, DirectoryEntry, DiskFileSystem, FileSystem, FileSystemPath, ReadGlobResult,
@@ -565,11 +565,11 @@ async fn main_operation(
 
 #[turbo_tasks::function]
 async fn create_module_asset(
-    root: Vc<FileSystemPath>,
+    root: ResolvedVc<FileSystemPath>,
     process_cwd: Option<RcStr>,
     module_options: TransientInstance<ModuleOptionsContext>,
     resolve_options: TransientInstance<ResolveOptionsContext>,
-) -> Vc<ModuleAssetContext> {
+) -> Result<Vc<ModuleAssetContext>> {
     let env = Environment::new(Value::new(ExecutionEnvironment::NodeJsLambda(
         NodeJsEnvironment {
             cwd: Vc::cell(process_cwd),
@@ -581,13 +581,17 @@ async fn create_module_asset(
     let glob_mappings = vec![
         (
             root,
-            Glob::new("**/*/next/dist/server/next.js".into()),
-            ImportMapping::Ignore.into(),
+            Glob::new("**/*/next/dist/server/next.js".into())
+                .to_resolved()
+                .await?,
+            ImportMapping::Ignore.resolved_cell(),
         ),
         (
             root,
-            Glob::new("**/*/next/dist/bin/next".into()),
-            ImportMapping::Ignore.into(),
+            Glob::new("**/*/next/dist/bin/next".into())
+                .to_resolved()
+                .await?,
+            ImportMapping::Ignore.resolved_cell(),
         ),
     ];
     let mut resolve_options = ResolveOptionsContext::clone(&*resolve_options);
@@ -603,13 +607,13 @@ async fn create_module_asset(
         );
     }
 
-    ModuleAssetContext::new(
+    Ok(ModuleAssetContext::new(
         Default::default(),
         compile_time_info,
         ModuleOptionsContext::clone(&*module_options).cell(),
         resolve_options.cell(),
         Vc::cell("node_file_trace".into()),
-    )
+    ))
 }
 
 fn register() {
