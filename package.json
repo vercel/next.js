@@ -47,7 +47,7 @@
   "dependencies": {
     "del": "^5.1.0",
     "htmlescape": "^1.1.1",
-    "minimist": "1.2.6",
+    "minimist": "1.2.7",
     "mitt": "^1.2.0",
     "prop-types": "^15.7.0",
     "querystring": "^0.2.0",
