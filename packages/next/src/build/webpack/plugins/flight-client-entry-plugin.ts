@@ -72,32 +72,29 @@ export type ActionManifest = {
   edge: Actions
 }
 
+export interface ModuleInfo {
+  moduleId: string | number
+  async: boolean
+}
+
 const pluginState = getProxiedPluginState({
   // A map to track "action" -> "list of bundles".
   serverActions: {} as ActionManifest['node'],
   edgeServerActions: {} as ActionManifest['edge'],
 
-  actionModServerId: {} as Record<
-    string,
-    {
-      server?: { moduleId: string | number; async: boolean }
-      client?: { moduleId: string | number; async: boolean }
-    }
-  >,
-  actionModEdgeServerId: {} as Record<
-    string,
-    {
-      server?: { moduleId: string | number; async: boolean }
-      client?: { moduleId: string | number; async: boolean }
-    }
-  >,
+  serverActionModules: {} as {
+    [workerName: string]: { server?: ModuleInfo; client?: ModuleInfo }
+  },
 
-  // Mapping of resource path to module id for server/edge server.
-  serverModuleIds: {} as Record<string, string | number>,
-  edgeServerModuleIds: {} as Record<string, string | number>,
+  edgeServerActionModules: {} as {
+    [workerName: string]: { server?: ModuleInfo; client?: ModuleInfo }
+  },
 
-  rscModuleIds: {} as Record<string, string | number>,
-  edgeRscModuleIds: {} as Record<string, string | number>,
+  ssrModules: {} as { [ssrModuleId: string]: ModuleInfo },
+  edgeSsrModules: {} as { [ssrModuleId: string]: ModuleInfo },
+
+  rscModules: {} as { [rscModuleId: string]: ModuleInfo },
+  edgeRscModules: {} as { [rscModuleId: string]: ModuleInfo },
 
   injectedClientEntries: {} as Record<string, string>,
 })
@@ -220,10 +217,15 @@ export class FlightClientEntryPlugin {
               .relative(compiler.context, modResource)
               .replace(/\/next\/dist\/esm\//, '/next/dist/')
 
+            const moduleInfo: ModuleInfo = {
+              moduleId: modId,
+              async: compilation.moduleGraph.isAsync(mod),
+            }
+
             if (this.isEdgeServer) {
-              pluginState.edgeRscModuleIds[key] = modId
+              pluginState.edgeRscModules[key] = moduleInfo
             } else {
-              pluginState.rscModuleIds[key] = modId
+              pluginState.rscModules[key] = moduleInfo
             }
           }
         }
@@ -244,12 +246,17 @@ export class FlightClientEntryPlugin {
             ssrNamedModuleId = `./${normalizePathSep(ssrNamedModuleId)}`
           }
 
+          const moduleInfo: ModuleInfo = {
+            moduleId: modId,
+            async: compilation.moduleGraph.isAsync(mod),
+          }
+
           if (this.isEdgeServer) {
-            pluginState.edgeServerModuleIds[
+            pluginState.edgeSsrModules[
               ssrNamedModuleId.replace(/\/next\/dist\/esm\//, '/next/dist/')
-            ] = modId
+            ] = moduleInfo
           } else {
-            pluginState.serverModuleIds[ssrNamedModuleId] = modId
+            pluginState.ssrModules[ssrNamedModuleId] = moduleInfo
           }
         }
       }
@@ -968,8 +975,8 @@ export class FlightClientEntryPlugin {
         const fromClient = /&__client_imported__=true/.test(mod.request)
 
         const mapping = this.isEdgeServer
-          ? pluginState.actionModEdgeServerId
-          : pluginState.actionModServerId
+          ? pluginState.edgeServerActionModules
+          : pluginState.serverActionModules
 
         if (!mapping[chunkGroup.name]) {
           mapping[chunkGroup.name] = {}
@@ -985,7 +992,7 @@ export class FlightClientEntryPlugin {
       const action = pluginState.serverActions[id]
       for (let name in action.workers) {
         const modId =
-          pluginState.actionModServerId[name][
+          pluginState.serverActionModules[name][
             action.layer[name] === WEBPACK_LAYERS.actionBrowser
               ? 'client'
               : 'server'
@@ -999,7 +1006,7 @@ export class FlightClientEntryPlugin {
       const action = pluginState.edgeServerActions[id]
       for (let name in action.workers) {
         const modId =
-          pluginState.actionModEdgeServerId[name][
+          pluginState.edgeServerActionModules[name][
             action.layer[name] === WEBPACK_LAYERS.actionBrowser
               ? 'client'
               : 'server'
