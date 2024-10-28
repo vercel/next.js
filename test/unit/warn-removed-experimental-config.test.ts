@@ -45,8 +45,9 @@ describe('warnOptionHasBeenMovedOutOfExperimental', () => {
     )
 
     expect(spy).toHaveBeenCalledWith(
-      expect.stringContaining('⚠'),
-      '`experimental.skipTrailingSlashRedirect` has been moved to `skipTrailingSlashRedirect`. Please update your next.config.js file accordingly.'
+      expect.stringContaining(
+        '`experimental.skipTrailingSlashRedirect` has been moved to `skipTrailingSlashRedirect`. Please update your next.config.js file accordingly.'
+      )
     )
   })
 
@@ -64,8 +65,9 @@ describe('warnOptionHasBeenMovedOutOfExperimental', () => {
     )
 
     expect(spy).toHaveBeenCalledWith(
-      expect.stringContaining('⚠'),
-      '`experimental.relay` has been moved to `compiler.relay`. Please update your next.config.js file accordingly.'
+      expect.stringContaining(
+        '`experimental.relay` has been moved to `compiler.relay`. Please update your next.config.js file accordingly.'
+      )
     )
   })
 
@@ -121,8 +123,9 @@ describe('warnOptionHasBeenMovedOutOfExperimental', () => {
     )
 
     expect(spy).toHaveBeenCalledWith(
-      expect.stringContaining('⚠'),
-      '`experimental.bundlePagesExternals` has been moved to `bundlePagesRouterDependencies`. Please update your next.config.js file accordingly.'
+      expect.stringContaining(
+        '`experimental.bundlePagesExternals` has been moved to `bundlePagesRouterDependencies`. Please update your next.config.js file accordingly.'
+      )
     )
   })
 })
