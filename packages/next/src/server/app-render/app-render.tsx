@@ -147,6 +147,8 @@ import {
   createReactServerPrerenderResult,
   createReactServerPrerenderResultFromRender,
   prerenderAndAbortInSequentialTasks,
+  prerenderServerWithPhases,
+  prerenderClientWithPhases,
 } from './app-render-prerender-utils'
 import { printDebugThrownValueForProspectiveRender } from './prospective-render-utils'
 import { scheduleInSequentialTasks } from './app-render-render-utils'
@@ -3058,16 +3060,6 @@ async function prerenderToStream(
 
         let clientIsDynamic = false
         const finalClientController = new AbortController()
-        // We want a sync abort in the server render to first abort
-        // the client render so we attach an abort event listener first
-        // so we can preempt the server abort
-        finalServerController.signal.addEventListener(
-          'abort',
-          () => {
-            finalClientController.abort()
-          },
-          { once: true }
-        )
         const clientDynamicTracking = createDynamicTrackingState(
           renderOpts.isDebugDynamicAccesses
         )
@@ -3096,41 +3088,46 @@ async function prerenderToStream(
           res.statusCode === 404
         )
 
-        let reactServerStream
-        let htmlStream
-        try {
-          htmlStream = await prerenderAndAbortInSequentialTasks(
-            async () => {
-              const [serverResultStream, serverRenderStream] =
-                workUnitAsyncStorage
-                  .run(
-                    finalServerPrerenderStore,
-                    ComponentMod.renderToReadableStream,
-                    finalServerPayload,
-                    clientReferenceManifest.clientModules,
-                    {
-                      onError: (err: unknown) => {
-                        if (finalServerController.signal.aborted) {
-                          serverIsDynamic = true
-                          return
-                        }
-
-                        return serverComponentsErrorHandler(err)
-                      },
-                      signal: finalServerController.signal,
+        const serverPrerenderStreamResult = await prerenderServerWithPhases(
+          finalServerController.signal,
+          () =>
+            workUnitAsyncStorage.run(
+              finalServerPrerenderStore,
+              ComponentMod.renderToReadableStream,
+              finalServerPayload,
+              clientReferenceManifest.clientModules,
+              {
+                onError: (err: unknown) => {
+                  if (finalServerController.signal.aborted) {
+                    serverIsDynamic = true
+                    if (isPrerenderInterruptedError(err)) {
+                      return err.digest
                     }
-                  )
-                  .tee()
+                    return
+                  }
 
-              reactServerStream = serverResultStream
+                  return serverComponentsErrorHandler(err)
+                },
+                signal: finalServerController.signal,
+              }
+            ),
+          () => {
+            finalServerController.abort()
+          }
+        )
 
-              const prerender = require('react-dom/static.edge')
-                .prerender as (typeof import('react-dom/static.edge'))['prerender']
-              const { prelude } = await workUnitAsyncStorage.run(
+        let htmlStream
+        const serverPhasedStream = serverPrerenderStreamResult.asPhasedStream()
+        try {
+          const prerender = require('react-dom/static.edge')
+            .prerender as (typeof import('react-dom/static.edge'))['prerender']
+          const result = await prerenderClientWithPhases(
+            () =>
+              workUnitAsyncStorage.run(
                 finalClientPrerenderStore,
                 prerender,
                 <App
-                  reactServerStream={serverRenderStream}
+                  reactServerStream={serverPhasedStream}
                   preinitScripts={preinitScripts}
                   clientReferenceManifest={clientReferenceManifest}
                   ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
@@ -3168,24 +3165,21 @@ async function prerenderToStream(
                     ? []
                     : [bootstrapScript],
                 }
-              )
-              return prelude
-            },
+              ),
             () => {
-              // Abort SSR first
               finalClientController.abort()
-              finalServerController.abort()
+              serverPhasedStream.assertExhausted()
             }
           )
+          htmlStream = result.prelude
         } catch (err) {
           if (
-            finalClientController.signal.aborted ||
-            finalServerController.signal.aborted
+            isPrerenderInterruptedError(err) ||
+            finalClientController.signal.aborted
           ) {
-            // We aborted with an incomplete shell. We'll handle this below with the handling
-            // for dynamic.
+            // we don't have a root because the abort errored in the root. We can just ignore this error
           } else {
-            // We have some other kind of shell error, we want to bubble this up to be handled
+            // This error is something else and should bubble up
             throw err
           }
         }
@@ -3212,10 +3206,12 @@ async function prerenderToStream(
           }
         }
 
-        const reactServerResult =
-          await createReactServerPrerenderResultFromRender(reactServerStream!)
+        // const reactServerResult =
+        //   await createReactServerPrerenderResultFromRender(reactServerStream!)
 
-        metadata.flightData = await streamToBuffer(reactServerResult.asStream())
+        metadata.flightData = await streamToBuffer(
+          serverPrerenderStreamResult.asStream()
+        )
 
         const getServerInsertedHTML = makeGetServerInsertedHTML({
           polyfills,
@@ -3230,7 +3226,7 @@ async function prerenderToStream(
           ssrErrors: allCapturedErrors,
           stream: await continueFizzStream(htmlStream!, {
             inlinedDataStream: createInlinedDataReadableStream(
-              reactServerResult.consumeAsStream(),
+              serverPrerenderStreamResult.asStream(),
               ctx.nonce,
               formState
             ),
