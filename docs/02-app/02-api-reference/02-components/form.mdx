@@ -368,7 +368,11 @@ Then, in the new page, you can fetch data using the `params` prop:
 ```tsx filename="/app/posts/[id]/page.tsx" switcher
 import { getPost } from '@/posts/data'
 
-export default async function PostPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function PostPage({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
   const data = await getPost((await params).id)
 
   return (
