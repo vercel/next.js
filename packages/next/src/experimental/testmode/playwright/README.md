@@ -72,30 +72,37 @@ test('/product/shoe', async ({ page, next }) => {
 ### Or use the `next/experimental/testmode/playwright/msw`
 
 ```javascript
-import { test, expect, rest } from 'next/experimental/testmode/playwright/msw'
+import {
+  test,
+  expect,
+  http,
+  HttpResponse,
+  passthrough,
+} from 'next/experimental/testmode/playwright/msw'
 
 test.use({
   mswHandlers: [
-    rest.get('http://my-db/product/shoe', (req, res, ctx) => {
-      return res(
-        ctx.status(200),
-        ctx.json({
+    [
+      http.get('http://my-db/product/shoe', () => {
+        return HttpResponse.json({
           title: 'A shoe',
         })
-      )
-    }),
+      }),
+      // allow all non-mocked routes to pass through
+      http.all('*', () => {
+        return passthrough()
+      }),
+    ],
+    { scope: 'test' }, // or 'worker'
   ],
 })
 
 test('/product/shoe', async ({ page, msw }) => {
   msw.use(
-    rest.get('http://my-db/product/boot', (req, res, ctx) => {
-      return res.once(
-        ctx.status(200),
-        ctx.json({
-          title: 'A boot',
-        })
-      )
+    http.get('http://my-db/product/boot', () => {
+      return HttpResponse.json({
+        title: 'A boot',
+      })
     })
   )
 

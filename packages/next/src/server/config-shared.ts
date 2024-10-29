@@ -355,23 +355,6 @@ export interface ExperimentalConfig {
   optimizeServerReact?: boolean
 
   turbo?: ExperimentalTurboOptions
-  turbotrace?: {
-    logLevel?:
-      | 'bug'
-      | 'fatal'
-      | 'error'
-      | 'warning'
-      | 'hint'
-      | 'note'
-      | 'suggestions'
-      | 'info'
-    logDetail?: boolean
-    logAll?: boolean
-    contextDirectory?: string
-    processCwd?: string
-    /** in `MB` */
-    memoryLimit?: number
-  }
 
   /**
    * For use with `@next/mdx`. Compile MDX files using the new Rust compiler.
@@ -642,12 +625,12 @@ export interface NextConfig extends Record<string, any> {
 
   /**
    * @since version 11
-   * @see [ESLint configuration](https://nextjs.org/docs/basic-features/eslint)
+   * @see [ESLint configuration](https://nextjs.org/docs/app/building-your-application/configuring/eslint)
    */
   eslint?: ESLintConfig
 
   /**
-   * @see [Next.js TypeScript documentation](https://nextjs.org/docs/basic-features/typescript)
+   * @see [Next.js TypeScript documentation](https://nextjs.org/docs/app/building-your-application/configuring/typescript)
    */
   typescript?: TypeScriptConfig
 
@@ -764,7 +747,7 @@ export interface NextConfig extends Record<string, any> {
   /** @see [Disabling x-powered-by](https://nextjs.org/docs/api-reference/next.config.js/disabling-x-powered-by) */
   poweredByHeader?: boolean
 
-  /** @see [Using the Image Component](https://nextjs.org/docs/basic-features/image-optimization#using-the-image-component) */
+  /** @see [Using the Image Component](https://nextjs.org/docs/app/api-reference/next-config-js/images) */
   images?: ImageConfig
 
   /** Configure indicators in development environment */
@@ -1138,7 +1121,6 @@ export const defaultConfig: NextConfig = {
     amp: undefined,
     urlImports: undefined,
     turbo: undefined,
-    turbotrace: undefined,
     typedRoutes: false,
     typedEnv: false,
     clientTraceMetadata: undefined,
