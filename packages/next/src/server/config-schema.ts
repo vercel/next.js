@@ -415,27 +415,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         optimizePackageImports: z.array(z.string()).optional(),
         optimizeServerReact: z.boolean().optional(),
         clientTraceMetadata: z.array(z.string()).optional(),
-        turbotrace: z
-          .object({
-            logLevel: z
-              .enum([
-                'bug',
-                'fatal',
-                'error',
-                'warning',
-                'hint',
-                'note',
-                'suggestions',
-                'info',
-              ])
-              .optional(),
-            logAll: z.boolean().optional(),
-            logDetail: z.boolean().optional(),
-            contextDirectory: z.string().optional(),
-            processCwd: z.string().optional(),
-            memoryLimit: z.number().int().optional(),
-          })
-          .optional(),
         serverMinification: z.boolean().optional(),
         serverSourceMaps: z.boolean().optional(),
         useWasmBinary: z.boolean().optional(),

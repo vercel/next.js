@@ -815,7 +815,7 @@ impl Project {
 
         emit_event("modularizeImports", config.modularize_imports.is_some());
         emit_event("transpilePackages", config.transpile_packages.is_some());
-        emit_event("turbotrace", config.experimental.turbotrace.is_some());
+        emit_event("turbotrace", false);
 
         // compiler options
         let compiler_options = config.compiler.as_ref();
