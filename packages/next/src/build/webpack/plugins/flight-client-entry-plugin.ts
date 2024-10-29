@@ -42,8 +42,6 @@ import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getAssumedSourceType } from '../loaders/next-flight-loader'
 import { isAppRouteRoute } from '../../../lib/is-app-route-route'
 
-type ActionIdNamePair = [id: string, name: string]
-
 interface Options {
   dev: boolean
   appDir: string
@@ -65,6 +63,8 @@ type Actions = {
   }
 }
 
+type ActionIdNamePair = [id: string, name: string]
+
 export type ActionManifest = {
   // Assign a unique encryption key during production build.
   encryptionKey: string
@@ -72,32 +72,29 @@ export type ActionManifest = {
   edge: Actions
 }
 
+export interface ModuleInfo {
+  moduleId: string | number
+  async: boolean
+}
+
 const pluginState = getProxiedPluginState({
   // A map to track "action" -> "list of bundles".
   serverActions: {} as ActionManifest['node'],
   edgeServerActions: {} as ActionManifest['edge'],
 
-  actionModServerId: {} as Record<
-    string,
-    {
-      server?: { moduleId: string | number; async: boolean }
-      client?: { moduleId: string | number; async: boolean }
-    }
-  >,
-  actionModEdgeServerId: {} as Record<
-    string,
-    {
-      server?: { moduleId: string | number; async: boolean }
-      client?: { moduleId: string | number; async: boolean }
-    }
-  >,
+  serverActionModules: {} as {
+    [workerName: string]: { server?: ModuleInfo; client?: ModuleInfo }
+  },
 
-  // Mapping of resource path to module id for server/edge server.
-  serverModuleIds: {} as Record<string, string | number>,
-  edgeServerModuleIds: {} as Record<string, string | number>,
+  edgeServerActionModules: {} as {
+    [workerName: string]: { server?: ModuleInfo; client?: ModuleInfo }
+  },
 
-  rscModuleIds: {} as Record<string, string | number>,
-  edgeRscModuleIds: {} as Record<string, string | number>,
+  ssrModules: {} as { [ssrModuleId: string]: ModuleInfo },
+  edgeSsrModules: {} as { [ssrModuleId: string]: ModuleInfo },
+
+  rscModules: {} as { [rscModuleId: string]: ModuleInfo },
+  edgeRscModules: {} as { [rscModuleId: string]: ModuleInfo },
 
   injectedClientEntries: {} as Record<string, string>,
 })
@@ -220,10 +217,15 @@ export class FlightClientEntryPlugin {
               .relative(compiler.context, modResource)
               .replace(/\/next\/dist\/esm\//, '/next/dist/')
 
+            const moduleInfo: ModuleInfo = {
+              moduleId: modId,
+              async: compilation.moduleGraph.isAsync(mod),
+            }
+
             if (this.isEdgeServer) {
-              pluginState.edgeRscModuleIds[key] = modId
+              pluginState.edgeRscModules[key] = moduleInfo
             } else {
-              pluginState.rscModuleIds[key] = modId
+              pluginState.rscModules[key] = moduleInfo
             }
           }
         }
@@ -244,12 +246,17 @@ export class FlightClientEntryPlugin {
             ssrNamedModuleId = `./${normalizePathSep(ssrNamedModuleId)}`
           }
 
+          const moduleInfo: ModuleInfo = {
+            moduleId: modId,
+            async: compilation.moduleGraph.isAsync(mod),
+          }
+
           if (this.isEdgeServer) {
-            pluginState.edgeServerModuleIds[
+            pluginState.edgeSsrModules[
               ssrNamedModuleId.replace(/\/next\/dist\/esm\//, '/next/dist/')
-            ] = modId
+            ] = moduleInfo
           } else {
-            pluginState.serverModuleIds[ssrNamedModuleId] = modId
+            pluginState.ssrModules[ssrNamedModuleId] = moduleInfo
           }
         }
       }
@@ -279,7 +286,7 @@ export class FlightClientEntryPlugin {
     > = []
     const createdSSRDependenciesForEntry: Record<
       string,
-      ReturnType<typeof this.injectClientEntryAndSSRModules>[2][]
+      ReturnType<typeof this.injectClientEntryAndSSRModules>[3][]
     > = {}
 
     const addActionEntryList: Array<ReturnType<typeof this.injectActionEntry>> =
@@ -393,7 +400,7 @@ export class FlightClientEntryPlugin {
           createdSSRDependenciesForEntry[clientEntryToInject.entryName] = []
         }
         createdSSRDependenciesForEntry[clientEntryToInject.entryName].push(
-          injected[2]
+          injected[3]
         )
 
         addClientEntryAndSSRModulesList.push(injected)
@@ -450,12 +457,14 @@ export class FlightClientEntryPlugin {
       invalidator.invalidate([COMPILER_NAMES.client])
     }
 
-    // Client compiler is invalidated before awaiting the compilation of the SSR client component entries
-    // so that the client compiler is running in parallel to the server compiler.
+    // Client compiler is invalidated before awaiting the compilation of the SSR
+    // and RSC client component entries so that the client compiler is running
+    // in parallel to the server compiler.
     await Promise.all(
-      addClientEntryAndSSRModulesList.map(
-        (addClientEntryAndSSRModules) => addClientEntryAndSSRModules[1]
-      )
+      addClientEntryAndSSRModulesList.flatMap((addClientEntryAndSSRModules) => [
+        addClientEntryAndSSRModules[1],
+        addClientEntryAndSSRModules[2],
+      ])
     )
 
     // Wait for action entries to be added.
@@ -737,7 +746,8 @@ export class FlightClientEntryPlugin {
     absolutePagePath?: string
   }): [
     shouldInvalidate: boolean,
-    addEntryPromise: Promise<void>,
+    addSSREntryPromise: Promise<void>,
+    addRSCEntryPromise: Promise<void>,
     ssrDep: ReturnType<typeof webpack.EntryPlugin.createDependency>,
   ] {
     let shouldInvalidate = false
@@ -766,7 +776,7 @@ export class FlightClientEntryPlugin {
       server: false,
     })}!`
 
-    const clientSSRLoader = `next-flight-client-entry-loader?${stringify({
+    const clientServerLoader = `next-flight-client-entry-loader?${stringify({
       modules: modules.map((x) => JSON.stringify(x)),
       server: true,
     })}!`
@@ -809,33 +819,30 @@ export class FlightClientEntryPlugin {
       pluginState.injectedClientEntries[bundlePath] = clientBrowserLoader
     }
 
-    // Inject the entry to the server compiler (__ssr__).
-    const clientComponentEntryDep = webpack.EntryPlugin.createDependency(
-      clientSSRLoader,
-      {
-        name: bundlePath,
-      }
+    const clientComponentSSREntryDep = webpack.EntryPlugin.createDependency(
+      clientServerLoader,
+      { name: bundlePath }
+    )
+
+    const clientComponentRSCEntryDep = webpack.EntryPlugin.createDependency(
+      clientServerLoader,
+      { name: bundlePath }
     )
 
     return [
       shouldInvalidate,
-      // Add the dependency to the server compiler.
-      // This promise is awaited later using `Promise.all` in order to parallelize adding the entries.
-      // It ensures we can parallelize the SSR and Client compiler entries.
-      this.addEntry(
-        compilation,
-        // Reuse compilation context.
-        compiler.context,
-        clientComponentEntryDep,
-        {
-          // By using the same entry name
-          name: entryName,
-          // Layer should be client for the SSR modules
-          // This ensures the client components are bundled on client layer
-          layer: WEBPACK_LAYERS.serverSideRendering,
-        }
-      ),
-      clientComponentEntryDep,
+      // Add the entries to the server compiler for the SSR and RSC layers. The
+      // promises are awaited later using `Promise.all` in order to parallelize
+      // adding the entries.
+      this.addEntry(compilation, compiler.context, clientComponentSSREntryDep, {
+        name: entryName,
+        layer: WEBPACK_LAYERS.serverSideRendering,
+      }),
+      this.addEntry(compilation, compiler.context, clientComponentRSCEntryDep, {
+        name: entryName,
+        layer: WEBPACK_LAYERS.reactServerComponents,
+      }),
+      clientComponentSSREntryDep,
     ]
   }
 
@@ -968,8 +975,8 @@ export class FlightClientEntryPlugin {
         const fromClient = /&__client_imported__=true/.test(mod.request)
 
         const mapping = this.isEdgeServer
-          ? pluginState.actionModEdgeServerId
-          : pluginState.actionModServerId
+          ? pluginState.edgeServerActionModules
+          : pluginState.serverActionModules
 
         if (!mapping[chunkGroup.name]) {
           mapping[chunkGroup.name] = {}
@@ -985,7 +992,7 @@ export class FlightClientEntryPlugin {
       const action = pluginState.serverActions[id]
       for (let name in action.workers) {
         const modId =
-          pluginState.actionModServerId[name][
+          pluginState.serverActionModules[name][
             action.layer[name] === WEBPACK_LAYERS.actionBrowser
               ? 'client'
               : 'server'
@@ -999,7 +1006,7 @@ export class FlightClientEntryPlugin {
       const action = pluginState.edgeServerActions[id]
       for (let name in action.workers) {
         const modId =
-          pluginState.actionModEdgeServerId[name][
+          pluginState.edgeServerActionModules[name][
             action.layer[name] === WEBPACK_LAYERS.actionBrowser
               ? 'client'
               : 'server'

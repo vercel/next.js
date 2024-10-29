@@ -61,7 +61,7 @@ impl Transition for NextEcmascriptClientReferenceTransition {
         let this = self.await?;
 
         let ident = match part {
-            Some(part) => source.ident().with_part(part),
+            Some(part) => source.ident().with_part(*part),
             None => source.ident(),
         };
         let ident_ref = ident.await?;

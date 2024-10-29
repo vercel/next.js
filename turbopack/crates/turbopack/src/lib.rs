@@ -484,7 +484,7 @@ async fn process_default_internal(
     let reference_type = reference_type.into_value();
     let part: Option<Vc<ModulePart>> = match &reference_type {
         ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::ImportPart(part)) => {
-            Some(*part)
+            Some(**part)
         }
         _ => None,
     };
