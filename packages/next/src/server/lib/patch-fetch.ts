@@ -278,11 +278,15 @@ export function createPatchedFetcher(
             ? []
             : workUnitStore.implicitTags
 
-        // Inside unstable-cache we treat it the same as force-no-store on the page.
+        // Inside unstable-cache or "use cache", we treat it the same as
+        // force-no-store on the page.
         const pageFetchCacheMode =
-          workUnitStore && workUnitStore.type === 'unstable-cache'
+          workUnitStore &&
+          (workUnitStore.type === 'unstable-cache' ||
+            workUnitStore.type === 'cache')
             ? 'force-no-store'
             : workStore.fetchCache
+
         const isUsingNoStore = !!workStore.isUnstableNoStore
 
         let currentFetchCacheConfig = getRequestMeta('cache')
