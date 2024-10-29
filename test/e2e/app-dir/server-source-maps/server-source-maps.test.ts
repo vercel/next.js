@@ -147,7 +147,7 @@ describe('app-dir - server source maps', () => {
   // FIXME: Turbopack resolver bug
   // FIXME: Turbopack build? bugs taint the whole dev server
   ;(isTurbopack ? it.skip : it)(
-    'stack frames are not ignore-listed in ssr',
+    'stack frames are ignore-listed in ssr',
     async () => {
       await next.render('/ssr-error-log-ignore-listed')
 
@@ -161,9 +161,6 @@ describe('app-dir - server source maps', () => {
                   '\n    at logError (webpack:///app/ssr-error-log-ignore-listed/page.js?[search]:5:16)' +
                   // FIXME: Method name should be "Page"
                   '\n    at logError (webpack:///app/ssr-error-log-ignore-listed/page.js?[search]:10:12)' +
-                  (process.env.NEXT_TEST_CI
-                    ? '\n    at run (webpack:///node_modules/[pnpm]/internal-pkg/index.js?[search]:2:0)'
-                    : '\n    at run (webpack://[fixture-root]/node_modules/[pnpm]/internal-pkg/index.js?[search]:2:0)') +
                   '\n    at Page (webpack:///app/ssr-error-log-ignore-listed/page.js?[search]:10:6)' +
                   '\n  3 |'
           )
@@ -177,7 +174,7 @@ describe('app-dir - server source maps', () => {
   // FIXME: Turbopack resolver bug
   // FIXME: Turbopack build? bugs taint the whole dev server
   ;(isTurbopack ? it.skip : it)(
-    'stack frames are not ignore-listed in rsc',
+    'stack frames are ignore-listed in rsc',
     async () => {
       await next.render('/rsc-error-log-ignore-listed')
 
@@ -191,9 +188,6 @@ describe('app-dir - server source maps', () => {
                   '\n    at logError (webpack:///app/rsc-error-log-ignore-listed/page.js?[search]:4:16)' +
                   // FIXME: Method name should be "Page"
                   '\n    at logError (webpack:///app/rsc-error-log-ignore-listed/page.js?[search]:9:12)' +
-                  (process.env.NEXT_TEST_CI
-                    ? '\n    at run (webpack:///node_modules/[pnpm]/internal-pkg/index.js?[search]:2:0)'
-                    : '\n    at run (webpack://[fixture-root]/node_modules/[pnpm]/internal-pkg/index.js?[search]:2:0)') +
                   '\n    at Page (webpack:///app/rsc-error-log-ignore-listed/page.js?[search]:9:6)' +
                   '\n  2 |'
           )
