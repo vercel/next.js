@@ -667,12 +667,22 @@ function warnDependenciesOutOfRange(
       )
     } catch (error) {
       if (error.code === 'ERR_PACKAGE_PATH_NOT_EXPORTED') {
-        pkgJson = JSON.parse(
-          fs.readFileSync(
-            path.join(cwd, 'node_modules', dependency, 'package.json'),
-            'utf8'
+        let pkgJsonFromNodeModules
+        try {
+          pkgJsonFromNodeModules = path.join(
+            cwd,
+            'node_modules',
+            dependency,
+            'package.json'
           )
-        )
+
+          pkgJson = JSON.parse(fs.readFileSync(pkgJsonFromNodeModules, 'utf8'))
+        } catch {
+          console.warn(
+            `${pc.yellow('⚠')} Could not find package.json for dependency "${dependency}" at "${pkgJsonFromNodeModules}". This may affect peer dependency checks.`
+          )
+          continue
+        }
       } else {
         throw error
       }
