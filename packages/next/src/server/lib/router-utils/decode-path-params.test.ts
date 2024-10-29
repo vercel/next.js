@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import { decodePathParams } from '../../../packages/next/src/server/lib/router-utils/decode-path-params'
+import { decodePathParams } from './decode-path-params'
 
 describe('decoding path params', () => {
   it('should decode path params', () => {
@@ -15,7 +15,7 @@ describe('decoding path params', () => {
       decodePathParams('sticks%ZZ%ZZ%ZZstones')
     } catch (error) {
       expect(error).toBeInstanceOf(Error)
-      expect(error.message).toBe('Failed to decode path param(s).')
+      expect((error as Error).message).toBe('Failed to decode path param(s).')
     }
   })
 })
