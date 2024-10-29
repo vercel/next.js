@@ -6,7 +6,6 @@ import { handleClientError } from '../components/react-dev-overlay/internal/help
 import { isNextRouterError } from '../components/is-next-router-error'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import { reportGlobalError } from './report-global-error'
-import isError from '../../lib/is-error'
 import { originConsoleError } from '../components/globals/intercept-console-error'
 
 export const onCaughtError: HydrationOptions['onCaughtError'] = (
@@ -16,9 +15,7 @@ export const onCaughtError: HydrationOptions['onCaughtError'] = (
   // Skip certain custom errors which are not expected to be reported on client
   if (isBailoutToCSRError(err) || isNextRouterError(err)) return
 
-  const stitchedError = getReactStitchedError(err)
-
-  if (process.env.NODE_ENV === 'development') {
+  if (process.env.NODE_ENV !== 'production') {
     const errorBoundaryComponent = errorInfo?.errorBoundary?.constructor
     const errorBoundaryName =
       // read react component displayName
@@ -36,11 +33,6 @@ export const onCaughtError: HydrationOptions['onCaughtError'] = (
       componentThatErroredFrame?.match(/\s+at (\w+)\s+|(\w+)@/) ?? []
     const componentThatErroredName = matches[1] || matches[2] || 'Unknown'
 
-    // In development mode, pass along the component stack to the error
-    if (process.env.NODE_ENV === 'development' && errorInfo.componentStack) {
-      ;(stitchedError as any)._componentStack = errorInfo.componentStack
-    }
-
     // Create error location with errored component and error boundary, to match the behavior of default React onCaughtError handler.
     const errorBoundaryMessage = `It was handled by the <${errorBoundaryName}> error boundary.`
     const componentErrorMessage = componentThatErroredName
@@ -49,10 +41,16 @@ export const onCaughtError: HydrationOptions['onCaughtError'] = (
 
     const errorLocation = `${componentErrorMessage} ${errorBoundaryMessage}`
 
-    const originErrorStack = isError(err) ? err.stack || '' : ''
+    const stitchedError = getReactStitchedError(err)
+    // TODO: change to passing down errorInfo later
+    // In development mode, pass along the component stack to the error
+    if (errorInfo.componentStack) {
+      ;(stitchedError as any)._componentStack = errorInfo.componentStack
+    }
 
-    // Log the modified error message with stack so without being intercepted again.
-    originConsoleError(originErrorStack + '\n\n' + errorLocation)
+    // Log and report the error with location but without modifying the error stack
+    originConsoleError('%o\n\n%s', err, errorLocation)
+
     handleClientError(stitchedError, [])
   } else {
     originConsoleError(err)
@@ -66,9 +64,7 @@ export const onUncaughtError: HydrationOptions['onUncaughtError'] = (
   // Skip certain custom errors which are not expected to be reported on client
   if (isBailoutToCSRError(err) || isNextRouterError(err)) return
 
-  const stitchedError = getReactStitchedError(err)
-
-  if (process.env.NODE_ENV === 'development') {
+  if (process.env.NODE_ENV !== 'production') {
     const componentThatErroredFrame = errorInfo?.componentStack?.split('\n')[1]
 
     // Match chrome or safari stack trace
@@ -76,19 +72,20 @@ export const onUncaughtError: HydrationOptions['onUncaughtError'] = (
       componentThatErroredFrame?.match(/\s+at (\w+)\s+|(\w+)@/) ?? []
     const componentThatErroredName = matches[1] || matches[2] || 'Unknown'
 
-    // In development mode, pass along the component stack to the error
-    if (process.env.NODE_ENV === 'development' && errorInfo.componentStack) {
-      ;(stitchedError as any)._componentStack = errorInfo.componentStack
-    }
-
     // Create error location with errored component and error boundary, to match the behavior of default React onCaughtError handler.
     const errorLocation = componentThatErroredName
       ? `The above error occurred in the <${componentThatErroredName}> component.`
       : `The above error occurred in one of your components.`
 
-    const errStack = (stitchedError as any).stack || ''
-    // Log the modified error message with stack so without being intercepted again.
-    originConsoleError(errStack + '\n\n' + errorLocation)
+    const stitchedError = getReactStitchedError(err)
+    // TODO: change to passing down errorInfo later
+    // In development mode, pass along the component stack to the error
+    if (errorInfo.componentStack) {
+      ;(stitchedError as any)._componentStack = errorInfo.componentStack
+    }
+
+    // Log and report the error with location but without modifying the error stack
+    originConsoleError('%o\n\n%s', err, errorLocation)
     reportGlobalError(stitchedError)
   } else {
     reportGlobalError(err)
