@@ -215,7 +215,7 @@ pub(super) async fn update_ecmascript_merged_chunk(
                         if merged_module_map.get(&module_id) != Some(module_hash) {
                             let entry = EcmascriptModuleEntry::from_code(
                                 &module_id,
-                                module_code,
+                                *module_code,
                                 chunk_path,
                             )
                             .await?;
@@ -227,7 +227,7 @@ pub(super) async fn update_ecmascript_merged_chunk(
 
                     for (module_id, module_code) in chunk_partial.modified {
                         let entry =
-                            EcmascriptModuleEntry::from_code(&module_id, module_code, chunk_path)
+                            EcmascriptModuleEntry::from_code(&module_id, *module_code, chunk_path)
                                 .await?;
                         merged_update.entries.insert(module_id, entry);
                     }
