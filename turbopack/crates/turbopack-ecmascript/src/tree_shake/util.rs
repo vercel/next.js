@@ -15,6 +15,8 @@ use turbo_tasks::FxIndexSet;
 
 use crate::TURBOPACK_HELPER;
 
+const TURBOPACK_ASSERT_PREFIX: &str = "turbopack-";
+
 #[derive(Debug, Default, Clone, Copy)]
 enum Mode {
     Read,
@@ -414,7 +416,14 @@ pub fn should_skip_tree_shaking(m: &Program) -> bool {
             })) => {
                 if let Some(with) = with.as_deref().and_then(|v| v.as_import_with()) {
                     for item in with.values.iter() {
-                        if item.key.sym == *TURBOPACK_HELPER {
+                        // We skip tree shaking for modules with imports that have special
+                        // directives like `turbopack-transition`. Technically it can still be
+                        // handled, but it's not worth the effort because turbopack-transition
+                        // is private to turbopack and files with `turbopack-transition` in this
+                        // repository does not benefit from the tree shaking.
+                        if item.key.sym == *TURBOPACK_HELPER
+                            || item.key.sym.starts_with(TURBOPACK_ASSERT_PREFIX)
+                        {
                             // Skip tree shaking if the import is from turbopack-helper
                             return true;
                         }
