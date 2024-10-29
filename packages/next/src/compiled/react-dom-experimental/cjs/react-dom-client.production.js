@@ -2395,12 +2395,21 @@ var emptyContextObject = {},
   CapturedStacks = new WeakMap();
 function createCapturedValueAtFiber(value, source) {
   if ("object" === typeof value && null !== value) {
-    var stack = CapturedStacks.get(value);
-    "string" !== typeof stack &&
-      ((stack = getStackByFiberInDevAndProd(source)),
-      CapturedStacks.set(value, stack));
-  } else stack = getStackByFiberInDevAndProd(source);
-  return { value: value, source: source, stack: stack };
+    var existing = CapturedStacks.get(value);
+    if (void 0 !== existing) return existing;
+    source = {
+      value: value,
+      source: source,
+      stack: getStackByFiberInDevAndProd(source)
+    };
+    CapturedStacks.set(value, source);
+    return source;
+  }
+  return {
+    value: value,
+    source: source,
+    stack: getStackByFiberInDevAndProd(source)
+  };
 }
 var forkStack = [],
   forkStackIndex = 0,
@@ -15124,14 +15133,14 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
 };
 var isomorphicReactPackageVersion$jscomp$inline_1669 = React.version;
 if (
-  "19.0.0-experimental-02c0e824-20241028" !==
+  "19.0.0-experimental-0bc30748-20241028" !==
   isomorphicReactPackageVersion$jscomp$inline_1669
 )
   throw Error(
     formatProdErrorMessage(
       527,
       isomorphicReactPackageVersion$jscomp$inline_1669,
-      "19.0.0-experimental-02c0e824-20241028"
+      "19.0.0-experimental-0bc30748-20241028"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -15151,25 +15160,25 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_2134 = {
+var internals$jscomp$inline_2135 = {
   bundleType: 0,
-  version: "19.0.0-experimental-02c0e824-20241028",
+  version: "19.0.0-experimental-0bc30748-20241028",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
   findFiberByHostInstance: getClosestInstanceFromNode,
-  reconcilerVersion: "19.0.0-experimental-02c0e824-20241028"
+  reconcilerVersion: "19.0.0-experimental-0bc30748-20241028"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2135 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2136 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2135.isDisabled &&
-    hook$jscomp$inline_2135.supportsFiber
+    !hook$jscomp$inline_2136.isDisabled &&
+    hook$jscomp$inline_2136.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2135.inject(
-        internals$jscomp$inline_2134
+      (rendererID = hook$jscomp$inline_2136.inject(
+        internals$jscomp$inline_2135
       )),
-        (injectedHook = hook$jscomp$inline_2135);
+        (injectedHook = hook$jscomp$inline_2136);
     } catch (err) {}
 }
 exports.createRoot = function (container, options) {
@@ -15261,4 +15270,4 @@ exports.hydrateRoot = function (container, initialChildren, options) {
   listenToAllSupportedEvents(container);
   return new ReactDOMHydrationRoot(initialChildren);
 };
-exports.version = "19.0.0-experimental-02c0e824-20241028";
+exports.version = "19.0.0-experimental-0bc30748-20241028";
