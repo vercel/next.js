@@ -284,7 +284,7 @@ export async function getData() {
 }
 ```
 
-You can then purge the cache on-demand using revalidateTag in another function, for examples, a [route handler](/docs/app/building-your-application/routing/route-handlers) or [Server Action](/docs/app/building-your-application/data-fetching/server-actions-and-mutations):
+You can then purge the cache on-demand using `revalidateTag` in another function, for examples, a [route handler](/docs/app/building-your-application/routing/route-handlers) or [Server Action](/docs/app/building-your-application/data-fetching/server-actions-and-mutations):
 
 ```tsx filename="app/submit.ts" highlight={6,7}
 'use server'
@@ -297,7 +297,7 @@ export default async function submit() {
 }
 ```
 
-See the [revalidateTag](/docs/app/api-reference/functions/revalidateTag) docs for more information on purging cached data on-demand.
+See the [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) docs for more information on purging cached data on-demand.
 
 ## Examples
 
