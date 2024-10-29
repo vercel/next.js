@@ -1,3 +1,5 @@
+'use client'
+
 import React from 'react'
 import type { ImageConfigComplete } from './image-config'
 import { imageConfigDefault } from './image-config'

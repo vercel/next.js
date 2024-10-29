@@ -1,3 +1,5 @@
+'use client'
+
 import type { BuildManifest } from '../../server/get-page-files'
 import type { ServerRuntime } from '../../types'
 import type { NEXT_DATA } from './utils'
