@@ -103,7 +103,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-> **Good to know**: You can import Native ESM modules in `next.config.ts` without any additional configuration. Supports importing extensions like `.cjs`, `.cts`, `.mjs`, and `.mts`.
+> **Note**: Module resolution in `next.config.ts` is currently limited to `CommonJS`. This may cause incompatibilities with ESM only packages being loaded in `next.config.ts`.
 
 <AppOnly>
 

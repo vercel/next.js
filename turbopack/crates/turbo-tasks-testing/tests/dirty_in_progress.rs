@@ -1,4 +1,6 @@
 #![feature(arbitrary_self_types)]
+#![feature(arbitrary_self_types_pointers)]
+#![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
 use std::time::Duration;
 
@@ -36,6 +38,7 @@ async fn dirty_in_progress() {
             let read = output.strongly_consistent().await?;
             assert_eq!(read.value, value);
             assert_eq!(read.collectible, collectible);
+            println!("\n");
         }
         anyhow::Ok(())
     })

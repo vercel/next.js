@@ -1,5 +1,5 @@
-import * as expectMod from "./tests/execution/node_modules/expect";
-import * as jest from "./tests/execution/node_modules/jest-circus";
+import type * as expectMod from "./tests/execution/node_modules/expect";
+import type * as jest from "./tests/execution/node_modules/jest-circus";
 
 export {};
 

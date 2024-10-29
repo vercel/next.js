@@ -301,8 +301,10 @@ impl SeenIssues {
 }
 
 /// Logs emitted issues to console logs, deduplicating issues between peeks of
-/// the collected issues. The ConsoleUi can be shared and capture issues from
-/// multiple sources, with deduplication operating across all issues.
+/// the collected issues.
+///
+/// The ConsoleUi can be shared and capture issues from multiple sources, with deduplication
+/// operating across all issues.
 #[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
 #[derive(Clone)]
 pub struct ConsoleUi {

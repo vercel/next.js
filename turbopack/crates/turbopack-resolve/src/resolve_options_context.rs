@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{RcStr, ValueDefault, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, ValueDefault, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     condition::ContextCondition,
@@ -14,7 +14,7 @@ use turbopack_core::{
 #[derive(Default, Clone)]
 pub struct ResolveOptionsContext {
     #[serde(default)]
-    pub emulate_environment: Option<Vc<Environment>>,
+    pub emulate_environment: Option<ResolvedVc<Environment>>,
     #[serde(default)]
     pub enable_types: bool,
     #[serde(default)]
@@ -72,6 +72,9 @@ pub struct ResolveOptionsContext {
     /// Plugins which get applied before and after resolving.
     pub after_resolve_plugins: Vec<Vc<Box<dyn AfterResolvePlugin>>>,
     pub before_resolve_plugins: Vec<Vc<Box<dyn BeforeResolvePlugin>>>,
+    /// Warn instead of error for resolve errors
+    pub loose_errors: bool,
+
     #[serde(default)]
     pub placeholder_for_future_extensions: (),
 }

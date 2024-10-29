@@ -297,6 +297,7 @@ export function createSeededPrefetchCacheEntry({
     kind,
     prefetchTime: Date.now(),
     lastUsedTime: Date.now(),
+    staleTime: -1,
     key: prefetchCacheKey,
     status: PrefetchCacheEntryStatus.fresh,
     url,
@@ -353,13 +354,18 @@ function createLazyPrefetchEntry({
       // If the prefetch was a cache hit, we want to update the existing cache entry to reflect that it was a full prefetch.
       // This is because we know that a static response will contain the full RSC payload, and can be updated to respect the `static`
       // staleTime.
-      if (prefetchResponse.isPrerender) {
+      if (prefetchResponse.prerendered) {
         const existingCacheEntry = prefetchCache.get(
           // if we prefixed the cache key due to route interception, we want to use the new key. Otherwise we use the original key
           newCacheKey ?? prefetchCacheKey
         )
         if (existingCacheEntry) {
           existingCacheEntry.kind = PrefetchKind.FULL
+          if (prefetchResponse.staleTime !== -1) {
+            // This is the stale time that was collected by the server during
+            // static generation. Use this in place of the default stale time.
+            existingCacheEntry.staleTime = prefetchResponse.staleTime
+          }
         }
       }
 
@@ -373,6 +379,7 @@ function createLazyPrefetchEntry({
     kind,
     prefetchTime: Date.now(),
     lastUsedTime: null,
+    staleTime: -1,
     key: prefetchCacheKey,
     status: PrefetchCacheEntryStatus.fresh,
     url,
@@ -408,7 +415,22 @@ function getPrefetchEntryCacheStatus({
   kind,
   prefetchTime,
   lastUsedTime,
+  staleTime,
 }: PrefetchCacheEntry): PrefetchCacheEntryStatus {
+  if (staleTime !== -1) {
+    // `staleTime` is the value sent by the server during static generation.
+    // When this is available, it takes precedence over any of the heuristics
+    // that follow.
+    //
+    // TODO: When PPR is enabled, the server will *always* return a stale time
+    // when prefetching. We should never use a prefetch entry that hasn't yet
+    // received data from the server. So the only two cases should be 1) we use
+    // the server-generated stale time 2) the unresolved entry is discarded.
+    return Date.now() < prefetchTime + staleTime
+      ? PrefetchCacheEntryStatus.fresh
+      : PrefetchCacheEntryStatus.stale
+  }
+
   // We will re-use the cache entry data for up to the `dynamic` staletime window.
   if (Date.now() < (lastUsedTime ?? prefetchTime) + DYNAMIC_STALETIME_MS) {
     return lastUsedTime

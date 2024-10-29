@@ -60,7 +60,7 @@ impl<'a, K: Hash + Eq + Ord + Send + Sync, V: Send + Sync> TemporarilyInserted<'
     }
 }
 
-impl<'a, K: Hash + Eq + Ord + Send + Sync, V: Send + Sync> Drop for TemporarilyInserted<'a, K, V> {
+impl<K: Hash + Eq + Ord + Send + Sync, V: Send + Sync> Drop for TemporarilyInserted<'_, K, V> {
     fn drop(&mut self) {
         let static_key: &'static K = unsafe { std::mem::transmute(self.key) };
         self.inner.remove(&static_key);
@@ -123,17 +123,15 @@ struct SafeTemporarilyInserted<
     key: &'a K,
 }
 
-impl<'a, K: Clone + Hash + Eq + Ord + Send + Sync, V: Send + Sync>
-    SafeTemporarilyInserted<'a, K, V>
-{
+impl<K: Clone + Hash + Eq + Ord + Send + Sync, V: Send + Sync> SafeTemporarilyInserted<'_, K, V> {
     fn entry(&self) -> Entry<'_, K, V> {
         // SAFETY: We remove the value again after this function is done
         self.inner.entry(self.key.clone())
     }
 }
 
-impl<'a, K: Clone + Hash + Eq + Ord + Send + Sync, V: Send + Sync> Drop
-    for SafeTemporarilyInserted<'a, K, V>
+impl<K: Clone + Hash + Eq + Ord + Send + Sync, V: Send + Sync> Drop
+    for SafeTemporarilyInserted<'_, K, V>
 {
     fn drop(&mut self) {
         self.inner.remove(self.key);

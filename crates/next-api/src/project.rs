@@ -1,7 +1,7 @@
 use std::{path::MAIN_SEPARATOR, time::Duration};
 
 use anyhow::{bail, Context, Result};
-use indexmap::{indexmap, map::Entry, IndexMap};
+use indexmap::map::Entry;
 use next_core::{
     all_assets_from_entries,
     app_structure::find_app_dir,
@@ -24,10 +24,11 @@ use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_tasks::{
     debug::ValueDebugFormat,
+    fxindexmap,
     graph::{AdjacencyMap, GraphTraversal},
     trace::TraceRawVcs,
-    Completion, Completions, IntoTraitRef, RcStr, ReadRef, State, TaskInput, TransientInstance,
-    TryFlatJoinIterExt, Value, Vc,
+    Completion, Completions, FxIndexMap, IntoTraitRef, RcStr, ReadRef, State, TaskInput,
+    TransientInstance, TryFlatJoinIterExt, Value, Vc,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath, VirtualFileSystem};
@@ -216,21 +217,21 @@ impl ProjectContainer {
 impl ProjectContainer {
     #[tracing::instrument(level = "info", name = "initialize project", skip_all)]
     pub async fn initialize(self: Vc<Self>, options: ProjectOptions) -> Result<()> {
-        let poll_interval = options.watch.poll_interval;
+        let watch = options.watch;
 
         self.await?.options_state.set(Some(options));
 
         let project = self.project();
-        project
-            .project_fs()
-            .strongly_consistent()
-            .await?
-            .start_watching_with_invalidation_reason(poll_interval)?;
-        project
-            .output_fs()
-            .strongly_consistent()
-            .await?
-            .invalidate_with_reason();
+        let project_fs = project.project_fs().strongly_consistent().await?;
+        if watch.enable {
+            project_fs
+                .start_watching_with_invalidation_reason(watch.poll_interval)
+                .await?;
+        } else {
+            project_fs.invalidate_with_reason();
+        }
+        let output_fs = project.output_fs().strongly_consistent().await?;
+        output_fs.invalidate_with_reason();
         Ok(())
     }
 
@@ -293,20 +294,25 @@ impl ProjectContainer {
         }
 
         // TODO: Handle mode switch, should prevent mode being switched.
+        let watch = new_options.watch;
 
         let project = self.project();
         let prev_project_fs = project.project_fs().strongly_consistent().await?;
         let prev_output_fs = project.output_fs().strongly_consistent().await?;
-
-        let poll_interval = new_options.watch.poll_interval;
 
         this.options_state.set(Some(new_options));
         let project_fs = project.project_fs().strongly_consistent().await?;
         let output_fs = project.output_fs().strongly_consistent().await?;
 
         if !ReadRef::ptr_eq(&prev_project_fs, &project_fs) {
-            // TODO stop watching: prev_project_fs.stop_watching()?;
-            project_fs.start_watching_with_invalidation_reason(poll_interval)?;
+            if watch.enable {
+                // TODO stop watching: prev_project_fs.stop_watching()?;
+                project_fs
+                    .start_watching_with_invalidation_reason(watch.poll_interval)
+                    .await?;
+            } else {
+                project_fs.invalidate_with_reason();
+            }
         }
         if !ReadRef::ptr_eq(&prev_output_fs, &output_fs) {
             prev_output_fs.invalidate_with_reason();
@@ -533,18 +539,12 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    async fn project_fs(&self) -> Result<Vc<DiskFileSystem>> {
-        let disk_fs = DiskFileSystem::new(
+    fn project_fs(&self) -> Vc<DiskFileSystem> {
+        DiskFileSystem::new(
             PROJECT_FILESYSTEM_NAME.into(),
             self.root_path.clone(),
             vec![],
-        );
-        if self.watch.enable {
-            disk_fs
-                .await?
-                .start_watching_with_invalidation_reason(self.watch.poll_interval)?;
-        }
-        Ok(disk_fs)
+        )
     }
 
     #[turbo_tasks::function]
@@ -624,6 +624,13 @@ impl Project {
     }
 
     #[turbo_tasks::function]
+    pub(super) async fn should_create_webpack_stats(&self) -> Result<Vc<bool>> {
+        Ok(Vc::cell(
+            self.env.read("TURBOPACK_STATS".into()).await?.is_some(),
+        ))
+    }
+
+    #[turbo_tasks::function]
     pub(super) async fn execution_context(self: Vc<Self>) -> Result<Vc<ExecutionContext>> {
         let node_root = self.node_root();
         let next_mode = self.next_mode().await?;
@@ -673,7 +680,7 @@ impl Project {
 
     #[turbo_tasks::function]
     pub(super) fn edge_env(&self) -> Vc<EnvMap> {
-        let edge_env = indexmap! {
+        let edge_env = fxindexmap! {
             "__NEXT_BUILD_ID".into() => self.build_id.clone(),
             "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY".into() => self.encryption_key.clone(),
             "__NEXT_PREVIEW_MODE_ID".into() => self.preview_props.preview_mode_id.clone(),
@@ -747,6 +754,18 @@ impl Project {
         }
     }
 
+    #[turbo_tasks::function]
+    pub(super) fn runtime_chunking_context(
+        self: Vc<Self>,
+        client_assets: bool,
+        runtime: NextRuntime,
+    ) -> Vc<Box<dyn ChunkingContext>> {
+        match runtime {
+            NextRuntime::Edge => self.edge_chunking_context(client_assets),
+            NextRuntime::NodeJs => Vc::upcast(self.server_chunking_context(client_assets)),
+        }
+    }
+
     /// Emit a telemetry event corresponding to [webpack configuration telemetry](https://github.com/vercel/next.js/blob/9da305fe320b89ee2f8c3cfb7ecbf48856368913/packages/next/src/build/webpack-config.ts#L2516)
     /// to detect which feature is enabled.
     #[turbo_tasks::function]
@@ -796,7 +815,7 @@ impl Project {
 
         emit_event("modularizeImports", config.modularize_imports.is_some());
         emit_event("transpilePackages", config.transpile_packages.is_some());
-        emit_event("turbotrace", config.experimental.turbotrace.is_some());
+        emit_event("turbotrace", false);
 
         // compiler options
         let compiler_options = config.compiler.as_ref();
@@ -829,7 +848,7 @@ impl Project {
     pub async fn entrypoints(self: Vc<Self>) -> Result<Vc<Entrypoints>> {
         self.collect_project_feature_telemetry().await?;
 
-        let mut routes = IndexMap::new();
+        let mut routes = FxIndexMap::default();
         let app_project = self.app_project();
         let pages_project = self.pages_project();
 
@@ -970,7 +989,7 @@ impl Project {
         let FindContextFileResult::Found(fs_path, _) = *middleware.await? else {
             return Ok(Vc::upcast(EmptyEndpoint::new()));
         };
-        let source = Vc::upcast(FileSource::new(fs_path));
+        let source = Vc::upcast(FileSource::new(*fs_path));
         let app_dir = *find_app_dir(self.project_path()).await?;
         let ecmascript_client_reference_transition_name = (*self.app_project().await?)
             .as_ref()
@@ -1104,7 +1123,7 @@ impl Project {
         let FindContextFileResult::Found(fs_path, _) = *instrumentation.await? else {
             return Ok(Vc::upcast(EmptyEndpoint::new()));
         };
-        let source = Vc::upcast(FileSource::new(fs_path));
+        let source = Vc::upcast(FileSource::new(*fs_path));
         let app_dir = *find_app_dir(self.project_path()).await?;
         let ecmascript_client_reference_transition_name = (*self.app_project().await?)
             .as_ref()
@@ -1279,7 +1298,7 @@ impl Project {
             }
             None => match *self.next_mode().await? {
                 NextMode::Development => Ok(Vc::upcast(DevModuleIdStrategy::new())),
-                NextMode::Build => Ok(Vc::upcast(GlobalModuleIdStrategyBuilder::build(self))),
+                NextMode::Build => Ok(Vc::upcast(DevModuleIdStrategy::new())),
             },
         }
     }

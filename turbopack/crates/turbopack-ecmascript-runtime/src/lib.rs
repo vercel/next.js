@@ -1,4 +1,5 @@
 #![feature(arbitrary_self_types)]
+#![feature(arbitrary_self_types_pointers)]
 
 pub(crate) mod asset_context;
 pub(crate) mod browser_runtime;

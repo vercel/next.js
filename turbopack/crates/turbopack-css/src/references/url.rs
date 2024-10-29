@@ -10,14 +10,14 @@ use swc_core::css::{
     ast::UrlValue,
     visit::{VisitMut, VisitMutWith},
 };
-use turbo_tasks::{debug::ValueDebug, RcStr, Value, ValueToString, Vc};
+use turbo_tasks::{debug::ValueDebug, RcStr, ResolvedVc, Value, ValueToString, Vc};
 use turbopack_core::{
     chunk::{
         ChunkableModule, ChunkableModuleReference, ChunkingContext, ChunkingType,
         ChunkingTypeOption,
     },
     ident::AssetIdent,
-    issue::{IssueSeverity, IssueSource},
+    issue::IssueSource,
     output::OutputAsset,
     reference::ModuleReference,
     reference_type::{ReferenceType, UrlReferenceSubType},
@@ -28,7 +28,7 @@ use crate::{embed::CssEmbed, StyleSheetLike};
 
 #[turbo_tasks::value(into = "new")]
 pub enum ReferencedAsset {
-    Some(Vc<Box<dyn OutputAsset>>),
+    Some(ResolvedVc<Box<dyn OutputAsset>>),
     None,
 }
 
@@ -68,7 +68,10 @@ impl UrlAssetReference {
                 if let Some(embeddable) =
                     Vc::try_resolve_downcast::<Box<dyn CssEmbed>>(chunk_item).await?
                 {
-                    return Ok(ReferencedAsset::Some(embeddable.embedded_asset()).into());
+                    return Ok(ReferencedAsset::Some(
+                        embeddable.embedded_asset().to_resolved().await?,
+                    )
+                    .into());
                 }
             }
             bail!(
@@ -90,7 +93,7 @@ impl ModuleReference for UrlAssetReference {
             self.request,
             Value::new(ReferenceType::Url(UrlReferenceSubType::CssUrl)),
             Some(self.issue_source),
-            IssueSeverity::Error.cell(),
+            false,
         )
     }
 }
@@ -182,7 +185,7 @@ impl VisitMut for AssetReferenceReplacer<'_> {
     }
 }
 
-impl<'i> Visitor<'i> for AssetReferenceReplacer<'_> {
+impl Visitor<'_> for AssetReferenceReplacer<'_> {
     type Error = Infallible;
 
     fn visit_types(&self) -> lightningcss::visitor::VisitTypes {

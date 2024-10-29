@@ -8,7 +8,7 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::chunk::EcmascriptChunkPlaceable;
 
-/// An [EcmascriptClientReferenceModule] is a marker module, used by the
+/// A marker module used by the
 /// [super::ecmascript_client_reference_proxy_module::EcmascriptClientReferenceProxyModule] to
 /// indicate which client reference should appear in the client reference manifest.
 #[turbo_tasks::value]

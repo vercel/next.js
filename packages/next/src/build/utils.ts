@@ -75,7 +75,7 @@ import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-pa
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { getRuntimeContext } from '../server/web/sandbox'
 import { isClientReference } from '../lib/client-reference'
-import { withStaticGenerationStore } from '../server/async-storage/with-static-generation-store'
+import { withWorkStore } from '../server/async-storage/with-work-store'
 import type { CacheHandler } from '../server/lib/incremental-cache'
 import { IncrementalCache } from '../server/lib/incremental-cache'
 import { nodeFs } from '../server/lib/node-fs-methods'
@@ -96,9 +96,10 @@ import {
 } from '../lib/fallback'
 import { getParamKeys } from '../server/request/fallback-params'
 import type { OutgoingHttpHeaders } from 'http'
-import type { AppSegmentConfig } from './app-segments/app-segment-config'
-import type { AppSegment } from './app-segments/collect-app-segments'
-import { collectSegments } from './app-segments/collect-app-segments'
+import type { AppSegmentConfig } from './segment-config/app/app-segment-config'
+import type { AppSegment } from './segment-config/app/app-segments'
+import { collectSegments } from './segment-config/app/app-segments'
+import { createIncrementalCache } from '../export/helpers/create-incremental-cache'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -371,6 +372,7 @@ export interface PageInfo {
   hasEmptyPrelude?: boolean
   hasPostponed?: boolean
   isDynamicAppRoute?: boolean
+  unsupportedSegmentConfigs: string[] | undefined
 }
 
 export type PageInfos = Map<string, PageInfo>
@@ -745,6 +747,8 @@ export async function printTreeView(
     })
   )
 
+  const staticFunctionInfo =
+    lists.app && stats.router.app ? 'generateStaticParams' : 'getStaticProps'
   print()
   print(
     textTable(
@@ -757,13 +761,13 @@ export async function printTreeView(
         usedSymbols.has('●') && [
           '●',
           '(SSG)',
-          `prerendered as static HTML (uses ${cyan('getStaticProps')})`,
+          `prerendered as static HTML (uses ${cyan(staticFunctionInfo)})`,
         ],
         usedSymbols.has('ISR') && [
           '',
           '(ISR)',
           `incremental static regeneration (uses revalidate in ${cyan(
-            'getStaticProps'
+            staticFunctionInfo
           )})`,
         ],
         usedSymbols.has('◐') && [
@@ -1215,13 +1219,13 @@ export async function buildAppStaticPaths({
   segments,
   isrFlushToDisk,
   cacheHandler,
+  cacheLifeProfiles,
   requestHeaders,
   maxMemoryCacheSize,
   fetchCacheKeyPrefix,
   nextConfigOutput,
   ComponentMod,
   isRoutePPREnabled,
-  isAppPPRFallbacksEnabled,
   buildId,
 }: {
   dir: string
@@ -1233,12 +1237,14 @@ export async function buildAppStaticPaths({
   isrFlushToDisk?: boolean
   fetchCacheKeyPrefix?: string
   cacheHandler?: string
+  cacheLifeProfiles?: {
+    [profile: string]: import('../server/use-cache/cache-life').CacheLife
+  }
   maxMemoryCacheSize?: number
   requestHeaders: IncrementalCache['requestHeaders']
   nextConfigOutput: 'standalone' | 'export' | undefined
   ComponentMod: AppPageModule
   isRoutePPREnabled: boolean | undefined
-  isAppPPRFallbacksEnabled: boolean | undefined
   buildId: string
 }): Promise<PartialStaticPathsResult> {
   if (
@@ -1294,8 +1300,8 @@ export async function buildAppStaticPaths({
     }
   }
 
-  const routeParams = await withStaticGenerationStore(
-    ComponentMod.staticGenerationAsyncStorage,
+  const routeParams = await withWorkStore(
+    ComponentMod.workAsyncStorage,
     {
       page,
       // We're discovering the parameters here, so we don't have any unknown
@@ -1303,6 +1309,7 @@ export async function buildAppStaticPaths({
       fallbackRouteParams: null,
       renderOpts: {
         incrementalCache,
+        cacheLifeProfiles,
         supportsDynamicResponse: true,
         isRevalidate: false,
         experimental: {
@@ -1332,14 +1339,11 @@ export async function buildAppStaticPaths({
         const params: Params[] = []
 
         if (current.generateStaticParams) {
+          // fetchCache can be used to inform the fetch() defaults used inside
+          // of generateStaticParams. revalidate and dynamic options don't come into
+          // play within generateStaticParams.
           if (typeof current.config?.fetchCache !== 'undefined') {
             store.fetchCache = current.config.fetchCache
-          }
-          if (typeof current.config?.revalidate !== 'undefined') {
-            store.revalidate = current.config.revalidate
-          }
-          if (current.config?.dynamic === 'force-dynamic') {
-            store.forceDynamic = true
           }
 
           if (parentsParams.length > 0) {
@@ -1406,7 +1410,7 @@ export async function buildAppStaticPaths({
       }))
 
   // TODO: dynamic params should be allowed to be granular per segment but
-  // we need  additional information stored/leveraged in the prerender
+  // we need additional information stored/leveraged in the prerender
   // manifest to allow this behavior.
   const dynamicParams = segments.every(
     (segment) => segment.config?.dynamicParams !== false
@@ -1415,11 +1419,9 @@ export async function buildAppStaticPaths({
   const supportsRoutePreGeneration =
     hadAllParamsGenerated || process.env.NODE_ENV === 'production'
 
-  const supportsPPRFallbacks = isRoutePPREnabled && isAppPPRFallbacksEnabled
-
   const fallbackMode = dynamicParams
     ? supportsRoutePreGeneration
-      ? supportsPPRFallbacks
+      ? isRoutePPREnabled
         ? FallbackMode.PRERENDER
         : FallbackMode.BLOCKING_STATIC_RENDER
       : undefined
@@ -1444,7 +1446,7 @@ export async function buildAppStaticPaths({
 
   // If the fallback mode is a prerender, we want to include the dynamic
   // route in the prerendered routes too.
-  if (isRoutePPREnabled && isAppPPRFallbacksEnabled) {
+  if (isRoutePPREnabled) {
     result.prerenderedRoutes ??= []
     result.prerenderedRoutes.unshift({
       path: page,
@@ -1490,8 +1492,9 @@ export async function isPageStatic({
   maxMemoryCacheSize,
   nextConfigOutput,
   cacheHandler,
+  cacheHandlers,
+  cacheLifeProfiles,
   pprConfig,
-  isAppPPRFallbacksEnabled,
   buildId,
 }: {
   dir: string
@@ -1511,11 +1514,24 @@ export async function isPageStatic({
   isrFlushToDisk?: boolean
   maxMemoryCacheSize?: number
   cacheHandler?: string
+  cacheHandlers?: Record<string, string | undefined>
+  cacheLifeProfiles?: {
+    [profile: string]: import('../server/use-cache/cache-life').CacheLife
+  }
   nextConfigOutput: 'standalone' | 'export' | undefined
   pprConfig: ExperimentalPPRConfig | undefined
-  isAppPPRFallbacksEnabled: boolean | undefined
   buildId: string
 }): Promise<PageIsStaticResult> {
+  await createIncrementalCache({
+    cacheHandler,
+    cacheHandlers,
+    distDir,
+    dir,
+    dynamicIO,
+    flushToDisk: isrFlushToDisk,
+    cacheMaxMemorySize: maxMemoryCacheSize,
+  })
+
   const isPageStaticSpan = trace('is-page-static-utils', parentId)
   return isPageStaticSpan
     .traceAsyncFn(async (): Promise<PageIsStaticResult> => {
@@ -1633,10 +1649,10 @@ export async function isPageStatic({
               isrFlushToDisk,
               maxMemoryCacheSize,
               cacheHandler,
+              cacheLifeProfiles,
               ComponentMod,
               nextConfigOutput,
               isRoutePPREnabled,
-              isAppPPRFallbacksEnabled,
               buildId,
             }))
         }
@@ -1733,11 +1749,13 @@ export async function isPageStatic({
 
 type ReducedAppConfig = Pick<
   AppSegmentConfig,
+  | 'revalidate'
   | 'dynamic'
   | 'fetchCache'
   | 'preferredRegion'
-  | 'revalidate'
   | 'experimental_ppr'
+  | 'runtime'
+  | 'maxDuration'
 >
 
 /**
@@ -1747,7 +1765,9 @@ type ReducedAppConfig = Pick<
  * @param segments the generate param segments
  * @returns the reduced app config
  */
-export function reduceAppConfig(segments: AppSegment[]): ReducedAppConfig {
+export function reduceAppConfig(
+  segments: Pick<AppSegment, 'config'>[]
+): ReducedAppConfig {
   const config: ReducedAppConfig = {}
 
   for (const segment of segments) {
@@ -1757,23 +1777,26 @@ export function reduceAppConfig(segments: AppSegment[]): ReducedAppConfig {
       preferredRegion,
       revalidate,
       experimental_ppr,
+      runtime,
+      maxDuration,
     } = segment.config || {}
 
     // TODO: should conflicting configs here throw an error
     // e.g. if layout defines one region but page defines another
 
-    // Get the first value of preferredRegion, dynamic, revalidate, and
-    // fetchCache.
-    if (typeof config.preferredRegion === 'undefined') {
+    if (typeof preferredRegion !== 'undefined') {
       config.preferredRegion = preferredRegion
     }
-    if (typeof config.dynamic === 'undefined') {
+
+    if (typeof dynamic !== 'undefined') {
       config.dynamic = dynamic
     }
-    if (typeof config.fetchCache === 'undefined') {
+
+    if (typeof fetchCache !== 'undefined') {
       config.fetchCache = fetchCache
     }
-    if (typeof config.revalidate === 'undefined') {
+
+    if (typeof revalidate !== 'undefined') {
       config.revalidate = revalidate
     }
 
@@ -1790,6 +1813,14 @@ export function reduceAppConfig(segments: AppSegment[]): ReducedAppConfig {
     // value is provided as it's resolved from root layout to leaf page.
     if (typeof experimental_ppr !== 'undefined') {
       config.experimental_ppr = experimental_ppr
+    }
+
+    if (typeof runtime !== 'undefined') {
+      config.runtime = runtime
+    }
+
+    if (typeof maxDuration !== 'undefined') {
+      config.maxDuration = maxDuration
     }
   }
 
@@ -2257,6 +2288,12 @@ export function isWebpackBundledLayer(
   layer: WebpackLayerName | null | undefined
 ): boolean {
   return Boolean(layer && WEBPACK_LAYERS.GROUP.bundled.includes(layer as any))
+}
+
+export function isWebpackAppPagesLayer(
+  layer: WebpackLayerName | null | undefined
+): boolean {
+  return Boolean(layer && WEBPACK_LAYERS.GROUP.appPages.includes(layer as any))
 }
 
 export function collectMeta({

@@ -2,10 +2,10 @@
 #![feature(trivial_bounds)]
 #![feature(min_specialization)]
 #![feature(map_try_insert)]
-#![feature(option_get_or_insert_default)]
 #![feature(hash_set_entry)]
 #![recursion_limit = "256"]
 #![feature(arbitrary_self_types)]
+#![feature(arbitrary_self_types_pointers)]
 
 pub mod evaluate_context;
 mod graph;
@@ -30,7 +30,7 @@ use ecmascript::{
 use graph::{aggregate, AggregatedGraph, AggregatedGraphNodeContent};
 use module_options::{ModuleOptions, ModuleOptionsContext, ModuleRuleEffect, ModuleType};
 use tracing::Instrument;
-use turbo_tasks::{Completion, RcStr, Value, ValueToString, Vc};
+use turbo_tasks::{Completion, RcStr, ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 pub use turbopack_core::condition;
 use turbopack_core::{
@@ -106,7 +106,7 @@ async fn apply_module_type(
     module_type: Vc<ModuleType>,
     reference_type: Value<ReferenceType>,
     part: Option<Vc<ModulePart>>,
-    inner_assets: Option<Vc<InnerAssets>>,
+    inner_assets: Option<ResolvedVc<InnerAssets>>,
     runtime_code: bool,
 ) -> Result<Vc<ProcessResult>> {
     let module_type = &*module_type.await?;
@@ -230,7 +230,9 @@ async fn apply_module_type(
                                     }
                                 }
                                 _ => bail!(
-                                    "Invalid module part for reexports only tree shaking mode"
+                                    "Invalid module part \"{}\" for reexports only tree shaking \
+                                     mode",
+                                    part.to_string().await?
                                 ),
                             }
                         } else if *module.get_exports().needs_facade().await? {
@@ -262,6 +264,11 @@ async fn apply_module_type(
             source,
             Vc::upcast(module_asset_context),
             *ty,
+            module_asset_context
+                .module_options_context()
+                .await?
+                .css
+                .minify_type,
             *use_swc_css,
             if let ReferenceType::Css(CssReferenceSubType::AtImport(import)) =
                 reference_type.into_value()
@@ -325,7 +332,7 @@ pub struct ModuleAssetContext {
     pub module_options_context: Vc<ModuleOptionsContext>,
     pub resolve_options_context: Vc<ResolveOptionsContext>,
     pub layer: Vc<RcStr>,
-    transition: Option<Vc<Box<dyn Transition>>>,
+    transition: Option<ResolvedVc<Box<dyn Transition>>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -355,7 +362,7 @@ impl ModuleAssetContext {
         module_options_context: Vc<ModuleOptionsContext>,
         resolve_options_context: Vc<ResolveOptionsContext>,
         layer: Vc<RcStr>,
-        transition: Vc<Box<dyn Transition>>,
+        transition: ResolvedVc<Box<dyn Transition>>,
     ) -> Vc<Self> {
         Self::cell(ModuleAssetContext {
             transitions,
@@ -477,7 +484,7 @@ async fn process_default_internal(
     let reference_type = reference_type.into_value();
     let part: Option<Vc<ModulePart>> = match &reference_type {
         ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::ImportPart(part)) => {
-            Some(*part)
+            Some(**part)
         }
         _ => None,
     };

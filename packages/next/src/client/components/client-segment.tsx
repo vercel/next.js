@@ -25,29 +25,23 @@ export function ClientSegmentRoot({
   promise?: Promise<any>
 }) {
   if (typeof window === 'undefined') {
-    const { staticGenerationAsyncStorage } =
-      require('./static-generation-async-storage.external') as typeof import('./static-generation-async-storage.external')
+    const { workAsyncStorage } =
+      require('../../server/app-render/work-async-storage.external') as typeof import('../../server/app-render/work-async-storage.external')
 
     let clientParams: Promise<Params>
     // We are going to instrument the searchParams prop with tracking for the
     // appropriate context. We wrap differently in prerendering vs rendering
-    const store = staticGenerationAsyncStorage.getStore()
+    const store = workAsyncStorage.getStore()
     if (!store) {
       throw new InvariantError(
-        'Expected staticGenerationStore to exist when handling params in a client segment such as a Layout or Template.'
+        'Expected workStore to exist when handling params in a client segment such as a Layout or Template.'
       )
     }
 
-    const { createPrerenderParamsFromClient } =
+    const { createParamsFromClient } =
       require('../../server/request/params') as typeof import('../../server/request/params')
+    clientParams = createParamsFromClient(params, store)
 
-    if (store.isStaticGeneration) {
-      clientParams = createPrerenderParamsFromClient(params, store)
-    } else {
-      const { createRenderParamsFromClient } =
-        require('../../server/request/params') as typeof import('../../server/request/params')
-      clientParams = createRenderParamsFromClient(params, store)
-    }
     return <Component {...slots} params={clientParams} />
   } else {
     const { createRenderParamsFromClient } =

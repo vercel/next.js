@@ -204,7 +204,7 @@ jobs:
       matrix:
         exclude:
           # Excluding React 18 tests unless on `canary` branch until budget is approved.
-          - react: ${{ github.event_name == 'pull_request' && '18.3.1' }}
+          - react: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'run-react-18-tests') && '18.3.1' }}
         group: [1/5, 2/5, 3/5, 4/5, 5/5]
         # Empty value uses default
         react: ['', '18.3.1']
@@ -224,7 +224,7 @@ jobs:
       matrix:
         exclude:
           # Excluding React 18 tests unless on `canary` branch until budget is approved.
-          - react: ${{ github.event_name == 'pull_request' && '18.3.1' }}
+          - react: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'run-react-18-tests') && '18.3.1' }}
         group: [1/5, 2/5, 3/5, 4/5, 5/5]
         # Empty value uses default
         react: ['']
@@ -245,7 +245,7 @@ jobs:
       matrix:
         exclude:
           # Excluding React 18 tests unless on `canary` branch until budget is approved.
-          - react: ${{ github.event_name == 'pull_request' && '18.3.1' }}
+          - react: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'run-react-18-tests') && '18.3.1' }}
         group: [1/5, 2/5, 3/5, 4/5, 5/5]
         # Empty value uses default
         # TODO: Run with React 18.
@@ -368,7 +368,7 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: node scripts/test-new-tests.mjs --mode deploy --group ${{ matrix.group }}
+      afterBuild: NEXT_E2E_TEST_TIMEOUT=240000 node scripts/test-new-tests.mjs --mode deploy --group ${{ matrix.group }}
       stepName: 'test-new-tests-deploy-${{matrix.group}}'
 
     secrets: inherit
@@ -383,7 +383,7 @@ jobs:
       matrix:
         exclude:
           # Excluding React 18 tests unless on `canary` branch until budget is approved.
-          - react: ${{ github.event_name == 'pull_request' && '18.3.1' }}
+          - react: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'run-react-18-tests') && '18.3.1' }}
         group: [1/4, 2/4, 3/4, 4/4]
         # Empty value uses default
         react: ['', '18.3.1']
@@ -403,7 +403,7 @@ jobs:
       matrix:
         exclude:
           # Excluding React 18 tests unless on `canary` branch until budget is approved.
-          - react: ${{ github.event_name == 'pull_request' && '18.3.1' }}
+          - react: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'run-react-18-tests') && '18.3.1' }}
         group: [1/5, 2/5, 3/5, 4/5, 5/5]
         # Empty value uses default
         react: ['', '18.3.1']

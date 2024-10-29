@@ -1,16 +1,16 @@
 #![feature(async_closure)]
 #![feature(min_specialization)]
 #![feature(arbitrary_self_types)]
+#![feature(arbitrary_self_types_pointers)]
 #![feature(extract_if)]
 
 use std::{collections::HashMap, iter::once, thread::available_parallelism};
 
 use anyhow::{bail, Result};
-use indexmap::IndexSet;
 pub use node_entry::{NodeEntry, NodeRenderingEntries, NodeRenderingEntry};
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
-    Completion, Completions, RcStr, TryJoinIterExt, ValueToString, Vc,
+    Completion, Completions, FxIndexSet, RcStr, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
 };
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::{to_sys_path, File, FileSystemPath};
@@ -127,14 +127,14 @@ pub async fn external_asset_entrypoints(
 /// assets.
 #[turbo_tasks::function]
 async fn separate_assets(
-    intermediate_asset: Vc<Box<dyn OutputAsset>>,
+    intermediate_asset: ResolvedVc<Box<dyn OutputAsset>>,
     intermediate_output_path: Vc<FileSystemPath>,
 ) -> Result<Vc<SeparatedAssets>> {
     let intermediate_output_path = &*intermediate_output_path.await?;
     #[derive(PartialEq, Eq, Hash, Clone, Copy)]
     enum Type {
-        Internal(Vc<Box<dyn OutputAsset>>),
-        External(Vc<Box<dyn OutputAsset>>),
+        Internal(ResolvedVc<Box<dyn OutputAsset>>),
+        External(ResolvedVc<Box<dyn OutputAsset>>),
     }
     let get_asset_children = |asset| async move {
         let Type::Internal(asset) = asset else {
@@ -155,9 +155,9 @@ async fn separate_assets(
                     .await?
                     .is_inside_ref(intermediate_output_path)
                 {
-                    Ok(Type::Internal(*asset))
+                    Ok(Type::Internal(asset.to_resolved().await?))
                 } else {
-                    Ok(Type::External(*asset))
+                    Ok(Type::External(asset.to_resolved().await?))
                 }
             })
             .try_join()
@@ -171,16 +171,16 @@ async fn separate_assets(
         .completed()?
         .into_inner();
 
-    let mut internal_assets = IndexSet::new();
-    let mut external_asset_entrypoints = IndexSet::new();
+    let mut internal_assets = FxIndexSet::default();
+    let mut external_asset_entrypoints = FxIndexSet::default();
 
     for item in graph.into_reverse_topological() {
         match item {
             Type::Internal(asset) => {
-                internal_assets.insert(asset);
+                internal_assets.insert(*asset);
             }
             Type::External(asset) => {
-                external_asset_entrypoints.insert(asset);
+                external_asset_entrypoints.insert(*asset);
             }
         }
     }

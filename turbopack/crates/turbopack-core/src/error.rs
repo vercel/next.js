@@ -4,7 +4,7 @@ use std::fmt::{Display, Formatter, Result};
 /// Puts a summary first and details after that.
 pub struct PrettyPrintError<'a>(pub &'a anyhow::Error);
 
-impl<'a> Display for PrettyPrintError<'a> {
+impl Display for PrettyPrintError<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         let mut i = 0;
         let mut has_details = false;
@@ -50,7 +50,7 @@ impl<'a> Display for PrettyPrintError<'a> {
 /// Indents all lines after the first one. Puts a dash before the first line.
 struct WithDash<'a>(&'a str);
 
-impl<'a> Display for WithDash<'a> {
+impl Display for WithDash<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         let mut lines = self.0.lines();
         if let Some(line) = lines.next() {

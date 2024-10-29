@@ -13,7 +13,7 @@ use swc_core::css::{
 };
 use turbo_tasks::{RcStr, Value, Vc};
 use turbopack_core::{
-    issue::{IssueSeverity, IssueSource},
+    issue::IssueSource,
     reference::ModuleReference,
     reference_type::{CssReferenceSubType, ImportContext, ReferenceType},
     resolve::{origin::ResolveOrigin, parse::Request, url_resolve, ModuleResolveResult},
@@ -151,7 +151,7 @@ impl VisitMut for ModuleReferencesVisitor<'_> {
     }
 }
 
-impl<'a> Visitor<'_> for ModuleReferencesVisitor<'a> {
+impl Visitor<'_> for ModuleReferencesVisitor<'_> {
     type Error = Infallible;
 
     fn visit_types(&self) -> lightningcss::visitor::VisitTypes {
@@ -250,6 +250,6 @@ pub fn css_resolve(
         request,
         Value::new(ReferenceType::Css(ty.into_value())),
         issue_source,
-        IssueSeverity::Error.cell(),
+        false,
     )
 }

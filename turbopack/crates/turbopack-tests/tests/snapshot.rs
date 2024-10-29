@@ -1,3 +1,4 @@
+#![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 #![cfg(test)]
 
 mod util;
@@ -277,7 +278,7 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 use_swc_css: options.use_swc_css,
                 ..Default::default()
             },
-            preset_env_versions: Some(env),
+            preset_env_versions: Some(env.to_resolved().await?),
             rules: vec![(
                 ContextCondition::InDirectory("node_modules".into()),
                 ModuleOptionsContext {
