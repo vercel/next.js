@@ -31,9 +31,7 @@ export default nextConfig
 
 > The `use cache` directive will be available separately from the `dynamicIO` flag in the future.
 
-Caching is a technique to improve the performance of web applications by storing the results of computations or data fetches. In Next.js, you can cache results from async data requests, while still enabling dynamic rendering when needed. This allows you optimize your application's rendering performance.
-
-To explicitly cache certain asynchronous operations and achieve static behavior, you can use the `use cache` directive.
+Caching is a technique used to improve the performance of web applications by storing the results of rendering or data requests. Whenever you use an asynchronous function or APIs that depend on request-time data, Next.js will automatically opt into dynamic rendering. You can explicitly cache the results of these operations and optimize your application's rendering performance with the `use cache` directive.
 
 The `use cache` directive is an experimental feature that aims to replace the [`unstable_cache`](/docs/app/api-reference/legacy-apis/unstable_cache) function. Unlike `unstable_cache`, which is limited to caching JSON data and requires manual definition of revalidation periods and tags, `use cache` offers more flexibility. It allows you to cache a wider range of data, including anything that React Server Components (RSC) can serialize, as well as data-fetching outputs and component outputs.
 
