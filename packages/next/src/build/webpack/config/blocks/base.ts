@@ -2,6 +2,19 @@ import curry from 'next/dist/compiled/lodash.curry'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { COMPILER_NAMES } from '../../../../shared/lib/constants'
 import type { ConfigurationContext } from '../utils'
+import DevToolsIgnorePlugin from '../../plugins/devtools-ignore-list-plugin'
+import EvalSourceMapDevToolPlugin from '../../plugins/eval-source-map-dev-tool-plugin'
+
+function shouldIgnorePath(modulePath: string): boolean {
+  // TODO: How to ignore list 'webpack:///../../../src/shared/lib/is-thenable.ts'
+  return (
+    modulePath.includes('node_modules') ||
+    // would filter 'webpack://_N_E/./app/page.tsx'
+    // modulePath.startsWith('webpack://_N_E/') ||
+    // e.g. 'webpack:///external commonjs "next/dist/compiled/next-server/app-page.runtime.dev.js"'
+    modulePath.includes('next/dist')
+  )
+}
 
 export const base = curry(function base(
   ctx: ConfigurationContext,
@@ -29,7 +42,14 @@ export const base = curry(function base(
       // original source, including columns and original variable names.
       // This is desirable so the in-browser debugger can correctly pause
       // and show scoped variables with their original names.
-      config.devtool = 'eval-source-map'
+      // We're using a fork of `eval-source-map`
+      config.devtool = false
+      config.plugins ??= []
+      config.plugins.push(
+        new EvalSourceMapDevToolPlugin({
+          shouldIgnorePath,
+        })
+      )
     }
   } else {
     if (
@@ -39,6 +59,14 @@ export const base = curry(function base(
       (ctx.productionBrowserSourceMaps && ctx.isClient)
     ) {
       config.devtool = 'source-map'
+      config.plugins ??= []
+      config.plugins.push(
+        new DevToolsIgnorePlugin({
+          // TODO: eval-source-map has different module paths than source-map.
+          // We're currently not actually ignore listing anything.
+          shouldIgnorePath,
+        })
+      )
     } else {
       config.devtool = false
     }
