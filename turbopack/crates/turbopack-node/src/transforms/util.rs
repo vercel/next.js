@@ -1,8 +1,9 @@
 use std::collections::BTreeMap;
 
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
-use turbo_tasks::{RcStr, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, TryJoinIterExt};
 use turbo_tasks_fs::{File, FileContent, FileSystem};
 use turbopack_core::{
     asset::AssetContent, server_fs::ServerFileSystem, virtual_source::VirtualSource,
@@ -16,9 +17,9 @@ pub struct EmittedAsset {
     source_map: Option<JsonValue>,
 }
 
-pub fn emitted_assets_to_virtual_sources(
+pub async fn emitted_assets_to_virtual_sources(
     assets: Option<Vec<EmittedAsset>>,
-) -> Vec<Vc<VirtualSource>> {
+) -> Result<Vec<ResolvedVc<VirtualSource>>> {
     assets
         .into_iter()
         .flatten()
@@ -38,6 +39,8 @@ pub fn emitted_assets_to_virtual_sources(
                 ServerFileSystem::new().root().join(file),
                 AssetContent::File(FileContent::Content(File::from(content)).cell()).cell(),
             )
+            .to_resolved()
         })
-        .collect()
+        .try_join()
+        .await
 }

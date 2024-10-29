@@ -1,5 +1,3 @@
-export const dynamic = 'force-dynamic'
-
 class UnnamedError extends Error {}
 class NamedError extends Error {
   name = 'MyError'

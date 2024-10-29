@@ -622,17 +622,20 @@ function Router({
 
 export default function AppRouter({
   actionQueue,
-  globalErrorComponent,
+  globalErrorComponentAndStyles: [globalErrorComponent, globalErrorStyles],
   assetPrefix,
 }: {
   actionQueue: AppRouterActionQueue
-  globalErrorComponent: ErrorComponent
+  globalErrorComponentAndStyles: [ErrorComponent, React.ReactNode | undefined]
   assetPrefix: string
 }) {
   useNavFailureHandler()
 
   return (
-    <ErrorBoundary errorComponent={globalErrorComponent}>
+    <ErrorBoundary
+      errorComponent={globalErrorComponent}
+      errorStyles={globalErrorStyles}
+    >
       <Router actionQueue={actionQueue} assetPrefix={assetPrefix} />
     </ErrorBoundary>
   )
