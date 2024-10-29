@@ -5,7 +5,7 @@ services:
       context: ./next-app
       dockerfile: dev.Dockerfile
 
-    # Set environment variables directly in the docker-compose file
+    # Set environment variables directly in the compose file
     environment:
       ENV_VARIABLE: ${ENV_VARIABLE}
       NEXT_PUBLIC_ENV_VARIABLE: ${NEXT_PUBLIC_ENV_VARIABLE}
