@@ -501,7 +501,6 @@ pub struct ExperimentalConfig {
     pub strict_next_head: Option<bool>,
     pub swc_plugins: Option<Vec<(RcStr, serde_json::Value)>>,
     pub turbo: Option<ExperimentalTurboConfig>,
-    pub turbotrace: Option<serde_json::Value>,
     pub external_middleware_rewrites_resolve: Option<bool>,
     pub scroll_restoration: Option<bool>,
     pub use_deployment_id: Option<bool>,

@@ -8,7 +8,7 @@ use next_core::{
     util::{parse_config_from_source, MiddlewareMatcherKind},
 };
 use tracing::Instrument;
-use turbo_tasks::{Completion, RcStr, Value, Vc};
+use turbo_tasks::{Completion, RcStr, ResolvedVc, Value, Vc};
 use turbo_tasks_fs::{self, File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
@@ -36,8 +36,8 @@ pub struct MiddlewareEndpoint {
     project: Vc<Project>,
     asset_context: Vc<Box<dyn AssetContext>>,
     source: Vc<Box<dyn Source>>,
-    app_dir: Option<Vc<FileSystemPath>>,
-    ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
+    app_dir: Option<ResolvedVc<FileSystemPath>>,
+    ecmascript_client_reference_transition_name: Option<ResolvedVc<RcStr>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -47,8 +47,8 @@ impl MiddlewareEndpoint {
         project: Vc<Project>,
         asset_context: Vc<Box<dyn AssetContext>>,
         source: Vc<Box<dyn Source>>,
-        app_dir: Option<Vc<FileSystemPath>>,
-        ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
+        app_dir: Option<ResolvedVc<FileSystemPath>>,
+        ecmascript_client_reference_transition_name: Option<ResolvedVc<RcStr>>,
     ) -> Vc<Self> {
         Self {
             project,
@@ -85,9 +85,11 @@ impl MiddlewareEndpoint {
 
         let mut evaluatable_assets = get_server_runtime_entries(
             Value::new(ServerContextType::Middleware {
-                app_dir: self.app_dir,
+                app_dir: self.app_dir.as_deref().copied(),
                 ecmascript_client_reference_transition_name: self
-                    .ecmascript_client_reference_transition_name,
+                    .ecmascript_client_reference_transition_name
+                    .as_deref()
+                    .copied(),
             }),
             self.project.next_mode(),
         )

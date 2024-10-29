@@ -1,5 +1,6 @@
 import isError from '../../../lib/is-error'
 import { isNextRouterError } from '../is-next-router-error'
+import { captureStackTrace } from '../react-dev-overlay/internal/helpers/capture-stack-trace'
 import { handleClientError } from '../react-dev-overlay/internal/helpers/use-error-handler'
 
 export const originConsoleError = window.console.error
@@ -10,13 +11,14 @@ export function patchConsoleError() {
   if (typeof window === 'undefined') {
     return
   }
-
-  window.console.error = (...args: any[]) => {
+  window.console.error = function error(...args: any[]) {
     let maybeError: unknown
+    let isReplayedError = false
 
     if (process.env.NODE_ENV !== 'production') {
       const replayedError = matchReplayedError(...args)
       if (replayedError) {
+        isReplayedError = true
         maybeError = replayedError
       } else {
         // See https://github.com/facebook/react/blob/d50323eb845c5fde0d720cae888bf35dedd05506/packages/react-reconciler/src/ReactFiberErrorLogger.js#L78
@@ -28,6 +30,11 @@ export function patchConsoleError() {
 
     if (!isNextRouterError(maybeError)) {
       if (process.env.NODE_ENV !== 'production') {
+        // Create an origin stack that pointing to the origin location of the error
+        if (!isReplayedError && isError(maybeError)) {
+          captureStackTrace(maybeError)
+        }
+
         handleClientError(
           // replayed errors have their own complex format string that should be used,
           // but if we pass the error directly, `handleClientError` will ignore it
