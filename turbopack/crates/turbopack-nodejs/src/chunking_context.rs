@@ -232,6 +232,11 @@ impl ChunkingContext for NodeJsChunkingContext {
     }
 
     #[turbo_tasks::function]
+    fn should_use_file_source_map_uris(&self) -> Vc<bool> {
+        Vc::cell(false)
+    }
+
+    #[turbo_tasks::function]
     async fn asset_path(
         &self,
         content_hash: RcStr,
@@ -277,7 +282,7 @@ impl ChunkingContext for NodeJsChunkingContext {
 
             let mut assets: Vec<Vc<Box<dyn OutputAsset>>> = chunks
                 .iter()
-                .map(|chunk| self.generate_chunk(*chunk))
+                .map(|chunk| self.generate_chunk(**chunk))
                 .collect();
 
             // Resolve assets
@@ -328,7 +333,7 @@ impl ChunkingContext for NodeJsChunkingContext {
         let other_chunks: Vec<_> = extra_chunks
             .iter()
             .copied()
-            .chain(chunks.iter().map(|chunk| self.generate_chunk(*chunk)))
+            .chain(chunks.iter().map(|chunk| self.generate_chunk(**chunk)))
             .collect();
 
         let Some(module) = Vc::try_resolve_downcast(module).await? else {

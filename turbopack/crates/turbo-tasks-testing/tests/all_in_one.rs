@@ -17,7 +17,7 @@ async fn all_in_one() {
         let a: Vc<MyTransparentValue> = Vc::cell(4242);
         assert_eq!(*a.await?, 4242);
 
-        let b = MyEnumValue::cell(MyEnumValue::More(MyEnumValue::Yeah(42).into()));
+        let b = MyEnumValue::cell(MyEnumValue::More(MyEnumValue::Yeah(42).resolved_cell()));
         assert_eq!(*b.to_string().await?, "42");
 
         let c = MyStructValue {
@@ -71,7 +71,7 @@ struct MyTransparentValue(u32);
 enum MyEnumValue {
     Yeah(u32),
     Nah,
-    More(Vc<MyEnumValue>),
+    More(ResolvedVc<MyEnumValue>),
 }
 
 #[turbo_tasks::value_impl]
@@ -80,7 +80,7 @@ impl MyEnumValue {
     pub async fn get_last(self: Vc<Self>) -> Result<Vc<Self>> {
         let mut current = self;
         while let MyEnumValue::More(more) = &*current.await? {
-            current = *more;
+            current = **more;
         }
         Ok(current)
     }

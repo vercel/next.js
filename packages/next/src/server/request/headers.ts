@@ -17,7 +17,7 @@ import {
 } from '../app-render/dynamic-rendering'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
-import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-loger'
+import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { scheduleImmediate } from '../../lib/scheduler'
 
 /**

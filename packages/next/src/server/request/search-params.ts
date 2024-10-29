@@ -19,7 +19,7 @@ import {
 } from '../app-render/work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
-import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-loger'
+import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import {
   describeStringPropertyAccess,
   describeHasCheckingStringProperty,
