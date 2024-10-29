@@ -59,7 +59,7 @@ export default function MyApp({ Component, pageProps }: AppProps) {
 }
 ```
 
-In this case, `isServer` is only set to false in the client. That means that on the server, only a div with the text, `Loading...` is rendered.
+In this case, `isServer` is only set to false in the client. That means that on the server, only a `<div>` with the text, `Loading...` is rendered.
 
 On the client, after hydration takes place, the page `Component` will be rendered.
 
