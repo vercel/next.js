@@ -1,32 +1,44 @@
-import { formatFrameSourceFile, isWebpackBundled } from './webpack-module-path'
+import {
+  formatFrameSourceFile,
+  isWebpackInternalResource,
+} from './webpack-module-path'
 
 describe('webpack-module-path', () => {
-  describe('isWebpackBundled', () => {
+  describe('isWebpackInternalResource', () => {
     it('should return true for webpack-internal paths', () => {
-      expect(isWebpackBundled('webpack-internal:///./src/hello.tsx')).toBe(true)
       expect(
-        isWebpackBundled(
+        isWebpackInternalResource('webpack-internal:///./src/hello.tsx')
+      ).toBe(true)
+      expect(
+        isWebpackInternalResource(
           'rsc://React/Server/webpack-internal:///(rsc)/./src/hello.tsx?42'
         )
       ).toBe(true)
       expect(
-        isWebpackBundled(
+        isWebpackInternalResource(
           'rsc://React/Server/webpack:///(rsc)/./src/hello.tsx?42'
         )
       ).toBe(true)
       expect(
-        isWebpackBundled(
+        isWebpackInternalResource(
           'rsc://React/Server/webpack:///(app-pages-browser)/./src/hello.tsx?42'
         )
       ).toBe(true)
-      expect(isWebpackBundled('webpack://_N_E/./src/hello.tsx')).toBe(true)
-      expect(isWebpackBundled('webpack://./src/hello.tsx')).toBe(true)
-      expect(isWebpackBundled('webpack:///./src/hello.tsx')).toBe(true)
+      expect(
+        isWebpackInternalResource(
+          'rsc://React/Server/webpack:///(app-pages-browser)/./src/hello.tsx?42dc'
+        )
+      ).toBe(true)
+      expect(isWebpackInternalResource('webpack://_N_E/./src/hello.tsx')).toBe(
+        true
+      )
+      expect(isWebpackInternalResource('webpack://./src/hello.tsx')).toBe(true)
+      expect(isWebpackInternalResource('webpack:///./src/hello.tsx')).toBe(true)
     })
 
     it('should return false for non-webpack-internal paths', () => {
-      expect(isWebpackBundled('<anonymous>')).toBe(false)
-      expect(isWebpackBundled('file:///src/hello.tsx')).toBe(false)
+      expect(isWebpackInternalResource('<anonymous>')).toBe(false)
+      expect(isWebpackInternalResource('file:///src/hello.tsx')).toBe(false)
     })
   })
 
@@ -48,6 +60,16 @@ describe('webpack-module-path', () => {
       expect(
         formatFrameSourceFile(
           'rsc://React/Server/webpack:///(app-pages-browser)/./src/hello.tsx?42'
+        )
+      ).toBe('./src/hello.tsx')
+      expect(
+        formatFrameSourceFile(
+          'rsc://React/Server/webpack:///(app-pages-browser)/./src/hello.tsx?42?0'
+        )
+      ).toBe('./src/hello.tsx')
+      expect(
+        formatFrameSourceFile(
+          'rsc://React/Server/webpack:///(app-pages-browser)/./src/hello.tsx?42dc'
         )
       ).toBe('./src/hello.tsx')
       expect(formatFrameSourceFile('webpack://_N_E/./src/hello.tsx')).toBe(

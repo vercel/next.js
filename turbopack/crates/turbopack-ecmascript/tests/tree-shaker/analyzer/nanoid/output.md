@@ -460,7 +460,8 @@ export { random };
 ## Part 5
 ```js
 import { e as urlAlphabet } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -9
+    __turbopack_part__: -9,
+    __turbopack_original__: './url-alphabet/index.js'
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 17
@@ -536,7 +537,8 @@ import { g as POOL_SIZE_MULTIPLIER } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -10
 };
 import { f as crypto } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -7
+    __turbopack_part__: -7,
+    __turbopack_original__: 'crypto'
 };
 import { i as poolOffset } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -12
@@ -628,7 +630,8 @@ import { i as poolOffset } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -12
 };
 import { e as urlAlphabet } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -9
+    __turbopack_part__: -9,
+    __turbopack_original__: './url-alphabet/index.js'
 };
 import { h as pool } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -11
@@ -745,7 +748,8 @@ export { random };
 ## Part 5
 ```js
 import { e as urlAlphabet } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -9
+    __turbopack_part__: -9,
+    __turbopack_original__: './url-alphabet/index.js'
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 17
@@ -821,7 +825,8 @@ import { g as POOL_SIZE_MULTIPLIER } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -10
 };
 import { f as crypto } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -7
+    __turbopack_part__: -7,
+    __turbopack_original__: 'crypto'
 };
 import { i as poolOffset } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -12
@@ -913,7 +918,8 @@ import { i as poolOffset } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -12
 };
 import { e as urlAlphabet } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -9
+    __turbopack_part__: -9,
+    __turbopack_original__: './url-alphabet/index.js'
 };
 import { h as pool } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -11

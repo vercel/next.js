@@ -9,7 +9,7 @@ import {
   postponeWithTracking,
   trackSynchronousRequestDataAccessInDev,
 } from '../app-render/dynamic-rendering'
-import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-loger'
+import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import { DynamicServerError } from '../../client/components/hooks-server-context'
 

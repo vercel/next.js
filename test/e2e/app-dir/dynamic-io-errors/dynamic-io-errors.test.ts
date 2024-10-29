@@ -322,7 +322,7 @@ function runTests(options: { withMinification: boolean }) {
         const expectError = createExpectError(next.cliOutput)
 
         expectError(
-          'In Route "/" this component accessed data without a fallback UI available somewhere above it using Suspense.',
+          'Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it.',
           // Turbopack doesn't support disabling minification yet
           withMinification || isTurbopack ? undefined : 'IndirectionTwo'
         )
@@ -331,7 +331,7 @@ function runTests(options: { withMinification: boolean }) {
           // one task actually reports and error at the moment. We should fix upstream but for now we exclude the second error when PPR is off
           // because we are using canary React and renderToReadableStream rather than experimental React and prerender
           expectError(
-            'In Route "/" this component accessed data without a fallback UI available somewhere above it using Suspense.',
+            'Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it.',
             // Turbopack doesn't support disabling minification yet
             withMinification || isTurbopack ? undefined : 'IndirectionThree'
           )

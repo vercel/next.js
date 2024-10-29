@@ -123,7 +123,7 @@ impl AsyncModule {
                     ReferencedAsset::Some(placeable) => {
                         let chunk_item = placeable
                             .as_chunk_item(Vc::upcast(chunking_context))
-                            .resolve()
+                            .to_resolved()
                             .await?;
                         if async_module_info
                             .referenced_async_modules
