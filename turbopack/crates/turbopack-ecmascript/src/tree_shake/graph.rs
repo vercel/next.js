@@ -1100,7 +1100,12 @@ impl DepGraph {
                                     specifiers: vec![s.clone()],
                                     ..item.clone()
                                 })),
-                                binding_source: Some((*item.src.clone(), s.clone())),
+                                binding_source: if item.with.is_none() {
+                                    // Optimize by directly binding to the source
+                                    Some((*item.src.clone(), s.clone()))
+                                } else {
+                                    None
+                                },
                                 ..Default::default()
                             },
                         );
