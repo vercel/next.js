@@ -29,7 +29,9 @@ use rstest_reuse::{
 };
 use serde::{Deserialize, Serialize};
 use tokio::{process::Command, time::timeout};
-use turbo_tasks::{backend::Backend, RcStr, ReadRef, TurboTasks, Value, ValueToString, Vc};
+use turbo_tasks::{
+    backend::Backend, RcStr, ReadRef, ResolvedVc, TurboTasks, Value, ValueToString, Vc,
+};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath};
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
@@ -452,14 +454,16 @@ fn node_file_trace<B: Backend + 'static>(
                 let module = module_asset_context
                     .process(Vc::upcast(source), Value::new(ReferenceType::Undefined))
                     .module();
-                let rebased = RebasedAsset::new(Vc::upcast(module), *input_dir, output_dir);
+                let rebased = RebasedAsset::new(Vc::upcast(module), *input_dir, output_dir)
+                    .to_resolved()
+                    .await?;
 
                 #[cfg(not(feature = "bench_against_node_nft"))]
                 let output_path = rebased.ident().path();
 
-                print_graph(Vc::upcast(rebased)).await?;
+                print_graph(ResolvedVc::upcast(rebased)).await?;
 
-                emit_with_completion(Vc::upcast(rebased), output_dir).await?;
+                emit_with_completion(*ResolvedVc::upcast(rebased), output_dir).await?;
 
                 #[cfg(not(feature = "bench_against_node_nft"))]
                 {
@@ -748,7 +752,7 @@ impl std::str::FromStr for CaseInput {
     }
 }
 
-async fn print_graph(asset: Vc<Box<dyn OutputAsset>>) -> Result<()> {
+async fn print_graph(asset: ResolvedVc<Box<dyn OutputAsset>>) -> Result<()> {
     let mut visited = HashSet::new();
     let mut queue = Vec::new();
     queue.push((0, asset));

@@ -994,15 +994,17 @@ impl AppEndpoint {
                     .collect(),
             };
             let manifest_path_prefix = &app_entry.original_name;
-            let app_build_manifest_output = Vc::upcast(VirtualOutputAsset::new(
+            let app_build_manifest_output = VirtualOutputAsset::new(
                 node_root.join(
                     format!("server/app{manifest_path_prefix}/app-build-manifest.json",).into(),
                 ),
                 AssetContent::file(
                     File::from(serde_json::to_string_pretty(&app_build_manifest)?).into(),
                 ),
-            ));
-            server_assets.insert(app_build_manifest_output);
+            )
+            .to_resolved()
+            .await?;
+            server_assets.insert(ResolvedVc::upcast(app_build_manifest_output));
 
             // polyfill-nomodule.js is a pre-compiled asset distributed as part of next,
             // load it as a RawModule.
@@ -1013,13 +1015,15 @@ impl AppEndpoint {
             let polyfill_output_path =
                 client_chunking_context.chunk_path(polyfill_source.ident(), ".js".into());
             let polyfill_output_asset =
-                RawOutput::new(polyfill_output_path, Vc::upcast(polyfill_source));
+                RawOutput::new(polyfill_output_path, Vc::upcast(polyfill_source))
+                    .to_resolved()
+                    .await?;
             let polyfill_client_path = client_relative_path_ref
                 .get_path_to(&*polyfill_output_path.await?)
                 .context("failed to resolve client-relative path to polyfill")?
                 .into();
             let polyfill_client_paths = vec![polyfill_client_path];
-            client_assets.insert(Vc::upcast(polyfill_output_asset));
+            client_assets.insert(ResolvedVc::upcast(polyfill_output_asset));
 
             if *this
                 .app_project
@@ -1029,15 +1033,17 @@ impl AppEndpoint {
             {
                 let webpack_stats =
                     generate_webpack_stats(app_entry.original_name.clone(), &client_assets).await?;
-                let stats_output: Vc<Box<dyn OutputAsset>> = Vc::upcast(VirtualOutputAsset::new(
+                let stats_output = VirtualOutputAsset::new(
                     node_root.join(
                         format!("server/app{manifest_path_prefix}/webpack-stats.json",).into(),
                     ),
                     AssetContent::file(
                         File::from(serde_json::to_string_pretty(&webpack_stats)?).into(),
                     ),
-                ));
-                server_assets.insert(Vc::upcast(stats_output));
+                )
+                .to_resolved()
+                .await?;
+                server_assets.insert(ResolvedVc::upcast(stats_output));
             }
 
             let build_manifest = BuildManifest {
@@ -1045,14 +1051,16 @@ impl AppEndpoint {
                 polyfill_files: polyfill_client_paths,
                 ..Default::default()
             };
-            let build_manifest_output = Vc::upcast(VirtualOutputAsset::new(
+            let build_manifest_output = VirtualOutputAsset::new(
                 node_root
                     .join(format!("server/app{manifest_path_prefix}/build-manifest.json",).into()),
                 AssetContent::file(
                     File::from(serde_json::to_string_pretty(&build_manifest)?).into(),
                 ),
-            ));
-            server_assets.insert(build_manifest_output);
+            )
+            .to_resolved()
+            .await?;
+            server_assets.insert(ResolvedVc::upcast(build_manifest_output));
 
             if runtime == NextRuntime::Edge {
                 // as the edge runtime doesn't support chunk loading we need to add all client
@@ -1132,14 +1140,16 @@ impl AppEndpoint {
                 ssr_chunking_context,
                 this.app_project.project().next_config(),
                 runtime,
-            );
+            )
+            .to_resolved()
+            .await?;
             server_assets.insert(entry_manifest);
             if runtime == NextRuntime::Edge {
                 middleware_assets.push(entry_manifest);
             }
         }
 
-        let client_assets = OutputAssets::new(client_assets.iter().cloned().collect::<Vec<_>>());
+        let client_assets = OutputAssets::new(client_assets.iter().map(|asset| **asset).collect());
 
         let next_font_manifest_output = create_font_manifest(
             this.app_project.project().client_root(),
@@ -1219,23 +1229,28 @@ impl AppEndpoint {
                     ..Default::default()
                 };
                 let manifest_path_prefix = &app_entry.original_name;
-                let middleware_manifest_v2 = Vc::upcast(VirtualOutputAsset::new(
-                    node_root.join(
-                        format!("server/app{manifest_path_prefix}/middleware-manifest.json",)
-                            .into(),
-                    ),
-                    AssetContent::file(
-                        FileContent::Content(File::from(serde_json::to_string_pretty(
-                            &middleware_manifest_v2,
-                        )?))
-                        .cell(),
-                    ),
-                ));
+                let middleware_manifest_v2 = ResolvedVc::upcast(
+                    VirtualOutputAsset::new(
+                        node_root.join(
+                            format!("server/app{manifest_path_prefix}/middleware-manifest.json",)
+                                .into(),
+                        ),
+                        AssetContent::file(
+                            FileContent::Content(File::from(serde_json::to_string_pretty(
+                                &middleware_manifest_v2,
+                            )?))
+                            .cell(),
+                        ),
+                    )
+                    .to_resolved()
+                    .await?,
+                );
                 server_assets.insert(middleware_manifest_v2);
 
                 // create app paths manifest
                 let app_paths_manifest_output =
-                    create_app_paths_manifest(node_root, &app_entry.original_name, entry_file)?;
+                    create_app_paths_manifest(node_root, &app_entry.original_name, entry_file)
+                        .await?;
                 server_assets.insert(app_paths_manifest_output);
 
                 // create react-loadable-manifest for next/dynamic
@@ -1284,7 +1299,8 @@ impl AppEndpoint {
                         .get_path_to(&*rsc_chunk.ident().path().await?)
                         .context("RSC chunk path should be within app paths manifest directory")?
                         .into(),
-                )?;
+                )
+                .await?;
                 server_assets.insert(app_paths_manifest_output);
 
                 // create react-loadable-manifest for next/dynamic
@@ -1476,11 +1492,11 @@ impl AppEndpoint {
     }
 }
 
-fn create_app_paths_manifest(
+async fn create_app_paths_manifest(
     node_root: Vc<FileSystemPath>,
     original_name: &str,
     filename: RcStr,
-) -> Result<Vc<Box<dyn OutputAsset>>> {
+) -> Result<ResolvedVc<Box<dyn OutputAsset>>> {
     let manifest_path_prefix = original_name;
     let path =
         node_root.join(format!("server/app{manifest_path_prefix}/app-paths-manifest.json",).into());
@@ -1490,10 +1506,16 @@ fn create_app_paths_manifest(
         },
         ..Default::default()
     };
-    Ok(Vc::upcast(VirtualOutputAsset::new(
-        path,
-        AssetContent::file(File::from(serde_json::to_string_pretty(&app_paths_manifest)?).into()),
-    )))
+    Ok(ResolvedVc::upcast(
+        VirtualOutputAsset::new(
+            path,
+            AssetContent::file(
+                File::from(serde_json::to_string_pretty(&app_paths_manifest)?).into(),
+            ),
+        )
+        .to_resolved()
+        .await?,
+    ))
 }
 
 #[turbo_tasks::value_impl]
@@ -1596,7 +1618,7 @@ impl Endpoint for AppEndpoint {
 #[turbo_tasks::value]
 enum AppEndpointOutput {
     NodeJs {
-        rsc_chunk: Vc<Box<dyn OutputAsset>>,
+        rsc_chunk: ResolvedVc<Box<dyn OutputAsset>>,
         server_assets: Vc<OutputAssets>,
         client_assets: Vc<OutputAssets>,
     },

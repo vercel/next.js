@@ -27,8 +27,8 @@ use turbo_tasks::{
     fxindexmap,
     graph::{AdjacencyMap, GraphTraversal},
     trace::TraceRawVcs,
-    Completion, Completions, FxIndexMap, IntoTraitRef, RcStr, ReadRef, State, TaskInput,
-    TransientInstance, TryFlatJoinIterExt, Value, Vc,
+    Completion, Completions, FxIndexMap, IntoTraitRef, RcStr, ReadRef, ResolvedVc, State,
+    TaskInput, TransientInstance, TryFlatJoinIterExt, Value, Vc,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath, VirtualFileSystem};
@@ -1324,7 +1324,7 @@ async fn any_output_changed(
                 && (!server || !asset_path.path.ends_with(".css"))
                 && asset_path.is_inside_ref(path)
             {
-                Ok(Some(content_changed(Vc::upcast(m))))
+                Ok(Some(content_changed(*ResolvedVc::upcast(m))))
             } else {
                 Ok(None)
             }
@@ -1336,8 +1336,8 @@ async fn any_output_changed(
 }
 
 async fn get_referenced_output_assets(
-    parent: Vc<Box<dyn OutputAsset>>,
-) -> Result<impl Iterator<Item = Vc<Box<dyn OutputAsset>>> + Send> {
+    parent: ResolvedVc<Box<dyn OutputAsset>>,
+) -> Result<impl Iterator<Item = ResolvedVc<Box<dyn OutputAsset>>> + Send> {
     Ok(parent.references().await?.clone_value().into_iter())
 }
 

@@ -84,10 +84,10 @@ impl ReferencedAsset {
                 }
                 &ModuleResolveResultItem::Module(module) => {
                     if let Some(placeable) =
-                        Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkPlaceable>>(module)
+                        ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkPlaceable>>(module)
                             .await?
                     {
-                        return Ok(ReferencedAsset::Some(placeable.to_resolved().await?).cell());
+                        return Ok(ReferencedAsset::Some(placeable).cell());
                     }
                 }
                 // TODO ignore should probably be handled differently
@@ -167,7 +167,9 @@ impl ModuleReference for EsmAssetReference {
                             .expect("EsmAssetReference origin should be a EcmascriptModuleAsset");
 
                     return Ok(ModuleResolveResult::module(
-                        EcmascriptModulePartAsset::select_part(module, *part),
+                        EcmascriptModulePartAsset::select_part(module, *part)
+                            .to_resolved()
+                            .await?,
                     )
                     .cell());
                 }
