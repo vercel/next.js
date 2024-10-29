@@ -576,8 +576,10 @@ async fn create_module_asset(
             ..Default::default()
         }
         .into(),
-    )));
-    let compile_time_info = CompileTimeInfo::builder(env).cell();
+    )))
+    .to_resolved()
+    .await?;
+    let compile_time_info = CompileTimeInfo::builder(*env).cell();
     let glob_mappings = vec![
         (
             root,

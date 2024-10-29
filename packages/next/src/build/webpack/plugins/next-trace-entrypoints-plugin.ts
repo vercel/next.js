@@ -24,6 +24,7 @@ import { getPageFilePath } from '../../entries'
 import { resolveExternal } from '../../handle-externals'
 import swcLoader from '../loaders/next-swc-loader'
 import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
+import { isClientComponentEntryModule } from '../loaders/utils'
 
 const PLUGIN_NAME = 'TraceEntryPointsPlugin'
 export const TRACE_IGNORES = [
@@ -533,10 +534,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
                 // fallback to reading raw source file, this may fail
                 // due to unsupported syntax but best effort attempt
                 let usingOriginalSource = false
-                if (
-                  !source ||
-                  source.toString().includes('next-flight-loader/module-proxy')
-                ) {
+                if (!source || isClientComponentEntryModule(mod)) {
                   source = await readOriginalSource(path)
                   usingOriginalSource = true
                 }
