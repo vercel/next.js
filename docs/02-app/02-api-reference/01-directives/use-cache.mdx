@@ -232,7 +232,6 @@ When defining multiple caching behaviors in the same route or component tree, if
 2. If no cache profile exists, then the shortest profile times from all inner `use cache` calls applies to this `use cache`. If there are no inner `use cache`'s then the default is used
 3. Inner caches at two levels deep do not affect the outer cache since they have already provided their duration to their parent.
 
-
 For example, if you add the `use cache` directive to your page, without specifying a cache profile, the default cache profile will be applied implicitly (`cacheLife(”default”)`). If a component imported into the page also uses the `use cache` directive with its own cache profile, the outer and inner cache profiles are compared, and shortest duration set in the profiles will be applied.
 
 ```tsx filename="app/components/parent.tsx" highlight={5,6}
