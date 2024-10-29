@@ -132,6 +132,7 @@ import {
 import {
   CACHE_ONE_YEAR,
   INFINITE_CACHE,
+  MATCHED_PATH_HEADER,
   NEXT_CACHE_REVALIDATED_TAGS_HEADER,
   NEXT_CACHE_TAGS_HEADER,
   NEXT_RESUME_HEADER,
@@ -1050,7 +1051,7 @@ export default abstract class Server<
       }
 
       const useMatchedPathHeader =
-        this.minimalMode && typeof req.headers['x-matched-path'] === 'string'
+        this.minimalMode && typeof req.headers[MATCHED_PATH_HEADER] === 'string'
 
       // TODO: merge handling with invokePath
       if (useMatchedPathHeader) {
@@ -1068,7 +1069,7 @@ export default abstract class Server<
           // x-matched-path is the source of truth, it tells what page
           // should be rendered because we don't process rewrites in minimalMode
           let { pathname: matchedPath } = new URL(
-            req.headers['x-matched-path'] as string,
+            req.headers[MATCHED_PATH_HEADER] as string,
             'http://localhost'
           )
 
@@ -2072,7 +2073,7 @@ export default abstract class Server<
       req.headers['x-middleware-prefetch'] &&
       !(is404Page || pathname === '/_error')
     ) {
-      res.setHeader('x-matched-path', pathname)
+      res.setHeader(MATCHED_PATH_HEADER, pathname)
       res.setHeader('x-middleware-skip', '1')
       res.setHeader(
         'cache-control',
@@ -2089,7 +2090,7 @@ export default abstract class Server<
     if (
       isSSG &&
       this.minimalMode &&
-      req.headers['x-matched-path'] &&
+      req.headers[MATCHED_PATH_HEADER] &&
       req.url.startsWith('/_next/data')
     ) {
       req.url = this.stripNextDataPath(req.url)
@@ -2290,7 +2291,7 @@ export default abstract class Server<
         checkIsOnDemandRevalidate(req, this.renderOpts.previewProps))
     }
 
-    if (isSSG && this.minimalMode && req.headers['x-matched-path']) {
+    if (isSSG && this.minimalMode && req.headers[MATCHED_PATH_HEADER]) {
       // the url value is already correct when the matched-path header is set
       resolvedUrlPathname = urlPathname
     }
@@ -3770,7 +3771,7 @@ export default abstract class Server<
             {
               page,
               url: ctx.req.url,
-              matchedPath: ctx.req.headers['x-matched-path'],
+              matchedPath: ctx.req.headers[MATCHED_PATH_HEADER],
               initUrl: getRequestMeta(ctx.req, 'initURL'),
               didRewrite: !!getRequestMeta(ctx.req, 'rewroteURL'),
               rewroteUrl: getRequestMeta(ctx.req, 'rewroteURL'),
