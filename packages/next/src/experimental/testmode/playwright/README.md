@@ -72,7 +72,13 @@ test('/product/shoe', async ({ page, next }) => {
 ### Or use the `next/experimental/testmode/playwright/msw`
 
 ```javascript
-import { test, expect, http, HttpResponse, passthrough } from 'next/experimental/testmode/playwright/msw'
+import {
+  test,
+  expect,
+  http,
+  HttpResponse,
+  passthrough,
+} from 'next/experimental/testmode/playwright/msw'
 
 test.use({
   mswHandlers: [
