@@ -8,6 +8,7 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextUrlWithParsedQuery } from './request-meta'
 import type { WorkerRequestHandler, WorkerUpgradeHandler } from './lib/types'
 
+import './node-environment'
 import './require-hook'
 import './node-polyfill-crypto'
 
