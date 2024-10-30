@@ -131,7 +131,7 @@ describe('use-cache', () => {
     expect(rand1).toEqual(rand2)
   })
 
-  it('should cache results for cached funtions imported from client components', async () => {
+  it('should cache results for cached functions imported from client components', async () => {
     const browser = await next.browser('/imported-from-client')
     expect(await browser.elementByCss('p').text()).toBe('0 0 0')
     await browser.elementById('submit-button').click()
@@ -153,7 +153,7 @@ describe('use-cache', () => {
     })
   })
 
-  it('should cache results for cached funtions passed client components', async () => {
+  it('should cache results for cached functions passed to client components', async () => {
     const browser = await next.browser('/passed-to-client')
     expect(await browser.elementByCss('p').text()).toBe('0 0 0')
     await browser.elementById('submit-button').click()
@@ -182,19 +182,21 @@ describe('use-cache', () => {
 
       const initialX = await browser.elementByCss('#x').text()
       const initialY = await browser.elementByCss('#y').text()
-      let updatedX
-      let updatedY
+      let updatedX: string | undefined
+      let updatedY: string | undefined
 
       await browser.elementByCss('#revalidate-a').click()
       await retry(async () => {
         updatedX = await browser.elementByCss('#x').text()
         expect(updatedX).not.toBe(initialX)
+        expect(await browser.elementByCss('#y').text()).toBe(initialY)
       })
 
       await browser.elementByCss('#revalidate-b').click()
       await retry(async () => {
         updatedY = await browser.elementByCss('#y').text()
         expect(updatedY).not.toBe(initialY)
+        expect(await browser.elementByCss('#x').text()).toBe(updatedX)
       })
 
       await browser.elementByCss('#revalidate-c').click()
@@ -242,7 +244,7 @@ describe('use-cache', () => {
     })
   })
 
-  it('should be able to revalidate a page using', async () => {
+  it('should be able to revalidate a page using revalidateTag', async () => {
     const browser = await next.browser(`/form`)
     const time1 = await browser.waitForElementByCss('#t').text()
 

@@ -10246,6 +10246,30 @@ export declare function Karla<
   adjustFontFallback?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Karla_Tamil_Inclined<
+  T extends CssVariable | undefined = undefined,
+>(options: {
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<'tamil'>
+}): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Karla_Tamil_Upright<
+  T extends CssVariable | undefined = undefined,
+>(options: {
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<'tamil'>
+}): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Karma<
   T extends CssVariable | undefined = undefined,
 >(options: {
@@ -12934,8 +12958,14 @@ export declare function Miniver<
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Miriam_Libre<
   T extends CssVariable | undefined = undefined,
->(options: {
-  weight: '400' | '700' | Array<'400' | '700'>
+>(options?: {
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T

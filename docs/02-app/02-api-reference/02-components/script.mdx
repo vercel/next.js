@@ -252,7 +252,7 @@ export default function Home() {
 
 > **Warning:** `onLoad` does not yet work with Server Components and can only be used in Client Components. Further, `onLoad` can't be used with `beforeInteractive` – consider using `onReady` instead.
 
-Some third-party scripts require users to run JavaScript code once after the script has finished loading in order to instantiate content or call a function. If you are loading a script with either afterInteractive or lazyOnload as a loading strategy, you can execute code after it has loaded using the onLoad property.
+Some third-party scripts require users to run JavaScript code once after the script has finished loading in order to instantiate content or call a function. If you are loading a script with either `afterInteractive` or `lazyOnload` as a loading strategy, you can execute code after it has loaded using the `onLoad` property.
 
 Here's an example of executing a lodash method only after the library has been loaded.
 
@@ -298,7 +298,7 @@ export default function Page() {
 
 > **Warning:** `onReady` does not yet work with Server Components and can only be used in Client Components.
 
-Some third-party scripts require users to run JavaScript code after the script has finished loading and every time the component is mounted (after a route navigation for example). You can execute code after the script's load event when it first loads and then after every subsequent component re-mount using the onReady property.
+Some third-party scripts require users to run JavaScript code after the script has finished loading and every time the component is mounted (after a route navigation for example). You can execute code after the script's load event when it first loads and then after every subsequent component re-mount using the `onReady` property.
 
 Here's an example of how to re-instantiate a Google Maps JS embed every time the component is mounted:
 
@@ -393,7 +393,7 @@ export default function Page() {
 
 > **Warning:** `onError` does not yet work with Server Components and can only be used in Client Components. `onError` cannot be used with the `beforeInteractive` loading strategy.
 
-Sometimes it is helpful to catch when a script fails to load. These errors can be handled with the onError property:
+Sometimes it is helpful to catch when a script fails to load. These errors can be handled with the `onError` property:
 
 <AppOnly>
 
@@ -426,7 +426,7 @@ export default function Page() {
     <>
       <Script
         src="https://example.com/script.js"
-        onError={(e: Error) => {
+        onError={(e) => {
           console.error('Script failed to load', e)
         }}
       />
