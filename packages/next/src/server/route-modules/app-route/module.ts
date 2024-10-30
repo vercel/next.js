@@ -61,7 +61,6 @@ import {
   postponeWithTracking,
   createDynamicTrackingState,
   getFirstDynamicReason,
-  isPrerenderInterruptedError,
 } from '../../app-render/dynamic-rendering'
 import { ReflectAdapter } from '../../web/spec-extension/adapters/reflect'
 import type { RenderOptsPartial } from '../../app-render/types'
@@ -349,10 +348,10 @@ export class AppRouteRouteModule extends RouteModule<
               phase: 'action',
               implicitTags: implicitTags,
               renderSignal: prospectiveController.signal,
+              controller: prospectiveController,
               cacheSignal,
               // During prospective render we don't use a controller
               // because we need to let all caches fill.
-              controller: null,
               dynamicTracking,
               revalidate: defaultRevalidate,
               expire: INFINITE_CACHE,
@@ -369,11 +368,14 @@ export class AppRouteRouteModule extends RouteModule<
               handlerContext
             )
           } catch (err) {
-            if (isPrerenderInterruptedError(err)) {
+            if (prospectiveController.signal.aborted) {
               // the route handler called an API which is always dynamic
               // there is no need to try again
               prospectiveRenderIsDynamic = true
-            } else if (process.env.NEXT_DEBUG_BUILD) {
+            } else if (
+              process.env.NEXT_DEBUG_BUILD ||
+              process.env.__NEXT_VERBOSE_LOGGING
+            ) {
               printDebugThrownValueForProspectiveRender(err, workStore.route)
             }
           }
@@ -387,7 +389,7 @@ export class AppRouteRouteModule extends RouteModule<
             ;(prospectiveResult as any as Promise<unknown>).then(
               () => {},
               (err) => {
-                if (isPrerenderInterruptedError(err)) {
+                if (prospectiveController.signal.aborted) {
                   // the route handler called an API which is always dynamic
                   // there is no need to try again
                   prospectiveRenderIsDynamic = true
@@ -431,8 +433,8 @@ export class AppRouteRouteModule extends RouteModule<
             phase: 'action',
             implicitTags: implicitTags,
             renderSignal: finalController.signal,
-            cacheSignal: null,
             controller: finalController,
+            cacheSignal: null,
             dynamicTracking,
             revalidate: defaultRevalidate,
             expire: INFINITE_CACHE,

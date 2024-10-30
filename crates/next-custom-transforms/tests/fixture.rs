@@ -321,6 +321,7 @@ fn react_server_components_typescript(input: PathBuf) {
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
                 Config::WithOptions(Options {
                     is_react_server_layer: true,
+                    dynamic_io_enabled: false,
                 }),
                 tr.comments.as_ref().clone(),
                 None,
@@ -343,6 +344,7 @@ fn react_server_components_server_graph_fixture(input: PathBuf) {
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
                 Config::WithOptions(Options {
                     is_react_server_layer: true,
+                    dynamic_io_enabled: false,
                 }),
                 tr.comments.as_ref().clone(),
                 None,
@@ -365,6 +367,7 @@ fn react_server_components_client_graph_fixture(input: PathBuf) {
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
                 Config::WithOptions(Options {
                     is_react_server_layer: false,
+                    dynamic_io_enabled: false,
                 }),
                 tr.comments.as_ref().clone(),
                 None,

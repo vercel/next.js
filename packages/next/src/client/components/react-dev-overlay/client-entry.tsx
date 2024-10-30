@@ -42,7 +42,6 @@ export function createDevOverlayElement(reactEl: React.ReactElement) {
     <FallbackLayout>
       <ReactDevOverlay
         state={{ ...INITIAL_OVERLAY_STATE, rootLayoutMissingTags }}
-        onReactError={() => {}}
       >
         {reactEl}
       </ReactDevOverlay>

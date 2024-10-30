@@ -43,6 +43,11 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
+    pub fn use_file_source_map_uris(mut self) -> Self {
+        self.chunking_context.should_use_file_source_map_uris = true;
+        self
+    }
+
     pub fn asset_base_path(mut self, asset_base_path: Vc<Option<RcStr>>) -> Self {
         self.chunking_context.asset_base_path = asset_base_path;
         self
@@ -101,6 +106,8 @@ pub struct BrowserChunkingContext {
     /// This path get stripped off of chunk paths before generating output asset
     /// paths.
     context_path: Vc<FileSystemPath>,
+    /// Whether to write file sources as file:// paths in source maps
+    should_use_file_source_map_uris: bool,
     /// This path is used to compute the url to request chunks from
     output_root: Vc<FileSystemPath>,
     /// This path is used to compute the url to request assets from
@@ -150,6 +157,7 @@ impl BrowserChunkingContext {
                 output_root,
                 client_root,
                 chunk_root_path,
+                should_use_file_source_map_uris: false,
                 reference_chunk_source_maps: true,
                 reference_css_chunk_source_maps: true,
                 asset_root_path,
@@ -351,6 +359,11 @@ impl ChunkingContext for BrowserChunkingContext {
     }
 
     #[turbo_tasks::function]
+    fn should_use_file_source_map_uris(&self) -> Vc<bool> {
+        Vc::cell(self.should_use_file_source_map_uris)
+    }
+
+    #[turbo_tasks::function]
     async fn chunk_group(
         self: Vc<Self>,
         ident: Vc<AssetIdent>,
@@ -373,7 +386,7 @@ impl ChunkingContext for BrowserChunkingContext {
 
             let mut assets: Vec<Vc<Box<dyn OutputAsset>>> = chunks
                 .iter()
-                .map(|chunk| self.generate_chunk(*chunk))
+                .map(|chunk| self.generate_chunk(**chunk))
                 .collect();
 
             if this.enable_hot_module_replacement {
@@ -442,7 +455,7 @@ impl ChunkingContext for BrowserChunkingContext {
 
             let mut assets: Vec<Vc<Box<dyn OutputAsset>>> = chunks
                 .iter()
-                .map(|chunk| self.generate_chunk(*chunk))
+                .map(|chunk| self.generate_chunk(**chunk))
                 .collect();
 
             let other_assets = Vc::cell(assets.clone());
