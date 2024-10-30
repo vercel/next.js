@@ -438,28 +438,36 @@ export { NextScript as i } from "__TURBOPACK_VAR__" assert {
 ## Part 12
 ```js
 import { e as Document } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -7
+    __turbopack_part__: -7,
+    __turbopack_original__: 'next/document'
 };
 import { c as _jsxs } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -4
+    __turbopack_part__: -4,
+    __turbopack_original__: "react/jsx-runtime"
 };
 import { d as _Fragment } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -5
+    __turbopack_part__: -5,
+    __turbopack_original__: "react/jsx-runtime"
 };
 import { b as _jsx } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -3
+    __turbopack_part__: -3,
+    __turbopack_original__: "react/jsx-runtime"
 };
 import { f as Html } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -8
+    __turbopack_part__: -8,
+    __turbopack_original__: 'next/document'
 };
 import { g as Head } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -9
+    __turbopack_part__: -9,
+    __turbopack_original__: 'next/document'
 };
 import { h as Main } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -10
+    __turbopack_part__: -10,
+    __turbopack_original__: 'next/document'
 };
 import { i as NextScript } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -11
+    __turbopack_part__: -11,
+    __turbopack_original__: 'next/document'
 };
 class MyDocument extends Document {
     static async getInitialProps(ctx) {
@@ -660,28 +668,36 @@ export { NextScript as i } from "__TURBOPACK_VAR__" assert {
 ## Part 12
 ```js
 import { e as Document } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -7
+    __turbopack_part__: -7,
+    __turbopack_original__: 'next/document'
 };
 import { c as _jsxs } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -4
+    __turbopack_part__: -4,
+    __turbopack_original__: "react/jsx-runtime"
 };
 import { d as _Fragment } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -5
+    __turbopack_part__: -5,
+    __turbopack_original__: "react/jsx-runtime"
 };
 import { b as _jsx } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -3
+    __turbopack_part__: -3,
+    __turbopack_original__: "react/jsx-runtime"
 };
 import { f as Html } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -8
+    __turbopack_part__: -8,
+    __turbopack_original__: 'next/document'
 };
 import { g as Head } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -9
+    __turbopack_part__: -9,
+    __turbopack_original__: 'next/document'
 };
 import { h as Main } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -10
+    __turbopack_part__: -10,
+    __turbopack_original__: 'next/document'
 };
 import { i as NextScript } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -11
+    __turbopack_part__: -11,
+    __turbopack_original__: 'next/document'
 };
 class MyDocument extends Document {
     static async getInitialProps(ctx) {

@@ -33,7 +33,7 @@ function generateBlocks(items) {
       type: 'section',
       text: {
         type: 'mrkdwn',
-        text: '*A list of the top 15 feature requests sorted by upvotes over the last 90 days.*\n_Note: This :github2: <https://github.com/vercel/next.js/blob/canary/.github/workflows/popular.yml|workflow> → <https://github.com/vercel/next.js/blob/canary/.github/actions/next-repo-info/src/feature-requests.mjs|action> will run every Monday at 10AM UTC (6AM EST)._',
+        text: '*A list of the top 15 feature requests sorted by upvotes over the last 90 days.*\n_Note: This :github2: <https://github.com/vercel/next.js/blob/canary/.github/workflows/popular.yml|workflow> → <https://github.com/vercel/next.js/blob/canary/.github/actions/next-repo-actions/src/popular-feature-requests.mjs|action> will run every Monday at 10AM UTC (6AM EST)._',
       },
     },
     {

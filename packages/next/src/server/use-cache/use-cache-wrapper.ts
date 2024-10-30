@@ -25,10 +25,10 @@ import { makeHangingPromise } from '../dynamic-rendering-utils'
 
 import { cacheScopeAsyncLocalStorage } from '../async-storage/cache-scope.external'
 
-import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
+import type { ClientReferenceManifestForRsc } from '../../build/webpack/plugins/flight-manifest-plugin'
 
 import {
-  getClientReferenceManifestSingleton,
+  getClientReferenceManifestForRsc,
   getServerModuleMap,
 } from '../app-render/encryption-utils'
 import type { CacheScopeStore } from '../async-storage/cache-scope.external'
@@ -66,7 +66,7 @@ function generateCacheEntry(
   workStore: WorkStore,
   outerWorkUnitStore: WorkUnitStore | undefined,
   cacheScope: undefined | CacheScopeStore,
-  clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
+  clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
   encodedArguments: FormData | string,
   fn: any
 ): Promise<[ReadableStream, Promise<CacheEntry>]> {
@@ -90,7 +90,7 @@ function generateCacheEntryWithRestoredWorkStore(
   workStore: WorkStore,
   outerWorkUnitStore: WorkUnitStore | undefined,
   cacheScope: undefined | CacheScopeStore,
-  clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
+  clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
   encodedArguments: FormData | string,
   fn: any
 ) {
@@ -128,7 +128,7 @@ function generateCacheEntryWithRestoredWorkStore(
 function generateCacheEntryWithCacheContext(
   workStore: WorkStore,
   outerWorkUnitStore: WorkUnitStore | undefined,
-  clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
+  clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
   encodedArguments: FormData | string,
   fn: any
 ) {
@@ -298,7 +298,7 @@ async function generateCacheEntryImpl(
   workStore: WorkStore,
   outerWorkUnitStore: WorkUnitStore | undefined,
   innerCacheStore: UseCacheStore,
-  clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
+  clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
   encodedArguments: FormData | string,
   fn: any
 ): Promise<[ReadableStream, Promise<CacheEntry>]> {
@@ -455,7 +455,7 @@ export function cache(kind: string, id: string, fn: any) {
 
       // Get the clientReferenceManifest while we're still in the outer Context.
       // In case getClientReferenceManifestSingleton is implemented using AsyncLocalStorage.
-      const clientReferenceManifest = getClientReferenceManifestSingleton()
+      const clientReferenceManifest = getClientReferenceManifestForRsc()
 
       // Because the Action ID is not yet unique per implementation of that Action we can't
       // safely reuse the results across builds yet. In the meantime we add the buildId to the
@@ -516,6 +516,14 @@ export function cache(kind: string, id: string, fn: any) {
       const cacheScope: undefined | CacheScopeStore =
         cacheScopeAsyncLocalStorage.getStore()
       if (cacheScope) {
+        const cacheSignal =
+          workUnitStore && workUnitStore.type === 'prerender'
+            ? workUnitStore.cacheSignal
+            : null
+
+        if (cacheSignal) {
+          cacheSignal.beginRead()
+        }
         const cachedEntry: undefined | Promise<CacheEntry> =
           cacheScope.cache.get(serializedCacheKey)
         if (cachedEntry !== undefined) {
@@ -532,6 +540,9 @@ export function cache(kind: string, id: string, fn: any) {
             // expire time is under 5 minutes, then we consider this cache entry dynamic
             // as it's not worth generating static pages for such data. It's better to leave
             // a PPR hole that can be filled in dynamically with a potentially cached entry.
+            if (cacheSignal) {
+              cacheSignal.endRead()
+            }
             return makeHangingPromise(
               workUnitStore.renderSignal,
               'dynamic "use cache"'
@@ -539,7 +550,34 @@ export function cache(kind: string, id: string, fn: any) {
           }
           const [streamA, streamB] = existingEntry.value.tee()
           existingEntry.value = streamB
-          stream = streamA
+
+          if (cacheSignal) {
+            // When we have a cacheSignal we need to block on reading the cache
+            // entry before ending the read.
+            const buffer: any[] = []
+            const reader = streamA.getReader()
+            for (let entry; !(entry = await reader.read()).done; ) {
+              buffer.push(entry.value)
+            }
+
+            let idx = 0
+            stream = new ReadableStream({
+              pull(controller) {
+                if (idx < buffer.length) {
+                  controller.enqueue(buffer[idx++])
+                } else {
+                  controller.close()
+                }
+              },
+            })
+            cacheSignal.endRead()
+          } else {
+            stream = streamA
+          }
+        } else {
+          if (cacheSignal) {
+            cacheSignal.endRead()
+          }
         }
       }
 
