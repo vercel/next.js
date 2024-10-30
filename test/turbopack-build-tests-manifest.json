@@ -2268,15 +2268,6 @@
       "flakey": [],
       "runtimeError": false
     },
-    "test/e2e/app-dir/middleware-matching/index.test.ts": {
-      "passed": [],
-      "failed": [
-        "app dir - middleware with custom matcher should match /:id (without asterisk)"
-      ],
-      "pending": [],
-      "flakey": [],
-      "runtimeError": false
-    },
     "test/e2e/app-dir/middleware-sitemap/matcher-exclude-sitemap/index.test.ts": {
       "passed": [
         "middleware-sitemap should not be affected by middleware if sitemap.xml is excluded from the matcher"
