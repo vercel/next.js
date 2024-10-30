@@ -741,7 +741,7 @@ async function getBuildId(
   }
   return await nextBuildSpan
     .traceChild('generate-buildid')
-    .traceAsyncFn(() => generateBuildId(config.generateBuildId, nanoid))
+    .traceAsyncFn(() => generateBuildId(nanoid, config.generateBuildId))
 }
 
 const IS_TURBOPACK_BUILD = process.env.TURBOPACK && process.env.TURBOPACK_BUILD
