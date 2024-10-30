@@ -234,7 +234,13 @@ export class ImageOptimizerCache {
       return { errorMessage: '"url" parameter is too long' }
     }
 
-    if (url.startsWith('//')) {
+    if (
+      url
+        // Remove multiple slashes and backslashes at the beginning of the URL
+        // since they break the new URL constructor, leading to a protocol-relative URL
+        .replace(/^[/\\]{3,}/, '//')
+        .startsWith('//')
+    ) {
       return {
         errorMessage: '"url" parameter cannot be a protocol-relative URL (//)',
       }
