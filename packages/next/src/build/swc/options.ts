@@ -64,6 +64,7 @@ function getBaseSWCOptions({
   serverComponents,
   serverReferenceHashSalt,
   bundleLayer,
+  isDynamicIo,
 }: {
   filename: string
   jest?: boolean
@@ -80,6 +81,7 @@ function getBaseSWCOptions({
   serverComponents?: boolean
   serverReferenceHashSalt: string
   bundleLayer?: WebpackLayerName
+  isDynamicIo?: boolean
 }) {
   const isReactServerLayer = isWebpackServerOnlyLayer(bundleLayer)
   const isAppRouterPagesLayer = isWebpackAppPagesLayer(bundleLayer)
@@ -200,6 +202,7 @@ function getBaseSWCOptions({
       serverComponents && !jest
         ? {
             isReactServerLayer,
+            dynamicIoEnabled: isDynamicIo,
           }
         : undefined,
     serverActions:
@@ -338,6 +341,7 @@ export function getLoaderSWCOptions({
   pagesDir,
   appDir,
   isPageFile,
+  isDynamicIo,
   hasReactRefresh,
   modularizeImports,
   optimizeServerReact,
@@ -362,6 +366,7 @@ export function getLoaderSWCOptions({
   hasReactRefresh: boolean
   optimizeServerReact?: boolean
   modularizeImports: NextConfig['modularizeImports']
+  isDynamicIo?: boolean
   optimizePackageImports?: NonNullable<
     NextConfig['experimental']
   >['optimizePackageImports']
@@ -391,6 +396,7 @@ export function getLoaderSWCOptions({
     serverComponents,
     serverReferenceHashSalt,
     esm: !!esm,
+    isDynamicIo,
   })
   baseOptions.fontLoaders = {
     fontLoaders: ['next/font/local', 'next/font/google'],
