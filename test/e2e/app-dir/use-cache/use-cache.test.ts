@@ -269,13 +269,13 @@ describe('use-cache', () => {
     // expect(time4).toBe(time3);
   })
 
-  it('should use revalidate config in fetch', async () => {
+  it('should ignore revalidate config in fetch', async () => {
     const browser = await next.browser('/fetch-revalidate')
 
     const initialValue = await browser.elementByCss('#random').text()
     await browser.refresh()
 
-    expect(await browser.elementByCss('#random').text()).not.toBe(initialValue)
+    expect(await browser.elementByCss('#random').text()).toBe(initialValue)
   })
 
   it('should cache fetch without no-store', async () => {

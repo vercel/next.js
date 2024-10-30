@@ -254,28 +254,23 @@ export function createPatchedFetcher(
           `fetch ${input.toString()}`
         )
 
-        if (
+        const revalidateStore =
           workUnitStore &&
           (workUnitStore.type === 'cache' ||
             workUnitStore.type === 'prerender' ||
             workUnitStore.type === 'prerender-ppr' ||
             workUnitStore.type === 'prerender-legacy')
-        ) {
+            ? workUnitStore
+            : undefined
+
+        if (revalidateStore) {
           if (Array.isArray(tags)) {
             // Collect tags onto parent caches or parent prerenders.
             const collectedTags =
-              workUnitStore.tags ?? (workUnitStore.tags = [])
+              revalidateStore.tags ?? (revalidateStore.tags = [])
             for (const tag of tags) {
               if (!collectedTags.includes(tag)) {
                 collectedTags.push(tag)
-              }
-            }
-
-            // Add tags of the current cache scope to the locally collected tags
-            // for this fetch call.
-            for (const tag of collectedTags) {
-              if (!tags.includes(tag)) {
-                tags.push(tag)
               }
             }
           }
@@ -286,14 +281,16 @@ export function createPatchedFetcher(
             ? []
             : workUnitStore.implicitTags
 
+        const isInCacheScope = workUnitStore
+          ? workUnitStore.type === 'unstable-cache' ||
+            workUnitStore.type === 'cache'
+          : false
+
         // Inside unstable-cache or "use cache", we treat it the same as
         // force-no-store on the page.
-        const pageFetchCacheMode =
-          workUnitStore &&
-          (workUnitStore.type === 'unstable-cache' ||
-            workUnitStore.type === 'cache')
-            ? 'force-no-store'
-            : workStore.fetchCache
+        const pageFetchCacheMode = isInCacheScope
+          ? 'force-no-store'
+          : workStore.fetchCache
 
         const isUsingNoStore = !!workStore.isUnstableNoStore
 
@@ -313,23 +310,23 @@ export function createPatchedFetcher(
           currentFetchCacheConfig = undefined
         }
 
-        if (currentFetchCacheConfig === 'force-cache') {
+        if (isInCacheScope) {
+          // TODO: Warn if `cache` or `revalidate configs have been set?
+          currentFetchCacheConfig = undefined
+          currentFetchRevalidate = 0
+        } else if (currentFetchCacheConfig === 'force-cache') {
           currentFetchRevalidate = false
         } else if (
-          // if we are inside of "use cache"/"unstable_cache"
-          // we shouldn't set the revalidate to 0 as it's overridden
-          // by the cache context
-          workUnitStore?.type !== 'cache' &&
-          (currentFetchCacheConfig === 'no-cache' ||
-            currentFetchCacheConfig === 'no-store' ||
-            pageFetchCacheMode === 'force-no-store' ||
-            pageFetchCacheMode === 'only-no-store' ||
-            // If no explicit fetch cache mode is set, but dynamic = `force-dynamic` is set,
-            // we shouldn't consider caching the fetch. This is because the `dynamic` cache
-            // is considered a "top-level" cache mode, whereas something like `fetchCache` is more
-            // fine-grained. Top-level modes are responsible for setting reasonable defaults for the
-            // other configurations.
-            (!pageFetchCacheMode && workStore.forceDynamic))
+          currentFetchCacheConfig === 'no-cache' ||
+          currentFetchCacheConfig === 'no-store' ||
+          pageFetchCacheMode === 'force-no-store' ||
+          pageFetchCacheMode === 'only-no-store' ||
+          // If no explicit fetch cache mode is set, but dynamic = `force-dynamic` is set,
+          // we shouldn't consider caching the fetch. This is because the `dynamic` cache
+          // is considered a "top-level" cache mode, whereas something like `fetchCache` is more
+          // fine-grained. Top-level modes are responsible for setting reasonable defaults for the
+          // other configurations.
+          (!pageFetchCacheMode && workStore.forceDynamic)
         ) {
           currentFetchRevalidate = 0
         }
@@ -358,15 +355,6 @@ export function createPatchedFetcher(
         const isUnCacheableMethod = !['get', 'head'].includes(
           getRequestMeta('method')?.toLowerCase() || 'get'
         )
-
-        const revalidateStore =
-          workUnitStore &&
-          (workUnitStore.type === 'cache' ||
-            workUnitStore.type === 'prerender' ||
-            workUnitStore.type === 'prerender-ppr' ||
-            workUnitStore.type === 'prerender-legacy')
-            ? workUnitStore
-            : undefined
 
         /**
          * We automatically disable fetch caching under the following conditions:
@@ -515,7 +503,7 @@ export function createPatchedFetcher(
             }
           }
 
-          if (revalidateStore) {
+          if (revalidateStore && !isInCacheScope) {
             revalidateStore.revalidate = finalRevalidate
           }
         }
