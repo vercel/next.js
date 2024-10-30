@@ -3305,6 +3305,8 @@ export default abstract class Server<
         const notFoundRevalidate = getRequestMeta(req, 'notFoundRevalidate')
         revalidate =
           typeof notFoundRevalidate === 'undefined' ? 0 : notFoundRevalidate
+      } else if (is500Page) {
+        revalidate = 0
       }
 
       // If the cache entry has a revalidate value that's a number, use it.
