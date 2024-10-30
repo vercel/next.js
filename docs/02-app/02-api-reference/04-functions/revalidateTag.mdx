@@ -13,10 +13,10 @@ description: API Reference for the revalidateTag function.
 ## Parameters
 
 ```tsx
-revalidateTag(tag: string): void;
+revalidateTag(...tags: string[]): void;
 ```
 
-- `tag`: A string representing the cache tag associated with the data you want to revalidate. Must be less than or equal to 256 characters. This value is case-sensitive.
+- `tags`: One or more strings representing the cache tags associated with the data you want to revalidate. Each tag must be less than or equal to 256 characters. Tags are case-sensitive.
 
 You can add tags to `fetch` as follows:
 

@@ -1322,6 +1322,27 @@ describe('app-dir action handling', () => {
       })
     })
 
+    it('should handle revalidateTag with multiple tags', async () => {
+      const browser = await next.browser('/revalidate-multiple')
+      const thankYouNext = await browser.elementByCss('#thankyounext').text()
+      const justPutIt = await browser.elementByCss('#justputit').text()
+      const youGotIt = await browser.elementByCss('#yougotit').text()
+
+      await browser.elementByCss('#revalidate').click()
+
+      await retry(async () => {
+        const newThankYouNext = await browser
+          .elementByCss('#thankyounext')
+          .text()
+        const newJustPutIt = await browser.elementByCss('#justputit').text()
+        const newYouGotIt = await browser.elementByCss('#yougotit').text()
+
+        expect(newThankYouNext).not.toBe(thankYouNext)
+        expect(newJustPutIt).not.toBe(justPutIt)
+        expect(newYouGotIt).toBe(youGotIt)
+      })
+    })
+
     // TODO: investigate flakey behavior with revalidate
     it.skip('should handle revalidateTag + redirect', async () => {
       const browser = await next.browser('/revalidate')
