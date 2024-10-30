@@ -346,7 +346,7 @@ export function getMiddlewareMatchers(
     source = `/:nextData(_next/data/[^/]{1,})?${source}${
       isRoot
         ? `(${nextConfig.i18n ? '|\\.json|' : ''}/?index|/?index\\.json)?`
-        : '(.json)?'
+        : '{(\\.json)}?'
     }`
 
     if (nextConfig.basePath) {
