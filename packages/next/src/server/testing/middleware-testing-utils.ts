@@ -3,6 +3,7 @@ import { getMiddlewareMatchers } from '../../build/analysis/get-page-static-info
 import type { Middleware } from '../../lib/load-custom-routes'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
 import type { NextConfig } from '../config-shared'
+import { parseUrl } from '../../lib/url'
 import { constructRequest } from './utils'
 
 export interface MiddlewareSourceConfig {
@@ -33,7 +34,7 @@ export function unstable_doesMiddlewareMatch({
   }
   const matchers = getMiddlewareMatchers(config.matcher, nextConfig ?? {})
   const routeMatchFn = getMiddlewareRouteMatcher(matchers)
-  const { pathname, searchParams } = new URL(url, 'http://localhost')
+  const { pathname, searchParams = new URLSearchParams() } = parseUrl(url) || {}
   const request = constructRequest({ url, headers, cookies })
   return routeMatchFn(pathname, request, Object.fromEntries(searchParams))
 }
