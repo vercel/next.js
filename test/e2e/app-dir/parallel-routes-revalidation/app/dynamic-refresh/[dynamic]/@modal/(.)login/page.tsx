@@ -4,12 +4,14 @@ import { UpdateSearchParamsButton } from '../../../../components/UpdateSearchPar
 
 const getRandom = async () => Math.random()
 
-export default async function Page({ params, searchParams }) {
+export default async function Page(props) {
+  const searchParams = await props.searchParams
+  const params = await props.params
   const someProp = await getRandom()
 
   return (
     <dialog open>
-      <div>{(await params).dynamic}</div>
+      <div>{params.dynamic}</div>
       <div style={{ display: 'flex', flexDirection: 'column' }}>
         <div>
           <span>Modal Page</span>
@@ -17,10 +19,7 @@ export default async function Page({ params, searchParams }) {
         </div>
         <RefreshButton />
         <RevalidateButton />
-        <UpdateSearchParamsButton
-          searchParams={await searchParams}
-          id="modal"
-        />
+        <UpdateSearchParamsButton searchParams={searchParams} id="modal" />
       </div>
     </dialog>
   )

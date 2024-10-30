@@ -255,7 +255,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
             star_exports,
         }
         .cell();
-        Ok(EcmascriptExports::EsmExports(exports).cell())
+        Ok(EcmascriptExports::EsmExports(exports.to_resolved().await?).cell())
     }
 
     #[turbo_tasks::function]
