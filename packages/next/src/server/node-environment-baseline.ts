@@ -12,5 +12,6 @@ if (typeof (globalThis as any).WebSocket !== 'function') {
     get() {
       return require('next/dist/compiled/ws').WebSocket
     },
+    configurable: true,
   })
 }
