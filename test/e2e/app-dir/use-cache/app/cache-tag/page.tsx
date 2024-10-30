@@ -13,8 +13,11 @@ async function getCachedWithTag({
   'use cache'
   cacheTag(tag, 'c')
 
-  // If forceCache is true, revalidating tag 'c' won't revalidate the fetch
-  // cache.
+  // If `force-cache` or `revalidate` is used for the fetch call, it creates
+  // basically an inner cache, and revalidating tag 'c' won't revalidate the
+  // fetch cache. If both are not used, the fetch is not cached at all in the
+  // fetch cache, and is included in the cached result of `getCachedWithTag`
+  // instead, thus also affected by revalidating 'c'.
   const response = await fetch(
     `https://next-data-api-endpoint.vercel.app/api/random?tag=${tag}`,
     {
