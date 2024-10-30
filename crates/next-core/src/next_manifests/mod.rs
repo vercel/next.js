@@ -194,9 +194,16 @@ pub struct ActionManifestEntry<'a> {
 }
 
 #[derive(Serialize, Debug)]
-#[serde(rename_all = "camelCase")]
+pub struct ActionManifestWorkerEntry<'a> {
+    #[serde(rename = "moduleId")]
+    pub module_id: ActionManifestModuleId<'a>,
+    #[serde(rename = "async")]
+    pub is_async: bool,
+}
+
+#[derive(Serialize, Debug)]
 #[serde(untagged)]
-pub enum ActionManifestWorkerEntry<'a> {
+pub enum ActionManifestModuleId<'a> {
     String(&'a str),
     Number(f64),
 }
@@ -234,6 +241,12 @@ pub struct ClientReferenceManifest {
     /// Same as `ssr_module_mapping`, but for Edge SSR.
     #[serde(rename = "edgeSSRModuleMapping")]
     pub edge_ssr_module_mapping: HashMap<ModuleId, ManifestNode>,
+    /// Mapping of client module ID to corresponding RSC module ID and required
+    /// RSC chunks.
+    pub rsc_module_mapping: HashMap<ModuleId, ManifestNode>,
+    /// Same as `rsc_module_mapping`, but for Edge RSC.
+    #[serde(rename = "edgeRscModuleMapping")]
+    pub edge_rsc_module_mapping: HashMap<ModuleId, ManifestNode>,
     /// Mapping of server component path to required CSS client chunks.
     #[serde(rename = "entryCSSFiles")]
     pub entry_css_files: HashMap<RcStr, FxIndexSet<RcStr>>,

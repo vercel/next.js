@@ -1,6 +1,11 @@
 import type { ActionManifest } from '../../build/webpack/plugins/flight-client-entry-plugin'
-import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
+import type {
+  ClientReferenceManifest,
+  ClientReferenceManifestForRsc,
+} from '../../build/webpack/plugins/flight-manifest-plugin'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
+import { InvariantError } from '../../shared/lib/invariant-error'
+import { workAsyncStorage } from './work-async-storage.external'
 
 let __next_loaded_action_key: CryptoKey
 
@@ -64,10 +69,12 @@ const SERVER_ACTION_MANIFESTS_SINGLETON = Symbol.for(
 )
 
 export function setReferenceManifestsSingleton({
+  page,
   clientReferenceManifest,
   serverActionsManifest,
   serverModuleMap,
 }: {
+  page: string
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>
   serverActionsManifest: DeepReadonly<ActionManifest>
   serverModuleMap: {
@@ -78,9 +85,19 @@ export function setReferenceManifestsSingleton({
     }
   }
 }) {
-  // @ts-ignore
+  // @ts-expect-error
+  const clientReferenceManifestsPerPage = globalThis[
+    SERVER_ACTION_MANIFESTS_SINGLETON
+  ]?.clientReferenceManifestsPerPage as
+    | undefined
+    | DeepReadonly<Record<string, ClientReferenceManifest>>
+
+  // @ts-expect-error
   globalThis[SERVER_ACTION_MANIFESTS_SINGLETON] = {
-    clientReferenceManifest,
+    clientReferenceManifestsPerPage: {
+      ...clientReferenceManifestsPerPage,
+      [normalizePage(page)]: clientReferenceManifest,
+    },
     serverActionsManifest,
     serverModuleMap,
   }
@@ -100,29 +117,49 @@ export function getServerModuleMap() {
   }
 
   if (!serverActionsManifestSingleton) {
-    throw new Error(
-      'Missing manifest for Server Actions. This is a bug in Next.js'
-    )
+    throw new InvariantError('Missing manifest for Server Actions.')
   }
 
   return serverActionsManifestSingleton.serverModuleMap
 }
 
-export function getClientReferenceManifestSingleton() {
+export function getClientReferenceManifestForRsc(): DeepReadonly<ClientReferenceManifestForRsc> {
   const serverActionsManifestSingleton = (globalThis as any)[
     SERVER_ACTION_MANIFESTS_SINGLETON
   ] as {
-    clientReferenceManifest: DeepReadonly<ClientReferenceManifest>
-    serverActionsManifest: DeepReadonly<ActionManifest>
+    clientReferenceManifestsPerPage: DeepReadonly<
+      Record<string, ClientReferenceManifest>
+    >
   }
 
   if (!serverActionsManifestSingleton) {
-    throw new Error(
-      'Missing manifest for Server Actions. This is a bug in Next.js'
-    )
+    throw new InvariantError('Missing manifest for Server Actions.')
   }
 
-  return serverActionsManifestSingleton.clientReferenceManifest
+  const { clientReferenceManifestsPerPage } = serverActionsManifestSingleton
+  const workStore = workAsyncStorage.getStore()
+
+  if (!workStore) {
+    // If there's no work store defined, we can assume that a client reference
+    // manifest is needed during module evaluation, e.g. to create a server
+    // action using a higher-order function. This might also use client
+    // components which need to be serialized by Flight, and therefore client
+    // references need to be resolvable. To make this work, we're returning a
+    // merged manifest across all pages. This is fine as long as the module IDs
+    // are not page specific, which they are not for Webpack. TODO: Fix this in
+    // Turbopack.
+    return mergeClientReferenceManifests(clientReferenceManifestsPerPage)
+  }
+
+  const page = normalizePage(workStore.page)
+
+  const clientReferenceManifest = clientReferenceManifestsPerPage[page]
+
+  if (!clientReferenceManifest) {
+    throw new InvariantError(`Missing Client Reference Manifest for ${page}.`)
+  }
+
+  return clientReferenceManifest
 }
 
 export async function getActionEncryptionKey() {
@@ -133,14 +170,11 @@ export async function getActionEncryptionKey() {
   const serverActionsManifestSingleton = (globalThis as any)[
     SERVER_ACTION_MANIFESTS_SINGLETON
   ] as {
-    clientReferenceManifest: DeepReadonly<ClientReferenceManifest>
     serverActionsManifest: DeepReadonly<ActionManifest>
   }
 
   if (!serverActionsManifestSingleton) {
-    throw new Error(
-      'Missing manifest for Server Actions. This is a bug in Next.js'
-    )
+    throw new InvariantError('Missing manifest for Server Actions.')
   }
 
   const rawKey =
@@ -148,7 +182,7 @@ export async function getActionEncryptionKey() {
     serverActionsManifestSingleton.serverActionsManifest.encryptionKey
 
   if (rawKey === undefined) {
-    throw new Error('Missing encryption key for Server Actions')
+    throw new InvariantError('Missing encryption key for Server Actions')
   }
 
   __next_loaded_action_key = await crypto.subtle.importKey(
@@ -160,4 +194,41 @@ export async function getActionEncryptionKey() {
   )
 
   return __next_loaded_action_key
+}
+
+function normalizePage(page: string): string {
+  return page.replace(/\/(page|route)$/, '')
+}
+
+function mergeClientReferenceManifests(
+  clientReferenceManifestsPerPage: DeepReadonly<
+    Record<string, ClientReferenceManifest>
+  >
+): ClientReferenceManifestForRsc {
+  const clientReferenceManifests = Object.values(
+    clientReferenceManifestsPerPage as Record<string, ClientReferenceManifest>
+  )
+
+  const mergedClientReferenceManifest: ClientReferenceManifestForRsc = {
+    clientModules: {},
+    edgeRscModuleMapping: {},
+    rscModuleMapping: {},
+  }
+
+  for (const clientReferenceManifest of clientReferenceManifests) {
+    mergedClientReferenceManifest.clientModules = {
+      ...mergedClientReferenceManifest.clientModules,
+      ...clientReferenceManifest.clientModules,
+    }
+    mergedClientReferenceManifest.edgeRscModuleMapping = {
+      ...mergedClientReferenceManifest.edgeRscModuleMapping,
+      ...clientReferenceManifest.edgeRscModuleMapping,
+    }
+    mergedClientReferenceManifest.rscModuleMapping = {
+      ...mergedClientReferenceManifest.rscModuleMapping,
+      ...clientReferenceManifest.rscModuleMapping,
+    }
+  }
+
+  return mergedClientReferenceManifest
 }

@@ -104,7 +104,7 @@ impl Analyzer<'_> {
 
                 if item.is_hoisted && item.side_effects {
                     self.g
-                        .add_strong_deps(item_id, self.last_side_effects.iter());
+                        .add_strong_deps(item_id, self.last_side_effects.last());
 
                     self.last_side_effects.push(item_id.clone());
                 }
@@ -186,7 +186,7 @@ impl Analyzer<'_> {
                     // Create a strong dependency to LAST_SIDE_EFFECT.
 
                     self.g
-                        .add_strong_deps(item_id, self.last_side_effects.iter());
+                        .add_strong_deps(item_id, self.last_side_effects.last());
 
                     // Create weak dependencies to all LAST_WRITES and
                     // LAST_READS.

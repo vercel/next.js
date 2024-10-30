@@ -2,7 +2,7 @@ import { cookies } from 'next/headers'
 
 export const dynamic = 'error'
 
-export default async function Page({ searchParams }) {
+export default async function Page(props) {
   return (
     <div>
       <section>

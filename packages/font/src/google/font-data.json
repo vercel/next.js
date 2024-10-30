@@ -5771,6 +5771,16 @@
     ],
     "subsets": ["latin", "latin-ext"]
   },
+  "Karla Tamil Inclined": {
+    "weights": ["400", "700"],
+    "styles": ["normal"],
+    "subsets": ["tamil"]
+  },
+  "Karla Tamil Upright": {
+    "weights": ["400", "700"],
+    "styles": ["normal"],
+    "subsets": ["tamil"]
+  },
   "Karma": {
     "weights": ["300", "400", "500", "600", "700"],
     "styles": ["normal"],
@@ -7223,8 +7233,16 @@
     "subsets": ["latin"]
   },
   "Miriam Libre": {
-    "weights": ["400", "700"],
+    "weights": ["400", "500", "600", "700", "variable"],
     "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ],
     "subsets": ["hebrew", "latin", "latin-ext"]
   },
   "Mirza": {

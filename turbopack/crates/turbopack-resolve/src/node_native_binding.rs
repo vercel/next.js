@@ -207,7 +207,7 @@ pub async fn resolve_node_pre_gyp_files(
             }
         };
     }
-    Ok(ModuleResolveResult::unresolveable().into())
+    Ok(ModuleResolveResult::unresolvable().into())
 }
 
 #[turbo_tasks::value]
