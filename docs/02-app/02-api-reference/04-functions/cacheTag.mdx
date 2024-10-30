@@ -61,9 +61,16 @@ export async function getData() {
 }
 ```
 
-## Combining with `revalidateTag`
+## Good to know
 
-Use `cacheTag` in conjunction with `revalidateTag` to purge tagged cache entries on-demand. This is useful for scenarios like updating data after a mutation or an external event.
+- **Idempotent Tags**: Applying the same tag multiple times has no additional effect.
+- **Multiple Tags**: You can assign multiple tags to a single cache entry by passing an array to `cacheTag`.
+
+```tsx
+cacheTag('tag-one', 'tag-two')
+```
+
+## Combining with `revalidateTag`
 
 ```tsx filename="app/action.ts" switcher
 'use server'
@@ -183,11 +190,13 @@ export async function updateBookings() {
 }
 ```
 
-## Notes
+```jsx filename="app/actions.js" switcher
+'use server'
 
-- **Idempotent Tags**: Applying the same tag multiple times has no additional effect.
-- **Multiple Tags**: You can assign multiple tags to a single cache entry by passing an array to `cacheTag`.
+import { revalidateTag } from 'next/cache'
 
-```tsx
-cacheTag('tag-one', 'tag-two')
+export async function updateBookings() {
+  await updateBookingData()
+  revalidateTag('bookings-data')
+}
 ```
