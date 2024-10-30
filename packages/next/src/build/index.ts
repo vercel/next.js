@@ -2458,37 +2458,10 @@ export default async function build(
                   pageDuration: undefined,
                   ssgPageDurations: undefined,
                   hasEmptyPrelude: undefined,
-                  unsupportedSegmentConfigs:
-                    staticInfo && 'unsupportedSegmentConfigs' in staticInfo
-                      ? staticInfo.unsupportedSegmentConfigs
-                      : undefined,
                 })
               })
             })
         )
-
-        // When dynamicIO is enabled, certain segment configs are not supported as they conflict with dynamicIO behavior.
-        // This will print all the pages along with the segment configs that were used.
-        if (config.experimental.dynamicIO) {
-          const pagesWithSegmentConfigs: string[] = []
-
-          pageInfos.forEach((pageInfo, page) => {
-            if (
-              pageInfo.unsupportedSegmentConfigs &&
-              pageInfo.unsupportedSegmentConfigs.length > 0
-            ) {
-              const configs = pageInfo.unsupportedSegmentConfigs.join(', ')
-              pagesWithSegmentConfigs.push(`${page}: ${configs}`)
-            }
-          })
-
-          if (pagesWithSegmentConfigs.length > 0) {
-            Log.error(
-              `The following pages used segment configs which are not supported with "experimental.dynamicIO" and must be removed to build your application:\n${pagesWithSegmentConfigs.join('\n')}\n`
-            )
-            process.exit(1)
-          }
-        }
 
         if (hadUnsupportedValue) {
           Log.error(
