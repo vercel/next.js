@@ -49,10 +49,10 @@ Configure how the request should interact with Next.js [Data Cache](/docs/app/bu
 fetch(`https://...`, { cache: 'force-cache' | 'no-store' })
 ```
 
-- **`force-cache`** (default): Next.js looks for a matching request in its Data Cache.
+- **`no-store`** (default): Next.js fetches the resource from the remote server on every request without looking in the cache, and it will not update the cache with the downloaded resource.
+- **`force-cache`**: Next.js looks for a matching request in its Data Cache.
   - If there is a match and it is fresh, it will be returned from the cache.
   - If there is no match or a stale match, Next.js will fetch the resource from the remote server and update the cache with the downloaded resource.
-- **`no-store`**: Next.js fetches the resource from the remote server on every request without looking in the cache, and it will not update the cache with the downloaded resource.
 
 ### `options.next.revalidate`
 

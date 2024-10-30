@@ -51,6 +51,8 @@ pub struct EntryChunkGroupResult {
 #[turbo_tasks::value_trait]
 pub trait ChunkingContext {
     fn name(self: Vc<Self>) -> Vc<RcStr>;
+    fn should_use_file_source_map_uris(self: Vc<Self>) -> Vc<bool>;
+    // Often the project root
     fn context_path(self: Vc<Self>) -> Vc<FileSystemPath>;
     fn output_root(self: Vc<Self>) -> Vc<FileSystemPath>;
 

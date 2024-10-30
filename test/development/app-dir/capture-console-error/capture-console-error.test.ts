@@ -8,6 +8,8 @@ import {
   waitForAndOpenRuntimeError,
 } from 'next-test-utils'
 
+const isReactExperimental = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+
 async function getRedboxResult(browser: any) {
   const description = await getRedboxDescription(browser)
   const callStacks = await getRedboxCallStack(browser)
@@ -28,7 +30,7 @@ describe('app-dir - capture-console-error', () => {
   })
 
   it('should capture browser console error and format the error message', async () => {
-    const browser = await next.browser('/browser')
+    const browser = await next.browser('/browser/event')
     await browser.elementByCss('button').click()
 
     await waitForAndOpenRuntimeError(browser)
@@ -42,7 +44,7 @@ describe('app-dir - capture-console-error', () => {
           "callStacks": "",
           "count": 1,
           "description": "trigger an console <error>",
-          "source": "app/browser/page.js (7:17) @ onClick
+          "source": "app/browser/event/page.js (7:17) @ onClick
 
            5 |     <button
            6 |       onClick={() => {
@@ -56,10 +58,15 @@ describe('app-dir - capture-console-error', () => {
     } else {
       expect(result).toMatchInlineSnapshot(`
         {
-          "callStacks": "",
+          "callStacks": ${
+            isReactExperimental
+              ? `"button
+        app/browser/event/page.js (5:6)"`
+              : `""`
+          },
           "count": 1,
           "description": "trigger an console <error>",
-          "source": "app/browser/page.js (7:17) @ error
+          "source": "app/browser/event/page.js (7:17) @ error
 
            5 |     <button
            6 |       onClick={() => {
@@ -68,6 +75,96 @@ describe('app-dir - capture-console-error', () => {
            8 |       }}
            9 |     >
           10 |       click to error",
+        }
+      `)
+    }
+  })
+
+  it('should capture browser console error in render and dedupe if necessary', async () => {
+    const browser = await next.browser('/browser/render')
+
+    await waitForAndOpenRuntimeError(browser)
+    await assertHasRedbox(browser)
+
+    const result = await getRedboxResult(browser)
+
+    if (process.env.TURBOPACK) {
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "callStacks": "",
+          "count": ${isReactExperimental ? 1 : 2},
+          "description": "trigger an console.error in render",
+          "source": "app/browser/render/page.js (4:11) @ Page
+
+          2 |
+          3 | export default function Page() {
+        > 4 |   console.error('trigger an console.error in render')
+            |           ^
+          5 |   return <p>render</p>
+          6 | }
+          7 |",
+        }
+      `)
+    } else {
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "callStacks": "",
+          "count": ${isReactExperimental ? 1 : 2},
+          "description": "trigger an console.error in render",
+          "source": "app/browser/render/page.js (4:11) @ error
+
+          2 |
+          3 | export default function Page() {
+        > 4 |   console.error('trigger an console.error in render')
+            |           ^
+          5 |   return <p>render</p>
+          6 | }
+          7 |",
+        }
+      `)
+    }
+  })
+
+  it('should capture browser console error in render and dedupe when multi same errors logged', async () => {
+    const browser = await next.browser('/browser/render')
+
+    await waitForAndOpenRuntimeError(browser)
+    await assertHasRedbox(browser)
+
+    const result = await getRedboxResult(browser)
+
+    if (process.env.TURBOPACK) {
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "callStacks": "",
+          "count": ${isReactExperimental ? 1 : 2},
+          "description": "trigger an console.error in render",
+          "source": "app/browser/render/page.js (4:11) @ Page
+
+          2 |
+          3 | export default function Page() {
+        > 4 |   console.error('trigger an console.error in render')
+            |           ^
+          5 |   return <p>render</p>
+          6 | }
+          7 |",
+        }
+      `)
+    } else {
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "callStacks": "",
+          "count": ${isReactExperimental ? 1 : 2},
+          "description": "trigger an console.error in render",
+          "source": "app/browser/render/page.js (4:11) @ error
+
+          2 |
+          3 | export default function Page() {
+        > 4 |   console.error('trigger an console.error in render')
+            |           ^
+          5 |   return <p>render</p>
+          6 | }
+          7 |",
         }
       `)
     }
@@ -85,7 +182,7 @@ describe('app-dir - capture-console-error', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "callStacks": "",
-          "count": 2,
+          "count": ${isReactExperimental ? 1 : 2},
           "description": "ssr console error:client",
           "source": "app/ssr/page.js (4:11) @ Page
 
@@ -102,7 +199,7 @@ describe('app-dir - capture-console-error', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "callStacks": "",
-          "count": 2,
+          "count": ${isReactExperimental ? 1 : 2},
           "description": "ssr console error:client",
           "source": "app/ssr/page.js (4:11) @ error
 
@@ -131,12 +228,12 @@ describe('app-dir - capture-console-error', () => {
         {
           "callStacks": "",
           "count": 1,
-          "description": "[ Server ]  Error: boom",
-          "source": "app/rsc/page.js (2:11) @ Page
+          "description": "[ Server ] Error: boom",
+          "source": "app/rsc/page.js (2:17) @ Page
 
           1 | export default function Page() {
         > 2 |   console.error(new Error('boom'))
-            |           ^
+            |                 ^
           3 |   return <p>rsc</p>
           4 | }
           5 |",
@@ -147,12 +244,12 @@ describe('app-dir - capture-console-error', () => {
         {
           "callStacks": "",
           "count": 1,
-          "description": "[ Server ]  Error: boom",
-          "source": "app/rsc/page.js (2:11) @ error
+          "description": "[ Server ] Error: boom",
+          "source": "app/rsc/page.js (2:17) @ Page
 
           1 | export default function Page() {
         > 2 |   console.error(new Error('boom'))
-            |           ^
+            |                 ^
           3 |   return <p>rsc</p>
           4 | }
           5 |",

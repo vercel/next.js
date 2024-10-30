@@ -29,6 +29,11 @@ import {
   RSC_PREFETCH_SUFFIX,
   RSC_SUFFIX,
   NEXT_RESUME_HEADER,
+  PRERENDER_REVALIDATE_HEADER,
+  PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER,
+  NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
+  NEXT_CACHE_REVALIDATED_TAGS_HEADER,
+  MATCHED_PATH_HEADER,
 } from '../lib/constants'
 import { FileType, fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
@@ -255,6 +260,12 @@ export interface SsgRoute {
    * route.
    */
   renderingMode: RenderingMode | undefined
+
+  /**
+   * The headers that are allowed to be used when revalidating this route. These
+   * are used internally by Next.js to revalidate routes.
+   */
+  allowHeader: string[]
 }
 
 export interface DynamicSsgRoute {
@@ -292,7 +303,25 @@ export interface DynamicSsgRoute {
    * route.
    */
   renderingMode: RenderingMode | undefined
+
+  /**
+   * The headers that are allowed to be used when revalidating this route. These
+   * are used internally by Next.js to revalidate routes.
+   */
+  allowHeader: string[]
 }
+
+/**
+ * The headers that are allowed to be used when revalidating routes. Currently
+ * this includes both headers used by the pages and app routers.
+ */
+const ALLOWED_HEADERS: string[] = [
+  MATCHED_PATH_HEADER,
+  PRERENDER_REVALIDATE_HEADER,
+  PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER,
+  NEXT_CACHE_REVALIDATED_TAGS_HEADER,
+  NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
+]
 
 export type PrerenderManifest = {
   version: 4
@@ -649,12 +678,20 @@ const staticWorkerExposedMethods = [
 type StaticWorker = typeof import('./worker') & Worker
 export function createStaticWorker(
   config: NextConfigComplete,
-  onActivity?: () => void
+  progress?: {
+    run: () => void
+    clear: () => void
+  }
 ): StaticWorker {
   return new Worker(staticWorkerPath, {
     logger: Log,
     numWorkers: getNumberOfWorkers(config),
-    onActivity,
+    onActivity: () => {
+      progress?.run()
+    },
+    onActivityAbort: () => {
+      progress?.clear()
+    },
     forkOptions: {
       env: process.env,
     },
@@ -1516,7 +1553,7 @@ export default async function build(
                   remainingRampup--
                   sema.release()
                 }
-                progress()
+                progress.run()
               }
             })()
           )
@@ -2512,6 +2549,16 @@ export default async function build(
       const requiredServerFilesManifest = nextBuildSpan
         .traceChild('generate-required-server-files')
         .traceFn(() => {
+          const normalizedCacheHandlers: Record<string, string> = {}
+
+          for (const [key, value] of Object.entries(
+            config.experimental.cacheHandlers || {}
+          )) {
+            if (key && value) {
+              normalizedCacheHandlers[key] = path.relative(distDir, value)
+            }
+          }
+
           const serverFilesManifest: RequiredServerFilesManifest = {
             version: 1,
             config: {
@@ -2527,6 +2574,7 @@ export default async function build(
                 : config.cacheHandler,
               experimental: {
                 ...config.experimental,
+                cacheHandlers: normalizedCacheHandlers,
                 trustHostHeader: ciEnvironment.hasNextSupport,
 
                 // @ts-expect-error internal field TODO: fix this, should use a separate mechanism to pass the info.
@@ -3201,6 +3249,7 @@ export default async function build(
                   srcRoute: page,
                   dataRoute,
                   prefetchDataRoute,
+                  allowHeader: ALLOWED_HEADERS,
                 }
               } else {
                 hasRevalidateZero = true
@@ -3307,6 +3356,7 @@ export default async function build(
                           '\\.prefetch\\.rsc$'
                         )
                       ),
+                  allowHeader: ALLOWED_HEADERS,
                 }
               }
             }
@@ -3538,6 +3588,7 @@ export default async function build(
                         `${file}.json`
                       ),
                       prefetchDataRoute: undefined,
+                      allowHeader: ALLOWED_HEADERS,
                     }
                   }
                 } else {
@@ -3554,6 +3605,7 @@ export default async function build(
                     ),
                     // Pages does not have a prefetch data route.
                     prefetchDataRoute: undefined,
+                    allowHeader: ALLOWED_HEADERS,
                   }
                 }
                 // Set Page Revalidation Interval
@@ -3624,6 +3676,7 @@ export default async function build(
                     ),
                     // Pages does not have a prefetch data route.
                     prefetchDataRoute: undefined,
+                    allowHeader: ALLOWED_HEADERS,
                   }
 
                   // Set route Revalidation Interval
@@ -3719,6 +3772,7 @@ export default async function build(
             // Pages does not have a prefetch data route.
             prefetchDataRoute: undefined,
             prefetchDataRouteRegex: undefined,
+            allowHeader: ALLOWED_HEADERS,
           }
         })
 
@@ -3846,6 +3900,7 @@ export default async function build(
         mode: 'build',
         projectDir: dir,
         distDir: loadedConfig.distDir,
+        isTurboSession: turboNextBuild,
         sync: true,
       })
     }

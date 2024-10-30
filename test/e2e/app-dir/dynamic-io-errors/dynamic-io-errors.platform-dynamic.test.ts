@@ -39,7 +39,6 @@ function createExpectError(cliOutput: string) {
 }
 
 function runTests(options: { withMinification: boolean }) {
-  const isTurbopack = !!process.env.TURBOPACK
   const { withMinification } = options
   describe(`Dynamic IO Errors - ${withMinification ? 'With Minification' : 'Without Minification'}`, () => {
     describe('Sync Dynamic - With Fallback - Math.random()', () => {
@@ -126,13 +125,7 @@ function runTests(options: { withMinification: boolean }) {
         expectError(
           'Error: Route "/" used `Math.random()` outside of `"use cache"` and without explicitly calling `await connection()` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random'
         )
-        expectError(
-          'Error: In Route "/" this parent component stack may help you locate where `Math.random()` was used.',
-          // Turbopack doesn't support disabling minification yet
-          withMinification || isTurbopack ? undefined : 'IndirectionTwo'
-        )
         expectError('Error occurred prerendering page "/"')
-        expectError('Error: Route "/" could not be prerendered.')
         expectError('exiting the build.')
       })
     })

@@ -3,6 +3,7 @@ import { Dynamic } from '../../../components/dynamic'
 
 export default async ({ params }) => {
   const { slug } = await params
+
   return (
     <Suspense fallback={<Dynamic pathname={`/loading/${slug}`} fallback />}>
       <Dynamic pathname={`/loading/${slug}`} />

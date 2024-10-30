@@ -24,7 +24,7 @@ pnpm create next-app --example cache-handler-redis cache-handler-redis-app
 Once you have installed the dependencies, you can begin running the example Redis Stack server by using the following command:
 
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 Then, build and start the Next.js app as usual.
@@ -49,7 +49,7 @@ For detailed information on configuration and usage, please refer to our compreh
 
 ## Development and Production Considerations
 
-- The provided `docker-compose.yml` is intended for local development. For production deployment, refer to the official [Redis installation](https://redis.io/docs/install/) and [management](https://redis.io/docs/management/) guidelines.
+- The provided `compose.yaml` is intended for local development. For production deployment, refer to the official [Redis installation](https://redis.io/docs/install/) and [management](https://redis.io/docs/management/) guidelines.
 
 - **Clearing Redis Cache:** To clear the Redis cache, use RedisInsight Workbench or the following CLI command:
 

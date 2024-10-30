@@ -242,7 +242,6 @@ function modifyTypes(
             member.typeAnnotation.typeAnnotation = j.tsTypeReference(
               j.identifier('Promise'),
               j.tsTypeParameterInstantiation([
-                // @ts-ignore
                 member.typeAnnotation.typeAnnotation,
               ])
             )
@@ -301,6 +300,55 @@ function modifyTypes(
                 }
               }
             })
+          }
+        }
+
+        // Deal with type aliases
+        if (foundTypes.typeAliases.length > 0) {
+          const typeAliasDeclaration = foundTypes.typeAliases[0]
+          if (j.TSTypeAliasDeclaration.check(typeAliasDeclaration)) {
+            const typeAlias = typeAliasDeclaration.typeAnnotation
+            if (
+              j.TSTypeLiteral.check(typeAlias) &&
+              typeAlias.members.length > 0
+            ) {
+              const typeLiteral = typeAlias
+              typeLiteral.members.forEach((member) => {
+                if (
+                  j.TSPropertySignature.check(member) &&
+                  j.Identifier.check(member.key) &&
+                  TARGET_PROP_NAMES.has(member.key.name)
+                ) {
+                  // if it's already a Promise, don't wrap it again, return
+                  if (
+                    member.typeAnnotation &&
+                    member.typeAnnotation.typeAnnotation &&
+                    member.typeAnnotation.typeAnnotation.type ===
+                      'TSTypeReference' &&
+                    member.typeAnnotation.typeAnnotation.typeName.type ===
+                      'Identifier' &&
+                    member.typeAnnotation.typeAnnotation.typeName.name ===
+                      'Promise'
+                  ) {
+                    return
+                  }
+
+                  // Wrap the prop type in Promise<>
+                  if (
+                    member.typeAnnotation &&
+                    j.TSTypeLiteral.check(member.typeAnnotation.typeAnnotation)
+                  ) {
+                    member.typeAnnotation.typeAnnotation = j.tsTypeReference(
+                      j.identifier('Promise'),
+                      j.tsTypeParameterInstantiation([
+                        member.typeAnnotation.typeAnnotation,
+                      ])
+                    )
+                    modified = true
+                  }
+                }
+              })
+            }
           }
         }
       }
@@ -414,9 +462,12 @@ export function transformDynamicProps(
           modified ||= awaited
         }
 
-        if (modified) {
-          modifyTypes(currentParam.typeAnnotation, propsIdentifier, root, j)
-        }
+        modified ||= modifyTypes(
+          currentParam.typeAnnotation,
+          propsIdentifier,
+          root,
+          j
+        )
 
         // cases of passing down `props` into any function
         // Page(props) { callback(props) }
@@ -644,9 +695,8 @@ export function transformDynamicProps(
           : null
         const paramPropertyName = paramsPropertyName || matchedPropName
 
-        // if propName is not used in lower scope, and it stars with unused prefix `_`,
-        // also skip the transformation
-
+        // If propName is an identifier and not used in lower scope,
+        // also skip the transformation.
         const hasUsedInBody =
           j(functionBodyPath)
             .find(j.Identifier, {
@@ -654,7 +704,7 @@ export function transformDynamicProps(
             })
             .size() > 0
 
-        if (!hasUsedInBody && paramPropertyName.startsWith('_')) continue
+        if (!hasUsedInBody && j.Identifier.check(paramsProperty)) continue
 
         // Search the usage of propName in the function body,
         // if they're all awaited or wrapped with use(), skip the transformation

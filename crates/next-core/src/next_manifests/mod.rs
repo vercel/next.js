@@ -194,9 +194,16 @@ pub struct ActionManifestEntry<'a> {
 }
 
 #[derive(Serialize, Debug)]
-#[serde(rename_all = "camelCase")]
+pub struct ActionManifestWorkerEntry<'a> {
+    #[serde(rename = "moduleId")]
+    pub module_id: ActionManifestModuleId<'a>,
+    #[serde(rename = "async")]
+    pub is_async: bool,
+}
+
+#[derive(Serialize, Debug)]
 #[serde(untagged)]
-pub enum ActionManifestWorkerEntry<'a> {
+pub enum ActionManifestModuleId<'a> {
     String(&'a str),
     Number(f64),
 }

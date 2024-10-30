@@ -828,6 +828,24 @@ describe('app-dir action handling', () => {
     ).toBe(true)
   })
 
+  // we don't have access to runtime logs on deploy
+  if (!isNextDeploy) {
+    it('should keep action instances identical', async () => {
+      const logs: string[] = []
+      next.on('stdout', (log) => {
+        logs.push(log)
+      })
+
+      const browser = await next.browser('/identity')
+
+      await browser.elementByCss('button').click()
+
+      await retry(() => {
+        expect(logs.join('')).toContain('result: true')
+      })
+    })
+  }
+
   it.each(['node', 'edge'])(
     'should forward action request to a worker that contains the action handler (%s)',
     async (runtime) => {
@@ -1568,6 +1586,16 @@ describe('app-dir action handling', () => {
       const html = await res.text()
       expect(html).not.toContain('qwerty123')
       expect(html).not.toContain('some-module-level-encryption-value')
+    })
+
+    it('should be able to resolve other server actions and client components', async () => {
+      const browser = await next.browser('/encryption')
+      expect(await browser.elementByCss('p').text()).toBe('initial')
+      await browser.elementByCss('button').click()
+
+      await retry(async () => {
+        expect(await browser.elementByCss('p').text()).toBe('hello from client')
+      })
     })
   })
 

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
@@ -23,14 +23,14 @@ fn react_refresh_request_in_next() -> Vc<Request> {
 #[turbo_tasks::value]
 pub enum ResolveReactRefreshResult {
     NotFound,
-    Found(Vc<Request>),
+    Found(ResolvedVc<Request>),
 }
 
 impl ResolveReactRefreshResult {
     pub fn as_request(&self) -> Option<Vc<Request>> {
         match self {
             ResolveReactRefreshResult::NotFound => None,
-            ResolveReactRefreshResult::Found(r) => Some(*r),
+            ResolveReactRefreshResult::Found(r) => Some(**r),
         }
     }
     pub fn is_found(&self) -> bool {
@@ -62,7 +62,7 @@ pub async fn assert_can_resolve_react_refresh(
         .first_source();
 
         if result.await?.is_some() {
-            return Ok(ResolveReactRefreshResult::Found(request).cell());
+            return Ok(ResolveReactRefreshResult::Found(request.to_resolved().await?).cell());
         }
     }
     ReactRefreshResolvingIssue { path }.cell().emit();

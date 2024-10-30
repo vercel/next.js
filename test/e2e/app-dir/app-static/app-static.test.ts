@@ -1095,6 +1095,13 @@ describe('app-dir static/dynamic handling', () => {
       expect(curManifest.routes).toMatchInlineSnapshot(`
         {
           "/": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/index.rsc",
             "experimentalBypassFor": [
               {
@@ -1111,6 +1118,13 @@ describe('app-dir static/dynamic handling', () => {
             "srcRoute": "/",
           },
           "/api/large-data": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": null,
             "experimentalBypassFor": [
               {
@@ -1131,6 +1145,13 @@ describe('app-dir static/dynamic handling', () => {
             "srcRoute": "/api/large-data",
           },
           "/articles/works": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/articles/works.rsc",
             "experimentalBypassFor": [
               {
@@ -1147,6 +1168,13 @@ describe('app-dir static/dynamic handling', () => {
             "srcRoute": "/articles/[slug]",
           },
           "/blog/seb": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/blog/seb.rsc",
             "experimentalBypassFor": [
               {
@@ -1163,6 +1191,13 @@ describe('app-dir static/dynamic handling', () => {
             "srcRoute": "/blog/[author]",
           },
           "/blog/seb/second-post": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/blog/seb/second-post.rsc",
             "experimentalBypassFor": [
               {
@@ -1179,6 +1214,13 @@ describe('app-dir static/dynamic handling', () => {
             "srcRoute": "/blog/[author]/[slug]",
           },
           "/blog/styfle": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/blog/styfle.rsc",
             "experimentalBypassFor": [
               {
@@ -1195,6 +1237,13 @@ describe('app-dir static/dynamic handling', () => {
             "srcRoute": "/blog/[author]",
           },
           "/blog/styfle/first-post": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/blog/styfle/first-post.rsc",
             "experimentalBypassFor": [
               {
@@ -1211,6 +1260,13 @@ describe('app-dir static/dynamic handling', () => {
             "srcRoute": "/blog/[author]/[slug]",
           },
           "/blog/styfle/second-post": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/blog/styfle/second-post.rsc",
             "experimentalBypassFor": [
               {
@@ -1227,6 +1283,13 @@ describe('app-dir static/dynamic handling', () => {
             "srcRoute": "/blog/[author]/[slug]",
           },
           "/blog/tim": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/blog/tim.rsc",
             "experimentalBypassFor": [
               {
@@ -1243,6 +1306,13 @@ describe('app-dir static/dynamic handling', () => {
             "srcRoute": "/blog/[author]",
           },
           "/blog/tim/first-post": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/blog/tim/first-post.rsc",
             "experimentalBypassFor": [
               {
@@ -1259,6 +1329,13 @@ describe('app-dir static/dynamic handling', () => {
             "srcRoute": "/blog/[author]/[slug]",
           },
           "/default-config-fetch": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/default-config-fetch.rsc",
             "experimentalBypassFor": [
               {
@@ -1275,6 +1352,13 @@ describe('app-dir static/dynamic handling', () => {
             "srcRoute": "/default-config-fetch",
           },
           "/force-cache": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/force-cache.rsc",
             "experimentalBypassFor": [
               {
@@ -1291,6 +1375,13 @@ describe('app-dir static/dynamic handling', () => {
             "srcRoute": "/force-cache",
           },
           "/force-static-fetch-no-store": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/force-static-fetch-no-store.rsc",
             "experimentalBypassFor": [
               {
@@ -1307,6 +1398,13 @@ describe('app-dir static/dynamic handling', () => {
             "srcRoute": "/force-static-fetch-no-store",
           },
           "/force-static/first": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/force-static/first.rsc",
             "experimentalBypassFor": [
               {
@@ -1323,6 +1421,13 @@ describe('app-dir static/dynamic handling', () => {
             "srcRoute": "/force-static/[slug]",
           },
           "/force-static/second": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/force-static/second.rsc",
             "experimentalBypassFor": [
               {
@@ -1339,6 +1444,13 @@ describe('app-dir static/dynamic handling', () => {
             "srcRoute": "/force-static/[slug]",
           },
           "/gen-params-dynamic-revalidate/one": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/gen-params-dynamic-revalidate/one.rsc",
             "experimentalBypassFor": [
               {
@@ -1355,6 +1467,13 @@ describe('app-dir static/dynamic handling', () => {
             "srcRoute": "/gen-params-dynamic-revalidate/[slug]",
           },
           "/hooks/use-pathname/slug": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/hooks/use-pathname/slug.rsc",
             "experimentalBypassFor": [
               {
@@ -1371,6 +1490,13 @@ describe('app-dir static/dynamic handling', () => {
             "srcRoute": "/hooks/use-pathname/[slug]",
           },
           "/hooks/use-search-params/force-static": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/hooks/use-search-params/force-static.rsc",
             "experimentalBypassFor": [
               {
@@ -1387,6 +1513,13 @@ describe('app-dir static/dynamic handling', () => {
             "srcRoute": "/hooks/use-search-params/force-static",
           },
           "/hooks/use-search-params/with-suspense": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/hooks/use-search-params/with-suspense.rsc",
             "experimentalBypassFor": [
               {
@@ -1403,6 +1536,13 @@ describe('app-dir static/dynamic handling', () => {
             "srcRoute": "/hooks/use-search-params/with-suspense",
           },
           "/isr-error-handling": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/isr-error-handling.rsc",
             "experimentalBypassFor": [
               {
@@ -1419,6 +1559,13 @@ describe('app-dir static/dynamic handling', () => {
             "srcRoute": "/isr-error-handling",
           },
           "/no-config-fetch": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/no-config-fetch.rsc",
             "experimentalBypassFor": [
               {
@@ -1435,6 +1582,13 @@ describe('app-dir static/dynamic handling', () => {
             "srcRoute": "/no-config-fetch",
           },
           "/no-store/static": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/no-store/static.rsc",
             "experimentalBypassFor": [
               {
@@ -1451,6 +1605,13 @@ describe('app-dir static/dynamic handling', () => {
             "srcRoute": "/no-store/static",
           },
           "/partial-gen-params-no-additional-lang/en/RAND": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/partial-gen-params-no-additional-lang/en/RAND.rsc",
             "experimentalBypassFor": [
               {
@@ -1467,6 +1628,13 @@ describe('app-dir static/dynamic handling', () => {
             "srcRoute": "/partial-gen-params-no-additional-lang/[lang]/[slug]",
           },
           "/partial-gen-params-no-additional-lang/en/first": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/partial-gen-params-no-additional-lang/en/first.rsc",
             "experimentalBypassFor": [
               {
@@ -1483,6 +1651,13 @@ describe('app-dir static/dynamic handling', () => {
             "srcRoute": "/partial-gen-params-no-additional-lang/[lang]/[slug]",
           },
           "/partial-gen-params-no-additional-lang/en/second": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/partial-gen-params-no-additional-lang/en/second.rsc",
             "experimentalBypassFor": [
               {
@@ -1499,6 +1674,13 @@ describe('app-dir static/dynamic handling', () => {
             "srcRoute": "/partial-gen-params-no-additional-lang/[lang]/[slug]",
           },
           "/partial-gen-params-no-additional-lang/fr/RAND": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/partial-gen-params-no-additional-lang/fr/RAND.rsc",
             "experimentalBypassFor": [
               {
@@ -1515,6 +1697,13 @@ describe('app-dir static/dynamic handling', () => {
             "srcRoute": "/partial-gen-params-no-additional-lang/[lang]/[slug]",
           },
           "/partial-gen-params-no-additional-lang/fr/first": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/partial-gen-params-no-additional-lang/fr/first.rsc",
             "experimentalBypassFor": [
               {
@@ -1531,6 +1720,13 @@ describe('app-dir static/dynamic handling', () => {
             "srcRoute": "/partial-gen-params-no-additional-lang/[lang]/[slug]",
           },
           "/partial-gen-params-no-additional-lang/fr/second": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/partial-gen-params-no-additional-lang/fr/second.rsc",
             "experimentalBypassFor": [
               {
@@ -1547,6 +1743,13 @@ describe('app-dir static/dynamic handling', () => {
             "srcRoute": "/partial-gen-params-no-additional-lang/[lang]/[slug]",
           },
           "/partial-gen-params-no-additional-slug/en/RAND": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/partial-gen-params-no-additional-slug/en/RAND.rsc",
             "experimentalBypassFor": [
               {
@@ -1563,6 +1766,13 @@ describe('app-dir static/dynamic handling', () => {
             "srcRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug]",
           },
           "/partial-gen-params-no-additional-slug/en/first": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/partial-gen-params-no-additional-slug/en/first.rsc",
             "experimentalBypassFor": [
               {
@@ -1579,6 +1789,13 @@ describe('app-dir static/dynamic handling', () => {
             "srcRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug]",
           },
           "/partial-gen-params-no-additional-slug/en/second": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/partial-gen-params-no-additional-slug/en/second.rsc",
             "experimentalBypassFor": [
               {
@@ -1595,6 +1812,13 @@ describe('app-dir static/dynamic handling', () => {
             "srcRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug]",
           },
           "/partial-gen-params-no-additional-slug/fr/RAND": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/partial-gen-params-no-additional-slug/fr/RAND.rsc",
             "experimentalBypassFor": [
               {
@@ -1611,6 +1835,13 @@ describe('app-dir static/dynamic handling', () => {
             "srcRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug]",
           },
           "/partial-gen-params-no-additional-slug/fr/first": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/partial-gen-params-no-additional-slug/fr/first.rsc",
             "experimentalBypassFor": [
               {
@@ -1627,6 +1858,13 @@ describe('app-dir static/dynamic handling', () => {
             "srcRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug]",
           },
           "/partial-gen-params-no-additional-slug/fr/second": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/partial-gen-params-no-additional-slug/fr/second.rsc",
             "experimentalBypassFor": [
               {
@@ -1643,6 +1881,13 @@ describe('app-dir static/dynamic handling', () => {
             "srcRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug]",
           },
           "/route-handler/no-store-force-static": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": null,
             "experimentalBypassFor": [
               {
@@ -1663,6 +1908,13 @@ describe('app-dir static/dynamic handling', () => {
             "srcRoute": "/route-handler/no-store-force-static",
           },
           "/route-handler/revalidate-360-isr": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": null,
             "experimentalBypassFor": [
               {
@@ -1683,6 +1935,13 @@ describe('app-dir static/dynamic handling', () => {
             "srcRoute": "/route-handler/revalidate-360-isr",
           },
           "/route-handler/static-cookies": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": null,
             "experimentalBypassFor": [
               {
@@ -1703,6 +1962,13 @@ describe('app-dir static/dynamic handling', () => {
             "srcRoute": "/route-handler/static-cookies",
           },
           "/ssg-draft-mode": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/ssg-draft-mode.rsc",
             "experimentalBypassFor": [
               {
@@ -1719,6 +1985,13 @@ describe('app-dir static/dynamic handling', () => {
             "srcRoute": "/ssg-draft-mode/[[...route]]",
           },
           "/ssg-draft-mode/test": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/ssg-draft-mode/test.rsc",
             "experimentalBypassFor": [
               {
@@ -1735,6 +2008,13 @@ describe('app-dir static/dynamic handling', () => {
             "srcRoute": "/ssg-draft-mode/[[...route]]",
           },
           "/ssg-draft-mode/test-2": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/ssg-draft-mode/test-2.rsc",
             "experimentalBypassFor": [
               {
@@ -1751,6 +2031,13 @@ describe('app-dir static/dynamic handling', () => {
             "srcRoute": "/ssg-draft-mode/[[...route]]",
           },
           "/strip-header-traceparent": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/strip-header-traceparent.rsc",
             "experimentalBypassFor": [
               {
@@ -1767,6 +2054,13 @@ describe('app-dir static/dynamic handling', () => {
             "srcRoute": "/strip-header-traceparent",
           },
           "/unstable-cache/fetch/no-cache": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/unstable-cache/fetch/no-cache.rsc",
             "experimentalBypassFor": [
               {
@@ -1783,6 +2077,13 @@ describe('app-dir static/dynamic handling', () => {
             "srcRoute": "/unstable-cache/fetch/no-cache",
           },
           "/unstable-cache/fetch/no-store": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/unstable-cache/fetch/no-store.rsc",
             "experimentalBypassFor": [
               {
@@ -1799,6 +2100,13 @@ describe('app-dir static/dynamic handling', () => {
             "srcRoute": "/unstable-cache/fetch/no-store",
           },
           "/variable-config-revalidate/revalidate-3": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/variable-config-revalidate/revalidate-3.rsc",
             "experimentalBypassFor": [
               {
@@ -1815,6 +2123,13 @@ describe('app-dir static/dynamic handling', () => {
             "srcRoute": "/variable-config-revalidate/revalidate-3",
           },
           "/variable-revalidate-stable/revalidate-3": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/variable-revalidate-stable/revalidate-3.rsc",
             "experimentalBypassFor": [
               {
@@ -1831,6 +2146,13 @@ describe('app-dir static/dynamic handling', () => {
             "srcRoute": "/variable-revalidate-stable/revalidate-3",
           },
           "/variable-revalidate/authorization": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/variable-revalidate/authorization.rsc",
             "experimentalBypassFor": [
               {
@@ -1847,6 +2169,13 @@ describe('app-dir static/dynamic handling', () => {
             "srcRoute": "/variable-revalidate/authorization",
           },
           "/variable-revalidate/cookie": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/variable-revalidate/cookie.rsc",
             "experimentalBypassFor": [
               {
@@ -1863,6 +2192,13 @@ describe('app-dir static/dynamic handling', () => {
             "srcRoute": "/variable-revalidate/cookie",
           },
           "/variable-revalidate/encoding": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/variable-revalidate/encoding.rsc",
             "experimentalBypassFor": [
               {
@@ -1879,6 +2215,13 @@ describe('app-dir static/dynamic handling', () => {
             "srcRoute": "/variable-revalidate/encoding",
           },
           "/variable-revalidate/headers-instance": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/variable-revalidate/headers-instance.rsc",
             "experimentalBypassFor": [
               {
@@ -1895,6 +2238,13 @@ describe('app-dir static/dynamic handling', () => {
             "srcRoute": "/variable-revalidate/headers-instance",
           },
           "/variable-revalidate/post-method": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/variable-revalidate/post-method.rsc",
             "experimentalBypassFor": [
               {
@@ -1911,6 +2261,13 @@ describe('app-dir static/dynamic handling', () => {
             "srcRoute": "/variable-revalidate/post-method",
           },
           "/variable-revalidate/revalidate-3": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/variable-revalidate/revalidate-3.rsc",
             "experimentalBypassFor": [
               {
@@ -1927,6 +2284,13 @@ describe('app-dir static/dynamic handling', () => {
             "srcRoute": "/variable-revalidate/revalidate-3",
           },
           "/variable-revalidate/revalidate-360-isr": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/variable-revalidate/revalidate-360-isr.rsc",
             "experimentalBypassFor": [
               {
@@ -1947,6 +2311,13 @@ describe('app-dir static/dynamic handling', () => {
       expect(curManifest.dynamicRoutes).toMatchInlineSnapshot(`
         {
           "/articles/[slug]": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/articles/[slug].rsc",
             "dataRouteRegex": "^\\/articles\\/([^\\/]+?)\\.rsc$",
             "experimentalBypassFor": [
@@ -1964,6 +2335,13 @@ describe('app-dir static/dynamic handling', () => {
             "routeRegex": "^\\/articles\\/([^\\/]+?)(?:\\/)?$",
           },
           "/blog/[author]": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/blog/[author].rsc",
             "dataRouteRegex": "^\\/blog\\/([^\\/]+?)\\.rsc$",
             "experimentalBypassFor": [
@@ -1981,6 +2359,13 @@ describe('app-dir static/dynamic handling', () => {
             "routeRegex": "^\\/blog\\/([^\\/]+?)(?:\\/)?$",
           },
           "/blog/[author]/[slug]": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/blog/[author]/[slug].rsc",
             "dataRouteRegex": "^\\/blog\\/([^\\/]+?)\\/([^\\/]+?)\\.rsc$",
             "experimentalBypassFor": [
@@ -1998,6 +2383,13 @@ describe('app-dir static/dynamic handling', () => {
             "routeRegex": "^\\/blog\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$",
           },
           "/dynamic-error/[id]": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/dynamic-error/[id].rsc",
             "dataRouteRegex": "^\\/dynamic\\-error\\/([^\\/]+?)\\.rsc$",
             "experimentalBypassFor": [
@@ -2015,6 +2407,13 @@ describe('app-dir static/dynamic handling', () => {
             "routeRegex": "^\\/dynamic\\-error\\/([^\\/]+?)(?:\\/)?$",
           },
           "/force-static/[slug]": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/force-static/[slug].rsc",
             "dataRouteRegex": "^\\/force\\-static\\/([^\\/]+?)\\.rsc$",
             "experimentalBypassFor": [
@@ -2032,6 +2431,13 @@ describe('app-dir static/dynamic handling', () => {
             "routeRegex": "^\\/force\\-static\\/([^\\/]+?)(?:\\/)?$",
           },
           "/gen-params-dynamic-revalidate/[slug]": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/gen-params-dynamic-revalidate/[slug].rsc",
             "dataRouteRegex": "^\\/gen\\-params\\-dynamic\\-revalidate\\/([^\\/]+?)\\.rsc$",
             "experimentalBypassFor": [
@@ -2049,6 +2455,13 @@ describe('app-dir static/dynamic handling', () => {
             "routeRegex": "^\\/gen\\-params\\-dynamic\\-revalidate\\/([^\\/]+?)(?:\\/)?$",
           },
           "/hooks/use-pathname/[slug]": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/hooks/use-pathname/[slug].rsc",
             "dataRouteRegex": "^\\/hooks\\/use\\-pathname\\/([^\\/]+?)\\.rsc$",
             "experimentalBypassFor": [
@@ -2066,6 +2479,13 @@ describe('app-dir static/dynamic handling', () => {
             "routeRegex": "^\\/hooks\\/use\\-pathname\\/([^\\/]+?)(?:\\/)?$",
           },
           "/partial-gen-params-no-additional-lang/[lang]/[slug]": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/partial-gen-params-no-additional-lang/[lang]/[slug].rsc",
             "dataRouteRegex": "^\\/partial\\-gen\\-params\\-no\\-additional\\-lang\\/([^\\/]+?)\\/([^\\/]+?)\\.rsc$",
             "experimentalBypassFor": [
@@ -2083,6 +2503,13 @@ describe('app-dir static/dynamic handling', () => {
             "routeRegex": "^\\/partial\\-gen\\-params\\-no\\-additional\\-lang\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$",
           },
           "/partial-gen-params-no-additional-slug/[lang]/[slug]": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug].rsc",
             "dataRouteRegex": "^\\/partial\\-gen\\-params\\-no\\-additional\\-slug\\/([^\\/]+?)\\/([^\\/]+?)\\.rsc$",
             "experimentalBypassFor": [
@@ -2100,6 +2527,13 @@ describe('app-dir static/dynamic handling', () => {
             "routeRegex": "^\\/partial\\-gen\\-params\\-no\\-additional\\-slug\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$",
           },
           "/ssg-draft-mode/[[...route]]": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/ssg-draft-mode/[[...route]].rsc",
             "dataRouteRegex": "^\\/ssg\\-draft\\-mode(?:\\/(.+?))?\\.rsc$",
             "experimentalBypassFor": [
@@ -2117,6 +2551,13 @@ describe('app-dir static/dynamic handling', () => {
             "routeRegex": "^\\/ssg\\-draft\\-mode(?:\\/(.+?))?(?:\\/)?$",
           },
           "/static-to-dynamic-error-forced/[id]": {
+            "allowHeader": [
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token",
+            ],
             "dataRoute": "/static-to-dynamic-error-forced/[id].rsc",
             "dataRouteRegex": "^\\/static\\-to\\-dynamic\\-error\\-forced\\/([^\\/]+?)\\.rsc$",
             "experimentalBypassFor": [
