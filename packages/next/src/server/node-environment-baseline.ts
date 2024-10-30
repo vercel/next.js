@@ -12,6 +12,12 @@ if (typeof (globalThis as any).WebSocket !== 'function') {
     get() {
       return require('next/dist/compiled/ws').WebSocket
     },
-    configurable: true,
+    set(value) {
+      Object.defineProperty(globalThis, 'WebSocket', {
+        value,
+        configurable: true,
+        writable: true
+      })
+    },
   })
 }
