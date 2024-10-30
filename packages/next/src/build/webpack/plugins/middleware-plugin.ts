@@ -120,7 +120,7 @@ function getEntryFiles(
           .map(
             (file) =>
               'server/' +
-              file.replace('.js', '_' + CLIENT_REFERENCE_MANIFEST + '.js')
+              file.replace(/\.js$/, '_' + CLIENT_REFERENCE_MANIFEST + '.js')
           )
       )
     }

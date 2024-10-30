@@ -12,6 +12,7 @@ describe('next-types-plugin', () => {
       isEdgeServer: false,
       pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
       typedRoutes: false,
+      cacheLifeConfig: undefined,
       originalRewrites: undefined,
       originalRedirects: undefined,
     })
@@ -40,6 +41,7 @@ describe('next-types-plugin', () => {
       isEdgeServer: false,
       pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
       typedRoutes: false,
+      cacheLifeConfig: undefined,
       originalRewrites: undefined,
       originalRedirects: undefined,
     })
@@ -60,6 +62,7 @@ describe('next-types-plugin', () => {
       isEdgeServer: false,
       pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
       typedRoutes: false,
+      cacheLifeConfig: undefined,
       originalRewrites: undefined,
       originalRedirects: undefined,
     })

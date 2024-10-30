@@ -1,6 +1,7 @@
 ---
 title: webVitalsAttribution
 description: Learn how to use the webVitalsAttribution option to pinpoint the source of Web Vitals issues.
+version: experimental
 ---
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
@@ -16,8 +17,10 @@ allows us to obtain more in-depth information like entries for [PerformanceEvent
 Attribution is disabled by default in Next.js but can be enabled **per metric** by specifying the following in `next.config.js`.
 
 ```js filename="next.config.js"
-experimental: {
-  webVitalsAttribution: ['CLS', 'LCP']
+module.exports = {
+  experimental: {
+    webVitalsAttribution: ['CLS', 'LCP'],
+  },
 }
 ```
 

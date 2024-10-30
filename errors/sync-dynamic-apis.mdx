@@ -5,7 +5,7 @@ description: Learn more about why accessing certain APIs synchronously now warns
 
 ## Why This Warning Occurred
 
-Somewhere in your code you used an API that opts into [dynamic rendering](/docs/app/building-your-application/rendering/server-components#dynamic-functions).
+Somewhere in your code you used an API that opts into [dynamic rendering](/docs/app/building-your-application/rendering/server-components#dynamic-apis).
 
 Dynamic APIs are:
 
@@ -43,7 +43,7 @@ If the warning occured on the Server (e.g. a route handler, or a Server Componen
 you must `await` the dynamic API to access its properties:
 
 ```js filename="app/[id]/page.js"
-function Page({ params }) {
+async function Page({ params }) {
   // asynchronous access of `params.id`.
   const { id } = await params
   return <p>ID: {id}</p>

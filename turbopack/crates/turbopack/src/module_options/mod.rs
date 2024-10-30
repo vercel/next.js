@@ -93,7 +93,6 @@ impl ModuleOptions {
             execution_context,
             ref rules,
             tree_shaking_mode,
-            special_exports,
             ..
         } = *module_options_context.await?;
 
@@ -136,13 +135,14 @@ impl ModuleOptions {
             import_externals,
             ignore_dynamic_requests,
             refresh,
-            special_exports: special_exports.unwrap_or_else(|| Vc::cell(vec![])),
             ..Default::default()
         };
         let ecmascript_options_vc = ecmascript_options.cell();
 
         if let Some(env) = preset_env_versions {
-            transforms.push(EcmascriptInputTransform::PresetEnv(env));
+            transforms.push(EcmascriptInputTransform::PresetEnv(
+                env.to_resolved().await?,
+            ));
         }
 
         if let Some(enable_typeof_window_inlining) = enable_typeof_window_inlining {
@@ -420,13 +420,13 @@ impl ModuleOptions {
                     vec![ModuleRuleEffect::SourceTransforms(Vc::cell(vec![
                         Vc::upcast(PostCssTransform::new(
                             node_evaluate_asset_context(
-                                execution_context,
+                                *execution_context,
                                 Some(import_map),
                                 None,
                                 "postcss".into(),
                                 true,
                             ),
-                            execution_context,
+                            *execution_context,
                             options.config_location,
                         )),
                     ]))],
@@ -564,13 +564,13 @@ impl ModuleOptions {
                     vec![ModuleRuleEffect::SourceTransforms(Vc::cell(vec![
                         Vc::upcast(WebpackLoaders::new(
                             node_evaluate_asset_context(
-                                execution_context,
+                                *execution_context,
                                 Some(import_map),
                                 None,
                                 "webpack_loaders".into(),
                                 false,
                             ),
-                            execution_context,
+                            *execution_context,
                             rule.loaders,
                             rule.rename_as.clone(),
                             resolve_options_context,

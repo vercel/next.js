@@ -157,7 +157,8 @@ program
       'If no directory is provided, the current directory will be used.'
     )}`
   )
-  .option('--turbo', 'Starts development mode using Turbopack (beta).')
+  .option('--turbo', 'Starts development mode using Turbopack.')
+  .option('--turbopack', 'Starts development mode using Turbopack.')
   .addOption(
     new Option(
       '-p, --port <port>',
@@ -170,6 +171,11 @@ program
   .option(
     '-H, --hostname <hostname>',
     'Specify a hostname on which to start the application (default: 0.0.0.0).'
+  )
+  .option(
+    '--disable-source-maps',
+    "Don't start the Dev server with `--enable-source-maps`.",
+    false
   )
   .option(
     '--experimental-https',

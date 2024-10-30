@@ -169,9 +169,17 @@ export function getSourceMapMiddleware(project: Project, distDir: string) {
       return badRequest(res)
     }
 
+    if (filename.startsWith('webpack://next/')) {
+      return noContent(res)
+    }
+
     try {
       if (filename.startsWith('/_next/static')) {
-        filename = path.join(distDir, filename.replace(/^\/_next\//, ''))
+        filename = path.join(
+          distDir,
+          // /_next/static/chunks/%5Bproject%5D... => static/chunks/[project]...
+          decodeURIComponent(filename.replace(/^\/_next\//, ''))
+        )
       }
 
       const sourceMapString = await project.getSourceMap(filename)

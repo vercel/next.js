@@ -1,12 +1,13 @@
 use anyhow::Result;
-use indexmap::IndexSet;
 use serde::{Deserialize, Serialize};
 use swc_core::{
     common::DUMMY_SP,
     ecma::ast::{ArrayLit, ArrayPat, Expr, Ident},
     quote,
 };
-use turbo_tasks::{trace::TraceRawVcs, ReadRef, TryFlatJoinIterExt, TryJoinIterExt, Vc};
+use turbo_tasks::{
+    trace::TraceRawVcs, FxIndexSet, ReadRef, TryFlatJoinIterExt, TryJoinIterExt, Vc,
+};
 use turbopack_core::{
     chunk::{
         AsyncModuleInfo, ChunkableModule, ChunkableModuleReference, ChunkingContext, ChunkingType,
@@ -74,7 +75,7 @@ impl OptionAsyncModule {
 }
 
 #[turbo_tasks::value(transparent)]
-struct AsyncModuleIdents(IndexSet<String>);
+struct AsyncModuleIdents(FxIndexSet<String>);
 
 async fn get_inherit_async_referenced_asset(
     r: Vc<Box<dyn ModuleReference>>,
@@ -122,7 +123,7 @@ impl AsyncModule {
                     ReferencedAsset::Some(placeable) => {
                         let chunk_item = placeable
                             .as_chunk_item(Vc::upcast(chunking_context))
-                            .resolve()
+                            .to_resolved()
                             .await?;
                         if async_module_info
                             .referenced_async_modules
@@ -134,13 +135,13 @@ impl AsyncModule {
                         }
                     }
                     ReferencedAsset::External(..) => None,
-                    ReferencedAsset::None => None,
+                    ReferencedAsset::None | ReferencedAsset::Unresolvable => None,
                 })
             })
             .try_flat_join()
             .await?;
 
-        Ok(Vc::cell(IndexSet::from_iter(reference_idents)))
+        Ok(Vc::cell(FxIndexSet::from_iter(reference_idents)))
     }
 
     #[turbo_tasks::function]

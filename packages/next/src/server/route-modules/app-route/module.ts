@@ -5,6 +5,7 @@ import type { NextRequest } from '../../web/spec-extension/request'
 import type { PrerenderManifest } from '../../../build'
 import type { NextURL } from '../../web/next-url'
 import type { DeepReadonly } from '../../../shared/lib/deep-readonly'
+import type { WorkUnitStore } from '../../app-render/work-unit-async-storage.external'
 
 import {
   RouteModule,
@@ -31,6 +32,7 @@ import {
 import { HeadersAdapter } from '../../web/spec-extension/adapters/headers'
 import { RequestCookiesAdapter } from '../../web/spec-extension/adapters/request-cookies'
 import { parsedUrlQueryToParams } from './helpers/parsed-url-query-to-params'
+import { printDebugThrownValueForProspectiveRender } from '../../app-render/prospective-render-utils'
 
 import * as serverHooks from '../../../client/components/hooks-server-context'
 import { DynamicServerError } from '../../../client/components/hooks-server-context'
@@ -55,10 +57,10 @@ import { cleanURL } from './helpers/clean-url'
 import { StaticGenBailoutError } from '../../../client/components/static-generation-bailout'
 import { isStaticGenEnabled } from './helpers/is-static-gen-enabled'
 import {
-  trackDynamicDataAccessed,
+  abortAndThrowOnSynchronousRequestDataAccess,
+  postponeWithTracking,
   createDynamicTrackingState,
   getFirstDynamicReason,
-  isPrerenderInterruptedError,
 } from '../../app-render/dynamic-rendering'
 import { ReflectAdapter } from '../../web/spec-extension/adapters/reflect'
 import type { RenderOptsPartial } from '../../app-render/types'
@@ -327,7 +329,7 @@ export class AppRouteRouteModule extends RouteModule<
            *
            * Next we run the handler again and we check if we get a result back in a microtask.
            * Next.js expects the return value to be a Response or a Thenable that resolves to a Response.
-           * Unfortunately Response's do not allow for acessing the response body synchronously or in
+           * Unfortunately Response's do not allow for accessing the response body synchronously or in
            * a microtask so we need to allow one more task to unwrap the response body. This is a slightly
            * different semantic than what we have when we render and it means that certain tasks can still
            * execute before a prerender completes such as a carefully timed setImmediate.
@@ -346,12 +348,14 @@ export class AppRouteRouteModule extends RouteModule<
               phase: 'action',
               implicitTags: implicitTags,
               renderSignal: prospectiveController.signal,
+              controller: prospectiveController,
               cacheSignal,
               // During prospective render we don't use a controller
               // because we need to let all caches fill.
-              controller: null,
               dynamicTracking,
               revalidate: defaultRevalidate,
+              expire: INFINITE_CACHE,
+              stale: INFINITE_CACHE,
               tags: [...implicitTags],
             })
 
@@ -364,10 +368,15 @@ export class AppRouteRouteModule extends RouteModule<
               handlerContext
             )
           } catch (err) {
-            if (isPrerenderInterruptedError(err)) {
+            if (prospectiveController.signal.aborted) {
               // the route handler called an API which is always dynamic
               // there is no need to try again
               prospectiveRenderIsDynamic = true
+            } else if (
+              process.env.NEXT_DEBUG_BUILD ||
+              process.env.__NEXT_VERBOSE_LOGGING
+            ) {
+              printDebugThrownValueForProspectiveRender(err, workStore.route)
             }
           }
           if (
@@ -380,10 +389,15 @@ export class AppRouteRouteModule extends RouteModule<
             ;(prospectiveResult as any as Promise<unknown>).then(
               () => {},
               (err) => {
-                if (isPrerenderInterruptedError(err)) {
+                if (prospectiveController.signal.aborted) {
                   // the route handler called an API which is always dynamic
                   // there is no need to try again
                   prospectiveRenderIsDynamic = true
+                } else if (process.env.NEXT_DEBUG_BUILD) {
+                  printDebugThrownValueForProspectiveRender(
+                    err,
+                    workStore.route
+                  )
                 }
               }
             )
@@ -419,10 +433,12 @@ export class AppRouteRouteModule extends RouteModule<
             phase: 'action',
             implicitTags: implicitTags,
             renderSignal: finalController.signal,
-            cacheSignal: null,
             controller: finalController,
+            cacheSignal: null,
             dynamicTracking,
             revalidate: defaultRevalidate,
+            expire: INFINITE_CACHE,
+            stale: INFINITE_CACHE,
             tags: [...implicitTags],
           })
 
@@ -495,6 +511,8 @@ export class AppRouteRouteModule extends RouteModule<
             phase: 'action',
             implicitTags: implicitTags,
             revalidate: defaultRevalidate,
+            expire: INFINITE_CACHE,
+            stale: INFINITE_CACHE,
             tags: [...implicitTags],
           }
 
@@ -570,6 +588,8 @@ export class AppRouteRouteModule extends RouteModule<
         prerenderStore.tags?.join(',')
       ;(context.renderOpts as any).collectedRevalidate =
         prerenderStore.revalidate
+      ;(context.renderOpts as any).collectedExpire = prerenderStore.expire
+      ;(context.renderOpts as any).collectedStale = prerenderStore.stale
     }
 
     // It's possible cookies were set in the handler, so we need
@@ -912,7 +932,7 @@ function proxyNextRequest(request: NextRequest, workStore: WorkStore) {
         case 'toString':
         case 'origin': {
           const workUnitStore = workUnitAsyncStorage.getStore()
-          trackDynamicDataAccessed(workStore, workUnitStore, `nextUrl.${prop}`)
+          trackDynamic(workStore, workUnitStore, `nextUrl.${prop}`)
           return ReflectAdapter.get(target, prop, receiver)
         }
         case 'clone':
@@ -948,7 +968,7 @@ function proxyNextRequest(request: NextRequest, workStore: WorkStore) {
         case 'arrayBuffer':
         case 'formData': {
           const workUnitStore = workUnitAsyncStorage.getStore()
-          trackDynamicDataAccessed(workStore, workUnitStore, `request.${prop}`)
+          trackDynamic(workStore, workUnitStore, `request.${prop}`)
           // The receiver arg is intentionally the same as the target to fix an issue with
           // edge runtime, where attempting to access internal slots with the wrong `this` context
           // results in an error.
@@ -1068,4 +1088,67 @@ function createDynamicIOError(route: string) {
   return new DynamicServerError(
     `Route ${route} couldn't be rendered statically because it used IO that was not cached. See more info here: https://nextjs.org/docs/messages/dynamic-io`
   )
+}
+
+export function trackDynamic(
+  store: WorkStore,
+  workUnitStore: undefined | WorkUnitStore,
+  expression: string
+): void {
+  if (workUnitStore) {
+    if (workUnitStore.type === 'cache') {
+      throw new Error(
+        `Route ${store.route} used "${expression}" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "${expression}" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
+      )
+    } else if (workUnitStore.type === 'unstable-cache') {
+      throw new Error(
+        `Route ${store.route} used "${expression}" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "${expression}" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
+      )
+    }
+  }
+
+  if (store.dynamicShouldError) {
+    throw new StaticGenBailoutError(
+      `Route ${store.route} with \`dynamic = "error"\` couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
+    )
+  }
+
+  if (workUnitStore) {
+    if (workUnitStore.type === 'prerender') {
+      // dynamicIO Prerender
+      const error = new Error(
+        `Route ${store.route} used ${expression} without first calling \`await connection()\`. See more info here: https://nextjs.org/docs/messages/next-prerender-sync-request`
+      )
+      abortAndThrowOnSynchronousRequestDataAccess(
+        store.route,
+        expression,
+        error,
+        workUnitStore
+      )
+    } else if (workUnitStore.type === 'prerender-ppr') {
+      // PPR Prerender
+      postponeWithTracking(
+        store.route,
+        expression,
+        workUnitStore.dynamicTracking
+      )
+    } else if (workUnitStore.type === 'prerender-legacy') {
+      // legacy Prerender
+      workUnitStore.revalidate = 0
+
+      const err = new DynamicServerError(
+        `Route ${store.route} couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
+      )
+      store.dynamicUsageDescription = expression
+      store.dynamicUsageStack = err.stack
+
+      throw err
+    } else if (
+      process.env.NODE_ENV === 'development' &&
+      workUnitStore &&
+      workUnitStore.type === 'request'
+    ) {
+      workUnitStore.usedDynamic = true
+    }
+  }
 }

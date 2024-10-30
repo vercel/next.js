@@ -1,7 +1,6 @@
 use std::{borrow::Cow, fmt::Write};
 
 use anyhow::{bail, Result};
-use indexmap::IndexSet;
 use rustc_hash::FxHashMap;
 use swc_core::{
     common::{comments::Comments, util::take::Take, SyntaxContext, DUMMY_SP, GLOBALS},
@@ -13,7 +12,7 @@ use swc_core::{
         codegen::to_code,
     },
 };
-use turbo_tasks::{RcStr, ValueToString, Vc};
+use turbo_tasks::{FxIndexSet, RcStr, ValueToString, Vc};
 use turbopack_core::{ident::AssetIdent, resolve::ModulePart, source::Source};
 
 pub(crate) use self::graph::{
@@ -95,8 +94,8 @@ impl Analyzer<'_> {
     ///
     ///
     /// Returns all (EVENTUAL_READ/WRITE_VARS) in the module.
-    fn hoist_vars_and_bindings(&mut self) -> IndexSet<Id> {
-        let mut eventual_ids = IndexSet::default();
+    fn hoist_vars_and_bindings(&mut self) -> FxIndexSet<Id> {
+        let mut eventual_ids = FxIndexSet::default();
 
         for item_id in self.item_ids.iter() {
             if let Some(item) = self.items.get(item_id) {
@@ -105,7 +104,7 @@ impl Analyzer<'_> {
 
                 if item.is_hoisted && item.side_effects {
                     self.g
-                        .add_strong_deps(item_id, self.last_side_effects.iter());
+                        .add_strong_deps(item_id, self.last_side_effects.last());
 
                     self.last_side_effects.push(item_id.clone());
                 }
@@ -131,7 +130,7 @@ impl Analyzer<'_> {
     }
 
     /// Phase 2: Immediate evaluation
-    fn evaluate_immediate(&mut self, _module: &Module, eventual_ids: &IndexSet<Id>) {
+    fn evaluate_immediate(&mut self, _module: &Module, eventual_ids: &FxIndexSet<Id>) {
         for item_id in self.item_ids.iter() {
             if let Some(item) = self.items.get(item_id) {
                 // Ignore HOISTED module items, they have been processed in phase 1 already.
@@ -187,7 +186,7 @@ impl Analyzer<'_> {
                     // Create a strong dependency to LAST_SIDE_EFFECT.
 
                     self.g
-                        .add_strong_deps(item_id, self.last_side_effects.iter());
+                        .add_strong_deps(item_id, self.last_side_effects.last());
 
                     // Create weak dependencies to all LAST_WRITES and
                     // LAST_READS.
@@ -304,7 +303,7 @@ impl Analyzer<'_> {
                         // Create a strong dependency to LAST_SIDE_EFFECTS
 
                         self.g
-                            .add_strong_deps(item_id, self.last_side_effects.iter());
+                            .add_strong_deps(item_id, self.last_side_effects.last());
                     }
                     ItemIdGroupKind::Export(local, _) => {
                         // Create a strong dependency to LAST_WRITES for this var
@@ -419,12 +418,7 @@ impl PartialEq for SplitResult {
 
 #[turbo_tasks::function]
 pub(super) async fn split_module(asset: Vc<EcmascriptModuleAsset>) -> Result<Vc<SplitResult>> {
-    Ok(split(
-        asset.source().ident(),
-        asset.source(),
-        asset.parse(),
-        asset.options().await?.special_exports,
-    ))
+    Ok(split(asset.source().ident(), asset.source(), asset.parse()))
 }
 
 #[turbo_tasks::function]
@@ -432,7 +426,6 @@ pub(super) async fn split(
     ident: Vc<AssetIdent>,
     source: Vc<Box<dyn Source>>,
     parsed: Vc<ParseResult>,
-    special_exports: Vc<Vec<RcStr>>,
 ) -> Result<Vc<SplitResult>> {
     // Do not split already split module
     if ident.await?.part.is_some() {
@@ -464,7 +457,7 @@ pub(super) async fn split(
             ..
         } => {
             // If the script file is a common js file, we cannot split the module
-            if util::should_skip_tree_shaking(program, &special_exports.await?) {
+            if util::should_skip_tree_shaking(program) {
                 return Ok(SplitResult::Failed {
                     parse_result: parsed,
                 }

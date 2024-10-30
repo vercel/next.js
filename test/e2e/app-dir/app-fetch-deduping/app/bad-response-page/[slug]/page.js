@@ -20,7 +20,7 @@ export async function generateStaticParams() {
   ]
 }
 
-export default async function Page({ params }) {
+export default async function Page() {
   const data = await fetch(
     `http://localhost:${process.env.TEST_SERVER_PORT}?status=404`
   ).then((res) => res.text())

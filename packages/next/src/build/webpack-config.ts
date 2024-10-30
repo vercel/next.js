@@ -88,7 +88,10 @@ import {
   getBabelLoader,
   getReactCompilerLoader,
 } from './get-babel-loader-config'
-import type { NextFlightLoaderOptions } from './webpack/loaders/next-flight-loader'
+import {
+  NEXT_PROJECT_ROOT,
+  NEXT_PROJECT_ROOT_DIST_CLIENT,
+} from './next-dir-paths'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 type ClientEntries = {
@@ -100,13 +103,6 @@ const EXTERNAL_PACKAGES =
 
 const DEFAULT_TRANSPILED_PACKAGES =
   require('../lib/default-transpiled-packages.json') as string[]
-
-export const NEXT_PROJECT_ROOT = path.join(__dirname, '..', '..')
-export const NEXT_PROJECT_ROOT_DIST = path.join(NEXT_PROJECT_ROOT, 'dist')
-const NEXT_PROJECT_ROOT_DIST_CLIENT = path.join(
-  NEXT_PROJECT_ROOT_DIST,
-  'client'
-)
 
 if (parseInt(React.version) < 18) {
   throw new Error('Next.js requires react >= 18.2.0 to be installed.')
@@ -522,13 +518,6 @@ export default async function getBaseWebpackConfig(
     babel: useSWCLoader ? swcDefaultLoader : babelLoader!,
   }
 
-  const nextFlightLoader = {
-    loader: 'next-flight-loader',
-    options: {
-      isEdgeServer,
-    } satisfies NextFlightLoaderOptions,
-  }
-
   const appServerLayerLoaders = hasAppDir
     ? [
         // When using Babel, we will have to add the SWC loader
@@ -542,7 +531,7 @@ export default async function getBaseWebpackConfig(
     : []
 
   const instrumentLayerLoaders = [
-    nextFlightLoader,
+    'next-flight-loader',
     // When using Babel, we will have to add the SWC loader
     // as an additional pass to handle RSC correctly.
     // This will cause some performance overhead but
@@ -552,7 +541,7 @@ export default async function getBaseWebpackConfig(
   ].filter(Boolean)
 
   const middlewareLayerLoaders = [
-    nextFlightLoader,
+    'next-flight-loader',
     // When using Babel, we will have to use SWC to do the optimization
     // for middleware to tree shake the unused default optimized imports like "next/server".
     // This will cause some performance overhead but
@@ -1205,7 +1194,6 @@ export default async function getBaseWebpackConfig(
         'next-metadata-route-loader',
         'modularize-import-loader',
         'next-barrel-loader',
-        'next-server-binary-loader',
         'next-error-browser-binary-loader',
       ].reduce(
         (alias, loader) => {
@@ -1294,17 +1282,14 @@ export default async function getBaseWebpackConfig(
             or: WEBPACK_LAYERS.GROUP.neutralTarget,
           },
         },
-        {
-          test: /[\\/].*?\.node$/,
-          loader: isNodeServer
-            ? 'next-server-binary-loader'
-            : 'next-error-browser-binary-loader',
-          // On server side bundling, only apply to app router, do not apply to pages router;
-          // On client side or edge runtime bundling, always error.
-          ...(isNodeServer && {
-            issuerLayer: isWebpackBundledLayer,
-          }),
-        },
+        ...(isNodeServer
+          ? []
+          : [
+              {
+                test: /[\\/].*?\.node$/,
+                loader: 'next-error-browser-binary-loader',
+              },
+            ]),
         ...(hasAppDir
           ? [
               {
@@ -1373,7 +1358,7 @@ export default async function getBaseWebpackConfig(
                     isEdgeServer,
                   }),
                 },
-                use: nextFlightLoader,
+                use: 'next-flight-loader',
               },
             ]
           : []),
@@ -1824,7 +1809,6 @@ export default async function getBaseWebpackConfig(
             esmExternals: config.experimental.esmExternals,
             outputFileTracingRoot: config.outputFileTracingRoot,
             appDirEnabled: hasAppDir,
-            turbotrace: config.experimental.turbotrace,
             optOutBundlingPackages,
             traceIgnores: [],
             flyingShuttle: Boolean(flyingShuttle),
@@ -1931,6 +1915,7 @@ export default async function getBaseWebpackConfig(
           isEdgeServer,
           pageExtensions: config.pageExtensions,
           typedRoutes: enableTypedRoutes,
+          cacheLifeConfig: config.experimental.cacheLife,
           originalRewrites,
           originalRedirects,
         }),
@@ -1964,7 +1949,6 @@ export default async function getBaseWebpackConfig(
               ['swcRemoveConsole', !!config.compiler?.removeConsole],
               ['swcImportSource', !!jsConfig?.compilerOptions?.jsxImportSource],
               ['swcEmotion', !!config.compiler?.emotion],
-              ['turbotrace', !!config.experimental.turbotrace],
               ['transpilePackages', !!config.transpilePackages],
               [
                 'skipMiddlewareUrlNormalize',

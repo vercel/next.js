@@ -1,5 +1,4 @@
-use indexmap::IndexMap;
-use turbo_tasks::{RcStr, Vc};
+use turbo_tasks::{FxIndexMap, RcStr, ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::environment::Environment;
@@ -79,7 +78,7 @@ macro_rules! definable_name_map_internal {
 macro_rules! compile_time_defines {
     ($($more:tt)+) => {
         {
-            let mut map = $crate::__private::IndexMap::new();
+            let mut map = $crate::__private::FxIndexMap::default();
             $crate::definable_name_map_internal!(map, $($more)+);
             $crate::compile_time_info::CompileTimeDefines(map)
         }
@@ -90,7 +89,7 @@ macro_rules! compile_time_defines {
 macro_rules! free_var_references {
     ($($more:tt)+) => {
         {
-            let mut map = $crate::__private::IndexMap::new();
+            let mut map = $crate::__private::FxIndexMap::default();
             $crate::definable_name_map_internal!(map, $($more)+);
             $crate::compile_time_info::FreeVarReferences(map)
         }
@@ -164,12 +163,12 @@ impl From<String> for DefineableNameSegment {
 
 #[turbo_tasks::value(transparent)]
 #[derive(Debug, Clone)]
-pub struct CompileTimeDefines(pub IndexMap<Vec<DefineableNameSegment>, CompileTimeDefineValue>);
+pub struct CompileTimeDefines(pub FxIndexMap<Vec<DefineableNameSegment>, CompileTimeDefineValue>);
 
 #[turbo_tasks::value(transparent)]
 #[derive(Debug, Clone)]
 pub struct CompileTimeDefinesIndividual(
-    pub IndexMap<Vec<DefineableNameSegment>, Vc<CompileTimeDefineValue>>,
+    pub FxIndexMap<Vec<DefineableNameSegment>, ResolvedVc<CompileTimeDefineValue>>,
 );
 
 impl IntoIterator for CompileTimeDefines {
@@ -185,7 +184,7 @@ impl IntoIterator for CompileTimeDefines {
 impl CompileTimeDefines {
     #[turbo_tasks::function]
     pub fn empty() -> Vc<Self> {
-        Vc::cell(IndexMap::new())
+        Vc::cell(FxIndexMap::default())
     }
 
     #[turbo_tasks::function]
@@ -193,7 +192,7 @@ impl CompileTimeDefines {
         Vc::cell(
             self.0
                 .iter()
-                .map(|(key, value)| (key.clone(), value.clone().cell()))
+                .map(|(key, value)| (key.clone(), value.clone().resolved_cell()))
                 .collect(),
         )
     }
@@ -204,7 +203,7 @@ impl CompileTimeDefines {
 pub enum FreeVarReference {
     EcmaScriptModule {
         request: RcStr,
-        lookup_path: Option<Vc<FileSystemPath>>,
+        lookup_path: Option<ResolvedVc<FileSystemPath>>,
         export: Option<RcStr>,
     },
     Value(CompileTimeDefineValue),
@@ -237,19 +236,19 @@ impl From<CompileTimeDefineValue> for FreeVarReference {
 
 #[turbo_tasks::value(transparent)]
 #[derive(Debug, Clone)]
-pub struct FreeVarReferences(pub IndexMap<Vec<DefineableNameSegment>, FreeVarReference>);
+pub struct FreeVarReferences(pub FxIndexMap<Vec<DefineableNameSegment>, FreeVarReference>);
 
 #[turbo_tasks::value(transparent)]
 #[derive(Debug, Clone)]
 pub struct FreeVarReferencesIndividual(
-    pub IndexMap<Vec<DefineableNameSegment>, Vc<FreeVarReference>>,
+    pub FxIndexMap<Vec<DefineableNameSegment>, ResolvedVc<FreeVarReference>>,
 );
 
 #[turbo_tasks::value_impl]
 impl FreeVarReferences {
     #[turbo_tasks::function]
     pub fn empty() -> Vc<Self> {
-        Vc::cell(IndexMap::new())
+        Vc::cell(FxIndexMap::default())
     }
 
     #[turbo_tasks::function]
@@ -257,7 +256,7 @@ impl FreeVarReferences {
         Vc::cell(
             self.0
                 .iter()
-                .map(|(key, value)| (key.clone(), value.clone().cell()))
+                .map(|(key, value)| (key.clone(), value.clone().resolved_cell()))
                 .collect(),
         )
     }
@@ -333,7 +332,7 @@ impl CompileTimeInfoBuilder {
 
 #[cfg(test)]
 mod test {
-    use indexmap::IndexMap;
+    use turbo_tasks::FxIndexMap;
 
     use crate::compile_time_info::{DefineableNameSegment, FreeVarReference, FreeVarReferences};
 
@@ -349,7 +348,7 @@ mod test {
                     export: Some("Buffer".into()),
                 },
             ),
-            FreeVarReferences(IndexMap::from_iter(vec![
+            FreeVarReferences(FxIndexMap::from_iter(vec![
                 (vec!["FOO".into()], FreeVarReference::Value("bar".into())),
                 (vec!["FOO".into()], FreeVarReference::Value(false.into())),
                 (
@@ -372,7 +371,7 @@ mod test {
                 typeof x.y = "b",
                 typeof x.y.z = "c"
             ),
-            FreeVarReferences(IndexMap::from_iter(vec![
+            FreeVarReferences(FxIndexMap::from_iter(vec![
                 (
                     vec!["x".into(), DefineableNameSegment::TypeOf],
                     FreeVarReference::Value("a".into())

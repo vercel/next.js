@@ -50,7 +50,7 @@ export function findSourcePackage({
 export function getOriginalCodeFrame(
   frame: StackFrame,
   source: string | null
-): string | null | undefined {
+): string | null {
   if (!source || isInternal(frame.file)) {
     return null
   }
@@ -65,7 +65,7 @@ export function getOriginalCodeFrame(
         column: frame.column ?? 0,
       },
     },
-    { forceColor: true }
+    { forceColor: process.stdout.isTTY }
   )
 }
 
