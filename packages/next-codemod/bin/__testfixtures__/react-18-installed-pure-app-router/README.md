@@ -1,1 +1,1 @@
-Upgrades React without prompt
+Upgrades to React 19 automatically

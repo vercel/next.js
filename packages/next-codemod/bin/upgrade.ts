@@ -1,7 +1,6 @@
 import * as os from 'os'
 import prompts from 'prompts'
 import fs from 'fs'
-import semver from 'semver'
 import compareVersions from 'semver/functions/compare'
 import { execSync } from 'child_process'
 import path from 'path'
@@ -24,7 +23,6 @@ const optionalNextjsPackages = [
   '@next/codemod',
   '@next/env',
   '@next/eslint-plugin-next',
-  '@next/font',
   '@next/mdx',
   '@next/plugin-storybook',
   '@next/polyfill-module',
@@ -73,12 +71,14 @@ function endMessage() {
   )
 }
 
+const cwd = process.cwd()
+
 export async function runUpgrade(
   revision: string | undefined,
   options: { verbose: boolean }
 ): Promise<void> {
   const { verbose } = options
-  const appPackageJsonPath = path.resolve(process.cwd(), 'package.json')
+  const appPackageJsonPath = path.resolve(cwd, 'package.json')
   let appPackageJson = JSON.parse(fs.readFileSync(appPackageJsonPath, 'utf8'))
 
   let targetNextPackageJson: {
@@ -126,6 +126,12 @@ export async function runUpgrade(
   console.log(`  - React: v${installedReactVersion}`)
   console.log(`  - Next.js: v${installedNextVersion}`)
   let shouldStayOnReact18 = false
+
+  const usesAppDir = isUsingAppDir(cwd)
+  const usesPagesDir = isUsingPagesDir(cwd)
+
+  const isPureAppRouter = usesAppDir && !usesPagesDir
+  const isMixedApp = usesPagesDir && usesAppDir
   if (
     // From release v14.3.0-canary.45, Next.js expects the React version to be 19.0.0-beta.0
     // If the user is on a version higher than this but is still on React 18, we ask them
@@ -134,14 +140,22 @@ export async function runUpgrade(
     // we should only let the user stay on React 18 if they are using pure Pages Router.
     // x-ref(PR): https://github.com/vercel/next.js/pull/65058
     // x-ref(release): https://github.com/vercel/next.js/releases/tag/v14.3.0-canary.45
-    compareVersions(installedNextVersion, '14.3.0-canary.45') >= 0 &&
-    installedReactVersion.startsWith('18')
+    compareVersions(targetNextVersion, '14.3.0-canary.45') >= 0 &&
+    installedReactVersion.startsWith('18') &&
+    // Pure App Router always uses React 19
+    // The mixed case is tricky to handle from a types perspective.
+    // We'll recommend to upgrade in the prompt but users can decide to try 18.
+    !isPureAppRouter
   ) {
     const shouldStayOnReact18Res = await prompts(
       {
         type: 'confirm',
         name: 'shouldStayOnReact18',
-        message: `Are you using ${pc.underline('only the Pages Router')} (no App Router) and prefer to stay on React 18?`,
+        message:
+          `Do you prefer to stay on React 18?` +
+          (isMixedApp
+            ? " Since you're using both pages/ and app/, we recommend upgrading React to use a consistent version throughout your app."
+            : ''),
         initial: false,
         active: 'Yes',
         inactive: 'No',
@@ -163,14 +177,14 @@ export async function runUpgrade(
       )
 
   if (compareVersions(targetNextVersion, '15.0.0-canary') >= 0) {
-    await suggestTurbopack(appPackageJson)
+    await suggestTurbopack(appPackageJson, targetNextVersion)
   }
 
   const codemods = await suggestCodemods(
     installedNextVersion,
     targetNextVersion
   )
-  const packageManager: PackageManager = getPkgManager(process.cwd())
+  const packageManager: PackageManager = getPkgManager(cwd)
 
   let shouldRunReactCodemods = false
   let shouldRunReactTypesCodemods = false
@@ -178,7 +192,8 @@ export async function runUpgrade(
   // The following React codemods are for React 19
   if (
     !shouldStayOnReact18 &&
-    compareVersions(targetReactVersion, '19.0.0-beta.0') >= 0
+    compareVersions(targetReactVersion, '19.0.0-0') >= 0 &&
+    compareVersions(installedReactVersion, '19.0.0-0') < 0
   ) {
     shouldRunReactCodemods = await suggestReactCodemods()
     shouldRunReactTypesCodemods = await suggestReactTypesCodemods()
@@ -307,7 +322,7 @@ export async function runUpgrade(
   runInstallation(packageManager)
 
   for (const codemod of codemods) {
-    await runTransform(codemod, process.cwd(), { force: true, verbose })
+    await runTransform(codemod, cwd, { force: true, verbose })
   }
 
   // To reduce user-side burden of selecting which codemods to run as it needs additional
@@ -341,12 +356,12 @@ function getInstalledNextVersion(): string {
   try {
     return require(
       require.resolve('next/package.json', {
-        paths: [process.cwd()],
+        paths: [cwd],
       })
     ).version
   } catch (error) {
     throw new BadInput(
-      `Failed to get the installed Next.js version at "${process.cwd()}".\nIf you're using a monorepo, please run this command from the Next.js app directory.`,
+      `Failed to get the installed Next.js version at "${cwd}".\nIf you're using a monorepo, please run this command from the Next.js app directory.`,
       {
         cause: error,
       }
@@ -358,12 +373,12 @@ function getInstalledReactVersion(): string {
   try {
     return require(
       require.resolve('react/package.json', {
-        paths: [process.cwd()],
+        paths: [cwd],
       })
     ).version
   } catch (error) {
     throw new BadInput(
-      `Failed to detect the installed React version in "${process.cwd()}".\nIf you're working in a monorepo, please run this command from the Next.js app directory.`,
+      `Failed to detect the installed React version in "${cwd}".\nIf you're working in a monorepo, please run this command from the Next.js app directory.`,
       {
         cause: error,
       }
@@ -371,39 +386,81 @@ function getInstalledReactVersion(): string {
   }
 }
 
+function isUsingPagesDir(projectPath: string): boolean {
+  return (
+    fs.existsSync(path.resolve(projectPath, 'pages')) ||
+    fs.existsSync(path.resolve(projectPath, 'src/pages'))
+  )
+}
+function isUsingAppDir(projectPath: string): boolean {
+  return (
+    fs.existsSync(path.resolve(projectPath, 'app')) ||
+    fs.existsSync(path.resolve(projectPath, 'src/app'))
+  )
+}
+
 /*
  * Heuristics are used to determine whether to Turbopack is enabled or not and
  * to determine how to update the dev script.
  *
- * 1. If the dev script contains `--turbo` option, we assume that Turbopack is
+ * 1. If the dev script contains `--turbopack` option, we assume that Turbopack is
  *    already enabled.
  * 2. If the dev script contains the string `next dev`, we replace it to
- *    `next dev --turbo`.
- * 3. Otherwise, we ask the user to manually add `--turbo` to their dev command,
+ *    `next dev --turbopack`.
+ * 3. Otherwise, we ask the user to manually add `--turbopack` to their dev command,
  *    showing the current dev command as the initial value.
  */
-async function suggestTurbopack(packageJson: any): Promise<void> {
+async function suggestTurbopack(
+  packageJson: any,
+  targetNextVersion: string
+): Promise<void> {
   const devScript: string = packageJson.scripts['dev']
-  if (devScript.includes('--turbo')) return
+  // Turbopack flag was changed from `--turbo` to `--turbopack` in v15.0.1-canary.3
+  // PR: https://github.com/vercel/next.js/pull/71657
+  // Release: https://github.com/vercel/next.js/releases/tag/v15.0.1-canary.3
+  const isAfterTurbopackFlagChange =
+    compareVersions(targetNextVersion, '15.0.1-canary.3') >= 0
+  const turboPackFlag = isAfterTurbopackFlagChange ? '--turbopack' : '--turbo'
 
-  const responseTurbopack = await prompts(
-    {
-      type: 'confirm',
-      name: 'enable',
-      message: 'Enable Turbopack for next dev?',
-      initial: true,
-    },
-    { onCancel }
-  )
-
-  if (!responseTurbopack.enable) {
+  if (!devScript) {
+    console.log(
+      `${pc.yellow('⚠')} No "dev" script found in your package.json. Skipping Turbopack suggestion.`
+    )
     return
   }
 
   if (devScript.includes('next dev')) {
+    // covers "--turbopack" as well
+    if (devScript.includes('--turbo')) {
+      if (isAfterTurbopackFlagChange && !devScript.includes('--turbopack')) {
+        console.log() // new line
+        console.log(
+          `${pc.green('✔')} Replaced "--turbo" with "--turbopack" in your dev script.`
+        )
+        console.log() // new line
+        packageJson.scripts['dev'] = devScript.replace('--turbo', '--turbopack')
+        return
+      }
+      return
+    }
+
+    const responseTurbopack = await prompts(
+      {
+        type: 'confirm',
+        name: 'enable',
+        message: `Enable Turbopack for ${pc.bold('next dev')}?`,
+        initial: true,
+      },
+      { onCancel }
+    )
+
+    if (!responseTurbopack.enable) {
+      return
+    }
+
     packageJson.scripts['dev'] = devScript.replace(
       'next dev',
-      'next dev --turbo'
+      `next dev ${turboPackFlag}`
     )
     return
   }
@@ -416,7 +473,7 @@ async function suggestTurbopack(packageJson: any): Promise<void> {
     {
       type: 'text',
       name: 'customDevScript',
-      message: 'Please manually add "--turbo" to your dev command.',
+      message: `Please manually add "${turboPackFlag}" to your dev command.`,
       initial: devScript,
     },
     { onCancel }
@@ -430,28 +487,17 @@ async function suggestCodemods(
   initialNextVersion: string,
   targetNextVersion: string
 ): Promise<string[]> {
-  // Here we suggest pre-released codemods by their "stable" version.
-  // It is because if we suggest by the version range (installed ~ target),
-  // pre-released codemods for the target version are not suggested when upgrading.
-
-  // Let's say we have a codemod for v15.0.0-canary.x, and we're upgrading from
-  // v15.x -> v15.x. Our initial version is higher than the codemod's version,
-  // so the codemod will not be suggested.
-
-  // This is not ideal as the codemods for pre-releases are also targeting the major version.
-  // Also, when the user attempts to run the upgrade command twice, and have installed the
-  // target version, the behavior must be idempotent and suggest the codemods including the
-  // pre-releases of the target version.
-  const initial = semver.parse(initialNextVersion)
+  // example:
+  // codemod version: 15.0.0-canary.45
+  // 14.3             -> 15.0.0-canary.45: apply
+  // 14.3             -> 15.0.0-canary.44: don't apply
+  // 15.0.0-canary.44 -> 15.0.0-canary.45: apply
+  // 15.0.0-canary.45 -> 15.0.0-canary.46: don't apply
+  // 15.0.0-canary.45 -> 15.0.0          : don't apply
+  // 15.0.0-canary.44 -> 15.0.0          : apply
   const initialVersionIndex = TRANSFORMER_INQUIRER_CHOICES.findIndex(
-    (versionCodemods) => {
-      const codemod = semver.parse(versionCodemods.version)
-      return (
-        compareVersions(
-          `${codemod.major}.${codemod.minor}.${codemod.patch}`,
-          `${initial.major}.${initial.minor}.${initial.patch}`
-        ) >= 0
-      )
+    (codemod) => {
+      return compareVersions(codemod.version, initialNextVersion) > 0
     }
   )
   if (initialVersionIndex === -1) {
@@ -459,8 +505,7 @@ async function suggestCodemods(
   }
 
   let targetVersionIndex = TRANSFORMER_INQUIRER_CHOICES.findIndex(
-    (versionCodemods) =>
-      compareVersions(versionCodemods.version, targetNextVersion) > 0
+    (codemod) => compareVersions(codemod.version, targetNextVersion) > 0
   )
   if (targetVersionIndex === -1) {
     targetVersionIndex = TRANSFORMER_INQUIRER_CHOICES.length
@@ -498,12 +543,10 @@ async function suggestCodemods(
 async function suggestReactCodemods(): Promise<boolean> {
   const { runReactCodemod } = await prompts(
     {
-      type: 'toggle',
+      type: 'confirm',
       name: 'runReactCodemod',
       message: 'Would you like to run the React 19 upgrade codemod?',
       initial: true,
-      active: 'Yes',
-      inactive: 'No',
     },
     { onCancel }
   )
@@ -514,12 +557,10 @@ async function suggestReactCodemods(): Promise<boolean> {
 async function suggestReactTypesCodemods(): Promise<boolean> {
   const { runReactTypesCodemod } = await prompts(
     {
-      type: 'toggle',
+      type: 'confirm',
       name: 'runReactTypesCodemod',
       message: 'Would you like to run the React 19 Types upgrade codemod?',
       initial: true,
-      active: 'Yes',
-      inactive: 'No',
     },
     { onCancel }
   )
@@ -533,6 +574,12 @@ function writeOverridesField(
   overrides: Record<string, string>
 ) {
   const entries = Object.entries(overrides)
+  // Avoids writing an empty overrides field into package.json
+  // which would be an unnecessary diff.
+  if (entries.length === 0) {
+    return
+  }
+
   if (packageManager === 'npm') {
     if (!packageJson.overrides) {
       packageJson.overrides = {}

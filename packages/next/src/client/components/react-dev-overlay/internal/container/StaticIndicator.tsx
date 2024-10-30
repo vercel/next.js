@@ -6,7 +6,7 @@ import type { Dispatcher } from '../../app/hot-reloader-client'
 
 export function StaticIndicator({ dispatcher }: { dispatcher?: Dispatcher }) {
   return (
-    <Toast className={`nextjs-static-indicator-toast-wrapper`}>
+    <Toast role="status" className={`nextjs-static-indicator-toast-wrapper`}>
       <div className="nextjs-static-indicator-toast-icon">
         <LightningBolt />
       </div>

@@ -754,6 +754,18 @@ impl Project {
         }
     }
 
+    #[turbo_tasks::function]
+    pub(super) fn runtime_chunking_context(
+        self: Vc<Self>,
+        client_assets: bool,
+        runtime: NextRuntime,
+    ) -> Vc<Box<dyn ChunkingContext>> {
+        match runtime {
+            NextRuntime::Edge => self.edge_chunking_context(client_assets),
+            NextRuntime::NodeJs => Vc::upcast(self.server_chunking_context(client_assets)),
+        }
+    }
+
     /// Emit a telemetry event corresponding to [webpack configuration telemetry](https://github.com/vercel/next.js/blob/9da305fe320b89ee2f8c3cfb7ecbf48856368913/packages/next/src/build/webpack-config.ts#L2516)
     /// to detect which feature is enabled.
     #[turbo_tasks::function]
@@ -803,7 +815,7 @@ impl Project {
 
         emit_event("modularizeImports", config.modularize_imports.is_some());
         emit_event("transpilePackages", config.transpile_packages.is_some());
-        emit_event("turbotrace", config.experimental.turbotrace.is_some());
+        emit_event("turbotrace", false);
 
         // compiler options
         let compiler_options = config.compiler.as_ref();
@@ -977,7 +989,7 @@ impl Project {
         let FindContextFileResult::Found(fs_path, _) = *middleware.await? else {
             return Ok(Vc::upcast(EmptyEndpoint::new()));
         };
-        let source = Vc::upcast(FileSource::new(fs_path));
+        let source = Vc::upcast(FileSource::new(*fs_path));
         let app_dir = *find_app_dir(self.project_path()).await?;
         let ecmascript_client_reference_transition_name = (*self.app_project().await?)
             .as_ref()
@@ -1111,7 +1123,7 @@ impl Project {
         let FindContextFileResult::Found(fs_path, _) = *instrumentation.await? else {
             return Ok(Vc::upcast(EmptyEndpoint::new()));
         };
-        let source = Vc::upcast(FileSource::new(fs_path));
+        let source = Vc::upcast(FileSource::new(*fs_path));
         let app_dir = *find_app_dir(self.project_path()).await?;
         let ecmascript_client_reference_transition_name = (*self.app_project().await?)
             .as_ref()

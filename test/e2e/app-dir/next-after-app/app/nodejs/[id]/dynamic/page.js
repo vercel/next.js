@@ -4,7 +4,8 @@ import { cliLog } from '../../../../utils/log'
 
 const thing = cache(() => Symbol('cache me please'))
 
-export default function Index({ params }) {
+export default async function Index(props) {
+  const params = await props.params
   const valueFromRender = thing()
 
   after(() => {

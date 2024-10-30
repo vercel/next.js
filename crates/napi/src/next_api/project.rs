@@ -18,12 +18,15 @@ use next_core::tracing_presets::{
     TRACING_NEXT_OVERVIEW_TARGETS, TRACING_NEXT_TARGETS, TRACING_NEXT_TURBOPACK_TARGETS,
     TRACING_NEXT_TURBO_TASKS_TARGETS,
 };
+use once_cell::sync::Lazy;
 use rand::Rng;
 use tokio::{io::AsyncWriteExt, time::Instant};
 use tracing::Instrument;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
 use turbo_tasks::{Completion, RcStr, ReadRef, TransientInstance, UpdateInfo, Vc};
-use turbo_tasks_fs::{DiskFileSystem, FileContent, FileSystem, FileSystemPath};
+use turbo_tasks_fs::{
+    util::uri_from_file, DiskFileSystem, FileContent, FileSystem, FileSystemPath,
+};
 use turbopack_core::{
     diagnostics::PlainDiagnostic,
     error::PrettyPrintError,
@@ -52,6 +55,8 @@ use crate::register;
 /// Used by [`benchmark_file_io`]. This is a noisy benchmark, so set the
 /// threshold high.
 const SLOW_FILESYSTEM_THRESHOLD: Duration = Duration::from_millis(100);
+static SOURCE_MAP_PREFIX_PROJECT: Lazy<String> =
+    Lazy::new(|| format!("{}[project]/", SOURCE_MAP_PREFIX));
 
 #[napi(object)]
 #[derive(Clone, Debug)]
@@ -1085,7 +1090,7 @@ pub async fn project_trace_source(
 
             let (original_file, line, column, name) = match &*token {
                 Token::Original(token) => (
-                    &token.original_file,
+                    urlencoding::decode(&token.original_file)?.into_owned(),
                     // JS stack frames are 1-indexed, source map tokens are 0-indexed
                     Some(token.original_line as u32 + 1),
                     Some(token.original_column as u32 + 1),
@@ -1095,19 +1100,27 @@ pub async fn project_trace_source(
                     let Some(file) = &token.guessed_original_file else {
                         return Ok(None);
                     };
-                    (file, None, None, None)
+                    (file.to_owned(), None, None, None)
                 }
             };
 
-            let Some(source_file) = original_file.strip_prefix(SOURCE_MAP_PREFIX) else {
-                bail!("Original file ({}) outside project", original_file)
-            };
-
+            let project_path_uri =
+                uri_from_file(project.container.project().project_path(), None).await? + "/";
             let (source_file, is_internal) =
-                if let Some(source_file) = source_file.strip_prefix("[project]/") {
+                if let Some(source_file) = original_file.strip_prefix(&project_path_uri) {
+                    // Client code uses file://
                     (source_file, false)
-                } else {
+                } else if let Some(source_file) =
+                    original_file.strip_prefix(&*SOURCE_MAP_PREFIX_PROJECT)
+                {
+                    // Server code uses turbopack://[project]
+                    // TODO should this also be file://?
+                    (source_file, false)
+                } else if let Some(source_file) = original_file.strip_prefix(SOURCE_MAP_PREFIX) {
+                    // All other code like turbopack://[turbopack] is internal code
                     (source_file, true)
+                } else {
+                    bail!("Original file ({}) outside project", original_file)
                 };
 
             Ok(Some(StackFrame {
