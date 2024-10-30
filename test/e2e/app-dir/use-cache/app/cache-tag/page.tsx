@@ -5,7 +5,12 @@ import { RevalidateButtons } from './button'
 async function getCachedWithTag(tag: string) {
   'use cache'
   cacheTag(tag, 'c')
-  return Math.random()
+
+  const response = await fetch(
+    `https://next-data-api-endpoint.vercel.app/api/random?tag=${tag}`
+  )
+
+  return response.text()
 }
 
 export default async function Page() {
