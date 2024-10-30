@@ -12,11 +12,11 @@ related:
     - app/api-reference/functions/cacheLife
 ---
 
-The `cacheTag` function allows you to tag cached data for on-demand invalidation. By associating tags with cache entries, you can selectively purge or revalidate specific parts of your cache without affecting other cached data.
+The `cacheTag` function allows you to tag cached data for on-demand invalidation. By associating tags with cache entries, you can selectively purge or revalidate specific cache entries without affecting other cached data.
 
 ## Usage
 
-To use `cacheTag`, enable the [`dynamicIO` flag](/docs/app/api-reference/next-config-js/dynamicIO) in your `next.config.js` file and import `cacheTag` from `next/cache`:
+To use `cacheTag`, enable the [`dynamicIO` flag](/docs/app/api-reference/next-config-js/dynamicIO) in your `next.config.js` file and import `cacheTag` from `next/cache`.
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
@@ -40,6 +40,8 @@ const nextConfig = {
 export default nextConfig
 ```
 
+The `cacheTag` function takes a single string value, or a string array.
+
 ```tsx filename="app/data.ts" switcher
 import { unstable_cacheTag as cacheTag } from 'next/cache'
 
@@ -62,18 +64,7 @@ export async function getData() {
 }
 ```
 
-## Good to know
-
-- **Idempotent Tags**: Applying the same tag multiple times has no additional effect.
-- **Multiple Tags**: You can assign multiple tags to a single cache entry by passing an array to `cacheTag`.
-
-```tsx
-cacheTag('tag-one', 'tag-two')
-```
-
-## Combining with `revalidateTag`
-
-Use `cacheTag` in conjunction with [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) to purge tagged cache entries on-demand. This is useful for scenarios like updating data after a mutation or an external event.
+You can then purge the cache on-demand using [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) API in another function, for example, a [route handler](/docs/app/building-your-application/routing/route-handlers) or [Server Action](/docs/app/building-your-application/data-fetching/server-actions-and-mutations):
 
 ```tsx filename="app/action.ts" switcher
 'use server'
@@ -95,6 +86,15 @@ export default async function submit() {
   await addPost()
   revalidateTag('my-data')
 }
+```
+
+## Good to know
+
+- **Idempotent Tags**: Applying the same tag multiple times has no additional effect.
+- **Multiple Tags**: You can assign multiple tags to a single cache entry by passing an array to `cacheTag`.
+
+```tsx
+cacheTag('tag-one', 'tag-two')
 ```
 
 ## Examples
