@@ -168,7 +168,7 @@ async fn static_route_source(
             if ({is_twitter} || {is_open_graph}) {{
                 const fileSizeInMB = buffer.byteLength / 1024 / 1024
                 if (fileSizeInMB > {file_size_limit}) {{
-                    throw new Error('File size for {img_name} image "{path}" exceeds {file_size_limit}MB. ' +
+                    throw new Error('File size for {img_name} image {path} exceeds {file_size_limit}MB. ' +
                     `(Current: ${{fileSizeInMB.toFixed(2)}}MB)\n` +
                     'Read more: https://nextjs.org/docs/app/api-reference/file-conventions/metadata/opengraph-image#image-files-jpg-png-gif'
                     )
@@ -193,7 +193,7 @@ async fn static_route_source(
         is_open_graph = is_open_graph,
         file_size_limit = file_size_limit,
         img_name = img_name,
-        path = path.to_string().await?,
+        path = StringifyJs(&path.to_string().await?),
     };
 
     let file = File::from(code);

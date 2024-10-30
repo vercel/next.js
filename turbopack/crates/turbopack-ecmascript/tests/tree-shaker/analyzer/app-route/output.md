@@ -174,10 +174,7 @@ graph TD
     Item19;
     Item19["export patchFetch"];
     Item2 --> Item1;
-    Item3 --> Item1;
     Item3 --> Item2;
-    Item4 --> Item1;
-    Item4 --> Item2;
     Item4 --> Item3;
 ```
 # Phase 2
@@ -210,17 +207,11 @@ graph TD
     Item19;
     Item19["export patchFetch"];
     Item2 --> Item1;
-    Item3 --> Item1;
     Item3 --> Item2;
-    Item4 --> Item1;
-    Item4 --> Item2;
     Item4 --> Item3;
     Item9 --> Item5;
     Item9 --> Item6;
     Item9 --> Item8;
-    Item9 --> Item1;
-    Item9 --> Item2;
-    Item9 --> Item3;
     Item9 --> Item4;
     Item9 -.-> Item7;
     Item10 --> Item9;
@@ -261,17 +252,11 @@ graph TD
     Item19;
     Item19["export patchFetch"];
     Item2 --> Item1;
-    Item3 --> Item1;
     Item3 --> Item2;
-    Item4 --> Item1;
-    Item4 --> Item2;
     Item4 --> Item3;
     Item9 --> Item5;
     Item9 --> Item6;
     Item9 --> Item8;
-    Item9 --> Item1;
-    Item9 --> Item2;
-    Item9 --> Item3;
     Item9 --> Item4;
     Item9 -.-> Item7;
     Item10 --> Item9;
@@ -316,17 +301,11 @@ graph TD
     Item19;
     Item19["export patchFetch"];
     Item2 --> Item1;
-    Item3 --> Item1;
     Item3 --> Item2;
-    Item4 --> Item1;
-    Item4 --> Item2;
     Item4 --> Item3;
     Item9 --> Item5;
     Item9 --> Item6;
     Item9 --> Item8;
-    Item9 --> Item1;
-    Item9 --> Item2;
-    Item9 --> Item3;
     Item9 --> Item4;
     Item9 -.-> Item7;
     Item10 --> Item9;
@@ -365,17 +344,11 @@ graph TD
     N17["Items: [ItemId(6, VarDeclarator(0))]"];
     N18["Items: [ItemId(7, Normal)]"];
     N9 --> N7;
-    N11 --> N7;
     N11 --> N9;
-    N13 --> N7;
-    N13 --> N9;
     N13 --> N11;
     N15 --> N8;
     N15 --> N10;
     N15 --> N14;
-    N15 --> N7;
-    N15 --> N9;
-    N15 --> N11;
     N15 --> N13;
     N15 -.-> N12;
     N16 --> N15;
@@ -514,9 +487,6 @@ export { RouteKind as h } from "__TURBOPACK_VAR__" assert {
 ## Part 11
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 7
-};
-import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 9
 };
 import '../../server/lib/patch-fetch';
@@ -535,12 +505,6 @@ export { _patchFetch as i } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 13
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 7
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
-};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 11
 };
@@ -561,22 +525,16 @@ export { userland as j } from "__TURBOPACK_VAR__" assert {
 ## Part 15
 ```js
 import { g as AppRouteRouteModule } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -8
+    __turbopack_part__: -8,
+    __turbopack_original__: '../../server/future/route-modules/app-route/module.compiled'
 };
 import { h as RouteKind } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -10
+    __turbopack_part__: -10,
+    __turbopack_original__: '../../server/future/route-kind'
 };
 import { j as userland } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -14
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 7
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 11
+    __turbopack_part__: -14,
+    __turbopack_original__: 'VAR_USERLAND'
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 13
@@ -632,7 +590,8 @@ import { f as workAsyncStorage } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -16
 };
 import { i as _patchFetch } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -12
+    __turbopack_part__: -12,
+    __turbopack_original__: '../../server/lib/patch-fetch'
 };
 import { e as serverHooks } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -16
@@ -807,9 +766,6 @@ export { RouteKind as h } from "__TURBOPACK_VAR__" assert {
 ## Part 11
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 7
-};
-import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 9
 };
 import '../../server/lib/patch-fetch';
@@ -828,12 +784,6 @@ export { _patchFetch as i } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 13
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 7
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
-};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 11
 };
@@ -854,22 +804,16 @@ export { userland as j } from "__TURBOPACK_VAR__" assert {
 ## Part 15
 ```js
 import { g as AppRouteRouteModule } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -8
+    __turbopack_part__: -8,
+    __turbopack_original__: '../../server/future/route-modules/app-route/module.compiled'
 };
 import { h as RouteKind } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -10
+    __turbopack_part__: -10,
+    __turbopack_original__: '../../server/future/route-kind'
 };
 import { j as userland } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -14
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 7
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 11
+    __turbopack_part__: -14,
+    __turbopack_original__: 'VAR_USERLAND'
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 13
@@ -922,7 +866,8 @@ import { f as workAsyncStorage } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -16
 };
 import { i as _patchFetch } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -12
+    __turbopack_part__: -12,
+    __turbopack_original__: '../../server/lib/patch-fetch'
 };
 import { e as serverHooks } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -16

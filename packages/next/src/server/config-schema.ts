@@ -38,6 +38,7 @@ const zExportMap: zod.ZodType<ExportPathMap> = z.record(
     _isAppDir: z.boolean().optional(),
     _isDynamicError: z.boolean().optional(),
     _isRoutePPREnabled: z.boolean().optional(),
+    _isProspectiveRender: z.boolean().optional(),
   })
 )
 
@@ -279,6 +280,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
             })
           )
           .optional(),
+        cacheHandlers: z.record(z.string(), z.string().optional()).optional(),
         clientRouterFilter: z.boolean().optional(),
         clientRouterFilterRedirects: z.boolean().optional(),
         clientRouterFilterAllowedRate: z.number().optional(),
@@ -312,6 +314,9 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         forceSwcTransforms: z.boolean().optional(),
         fullySpecified: z.boolean().optional(),
         gzipSize: z.boolean().optional(),
+        imgOptConcurrency: z.number().int().optional().nullable(),
+        imgOptTimeoutInSeconds: z.number().int().optional(),
+        imgOptMaxInputPixels: z.number().int().optional(),
         internal_disableSyncDynamicAPIWarnings: z.boolean().optional(),
         isrFlushToDisk: z.boolean().optional(),
         largePageDataBytes: z.number().optional(),
@@ -330,8 +335,8 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           .union([z.boolean(), z.literal('incremental')])
           .readonly()
           .optional(),
-        pprFallbacks: z.boolean().optional(),
         taint: z.boolean().optional(),
+        reactOwnerStack: z.boolean().optional(),
         prerenderEarlyExit: z.boolean().optional(),
         proxyTimeout: z.number().gte(0).optional(),
         scrollRestoration: z.boolean().optional(),
@@ -410,27 +415,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         optimizePackageImports: z.array(z.string()).optional(),
         optimizeServerReact: z.boolean().optional(),
         clientTraceMetadata: z.array(z.string()).optional(),
-        turbotrace: z
-          .object({
-            logLevel: z
-              .enum([
-                'bug',
-                'fatal',
-                'error',
-                'warning',
-                'hint',
-                'note',
-                'suggestions',
-                'info',
-              ])
-              .optional(),
-            logAll: z.boolean().optional(),
-            logDetail: z.boolean().optional(),
-            contextDirectory: z.string().optional(),
-            processCwd: z.string().optional(),
-            memoryLimit: z.number().int().optional(),
-          })
-          .optional(),
         serverMinification: z.boolean().optional(),
         serverSourceMaps: z.boolean().optional(),
         useWasmBinary: z.boolean().optional(),
