@@ -67,22 +67,24 @@ export type RequestStore = {
 export type PrerenderStoreModern = {
   type: 'prerender'
   readonly implicitTags: string[]
+
   /**
-   * This is the AbortController passed to React. It can be used to abort the prerender
-   * if we encounter conditions that do not require further rendering
+   * This signal is aborted when the React render is complete. (i.e. it is the same signal passed to react)
    */
-  readonly controller: null | AbortController
+  readonly renderSignal: AbortSignal
+  /**
+   * This is the AbortController which represents the boundary between Prerender and dynamic. In some renders it is
+   * the same as the controller for the renderSignal but in others it is a separate controller. It should be aborted
+   * whenever the we are no longer in the prerender phase of rendering. Typically this is after one task or when you call
+   * a sync API which requires the prerender to end immediately
+   */
+  readonly controller: AbortController
 
   /**
    * when not null this signal is used to track cache reads during prerendering and
    * to await all cache reads completing before aborting the prerender.
    */
   readonly cacheSignal: null | CacheSignal
-
-  /**
-   * This signal is used to clean up the prerender once it is complete.
-   */
-  readonly renderSignal: AbortSignal
 
   /**
    * During some prerenders we want to track dynamic access.

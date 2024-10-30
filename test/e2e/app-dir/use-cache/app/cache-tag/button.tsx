@@ -1,36 +1,36 @@
-'use client'
-import { useRouter } from 'next/navigation'
 import React from 'react'
-import { revalidateWithTag } from './actions'
+import { revalidateTag } from 'next/cache'
 
 export function RevalidateButtons() {
-  const router = useRouter()
   return (
-    <>
+    <form>
       <button
         id="revalidate-a"
-        onClick={() => {
-          revalidateWithTag('a').then(() => router.refresh())
+        formAction={async () => {
+          'use server'
+          revalidateTag('a')
         }}
       >
         revalidate a
       </button>
       <button
         id="revalidate-b"
-        onClick={() => {
-          revalidateWithTag('b').then(() => router.refresh())
+        formAction={async () => {
+          'use server'
+          revalidateTag('b')
         }}
       >
         revalidate b
       </button>
       <button
         id="revalidate-c"
-        onClick={() => {
-          revalidateWithTag('c').then(() => router.refresh())
+        formAction={async () => {
+          'use server'
+          revalidateTag('c')
         }}
       >
         revalidate c
       </button>
-    </>
+    </form>
   )
 }
