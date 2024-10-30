@@ -504,14 +504,14 @@ impl EcmascriptModuleAsset {
                         Some("commonjs") => SpecifiedModuleType::CommonJs,
                         _ => SpecifiedModuleType::Automatic,
                     },
-                    package_json,
+                    *package_json,
                 ));
             }
         }
 
         Ok(ModuleTypeResult::new_with_package_json(
             SpecifiedModuleType::Automatic,
-            package_json,
+            *package_json,
         ))
     }
 }
@@ -523,7 +523,10 @@ impl Module for EcmascriptModuleAsset {
         if let Some(inner_assets) = self.inner_assets {
             let mut ident = self.source.ident().await?.clone_value();
             for (name, asset) in inner_assets.await?.iter() {
-                ident.add_asset(Vc::cell(name.to_string().into()), asset.ident());
+                ident.add_asset(
+                    ResolvedVc::cell(name.to_string().into()),
+                    asset.ident().to_resolved().await?,
+                );
             }
             ident.add_modifier(modifier());
             ident.layer = Some(self.asset_context.layer().to_resolved().await?);

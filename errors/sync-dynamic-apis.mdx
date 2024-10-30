@@ -43,7 +43,7 @@ If the warning occured on the Server (e.g. a route handler, or a Server Componen
 you must `await` the dynamic API to access its properties:
 
 ```js filename="app/[id]/page.js"
-function Page({ params }) {
+async function Page({ params }) {
   // asynchronous access of `params.id`.
   const { id } = await params
   return <p>ID: {id}</p>

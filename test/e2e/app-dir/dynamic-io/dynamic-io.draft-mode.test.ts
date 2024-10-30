@@ -48,6 +48,8 @@ describe('dynamic-io', () => {
         expect.stringContaining('`draftMode().isEnabled`'),
         // TODO need to figure out why deduping isn't working here
         expect.stringContaining('`draftMode().isEnabled`'),
+        // TODO need to figure out why deduping isn't working here
+        expect.stringContaining('`draftMode().isEnabled`'),
       ])
     } else {
       expect($('#layout').text()).toBe('at buildtime')

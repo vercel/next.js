@@ -116,12 +116,14 @@ pub async fn get_next_client_import_map(
     match ty.into_value() {
         ClientContextType::Pages { .. } => {}
         ClientContextType::App { app_dir } => {
-            let react_flavor =
-                if *next_config.enable_ppr().await? || *next_config.enable_taint().await? {
-                    "-experimental"
-                } else {
-                    ""
-                };
+            let react_flavor = if *next_config.enable_ppr().await?
+                || *next_config.enable_taint().await?
+                || *next_config.enable_react_owner_stack().await?
+            {
+                "-experimental"
+            } else {
+                ""
+            };
 
             import_map.insert_exact_alias(
                 "react",
@@ -683,7 +685,12 @@ async fn rsc_aliases(
 ) -> Result<()> {
     let ppr = *next_config.enable_ppr().await?;
     let taint = *next_config.enable_taint().await?;
-    let react_channel = if ppr || taint { "-experimental" } else { "" };
+    let react_owner_stack = *next_config.enable_react_owner_stack().await?;
+    let react_channel = if ppr || taint || react_owner_stack {
+        "-experimental"
+    } else {
+        ""
+    };
     let react_client_package = get_react_client_package(&next_config).await?;
 
     let mut alias = FxIndexMap::default();

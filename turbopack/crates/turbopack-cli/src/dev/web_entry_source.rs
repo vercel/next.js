@@ -46,6 +46,7 @@ pub fn get_client_chunking_context(
             RuntimeType::Development,
         )
         .hot_module_replacement()
+        .use_file_source_map_uris()
         .build(),
     )
 }
@@ -71,15 +72,17 @@ pub async fn get_client_runtime_entries(
                 request.to_resolved().await?,
                 project_path.join("_".into()).to_resolved().await?,
             )
-            .cell(),
+            .resolved_cell(),
         )
     };
 
     runtime_entries.push(
-        RuntimeEntry::Source(Vc::upcast(FileSource::new(embed_file_path(
-            "entry/bootstrap.ts".into(),
-        ))))
-        .cell(),
+        RuntimeEntry::Source(ResolvedVc::upcast(
+            FileSource::new(embed_file_path("entry/bootstrap.ts".into()))
+                .to_resolved()
+                .await?,
+        ))
+        .resolved_cell(),
     );
 
     Ok(Vc::cell(runtime_entries))

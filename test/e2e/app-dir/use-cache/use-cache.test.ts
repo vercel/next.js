@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry } from 'next-test-utils'
+import { retry, waitFor } from 'next-test-utils'
 
 const GENERIC_RSC_ERROR =
   'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
@@ -131,7 +131,7 @@ describe('use-cache', () => {
     expect(rand1).toEqual(rand2)
   })
 
-  it('should cache results for cached funtions imported from client components', async () => {
+  it('should cache results for cached functions imported from client components', async () => {
     const browser = await next.browser('/imported-from-client')
     expect(await browser.elementByCss('p').text()).toBe('0 0 0')
     await browser.elementById('submit-button').click()
@@ -153,7 +153,7 @@ describe('use-cache', () => {
     })
   })
 
-  it('should cache results for cached funtions passed client components', async () => {
+  it('should cache results for cached functions passed to client components', async () => {
     const browser = await next.browser('/passed-to-client')
     expect(await browser.elementByCss('p').text()).toBe('0 0 0')
     await browser.elementById('submit-button').click()
@@ -182,19 +182,21 @@ describe('use-cache', () => {
 
       const initialX = await browser.elementByCss('#x').text()
       const initialY = await browser.elementByCss('#y').text()
-      let updatedX
-      let updatedY
+      let updatedX: string | undefined
+      let updatedY: string | undefined
 
       await browser.elementByCss('#revalidate-a').click()
       await retry(async () => {
         updatedX = await browser.elementByCss('#x').text()
         expect(updatedX).not.toBe(initialX)
+        expect(await browser.elementByCss('#y').text()).toBe(initialY)
       })
 
       await browser.elementByCss('#revalidate-b').click()
       await retry(async () => {
         updatedY = await browser.elementByCss('#y').text()
         expect(updatedY).not.toBe(initialY)
+        expect(await browser.elementByCss('#x').text()).toBe(updatedX)
       })
 
       await browser.elementByCss('#revalidate-c').click()
@@ -231,4 +233,75 @@ describe('use-cache', () => {
       expect(meta.headers['x-next-cache-tags']).toContain('a,c,b')
     })
   }
+
+  it('can reference server actions in "use cache" functions', async () => {
+    const browser = await next.browser('/with-server-action')
+    expect(await browser.elementByCss('p').text()).toBe('initial')
+    await browser.elementByCss('button').click()
+
+    await retry(async () => {
+      expect(await browser.elementByCss('p').text()).toBe('result')
+    })
+  })
+
+  it('should be able to revalidate a page using revalidateTag', async () => {
+    const browser = await next.browser(`/form`)
+    const time1 = await browser.waitForElementByCss('#t').text()
+
+    await browser.loadPage(new URL(`/form`, next.url).toString())
+
+    const time2 = await browser.waitForElementByCss('#t').text()
+
+    expect(time1).toBe(time2)
+
+    await browser.elementByCss('#refresh').click()
+
+    await waitFor(500)
+
+    const time3 = await browser.waitForElementByCss('#t').text()
+
+    expect(time3).not.toBe(time2)
+
+    // Reloading again should ideally be the same value but because the Action seeds
+    // the cache with real params as the argument it has a different cache key.
+    // await browser.loadPage(new URL(`/form?c`, next.url).toString())
+    // const time4 = await browser.waitForElementByCss('#t').text()
+    // expect(time4).toBe(time3);
+  })
+
+  it('should use revalidate config in fetch', async () => {
+    const browser = await next.browser('/fetch-revalidate')
+
+    const initialValue = await browser.elementByCss('#random').text()
+    await browser.refresh()
+
+    expect(await browser.elementByCss('#random').text()).not.toBe(initialValue)
+  })
+
+  it('should cache fetch without no-store', async () => {
+    const browser = await next.browser('/cache-fetch')
+
+    const initialValue = await browser.elementByCss('#random').text()
+    await browser.refresh()
+
+    expect(await browser.elementByCss('#random').text()).toBe(initialValue)
+  })
+
+  it('should override fetch with no-store in use cache properly', async () => {
+    const browser = await next.browser('/cache-fetch-no-store')
+
+    const initialValue = await browser.elementByCss('#random').text()
+    await browser.refresh()
+
+    expect(await browser.elementByCss('#random').text()).toBe(initialValue)
+  })
+
+  it('should override fetch with cookies/auth in use cache properly', async () => {
+    const browser = await next.browser('/cache-fetch-auth-header')
+
+    const initialValue = await browser.elementByCss('#random').text()
+    await browser.refresh()
+
+    expect(await browser.elementByCss('#random').text()).toBe(initialValue)
+  })
 })
