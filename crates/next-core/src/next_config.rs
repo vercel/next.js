@@ -501,7 +501,6 @@ pub struct ExperimentalConfig {
     pub strict_next_head: Option<bool>,
     pub swc_plugins: Option<Vec<(RcStr, serde_json::Value)>>,
     pub turbo: Option<ExperimentalTurboConfig>,
-    pub turbotrace: Option<serde_json::Value>,
     pub external_middleware_rewrites_resolve: Option<bool>,
     pub scroll_restoration: Option<bool>,
     pub use_deployment_id: Option<bool>,
@@ -518,7 +517,8 @@ pub struct ExperimentalConfig {
     pub server_actions: Option<ServerActionsOrLegacyBool>,
     pub sri: Option<SubResourceIntegrity>,
     react_compiler: Option<ReactCompilerOptionsOrBoolean>,
-
+    #[serde(rename = "dynamicIO")]
+    pub dynamic_io: Option<bool>,
     // ---
     // UNSUPPORTED
     // ---
@@ -562,8 +562,6 @@ pub struct ExperimentalConfig {
     ppr: Option<ExperimentalPartialPrerendering>,
     taint: Option<bool>,
     react_owner_stack: Option<bool>,
-    #[serde(rename = "dynamicIO")]
-    dynamic_io: Option<bool>,
     proxy_timeout: Option<f64>,
     /// enables the minification of server code.
     server_minification: Option<bool>,

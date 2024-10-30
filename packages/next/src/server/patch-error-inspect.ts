@@ -1,9 +1,23 @@
-import { findSourceMap } from 'module'
+import { findSourceMap, type SourceMapPayload } from 'module'
 import type * as util from 'util'
 import { SourceMapConsumer as SyncSourceMapConsumer } from 'next/dist/compiled/source-map'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import { parseStack } from '../client/components/react-dev-overlay/server/middleware'
 import { getOriginalCodeFrame } from '../client/components/react-dev-overlay/server/shared'
+import { workUnitAsyncStorage } from './app-render/work-unit-async-storage.external'
+
+interface ModernRawSourceMap extends SourceMapPayload {
+  ignoreList?: number[]
+}
+
+interface IgnoreableStackFrame extends StackFrame {
+  ignored: boolean
+}
+
+type SourceMapCache = Map<
+  string,
+  { map: SyncSourceMapConsumer; raw: ModernRawSourceMap }
+>
 
 // TODO: Implement for Edge runtime
 const inspectSymbol = Symbol.for('nodejs.util.inspect.custom')
@@ -39,25 +53,14 @@ function prepareUnsourcemappedStackTrace(
 }
 
 function shouldIgnoreListByDefault(file: string): boolean {
-  return (
-    // TODO: Solve via `ignoreList` instead. Tricky because node internals are not part of the sourcemap.
-    file.startsWith('node:')
-    // C&P from setup-dev-bundler
-    // TODO: Taken from setup-dev-bundler but these seem too broad
-    // file.includes('web/adapter') ||
-    // file.includes('web/globals') ||
-    // file.includes('sandbox/context') ||
-    // TODO: Seems too aggressive?
-    // file.includes('<anonymous>') ||
-    // file.startsWith('eval')
-  )
+  return file.startsWith('node:')
 }
 
 function getSourcemappedFrameIfPossible(
   frame: StackFrame,
-  sourcemapConsumers: Map<string, SyncSourceMapConsumer>
+  sourceMapCache: SourceMapCache
 ): {
-  stack: StackFrame
+  stack: IgnoreableStackFrame
   // DEV only
   code: string | null
 } | null {
@@ -65,20 +68,29 @@ function getSourcemappedFrameIfPossible(
     return null
   }
 
-  let sourcemap = sourcemapConsumers.get(frame.file)
-  if (sourcemap === undefined) {
-    const moduleSourcemap = findSourceMap(frame.file)
-    if (moduleSourcemap === undefined) {
+  const sourceMapCacheEntry = sourceMapCache.get(frame.file)
+  let sourceMap: SyncSourceMapConsumer
+  let rawSourceMap: ModernRawSourceMap
+  if (sourceMapCacheEntry === undefined) {
+    const moduleSourceMap = findSourceMap(frame.file)
+    if (moduleSourceMap === undefined) {
       return null
     }
-    sourcemap = new SyncSourceMapConsumer(
+    rawSourceMap = moduleSourceMap.payload
+    sourceMap = new SyncSourceMapConsumer(
       // @ts-expect-error -- Module.SourceMap['version'] is number but SyncSourceMapConsumer wants a string
-      moduleSourcemap.payload
+      rawSourceMap
     )
-    sourcemapConsumers.set(frame.file, sourcemap)
+    sourceMapCache.set(frame.file, {
+      map: sourceMap,
+      raw: rawSourceMap,
+    })
+  } else {
+    sourceMap = sourceMapCacheEntry.map
+    rawSourceMap = sourceMapCacheEntry.raw
   }
 
-  const sourcePosition = sourcemap.originalPositionFor({
+  const sourcePosition = sourceMap.originalPositionFor({
     column: frame.column ?? 0,
     line: frame.lineNumber ?? 1,
   })
@@ -88,12 +100,16 @@ function getSourcemappedFrameIfPossible(
   }
 
   const sourceContent: string | null =
-    sourcemap.sourceContentFor(
+    sourceMap.sourceContentFor(
       sourcePosition.source,
       /* returnNullOnMissing */ true
     ) ?? null
 
-  const originalFrame: StackFrame = {
+  // TODO: O(n^2). Consider moving `ignoreList` into a Set
+  const sourceIndex = rawSourceMap.sources.indexOf(sourcePosition.source)
+  const ignored = rawSourceMap.ignoreList?.includes(sourceIndex) ?? false
+
+  const originalFrame: IgnoreableStackFrame = {
     methodName:
       sourcePosition.name ||
       // default is not a valid identifier in JS so webpack uses a custom variable when it's an unnamed default export
@@ -106,6 +122,7 @@ function getSourcemappedFrameIfPossible(
     lineNumber: sourcePosition.line,
     // TODO: c&p from async createOriginalStackFrame but why not frame.arguments?
     arguments: [],
+    ignored,
   }
 
   const codeFrame =
@@ -137,7 +154,7 @@ function parseAndSourceMap(error: Error): string {
   }
 
   const unsourcemappedStack = parseStack(unparsedStack)
-  const sourcemapConsumers = new Map<string, SyncSourceMapConsumer>()
+  const sourceMapCache: SourceMapCache = new Map()
 
   let sourceMappedStack = ''
   let sourceFrameDEV: null | string = null
@@ -147,22 +164,25 @@ function parseAndSourceMap(error: Error): string {
     } else if (!shouldIgnoreListByDefault(frame.file)) {
       const sourcemappedFrame = getSourcemappedFrameIfPossible(
         frame,
-        sourcemapConsumers
+        sourceMapCache
       )
 
       if (sourcemappedFrame === null) {
         sourceMappedStack += '\n' + frameToString(frame)
       } else {
-        // TODO: Use the first frame that's not ignore-listed
         if (
           process.env.NODE_ENV !== 'production' &&
           sourcemappedFrame.code !== null &&
-          sourceFrameDEV === null
+          sourceFrameDEV === null &&
+          // TODO: Is this the right choice?
+          !sourcemappedFrame.stack.ignored
         ) {
           sourceFrameDEV = sourcemappedFrame.code
         }
-        // TODO: Hide if ignore-listed but consider what happens if every frame is ignore listed.
-        sourceMappedStack += '\n' + frameToString(sourcemappedFrame.stack)
+        if (!sourcemappedFrame.stack.ignored) {
+          // TODO: Consider what happens if every frame is ignore listed.
+          sourceMappedStack += '\n' + frameToString(sourcemappedFrame.stack)
+        }
       }
     }
   }
@@ -186,43 +206,46 @@ export function patchErrorInspect() {
     inspectOptions: util.InspectOptions,
     inspect: typeof util.inspect
   ): string {
-    // Create a new Error object with the source mapping applied and then use native
-    // Node.js formatting on the result.
-    const newError =
-      this.cause !== undefined
-        ? // Setting an undefined `cause` would print `[cause]: undefined`
-          new Error(this.message, { cause: this.cause })
-        : new Error(this.message)
+    // avoid false-positive dynamic i/o warnings e.g. due to usage of `Math.random` in `source-map`.
+    return workUnitAsyncStorage.exit(() => {
+      // Create a new Error object with the source mapping applied and then use native
+      // Node.js formatting on the result.
+      const newError =
+        this.cause !== undefined
+          ? // Setting an undefined `cause` would print `[cause]: undefined`
+            new Error(this.message, { cause: this.cause })
+          : new Error(this.message)
 
-    // TODO: Ensure `class MyError extends Error {}` prints `MyError` as the name
-    newError.stack = parseAndSourceMap(this)
+      // TODO: Ensure `class MyError extends Error {}` prints `MyError` as the name
+      newError.stack = parseAndSourceMap(this)
 
-    for (const key in this) {
-      if (!Object.prototype.hasOwnProperty.call(newError, key)) {
-        // @ts-expect-error -- We're copying all enumerable properties.
-        // So they definitely exist on `this` and obviously have no type on `newError` (yet)
-        newError[key] = this[key]
+      for (const key in this) {
+        if (!Object.prototype.hasOwnProperty.call(newError, key)) {
+          // @ts-expect-error -- We're copying all enumerable properties.
+          // So they definitely exist on `this` and obviously have no type on `newError` (yet)
+          newError[key] = this[key]
+        }
       }
-    }
 
-    const originalCustomInspect = (newError as any)[inspectSymbol]
-    // Prevent infinite recursion.
-    // { customInspect: false } would result in `error.cause` not using our inspect.
-    Object.defineProperty(newError, inspectSymbol, {
-      value: undefined,
-      enumerable: false,
-      writable: true,
-    })
-    try {
-      return inspect(newError, {
-        ...inspectOptions,
-        depth:
-          (inspectOptions.depth ??
-            // Default in Node.js
-            2) - depth,
+      const originalCustomInspect = (newError as any)[inspectSymbol]
+      // Prevent infinite recursion.
+      // { customInspect: false } would result in `error.cause` not using our inspect.
+      Object.defineProperty(newError, inspectSymbol, {
+        value: undefined,
+        enumerable: false,
+        writable: true,
       })
-    } finally {
-      ;(newError as any)[inspectSymbol] = originalCustomInspect
-    }
+      try {
+        return inspect(newError, {
+          ...inspectOptions,
+          depth:
+            (inspectOptions.depth ??
+              // Default in Node.js
+              2) - depth,
+        })
+      } finally {
+        ;(newError as any)[inspectSymbol] = originalCustomInspect
+      }
+    })
   }
 }
