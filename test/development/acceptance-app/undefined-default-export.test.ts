@@ -49,20 +49,13 @@ describe('Undefined default export', () => {
   })
 
   it('should error when page component export is not valid', async () => {
-    const { session, cleanup } = await sandbox(
-      next,
-      undefined,
-      '/server-with-errors/page-export'
-    )
+    const { session, cleanup } = await sandbox(next, undefined, '/')
 
-    await next.patchFile(
-      'app/server-with-errors/page-export/page.js',
-      'export const a = 123'
-    )
+    await next.patchFile('app/page.js', 'const a = 123')
 
     await session.assertHasRedbox()
     expect(await session.getRedboxDescription()).toInclude(
-      'The default export is not a React Component in "/server-with-errors/page-export/page"'
+      'The default export is not a React Component in "/page"'
     )
 
     await cleanup()

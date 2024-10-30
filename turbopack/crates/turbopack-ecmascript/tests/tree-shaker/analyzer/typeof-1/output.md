@@ -95,7 +95,6 @@ graph TD
     Item9;
     Item9["export GET"];
     Item2 --> Item1;
-    Item3 --> Item1;
     Item3 --> Item2;
 ```
 # Phase 2
@@ -113,7 +112,6 @@ graph TD
     Item9;
     Item9["export GET"];
     Item2 --> Item1;
-    Item3 --> Item1;
     Item3 --> Item2;
     Item9 --> Item7;
 ```
@@ -132,7 +130,6 @@ graph TD
     Item9;
     Item9["export GET"];
     Item2 --> Item1;
-    Item3 --> Item1;
     Item3 --> Item2;
     Item9 --> Item7;
     Item7 --> Item4;
@@ -154,7 +151,6 @@ graph TD
     Item9;
     Item9["export GET"];
     Item2 --> Item1;
-    Item3 --> Item1;
     Item3 --> Item2;
     Item9 --> Item7;
     Item7 --> Item4;
@@ -175,7 +171,6 @@ graph TD
     N7["Items: [ItemId(2, ImportBinding(0))]"];
     N8["Items: [ItemId(3, Normal)]"];
     N4 --> N2;
-    N6 --> N2;
     N6 --> N4;
     N1 --> N8;
     N8 --> N3;
@@ -251,9 +246,6 @@ export { ClientComponent as c } from "__TURBOPACK_VAR__" assert {
 ## Part 6
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 4
 };
 import 'my-module/MyModuleClientComponent';
@@ -273,13 +265,16 @@ export { MyModuleClientComponent as d } from "__TURBOPACK_VAR__" assert {
 ## Part 8
 ```js
 import { d as MyModuleClientComponent } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -7
+    __turbopack_part__: -7,
+    __turbopack_original__: 'my-module/MyModuleClientComponent'
 };
 import { b as NextResponse } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -3
+    __turbopack_part__: -3,
+    __turbopack_original__: 'next/server'
 };
 import { c as ClientComponent } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -5
+    __turbopack_part__: -5,
+    __turbopack_original__: '../../ClientComponent'
 };
 function GET() {
     return NextResponse.json({
@@ -375,9 +370,6 @@ export { ClientComponent as c } from "__TURBOPACK_VAR__" assert {
 ## Part 6
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 4
 };
 import 'my-module/MyModuleClientComponent';
@@ -397,13 +389,16 @@ export { MyModuleClientComponent as d } from "__TURBOPACK_VAR__" assert {
 ## Part 8
 ```js
 import { d as MyModuleClientComponent } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -7
+    __turbopack_part__: -7,
+    __turbopack_original__: 'my-module/MyModuleClientComponent'
 };
 import { b as NextResponse } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -3
+    __turbopack_part__: -3,
+    __turbopack_original__: 'next/server'
 };
 import { c as ClientComponent } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -5
+    __turbopack_part__: -5,
+    __turbopack_original__: '../../ClientComponent'
 };
 function GET() {
     return NextResponse.json({

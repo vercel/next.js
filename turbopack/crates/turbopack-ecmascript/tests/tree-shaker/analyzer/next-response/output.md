@@ -285,14 +285,8 @@ graph TD
     Item17;
     Item17["export NextResponse"];
     Item2 --> Item1;
-    Item3 --> Item1;
     Item3 --> Item2;
-    Item4 --> Item1;
-    Item4 --> Item2;
     Item4 --> Item3;
-    Item5 --> Item1;
-    Item5 --> Item2;
-    Item5 --> Item3;
     Item5 --> Item4;
 ```
 # Phase 2
@@ -318,25 +312,10 @@ graph TD
     Item17;
     Item17["export NextResponse"];
     Item2 --> Item1;
-    Item3 --> Item1;
     Item3 --> Item2;
-    Item4 --> Item1;
-    Item4 --> Item2;
     Item4 --> Item3;
-    Item5 --> Item1;
-    Item5 --> Item2;
-    Item5 --> Item3;
     Item5 --> Item4;
-    Item12 --> Item1;
-    Item12 --> Item2;
-    Item12 --> Item3;
-    Item12 --> Item4;
     Item12 --> Item5;
-    Item13 --> Item1;
-    Item13 --> Item2;
-    Item13 --> Item3;
-    Item13 --> Item4;
-    Item13 --> Item5;
     Item13 --> Item12;
     Item15 --> Item11;
     Item15 --> Item6;
@@ -372,25 +351,10 @@ graph TD
     Item17;
     Item17["export NextResponse"];
     Item2 --> Item1;
-    Item3 --> Item1;
     Item3 --> Item2;
-    Item4 --> Item1;
-    Item4 --> Item2;
     Item4 --> Item3;
-    Item5 --> Item1;
-    Item5 --> Item2;
-    Item5 --> Item3;
     Item5 --> Item4;
-    Item12 --> Item1;
-    Item12 --> Item2;
-    Item12 --> Item3;
-    Item12 --> Item4;
     Item12 --> Item5;
-    Item13 --> Item1;
-    Item13 --> Item2;
-    Item13 --> Item3;
-    Item13 --> Item4;
-    Item13 --> Item5;
     Item13 --> Item12;
     Item15 --> Item11;
     Item15 --> Item6;
@@ -426,25 +390,10 @@ graph TD
     Item17;
     Item17["export NextResponse"];
     Item2 --> Item1;
-    Item3 --> Item1;
     Item3 --> Item2;
-    Item4 --> Item1;
-    Item4 --> Item2;
     Item4 --> Item3;
-    Item5 --> Item1;
-    Item5 --> Item2;
-    Item5 --> Item3;
     Item5 --> Item4;
-    Item12 --> Item1;
-    Item12 --> Item2;
-    Item12 --> Item3;
-    Item12 --> Item4;
     Item12 --> Item5;
-    Item13 --> Item1;
-    Item13 --> Item2;
-    Item13 --> Item3;
-    Item13 --> Item4;
-    Item13 --> Item5;
     Item13 --> Item12;
     Item15 --> Item11;
     Item15 --> Item6;
@@ -479,25 +428,10 @@ graph TD
     N15["Items: [ItemId(7, Normal)]"];
     N16["Items: [ItemId(8, Normal)]"];
     N4 --> N2;
-    N6 --> N2;
     N6 --> N4;
-    N9 --> N2;
-    N9 --> N4;
     N9 --> N6;
-    N11 --> N2;
-    N11 --> N4;
-    N11 --> N6;
     N11 --> N9;
-    N13 --> N2;
-    N13 --> N4;
-    N13 --> N6;
-    N13 --> N9;
     N13 --> N11;
-    N14 --> N2;
-    N14 --> N4;
-    N14 --> N6;
-    N14 --> N9;
-    N14 --> N11;
     N14 --> N13;
     N16 --> N12;
     N16 --> N3;
@@ -579,9 +513,6 @@ export { NextURL as c } from "__TURBOPACK_VAR__" assert {
 ## Part 6
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 4
 };
 import '../utils';
@@ -612,12 +543,6 @@ export { validateURL as e } from "__TURBOPACK_VAR__" assert {
 ## Part 9
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
 };
 import './adapters/reflect';
@@ -636,15 +561,6 @@ export { ReflectAdapter as f } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 11
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
-};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 9
 };
@@ -665,18 +581,6 @@ export { ResponseCookies as g } from "__TURBOPACK_VAR__" assert {
 ## Part 13
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
-};
-import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 11
 };
 const INTERNALS = Symbol('internal response');
@@ -687,21 +591,6 @@ export { INTERNALS as h } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 14
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 11
-};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 13
 };
@@ -741,28 +630,34 @@ export { handleMiddlewareField as j } from "__TURBOPACK_VAR__" assert {
 ## Part 16
 ```js
 import { g as ResponseCookies } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -12
+    __turbopack_part__: -12,
+    __turbopack_original__: './cookies'
 };
 import { b as stringifyCookie } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -3
+    __turbopack_part__: -3,
+    __turbopack_original__: '../../web/spec-extension/cookies'
 };
 import { j as handleMiddlewareField } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -15
 };
 import { f as ReflectAdapter } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -10
+    __turbopack_part__: -10,
+    __turbopack_original__: './adapters/reflect'
 };
 import { h as INTERNALS } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -13
 };
 import { c as NextURL } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -5
+    __turbopack_part__: -5,
+    __turbopack_original__: '../next-url'
 };
 import { d as toNodeOutgoingHttpHeaders } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -7
+    __turbopack_part__: -7,
+    __turbopack_original__: '../utils'
 };
 import { e as validateURL } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -8
+    __turbopack_part__: -8,
+    __turbopack_original__: '../utils'
 };
 import { i as REDIRECTS } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -14
@@ -943,9 +838,6 @@ export { NextURL as c } from "__TURBOPACK_VAR__" assert {
 ## Part 6
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 4
 };
 import '../utils';
@@ -976,12 +868,6 @@ export { validateURL as e } from "__TURBOPACK_VAR__" assert {
 ## Part 9
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
 };
 import './adapters/reflect';
@@ -1000,15 +886,6 @@ export { ReflectAdapter as f } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 11
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
-};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 9
 };
@@ -1029,18 +906,6 @@ export { ResponseCookies as g } from "__TURBOPACK_VAR__" assert {
 ## Part 13
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
-};
-import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 11
 };
 const INTERNALS = Symbol('internal response');
@@ -1051,21 +916,6 @@ export { INTERNALS as h } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 14
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 11
-};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 13
 };
@@ -1105,28 +955,34 @@ export { handleMiddlewareField as j } from "__TURBOPACK_VAR__" assert {
 ## Part 16
 ```js
 import { g as ResponseCookies } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -12
+    __turbopack_part__: -12,
+    __turbopack_original__: './cookies'
 };
 import { b as stringifyCookie } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -3
+    __turbopack_part__: -3,
+    __turbopack_original__: '../../web/spec-extension/cookies'
 };
 import { j as handleMiddlewareField } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -15
 };
 import { f as ReflectAdapter } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -10
+    __turbopack_part__: -10,
+    __turbopack_original__: './adapters/reflect'
 };
 import { h as INTERNALS } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -13
 };
 import { c as NextURL } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -5
+    __turbopack_part__: -5,
+    __turbopack_original__: '../next-url'
 };
 import { d as toNodeOutgoingHttpHeaders } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -7
+    __turbopack_part__: -7,
+    __turbopack_original__: '../utils'
 };
 import { e as validateURL } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -8
+    __turbopack_part__: -8,
+    __turbopack_original__: '../utils'
 };
 import { i as REDIRECTS } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -14

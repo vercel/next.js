@@ -106,7 +106,14 @@ pub async fn make_chunks(
         }
     }
 
-    Ok(Vc::cell(chunks))
+    // Resolve all chunks before returning
+    let resolved_chunks = chunks
+        .into_iter()
+        .map(|chunk| chunk.to_resolved())
+        .try_join()
+        .await?;
+
+    Ok(Vc::cell(resolved_chunks))
 }
 
 type ChunkItemWithInfo = (

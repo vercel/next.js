@@ -13,7 +13,7 @@ use crate::next_api::project::NapiDefineEnv;
 #[napi(object, object_to_js = false)]
 #[derive(Debug)]
 pub struct NextBuildContext {
-    // Added by Next.js for next build --turbo specifically.
+    // Added by Next.js for next build --turbopack specifically.
     /// The root directory of the workspace.
     pub root: Option<String>,
 

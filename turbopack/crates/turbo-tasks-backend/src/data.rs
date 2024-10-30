@@ -313,6 +313,9 @@ pub enum CachedDataItem {
         task: TaskId,
         value: (),
     },
+    ChildrenCount {
+        value: u32,
+    },
 
     // Cells
     CellData {
@@ -365,6 +368,10 @@ pub enum CachedDataItem {
     Upper {
         task: TaskId,
         value: i32,
+    },
+    PersistentUpperCount {
+        // Only counting persistent tasks
+        value: u32,
     },
 
     // Aggregated Data
@@ -438,6 +445,7 @@ impl CachedDataItem {
             }
             CachedDataItem::Dirty { .. } => true,
             CachedDataItem::Child { task, .. } => !task.is_transient(),
+            CachedDataItem::ChildrenCount { .. } => true,
             CachedDataItem::CellData { .. } => true,
             CachedDataItem::CellTypeMaxIndex { .. } => true,
             CachedDataItem::OutputDependency { target, .. } => !target.is_transient(),
@@ -449,6 +457,7 @@ impl CachedDataItem {
             CachedDataItem::AggregationNumber { .. } => true,
             CachedDataItem::Follower { task, .. } => !task.is_transient(),
             CachedDataItem::Upper { task, .. } => !task.is_transient(),
+            CachedDataItem::PersistentUpperCount { .. } => true,
             CachedDataItem::AggregatedDirtyContainer { task, .. } => !task.is_transient(),
             CachedDataItem::AggregatedCollectible { collectible, .. } => {
                 !collectible.cell.task.is_transient()
@@ -502,6 +511,7 @@ impl CachedDataItemKey {
             }
             CachedDataItemKey::Dirty { .. } => true,
             CachedDataItemKey::Child { task, .. } => !task.is_transient(),
+            CachedDataItemKey::ChildrenCount {} => true,
             CachedDataItemKey::CellData { .. } => true,
             CachedDataItemKey::CellTypeMaxIndex { .. } => true,
             CachedDataItemKey::OutputDependency { target, .. } => !target.is_transient(),
@@ -513,6 +523,7 @@ impl CachedDataItemKey {
             CachedDataItemKey::AggregationNumber { .. } => true,
             CachedDataItemKey::Follower { task, .. } => !task.is_transient(),
             CachedDataItemKey::Upper { task, .. } => !task.is_transient(),
+            CachedDataItemKey::PersistentUpperCount {} => true,
             CachedDataItemKey::AggregatedDirtyContainer { task, .. } => !task.is_transient(),
             CachedDataItemKey::AggregatedCollectible { collectible, .. } => {
                 !collectible.cell.task.is_transient()
@@ -534,6 +545,7 @@ impl CachedDataItemKey {
         match self {
             CachedDataItemKey::Collectible { .. }
             | CachedDataItemKey::Child { .. }
+            | CachedDataItemKey::ChildrenCount { .. }
             | CachedDataItemKey::CellData { .. }
             | CachedDataItemKey::CellTypeMaxIndex { .. }
             | CachedDataItemKey::OutputDependency { .. }
@@ -556,6 +568,7 @@ impl CachedDataItemKey {
             | CachedDataItemKey::Dirty { .. }
             | CachedDataItemKey::Follower { .. }
             | CachedDataItemKey::Upper { .. }
+            | CachedDataItemKey::PersistentUpperCount { .. }
             | CachedDataItemKey::AggregatedDirtyContainer { .. }
             | CachedDataItemKey::AggregatedCollectible { .. }
             | CachedDataItemKey::AggregatedDirtyContainerCount { .. }
@@ -678,6 +691,7 @@ impl CachedDataItemValue {
 #[derive(Debug)]
 pub struct CachedDataUpdate {
     pub task: TaskId,
+    // TODO generate CachedDataItemUpdate to avoid repeating the variant field 3 times
     pub key: CachedDataItemKey,
     pub value: Option<CachedDataItemValue>,
     pub old_value: Option<CachedDataItemValue>,

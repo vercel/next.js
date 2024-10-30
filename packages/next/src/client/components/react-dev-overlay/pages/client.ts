@@ -44,7 +44,7 @@ function handleError(error: unknown) {
     Bus.emit({
       type: ACTION_UNHANDLED_ERROR,
       reason: error,
-      frames: parseStack(error.stack!),
+      frames: parseStack(error.stack),
       componentStackFrames,
     })
   }

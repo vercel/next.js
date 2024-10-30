@@ -3,7 +3,9 @@ use std::{collections::BTreeMap, io::Write, iter::once};
 use anyhow::{bail, Context, Result};
 use indexmap::map::Entry;
 use next_core::{
-    next_manifests::{ActionLayer, ActionManifestWorkerEntry, ServerReferenceManifest},
+    next_manifests::{
+        ActionLayer, ActionManifestModuleId, ActionManifestWorkerEntry, ServerReferenceManifest,
+    },
     util::NextRuntime,
 };
 use swc_core::{
@@ -22,7 +24,7 @@ use turbo_tasks::{
 use turbo_tasks_fs::{self, rope::RopeBuilder, File, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
-    chunk::{ChunkItemExt, ChunkableModule, ChunkingContext, EvaluatableAsset},
+    chunk::{ChunkItem, ChunkItemExt, ChunkableModule, ChunkingContext, EvaluatableAsset},
     context::AssetContext,
     file_source::FileSource,
     module::{Module, Modules},
@@ -38,6 +40,12 @@ use turbopack_ecmascript::{
     tree_shake::asset::EcmascriptModulePartAsset, EcmascriptParsable,
 };
 
+#[turbo_tasks::value]
+pub(crate) struct ServerActionsManifest {
+    pub loader: Vc<Box<dyn EvaluatableAsset>>,
+    pub manifest: Vc<Box<dyn OutputAsset>>,
+}
+
 /// Scans the RSC entry point's full module graph looking for exported Server
 /// Actions (identifiable by a magic comment in the transformed module's
 /// output), and constructs a evaluatable "action loader" entry point and
@@ -45,29 +53,31 @@ use turbopack_ecmascript::{
 ///
 /// If Server Actions are not enabled, this returns an empty manifest and a None
 /// loader.
+#[turbo_tasks::function]
 pub(crate) async fn create_server_actions_manifest(
     rsc_entry: Vc<Box<dyn Module>>,
     server_reference_modules: Vc<Modules>,
     project_path: Vc<FileSystemPath>,
     node_root: Vc<FileSystemPath>,
-    page_name: &str,
+    page_name: RcStr,
     runtime: NextRuntime,
     asset_context: Vc<Box<dyn AssetContext>>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-) -> Result<(Vc<Box<dyn EvaluatableAsset>>, Vc<Box<dyn OutputAsset>>)> {
+) -> Result<Vc<ServerActionsManifest>> {
     let actions = get_actions(rsc_entry, server_reference_modules, asset_context);
     let loader =
-        build_server_actions_loader(project_path, page_name.into(), actions, asset_context);
+        build_server_actions_loader(project_path, page_name.clone(), actions, asset_context);
     let evaluable = Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(loader)
         .await?
         .context("loader module must be evaluatable")?;
 
-    let loader_id = loader
-        .as_chunk_item(Vc::upcast(chunking_context))
-        .id()
-        .to_string();
-    let manifest = build_manifest(node_root, page_name, runtime, actions, loader_id).await?;
-    Ok((evaluable, manifest))
+    let chunk_item = loader.as_chunk_item(Vc::upcast(chunking_context));
+    let manifest = build_manifest(node_root, page_name, runtime, actions, chunk_item).await?;
+    Ok(ServerActionsManifest {
+        loader: evaluable,
+        manifest,
+    }
+    .cell())
 }
 
 /// Builds the "action loader" entry point, which reexports every found action
@@ -85,11 +95,11 @@ async fn build_server_actions_loader(
 ) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
     let actions = actions.await?;
 
-    // Every module which exports an action (that is accessible starting from our
-    // app page entry point) will be present. We generate a single loader file
-    // which lazily imports the respective module's chunk_item id and invokes
-    // the exported action function.
-    let mut contents = RopeBuilder::from("__turbopack_export_value__({\n");
+    // Every module which exports an action (that is accessible starting from
+    // our app page entry point) will be present. We generate a single loader
+    // file which re-exports the respective module's action function using the
+    // hashed ID as export name.
+    let mut contents = RopeBuilder::from("");
     let mut import_map = FxIndexMap::default();
     for (hash_id, (_layer, name, module)) in actions.iter() {
         let index = import_map.len();
@@ -98,11 +108,9 @@ async fn build_server_actions_loader(
             .or_insert_with(|| format!("ACTIONS_MODULE{index}").into());
         writeln!(
             contents,
-            "  '{hash_id}': (...args) => Promise.resolve(require('{module_name}')).then(mod => \
-             (0, mod['{name}'])(...args)),",
+            "export {{{name} as '{hash_id}'}} from '{module_name}'"
         )?;
     }
-    write!(contents, "}});")?;
 
     let output_path =
         project_path.join(format!(".next-internal/server/app{page_name}/actions.js").into());
@@ -129,12 +137,12 @@ async fn build_server_actions_loader(
 /// module id which exports a function using that hashed name.
 async fn build_manifest(
     node_root: Vc<FileSystemPath>,
-    page_name: &str,
+    page_name: RcStr,
     runtime: NextRuntime,
     actions: Vc<AllActions>,
-    loader_id: Vc<RcStr>,
+    chunk_item: Vc<Box<dyn ChunkItem>>,
 ) -> Result<Vc<Box<dyn OutputAsset>>> {
-    let manifest_path_prefix = page_name;
+    let manifest_path_prefix = &page_name;
     let manifest_path = node_root
         .join(format!("server/app{manifest_path_prefix}/server-reference-manifest.json",).into());
     let mut manifest = ServerReferenceManifest {
@@ -144,7 +152,7 @@ async fn build_manifest(
     let key = format!("app{page_name}");
 
     let actions_value = actions.await?;
-    let loader_id_value = loader_id.await?;
+    let loader_id = chunk_item.id().to_string().await?;
     let mapping = match runtime {
         NextRuntime::Edge => &mut manifest.edge,
         NextRuntime::NodeJs => &mut manifest.node,
@@ -154,7 +162,10 @@ async fn build_manifest(
         let entry = mapping.entry(hash_id.as_str()).or_default();
         entry.workers.insert(
             &key,
-            ActionManifestWorkerEntry::String(loader_id_value.as_str()),
+            ActionManifestWorkerEntry {
+                module_id: ActionManifestModuleId::String(loader_id.as_str()),
+                is_async: *chunk_item.is_self_async().await?,
+            },
         );
         entry.layer.insert(&key, *layer);
     }
