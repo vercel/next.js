@@ -180,29 +180,84 @@ describe('use-cache', () => {
     it('should update after revalidateTag correctly', async () => {
       const browser = await next.browser('/cache-tag')
 
-      const initialX = await browser.elementByCss('#x').text()
-      const initialY = await browser.elementByCss('#y').text()
-      let updatedX: string | undefined
-      let updatedY: string | undefined
+      let valueA = await browser.elementByCss('#a').text()
+      let valueB = await browser.elementByCss('#b').text()
+      let valueF1 = await browser.elementByCss('#f1').text()
+      let valueF2 = await browser.elementByCss('#f2').text()
+      let valueR1 = await browser.elementByCss('#r1').text()
+      let valueR2 = await browser.elementByCss('#r2').text()
 
       await browser.elementByCss('#revalidate-a').click()
       await retry(async () => {
-        updatedX = await browser.elementByCss('#x').text()
-        expect(updatedX).not.toBe(initialX)
-        expect(await browser.elementByCss('#y').text()).toBe(initialY)
+        expect(await browser.elementByCss('#a').text()).not.toBe(valueA)
+        expect(await browser.elementByCss('#b').text()).toBe(valueB)
+        expect(await browser.elementByCss('#f1').text()).toBe(valueF1)
+        expect(await browser.elementByCss('#f2').text()).toBe(valueF2)
+        expect(await browser.elementByCss('#r1').text()).toBe(valueR1)
+        expect(await browser.elementByCss('#r2').text()).toBe(valueR2)
       })
+
+      valueA = await browser.elementByCss('#a').text()
 
       await browser.elementByCss('#revalidate-b').click()
       await retry(async () => {
-        updatedY = await browser.elementByCss('#y').text()
-        expect(updatedY).not.toBe(initialY)
-        expect(await browser.elementByCss('#x').text()).toBe(updatedX)
+        expect(await browser.elementByCss('#a').text()).toBe(valueA)
+        expect(await browser.elementByCss('#b').text()).not.toBe(valueB)
+        expect(await browser.elementByCss('#f1').text()).toBe(valueF1)
+        expect(await browser.elementByCss('#f2').text()).toBe(valueF2)
+        expect(await browser.elementByCss('#r1').text()).toBe(valueR1)
+        expect(await browser.elementByCss('#r2').text()).toBe(valueR2)
       })
+
+      valueB = await browser.elementByCss('#b').text()
 
       await browser.elementByCss('#revalidate-c').click()
       await retry(async () => {
-        expect(await browser.elementByCss('#x').text()).not.toBe(updatedX)
-        expect(await browser.elementByCss('#y').text()).not.toBe(updatedY)
+        expect(await browser.elementByCss('#a').text()).not.toBe(valueA)
+        expect(await browser.elementByCss('#b').text()).not.toBe(valueB)
+        expect(await browser.elementByCss('#f1').text()).not.toBe(valueF1)
+        expect(await browser.elementByCss('#f2').text()).toBe(valueF2)
+        expect(await browser.elementByCss('#r1').text()).not.toBe(valueR1)
+        expect(await browser.elementByCss('#r2').text()).toBe(valueR2)
+      })
+
+      valueA = await browser.elementByCss('#a').text()
+      valueB = await browser.elementByCss('#b').text()
+      valueF1 = await browser.elementByCss('#f1').text()
+      valueR1 = await browser.elementByCss('#r1').text()
+
+      await browser.elementByCss('#revalidate-f').click()
+      await retry(async () => {
+        expect(await browser.elementByCss('#a').text()).toBe(valueA)
+        expect(await browser.elementByCss('#b').text()).toBe(valueB)
+        expect(await browser.elementByCss('#f1').text()).not.toBe(valueF1)
+        expect(await browser.elementByCss('#f2').text()).toBe(valueF2)
+        expect(await browser.elementByCss('#r1').text()).toBe(valueR1)
+        expect(await browser.elementByCss('#r2').text()).toBe(valueR2)
+      })
+
+      valueF1 = await browser.elementByCss('#f1').text()
+
+      await browser.elementByCss('#revalidate-r').click()
+      await retry(async () => {
+        expect(await browser.elementByCss('#a').text()).toBe(valueA)
+        expect(await browser.elementByCss('#b').text()).toBe(valueB)
+        expect(await browser.elementByCss('#f1').text()).toBe(valueF1)
+        expect(await browser.elementByCss('#f2').text()).toBe(valueF2)
+        expect(await browser.elementByCss('#r1').text()).not.toBe(valueR1)
+        expect(await browser.elementByCss('#r2').text()).toBe(valueR2)
+      })
+
+      valueR1 = await browser.elementByCss('#r1').text()
+
+      await browser.elementByCss('#revalidate-path').click()
+      await retry(async () => {
+        expect(await browser.elementByCss('#a').text()).not.toBe(valueA)
+        expect(await browser.elementByCss('#b').text()).not.toBe(valueB)
+        expect(await browser.elementByCss('#f1').text()).not.toBe(valueF1)
+        expect(await browser.elementByCss('#f2').text()).not.toBe(valueF2)
+        expect(await browser.elementByCss('#r1').text()).not.toBe(valueR1)
+        expect(await browser.elementByCss('#r2').text()).not.toBe(valueR2)
       })
     })
   }
