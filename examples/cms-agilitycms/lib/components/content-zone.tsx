@@ -1,18 +1,32 @@
+import { useEffect, useState } from "react";
 import { requireComponentDependancyByName } from "../dependancies";
 
 export default function ContentZone(props) {
-  function RenderModules() {
-    let modules = props.page.zones[props.name];
+  const [modules, setModules] = useState([]);
 
-    return modules.map((m, i) => {
-      const AgilityModule = requireComponentDependancyByName(m.moduleName);
-      return <AgilityModule key={i} {...m.item} />;
-    });
-  }
+  useEffect(() => {
+    const loadModules = async () => {
+      const zoneModules = props.page.zones[props.name];
+      const loadedModules = await Promise.all(
+        zoneModules.map(async (m) => {
+          const Component = await requireComponentDependancyByName(m.moduleName);
+          return {
+            Component,
+            props: m.item
+          };
+        })
+      );
+      setModules(loadedModules);
+    };
+
+    loadModules();
+  }, [props.page.zones, props.name]);
 
   return (
     <div>
-      <RenderModules />
+      {modules.map(({ Component, props: moduleProps }, index) => (
+        <Component key={index} {...moduleProps} />
+      ))}
     </div>
   );
 }

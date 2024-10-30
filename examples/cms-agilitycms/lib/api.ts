@@ -155,7 +155,7 @@ export async function getAgilityPageProps({ params, preview }) {
 
     //loop through the zone's modules
     await asyncForEach(modulesForThisContentZone, async (moduleItem) => {
-      let ModuleComponentToRender = requireComponentDependancyByName(
+      let ModuleComponentToRender = await requireComponentDependancyByName(
         moduleItem.module,
       );
 
