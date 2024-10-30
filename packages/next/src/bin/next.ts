@@ -9,10 +9,7 @@ import semver from 'next/dist/compiled/semver'
 import { bold, cyan, italic } from '../lib/picocolors'
 import { formatCliHelpOutput } from '../lib/format-cli-help-output'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
-import {
-  parseValidPositiveInteger,
-  RESTART_EXIT_CODE,
-} from '../server/lib/utils'
+import { parseValidPositiveInteger } from '../server/lib/utils'
 import {
   SUPPORTED_TEST_RUNNERS_LIST,
   type NextTestOptions,
@@ -23,7 +20,6 @@ import type { NextLintOptions } from '../cli/next-lint.js'
 import type { NextInfoOptions } from '../cli/next-info.js'
 import type { NextDevOptions } from '../cli/next-dev.js'
 import type { NextBuildOptions } from '../cli/next-build.js'
-import { spawnSync } from 'child_process'
 
 if (
   !semver.satisfies(
@@ -426,35 +422,3 @@ internal
   })
 
 program.parse(process.argv)
-
-const nodePath = process.argv0
-
-const newArgs = [
-  '--no-warnings',
-  '--experimental-loader',
-  'next/dist/build/next-config-ts/next-config-ts-loader.mjs',
-  ...process.argv.splice(1),
-]
-
-function register() {
-  try {
-    const result = spawnSync(nodePath, newArgs, {
-      stdio: 'inherit',
-      env: {
-        ...process.env,
-      },
-    })
-
-    if (
-      result.status === RESTART_EXIT_CODE &&
-      process.env.NODE_ENV === 'development'
-    ) {
-      register()
-    }
-    process.exit(0)
-  } catch (err) {
-    console.error(err)
-    process.exit(1)
-  }
-}
-register()
