@@ -270,6 +270,14 @@ export function createPatchedFetcher(
                 collectedTags.push(tag)
               }
             }
+
+            // Add tags of the current cache scope to the locally collected tags
+            // for this fetch call.
+            for (const tag of collectedTags) {
+              if (!tags.includes(tag)) {
+                tags.push(tag)
+              }
+            }
           }
         }
 
