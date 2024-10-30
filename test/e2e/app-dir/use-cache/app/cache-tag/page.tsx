@@ -2,7 +2,7 @@ import React from 'react'
 import { unstable_cacheTag as cacheTag } from 'next/cache'
 import { RevalidateButtons } from './button'
 
-async function getCachedWithTag(tag) {
+async function getCachedWithTag(tag: string) {
   'use cache'
   cacheTag(tag, 'c')
   return Math.random()
