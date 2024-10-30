@@ -226,7 +226,7 @@ export type InitialRSCPayload = {
   /** missingSlots */
   m: Set<string> | undefined
   /** GlobalError */
-  G: React.ComponentType<any>
+  G: [React.ComponentType<any>, React.ReactNode | undefined]
   /** postponed */
   s: boolean
   /** prerendered */

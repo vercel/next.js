@@ -372,7 +372,6 @@ export interface PageInfo {
   hasEmptyPrelude?: boolean
   hasPostponed?: boolean
   isDynamicAppRoute?: boolean
-  unsupportedSegmentConfigs: string[] | undefined
 }
 
 export type PageInfos = Map<string, PageInfo>

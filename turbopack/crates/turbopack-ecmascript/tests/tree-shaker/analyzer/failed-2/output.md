@@ -795,7 +795,8 @@ export { getPathname as l } from "__TURBOPACK_VAR__" assert {
 ## Part 17
 ```js
 import { i as React } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -10
+    __turbopack_part__: -10,
+    __turbopack_original__: 'react'
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 15
@@ -851,13 +852,16 @@ export { createPrerenderState as c } from "__TURBOPACK_VAR__" assert {
 ## Part 19
 ```js
 import { j as DynamicServerError } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -12
+    __turbopack_part__: -12,
+    __turbopack_original__: '../../client/components/hooks-server-context'
 };
 import { l as getPathname } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -16
+    __turbopack_part__: -16,
+    __turbopack_original__: '../../lib/url'
 };
 import { k as StaticGenBailoutError } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -14
+    __turbopack_part__: -14,
+    __turbopack_original__: '../../client/components/static-generation-bailout'
 };
 import { n as postponeWithTracking } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -17
@@ -888,13 +892,16 @@ export { markCurrentScopeAsDynamic as e } from "__TURBOPACK_VAR__" assert {
 ## Part 20
 ```js
 import { j as DynamicServerError } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -12
+    __turbopack_part__: -12,
+    __turbopack_original__: '../../client/components/hooks-server-context'
 };
 import { l as getPathname } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -16
+    __turbopack_part__: -16,
+    __turbopack_original__: '../../lib/url'
 };
 import { k as StaticGenBailoutError } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -14
+    __turbopack_part__: -14,
+    __turbopack_original__: '../../client/components/static-generation-bailout'
 };
 import { n as postponeWithTracking } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -17
@@ -986,7 +993,8 @@ export { formatDynamicAPIAccesses as d } from "__TURBOPACK_VAR__" assert {
 ## Part 25
 ```js
 import { i as React } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -10
+    __turbopack_part__: -10,
+    __turbopack_original__: 'react'
 };
 import { o as assertPostpone } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -17
@@ -1225,7 +1233,8 @@ export { getPathname as l } from "__TURBOPACK_VAR__" assert {
 ## Part 17
 ```js
 import { i as React } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -10
+    __turbopack_part__: -10,
+    __turbopack_original__: 'react'
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 15
@@ -1252,13 +1261,16 @@ export { createPrerenderState as c } from "__TURBOPACK_VAR__" assert {
 ## Part 19
 ```js
 import { j as DynamicServerError } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -12
+    __turbopack_part__: -12,
+    __turbopack_original__: '../../client/components/hooks-server-context'
 };
 import { l as getPathname } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -16
+    __turbopack_part__: -16,
+    __turbopack_original__: '../../lib/url'
 };
 import { k as StaticGenBailoutError } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -14
+    __turbopack_part__: -14,
+    __turbopack_original__: '../../client/components/static-generation-bailout'
 };
 import { n as postponeWithTracking } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -23
@@ -1289,13 +1301,16 @@ export { markCurrentScopeAsDynamic as e } from "__TURBOPACK_VAR__" assert {
 ## Part 20
 ```js
 import { j as DynamicServerError } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -12
+    __turbopack_part__: -12,
+    __turbopack_original__: '../../client/components/hooks-server-context'
 };
 import { l as getPathname } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -16
+    __turbopack_part__: -16,
+    __turbopack_original__: '../../lib/url'
 };
 import { k as StaticGenBailoutError } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -14
+    __turbopack_part__: -14,
+    __turbopack_original__: '../../client/components/static-generation-bailout'
 };
 import { n as postponeWithTracking } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -23
@@ -1353,7 +1368,8 @@ export { trackDynamicFetch as g } from "__TURBOPACK_VAR__" assert {
 ## Part 23
 ```js
 import { i as React } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -10
+    __turbopack_part__: -10,
+    __turbopack_original__: 'react'
 };
 import { o as assertPostpone } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -26
@@ -1427,7 +1443,8 @@ export { assertPostpone as o } from "__TURBOPACK_VAR__" assert {
 ## Part 27
 ```js
 import { i as React } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -10
+    __turbopack_part__: -10,
+    __turbopack_original__: 'react'
 };
 import { o as assertPostpone } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -26

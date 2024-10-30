@@ -695,9 +695,8 @@ export function transformDynamicProps(
           : null
         const paramPropertyName = paramsPropertyName || matchedPropName
 
-        // if propName is not used in lower scope, and it stars with unused prefix `_`,
-        // also skip the transformation
-
+        // If propName is an identifier and not used in lower scope,
+        // also skip the transformation.
         const hasUsedInBody =
           j(functionBodyPath)
             .find(j.Identifier, {
@@ -705,7 +704,7 @@ export function transformDynamicProps(
             })
             .size() > 0
 
-        if (!hasUsedInBody && paramPropertyName.startsWith('_')) continue
+        if (!hasUsedInBody && j.Identifier.check(paramsProperty)) continue
 
         // Search the usage of propName in the function body,
         // if they're all awaited or wrapped with use(), skip the transformation

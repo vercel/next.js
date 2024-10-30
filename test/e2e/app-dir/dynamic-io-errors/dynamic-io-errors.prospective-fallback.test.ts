@@ -27,8 +27,9 @@ describe(`Dynamic IO Prospective Fallback`, () => {
         // we expect the build to fail
       }
 
+      // TODO: Assert on component stack
       expect(next.cliOutput).toContain(
-        'In Route "/blog/[slug]" this component accessed data without a fallback UI available somewhere above it using Suspense.'
+        'Route "/blog/[slug]": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it.'
       )
     })
 
@@ -46,7 +47,7 @@ describe(`Dynamic IO Prospective Fallback`, () => {
       await next.start()
 
       expect(next.cliOutput).not.toContain(
-        'In Route "/blog/[slug]" this component accessed data without a fallback UI available somewhere above it using Suspense.'
+        'Route "/blog/[slug]": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it.'
       )
     })
   }

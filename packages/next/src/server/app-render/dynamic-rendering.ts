@@ -265,9 +265,7 @@ function abortOnSynchronousDynamicDataAccess(
 
   const error = createPrerenderInterruptedError(reason)
 
-  if (prerenderStore.controller) {
-    prerenderStore.controller.abort(error)
-  }
+  prerenderStore.controller.abort(error)
 
   const dynamicTracking = prerenderStore.dynamicTracking
   if (dynamicTracking) {
@@ -605,9 +603,7 @@ export function trackAllowedDynamicAccess(
     dynamicValidation.hasSyncDynamicErrors = true
     return
   } else {
-    // The thrownValue must have been the RENDER_COMPLETE abortReason because the only kinds of errors tracked here are
-    // interrupts or render completes
-    const message = `In Route "${route}" this component accessed data without a fallback UI available somewhere above it using Suspense.`
+    const message = `Route "${route}": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense`
     const error = createErrorWithComponentStack(message, componentStack)
     dynamicValidation.dynamicErrors.push(error)
     return
@@ -653,9 +649,7 @@ export function throwIfDisallowedDynamic(
       console.error(syncError)
     }
     // The actual error should have been logged when the sync access ocurred
-    throw new StaticGenBailoutError(
-      `Route "${route}" could not be prerendered.`
-    )
+    throw new StaticGenBailoutError()
   }
 
   const dynamicErrors = dynamicValidation.dynamicErrors
@@ -664,9 +658,7 @@ export function throwIfDisallowedDynamic(
       console.error(dynamicErrors[i])
     }
 
-    throw new StaticGenBailoutError(
-      `Route "${route}" could not be prerendered.`
-    )
+    throw new StaticGenBailoutError()
   }
 
   if (!dynamicValidation.hasSuspendedDynamic) {

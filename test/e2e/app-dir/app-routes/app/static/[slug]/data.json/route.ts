@@ -7,8 +7,9 @@ export function generateStaticParams() {
 
 export const GET = async (
   req: NextRequest,
-  { params }: { params: Promise<{ slug: string }> }
+  props: { params: Promise<{ slug: string }> }
 ) => {
+  const params = await props.params
   const resolvedParams = await params
   return NextResponse.json({ params: resolvedParams, now: Date.now() })
 }

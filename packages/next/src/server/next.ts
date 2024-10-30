@@ -354,9 +354,10 @@ class NextCustomServer extends NextServer {
 function createServer(
   options: NextServerOptions & {
     turbo?: boolean
+    turbopack?: boolean
   }
 ): NextServer {
-  if (options && options.turbo) {
+  if (options && (options.turbo || options.turbopack)) {
     process.env.TURBOPACK = '1'
   }
   // The package is used as a TypeScript plugin.
