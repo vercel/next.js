@@ -1,4 +1,4 @@
-import type { CacheHandler } from '../lib/incremental-cache'
+import { createAsyncLocalStorage } from '../app-render/async-local-storage'
 
 export function getBuiltinRequestContext():
   | BuiltinRequestContextValue
@@ -29,8 +29,23 @@ export type BuiltinRequestContext = {
   get(): BuiltinRequestContextValue | undefined
 }
 
+export type RunnableBuiltinRequestContext = BuiltinRequestContext & {
+  run<T>(value: BuiltinRequestContextValue, callback: () => T): T
+}
+
 export type BuiltinRequestContextValue = {
   waitUntil?: WaitUntil
-  NextCacheHandler?: typeof CacheHandler
 }
 export type WaitUntil = (promise: Promise<any>) => void
+
+/** "@next/request-context" has a different signature from AsyncLocalStorage,
+ * matching [AsyncContext.Variable](https://github.com/tc39/proposal-async-context).
+ * We don't need a full AsyncContext adapter here, just having `.get()` is enough
+ */
+export function createLocalRequestContext(): RunnableBuiltinRequestContext {
+  const storage = createAsyncLocalStorage<BuiltinRequestContextValue>()
+  return {
+    get: () => storage.getStore(),
+    run: (value, callback) => storage.run(value, callback),
+  }
+}

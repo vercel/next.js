@@ -1,4 +1,4 @@
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
 use super::options::{
@@ -7,7 +7,7 @@ use super::options::{
 };
 
 #[turbo_tasks::function]
-pub fn node_cjs_resolve_options(root: Vc<FileSystemPath>) -> Vc<ResolveOptions> {
+pub fn node_cjs_resolve_options(root: ResolvedVc<FileSystemPath>) -> Vc<ResolveOptions> {
     let conditions: ResolutionConditions = [
         ("node".into(), ConditionValue::Set),
         ("require".into(), ConditionValue::Set),
@@ -37,7 +37,7 @@ pub fn node_cjs_resolve_options(root: Vc<FileSystemPath>) -> Vc<ResolveOptions> 
 }
 
 #[turbo_tasks::function]
-pub fn node_esm_resolve_options(root: Vc<FileSystemPath>) -> Vc<ResolveOptions> {
+pub fn node_esm_resolve_options(root: ResolvedVc<FileSystemPath>) -> Vc<ResolveOptions> {
     let conditions: ResolutionConditions = [
         ("node".into(), ConditionValue::Set),
         ("import".into(), ConditionValue::Set),

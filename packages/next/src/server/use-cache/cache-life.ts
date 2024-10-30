@@ -1,3 +1,4 @@
+import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 
 export type CacheLife = {
@@ -15,20 +16,19 @@ export type CacheLife = {
 // Cache-Control: max-age=[stale],s-max-age=[revalidate],stale-while-revalidate=[expire-revalidate],stale-if-error=[expire-revalidate]
 // Except that stale-while-revalidate/stale-if-error only applies to shared caches - not private caches.
 
-const cacheLifeProfileMap: Map<string, CacheLife> = new Map()
-
 // The default revalidates relatively frequently but doesn't expire to ensure it's always
 // able to serve fast results but by default doesn't hang.
 
-export const defaultCacheLife = {
-  stale: Number(process.env.__NEXT_CLIENT_ROUTER_STATIC_STALETIME),
-  revalidate: 15 * 60, // Note: This is a new take on the defaults.
-  expire: Infinity,
-}
-
-cacheLifeProfileMap.set('default', defaultCacheLife)
-
-type CacheLifeProfiles = 'default' // TODO: Generate from the config
+// This gets overridden by the next-types-plugin
+type CacheLifeProfiles =
+  | 'default'
+  | 'seconds'
+  | 'minutes'
+  | 'hours'
+  | 'days'
+  | 'weeks'
+  | 'max'
+  | (string & {})
 
 function validateCacheLife(profile: CacheLife) {
   if (profile.stale !== undefined) {
@@ -99,9 +99,22 @@ export function cacheLife(profile: CacheLifeProfiles | CacheLife): void {
   }
 
   if (typeof profile === 'string') {
-    const configuredProfile = cacheLifeProfileMap.get(profile)
+    const workStore = workAsyncStorage.getStore()
+    if (!workStore) {
+      throw new Error(
+        'cacheLife() can only be called during App Router rendering at the moment.'
+      )
+    }
+    if (!workStore.cacheLifeProfiles) {
+      throw new Error(
+        'cacheLifeProfiles should always be provided. This is a bug in Next.js.'
+      )
+    }
+
+    // TODO: This should be globally available and not require an AsyncLocalStorage.
+    const configuredProfile = workStore.cacheLifeProfiles[profile]
     if (configuredProfile === undefined) {
-      if (cacheLifeProfileMap.has(profile.trim())) {
+      if (workStore.cacheLifeProfiles[profile.trim()]) {
         throw new Error(
           `Unknown cacheLife profile "${profile}" is not configured in next.config.js\n` +
             `Did you mean "${profile.trim()}" without the spaces?`
@@ -138,6 +151,24 @@ export function cacheLife(profile: CacheLifeProfiles | CacheLife): void {
       workUnitStore.explicitRevalidate > profile.revalidate
     ) {
       workUnitStore.explicitRevalidate = profile.revalidate
+    }
+  }
+  if (profile.expire !== undefined) {
+    // Track the explicit expire time.
+    if (
+      workUnitStore.explicitExpire === undefined ||
+      workUnitStore.explicitExpire > profile.expire
+    ) {
+      workUnitStore.explicitExpire = profile.expire
+    }
+  }
+  if (profile.stale !== undefined) {
+    // Track the explicit stale time.
+    if (
+      workUnitStore.explicitStale === undefined ||
+      workUnitStore.explicitStale > profile.stale
+    ) {
+      workUnitStore.explicitStale = profile.stale
     }
   }
 }

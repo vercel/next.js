@@ -46,8 +46,8 @@ export async function loadStaticPaths({
   maxMemoryCacheSize,
   requestHeaders,
   cacheHandler,
+  cacheLifeProfiles,
   nextConfigOutput,
-  isAppPPRFallbacksEnabled,
   buildId,
 }: {
   dir: string
@@ -64,8 +64,10 @@ export async function loadStaticPaths({
   maxMemoryCacheSize?: number
   requestHeaders: IncrementalCache['requestHeaders']
   cacheHandler?: string
+  cacheLifeProfiles?: {
+    [profile: string]: import('../../server/use-cache/cache-life').CacheLife
+  }
   nextConfigOutput: 'standalone' | 'export' | undefined
-  isAppPPRFallbacksEnabled: boolean | undefined
   buildId: string
 }): Promise<PartialStaticPathsResult> {
   // update work memory runtime-config
@@ -97,13 +99,13 @@ export async function loadStaticPaths({
       distDir,
       requestHeaders,
       cacheHandler,
+      cacheLifeProfiles,
       isrFlushToDisk,
       fetchCacheKeyPrefix,
       maxMemoryCacheSize,
       ComponentMod: components.ComponentMod,
       nextConfigOutput,
       isRoutePPREnabled,
-      isAppPPRFallbacksEnabled,
       buildId,
     })
   } else if (!components.getStaticPaths) {

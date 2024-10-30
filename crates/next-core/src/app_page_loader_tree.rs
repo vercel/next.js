@@ -4,8 +4,7 @@ use std::{
 };
 
 use anyhow::Result;
-use indexmap::IndexMap;
-use turbo_tasks::{RcStr, Vc};
+use turbo_tasks::{FxIndexMap, RcStr, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::{transition::Transition, ModuleAssetContext};
 use turbopack_core::{file_source::FileSource, module::Module};
@@ -312,7 +311,7 @@ impl AppPageLoaderTreeBuilder {
             page,
             default,
             error,
-            global_error: _,
+            global_error,
             layout,
             loading,
             template,
@@ -345,6 +344,8 @@ impl AppPageLoaderTreeBuilder {
             .await?;
         self.write_modules_entry(AppDirModuleType::DefaultPage, *default)
             .await?;
+        self.write_modules_entry(AppDirModuleType::GlobalError, global_error.map(|err| *err))
+            .await?;
 
         let modules_code = replace(&mut self.loader_tree_code, temp_loader_tree_code);
 
@@ -372,7 +373,7 @@ impl AppPageLoaderTreeBuilder {
         if let Some(global_error) = modules.global_error {
             let module = self
                 .base
-                .process_source(Vc::upcast(FileSource::new(global_error)));
+                .process_source(Vc::upcast(FileSource::new(*global_error)));
             self.base.inner_assets.insert(GLOBAL_ERROR.into(), module);
         };
 
@@ -389,7 +390,7 @@ impl AppPageLoaderTreeBuilder {
 pub struct AppPageLoaderTreeModule {
     pub imports: Vec<RcStr>,
     pub loader_tree_code: RcStr,
-    pub inner_assets: IndexMap<RcStr, Vc<Box<dyn Module>>>,
+    pub inner_assets: FxIndexMap<RcStr, Vc<Box<dyn Module>>>,
     pub pages: Vec<Vc<FileSystemPath>>,
 }
 

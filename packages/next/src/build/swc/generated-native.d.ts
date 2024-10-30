@@ -273,15 +273,15 @@ export interface StackFrame {
   column?: number
   methodName?: string
 }
-export function projectGetSourceMap(
-  project: { __napiType: 'Project' },
-  filePath: string
-): Promise<string | null>
 export function projectTraceSource(
   project: { __napiType: 'Project' },
   frame: StackFrame
 ): Promise<StackFrame | null>
 export function projectGetSourceForAsset(
+  project: { __napiType: 'Project' },
+  filePath: string
+): Promise<string | null>
+export function projectGetSourceMap(
   project: { __napiType: 'Project' },
   filePath: string
 ): Promise<string | null>

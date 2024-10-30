@@ -106,6 +106,7 @@ pub use manager::{
 pub use native_function::{FunctionMeta, NativeFunction};
 pub use output::OutputContent;
 pub use raw_vc::{CellId, RawVc, ReadRawVcFuture, ResolveTypeError};
+pub use rcstr::RcStr;
 pub use read_ref::ReadRef;
 use rustc_hash::FxHasher;
 pub use scope::scope;
@@ -122,7 +123,44 @@ pub use vc::{
     VcValueTraitCast, VcValueType, VcValueTypeCast,
 };
 
-pub use crate::rcstr::RcStr;
+pub type FxIndexSet<T> = indexmap::IndexSet<T, BuildHasherDefault<FxHasher>>;
+pub type FxIndexMap<K, V> = indexmap::IndexMap<K, V, BuildHasherDefault<FxHasher>>;
+
+// Copied from indexmap! and indexset!
+#[macro_export]
+macro_rules! fxindexmap {
+    (@single $($x:tt)*) => (());
+    (@count $($rest:expr),*) => (<[()]>::len(&[$($crate::fxindexmap!(@single $rest)),*]));
+
+    ($($key:expr => $value:expr,)+) => { $crate::fxindexmap!($($key => $value),+) };
+    ($($key:expr => $value:expr),*) => {
+        {
+            let _cap = $crate::fxindexmap!(@count $($key),*);
+            let mut _map = $crate::FxIndexMap::with_capacity_and_hasher(_cap, Default::default());
+            $(
+                _map.insert($key, $value);
+            )*
+            _map
+        }
+    };
+}
+#[macro_export]
+macro_rules! fxindexset {
+    (@single $($x:tt)*) => (());
+    (@count $($rest:expr),*) => (<[()]>::len(&[$($crate::fxindexset!(@single $rest)),*]));
+
+    ($($value:expr,)+) => { $crate::fxindexset!($($value),+) };
+    ($($value:expr),*) => {
+        {
+            let _cap = $crate::fxindexset!(@count $($value),*);
+            let mut _set = $crate::FxIndexSet::with_capacity_and_hasher(_cap, Default::default());
+            $(
+                _set.insert($value);
+            )*
+            _set
+        }
+    };
+}
 
 /// Implements [`VcValueType`] for the given `struct` or `enum`. These value types can be used
 /// inside of a "value cell" as [`Vc<...>`][Vc].
