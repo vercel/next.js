@@ -1277,6 +1277,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
                           <Mismatch>
                             <p>
                               <span>
+                                ...
           +                      client
           -                      server"
         `)

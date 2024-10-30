@@ -49,6 +49,7 @@ tracing = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-hash = { workspace = true }
 unicode-segmentation = { workspace = true }
+urlencoding = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }

@@ -84,6 +84,7 @@ pub trait ExecuteContext<'e>: Sized {
         run: impl FnOnce(&mut ExecuteContextImpl<'_, '_, Self::Backend>),
     );
     fn get_task_desc_fn(&self, task_id: TaskId) -> impl Fn() -> String + Send + Sync + 'static;
+    fn get_task_description(&self, task_id: TaskId) -> String;
 }
 
 pub struct ParentRef<'a> {
@@ -183,16 +184,18 @@ where
                     .set_restored(TaskDataCategory::All);
             } else {
                 for category in category {
-                    // Avoid holding the lock too long since this can also affect other tasks
-                    drop(task);
-
-                    let items = self.restore_task_data(task_id, category);
-                    task = self.backend.storage.access_mut(task_id);
                     if !task.persistance_state().is_restored(category) {
-                        for item in items {
-                            task.add(item);
+                        // Avoid holding the lock too long since this can also affect other tasks
+                        drop(task);
+
+                        let items = self.restore_task_data(task_id, category);
+                        task = self.backend.storage.access_mut(task_id);
+                        if !task.persistance_state().is_restored(category) {
+                            for item in items {
+                                task.add(item);
+                            }
+                            task.persistance_state_mut().set_restored(category);
                         }
-                        task.persistance_state_mut().set_restored(category);
                     }
                 }
             }
@@ -330,6 +333,10 @@ where
 
     fn get_task_desc_fn(&self, task_id: TaskId) -> impl Fn() -> String + Send + Sync + 'static {
         self.backend.get_task_desc_fn(task_id)
+    }
+
+    fn get_task_description(&self, task_id: TaskId) -> String {
+        self.backend.get_task_description(task_id)
     }
 }
 
@@ -651,6 +658,7 @@ pub use self::{
         get_aggregation_number, is_root_node, AggregatedDataUpdate, AggregationUpdateJob,
     },
     cleanup_old_edges::OutdatedEdge,
+    invalidate::TaskDirtyCause,
     update_cell::UpdateCellOperation,
     update_collectible::UpdateCollectibleOperation,
 };

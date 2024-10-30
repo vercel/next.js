@@ -6,11 +6,10 @@ import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { SmtpMessage } from "../smtp-message";
 
-export default function ForgotPassword({
-  searchParams,
-}: {
-  searchParams: Message;
+export default async function ForgotPassword(props: {
+  searchParams: Promise<Message>;
 }) {
+  const searchParams = await props.searchParams;
   return (
     <>
       <form className="flex-1 flex flex-col w-full gap-2 text-foreground [&>input]:mb-6 min-w-64 max-w-64 mx-auto">

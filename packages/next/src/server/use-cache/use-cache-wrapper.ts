@@ -25,81 +25,48 @@ import { makeHangingPromise } from '../dynamic-rendering-utils'
 
 import { cacheScopeAsyncLocalStorage } from '../async-storage/cache-scope.external'
 
-import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
+import type { ClientReferenceManifestForRsc } from '../../build/webpack/plugins/flight-manifest-plugin'
 
 import {
-  getClientReferenceManifestSingleton,
+  getClientReferenceManifestForRsc,
   getServerModuleMap,
 } from '../app-render/encryption-utils'
 import type { CacheScopeStore } from '../async-storage/cache-scope.external'
+import DefaultCacheHandler from '../lib/cache-handlers/default'
+import type { CacheHandler, CacheEntry } from '../lib/cache-handlers/types'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
 // If the expire time is less than .
 const DYNAMIC_EXPIRE = 300
 
-type CacheEntry = {
-  value: ReadableStream
-  timestamp: number
-  // In-memory caches are fragile and should not use stale-while-revalidate
-  // semantics on the caches because it's not worth warming up an entry that's
-  // likely going to get evicted before we get to use it anyway. However,
-  // we also don't want to reuse a stale entry for too long so stale entries
-  // should be considered expired/missing in such CacheHandlers.
-  revalidate: number
-  expire: number
-  stale: number
-  tags: string[]
-}
+const cacheHandlersSymbol = Symbol.for('@next/cache-handlers')
+const _globalThis: typeof globalThis & {
+  [cacheHandlersSymbol]?: {
+    RemoteCache?: CacheHandler
+    DefaultCache?: CacheHandler
+  }
+  __nextCacheHandlers?: Record<string, CacheHandler>
+} = globalThis
 
-interface CacheHandler {
-  get(cacheKey: string, implicitTags: string[]): Promise<undefined | CacheEntry>
-  set(cacheKey: string, value: Promise<CacheEntry>): Promise<void>
-}
-
-const cacheHandlerMap: Map<string, CacheHandler> = new Map()
-
-// TODO: Move default implementation to be injectable.
-const defaultCacheStorage: Map<string, Promise<CacheEntry>> = new Map()
-cacheHandlerMap.set('default', {
-  async get(cacheKey: string): Promise<undefined | CacheEntry> {
-    // TODO: Implement proper caching.
-    const promiseOfEntry = defaultCacheStorage.get(cacheKey)
-    if (promiseOfEntry !== undefined) {
-      const entry = await promiseOfEntry
-      if (
-        performance.timeOrigin + performance.now() >
-        entry.timestamp + entry.revalidate * 1000
-      ) {
-        // In memory caches should expire after revalidate time because it is unlikely that
-        // a new entry will be able to be used before it is dropped from the cache.
-        return undefined
-      }
-      const [returnStream, newSaved] = entry.value.tee()
-      entry.value = newSaved
-      return {
-        value: returnStream,
-        timestamp: entry.timestamp,
-        revalidate: entry.revalidate,
-        expire: entry.expire,
-        stale: entry.stale,
-        tags: entry.tags,
-      }
-    }
-    return undefined
-  },
-  async set(cacheKey: string, promise: Promise<CacheEntry>) {
-    // TODO: Implement proper caching.
-    defaultCacheStorage.set(cacheKey, promise)
-    await promise
-  },
-})
+const cacheHandlerMap: Map<string, CacheHandler> = new Map([
+  [
+    'default',
+    _globalThis[cacheHandlersSymbol]?.DefaultCache || DefaultCacheHandler,
+  ],
+  [
+    'remote',
+    // in dev remote maps to default handler
+    // and is meant to be overridden in prod
+    _globalThis[cacheHandlersSymbol]?.RemoteCache || DefaultCacheHandler,
+  ],
+])
 
 function generateCacheEntry(
   workStore: WorkStore,
   outerWorkUnitStore: WorkUnitStore | undefined,
   cacheScope: undefined | CacheScopeStore,
-  clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
+  clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
   encodedArguments: FormData | string,
   fn: any
 ): Promise<[ReadableStream, Promise<CacheEntry>]> {
@@ -123,7 +90,7 @@ function generateCacheEntryWithRestoredWorkStore(
   workStore: WorkStore,
   outerWorkUnitStore: WorkUnitStore | undefined,
   cacheScope: undefined | CacheScopeStore,
-  clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
+  clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
   encodedArguments: FormData | string,
   fn: any
 ) {
@@ -161,7 +128,7 @@ function generateCacheEntryWithRestoredWorkStore(
 function generateCacheEntryWithCacheContext(
   workStore: WorkStore,
   outerWorkUnitStore: WorkUnitStore | undefined,
-  clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
+  clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
   encodedArguments: FormData | string,
   fn: any
 ) {
@@ -331,7 +298,7 @@ async function generateCacheEntryImpl(
   workStore: WorkStore,
   outerWorkUnitStore: WorkUnitStore | undefined,
   innerCacheStore: UseCacheStore,
-  clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
+  clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
   encodedArguments: FormData | string,
   fn: any
 ): Promise<[ReadableStream, Promise<CacheEntry>]> {
@@ -361,8 +328,8 @@ async function generateCacheEntryImpl(
     timer = setTimeout(() => {
       controller.abort(
         new Error(
-          'Filling a cache during prerender timed out like because request specific arguments such as ' +
-            'params, searchParams, cookies() or dynamic data was used inside the "use cache".'
+          'Filling a cache during prerender timed out, likely because request-specific arguments such as ' +
+            'params, searchParams, cookies() or dynamic data were used inside "use cache".'
         )
       )
     }, 50000)
@@ -464,7 +431,13 @@ export function cache(kind: string, id: string, fn: any) {
       '"use cache" is only available with the experimental.dynamicIO config.'
     )
   }
+  for (const [key, value] of Object.entries(
+    _globalThis.__nextCacheHandlers || {}
+  )) {
+    cacheHandlerMap.set(key, value as CacheHandler)
+  }
   const cacheHandler = cacheHandlerMap.get(kind)
+
   if (cacheHandler === undefined) {
     throw new Error('Unknown cache handler: ' + kind)
   }
@@ -482,7 +455,7 @@ export function cache(kind: string, id: string, fn: any) {
 
       // Get the clientReferenceManifest while we're still in the outer Context.
       // In case getClientReferenceManifestSingleton is implemented using AsyncLocalStorage.
-      const clientReferenceManifest = getClientReferenceManifestSingleton()
+      const clientReferenceManifest = getClientReferenceManifestForRsc()
 
       // Because the Action ID is not yet unique per implementation of that Action we can't
       // safely reuse the results across builds yet. In the meantime we add the buildId to the
@@ -543,6 +516,14 @@ export function cache(kind: string, id: string, fn: any) {
       const cacheScope: undefined | CacheScopeStore =
         cacheScopeAsyncLocalStorage.getStore()
       if (cacheScope) {
+        const cacheSignal =
+          workUnitStore && workUnitStore.type === 'prerender'
+            ? workUnitStore.cacheSignal
+            : null
+
+        if (cacheSignal) {
+          cacheSignal.beginRead()
+        }
         const cachedEntry: undefined | Promise<CacheEntry> =
           cacheScope.cache.get(serializedCacheKey)
         if (cachedEntry !== undefined) {
@@ -559,6 +540,9 @@ export function cache(kind: string, id: string, fn: any) {
             // expire time is under 5 minutes, then we consider this cache entry dynamic
             // as it's not worth generating static pages for such data. It's better to leave
             // a PPR hole that can be filled in dynamically with a potentially cached entry.
+            if (cacheSignal) {
+              cacheSignal.endRead()
+            }
             return makeHangingPromise(
               workUnitStore.renderSignal,
               'dynamic "use cache"'
@@ -566,7 +550,34 @@ export function cache(kind: string, id: string, fn: any) {
           }
           const [streamA, streamB] = existingEntry.value.tee()
           existingEntry.value = streamB
-          stream = streamA
+
+          if (cacheSignal) {
+            // When we have a cacheSignal we need to block on reading the cache
+            // entry before ending the read.
+            const buffer: any[] = []
+            const reader = streamA.getReader()
+            for (let entry; !(entry = await reader.read()).done; ) {
+              buffer.push(entry.value)
+            }
+
+            let idx = 0
+            stream = new ReadableStream({
+              pull(controller) {
+                if (idx < buffer.length) {
+                  controller.enqueue(buffer[idx++])
+                } else {
+                  controller.close()
+                }
+              },
+            })
+            cacheSignal.endRead()
+          } else {
+            stream = streamA
+          }
+        } else {
+          if (cacheSignal) {
+            cacheSignal.endRead()
+          }
         }
       }
 
@@ -698,7 +709,7 @@ export function cache(kind: string, id: string, fn: any) {
       // the server, which is required to pick it up for replaying again on the client.
       const replayConsoleLogs = true
 
-      const ssrManifest = {
+      const serverConsumerManifest = {
         // moduleLoading must be null because we don't want to trigger preloads of ClientReferences
         // to be added to the consumer. Instead, we'll wait for any ClientReference to be emitted
         // which themselves will handle the preloading.
@@ -706,10 +717,11 @@ export function cache(kind: string, id: string, fn: any) {
         moduleMap: isEdgeRuntime
           ? clientReferenceManifest.edgeRscModuleMapping
           : clientReferenceManifest.rscModuleMapping,
+        serverModuleMap: getServerModuleMap(),
       }
 
       return createFromReadableStream(stream, {
-        ssrManifest,
+        serverConsumerManifest,
         temporaryReferences,
         replayConsoleLogs,
         environmentName: 'Cache',
