@@ -573,9 +573,9 @@ export default async function middleware(req) {
 
 ## Unit Testing (experimental)
 
-Starting in Next.js 15, the `next/server/testing` package contains utilities to help unit test Middleware files. Unit testing Middleware can help ensure that Middleware only runs on desired paths and the custom routing logic in Middleware works as intended before code reaches production.
+Starting in Next.js 15, the `next/server/testing` package contains utilities to help unit test middleware files. Unit testing middleware can help ensure that it's only run on desired paths and that custom routing logic works as intended before code reaches production.
 
-The `unstable_doesMiddlewareMatch` function can be used to assert whether Middleware will run for the provided URL, headers, and cookies.
+The `unstable_doesMiddlewareMatch` function can be used to assert whether middleware will run for the provided URL, headers, and cookies.
 
 ```js
 import { unstable_doesMiddlewareMatch } from 'next/server/testing'
@@ -589,7 +589,7 @@ expect(
 ).toEqual(false)
 ```
 
-The entire Middleware function can also be tested.
+The entire middleware function can also be tested.
 
 ```js
 import { isRewrite, getRewrittenUrl } from 'next/server/testing'

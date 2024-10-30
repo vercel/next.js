@@ -40,7 +40,7 @@ export function getRedirectUrl(response: NextResponse): string | null {
  * URL.
  */
 export function isRewrite(response: NextResponse): boolean {
-  return Boolean(response.headers.get('x-middleware-rewrite'))
+  return Boolean(getRewrittenUrl(response))
 }
 
 /**
