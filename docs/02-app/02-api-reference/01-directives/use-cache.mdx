@@ -195,3 +195,87 @@ While this revalidation period may be useful for content you don't expect to cha
 Both of these APIs integrate across the client and server caching layers, meaning you can configure your caching semantics in one place and have them apply everywhere.
 
 See the [`cacheLife`](/docs/app/api-reference/functions/cacheLife) and [`cacheTag`](/docs/app/api-reference/functions/cacheTag) docs for more information.
+
+### Interleaving
+
+If you need to pass non-serializable arguments to a cacheable function, you can pass them as `children`. This means the `children` reference can change without affecting the cache entry.
+
+```tsx filename="app/page.tsx" switcher
+async function Page() {
+  const uncachedData = await getData()
+  return (
+    <CacheComponent>
+      <DynamicComponent data={uncachedData} />
+    </CacheComponent>
+  )
+}
+
+async function CacheComponent({ children }) {
+  'use cache'
+  const cachedData = await fetch('/api/cached-data')
+  return (
+    <div>
+      <PrerenderedComponent data={cachedData} />
+      {children}
+    </div>
+  )
+}
+```
+
+You can also pass Server Actions through cached components to Client Components without invoking them inside the cacheable function.
+
+```tsx filename="app/page.tsx" switcher
+import ClientComponent from './ClientComponent';
+
+async function Page() {
+  const performUpdate = async () => {
+    "use server"
+    // Perform some server-side update
+    await db.update(...);
+  };
+
+  return <CacheComponent performUpdate={performUpdate} />;
+}
+
+async function CachedComponent({ performUpdate }) {
+  "use cache"
+  // Do not call performUpdate here
+  return <ClientComponent action={performUpdate} />;
+}
+```
+
+```jsx filename="app/page.js" switcher
+import ClientComponent from './ClientComponent';
+
+async function Page() {
+  const performUpdate = async () => {
+    "use server"
+    // Perform some server-side update
+    await db.update(...);
+  };
+
+  return <CacheComponent performUpdate={performUpdate} />;
+}
+
+async function CachedComponent({ performUpdate }) {
+  "use cache"
+  // Do not call performUpdate here
+  return <ClientComponent action={performUpdate} />;
+}
+```
+
+```tsx filename="app/ClientComponent.tsx" switcher
+'use client'
+
+export default function ClientComponent({ action }) {
+  return <button onClick={action}>Update</button>
+}
+```
+
+```jsx filename="app/ClientComponent.js" switcher
+'use client'
+
+export default function ClientComponent({ action }) {
+  return <button onClick={action}>Update</button>
+}
+```
