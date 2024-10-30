@@ -11,13 +11,14 @@ async function getCachedWithTag(tag) {
 export default async function Page() {
   const x = await getCachedWithTag('a')
   const y = await getCachedWithTag('b')
+
   return (
-    <p>
+    <div>
       <p id="x">{x}</p>
       <br />
       <p id="y">{y}</p>
       <br />
       <RevalidateButtons />
-    </p>
+    </div>
   )
 }
