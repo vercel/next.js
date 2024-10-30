@@ -79,7 +79,7 @@ export default class ReactDevOverlay extends React.PureComponent<
                 <Errors
                   isAppDir={true}
                   initialDisplayState={reactError ? 'fullscreen' : 'minimized'}
-                  errors={reactError ? [reactError] : state.errors}
+                  errors={state.errors}
                   versionInfo={state.versionInfo}
                   hasStaticIndicator={hasStaticIndicator}
                   debugInfo={debugInfo}
