@@ -79,12 +79,6 @@ export interface AppPageStaticInfo {
   runtime: AppSegmentConfig['runtime'] | undefined
   preferredRegion: AppSegmentConfig['preferredRegion'] | undefined
   maxDuration: number | undefined
-  /**
-   * This field is only populated when `experimental.dynamicIO` is enabled.
-   * It contains a list of segment configs that are part of the page
-   * and are not supported with the feature.
-   */
-  unsupportedSegmentConfigs: string[] | undefined
 }
 
 export interface PagesPageStaticInfo {
@@ -495,7 +489,6 @@ export async function getAppPageStaticInfo({
       runtime: undefined,
       preferredRegion: undefined,
       maxDuration: undefined,
-      unsupportedSegmentConfigs: undefined,
     }
   }
 
@@ -535,22 +528,6 @@ export async function getAppPageStaticInfo({
 
   const route = normalizeAppPath(page)
   const config = parseAppSegmentConfig(exportedConfig, route)
-  let unsupportedSegmentConfigs: string[] | undefined
-
-  // Enabling dynamicIO will disable certain segment configs, as they pertain to the old
-  // model of detecting dynamic behavior and these options aren't meant to be used together.
-  if (nextConfig.experimental?.dynamicIO) {
-    const unsupportedSegments = [
-      'dynamicParams',
-      'dynamic',
-      'runtime',
-      'fetchCache',
-      'revalidate',
-    ] as const
-    unsupportedSegmentConfigs = unsupportedSegments
-      .filter((prop) => typeof config[prop] !== 'undefined')
-      .sort()
-  }
 
   // Prevent edge runtime and generateStaticParams in the same file.
   if (isEdgeRuntime(config.runtime) && generateStaticParams) {
@@ -577,7 +554,6 @@ export async function getAppPageStaticInfo({
     runtime: config.runtime,
     preferredRegion: config.preferredRegion,
     maxDuration: config.maxDuration,
-    unsupportedSegmentConfigs,
   }
 }
 
