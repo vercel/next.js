@@ -184,8 +184,8 @@ function setNextVersion(code) {
       `"${require('./package.json').version}"`
     )
     .replace(
-      /process\.env\.__NEXT_REQUIRED_NODE_VERSION/g,
-      `"${require('./package.json').engines.node.replace('>=', '')}"`
+      /process\.env\.__NEXT_REQUIRED_NODE_VERSION_RANGE/g,
+      `"${require('./package.json').engines.node}"`
     )
     .replace(
       /process\.env\.REQUIRED_APP_REACT_VERSION/,
