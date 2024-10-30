@@ -96,11 +96,11 @@ testing = { version = "2.0.0" }
 browserslist-rs = { version = "0.16.0" }
 miette = { version = "5.10.0", features = ["fancy"] }
 mdxjs = "0.2.11"
-modularize_imports = { version = "0.68.27" }
-styled_components = { version = "0.96.25" }
-styled_jsx = { version = "0.73.36" }
-swc_emotion = { version = "0.72.25" }
-swc_relay = { version = "0.44.27" }
+modularize_imports = { version = "0.68.28" }
+styled_components = { version = "0.96.26" }
+styled_jsx = { version = "0.73.37" }
+swc_emotion = { version = "0.72.26" }
+swc_relay = { version = "0.44.28" }
 
 # General Deps
 
