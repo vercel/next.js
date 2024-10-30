@@ -1,8 +1,8 @@
 import type { IncomingHttpHeaders } from 'http'
-import { MockedRequest } from '../lib/mock-request'
-import { NodeNextRequest } from '../base-http/node'
-import type { BaseNextRequest } from '../base-http'
-import type { NextResponse } from '../web/exports'
+import { MockedRequest } from '../../../server/lib/mock-request'
+import { NodeNextRequest } from '../../../server/base-http/node'
+import type { BaseNextRequest } from '../../../server/base-http'
+import type { NextResponse } from '../../../server/web/exports'
 
 export function constructRequest({
   url,

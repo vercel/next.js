@@ -1,4 +1,4 @@
-# next/server/testing
+# next/experimental/testing/server
 
 This directory contains helpers for unit testing Next.js server code, such as
 routing using `next.config.js` or `middleware`. These utilities can be used to

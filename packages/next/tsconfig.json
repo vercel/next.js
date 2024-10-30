@@ -20,7 +20,6 @@
     "types/compiled.d.ts",
     "navigation-types/*.d.ts",
     "navigation-types/compat/*.d.ts",
-    "experimental/**/*.d.ts",
-    "server/*.d.ts"
+    "experimental/**/*.d.ts"
   ]
 }

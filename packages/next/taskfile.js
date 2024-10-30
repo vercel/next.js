@@ -2456,6 +2456,7 @@ export async function next_compile(task, opts) {
       'shared_re_exported',
       'shared_re_exported_esm',
       'server_wasm',
+      'experimental_testing',
       'experimental_testmode',
     ],
     opts
@@ -2718,6 +2719,7 @@ export default async function (task) {
     ['nextbuild', 'nextbuild_esm', 'nextbuildjest'],
     opts
   )
+  await task.watch('src/experimental/testing', 'experimental_testing', opts)
   await task.watch('src/experimental/testmode', 'experimental_testmode', opts)
   await task.watch('src/export', 'nextbuildstatic', opts)
   await task.watch('src/export', 'nextbuildstatic_esm', opts)
@@ -2791,6 +2793,15 @@ export async function shared_re_exported_esm(task, opts) {
 
 export async function server_wasm(task, opts) {
   await task.source('src/server/**/*.+(wasm)').target('dist/server')
+}
+
+export async function experimental_testing(task, opts) {
+  await task
+    .source('src/experimental/testing/**/!(*.test).+(js|ts|tsx)')
+    .swc('server', {
+      dev: opts.dev,
+    })
+    .target('dist/experimental/testing')
 }
 
 export async function experimental_testmode(task, opts) {

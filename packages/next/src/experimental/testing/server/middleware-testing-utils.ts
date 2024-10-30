@@ -1,9 +1,9 @@
 import type { IncomingHttpHeaders } from 'http'
-import { getMiddlewareMatchers } from '../../build/analysis/get-page-static-info'
-import type { Middleware } from '../../lib/load-custom-routes'
-import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
-import type { NextConfig } from '../config-shared'
-import { parseUrl } from '../../lib/url'
+import { getMiddlewareMatchers } from '../../../build/analysis/get-page-static-info'
+import type { Middleware } from '../../../lib/load-custom-routes'
+import { getMiddlewareRouteMatcher } from '../../../shared/lib/router/utils/middleware-route-matcher'
+import type { NextConfig } from '../../../server/config-shared'
+import { parseUrl } from '../../../lib/url'
 import { constructRequest } from './utils'
 
 export interface MiddlewareSourceConfig {

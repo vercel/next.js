@@ -4,20 +4,20 @@ import { match } from 'next/dist/compiled/path-to-regexp'
 import {
   matchHas,
   prepareDestination,
-} from '../../shared/lib/router/utils/prepare-destination'
-import { buildCustomRoute } from '../../lib/build-custom-route'
-import loadCustomRoutes from '../../lib/load-custom-routes'
-import type { NextConfig } from '../config-shared'
-import { NextResponse } from '../web/exports'
-import { getRedirectStatus } from '../../lib/redirect-status'
+} from '../../../shared/lib/router/utils/prepare-destination'
+import { buildCustomRoute } from '../../../lib/build-custom-route'
+import loadCustomRoutes from '../../../lib/load-custom-routes'
+import type { NextConfig } from '../../../server/config-shared'
+import { NextResponse } from '../../../server/web/exports'
+import { getRedirectStatus } from '../../../lib/redirect-status'
 import type {
   ManifestHeaderRoute,
   ManifestRedirectRoute,
   ManifestRewriteRoute,
-} from '../../build'
-import type { BaseNextRequest } from '../base-http'
+} from '../../../build'
+import type { BaseNextRequest } from '../../../server/base-http'
+import type { Params } from '../../../server/request/params'
 import { constructRequest } from './utils'
-import type { Params } from '../request/params'
 
 /**
  * Tries to match the current request against the provided route. If there is
