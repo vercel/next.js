@@ -139,7 +139,7 @@ describe('middleware - development errors', () => {
               '\n    at <unknown> (./middleware.js:4:9'
           : '\n ⨯ Error [ReferenceError]: test is not defined' +
               '\n    at eval (file://webpack-internal:///(middleware)/./middleware.js)' +
-              '\n    at eval (webpack://_N_E/middleware.js?3bcb:4:8)'
+              '\n    at eval (webpack:///middleware.js?3bcb:4:8)'
       )
       expect(stripAnsi(next.cliOutput)).toContain(
         isTurbopack
@@ -188,7 +188,7 @@ describe('middleware - development errors', () => {
               '\n ⨯ Error: booooom!' +
               '\n    at <unknown> ([project]/middleware.js [middleware] (ecmascript) (./middleware.js:3:13)'
           : '\n ⨯ Error: booooom!' +
-              '\n    at <unknown> (webpack://_N_E/middleware.js'
+              '\n    at <unknown> (webpack:///middleware.js'
       )
     })
 
