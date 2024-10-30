@@ -67,14 +67,13 @@ pub async fn minify(path: Vc<FileSystemPath>, code: Vc<Code>) -> Result<Vc<Code>
             let top_level_mark = Mark::new();
 
             Ok(compiler.run_transform(handler, false, || {
-                let program = program.fold_with(&mut paren_remover(Some(&comments)));
+                let program = program.apply(paren_remover(Some(&comments)));
 
-                let mut program =
-                    program.fold_with(&mut swc_core::ecma::transforms::base::resolver(
-                        unresolved_mark,
-                        top_level_mark,
-                        false,
-                    ));
+                let mut program = program.apply(swc_core::ecma::transforms::base::resolver(
+                    unresolved_mark,
+                    top_level_mark,
+                    false,
+                ));
 
                 program = swc_core::ecma::minifier::optimize(
                     program,
@@ -96,7 +95,7 @@ pub async fn minify(path: Vc<FileSystemPath>, code: Vc<Code>) -> Result<Vc<Code>
                     },
                 );
 
-                program.fold_with(&mut ecma::transforms::base::fixer::fixer(Some(
+                program.apply(ecma::transforms::base::fixer::fixer(Some(
                     &comments as &dyn Comments,
                 )))
             }))

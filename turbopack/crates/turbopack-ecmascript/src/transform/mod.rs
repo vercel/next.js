@@ -132,7 +132,7 @@ impl EcmascriptInputTransform {
                 let mut typeofs: AHashMap<JsWord, JsWord> = Default::default();
                 typeofs.insert("window".into(), JsWord::from(&**window_value));
 
-                program.visit_mut_with(&mut inline_globals2(
+                program.mutate(inline_globals2(
                     Default::default(),
                     Default::default(),
                     Default::default(),
@@ -179,7 +179,7 @@ impl EcmascriptInputTransform {
 
                 // Explicit type annotation to ensure that we don't duplicate transforms in the
                 // final binary
-                program.visit_mut_with(&mut react::<&dyn Comments>(
+                program.mutate(react::<&dyn Comments>(
                     source_map.clone(),
                     Some(&comments),
                     config,

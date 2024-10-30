@@ -10,7 +10,7 @@ use swc_core::{
     },
     ecma::{
         ast::*,
-        visit::{noop_fold_type, Fold, FoldWith},
+        visit::{fold_pass, noop_fold_type, Fold, FoldWith},
     },
 };
 
@@ -18,13 +18,13 @@ static SSG_EXPORTS: &[&str; 3] = &["getStaticProps", "getStaticPaths", "getServe
 
 /// Note: This paths requires running `resolver` **before** running this.
 pub fn next_ssg(eliminated_packages: Rc<RefCell<FxHashSet<String>>>) -> impl Pass {
-    Repeat::new(NextSsg {
+    fold_pass(Repeat::new(NextSsg {
         state: State {
             eliminated_packages,
             ..Default::default()
         },
         in_lhs_of_var: false,
-    })
+    }))
 }
 
 /// State of the transforms. Shared by the analyzer and the transform.

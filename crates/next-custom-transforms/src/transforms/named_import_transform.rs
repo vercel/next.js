@@ -3,7 +3,10 @@ use std::collections::HashSet;
 use serde::Deserialize;
 use swc_core::{
     common::DUMMY_SP,
-    ecma::{ast::*, visit::Fold},
+    ecma::{
+        ast::*,
+        visit::{fold_pass, Fold},
+    },
 };
 
 #[derive(Clone, Debug, Deserialize)]
@@ -12,9 +15,9 @@ pub struct Config {
 }
 
 pub fn named_import_transform(config: Config) -> impl Pass {
-    NamedImportTransform {
+    fold_pass(NamedImportTransform {
         packages: config.packages,
-    }
+    })
 }
 
 #[derive(Debug, Default)]
@@ -22,6 +25,7 @@ struct NamedImportTransform {
     packages: Vec<String>,
 }
 
+/// TODO: Implement this as a [Pass] instead of a full visitor ([Fold])
 impl Fold for NamedImportTransform {
     fn fold_import_decl(&mut self, decl: ImportDecl) -> ImportDecl {
         // Match named imports and check if it's included in the packages

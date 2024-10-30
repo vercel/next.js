@@ -7,7 +7,7 @@ use swc_core::{
     common::DUMMY_SP,
     ecma::{
         ast::*,
-        visit::{Fold, FoldWith},
+        visit::{fold_pass, Fold, FoldWith},
     },
 };
 
@@ -17,10 +17,10 @@ pub struct Config {
 }
 
 pub fn optimize_server_react(config: Config) -> impl Pass {
-    OptimizeServerReact {
+    fold_pass(OptimizeServerReact {
         optimize_use_state: config.optimize_use_state,
         ..Default::default()
-    }
+    })
 }
 
 #[derive(Debug, Default)]
