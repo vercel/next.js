@@ -58,11 +58,12 @@ export async function getData() {
 ## Good to know
 
 - `use cache` is an experimental Next.js feature, and not a native React feature like [`use client`](/docs/app/api-reference/directives/use-client) or [`use server`](/docs/app/api-reference/directives/use-server).
-- By default, `use cache` uses an **in-process memory cache** which can be configured to persist with your own architecture. However, as the feature is under development, we don't yet recommend it for production yet.
-  - If used alongside [Partial Prerendering](/docs/app/building-your-application/rendering/partial-prerendering), segments that have `use cache` will be prerendered as part of the static HTML shell.
+- The arguments (or props) passed to a cached function must be [serializable](https://react.dev/reference/rsc/use-server#serializable-parameters-and-return-values) by React. This means they can be converted to a format like JSON. Non-serializable props like functions or React elements cannot be used as arguments.
+- The return value of the cacheable function must also be serializable. This ensures that the cached data can be stored and retrieved correctly.
 - Functions that use the `use cache` directive must not have any side-effects, such as modifying state, directly manipulating the DOM, or setting timers to execute code at intervals.
+- If used alongside [Partial Prerendering](/docs/app/building-your-application/rendering/partial-prerendering), segments that have `use cache` will be prerendered as part of the static HTML shell.
 - The `use cache` directive will be available separately from the `dynamicIO` flag in the future.
-- Unlike `unstable_cache` which only supports JSON data, `use cache` can cache any serializable data React can render, including the render output of components.
+- Unlike [`unstable_cache`](/docs/app/api-reference/legacy-apis/unstable_cache) which only supports JSON data, `use cache` can cache any serializable data React can render, including the render output of components.
 
 ## Examples
 
