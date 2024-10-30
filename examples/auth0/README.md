@@ -14,7 +14,7 @@ Read more: [https://auth0.com/blog/ultimate-guide-nextjs-authentication-auth0/](
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), [pnpm](https://pnpm.io), or [Bun](https://bun.sh/docs/cli/bunx) to bootstrap the example:
 
 ```bash
 npx create-next-app --example auth0 auth0-app
@@ -26,6 +26,10 @@ yarn create next-app --example auth0 auth0-app
 
 ```bash
 pnpm create next-app --example auth0 auth0-app
+```
+
+```bash
+bunx create-next-app --example auth0 auth0-app
 ```
 
 ## Configuring Auth0

@@ -17,7 +17,7 @@ NOTE: A `basePath` will prefix all pages in the application with the `basePath` 
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), [pnpm](https://pnpm.io), or [Bun](https://bun.sh/docs/cli/bunx) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-zones with-zones-app
@@ -31,6 +31,10 @@ yarn create next-app --example with-zones with-zones-app
 pnpm create next-app --example with-zones with-zones-app
 ```
 
+```bash
+bunx create-next-app --example with-zones with-zones-app
+```
+
 With multi zones you have multiple Next.js apps over a single app, therefore every app has its own dependencies and it runs independently.
 
 To start the `/home` run the following commands from the root directory:
@@ -41,6 +45,12 @@ npm install && npm run dev
 # or
 cd home
 yarn && yarn dev
+# or
+cd home
+pnpm install && pnpm dev
+# or
+cd home
+bun install && bun dev
 ```
 
 The `/home` app should be up and running in [http://localhost:3000](http://localhost:3000)!
@@ -53,6 +63,12 @@ npm install && npm run dev
 # or
 cd blog
 yarn && yarn dev
+# or
+cd blog
+pnpm install && pnpm dev
+# or
+cd blog
+bun install && bun dev
 ```
 
 The `blog` app should be up and running in [http://localhost:4000/blog](http://localhost:4000/blog)!

@@ -38,7 +38,7 @@ Once you have access to [the environment variables you'll need](#step-2-set-up-e
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), [pnpm](https://pnpm.io), or [Bun](https://bun.sh/docs/cli/bunx) to bootstrap the example:
 
 ```bash
 npx create-next-app --example cms-ghost cms-ghost-app
@@ -50,6 +50,10 @@ yarn create next-app --example cms-ghost cms-ghost-app
 
 ```bash
 pnpm create next-app --example cms-ghost cms-ghost-app
+```
+
+```bash
+bunx create-next-app --example cms-ghost cms-ghost-app
 ```
 
 ### Setp 1. Run Next.js in development mode

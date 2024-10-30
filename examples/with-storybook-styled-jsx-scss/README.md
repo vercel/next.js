@@ -10,7 +10,7 @@ Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_mediu
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), [pnpm](https://pnpm.io), or [Bun](https://bun.sh/docs/cli/bunx) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-storybook-styled-jsx-scss with-storybook-styled-jsx-scss-app
@@ -24,12 +24,20 @@ yarn create next-app --example with-storybook-styled-jsx-scss with-storybook-sty
 pnpm create next-app --example with-storybook-styled-jsx-scss with-storybook-styled-jsx-scss-app
 ```
 
+```bash
+bunx create-next-app --example with-storybook-styled-jsx-scss with-storybook-styled-jsx-scss-app
+```
+
 ### Run Storybook
 
 ```bash
 npm run storybook
 # or
 yarn storybook
+# or
+pnpm storybook
+# or
+bun storybook
 ```
 
 ### Build Static Storybook
@@ -38,6 +46,10 @@ yarn storybook
 npm run build-storybook
 # or
 yarn build-storybook
+# or
+pnpm build-storybook
+# or
+bun build-storybook
 ```
 
 You can use [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) to deploy Storybook. Specify `storybook-static` as the output directory.

@@ -45,18 +45,22 @@ Using the Deploy Button below, you'll deploy the Next.js project as well as conn
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), [pnpm](https://pnpm.io), or [Bun](https://bun.sh/docs/cli/bunx) to bootstrap the example:
 
 ```bash
 npx create-next-app --example cms-sitecore-xmcloud cms-sitecore-xmcloud-app
 ```
 
 ```bash
-yarn create-next-app --example cms-sitecore-xmcloud cms-sitecore-xmcloud-app
+yarn create next-app --example cms-sitecore-xmcloud cms-sitecore-xmcloud-app
 ```
 
 ```bash
-pnpm create-next-app --example cms-sitecore-xmcloud cms-sitecore-xmcloud-app
+pnpm create next-app --example cms-sitecore-xmcloud cms-sitecore-xmcloud-app
+```
+
+```bash
+bunx create-next-app --example cms-sitecore-xmcloud cms-sitecore-xmcloud-app
 ```
 
 ## Configuration

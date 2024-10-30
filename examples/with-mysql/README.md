@@ -28,14 +28,22 @@ pscale database create <DATABASE_NAME>
 
 ## Set up the starter Next.js app
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), [pnpm](https://pnpm.io), or [Bun](https://bun.sh/docs/cli/bunx) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-mysql nextjs-mysql
-# or
-yarn create next-app --example with-mysql nextjs-mysql
-# or
-pnpm create next-app --example with-mysql nextjs-mysql
+npx create-next-app --example with-mysql with-mysql-app
+```
+
+```bash
+yarn create next-app --example with-mysql with-mysql-app
+```
+
+```bash
+pnpm create next-app --example with-mysql with-mysql-app
+```
+
+```bash
+bunx create-next-app --example with-mysql with-mysql-app
 ```
 
 Next, you'll need to create a database username and password through the CLI to connect to your application. If you'd prefer to use the dashboard for this step, you can find those instructions in the [Connection Strings documentation](https://docs.planetscale.com/concepts/connection-strings#creating-a-password) and then come back here to finish setup.
@@ -73,17 +81,59 @@ mysql://<USERNAME>:<PLAIN_TEXT_PASSWORD>@<ACCESS_HOST_URL>/<DATABASE_NAME>?sslac
 
 Push the database schema to your PlanetScale database using Prisma.
 
-`npx prisma db push`
+```bash
+npx prisma db push
+```
+
+```bash
+yarn prisma db push
+```
+
+```bash
+pnpm prisma db push
+```
+
+```bash
+bunx prisma db push
+```
 
 Run the seed script to populate your database with `Product` and `Category` data.
 
-`npm run seed`
+```bash
+npm run seed
+```
+
+```bash
+yarn seed
+```
+
+```bash
+pnpm seed
+```
+
+```bash
+bun seed
+```
 
 ## Run the App
 
 Run the app with following command:
 
-`npm run dev`
+```bash
+npm run dev
+```
+
+```bash
+yarn dev
+```
+
+```bash
+pnpm dev
+```
+
+```bash
+bun dev
+```
 
 Open your browser at [localhost:3000](localhost:3000) to see the running application.
 

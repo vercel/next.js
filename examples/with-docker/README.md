@@ -4,14 +4,22 @@ This examples shows how to use Docker with Next.js based on the [deployment docu
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), [pnpm](https://pnpm.io), or [Bun](https://bun.sh/docs/cli/bunx) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-docker nextjs-docker
-# or
-yarn create next-app --example with-docker nextjs-docker
-# or
-pnpm create next-app --example with-docker nextjs-docker
+npx create-next-app --example with-docker with-docker-app
+```
+
+```bash
+yarn create next-app --example with-docker with-docker-app
+```
+
+```bash
+pnpm create next-app --example with-docker with-docker-app
+```
+
+```bash
+bunx create-next-app --example with-docker with-docker-app
 ```
 
 ## Using Docker

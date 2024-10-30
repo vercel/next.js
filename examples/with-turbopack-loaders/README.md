@@ -23,6 +23,13 @@ pnpm install
 pnpm dev
 ```
 
+or
+
+```sh
+bun install
+bun dev
+```
+
 ## Deploy your own
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-turbopack-loaders)
@@ -31,7 +38,7 @@ Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_mediu
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), [pnpm](https://pnpm.io), or [Bun](https://bun.sh/docs/cli/bunx) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-turbopack-loaders with-turbopack-loaders-app
@@ -43,6 +50,10 @@ yarn create next-app --example with-turbopack-loaders with-turbopack-loaders-app
 
 ```bash
 pnpm create next-app --example with-turbopack-loaders with-turbopack-loaders-app
+```
+
+```bash
+bunx create-next-app --example with-turbopack-loaders with-turbopack-loaders-app
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

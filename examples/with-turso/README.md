@@ -29,6 +29,10 @@ yarn create next-app --example with-turso with-turso-app
 pnpm create next-app --example with-turso with-turso-app
 ```
 
+```bash
+bunx create-next-app --example with-turso with-turso-app
+```
+
 Then install the dependencies and run the Next.js development server:
 
 ```bash
@@ -41,9 +45,14 @@ yarn install
 yarn dev
 
 # or
-#
+
 pnpm install
 pnpm dev
+
+# or
+
+bun install
+bun dev
 ```
 
 You should now be able to go to [http://localhost:3000](http://localhost:3000).

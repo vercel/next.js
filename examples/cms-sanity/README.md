@@ -31,7 +31,7 @@ Use the Deploy Button below, you'll deploy the example using [Vercel](https://ve
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), [pnpm](https://pnpm.io), or [Bun](https://bun.sh/docs/cli/bunx) to bootstrap the example:
 
 ```bash
 npx create-next-app --example cms-sanity next-sanity-blog
@@ -43,6 +43,10 @@ yarn create next-app --example cms-sanity next-sanity-blog
 
 ```bash
 pnpm create next-app --example cms-sanity next-sanity-blog
+```
+
+```bash
+bunx create-next-app --example cms-sanity next-sanity-blog
 ```
 
 Whenever you edit a GROQ query you update the TypeScript types by running:

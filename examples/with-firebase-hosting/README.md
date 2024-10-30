@@ -15,7 +15,7 @@ If you are having issues, feel free to tag @jthegedus in the [issue you create o
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), [pnpm](https://pnpm.io), or [Bun](https://bun.sh/docs/cli/bunx) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-firebase-hosting with-firebase-hosting-app
@@ -29,6 +29,10 @@ yarn create next-app --example with-firebase-hosting with-firebase-hosting-app
 pnpm create next-app --example with-firebase-hosting with-firebase-hosting-app
 ```
 
+```bash
+bunx create-next-app --example with-firebase-hosting with-firebase-hosting-app
+```
+
 **Important:** Update `.firebaserc` and add your firebase project ID.
 
 To run Firebase locally for testing:
@@ -37,6 +41,10 @@ To run Firebase locally for testing:
 npm run serve
 # or
 yarn serve
+# or
+pnpm serve
+# or
+bun serve
 ```
 
 To deploy it to the cloud with Firebase:
@@ -45,6 +53,10 @@ To deploy it to the cloud with Firebase:
 npm run deploy
 # or
 yarn deploy
+# or
+pnpm deploy
+# or
+bun deploy
 ```
 
 ## TypeScript

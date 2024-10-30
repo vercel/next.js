@@ -8,18 +8,22 @@ This example shows how you can build upload forms with Next.js and Server Action
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), [pnpm](https://pnpm.io), or [Bun](https://bun.sh/docs/cli/bunx) to bootstrap the example:
 
 ```bash
-npx create-next-app --example server-actions-upload next-upload-app
+npx create-next-app --example server-actions-upload server-actions-upload-app
 ```
 
 ```bash
-yarn create next-app --example server-actions-upload next-upload-app
+yarn create next-app --example server-actions-upload server-actions-upload-app
 ```
 
 ```bash
-pnpm create next-app --example server-actions-upload next-upload-app
+pnpm create next-app --example server-actions-upload server-actions-upload-app
+```
+
+```bash
+bunx create-next-app --example server-actions-upload server-actions-upload-app
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

@@ -4,7 +4,7 @@ Tailwind CSS is integrated into the `create-next-app` CLI, which supports TypeSc
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap a project preconfigured with Tailwind CSS:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), [pnpm](https://pnpm.io), or [Bun](https://bun.sh/docs/cli/bunx) to bootstrap a project preconfigured with Tailwind CSS:
 
 ```bash
 npx create-next-app --tailwind with-tailwindcss-app
@@ -16,4 +16,8 @@ yarn create next-app --tailwind with-tailwindcss-app
 
 ```bash
 pnpm create next-app --tailwind with-tailwindcss-app
+```
+
+```bash
+bunx create-next-app --tailwind with-tailwindcss-app
 ```

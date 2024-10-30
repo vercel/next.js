@@ -6,10 +6,9 @@ Check out this [repository](https://github.com/ezeparziale/nextjs-k8s) that cont
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), [pnpm](https://pnpm.io), or [Bun](https://bun.sh/docs/cli/bunx) to bootstrap the example:
 
 ```bash
-
 npx create-next-app --example cache-handler-redis cache-handler-redis-app
 ```
 
@@ -19,6 +18,10 @@ yarn create next-app --example cache-handler-redis cache-handler-redis-app
 
 ```bash
 pnpm create next-app --example cache-handler-redis cache-handler-redis-app
+```
+
+```bash
+bunx create-next-app --example cache-handler-redis cache-handler-redis-app
 ```
 
 Once you have installed the dependencies, you can begin running the example Redis Stack server by using the following command:

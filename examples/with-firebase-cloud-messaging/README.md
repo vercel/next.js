@@ -4,7 +4,7 @@ To demo how to implement firebase cloud messaging to send web push notification 
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), [pnpm](https://pnpm.io), or [Bun](https://bun.sh/docs/cli/bunx) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-firebase-cloud-messaging with-firebase-cloud-messaging-app
@@ -16,6 +16,10 @@ yarn create next-app --example with-firebase-cloud-messaging with-firebase-cloud
 
 ```bash
 pnpm create next-app --example with-firebase-cloud-messaging with-firebase-cloud-messaging-app
+```
+
+```bash
+bunx create-next-app --example with-firebase-cloud-messaging with-firebase-cloud-messaging-app
 ```
 
 ## Set your send id

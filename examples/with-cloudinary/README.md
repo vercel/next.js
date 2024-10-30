@@ -12,18 +12,22 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/deploym
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example::
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), [pnpm](https://pnpm.io), or [Bun](https://bun.sh/docs/cli/bunx) to bootstrap the example:
 
 ```bash
- npx create-next-app --example with-cloudinary nextjs-image-gallery
+npx create-next-app --example with-cloudinary with-cloudinary-app
 ```
 
 ```bash
-yarn create next-app --example with-cloudinary nextjs-image-gallery
+yarn create next-app --example with-cloudinary with-cloudinary-app
 ```
 
 ```bash
-pnpm create next-app --example with-cloudinary nextjs-image-gallery
+pnpm create next-app --example with-cloudinary with-cloudinary-app
+```
+
+```bash
+bunx create-next-app --example with-cloudinary with-cloudinary-app
 ```
 
 ## References

@@ -12,14 +12,22 @@ Once you have access to [the environment variables you'll need](#step-2-setting-
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), [pnpm](https://pnpm.io), or [Bun](https://bun.sh/docs/cli/bunx) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-userbase next-userbase-app
-# or
-yarn create next-app --example with-userbase next-userbase-app
-# or
-pnpm create next-app --example with-userbase next-userbase-app
+npx create-next-app --example with-userbase with-userbase-app
+```
+
+```bash
+yarn create next-app --example with-userbase with-userbase-app
+```
+
+```bash
+pnpm create next-app --example with-userbase with-userbase-app
+```
+
+```bash
+bunx create-next-app --example with-userbase with-userbase-app
 ```
 
 ## Configuration
@@ -53,11 +61,15 @@ NEXT_PUBLIC_USERBASE_APP_ID=...
 ```bash
 npm install
 npm run dev
-
 # or
-
 yarn install
 yarn dev
+# or
+pnpm install
+pnpm dev
+# or
+bun install
+bun dev
 ```
 
 Your todo app should be up and running on [http://localhost:3000](http://localhost:3000)! If it doesn't work, post on [GitHub discussions](https://github.com/vercel/next.js/discussions).

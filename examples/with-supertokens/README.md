@@ -6,7 +6,7 @@ This is a simple application that is protected by SuperTokens. This app uses the
 
 ### Using `create-next-app`
 
-- Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), [pnpm](https://pnpm.io), or [Bun](https://bun.sh/docs/cli/bunx) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-supertokens with-supertokens-app
@@ -20,9 +20,9 @@ yarn create next-app --example with-supertokens with-supertokens-app
 pnpm create next-app --example with-supertokens with-supertokens-app
 ```
 
-- Run `yarn install`
-
-- Run `npm run dev` to start the application on `http://localhost:3000`.
+```bash
+bunx create-next-app --example with-supertokens with-supertokens-app
+```
 
 ### Using `create-supertokens-app`
 
@@ -30,6 +30,18 @@ pnpm create next-app --example with-supertokens with-supertokens-app
 
 ```bash
 npx create-supertokens-app@latest --frontend=next
+```
+
+```bash
+yarn create-supertokens-app@latest --frontend=next
+```
+
+```bash
+pnpm create-supertokens-app@latest --frontend=next
+```
+
+```bash
+bunx create-supertokens-app@latest --frontend=next
 ```
 
 - Select the option to use the app directory

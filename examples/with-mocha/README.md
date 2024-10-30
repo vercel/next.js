@@ -10,7 +10,7 @@ Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_mediu
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), [pnpm](https://pnpm.io), or [Bun](https://bun.sh/docs/cli/bunx) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-mocha with-mocha-app
@@ -24,12 +24,20 @@ yarn create next-app --example with-mocha with-mocha-app
 pnpm create next-app --example with-mocha with-mocha-app
 ```
 
+```bash
+bunx create-next-app --example with-mocha with-mocha-app
+```
+
 ## Run Mocha tests
 
 ```bash
 npm run test
 # or
 yarn test
+# or
+pnpm test
+# or
+bun run test
 ```
 
 > A very important part of this example is the `.babelrc` file which configures the `test` environment to use `babel-preset-env` and configures it to transpile modules to `commonjs`). [Learn more](https://github.com/vercel/next.js/issues/2895).

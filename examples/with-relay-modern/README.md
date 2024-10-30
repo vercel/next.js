@@ -12,7 +12,7 @@ Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_mediu
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), [pnpm](https://pnpm.io), or [Bun](https://bun.sh/docs/cli/bunx) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-relay-modern with-relay-modern-app
@@ -26,12 +26,20 @@ yarn create next-app --example with-relay-modern with-relay-modern-app
 pnpm create next-app --example with-relay-modern with-relay-modern-app
 ```
 
+```bash
+bunx create-next-app --example with-relay-modern with-relay-modern-app
+```
+
 Download schema introspection data from configured Relay endpoint
 
 ```bash
 npm run schema
 # or
 yarn schema
+# or
+pnpm schema
+# or
+bun schema
 ```
 
 Run Relay ahead-of-time compilation (should be re-run after any edits to components that query data with Relay)
@@ -40,6 +48,10 @@ Run Relay ahead-of-time compilation (should be re-run after any edits to compone
 npm run relay
 # or
 yarn relay
+# or
+pnpm relay
+# or
+bun relay
 ```
 
 Run the project
@@ -48,6 +60,10 @@ Run the project
 npm run dev
 # or
 yarn dev
+# or
+pnpm dev
+# or
+bun dev
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

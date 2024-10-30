@@ -10,7 +10,7 @@ Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_mediu
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), [pnpm](https://pnpm.io), or [Bun](https://bun.sh/docs/cli/bunx) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-xstate with-xstate-app
@@ -24,6 +24,10 @@ yarn create next-app --example with-xstate with-xstate-app
 pnpm create next-app --example with-xstate with-xstate-app
 ```
 
+```bash
+bunx create-next-app --example with-xstate with-xstate-app
+```
+
 ### Inspect your machines using `@xstate/inspect`
 
 You could use the inspection tools for XState: ([`@xstate/inspect`](https://xstate.js.org/docs/packages/xstate-inspect)) to debug and visualize your machines in development mode.
@@ -34,6 +38,10 @@ You could use the inspection tools for XState: ([`@xstate/inspect`](https://xsta
 npm install @xstate/inspect
 # or
 yarn add @xstate/inspect
+# or
+pnpm add @xstate/inspect
+# or
+bun add @xstate/inspect
 ```
 
 #### Import it at the top of the project

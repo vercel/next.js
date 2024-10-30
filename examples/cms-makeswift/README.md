@@ -16,24 +16,40 @@ Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_mediu
 
 1. Download the example:
 
-   Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
+   Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), [pnpm](https://pnpm.io), or [Bun](https://bun.sh/docs/cli/bunx) to bootstrap the example:
 
    ```bash
    npx create-next-app --example cms-makeswift cms-makeswift-app
-   # or
+   ```
+
+   ```bash
    yarn create next-app --example cms-makeswift cms-makeswift-app
-   # or
+   ```
+
+   ```bash
    pnpm create next-app --example cms-makeswift cms-makeswift-app
+   ```
+
+   ```bash
+   bunx create-next-app --example cms-makeswift cms-makeswift-app
    ```
 
 2. Install dependencies:
 
    ```bash
-   yarn install
-   # or
    npm install
-   # or
+   ```
+
+   ```bash
+   yarn install
+   ```
+
+   ```bash
    pnpm install
+   ```
+
+   ```bash
+   bun install
    ```
 
 3. Rename the `.env.local.example` file to `.env.local` and include your Makeswift site's API key:
@@ -48,9 +64,19 @@ Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_mediu
 4. Run the local dev script:
 
    ```bash
-   yarn dev
-   # or
    npm run dev
+   ```
+
+   ```bash
+   yarn dev
+   ```
+
+   ```bash
+   pnpm dev
+   ```
+
+   ```bash
+   bun dev
    ```
 
    Your host should be up and running on http://localhost:3000.

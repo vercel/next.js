@@ -10,7 +10,7 @@ Once you have access to the environment variables you'll need, deploy the exampl
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), [pnpm](https://pnpm.io), or [Bun](https://bun.sh/docs/cli/bunx) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-knex with-knex-app
@@ -24,6 +24,10 @@ yarn create next-app --example with-knex with-knex-app
 pnpm create next-app --example with-knex with-knex-app
 ```
 
+```bash
+bunx create-next-app --example with-knex with-knex-app
+```
+
 ## Configuration
 
 ### Install dependencies
@@ -32,6 +36,10 @@ pnpm create next-app --example with-knex with-knex-app
 npm install
 # or
 yarn
+# or
+pnpm install
+# or
+bun install
 ```
 
 ### Set up a Postgres database
@@ -56,6 +64,10 @@ You can create, apply and rollback migrations using the scripts in `package.json
 npm run migrate:latest
 # or
 yarn migrate:latest
+# or
+pnpm migrate:latest
+# or
+bun migrate:latest
 ```
 
 ### Start Next.js in development mode
@@ -64,6 +76,10 @@ yarn migrate:latest
 npm run dev
 # or
 yarn dev
+# or
+pnpm dev
+# or
+bun dev
 ```
 
 Your app should now be up and running on [http://localhost:3000](http://localhost:3000)! If it doesn't work, post on [GitHub discussions](https://github.com/vercel/next.js/discussions).
