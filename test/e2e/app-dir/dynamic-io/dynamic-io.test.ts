@@ -16,9 +16,15 @@ describe('dynamic-io', () => {
   const itSkipTurbopack = isTurbopack ? it.skip : it
 
   it('should not have route specific errors', async () => {
-    expect(next.cliOutput).not.toMatch('Error: Route /')
+    expect(next.cliOutput).not.toMatch('Error: Route "/')
     expect(next.cliOutput).not.toMatch('Error occurred prerendering page')
   })
+
+  if (!isNextDev) {
+    it('should not warn about potential memory leak for even listeners on AbortSignal', async () => {
+      expect(next.cliOutput).not.toMatch('MaxListenersExceededWarning')
+    })
+  }
 
   it('should prerender fully static pages', async () => {
     let $ = await next.render$('/cases/static', {})
@@ -154,10 +160,21 @@ describe('dynamic-io', () => {
     }
   })
 
+  it('should prerender pages that only use cached ("use cache") IO', async () => {
+    const $ = await next.render$('/cases/use_cache_cached', {})
+    if (isNextDev) {
+      expect($('#layout').text()).toBe('at runtime')
+      expect($('#page').text()).toBe('at runtime')
+    } else {
+      expect($('#layout').text()).toBe('at buildtime')
+      expect($('#page').text()).toBe('at buildtime')
+    }
+  })
+
   itSkipTurbopack(
-    'should prerender pages that only use cached ("use cache") IO',
+    'should prerender pages that cached the whole page',
     async () => {
-      const $ = await next.render$('/cases/use_cache_cached', {})
+      const $ = await next.render$('/cases/full_cached', {})
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#page').text()).toBe('at runtime')

@@ -72,7 +72,9 @@ describe('app-dir edge SSR', () => {
     it('should resolve client component without error', async () => {
       const logs = []
       next.on('stderr', (log) => {
-        logs.push(log)
+        if (!log.includes('experimental edge runtime')) {
+          logs.push(log)
+        }
       })
       const html = await next.render('/with-client')
       expect(html).toContain('My Button')

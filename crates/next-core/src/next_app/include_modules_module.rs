@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{RcStr, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -19,13 +19,13 @@ use turbopack_ecmascript::chunk::{
 #[turbo_tasks::value]
 pub struct IncludeModulesModule {
     ident: Vc<AssetIdent>,
-    modules: Vec<Vc<Box<dyn Module>>>,
+    modules: Vec<ResolvedVc<Box<dyn Module>>>,
 }
 
 #[turbo_tasks::value_impl]
 impl IncludeModulesModule {
     #[turbo_tasks::function]
-    pub fn new(ident: Vc<AssetIdent>, modules: Vec<Vc<Box<dyn Module>>>) -> Vc<Self> {
+    pub fn new(ident: Vc<AssetIdent>, modules: Vec<ResolvedVc<Box<dyn Module>>>) -> Vc<Self> {
         Self { ident, modules }.cell()
     }
 }
@@ -50,7 +50,7 @@ impl Module for IncludeModulesModule {
                 .iter()
                 .map(|&module| async move {
                     Ok(Vc::upcast(
-                        IncludedModuleReference::new(module).resolve().await?,
+                        IncludedModuleReference::new(*module).resolve().await?,
                     ))
                 })
                 .try_join()

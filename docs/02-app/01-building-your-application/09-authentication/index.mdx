@@ -680,7 +680,7 @@ export async function createSession(userId) {
   const session = await encrypt({ userId, expiresAt })
   const cookieStore = await cookies()
 
-  cookieStore().set('session', session, {
+  cookieStore.set('session', session, {
     httpOnly: true,
     secure: true,
     expires: expiresAt,
@@ -751,7 +751,7 @@ export async function updateSession() {
   const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
 
   const cookieStore = await cookies()
-  cookieStore().set('session', session, {
+  cookieStore.set('session', session, {
     httpOnly: true,
     secure: true,
     expires: expires,
@@ -798,7 +798,7 @@ import { cookies } from 'next/headers'
 
 export async function deleteSession() {
   const cookieStore = await cookies()
-  cookieStore().delete('session')
+  cookieStore.delete('session')
 }
 ```
 
@@ -808,7 +808,7 @@ import { cookies } from 'next/headers'
 
 export async function deleteSession() {
   const cookieStore = await cookies()
-  cookieStore().delete('session')
+  cookieStore.delete('session')
 }
 ```
 
@@ -920,7 +920,7 @@ export async function createSession(id: number) {
 
   // 3. Store the session in cookies for optimistic auth checks
   const cookieStore = await cookies()
-  cookieStore().set('session', session, {
+  cookieStore.set('session', session, {
     httpOnly: true,
     secure: true,
     expires: expiresAt,
@@ -955,7 +955,7 @@ export async function createSession(id) {
 
   // 3. Store the session in cookies for optimistic auth checks
   const cookieStore = await cookies()
-  cookieStore().set('session', session, {
+  cookieStore.set('session', session, {
     httpOnly: true,
     secure: true,
     expires: expiresAt,
@@ -1649,7 +1649,7 @@ Now that you've learned about authentication in Next.js, here are Next.js-compat
 - [Stack Auth](https://docs.stack-auth.com/getting-started/setup)
 - [Supabase](https://supabase.com/docs/guides/getting-started/quickstarts/nextjs)
 - [Stytch](https://stytch.com/docs/guides/quickstarts/nextjs)
-- [WorkOS](https://workos.com/docs/user-management)
+- [WorkOS](https://workos.com/docs/user-management/nextjs)
 
 ### Session Management Libraries
 

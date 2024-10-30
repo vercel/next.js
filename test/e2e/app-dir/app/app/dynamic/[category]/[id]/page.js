@@ -1,4 +1,9 @@
-export default async function IdPage({ children, params, searchParams }) {
+export default async function IdPage(props) {
+  const params = await props.params
+  const searchParams = await props.searchParams
+
+  const { children } = props
+
   return (
     <>
       <p>

@@ -283,7 +283,7 @@ export type NextApiResponse<Data = any> = ServerResponse & {
    * Static Regeneration.
    * The path should be an actual path, not a rewritten path. E.g. for
    * "/blog/[slug]" this should be "/blog/post-1".
-   * @link https://nextjs.org/docs/basic-features/data-fetching/incremental-static-regeneration#on-demand-revalidation
+   * @link https://nextjs.org/docs/app/building-your-application/data-fetching/incremental-static-regeneration#on-demand-revalidation-with-revalidatepath
    */
   revalidate: (
     urlPath: string,

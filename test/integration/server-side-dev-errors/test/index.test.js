@@ -53,7 +53,7 @@ describe('server-side dev errors', () => {
         const err = stderr.slice(stderrIdx)
 
         return err.includes('pages/gsp.js') &&
-          err.includes('6:2') &&
+          err.includes('6:3') &&
           err.includes('getStaticProps') &&
           err.includes('missingVar')
           ? 'success'

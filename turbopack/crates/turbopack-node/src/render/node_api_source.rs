@@ -127,30 +127,34 @@ impl GetContentSourceContent for NodeApiContentSource {
             return Err(anyhow!("Missing request data"));
         };
         let entry = self.entry.entry(data.clone()).await?;
-        Ok(ContentSourceContent::HttpProxy(render_proxy(
-            self.cwd,
-            self.env,
-            self.server_root.join(path.clone()),
-            entry.module,
-            entry.runtime_entries,
-            entry.chunking_context,
-            entry.intermediate_output_path,
-            entry.output_root,
-            entry.project_dir,
-            RenderData {
-                params: params.clone(),
-                method: method.clone(),
-                url: url.clone(),
-                original_url: original_url.clone(),
-                raw_query: raw_query.clone(),
-                raw_headers: raw_headers.clone(),
-                path: format!("/{}", path).into(),
-                data: Some(self.render_data.await?),
-            }
-            .cell(),
-            *body,
-            self.debug,
-        ))
+        Ok(ContentSourceContent::HttpProxy(
+            render_proxy(
+                self.cwd,
+                self.env,
+                self.server_root.join(path.clone()),
+                entry.module,
+                entry.runtime_entries,
+                entry.chunking_context,
+                entry.intermediate_output_path,
+                entry.output_root,
+                entry.project_dir,
+                RenderData {
+                    params: params.clone(),
+                    method: method.clone(),
+                    url: url.clone(),
+                    original_url: original_url.clone(),
+                    raw_query: raw_query.clone(),
+                    raw_headers: raw_headers.clone(),
+                    path: format!("/{}", path).into(),
+                    data: Some(self.render_data.await?),
+                }
+                .cell(),
+                *body,
+                self.debug,
+            )
+            .to_resolved()
+            .await?,
+        )
         .cell())
     }
 }

@@ -7,8 +7,8 @@ use turbo_tasks::{util::SharedError, RawVc, TaskId};
 use crate::{
     backend::{
         operation::{
-            invalidate::{make_task_dirty, make_task_dirty_internal},
-            AggregationUpdateQueue, ExecuteContext, Operation,
+            invalidate::{make_task_dirty, make_task_dirty_internal, TaskDirtyCause},
+            AggregationUpdateQueue, ExecuteContext, Operation, TaskGuard,
         },
         storage::{get, get_many},
         TaskDataCategory,
@@ -41,7 +41,7 @@ impl UpdateOutputOperation {
     pub fn run(
         task_id: TaskId,
         output: Result<Result<RawVc>, Option<Cow<'static, str>>>,
-        mut ctx: ExecuteContext<'_>,
+        mut ctx: impl ExecuteContext,
     ) {
         let mut task = ctx.task(task_id, TaskDataCategory::Data);
         if let Some(InProgressState::InProgress { stale: true, .. }) = get!(task, InProgress) {
@@ -108,7 +108,14 @@ impl UpdateOutputOperation {
 
         let mut queue = AggregationUpdateQueue::new();
 
-        make_task_dirty_internal(&mut task, task_id, false, &mut queue, &mut ctx);
+        make_task_dirty_internal(
+            &mut task,
+            task_id,
+            false,
+            TaskDirtyCause::InitialDirty,
+            &mut queue,
+            &ctx,
+        );
 
         drop(task);
         drop(old_content);
@@ -124,7 +131,7 @@ impl UpdateOutputOperation {
 }
 
 impl Operation for UpdateOutputOperation {
-    fn execute(mut self, ctx: &mut ExecuteContext<'_>) {
+    fn execute(mut self, ctx: &mut impl ExecuteContext) {
         loop {
             ctx.operation_suspend_point(&self);
             match self {
@@ -134,7 +141,12 @@ impl Operation for UpdateOutputOperation {
                     ref mut queue,
                 } => {
                     if let Some(dependent_task_id) = dependent_tasks.pop() {
-                        make_task_dirty(dependent_task_id, queue, ctx);
+                        make_task_dirty(
+                            dependent_task_id,
+                            TaskDirtyCause::OutputChange,
+                            queue,
+                            ctx,
+                        );
                     }
                     if dependent_tasks.is_empty() {
                         self = UpdateOutputOperation::EnsureUnfinishedChildrenDirty {
@@ -150,7 +162,14 @@ impl Operation for UpdateOutputOperation {
                     if let Some(child_id) = children.pop() {
                         let mut child_task = ctx.task(child_id, TaskDataCategory::Data);
                         if !child_task.has_key(&CachedDataItemKey::Output {}) {
-                            make_task_dirty_internal(&mut child_task, child_id, false, queue, ctx);
+                            make_task_dirty_internal(
+                                &mut child_task,
+                                child_id,
+                                false,
+                                TaskDirtyCause::InitialDirty,
+                                queue,
+                                ctx,
+                            );
                         }
                     }
                     if children.is_empty() {

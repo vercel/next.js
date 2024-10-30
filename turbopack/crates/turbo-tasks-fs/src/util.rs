@@ -4,7 +4,10 @@ use std::{
     path::Path,
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
+use turbo_tasks::Vc;
+
+use crate::{DiskFileSystem, FileSystemPath};
 
 /// Joins two /-separated paths into a normalized path.
 /// Paths are concatenated with /.
@@ -133,4 +136,29 @@ pub fn extract_disk_access<T>(value: io::Result<T>, path: &Path) -> Result<Optio
         Err(e) if matches!(e.kind(), ErrorKind::NotFound | ErrorKind::InvalidFilename) => Ok(None),
         Err(e) => Err(anyhow!(e).context(format!("reading file {}", path.display()))),
     }
+}
+
+pub async fn uri_from_file(root: Vc<FileSystemPath>, path: Option<&str>) -> Result<String> {
+    let root_fs = root.fs();
+    let root_fs = &*Vc::try_resolve_downcast_type::<DiskFileSystem>(root_fs)
+        .await?
+        .context("Expected root to have a DiskFileSystem")?
+        .await?;
+
+    Ok(format!(
+        "file://{}",
+        &sys_to_unix(
+            &root_fs
+                .to_sys_path(match path {
+                    Some(path) => root.join(path.into()),
+                    None => root,
+                })
+                .await?
+                .to_string_lossy()
+        )
+        .split('/')
+        .map(|s| urlencoding::encode(s))
+        .collect::<Vec<_>>()
+        .join("/")
+    ))
 }
