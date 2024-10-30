@@ -207,8 +207,8 @@ export function generateViewport(): Viewport {
 import type { Viewport } from 'next'
 
 type Props = {
-  params: { id: string }
-  searchParams: { [key: string]: string | string[] | undefined }
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }
 
 export function generateViewport({ params, searchParams }: Props): Viewport {
