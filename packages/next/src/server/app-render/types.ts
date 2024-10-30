@@ -147,6 +147,9 @@ export interface RenderOptsPartial {
   nextFontManifest?: DeepReadonly<NextFontManifest>
   isBot?: boolean
   incrementalCache?: import('../lib/incremental-cache').IncrementalCache
+  cacheLifeProfiles?: {
+    [profile: string]: import('../use-cache/cache-life').CacheLife
+  }
   setAppIsrStatus?: (key: string, value: boolean | null) => void
   isRevalidate?: boolean
   nextExport?: boolean
@@ -168,6 +171,7 @@ export interface RenderOptsPartial {
   }
   params?: ParsedUrlQuery
   isPrefetch?: boolean
+  isDevWarmup?: boolean
   experimental: {
     /**
      * When true, it indicates that the current page supports partial
@@ -222,7 +226,7 @@ export type InitialRSCPayload = {
   /** missingSlots */
   m: Set<string> | undefined
   /** GlobalError */
-  G: React.ComponentType<any>
+  G: [React.ComponentType<any>, React.ReactNode | undefined]
   /** postponed */
   s: boolean
   /** prerendered */

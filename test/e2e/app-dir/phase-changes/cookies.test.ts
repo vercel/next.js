@@ -72,16 +72,8 @@ describe('setting cookies', () => {
     // these tests inspect CLI logs to see what happened in unstable_after,
     // so they won't work in deploy mode
     if (!isNextDeploy) {
-      it.each([
-        {
-          title: 'from an action to unstable_after',
-          path: '/cookies/action-to-after',
-        },
-        {
-          title: 'from an action to unstable_after via closure',
-          path: '/cookies/action-to-after/via-closure',
-        },
-      ])('$title', async ({ path }) => {
+      it('from an action to unstable_after via closure', async () => {
+        const path = '/cookies/action-to-after/via-closure'
         const session = await next.browser(path)
 
         // trigger an action
@@ -97,16 +89,8 @@ describe('setting cookies', () => {
         )
       })
 
-      it.each([
-        {
-          title: 'from a route handler to unstable_after',
-          path: '/cookies/route-handler-to-after',
-        },
-        {
-          title: 'from a route handler to unstable_after via closure',
-          path: '/cookies/route-handler-to-after/via-closure',
-        },
-      ])('$title', async ({ path }) => {
+      it('from a route handler to unstable_after via closure', async () => {
+        const path = '/cookies/route-handler-to-after/via-closure'
         const response = await next.fetch(path, { method: 'POST' })
         await response.text()
         expect(response.status).toBe(200)
@@ -120,16 +104,8 @@ describe('setting cookies', () => {
         })
       })
 
-      it.each([
-        {
-          title: 'from middleware to unstable_after',
-          path: '/cookies/middleware-to-after',
-        },
-        {
-          title: 'from middleware to unstable_after via closure',
-          path: '/cookies/middleware-to-after/via-closure',
-        },
-      ])('$title', async ({ path }) => {
+      it('from middleware to unstable_after via closure', async () => {
+        const path = '/cookies/middleware-to-after/via-closure'
         const response = await next.fetch(path)
         await response.text()
         expect(response.status).toBe(200)

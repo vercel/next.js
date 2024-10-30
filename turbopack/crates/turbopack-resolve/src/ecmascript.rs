@@ -1,7 +1,7 @@
 use anyhow::Result;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbopack_core::{
-    issue::{IssueSeverity, IssueSource},
+    issue::IssueSource,
     reference_type::{CommonJsReferenceSubType, EcmaScriptModulesReferenceSubType, ReferenceType},
     resolve::{
         handle_resolve_error, handle_resolve_source_error,
@@ -79,37 +79,37 @@ pub async fn esm_resolve(
     origin: Vc<Box<dyn ResolveOrigin>>,
     request: Vc<Request>,
     ty: Value<EcmaScriptModulesReferenceSubType>,
-    issue_severity: Vc<IssueSeverity>,
-    issue_source: Option<Vc<IssueSource>>,
+    is_optional: bool,
+    issue_source: Option<ResolvedVc<IssueSource>>,
 ) -> Result<Vc<ModuleResolveResult>> {
     let ty = Value::new(ReferenceType::EcmaScriptModules(ty.into_value()));
     let options = apply_esm_specific_options(origin.resolve_options(ty.clone()), ty.clone())
         .resolve()
         .await?;
-    specific_resolve(origin, request, options, ty, issue_severity, issue_source).await
+    specific_resolve(origin, request, options, ty, is_optional, issue_source).await
 }
 
 #[turbo_tasks::function]
 pub async fn cjs_resolve(
     origin: Vc<Box<dyn ResolveOrigin>>,
     request: Vc<Request>,
-    issue_source: Option<Vc<IssueSource>>,
-    issue_severity: Vc<IssueSeverity>,
+    issue_source: Option<ResolvedVc<IssueSource>>,
+    is_optional: bool,
 ) -> Result<Vc<ModuleResolveResult>> {
     // TODO pass CommonJsReferenceSubType
     let ty = Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined));
     let options = apply_cjs_specific_options(origin.resolve_options(ty.clone()))
         .resolve()
         .await?;
-    specific_resolve(origin, request, options, ty, issue_severity, issue_source).await
+    specific_resolve(origin, request, options, ty, is_optional, issue_source).await
 }
 
 #[turbo_tasks::function]
 pub async fn cjs_resolve_source(
-    origin: Vc<Box<dyn ResolveOrigin>>,
-    request: Vc<Request>,
-    issue_source: Option<Vc<IssueSource>>,
-    issue_severity: Vc<IssueSeverity>,
+    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    request: ResolvedVc<Request>,
+    issue_source: Option<ResolvedVc<IssueSource>>,
+    is_optional: bool,
 ) -> Result<Vc<ResolveResult>> {
     // TODO pass CommonJsReferenceSubType
     let ty = Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined));
@@ -119,7 +119,7 @@ pub async fn cjs_resolve_source(
     let result = resolve(
         origin.origin_path().parent().resolve().await?,
         ty.clone(),
-        request,
+        *request,
         options,
     );
 
@@ -127,9 +127,9 @@ pub async fn cjs_resolve_source(
         result,
         ty,
         origin.origin_path(),
-        request,
+        *request,
         options,
-        issue_severity,
+        is_optional,
         issue_source,
     )
     .await
@@ -140,8 +140,8 @@ async fn specific_resolve(
     request: Vc<Request>,
     options: Vc<ResolveOptions>,
     reference_type: Value<ReferenceType>,
-    issue_severity: Vc<IssueSeverity>,
-    issue_source: Option<Vc<IssueSource>>,
+    is_optional: bool,
+    issue_source: Option<ResolvedVc<IssueSource>>,
 ) -> Result<Vc<ModuleResolveResult>> {
     let result = origin.resolve_asset(request, options, reference_type.clone());
 
@@ -151,16 +151,8 @@ async fn specific_resolve(
         origin.origin_path(),
         request,
         options,
-        issue_severity,
+        is_optional,
         issue_source,
     )
     .await
-}
-
-pub fn try_to_severity(in_try: bool) -> Vc<IssueSeverity> {
-    if in_try {
-        IssueSeverity::Warning.cell()
-    } else {
-        IssueSeverity::Error.cell()
-    }
 }

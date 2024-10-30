@@ -1,9 +1,8 @@
 use anyhow::Result;
-use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, TryFlatJoinIterExt, TryJoinIterExt, ValueToString,
-    Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, ResolvedVc, TryFlatJoinIterExt,
+    TryJoinIterExt, ValueToString, Vc,
 };
 use turbo_tasks_hash::Xxh3Hash64Hasher;
 
@@ -18,14 +17,16 @@ pub struct AvailableChunkItemInfo {
 pub struct OptionAvailableChunkItemInfo(Option<AvailableChunkItemInfo>);
 
 #[turbo_tasks::value(transparent)]
-pub struct AvailableChunkItemInfoMap(IndexMap<Vc<Box<dyn ChunkItem>>, AvailableChunkItemInfo>);
+pub struct AvailableChunkItemInfoMap(
+    FxIndexMap<ResolvedVc<Box<dyn ChunkItem>>, AvailableChunkItemInfo>,
+);
 
 /// Allows to gather information about which assets are already available.
 /// Adding more roots will form a linked list like structure to allow caching
 /// `include` queries.
 #[turbo_tasks::value]
 pub struct AvailableChunkItems {
-    parent: Option<Vc<AvailableChunkItems>>,
+    parent: Option<ResolvedVc<AvailableChunkItems>>,
     chunk_items: Vc<AvailableChunkItemInfoMap>,
 }
 
@@ -42,7 +43,7 @@ impl AvailableChunkItems {
 
     #[turbo_tasks::function]
     pub async fn with_chunk_items(
-        self: Vc<Self>,
+        self: ResolvedVc<Self>,
         chunk_items: Vc<AvailableChunkItemInfoMap>,
     ) -> Result<Vc<Self>> {
         let chunk_items = chunk_items
@@ -50,7 +51,7 @@ impl AvailableChunkItems {
             .into_iter()
             .map(|(&chunk_item, &info)| async move {
                 Ok(self
-                    .get(chunk_item)
+                    .get(*chunk_item)
                     .await?
                     .is_none()
                     .then_some((chunk_item, info)))
@@ -88,13 +89,13 @@ impl AvailableChunkItems {
     #[turbo_tasks::function]
     pub async fn get(
         &self,
-        chunk_item: Vc<Box<dyn ChunkItem>>,
+        chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
     ) -> Result<Vc<OptionAvailableChunkItemInfo>> {
         if let Some(&info) = self.chunk_items.await?.get(&chunk_item) {
             return Ok(Vc::cell(Some(info)));
         };
         if let Some(parent) = self.parent {
-            return Ok(parent.get(chunk_item));
+            return Ok(parent.get(*chunk_item));
         }
         Ok(Vc::cell(None))
     }
