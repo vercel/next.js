@@ -1,6 +1,7 @@
 import { redirect, notFound } from 'next/navigation'
 
-export default async function TeamDashboardPage({ params }: any) {
+export default async function TeamDashboardPage(props: any) {
+  const params = await props.params
   await new Promise((resolve) => setTimeout(resolve, 1000))
   const username = 'vercel-user'
   if (params.teamSlug === username) {

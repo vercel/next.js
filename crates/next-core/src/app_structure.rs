@@ -1,17 +1,13 @@
 use std::collections::BTreeMap;
 
 use anyhow::{bail, Context, Result};
-use indexmap::{
-    indexmap,
-    map::{Entry, OccupiedEntry},
-    IndexMap,
-};
+use indexmap::map::{Entry, OccupiedEntry};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, RcStr, ResolvedVc, TaskInput, TryJoinIterExt,
-    ValueDefault, ValueToString, Vc,
+    debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs, FxIndexMap, RcStr, ResolvedVc,
+    TaskInput, TryJoinIterExt, ValueDefault, ValueToString, Vc,
 };
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath};
 use turbopack_core::issue::{
@@ -40,7 +36,7 @@ pub struct AppDirModules {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<Vc<FileSystemPath>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub global_error: Option<Vc<FileSystemPath>>,
+    pub global_error: Option<ResolvedVc<FileSystemPath>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub loading: Option<Vc<FileSystemPath>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -50,7 +46,7 @@ pub struct AppDirModules {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub default: Option<Vc<FileSystemPath>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub route: Option<Vc<FileSystemPath>>,
+    pub route: Option<ResolvedVc<FileSystemPath>>,
     #[serde(skip_serializing_if = "Metadata::is_empty", default)]
     pub metadata: Metadata,
 }
@@ -203,7 +199,7 @@ impl GlobalMetadata {
 #[derive(Debug)]
 pub struct DirectoryTree {
     /// key is e.g. "dashboard", "(dashboard)", "@slot"
-    pub subdirectories: BTreeMap<RcStr, Vc<DirectoryTree>>,
+    pub subdirectories: BTreeMap<RcStr, ResolvedVc<DirectoryTree>>,
     pub modules: AppDirModules,
 }
 
@@ -306,12 +302,12 @@ async fn get_directory_tree_internal(
                             "page" => modules.page = Some(*file),
                             "layout" => modules.layout = Some(*file),
                             "error" => modules.error = Some(*file),
-                            "global-error" => modules.global_error = Some(*file),
+                            "global-error" => modules.global_error = Some(file),
                             "loading" => modules.loading = Some(*file),
                             "template" => modules.template = Some(*file),
                             "not-found" => modules.not_found = Some(*file),
                             "default" => modules.default = Some(*file),
-                            "route" => modules.route = Some(*file),
+                            "route" => modules.route = Some(file),
                             _ => {}
                         }
                     }
@@ -367,7 +363,9 @@ async fn get_directory_tree_internal(
             DirectoryEntry::Directory(dir) => {
                 // appDir ignores paths starting with an underscore
                 if !basename.starts_with('_') {
-                    let result = get_directory_tree(*dir, page_extensions);
+                    let result = get_directory_tree(*dir, page_extensions)
+                        .to_resolved()
+                        .await?;
                     subdirectories.insert(basename.clone(), result);
                 }
             }
@@ -398,7 +396,7 @@ async fn get_directory_tree_internal(
 pub struct AppPageLoaderTree {
     pub page: AppPage,
     pub segment: RcStr,
-    pub parallel_routes: IndexMap<RcStr, AppPageLoaderTree>,
+    pub parallel_routes: FxIndexMap<RcStr, AppPageLoaderTree>,
     pub modules: AppDirModules,
     pub global_metadata: Vc<GlobalMetadata>,
 }
@@ -517,7 +515,7 @@ impl Entrypoint {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct Entrypoints(IndexMap<AppPath, Entrypoint>);
+pub struct Entrypoints(FxIndexMap<AppPath, Entrypoint>);
 
 fn is_parallel_route(name: &str) -> bool {
     name.starts_with('@')
@@ -564,7 +562,7 @@ fn conflict_issue(
 
 fn add_app_page(
     app_dir: Vc<FileSystemPath>,
-    result: &mut IndexMap<AppPath, Entrypoint>,
+    result: &mut FxIndexMap<AppPath, Entrypoint>,
     page: AppPage,
     loader_tree: ResolvedVc<AppPageLoaderTree>,
 ) {
@@ -623,7 +621,7 @@ fn add_app_page(
 
 fn add_app_route(
     app_dir: Vc<FileSystemPath>,
-    result: &mut IndexMap<AppPath, Entrypoint>,
+    result: &mut FxIndexMap<AppPath, Entrypoint>,
     page: AppPage,
     path: ResolvedVc<FileSystemPath>,
     root_layouts: ResolvedVc<FileSystemPathVec>,
@@ -666,7 +664,7 @@ fn add_app_route(
 
 fn add_app_metadata_route(
     app_dir: Vc<FileSystemPath>,
-    result: &mut IndexMap<AppPath, Entrypoint>,
+    result: &mut FxIndexMap<AppPath, Entrypoint>,
     page: AppPage,
     metadata: MetadataItem,
 ) {
@@ -867,7 +865,7 @@ fn directory_tree_to_loader_tree_internal(
     let mut tree = AppPageLoaderTree {
         page: app_page.clone(),
         segment: directory_name.clone(),
-        parallel_routes: IndexMap::new(),
+        parallel_routes: FxIndexMap::default(),
         modules: modules.without_leafs(),
         global_metadata,
     };
@@ -887,7 +885,7 @@ fn directory_tree_to_loader_tree_internal(
             AppPageLoaderTree {
                 page: app_page.clone(),
                 segment: "__PAGE__".into(),
-                parallel_routes: IndexMap::new(),
+                parallel_routes: FxIndexMap::default(),
                 modules: AppDirModules {
                     page: Some(page),
                     metadata: modules.metadata,
@@ -1031,7 +1029,7 @@ fn default_route_tree(
     AppPageLoaderTree {
         page: app_page.clone(),
         segment: "__DEFAULT__".into(),
-        parallel_routes: IndexMap::new(),
+        parallel_routes: FxIndexMap::default(),
         modules: if let Some(default) = default_component {
             AppDirModules {
                 default: Some(default),
@@ -1081,7 +1079,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
     app_page: AppPage,
     root_layouts: ResolvedVc<FileSystemPathVec>,
 ) -> Result<Vc<Entrypoints>> {
-    let mut result = IndexMap::new();
+    let mut result = FxIndexMap::default();
 
     let directory_tree_vc = directory_tree;
     let directory_tree = &*directory_tree.await?;
@@ -1184,15 +1182,15 @@ async fn directory_tree_to_entrypoints_internal_untraced(
         let not_found_tree = AppPageLoaderTree {
                 page: app_page.clone(),
                 segment: directory_name.clone(),
-                parallel_routes: indexmap! {
+                parallel_routes: fxindexmap! {
                     "children".into() => AppPageLoaderTree {
                         page: app_page.clone(),
                         segment: "/_not-found".into(),
-                        parallel_routes: indexmap! {
+                        parallel_routes: fxindexmap! {
                             "children".into() => AppPageLoaderTree {
                                 page: app_page.clone(),
                                 segment: "__PAGE__".into(),
-                                parallel_routes: IndexMap::new(),
+                                parallel_routes: FxIndexMap::default(),
                                 modules: AppDirModules {
                                     page: modules.not_found.or_else(|| Some(get_next_package(app_dir).join("dist/client/components/not-found-error.js".into()))),
                                     ..Default::default()
@@ -1236,7 +1234,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                 app_dir,
                 global_metadata,
                 subdir_name.clone(),
-                subdirectory,
+                *subdirectory,
                 child_app_page.clone(),
                 *root_layouts,
             )

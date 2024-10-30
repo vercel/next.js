@@ -99,6 +99,7 @@ import type { OutgoingHttpHeaders } from 'http'
 import type { AppSegmentConfig } from './segment-config/app/app-segment-config'
 import type { AppSegment } from './segment-config/app/app-segments'
 import { collectSegments } from './segment-config/app/app-segments'
+import { createIncrementalCache } from '../export/helpers/create-incremental-cache'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -371,6 +372,7 @@ export interface PageInfo {
   hasEmptyPrelude?: boolean
   hasPostponed?: boolean
   isDynamicAppRoute?: boolean
+  unsupportedSegmentConfigs: string[] | undefined
 }
 
 export type PageInfos = Map<string, PageInfo>
@@ -1217,13 +1219,13 @@ export async function buildAppStaticPaths({
   segments,
   isrFlushToDisk,
   cacheHandler,
+  cacheLifeProfiles,
   requestHeaders,
   maxMemoryCacheSize,
   fetchCacheKeyPrefix,
   nextConfigOutput,
   ComponentMod,
   isRoutePPREnabled,
-  isAppPPRFallbacksEnabled,
   buildId,
 }: {
   dir: string
@@ -1235,12 +1237,14 @@ export async function buildAppStaticPaths({
   isrFlushToDisk?: boolean
   fetchCacheKeyPrefix?: string
   cacheHandler?: string
+  cacheLifeProfiles?: {
+    [profile: string]: import('../server/use-cache/cache-life').CacheLife
+  }
   maxMemoryCacheSize?: number
   requestHeaders: IncrementalCache['requestHeaders']
   nextConfigOutput: 'standalone' | 'export' | undefined
   ComponentMod: AppPageModule
   isRoutePPREnabled: boolean | undefined
-  isAppPPRFallbacksEnabled: boolean | undefined
   buildId: string
 }): Promise<PartialStaticPathsResult> {
   if (
@@ -1305,6 +1309,7 @@ export async function buildAppStaticPaths({
       fallbackRouteParams: null,
       renderOpts: {
         incrementalCache,
+        cacheLifeProfiles,
         supportsDynamicResponse: true,
         isRevalidate: false,
         experimental: {
@@ -1414,11 +1419,9 @@ export async function buildAppStaticPaths({
   const supportsRoutePreGeneration =
     hadAllParamsGenerated || process.env.NODE_ENV === 'production'
 
-  const supportsPPRFallbacks = isRoutePPREnabled && isAppPPRFallbacksEnabled
-
   const fallbackMode = dynamicParams
     ? supportsRoutePreGeneration
-      ? supportsPPRFallbacks
+      ? isRoutePPREnabled
         ? FallbackMode.PRERENDER
         : FallbackMode.BLOCKING_STATIC_RENDER
       : undefined
@@ -1443,7 +1446,7 @@ export async function buildAppStaticPaths({
 
   // If the fallback mode is a prerender, we want to include the dynamic
   // route in the prerendered routes too.
-  if (isRoutePPREnabled && isAppPPRFallbacksEnabled) {
+  if (isRoutePPREnabled) {
     result.prerenderedRoutes ??= []
     result.prerenderedRoutes.unshift({
       path: page,
@@ -1489,8 +1492,9 @@ export async function isPageStatic({
   maxMemoryCacheSize,
   nextConfigOutput,
   cacheHandler,
+  cacheHandlers,
+  cacheLifeProfiles,
   pprConfig,
-  isAppPPRFallbacksEnabled,
   buildId,
 }: {
   dir: string
@@ -1510,11 +1514,24 @@ export async function isPageStatic({
   isrFlushToDisk?: boolean
   maxMemoryCacheSize?: number
   cacheHandler?: string
+  cacheHandlers?: Record<string, string | undefined>
+  cacheLifeProfiles?: {
+    [profile: string]: import('../server/use-cache/cache-life').CacheLife
+  }
   nextConfigOutput: 'standalone' | 'export' | undefined
   pprConfig: ExperimentalPPRConfig | undefined
-  isAppPPRFallbacksEnabled: boolean | undefined
   buildId: string
 }): Promise<PageIsStaticResult> {
+  await createIncrementalCache({
+    cacheHandler,
+    cacheHandlers,
+    distDir,
+    dir,
+    dynamicIO,
+    flushToDisk: isrFlushToDisk,
+    cacheMaxMemorySize: maxMemoryCacheSize,
+  })
+
   const isPageStaticSpan = trace('is-page-static-utils', parentId)
   return isPageStaticSpan
     .traceAsyncFn(async (): Promise<PageIsStaticResult> => {
@@ -1632,10 +1649,10 @@ export async function isPageStatic({
               isrFlushToDisk,
               maxMemoryCacheSize,
               cacheHandler,
+              cacheLifeProfiles,
               ComponentMod,
               nextConfigOutput,
               isRoutePPREnabled,
-              isAppPPRFallbacksEnabled,
               buildId,
             }))
         }

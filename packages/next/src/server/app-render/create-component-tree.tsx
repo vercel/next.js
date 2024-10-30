@@ -21,6 +21,7 @@ import { StaticGenBailoutError } from '../../client/components/static-generation
 import type { LoadingModuleData } from '../../shared/lib/app-router-context.shared-runtime'
 import type { Params } from '../request/params'
 import { workUnitAsyncStorage } from './work-unit-async-storage.external'
+import { OUTLET_BOUNDARY_NAME } from '../../lib/metadata/metadata-constants'
 
 /**
  * Use the provided loader tree to create the React Component tree.
@@ -52,8 +53,9 @@ function errorMissingDefaultExport(
   pagePath: string,
   convention: string
 ): never {
+  const normalizedPagePath = pagePath === '/' ? '' : pagePath
   throw new Error(
-    `The default export is not a React Component in "${pagePath}/${convention}"`
+    `The default export is not a React Component in "${normalizedPagePath}/${convention}"`
   )
 }
 
@@ -736,3 +738,4 @@ async function MetadataOutlet({
   }
   return null
 }
+MetadataOutlet.displayName = OUTLET_BOUNDARY_NAME

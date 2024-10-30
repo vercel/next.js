@@ -122,6 +122,13 @@ export function createInitialRouterState({
         couldBeIntercepted: !!couldBeIntercepted,
         prerendered,
         postponed,
+        // TODO: The initial RSC payload includes both static and dynamic data
+        // in the same response, even if PPR is enabled. So if there's any
+        // dynamic data at all, we can't set a stale time. In the future we may
+        // add a way to split a single Flight stream into static and dynamic
+        // parts. But in the meantime we should at least make this work for
+        // fully static pages.
+        staleTime: -1,
       },
       tree: initialState.tree,
       prefetchCache: initialState.prefetchCache,
