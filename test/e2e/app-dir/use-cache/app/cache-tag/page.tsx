@@ -1,7 +1,6 @@
 import React from 'react'
 import { unstable_cacheTag as cacheTag } from 'next/cache'
 import { RevalidateButtons } from './buttons'
-import { connection } from 'next/server'
 
 async function getCachedWithTag({
   tag,
@@ -32,8 +31,6 @@ async function getCachedWithTag({
 }
 
 export default async function Page() {
-  await connection()
-
   const a = await getCachedWithTag({ tag: 'a' })
   const b = await getCachedWithTag({ tag: 'b' })
 

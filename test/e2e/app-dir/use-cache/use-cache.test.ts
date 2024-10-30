@@ -179,6 +179,14 @@ describe('use-cache', () => {
   if (!isNextDeploy) {
     it('should update after revalidateTag correctly', async () => {
       const browser = await next.browser('/cache-tag')
+      const initial = await browser.elementByCss('#a').text()
+
+      // Bust the ISR cache first, to populate the in-memory cache for the
+      // subsequent revalidateTag calls.
+      await browser.elementByCss('#revalidate-path').click()
+      await retry(async () => {
+        expect(await browser.elementByCss('#a').text()).not.toBe(initial)
+      })
 
       let valueA = await browser.elementByCss('#a').text()
       let valueB = await browser.elementByCss('#b').text()
@@ -272,6 +280,12 @@ describe('use-cache', () => {
       expect(
         prerenderManifest.routes['/cache-life'].initialRevalidateSeconds
       ).toBe(100)
+
+      // The revalidate config from the fetch call should lower the revalidate
+      // config for the page.
+      expect(
+        prerenderManifest.routes['/cache-tag'].initialRevalidateSeconds
+      ).toBe(42)
     })
 
     it('should match the expected stale config in the page header', async () => {
@@ -285,7 +299,7 @@ describe('use-cache', () => {
       const meta = JSON.parse(
         await next.readFile('.next/server/app/cache-tag.meta')
       )
-      expect(meta.headers['x-next-cache-tags']).toContain('a,c,b')
+      expect(meta.headers['x-next-cache-tags']).toContain('a,c,b,f,r')
     })
   }
 
