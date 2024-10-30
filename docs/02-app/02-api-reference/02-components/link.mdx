@@ -233,7 +233,6 @@ When `scroll = {false}`, Next.js will not attempt to scroll to the first Page el
 
 > **Good to know**: Next.js checks if `scroll: false` before managing scroll behavior. If scrolling is enabled, it identifies the relevant DOM node for navigation and inspects each top-level element. All non-scrollable elements and those without rendered HTML are bypassed, this includes sticky or fixed positioned elements, and non-visible elements such as those calculated with `getBoundingClientRect`. Next.js then continues through siblings until it identifies a scrollable element that is visible in the viewport.
 
-
 <AppOnly>
 
 ```tsx filename="app/page.tsx" switcher
