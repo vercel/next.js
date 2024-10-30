@@ -311,7 +311,7 @@ impl AppPageLoaderTreeBuilder {
             page,
             default,
             error,
-            global_error: _,
+            global_error,
             layout,
             loading,
             template,
@@ -344,6 +344,8 @@ impl AppPageLoaderTreeBuilder {
             .await?;
         self.write_modules_entry(AppDirModuleType::DefaultPage, *default)
             .await?;
+        self.write_modules_entry(AppDirModuleType::GlobalError, global_error.map(|err| *err))
+            .await?;
 
         let modules_code = replace(&mut self.loader_tree_code, temp_loader_tree_code);
 
@@ -371,7 +373,7 @@ impl AppPageLoaderTreeBuilder {
         if let Some(global_error) = modules.global_error {
             let module = self
                 .base
-                .process_source(Vc::upcast(FileSource::new(global_error)));
+                .process_source(Vc::upcast(FileSource::new(*global_error)));
             self.base.inner_assets.insert(GLOBAL_ERROR.into(), module);
         };
 
