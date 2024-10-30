@@ -9,14 +9,15 @@ if (typeof (globalThis as any).AsyncLocalStorage !== 'function') {
 
 if (typeof (globalThis as any).WebSocket !== 'function') {
   Object.defineProperty(globalThis, 'WebSocket', {
+    configurable: true,
     get() {
       return require('next/dist/compiled/ws').WebSocket
     },
     set(value) {
       Object.defineProperty(globalThis, 'WebSocket', {
-        value,
         configurable: true,
-        writable: true
+        writable: true,
+        value,
       })
     },
   })
