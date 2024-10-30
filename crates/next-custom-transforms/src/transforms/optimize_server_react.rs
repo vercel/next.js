@@ -16,7 +16,7 @@ pub struct Config {
     pub optimize_use_state: bool,
 }
 
-pub fn optimize_server_react(config: Config) -> impl Fold {
+pub fn optimize_server_react(config: Config) -> impl Pass {
     OptimizeServerReact {
         optimize_use_state: config.optimize_use_state,
         ..Default::default()

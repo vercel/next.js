@@ -32,7 +32,7 @@ pub fn next_dynamic(
     mode: NextDynamicMode,
     filename: Arc<FileName>,
     pages_or_app_dir: Option<PathBuf>,
-) -> impl Fold {
+) -> impl Pass {
     NextDynamicPatcher {
         is_development,
         is_server_compiler,

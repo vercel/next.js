@@ -7,7 +7,7 @@ use swc_core::{
     },
 };
 
-pub fn page_config(is_development: bool, is_page_file: bool) -> impl Fold {
+pub fn page_config(is_development: bool, is_page_file: bool) -> impl Pass {
     PageConfig {
         is_development,
         is_page_file,
@@ -15,7 +15,7 @@ pub fn page_config(is_development: bool, is_page_file: bool) -> impl Fold {
     }
 }
 
-pub fn page_config_test() -> impl Fold {
+pub fn page_config_test() -> impl Pass {
     PageConfig {
         in_test: true,
         is_page_file: true,

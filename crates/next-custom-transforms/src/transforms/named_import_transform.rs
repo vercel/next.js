@@ -11,7 +11,7 @@ pub struct Config {
     pub packages: Vec<String>,
 }
 
-pub fn named_import_transform(config: Config) -> impl Fold {
+pub fn named_import_transform(config: Config) -> impl Pass {
     NamedImportTransform {
         packages: config.packages,
     }

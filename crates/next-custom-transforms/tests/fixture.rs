@@ -711,7 +711,7 @@ fn test_edge_assert(input: PathBuf) {
     );
 }
 
-fn lint_to_fold<R>(r: R) -> impl Fold
+fn lint_to_fold<R>(r: R) -> impl Pass
 where
     R: Visit,
 {

@@ -58,7 +58,7 @@ impl PageMode {
 pub fn next_transform_strip_page_exports(
     filter: ExportFilter,
     ssr_removed_packages: Rc<RefCell<FxHashSet<String>>>,
-) -> impl Fold {
+) -> impl Pass {
     Repeat::new(NextSsg {
         state: State {
             ssr_removed_packages,
