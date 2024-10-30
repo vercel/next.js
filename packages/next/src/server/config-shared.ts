@@ -549,6 +549,12 @@ export interface ExperimentalConfig {
    */
   trustHostHeader?: boolean
 
+  /**
+   * Disables background revalidation for ISR pages.
+   * ISR pages will need to be revalidated manually.
+   */
+  disableBackgroundRevalidation?: boolean
+
   useWasmBinary?: boolean
 
   /**
@@ -1227,6 +1233,7 @@ export const defaultConfig: NextConfig = {
   allowedDevOrigins: undefined,
   experimental: {
     nodeMiddleware: false,
+    disableBackgroundRevalidation: false,
     cacheLife: {
       default: {
         stale: undefined, // defaults to staleTimes.static

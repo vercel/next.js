@@ -82,6 +82,7 @@ export function checkIsOnDemandRevalidate(
 ): {
   isOnDemandRevalidate: boolean
   revalidateOnlyGenerated: boolean
+  isISRRevalidationRequest: boolean
 } {
   const headers = HeadersAdapter.from(req.headers)
 
@@ -91,8 +92,13 @@ export function checkIsOnDemandRevalidate(
   const revalidateOnlyGenerated = headers.has(
     PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER
   )
+  const isISRRevalidationRequest = headers.has('x-next-isr')
 
-  return { isOnDemandRevalidate, revalidateOnlyGenerated }
+  return {
+    isOnDemandRevalidate,
+    revalidateOnlyGenerated,
+    isISRRevalidationRequest,
+  }
 }
 
 export const COOKIE_NAME_PRERENDER_BYPASS = `__prerender_bypass`

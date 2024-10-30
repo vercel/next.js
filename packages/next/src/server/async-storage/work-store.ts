@@ -64,6 +64,7 @@ export type WorkStoreContext = {
     | 'isDraftMode'
     | 'isDebugDynamicAccesses'
     | 'dev'
+    | 'isISRRevalidationRequest'
   > &
     RequestLifecycleOpts &
     Partial<Pick<RenderOpts, 'reactLoadableManifest'>>
@@ -124,6 +125,7 @@ export function createWorkStore({
     isPrerendering: renderOpts.nextExport,
     fetchCache: renderOpts.fetchCache,
     isOnDemandRevalidate: renderOpts.isOnDemandRevalidate,
+    isISRRevalidationRequest: renderOpts.isISRRevalidationRequest,
 
     isDraftMode: renderOpts.isDraftMode,
 

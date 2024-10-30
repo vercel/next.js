@@ -287,7 +287,7 @@ export default class NextNodeServer extends BaseServer<
     process.env.NEXT_DEPLOYMENT_ID = this.nextConfig.deploymentId || ''
 
     if (!this.minimalMode) {
-      this.imageResponseCache = new ResponseCache(this.minimalMode)
+      this.imageResponseCache = new ResponseCache(this.minimalMode, false)
     }
 
     const { appDocumentPreloading } = this.nextConfig.experimental
@@ -540,7 +540,10 @@ export default class NextNodeServer extends BaseServer<
   }
 
   protected getResponseCache() {
-    return new ResponseCache(this.minimalMode)
+    return new ResponseCache(
+      this.minimalMode,
+      this.nextConfig.experimental.disableBackgroundRevalidation ?? false
+    )
   }
 
   protected getPublicDir(): string {
