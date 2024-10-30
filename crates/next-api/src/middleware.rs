@@ -198,7 +198,7 @@ impl MiddlewareEndpoint {
                         }
                         source.push_str("/?index|/?index\\\\.json)?")
                     } else {
-                        source.push_str("(.json)?")
+                        source.push_str("{(\\\\.json)}?")
                     };
 
                     source.insert_str(0, "/:nextData(_next/data/[^/]{1,})?");
