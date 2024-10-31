@@ -4,6 +4,7 @@ import {
   assertNoRedbox,
   waitForAndOpenRuntimeError,
   getRedboxDescription,
+  getStackFramesContent,
 } from 'next-test-utils'
 
 // TODO: parse the location and assert them in the future
@@ -15,33 +16,6 @@ function normalizeStackTrace(trace: string) {
     .replace(/\(.*\)/g, '')
     .replace(/^\s+/gm, '')
     .trim()
-}
-
-async function getStackFramesContent(browser) {
-  const stackFrameElements = await browser.elementsByCss(
-    '[data-nextjs-call-stack-frame]'
-  )
-  const stackFramesContent = (
-    await Promise.all(
-      stackFrameElements.map(async (frame) => {
-        const functionNameEl = await frame.$('[data-nextjs-frame-expanded]')
-        const sourceEl = await frame.$('[data-has-source]')
-        const functionName = functionNameEl
-          ? await functionNameEl.innerText()
-          : ''
-        const source = sourceEl ? await sourceEl.innerText() : ''
-
-        if (!functionName) {
-          return ''
-        }
-        return `at ${functionName} (${source})`
-      })
-    )
-  )
-    .filter(Boolean)
-    .join('\n')
-
-  return stackFramesContent
 }
 
 describe('app-dir - owner-stack', () => {

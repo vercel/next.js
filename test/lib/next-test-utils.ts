@@ -1492,3 +1492,32 @@ export const checkLink = (
   rel: string,
   content: string | string[]
 ) => checkMeta(browser, rel, content, 'rel', 'link', 'href')
+
+export async function getStackFramesContent(
+  browser: BrowserInterface
+): Promise<string> {
+  const stackFrameElements = await browser.elementsByCss(
+    '[data-nextjs-call-stack-frame]'
+  )
+  const stackFramesContent = (
+    await Promise.all(
+      stackFrameElements.map(async (frame) => {
+        const functionNameEl = await frame.$('[data-nextjs-frame-expanded]')
+        const sourceEl = await frame.$('[data-has-source]')
+        const functionName = functionNameEl
+          ? await functionNameEl.innerText()
+          : ''
+        const source = sourceEl ? await sourceEl.innerText() : ''
+
+        if (!functionName) {
+          return ''
+        }
+        return `at ${functionName} (${source})`
+      })
+    )
+  )
+    .filter(Boolean)
+    .join('\n')
+
+  return stackFramesContent
+}

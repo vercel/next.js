@@ -1,32 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
-import { getRedboxSource, waitForAndOpenRuntimeError } from 'next-test-utils'
-
-async function getStackFramesContent(browser) {
-  const stackFrameElements = await browser.elementsByCss(
-    '[data-nextjs-call-stack-frame]'
-  )
-  const stackFramesContent = (
-    await Promise.all(
-      stackFrameElements.map(async (frame) => {
-        const functionNameEl = await frame.$('[data-nextjs-frame-expanded]')
-        const sourceEl = await frame.$('[data-has-source]')
-        const functionName = functionNameEl
-          ? await functionNameEl.innerText()
-          : ''
-        const source = sourceEl ? await sourceEl.innerText() : ''
-
-        if (!functionName) {
-          return ''
-        }
-        return `at ${functionName} (${source})`
-      })
-    )
-  )
-    .filter(Boolean)
-    .join('\n')
-
-  return stackFramesContent
-}
+import {
+  getRedboxSource,
+  waitForAndOpenRuntimeError,
+  getStackFramesContent,
+} from 'next-test-utils'
 
 describe('owner-stack-react-missing-key-prop', () => {
   const { next } = nextTestSetup({
