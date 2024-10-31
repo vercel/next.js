@@ -263,7 +263,7 @@ This example caches the result of the database query for 1 hour (3600 seconds). 
 
 Next.js uses APIs like `generateMetadata` and `generateStaticParams` where you will need to use the same data fetched in the `page`.
 
-If you are using `fetch`, requests are automatically [memoized](/docs/app/building-your-application/caching#request-memoization). This means you can safely call the same URL with the same options, and only one request will be made.
+If you are using `fetch`, requests are no longer being automatically [memoized](/docs/app/building-your-application/caching#request-memoization). Read the fetch changes [here](/docs/app/building-your-application/upgrading/version-15#fetch-requests)
 
 ```tsx filename="app/page.tsx" switcher
 import { notFound } from 'next/navigation'
