@@ -195,6 +195,7 @@ async fn extra_configs_changed(
 
     let config_paths = [
         parent_path.join("tailwind.config.js".into()),
+        parent_path.join("tailwind.config.mjs".into()),
         parent_path.join("tailwind.config.ts".into()),
     ];
 
