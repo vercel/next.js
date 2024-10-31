@@ -42,8 +42,11 @@ export async function load(url: string, context: any, nextLoad: Function) {
   const swcOptions = await resolveSWCOptions(url)
   const { code: source } = await transform(rawSource, swcOptions)
 
+  const ext = extname(url)
+  const shouldBeCJS = ext === '.cts'
+
   return {
-    format: 'module',
+    format: shouldBeCJS ? 'commonjs' : 'module',
     shortCircuit: true,
     source,
   }

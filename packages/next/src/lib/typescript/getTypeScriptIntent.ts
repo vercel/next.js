@@ -7,7 +7,8 @@ export type TypeScriptIntent = { firstTimeSetup: boolean }
 export async function getTypeScriptIntent(
   baseDir: string,
   intentDirs: string[],
-  tsconfigPath: string
+  tsconfigPath: string,
+  hasNextConfigTs?: boolean
 ): Promise<TypeScriptIntent | false> {
   const resolvedTsConfigPath = path.join(baseDir, tsconfigPath)
 
@@ -22,6 +23,10 @@ export async function getTypeScriptIntent(
         () => null
       )
     return { firstTimeSetup: content === '' || content === '{}' }
+  }
+
+  if (hasNextConfigTs) {
+    return { firstTimeSetup: true }
   }
 
   // Next.js also offers a friendly setup mode that bootstraps a TypeScript
