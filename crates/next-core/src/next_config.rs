@@ -517,7 +517,8 @@ pub struct ExperimentalConfig {
     pub server_actions: Option<ServerActionsOrLegacyBool>,
     pub sri: Option<SubResourceIntegrity>,
     react_compiler: Option<ReactCompilerOptionsOrBoolean>,
-
+    #[serde(rename = "dynamicIO")]
+    pub dynamic_io: Option<bool>,
     // ---
     // UNSUPPORTED
     // ---
@@ -561,8 +562,6 @@ pub struct ExperimentalConfig {
     ppr: Option<ExperimentalPartialPrerendering>,
     taint: Option<bool>,
     react_owner_stack: Option<bool>,
-    #[serde(rename = "dynamicIO")]
-    dynamic_io: Option<bool>,
     proxy_timeout: Option<f64>,
     /// enables the minification of server code.
     server_minification: Option<bool>,
