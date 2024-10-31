@@ -22,10 +22,13 @@ import type { NextDevOptions } from '../cli/next-dev.js'
 import type { NextBuildOptions } from '../cli/next-build.js'
 
 if (
-  semver.lt(process.versions.node, process.env.__NEXT_REQUIRED_NODE_VERSION!)
+  !semver.satisfies(
+    process.versions.node,
+    process.env.__NEXT_REQUIRED_NODE_VERSION_RANGE!
+  )
 ) {
   console.error(
-    `You are using Node.js ${process.versions.node}. For Next.js, Node.js version >= v${process.env.__NEXT_REQUIRED_NODE_VERSION} is required.`
+    `You are using Node.js ${process.versions.node}. For Next.js, Node.js version "${process.env.__NEXT_REQUIRED_NODE_VERSION_RANGE}" is required.`
   )
   process.exit(1)
 }
@@ -171,6 +174,11 @@ program
   .option(
     '-H, --hostname <hostname>',
     'Specify a hostname on which to start the application (default: 0.0.0.0).'
+  )
+  .option(
+    '--disable-source-maps',
+    "Don't start the Dev server with `--enable-source-maps`.",
+    false
   )
   .option(
     '--experimental-https',

@@ -11,7 +11,7 @@ Basic usage:
 
 <AppOnly>
 
-```tsx filename="/app/ui/search.js" switcher
+```tsx filename="/app/ui/search.tsx" switcher
 import Form from 'next/form'
 
 export default function Page() {
@@ -368,8 +368,12 @@ Then, in the new page, you can fetch data using the `params` prop:
 ```tsx filename="/app/posts/[id]/page.tsx" switcher
 import { getPost } from '@/posts/data'
 
-export default async function PostPage({ params }: { params: { id: string } }) {
-  const data = await getPost(params.id)
+export default async function PostPage({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const data = await getPost((await params).id)
 
   return (
     <div>
@@ -384,7 +388,7 @@ export default async function PostPage({ params }: { params: { id: string } }) {
 import { getPost } from '@/posts/data'
 
 export default async function PostPage({ params }) {
-  const data = await getPost(params.id)
+  const data = await getPost((await params).id)
 
   return (
     <div>

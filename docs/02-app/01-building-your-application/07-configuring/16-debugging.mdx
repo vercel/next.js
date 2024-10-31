@@ -106,6 +106,8 @@ To debug server-side Next.js code with browser DevTools, you need to pass the [`
 NODE_OPTIONS='--inspect' next dev
 ```
 
+> **Good to know**: Use `NODE_OPTIONS='--inspect=0.0.0.0'` to allow remote debugging access outside localhost, such as when running the app in a Docker container.
+
 If you're using `npm run dev` or `yarn dev` then you should update the `dev` script on your `package.json`:
 
 ```json filename="package.json"

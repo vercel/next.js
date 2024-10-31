@@ -98,7 +98,9 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
                     }
                     .cell(),
                     ResolveOptionsContext {
-                        emulate_environment: Some(compile_time_info.environment().resolve().await?),
+                        emulate_environment: Some(
+                            compile_time_info.environment().to_resolved().await?,
+                        ),
                         ..Default::default()
                     }
                     .cell(),
