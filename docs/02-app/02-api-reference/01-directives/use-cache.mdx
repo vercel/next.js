@@ -185,7 +185,7 @@ export async function getData() {
 
 ### Revalidating
 
-By default, Next.js sets a **[revalidation period](/docs/app/building-your-application/data-fetching/fetching#revalidating-cached-data) of 15 minutes** when you use the `use cache` directive. Next.js sets a with a near-infinite expiration duration, meaning it's suitable for content that doesn't need frequent updates.
+By default, Next.js sets a **[revalidation period](/docs/app/building-your-application/data-fetching/fetching#revalidating-cached-data) of 15 minutes** when you use the `use cache` directive. Next.js sets a near-infinite expiration duration, meaning it's suitable for content that doesn't need frequent updates.
 
 While this revalidation period may be useful for content you don't expect to change often, you can use the `cacheLife` and `cacheTag` APIs to configure the cache behavior:
 
