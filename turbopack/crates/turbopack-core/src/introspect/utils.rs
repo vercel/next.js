@@ -87,7 +87,7 @@ pub async fn children_from_module_references(
             .await?
             .iter()
         {
-            children.insert((key, IntrospectableModule::new(module)));
+            children.insert((key, IntrospectableModule::new(*module)));
         }
         for &output_asset in reference
             .resolve_reference()
