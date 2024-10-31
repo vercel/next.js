@@ -1,0 +1,12 @@
+{
+    "default": "dist/index.js",
+    "targets": {
+        "default": {
+            "isLibrary": true,
+            "context": "node"
+        }
+    },
+    "dependencies": {
+        "lodash": "*"
+    }
+}

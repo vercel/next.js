@@ -1,0 +1,5 @@
+{
+  "name": "default-export-class-rename",
+  "private": true,
+  "browserslist": ["last 1 Chrome version"]
+}

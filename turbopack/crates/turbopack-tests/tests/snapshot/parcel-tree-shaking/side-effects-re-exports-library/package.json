@@ -1,0 +1,4 @@
+{
+    "main": "build.js",
+    "sideEffects": false
+}

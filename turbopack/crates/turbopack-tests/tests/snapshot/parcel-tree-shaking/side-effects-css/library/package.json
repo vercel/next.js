@@ -1,0 +1,6 @@
+{
+	"sideEffects": [
+		"b1.css",
+		"b2.css"
+	]
+}

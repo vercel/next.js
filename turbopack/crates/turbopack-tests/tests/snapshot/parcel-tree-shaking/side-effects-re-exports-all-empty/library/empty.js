@@ -1,0 +1,1 @@
+// empty: thank you, Typescript!

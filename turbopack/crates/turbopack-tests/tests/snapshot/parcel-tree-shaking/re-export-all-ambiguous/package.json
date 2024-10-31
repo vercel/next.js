@@ -1,0 +1,10 @@
+{
+	"sideEffects": [
+		"entry.js",
+		"index.js",
+		"lib-a.js",
+		"lib-b.js",
+		"lib-c2.js",
+		"lib.js"
+	]
+}

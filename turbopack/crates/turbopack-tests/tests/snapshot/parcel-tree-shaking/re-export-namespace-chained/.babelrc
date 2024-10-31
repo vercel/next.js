@@ -1,0 +1,3 @@
+{
+  "plugins": ["@babel/syntax-export-namespace-from"]
+}
