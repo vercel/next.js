@@ -199,8 +199,8 @@ impl Module for SideEffectsModule {
 
         for (i, side_effect) in self.side_effects.await?.iter().enumerate() {
             ident.add_asset(
-                Vc::cell(RcStr::from(format!("side effect {}", i))),
-                side_effect.ident(),
+                ResolvedVc::cell(RcStr::from(format!("side effect {}", i))),
+                side_effect.ident().to_resolved().await?,
             );
         }
 
