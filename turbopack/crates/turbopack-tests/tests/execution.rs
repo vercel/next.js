@@ -341,7 +341,9 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
             Vc::upcast(test_source),
             Value::new(ReferenceType::Internal(InnerAssets::empty())),
         )
-        .module();
+        .module()
+        .to_resolved()
+        .await?;
 
     let jest_entry_asset = asset_context
         .process(

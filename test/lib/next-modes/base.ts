@@ -174,7 +174,8 @@ export class NextInstance {
           // TODO: fix the TS error with the TS 5.6
           // x-ref: https://github.com/vercel/next.js/actions/runs/10777104696/job/29887663970?pr=69784
           typescript: '5.5.4',
-          '@types/node': 'latest',
+          // TODO: fix the TS error with 22.8.5
+          '@types/node': '22.8.4',
           ...this.dependencies,
           ...this.packageJson?.dependencies,
         }

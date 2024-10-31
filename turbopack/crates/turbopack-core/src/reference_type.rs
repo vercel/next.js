@@ -10,7 +10,7 @@ use crate::{module::Module, resolve::ModulePart};
 ///
 /// Name is usually in UPPER_CASE to make it clear that this is an inner asset.
 #[turbo_tasks::value(transparent)]
-pub struct InnerAssets(FxIndexMap<RcStr, Vc<Box<dyn Module>>>);
+pub struct InnerAssets(FxIndexMap<RcStr, ResolvedVc<Box<dyn Module>>>);
 
 #[turbo_tasks::value_impl]
 impl InnerAssets {

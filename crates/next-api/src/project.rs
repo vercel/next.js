@@ -1278,10 +1278,10 @@ impl Project {
     #[turbo_tasks::function]
     pub async fn client_main_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
         let pages_project = self.pages_project();
-        let mut modules = vec![pages_project.client_main_module()];
+        let mut modules = vec![pages_project.client_main_module().to_resolved().await?];
 
         if let Some(app_project) = *self.app_project().await? {
-            modules.push(app_project.client_main_module());
+            modules.push(app_project.client_main_module().to_resolved().await?);
         }
 
         Ok(Vc::cell(modules))
