@@ -6,7 +6,7 @@ use next_core::{
     next_server::{get_server_runtime_entries, ServerContextType},
 };
 use tracing::Instrument;
-use turbo_tasks::{Completion, RcStr, Value, Vc};
+use turbo_tasks::{Completion, RcStr, ResolvedVc, Value, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
@@ -65,27 +65,31 @@ impl InstrumentationEndpoint {
     }
 
     #[turbo_tasks::function]
-    fn core_modules(&self) -> Vc<InstrumentationCoreModules> {
+    async fn core_modules(&self) -> Result<Vc<InstrumentationCoreModules>> {
         let userland_module = self
             .asset_context
             .process(
                 self.source,
                 Value::new(ReferenceType::Entry(EntryReferenceSubType::Instrumentation)),
             )
-            .module();
+            .module()
+            .to_resolved()
+            .await?;
 
         let edge_entry_module = wrap_edge_entry(
             self.asset_context,
             self.project.project_path(),
-            userland_module,
+            *userland_module,
             "instrumentation".into(),
-        );
+        )
+        .to_resolved()
+        .await?;
 
-        InstrumentationCoreModules {
+        Ok(InstrumentationCoreModules {
             userland_module,
             edge_entry_module,
         }
-        .cell()
+        .cell())
     }
 
     #[turbo_tasks::function]
@@ -107,15 +111,15 @@ impl InstrumentationEndpoint {
         .clone_value();
 
         let Some(module) =
-            Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkPlaceable>>(module).await?
+            ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkPlaceable>>(module).await?
         else {
             bail!("Entry module must be evaluatable");
         };
 
-        let Some(evaluatable) = Vc::try_resolve_sidecast(module).await? else {
+        let Some(evaluatable) = ResolvedVc::try_sidecast(module).await? else {
             bail!("Entry module must be evaluatable");
         };
-        evaluatable_assets.push(evaluatable);
+        evaluatable_assets.push(*evaluatable);
 
         let edge_chunking_context = this.project.edge_chunking_context(false);
 
@@ -136,7 +140,7 @@ impl InstrumentationEndpoint {
 
         let userland_module = self.core_modules().await?.userland_module;
 
-        let Some(module) = Vc::try_resolve_downcast(userland_module).await? else {
+        let Some(module) = ResolvedVc::try_downcast(userland_module).await? else {
             bail!("Entry module must be evaluatable");
         };
 
@@ -145,7 +149,7 @@ impl InstrumentationEndpoint {
                 this.project
                     .node_root()
                     .join("server/instrumentation.js".into()),
-                module,
+                *module,
                 get_server_runtime_entries(
                     Value::new(ServerContextType::Instrumentation {
                         app_dir: this.app_dir,
@@ -211,8 +215,8 @@ impl InstrumentationEndpoint {
 
 #[turbo_tasks::value]
 struct InstrumentationCoreModules {
-    pub userland_module: Vc<Box<dyn Module>>,
-    pub edge_entry_module: Vc<Box<dyn Module>>,
+    pub userland_module: ResolvedVc<Box<dyn Module>>,
+    pub edge_entry_module: ResolvedVc<Box<dyn Module>>,
 }
 
 #[turbo_tasks::value_impl]

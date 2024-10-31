@@ -28,7 +28,8 @@ use next_core::{
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_tasks::{
-    trace::TraceRawVcs, Completion, FxIndexMap, RcStr, TaskInput, TryJoinIterExt, Value, Vc,
+    trace::TraceRawVcs, Completion, FxIndexMap, RcStr, ResolvedVc, TaskInput, TryJoinIterExt,
+    Value, Vc,
 };
 use turbo_tasks_fs::{
     self, File, FileContent, FileSystem, FileSystemPath, FileSystemPathOption, VirtualFileSystem,
@@ -583,7 +584,7 @@ impl PagesProject {
         .await?
         .context("expected Next.js client runtime to resolve to a module")?;
 
-        Ok(client_main_module)
+        Ok(*client_main_module)
     }
 }
 
@@ -787,7 +788,7 @@ impl PageEndpoint {
         };
 
         Ok(InternalSsrChunkModule {
-            ssr_module,
+            ssr_module: ssr_module.to_resolved().await?,
             runtime: config.runtime,
         }
         .cell())
@@ -812,7 +813,7 @@ impl PageEndpoint {
             } = *self.internal_ssr_chunk_module().await?;
 
             let dynamic_import_modules = collect_next_dynamic_imports(
-                vec![Vc::upcast(ssr_module)],
+                vec![*ResolvedVc::upcast(ssr_module)],
                 this.pages_project.client_module_context(),
                 VisitedDynamicImportModules::empty(),
             )
@@ -823,7 +824,7 @@ impl PageEndpoint {
             let is_edge = matches!(runtime, NextRuntime::Edge);
             if is_edge {
                 let mut evaluatable_assets = edge_runtime_entries.await?.clone_value();
-                let evaluatable = Vc::try_resolve_sidecast(ssr_module)
+                let evaluatable = *ResolvedVc::try_sidecast(ssr_module)
                     .await?
                     .context("could not process page loader entry module")?;
                 evaluatable_assets.push(evaluatable);
@@ -860,7 +861,7 @@ impl PageEndpoint {
                 } = *chunking_context
                     .entry_chunk_group(
                         ssr_entry_chunk_path,
-                        ssr_module,
+                        *ssr_module,
                         runtime_entries,
                         OutputAssets::empty(),
                         Value::new(AvailabilityInfo::Root),
@@ -1211,14 +1212,8 @@ impl PageEndpoint {
 
 #[turbo_tasks::value]
 pub struct InternalSsrChunkModule {
-    pub ssr_module: Vc<Box<dyn Module>>,
+    pub ssr_module: ResolvedVc<Box<dyn Module>>,
     pub runtime: NextRuntime,
-}
-
-#[turbo_tasks::value]
-pub struct ClientChunksModules {
-    pub client_module: Vc<Box<dyn Module>>,
-    pub client_main_module: Vc<Box<dyn Module>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -1314,7 +1309,7 @@ impl Endpoint for PageEndpoint {
         modules.push(ssr_chunk_module.ssr_module);
 
         if let PageEndpointType::Html = this.ty {
-            modules.push(self.client_module());
+            modules.push(self.client_module().to_resolved().await?);
         }
 
         Ok(Vc::cell(modules))

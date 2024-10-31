@@ -62,7 +62,7 @@ impl UrlAssetReference {
     ) -> Result<Vc<ReferencedAsset>> {
         if let Some(module) = *self.resolve_reference().first_module().await? {
             if let Some(chunkable) =
-                Vc::try_resolve_downcast::<Box<dyn ChunkableModule>>(module).await?
+                ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(module).await?
             {
                 let chunk_item = chunkable.as_chunk_item(chunking_context);
                 if let Some(embeddable) =

@@ -7,7 +7,7 @@ use std::{
 
 use anyhow::{bail, Context, Result};
 use turbo_tasks::{
-    RcStr, ReadConsistency, TransientInstance, TryJoinIterExt, TurboTasks, Value, Vc,
+    RcStr, ReadConsistency, ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasks, Value, Vc,
 };
 use turbo_tasks_fs::FileSystem;
 use turbo_tasks_memory::MemoryBackend;
@@ -262,7 +262,7 @@ async fn build_internal(
         .map(|entry_module| async move {
             Ok(
                 if let Some(ecmascript) =
-                    Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(entry_module).await?
+                    ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(entry_module).await?
                 {
                     Vc::cell(vec![
                         Vc::try_resolve_downcast_type::<NodeJsChunkingContext>(chunking_context)
@@ -281,8 +281,8 @@ async fn build_internal(
                                             .into(),
                                     )
                                     .with_extension("entry.js".into()),
-                                Vc::upcast(ecmascript),
-                                EvaluatableAssets::one(Vc::upcast(ecmascript)),
+                                *ResolvedVc::upcast(ecmascript),
+                                EvaluatableAssets::one(*ResolvedVc::upcast(ecmascript)),
                                 OutputAssets::empty(),
                                 Value::new(AvailabilityInfo::Root),
                             )
@@ -290,9 +290,9 @@ async fn build_internal(
                             .asset,
                     ])
                 } else if let Some(chunkable) =
-                    Vc::try_resolve_sidecast::<Box<dyn ChunkableModule>>(entry_module).await?
+                    ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(entry_module).await?
                 {
-                    chunking_context.root_chunk_group_assets(chunkable)
+                    chunking_context.root_chunk_group_assets(*chunkable)
                 } else {
                     // TODO convert into a serve-able asset
                     bail!(

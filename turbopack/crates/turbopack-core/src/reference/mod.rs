@@ -3,7 +3,7 @@ use std::collections::{HashSet, VecDeque};
 use anyhow::Result;
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
-    FxIndexSet, RcStr, TryJoinIterExt, ValueToString, Vc,
+    FxIndexSet, RcStr, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
 };
 
 use crate::{
@@ -162,7 +162,7 @@ pub async fn referenced_modules_and_affecting_sources(
     }
     let mut resolved_modules = FxIndexSet::default();
     for module in modules {
-        resolved_modules.insert(module.resolve().await?);
+        resolved_modules.insert(module.to_resolved().await?);
     }
     Ok(Vc::cell(resolved_modules.into_iter().collect()))
 }
@@ -201,10 +201,12 @@ pub async fn primary_referenced_modules(module: Vc<Box<dyn Module>>) -> Result<V
 /// referenced [Module]s. This basically gives all [Module]s in a subgraph
 /// starting from the passed [Module].
 #[turbo_tasks::function]
-pub async fn all_modules_and_affecting_sources(asset: Vc<Box<dyn Module>>) -> Result<Vc<Modules>> {
+pub async fn all_modules_and_affecting_sources(
+    asset: ResolvedVc<Box<dyn Module>>,
+) -> Result<Vc<Modules>> {
     // TODO need to track import path here
     let mut queue = VecDeque::with_capacity(32);
-    queue.push_back((asset, referenced_modules_and_affecting_sources(asset)));
+    queue.push_back((asset, referenced_modules_and_affecting_sources(*asset)));
     let mut assets = HashSet::new();
     assets.insert(asset);
     while let Some((parent, references)) = queue.pop_front() {
@@ -213,7 +215,7 @@ pub async fn all_modules_and_affecting_sources(asset: Vc<Box<dyn Module>>) -> Re
             .await?;
         for asset in references.await?.iter() {
             if assets.insert(*asset) {
-                queue.push_back((*asset, referenced_modules_and_affecting_sources(*asset)));
+                queue.push_back((*asset, referenced_modules_and_affecting_sources(**asset)));
             }
         }
     }

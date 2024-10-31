@@ -54,7 +54,9 @@ pub async fn create_page_loader_entry_module(
             entry_asset,
             Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)),
         )
-        .module();
+        .module()
+        .to_resolved()
+        .await?;
 
     let module = client_context
         .process(
