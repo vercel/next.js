@@ -19,6 +19,7 @@ import {
 } from '../route-module'
 import { renderToHTMLImpl, renderToHTML } from '../../render'
 import * as vendoredContexts from './vendored/contexts/entrypoints'
+import type { PagesRenderResultMetadata } from '../../render-result'
 
 /**
  * The PagesModule is the type of the module exported by the bundled pages
@@ -121,7 +122,7 @@ export class PagesRouteModule extends RouteModule<
     req: IncomingMessage,
     res: ServerResponse,
     context: PagesRouteHandlerContext
-  ): Promise<RenderResult> {
+  ): Promise<RenderResult<PagesRenderResultMetadata>> {
     return renderToHTMLImpl(
       req,
       res,

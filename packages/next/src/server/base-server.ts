@@ -2702,24 +2702,26 @@ export default abstract class Server<
 
       const { metadata } = result
 
-      const {
-        headers = {},
-        // Add any fetch tags that were on the page to the response headers.
-        fetchTags: cacheTags,
-      } = metadata
+      if (metadata.type === 'app') {
+        const {
+          headers = {},
+          // Add any fetch tags that were on the page to the response headers.
+          fetchTags: cacheTags,
+        } = metadata
 
-      if (cacheTags) {
-        headers[NEXT_CACHE_TAGS_HEADER] = cacheTags
+        if (cacheTags) {
+          headers[NEXT_CACHE_TAGS_HEADER] = cacheTags
+        }
+
+        // Pull any fetch metrics from the render onto the request.
+        ;(req as any).fetchMetrics = metadata.fetchMetrics
       }
-
-      // Pull any fetch metrics from the render onto the request.
-      ;(req as any).fetchMetrics = metadata.fetchMetrics
 
       // we don't throw static to dynamic errors in dev as isSSG
       // is a best guess in dev since we don't have the prerender pass
       // to know whether the path is actually static or not
       if (
-        isAppPath &&
+        metadata.type === 'app' &&
         isSSG &&
         metadata.revalidate === 0 &&
         !this.renderOpts.dev &&
@@ -2746,26 +2748,25 @@ export default abstract class Server<
 
       // Based on the metadata, we can determine what kind of cache result we
       // should return.
+      if (metadata.type === 'pages') {
+        if (metadata.isNotFound) {
+          return {
+            value: null,
+            revalidate: metadata.revalidate,
+            isFallback: false,
+          } satisfies ResponseCacheEntry
+        }
 
-      // Handle `isNotFound`.
-      if ('isNotFound' in metadata && metadata.isNotFound) {
-        return {
-          value: null,
-          revalidate: metadata.revalidate,
-          isFallback: false,
-        } satisfies ResponseCacheEntry
-      }
-
-      // Handle `isRedirect`.
-      if (metadata.isRedirect) {
-        return {
-          value: {
-            kind: CachedRouteKind.REDIRECT,
-            props: metadata.pageData ?? metadata.flightData,
-          } satisfies CachedRedirectValue,
-          revalidate: metadata.revalidate,
-          isFallback: false,
-        } satisfies ResponseCacheEntry
+        if (metadata.isRedirect) {
+          return {
+            value: {
+              kind: CachedRouteKind.REDIRECT,
+              props: metadata.pageData,
+            } satisfies CachedRedirectValue,
+            revalidate: metadata.revalidate,
+            isFallback: false,
+          } satisfies ResponseCacheEntry
+        }
       }
 
       // Handle `isNull`.
@@ -2774,12 +2775,12 @@ export default abstract class Server<
       }
 
       // We now have a valid HTML result that we can return to the user.
-      if (isAppPath) {
+      if (metadata.type === 'app') {
         return {
           value: {
             kind: CachedRouteKind.APP_PAGE,
             html: result,
-            headers,
+            headers: metadata.headers ?? {},
             rscData: metadata.flightData,
             postponed: metadata.postponed,
             status: res.statusCode,
@@ -2790,15 +2791,29 @@ export default abstract class Server<
         } satisfies ResponseCacheEntry
       }
 
+      if (metadata.type === 'pages') {
+        return {
+          value: {
+            kind: CachedRouteKind.PAGES,
+            html: result,
+            pageData: metadata.pageData,
+            headers: {},
+            status: undefined,
+          } satisfies CachedPageValue,
+          revalidate: metadata.revalidate,
+          isFallback: query.__nextFallback === 'true',
+        }
+      }
+
       return {
         value: {
           kind: CachedRouteKind.PAGES,
           html: result,
-          pageData: metadata.pageData ?? metadata.flightData,
-          headers,
-          status: isAppPath ? res.statusCode : undefined,
+          pageData: {},
+          headers: {},
+          status: undefined,
         } satisfies CachedPageValue,
-        revalidate: metadata.revalidate,
+        revalidate: 0,
         isFallback: query.__nextFallback === 'true',
       }
     }

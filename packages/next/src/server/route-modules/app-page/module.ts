@@ -14,6 +14,10 @@ import * as vendoredContexts from './vendored/contexts/entrypoints'
 import type { BaseNextRequest, BaseNextResponse } from '../../base-http'
 import type { ServerComponentsHmrCache } from '../../response-cache'
 import type { FallbackRouteParams } from '../../request/fallback-params'
+import type {
+  AppPageRenderResultMetadata,
+  StaticRenderResultMetadata,
+} from '../../render-result'
 
 let vendoredReactRSC
 let vendoredReactSSR
@@ -58,7 +62,10 @@ export class AppPageRouteModule extends RouteModule<
     req: BaseNextRequest,
     res: BaseNextResponse,
     context: AppPageRouteHandlerContext
-  ): Promise<RenderResult> {
+  ): Promise<
+    | RenderResult<AppPageRenderResultMetadata>
+    | RenderResult<StaticRenderResultMetadata>
+  > {
     return renderToHTMLOrFlight(
       req,
       res,

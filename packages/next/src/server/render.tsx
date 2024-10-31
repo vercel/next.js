@@ -407,11 +407,11 @@ export async function renderToHTMLImpl(
   query: NextParsedUrlQuery,
   renderOpts: Omit<RenderOpts, keyof RenderOptsExtra>,
   extra: RenderOptsExtra
-): Promise<RenderResult> {
+): Promise<RenderResult<PagesRenderResultMetadata>> {
   // Adds support for reading `cookies` in `getServerSideProps` when SSR.
   setLazyProp({ req: req as any }, 'cookies', getCookieParser(req.headers))
 
-  const metadata: PagesRenderResultMetadata = {}
+  const metadata: PagesRenderResultMetadata = { type: 'pages' }
 
   metadata.assetQueryString =
     (renderOpts.dev && renderOpts.assetQueryString) || ''
@@ -1567,7 +1567,7 @@ export type PagesRender = (
   pathname: string,
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts
-) => Promise<RenderResult>
+) => Promise<RenderResult<PagesRenderResultMetadata>>
 
 export const renderToHTML: PagesRender = (
   req,

@@ -14,6 +14,7 @@ import { isAbortError, pipeToNodeResponse } from './pipe-readable'
 type ContentTypeOption = string | undefined
 
 export type AppPageRenderResultMetadata = {
+  type: 'app'
   flightData?: Buffer
   revalidate?: Revalidate
   staticBailoutInfo?: {
@@ -37,6 +38,7 @@ export type AppPageRenderResultMetadata = {
 }
 
 export type PagesRenderResultMetadata = {
+  type: 'pages'
   pageData?: any
   revalidate?: Revalidate
   assetQueryString?: string
@@ -44,11 +46,14 @@ export type PagesRenderResultMetadata = {
   isRedirect?: boolean
 }
 
-export type StaticRenderResultMetadata = {}
+export type StaticRenderResultMetadata = {
+  type: 'static'
+}
 
-export type RenderResultMetadata = AppPageRenderResultMetadata &
-  PagesRenderResultMetadata &
-  StaticRenderResultMetadata
+export type RenderResultMetadata =
+  | AppPageRenderResultMetadata
+  | PagesRenderResultMetadata
+  | StaticRenderResultMetadata
 
 export type RenderResultResponse =
   | ReadableStream<Uint8Array>[]
@@ -95,7 +100,9 @@ export default class RenderResult<
    * @returns a new RenderResult instance
    */
   public static fromStatic(value: string | Buffer) {
-    return new RenderResult<StaticRenderResultMetadata>(value, { metadata: {} })
+    return new RenderResult<StaticRenderResultMetadata>(value, {
+      metadata: { type: 'static' },
+    })
   }
 
   private readonly waitUntil?: Promise<unknown>
@@ -108,10 +115,6 @@ export default class RenderResult<
     this.contentType = contentType
     this.metadata = metadata
     this.waitUntil = waitUntil
-  }
-
-  public assignMetadata(metadata: Metadata) {
-    Object.assign(this.metadata, metadata)
   }
 
   /**

@@ -29,6 +29,7 @@ import React, { type ErrorInfo, type JSX } from 'react'
 import RenderResult, {
   type AppPageRenderResultMetadata,
   type RenderResultOptions,
+  type StaticRenderResultMetadata,
 } from '../render-result'
 import {
   chainStreams,
@@ -513,7 +514,7 @@ async function generateDynamicFlightRenderResult(
     preloadCallbacks?: PreloadCallbacks
     temporaryReferences?: WeakMap<any, string>
   }
-): Promise<RenderResult> {
+): Promise<RenderResult<AppPageRenderResultMetadata>> {
   const renderOpts = ctx.renderOpts
 
   function onFlightDataRenderError(err: DigestedError) {
@@ -566,6 +567,7 @@ async function generateDynamicFlightRenderResult(
   )
 
   return new FlightRenderResult(flightReadableStream, {
+    type: 'app',
     fetchMetrics: ctx.workStore.fetchMetrics,
   })
 }
@@ -586,7 +588,7 @@ async function warmupDevRender(
     componentTree?: CacheNodeSeedData
     preloadCallbacks?: PreloadCallbacks
   }
-): Promise<RenderResult> {
+): Promise<RenderResult<AppPageRenderResultMetadata>> {
   const renderOpts = ctx.renderOpts
   if (!renderOpts.dev) {
     throw new InvariantError(
@@ -629,6 +631,7 @@ async function warmupDevRender(
   // that calls into renderToHTML... expects a result. We should refactor this to
   // lift the warmup pathway outside of renderToHTML... but for now this suffices
   return new FlightRenderResult('', {
+    type: 'app',
     fetchMetrics: ctx.workStore.fetchMetrics,
   })
 }
@@ -965,7 +968,10 @@ async function renderToHTMLOrFlightImpl(
   parsedRequestHeaders: ParsedRequestHeaders,
   requestEndedState: { ended?: boolean },
   postponedState: PostponedState | null
-) {
+): Promise<
+  | RenderResult<AppPageRenderResultMetadata>
+  | RenderResult<StaticRenderResultMetadata>
+> {
   const isNotFoundPath = pagePath === '/404'
   if (isNotFoundPath) {
     res.statusCode = 404
@@ -1060,7 +1066,9 @@ async function renderToHTMLOrFlightImpl(
     })
   }
 
-  const metadata: AppPageRenderResultMetadata = {}
+  const metadata: AppPageRenderResultMetadata = {
+    type: 'app',
+  }
 
   const appUsingSizeAdjustment = !!nextFontManifest?.appUsingSizeAdjust
 
@@ -1205,7 +1213,7 @@ async function renderToHTMLOrFlightImpl(
       if (buildFailingError) throw buildFailingError
     }
 
-    const options: RenderResultOptions = {
+    const options: RenderResultOptions<AppPageRenderResultMetadata> = {
       metadata,
     }
     // If we have pending revalidates, wait until they are all resolved.
@@ -1332,7 +1340,9 @@ async function renderToHTMLOrFlightImpl(
           return new RenderResult(stream, { metadata })
         } else if (actionRequestResult.type === 'done') {
           if (actionRequestResult.result) {
-            actionRequestResult.result.assignMetadata(metadata)
+            if (actionRequestResult.result.metadata.type === 'app') {
+              Object.assign(actionRequestResult.result.metadata, metadata)
+            }
             return actionRequestResult.result
           } else if (actionRequestResult.formState) {
             formState = actionRequestResult.formState
@@ -1341,7 +1351,7 @@ async function renderToHTMLOrFlightImpl(
       }
     }
 
-    const options: RenderResultOptions = {
+    const options: RenderResultOptions<AppPageRenderResultMetadata> = {
       metadata,
     }
 
@@ -1384,7 +1394,10 @@ export type AppPageRender = (
   fallbackRouteParams: FallbackRouteParams | null,
   renderOpts: RenderOpts,
   serverComponentsHmrCache?: ServerComponentsHmrCache
-) => Promise<RenderResult<AppPageRenderResultMetadata>>
+) => Promise<
+  | RenderResult<AppPageRenderResultMetadata>
+  | RenderResult<StaticRenderResultMetadata>
+>
 
 export const renderToHTMLOrFlight: AppPageRender = (
   req,

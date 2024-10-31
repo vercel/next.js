@@ -136,158 +136,165 @@ export async function exportAppPage(
     await afterRunner.executeAfter()
 
     const { metadata } = result
-    const {
-      flightData,
-      revalidate = false,
-      postponed,
-      fetchTags,
-      fetchMetrics,
-      segmentFlightData,
-    } = metadata
 
-    // Ensure we don't postpone without having PPR enabled.
-    if (postponed && !renderOpts.experimental.isRoutePPREnabled) {
-      throw new Error('Invariant: page postponed without PPR being enabled')
-    }
+    if (metadata.type === 'app') {
+      const {
+        fetchMetrics,
+        revalidate = false,
+        postponed,
+        fetchTags,
+        flightData,
+        segmentFlightData,
+      } = metadata
 
-    if (revalidate === 0) {
-      if (isDynamicError) {
-        throw new Error(
-          `Page with dynamic = "error" encountered dynamic data method on ${path}.`
-        )
-      }
-      const { staticBailoutInfo = {} } = metadata
-
-      if (revalidate === 0 && debugOutput && staticBailoutInfo?.description) {
-        logDynamicUsageWarning({
-          path,
-          description: staticBailoutInfo.description,
-          stack: staticBailoutInfo.stack,
-        })
+      // Ensure we don't postpone without having PPR enabled.
+      if (postponed && !renderOpts.experimental.isRoutePPREnabled) {
+        throw new Error('Invariant: page postponed without PPR being enabled')
       }
 
-      return { revalidate: 0, fetchMetrics }
-    }
-
-    // If page data isn't available, it means that the page couldn't be rendered
-    // properly so long as we don't have unknown route params. When a route doesn't
-    // have unknown route params, there will not be any flight data.
-    if (
-      !flightData &&
-      (!fallbackRouteParams || fallbackRouteParams.size === 0)
-    ) {
-      throw new Error(`Invariant: failed to get page data for ${path}`)
-    }
-
-    let segmentPaths
-    if (flightData) {
-      // If PPR is enabled, we want to emit a prefetch rsc file for the page
-      // instead of the standard rsc. This is because the standard rsc will
-      // contain the dynamic data. We do this if any routes have PPR enabled so
-      // that the cache read/write is the same.
-      if (renderOpts.experimental.isRoutePPREnabled) {
-        // If PPR is enabled, we should emit the flight data as the prefetch
-        // payload.
-        // TODO: This will eventually be replaced by the per-segment prefetch
-        // output below.
-        await fileWriter(
-          ExportedAppPageFiles.PREFETCH_FLIGHT,
-          htmlFilepath.replace(/\.html$/, RSC_PREFETCH_SUFFIX),
-          flightData
-        )
-
-        if (segmentFlightData) {
-          // Emit the per-segment prefetch data. We emit them as separate files
-          // so that the cache handler has the option to treat each as a
-          // separate entry.
-          segmentPaths = []
-          const segmentsDir = htmlFilepath.replace(
-            /\.html$/,
-            RSC_SEGMENTS_DIR_SUFFIX
+      if (revalidate === 0) {
+        if (isDynamicError) {
+          throw new Error(
+            `Page with dynamic = "error" encountered dynamic data method on ${path}.`
           )
-          const tasks = []
-          for (const [segmentPath, buffer] of segmentFlightData.entries()) {
-            segmentPaths.push(segmentPath)
-            const segmentDataFilePath =
-              segmentPath === '/'
-                ? segmentsDir + '/_index' + RSC_SEGMENT_SUFFIX
-                : segmentsDir + segmentPath + RSC_SEGMENT_SUFFIX
-            tasks.push(
-              fileWriter(
-                ExportedAppPageFiles.PREFETCH_FLIGHT_SEGMENT,
-                segmentDataFilePath,
-                buffer
-              )
-            )
-          }
-          await Promise.all(tasks)
         }
-      } else {
-        // Writing the RSC payload to a file if we don't have PPR enabled.
-        await fileWriter(
-          ExportedAppPageFiles.FLIGHT,
-          htmlFilepath.replace(/\.html$/, RSC_SUFFIX),
-          flightData
-        )
+        const { staticBailoutInfo = {} } = metadata
+
+        if (revalidate === 0 && debugOutput && staticBailoutInfo?.description) {
+          logDynamicUsageWarning({
+            path,
+            description: staticBailoutInfo.description,
+            stack: staticBailoutInfo.stack,
+          })
+        }
+
+        return { revalidate: 0, fetchMetrics }
       }
-    }
 
-    const headers: OutgoingHttpHeaders = { ...metadata.headers }
+      // If page data isn't available, it means that the page couldn't be rendered
+      // properly so long as we don't have unknown route params. When a route doesn't
+      // have unknown route params, there will not be any flight data.
+      if (
+        !flightData &&
+        (!fallbackRouteParams || fallbackRouteParams.size === 0)
+      ) {
+        throw new Error(`Invariant: failed to get page data for ${path}`)
+      }
 
-    // If we're writing the file to disk, we know it's a prerender.
-    headers[NEXT_IS_PRERENDER_HEADER] = '1'
+      let segmentPaths
+      if (flightData) {
+        // If PPR is enabled, we want to emit a prefetch rsc file for the page
+        // instead of the standard rsc. This is because the standard rsc will
+        // contain the dynamic data. We do this if any routes have PPR enabled so
+        // that the cache read/write is the same.
+        if (renderOpts.experimental.isRoutePPREnabled) {
+          // If PPR is enabled, we should emit the flight data as the prefetch
+          // payload.
+          // TODO: This will eventually be replaced by the per-segment prefetch
+          // output below.
+          await fileWriter(
+            ExportedAppPageFiles.PREFETCH_FLIGHT,
+            htmlFilepath.replace(/\.html$/, RSC_PREFETCH_SUFFIX),
+            flightData
+          )
 
-    if (fetchTags) {
-      headers[NEXT_CACHE_TAGS_HEADER] = fetchTags
-    }
+          if (segmentFlightData) {
+            // Emit the per-segment prefetch data. We emit them as separate files
+            // so that the cache handler has the option to treat each as a
+            // separate entry.
+            segmentPaths = []
+            const segmentsDir = htmlFilepath.replace(
+              /\.html$/,
+              RSC_SEGMENTS_DIR_SUFFIX
+            )
+            const tasks = []
+            for (const [segmentPath, buffer] of segmentFlightData.entries()) {
+              segmentPaths.push(segmentPath)
+              const segmentDataFilePath =
+                segmentPath === '/'
+                  ? segmentsDir + '/_index' + RSC_SEGMENT_SUFFIX
+                  : segmentsDir + segmentPath + RSC_SEGMENT_SUFFIX
+              tasks.push(
+                fileWriter(
+                  ExportedAppPageFiles.PREFETCH_FLIGHT_SEGMENT,
+                  segmentDataFilePath,
+                  buffer
+                )
+              )
+            }
+            await Promise.all(tasks)
+          }
+        } else {
+          // Writing the RSC payload to a file if we don't have PPR enabled.
+          await fileWriter(
+            ExportedAppPageFiles.FLIGHT,
+            htmlFilepath.replace(/\.html$/, RSC_SUFFIX),
+            flightData
+          )
+        }
+      }
 
-    // Writing static HTML to a file.
-    await fileWriter(
-      ExportedAppPageFiles.HTML,
-      htmlFilepath,
-      html ?? '',
-      'utf8'
-    )
+      const headers: OutgoingHttpHeaders = { ...metadata.headers }
 
-    const isParallelRoute = /\/@\w+/.test(page)
-    const isNonSuccessfulStatusCode = res.statusCode > 300
+      // If we're writing the file to disk, we know it's a prerender.
+      headers[NEXT_IS_PRERENDER_HEADER] = '1'
 
-    // When PPR is enabled, we don't always send 200 for routes that have been
-    // pregenerated, so we should grab the status code from the mocked
-    // response.
-    let status: number | undefined = renderOpts.experimental.isRoutePPREnabled
-      ? res.statusCode
-      : undefined
+      if (fetchTags) {
+        headers[NEXT_CACHE_TAGS_HEADER] = fetchTags
+      }
 
-    if (isDefaultNotFound) {
-      // Override the default /_not-found page status code to 404
-      status = 404
-    } else if (isNonSuccessfulStatusCode && !isParallelRoute) {
-      // If it's parallel route the status from mock response is 404
-      status = res.statusCode
-    }
+      const isParallelRoute = /\/@\w+/.test(page)
+      const isNonSuccessfulStatusCode = res.statusCode > 300
 
-    // Writing the request metadata to a file.
-    const meta: RouteMetadata = {
-      status,
-      headers,
-      postponed,
-      segmentPaths,
-    }
+      // When PPR is enabled, we don't always send 200 for routes that have been
+      // pregenerated, so we should grab the status code from the mocked
+      // response.
+      let status: number | undefined = renderOpts.experimental.isRoutePPREnabled
+        ? res.statusCode
+        : undefined
 
-    await fileWriter(
-      ExportedAppPageFiles.META,
-      htmlFilepath.replace(/\.html$/, NEXT_META_SUFFIX),
-      JSON.stringify(meta, null, 2)
-    )
+      if (isDefaultNotFound) {
+        // Override the default /_not-found page status code to 404
+        status = 404
+      } else if (isNonSuccessfulStatusCode && !isParallelRoute) {
+        // If it's parallel route the status from mock response is 404
+        status = res.statusCode
+      }
 
-    return {
-      // Only include the metadata if the environment has next support.
-      metadata: hasNextSupport ? meta : undefined,
-      hasEmptyPrelude: Boolean(postponed) && html === '',
-      hasPostponed: Boolean(postponed),
-      revalidate,
-      fetchMetrics,
+      // Writing the request metadata to a file.
+      const meta: RouteMetadata = {
+        status,
+        headers,
+        postponed,
+        segmentPaths,
+      }
+
+      await fileWriter(
+        ExportedAppPageFiles.META,
+        htmlFilepath.replace(/\.html$/, NEXT_META_SUFFIX),
+        JSON.stringify(meta, null, 2)
+      )
+
+      // Writing static HTML to a file.
+      await fileWriter(ExportedAppPageFiles.HTML, htmlFilepath, html, 'utf8')
+
+      return {
+        // Only include the metadata if the environment has next support.
+        metadata: hasNextSupport ? meta : undefined,
+        hasEmptyPrelude: Boolean(postponed) && html === '',
+        hasPostponed: Boolean(postponed),
+        revalidate,
+        fetchMetrics,
+      }
+    } else {
+      // Writing static HTML to a file.
+      await fileWriter(ExportedAppPageFiles.HTML, htmlFilepath, html, 'utf8')
+
+      return {
+        hasEmptyPrelude: false,
+        hasPostponed: false,
+        revalidate: false,
+      }
     }
   } catch (err) {
     if (!isDynamicUsageError(err)) {

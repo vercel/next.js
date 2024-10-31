@@ -18,7 +18,10 @@ import {
   isRedirectError,
   type RedirectType,
 } from '../../client/components/redirect'
-import RenderResult from '../render-result'
+import RenderResult, {
+  type AppPageRenderResultMetadata,
+  type StaticRenderResultMetadata,
+} from '../render-result'
 import type { WorkStore } from '../app-render/work-async-storage.external'
 import { FlightRenderResult } from './flight-render-result'
 import {
@@ -434,7 +437,10 @@ export async function handleAction({
     }
   | {
       type: 'done'
-      result: RenderResult | undefined
+      result:
+        | RenderResult<AppPageRenderResultMetadata>
+        | RenderResult<StaticRenderResultMetadata>
+        | undefined
       formState?: any
     }
 > {
@@ -583,7 +589,7 @@ export async function handleAction({
 
   const { actionAsyncStorage } = ComponentMod
 
-  let actionResult: RenderResult | undefined
+  let actionResult: RenderResult<AppPageRenderResultMetadata> | undefined
   let formState: any | undefined
   let actionModId: string | undefined
   const actionWasForwarded = Boolean(req.headers['x-action-forwarded'])

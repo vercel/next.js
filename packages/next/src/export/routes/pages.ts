@@ -4,7 +4,10 @@ import type { LoadComponentsReturnType } from '../../server/load-components'
 import type { AmpValidation } from '../types'
 import type { NextParsedUrlQuery } from '../../server/request-meta'
 
-import RenderResult from '../../server/render-result'
+import RenderResult, {
+  type PagesRenderResultMetadata,
+  type StaticRenderResultMetadata,
+} from '../../server/render-result'
 import { join } from 'path'
 import type {
   MockedRequest,
@@ -81,7 +84,10 @@ export async function exportPagesPage(
     htmlFilename += '.html'
   }
 
-  let renderResult: RenderResult | undefined
+  let renderResult:
+    | RenderResult<PagesRenderResultMetadata>
+    | RenderResult<StaticRenderResultMetadata>
+    | undefined
 
   if (typeof components.Component === 'string') {
     renderResult = RenderResult.fromStatic(components.Component)
@@ -113,7 +119,10 @@ export async function exportPagesPage(
     }
   }
 
-  const ssgNotFound = renderResult?.metadata.isNotFound
+  const ssgNotFound =
+    renderResult &&
+    'isNotFound' in renderResult.metadata &&
+    renderResult.metadata.isNotFound
 
   const ampValidations: AmpValidation[] = []
 
@@ -141,7 +150,7 @@ export async function exportPagesPage(
   const html =
     renderResult && !renderResult.isNull ? renderResult.toUnchunkedString() : ''
 
-  let ampRenderResult: RenderResult | undefined
+  let ampRenderResult: RenderResult<PagesRenderResultMetadata> | undefined
 
   if (inAmpMode && !renderOpts.ampSkipValidation) {
     if (!ssgNotFound) {
@@ -185,8 +194,11 @@ export async function exportPagesPage(
     }
   }
 
-  const metadata = renderResult?.metadata || ampRenderResult?.metadata || {}
-  if (metadata.pageData) {
+  const metadata:
+    | StaticRenderResultMetadata
+    | PagesRenderResultMetadata
+    | undefined = renderResult?.metadata || ampRenderResult?.metadata
+  if (metadata && 'pageData' in metadata && metadata.pageData) {
     const dataFile = join(
       pagesDataDir,
       htmlFilename.replace(/\.html$/, NEXT_DATA_SUFFIX)
@@ -216,7 +228,10 @@ export async function exportPagesPage(
 
   return {
     ampValidations,
-    revalidate: metadata.revalidate ?? false,
+    revalidate:
+      metadata && 'revalidate' in metadata
+        ? metadata.revalidate ?? false
+        : false,
     ssgNotFound,
   }
 }
