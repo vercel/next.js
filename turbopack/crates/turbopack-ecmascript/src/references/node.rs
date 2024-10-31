@@ -113,7 +113,7 @@ async fn resolve_reference_from_dir(
             .await?
             .into_iter(),
         ),
-        (None, None) => return Ok(ModuleResolveResult::unresolveable().cell()),
+        (None, None) => return Ok(ModuleResolveResult::unresolvable().cell()),
     };
     let mut affecting_sources = Vec::new();
     let mut results = Vec::new();
@@ -122,11 +122,11 @@ async fn resolve_reference_from_dir(
             PatternMatch::File(matched_path, file) => {
                 let realpath = file.realpath_with_links().await?;
                 for &symlink in &realpath.symlinks {
-                    affecting_sources.push(Vc::upcast(FileSource::new(symlink)));
+                    affecting_sources.push(Vc::upcast(FileSource::new(*symlink)));
                 }
                 results.push((
                     RequestKey::new(matched_path.clone()),
-                    Vc::upcast(RawModule::new(Vc::upcast(FileSource::new(realpath.path)))),
+                    Vc::upcast(RawModule::new(Vc::upcast(FileSource::new(*realpath.path)))),
                 ));
             }
             PatternMatch::Directory(..) => {}

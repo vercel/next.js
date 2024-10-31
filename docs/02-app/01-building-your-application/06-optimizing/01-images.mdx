@@ -89,6 +89,21 @@ export default function Page() {
 
 > **Warning:** Dynamic `await import()` or `require()` are _not_ supported. The `import` must be static so it can be analyzed at build time.
 
+You can optionally configure `localPatterns` in your `next.config.js` file in order to allow specific images and block all others.
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    localPatterns: [
+      {
+        pathname: '/assets/images/**',
+        search: '',
+      },
+    ],
+  },
+}
+```
+
 ### Remote Images
 
 To use a remote image, the `src` property should be a URL string.

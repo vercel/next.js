@@ -1,39 +1,27 @@
-import fs from 'fs'
-import path from 'path'
+import findUp from 'find-up'
 import execa from 'execa'
+import { basename } from 'node:path'
 
 export type PackageManager = 'npm' | 'pnpm' | 'yarn' | 'bun'
 
 export function getPkgManager(baseDir: string): PackageManager {
   try {
-    for (const { lockFile, packageManager } of [
-      { lockFile: 'yarn.lock', packageManager: 'yarn' },
-      { lockFile: 'pnpm-lock.yaml', packageManager: 'pnpm' },
-      { lockFile: 'package-lock.json', packageManager: 'npm' },
-      { lockFile: 'bun.lockb', packageManager: 'bun' },
-    ]) {
-      if (fs.existsSync(path.join(baseDir, lockFile))) {
-        return packageManager as PackageManager
-      }
-    }
-    const userAgent = process.env.npm_config_user_agent
-    if (userAgent) {
-      if (userAgent.startsWith('yarn')) {
-        return 'yarn'
-      } else if (userAgent.startsWith('pnpm')) {
-        return 'pnpm'
-      }
-    }
-    try {
-      execa.sync('yarn --version', { stdio: 'ignore' })
-      return 'yarn'
-    } catch {
-      try {
-        execa.sync('pnpm --version', { stdio: 'ignore' })
-        return 'pnpm'
-      } catch {
-        execa.sync('bun --version', { stdio: 'ignore' })
-        return 'bun'
+    const lockFile = findUp.sync(
+      ['package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'bun.lockb'],
+      { cwd: baseDir }
+    )
+    if (lockFile) {
+      switch (basename(lockFile)) {
+        case 'package-lock.json':
+          return 'npm'
+        case 'yarn.lock':
+          return 'yarn'
+        case 'pnpm-lock.yaml':
+          return 'pnpm'
+        case 'bun.lockb':
+          return 'bun'
+        default:
+          return 'npm'
       }
     }
   } catch {
@@ -53,26 +41,96 @@ export function uninstallPackage(
     command = 'remove'
   }
 
-  execa.sync(pkgManager, [command, packageToUninstall], { stdio: 'inherit' })
+  try {
+    execa.sync(pkgManager, [command, packageToUninstall], {
+      stdio: 'inherit',
+      shell: true,
+    })
+  } catch (error) {
+    throw new Error(
+      `Failed to uninstall "${packageToUninstall}". Please uninstall it manually.`,
+      { cause: error }
+    )
+  }
 }
 
-export function installPackage(
-  packageToInstall: string | string[],
-  pkgManager?: PackageManager
+const ADD_CMD_FLAG = {
+  npm: 'install',
+  yarn: 'add',
+  pnpm: 'add',
+  bun: 'add',
+}
+
+const DEV_DEP_FLAG = {
+  npm: '--save-dev',
+  yarn: '--dev',
+  pnpm: '--save-dev',
+  bun: '--dev',
+}
+
+export function installPackages(
+  packageToInstall: string[],
+  options: {
+    packageManager?: PackageManager
+    silent?: boolean
+    dev?: boolean
+  } = {}
 ) {
-  pkgManager ??= getPkgManager(process.cwd())
-  if (!pkgManager) throw new Error('Failed to find package manager')
+  if (packageToInstall.length === 0) return
 
-  if (Array.isArray(packageToInstall)) {
-    packageToInstall = packageToInstall.join(' ')
+  const {
+    packageManager = getPkgManager(process.cwd()),
+    silent = false,
+    dev = false,
+  } = options
+
+  if (!packageManager) throw new Error('Failed to find package manager')
+
+  const addCmd = ADD_CMD_FLAG[packageManager]
+  const devDepFlag = dev ? DEV_DEP_FLAG[packageManager] : undefined
+
+  const installFlags = [addCmd]
+  if (devDepFlag) {
+    installFlags.push(devDepFlag)
   }
-
   try {
-    execa.sync(pkgManager, ['add', packageToInstall], { stdio: 'inherit' })
+    execa.sync(packageManager, [...installFlags, ...packageToInstall], {
+      // Keeping stderr since it'll likely be relevant later when it fails.
+      stdio: silent ? ['ignore', 'ignore', 'inherit'] : 'inherit',
+      shell: true,
+    })
   } catch (error) {
     throw new Error(
       `Failed to install "${packageToInstall}". Please install it manually.`,
       { cause: error }
     )
   }
+}
+
+export function runInstallation(packageManager: PackageManager) {
+  try {
+    execa.sync(packageManager, ['install'], {
+      stdio: 'inherit',
+      shell: true,
+    })
+  } catch (error) {
+    throw new Error('Failed to install dependencies', { cause: error })
+  }
+}
+
+export function addPackageDependency(
+  packageJson: Record<string, any>,
+  name: string,
+  version: string,
+  dev: boolean
+): void {
+  if (dev) {
+    packageJson.devDependencies = packageJson.devDependencies || {}
+  } else {
+    packageJson.dependencies = packageJson.dependencies || {}
+  }
+
+  const deps = dev ? packageJson.devDependencies : packageJson.dependencies
+
+  deps[name] = version
 }

@@ -2049,6 +2049,14 @@ export async function ncc_zod(task, opts) {
     .target('src/compiled/zod')
 }
 
+externals['zod-validation-error'] = 'next/dist/compiled/zod-validation-error'
+export async function ncc_zod_validation_error(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('zod-validation-error')))
+    .ncc({ packageName: 'zod-validation-error', externals })
+    .target('src/compiled/zod-validation-error')
+}
+
 // eslint-disable-next-line camelcase
 externals['web-vitals'] = 'next/dist/compiled/web-vitals'
 export async function ncc_web_vitals(task, opts) {
@@ -2384,6 +2392,7 @@ export async function ncc(task, opts) {
         'ncc_strip_ansi',
         'ncc_superstruct',
         'ncc_zod',
+        'ncc_zod_validation_error',
         'ncc_nft',
         'ncc_tar',
         'ncc_terser',
@@ -2551,7 +2560,7 @@ export async function nextbuild_esm(task, opts) {
         '**/*.test.+(js|ts|tsx)',
       ],
     })
-    .swc('server', { dev: opts.dev, esm: true, keepImportAttributes: true })
+    .swc('server', { dev: opts.dev, esm: true })
     .target('dist/esm/build')
 }
 
@@ -2579,7 +2588,7 @@ export async function client(task, opts) {
 export async function client_esm(task, opts) {
   await task
     .source('src/client/**/!(*.test).+(js|ts|tsx)')
-    .swc('client', { dev: opts.dev, esm: true, keepImportAttributes: true })
+    .swc('client', { dev: opts.dev, esm: true })
     .target('dist/esm/client')
 }
 
@@ -2604,7 +2613,6 @@ export async function pages_app(task, opts) {
     .source('src/pages/_app.tsx')
     .swc('client', {
       dev: opts.dev,
-      keepImportAttributes: true,
       interopClientDefaultExport: true,
     })
     .target('dist/pages')
@@ -2615,7 +2623,6 @@ export async function pages_error(task, opts) {
     .source('src/pages/_error.tsx')
     .swc('client', {
       dev: opts.dev,
-      keepImportAttributes: true,
       interopClientDefaultExport: true,
     })
     .target('dist/pages')
@@ -2626,7 +2633,6 @@ export async function pages_document(task, opts) {
     .source('src/pages/_document.tsx')
     .swc('server', {
       dev: opts.dev,
-      keepImportAttributes: true,
     })
     .target('dist/pages')
 }
@@ -2636,7 +2642,6 @@ export async function pages_app_esm(task, opts) {
     .source('src/pages/_app.tsx')
     .swc('client', {
       dev: opts.dev,
-      keepImportAttributes: true,
       esm: true,
     })
     .target('dist/esm/pages')
@@ -2647,7 +2652,6 @@ export async function pages_error_esm(task, opts) {
     .source('src/pages/_error.tsx')
     .swc('client', {
       dev: opts.dev,
-      keepImportAttributes: true,
       esm: true,
     })
     .target('dist/esm/pages')
@@ -2658,7 +2662,6 @@ export async function pages_document_esm(task, opts) {
     .source('src/pages/_document.tsx')
     .swc('server', {
       dev: opts.dev,
-      keepImportAttributes: true,
       esm: true,
     })
     .target('dist/esm/pages')

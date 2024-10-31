@@ -1,16 +1,23 @@
 'use client'
 
+import { use } from 'react'
+
 import { UnsafeUnwrappedParams } from 'next/server'
 
 import { getSentinelValue } from '../../../../../../../getSentinelValue'
 
-export default async function Page({
+import { createWaiter } from '../../../../../../../client-utils'
+const waiter = createWaiter()
+
+export default function Page({
   params,
   children,
 }: {
   params: Promise<{ lowcard: string; highcard: string }>
   children: React.ReactNode
 }) {
+  use(waiter.wait())
+  waiter.cleanup()
   const syncParams = params as unknown as UnsafeUnwrappedParams<typeof params>
   const copied = { ...syncParams }
   return (

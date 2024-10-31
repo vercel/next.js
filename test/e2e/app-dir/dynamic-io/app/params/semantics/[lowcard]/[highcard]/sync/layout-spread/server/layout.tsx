@@ -10,6 +10,7 @@ export default async function Page({
   params: Promise<{ lowcard: string; highcard: string }>
   children: React.ReactNode
 }) {
+  await new Promise((r) => process.nextTick(r))
   const syncParams = params as unknown as UnsafeUnwrappedParams<typeof params>
   const copied = { ...syncParams }
   return (

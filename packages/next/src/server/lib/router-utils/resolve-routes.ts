@@ -218,6 +218,11 @@ export function getResolveRoutes(
           parsedUrl.pathname = maybeAddTrailingSlash(parsedUrl.pathname)
         }
       }
+    } else {
+      // As i18n isn't configured we remove the locale related query params.
+      delete parsedUrl.query.__nextLocale
+      delete parsedUrl.query.__nextDefaultLocale
+      delete parsedUrl.query.__nextInferredLocaleFromDefault
     }
 
     const checkLocaleApi = (pathname: string) => {

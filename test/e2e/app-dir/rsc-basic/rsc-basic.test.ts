@@ -231,8 +231,7 @@ describe('app dir - rsc basics', () => {
     expect(html).toContain('dynamic data!')
   })
 
-  // TODO: TLA in client references are currently broken with Webpack on Edge
-  describe.each(process.env.TURBOPACK ? ['node', 'edge'] : ['node'])(
+  describe.each(['node', 'edge'])(
     'client references with TLA (%s)',
     (runtime) => {
       let url = `/async-client${runtime === 'edge' ? '/edge' : ''}`
@@ -407,7 +406,7 @@ describe('app dir - rsc basics', () => {
         const hasRCScript = /\$RC=function/.test(chunk)
         if (hasRCScript) results.push('refresh-script')
 
-        const isFallbackResolved = chunk.includes('fallback')
+        const isFallbackResolved = chunk.includes('$test-fallback-sentinel')
         if (isFallbackResolved) results.push('fallback')
       })
 

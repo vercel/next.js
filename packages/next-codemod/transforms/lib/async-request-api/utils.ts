@@ -7,25 +7,34 @@ import type {
   ExportNamedDeclaration,
   FunctionDeclaration,
   FunctionExpression,
-  JSCodeshift,
 } from 'jscodeshift'
+
+export const NEXTJS_ENTRY_FILES =
+  /([\\/]|^)(page|layout|route|default)\.(t|j)sx?$/
 
 export type FunctionScope =
   | FunctionDeclaration
   | FunctionExpression
   | ArrowFunctionExpression
 
-export const TARGET_NAMED_EXPORTS = new Set([
-  // For custom route
+export const NEXT_CODEMOD_ERROR_PREFIX = '@next-codemod-error'
+const NEXT_CODEMOD_IGNORE_ERROR_PREFIX = '@next-codemod-ignore'
+
+export const TARGET_ROUTE_EXPORTS = new Set([
   'GET',
-  'HEAD',
   'POST',
   'PUT',
-  'DELETE',
   'PATCH',
+  'DELETE',
   'OPTIONS',
+  'HEAD',
+])
+
+export const TARGET_NAMED_EXPORTS = new Set([
   // For page and layout
   'generateMetadata',
+  'generateViewport',
+  ...TARGET_ROUTE_EXPORTS,
 ])
 
 export const TARGET_PROP_NAMES = new Set(['params', 'searchParams'])
@@ -111,46 +120,17 @@ export function isMatchedFunctionExported(
   return isNamedExport
 }
 
-export function determineClientDirective(
-  root: Collection<any>,
-  j: JSCodeshift,
-  source: string
-) {
-  const hasStringDirective =
-    root
-      .find(j.Literal)
-      .filter((path) => {
-        const expr = path.node
+// directive is not parsed into AST, so we need to manually find it
+// by going through the tokens. Use the 1st string token as the directive
+export function determineClientDirective(root: Collection<any>, j: API['j']) {
+  const { program } = root.get().node
 
-        return (
-          expr.value === 'use client' && path.parentPath.node.type === 'Program'
-        )
-      })
-      .size() > 0
+  const directive = program.directives[0]
+  if (j.Directive.check(directive)) {
+    return directive.value.value === 'use client'
+  }
 
-  // 'use client';
-  const hasStringDirectiveWithSemicolon =
-    root
-      .find(j.StringLiteral)
-      .filter((path) => {
-        const expr = path.node
-        return (
-          expr.type === 'StringLiteral' &&
-          expr.value === 'use client' &&
-          path.parentPath.node.type === 'Program'
-        )
-      })
-      .size() > 0
-
-  if (hasStringDirective || hasStringDirectiveWithSemicolon) return true
-
-  // Since the client detection is not reliable with AST in jscodeshift,
-  // determine if 'use client' or "use client" is leading in the source code.
-  const trimmedSource = source.trim()
-  const containsClientDirective =
-    /^'use client'/.test(trimmedSource) || /^"use client"/g.test(trimmedSource)
-
-  return containsClientDirective
+  return false
 }
 
 export function isPromiseType(typeAnnotation) {
@@ -209,28 +189,21 @@ export function insertReactUseImport(root: Collection<any>, j: API['j']) {
   if (!hasReactUseImport) {
     const reactImportDeclaration = root.find(j.ImportDeclaration, {
       source: {
-        type: 'Literal',
         value: 'react',
       },
+      // Skip the type only react imports
+      importKind: 'value',
     })
 
     if (reactImportDeclaration.size() > 0) {
+      const importNode = reactImportDeclaration.get().node
+
       // Add 'use' to existing 'react' import declaration
-      reactImportDeclaration
-        .get()
-        .node.specifiers.push(j.importSpecifier(j.identifier('use')))
+      importNode.specifiers.push(j.importSpecifier(j.identifier('use')))
     } else {
       // Final all type imports to 'react'
-
-      const reactImport = root.find(j.ImportDeclaration, {
-        source: {
-          type: 'Literal',
-          value: 'react',
-        },
-      })
-
-      if (reactImport.size() > 0) {
-        reactImport
+      if (reactImportDeclaration.size() > 0) {
+        reactImportDeclaration
           .get()
           .node.specifiers.push(j.importSpecifier(j.identifier('use')))
       } else {
@@ -452,18 +425,186 @@ export function wrapParentheseIfNeeded(
   return hasChainAccess ? j.parenthesizedExpression(expression) : expression
 }
 
-export function insertCommentOnce(
-  path: ASTPath<any>,
-  j: API['j'],
+function existsComment(
+  comments: ASTPath<any>['node']['comments'],
   comment: string
-) {
-  if (path.node.comments) {
-    const hasComment = path.node.comments.some(
-      (commentNode) => commentNode.value === comment
-    )
+): boolean {
+  const isCodemodErrorComment = comment
+    .trim()
+    .startsWith(NEXT_CODEMOD_ERROR_PREFIX)
+
+  let hasIgnoreComment = false
+  let hasComment = false
+
+  if (comments) {
+    comments.forEach((commentNode) => {
+      const currentComment = commentNode.value
+      if (currentComment.trim().startsWith(NEXT_CODEMOD_IGNORE_ERROR_PREFIX)) {
+        hasIgnoreComment = true
+      }
+      if (currentComment === comment) {
+        hasComment = true
+      }
+    })
+    // If it's inserting codemod error comment,
+    // check if there's already a @next-codemod-ignore comment.
+    // if ignore comment exists, bypass the comment insertion.
+    if (hasIgnoreComment && isCodemodErrorComment) {
+      return true
+    }
     if (hasComment) {
-      return
+      return true
     }
   }
-  path.node.comments = [j.commentBlock(comment), ...(path.node.comments || [])]
+  return false
+}
+
+export function insertCommentOnce(
+  node: ASTPath<any>['node'],
+  j: API['j'],
+  comment: string
+): boolean {
+  const hasCommentInInlineComments = existsComment(node.comments, comment)
+  const hasCommentInLeadingComments = existsComment(
+    node.leadingComments,
+    comment
+  )
+
+  if (!hasCommentInInlineComments && !hasCommentInLeadingComments) {
+    // Always insert into inline comment
+    node.comments = [j.commentBlock(comment), ...(node.comments || [])]
+    return true
+  }
+
+  return false
+}
+
+export function getVariableDeclaratorId(
+  path: ASTPath<any>,
+  j: API['j']
+): ASTPath<any>['node']['id'] | undefined {
+  const parent = path.parentPath
+  if (j.VariableDeclarator.check(parent.node)) {
+    const id = parent.node.id
+    if (j.Identifier.check(id)) {
+      return id
+    }
+  }
+  return undefined
+}
+
+export function findFunctionBody(path: ASTPath<FunctionScope>): null | any[] {
+  let functionBody = path.node.body
+  if (functionBody && functionBody.type === 'BlockStatement') {
+    return functionBody.body
+  }
+  return null
+}
+
+const isPascalCase = (s: string) => /^[A-Z][a-z0-9]*$/.test(s)
+
+export const isReactHookName = (name: string) =>
+  // function name is `use`
+  name === 'use' ||
+  // function name is `useX*`
+  (name.startsWith('use') && name[3] === name[3].toUpperCase())
+
+// Determine a path of function contains any React hooks call expressions.
+// e.g. if there's any of those call expressions in the function body:
+// use() => true
+// React.use() => false
+// useXxxx() => true
+// Foo.use() => true
+// Foo.useXxxx() => true
+export function containsReactHooksCallExpressions(
+  path: ASTPath<FunctionScope>,
+  j: API['jscodeshift']
+) {
+  const hasReactHooks =
+    j(path)
+      .find(j.CallExpression)
+      .filter((callPath) => {
+        // It's matching:
+        // - use(<callPath>) => true
+        // - useX*(<callPath>) => true
+        const isUseHookOrReactHookCall =
+          j.Identifier.check(callPath.value.callee) &&
+          isReactHookName(callPath.value.callee.name)
+
+        // It's matching member access:
+        // - React.use(<callPath>) => true
+        // - Foo.useFoo(<callPath>) => true
+        // - foo.useFoo(<callPath>) => false
+        // - foo.use(<callPath>) => false
+        const isReactUseCall =
+          j.MemberExpression.check(callPath.value.callee) &&
+          j.Identifier.check(callPath.value.callee.object) &&
+          j.Identifier.check(callPath.value.callee.property) &&
+          isPascalCase(callPath.value.callee.object.name) &&
+          isReactHookName(callPath.value.callee.property.name)
+
+        return isUseHookOrReactHookCall || isReactUseCall
+      })
+      .size() > 0
+  return hasReactHooks
+}
+
+// Capture the parent of the current path is wrapped by `use()` call expression
+// e.g.
+// use(<path>) => true
+// use2(<path>) => false
+// React.use(<path>) => true
+// Robust.use(<path>) => false
+export function isParentUseCallExpression(
+  path: ASTPath<any>,
+  j: API['jscodeshift']
+) {
+  const isParentUseCall =
+    // member access parentPath is argument
+    j.CallExpression.check(path.parent.value) &&
+    // member access is first argument
+    path.parent.value.arguments[0] === path.value &&
+    path.parent.value.arguments.length === 1 &&
+    // function name is `use`
+    j.Identifier.check(path.parent.value.callee) &&
+    path.parent.value.callee.name === 'use'
+  const isParentReactUseCall =
+    // member access parentPath is argument
+    j.CallExpression.check(path.parent.value) &&
+    // member access is first argument
+    path.parent.value.arguments[0] === path.value &&
+    path.parent.value.arguments.length === 1 &&
+    // function name is `use`
+    j.MemberExpression.check(path.parent.value.callee) &&
+    j.Identifier.check(path.parent.value.callee.object) &&
+    path.parent.value.callee.object.name === 'React' &&
+    j.Identifier.check(path.parent.value.callee.property) &&
+    path.parent.value.callee.property.name === 'use'
+  return isParentUseCall || isParentReactUseCall
+}
+
+// Determine if a path is wrapped by `Promise.all()`
+// e.g.
+// Promise.all(<path>) => true
+// Promise.allSettled(<path>) => false
+export function isParentPromiseAllCallExpression(
+  path: ASTPath<any>,
+  j: API['jscodeshift']
+) {
+  const argsParent = path.parent
+  const callParent = argsParent?.parent
+  if (
+    argsParent &&
+    callParent &&
+    j.ArrayExpression.check(argsParent.value) &&
+    j.CallExpression.check(callParent.value) &&
+    j.MemberExpression.check(callParent.value.callee) &&
+    j.Identifier.check(callParent.value.callee.object) &&
+    callParent.value.callee.object.name === 'Promise' &&
+    j.Identifier.check(callParent.value.callee.property) &&
+    callParent.value.callee.property.name === 'all'
+  ) {
+    return true
+  }
+  return false
 }

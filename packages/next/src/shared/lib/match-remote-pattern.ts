@@ -39,7 +39,7 @@ export function matchRemotePattern(pattern: RemotePattern, url: URL): boolean {
   return true
 }
 
-export function hasMatch(
+export function hasRemoteMatch(
   domains: string[],
   remotePatterns: RemotePattern[],
   url: URL

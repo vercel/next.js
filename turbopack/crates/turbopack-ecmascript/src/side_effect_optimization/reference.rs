@@ -1,6 +1,6 @@
 use anyhow::{bail, Context, Result};
 use swc_core::{common::DUMMY_SP, ecma::ast::Ident, quote};
-use turbo_tasks::{RcStr, ValueToString, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
     chunk::{
         ChunkItemExt, ChunkableModule, ChunkableModuleReference, ChunkingContext, ChunkingType,
@@ -16,8 +16,7 @@ use super::{
 use crate::{
     chunk::EcmascriptChunkPlaceable,
     code_gen::{CodeGenerateable, CodeGeneration},
-    create_visitor,
-    references::esm::base::{insert_hoisted_stmt, ReferencedAsset},
+    references::esm::base::ReferencedAsset,
     utils::module_id_to_lit,
 };
 
@@ -26,7 +25,7 @@ use crate::{
 #[turbo_tasks::value]
 pub struct EcmascriptModulePartReference {
     pub module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
-    pub part: Option<Vc<ModulePart>>,
+    pub part: Option<ResolvedVc<ModulePart>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -34,7 +33,7 @@ impl EcmascriptModulePartReference {
     #[turbo_tasks::function]
     pub fn new_part(
         module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
-        part: Vc<ModulePart>,
+        part: ResolvedVc<ModulePart>,
     ) -> Vc<Self> {
         EcmascriptModulePartReference {
             module,
@@ -78,7 +77,7 @@ impl ModuleReference for EcmascriptModulePartReference {
                 | ModulePart::Facade
                 | ModulePart::RenamedExport { .. }
                 | ModulePart::RenamedNamespace { .. } => {
-                    Vc::upcast(EcmascriptModuleFacadeModule::new(self.module, part))
+                    Vc::upcast(EcmascriptModuleFacadeModule::new(self.module, *part))
                 }
                 ModulePart::Export(..) | ModulePart::Internal(..) => {
                     bail!(
@@ -109,8 +108,6 @@ impl CodeGenerateable for EcmascriptModulePartReference {
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
-        let mut visitors = Vec::new();
-
         let referenced_asset = ReferencedAsset::from_resolve_result(self.resolve_reference());
         let referenced_asset = referenced_asset.await?;
         let ident = referenced_asset
@@ -126,15 +123,13 @@ impl CodeGenerateable for EcmascriptModulePartReference {
             .id()
             .await?;
 
-        visitors.push(create_visitor!(visit_mut_program(program: &mut Program) {
-            let stmt = quote!(
+        Ok(CodeGeneration::hoisted_stmt(
+            ident.clone().into(),
+            quote!(
                 "var $name = __turbopack_import__($id);" as Stmt,
                 name = Ident::new(ident.clone().into(), DUMMY_SP, Default::default()),
                 id: Expr = module_id_to_lit(&id),
-            );
-            insert_hoisted_stmt(program, stmt);
-        }));
-
-        Ok(CodeGeneration { visitors }.into())
+            ),
+        ))
     }
 }

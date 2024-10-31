@@ -1,13 +1,6 @@
-use std::{
-    fmt::Write,
-    hash::{BuildHasherDefault, Hash},
-    path::PathBuf,
-    sync::Arc,
-};
+use std::{fmt::Write, hash::Hash, path::PathBuf, sync::Arc};
 
 use anyhow::Error;
-use indexmap::IndexSet;
-use rustc_hash::FxHasher;
 use serde::Deserialize;
 use swc_core::{
     common::{comments::SingleThreadedComments, util::take::Take, Mark, SourceMap, SyntaxContext},
@@ -20,6 +13,7 @@ use swc_core::{
     },
     testing::{self, fixture, NormalizedOutput},
 };
+use turbo_tasks::FxIndexSet;
 
 use super::{
     graph::{
@@ -104,7 +98,7 @@ fn run(input: PathBuf) {
                 writeln!(s, "- Side effects").unwrap();
             }
 
-            let f = |ids: &IndexSet<Id, BuildHasherDefault<FxHasher>>| {
+            let f = |ids: &FxIndexSet<Id>| {
                 let mut s = String::new();
                 for (i, id) in ids.iter().enumerate() {
                     if i == 0 {

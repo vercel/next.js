@@ -1,9 +1,8 @@
 use std::{collections::HashMap, fmt::Write, mem::take};
 
 use anyhow::Result;
-use indexmap::IndexSet;
 use serde_json::Value as JsonValue;
-use turbo_tasks::{RcStr, Value, ValueDefault, Vc};
+use turbo_tasks::{fxindexset, RcStr, Value, ValueDefault, Vc};
 use turbo_tasks_fs::{FileContent, FileJsonContent, FileSystemPath};
 use turbopack_core::{
     asset::Asset,
@@ -269,7 +268,7 @@ pub async fn tsconfig_resolve_options(
                 let mut context_dir = source.ident().path().parent();
                 if let Some(base_url) = json["compilerOptions"]["baseUrl"].as_str() {
                     if let Some(new_context) = *context_dir.try_join(base_url.into()).await? {
-                        context_dir = new_context;
+                        context_dir = *new_context;
                     }
                 };
                 for (key, value) in paths.iter() {
@@ -336,7 +335,7 @@ pub async fn tsconfig_resolve_options(
     .unwrap_or_default();
 
     Ok(TsConfigResolveOptions {
-        base_url,
+        base_url: base_url.as_deref().copied(),
         import_map,
         is_module_resolution_nodenext,
     }
@@ -363,7 +362,7 @@ pub async fn apply_tsconfig_resolve_options(
             ResolveModules::Path {
                 dir: base_url,
                 // tsconfig basepath doesn't apply to json requests
-                excluded_extensions: Vc::cell(IndexSet::from([".json".into()])),
+                excluded_extensions: Vc::cell(fxindexset![".json".into()]),
             },
         );
     }
@@ -423,7 +422,7 @@ pub async fn type_resolve(
             request,
             options,
         );
-        if !*result1.is_unresolveable().await? {
+        if !*result1.is_unresolvable().await? {
             result1
         } else {
             resolve(
@@ -456,7 +455,7 @@ pub async fn type_resolve(
         origin.origin_path(),
         request,
         options,
-        IssueSeverity::Error.cell(),
+        false,
         None,
     )
     .await

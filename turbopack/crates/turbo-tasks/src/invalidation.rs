@@ -7,7 +7,7 @@ use std::{
 };
 
 use anyhow::Result;
-use indexmap::{map::Entry, IndexMap, IndexSet};
+use indexmap::map::Entry;
 use serde::{de::Visitor, Deserialize, Serialize};
 use tokio::runtime::Handle;
 
@@ -16,7 +16,7 @@ use crate::{
     manager::{current_task, with_turbo_tasks},
     trace::TraceRawVcs,
     util::StaticOrArc,
-    TaskId, TurboTasksApi,
+    FxIndexMap, FxIndexSet, TaskId, TurboTasksApi,
 };
 
 /// Get an [`Invalidator`] that can be used to invalidate the current task
@@ -179,7 +179,7 @@ pub trait InvalidationReasonKind: DynamicEqHash + Send + Sync + 'static {
     /// kind. It is only called with two or more reasons.
     fn fmt(
         &self,
-        data: &IndexSet<StaticOrArc<dyn InvalidationReason>>,
+        data: &FxIndexSet<StaticOrArc<dyn InvalidationReason>>,
         f: &mut std::fmt::Formatter<'_>,
     ) -> std::fmt::Result;
 }
@@ -221,7 +221,7 @@ enum MapEntry {
         reason: StaticOrArc<dyn InvalidationReason>,
     },
     Multiple {
-        reasons: IndexSet<StaticOrArc<dyn InvalidationReason>>,
+        reasons: FxIndexSet<StaticOrArc<dyn InvalidationReason>>,
     },
 }
 
@@ -232,7 +232,7 @@ enum MapEntry {
 pub struct InvalidationReasonSet {
     next_unique_tag: usize,
     // We track typed and untyped entries in the same map to keep the occurence order of entries.
-    map: IndexMap<MapKey, MapEntry>,
+    map: FxIndexMap<MapKey, MapEntry>,
 }
 
 impl InvalidationReasonSet {
@@ -245,7 +245,7 @@ impl InvalidationReasonSet {
                     match replace(
                         entry,
                         MapEntry::Multiple {
-                            reasons: IndexSet::new(),
+                            reasons: FxIndexSet::default(),
                         },
                     ) {
                         MapEntry::Single {
@@ -257,7 +257,7 @@ impl InvalidationReasonSet {
                                 };
                                 return;
                             }
-                            let mut reasons = IndexSet::new();
+                            let mut reasons = FxIndexSet::default();
                             reasons.insert(existing_reason);
                             reasons.insert(reason);
                             *entry = MapEntry::Multiple { reasons };

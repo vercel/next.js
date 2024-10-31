@@ -30,7 +30,7 @@ describe('create-next-app --no-app (Pages Router)', () => {
           projectName,
           '--js',
           '--no-app',
-          '--no-turbo',
+          '--no-turbopack',
           '--eslint',
           '--no-src-dir',
           '--no-tailwind',
@@ -64,7 +64,7 @@ describe('create-next-app --no-app (Pages Router)', () => {
           projectName,
           '--ts',
           '--no-app',
-          '--no-turbo',
+          '--no-turbopack',
           '--eslint',
           '--no-src-dir',
           '--no-tailwind',
@@ -95,7 +95,7 @@ describe('create-next-app --no-app (Pages Router)', () => {
           projectName,
           '--ts',
           '--no-app',
-          '--no-turbo',
+          '--no-turbopack',
           '--eslint',
           '--src-dir',
           '--no-tailwind',
@@ -130,7 +130,7 @@ describe('create-next-app --no-app (Pages Router)', () => {
           projectName,
           '--ts',
           '--no-app',
-          '--no-turbo',
+          '--no-turbopack',
           '--eslint',
           '--src-dir',
           '--tailwind',
@@ -166,7 +166,7 @@ describe('create-next-app --no-app (Pages Router)', () => {
           projectName,
           '--ts',
           '--no-app',
-          '--no-turbo',
+          '--no-turbopack',
           '--eslint',
           '--src-dir',
           '--no-tailwind',
@@ -205,7 +205,7 @@ describe('create-next-app --no-app (Pages Router)', () => {
           projectName,
           '--ts',
           '--no-app',
-          '--no-turbo',
+          '--no-turbopack',
           '--eslint',
           '--src-dir',
           '--tailwind',
@@ -236,7 +236,7 @@ describe('create-next-app --no-app (Pages Router)', () => {
     })
   })
 
-  it('should enable turbopack dev with --turbo flag', async () => {
+  it('should enable turbopack dev with --turbopack flag', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'pages-turbo'
       const { exitCode } = await run(
@@ -245,7 +245,7 @@ describe('create-next-app --no-app (Pages Router)', () => {
           '--ts',
           '--no-app',
           '--eslint',
-          '--turbo',
+          '--turbopack',
           '--no-src-dir',
           '--no-tailwind',
           '--no-import-alias',
@@ -259,7 +259,7 @@ describe('create-next-app --no-app (Pages Router)', () => {
       expect(exitCode).toBe(0)
       const projectRoot = join(cwd, projectName)
       const pkgJson = require(join(projectRoot, 'package.json'))
-      expect(pkgJson.scripts.dev).toBe('next dev --turbo')
+      expect(pkgJson.scripts.dev).toBe('next dev --turbopack')
     })
   })
 })

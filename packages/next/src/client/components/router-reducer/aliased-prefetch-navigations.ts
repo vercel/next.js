@@ -223,7 +223,6 @@ export function addSearchParamsToPageSegments(
   // If it's a page segment, modify the segment by adding search params
   if (segment.includes(PAGE_SEGMENT_KEY)) {
     const newSegment = addSearchParamsIfPageSegment(segment, searchParams)
-    console.log({ existingSegment: segment, newSegment })
     return [newSegment, parallelRoutes, ...rest]
   }
 

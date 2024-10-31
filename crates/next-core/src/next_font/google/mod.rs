@@ -2,10 +2,9 @@ use std::{collections::HashMap, path::Path};
 
 use anyhow::{bail, Context, Result};
 use futures::FutureExt;
-use indexmap::IndexMap;
 use indoc::formatdoc;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{Completion, RcStr, Value, Vc};
+use turbo_tasks::{Completion, FxIndexMap, RcStr, Value, Vc};
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::{CommandLineProcessEnv, ProcessEnv};
 use turbo_tasks_fetch::{fetch, HttpResponseBody};
@@ -68,7 +67,7 @@ pub const USER_AGENT_FOR_GOOGLE_FONTS: &str = "Mozilla/5.0 (Macintosh; Intel Mac
 pub const GOOGLE_FONTS_INTERNAL_PREFIX: &str = "@vercel/turbopack-next/internal/font/google/font";
 
 #[turbo_tasks::value(transparent)]
-struct FontData(IndexMap<RcStr, FontDataEntry>);
+struct FontData(FxIndexMap<RcStr, FontDataEntry>);
 
 #[turbo_tasks::value(shared)]
 pub(crate) struct NextFontGoogleReplacer {
@@ -373,7 +372,7 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
         // really matter either.
         let Some(font) = fetch_from_google_fonts(Vc::cell(url.into()), font_virtual_path).await?
         else {
-            return Ok(ImportMapResult::Result(ResolveResult::unresolveable().into()).into());
+            return Ok(ImportMapResult::Result(ResolveResult::unresolvable().into()).into());
         };
 
         let font_source = VirtualSource::new(

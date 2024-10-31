@@ -2,10 +2,7 @@
 @layer layer {
 @media print {
 @supports not(display: inline-grid) and font-format(woff2) {
-.imported {
-  color: orange;
-}
-
+.imported{color:orange}
 }
 }
 }
