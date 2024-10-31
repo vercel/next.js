@@ -493,12 +493,12 @@ pub struct ResolveOptions {
     /// The default files to resolve in a folder.
     pub default_files: Vec<RcStr>,
     /// An import map to use before resolving a request.
-    pub import_map: Option<Vc<ImportMap>>,
+    pub import_map: Option<ResolvedVc<ImportMap>>,
     /// An import map to use when a request is otherwise unresolvable.
     pub fallback_import_map: Option<Vc<ImportMap>>,
-    pub resolved_map: Option<Vc<ResolvedMap>>,
-    pub before_resolve_plugins: Vec<Vc<Box<dyn BeforeResolvePlugin>>>,
-    pub plugins: Vec<Vc<Box<dyn AfterResolvePlugin>>>,
+    pub resolved_map: Option<ResolvedVc<ResolvedMap>>,
+    pub before_resolve_plugins: Vec<ResolvedVc<Box<dyn BeforeResolvePlugin>>>,
+    pub plugins: Vec<ResolvedVc<Box<dyn AfterResolvePlugin>>>,
     /// Support resolving *.js requests to *.ts files
     pub enable_typescript_with_output_extension: bool,
     /// Warn instead of error for resolve errors
@@ -521,7 +521,9 @@ impl ResolveOptions {
             resolve_options
                 .import_map
                 .map(|current_import_map| current_import_map.extend(import_map))
-                .unwrap_or(import_map),
+                .unwrap_or(import_map)
+                .to_resolved()
+                .await?,
         );
         Ok(resolve_options.into())
     }

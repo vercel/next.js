@@ -196,7 +196,7 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
     };
     let root_fs = DiskFileSystem::new("workspace".into(), REPO_ROOT.clone(), vec![]);
     let project_fs = DiskFileSystem::new("project".into(), REPO_ROOT.clone(), vec![]);
-    let project_root = project_fs.root();
+    let project_root = project_fs.root().to_resolved().await?;
 
     let relative_path = test_path.strip_prefix(&*REPO_ROOT)?;
     let relative_path: RcStr = sys_to_unix(relative_path.to_str().unwrap()).into();
@@ -307,7 +307,7 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                     custom_conditions: vec!["development".into()],
                     ..Default::default()
                 }
-                .cell(),
+                .resolved_cell(),
             )],
             ..Default::default()
         }
@@ -325,7 +325,7 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
     let chunking_context: Vc<Box<dyn ChunkingContext>> = match options.runtime {
         Runtime::Browser => Vc::upcast(
             BrowserChunkingContext::builder(
-                project_root,
+                *project_root,
                 path,
                 path,
                 chunk_root_path,
@@ -337,7 +337,7 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         ),
         Runtime::NodeJs => Vc::upcast(
             NodeJsChunkingContext::builder(
-                project_root,
+                *project_root,
                 path,
                 path,
                 chunk_root_path,
