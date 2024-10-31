@@ -18,12 +18,14 @@ import type {
   UseCacheStore,
   WorkUnitStore,
 } from '../app-render/work-unit-async-storage.external'
-import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
+import {
+  getImmutableResumeDataCache,
+  getMutableResumeDataCache,
+  workUnitAsyncStorage,
+} from '../app-render/work-unit-async-storage.external'
 import { runInCleanSnapshot } from '../app-render/clean-async-snapshot.external'
 
 import { makeHangingPromise } from '../dynamic-rendering-utils'
-
-import { cacheScopeAsyncLocalStorage } from '../async-storage/cache-scope.external'
 
 import type { ClientReferenceManifestForRsc } from '../../build/webpack/plugins/flight-manifest-plugin'
 
@@ -31,7 +33,6 @@ import {
   getClientReferenceManifestForRsc,
   getServerModuleMap,
 } from '../app-render/encryption-utils'
-import type { CacheScopeStore } from '../async-storage/cache-scope.external'
 import DefaultCacheHandler from '../lib/cache-handlers/default'
 import type { CacheHandler, CacheEntry } from '../lib/cache-handlers/types'
 
@@ -65,7 +66,6 @@ const cacheHandlerMap: Map<string, CacheHandler> = new Map([
 function generateCacheEntry(
   workStore: WorkStore,
   outerWorkUnitStore: WorkUnitStore | undefined,
-  cacheScope: undefined | CacheScopeStore,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
   encodedArguments: FormData | string,
   fn: any
@@ -79,7 +79,6 @@ function generateCacheEntry(
     generateCacheEntryWithRestoredWorkStore,
     workStore,
     outerWorkUnitStore,
-    cacheScope,
     clientReferenceManifest,
     encodedArguments,
     fn
@@ -89,7 +88,6 @@ function generateCacheEntry(
 function generateCacheEntryWithRestoredWorkStore(
   workStore: WorkStore,
   outerWorkUnitStore: WorkUnitStore | undefined,
-  cacheScope: undefined | CacheScopeStore,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
   encodedArguments: FormData | string,
   fn: any
@@ -101,19 +99,6 @@ function generateCacheEntryWithRestoredWorkStore(
   // in RequestStore but should be available to Caches need to move to WorkStore.
   // PrerenderStore is not needed inside the cache scope because the outer most one will
   // be the one to report its result to the outer Prerender.
-  if (cacheScope) {
-    return cacheScopeAsyncLocalStorage.run(cacheScope, () =>
-      workAsyncStorage.run(
-        workStore,
-        generateCacheEntryWithCacheContext,
-        workStore,
-        outerWorkUnitStore,
-        clientReferenceManifest,
-        encodedArguments,
-        fn
-      )
-    )
-  }
   return workAsyncStorage.run(
     workStore,
     generateCacheEntryWithCacheContext,
@@ -367,10 +352,7 @@ async function generateCacheEntryImpl(
   return [returnStream, promiseOfCacheEntry]
 }
 
-async function clonePendingCacheEntry(
-  pendingCacheEntry: Promise<CacheEntry>
-): Promise<[CacheEntry, CacheEntry]> {
-  const entry = await pendingCacheEntry
+function cloneCacheEntry(entry: CacheEntry): [CacheEntry, CacheEntry] {
   const [streamA, streamB] = entry.value.tee()
   entry.value = streamA
   const clonedEntry: CacheEntry = {
@@ -382,6 +364,13 @@ async function clonePendingCacheEntry(
     tags: entry.tags,
   }
   return [entry, clonedEntry]
+}
+
+async function clonePendingCacheEntry(
+  pendingCacheEntry: Promise<CacheEntry>
+): Promise<[CacheEntry, CacheEntry]> {
+  const entry = await pendingCacheEntry
+  return cloneCacheEntry(entry)
 }
 
 async function getNthCacheEntry(
@@ -513,9 +502,15 @@ export function cache(kind: string, id: string, fn: any) {
 
       let stream: undefined | ReadableStream = undefined
 
-      const cacheScope: undefined | CacheScopeStore =
-        cacheScopeAsyncLocalStorage.getStore()
-      if (cacheScope) {
+      // Get an immutable and mutable versions of the resume data cache.
+      const immutableResumeDataCache = workUnitStore
+        ? getImmutableResumeDataCache(workUnitStore)
+        : null
+      const mutableResumeDataCache = workUnitStore
+        ? getMutableResumeDataCache(workUnitStore)
+        : null
+
+      if (immutableResumeDataCache) {
         const cacheSignal =
           workUnitStore && workUnitStore.type === 'prerender'
             ? workUnitStore.cacheSignal
@@ -524,8 +519,8 @@ export function cache(kind: string, id: string, fn: any) {
         if (cacheSignal) {
           cacheSignal.beginRead()
         }
-        const cachedEntry: undefined | Promise<CacheEntry> =
-          cacheScope.cache.get(serializedCacheKey)
+        const cachedEntry =
+          immutableResumeDataCache.cache.get(serializedCacheKey)
         if (cachedEntry !== undefined) {
           const existingEntry = await cachedEntry
           propagateCacheLifeAndTags(workUnitStore, existingEntry)
@@ -614,6 +609,7 @@ export function cache(kind: string, id: string, fn: any) {
           if (cacheSignal) {
             cacheSignal.endRead()
           }
+
           return makeHangingPromise(
             workUnitStore.renderSignal,
             'dynamic "use cache"'
@@ -639,18 +635,20 @@ export function cache(kind: string, id: string, fn: any) {
           const [newStream, pendingCacheEntry] = await generateCacheEntry(
             workStore,
             workUnitStore,
-            cacheScope,
             clientReferenceManifest,
             encodedArguments,
             fn
           )
 
           let savedCacheEntry
-          if (cacheScope) {
+          if (mutableResumeDataCache) {
             // Create a clone that goes into the cache scope memory cache.
             const split = clonePendingCacheEntry(pendingCacheEntry)
             savedCacheEntry = getNthCacheEntry(split, 0)
-            cacheScope.cache.set(serializedCacheKey, getNthCacheEntry(split, 1))
+            mutableResumeDataCache.cache.set(
+              serializedCacheKey,
+              getNthCacheEntry(split, 1)
+            )
           } else {
             savedCacheEntry = pendingCacheEntry
           }
@@ -672,20 +670,35 @@ export function cache(kind: string, id: string, fn: any) {
             cacheSignal.endRead()
           }
 
+          // We want to return this stream, even if it's stale.
+          stream = entry.value
+
           if (currentTime > entry.timestamp + entry.revalidate * 1000) {
             // If this is stale, and we're not in a prerender (i.e. this is dynamic render),
             // then we should warm up the cache with a fresh revalidated entry.
             const [ignoredStream, pendingCacheEntry] = await generateCacheEntry(
               workStore,
               undefined, // This is not running within the context of this unit.
-              cacheScope,
               clientReferenceManifest,
               encodedArguments,
               fn
             )
+
+            let savedCacheEntry: Promise<CacheEntry>
+            if (mutableResumeDataCache) {
+              const split = clonePendingCacheEntry(pendingCacheEntry)
+              savedCacheEntry = getNthCacheEntry(split, 0)
+              mutableResumeDataCache.cache.set(
+                serializedCacheKey,
+                getNthCacheEntry(split, 1)
+              )
+            } else {
+              savedCacheEntry = pendingCacheEntry
+            }
+
             const promise = cacheHandler.set(
               serializedCacheKey,
-              pendingCacheEntry
+              savedCacheEntry
             )
 
             if (!workStore.pendingRevalidateWrites) {
@@ -696,7 +709,16 @@ export function cache(kind: string, id: string, fn: any) {
             await ignoredStream.cancel()
           }
 
-          stream = entry.value
+          // If we have a cache scope, we need to clone the entry and set it on
+          // the inner cache scope.
+          if (mutableResumeDataCache) {
+            const split = cloneCacheEntry(entry)
+            stream = split[0].value
+            mutableResumeDataCache.cache.set(
+              serializedCacheKey,
+              Promise.resolve(split[1])
+            )
+          }
         }
       }
 

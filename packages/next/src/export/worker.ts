@@ -46,7 +46,6 @@ import {
   type FallbackRouteParams,
 } from '../server/request/fallback-params'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
-import { runWithCacheScope } from '../server/async-storage/cache-scope.external'
 import type { AppRouteRouteModule } from '../server/route-modules/app-route/module.compiled'
 import { isStaticGenBailoutError } from '../client/components/static-generation-bailout'
 
@@ -468,26 +467,21 @@ export async function exportPages(
 
     return { result, path, pageKey }
   }
-  // for each build worker we share one dynamic IO cache scope
-  // this is only leveraged if the flag is enabled
-  const dynamicIOCacheScope = new Map()
 
-  await runWithCacheScope({ cache: dynamicIOCacheScope }, async () => {
-    for (let i = 0; i < paths.length; i += maxConcurrency) {
-      const subset = paths.slice(i, i + maxConcurrency)
+  for (let i = 0; i < paths.length; i += maxConcurrency) {
+    const subset = paths.slice(i, i + maxConcurrency)
 
-      const subsetResults = await Promise.all(
-        subset.map((path) =>
-          exportPageWithRetry(
-            path,
-            nextConfig.experimental.staticGenerationRetryCount ?? 1
-          )
+    const subsetResults = await Promise.all(
+      subset.map((path) =>
+        exportPageWithRetry(
+          path,
+          nextConfig.experimental.staticGenerationRetryCount ?? 1
         )
       )
+    )
 
-      results.push(...subsetResults)
-    }
-  })
+    results.push(...subsetResults)
+  }
 
   return results
 }

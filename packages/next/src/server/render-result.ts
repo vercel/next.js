@@ -10,6 +10,7 @@ import {
   streamToString,
 } from './stream-utils/node-web-streams-helper'
 import { isAbortError, pipeToNodeResponse } from './pipe-readable'
+import type { ResumeDataCache } from './use-cache/resume-data-cache'
 
 type ContentTypeOption = string | undefined
 
@@ -34,6 +35,11 @@ export type AppPageRenderResultMetadata = {
   fetchMetrics?: FetchMetrics
 
   segmentFlightData?: Map<string, Buffer>
+
+  /**
+   * Generated during a prerender, this is used for resuming pages.
+   */
+  resumeDataCache?: ResumeDataCache
 }
 
 export type PagesRenderResultMetadata = {

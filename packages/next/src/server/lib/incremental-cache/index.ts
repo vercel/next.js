@@ -10,7 +10,6 @@ import {
 import type { Revalidate } from '../revalidate'
 import type { DeepReadonly } from '../../../shared/lib/deep-readonly'
 
-import { cacheScopeAsyncLocalStorage } from '../../async-storage/cache-scope.external'
 import FetchCache from './fetch-cache'
 import FileSystemCache from './file-system-cache'
 import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
@@ -23,6 +22,11 @@ import {
 } from '../../../lib/constants'
 import { toRoute } from '../to-route'
 import { SharedRevalidateTimings } from './shared-revalidate-timings'
+import { workUnitAsyncStorage } from '../../app-render/work-unit-async-storage-instance'
+import {
+  getImmutableResumeDataCache,
+  getMutableResumeDataCache,
+} from '../../app-render/work-unit-async-storage.external'
 
 export interface CacheHandlerContext {
   fs?: CacheFs
@@ -401,11 +405,12 @@ export class IncrementalCache implements IncrementalCacheType {
     // unlike other caches if we have a cacheScope we use it even if
     // testmode would normally disable it or if requestHeaders say 'no-cache'.
     if (this.hasDynamicIO && ctx.kind === IncrementalCacheKind.FETCH) {
-      const cacheScope = cacheScopeAsyncLocalStorage.getStore()
-
-      if (cacheScope) {
-        const memoryCacheData = cacheScope.cache.get(cacheKey)
-
+      const workUnitStore = workUnitAsyncStorage.getStore()
+      const resumeDataCache = workUnitStore
+        ? getImmutableResumeDataCache(workUnitStore)
+        : null
+      if (resumeDataCache) {
+        const memoryCacheData = resumeDataCache.fetch.get(cacheKey)
         if (memoryCacheData?.kind === CachedRouteKind.FETCH) {
           return {
             isStale: false,
@@ -545,10 +550,12 @@ export class IncrementalCache implements IncrementalCacheType {
     // is a transient in memory cache that populates caches ahead of a dynamic render in dev mode
     // to allow the RSC debug info to have the right environment associated to it.
     if (this.hasDynamicIO && data?.kind === CachedRouteKind.FETCH) {
-      const cacheScope = cacheScopeAsyncLocalStorage.getStore()
-
-      if (cacheScope) {
-        cacheScope.cache.set(pathname, data)
+      const workUnitStore = workUnitAsyncStorage.getStore()
+      const resumeDataCache = workUnitStore
+        ? getMutableResumeDataCache(workUnitStore)
+        : null
+      if (resumeDataCache) {
+        resumeDataCache?.fetch.set(pathname, data as any)
       }
     }
 

@@ -32,6 +32,7 @@ describe('FileSystemCache', () => {
         },
         status: 200,
         kind: CachedRouteKind.APP_ROUTE,
+        resumeDataCache: null,
       },
       {}
     )

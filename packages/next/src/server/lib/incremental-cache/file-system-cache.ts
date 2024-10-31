@@ -13,12 +13,14 @@ import {
   NEXT_CACHE_TAGS_HEADER,
   NEXT_DATA_SUFFIX,
   NEXT_META_SUFFIX,
+  NEXT_STATIC_DATA_CACHE_SUFFIX,
   RSC_PREFETCH_SUFFIX,
   RSC_SEGMENT_SUFFIX,
   RSC_SEGMENTS_DIR_SUFFIX,
   RSC_SUFFIX,
 } from '../../../lib/constants'
 import { tagsManifest } from './tags-manifest.external'
+import { ResumeDataCache } from '../../use-cache/resume-data-cache'
 
 type FileSystemCacheContext = Omit<
   CacheHandlerContext,
@@ -131,6 +133,16 @@ export default class FileSystemCache implements CacheHandler {
             )
           )
 
+          let resumeDataCache: ResumeDataCache | undefined
+          try {
+            resumeDataCache = await ResumeDataCache.parse(
+              await this.fs.readFile(
+                filePath.replace(/\.body$/, NEXT_STATIC_DATA_CACHE_SUFFIX),
+                'utf8'
+              )
+            )
+          } catch {}
+
           const cacheEntry: CacheHandlerValue = {
             lastModified: mtime.getTime(),
             value: {
@@ -138,6 +150,7 @@ export default class FileSystemCache implements CacheHandler {
               body: fileData,
               headers: meta.headers,
               status: meta.status,
+              resumeDataCache,
             },
           }
           return cacheEntry
@@ -236,6 +249,16 @@ export default class FileSystemCache implements CacheHandler {
             )
           }
 
+          let resumeDataCache: ResumeDataCache | undefined
+          try {
+            resumeDataCache = await ResumeDataCache.parse(
+              await this.fs.readFile(
+                filePath.replace(/\.html$/, NEXT_STATIC_DATA_CACHE_SUFFIX),
+                'utf8'
+              )
+            )
+          } catch {}
+
           data = {
             lastModified: mtime.getTime(),
             value: {
@@ -246,6 +269,7 @@ export default class FileSystemCache implements CacheHandler {
               headers: meta?.headers,
               status: meta?.status,
               segmentData: maybeSegmentData,
+              resumeDataCache,
             },
           }
         } else if (kind === IncrementalCacheKind.PAGES) {
@@ -372,6 +396,14 @@ export default class FileSystemCache implements CacheHandler {
         filePath.replace(/\.body$/, NEXT_META_SUFFIX),
         JSON.stringify(meta, null, 2)
       )
+
+      // TODO: write out the static data cache
+      if (data.resumeDataCache) {
+        await this.fs.writeFile(
+          filePath.replace(/\.body$/, NEXT_STATIC_DATA_CACHE_SUFFIX),
+          await data.resumeDataCache.stringify()
+        )
+      }
     } else if (
       data.kind === CachedRouteKind.PAGES ||
       data.kind === CachedRouteKind.APP_PAGE
@@ -415,6 +447,13 @@ export default class FileSystemCache implements CacheHandler {
           htmlPath.replace(/\.html$/, NEXT_META_SUFFIX),
           JSON.stringify(meta)
         )
+
+        if (data.resumeDataCache) {
+          await this.fs.writeFile(
+            htmlPath.replace(/\.html$/, NEXT_STATIC_DATA_CACHE_SUFFIX),
+            await data.resumeDataCache.stringify()
+          )
+        }
       }
     } else if (data.kind === CachedRouteKind.FETCH) {
       const filePath = this.getFilePath(key, IncrementalCacheKind.FETCH)

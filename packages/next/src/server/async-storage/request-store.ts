@@ -43,7 +43,7 @@ export type WrapperRenderOpts = Partial<Pick<RenderOpts, 'onUpdateCookies'>> & {
   previewProps?: __ApiPreviewProps
 }
 
-export type RequestContext = RequestResponsePair & {
+type RequestContext = RequestResponsePair & {
   /**
    * The URL of the request. This only specifies the pathname and the search
    * part of the URL. This is only undefined when generating static paths (ie,
@@ -107,6 +107,7 @@ export function createRequestStoreForRender(
   url: RequestContext['url'],
   implicitTags: RequestContext['implicitTags'],
   onUpdateCookies: RenderOpts['onUpdateCookies'],
+  resumeDataCache: RenderOpts['resumeDataCache'],
   previewProps: WrapperRenderOpts['previewProps'],
   isHmrRefresh: RequestContext['isHmrRefresh'],
   serverComponentsHmrCache: RequestContext['serverComponentsHmrCache']
@@ -119,6 +120,7 @@ export function createRequestStoreForRender(
     url,
     implicitTags,
     onUpdateCookies,
+    resumeDataCache,
     previewProps,
     isHmrRefresh,
     serverComponentsHmrCache
@@ -140,6 +142,7 @@ export function createRequestStoreForAPI(
     url,
     implicitTags,
     onUpdateCookies,
+    undefined,
     previewProps,
     false,
     undefined
@@ -153,6 +156,7 @@ function createRequestStoreImpl(
   url: RequestContext['url'],
   implicitTags: RequestContext['implicitTags'],
   onUpdateCookies: RenderOpts['onUpdateCookies'],
+  resumeDataCache: RenderOpts['resumeDataCache'],
   previewProps: WrapperRenderOpts['previewProps'],
   isHmrRefresh: RequestContext['isHmrRefresh'],
   serverComponentsHmrCache: RequestContext['serverComponentsHmrCache']
@@ -170,6 +174,9 @@ function createRequestStoreImpl(
     userspaceMutableCookies?: ResponseCookies
     draftMode?: DraftModeProvider
   } = {}
+
+  // Ensure that the resume data cache is immutable.
+  resumeDataCache?.seal()
 
   return {
     type: 'request',
@@ -242,7 +249,7 @@ function createRequestStoreImpl(
 
       return cache.draftMode
     },
-
+    resumeDataCache: resumeDataCache ?? null,
     isHmrRefresh,
     serverComponentsHmrCache:
       serverComponentsHmrCache ||
