@@ -1,5 +1,6 @@
 import { constants as FS, promises as fs } from 'fs'
 import path from 'path'
+import url from 'url'
 import { SourceMapConsumer } from 'next/dist/compiled/source-map08'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import { getSourceMapFromFile } from '../internal/helpers/get-source-map-from-file'
@@ -213,7 +214,11 @@ export async function getSource(
     filename = path.join(distDirectory, filename.replace(/^\/_next\//, ''))
   }
 
-  if (filename.startsWith('file:') || filename.startsWith(path.sep)) {
+  if (path.isAbsolute(filename)) {
+    filename = url.pathToFileURL(filename).href
+  }
+
+  if (filename.startsWith('file:')) {
     const sourceMap = await getSourceMapFromFile(filename)
 
     return sourceMap
