@@ -3,6 +3,7 @@ import { register } from 'node:module'
 import { basename, extname, join, relative, isAbsolute, resolve } from 'path'
 import { pathToFileURL } from 'url'
 import findUp from 'next/dist/compiled/find-up'
+import semver from 'next/dist/compiled/semver'
 import * as Log from '../build/output/log'
 import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import { defaultConfig, normalizeConfig } from './config-shared'
@@ -1067,10 +1068,6 @@ export default async function loadConfig(
     ) as NextConfigComplete
   }
 
-  // TODO(jiwon): ensure path is resolved correctly
-  // TODO(jiwon): can we deregister after loading the config?
-  register('../build/next-config-ts/loader.mjs', pathToFileURL(__filename))
-
   const path = await findUp(CONFIG_FILES, { cwd: dir })
 
   // If config file was found
@@ -1090,6 +1087,23 @@ export default async function loadConfig(
         // https://github.com/nodejs/node/issues/35889
         userConfigModule = require(path)
       } else {
+        if (configFileName.endsWith('ts')) {
+          // "module.register" is not supported on Node.js v19.
+          const nodeVersion = process.versions.node
+          if (semver.satisfies(nodeVersion, '19.x')) {
+            throw new Error(
+              `"${configFileName}" is not supported on Node.js v19 (current: ${nodeVersion}). To use "${configFileName}", please upgrade to Node.js 20 or later.`
+            )
+          }
+
+          // TODO(jiwon): ensure path is resolved correctly
+          // TODO(jiwon): can we deregister after loading the config?
+          register(
+            '../build/next-config-ts/loader.mjs',
+            pathToFileURL(__filename)
+          )
+        }
+
         userConfigModule = await import(pathToFileURL(path).href)
       }
       const newEnv: typeof process.env = {} as any
