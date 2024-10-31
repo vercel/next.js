@@ -43,7 +43,7 @@ use turbopack_ecmascript::{
 #[turbo_tasks::value]
 pub(crate) struct ServerActionsManifest {
     pub loader: Vc<Box<dyn EvaluatableAsset>>,
-    pub manifest: Vc<Box<dyn OutputAsset>>,
+    pub manifest: ResolvedVc<Box<dyn OutputAsset>>,
 }
 
 /// Scans the RSC entry point's full module graph looking for exported Server
@@ -141,7 +141,7 @@ async fn build_manifest(
     runtime: NextRuntime,
     actions: Vc<AllActions>,
     chunk_item: Vc<Box<dyn ChunkItem>>,
-) -> Result<Vc<Box<dyn OutputAsset>>> {
+) -> Result<ResolvedVc<Box<dyn OutputAsset>>> {
     let manifest_path_prefix = &page_name;
     let manifest_path = node_root
         .join(format!("server/app{manifest_path_prefix}/server-reference-manifest.json",).into());
@@ -170,10 +170,14 @@ async fn build_manifest(
         entry.layer.insert(&key, *layer);
     }
 
-    Ok(Vc::upcast(VirtualOutputAsset::new(
-        manifest_path,
-        AssetContent::file(File::from(serde_json::to_string_pretty(&manifest)?).into()),
-    )))
+    Ok(ResolvedVc::upcast(
+        VirtualOutputAsset::new(
+            manifest_path,
+            AssetContent::file(File::from(serde_json::to_string_pretty(&manifest)?).into()),
+        )
+        .to_resolved()
+        .await?,
+    ))
 }
 
 /// Traverses the entire module graph starting from [Module], looking for magic

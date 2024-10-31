@@ -1039,8 +1039,8 @@ impl PageEndpoint {
         let ssr_chunk = match this.ty {
             PageEndpointType::Html => {
                 let client_chunks = self.client_chunks();
-                client_assets.extend(client_chunks.await?.iter().copied());
-                let build_manifest = self.build_manifest(client_chunks);
+                client_assets.extend(client_chunks.await?.iter().map(|asset| **asset));
+                let build_manifest = self.build_manifest(client_chunks).to_resolved().await?;
                 let page_loader = self.page_loader(client_chunks);
                 client_assets.push(page_loader);
                 server_assets.push(build_manifest);
@@ -1079,14 +1079,16 @@ impl PageEndpoint {
         {
             let webpack_stats =
                 generate_webpack_stats(original_name.to_owned(), &client_assets.await?).await?;
-            let stats_output: Vc<Box<dyn OutputAsset>> = Vc::upcast(VirtualOutputAsset::new(
+            let stats_output = VirtualOutputAsset::new(
                 node_root
                     .join(format!("server/pages{manifest_path_prefix}/webpack-stats.json",).into()),
                 AssetContent::file(
                     File::from(serde_json::to_string_pretty(&webpack_stats)?).into(),
                 ),
-            ));
-            server_assets.push(Vc::upcast(stats_output));
+            )
+            .to_resolved()
+            .await?;
+            server_assets.push(ResolvedVc::upcast(stats_output));
         }
 
         let page_output = match *ssr_chunk.await? {
@@ -1094,7 +1096,7 @@ impl PageEndpoint {
                 entry,
                 dynamic_import_entries,
             } => {
-                let pages_manifest = self.pages_manifest(entry);
+                let pages_manifest = self.pages_manifest(*entry).to_resolved().await?;
                 server_assets.push(pages_manifest);
                 server_assets.push(entry);
 
@@ -1114,7 +1116,7 @@ impl PageEndpoint {
                 let node_root = this.pages_project.project().node_root();
                 let files_value = files.await?;
                 if let Some(&file) = files_value.first() {
-                    let pages_manifest = self.pages_manifest(file);
+                    let pages_manifest = self.pages_manifest(*file).to_resolved().await?;
                     server_assets.push(pages_manifest);
                 }
                 server_assets.extend(files_value.iter().copied());
@@ -1170,7 +1172,7 @@ impl PageEndpoint {
                     ..Default::default()
                 };
                 let manifest_path_prefix = get_asset_prefix_from_pathname(&this.pathname.await?);
-                let middleware_manifest_v2 = Vc::upcast(VirtualOutputAsset::new(
+                let middleware_manifest_v2 = VirtualOutputAsset::new(
                     node_root.join(
                         format!("server/pages{manifest_path_prefix}/middleware-manifest.json")
                             .into(),
@@ -1181,8 +1183,10 @@ impl PageEndpoint {
                         )?))
                         .cell(),
                     ),
-                ));
-                server_assets.push(middleware_manifest_v2);
+                )
+                .to_resolved()
+                .await?;
+                server_assets.push(ResolvedVc::upcast(middleware_manifest_v2));
 
                 let loadable_manifest_output = self.react_loadable_manifest(dynamic_import_entries);
                 server_assets.extend(loadable_manifest_output.await?.iter().copied());
@@ -1319,7 +1323,7 @@ impl Endpoint for PageEndpoint {
 #[turbo_tasks::value]
 enum PageEndpointOutput {
     NodeJs {
-        entry_chunk: Vc<Box<dyn OutputAsset>>,
+        entry_chunk: ResolvedVc<Box<dyn OutputAsset>>,
         server_assets: Vc<OutputAssets>,
         client_assets: Vc<OutputAssets>,
     },
@@ -1365,7 +1369,7 @@ impl PageEndpointOutput {
 #[turbo_tasks::value]
 pub enum SsrChunk {
     NodeJs {
-        entry: Vc<Box<dyn OutputAsset>>,
+        entry: ResolvedVc<Box<dyn OutputAsset>>,
         dynamic_import_entries: Vc<DynamicImportedChunks>,
     },
     Edge {

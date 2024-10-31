@@ -211,7 +211,7 @@ async fn extra_configs_changed(
                         .await?
                     {
                         ProcessResult::Module(module) => {
-                            Some(any_content_changed_of_module(module))
+                            Some(any_content_changed_of_module(*module))
                         }
                         ProcessResult::Ignore => None,
                     }

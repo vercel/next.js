@@ -1,7 +1,7 @@
 use std::hash::Hash;
 
 use anyhow::Result;
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -55,11 +55,11 @@ impl OutputAsset for RebasedAsset {
             .await?
             .iter()
         {
-            references.push(Vc::upcast(RebasedAsset::new(
-                *module,
-                self.input_dir,
-                self.output_dir,
-            )));
+            references.push(ResolvedVc::upcast(
+                RebasedAsset::new(*module, self.input_dir, self.output_dir)
+                    .to_resolved()
+                    .await?,
+            ));
         }
         Ok(Vc::cell(references))
     }

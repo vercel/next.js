@@ -109,13 +109,15 @@ impl PageLoaderAsset {
             let rebased = chunks
                 .await?
                 .iter()
-                .map(|chunk| {
-                    Vc::upcast(ProxiedAsset::new(
+                .map(|&chunk| {
+                    Vc::upcast::<Box<dyn OutputAsset>>(ProxiedAsset::new(
                         *chunk,
                         FileSystemPath::rebase(chunk.ident().path(), **rebase_path, root_path),
                     ))
+                    .to_resolved()
                 })
-                .collect();
+                .try_join()
+                .await?;
             chunks = Vc::cell(rebased);
         };
 

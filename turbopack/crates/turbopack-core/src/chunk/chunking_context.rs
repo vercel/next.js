@@ -1,6 +1,6 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, RcStr, TaskInput, Upcast, Value, Vc};
+use turbo_tasks::{trace::TraceRawVcs, RcStr, ResolvedVc, TaskInput, Upcast, Value, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::DeterministicHash;
 
@@ -43,7 +43,7 @@ pub struct ChunkGroupResult {
 
 #[turbo_tasks::value(shared)]
 pub struct EntryChunkGroupResult {
-    pub asset: Vc<Box<dyn OutputAsset>>,
+    pub asset: ResolvedVc<Box<dyn OutputAsset>>,
     pub availability_info: AvailabilityInfo,
 }
 
@@ -311,7 +311,7 @@ async fn entry_chunk_group_asset(
     extra_chunks: Vc<OutputAssets>,
     availability_info: Value<AvailabilityInfo>,
 ) -> Result<Vc<Box<dyn OutputAsset>>> {
-    Ok(chunking_context
+    Ok(*chunking_context
         .entry_chunk_group(
             path,
             module,

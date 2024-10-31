@@ -63,8 +63,8 @@ use crate::{error::PrettyPrintError, issue::IssueSeverity};
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
 pub enum ModuleResolveResultItem {
-    Module(Vc<Box<dyn Module>>),
-    OutputAsset(Vc<Box<dyn OutputAsset>>),
+    Module(ResolvedVc<Box<dyn Module>>),
+    OutputAsset(ResolvedVc<Box<dyn OutputAsset>>),
     External(RcStr, ExternalType),
     Ignore,
     Error(ResolvedVc<RcStr>),
@@ -102,24 +102,13 @@ impl ModuleResolveResult {
         }
     }
 
-    pub fn ignored() -> ModuleResolveResult {
-        Self::ignored_with_key(RequestKey::default())
-    }
-
-    pub fn ignored_with_key(request_key: RequestKey) -> ModuleResolveResult {
-        ModuleResolveResult {
-            primary: fxindexmap! { request_key => ModuleResolveResultItem::Ignore },
-            affecting_sources: Vec::new(),
-        }
-    }
-
-    pub fn module(module: Vc<Box<dyn Module>>) -> ModuleResolveResult {
+    pub fn module(module: ResolvedVc<Box<dyn Module>>) -> ModuleResolveResult {
         Self::module_with_key(RequestKey::default(), module)
     }
 
     pub fn module_with_key(
         request_key: RequestKey,
-        module: Vc<Box<dyn Module>>,
+        module: ResolvedVc<Box<dyn Module>>,
     ) -> ModuleResolveResult {
         ModuleResolveResult {
             primary: fxindexmap! { request_key => ModuleResolveResultItem::Module(module) },
@@ -129,7 +118,7 @@ impl ModuleResolveResult {
 
     pub fn output_asset(
         request_key: RequestKey,
-        output_asset: Vc<Box<dyn OutputAsset>>,
+        output_asset: ResolvedVc<Box<dyn OutputAsset>>,
     ) -> ModuleResolveResult {
         ModuleResolveResult {
             primary: fxindexmap! { request_key => ModuleResolveResultItem::OutputAsset(output_asset) },
@@ -138,7 +127,7 @@ impl ModuleResolveResult {
     }
 
     pub fn modules(
-        modules: impl IntoIterator<Item = (RequestKey, Vc<Box<dyn Module>>)>,
+        modules: impl IntoIterator<Item = (RequestKey, ResolvedVc<Box<dyn Module>>)>,
     ) -> ModuleResolveResult {
         ModuleResolveResult {
             primary: modules
@@ -149,20 +138,8 @@ impl ModuleResolveResult {
         }
     }
 
-    pub fn output_assets(
-        output_assets: impl IntoIterator<Item = (RequestKey, Vc<Box<dyn OutputAsset>>)>,
-    ) -> ModuleResolveResult {
-        ModuleResolveResult {
-            primary: output_assets
-                .into_iter()
-                .map(|(k, v)| (k, ModuleResolveResultItem::OutputAsset(v)))
-                .collect(),
-            affecting_sources: Vec::new(),
-        }
-    }
-
     pub fn modules_with_affecting_sources(
-        modules: impl IntoIterator<Item = (RequestKey, Vc<Box<dyn Module>>)>,
+        modules: impl IntoIterator<Item = (RequestKey, ResolvedVc<Box<dyn Module>>)>,
         affecting_sources: Vec<Vc<Box<dyn Source>>>,
     ) -> ModuleResolveResult {
         ModuleResolveResult {
@@ -174,7 +151,7 @@ impl ModuleResolveResult {
         }
     }
 
-    pub fn primary_modules_iter(&self) -> impl Iterator<Item = Vc<Box<dyn Module>>> + '_ {
+    pub fn primary_modules_iter(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + '_ {
         self.primary.iter().filter_map(|(_, item)| match item {
             &ModuleResolveResultItem::Module(a) => Some(a),
             _ => None,
@@ -346,17 +323,15 @@ impl ModuleResolveResult {
         let Some(first) = iter.next() else {
             return Ok(Vc::cell(vec![]));
         };
-        let first = first.to_resolved().await?;
 
         let Some(second) = iter.next() else {
             return Ok(Vc::cell(vec![first]));
         };
-        let second = second.to_resolved().await?;
 
         // We have at least two items, so we need to deduplicate them
         let mut set = fxindexset![first, second];
         for module in self.primary_modules_iter() {
-            set.insert(module.to_resolved().await?);
+            set.insert(module);
         }
         Ok(Vc::cell(set.into_iter().collect()))
     }
@@ -740,9 +715,9 @@ impl ResolveResult {
     pub async fn as_raw_module_result(&self) -> Result<Vc<ModuleResolveResult>> {
         Ok(self
             .map_module(|asset| async move {
-                Ok(ModuleResolveResultItem::Module(Vc::upcast(RawModule::new(
-                    asset,
-                ))))
+                Ok(ModuleResolveResultItem::Module(ResolvedVc::upcast(
+                    RawModule::new(asset).to_resolved().await?,
+                )))
             })
             .await?
             .cell())
