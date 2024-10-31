@@ -62,14 +62,6 @@ export default async function Page() {
 }
 ```
 
-## How cache revalidation works
-
-When a revalidation period of fifteen minutes is set, the following happens:
-
-1. **Cache HIT**: If a request is made within the 15 minute window, the cached data is served, and is a cache HIT.
-2. **Stale data**: If the request happens after 15 minutes the cached value is still served, but is now considered stale. Next.js will recompute a new cache entry in the background.
-3. **Cache MISS**: If the cache entry expires and a subsequent request is made, then Next.js will treat this as a cache MISS, and the data will be recomputed and fetched again from the source.
-
 ## Reference
 
 ### Default cache profiles
@@ -189,17 +181,34 @@ module.exports = nextConfig
 
 For specific use cases, you can set a custom cache profile by passing an object to the `cacheLife` function:
 
-```tsx filename="app/page.tsx" highlight={5,6,7}
+```tsx filename="app/page.tsx" highlight={5-9}
 'use cache'
 import { unstable_cacheLife as cacheLife } from 'next/cache'
 
-cacheLife({
-  stale: 3600, // 1 hour
-  revalidate: 900, // 15 minutes
-  expire: 86400, // 1 day
-})
+export default async function Page() {
+  cacheLife({
+    stale: 3600, // 1 hour
+    revalidate: 900, // 15 minutes
+    expire: 86400, // 1 day
+  })
 
-// rest of code
+  return <div>Page</div>
+}
+```
+
+```jsx filename="app/page.js" highlight={5-9}
+'use cache'
+import { unstable_cacheLife as cacheLife } from 'next/cache'
+
+export default async function Page() {
+  cacheLife({
+    stale: 3600, // 1 hour
+    revalidate: 900, // 15 minutes
+    expire: 86400, // 1 day
+  })
+
+  return <div>Page</div>
+}
 ```
 
 This inline cache profile will only be applied to the function or file it was created in. If you want to reuse the same profile throughout your application, you can [add the configuration](#defining-reusable-cache-profiles) to the `cacheLife` property of your `next.config.ts` file.
@@ -207,12 +216,6 @@ This inline cache profile will only be applied to the function or file it was cr
 ### Nested usage of `use cache` and `cacheLife`
 
 When defining multiple caching behaviors in the same route or component tree, if the inner caches specify their own `cacheLife` profile, the outer cache will respect the shortest cache duration among them. **This applies only if the outer cache does not have its own explicit `cacheLife` profile defined.**
-
-**Decision hierarchy for cache boundaries:**
-
-1. Next.js will use the shortest cache profile found within the whole `use cache` boundary, excluding inner `use cache` directives.
-2. If no cache profile exists, then the shortest profile times from all inner `use cache` calls applies to this `use cache`. If there are no inner `use cache`'s then the default is used
-3. Inner caches at two levels deep do not affect the outer cache since they have already provided their duration to their parent.
 
 For example, if you add the `use cache` directive to your page, without specifying a cache profile, the default cache profile will be applied implicitly (`cacheLife(”default”)`). If a component imported into the page also uses the `use cache` directive with its own cache profile, the outer and inner cache profiles are compared, and shortest duration set in the profiles will be applied.
 
