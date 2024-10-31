@@ -254,28 +254,23 @@ export function createPatchedFetcher(
           `fetch ${input.toString()}`
         )
 
-        if (
+        const revalidateStore =
           workUnitStore &&
           (workUnitStore.type === 'cache' ||
             workUnitStore.type === 'prerender' ||
             workUnitStore.type === 'prerender-ppr' ||
             workUnitStore.type === 'prerender-legacy')
-        ) {
+            ? workUnitStore
+            : undefined
+
+        if (revalidateStore) {
           if (Array.isArray(tags)) {
             // Collect tags onto parent caches or parent prerenders.
             const collectedTags =
-              workUnitStore.tags ?? (workUnitStore.tags = [])
+              revalidateStore.tags ?? (revalidateStore.tags = [])
             for (const tag of tags) {
               if (!collectedTags.includes(tag)) {
                 collectedTags.push(tag)
-              }
-            }
-
-            // Add tags of the current cache scope to the locally collected tags
-            // for this fetch call.
-            for (const tag of collectedTags) {
-              if (!tags.includes(tag)) {
-                tags.push(tag)
               }
             }
           }
@@ -286,12 +281,10 @@ export function createPatchedFetcher(
             ? []
             : workUnitStore.implicitTags
 
-        // Inside unstable-cache or "use cache", we treat it the same as
-        // force-no-store on the page.
+        // Inside unstable-cache we treat it the same as force-no-store on the
+        // page.
         const pageFetchCacheMode =
-          workUnitStore &&
-          (workUnitStore.type === 'unstable-cache' ||
-            workUnitStore.type === 'cache')
+          workUnitStore && workUnitStore.type === 'unstable-cache'
             ? 'force-no-store'
             : workStore.fetchCache
 
@@ -358,15 +351,6 @@ export function createPatchedFetcher(
         const isUnCacheableMethod = !['get', 'head'].includes(
           getRequestMeta('method')?.toLowerCase() || 'get'
         )
-
-        const revalidateStore =
-          workUnitStore &&
-          (workUnitStore.type === 'cache' ||
-            workUnitStore.type === 'prerender' ||
-            workUnitStore.type === 'prerender-ppr' ||
-            workUnitStore.type === 'prerender-legacy')
-            ? workUnitStore
-            : undefined
 
         /**
          * We automatically disable fetch caching under the following conditions:
@@ -515,7 +499,9 @@ export function createPatchedFetcher(
             }
           }
 
-          if (revalidateStore) {
+          // We only want to set the revalidate store's revalidate time if it
+          // was explicitly set for the fetch call, i.e. currentFetchRevalidate.
+          if (revalidateStore && currentFetchRevalidate === finalRevalidate) {
             revalidateStore.revalidate = finalRevalidate
           }
         }

@@ -7,6 +7,7 @@ mod traits;
 
 use std::{
     any::Any,
+    future::{Future, IntoFuture},
     hash::{Hash, Hasher},
     marker::PhantomData,
     ops::Deref,
@@ -519,27 +520,24 @@ where
     }
 }
 
-impl<T> std::future::IntoFuture for Vc<T>
-where
-    T: VcValueType,
-{
-    type Output = <ReadVcFuture<T> as std::future::Future>::Output;
-    type IntoFuture = ReadVcFuture<T>;
-    fn into_future(self) -> Self::IntoFuture {
-        self.node.into_read().into()
-    }
+macro_rules! into_future {
+    ($ty:ty) => {
+        impl<T> IntoFuture for $ty
+        where
+            T: VcValueType,
+        {
+            type Output = <ReadVcFuture<T> as Future>::Output;
+            type IntoFuture = ReadVcFuture<T>;
+            fn into_future(self) -> Self::IntoFuture {
+                self.node.into_read().into()
+            }
+        }
+    };
 }
 
-impl<T> std::future::IntoFuture for &Vc<T>
-where
-    T: VcValueType,
-{
-    type Output = <Vc<T> as std::future::IntoFuture>::Output;
-    type IntoFuture = <Vc<T> as std::future::IntoFuture>::IntoFuture;
-    fn into_future(self) -> Self::IntoFuture {
-        (*self).into_future()
-    }
-}
+into_future!(Vc<T>);
+into_future!(&Vc<T>);
+into_future!(&mut Vc<T>);
 
 impl<T> Vc<T>
 where
