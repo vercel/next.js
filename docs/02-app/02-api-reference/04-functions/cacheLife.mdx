@@ -12,11 +12,11 @@ related:
     - app/api-reference/functions/cacheTag
 ---
 
-The `cacheLife` function is used to set tge cache lifetime of a function or component. It should be used alongside the `use cache` directive, and within the scope of the function or component.
+The `cacheLife` function is used to set the cache lifetime of a function or component. It should be used alongside the [`use cache`](/docs/app/api-reference/directives/use-cache) directive, and within the scope of the function or component.
 
 ## Usage
 
-To use `cacheLife`, enable the [`dynamicIO` flag](/docs/app/api-reference/next-config-js/dynamicIO) in your `next.config.js` file and import `cacheLife` from `next/cache`.
+To use `cacheLife`, enable the [`dynamicIO` flag](/docs/app/api-reference/next-config-js/dynamicIO) in your `next.config.js` file:
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
@@ -40,7 +40,7 @@ const nextConfig = {
 export default nextConfig
 ```
 
-Then, invoke The `cacheLife` function within the scope of the function or component:
+Then, import and invoke The `cacheLife` function within the scope of the function or component:
 
 ```tsx filename="app/page.tsx" highlight={5} switcher
 'use cache'
