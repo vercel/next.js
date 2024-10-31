@@ -28,7 +28,7 @@ async function getStackFramesContent(browser) {
   return stackFramesContent
 }
 
-describe('app-dir - invalid-element-type', () => {
+describe('app-dir - owner-stack-invalid-element-type', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
