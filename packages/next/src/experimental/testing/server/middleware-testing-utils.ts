@@ -1,13 +1,13 @@
 import type { IncomingHttpHeaders } from 'http'
 import { getMiddlewareMatchers } from '../../../build/analysis/get-page-static-info'
-import type { Middleware } from '../../../lib/load-custom-routes'
 import { getMiddlewareRouteMatcher } from '../../../shared/lib/router/utils/middleware-route-matcher'
 import type { NextConfig } from '../../../server/config-shared'
 import { parseUrl } from '../../../lib/url'
 import { constructRequest } from './utils'
+import type { MiddlewareConfigMatcherInput } from '../../../build/segment-config/middleware/middleware-config'
 
 export interface MiddlewareSourceConfig {
-  matcher?: string | string[] | Middleware[]
+  matcher?: MiddlewareConfigMatcherInput
 }
 
 /**
