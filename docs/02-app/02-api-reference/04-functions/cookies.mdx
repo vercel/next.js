@@ -76,7 +76,7 @@ To learn more about these options, see the [MDN docs](https://developer.mozilla.
 
 ### Getting a cookie
 
-You can use the `cookies().get('name')` method to get a single cookie:
+You can use the `(await cookies()).get('name')` method to get a single cookie:
 
 ```tsx filename="app/page.tsx" switcher
 import { cookies } from 'next/headers'
@@ -100,7 +100,7 @@ export default async function Page() {
 
 ### Getting all cookies
 
-You can use the `cookies().getAll()` method to get all cookies with a matching name. If `name` is unspecified, it returns all the available cookies.
+You can use the `(await cookies()).getAll()` method to get all cookies with a matching name. If `name` is unspecified, it returns all the available cookies.
 
 ```tsx filename="app/page.tsx" switcher
 import { cookies } from 'next/headers'
@@ -178,7 +178,7 @@ export async function create(data) {
 
 ### Checking if a cookie exists
 
-You can use the `cookies().has(name)` method to check if a cookie exists:
+You can use the `(await cookies()).has(name)` method to check if a cookie exists:
 
 ```tsx filename="app/page.ts" switcher
 import { cookies } from 'next/headers'
