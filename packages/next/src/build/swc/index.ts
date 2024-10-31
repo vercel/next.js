@@ -757,6 +757,10 @@ function bindingToApi(
       return binding.projectGetSourceForAsset(this._nativeProject, filePath)
     }
 
+    getSourceForAssetSync(filePath: string): string | null {
+      return binding.projectGetSourceForAssetSync(this._nativeProject, filePath)
+    }
+
     getSourceMap(filePath: string): Promise<string | null> {
       return binding.projectGetSourceMap(this._nativeProject, filePath)
     }

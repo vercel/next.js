@@ -281,6 +281,10 @@ export function projectGetSourceForAsset(
   project: { __napiType: 'Project' },
   filePath: string
 ): Promise<string | null>
+export function projectGetSourceForAssetSync(
+  project: { __napiType: 'Project' },
+  filePath: string
+): string | null
 export function projectGetSourceMap(
   project: { __napiType: 'Project' },
   filePath: string
