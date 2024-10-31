@@ -17,6 +17,7 @@ import { launchEditor } from '../internal/helpers/launchEditor'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import type { Project, TurbopackStackFrame } from '../../../../build/swc/types'
 import { getSourceMapFromFile } from '../internal/helpers/get-source-map-from-file'
+import { findSourceMap } from 'node:module'
 
 const currentSourcesByFile: Map<string, Promise<string | null>> = new Map()
 export async function batchedTraceSource(
@@ -174,6 +175,12 @@ export function getSourceMapMiddleware(project: Project, distDir: string) {
       filename.startsWith('webpack://') ||
       filename.startsWith('webpack-internal:///')
     ) {
+      const sourceMap = findSourceMap(filename)
+
+      if (sourceMap) {
+        return json(res, sourceMap.payload)
+      }
+
       return noContent(res)
     }
 

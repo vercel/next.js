@@ -154,7 +154,6 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
         experimental ? '-experimental' : ''
       }.runtime.${dev ? 'dev' : 'prod'}.js`,
       libraryTarget: 'commonjs2',
-      devtoolModuleFilenameTemplate: './[resource-path]',
     },
     devtool: process.env.NEXT_SERVER_EVAL_SOURCE_MAPS
       ? 'eval-source-map'
