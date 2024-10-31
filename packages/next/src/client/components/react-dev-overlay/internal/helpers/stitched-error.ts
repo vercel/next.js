@@ -28,12 +28,18 @@ export function getReactStitchedError<T = unknown>(err: T): Error | T {
   newError.stack = newStack
 
   // Avoid duplicate overriding stack frames
-  const ownerStack = (React as any).captureOwnerStack()
-  if (ownerStack && newStack.endsWith(ownerStack) === false) {
-    newStack += ownerStack
-    // Override stack
-    newError.stack = newStack
-  }
+  appendOwnerStack(newError)
 
   return newError
+}
+
+export function appendOwnerStack(error: Error) {
+  let stack = error.stack || ''
+  // Avoid duplicate overriding stack frames
+  const ownerStack = (React as any).captureOwnerStack()
+  if (ownerStack && stack.endsWith(ownerStack) === false) {
+    stack += ownerStack
+    // Override stack
+    error.stack = stack
+  }
 }
