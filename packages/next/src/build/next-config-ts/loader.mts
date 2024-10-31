@@ -1,5 +1,5 @@
 import { extname } from 'node:path'
-import { resolveSWCOptions } from './utils.mjs'
+import { resolveSWCOptions } from './utils.js'
 import { transform } from '../swc/index.js'
 
 const tsExts = new Set(['.ts', '.mts', '.cts'])

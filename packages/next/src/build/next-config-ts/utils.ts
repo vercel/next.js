@@ -1,9 +1,11 @@
 import type { JscTarget, ModuleConfig, Options as SWCOptions } from '@swc/core'
 import type { ParsedCommandLine } from 'typescript'
+
 import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { dirname, extname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+
 import { findPagesDir } from '../../lib/find-pages-dir.js'
 import { getTypeScriptConfiguration } from '../../lib/typescript/getTypeScriptConfiguration.js'
 import { verifyTypeScriptSetup } from '../../lib/verify-typescript-setup.js'
