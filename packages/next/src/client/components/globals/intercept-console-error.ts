@@ -1,3 +1,4 @@
+import React from 'react'
 import isError from '../../../lib/is-error'
 import { isNextRouterError } from '../is-next-router-error'
 import { captureStackTrace } from '../react-dev-overlay/internal/helpers/capture-stack-trace'
@@ -43,6 +44,7 @@ export function patchConsoleError() {
         )
       }
 
+      console.log('args', args, (React as any).captureOwnerStack())
       originConsoleError.apply(window.console, args)
     }
   }
