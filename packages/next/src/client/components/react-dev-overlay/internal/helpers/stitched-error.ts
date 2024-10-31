@@ -6,6 +6,10 @@ const REACT_ERROR_STACK_BOTTOM_FRAME_REGEX = new RegExp(
   `(at ${REACT_ERROR_STACK_BOTTOM_FRAME} )|(${REACT_ERROR_STACK_BOTTOM_FRAME}\\@)`
 )
 
+const captureOwnerStack = (React as any).captureOwnerStack
+  ? (React as any).captureOwnerStack
+  : () => ''
+
 export function getReactStitchedError<T = unknown>(err: T): Error | T {
   if (typeof (React as any).captureOwnerStack !== 'function') {
     return err
@@ -36,7 +40,7 @@ export function getReactStitchedError<T = unknown>(err: T): Error | T {
 export function appendOwnerStack(error: Error) {
   let stack = error.stack || ''
   // Avoid duplicate overriding stack frames
-  const ownerStack = (React as any).captureOwnerStack()
+  const ownerStack = captureOwnerStack()
   if (ownerStack && stack.endsWith(ownerStack) === false) {
     stack += ownerStack
     // Override stack
