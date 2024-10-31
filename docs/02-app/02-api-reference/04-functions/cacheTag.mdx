@@ -1,7 +1,7 @@
 ---
 title: cacheTag
 description: Learn how to use the cacheTag function to manage cache invalidation in your Next.js application.
-version: unstable
+version: canary
 related:
   title: Related
   description: View related API references.
@@ -16,7 +16,7 @@ The `cacheTag` function allows you to tag cached data for on-demand invalidation
 
 ## Usage
 
-To use `cacheTag`, enable the [`dynamicIO` flag](/docs/app/api-reference/next-config-js/dynamicIO) in your `next.config.js` file and import `cacheTag` from `next/cache`.
+To use `cacheTag`, enable the [`dynamicIO` flag](/docs/app/api-reference/next-config-js/dynamicIO) in your `next.config.js` file:
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'

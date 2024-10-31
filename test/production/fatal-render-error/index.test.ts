@@ -4,7 +4,7 @@ import { check, renderViaHTTP, waitFor } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
-describe('fatal-render-errror', () => {
+describe('fatal-render-error', () => {
   let next: NextInstance
 
   beforeAll(async () => {
