@@ -1,5 +1,5 @@
 import type { NextConfig } from 'next'
-import { getFoo } from './get-foo'
+import { getFoo } from './get-foo.ts'
 
 const foo = await getFoo()
 

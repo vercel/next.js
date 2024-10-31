@@ -1,4 +1,5 @@
 import { existsSync } from 'fs'
+import { register } from 'node:module'
 import { basename, extname, join, relative, isAbsolute, resolve } from 'path'
 import { pathToFileURL } from 'url'
 import findUp from 'next/dist/compiled/find-up'
@@ -24,7 +25,6 @@ import { matchRemotePattern } from '../shared/lib/match-remote-pattern'
 
 import type { ZodError } from 'next/dist/compiled/zod'
 import { hasNextSupport } from '../server/ci-info'
-import { transpileConfig } from '../build/next-config-ts/transpile-config'
 import { dset } from '../shared/lib/dset'
 import { normalizeZodErrors } from '../shared/lib/zod'
 
@@ -1067,6 +1067,10 @@ export default async function loadConfig(
     ) as NextConfigComplete
   }
 
+  // TODO(jiwon): ensure path is resolved correctly
+  // TODO(jiwon): can we deregister after loading the config?
+  register('../build/next-config-ts/loader.mjs', pathToFileURL(__filename))
+
   const path = await findUp(CONFIG_FILES, { cwd: dir })
 
   // If config file was found
@@ -1085,11 +1089,6 @@ export default async function loadConfig(
         // jest relies on so we fall back to require for this case
         // https://github.com/nodejs/node/issues/35889
         userConfigModule = require(path)
-      } else if (configFileName === 'next.config.ts') {
-        userConfigModule = await transpileConfig({
-          nextConfigPath: path,
-          cwd: dir,
-        })
       } else {
         userConfigModule = await import(pathToFileURL(path).href)
       }

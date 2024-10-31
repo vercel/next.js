@@ -2536,7 +2536,7 @@ export async function api_esm(task, opts) {
 
 export async function nextbuild(task, opts) {
   await task
-    .source('src/build/**/*.+(js|ts|tsx)', {
+    .source('src/build/**/*.+(js|ts|mts|tsx)', {
       ignore: [
         '**/fixture/**',
         '**/tests/**',

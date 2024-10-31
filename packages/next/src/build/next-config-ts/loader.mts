@@ -1,27 +1,28 @@
-/* eslint-disable no-undef */
-// import type { Options as SWCOptions } from '@swc/core'
-import { extname, basename } from 'node:path'
+import { extname } from 'node:path'
+import { resolveSWCOptions } from './utils.mjs'
 import { transform } from '../swc/index.js'
 
 const tsExts = new Set(['.ts', '.mts', '.cts'])
 
 export async function resolve(
   specifier: string,
-  context: any,
-  nextResolve: typeof resolve
+  context: {
+    conditions: string[]
+    importAttributes: Record<string, string>
+    parentURL: string | undefined
+  },
+  nextResolve: Function
 ): Promise<any> {
+  if (!context.parentURL) {
+    return nextResolve(specifier, context)
+  }
+
   const ext = extname(specifier)
   if (!tsExts.has(ext)) {
-    return nextResolve(specifier, context, nextResolve)
+    return nextResolve(specifier, context)
   }
 
-  const filenameWithoutExt = basename(specifier, ext)
-  if (filenameWithoutExt !== 'next.config') {
-    return nextResolve(specifier, context, nextResolve)
-  }
-
-  // TODO: deduplicate
-  const { url } = await nextResolve(filenameWithoutExt, context, nextResolve)
+  const { url } = await nextResolve(specifier, context)
 
   return {
     format: 'next-config-ts',
@@ -30,25 +31,20 @@ export async function resolve(
   }
 }
 
-export async function load(url: string, context: any, nextLoad: any) {
-  console.log({ url })
+export async function load(url: string, context: any, nextLoad: Function) {
   if (context.format !== 'next-config-ts') {
-    return nextLoad(url)
+    return nextLoad(url, context)
   }
 
   const rawSource =
-    '' +
-    (await nextLoad(url, { ...context, format: 'module' }, nextLoad)).source
+    '' + (await nextLoad(url, { ...context, format: 'module' })).source
 
-  const { code: source } = await transform(rawSource, resolveSWCOptions())
+  const swcOptions = await resolveSWCOptions(url)
+  const { code: source } = await transform(rawSource, swcOptions)
 
   return {
     format: 'module',
     shortCircuit: true,
     source,
   }
-}
-
-function resolveSWCOptions(): any {
-  return {}
 }

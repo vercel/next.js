@@ -53,7 +53,15 @@ export async function verifyTypeScriptSetup({
   disableStaticImages: boolean
   hasAppDir: boolean
   hasPagesDir: boolean
-}): Promise<{ result?: TypeCheckResult; version: string | null }> {
+}): Promise<{
+  version: string | null
+  typeCheckResult?: TypeCheckResult
+  typescriptInfo?: {
+    ts: typeof import('typescript')
+    tsPath: string
+    resolvedTsConfigPath: string
+  }
+}> {
   const resolvedTsConfigPath = path.join(dir, tsconfigPath)
 
   try {
@@ -134,12 +142,13 @@ export async function verifyTypeScriptSetup({
       hasAppDir,
     })
 
-    let result
+    let typeCheckResult: TypeCheckResult | undefined
     if (typeCheckPreflight) {
-      const { runTypeCheck } = require('./typescript/runTypeCheck')
+      const { runTypeCheck } =
+        require('./typescript/runTypeCheck') as typeof import('./typescript/runTypeCheck')
 
       // Verify the project passes type-checking before we go to webpack phase:
-      result = await runTypeCheck(
+      typeCheckResult = await runTypeCheck(
         ts,
         dir,
         distDir,
@@ -148,7 +157,11 @@ export async function verifyTypeScriptSetup({
         hasAppDir
       )
     }
-    return { result, version: ts.version }
+    return {
+      typeCheckResult,
+      version: ts.version,
+      typescriptInfo: { ts, tsPath, resolvedTsConfigPath },
+    }
   } catch (err) {
     // These are special errors that should not show a stack trace:
     if (err instanceof CompileError) {
