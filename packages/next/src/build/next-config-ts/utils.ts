@@ -3,15 +3,16 @@ import type { ParsedCommandLine } from 'typescript'
 
 import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
-import { dirname, extname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { extname, join } from 'node:path'
 
 import { findPagesDir } from '../../lib/find-pages-dir.js'
 import { getTypeScriptConfiguration } from '../../lib/typescript/getTypeScriptConfiguration.js'
 import { verifyTypeScriptSetup } from '../../lib/verify-typescript-setup.js'
 
-export async function resolveSWCOptions(url: string): Promise<SWCOptions> {
-  const cwd = dirname(fileURLToPath(url))
+export async function resolveSWCOptions(
+  url: string,
+  cwd: string
+): Promise<SWCOptions> {
   const ext = extname(url)
 
   const packageJsonType = await getPackageJsonType(cwd)
@@ -63,6 +64,8 @@ export async function resolveSWCOptions(url: string): Promise<SWCOptions> {
       parser: {
         syntax: 'typescript',
       },
+      paths: tsConfig.options.paths,
+      baseUrl: tsConfig.options.baseUrl,
     },
     module: {
       type: module as ModuleConfig['type'],

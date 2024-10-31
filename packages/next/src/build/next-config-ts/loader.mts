@@ -3,6 +3,11 @@ import { resolveSWCOptions } from './utils.js'
 import { transform } from '../swc/index.js'
 
 const tsExts = new Set(['.ts', '.mts', '.cts'])
+const localContext = new Map<string, string>()
+
+export async function initialize({ cwd }: { cwd: string }) {
+  localContext.set('cwd', cwd)
+}
 
 export async function resolve(
   specifier: string,
@@ -39,7 +44,14 @@ export async function load(url: string, context: any, nextLoad: Function) {
   const rawSource =
     '' + (await nextLoad(url, { ...context, format: 'module' })).source
 
-  const swcOptions = await resolveSWCOptions(url)
+  const cwd = localContext.get('cwd')
+  if (!cwd) {
+    throw new Error(
+      '"cwd" value was not passed from loadConfig to "load" loader. This is a bug in Next.js.'
+    )
+  }
+
+  const swcOptions = await resolveSWCOptions(url, cwd)
   const { code: source } = await transform(rawSource, swcOptions)
 
   const ext = extname(url)

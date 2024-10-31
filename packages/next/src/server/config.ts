@@ -1098,10 +1098,10 @@ export default async function loadConfig(
 
           // TODO(jiwon): ensure path is resolved correctly
           // TODO(jiwon): can we deregister after loading the config?
-          register(
-            '../build/next-config-ts/loader.mjs',
-            pathToFileURL(__filename)
-          )
+          register('../build/next-config-ts/loader.mjs', {
+            parentURL: pathToFileURL(__filename),
+            data: { cwd: dir },
+          })
         }
 
         userConfigModule = await import(pathToFileURL(path).href)
