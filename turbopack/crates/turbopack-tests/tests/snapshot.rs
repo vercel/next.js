@@ -146,7 +146,12 @@ fn default_runtime_type() -> RuntimeType {
 
 #[testing::fixture("tests/snapshot/*/*/", exclude("node_modules"))]
 fn test(resource: PathBuf) {
+    if resource.is_file() {
+        return;
+    }
+
     let resource = canonicalize(resource).unwrap();
+
     // Separating this into a different function fixes my IDE's types for some
     // reason...
     run(resource).unwrap();
