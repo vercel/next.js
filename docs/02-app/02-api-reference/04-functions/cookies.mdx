@@ -65,7 +65,7 @@ To learn more about these options, see the [MDN docs](https://developer.mozilla.
 ## Good to know
 
 - `cookies` is an **asynchronous** function that returns a promise. You must use `async/await` or React's [`use`](https://react.dev/reference/react/use) function to access cookies.
-  - In version 14 and earlier, `cookies` was a synchronous function. To help with backwards compatability, you can still access it synchronoulsy in Next.js 15, but this behavior will be deprecated in the future.
+  - In version 14 and earlier, `cookies` was a synchronous function. To help with backwards compatability, you can still access it synchronously in Next.js 15, but this behavior will be deprecated in the future.
 - `cookies` is a [Dynamic API](/docs/app/building-your-application/rendering/server-components#dynamic-apis) whose returned values cannot be known ahead of time. Using it in a layout or page will opt a route into [dynamic rendering](/docs/app/building-your-application/rendering/server-components#dynamic-rendering).
 - The `.delete` method can only be called:
   - In a [Server Action](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) or [Route Handler](/docs/app/building-your-application/routing/route-handlers).
@@ -76,7 +76,7 @@ To learn more about these options, see the [MDN docs](https://developer.mozilla.
 
 ### Getting a cookie
 
-You can use the `cookies().get('name')` method to get a single cookie:
+You can use the `(await cookies()).get('name')` method to get a single cookie:
 
 ```tsx filename="app/page.tsx" switcher
 import { cookies } from 'next/headers'
@@ -100,7 +100,7 @@ export default async function Page() {
 
 ### Getting all cookies
 
-You can use the `cookies().getAll()` method to get all cookies with a matching name. If `name` is unspecified, it returns all the available cookies.
+You can use the `(await cookies()).getAll()` method to get all cookies with a matching name. If `name` is unspecified, it returns all the available cookies.
 
 ```tsx filename="app/page.tsx" switcher
 import { cookies } from 'next/headers'
@@ -132,7 +132,7 @@ export default async function Page() {
 
 ### Setting a cookie
 
-You can use the `cookies().set(name, value, options)` method in a [Server Action](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) or [Route Handler](/docs/app/building-your-application/routing/route-handlers) to set a cookie. The [`options` object](#options) is optional.
+You can use the `(await cookies()).set(name, value, options)` method in a [Server Action](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) or [Route Handler](/docs/app/building-your-application/routing/route-handlers) to set a cookie. The [`options` object](#options) is optional.
 
 ```tsx filename="app/actions.ts" switcher
 'use server'
@@ -142,11 +142,11 @@ import { cookies } from 'next/headers'
 export async function create(data) {
   const cookieStore = await cookies()
 
-  cookieStore().set('name', 'lee')
+  cookieStore.set('name', 'lee')
   // or
-  cookieStore().set('name', 'lee', { secure: true })
+  cookieStore.set('name', 'lee', { secure: true })
   // or
-  cookieStore().set({
+  cookieStore.set({
     name: 'name',
     value: 'lee',
     httpOnly: true,
@@ -163,11 +163,11 @@ import { cookies } from 'next/headers'
 export async function create(data) {
   const cookieStore = await cookies()
 
-  cookieStore().set('name', 'lee')
+  cookieStore.set('name', 'lee')
   // or
-  cookieStore().set('name', 'lee', { secure: true })
+  cookieStore.set('name', 'lee', { secure: true })
   // or
-  cookieStore().set({
+  cookieStore.set({
     name: 'name',
     value: 'lee',
     httpOnly: true,
@@ -178,7 +178,7 @@ export async function create(data) {
 
 ### Checking if a cookie exists
 
-You can use the `cookies().has(name)` method to check if a cookie exists:
+You can use the `(await cookies()).has(name)` method to check if a cookie exists:
 
 ```tsx filename="app/page.ts" switcher
 import { cookies } from 'next/headers'

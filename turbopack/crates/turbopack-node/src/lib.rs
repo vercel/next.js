@@ -10,7 +10,7 @@ use anyhow::{bail, Result};
 pub use node_entry::{NodeEntry, NodeRenderingEntries, NodeRenderingEntry};
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
-    Completion, Completions, FxIndexSet, RcStr, TryJoinIterExt, ValueToString, Vc,
+    Completion, Completions, FxIndexSet, RcStr, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
 };
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::{to_sys_path, File, FileSystemPath};
@@ -78,7 +78,7 @@ async fn internal_assets(
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct AssetsForSourceMapping(HashMap<String, Vc<Box<dyn GenerateSourceMap>>>);
+pub struct AssetsForSourceMapping(HashMap<String, ResolvedVc<Box<dyn GenerateSourceMap>>>);
 
 /// Extracts a map of "internal" assets ([`internal_assets`]) which implement
 /// the [GenerateSourceMap] trait.
@@ -92,7 +92,7 @@ async fn internal_assets_for_source_mapping(
     let mut internal_assets_for_source_mapping = HashMap::new();
     for asset in internal_assets.iter() {
         if let Some(generate_source_map) =
-            Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(*asset).await?
+            ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(*asset).await?
         {
             if let Some(path) = intermediate_output_path.get_path_to(&*asset.ident().path().await?)
             {
@@ -127,14 +127,14 @@ pub async fn external_asset_entrypoints(
 /// assets.
 #[turbo_tasks::function]
 async fn separate_assets(
-    intermediate_asset: Vc<Box<dyn OutputAsset>>,
+    intermediate_asset: ResolvedVc<Box<dyn OutputAsset>>,
     intermediate_output_path: Vc<FileSystemPath>,
 ) -> Result<Vc<SeparatedAssets>> {
     let intermediate_output_path = &*intermediate_output_path.await?;
     #[derive(PartialEq, Eq, Hash, Clone, Copy)]
     enum Type {
-        Internal(Vc<Box<dyn OutputAsset>>),
-        External(Vc<Box<dyn OutputAsset>>),
+        Internal(ResolvedVc<Box<dyn OutputAsset>>),
+        External(ResolvedVc<Box<dyn OutputAsset>>),
     }
     let get_asset_children = |asset| async move {
         let Type::Internal(asset) = asset else {
@@ -155,9 +155,9 @@ async fn separate_assets(
                     .await?
                     .is_inside_ref(intermediate_output_path)
                 {
-                    Ok(Type::Internal(*asset))
+                    Ok(Type::Internal(asset.to_resolved().await?))
                 } else {
-                    Ok(Type::External(*asset))
+                    Ok(Type::External(asset.to_resolved().await?))
                 }
             })
             .try_join()

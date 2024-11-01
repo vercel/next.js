@@ -1,6 +1,6 @@
 use anyhow::Result;
 use swc_core::ecma::ast::Lit;
-use turbo_tasks::{RcStr, Value, ValueToString, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, Value, ValueToString, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     file_source::FileSource,
@@ -99,14 +99,14 @@ impl ModuleReference for WebpackChunkAssetReference {
                 let filename = format!("./chunks/{}.js", chunk_id).into();
                 let source = Vc::upcast(FileSource::new(context_path.join(filename)));
 
-                ModuleResolveResult::module(Vc::upcast(WebpackModuleAsset::new(
-                    source,
-                    self.runtime,
-                    self.transforms,
-                )))
-                .into()
+                ModuleResolveResult::module(ResolvedVc::upcast(
+                    WebpackModuleAsset::new(source, self.runtime, self.transforms)
+                        .to_resolved()
+                        .await?,
+                ))
+                .cell()
             }
-            WebpackRuntime::None => ModuleResolveResult::unresolvable().into(),
+            WebpackRuntime::None => ModuleResolveResult::unresolvable().cell(),
         })
     }
 }
@@ -134,13 +134,13 @@ pub struct WebpackEntryAssetReference {
 #[turbo_tasks::value_impl]
 impl ModuleReference for WebpackEntryAssetReference {
     #[turbo_tasks::function]
-    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        ModuleResolveResult::module(Vc::upcast(WebpackModuleAsset::new(
-            self.source,
-            self.runtime,
-            self.transforms,
-        )))
-        .into()
+    async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
+        Ok(ModuleResolveResult::module(ResolvedVc::upcast(
+            WebpackModuleAsset::new(self.source, self.runtime, self.transforms)
+                .to_resolved()
+                .await?,
+        ))
+        .cell())
     }
 }
 
@@ -179,8 +179,10 @@ impl ModuleReference for WebpackRuntimeAssetReference {
         Ok(resolved
             .await?
             .map_module(|source| async move {
-                Ok(ModuleResolveResultItem::Module(Vc::upcast(
-                    WebpackModuleAsset::new(source, self.runtime, self.transforms),
+                Ok(ModuleResolveResultItem::Module(ResolvedVc::upcast(
+                    WebpackModuleAsset::new(source, self.runtime, self.transforms)
+                        .to_resolved()
+                        .await?,
                 )))
             })
             .await?

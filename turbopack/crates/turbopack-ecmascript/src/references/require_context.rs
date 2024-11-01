@@ -12,7 +12,7 @@ use swc_core::{
     },
     quote, quote_expr,
 };
-use turbo_tasks::{primitives::Regex, FxIndexMap, RcStr, Value, ValueToString, Vc};
+use turbo_tasks::{primitives::Regex, FxIndexMap, RcStr, ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -46,8 +46,8 @@ use crate::{
 #[turbo_tasks::value]
 #[derive(Debug)]
 pub(crate) enum DirListEntry {
-    File(Vc<FileSystemPath>),
-    Dir(Vc<DirList>),
+    File(ResolvedVc<FileSystemPath>),
+    Dir(ResolvedVc<DirList>),
 }
 
 #[turbo_tasks::value(transparent)]
@@ -83,7 +83,7 @@ impl DirList {
                 DirectoryEntry::File(path) => {
                     if let Some(relative_path) = root_val.get_relative_path_to(&*path.await?) {
                         if regex.is_match(&relative_path) {
-                            list.insert(relative_path, DirListEntry::File(**path));
+                            list.insert(relative_path, DirListEntry::File(*path));
                         }
                     }
                 }
@@ -91,9 +91,11 @@ impl DirList {
                     if let Some(relative_path) = root_val.get_relative_path_to(&*path.await?) {
                         list.insert(
                             relative_path,
-                            DirListEntry::Dir(DirList::read_internal(
-                                root, **path, recursive, filter,
-                            )),
+                            DirListEntry::Dir(
+                                DirList::read_internal(root, **path, recursive, filter)
+                                    .to_resolved()
+                                    .await?,
+                            ),
                         );
                     }
                 }
@@ -119,7 +121,7 @@ impl DirList {
             for (k, entry) in &*dir {
                 match entry {
                     DirListEntry::File(path) => {
-                        list.insert(k.clone(), *path);
+                        list.insert(k.clone(), **path);
                     }
                     DirListEntry::Dir(d) => {
                         queue.push_back(d.await?);
@@ -199,7 +201,7 @@ impl RequireContextMap {
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct RequireContextAssetReference {
-    pub inner: Vc<RequireContextAsset>,
+    pub inner: ResolvedVc<RequireContextAsset>,
     pub dir: RcStr,
     pub include_subdirs: bool,
 
@@ -237,7 +239,7 @@ impl RequireContextAssetReference {
             dir: dir.clone(),
             include_subdirs,
         }
-        .cell();
+        .resolved_cell();
 
         Self::cell(RequireContextAssetReference {
             inner,
@@ -254,7 +256,7 @@ impl RequireContextAssetReference {
 impl ModuleReference for RequireContextAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        ModuleResolveResult::module(Vc::upcast(self.inner)).cell()
+        ModuleResolveResult::module(ResolvedVc::upcast(self.inner)).cell()
     }
 }
 

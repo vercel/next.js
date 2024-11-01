@@ -8,7 +8,7 @@ use next_core::{
     util::{parse_config_from_source, MiddlewareMatcherKind},
 };
 use tracing::Instrument;
-use turbo_tasks::{Completion, RcStr, Value, Vc};
+use turbo_tasks::{Completion, RcStr, ResolvedVc, Value, Vc};
 use turbo_tasks_fs::{self, File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
@@ -36,8 +36,8 @@ pub struct MiddlewareEndpoint {
     project: Vc<Project>,
     asset_context: Vc<Box<dyn AssetContext>>,
     source: Vc<Box<dyn Source>>,
-    app_dir: Option<Vc<FileSystemPath>>,
-    ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
+    app_dir: Option<ResolvedVc<FileSystemPath>>,
+    ecmascript_client_reference_transition_name: Option<ResolvedVc<RcStr>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -47,8 +47,8 @@ impl MiddlewareEndpoint {
         project: Vc<Project>,
         asset_context: Vc<Box<dyn AssetContext>>,
         source: Vc<Box<dyn Source>>,
-        app_dir: Option<Vc<FileSystemPath>>,
-        ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
+        app_dir: Option<ResolvedVc<FileSystemPath>>,
+        ecmascript_client_reference_transition_name: Option<ResolvedVc<RcStr>>,
     ) -> Vc<Self> {
         Self {
             project,
@@ -85,9 +85,11 @@ impl MiddlewareEndpoint {
 
         let mut evaluatable_assets = get_server_runtime_entries(
             Value::new(ServerContextType::Middleware {
-                app_dir: self.app_dir,
+                app_dir: self.app_dir.as_deref().copied(),
                 ecmascript_client_reference_transition_name: self
-                    .ecmascript_client_reference_transition_name,
+                    .ecmascript_client_reference_transition_name
+                    .as_deref()
+                    .copied(),
             }),
             self.project.next_mode(),
         )
@@ -196,7 +198,7 @@ impl MiddlewareEndpoint {
                         }
                         source.push_str("/?index|/?index\\\\.json)?")
                     } else {
-                        source.push_str("(.json)?")
+                        source.push_str("{(\\\\.json)}?")
                     };
 
                     source.insert_str(0, "/:nextData(_next/data/[^/]{1,})?");
@@ -237,7 +239,7 @@ impl MiddlewareEndpoint {
                 .collect(),
             ..Default::default()
         };
-        let middleware_manifest_v2 = Vc::upcast(VirtualOutputAsset::new(
+        let middleware_manifest_v2 = VirtualOutputAsset::new(
             node_root.join("server/middleware/middleware-manifest.json".into()),
             AssetContent::file(
                 FileContent::Content(File::from(serde_json::to_string_pretty(
@@ -245,8 +247,10 @@ impl MiddlewareEndpoint {
                 )?))
                 .cell(),
             ),
-        ));
-        output_assets.push(middleware_manifest_v2);
+        )
+        .to_resolved()
+        .await?;
+        output_assets.push(ResolvedVc::upcast(middleware_manifest_v2));
 
         Ok(Vc::cell(output_assets))
     }
@@ -307,7 +311,7 @@ impl Endpoint for MiddlewareEndpoint {
     }
 
     #[turbo_tasks::function]
-    fn root_modules(self: Vc<Self>) -> Vc<Modules> {
-        Vc::cell(vec![self.userland_module()])
+    async fn root_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
+        Ok(Vc::cell(vec![self.userland_module().to_resolved().await?]))
     }
 }

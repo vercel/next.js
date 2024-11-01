@@ -1587,6 +1587,16 @@ describe('app-dir action handling', () => {
       expect(html).not.toContain('qwerty123')
       expect(html).not.toContain('some-module-level-encryption-value')
     })
+
+    it('should be able to resolve other server actions and client components', async () => {
+      const browser = await next.browser('/encryption')
+      expect(await browser.elementByCss('p').text()).toBe('initial')
+      await browser.elementByCss('button').click()
+
+      await retry(async () => {
+        expect(await browser.elementByCss('p').text()).toBe('hello from client')
+      })
+    })
   })
 
   describe('redirects', () => {

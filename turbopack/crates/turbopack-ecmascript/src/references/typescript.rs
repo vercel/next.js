@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{RcStr, Value, ValueToString, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     context::AssetContext,
@@ -30,12 +30,13 @@ impl TsConfigReference {
 #[turbo_tasks::value_impl]
 impl ModuleReference for TsConfigReference {
     #[turbo_tasks::function]
-    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        ModuleResolveResult::module(Vc::upcast(TsConfigModuleAsset::new(
-            self.origin,
-            Vc::upcast(FileSource::new(self.tsconfig)),
-        )))
-        .into()
+    async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
+        Ok(ModuleResolveResult::module(ResolvedVc::upcast(
+            TsConfigModuleAsset::new(self.origin, Vc::upcast(FileSource::new(self.tsconfig)))
+                .to_resolved()
+                .await?,
+        ))
+        .cell())
     }
 }
 
@@ -85,7 +86,9 @@ impl ModuleReference for TsReferencePathAssetReference {
                             TypeScriptReferenceSubType::Undefined,
                         )),
                     )
-                    .module();
+                    .module()
+                    .to_resolved()
+                    .await?;
                 ModuleResolveResult::module(module).cell()
             } else {
                 ModuleResolveResult::unresolvable().cell()
