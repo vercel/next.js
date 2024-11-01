@@ -1,9 +1,9 @@
-import type { JscTarget, ModuleConfig, Options as SWCOptions } from '@swc/core'
+import type { ModuleConfig, Options as SWCOptions } from '@swc/core'
 import type { ParsedCommandLine } from 'typescript'
 
 import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
-import { extname, join } from 'node:path'
+import { extname, join, resolve } from 'node:path'
 
 import { findPagesDir } from '../../lib/find-pages-dir.js'
 import { getTypeScriptConfiguration } from '../../lib/typescript/getTypeScriptConfiguration.js'
@@ -16,68 +16,42 @@ export async function resolveSWCOptions(
   const ext = extname(url)
 
   const packageJsonType = await getPackageJsonType(cwd)
-  const { tsConfig, ts } = await getTypeScriptInfo(cwd)
+  const { options } = await getTSConfig(cwd)
 
-  const shouldBeCJS = ext === '.cts'
-  const shouldBeESM =
-    ext === '.mts' || (ext === '.ts' && packageJsonType === 'module')
-
-  // enum 4 is 'ES2017'
-  let target = ts.ScriptTarget[tsConfig.options.target ?? 4]
-
-  if (target === 'Latest' || target === 'ES2023') {
-    target = 'esnext'
+  let moduleType: ModuleConfig['type'] = 'commonjs'
+  if (packageJsonType === 'module' || ext === '.mts') {
+    moduleType = 'es6'
+  }
+  if (ext === '.cts') {
+    moduleType = 'commonjs'
   }
 
-  // enum 99 is 'ESNext'
-  let module = ts.ModuleKind[tsConfig.options.module ?? 99]
-
-  if (module === 'None') {
-    module = 'commonjs'
-  }
-  if (module === 'System') {
-    module = 'systemjs'
-  }
-  if (module === 'Node16') {
-    module = 'nodenext'
-  }
-  if (
-    module === 'ES2015' ||
-    module === 'ES2020' ||
-    module === 'ES2022' ||
-    module === 'ESNext' ||
-    module === 'Preserve'
-  ) {
-    module = 'es6'
-  }
-
-  if (shouldBeCJS) {
-    module = 'commonjs'
-  }
-  if (shouldBeESM) {
-    module = 'es6'
-  }
+  console.log({ moduleType })
 
   return {
     jsc: {
-      target: target as JscTarget,
       parser: {
         syntax: 'typescript',
       },
-      paths: tsConfig.options.paths,
-      baseUrl: tsConfig.options.baseUrl,
+      paths: options.paths,
+      baseUrl: options.baseUrl ? resolve(options.baseUrl) : undefined,
+      experimental: {
+        keepImportAttributes: true,
+        emitAssertForImportAttributes: true,
+      },
     },
     module: {
-      type: module as ModuleConfig['type'],
+      type: moduleType,
     },
-    isModule: 'unknown',
+    env: {
+      targets: {
+        node: process.versions.node,
+      },
+    },
   } satisfies SWCOptions
 }
 
-async function getTypeScriptInfo(cwd: string): Promise<{
-  tsConfig: ParsedCommandLine
-  ts: typeof import('typescript')
-}> {
+async function getTSConfig(cwd: string): Promise<ParsedCommandLine> {
   const { pagesDir, appDir } = findPagesDir(cwd)
 
   const verifyResult = await verifyTypeScriptSetup({
@@ -100,7 +74,7 @@ async function getTypeScriptInfo(cwd: string): Promise<{
     true
   )
 
-  return { tsConfig, ts }
+  return tsConfig
 }
 
 async function getPackageJsonType(cwd: string): Promise<'commonjs' | 'module'> {

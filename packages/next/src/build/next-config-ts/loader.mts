@@ -1,3 +1,4 @@
+import type { LoadContext, ResolveContext } from './types'
 import { extname } from 'node:path'
 import { resolveSWCOptions } from './utils.js'
 import { transform } from '../swc/index.js'
@@ -11,13 +12,9 @@ export async function initialize({ cwd }: { cwd: string }) {
 
 export async function resolve(
   specifier: string,
-  context: {
-    conditions: string[]
-    importAttributes: Record<string, string>
-    parentURL: string | undefined
-  },
+  context: ResolveContext,
   nextResolve: Function
-): Promise<any> {
+) {
   if (!context.parentURL) {
     return nextResolve(specifier, context)
   }
@@ -36,7 +33,11 @@ export async function resolve(
   }
 }
 
-export async function load(url: string, context: any, nextLoad: Function) {
+export async function load(
+  url: string,
+  context: LoadContext,
+  nextLoad: Function
+) {
   if (context.format !== 'next-config-ts') {
     return nextLoad(url, context)
   }
@@ -52,14 +53,14 @@ export async function load(url: string, context: any, nextLoad: Function) {
   }
 
   const swcOptions = await resolveSWCOptions(url, cwd)
-  const { code: source } = await transform(rawSource, swcOptions)
-
-  const ext = extname(url)
-  const shouldBeCJS = ext === '.cts'
+  const { code } = await transform(rawSource, swcOptions)
 
   return {
-    format: shouldBeCJS ? 'commonjs' : 'module',
+    // TODO(jiwon): Support format `commonjs` and drop the require hooks.
+    // `source` is ignored when `format` is `commonjs` on Node.js v18.
+    // x-ref: https://github.com/nodejs/node/issues/55630
+    format: 'module',
     shortCircuit: true,
-    source,
+    source: code,
   }
 }
