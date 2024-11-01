@@ -60,7 +60,7 @@ import type { MiddlewareMatcher } from '../build/analysis/get-page-static-info'
 import type { TLSSocket } from 'tls'
 import type { PathnameNormalizer } from './normalizers/request/pathname-normalizer'
 import type { InstrumentationModule } from './instrumentation/types'
-import type { ResumeDataCache } from './use-cache/resume-data-cache'
+import type { ImmutableResumeDataCache } from './resume-data-cache/resume-data-cache'
 
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { formatHostname } from './lib/format-hostname'
@@ -2399,7 +2399,7 @@ export default abstract class Server<
        * The resume data cache for this render. This is only provided when
        * resuming a render that has been postponed.
        */
-      resumeDataCache: ResumeDataCache | undefined
+      immutableResumeDataCache: ImmutableResumeDataCache | undefined
 
       /**
        * The unknown route params for this render.
@@ -2412,7 +2412,7 @@ export default abstract class Server<
 
     const doRender: Renderer = async ({
       postponed,
-      resumeDataCache,
+      immutableResumeDataCache,
       fallbackRouteParams,
     }) => {
       // In development, we always want to generate dynamic HTML.
@@ -2488,7 +2488,7 @@ export default abstract class Server<
         isDraftMode: isPreviewMode,
         isServerAction,
         postponed,
-        resumeDataCache,
+        immutableResumeDataCache,
         waitUntil: this.getWaitUntil(),
         onClose: res.onClose.bind(res),
         onAfterTaskError: undefined,
@@ -2590,7 +2590,7 @@ export default abstract class Server<
                   status: response.status,
                   body: Buffer.from(await blob.arrayBuffer()),
                   headers,
-                  resumeDataCache: undefined,
+                  immutableResumeDataCache: undefined,
                 },
                 revalidate,
                 isFallback: false,
@@ -2704,8 +2704,9 @@ export default abstract class Server<
 
               // If the warmup is successful, we should use the resume data
               // cache from the warmup.
-              if (warmup.metadata.resumeDataCache) {
-                renderOpts.resumeDataCache = warmup.metadata.resumeDataCache
+              if (warmup.metadata.immutableResumeDataCache) {
+                renderOpts.immutableResumeDataCache =
+                  warmup.metadata.immutableResumeDataCache
               }
             }
 
@@ -2805,7 +2806,9 @@ export default abstract class Server<
             postponed: metadata.postponed,
             status: res.statusCode,
             segmentData: undefined,
-            resumeDataCache: metadata.resumeDataCache,
+            immutableResumeDataCache: metadata.immutableResumeDataCache
+              ? metadata.immutableResumeDataCache
+              : undefined,
           } satisfies CachedAppPageValue,
           revalidate: metadata.revalidate,
           isFallback: !!fallbackRouteParams,
@@ -2976,7 +2979,7 @@ export default abstract class Server<
               // router.
               return doRender({
                 postponed: undefined,
-                resumeDataCache: undefined,
+                immutableResumeDataCache: undefined,
                 fallbackRouteParams: null,
               })
             },
@@ -3005,7 +3008,7 @@ export default abstract class Server<
                 // We pass `undefined` as rendering a fallback isn't resumed
                 // here.
                 postponed: undefined,
-                resumeDataCache: undefined,
+                immutableResumeDataCache: undefined,
                 fallbackRouteParams:
                   // If we're in production of we're debugging the fallback
                   // shell then we should postpone when dynamic params are
@@ -3076,7 +3079,7 @@ export default abstract class Server<
       // Perform the render.
       const result = await doRender({
         postponed,
-        resumeDataCache: undefined,
+        immutableResumeDataCache: undefined,
         fallbackRouteParams,
       })
       if (!result) return null
@@ -3191,7 +3194,7 @@ export default abstract class Server<
                 // fallbackRouteParams.
                 fallbackRouteParams: null,
                 postponed: undefined,
-                resumeDataCache: undefined,
+                immutableResumeDataCache: undefined,
               }),
             {
               routeKind: RouteKind.APP_PAGE,
@@ -3540,7 +3543,7 @@ export default abstract class Server<
       // we've already chained the transformer's readable to the render result.
       doRender({
         postponed: cachedData.postponed,
-        resumeDataCache: cachedData.resumeDataCache,
+        immutableResumeDataCache: cachedData.immutableResumeDataCache,
         // This is a resume render, not a fallback render, so we don't need to
         // set this.
         fallbackRouteParams: null,

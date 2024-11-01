@@ -12,7 +12,7 @@ import type { ServerComponentsHmrCache } from '../response-cache'
 import type {
   ImmutableResumeDataCache,
   MutableResumeDataCache,
-} from '../use-cache/resume-data-cache'
+} from '../resume-data-cache/resume-data-cache'
 
 type WorkUnitPhase = 'action' | 'render' | 'after'
 
@@ -56,7 +56,12 @@ export type RequestStore = {
   /**
    * The resume data cache for this request. This will be a immutable cache.
    */
-  resumeDataCache: ImmutableResumeDataCache | null
+  immutableResumeDataCache: ImmutableResumeDataCache | null
+
+  /**
+   * The resume data cache for this request. This will be a mutable cache.
+   */
+  mutableResumeDataCache: MutableResumeDataCache | null
 
   // DEV-only
   usedDynamic?: boolean
@@ -109,7 +114,7 @@ export type PrerenderStoreModern = {
   /**
    * The resume data cache for this prerender.
    */
-  resumeDataCache: MutableResumeDataCache | null
+  mutableResumeDataCache: MutableResumeDataCache | null
 
   // DEV ONLY
   // When used this flag informs certain APIs to skip logging because we're
@@ -131,7 +136,7 @@ export type PrerenderStorePPR = {
   /**
    * The resume data cache for this prerender.
    */
-  resumeDataCache: MutableResumeDataCache
+  mutableResumeDataCache: MutableResumeDataCache
 } & PhasePartial
 
 export type PrerenderStoreLegacy = {
@@ -211,6 +216,20 @@ export function getExpectedRequestStore(
   )
 }
 
+export function getMutableResumeDataCache(
+  workUnitStore: WorkUnitStore
+): MutableResumeDataCache | null {
+  if (
+    workUnitStore.type !== 'prerender-legacy' &&
+    workUnitStore.type !== 'cache' &&
+    workUnitStore.type !== 'unstable-cache'
+  ) {
+    return workUnitStore.mutableResumeDataCache
+  }
+
+  return null
+}
+
 export function getImmutableResumeDataCache(
   workUnitStore: WorkUnitStore
 ): ImmutableResumeDataCache | null {
@@ -219,22 +238,13 @@ export function getImmutableResumeDataCache(
     workUnitStore.type !== 'cache' &&
     workUnitStore.type !== 'unstable-cache'
   ) {
-    return workUnitStore.resumeDataCache
-  }
+    if (workUnitStore.type === 'request') {
+      return workUnitStore.immutableResumeDataCache
+    }
 
-  return null
-}
-
-export function getMutableResumeDataCache(
-  workUnitStore: WorkUnitStore
-): MutableResumeDataCache | null {
-  if (
-    workUnitStore.type !== 'prerender-legacy' &&
-    workUnitStore.type !== 'cache' &&
-    workUnitStore.type !== 'unstable-cache' &&
-    workUnitStore.type !== 'request'
-  ) {
-    return workUnitStore.resumeDataCache
+    // We return the mutable resume data cache here as an immutable version of
+    // the cache as it can also be used for reading.
+    return workUnitStore.mutableResumeDataCache
   }
 
   return null

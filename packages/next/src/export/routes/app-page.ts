@@ -28,6 +28,7 @@ import type { WorkStore } from '../../server/app-render/work-async-storage.exter
 import type { FallbackRouteParams } from '../../server/request/fallback-params'
 import { AfterRunner } from '../../server/after/run-with-after'
 import type { RequestLifecycleOpts } from '../../server/base-server'
+import { stringifyResumeDataCache } from '../../server/resume-data-cache/serialization'
 
 export const enum ExportedAppPageFiles {
   HTML = 'HTML',
@@ -149,7 +150,7 @@ export async function exportAppPage(
       fetchTags,
       fetchMetrics,
       segmentFlightData,
-      resumeDataCache,
+      immutableResumeDataCache,
     } = metadata
 
     // Ensure we don't postpone without having PPR enabled.
@@ -256,11 +257,11 @@ export async function exportAppPage(
       'utf8'
     )
 
-    if (resumeDataCache) {
+    if (immutableResumeDataCache) {
       await fileWriter(
         ExportedAppPageFiles.RESUME_CACHE,
         htmlFilepath.replace(/\.html$/, NEXT_STATIC_DATA_CACHE_SUFFIX),
-        await resumeDataCache.stringify()
+        await stringifyResumeDataCache(immutableResumeDataCache)
       )
     }
 

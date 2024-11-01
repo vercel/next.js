@@ -10,7 +10,7 @@ import {
   streamToString,
 } from './stream-utils/node-web-streams-helper'
 import { isAbortError, pipeToNodeResponse } from './pipe-readable'
-import type { ResumeDataCache } from './use-cache/resume-data-cache'
+import type { ImmutableResumeDataCache } from './resume-data-cache/resume-data-cache'
 
 type ContentTypeOption = string | undefined
 
@@ -39,7 +39,7 @@ export type AppPageRenderResultMetadata = {
   /**
    * Generated during a prerender, this is used for resuming pages.
    */
-  resumeDataCache?: ResumeDataCache
+  immutableResumeDataCache?: ImmutableResumeDataCache
 }
 
 export type PagesRenderResultMetadata = {

@@ -20,7 +20,11 @@ import {
   RSC_SUFFIX,
 } from '../../../lib/constants'
 import { tagsManifest } from './tags-manifest.external'
-import { ResumeDataCache } from '../../use-cache/resume-data-cache'
+import {
+  parseResumeDataCache,
+  stringifyResumeDataCache,
+} from '../../resume-data-cache/serialization'
+import type { ImmutableResumeDataCache } from '../../resume-data-cache/resume-data-cache'
 
 type FileSystemCacheContext = Omit<
   CacheHandlerContext,
@@ -133,9 +137,9 @@ export default class FileSystemCache implements CacheHandler {
             )
           )
 
-          let resumeDataCache: ResumeDataCache | undefined
+          let resumeDataCache: ImmutableResumeDataCache | undefined
           try {
-            resumeDataCache = await ResumeDataCache.parse(
+            resumeDataCache = await parseResumeDataCache(
               await this.fs.readFile(
                 filePath.replace(/\.body$/, NEXT_STATIC_DATA_CACHE_SUFFIX),
                 'utf8'
@@ -150,7 +154,7 @@ export default class FileSystemCache implements CacheHandler {
               body: fileData,
               headers: meta.headers,
               status: meta.status,
-              resumeDataCache,
+              immutableResumeDataCache: resumeDataCache,
             },
           }
           return cacheEntry
@@ -249,9 +253,9 @@ export default class FileSystemCache implements CacheHandler {
             )
           }
 
-          let resumeDataCache: ResumeDataCache | undefined
+          let immutableResumeDataCache: ImmutableResumeDataCache | undefined
           try {
-            resumeDataCache = await ResumeDataCache.parse(
+            immutableResumeDataCache = await parseResumeDataCache(
               await this.fs.readFile(
                 filePath.replace(/\.html$/, NEXT_STATIC_DATA_CACHE_SUFFIX),
                 'utf8'
@@ -269,7 +273,7 @@ export default class FileSystemCache implements CacheHandler {
               headers: meta?.headers,
               status: meta?.status,
               segmentData: maybeSegmentData,
-              resumeDataCache,
+              immutableResumeDataCache,
             },
           }
         } else if (kind === IncrementalCacheKind.PAGES) {
@@ -398,10 +402,10 @@ export default class FileSystemCache implements CacheHandler {
       )
 
       // TODO: write out the static data cache
-      if (data.resumeDataCache) {
+      if (data.immutableResumeDataCache) {
         await this.fs.writeFile(
           filePath.replace(/\.body$/, NEXT_STATIC_DATA_CACHE_SUFFIX),
-          await data.resumeDataCache.stringify()
+          await stringifyResumeDataCache(data.immutableResumeDataCache)
         )
       }
     } else if (
@@ -448,10 +452,10 @@ export default class FileSystemCache implements CacheHandler {
           JSON.stringify(meta)
         )
 
-        if (data.resumeDataCache) {
+        if (data.immutableResumeDataCache) {
           await this.fs.writeFile(
             htmlPath.replace(/\.html$/, NEXT_STATIC_DATA_CACHE_SUFFIX),
-            await data.resumeDataCache.stringify()
+            await stringifyResumeDataCache(data.immutableResumeDataCache)
           )
         }
       }

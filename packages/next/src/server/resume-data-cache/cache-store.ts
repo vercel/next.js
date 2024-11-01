@@ -5,18 +5,9 @@ import {
 import type { CacheEntry } from '../lib/cache-handlers/types'
 import type { CachedFetchValue } from '../response-cache/types'
 
-type ResumeStoreSerialized = {
-  version: 1
-  store: {
-    cache: {
-      [key: string]: any
-    }
-    fetch: {
-      [key: string]: any
-    }
-  }
-}
-
+/**
+ * A generic cache store interface.
+ */
 interface CacheStore<T, S = T> {
   get(key: string): T | undefined
   set(key: string, value: T): void
@@ -24,13 +15,19 @@ interface CacheStore<T, S = T> {
   seal(): void
 }
 
-class FetchCacheStore implements CacheStore<CachedFetchValue> {
+/**
+ * A mutable cache store for the fetch cache.
+ */
+export class FetchCacheStore implements CacheStore<CachedFetchValue> {
   private readonly store: Map<string, CachedFetchValue>
 
   /**
    * Whether the store is immutable.
    */
   private immutable: boolean = false
+  public seal() {
+    this.immutable = true
+  }
 
   constructor(entries?: Iterable<[string, CachedFetchValue]>) {
     if (entries) {
@@ -41,12 +38,10 @@ class FetchCacheStore implements CacheStore<CachedFetchValue> {
     }
   }
 
-  public seal() {
-    this.immutable = true
-  }
-
   public set(key: string, value: CachedFetchValue): void {
-    if (this.immutable) return
+    if (this.immutable) {
+      throw new Error('FetchCacheStore is immutable')
+    }
     this.store.set(key, value)
   }
 
@@ -68,11 +63,21 @@ interface CacheCacheStoreSerialized {
   revalidate: number
 }
 
-class CacheCacheStore
+/**
+ * A mutable cache store for the "use cache" cache.
+ */
+export class UseCacheCacheStore
   implements CacheStore<Promise<CacheEntry>, CacheCacheStoreSerialized>
 {
   private readonly store = new Map<string, Promise<CacheEntry>>()
+
+  /**
+   * Whether the store is immutable.
+   */
   private immutable: boolean = false
+  public seal() {
+    this.immutable = true
+  }
 
   constructor(entries?: Iterable<[string, CacheCacheStoreSerialized]>) {
     if (entries) {
@@ -106,12 +111,10 @@ class CacheCacheStore
     }
   }
 
-  public seal() {
-    this.immutable = true
-  }
-
   public set(key: string, value: Promise<CacheEntry>): void {
-    if (this.immutable) return
+    if (this.immutable) {
+      throw new Error('CacheCacheStore is immutable')
+    }
     this.store.set(key, value)
   }
 
@@ -150,74 +153,5 @@ class CacheCacheStore
         })
       })
     )
-  }
-}
-
-interface ImmutableCacheStore<T> {
-  get(key: string): T | undefined
-}
-
-/**
- * An immutable version of the resume data cache.
- */
-export interface ImmutableResumeDataCache {
-  cache: ImmutableCacheStore<Promise<CacheEntry>>
-  fetch: ImmutableCacheStore<CachedFetchValue>
-}
-
-interface MutableCacheStore<T> extends ImmutableCacheStore<T> {
-  set(key: string, value: T): void
-}
-
-/**
- * A mutable version of the resume data cache.
- */
-export interface MutableResumeDataCache {
-  cache: MutableCacheStore<Promise<CacheEntry>>
-  fetch: MutableCacheStore<CachedFetchValue>
-}
-
-/**
- * The resume data cache used when resuming a request from a prerender.
- */
-export class ResumeDataCache
-  implements ImmutableResumeDataCache, MutableResumeDataCache
-{
-  constructor(
-    public readonly cache: CacheCacheStore = new CacheCacheStore(),
-    public readonly fetch: FetchCacheStore = new FetchCacheStore()
-  ) {}
-
-  public static async parse(text: string): Promise<ResumeDataCache> {
-    const json: ResumeStoreSerialized = JSON.parse(text)
-    if (json.version !== 1) {
-      throw new Error(`Unsupported version: ${json.version}`)
-    }
-
-    return new ResumeDataCache(
-      new CacheCacheStore(Object.entries(json.store.cache)),
-      new FetchCacheStore(Object.entries(json.store.fetch))
-    )
-  }
-
-  /**
-   * Seal the cache and fetch stores and make them immutable.
-   */
-  public seal() {
-    // Seal all the stores.
-    this.cache.seal()
-    this.fetch.seal()
-  }
-
-  public async stringify(): Promise<string> {
-    const json: ResumeStoreSerialized = {
-      version: 1,
-      store: {
-        fetch: Object.fromEntries(await this.fetch.entries()),
-        cache: Object.fromEntries(await this.cache.entries()),
-      },
-    }
-
-    return JSON.stringify(json, null, 2)
   }
 }

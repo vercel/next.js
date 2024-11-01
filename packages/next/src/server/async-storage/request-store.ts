@@ -107,7 +107,7 @@ export function createRequestStoreForRender(
   url: RequestContext['url'],
   implicitTags: RequestContext['implicitTags'],
   onUpdateCookies: RenderOpts['onUpdateCookies'],
-  resumeDataCache: RenderOpts['resumeDataCache'],
+  immutableResumeDataCache: RenderOpts['immutableResumeDataCache'],
   previewProps: WrapperRenderOpts['previewProps'],
   isHmrRefresh: RequestContext['isHmrRefresh'],
   serverComponentsHmrCache: RequestContext['serverComponentsHmrCache']
@@ -120,7 +120,7 @@ export function createRequestStoreForRender(
     url,
     implicitTags,
     onUpdateCookies,
-    resumeDataCache,
+    immutableResumeDataCache,
     previewProps,
     isHmrRefresh,
     serverComponentsHmrCache
@@ -156,7 +156,7 @@ function createRequestStoreImpl(
   url: RequestContext['url'],
   implicitTags: RequestContext['implicitTags'],
   onUpdateCookies: RenderOpts['onUpdateCookies'],
-  resumeDataCache: RenderOpts['resumeDataCache'],
+  immutableResumeDataCache: RenderOpts['immutableResumeDataCache'],
   previewProps: WrapperRenderOpts['previewProps'],
   isHmrRefresh: RequestContext['isHmrRefresh'],
   serverComponentsHmrCache: RequestContext['serverComponentsHmrCache']
@@ -174,9 +174,6 @@ function createRequestStoreImpl(
     userspaceMutableCookies?: ResponseCookies
     draftMode?: DraftModeProvider
   } = {}
-
-  // Ensure that the resume data cache is immutable.
-  resumeDataCache?.seal()
 
   return {
     type: 'request',
@@ -249,7 +246,8 @@ function createRequestStoreImpl(
 
       return cache.draftMode
     },
-    resumeDataCache: resumeDataCache ?? null,
+    immutableResumeDataCache: immutableResumeDataCache ?? null,
+    mutableResumeDataCache: null,
     isHmrRefresh,
     serverComponentsHmrCache:
       serverComponentsHmrCache ||
