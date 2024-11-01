@@ -33,7 +33,7 @@ describe('app-dir - owner-stack-invalid-element-type', () => {
     files: __dirname,
   })
 
-  it('should catch invalid element from on client-only component', async () => {
+  it('should catch invalid element from a client-only component', async () => {
     const browser = await next.browser('/browser')
 
     await assertHasRedbox(browser)
@@ -73,7 +73,7 @@ describe('app-dir - owner-stack-invalid-element-type', () => {
     }
   })
 
-  it('should catch invalid element from on rsc component', async () => {
+  it('should catch invalid element from a rsc component', async () => {
     const browser = await next.browser('/rsc')
 
     await assertHasRedbox(browser)
