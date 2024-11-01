@@ -205,4 +205,52 @@ You can optionally create a `public` folder to store static assets such as image
 
 1. Run `npm run dev` to start the development server.
 2. Visit `http://localhost:3000` to view your application.
-3. Edit `app/page.tsx` (or `pages/index.tsx`) file and save it to see the updated result in your browser.
+3. Edit the<AppOnly>`app/page.tsx`</AppOnly> <PagesOnly>`pages/index.tsx`</PagesOnly> file and save it to see the updated result in your browser.
+
+## Setup TypeScript
+
+> Minimum TypeScript version: `v4.5.2`
+
+Next.js comes with built-in TypeScript, automatically installing the necessary packages and configuring the proper settings when you create a new project with `create-next-app`.
+
+To add TypeScript to an existing project, rename a file to `.ts` / `.tsx`. Run `next dev` and `next build` to automatically install the necessary dependencies and add a `tsconfig.json` file with the recommended config options.
+
+> **Good to know**:
+>
+> - We also recommend you to use [`next.config.ts`](#type-checking-nextconfigts) over `next.config.js` for better type inference.
+> - If you already have a `jsconfig.json` file, copy the `paths` compiler option from the old `jsconfig.json` into the new `tsconfig.json` file, and delete the old `jsconfig.json` file.
+
+<AppOnly>
+
+### IDE Plugin
+
+Next.js includes a custom TypeScript plugin and type checker, which VSCode and other code editors can use for advanced type-checking and auto-completion.
+
+You can enable the plugin in VS Code by:
+
+1. Opening the command palette (`Ctrl/⌘` + `Shift` + `P`)
+2. Searching for "TypeScript: Select TypeScript Version"
+3. Selecting "Use Workspace Version"
+
+<Image
+  alt="TypeScript Command Palette"
+  srcLight="/docs/light/typescript-command-palette.png"
+  srcDark="/docs/dark/typescript-command-palette.png"
+  width="1600"
+  height="637"
+/>
+
+Now, when editing files, the custom plugin will be enabled. When running `next build`, the custom type checker will be used.
+
+The TypeScript plugin can help with:
+
+- Warning if the invalid values for [segment config options](/docs/app/api-reference/file-conventions/route-segment-config) are passed.
+- Showing available options and in-context documentation.
+- Ensuring the `use client` directive is used correctly.
+- Ensuring client hooks (like `useState`) are only used in Client Components.
+
+> **🎥 Watch:** Learn about the built-in TypeScript plugin → [YouTube (3 minutes)](https://www.youtube.com/watch?v=pqMqn9fKEf8)
+
+</AppOnly>
+
+See the [TypeScript configuration](/docs/app/api-reference/next-config-js/typescript) page for more information on how to use TypeScript in your project.
