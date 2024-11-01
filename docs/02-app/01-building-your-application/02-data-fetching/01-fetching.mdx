@@ -265,6 +265,10 @@ Next.js uses APIs like `generateMetadata` and `generateStaticParams` where you w
 
 If you are using `fetch`, requests can be [memoized](/docs/app/building-your-application/caching#request-memoization) by adding `cache: 'force-cache'`. This means you can safely call the same URL with the same options, and only one request will be made.
 
+> **Good to know:**
+>
+> - In previous versions of Next.js, using `fetch` will automatically sets the `cache` to `cache: force-cache`. This changed in version 15, to `cache: no-store`
+
 ```tsx filename="app/page.tsx" switcher
 import { notFound } from 'next/navigation'
 
@@ -275,14 +279,14 @@ interface Post {
 }
 
 async function getPost(id: string) {
-  let res = await fetch(`https://api.vercel.app/blog/${id}`)
+  let res = await fetch(`https://api.vercel.app/blog/${id}`, { cache: 'force-cache' })
   let post: Post = await res.json()
   if (!post) notFound()
   return post
 }
 
 export async function generateStaticParams() {
-  let posts = await fetch('https://api.vercel.app/blog').then((res) =>
+  let posts = await fetch('https://api.vercel.app/blog', { cache: 'force-cache' }).then((res) =>
     res.json()
   )
 
