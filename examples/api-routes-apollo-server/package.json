@@ -7,7 +7,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "apollo-server-micro": "2.13.1",
+    "apollo-server-micro": "3.13.0",
     "graphql": "15.0.0",
     "next": "latest",
     "react": "^17.0.2",
