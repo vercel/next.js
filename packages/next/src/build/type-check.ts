@@ -163,9 +163,9 @@ export async function startTypeChecking({
         eventTypeCheckCompleted({
           durationInSeconds: typeCheckEnd[0],
           typescriptVersion: verifyResult.version,
-          inputFilesCount: verifyResult.typeCheckResult?.inputFilesCount,
-          totalFilesCount: verifyResult.typeCheckResult?.totalFilesCount,
-          incremental: verifyResult.typeCheckResult?.incremental,
+          inputFilesCount: verifyResult.result?.inputFilesCount,
+          totalFilesCount: verifyResult.result?.totalFilesCount,
+          incremental: verifyResult.result?.incremental,
         })
       )
     }
