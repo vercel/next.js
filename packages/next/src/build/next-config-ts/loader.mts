@@ -54,7 +54,7 @@ export async function load(
   const rawSource =
     '' + (await nextLoad(url, { ...context, format: 'module' })).source
 
-  const swcOptions = await resolveSWCOptions(cwd)
+  const swcOptions = resolveSWCOptions(cwd)
   const { code } = await transform(rawSource, swcOptions)
 
   return {

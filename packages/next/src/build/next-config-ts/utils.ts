@@ -4,8 +4,8 @@ import type { CompilerOptions } from 'typescript'
 import { resolve } from 'node:path'
 import { parseJsonFile } from '../load-jsconfig'
 
-export async function resolveSWCOptions(cwd: string): Promise<SWCOptions> {
-  const { compilerOptions } = await lazilyGetTSConfig(cwd)
+export function resolveSWCOptions(cwd: string): SWCOptions {
+  const { compilerOptions } = lazilyGetTSConfig(cwd)
 
   return {
     jsc: {
@@ -29,9 +29,12 @@ export async function resolveSWCOptions(cwd: string): Promise<SWCOptions> {
   } satisfies SWCOptions
 }
 
-export async function lazilyGetTSConfig(
-  cwd: string
-): Promise<{ compilerOptions: CompilerOptions }> {
+// Since we only need "paths" and "baseUrl" from tsconfig for now,
+// we lazily look for tsconfig.json at cwd. Does not cover edge cases
+// like "extends" or even the case where tsconfig.json does not exist.
+export function lazilyGetTSConfig(cwd: string): {
+  compilerOptions: CompilerOptions
+} {
   let tsConfig: { compilerOptions: CompilerOptions }
   try {
     tsConfig = parseJsonFile(resolve(cwd, 'tsconfig.json'))

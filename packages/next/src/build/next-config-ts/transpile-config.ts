@@ -36,7 +36,7 @@ export async function transpileConfig({
 }) {
   let hasRequire = false
   try {
-    const { compilerOptions } = await lazilyGetTSConfig(cwd)
+    const { compilerOptions } = lazilyGetTSConfig(cwd)
     const swcOptions = resolveSWCOptions(cwd, compilerOptions)
 
     const nextConfigString = await readFile(nextConfigPath, 'utf8')
