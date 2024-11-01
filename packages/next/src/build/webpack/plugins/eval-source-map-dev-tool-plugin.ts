@@ -173,7 +173,6 @@ export default class EvalSourceMapDevToolPlugin {
                 {
                   requestShortener: runtimeTemplate.requestShortener,
                   chunkGraph,
-                  // @ts-expect-error -- Original code
                   hashFunction: compilation.outputOptions.hashFunction,
                 }
               )
@@ -199,8 +198,10 @@ export default class EvalSourceMapDevToolPlugin {
             const moduleId =
               /** @type {ModuleId} */
               chunkGraph.getModuleId(m)
-            sourceMap.file =
-              typeof moduleId === 'number' ? `${moduleId}.js` : moduleId
+            if (moduleId) {
+              sourceMap.file =
+                typeof moduleId === 'number' ? `${moduleId}.js` : moduleId
+            }
 
             const footer = `${this.sourceMapComment.replace(
               /\[url\]/g,
