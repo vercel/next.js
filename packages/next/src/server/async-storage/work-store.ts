@@ -1,6 +1,4 @@
-import type { WithStore } from './with-store'
 import type { WorkStore } from '../app-render/work-async-storage.external'
-import type { AsyncLocalStorage } from 'async_hooks'
 import type { IncrementalCache } from '../lib/incremental-cache'
 import type { RenderOpts } from '../app-render/types'
 import type { FetchMetric } from '../base-http'
@@ -68,17 +66,13 @@ export type WorkStoreContext = {
     Partial<Pick<RenderOpts, 'reactLoadableManifest'>>
 }
 
-export const withWorkStore: WithStore<WorkStore, WorkStoreContext> = <Result>(
-  storage: AsyncLocalStorage<WorkStore>,
-  {
-    page,
-    fallbackRouteParams,
-    renderOpts,
-    requestEndedState,
-    isPrefetchRequest,
-  }: WorkStoreContext,
-  callback: (store: WorkStore) => Result
-): Result => {
+export function createWorkStore({
+  page,
+  fallbackRouteParams,
+  renderOpts,
+  requestEndedState,
+  isPrefetchRequest,
+}: WorkStoreContext): WorkStore {
   /**
    * Rules of Static & Dynamic HTML:
    *
@@ -130,7 +124,7 @@ export const withWorkStore: WithStore<WorkStore, WorkStoreContext> = <Result>(
   // TODO: remove this when we resolve accessing the store outside the execution context
   renderOpts.store = store
 
-  return storage.run(store, callback, store)
+  return store
 }
 
 function createAfterContext(
