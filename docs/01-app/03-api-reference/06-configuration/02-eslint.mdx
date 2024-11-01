@@ -10,6 +10,14 @@ Next.js provides an ESLint plugin, [`eslint-plugin-next`](https://www.npmjs.com/
 
 ## Reference
 
+Recommended rule-sets from the following ESLint plugins are all used within `eslint-config-next`:
+
+- [`eslint-plugin-react`](https://www.npmjs.com/package/eslint-plugin-react)
+- [`eslint-plugin-react-hooks`](https://www.npmjs.com/package/eslint-plugin-react-hooks)
+- [`eslint-plugin-next`](https://www.npmjs.com/package/@next/eslint-plugin-next)
+
+This will take precedence over the configuration from `next.config.js`.
+
 ### Rules
 
 The full set of rules is as follows:
@@ -39,20 +47,6 @@ The full set of rules is as follows:
 |      <Check size={18} />      | [@next/next/no-unwanted-polyfillio](/docs/messages/no-unwanted-polyfillio)                                               | Prevent duplicate polyfills from Polyfill.io.                                                                    |
 
 We recommend using an appropriate [integration](https://eslint.org/docs/user-guide/integrations#editors) to view warnings and errors directly in your code editor during development.
-
-## ESLint Config
-
-The default configuration (`eslint-config-next`) includes everything you need to have an optimal out-of-the-box linting experience in Next.js. If you do not have ESLint already configured in your application, we recommend using `next lint` to set up ESLint along with this configuration.
-
-> If you would like to use `eslint-config-next` along with other ESLint configurations, refer to the [Additional Configurations](#additional-configurations) section to learn how to do so without causing any conflicts.
-
-Recommended rule-sets from the following ESLint plugins are all used within `eslint-config-next`:
-
-- [`eslint-plugin-react`](https://www.npmjs.com/package/eslint-plugin-react)
-- [`eslint-plugin-react-hooks`](https://www.npmjs.com/package/eslint-plugin-react-hooks)
-- [`eslint-plugin-next`](https://www.npmjs.com/package/@next/eslint-plugin-next)
-
-This will take precedence over the configuration from `next.config.js`.
 
 ## Examples
 
