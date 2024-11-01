@@ -31,6 +31,19 @@ export function middleware(request) {
 }
 ```
 
+## Example
+
+```jsx filename="app/page.js"
+import { userAgent } from 'next/server'
+import { headers } from 'next/headers'
+
+export default function Page() {
+  const { isBot, browser, device, os, cpu } = userAgent({ headers: headers() });
+
+  // ...
+}
+```
+
 ## `isBot`
 
 A boolean indicating whether the request comes from a known bot.
