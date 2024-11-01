@@ -1,7 +1,8 @@
 import type { LoadContext, ResolveContext } from './types'
 import { extname } from 'node:path'
-import { resolveSWCOptions } from './utils.js'
+import { isBareSpecifier, resolveSWCOptions } from './utils.js'
 import { transform } from '../swc/index.js'
+import { existsSync } from 'node:fs'
 
 const tsExts = new Set(['.ts', '.mts', '.cts'])
 const localContext = new Map<string, string>()
@@ -10,6 +11,11 @@ export async function initialize({ cwd }: { cwd: string }) {
   localContext.set('cwd', cwd)
 }
 
+// The expected module resolving order:
+// 1) config.js (loadConfig) -> 2) next.config.ts -> 3) ...imports
+//
+// As we skip if the parent URL is not available, the "entrypoint"
+// will be next.config.ts.
 export async function resolve(
   specifier: string,
   context: ResolveContext,
@@ -19,14 +25,41 @@ export async function resolve(
     return nextResolve(specifier, context)
   }
 
-  const ext = extname(specifier)
-  if (!tsExts.has(ext)) {
+  // e.g. "next", "react", etc.
+  // Packages that look like bare specifiers depending on the "baseUrl"
+  // should already be resolved by SWC.
+  if (isBareSpecifier(specifier)) {
     return nextResolve(specifier, context)
   }
 
-  const url = URL.canParse(specifier)
-    ? specifier
-    : (await nextResolve(specifier, context)).url
+  const url = new URL(specifier, context.parentURL).href
+
+  // When the specifier starts with http(s)://, Node.js resolver will throw
+  // with ERR_UNSUPPORTED_ESM_URL_SCHEME error.
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return { url, shortCircuit: true }
+  }
+
+  // From here the specifier will be a relative path.
+  const ext = extname(specifier)
+  // If the specifier is "./foo", we try to resolve it as "./foo.ts".
+  if (ext === '') {
+    const possibleTsFileURL = new URL(url + '.ts', context.parentURL)
+    if (existsSync(possibleTsFileURL)) {
+      return {
+        format: 'typescript',
+        shortCircuit: true,
+        url: possibleTsFileURL.href,
+      }
+    } else {
+      return nextResolve(specifier, context)
+    }
+  }
+
+  // Node.js resolver can take care of the rest of the non-ts files.
+  if (!tsExts.has(ext)) {
+    return nextResolve(specifier, context)
+  }
 
   return {
     format: 'typescript',

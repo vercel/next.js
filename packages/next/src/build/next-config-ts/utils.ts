@@ -48,3 +48,20 @@ export function lazilyGetTSConfig(cwd: string): {
 
   return tsConfig
 }
+
+// A bare specifier is a specifier that is not a relative path or a URL.
+// e.g. "next", "react", etc.
+// x-ref: https://youtu.be/XbY4IG0TbB4?feature=shared&t=857
+export function isBareSpecifier(specifier: string) {
+  if (specifier.startsWith('.')) {
+    return false
+  }
+
+  try {
+    new URL(specifier)
+  } catch {
+    return true
+  }
+
+  return false
+}
