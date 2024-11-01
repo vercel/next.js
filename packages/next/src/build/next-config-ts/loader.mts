@@ -24,10 +24,12 @@ export async function resolve(
     return nextResolve(specifier, context)
   }
 
-  const { url } = await nextResolve(specifier, context)
+  const url = URL.canParse(specifier)
+    ? specifier
+    : (await nextResolve(specifier, context)).url
 
   return {
-    format: 'next-config-ts',
+    format: 'typescript',
     shortCircuit: true,
     url,
   }
@@ -38,21 +40,21 @@ export async function load(
   context: LoadContext,
   nextLoad: Function
 ) {
-  if (context.format !== 'next-config-ts') {
+  if (context.format !== 'typescript') {
     return nextLoad(url, context)
+  }
+
+  const cwd = localContext.get('cwd')
+  if (!cwd) {
+    throw new Error(
+      'The "cwd" value was not passed to the loader from the registration. This is a bug in Next.js.'
+    )
   }
 
   const rawSource =
     '' + (await nextLoad(url, { ...context, format: 'module' })).source
 
-  const cwd = localContext.get('cwd')
-  if (!cwd) {
-    throw new Error(
-      '"cwd" value was not passed from loadConfig to "load" loader. This is a bug in Next.js.'
-    )
-  }
-
-  const swcOptions = await resolveSWCOptions(url, cwd)
+  const swcOptions = await resolveSWCOptions(cwd)
   const { code } = await transform(rawSource, swcOptions)
 
   return {
