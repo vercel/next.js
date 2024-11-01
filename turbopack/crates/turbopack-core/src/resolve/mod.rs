@@ -2889,6 +2889,8 @@ pub enum ModulePart {
     RenamedNamespace { export: Vc<RcStr> },
     /// A pointer to a specific part.
     Internal(u32),
+    /// A pointer to a specific part, but with evaluation.
+    InternalEvaluation(u32),
     /// The local declarations of a module.
     Locals,
     /// The whole exports of a module.
@@ -2959,7 +2961,8 @@ impl ValueToString for ModulePart {
             ModulePart::RenamedNamespace { export } => {
                 format!("export * as {}", export.await?).into()
             }
-            ModulePart::Internal(id) => format!("internal part {}", id,).into(),
+            ModulePart::Internal(id) => format!("internal part {}", id).into(),
+            ModulePart::InternalEvaluation(id) => format!("internal evaluation part {}", id).into(),
             ModulePart::Locals => "locals".into(),
             ModulePart::Exports => "exports".into(),
             ModulePart::Facade => "facade".into(),

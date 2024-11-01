@@ -173,7 +173,7 @@ async fn apply_module_type(
                     None
                 };
                 if let Some((part, _)) = part_ref {
-                    if let ModulePart::Evaluation = &*part {
+                    if let ModulePart::Evaluation | ModulePart::InternalEvaluation(..) = &*part {
                         // Skip the evaluation part if the module is marked as side effect free.
                         let side_effect_free_packages =
                             module_asset_context.side_effect_free_packages();
