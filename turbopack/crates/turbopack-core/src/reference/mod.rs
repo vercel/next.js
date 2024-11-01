@@ -47,15 +47,8 @@ impl ModuleReferences {
 /// A reference that always resolves to a single module.
 #[turbo_tasks::value]
 pub struct SingleModuleReference {
-    asset: Vc<Box<dyn Module>>,
+    asset: ResolvedVc<Box<dyn Module>>,
     description: Vc<RcStr>,
-}
-
-impl SingleModuleReference {
-    /// Returns the asset that this reference resolves to.
-    pub fn asset_ref(&self) -> Vc<Box<dyn Module>> {
-        self.asset
-    }
 }
 
 #[turbo_tasks::value_impl]
@@ -79,29 +72,22 @@ impl SingleModuleReference {
     /// Create a new [Vc<SingleModuleReference>] that resolves to the given
     /// asset.
     #[turbo_tasks::function]
-    pub fn new(asset: Vc<Box<dyn Module>>, description: Vc<RcStr>) -> Vc<Self> {
+    pub fn new(asset: ResolvedVc<Box<dyn Module>>, description: Vc<RcStr>) -> Vc<Self> {
         Self::cell(SingleModuleReference { asset, description })
     }
 
     /// The [Vc<Box<dyn Asset>>] that this reference resolves to.
     #[turbo_tasks::function]
     pub fn asset(&self) -> Vc<Box<dyn Module>> {
-        self.asset
+        *self.asset
     }
 }
 
 /// A reference that always resolves to a single module.
 #[turbo_tasks::value]
 pub struct SingleOutputAssetReference {
-    asset: Vc<Box<dyn OutputAsset>>,
+    asset: ResolvedVc<Box<dyn OutputAsset>>,
     description: Vc<RcStr>,
-}
-
-impl SingleOutputAssetReference {
-    /// Returns the asset that this reference resolves to.
-    pub fn asset_ref(&self) -> Vc<Box<dyn OutputAsset>> {
-        self.asset
-    }
 }
 
 #[turbo_tasks::value_impl]
@@ -125,14 +111,14 @@ impl SingleOutputAssetReference {
     /// Create a new [Vc<SingleOutputAssetReference>] that resolves to the given
     /// asset.
     #[turbo_tasks::function]
-    pub fn new(asset: Vc<Box<dyn OutputAsset>>, description: Vc<RcStr>) -> Vc<Self> {
+    pub fn new(asset: ResolvedVc<Box<dyn OutputAsset>>, description: Vc<RcStr>) -> Vc<Self> {
         Self::cell(SingleOutputAssetReference { asset, description })
     }
 
     /// The [Vc<Box<dyn Asset>>] that this reference resolves to.
     #[turbo_tasks::function]
     pub fn asset(&self) -> Vc<Box<dyn OutputAsset>> {
-        self.asset
+        *self.asset
     }
 }
 
@@ -157,7 +143,13 @@ pub async fn referenced_modules_and_affecting_sources(
         modules.extend(
             resolve_result
                 .affecting_sources_iter()
-                .map(|source| Vc::upcast(RawModule::new(source))),
+                .map(|source| async move {
+                    Ok(ResolvedVc::upcast(
+                        RawModule::new(source).to_resolved().await?,
+                    ))
+                })
+                .try_join()
+                .await?,
         );
     }
     let mut resolved_modules = FxIndexSet::default();
@@ -230,7 +222,7 @@ pub async fn all_assets_from_entries(entries: Vc<OutputAssets>) -> Result<Vc<Out
         AdjacencyMap::new()
             .skip_duplicates()
             .visit(
-                entries.await?.iter().copied().map(Vc::upcast),
+                entries.await?.iter().copied().map(ResolvedVc::upcast),
                 get_referenced_assets,
             )
             .await
@@ -243,8 +235,8 @@ pub async fn all_assets_from_entries(entries: Vc<OutputAssets>) -> Result<Vc<Out
 
 /// Computes the list of all chunk children of a given chunk.
 pub async fn get_referenced_assets(
-    asset: Vc<Box<dyn OutputAsset>>,
-) -> Result<impl Iterator<Item = Vc<Box<dyn OutputAsset>>> + Send> {
+    asset: ResolvedVc<Box<dyn OutputAsset>>,
+) -> Result<impl Iterator<Item = ResolvedVc<Box<dyn OutputAsset>>> + Send> {
     Ok(asset
         .references()
         .await?

@@ -1,6 +1,6 @@
 use anyhow::Result;
 use either::Either;
-use turbo_tasks::{RcStr, ValueToString, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     file_source::FileSource,
@@ -30,11 +30,13 @@ impl PackageJsonReference {
 #[turbo_tasks::value_impl]
 impl ModuleReference for PackageJsonReference {
     #[turbo_tasks::function]
-    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        ModuleResolveResult::module(Vc::upcast(RawModule::new(Vc::upcast(FileSource::new(
-            self.package_json,
-        )))))
-        .cell()
+    async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
+        Ok(ModuleResolveResult::module(ResolvedVc::upcast(
+            RawModule::new(Vc::upcast(FileSource::new(self.package_json)))
+                .to_resolved()
+                .await?,
+        ))
+        .cell())
     }
 }
 
@@ -126,7 +128,11 @@ async fn resolve_reference_from_dir(
                 }
                 results.push((
                     RequestKey::new(matched_path.clone()),
-                    Vc::upcast(RawModule::new(Vc::upcast(FileSource::new(*realpath.path)))),
+                    ResolvedVc::upcast(
+                        RawModule::new(Vc::upcast(FileSource::new(*realpath.path)))
+                            .to_resolved()
+                            .await?,
+                    ),
                 ));
             }
             PatternMatch::Directory(..) => {}

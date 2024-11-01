@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{FxIndexSet, RcStr, Vc};
+use turbo_tasks::{FxIndexSet, RcStr, ResolvedVc, Vc};
 use turbo_tasks_fs::FileContent;
 
 use super::{
@@ -95,7 +95,7 @@ pub async fn children_from_module_references(
             .await?
             .iter()
         {
-            children.insert((key, IntrospectableOutputAsset::new(output_asset)));
+            children.insert((key, IntrospectableOutputAsset::new(*output_asset)));
         }
     }
     Ok(Vc::cell(children))
@@ -109,7 +109,10 @@ pub async fn children_from_output_assets(
     let mut children = FxIndexSet::default();
     let references = references.await?;
     for &reference in &*references {
-        children.insert((key, IntrospectableOutputAsset::new(Vc::upcast(reference))));
+        children.insert((
+            key,
+            IntrospectableOutputAsset::new(*ResolvedVc::upcast(reference)),
+        ));
     }
     Ok(Vc::cell(children))
 }

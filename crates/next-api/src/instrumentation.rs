@@ -163,7 +163,7 @@ impl InstrumentationEndpoint {
                 Value::new(AvailabilityInfo::Root),
             )
             .await?;
-        Ok(chunk)
+        Ok(*chunk)
     }
 
     #[turbo_tasks::function]
@@ -195,7 +195,7 @@ impl InstrumentationEndpoint {
                 instrumentation: Some(instrumentation_definition),
                 ..Default::default()
             };
-            let middleware_manifest_v2 = Vc::upcast(VirtualOutputAsset::new(
+            let middleware_manifest_v2 = VirtualOutputAsset::new(
                 node_root.join("server/instrumentation/middleware-manifest.json".into()),
                 AssetContent::file(
                     FileContent::Content(File::from(serde_json::to_string_pretty(
@@ -203,12 +203,14 @@ impl InstrumentationEndpoint {
                     )?))
                     .cell(),
                 ),
-            ));
-            output_assets.push(middleware_manifest_v2);
+            )
+            .to_resolved()
+            .await?;
+            output_assets.push(ResolvedVc::upcast(middleware_manifest_v2));
 
             Ok(Vc::cell(output_assets))
         } else {
-            Ok(Vc::cell(vec![self.node_chunk()]))
+            Ok(Vc::cell(vec![self.node_chunk().to_resolved().await?]))
         }
     }
 }

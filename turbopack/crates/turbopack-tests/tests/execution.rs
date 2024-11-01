@@ -11,8 +11,8 @@ use anyhow::{Context, Result};
 use dunce::canonicalize;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs, Completion, RcStr, TryJoinIterExt,
-    TurboTasks, Value, Vc,
+    debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs, Completion, RcStr, ResolvedVc,
+    TryJoinIterExt, TurboTasks, Value, Vc,
 };
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::CommandLineProcessEnv;
@@ -190,7 +190,7 @@ struct PreparedTest {
     path: Vc<FileSystemPath>,
     project_path: Vc<FileSystemPath>,
     tests_path: Vc<FileSystemPath>,
-    project_root: Vc<FileSystemPath>,
+    project_root: ResolvedVc<FileSystemPath>,
     options: TestOptions,
 }
 
@@ -206,7 +206,7 @@ async fn prepare_test(resource: RcStr) -> Result<Vc<PreparedTest>> {
 
     let root_fs = DiskFileSystem::new("workspace".into(), REPO_ROOT.clone(), vec![]);
     let project_fs = DiskFileSystem::new("project".into(), REPO_ROOT.clone(), vec![]);
-    let project_root = project_fs.root();
+    let project_root = project_fs.root().to_resolved().await?;
 
     let relative_path = resource_path.strip_prefix(&*REPO_ROOT).context(format!(
         "stripping repo root {:?} from resource path {:?}",
@@ -311,11 +311,11 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
                     browser: true,
                     ..Default::default()
                 }
-                .cell(),
+                .resolved_cell(),
             )],
             browser: true,
             module: true,
-            import_map: Some(import_map.cell()),
+            import_map: Some(import_map.resolved_cell()),
             ..Default::default()
         }
         .cell(),
@@ -323,7 +323,7 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
     ));
 
     let chunking_context = NodeJsChunkingContext::builder(
-        project_root,
+        *project_root,
         chunk_root_path,
         static_root_path,
         chunk_root_path,

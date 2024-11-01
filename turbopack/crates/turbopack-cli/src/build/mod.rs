@@ -305,7 +305,7 @@ async fn build_internal(
         .try_join()
         .await?;
 
-    let mut chunks: HashSet<Vc<Box<dyn OutputAsset>>> = HashSet::new();
+    let mut chunks: HashSet<ResolvedVc<Box<dyn OutputAsset>>> = HashSet::new();
     for chunk_group in entry_chunk_groups {
         chunks.extend(&*all_assets_from_entries(chunk_group).await?);
     }

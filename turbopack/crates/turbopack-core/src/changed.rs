@@ -12,8 +12,8 @@ use crate::{
 };
 
 async fn get_referenced_output_assets(
-    parent: Vc<Box<dyn OutputAsset>>,
-) -> Result<impl Iterator<Item = Vc<Box<dyn OutputAsset>>> + Send> {
+    parent: ResolvedVc<Box<dyn OutputAsset>>,
+) -> Result<impl Iterator<Item = ResolvedVc<Box<dyn OutputAsset>>> + Send> {
     Ok(parent.references().await?.clone_value().into_iter())
 }
 
@@ -49,7 +49,7 @@ pub async fn any_content_changed_of_module(
 /// asset graph changes.
 #[turbo_tasks::function]
 pub async fn any_content_changed_of_output_asset(
-    root: Vc<Box<dyn OutputAsset>>,
+    root: ResolvedVc<Box<dyn OutputAsset>>,
 ) -> Result<Vc<Completion>> {
     let completions = NonDeterministic::new()
         .skip_duplicates()
@@ -58,7 +58,7 @@ pub async fn any_content_changed_of_output_asset(
         .completed()?
         .into_inner()
         .into_iter()
-        .map(|m| content_changed(Vc::upcast(m)))
+        .map(|m| content_changed(*ResolvedVc::upcast(m)))
         .collect();
 
     Ok(Vc::<Completions>::cell(completions).completed())
@@ -74,7 +74,7 @@ pub async fn any_content_changed_of_output_assets(
         roots
             .await?
             .iter()
-            .map(|&a| any_content_changed_of_output_asset(a))
+            .map(|&a| any_content_changed_of_output_asset(*a))
             .collect(),
     )
     .completed())

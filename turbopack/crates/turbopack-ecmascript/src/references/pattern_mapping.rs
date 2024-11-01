@@ -11,7 +11,8 @@ use swc_core::{
     quote, quote_expr,
 };
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, RcStr, TryJoinIterExt, Value, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, RcStr, ResolvedVc, TryJoinIterExt,
+    Value, Vc,
 };
 use turbopack_core::{
     chunk::{ChunkItemExt, ChunkableModule, ChunkingContext, ModuleId},
@@ -340,10 +341,10 @@ async fn to_single_pattern_mapping(
             return Ok(SinglePatternMapping::Invalid);
         }
     };
-    if let Some(chunkable) = Vc::try_resolve_downcast::<Box<dyn ChunkableModule>>(module).await? {
+    if let Some(chunkable) = ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(module).await? {
         match resolve_type {
             ResolveType::AsyncChunkLoader => {
-                let loader_id = chunking_context.async_loader_chunk_item_id(chunkable);
+                let loader_id = chunking_context.async_loader_chunk_item_id(*chunkable);
                 return Ok(SinglePatternMapping::ModuleLoader(
                     loader_id.await?.clone_value(),
                 ));

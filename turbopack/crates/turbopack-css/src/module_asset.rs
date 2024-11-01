@@ -83,7 +83,7 @@ impl Module for ModuleCssAsset {
             .copied()
             .chain(match *self.inner().await? {
                 ProcessResult::Module(inner) => {
-                    Some(Vc::upcast(InternalCssAssetReference::new(inner)))
+                    Some(Vc::upcast(InternalCssAssetReference::new(*inner)))
                 }
                 ProcessResult::Ignore => None,
             })
