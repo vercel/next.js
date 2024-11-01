@@ -4,39 +4,8 @@ import { nextTestSetup } from 'e2e-utils'
 import stripAnsi from 'strip-ansi'
 import { retry } from 'next-test-utils'
 
-/**
- * TODO: Remove this function once we log the file name on disk by adjusting `moduleFileNameTemplate`.
- * in: webpack:///app/ssr-error-log-ignore-listed/page.js?1234:5:16
- * out: webpack:///app/ssr-error-log-ignore-listed/page.js?[search]:5:16
- */
-function normalizeWebpackLocation(frame: string) {
-  const webpackQueryStringtMatch = frame.match(/\?\w+:(\d+):(\d+)\)$/)
-  if (webpackQueryStringtMatch === null) {
-    return frame
-  }
-
-  return frame.replace(
-    webpackQueryStringtMatch[0],
-    `?[search]:${webpackQueryStringtMatch[1]}:${webpackQueryStringtMatch[2]})`
-  )
-}
-
 function normalizeCliOutput(output: string) {
   return stripAnsi(output)
-    .split('\n')
-    .map((line) => {
-      return (
-        normalizeWebpackLocation(line)
-          .replaceAll(
-            path.join(__dirname, 'fixtures/default'),
-            '[fixture-root]'
-          )
-          //  in: webpack://[fixture-root]/node_modules/.pnpm/internal-pkg@file+internal-pkg/node_modules/internal-pkg/index.js?[search]:2:0
-          // out: webpack://[fixture-root]/node_modules/[pnpm]/internal-pkg/index.js?[search]:2:0
-          .replace(/\/.pnpm\/[^/]+\/node_modules/g, '/[pnpm]')
-      )
-    })
-    .join('\n')
 }
 
 describe('app-dir - server source maps', () => {
@@ -74,9 +43,9 @@ describe('app-dir - server source maps', () => {
                 '\n  5 |' +
                 '\n'
             : '\nError: Boom' +
-                '\n    at logError (webpack:///app/rsc-error-log/page.js?[search]:2:16)' +
+                '\n    at logError (app/rsc-error-log/page.js:2:16)' +
                 // FIXME: Method name should be "Page"
-                '\n    at logError (webpack:///app/rsc-error-log/page.js?[search]:7:2)' +
+                '\n    at logError (app/rsc-error-log/page.js:7:2)' +
                 '\n  1 | function logError() {' +
                 "\n> 2 |   const error = new Error('Boom')" +
                 '\n    |                ^' +
@@ -118,9 +87,9 @@ describe('app-dir - server source maps', () => {
                 '\n    10 | }' +
                 '\n'
             : '\nError: Boom' +
-                '\n    at logError (webpack:///app/rsc-error-log-cause/page.js?[search]:2:16)' +
+                '\n    at logError (app/rsc-error-log-cause/page.js:2:16)' +
                 // FIXME: Method name should be "Page"
-                '\n    at logError (webpack:///app/rsc-error-log-cause/page.js?[search]:8:2)' +
+                '\n    at logError (app/rsc-error-log-cause/page.js:8:2)' +
                 '\n  1 | function logError(cause) {' +
                 "\n> 2 |   const error = new Error('Boom', { cause })" +
                 '\n    |                ^' +
@@ -128,7 +97,7 @@ describe('app-dir - server source maps', () => {
                 '\n  4 | }' +
                 '\n  5 | {' +
                 '\n  [cause]: Error: Boom' +
-                '\n      at Page (webpack:///app/rsc-error-log-cause/page.js?[search]:7:16)' +
+                '\n      at Page (app/rsc-error-log-cause/page.js:7:16)' +
                 '\n     5 |' +
                 '\n     6 | export default function Page() {' +
                 "\n  >  7 |   const error = new Error('Boom')" +
@@ -158,10 +127,10 @@ describe('app-dir - server source maps', () => {
               ? // FIXME: Turbopack resolver bug
                 "Module not found: Can't resolve 'internal-pkg'"
               : '\nError: Boom' +
-                  '\n    at logError (webpack:///app/ssr-error-log-ignore-listed/page.js?[search]:5:16)' +
+                  '\n    at logError (app/ssr-error-log-ignore-listed/page.js:5:16)' +
                   // FIXME: Method name should be "Page"
-                  '\n    at logError (webpack:///app/ssr-error-log-ignore-listed/page.js?[search]:10:12)' +
-                  '\n    at Page (webpack:///app/ssr-error-log-ignore-listed/page.js?[search]:10:6)' +
+                  '\n    at logError (app/ssr-error-log-ignore-listed/page.js:10:12)' +
+                  '\n    at Page (app/ssr-error-log-ignore-listed/page.js:10:6)' +
                   '\n  3 |'
           )
         })
@@ -185,10 +154,10 @@ describe('app-dir - server source maps', () => {
               ? // FIXME: Turbopack resolver bug
                 "Module not found: Can't resolve 'internal-pkg'"
               : '\nError: Boom' +
-                  '\n    at logError (webpack:///app/rsc-error-log-ignore-listed/page.js?[search]:4:16)' +
+                  '\n    at logError (app/rsc-error-log-ignore-listed/page.js:4:16)' +
                   // FIXME: Method name should be "Page"
-                  '\n    at logError (webpack:///app/rsc-error-log-ignore-listed/page.js?[search]:9:12)' +
-                  '\n    at Page (webpack:///app/rsc-error-log-ignore-listed/page.js?[search]:9:6)' +
+                  '\n    at logError (app/rsc-error-log-ignore-listed/page.js:9:12)' +
+                  '\n    at Page (app/rsc-error-log-ignore-listed/page.js:9:6)' +
                   '\n  2 |'
           )
         })

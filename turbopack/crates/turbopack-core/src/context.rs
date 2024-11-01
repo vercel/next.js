@@ -1,5 +1,5 @@
 use anyhow::{bail, Result};
-use turbo_tasks::{RcStr, Value, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, Value, Vc};
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 
 use crate::{
@@ -13,7 +13,7 @@ use crate::{
 #[turbo_tasks::value(shared)]
 pub enum ProcessResult {
     /// A module was created.
-    Module(Vc<Box<dyn Module>>),
+    Module(ResolvedVc<Box<dyn Module>>),
 
     /// Reference is ignored. This should lead to no module being included by
     /// the reference.
@@ -25,7 +25,7 @@ impl ProcessResult {
     #[turbo_tasks::function]
     pub async fn module(&self) -> Result<Vc<Box<dyn Module>>> {
         match *self {
-            ProcessResult::Module(m) => Ok(m),
+            ProcessResult::Module(m) => Ok(*m),
             ProcessResult::Ignore => {
                 bail!("Expected process result to be a module, but it was ignored")
             }

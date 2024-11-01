@@ -239,7 +239,7 @@ impl MiddlewareEndpoint {
                 .collect(),
             ..Default::default()
         };
-        let middleware_manifest_v2 = Vc::upcast(VirtualOutputAsset::new(
+        let middleware_manifest_v2 = VirtualOutputAsset::new(
             node_root.join("server/middleware/middleware-manifest.json".into()),
             AssetContent::file(
                 FileContent::Content(File::from(serde_json::to_string_pretty(
@@ -247,8 +247,10 @@ impl MiddlewareEndpoint {
                 )?))
                 .cell(),
             ),
-        ));
-        output_assets.push(middleware_manifest_v2);
+        )
+        .to_resolved()
+        .await?;
+        output_assets.push(ResolvedVc::upcast(middleware_manifest_v2));
 
         Ok(Vc::cell(output_assets))
     }
@@ -309,7 +311,7 @@ impl Endpoint for MiddlewareEndpoint {
     }
 
     #[turbo_tasks::function]
-    fn root_modules(self: Vc<Self>) -> Vc<Modules> {
-        Vc::cell(vec![self.userland_module()])
+    async fn root_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
+        Ok(Vc::cell(vec![self.userland_module().to_resolved().await?]))
     }
 }

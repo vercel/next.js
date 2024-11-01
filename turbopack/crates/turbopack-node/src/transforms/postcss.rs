@@ -211,7 +211,7 @@ async fn extra_configs_changed(
                         .await?
                     {
                         ProcessResult::Module(module) => {
-                            Some(any_content_changed_of_module(module))
+                            Some(any_content_changed_of_module(*module))
                         }
                         ProcessResult::Ignore => None,
                     }
@@ -366,7 +366,9 @@ async fn postcss_executor(
             config_loader_source(project_path, postcss_config_path),
             Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined)),
         )
-        .module();
+        .module()
+        .to_resolved()
+        .await?;
 
     Ok(asset_context.process(
         Vc::upcast(VirtualSource::new(

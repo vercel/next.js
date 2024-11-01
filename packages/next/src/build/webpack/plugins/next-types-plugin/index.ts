@@ -504,7 +504,7 @@ declare module 'next/navigation' {
     prefetch<RouteType>(href: __next_route_internal_types__.RouteImpl<RouteType>): void
   }
 
-  export declare function useRouter(): AppRouterInstance;
+  export function useRouter(): AppRouterInstance;
 }
 
 declare module 'next/form' {

@@ -75,7 +75,7 @@ import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-pa
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { getRuntimeContext } from '../server/web/sandbox'
 import { isClientReference } from '../lib/client-reference'
-import { withWorkStore } from '../server/async-storage/with-work-store'
+import { createWorkStore } from '../server/async-storage/work-store'
 import type { CacheHandler } from '../server/lib/incremental-cache'
 import { IncrementalCache } from '../server/lib/incremental-cache'
 import { nodeFs } from '../server/lib/node-fs-methods'
@@ -1299,26 +1299,27 @@ export async function buildAppStaticPaths({
     }
   }
 
-  const routeParams = await withWorkStore(
-    ComponentMod.workAsyncStorage,
-    {
-      page,
-      // We're discovering the parameters here, so we don't have any unknown
-      // ones.
-      fallbackRouteParams: null,
-      renderOpts: {
-        incrementalCache,
-        cacheLifeProfiles,
-        supportsDynamicResponse: true,
-        isRevalidate: false,
-        experimental: {
-          after: false,
-          dynamicIO,
-        },
-        buildId,
+  const store = createWorkStore({
+    page,
+    // We're discovering the parameters here, so we don't have any unknown
+    // ones.
+    fallbackRouteParams: null,
+    renderOpts: {
+      incrementalCache,
+      cacheLifeProfiles,
+      supportsDynamicResponse: true,
+      isRevalidate: false,
+      experimental: {
+        after: false,
+        dynamicIO,
       },
+      buildId,
     },
-    async (store) => {
+  })
+
+  const routeParams = await ComponentMod.workAsyncStorage.run(
+    store,
+    async () => {
       async function builtRouteParams(
         parentsParams: Params[] = [],
         idx = 0

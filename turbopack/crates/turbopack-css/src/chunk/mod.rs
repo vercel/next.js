@@ -224,12 +224,19 @@ impl OutputChunk for CssChunk {
             .into_iter()
             .flatten()
             .collect();
-        let module_chunks: Vec<_> = content
+        let module_chunks = content
             .chunk_items
             .iter()
             .chain(imports_chunk_items.iter())
-            .map(|item| Vc::upcast(SingleItemCssChunk::new(self.chunking_context, *item)))
-            .collect();
+            .map(|item| {
+                Vc::upcast::<Box<dyn OutputAsset>>(SingleItemCssChunk::new(
+                    self.chunking_context,
+                    *item,
+                ))
+                .to_resolved()
+            })
+            .try_join()
+            .await?;
         Ok(OutputChunkRuntimeInfo {
             included_ids: Some(ResolvedVc::cell(included_ids)),
             module_chunks: Some(ResolvedVc::cell(module_chunks)),
@@ -306,17 +313,20 @@ impl OutputAsset for CssChunk {
         let content = this.content.await?;
         let mut references = content.referenced_output_assets.await?.clone_value();
         for item in content.chunk_items.iter() {
-            references.push(Vc::upcast(SingleItemCssChunk::new(
-                this.chunking_context,
-                *item,
-            )));
+            references.push(ResolvedVc::upcast(
+                SingleItemCssChunk::new(this.chunking_context, *item)
+                    .to_resolved()
+                    .await?,
+            ));
         }
         if *this
             .chunking_context
             .reference_chunk_source_maps(Vc::upcast(self))
             .await?
         {
-            references.push(Vc::upcast(CssChunkSourceMapAsset::new(self)));
+            references.push(ResolvedVc::upcast(
+                CssChunkSourceMapAsset::new(self).to_resolved().await?,
+            ));
         }
         Ok(Vc::cell(references))
     }

@@ -78,7 +78,7 @@ async fn internal_assets(
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct AssetsForSourceMapping(HashMap<String, Vc<Box<dyn GenerateSourceMap>>>);
+pub struct AssetsForSourceMapping(HashMap<String, ResolvedVc<Box<dyn GenerateSourceMap>>>);
 
 /// Extracts a map of "internal" assets ([`internal_assets`]) which implement
 /// the [GenerateSourceMap] trait.
@@ -92,7 +92,7 @@ async fn internal_assets_for_source_mapping(
     let mut internal_assets_for_source_mapping = HashMap::new();
     for asset in internal_assets.iter() {
         if let Some(generate_source_map) =
-            Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(*asset).await?
+            ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(*asset).await?
         {
             if let Some(path) = intermediate_output_path.get_path_to(&*asset.ident().path().await?)
             {
@@ -177,10 +177,10 @@ async fn separate_assets(
     for item in graph.into_reverse_topological() {
         match item {
             Type::Internal(asset) => {
-                internal_assets.insert(*asset);
+                internal_assets.insert(asset);
             }
             Type::External(asset) => {
-                external_asset_entrypoints.insert(*asset);
+                external_asset_entrypoints.insert(asset);
             }
         }
     }

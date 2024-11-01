@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use anyhow::Result;
 use next_core::next_manifests::LoadableManifest;
-use turbo_tasks::{RcStr, TryFlatJoinIterExt, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, TryFlatJoinIterExt, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
@@ -56,7 +56,7 @@ pub async fn create_react_loadable_manifest(
         }
     }
 
-    let loadable_manifest = Vc::upcast(VirtualOutputAsset::new(
+    let loadable_manifest = VirtualOutputAsset::new(
         output_path,
         AssetContent::file(
             FileContent::Content(File::from(serde_json::to_string_pretty(
@@ -64,8 +64,10 @@ pub async fn create_react_loadable_manifest(
             )?))
             .cell(),
         ),
-    ));
+    )
+    .to_resolved()
+    .await?;
 
-    output.push(loadable_manifest);
+    output.push(ResolvedVc::upcast(loadable_manifest));
     Ok(Vc::cell(output))
 }

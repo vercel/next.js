@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{FxIndexSet, RcStr, ValueToString, Vc};
+use turbo_tasks::{FxIndexSet, RcStr, ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{Chunk, ChunkingContext},
@@ -87,7 +87,9 @@ impl OutputAsset for EcmascriptBuildNodeChunk {
         }
 
         if include_source_map {
-            references.push(Vc::upcast(SourceMapAsset::new(Vc::upcast(self))));
+            references.push(ResolvedVc::upcast(
+                SourceMapAsset::new(Vc::upcast(self)).to_resolved().await?,
+            ));
         }
 
         Ok(Vc::cell(references))

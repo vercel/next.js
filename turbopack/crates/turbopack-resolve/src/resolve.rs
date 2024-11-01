@@ -133,7 +133,7 @@ async fn base_resolve_options(
         let additional_import_map = additional_import_map.await?;
         import_map.extend_ref(&additional_import_map);
     }
-    let import_map = import_map.cell();
+    let import_map = import_map.resolved_cell();
 
     let plugins = opt.after_resolve_plugins.clone();
 
@@ -281,7 +281,7 @@ pub async fn resolve_options(
         let context_value = &*resolve_path.await?;
         for (condition, new_options_context) in options_context_value.rules.iter() {
             if condition.matches(context_value).await? {
-                return Ok(resolve_options(resolve_path, *new_options_context));
+                return Ok(resolve_options(resolve_path, **new_options_context));
             }
         }
     }
@@ -304,13 +304,13 @@ pub async fn resolve_options(
     // overwrites any other mappings.
     let resolve_options = options_context_value
         .import_map
-        .map(|import_map| resolve_options.with_extended_import_map(import_map))
+        .map(|import_map| resolve_options.with_extended_import_map(*import_map))
         .unwrap_or(resolve_options);
     // And the same for the fallback_import_map
     let resolve_options = options_context_value
         .fallback_import_map
         .map(|fallback_import_map| {
-            resolve_options.with_extended_fallback_import_map(fallback_import_map)
+            resolve_options.with_extended_fallback_import_map(*fallback_import_map)
         })
         .unwrap_or(resolve_options);
 

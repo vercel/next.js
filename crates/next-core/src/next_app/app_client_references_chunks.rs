@@ -1,7 +1,7 @@
 use anyhow::Result;
 use tracing::Instrument;
 use turbo_tasks::{
-    FxIndexMap, RcStr, TryFlatJoinIterExt, TryJoinIterExt, Value, ValueToString, Vc,
+    FxIndexMap, RcStr, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, ValueToString, Vc,
 };
 use turbopack_core::{
     chunk::{availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt},
@@ -69,7 +69,7 @@ pub async fn get_app_client_references_chunks(
                                     ecmascript_client_reference.await?;
 
                                 let client_chunk_group = client_chunking_context
-                                    .root_chunk_group(Vc::upcast(
+                                    .root_chunk_group(*ResolvedVc::upcast(
                                         ecmascript_client_reference_ref.client_module,
                                     ))
                                     .await?;
@@ -81,7 +81,7 @@ pub async fn get_app_client_references_chunks(
                                     ),
                                     if let Some(ssr_chunking_context) = ssr_chunking_context {
                                         let ssr_chunk_group = ssr_chunking_context
-                                            .root_chunk_group(Vc::upcast(
+                                            .root_chunk_group(*ResolvedVc::upcast(
                                                 ecmascript_client_reference_ref.ssr_module,
                                             ))
                                             .await?;
@@ -183,7 +183,9 @@ pub async fn get_app_client_references_chunks(
                                 let ecmascript_client_reference_ref =
                                     ecmascript_client_reference.await?;
 
-                                Some(Vc::upcast(ecmascript_client_reference_ref.ssr_module))
+                                Some(*ResolvedVc::upcast(
+                                    ecmascript_client_reference_ref.ssr_module,
+                                ))
                             }
                             _ => None,
                         })
@@ -223,7 +225,7 @@ pub async fn get_app_client_references_chunks(
                             } => {
                                 let ecmascript_client_reference_ref =
                                     ecmascript_client_reference.await?;
-                                Vc::upcast(ecmascript_client_reference_ref.client_module)
+                                *ResolvedVc::upcast(ecmascript_client_reference_ref.client_module)
                             }
                             ClientReferenceType::CssClientReference(css_module) => {
                                 Vc::upcast(*css_module)
@@ -331,7 +333,12 @@ pub async fn get_app_server_reference_modules(
                         ..
                     } => {
                         let ecmascript_client_reference_ref = ecmascript_client_reference.await?;
-                        Some(Vc::upcast(ecmascript_client_reference_ref.client_module))
+                        Some(ResolvedVc::upcast(
+                            ecmascript_client_reference_ref
+                                .client_module
+                                .to_resolved()
+                                .await?,
+                        ))
                     }
                     _ => None,
                 })

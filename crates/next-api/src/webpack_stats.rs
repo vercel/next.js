@@ -1,6 +1,6 @@
 use anyhow::Result;
 use serde::Serialize;
-use turbo_tasks::{FxIndexMap, FxIndexSet, RcStr, Vc};
+use turbo_tasks::{FxIndexMap, FxIndexSet, RcStr, ResolvedVc, Vc};
 use turbopack_browser::ecmascript::EcmascriptDevChunk;
 use turbopack_core::{
     chunk::{Chunk, ChunkItem},
@@ -12,7 +12,7 @@ pub async fn generate_webpack_stats<'a, I>(
     entry_assets: I,
 ) -> Result<WebpackStats>
 where
-    I: IntoIterator<Item = &'a Vc<Box<dyn OutputAsset>>>,
+    I: IntoIterator<Item = &'a ResolvedVc<Box<dyn OutputAsset>>>,
 {
     let mut assets = vec![];
     let mut chunks = vec![];
@@ -26,7 +26,7 @@ where
             continue;
         };
 
-        if let Some(chunk) = Vc::try_resolve_downcast_type::<EcmascriptDevChunk>(*asset).await? {
+        if let Some(chunk) = ResolvedVc::try_downcast_type::<EcmascriptDevChunk>(*asset).await? {
             let chunk_ident = normalize_client_path(&chunk.ident().path().await?.path);
             chunks.push(WebpackStatsChunk {
                 size: asset_len,

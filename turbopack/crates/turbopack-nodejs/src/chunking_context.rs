@@ -2,7 +2,7 @@ use std::iter::once;
 
 use anyhow::{bail, Context, Result};
 use tracing::Instrument;
-use turbo_tasks::{RcStr, Value, ValueToString, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::{
@@ -280,15 +280,11 @@ impl ChunkingContext for NodeJsChunkingContext {
             )
             .await?;
 
-            let mut assets: Vec<Vc<Box<dyn OutputAsset>>> = chunks
+            let assets = chunks
                 .iter()
-                .map(|chunk| self.generate_chunk(**chunk))
-                .collect();
-
-            // Resolve assets
-            for asset in assets.iter_mut() {
-                *asset = asset.resolve().await?;
-            }
+                .map(|chunk| self.generate_chunk(**chunk).to_resolved())
+                .try_join()
+                .await?;
 
             Ok(ChunkGroupResult {
                 assets: Vc::cell(assets),
@@ -333,20 +329,30 @@ impl ChunkingContext for NodeJsChunkingContext {
         let other_chunks: Vec<_> = extra_chunks
             .iter()
             .copied()
-            .chain(chunks.iter().map(|chunk| self.generate_chunk(**chunk)))
+            .chain(
+                chunks
+                    .iter()
+                    .map(|chunk| self.generate_chunk(**chunk).to_resolved())
+                    .try_join()
+                    .await?,
+            )
             .collect();
 
         let Some(module) = Vc::try_resolve_downcast(module).await? else {
             bail!("module must be placeable in an ecmascript chunk");
         };
 
-        let asset = Vc::upcast(EcmascriptBuildNodeEntryChunk::new(
-            path,
-            self,
-            Vc::cell(other_chunks),
-            evaluatable_assets,
-            module,
-        ));
+        let asset = ResolvedVc::upcast(
+            EcmascriptBuildNodeEntryChunk::new(
+                path,
+                self,
+                Vc::cell(other_chunks),
+                evaluatable_assets,
+                module,
+            )
+            .to_resolved()
+            .await?,
+        );
 
         Ok(EntryChunkGroupResult {
             asset,
