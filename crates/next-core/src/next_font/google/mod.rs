@@ -4,7 +4,7 @@ use anyhow::{bail, Context, Result};
 use futures::FutureExt;
 use indoc::formatdoc;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{Completion, FxIndexMap, RcStr, Value, Vc};
+use turbo_tasks::{Completion, FxIndexMap, RcStr, ResolvedVc, Value, Vc};
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::{CommandLineProcessEnv, ProcessEnv};
 use turbo_tasks_fetch::{fetch, HttpResponseBody};
@@ -132,9 +132,12 @@ impl NextFontGoogleReplacer {
                 )
                 .into(),
             )
-            .into()),
+            .cell()),
         );
-        Ok(ImportMapResult::Result(ResolveResult::source(Vc::upcast(js_asset)).into()).into())
+        Ok(
+            ImportMapResult::Result(ResolveResult::source(Vc::upcast(js_asset)).resolved_cell())
+                .cell(),
+        )
     }
 }
 
@@ -257,13 +260,16 @@ impl NextFontGoogleCssModuleReplacer {
                     .await?
                     .into(),
                 )
-                .into(),
+                .cell(),
             ),
         )
-        .resolve()
+        .to_resolved()
         .await?;
 
-        Ok(ImportMapResult::Result(ResolveResult::source(Vc::upcast(css_asset)).into()).into())
+        Ok(ImportMapResult::Result(
+            ResolveResult::source(*ResolvedVc::upcast(css_asset)).resolved_cell(),
+        )
+        .cell())
     }
 }
 
@@ -292,10 +298,10 @@ impl ImportMappingReplacement for NextFontGoogleCssModuleReplacer {
             fragment: _,
         } = request
         else {
-            return Ok(ImportMapResult::NoEntry.into());
+            return Ok(ImportMapResult::NoEntry.cell());
         };
 
-        Ok(self.import_map_result(query_vc.await?.to_string().into()))
+        Ok(self.import_map_result(query_vc.await?.clone_value()))
     }
 }
 
@@ -323,7 +329,7 @@ impl NextFontGoogleFontFileReplacer {
 impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
     #[turbo_tasks::function]
     fn replace(&self, _capture: Vc<Pattern>) -> Vc<ReplacedImportMapping> {
-        ReplacedImportMapping::Ignore.into()
+        ReplacedImportMapping::Ignore.cell()
     }
 
     /// Intercepts requests for the font made by the CSS
@@ -343,7 +349,7 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
             fragment: _,
         } = request
         else {
-            return Ok(ImportMapResult::NoEntry.into());
+            return Ok(ImportMapResult::NoEntry.cell());
         };
 
         let NextFontGoogleFontFileOptions {
@@ -372,15 +378,20 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
         // really matter either.
         let Some(font) = fetch_from_google_fonts(Vc::cell(url.into()), font_virtual_path).await?
         else {
-            return Ok(ImportMapResult::Result(ResolveResult::unresolvable().into()).into());
+            return Ok(
+                ImportMapResult::Result(ResolveResult::unresolvable().resolved_cell()).cell(),
+            );
         };
 
         let font_source = VirtualSource::new(
             font_virtual_path,
-            AssetContent::file(FileContent::Content(font.await?.0.as_slice().into()).into()),
+            AssetContent::file(FileContent::Content(font.await?.0.as_slice().into()).cell()),
         );
 
-        Ok(ImportMapResult::Result(ResolveResult::source(Vc::upcast(font_source)).into()).into())
+        Ok(
+            ImportMapResult::Result(ResolveResult::source(Vc::upcast(font_source)).resolved_cell())
+                .cell(),
+        )
     }
 }
 
