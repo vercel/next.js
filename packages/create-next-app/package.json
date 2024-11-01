@@ -39,10 +39,10 @@
     "commander": "2.20.0",
     "cpy": "7.3.0",
     "cross-spawn": "6.0.5",
-    "got": "11.8.6",
+    "got": "12.1.0",
     "prompts": "2.1.0",
     "rimraf": "3.0.0",
-    "tar": "7.0.0",
+    "tar": "7.0.1",
     "update-check": "1.5.4",
     "validate-npm-package-name": "3.0.0"
   },
