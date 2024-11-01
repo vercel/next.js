@@ -42,15 +42,19 @@ export async function resolve(
 
   // From here the specifier will be a relative path.
   const ext = extname(specifier)
-  // If the specifier is "./foo", we try to resolve it as "./foo.ts".
+  // If the specifier has no extension, we try to resolve it as TS then JS.
   if (ext === '') {
-    const possibleTsFileURL = new URL(url + '.ts', context.parentURL)
+    const possibleTsFileURL = new URL(specifier + '.ts', context.parentURL)
+    const possibleJsFileURL = new URL(specifier + '.js', context.parentURL)
+
     if (existsSync(possibleTsFileURL)) {
       return {
         format: 'typescript',
         shortCircuit: true,
         url: possibleTsFileURL.href,
       }
+    } else if (existsSync(possibleJsFileURL)) {
+      return nextResolve(specifier + '.js', context)
     } else {
       return nextResolve(specifier, context)
     }
