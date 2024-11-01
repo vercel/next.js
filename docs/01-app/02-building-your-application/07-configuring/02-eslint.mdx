@@ -5,60 +5,6 @@ description: Next.js provides an integrated ESLint experience by default. These 
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
 
-Next.js provides an integrated [ESLint](https://eslint.org/) experience out of the box. Add `next lint` as a script to `package.json`:
-
-```json filename="package.json"
-{
-  "scripts": {
-    "lint": "next lint"
-  }
-}
-```
-
-Then run `npm run lint` or `yarn lint`:
-
-```bash filename="Terminal"
-yarn lint
-```
-
-If you don't already have ESLint configured in your application, you will be guided through the installation and configuration process.
-
-```bash filename="Terminal"
-yarn lint
-```
-
-> You'll see a prompt like this:
->
-> ? How would you like to configure ESLint?
->
-> ❯ Strict (recommended)  
-> Base  
-> Cancel
-
-One of the following three options can be selected:
-
-- **Strict**: Includes Next.js' base ESLint configuration along with a stricter [Core Web Vitals rule-set](#core-web-vitals). This is the recommended configuration for developers setting up ESLint for the first time.
-
-  ```json filename=".eslintrc.json"
-  {
-    "extends": "next/core-web-vitals"
-  }
-  ```
-
-- **Base**: Includes Next.js' base ESLint configuration.
-
-  ```json filename=".eslintrc.json"
-  {
-    "extends": "next"
-  }
-  ```
-
-- **Cancel**: Does not include any ESLint configuration. Only select this option if you plan on setting up your own custom ESLint configuration.
-
-If either of the two configuration options are selected, Next.js will automatically install `eslint` and `eslint-config-next` as dependencies in your application and create an `.eslintrc.json` file in the root of your project that includes your selected configuration.
-
-You can now run `next lint` every time you want to run ESLint to catch errors. Once ESLint has been set up, it will also automatically run during every build (`next build`). Errors will fail the build, while warnings will not.
-
 <AppOnly>
 
 > If you do not want ESLint to run during `next build`, refer to the documentation for [Ignoring ESLint](/docs/app/api-reference/next-config-js/eslint).
