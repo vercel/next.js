@@ -31,7 +31,7 @@ import { getBuiltinRequestContext } from '../after/builtin-request-context'
 
 export class NextRequestHint extends NextRequest {
   sourcePage: string
-  fetchMetrics?: FetchEventResult['fetchMetrics']
+  fetchMetrics: FetchEventResult['fetchMetrics'] | undefined
 
   constructor(params: {
     init: RequestInit
