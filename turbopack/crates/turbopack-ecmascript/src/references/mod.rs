@@ -58,7 +58,6 @@ use turbopack_core::{
     compile_time_info::{
         CompileTimeInfo, DefineableNameSegment, FreeVarReference, FreeVarReferences,
     },
-    context::AssetContext,
     environment::Rendering,
     error::PrettyPrintError,
     issue::{analyze::AnalyzeIssue, IssueExt, IssueSeverity, IssueSource, StyledString},
@@ -126,7 +125,7 @@ use crate::{
         top_level_await::has_top_level_await,
         ConstantNumber, ConstantString, JsValueUrlKind, RequireContextValue,
     },
-    chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
+    chunk::EcmascriptExports,
     code_gen::{CodeGen, CodeGenerateable, CodeGenerateableWithAsyncModuleInfo, CodeGenerateables},
     magic_identifier,
     parse::parse,
@@ -593,11 +592,6 @@ pub(crate) async fn analyse_ecmascript_module_internal(
 
     let mut evaluation_references = Vec::new();
 
-    let side_effect_free_packages = module.asset_context().side_effect_free_packages();
-    let is_side_effect_free = *module
-        .is_marked_as_side_effect_free(side_effect_free_packages)
-        .await?;
-
     for (i, r) in eval_context.imports.references().enumerate() {
         let r = EsmAssetReference::new(
             origin,
@@ -613,13 +607,8 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     }
                     ImportedSymbol::Symbol(name) => Some(ModulePart::export((&**name).into())),
                     ImportedSymbol::PartEvaluation(part_id) => {
-                        // If side effect free, ImportedSymbol::PartEvaluation is also side effect
-                        // free because ImportedSymbol::PartEvaluation is used only for
-                        // __TURBOPACK_PART__ imports so it doesn't need to be evaluated
-                        if !is_side_effect_free {
-                            evaluation_references.push(i);
-                        }
-                        Some(ModulePart::internal(*part_id))
+                        evaluation_references.push(i);
+                        Some(ModulePart::internal_evaluation(*part_id))
                     }
                     ImportedSymbol::Part(part_id) => Some(ModulePart::internal(*part_id)),
                     ImportedSymbol::Exports => Some(ModulePart::exports()),

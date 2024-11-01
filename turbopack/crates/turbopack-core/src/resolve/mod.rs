@@ -2930,6 +2930,10 @@ impl ModulePart {
         ModulePart::Internal(id).cell()
     }
     #[turbo_tasks::function]
+    pub fn internal_evaluation(id: u32) -> Vc<Self> {
+        ModulePart::InternalEvaluation(id).cell()
+    }
+    #[turbo_tasks::function]
     pub fn locals() -> Vc<Self> {
         ModulePart::Locals.cell()
     }
