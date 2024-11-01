@@ -10,8 +10,6 @@ export async function resolveSWCOptions(cwd: string): Promise<SWCOptions> {
     ? resolve(cwd, compilerOptions.baseUrl)
     : undefined
 
-  console.log({ resolvedBaseUrl })
-
   return {
     jsc: {
       parser: {
