@@ -1,7 +1,7 @@
 ---
 title: How to set up a Next.js project
 nav_title: Installation
-description: Learn how to create a new Next.js application with `create-next-app`, and set up TypeScript and ESLint.
+description: Learn how to create a new Next.js application with `create-next-app`, and set up TypeScript, ESLint, and Module Path Aliases.
 ---
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
@@ -211,13 +211,12 @@ You can optionally create a `public` folder to store static assets such as image
 
 > Minimum TypeScript version: `v4.5.2`
 
-Next.js comes with built-in TypeScript, automatically installing the necessary packages and configuring the proper settings when you create a new project with `create-next-app`.
+Next.js comes with built-in TypeScript, installing the necessary packages and configuring the proper settings when you create a new project with `create-next-app`.
 
 To add TypeScript to an existing project, rename a file to `.ts` / `.tsx`. Run `next dev` and `next build` to automatically install the necessary dependencies and add a `tsconfig.json` file with the recommended config options.
 
 > **Good to know**:
 >
-> - We also recommend you to use [`next.config.ts`](#type-checking-nextconfigts) over `next.config.js` for better type inference.
 > - If you already have a `jsconfig.json` file, copy the `paths` compiler option from the old `jsconfig.json` into the new `tsconfig.json` file, and delete the old `jsconfig.json` file.
 
 <AppOnly>
@@ -305,4 +304,74 @@ If either of the two configuration options are selected, Next.js will automatica
 
 You can now run `next lint` every time you want to run ESLint to catch errors. Once ESLint has been set up, it will also automatically run during every build (`next build`). Errors will fail the build, while warnings will not.
 
-See the [ESLint configuration](/docs/app/api-reference/next-config-js/eslint) page for more information on how to configure ESLint in your project.
+See the [ESLint Plugin](/docs/app/api-reference/next-config-js/eslint) page for more information on how to configure ESLint in your project.
+
+## Set up Absolute Imports and Module Path Aliases
+
+Next.js has in-built support for the `"paths"` and `"baseUrl"` options of `tsconfig.json` and `jsconfig.json` files.
+
+These options allow you to alias project directories to absolute paths, making it easier to import modules. For example:
+
+```jsx
+// Before
+import { Button } from '../../../components/button'
+
+// After
+import { Button } from '@/components/button'
+```
+
+To configure absolute imports, add the `baseUrl` configuration option to your `tsconfig.json` or `jsconfig.json` file. For example:
+
+```json filename="tsconfig.json or jsconfig.json"
+{
+  "compilerOptions": {
+    "baseUrl": "src/"
+  }
+}
+```
+
+In addition to configuring the `baseUrl` path, you can use the `"paths"` option to "alias" module paths.
+
+For example, the following configuration maps `@/components/*` to `components/*`:
+
+```json filename="tsconfig.json or jsconfig.json"
+{
+  "compilerOptions": {
+    "baseUrl": "src/",
+    "paths": {
+      "@/styles/*": ["styles/*"],
+      "@/components/*": ["components/*"]
+    }
+  }
+}
+```
+
+Each of the `"paths"` are relative to the `baseUrl` location. For example:
+
+```tsx filename="src/app/page.tsx" switcher
+import Button from '@/components/button'
+import '@/styles/styles.css'
+
+export default function HomePage() {
+  return (
+    <div>
+      <h1>Hello World</h1>
+      <Button />
+    </div>
+  )
+}
+```
+
+```jsx filename="src/app/page.js" switcher
+import Button from '@/components/button'
+import '@/styles/styles.css'
+
+export default function HomePage() {
+  return (
+    <div>
+      <h1>Hello World</h1>
+      <Button />
+    </div>
+  )
+}
+```
