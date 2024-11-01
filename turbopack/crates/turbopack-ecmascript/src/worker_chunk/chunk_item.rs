@@ -127,7 +127,7 @@ impl ChunkItem for WorkerLoaderChunkItem {
                 .copied()
                 .map(|chunk| {
                     Vc::upcast(SingleOutputAssetReference::new(
-                        chunk,
+                        *chunk,
                         chunk_reference_description(),
                     ))
                 })

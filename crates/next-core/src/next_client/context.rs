@@ -145,13 +145,19 @@ pub async fn get_client_resolve_options_context(
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<ResolveOptionsContext>> {
     let next_client_import_map =
-        get_next_client_import_map(project_path, ty, next_config, execution_context);
-    let next_client_fallback_import_map = get_next_client_fallback_import_map(ty);
+        get_next_client_import_map(project_path, ty, next_config, execution_context)
+            .to_resolved()
+            .await?;
+    let next_client_fallback_import_map = get_next_client_fallback_import_map(ty)
+        .to_resolved()
+        .await?;
     let next_client_resolved_map =
-        get_next_client_resolved_map(project_path, project_path, *mode.await?);
+        get_next_client_resolved_map(project_path, project_path, *mode.await?)
+            .to_resolved()
+            .await?;
     let custom_conditions = vec![mode.await?.condition().into()];
     let module_options_context = ResolveOptionsContext {
-        enable_node_modules: Some(project_path.root().resolve().await?),
+        enable_node_modules: Some(project_path.root().to_resolved().await?),
         custom_conditions,
         import_map: Some(next_client_import_map),
         fallback_import_map: Some(next_client_fallback_import_map),
@@ -159,13 +165,27 @@ pub async fn get_client_resolve_options_context(
         browser: true,
         module: true,
         before_resolve_plugins: vec![
-            Vc::upcast(get_invalid_server_only_resolve_plugin(project_path)),
-            Vc::upcast(ModuleFeatureReportResolvePlugin::new(project_path)),
-            Vc::upcast(NextFontLocalResolvePlugin::new(project_path)),
+            ResolvedVc::upcast(
+                get_invalid_server_only_resolve_plugin(project_path)
+                    .to_resolved()
+                    .await?,
+            ),
+            ResolvedVc::upcast(
+                ModuleFeatureReportResolvePlugin::new(project_path)
+                    .to_resolved()
+                    .await?,
+            ),
+            ResolvedVc::upcast(
+                NextFontLocalResolvePlugin::new(project_path)
+                    .to_resolved()
+                    .await?,
+            ),
         ],
-        after_resolve_plugins: vec![Vc::upcast(NextSharedRuntimeResolvePlugin::new(
-            project_path,
-        ))],
+        after_resolve_plugins: vec![ResolvedVc::upcast(
+            NextSharedRuntimeResolvePlugin::new(project_path)
+                .to_resolved()
+                .await?,
+        )],
         ..Default::default()
     };
     Ok(ResolveOptionsContext {
@@ -175,7 +195,7 @@ pub async fn get_client_resolve_options_context(
         custom_extensions: next_config.resolve_extension().await?.clone_value(),
         rules: vec![(
             foreign_code_context_condition(next_config, project_path).await?,
-            module_options_context.clone().cell(),
+            module_options_context.clone().resolved_cell(),
         )],
         ..module_options_context
     }
