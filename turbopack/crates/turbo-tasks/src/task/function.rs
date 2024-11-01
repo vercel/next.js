@@ -370,7 +370,7 @@ task_inputs_impl! { A1 A2 A3 A4 A5 A6 A7 A8 A9 A10 A11 A12 A13 }
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{RcStr, VcCellNewMode, VcDefaultRead};
+    use crate::{RcStr, ShrinkToFit, VcCellNewMode, VcDefaultRead};
 
     #[test]
     fn test_task_fn() {
@@ -415,6 +415,10 @@ mod tests {
         struct Struct;
         impl Struct {
             async fn inherent_method(&self) {}
+        }
+
+        impl ShrinkToFit for Struct {
+            fn shrink_to_fit(&mut self) {}
         }
 
         unsafe impl VcValueType for Struct {
