@@ -1,4 +1,5 @@
 import { existsSync } from 'fs'
+import { readFile } from 'node:fs/promises'
 import { register } from 'node:module'
 import { basename, extname, join, relative, isAbsolute, resolve } from 'path'
 import { pathToFileURL } from 'url'
@@ -26,6 +27,7 @@ import { matchRemotePattern } from '../shared/lib/match-remote-pattern'
 
 import type { ZodError } from 'next/dist/compiled/zod'
 import { hasNextSupport } from '../server/ci-info'
+import { transpileConfig } from '../build/next-config-ts/transpile-config'
 import { dset } from '../shared/lib/dset'
 import { normalizeZodErrors } from '../shared/lib/zod'
 
@@ -1069,10 +1071,23 @@ export default async function loadConfig(
   }
 
   const path = await findUp(CONFIG_FILES, { cwd: dir })
+  const packageJsonPath = await findUp('package.json', {
+    cwd: dir,
+  })
+  const packageJson = packageJsonPath
+    ? JSON.parse(await readFile(packageJsonPath, 'utf-8'))
+    : {}
 
   // If config file was found
   if (path?.length) {
     configFileName = basename(path)
+
+    const isNextConfigTs =
+      extname(configFileName) === '.ts' || extname(configFileName) === '.cts'
+
+    const shouldRegisterLoader =
+      extname(configFileName) === '.mts' ||
+      (extname(configFileName) === '.ts' && packageJson.type === 'module')
 
     let userConfigModule: any
     try {
@@ -1086,8 +1101,13 @@ export default async function loadConfig(
         // jest relies on so we fall back to require for this case
         // https://github.com/nodejs/node/issues/35889
         userConfigModule = require(path)
+      } else if (isNextConfigTs) {
+        userConfigModule = await transpileConfig({
+          nextConfigPath: path,
+          cwd: dir,
+        })
       } else {
-        if (configFileName.endsWith('ts')) {
+        if (shouldRegisterLoader) {
           // "module.register" is not supported on Node.js v19.
           const nodeVersion = process.versions.node
           if (semver.satisfies(nodeVersion, '19.x')) {
@@ -1096,10 +1116,10 @@ export default async function loadConfig(
             )
           }
 
-          // TODO(jiwon): ensure path is resolved correctly
           // TODO(jiwon): can we deregister after loading the config?
           register('../build/next-config-ts/loader.mjs', {
             parentURL: pathToFileURL(__filename),
+            // data is passed to the loader "initialize" function
             data: { cwd: dir },
           })
         }

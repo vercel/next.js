@@ -1,22 +1,24 @@
 import type { Options as SWCOptions } from '@swc/core'
-import type { ParsedCommandLine } from 'typescript'
+import type { CompilerOptions } from 'typescript'
 
 import { resolve } from 'node:path'
-
-import { findPagesDir } from '../../lib/find-pages-dir.js'
-import { getTypeScriptConfiguration } from '../../lib/typescript/getTypeScriptConfiguration.js'
-import { verifyTypeScriptSetup } from '../../lib/verify-typescript-setup.js'
+import { parseJsonFile } from '../load-jsconfig'
 
 export async function resolveSWCOptions(cwd: string): Promise<SWCOptions> {
-  const { options } = await getTSConfig(cwd)
+  const { compilerOptions } = await lazilyGetTSConfig(cwd)
+  const resolvedBaseUrl = compilerOptions.baseUrl
+    ? resolve(cwd, compilerOptions.baseUrl)
+    : undefined
+
+  console.log({ resolvedBaseUrl })
 
   return {
     jsc: {
       parser: {
         syntax: 'typescript',
       },
-      paths: options.paths,
-      baseUrl: options.baseUrl ? resolve(options.baseUrl) : undefined,
+      paths: compilerOptions.paths,
+      baseUrl: resolvedBaseUrl,
       experimental: {
         keepImportAttributes: true,
         emitAssertForImportAttributes: true,
@@ -30,28 +32,19 @@ export async function resolveSWCOptions(cwd: string): Promise<SWCOptions> {
   } satisfies SWCOptions
 }
 
-async function getTSConfig(cwd: string): Promise<ParsedCommandLine> {
-  const { pagesDir, appDir } = findPagesDir(cwd)
-
-  const verifyResult = await verifyTypeScriptSetup({
-    dir: cwd,
-    // TODO: do we map the correct distDir again?
-    distDir: '.next', // should be temporary
-    tsconfigPath: 'tsconfig.json',
-    intentDirs: [pagesDir, appDir].filter(Boolean) as string[],
-    typeCheckPreflight: false,
-    disableStaticImages: false,
-    hasAppDir: Boolean(appDir),
-    hasPagesDir: Boolean(pagesDir),
-    hasNextConfigTs: true,
-  })
-
-  const { ts, resolvedTsConfigPath } = verifyResult.typescriptInfo!
-  const tsConfig = await getTypeScriptConfiguration(
-    ts,
-    resolvedTsConfigPath,
-    true
-  )
+export async function lazilyGetTSConfig(
+  cwd: string
+): Promise<{ compilerOptions: CompilerOptions }> {
+  let tsConfig: { compilerOptions: CompilerOptions }
+  try {
+    tsConfig = parseJsonFile(resolve(cwd, 'tsconfig.json'))
+  } catch (error) {
+    // ignore if tsconfig.json does not exist
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      throw error
+    }
+    tsConfig = { compilerOptions: {} }
+  }
 
   return tsConfig
 }
