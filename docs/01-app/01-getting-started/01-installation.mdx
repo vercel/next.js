@@ -1,10 +1,12 @@
 ---
-title: Create a new Next.js application
+title: How to setup a Next.js application
 nav_title: Installation
-description: How to create a new Next.js application with `create-next-app`. Set up TypeScript, ESLint,and configure your `next.config.js` file.
+description: Learn how to create a new Next.js application with `create-next-app`, and set up TypeScript and ESLint.
 ---
 
-System Requirements:
+{/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
+
+## System Requirements
 
 - [Node.js 18.18](https://nodejs.org/) or later.
 - macOS, Windows (including WSL), and Linux are supported.
@@ -125,7 +127,7 @@ export default function Page() {
 
 <PagesOnly>
 
-### The `pages` directory (optional)
+### Create the `pages` directory
 
 Next.js uses file-system routing, which means the routes in your application are determined by how you structure your files.
 
