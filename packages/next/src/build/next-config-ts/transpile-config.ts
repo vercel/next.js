@@ -52,7 +52,7 @@ export async function transpileConfig({
     }
 
     // filename & extension don't matter here
-    return requireFromString(code, resolve(cwd, 'next.config.ts'))
+    return requireFromString(code, resolve(cwd, 'next.config.compiled.js'))
   } catch (error) {
     throw error
   } finally {

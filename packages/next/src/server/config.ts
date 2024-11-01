@@ -1082,9 +1082,15 @@ export default async function loadConfig(
   if (path?.length) {
     configFileName = basename(path)
 
-    const isNextConfigTs =
+    // To resolve "next.config.(ts|cts)" and it's imports, register the require hook
+    // and transpile the config with SWC. The data will be directly "required" from
+    // the compiled string.
+    const shouldRegisterRequireHook =
       extname(configFileName) === '.ts' || extname(configFileName) === '.cts'
 
+    // To resolve "next.config.(ts|mts)" ("ts" when package.json "type" is "module")
+    // and it's imports, register the loader hook and transpile the config with SWC.
+    // Node.js will then load the compiled source passed from the loader.
     const shouldRegisterLoader =
       extname(configFileName) === '.mts' ||
       (extname(configFileName) === '.ts' && packageJson.type === 'module')
@@ -1101,7 +1107,7 @@ export default async function loadConfig(
         // jest relies on so we fall back to require for this case
         // https://github.com/nodejs/node/issues/35889
         userConfigModule = require(path)
-      } else if (isNextConfigTs) {
+      } else if (shouldRegisterRequireHook) {
         userConfigModule = await transpileConfig({
           nextConfigPath: path,
           cwd: dir,
