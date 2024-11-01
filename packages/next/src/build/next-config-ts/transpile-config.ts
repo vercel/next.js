@@ -9,10 +9,6 @@ function resolveSWCOptions(
   cwd: string,
   compilerOptions: CompilerOptions
 ): SWCOptions {
-  const resolvedBaseUrl = compilerOptions.baseUrl
-    ? resolve(cwd, compilerOptions.baseUrl)
-    : undefined
-
   return {
     jsc: {
       target: 'es5',
@@ -20,7 +16,9 @@ function resolveSWCOptions(
         syntax: 'typescript',
       },
       paths: compilerOptions.paths,
-      baseUrl: resolvedBaseUrl,
+      // SWC requires `baseUrl` to be passed when `paths` are used.
+      // Also, `baseUrl` must be absolute.
+      baseUrl: resolve(cwd, compilerOptions.baseUrl ?? ''),
     },
     module: {
       type: 'commonjs',

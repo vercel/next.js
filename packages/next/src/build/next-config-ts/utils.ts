@@ -6,9 +6,6 @@ import { parseJsonFile } from '../load-jsconfig'
 
 export async function resolveSWCOptions(cwd: string): Promise<SWCOptions> {
   const { compilerOptions } = await lazilyGetTSConfig(cwd)
-  const resolvedBaseUrl = compilerOptions.baseUrl
-    ? resolve(cwd, compilerOptions.baseUrl)
-    : undefined
 
   return {
     jsc: {
@@ -16,7 +13,9 @@ export async function resolveSWCOptions(cwd: string): Promise<SWCOptions> {
         syntax: 'typescript',
       },
       paths: compilerOptions.paths,
-      baseUrl: resolvedBaseUrl,
+      // SWC requires `baseUrl` to be passed when `paths` are used.
+      // Also, `baseUrl` must be absolute.
+      baseUrl: resolve(cwd, compilerOptions.baseUrl ?? ''),
       experimental: {
         keepImportAttributes: true,
         emitAssertForImportAttributes: true,
