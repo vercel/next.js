@@ -19,7 +19,10 @@ import type { RequestStore } from '../app-render/work-unit-async-storage.externa
 import type { NextParsedUrlQuery } from '../request-meta'
 import type { LoaderTree } from '../lib/app-dir-module'
 import type { AppPageModule } from '../route-modules/app-page/module'
-import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
+import type {
+  ClientReferenceManifest,
+  ManifestNode,
+} from '../../build/webpack/plugins/flight-manifest-plugin'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 import type { IncomingHttpHeaders } from 'http'
@@ -1251,32 +1254,6 @@ async function renderToHTMLOrFlightImpl(
         description: workStore.dynamicUsageDescription,
         stack: workStore.dynamicUsageStack,
       }
-    }
-
-    // Per-segment prefetch data
-    //
-    // All of the segments for a page are generated simultaneously, including
-    // during revalidations. This is to ensure consistency, because it's
-    // possible for a mismatch between a layout and page segment can cause the
-    // client to error during rendering. We want to preserve the ability of the
-    // client to recover from such a mismatch by re-requesting all the segments
-    // to get a consistent view of the page.
-    //
-    // TODO (Per Segment Prefetching): This is placeholder data. Populate with
-    // the actual data generated during prerender.
-    if (renderOpts.experimental.isRoutePPREnabled === true) {
-      const placeholder = Buffer.from(
-        'TODO (Per Segment Prefetching): Not yet implemented\n'
-      )
-      metadata.segmentFlightData = new Map([
-        // Root segment
-        ['/', placeholder],
-        ['/blog', placeholder],
-        // TODO: Update the client to use the same encoding for segment paths that
-        // we use here, so we don't have to convert between them. Needs to be
-        // filesystem safe.
-        ['/blog/[post]-1-d', placeholder],
-      ])
     }
 
     return new RenderResult(await streamToString(response.stream), options)
@@ -2720,7 +2697,14 @@ async function prerenderToStream(
           tracingMetadata: tracingMetadata,
         })
 
-        metadata.flightData = await streamToBuffer(reactServerResult.asStream())
+        const flightData = await streamToBuffer(reactServerResult.asStream())
+        metadata.flightData = flightData
+        metadata.segmentFlightData = await collectSegmentData(
+          finalAttemptRSCPayload,
+          flightData,
+          ComponentMod,
+          renderOpts
+        )
 
         if (serverIsDynamic || clientIsDynamic) {
           if (postponed != null) {
@@ -3171,8 +3155,15 @@ async function prerenderToStream(
         // const reactServerResult =
         //   await createReactServerPrerenderResultFromRender(reactServerStream!)
 
-        metadata.flightData = await streamToBuffer(
+        const flightData = await streamToBuffer(
           serverPrerenderStreamResult.asStream()
+        )
+        metadata.flightData = flightData
+        metadata.segmentFlightData = await collectSegmentData(
+          finalServerPayload,
+          flightData,
+          ComponentMod,
+          renderOpts
         )
 
         const getServerInsertedHTML = makeGetServerInsertedHTML({
@@ -3296,6 +3287,12 @@ async function prerenderToStream(
 
       if (shouldGenerateStaticFlightData(workStore)) {
         metadata.flightData = flightData
+        metadata.segmentFlightData = await collectSegmentData(
+          RSCPayload,
+          flightData,
+          ComponentMod,
+          renderOpts
+        )
       }
 
       /**
@@ -3475,7 +3472,14 @@ async function prerenderToStream(
       )
 
       if (shouldGenerateStaticFlightData(workStore)) {
-        metadata.flightData = await streamToBuffer(reactServerResult.asStream())
+        const flightData = await streamToBuffer(reactServerResult.asStream())
+        metadata.flightData = flightData
+        metadata.segmentFlightData = await collectSegmentData(
+          RSCPayload,
+          flightData,
+          ComponentMod,
+          renderOpts
+        )
       }
 
       const getServerInsertedHTML = makeGetServerInsertedHTML({
@@ -3627,8 +3631,15 @@ async function prerenderToStream(
       })
 
       if (shouldGenerateStaticFlightData(workStore)) {
-        metadata.flightData = await streamToBuffer(
+        const flightData = await streamToBuffer(
           reactServerPrerenderResult.asStream()
+        )
+        metadata.flightData = flightData
+        metadata.segmentFlightData = await collectSegmentData(
+          errorRSCPayload,
+          flightData,
+          ComponentMod,
+          renderOpts
         )
       }
 
@@ -3755,4 +3766,64 @@ const getGlobalErrorStyles = async (
   }
 
   return globalErrorStyles
+}
+
+async function collectSegmentData(
+  rscPayload: InitialRSCPayload,
+  fullPageDataBuffer: Buffer,
+  ComponentMod: AppPageModule,
+  renderOpts: RenderOpts
+): Promise<Map<string, Buffer> | undefined> {
+  // Per-segment prefetch data
+  //
+  // All of the segments for a page are generated simultaneously, including
+  // during revalidations. This is to ensure consistency, because it's
+  // possible for a mismatch between a layout and page segment can cause the
+  // client to error during rendering. We want to preserve the ability of the
+  // client to recover from such a mismatch by re-requesting all the segments
+  // to get a consistent view of the page.
+  //
+  // For performance, we reuse the Flight output that was created when
+  // generating the initial page HTML. The Flight stream for the whole page is
+  // decomposed into a separate stream per segment.
+
+  const clientReferenceManifest = renderOpts.clientReferenceManifest
+  if (
+    !clientReferenceManifest ||
+    renderOpts.experimental.isRoutePPREnabled !== true
+  ) {
+    return
+  }
+
+  // FlightDataPath is an unsound type, hence the additional checks.
+  const flightDataPaths = rscPayload.f
+  if (flightDataPaths.length !== 1 && flightDataPaths[0].length !== 3) {
+    console.error(
+      'Internal Next.js error: InitialRSCPayload does not match the expected ' +
+        'shape for a prerendered page during segment prefetch generation.'
+    )
+    return
+  }
+  const routeTree: FlightRouterState = flightDataPaths[0][0]
+
+  // Manifest passed to the Flight client for reading the full-page Flight
+  // stream. Based off similar code in use-cache-wrapper.ts.
+  const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
+  const serverConsumerManifest = {
+    // moduleLoading must be null because we don't want to trigger preloads of ClientReferences
+    // to be added to the consumer. Instead, we'll wait for any ClientReference to be emitted
+    // which themselves will handle the preloading.
+    moduleLoading: null,
+    moduleMap: isEdgeRuntime
+      ? clientReferenceManifest.edgeRscModuleMapping
+      : clientReferenceManifest.rscModuleMapping,
+    serverModuleMap: null,
+  }
+
+  return await ComponentMod.collectSegmentData(
+    routeTree,
+    fullPageDataBuffer,
+    clientReferenceManifest.clientModules as ManifestNode,
+    serverConsumerManifest
+  )
 }
