@@ -7,6 +7,7 @@ export default function Page() {
   return <Button action={myAction}>Delete</Button>
 }
 
+// TODO: should use `action` as function name?
 export const action = withValidate(async () => {
   'use server'
 })

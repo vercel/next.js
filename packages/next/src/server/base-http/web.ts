@@ -11,7 +11,7 @@ import { InvariantError } from '../../shared/lib/invariant-error'
 export class WebNextRequest extends BaseNextRequest<ReadableStream | null> {
   public request: Request
   public headers: IncomingHttpHeaders
-  public fetchMetrics?: FetchMetrics
+  public fetchMetrics: FetchMetrics | undefined
 
   constructor(request: NextRequestHint) {
     const url = new URL(request.url)

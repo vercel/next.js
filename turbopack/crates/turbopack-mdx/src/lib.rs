@@ -224,7 +224,7 @@ impl MdxTransformedAsset {
                 .emit();
 
                 Ok(MdxTransformResult {
-                    content: AssetContent::File(FileContent::NotFound.cell()).cell(),
+                    content: AssetContent::File(FileContent::NotFound.resolved_cell()).cell(),
                 }
                 .cell())
             }

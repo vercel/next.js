@@ -1,9 +1,8 @@
 use std::{collections::HashMap, fmt::Write, mem::take};
 
 use anyhow::Result;
-use indexmap::IndexSet;
 use serde_json::Value as JsonValue;
-use turbo_tasks::{RcStr, Value, ValueDefault, Vc};
+use turbo_tasks::{fxindexset, RcStr, ResolvedVc, Value, ValueDefault, Vc};
 use turbo_tasks_fs::{FileContent, FileJsonContent, FileSystemPath};
 use turbopack_core::{
     asset::Asset,
@@ -31,8 +30,8 @@ use crate::ecmascript::get_condition_maps;
 
 #[turbo_tasks::value(shared)]
 pub struct TsConfigIssue {
-    pub severity: Vc<IssueSeverity>,
-    pub source_ident: Vc<AssetIdent>,
+    pub severity: ResolvedVc<IssueSeverity>,
+    pub source_ident: ResolvedVc<AssetIdent>,
     pub message: RcStr,
 }
 
@@ -72,8 +71,8 @@ pub async fn read_tsconfigs(
                     write!(message, "{}", e)?;
                 }
                 TsConfigIssue {
-                    severity: IssueSeverity::Error.into(),
-                    source_ident: tsconfig.ident(),
+                    severity: IssueSeverity::Error.resolved_cell(),
+                    source_ident: tsconfig.ident().to_resolved().await?,
                     message: message.into(),
                 }
                 .cell()
@@ -81,8 +80,8 @@ pub async fn read_tsconfigs(
             }
             FileJsonContent::NotFound => {
                 TsConfigIssue {
-                    severity: IssueSeverity::Error.into(),
-                    source_ident: tsconfig.ident(),
+                    severity: IssueSeverity::Error.resolved_cell(),
+                    source_ident: tsconfig.ident().to_resolved().await?,
                     message: "tsconfig not found".into(),
                 }
                 .cell()
@@ -98,8 +97,8 @@ pub async fn read_tsconfigs(
                         continue;
                     } else {
                         TsConfigIssue {
-                            severity: IssueSeverity::Error.into(),
-                            source_ident: tsconfig.ident(),
+                            severity: IssueSeverity::Error.resolved_cell(),
+                            source_ident: tsconfig.ident().to_resolved().await?,
                             message: format!("extends: \"{}\" doesn't resolve correctly", extends)
                                 .into(),
                         }
@@ -221,8 +220,8 @@ pub async fn read_from_tsconfigs<T>(
 #[turbo_tasks::value]
 #[derive(Default)]
 pub struct TsConfigResolveOptions {
-    base_url: Option<Vc<FileSystemPath>>,
-    import_map: Option<Vc<ImportMap>>,
+    base_url: Option<ResolvedVc<FileSystemPath>>,
+    import_map: Option<ResolvedVc<ImportMap>>,
     is_module_resolution_nodenext: bool,
 }
 
@@ -299,8 +298,8 @@ pub async fn tsconfig_resolve_options(
                         );
                     } else {
                         TsConfigIssue {
-                            severity: IssueSeverity::Warning.cell(),
-                            source_ident: source.ident(),
+                            severity: IssueSeverity::Warning.resolved_cell(),
+                            source_ident: source.ident().to_resolved().await?,
                             message: format!(
                                 "compilerOptions.paths[{key}] doesn't contains an array as \
                                  expected\n{key}: {value:#}",
@@ -322,7 +321,7 @@ pub async fn tsconfig_resolve_options(
         for (key, value) in all_paths {
             import_map.insert_alias(AliasPattern::parse(key), value.into());
         }
-        Some(import_map.cell())
+        Some(import_map.resolved_cell())
     } else {
         None
     };
@@ -336,7 +335,7 @@ pub async fn tsconfig_resolve_options(
     .unwrap_or_default();
 
     Ok(TsConfigResolveOptions {
-        base_url: base_url.as_deref().copied(),
+        base_url,
         import_map,
         is_module_resolution_nodenext,
     }
@@ -361,9 +360,9 @@ pub async fn apply_tsconfig_resolve_options(
         resolve_options.modules.insert(
             0,
             ResolveModules::Path {
-                dir: base_url,
+                dir: *base_url,
                 // tsconfig basepath doesn't apply to json requests
-                excluded_extensions: Vc::cell(IndexSet::from([".json".into()])),
+                excluded_extensions: Vc::cell(fxindexset![".json".into()]),
             },
         );
     }
@@ -371,8 +370,10 @@ pub async fn apply_tsconfig_resolve_options(
         resolve_options.import_map = Some(
             resolve_options
                 .import_map
-                .map(|import_map| import_map.extend(tsconfig_import_map))
-                .unwrap_or(tsconfig_import_map),
+                .map(|import_map| import_map.extend(*tsconfig_import_map))
+                .unwrap_or(*tsconfig_import_map)
+                .to_resolved()
+                .await?,
         );
     }
     resolve_options.enable_typescript_with_output_extension =
@@ -423,7 +424,7 @@ pub async fn type_resolve(
             request,
             options,
         );
-        if !*result1.is_unresolveable().await? {
+        if !*result1.is_unresolvable().await? {
             result1
         } else {
             resolve(
@@ -456,7 +457,7 @@ pub async fn type_resolve(
         origin.origin_path(),
         request,
         options,
-        IssueSeverity::Error.cell(),
+        false,
         None,
     )
     .await
@@ -515,7 +516,7 @@ async fn apply_typescript_types_options(
 impl Issue for TsConfigIssue {
     #[turbo_tasks::function]
     fn severity(&self) -> Vc<IssueSeverity> {
-        self.severity
+        *self.severity
     }
 
     #[turbo_tasks::function]

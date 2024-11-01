@@ -26,6 +26,8 @@ import {
 } from '../utils'
 import type { ChunkGroup } from 'webpack'
 import { encodeURIPath } from '../../../shared/lib/encode-uri-path'
+import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
+import type { ModuleInfo } from './flight-client-entry-plugin'
 
 interface Options {
   dev: boolean
@@ -42,11 +44,11 @@ type ModuleId = string | number /*| null*/
 export type ManifestChunks = Array<string>
 
 const pluginState = getProxiedPluginState({
-  serverModuleIds: {} as Record<string, string | number>,
-  edgeServerModuleIds: {} as Record<string, string | number>,
+  ssrModules: {} as { [ssrModuleId: string]: ModuleInfo },
+  edgeSsrModules: {} as { [ssrModuleId: string]: ModuleInfo },
 
-  rscModuleIds: {} as Record<string, string | number>,
-  edgeRscModuleIds: {} as Record<string, string | number>,
+  rscModules: {} as { [rscModuleId: string]: ModuleInfo },
+  edgeRscModules: {} as { [rscModuleId: string]: ModuleInfo },
 })
 
 export interface ManifestNode {
@@ -71,12 +73,21 @@ export interface ManifestNode {
   }
 }
 
-export type ClientReferenceManifest = {
+export interface ClientReferenceManifestForRsc {
+  clientModules: ManifestNode
+  rscModuleMapping: {
+    [moduleId: string]: ManifestNode
+  }
+  edgeRscModuleMapping: {
+    [moduleId: string]: ManifestNode
+  }
+}
+
+export interface ClientReferenceManifest extends ClientReferenceManifestForRsc {
   readonly moduleLoading: {
     prefix: string
     crossOrigin: string | null
   }
-  clientModules: ManifestNode
   ssrModuleMapping: {
     [moduleId: string]: ManifestNode
   }
@@ -88,12 +99,6 @@ export type ClientReferenceManifest = {
   }
   entryJSFiles?: {
     [entry: string]: string[]
-  }
-  rscModuleMapping: {
-    [moduleId: string]: ManifestNode
-  }
-  edgeRscModuleMapping: {
-    [moduleId: string]: ManifestNode
   }
 }
 
@@ -352,12 +357,18 @@ export class ClientReferenceManifestPlugin {
         }
 
         function addClientReference() {
+          const isAsync = Boolean(
+            compilation.moduleGraph.isAsync(mod) ||
+              pluginState.ssrModules[ssrNamedModuleId]?.async ||
+              pluginState.edgeSsrModules[ssrNamedModuleId]?.async
+          )
+
           const exportName = resource
           manifest.clientModules[exportName] = {
             id: modId,
             name: '*',
             chunks: requiredChunks,
-            async: false,
+            async: isAsync,
           }
           if (esmResource) {
             const edgeExportName = esmResource
@@ -368,9 +379,9 @@ export class ClientReferenceManifestPlugin {
 
         function addSSRIdMapping() {
           const exportName = resource
-          if (
-            typeof pluginState.serverModuleIds[ssrNamedModuleId] !== 'undefined'
-          ) {
+          const moduleInfo = pluginState.ssrModules[ssrNamedModuleId]
+
+          if (moduleInfo) {
             moduleIdMapping[modId] = moduleIdMapping[modId] || {}
             moduleIdMapping[modId]['*'] = {
               ...manifest.clientModules[exportName],
@@ -378,14 +389,14 @@ export class ClientReferenceManifestPlugin {
               // side with our architecture of Webpack / Turbopack. We can keep
               // this field empty to save some bytes.
               chunks: [],
-              id: pluginState.serverModuleIds[ssrNamedModuleId],
+              id: moduleInfo.moduleId,
+              async: moduleInfo.async,
             }
           }
 
-          if (
-            typeof pluginState.edgeServerModuleIds[ssrNamedModuleId] !==
-            'undefined'
-          ) {
+          const edgeModuleInfo = pluginState.edgeSsrModules[ssrNamedModuleId]
+
+          if (edgeModuleInfo) {
             edgeModuleIdMapping[modId] = edgeModuleIdMapping[modId] || {}
             edgeModuleIdMapping[modId]['*'] = {
               ...manifest.clientModules[exportName],
@@ -393,16 +404,17 @@ export class ClientReferenceManifestPlugin {
               // side with our architecture of Webpack / Turbopack. We can keep
               // this field empty to save some bytes.
               chunks: [],
-              id: pluginState.edgeServerModuleIds[ssrNamedModuleId],
+              id: edgeModuleInfo.moduleId,
+              async: edgeModuleInfo.async,
             }
           }
         }
 
         function addRSCIdMapping() {
           const exportName = resource
-          if (
-            typeof pluginState.rscModuleIds[rscNamedModuleId] !== 'undefined'
-          ) {
+          const moduleInfo = pluginState.rscModules[rscNamedModuleId]
+
+          if (moduleInfo) {
             rscIdMapping[modId] = rscIdMapping[modId] || {}
             rscIdMapping[modId]['*'] = {
               ...manifest.clientModules[exportName],
@@ -410,14 +422,14 @@ export class ClientReferenceManifestPlugin {
               // side with our architecture of Webpack / Turbopack. We can keep
               // this field empty to save some bytes.
               chunks: [],
-              id: pluginState.rscModuleIds[rscNamedModuleId],
+              id: moduleInfo.moduleId,
+              async: moduleInfo.async,
             }
           }
 
-          if (
-            typeof pluginState.edgeRscModuleIds[rscNamedModuleId] !==
-            'undefined'
-          ) {
+          const edgeModuleInfo = pluginState.ssrModules[rscNamedModuleId]
+
+          if (edgeModuleInfo) {
             edgeRscIdMapping[modId] = edgeRscIdMapping[modId] || {}
             edgeRscIdMapping[modId]['*'] = {
               ...manifest.clientModules[exportName],
@@ -425,7 +437,8 @@ export class ClientReferenceManifestPlugin {
               // side with our architecture of Webpack / Turbopack. We can keep
               // this field empty to save some bytes.
               chunks: [],
-              id: pluginState.edgeRscModuleIds[rscNamedModuleId],
+              id: edgeModuleInfo.moduleId,
+              async: edgeModuleInfo.async,
             }
           }
         }
@@ -517,6 +530,12 @@ export class ClientReferenceManifestPlugin {
       // - app/foo/page.page
       if (/\/page(\.[^/]+)?$/.test(entryName)) {
         manifestEntryFiles.push(entryName.replace(/\/page(\.[^/]+)?$/, '/page'))
+      }
+
+      // We also need to create manifests for route handler entrypoints
+      // (excluding metadata route handlers) to enable `'use cache'`.
+      if (/\/route$/.test(entryName) && !isMetadataRoute(entryName)) {
+        manifestEntryFiles.push(entryName)
       }
 
       const groupName = entryNameToGroupName(entryName)

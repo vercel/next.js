@@ -85,4 +85,12 @@ describe('prerender indicator', () => {
       await next.deleteFile('app/page.tsx')
     }
   })
+
+  it('should not have static indicator when using force-dynamic', async () => {
+    const browser = await next.browser('/force-dynamic')
+
+    await browser.waitForElementByCss('#ready')
+
+    expect(await hasStaticIndicator(browser)).toBe(false)
+  })
 })

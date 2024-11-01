@@ -48,7 +48,7 @@ pub async fn node_evaluate_asset_context(
         )
         .cell(),
     );
-    let import_map = import_map.cell();
+    let import_map = import_map.resolved_cell();
     let node_env: RcStr =
         if let Some(node_env) = &*execution_context.env().read("NODE_ENV".into()).await? {
             node_env.as_str().into()
@@ -59,7 +59,13 @@ pub async fn node_evaluate_asset_context(
     // base context used for node_modules (and context for app code will be derived
     // from this)
     let resolve_options_context = ResolveOptionsContext {
-        enable_node_modules: Some(execution_context.project_path().root().resolve().await?),
+        enable_node_modules: Some(
+            execution_context
+                .project_path()
+                .root()
+                .to_resolved()
+                .await?,
+        ),
         enable_node_externals: true,
         enable_node_native_modules: true,
         custom_conditions: vec![node_env.clone(), "node".into()],
@@ -71,7 +77,7 @@ pub async fn node_evaluate_asset_context(
         import_map: Some(import_map),
         rules: vec![(
             ContextCondition::InDirectory("node_modules".to_string()),
-            resolve_options_context.clone().cell(),
+            resolve_options_context.clone().resolved_cell(),
         )],
         ..resolve_options_context
     }

@@ -74,6 +74,7 @@ import {
   batchedTraceSource,
   createOriginalStackFrame as createOriginalTurboStackFrame,
 } from '../../../client/components/react-dev-overlay/server/middleware-turbopack'
+import type { OriginalStackFrameResponse } from '../../../client/components/react-dev-overlay/server/shared'
 import { devPageFiles } from '../../../build/webpack/plugins/next-types-plugin/shared'
 import type { LazyRenderServerInstance } from '../router-server'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../dev/hot-reloader-types'
@@ -298,6 +299,7 @@ async function startWatcher(opts: SetupOpts) {
       const conflictingAppPagePaths = new Set<string>()
       const appPageFilePaths = new Map<string, string>()
       const pagesPageFilePaths = new Map<string, string>()
+      const pagesWithUnsupportedSegments = new Map<string, string[]>()
 
       let envChange = false
       let tsconfigChange = false
@@ -309,6 +311,7 @@ async function startWatcher(opts: SetupOpts) {
       appFiles.clear()
       pageFiles.clear()
       devPageFiles.clear()
+      pagesWithUnsupportedSegments.clear()
 
       const sortedKnownFiles: string[] = [...knownFiles.keys()].sort(
         sortByPageExts(nextConfig.pageExtensions)
@@ -610,7 +613,7 @@ async function startWatcher(opts: SetupOpts) {
           try {
             tsconfigResult = await loadJsConfig(dir, nextConfig)
           } catch (_) {
-            /* do we want to log if there are syntax errors in tsconfig  while editing? */
+            /* do we want to log if there are syntax errors in tsconfig while editing? */
           }
         }
 
@@ -955,7 +958,8 @@ async function startWatcher(opts: SetupOpts) {
             !file?.includes('<anonymous>')
         )
 
-        let originalFrame, isEdgeCompiler
+        let originalFrame: OriginalStackFrameResponse | null = null
+        let isEdgeCompiler = false
         const frameFile = frame?.file
         if (frame?.lineNumber && frameFile) {
           if (hotReloader.turbopackProject) {

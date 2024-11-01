@@ -13,7 +13,7 @@ use swc_core::css::{
 };
 use turbo_tasks::{RcStr, Value, Vc};
 use turbopack_core::{
-    issue::{IssueSeverity, IssueSource},
+    issue::IssueSource,
     reference::ModuleReference,
     reference_type::{CssReferenceSubType, ImportContext, ReferenceType},
     resolve::{origin::ResolveOrigin, parse::Request, url_resolve, ModuleResolveResult},
@@ -250,6 +250,6 @@ pub fn css_resolve(
         request,
         Value::new(ReferenceType::Css(ty.into_value())),
         issue_source,
-        IssueSeverity::Error.cell(),
+        false,
     )
 }

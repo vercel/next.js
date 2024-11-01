@@ -120,7 +120,7 @@ function getEntryFiles(
           .map(
             (file) =>
               'server/' +
-              file.replace('.js', '_' + CLIENT_REFERENCE_MANIFEST + '.js')
+              file.replace(/\.js$/, '_' + CLIENT_REFERENCE_MANIFEST + '.js')
           )
       )
     }
@@ -857,7 +857,7 @@ export async function handleWebpackExternalForEdgeRuntime({
     try {
       await getResolve()(context, request)
     } catch {
-      return `root  globalThis.__import_unsupported('${request}')`
+      return `root globalThis.__import_unsupported('${request}')`
     }
   }
 }

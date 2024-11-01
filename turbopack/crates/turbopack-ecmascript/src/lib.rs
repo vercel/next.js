@@ -39,7 +39,6 @@ use std::fmt::{Display, Formatter};
 use anyhow::Result;
 use chunk::EcmascriptChunkItem;
 use code_gen::{CodeGenerateable, CodeGeneration, CodeGenerationHoistedStmt};
-use indexmap::IndexMap;
 pub use parse::ParseResultSourceMap;
 use parse::{parse, ParseResult};
 use path_visitor::ApplyVisitors;
@@ -60,7 +59,7 @@ pub use transform::{
     TransformPlugin, UnsupportedServerActionIssue,
 };
 use turbo_tasks::{
-    trace::TraceRawVcs, RcStr, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Value,
+    trace::TraceRawVcs, FxIndexMap, RcStr, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Value,
     ValueToString, Vc,
 };
 use turbo_tasks_fs::{rope::Rope, FileJsonContent, FileSystemPath};
@@ -147,14 +146,6 @@ pub struct EcmascriptOptions {
     /// If false, they will reference the whole directory. If true, they won't
     /// reference anything and lead to an runtime error instead.
     pub ignore_dynamic_requests: bool,
-    /// The list of export names that should make tree shaking bail off. This is
-    /// required because tree shaking can split imports like `export const
-    /// runtime = 'edge'` as a separate module.
-    ///
-    /// Currently the analysis of these exports are statically verified by `NextPageStaticInfo`,
-    /// which is a `CustomTransformer` implementation and we don't have a way to apply it after
-    /// tree shaking.
-    pub special_exports: Vc<Vec<RcStr>>,
 }
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
@@ -205,11 +196,11 @@ pub struct EcmascriptModuleAssetBuilder {
     transforms: Vc<EcmascriptInputTransforms>,
     options: Vc<EcmascriptOptions>,
     compile_time_info: Vc<CompileTimeInfo>,
-    inner_assets: Option<Vc<InnerAssets>>,
+    inner_assets: Option<ResolvedVc<InnerAssets>>,
 }
 
 impl EcmascriptModuleAssetBuilder {
-    pub fn with_inner_assets(mut self, inner_assets: Vc<InnerAssets>) -> Self {
+    pub fn with_inner_assets(mut self, inner_assets: ResolvedVc<InnerAssets>) -> Self {
         self.inner_assets = Some(inner_assets);
         self
     }
@@ -228,7 +219,7 @@ impl EcmascriptModuleAssetBuilder {
                 self.transforms,
                 self.options,
                 self.compile_time_info,
-                inner_assets,
+                *inner_assets,
             )
         } else {
             EcmascriptModuleAsset::new(
@@ -305,7 +296,7 @@ impl EcmascriptModuleAsset {
 #[derive(Copy, Clone)]
 pub(crate) struct ModuleTypeResult {
     pub module_type: SpecifiedModuleType,
-    pub referenced_package_json: Option<Vc<FileSystemPath>>,
+    pub referenced_package_json: Option<ResolvedVc<FileSystemPath>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -321,7 +312,7 @@ impl ModuleTypeResult {
     #[turbo_tasks::function]
     fn new_with_package_json(
         module_type: SpecifiedModuleType,
-        package_json: Vc<FileSystemPath>,
+        package_json: ResolvedVc<FileSystemPath>,
     ) -> Vc<Self> {
         Self::cell(ModuleTypeResult {
             module_type,
@@ -513,14 +504,14 @@ impl EcmascriptModuleAsset {
                         Some("commonjs") => SpecifiedModuleType::CommonJs,
                         _ => SpecifiedModuleType::Automatic,
                     },
-                    package_json,
+                    *package_json,
                 ));
             }
         }
 
         Ok(ModuleTypeResult::new_with_package_json(
             SpecifiedModuleType::Automatic,
-            package_json,
+            *package_json,
         ))
     }
 }
@@ -532,10 +523,13 @@ impl Module for EcmascriptModuleAsset {
         if let Some(inner_assets) = self.inner_assets {
             let mut ident = self.source.ident().await?.clone_value();
             for (name, asset) in inner_assets.await?.iter() {
-                ident.add_asset(Vc::cell(name.to_string().into()), asset.ident());
+                ident.add_asset(
+                    ResolvedVc::cell(name.to_string().into()),
+                    asset.ident().to_resolved().await?,
+                );
             }
             ident.add_modifier(modifier());
-            ident.layer = Some(self.asset_context.layer());
+            ident.layer = Some(self.asset_context.layer().to_resolved().await?);
             Ok(AssetIdent::new(Value::new(ident)))
         } else {
             Ok(self
@@ -881,8 +875,8 @@ fn process_content_with_code_gens(
 ) {
     let mut visitors = Vec::new();
     let mut root_visitors = Vec::new();
-    let mut early_hoisted_stmts = IndexMap::new();
-    let mut hoisted_stmts = IndexMap::new();
+    let mut early_hoisted_stmts = FxIndexMap::default();
+    let mut hoisted_stmts = FxIndexMap::default();
     for code_gen in code_gens {
         for CodeGenerationHoistedStmt { key, stmt } in &code_gen.hoisted_stmts {
             hoisted_stmts.entry(key.clone()).or_insert(stmt.clone());

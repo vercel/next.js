@@ -86,7 +86,7 @@ impl ChunkItem for ManifestChunkItem {
 
         for chunk_data in &*self.chunks_data().await? {
             references.extend(chunk_data.references().await?.iter().map(|&output_asset| {
-                Vc::upcast(SingleOutputAssetReference::new(output_asset, key))
+                Vc::upcast(SingleOutputAssetReference::new(*output_asset, key))
             }));
         }
 

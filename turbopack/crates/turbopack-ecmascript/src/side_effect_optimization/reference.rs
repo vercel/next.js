@@ -1,11 +1,12 @@
 use anyhow::{bail, Context, Result};
 use swc_core::{common::DUMMY_SP, ecma::ast::Ident, quote};
-use turbo_tasks::{RcStr, ValueToString, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
     chunk::{
         ChunkItemExt, ChunkableModule, ChunkableModuleReference, ChunkingContext, ChunkingType,
         ChunkingTypeOption,
     },
+    module::Module,
     reference::ModuleReference,
     resolve::{ModulePart, ModuleResolveResult},
 };
@@ -24,16 +25,16 @@ use crate::{
 /// module.
 #[turbo_tasks::value]
 pub struct EcmascriptModulePartReference {
-    pub module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
-    pub part: Option<Vc<ModulePart>>,
+    pub module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    pub part: Option<ResolvedVc<ModulePart>>,
 }
 
 #[turbo_tasks::value_impl]
 impl EcmascriptModulePartReference {
     #[turbo_tasks::function]
     pub fn new_part(
-        module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
-        part: Vc<ModulePart>,
+        module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+        part: ResolvedVc<ModulePart>,
     ) -> Vc<Self> {
         EcmascriptModulePartReference {
             module,
@@ -43,7 +44,7 @@ impl EcmascriptModulePartReference {
     }
 
     #[turbo_tasks::function]
-    pub fn new(module: Vc<Box<dyn EcmascriptChunkPlaceable>>) -> Vc<Self> {
+    pub fn new(module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>) -> Vc<Self> {
         EcmascriptModulePartReference { module, part: None }.cell()
     }
 }
@@ -64,20 +65,20 @@ impl ModuleReference for EcmascriptModulePartReference {
         let module = if let Some(part) = self.part {
             match *part.await? {
                 ModulePart::Locals => {
-                    let Some(module) = Vc::try_resolve_downcast_type(self.module).await? else {
+                    let Some(module) = ResolvedVc::try_downcast_type(self.module).await? else {
                         bail!(
                             "Expected EcmascriptModuleAsset for a EcmascriptModulePartReference \
                              with ModulePart::Locals"
                         );
                     };
-                    Vc::upcast(EcmascriptModuleLocalsModule::new(module))
+                    Vc::upcast::<Box<dyn Module>>(EcmascriptModuleLocalsModule::new(*module))
                 }
                 ModulePart::Exports
                 | ModulePart::Evaluation
                 | ModulePart::Facade
                 | ModulePart::RenamedExport { .. }
                 | ModulePart::RenamedNamespace { .. } => {
-                    Vc::upcast(EcmascriptModuleFacadeModule::new(self.module, part))
+                    Vc::upcast(EcmascriptModuleFacadeModule::new(*self.module, *part))
                 }
                 ModulePart::Export(..) | ModulePart::Internal(..) => {
                     bail!(
@@ -86,8 +87,10 @@ impl ModuleReference for EcmascriptModulePartReference {
                     );
                 }
             }
+            .to_resolved()
+            .await?
         } else {
-            Vc::upcast(self.module)
+            ResolvedVc::upcast(self.module)
         };
         Ok(ModuleResolveResult::module(module).cell())
     }

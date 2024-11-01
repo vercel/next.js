@@ -34,4 +34,6 @@ export default function Page() {
   )
 }
 
-class Foo {}
+class Foo {
+  value = 42
+}

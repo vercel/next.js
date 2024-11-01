@@ -1,9 +1,10 @@
 use anyhow::Result;
-use indexmap::IndexMap;
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{RcStr, TryFlatJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{
+    FxIndexMap, RcStr, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
+};
 use turbo_tasks_fs::{
     glob::Glob, json::parse_json_rope_with_source_context, DirectoryEntry, FileContent,
     FileSystemEntryType, FileSystemPath,
@@ -112,7 +113,7 @@ pub async fn resolve_node_pre_gyp_files(
                 let config_file_dir = config_file_path.parent();
                 let node_pre_gyp_config: NodePreGypConfigJson =
                     parse_json_rope_with_source_context(config_file.content())?;
-                let mut sources: IndexMap<RcStr, Vc<Box<dyn Source>>> = IndexMap::new();
+                let mut sources: FxIndexMap<RcStr, Vc<Box<dyn Source>>> = FxIndexMap::default();
                 for version in node_pre_gyp_config.binary.napi_versions.iter() {
                     let native_binding_path = NAPI_VERSION_TEMPLATE.replace(
                         node_pre_gyp_config.binary.module_path.as_str(),
@@ -196,19 +197,26 @@ pub async fn resolve_node_pre_gyp_files(
                     }
                 }
                 return Ok(ModuleResolveResult::modules_with_affecting_sources(
-                    sources.into_iter().map(|(key, source)| {
-                        (RequestKey::new(key), Vc::upcast(RawModule::new(source)))
-                    }),
+                    sources
+                        .into_iter()
+                        .map(|(key, source)| async move {
+                            Ok((
+                                RequestKey::new(key),
+                                ResolvedVc::upcast(RawModule::new(source).to_resolved().await?),
+                            ))
+                        })
+                        .try_join()
+                        .await?,
                     affecting_paths
                         .into_iter()
                         .map(|p| Vc::upcast(FileSource::new(p)))
                         .collect(),
                 )
-                .into());
+                .cell());
             }
         };
     }
-    Ok(ModuleResolveResult::unresolveable().into())
+    Ok(ModuleResolveResult::unresolvable().cell())
 }
 
 #[turbo_tasks::value]
@@ -270,8 +278,8 @@ pub async fn resolve_node_gyp_build_files(
                 if let Some(captured) =
                     GYP_BUILD_TARGET_NAME.captures(&config_file.content().to_str()?)
                 {
-                    let mut resolved: IndexMap<RcStr, Vc<Box<dyn Source>>> =
-                        IndexMap::with_capacity(captured.len());
+                    let mut resolved: FxIndexMap<RcStr, Vc<Box<dyn Source>>> =
+                        FxIndexMap::with_capacity_and_hasher(captured.len(), Default::default());
                     for found in captured.iter().skip(1).flatten() {
                         let name = found.as_str();
                         let target_path = context_dir.join("build/Release".into());
@@ -294,9 +302,19 @@ pub async fn resolve_node_gyp_build_files(
                     }
                     if !resolved.is_empty() {
                         return Ok(ModuleResolveResult::modules_with_affecting_sources(
-                            resolved.into_iter().map(|(key, source)| {
-                                (RequestKey::new(key), Vc::upcast(RawModule::new(source)))
-                            }),
+                            resolved
+                                .into_iter()
+                                .map(|(key, source)| async move {
+                                    Ok((
+                                        RequestKey::new(key),
+                                        ResolvedVc::upcast(
+                                            RawModule::new(source).to_resolved().await?,
+                                        ),
+                                    ))
+                                })
+                                .try_join()
+                                .await?
+                                .into_iter(),
                             merged_affecting_sources,
                         )
                         .into());
@@ -402,7 +420,11 @@ pub async fn resolve_node_bindings_files(
             if matches!(*path.get_type().await?, FileSystemEntryType::File) {
                 Some((
                     RequestKey::new(sub_path),
-                    Vc::upcast(RawModule::new(Vc::upcast(FileSource::new(path)))),
+                    ResolvedVc::upcast(
+                        RawModule::new(Vc::upcast(FileSource::new(path)))
+                            .to_resolved()
+                            .await?,
+                    ),
                 ))
             } else {
                 None

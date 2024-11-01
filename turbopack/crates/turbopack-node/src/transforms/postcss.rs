@@ -1,9 +1,9 @@
 use anyhow::{bail, Context, Result};
-use indexmap::indexmap;
 use indoc::formatdoc;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    trace::TraceRawVcs, Completion, Completions, RcStr, TaskInput, TryFlatJoinIterExt, Value, Vc,
+    fxindexmap, trace::TraceRawVcs, Completion, Completions, RcStr, ResolvedVc, TaskInput,
+    TryFlatJoinIterExt, Value, Vc,
 };
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_fs::{
@@ -164,7 +164,7 @@ impl Asset for PostCssTransformedAsset {
 #[turbo_tasks::value]
 struct ProcessPostCssResult {
     content: Vc<AssetContent>,
-    assets: Vec<Vc<VirtualSource>>,
+    assets: Vec<ResolvedVc<VirtualSource>>,
 }
 
 #[turbo_tasks::function]
@@ -211,7 +211,7 @@ async fn extra_configs_changed(
                         .await?
                     {
                         ProcessResult::Module(module) => {
-                            Some(any_content_changed_of_module(module))
+                            Some(any_content_changed_of_module(*module))
                         }
                         ProcessResult::Ignore => None,
                     }
@@ -285,7 +285,7 @@ impl Asset for JsonSource {
                 Ok(AssetContent::file(File::from(value.to_string()).into()))
             }
             FileSystemEntryType::NotFound => {
-                Ok(AssetContent::File(FileContent::NotFound.cell()).cell())
+                Ok(AssetContent::File(FileContent::NotFound.resolved_cell()).cell())
             }
             _ => Err(anyhow::anyhow!("Invalid file type {:?}", file_type)),
         }
@@ -356,27 +356,34 @@ pub(crate) async fn config_loader_source(
 }
 
 #[turbo_tasks::function]
-fn postcss_executor(
+async fn postcss_executor(
     asset_context: Vc<Box<dyn AssetContext>>,
     project_path: Vc<FileSystemPath>,
     postcss_config_path: Vc<FileSystemPath>,
-) -> Vc<ProcessResult> {
+) -> Result<Vc<ProcessResult>> {
     let config_asset = asset_context
         .process(
             config_loader_source(project_path, postcss_config_path),
             Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined)),
         )
-        .module();
+        .module()
+        .to_resolved()
+        .await?;
 
-    asset_context.process(
+    Ok(asset_context.process(
         Vc::upcast(VirtualSource::new(
             postcss_config_path.join("transform.ts".into()),
-            AssetContent::File(embed_file("transforms/postcss.ts".into())).cell(),
+            AssetContent::File(
+                embed_file("transforms/postcss.ts".into())
+                    .to_resolved()
+                    .await?,
+            )
+            .cell(),
         )),
-        Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
+        Value::new(ReferenceType::Internal(Vc::cell(fxindexmap! {
             "CONFIG".into() => config_asset
         }))),
-    )
+    ))
 }
 
 async fn find_config_in_location(
@@ -391,7 +398,7 @@ async fn find_config_in_location(
     )
     .await?
     {
-        return Ok(Some(config_path));
+        return Ok(Some(*config_path));
     }
 
     if matches!(location, PostCssConfigLocation::ProjectPathOrLocalPath) {
@@ -402,7 +409,7 @@ async fn find_config_in_location(
         )
         .await?
         {
-            return Ok(Some(config_path));
+            return Ok(Some(*config_path));
         }
     }
 
@@ -458,7 +465,7 @@ impl PostCssTransformedAsset {
         };
         let FileContent::Content(content) = &*file.await? else {
             return Ok(ProcessPostCssResult {
-                content: AssetContent::File(FileContent::NotFound.cell()).cell(),
+                content: AssetContent::File(FileContent::NotFound.resolved_cell()).cell(),
                 assets: Vec::new(),
             }
             .cell());
@@ -501,7 +508,7 @@ impl PostCssTransformedAsset {
         let SingleValue::Single(val) = config_value.try_into_single().await? else {
             // An error happened, which has already been converted into an issue.
             return Ok(ProcessPostCssResult {
-                content: AssetContent::File(FileContent::NotFound.cell()).cell(),
+                content: AssetContent::File(FileContent::NotFound.resolved_cell()).cell(),
                 assets: Vec::new(),
             }
             .cell());
@@ -511,8 +518,8 @@ impl PostCssTransformedAsset {
 
         // TODO handle SourceMap
         let file = File::from(processed_css.css);
-        let assets = emitted_assets_to_virtual_sources(processed_css.assets);
-        let content = AssetContent::File(FileContent::Content(file).cell()).cell();
+        let assets = emitted_assets_to_virtual_sources(processed_css.assets).await?;
+        let content = AssetContent::File(FileContent::Content(file).resolved_cell()).cell();
         Ok(ProcessPostCssResult { content, assets }.cell())
     }
 }

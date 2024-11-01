@@ -1,5 +1,6 @@
 import { constants as FS, promises as fs } from 'fs'
 import path from 'path'
+import url from 'url'
 import { SourceMapConsumer } from 'next/dist/compiled/source-map08'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import { getSourceMapFromFile } from '../internal/helpers/get-source-map-from-file'
@@ -13,6 +14,7 @@ import {
   noContent,
   type OriginalStackFrameResponse,
 } from './shared'
+import { NEXT_PROJECT_ROOT } from '../../../../build/next-dir-paths'
 export { getServerError } from '../internal/helpers/node-stack-frames'
 export { parseStack } from '../internal/helpers/parse-stack'
 export { getSourceMapFromFile }
@@ -20,6 +22,7 @@ export { getSourceMapFromFile }
 import type { IncomingMessage, ServerResponse } from 'http'
 import type webpack from 'webpack'
 import type { RawSourceMap } from 'next/dist/compiled/source-map08'
+import { formatFrameSourceFile } from '../internal/helpers/webpack-module-path'
 
 type Source =
   | {
@@ -111,7 +114,7 @@ export async function createOriginalStackFrame({
   rootDirectory: string
   frame: StackFrame
   errorMessage?: string
-}): Promise<OriginalStackFrameResponse | undefined> {
+}): Promise<OriginalStackFrameResponse | null> {
   const { lineNumber, column } = frame
   const moduleNotFound = findModuleNotFoundFromError(errorMessage)
   const result = await (async () => {
@@ -134,7 +137,7 @@ export async function createOriginalStackFrame({
   })()
 
   if (!result?.sourcePosition.source) {
-    return undefined
+    return null
   }
 
   const { sourcePosition, sourceContent } = result
@@ -149,10 +152,12 @@ export async function createOriginalStackFrame({
     )
   )
 
+  const resolvedFilePath = sourceContent
+    ? path.relative(rootDirectory, filePath)
+    : sourcePosition.source
+
   const traced = {
-    file: sourceContent
-      ? path.relative(rootDirectory, filePath)
-      : sourcePosition.source,
+    file: resolvedFilePath,
     lineNumber: sourcePosition.line,
     column: (sourcePosition.column ?? 0) + 1,
     methodName:
@@ -209,7 +214,11 @@ export async function getSource(
     filename = path.join(distDirectory, filename.replace(/^\/_next\//, ''))
   }
 
-  if (filename.startsWith('file:') || filename.startsWith(path.sep)) {
+  if (path.isAbsolute(filename)) {
+    filename = url.pathToFileURL(filename).href
+  }
+
+  if (filename.startsWith('file:')) {
     const sourceMap = await getSourceMapFromFile(filename)
 
     return sourceMap
@@ -235,6 +244,7 @@ export async function getSource(
   const modulePath = moduleId.replace(/^(\(.*\)\/?)/, '')
 
   for (const compilation of getCompilations()) {
+    // TODO: `ignoreList`
     const sourceMap = await getSourceMapFromCompilation(moduleId, compilation)
 
     if (sourceMap) {
@@ -286,7 +296,16 @@ export function getOverlayMiddleware(options: {
         return badRequest(res)
       }
 
+      const formattedFilePath = formatFrameSourceFile(frame.file)
+      const filePath = path.join(rootDirectory, formattedFilePath)
+      const isNextjsSource = filePath.startsWith(NEXT_PROJECT_ROOT)
+
       let source: Source | undefined
+
+      if (isNextjsSource) {
+        sourcePackage = 'next'
+        return json(res, { sourcePackage })
+      }
 
       try {
         source = await getSource(frame.file, {
