@@ -13,8 +13,6 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
-    // Required for `@types/node`
-    "target": "ES6",
     "plugins": [
       {
         "name": "next"
