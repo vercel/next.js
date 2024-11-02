@@ -187,7 +187,7 @@ export type GenerateFlight = typeof generateDynamicFlightRenderResult
 
 export type AppRenderContext = {
   workStore: WorkStore
-  requestStore: RequestStore
+  url: ReturnType<typeof parseRelativeUrl>
   componentMod: AppPageModule
   renderOpts: RenderOpts
   parsedRequestHeaders: ParsedRequestHeaders
@@ -399,7 +399,6 @@ async function generateDynamicRSCPayload(
     skipFlight: boolean
   }
 ): Promise<RSCPayload> {
-  ctx.requestStore.phase = 'render'
   // Flight data that is going to be passed to the browser.
   // Currently a single item array but in the future multiple patches might be combined in a single request.
 
@@ -420,11 +419,11 @@ async function generateDynamicRSCPayload(
     },
     getDynamicParamFromSegment,
     appUsingSizeAdjustment,
-    requestStore: { url },
     query,
     requestId,
     flightRouterState,
     workStore,
+    url,
   } = ctx
 
   if (!options?.skipFlight) {
@@ -584,6 +583,7 @@ async function generateDynamicFlightRenderResult(
 async function warmupDevRender(
   req: BaseNextRequest,
   ctx: AppRenderContext,
+  requestStore: RequestStore,
   options?: {
     actionResult: ActionResult
     skipFlight: boolean
@@ -616,7 +616,6 @@ async function warmupDevRender(
 
   // Attach this to the request store so that it can be used during the
   // render.
-  const { requestStore } = ctx
   requestStore.devWarmupPrerenderResumeDataCache =
     devWarmupPrerenderResumeDataCache
 
@@ -699,9 +698,10 @@ async function getRSCPayload(
       MetadataBoundary,
       ViewportBoundary,
     },
-    requestStore: { url },
+    url,
     workStore,
   } = ctx
+
   const initialTree = createFlightRouterStateFromLoaderTree(
     tree,
     getDynamicParamFromSegment,
@@ -804,7 +804,7 @@ async function getErrorRSCPayload(
       MetadataBoundary,
       ViewportBoundary,
     },
-    requestStore: { url },
+    url,
     requestId,
     workStore,
   } = ctx
@@ -985,6 +985,7 @@ export type BinaryStreamOf<T> = ReadableStream<Uint8Array>
 async function renderToHTMLOrFlightImpl(
   req: BaseNextRequest,
   res: BaseNextResponse,
+  url: ReturnType<typeof parseRelativeUrl>,
   pagePath: string,
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts,
@@ -1161,8 +1162,8 @@ async function renderToHTMLOrFlightImpl(
 
   const ctx: AppRenderContext = {
     componentMod: ComponentMod,
+    url,
     renderOpts,
-    requestStore,
     workStore,
     parsedRequestHeaders,
     getDynamicParamFromSegment,
@@ -1287,7 +1288,7 @@ async function renderToHTMLOrFlightImpl(
   } else {
     // We're rendering dynamically
     if (isDevWarmupRequest) {
-      return warmupDevRender(req, ctx)
+      return warmupDevRender(req, ctx, requestStore)
     } else if (isRSCRequest) {
       return generateDynamicFlightRenderResult(req, ctx)
     }
@@ -1483,6 +1484,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
       return renderToHTMLOrFlightImpl(
         req,
         res,
+        url,
         pagePath,
         query,
         renderOpts,
@@ -1845,7 +1847,7 @@ async function renderToStream(
       // If there were mutable cookies set, we need to set them on the
       // response.
       const headers = new Headers()
-      if (appendMutableCookies(headers, ctx.requestStore.mutableCookies)) {
+      if (appendMutableCookies(headers, requestStore.mutableCookies)) {
         setHeader('set-cookie', Array.from(headers.values()))
       }
 
