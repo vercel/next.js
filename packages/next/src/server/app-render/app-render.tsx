@@ -11,7 +11,10 @@ import type {
   FlightData,
   InitialRSCPayload,
 } from './types'
-import type { WorkStore } from '../app-render/work-async-storage.external'
+import {
+  workAsyncStorage,
+  type WorkStore,
+} from '../app-render/work-async-storage.external'
 import type { RequestStore } from '../app-render/work-unit-async-storage.external'
 import type { NextParsedUrlQuery } from '../request-meta'
 import type { LoaderTree } from '../lib/app-dir-module'
@@ -52,7 +55,7 @@ import {
   createMetadataContext,
 } from '../../lib/metadata/metadata-context'
 import { createRequestStoreForRender } from '../async-storage/request-store'
-import { withWorkStore } from '../async-storage/with-work-store'
+import { createWorkStore } from '../async-storage/work-store'
 import { isNotFoundError } from '../../client/components/not-found'
 import {
   getURLFromRedirectError,
@@ -1444,31 +1447,31 @@ export const renderToHTMLOrFlight: AppPageRender = (
     isHmrRefresh,
     serverComponentsHmrCache
   )
-  return workUnitAsyncStorage.run(requestStore, () => {
-    return withWorkStore(
-      renderOpts.ComponentMod.workAsyncStorage,
-      {
-        page: renderOpts.routeModule.definition.page,
-        fallbackRouteParams,
+
+  const workStore = createWorkStore({
+    page: renderOpts.routeModule.definition.page,
+    fallbackRouteParams,
+    renderOpts,
+    requestEndedState,
+    // @TODO move to workUnitStore of type Request
+    isPrefetchRequest,
+  })
+
+  return workAsyncStorage.run(workStore, () => {
+    return workUnitAsyncStorage.run(requestStore, () => {
+      return renderToHTMLOrFlightImpl(
+        req,
+        res,
+        pagePath,
+        query,
         renderOpts,
+        requestStore,
+        workStore,
+        parsedRequestHeaders,
         requestEndedState,
-        // @TODO move to workUnitStore of type Request
-        isPrefetchRequest,
-      },
-      (workStore) =>
-        renderToHTMLOrFlightImpl(
-          req,
-          res,
-          pagePath,
-          query,
-          renderOpts,
-          requestStore,
-          workStore,
-          parsedRequestHeaders,
-          requestEndedState,
-          postponedState
-        )
-    )
+        postponedState
+      )
+    })
   })
 }
 

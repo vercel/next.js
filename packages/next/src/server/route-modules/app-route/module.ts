@@ -14,9 +14,9 @@ import {
 } from '../route-module'
 import { createRequestStoreForAPI } from '../../async-storage/request-store'
 import {
-  withWorkStore,
+  createWorkStore,
   type WorkStoreContext,
-} from '../../async-storage/with-work-store'
+} from '../../async-storage/work-store'
 import { type HTTP_METHOD, HTTP_METHODS, isHTTPMethod } from '../../web/http'
 import { getImplicitTags } from '../../lib/implicit-tags'
 import { patchFetch } from '../../lib/patch-fetch'
@@ -648,6 +648,8 @@ export class AppRouteRouteModule extends RouteModule<
       context.prerenderManifest.preview
     )
 
+    const workStore = createWorkStore(staticGenerationContext)
+
     // Run the handler with the request AsyncLocalStorage to inject the helper
     // support. We set this to `unknown` because the type is not known until
     // runtime when we do a instanceof check below.
@@ -655,83 +657,79 @@ export class AppRouteRouteModule extends RouteModule<
       actionStore,
       () =>
         this.workUnitAsyncStorage.run(requestStore, () =>
-          withWorkStore(
-            this.workAsyncStorage,
-            staticGenerationContext,
-            async (workStore) => {
-              // Check to see if we should bail out of static generation based on
-              // having non-static methods.
-              if (this.hasNonStaticMethods) {
-                if (workStore.isStaticGeneration) {
-                  const err = new DynamicServerError(
-                    'Route is configured with methods that cannot be statically generated.'
-                  )
-                  workStore.dynamicUsageDescription = err.message
-                  workStore.dynamicUsageStack = err.stack
-                  throw err
-                }
+          this.workAsyncStorage.run(workStore, async () => {
+            // Check to see if we should bail out of static generation based on
+            // having non-static methods.
+            if (this.hasNonStaticMethods) {
+              if (workStore.isStaticGeneration) {
+                const err = new DynamicServerError(
+                  'Route is configured with methods that cannot be statically generated.'
+                )
+                workStore.dynamicUsageDescription = err.message
+                workStore.dynamicUsageStack = err.stack
+                throw err
               }
-
-              // We assume we can pass the original request through however we may end up
-              // proxying it in certain circumstances based on execution type and configuration
-              let request = req
-
-              // Update the static generation store based on the dynamic property.
-              switch (this.dynamic) {
-                case 'force-dynamic': {
-                  // Routes of generated paths should be dynamic
-                  workStore.forceDynamic = true
-                  break
-                }
-                case 'force-static':
-                  // The dynamic property is set to force-static, so we should
-                  // force the page to be static.
-                  workStore.forceStatic = true
-                  // We also Proxy the request to replace dynamic data on the request
-                  // with empty stubs to allow for safely executing as static
-                  request = new Proxy(req, forceStaticRequestHandlers)
-                  break
-                case 'error':
-                  // The dynamic property is set to error, so we should throw an
-                  // error if the page is being statically generated.
-                  workStore.dynamicShouldError = true
-                  if (workStore.isStaticGeneration)
-                    request = new Proxy(req, requireStaticRequestHandlers)
-                  break
-                default:
-                  // We proxy `NextRequest` to track dynamic access, and potentially bail out of static generation
-                  request = proxyNextRequest(req, workStore)
-              }
-
-              // TODO: propagate this pathname from route matcher
-              const route = getPathnameFromAbsolutePath(this.resolvedPagePath)
-
-              const tracer = getTracer()
-
-              // Update the root span attribute for the route.
-              tracer.setRootSpanAttribute('next.route', route)
-
-              return tracer.trace(
-                AppRouteRouteHandlersSpan.runHandler,
-                {
-                  spanName: `executing api route (app) ${route}`,
-                  attributes: {
-                    'next.route': route,
-                  },
-                },
-                async () =>
-                  this.do(
-                    handler,
-                    actionStore,
-                    workStore,
-                    requestStore,
-                    implicitTags,
-                    request,
-                    context
-                  )
-              )
             }
-          )
+
+            // We assume we can pass the original request through however we may end up
+            // proxying it in certain circumstances based on execution type and configuration
+            let request = req
+
+            // Update the static generation store based on the dynamic property.
+            switch (this.dynamic) {
+              case 'force-dynamic': {
+                // Routes of generated paths should be dynamic
+                workStore.forceDynamic = true
+                break
+              }
+              case 'force-static':
+                // The dynamic property is set to force-static, so we should
+                // force the page to be static.
+                workStore.forceStatic = true
+                // We also Proxy the request to replace dynamic data on the request
+                // with empty stubs to allow for safely executing as static
+                request = new Proxy(req, forceStaticRequestHandlers)
+                break
+              case 'error':
+                // The dynamic property is set to error, so we should throw an
+                // error if the page is being statically generated.
+                workStore.dynamicShouldError = true
+                if (workStore.isStaticGeneration)
+                  request = new Proxy(req, requireStaticRequestHandlers)
+                break
+              default:
+                // We proxy `NextRequest` to track dynamic access, and potentially bail out of static generation
+                request = proxyNextRequest(req, workStore)
+            }
+
+            // TODO: propagate this pathname from route matcher
+            const route = getPathnameFromAbsolutePath(this.resolvedPagePath)
+
+            const tracer = getTracer()
+
+            // Update the root span attribute for the route.
+            tracer.setRootSpanAttribute('next.route', route)
+
+            return tracer.trace(
+              AppRouteRouteHandlersSpan.runHandler,
+              {
+                spanName: `executing api route (app) ${route}`,
+                attributes: {
+                  'next.route': route,
+                },
+              },
+              async () =>
+                this.do(
+                  handler,
+                  actionStore,
+                  workStore,
+                  requestStore,
+                  implicitTags,
+                  request,
+                  context
+                )
+            )
+          })
         )
     )
 
