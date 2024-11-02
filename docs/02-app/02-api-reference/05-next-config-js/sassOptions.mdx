@@ -8,15 +8,46 @@ description: Configure Sass options.
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
-const sassOptions = {
-  additionalData: `
-    $var: red;
-  `,
+const nextConfig: NextConfig = {
+  sassOptions: {
+    additionalData: `$var: red;`,
+  },
 }
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+/** @type {import('next').NextConfig} */
+
+const nextConfig = {
+  sassOptions: {
+    additionalData: `$var: red;`,
+  },
+}
+
+module.exports = nextConfig
+```
+
+> **Good to know:** `sassOptions` are not typed outside of `implementation` because Next.js does not maintain the other possible properties.
+
+There is a slight difference between the options for sass (dart-sass) and node-sass.
+
+Please consult their respective documentation before using them:
+
+- [Dart Sass documentation](https://sass-lang.com/documentation/js-api/interfaces/options/) for all available sass options.
+- [Sass Embedded documentation](https://github.com/sass/embedded-host-node) for all available sass options.
+- [Node Sass documentation](https://github.com/sass/node-sass/#options) for all available node-sass options.
+
+#### Implementation
+
+You can use the `implementation` property to specify the Sass implementation to use. By default, Next.js uses the [`sass`](https://www.npmjs.com/package/sass) package.
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   sassOptions: {
-    ...sassOptions,
     implementation: 'sass-embedded',
   },
 }
@@ -27,20 +58,11 @@ export default nextConfig
 ```js filename="next.config.js" switcher
 /** @type {import('next').NextConfig} */
 
-const sassOptions = {
-  additionalData: `
-    $var: red;
-  `,
-}
-
 const nextConfig = {
   sassOptions: {
-    ...sassOptions,
     implementation: 'sass-embedded',
   },
 }
 
 module.exports = nextConfig
 ```
-
-> **Good to know:** `sassOptions` are not typed outside of `implementation` because Next.js does not maintain the other possible properties.

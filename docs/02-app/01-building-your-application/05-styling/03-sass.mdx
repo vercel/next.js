@@ -50,33 +50,7 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
-#### Implementation
-
-You can use the `implementation` property to specify the Sass implementation to use. By default, Next.js uses the [`sass`](https://www.npmjs.com/package/sass) package.
-
-```ts filename="next.config.ts" switcher
-import type { NextConfig } from 'next'
-
-const nextConfig: NextConfig = {
-  sassOptions: {
-    implementation: 'sass-embedded',
-  },
-}
-
-export default nextConfig
-```
-
-```js filename="next.config.js" switcher
-/** @type {import('next').NextConfig} */
-
-const nextConfig = {
-  sassOptions: {
-    implementation: 'sass-embedded',
-  },
-}
-
-module.exports = nextConfig
-```
+See the [`sassOptions` API reference](/docs/app/api-reference/next-config-js/sassOptions) for more information.
 
 ### Sass Variables
 
