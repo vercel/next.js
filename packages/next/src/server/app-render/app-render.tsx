@@ -2293,8 +2293,6 @@ async function prerenderToStream(
   tree: LoaderTree,
   implicitTags: Array<string>
 ): Promise<PrerenderToStreamResult> {
-  ctx.requestStore.phase = 'render'
-
   // When prerendering formState is always null. We still include it
   // because some shared APIs expect a formState value and this is slightly
   // more explicit than making it an optional function argument
