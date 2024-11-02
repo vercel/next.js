@@ -12,11 +12,11 @@
     "gray-matter": "4.0.3",
     "ioredis": "^4.27.1",
     "nanoid": "^5.0.7",
-    "next": "^14.2.14",
+    "next": "^15.0.2",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
     "remark": "13.0.0",
-    "remark-html": "13.0.1",
+    "remark-html": "13.0.2",
     "swr": "^0.5.5"
   },
   "devDependencies": {
