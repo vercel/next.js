@@ -2,6 +2,7 @@
   "compilerOptions": {
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
+    "exactOptionalPropertyTypes": true,
     "skipLibCheck": false,
     "strict": true,
     "noEmit": true,

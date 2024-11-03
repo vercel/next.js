@@ -54,7 +54,10 @@ export async function getSourceMapFromFile(
     }
   }
 
-  const sourceMapFilename = path.resolve(path.dirname(filename), sourceUrl)
+  const sourceMapFilename = path.resolve(
+    path.dirname(filename),
+    decodeURIComponent(sourceUrl)
+  )
 
   try {
     const sourceMapContents = await fs.readFile(sourceMapFilename, 'utf-8')

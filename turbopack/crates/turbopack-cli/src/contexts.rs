@@ -74,9 +74,9 @@ pub fn get_client_import_map(project_path: Vc<FileSystemPath>) -> Vc<ImportMap> 
 pub async fn get_client_resolve_options_context(
     project_path: Vc<FileSystemPath>,
 ) -> Result<Vc<ResolveOptionsContext>> {
-    let next_client_import_map = get_client_import_map(project_path);
+    let next_client_import_map = get_client_import_map(project_path).to_resolved().await?;
     let module_options_context = ResolveOptionsContext {
-        enable_node_modules: Some(project_path.root().resolve().await?),
+        enable_node_modules: Some(project_path.root().to_resolved().await?),
         custom_conditions: vec!["development".into()],
         import_map: Some(next_client_import_map),
         browser: true,
@@ -88,7 +88,7 @@ pub async fn get_client_resolve_options_context(
         enable_react: true,
         rules: vec![(
             foreign_code_context_condition().await?,
-            module_options_context.clone().cell(),
+            module_options_context.clone().resolved_cell(),
         )],
         ..module_options_context
     }

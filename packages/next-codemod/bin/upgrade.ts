@@ -86,10 +86,14 @@ export async function runUpgrade(
     peerDependencies: Record<string, string>
   }
 
-  const res = await fetch(`https://registry.npmjs.org/next/${revision}`)
-  if (res.status === 200) {
-    targetNextPackageJson = await res.json()
-  }
+  try {
+    const targetNextPackage = execSync(
+      `npm --silent view "next@${revision}" --json`,
+      { encoding: 'utf-8' }
+    )
+    targetNextPackageJson = JSON.parse(targetNextPackage)
+  } catch {}
+
   const validRevision =
     targetNextPackageJson !== null &&
     typeof targetNextPackageJson === 'object' &&

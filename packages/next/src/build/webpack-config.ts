@@ -1131,6 +1131,14 @@ export default async function getBaseWebpackConfig(
           }.js`,
       strictModuleExceptionHandling: true,
       crossOriginLoading: crossOrigin,
+      // if `sources[number]` is not an absolute path, it's is resolved
+      // relative to the location of the source map file (https://tc39.es/source-map/#resolving-sources).
+      // However, Webpack's `resource-path` is relative to the app dir.
+      // TODO: Either `sourceRoot` should be populated with the root and then we can use `[resource-path]`
+      // or we need a way to resolve return `path.relative(sourceMapLocation, info.resourcePath)`
+      devtoolModuleFilenameTemplate: dev
+        ? '[absolute-resource-path]'
+        : undefined,
       webassemblyModuleFilename: 'static/wasm/[modulehash].wasm',
       hashFunction: 'xxhash64',
       hashDigestLength: 16,
@@ -1303,7 +1311,7 @@ export default async function getBaseWebpackConfig(
                 resourceQuery: new RegExp(
                   WEBPACK_RESOURCE_QUERIES.metadataRoute
                 ),
-                layer: WEBPACK_LAYERS.appMetadataRoute,
+                layer: WEBPACK_LAYERS.reactServerComponents,
               },
               {
                 // Ensure that the app page module is in the client layers, this

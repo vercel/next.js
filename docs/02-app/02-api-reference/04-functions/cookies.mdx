@@ -52,13 +52,15 @@ When setting a cookie, the following properties from the `options` object are su
 | `expires`         | Date                                   | Defines the exact date when the cookie will expire.                                |
 | `maxAge`          | Number                                 | Sets the cookie’s lifespan in seconds.                                             |
 | `domain`          | String                                 | Specifies the domain where the cookie is available.                                |
-| `path`            | String                                 | Limits the cookie's scope to a specific path within the domain.                    |
-| `secure`          | Boolean,                               | Ensures the cookie is sent only over HTTPS connections for added security.         |
+| `path`            | String, default: `'/'`                 | Limits the cookie's scope to a specific path within the domain.                    |
+| `secure`          | Boolean                                | Ensures the cookie is sent only over HTTPS connections for added security.         |
 | `httpOnly`        | Boolean                                | Restricts the cookie to HTTP requests, preventing client-side access.              |
 | `sameSite`        | Boolean, `'lax'`, `'strict'`, `'none'` | Controls the cookie's cross-site request behavior.                                 |
 | `priority`        | String (`"low"`, `"medium"`, `"high"`) | Specifies the cookie's priority                                                    |
 | `encode('value')` | Function                               | Specifies a function that will be used to encode a cookie's value.                 |
 | `partitioned`     | Boolean                                | Indicates whether the cookie is [partitioned](https://github.com/privacycg/CHIPS). |
+
+The only option with a default value is `path`.
 
 To learn more about these options, see the [MDN docs](https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies).
 
@@ -76,7 +78,7 @@ To learn more about these options, see the [MDN docs](https://developer.mozilla.
 
 ### Getting a cookie
 
-You can use the `cookies().get('name')` method to get a single cookie:
+You can use the `(await cookies()).get('name')` method to get a single cookie:
 
 ```tsx filename="app/page.tsx" switcher
 import { cookies } from 'next/headers'
@@ -100,7 +102,7 @@ export default async function Page() {
 
 ### Getting all cookies
 
-You can use the `cookies().getAll()` method to get all cookies with a matching name. If `name` is unspecified, it returns all the available cookies.
+You can use the `(await cookies()).getAll()` method to get all cookies with a matching name. If `name` is unspecified, it returns all the available cookies.
 
 ```tsx filename="app/page.tsx" switcher
 import { cookies } from 'next/headers'
@@ -132,7 +134,7 @@ export default async function Page() {
 
 ### Setting a cookie
 
-You can use the `cookies().set(name, value, options)` method in a [Server Action](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) or [Route Handler](/docs/app/building-your-application/routing/route-handlers) to set a cookie. The [`options` object](#options) is optional.
+You can use the `(await cookies()).set(name, value, options)` method in a [Server Action](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) or [Route Handler](/docs/app/building-your-application/routing/route-handlers) to set a cookie. The [`options` object](#options) is optional.
 
 ```tsx filename="app/actions.ts" switcher
 'use server'
@@ -142,11 +144,11 @@ import { cookies } from 'next/headers'
 export async function create(data) {
   const cookieStore = await cookies()
 
-  cookieStore().set('name', 'lee')
+  cookieStore.set('name', 'lee')
   // or
-  cookieStore().set('name', 'lee', { secure: true })
+  cookieStore.set('name', 'lee', { secure: true })
   // or
-  cookieStore().set({
+  cookieStore.set({
     name: 'name',
     value: 'lee',
     httpOnly: true,
@@ -163,11 +165,11 @@ import { cookies } from 'next/headers'
 export async function create(data) {
   const cookieStore = await cookies()
 
-  cookieStore().set('name', 'lee')
+  cookieStore.set('name', 'lee')
   // or
-  cookieStore().set('name', 'lee', { secure: true })
+  cookieStore.set('name', 'lee', { secure: true })
   // or
-  cookieStore().set({
+  cookieStore.set({
     name: 'name',
     value: 'lee',
     httpOnly: true,
@@ -178,7 +180,7 @@ export async function create(data) {
 
 ### Checking if a cookie exists
 
-You can use the `cookies().has(name)` method to check if a cookie exists:
+You can use the `(await cookies()).has(name)` method to check if a cookie exists:
 
 ```tsx filename="app/page.ts" switcher
 import { cookies } from 'next/headers'

@@ -321,7 +321,7 @@ export class WrappedBuildError extends Error {
 type ResponsePayload = {
   type: 'html' | 'json' | 'rsc'
   body: RenderResult
-  revalidate?: Revalidate
+  revalidate?: Revalidate | undefined
 }
 
 export type NextEnabledDirectories = {
@@ -398,8 +398,8 @@ export default abstract class Server<
       type: 'html' | 'json' | 'rsc'
       generateEtags: boolean
       poweredByHeader: boolean
-      revalidate?: Revalidate
-      expireTime?: ExpireTime
+      revalidate: Revalidate | undefined
+      expireTime: ExpireTime | undefined
     }
   ): Promise<void>
 
