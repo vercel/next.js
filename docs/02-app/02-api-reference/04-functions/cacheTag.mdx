@@ -1,7 +1,7 @@
 ---
 title: cacheTag
 description: Learn how to use the cacheTag function to manage cache invalidation in your Next.js application.
-version: experimental
+version: canary
 related:
   title: Related
   description: View related API references.
@@ -9,15 +9,16 @@ related:
     - app/api-reference/next-config-js/dynamicIO
     - app/api-reference/directives/use-cache
     - app/api-reference/functions/revalidateTag
+    - app/api-reference/functions/cacheLife
 ---
 
-The `cacheTag` function allows you to tag cached data for on-demand invalidation. By associating tags with cache entries, you can selectively purge or revalidate specific parts of your cache without affecting other cached data.
+The `cacheTag` function allows you to tag cached data for on-demand invalidation. By associating tags with cache entries, you can selectively purge or revalidate specific cache entries without affecting other cached data.
 
 ## Usage
 
-To use `cacheTag`, enable the [`dynamicIO` flag](/docs/app/api-reference/next-config-js/dynamicIO) in your `next.config.js` and import `cacheTag` from `next/cache`:
+To use `cacheTag`, enable the [`dynamicIO` flag](/docs/app/api-reference/next-config-js/dynamicIO) in your `next.config.js` file:
 
-```ts filename="next.config.ts"
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -29,7 +30,19 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```tsx filename="app/actions.ts"
+```js filename="next.config.js" switcher
+const nextConfig = {
+  experimental: {
+    dynamicIO: true,
+  },
+}
+
+export default nextConfig
+```
+
+The `cacheTag` function takes a single string value, or a string array.
+
+```tsx filename="app/data.ts" switcher
 import { unstable_cacheTag as cacheTag } from 'next/cache'
 
 export async function getData() {
@@ -40,11 +53,20 @@ export async function getData() {
 }
 ```
 
-## Combining with `revalidateTag`
+```jsx filename="app/data.js" switcher
+import { unstable_cacheTag as cacheTag } from 'next/cache'
 
-Use `cacheTag` in conjunction with `revalidateTag` to purge tagged cache entries on-demand. This is useful for scenarios like updating data after a mutation or an external event.
+export async function getData() {
+  'use cache'
+  cacheTag('my-data')
+  const data = await fetch('/api/data')
+  return data
+}
+```
 
-```tsx filename="app/submit.ts"
+You can then purge the cache on-demand using [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) API in another function, for example, a [route handler](/docs/app/building-your-application/routing/route-handlers) or [Server Action](/docs/app/building-your-application/data-fetching/server-actions-and-mutations):
+
+```tsx filename="app/action.ts" switcher
 'use server'
 
 import { revalidateTag } from 'next/cache'
@@ -55,25 +77,41 @@ export default async function submit() {
 }
 ```
 
+```jsx filename="app/action.js" switcher
+'use server'
+
+import { revalidateTag } from 'next/cache'
+
+export default async function submit() {
+  await addPost()
+  revalidateTag('my-data')
+}
+```
+
+## Good to know
+
+- **Idempotent Tags**: Applying the same tag multiple times has no additional effect.
+- **Multiple Tags**: You can assign multiple tags to a single cache entry by passing an array to `cacheTag`.
+
+```tsx
+cacheTag('tag-one', 'tag-two')
+```
+
 ## Examples
 
-### Tagging cached data
+### Tagging components or functions
 
 Tag your cached data by calling `cacheTag` within a cached function or component:
 
-```tsx filename="app/components/bookings.tsx"
-import {
-  unstable_cacheTag as cacheTag,
-  unstable_cacheLife as cacheLife,
-} from 'next/cache'
+```tsx filename="app/components/bookings.tsx" switcher
+import { unstable_cacheTag as cacheTag } from 'next/cache'
 
 interface BookingsProps {
   type: string
 }
 
-export async function Bookings({ type = 'massage' }: BookingsProps) {
+export async function Bookings({ type = 'haircut' }: BookingsProps) {
   'use cache'
-  cacheLife('minutes')
   cacheTag('bookings-data')
 
   async function getBookingsData() {
@@ -85,24 +123,50 @@ export async function Bookings({ type = 'massage' }: BookingsProps) {
 }
 ```
 
-### Tagging using data
+```jsx filename="app/components/bookings.js" switcher
+import { unstable_cacheTag as cacheTag } from 'next/cache'
+
+export async function Bookings({ type = 'haircut' }) {
+  'use cache'
+  cacheTag('bookings-data')
+
+  async function getBookingsData() {
+    const data = await fetch(`/api/bookings?type=${encodeURIComponent(type)}`)
+    return data
+  }
+
+  return //...
+}
+```
+
+### Creating tags from external data
 
 You can use the data returned from an async function to tag the cache entry.
 
-```tsx filename="app/components/bookings.tsx"
-import {
-  unstable_cacheTag as cacheTag,
-  unstable_cacheLife as cacheLife,
-} from 'next/cache'
+```tsx filename="app/components/bookings.tsx" switcher
+import { unstable_cacheTag as cacheTag } from 'next/cache'
 
 interface BookingsProps {
   type: string
 }
 
-export async function Bookings({ type = 'massage' }: BookingsProps) {
+export async function Bookings({ type = 'haircut' }: BookingsProps) {
   async function getBookingsData() {
     'use cache'
-    cacheLife('minutes')
+    const data = await fetch(`/api/bookings?type=${encodeURIComponent(type)}`)
+    cacheTag('bookings-data', data.id)
+    return data
+  }
+  return //...
+}
+```
+
+```jsx filename="app/components/bookings.js" switcher
+import { unstable_cacheTag as cacheTag } from 'next/cache'
+
+export async function Bookings({ type = 'haircut' }) {
+  async function getBookingsData() {
+    'use cache'
     const data = await fetch(`/api/bookings?type=${encodeURIComponent(type)}`)
     cacheTag('bookings-data', data.id)
     return data
@@ -113,9 +177,9 @@ export async function Bookings({ type = 'massage' }: BookingsProps) {
 
 ### Invalidating tagged cache
 
-Invalidate the cache for a specific tag when needed:
+Using [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag), you can invalidate the cache for a specific tag when needed:
 
-```tsx filename="app/actions.ts"
+```tsx filename="app/actions.ts" switcher
 'use server'
 
 import { revalidateTag } from 'next/cache'
@@ -126,11 +190,13 @@ export async function updateBookings() {
 }
 ```
 
-## Notes
+```jsx filename="app/actions.js" switcher
+'use server'
 
-- **Idempotent Tags**: Applying the same tag multiple times has no additional effect.
-- **Multiple Tags**: You can assign multiple tags to a single cache entry by passing an array to `cacheTag`.
+import { revalidateTag } from 'next/cache'
 
-```tsx
-cacheTag(['tag-one', 'tag-two'])
+export async function updateBookings() {
+  await updateBookingData()
+  revalidateTag('bookings-data')
+}
 ```

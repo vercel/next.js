@@ -4,6 +4,8 @@ nav_title: Jest
 description: Learn how to set up Jest with Next.js for Unit Testing and Snapshot Testing.
 ---
 
+{/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
+
 Jest and React Testing Library are frequently used together for **Unit Testing** and **Snapshot Testing**. This guide will show you how to set up Jest with Next.js and write your first tests.
 
 > **Good to know:** Since `async` Server Components are new to the React ecosystem, Jest currently does not support them. While you can still run **unit tests** for synchronous Server and Client Components, we recommend using an **E2E tests** for `async` components.
@@ -90,14 +92,14 @@ module.exports = createJestConfig(config)
 
 Under the hood, `next/jest` is automatically configuring Jest for you, including:
 
-- Setting up `transform` using the [Next.js Compiler](/docs/architecture/nextjs-compiler)
-- Auto mocking stylesheets (`.css`, `.module.css`, and their scss variants), image imports and [`next/font`](/docs/pages/building-your-application/optimizing/fonts)
-- Loading `.env` (and all variants) into `process.env`
-- Ignoring `node_modules` from test resolving and transforms
-- Ignoring `.next` from test resolving
-- Loading `next.config.js` for flags that enable SWC transforms
+- Setting up `transform` using the [Next.js Compiler](/docs/architecture/nextjs-compiler).
+- Auto mocking stylesheets (`.css`, `.module.css`, and their scss variants), image imports and [`next/font`](/docs/app/building-your-application/optimizing/fonts).
+- Loading `.env` (and all variants) into `process.env`.
+- Ignoring `node_modules` from test resolving and transforms.
+- Ignoring `.next` from test resolving.
+- Loading `next.config.js` for flags that enable SWC transforms.
 
-> **Good to know**: To test environment variables directly, load them manually in a separate setup script or in your `jest.config.ts` file. For more information, please see [Test Environment Variables](/docs/pages/building-your-application/configuring/environment-variables#test-environment-variables).
+> **Good to know**: To test environment variables directly, load them manually in a separate setup script or in your `jest.config.ts` file. For more information, please see [Test Environment Variables](/docs/app/building-your-application/configuring/environment-variables#test-environment-variables).
 
 <PagesOnly>
 
@@ -200,7 +202,7 @@ module.exports = new Proxy(
 
 ## Optional: Handling Absolute Imports and Module Path Aliases
 
-If your project is using [Module Path Aliases](/docs/pages/building-your-application/configuring/absolute-imports-and-module-aliases), you will need to configure Jest to resolve the imports by matching the paths option in the `jsconfig.json` file with the `moduleNameMapper` option in the `jest.config.js` file. For example:
+If your project is using [Module Path Aliases](/docs/app/building-your-application/configuring/absolute-imports-and-module-aliases), you will need to configure Jest to resolve the imports by matching the paths option in the `jsconfig.json` file with the `moduleNameMapper` option in the `jest.config.js` file. For example:
 
 ```json filename="tsconfig.json or jsconfig.json"
 {
@@ -234,7 +236,7 @@ setupFilesAfterEnv: ['<rootDir>/jest.setup.ts']
 setupFilesAfterEnv: ['<rootDir>/jest.setup.js']
 ```
 
-Then, inside `jest.setup.ts`, add the following import:
+Then, inside `jest.setup`, add the following import:
 
 ```ts filename="jest.setup.ts" switcher
 import '@testing-library/jest-dom'
@@ -244,11 +246,11 @@ import '@testing-library/jest-dom'
 import '@testing-library/jest-dom'
 ```
 
-> **Good to know:**[`extend-expect` was removed in `v6.0`](https://github.com/testing-library/jest-dom/releases/tag/v6.0.0), so if you are using `@testing-library/jest-dom` before version 6, you will need to import `@testing-library/jest-dom/extend-expect` instead.
+> **Good to know:** [`extend-expect` was removed in `v6.0`](https://github.com/testing-library/jest-dom/releases/tag/v6.0.0), so if you are using `@testing-library/jest-dom` before version 6, you will need to import `@testing-library/jest-dom/extend-expect` instead.
 
-If you need to add more setup options before each test, you can add them to the `jest.setup.js` file above.
+If you need to add more setup options before each test, you can add them to the `jest.setup` file above.
 
-## Add a test script to `package.json`:
+## Add a test script to `package.json`
 
 Finally, add a Jest `test` script to your `package.json` file:
 
@@ -266,7 +268,7 @@ Finally, add a Jest `test` script to your `package.json` file:
 
 `jest --watch` will re-run tests when a file is changed. For more Jest CLI options, please refer to the [Jest Docs](https://jestjs.io/docs/cli#reference).
 
-### Creating your first test:
+### Creating your first test
 
 Your project is now ready to run tests. Create a folder called `__tests__` in your project's root directory.
 
@@ -302,7 +304,7 @@ describe('Home', () => {
 
 For example, we can add a test to check if the `<Page />` component successfully renders a heading:
 
-```jsx filename="app/page.js
+```jsx filename="app/page.js"
 import Link from 'next/link'
 
 export default function Page() {

@@ -857,7 +857,7 @@ export async function handleWebpackExternalForEdgeRuntime({
     try {
       await getResolve()(context, request)
     } catch {
-      return `root  globalThis.__import_unsupported('${request}')`
+      return `root globalThis.__import_unsupported('${request}')`
     }
   }
 }

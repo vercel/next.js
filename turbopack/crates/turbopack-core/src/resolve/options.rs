@@ -117,7 +117,7 @@ pub enum ReplacedImportMapping {
     Ignore,
     Empty,
     Alternatives(Vec<Vc<ReplacedImportMapping>>),
-    Dynamic(Vc<Box<dyn ImportMappingReplacement>>),
+    Dynamic(ResolvedVc<Box<dyn ImportMappingReplacement>>),
 }
 
 impl ImportMapping {
@@ -162,7 +162,9 @@ impl AliasTemplate for Vc<ImportMapping> {
                         .try_join()
                         .await?,
                 ),
-                ImportMapping::Dynamic(replacement) => ReplacedImportMapping::Dynamic(*replacement),
+                ImportMapping::Dynamic(replacement) => {
+                    ReplacedImportMapping::Dynamic(replacement.to_resolved().await?)
+                }
             }
             .cell())
         })
@@ -300,14 +302,18 @@ impl ImportMap {
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Default)]
 pub struct ResolvedMap {
-    pub by_glob: Vec<(Vc<FileSystemPath>, Vc<Glob>, Vc<ImportMapping>)>,
+    pub by_glob: Vec<(
+        ResolvedVc<FileSystemPath>,
+        ResolvedVc<Glob>,
+        ResolvedVc<ImportMapping>,
+    )>,
 }
 
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
 pub enum ImportMapResult {
     Result(Vc<ResolveResult>),
-    Alias(Vc<Request>, Option<Vc<FileSystemPath>>),
+    Alias(ResolvedVc<Request>, Option<ResolvedVc<FileSystemPath>>),
     Alternatives(Vec<ImportMapResult>),
     NoEntry,
 }
@@ -320,25 +326,28 @@ async fn import_mapping_to_result(
     Ok(match &*mapping.await? {
         ReplacedImportMapping::Direct(result) => ImportMapResult::Result(*result),
         ReplacedImportMapping::External(name, ty) => ImportMapResult::Result(
-            ResolveResult::primary(if let Some(name) = name {
+            *ResolveResult::primary(if let Some(name) = name {
                 ResolveResultItem::External(name.clone(), *ty)
             } else if let Some(request) = request.await?.request() {
                 ResolveResultItem::External(request, *ty)
             } else {
                 bail!("Cannot resolve external reference without request")
             })
-            .cell(),
+            .resolved_cell(),
         ),
-        ReplacedImportMapping::Ignore => {
-            ImportMapResult::Result(ResolveResult::primary(ResolveResultItem::Ignore).into())
-        }
-        ReplacedImportMapping::Empty => {
-            ImportMapResult::Result(ResolveResult::primary(ResolveResultItem::Empty).into())
-        }
+        ReplacedImportMapping::Ignore => ImportMapResult::Result(
+            *ResolveResult::primary(ResolveResultItem::Ignore).resolved_cell(),
+        ),
+        ReplacedImportMapping::Empty => ImportMapResult::Result(
+            *ResolveResult::primary(ResolveResultItem::Empty).resolved_cell(),
+        ),
         ReplacedImportMapping::PrimaryAlternative(name, context) => {
             let request = Request::parse(Value::new(name.clone()));
-
-            ImportMapResult::Alias(request, *context)
+            let context_resolved = match context {
+                Some(c) => Some((*c).to_resolved().await?),
+                None => None,
+            };
+            ImportMapResult::Alias(request.to_resolved().await?, context_resolved)
         }
         ReplacedImportMapping::Alternatives(list) => ImportMapResult::Alternatives(
             list.iter()
@@ -484,12 +493,12 @@ pub struct ResolveOptions {
     /// The default files to resolve in a folder.
     pub default_files: Vec<RcStr>,
     /// An import map to use before resolving a request.
-    pub import_map: Option<Vc<ImportMap>>,
+    pub import_map: Option<ResolvedVc<ImportMap>>,
     /// An import map to use when a request is otherwise unresolvable.
     pub fallback_import_map: Option<Vc<ImportMap>>,
-    pub resolved_map: Option<Vc<ResolvedMap>>,
-    pub before_resolve_plugins: Vec<Vc<Box<dyn BeforeResolvePlugin>>>,
-    pub plugins: Vec<Vc<Box<dyn AfterResolvePlugin>>>,
+    pub resolved_map: Option<ResolvedVc<ResolvedMap>>,
+    pub before_resolve_plugins: Vec<ResolvedVc<Box<dyn BeforeResolvePlugin>>>,
+    pub plugins: Vec<ResolvedVc<Box<dyn AfterResolvePlugin>>>,
     /// Support resolving *.js requests to *.ts files
     pub enable_typescript_with_output_extension: bool,
     /// Warn instead of error for resolve errors
@@ -512,7 +521,9 @@ impl ResolveOptions {
             resolve_options
                 .import_map
                 .map(|current_import_map| current_import_map.extend(import_map))
-                .unwrap_or(import_map),
+                .unwrap_or(import_map)
+                .to_resolved()
+                .await?,
         );
         Ok(resolve_options.into())
     }

@@ -17,7 +17,7 @@ pub struct AssetIdent {
     /// The fragment of the asset (e.g. `#foo`)
     pub fragment: Option<ResolvedVc<RcStr>>,
     /// The assets that are nested in this asset
-    pub assets: Vec<(Vc<RcStr>, Vc<AssetIdent>)>,
+    pub assets: Vec<(ResolvedVc<RcStr>, ResolvedVc<AssetIdent>)>,
     /// The modifiers of this asset (e.g. `client chunks`)
     pub modifiers: Vec<Vc<RcStr>>,
     /// The part of the asset that is a (ECMAScript) module
@@ -31,7 +31,7 @@ impl AssetIdent {
         self.modifiers.push(modifier);
     }
 
-    pub fn add_asset(&mut self, key: Vc<RcStr>, asset: Vc<AssetIdent>) {
+    pub fn add_asset(&mut self, key: ResolvedVc<RcStr>, asset: ResolvedVc<AssetIdent>) {
         self.assets.push((key, asset));
     }
 

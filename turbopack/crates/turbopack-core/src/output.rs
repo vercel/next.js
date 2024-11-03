@@ -26,12 +26,12 @@ pub trait OutputAsset: Asset {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct OutputAssets(Vec<Vc<Box<dyn OutputAsset>>>);
+pub struct OutputAssets(Vec<ResolvedVc<Box<dyn OutputAsset>>>);
 
 #[turbo_tasks::value_impl]
 impl OutputAssets {
     #[turbo_tasks::function]
-    pub fn new(assets: Vec<Vc<Box<dyn OutputAsset>>>) -> Vc<Self> {
+    pub fn new(assets: Vec<ResolvedVc<Box<dyn OutputAsset>>>) -> Vc<Self> {
         Vc::cell(assets)
     }
 
@@ -51,7 +51,7 @@ impl OutputAssets {
 
 /// A set of [OutputAsset]s
 #[turbo_tasks::value(transparent)]
-pub struct OutputAssetsSet(FxIndexSet<Vc<Box<dyn OutputAsset>>>);
+pub struct OutputAssetsSet(FxIndexSet<ResolvedVc<Box<dyn OutputAsset>>>);
 
 // TODO All Vc::try_resolve_downcast::<Box<dyn OutputAsset>> calls should be
 // removed

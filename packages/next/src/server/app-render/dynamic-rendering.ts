@@ -265,9 +265,7 @@ function abortOnSynchronousDynamicDataAccess(
 
   const error = createPrerenderInterruptedError(reason)
 
-  if (prerenderStore.controller) {
-    prerenderStore.controller.abort(error)
-  }
+  prerenderStore.controller.abort(error)
 
   const dynamicTracking = prerenderStore.dynamicTracking
   if (dynamicTracking) {

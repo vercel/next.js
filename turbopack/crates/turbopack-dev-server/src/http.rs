@@ -143,7 +143,7 @@ pub async fn process_request_with_content_source(
                     let guess = mime_guess::from_path(&original_path).first_or_octet_stream();
                     should_compress = should_compress_predicate(&guess);
                     // If a text type, application/javascript, or application/json was
-                    // guessed, use a utf-8 charset as  we most likely generated it as
+                    // guessed, use a utf-8 charset as we most likely generated it as
                     // such.
                     entry.insert(hyper::header::HeaderValue::try_from(
                         if (guess.type_() == mime::TEXT

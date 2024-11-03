@@ -31,7 +31,7 @@ import {
   type ServerActionAction,
   type ServerActionMutable,
 } from '../router-reducer-types'
-import { addBasePath } from '../../../add-base-path'
+import { assignLocation } from '../../../assign-location'
 import { createHrefFromUrl } from '../create-href-from-url'
 import { handleExternalUrl } from './navigate-reducer'
 import { applyRouterStatePatchToTree } from '../apply-router-state-patch-to-tree'
@@ -129,9 +129,8 @@ async function fetchServerAction(
   }
 
   const redirectLocation = location
-    ? new URL(
-        addBasePath(location),
-        // Ensure relative redirects in Server Actions work, e.g. redirect('./somewhere-else')
+    ? assignLocation(
+        location,
         new URL(state.canonicalUrl, window.location.href)
       )
     : undefined
