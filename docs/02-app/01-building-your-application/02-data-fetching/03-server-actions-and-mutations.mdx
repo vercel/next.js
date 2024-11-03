@@ -219,7 +219,13 @@ export function UserProfile({ userId }) {
 
 The Server Action will receive the `userId` argument, in addition to the form data:
 
-```js filename="app/actions.js"
+```ts filename="app/actions.ts" switcher
+'use server'
+
+export async function updateUser(userId: string, formData: FormData) {}
+```
+
+```js filename="app/actions.js" switcher
 'use server'
 
 export async function updateUser(userId, formData) {}

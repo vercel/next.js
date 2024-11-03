@@ -1,6 +1,6 @@
 # Authentication
 
-This is an example using NextAuth.js for authentication.
+This is an example using [Auth.js](https://authjs.dev/) for authentication.
 
 ## Deploy your own
 
