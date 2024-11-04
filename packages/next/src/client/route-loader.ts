@@ -273,7 +273,7 @@ function getFilesForRoute(
       throw markAssetError(new Error(`Failed to lookup route: ${route}`))
     }
     const allFiles = manifest[route].map(
-      (entry) => assetPrefix + '/_next/' + encodeURI(entry)
+      (entry) => assetPrefix + '/_next/' + encodeURIPath(entry)
     )
     return {
       scripts: allFiles
