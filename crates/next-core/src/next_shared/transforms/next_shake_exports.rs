@@ -1,10 +1,7 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use next_custom_transforms::transforms::shake_exports::{shake_exports, Config};
-use swc_core::{
-    common::util::take::Take,
-    ecma::{ast::*, visit::FoldWith},
-};
+use swc_core::ecma::ast::*;
 use turbo_tasks::Vc;
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
 use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext};
