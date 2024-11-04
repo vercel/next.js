@@ -7,7 +7,6 @@ use preset_env_base::query::targets_to_versions;
 use serde::Deserialize;
 use swc_core::{
     common::{
-        chain,
         comments::{Comments, NoopComments},
         pass::Optional,
         FileName, Mark, SourceFile, SourceMap, SyntaxContext,
@@ -16,7 +15,7 @@ use swc_core::{
         ast::EsVersion,
         parser::parse_file_as_module,
         transforms::base::pass::noop,
-        visit::{as_folder, Fold},
+        visit::{visit_mut_pass, Fold},
     },
 };
 
@@ -304,19 +303,19 @@ where
             None => Either::Right(noop()),
         },
         match &opts.cjs_require_optimizer {
-            Some(config) => {
-                Either::Left(as_folder(crate::transforms::cjs_optimizer::cjs_optimizer(
+            Some(config) => Either::Left(visit_mut_pass(
+                crate::transforms::cjs_optimizer::cjs_optimizer(
                     config.clone(),
                     SyntaxContext::empty().apply_mark(unresolved_mark),
-                )))
-            }
+                ),
+            )),
             None => Either::Right(noop()),
         },
         Optional::new(
             crate::transforms::debug_fn_name::debug_fn_name(),
             opts.debug_function_name,
         ),
-        as_folder(crate::transforms::pure::pure_magic(comments.clone())),
+        visit_mut_pass(crate::transforms::pure::pure_magic(comments.clone())),
         Optional::new(
             linter(lint_codemod_comments(comments)),
             opts.lint_codemod_comments,
