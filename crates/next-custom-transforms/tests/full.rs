@@ -6,8 +6,8 @@ use swc_core::{
     base::Compiler,
     common::{comments::SingleThreadedComments, Mark},
     ecma::{
+        ast::noop_pass,
         parser::{Syntax, TsSyntax},
-        transforms::base::pass::noop,
     },
 };
 use testing::{NormalizedOutput, Tester};
