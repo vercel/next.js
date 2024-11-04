@@ -267,7 +267,7 @@ If you are using `fetch`, requests can be [memoized](/docs/app/building-your-app
 
 > **Good to know:**
 >
-> - In previous versions of Next.js, using `fetch` will automatically sets the `cache` to `cache: force-cache`. This changed in version 15, to `cache: no-store`
+> - In previous versions of Next.js, using `fetch` would have a default `cache` value of `force-cache`. This changed in version 15, to a default of `cache: no-store`.
 
 ```tsx filename="app/page.tsx" switcher
 import { notFound } from 'next/navigation'
