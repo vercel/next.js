@@ -24,11 +24,9 @@ describe('per segment prefetching', () => {
     })
     expect(response.status).toBe(200)
     const responseText = await response.text()
-    expect(responseText.trim()).toBe(
-      // The actual data is not yet generated, but this indicates that the
-      // request was handled correctly.
-      'TODO (Per Segment Prefetching): Not yet implemented'
-    )
+    // This is a basic check to ensure that the name of an expected field is
+    // somewhere in the Flight stream.
+    expect(responseText).toInclude('"rsc"')
   })
 
   it('respond with 404 if the segment does not have prefetch data', async () => {
