@@ -10,7 +10,7 @@ related:
     - app/building-your-application/configuring/absolute-imports-and-module-aliases
 ---
 
-Apart from [routing folder and file conventions](/docs/getting-started/project-structure#app-routing-conventions), Next.js is **unopinionated** about how you organize and colocate your project files.
+Apart from [folder and file conventions](/docs/app/getting-started/project-structure), Next.js is **unopinionated** about how you organize and colocate your project files.
 
 This page shares default behavior and features you can use to organize your project.
 
@@ -88,7 +88,7 @@ Since files in the `app` directory can be [safely colocated by default](#safe-co
 >
 > - While not a framework convention, you might also consider marking files outside private folders as "private" using the same underscore pattern.
 > - You can create URL segments that start with an underscore by prefixing the folder name with `%5F` (the URL-encoded form of an underscore): `%5FfolderName`.
-> - If you don't use private folders, it would be helpful to know Next.js [special file conventions](/docs/getting-started/project-structure#routing-files) to prevent unexpected naming conflicts.
+> - If you don't use private folders, it would be helpful to know Next.js [special file conventions](/docs/app/getting-started/project-structure#routing-files) to prevent unexpected naming conflicts.
 
 ### Route Groups
 
@@ -125,7 +125,7 @@ Next.js supports storing application code (including `app`) inside an optional [
 
 ### Module Path Aliases
 
-Next.js supports [Module Path Aliases](/docs/app/building-your-application/configuring/absolute-imports-and-module-aliases) which make it easier to read and maintain imports across deeply nested project files.
+Next.js supports [Module Path Aliases](/docs/app/getting-started/installation#set-up-absolute-imports-and-module-path-aliases) which make it easier to read and maintain imports across deeply nested project files.
 
 ```jsx filename="app/dashboard/settings/analytics/page.js"
 // before
