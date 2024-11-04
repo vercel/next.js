@@ -242,6 +242,15 @@ export function updateCacheNodeOnNavigation(
     parallelRoutes: prefetchParallelRoutes,
   }
 
+  function newCacheNodeNeeded() {
+    if (needsDynamicRequest) {
+      return newCacheNode
+    } else {
+      return null
+    }
+  }
+
+  const isNewCacheNodeNeeded = newCacheNodeNeeded()
   return {
     // Return a cloned copy of the router state with updated children.
     route: patchRouterStateWithNewChildren(
@@ -250,11 +259,10 @@ export function updateCacheNodeOnNavigation(
     ),
     // Only return the new cache node if there are pending tasks that need to be resolved
     // by the dynamic data from the server. If they don't, we don't need to trigger a dynamic request.
-    node: needsDynamicRequest ? newCacheNode : null,
+    node: isNewCacheNodeNeeded,
     children: taskChildren,
   }
 }
-
 function patchRouterStateWithNewChildren(
   baseRouterState: FlightRouterState,
   newChildren: { [parallelRouteKey: string]: FlightRouterState }
