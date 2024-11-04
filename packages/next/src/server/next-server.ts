@@ -23,6 +23,7 @@ import type { UrlWithParsedQuery } from 'url'
 import type { ParsedUrlQuery } from 'querystring'
 import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
 import type { Revalidate, ExpireTime } from './lib/revalidate'
+import type { WaitUntil } from './after/builtin-request-context'
 
 import fs from 'fs'
 import { join, resolve } from 'path'
@@ -104,6 +105,8 @@ import type { NextFontManifest } from '../build/webpack/plugins/next-font-manife
 import { isInterceptionRouteRewrite } from '../lib/generate-interception-routes-rewrites'
 import type { ServerOnInstrumentationRequestError } from './app-render/types'
 import { RouteKind } from './route-kind'
+import { InvariantError } from '../shared/lib/invariant-error'
+import { AwaiterOnce } from './after/awaiter'
 
 export * from './base-server'
 
@@ -170,6 +173,8 @@ export default class NextNodeServer extends BaseServer<
     req: IncomingMessage,
     res: ServerResponse
   ) => void
+
+  private internalWaitUntil: WaitUntil | undefined
 
   constructor(options: Options) {
     // Initialize super class
@@ -1866,5 +1871,33 @@ export default class NextNodeServer extends BaseServer<
     if (!this.renderOpts.dev) {
       this.logError(args[0] as Error)
     }
+  }
+
+  protected getInternalWaitUntil(): WaitUntil {
+    this.internalWaitUntil ??= this.createInternalWaitUntil()
+    return this.internalWaitUntil
+  }
+
+  private createInternalWaitUntil() {
+    if (this.minimalMode) {
+      throw new InvariantError(
+        'createInternalWaitUntil should never be called in minimal mode'
+      )
+    }
+
+    if (!this.serverOptions.onCleanup) {
+      // If there's no `onCleanup`, then we have no way to
+      // await pending `after` callbacks before shutting down. Return a noop.
+      return function noopWaitUntil(promise: Promise<unknown>) {
+        promise.catch((err) => console.error(err))
+      }
+    }
+
+    const awaiter = new AwaiterOnce({ onError: console.error })
+
+    // TODO(after): warn if exiting before these are awaited?
+    this.serverOptions.onCleanup(() => awaiter.awaiting())
+
+    return awaiter.waitUntil
   }
 }

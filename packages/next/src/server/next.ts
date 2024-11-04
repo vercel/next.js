@@ -269,6 +269,7 @@ export class NextServer implements NextWrapperServer {
 
         this.server = await this.createServer({
           ...this.options,
+          onCleanup: this.onCleanup.bind(this),
           conf,
         })
         if (this.preparedAssetPrefix) {

@@ -218,6 +218,13 @@ export async function startServer(
     }
   })
 
+  const cleanupListeners: (() => Promise<void>)[] = []
+  const onCleanup = (listener: () => Promise<void>) => {
+    cleanupListeners.push(listener)
+  }
+
+  onCleanup(() => new Promise<void>((res) => server.close(() => res())))
+
   await new Promise<void>((resolve) => {
     server.on('listening', async () => {
       const nodeDebugType = getNodeDebugType()
@@ -281,7 +288,6 @@ export async function startServer(
       Log.event(`Starting...`)
 
       try {
-        const cleanupListeners = [() => new Promise((res) => server.close(res))]
         let cleanupStarted = false
         const cleanup = () => {
           if (cleanupStarted) {
@@ -294,7 +300,7 @@ export async function startServer(
           cleanupStarted = true
           ;(async () => {
             debug('start-server process cleanup')
-            await Promise.all(cleanupListeners.map((f) => f()))
+            await Promise.allSettled(cleanupListeners.map(async (f) => f()))
             debug('start-server process cleanup finished')
             process.exit(0)
           })()
@@ -327,7 +333,7 @@ export async function startServer(
           dir,
           port,
           isDev,
-          onCleanup: (listener) => cleanupListeners.push(listener),
+          onCleanup,
           server,
           hostname,
           minimalMode,
@@ -336,6 +342,9 @@ export async function startServer(
         })
         requestHandler = initResult.requestHandler
         upgradeHandler = initResult.upgradeHandler
+        const nextServer = initResult.server
+
+        onCleanup(() => nextServer.close())
 
         const startServerProcessDuration =
           performance.mark('next-start-end') &&

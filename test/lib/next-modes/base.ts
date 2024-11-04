@@ -398,19 +398,28 @@ export class NextInstance {
 
   public async start(useDirArg: boolean = false): Promise<void> {}
 
-  public async stop(): Promise<void> {
+  public async stop(
+    signal: 'SIGINT' | 'SIGTERM' | 'SIGKILL' = 'SIGKILL'
+  ): Promise<void> {
     if (this.childProcess) {
       this.isStopping = true
+      if (this.isStopping) {
+        // warn for debugging, but don't prevent sending two signals in succession
+        // (e.g. SIGINT and then SIGKILL)
+        require('console').error(
+          `Next server is already being stopped (received signal: ${signal})`
+        )
+      }
       const closePromise = once(this.childProcess, 'close')
       await new Promise<void>((resolve) => {
-        treeKill(this.childProcess.pid, 'SIGKILL', (err) => {
+        treeKill(this.childProcess.pid, signal, (err) => {
           if (err) {
             require('console').error('tree-kill', err)
           }
           resolve()
         })
       })
-      this.childProcess.kill('SIGKILL')
+      this.childProcess.kill(signal)
       await closePromise
       this.childProcess = undefined
       this.isStopping = false

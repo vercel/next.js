@@ -626,6 +626,7 @@ export async function initialize(opts: {
     bundlerService: devBundlerService,
     startServerSpan: opts.startServerSpan,
     quiet: opts.quiet,
+    onCleanup: opts.onCleanup,
   }
   renderServerOpts.serverFields.routerServerHandler = requestHandlerImpl
 
