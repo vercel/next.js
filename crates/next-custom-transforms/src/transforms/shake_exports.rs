@@ -5,7 +5,7 @@ use swc_core::{
         ast::*,
         atoms::{js_word, JsWord},
         transforms::optimization::simplify::dce::{dce, Config as DCEConfig},
-        visit::{Fold, FoldWith},
+        visit::{fold_pass, Fold, FoldWith},
     },
 };
 
@@ -14,11 +14,11 @@ pub struct Config {
     pub ignore: Vec<JsWord>,
 }
 
-pub fn shake_exports(config: Config) -> impl Fold {
-    ExportShaker {
+pub fn shake_exports(config: Config) -> impl Pass {
+    fold_pass(ExportShaker {
         ignore: config.ignore,
         ..Default::default()
-    }
+    })
 }
 
 #[derive(Debug, Default)]
