@@ -559,6 +559,7 @@ async fn process_content(
                 },
                 dashed_idents: false,
                 grid: false,
+                container: false,
                 ..Default::default()
             }),
 
@@ -1157,6 +1158,7 @@ mod tests {
                     pattern: Pattern::default(),
                     dashed_idents: false,
                     grid: false,
+                    container: false,
                     ..Default::default()
                 }),
                 ..Default::default()
