@@ -3,9 +3,8 @@ use std::{fmt::Debug, hash::Hash, sync::Arc};
 use anyhow::Result;
 use async_trait::async_trait;
 use swc_core::{
-    atoms::JsWord,
     base::SwcComments,
-    common::{chain, collections::AHashMap, comments::Comments, util::take::Take, Mark, SourceMap},
+    common::{collections::AHashMap, comments::Comments, util::take::Take, Mark, SourceMap},
     ecma::{
         ast::{Module, ModuleItem, Program, Script},
         preset_env::{self, Targets},
@@ -14,9 +13,7 @@ use swc_core::{
             optimization::inline_globals2,
             react::react,
         },
-        visit::{FoldWith, VisitMutWith},
     },
-    quote,
 };
 use turbo_tasks::{RcStr, ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
