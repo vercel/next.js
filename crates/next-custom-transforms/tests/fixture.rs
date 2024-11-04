@@ -23,17 +23,17 @@ use next_custom_transforms::transforms::{
 };
 use serde::de::DeserializeOwned;
 use swc_core::{
-    common::{chain, comments::SingleThreadedComments, FileName, Mark, SyntaxContext},
+    common::{comments::SingleThreadedComments, FileName, Mark, SyntaxContext},
     ecma::{
-        ast::{Module, Script},
+        ast::Pass,
         parser::{EsSyntax, Syntax},
         transforms::{
             base::resolver,
             react::jsx,
-            testing::{test, test_fixture, FixtureTestConfig},
+            testing::{test_fixture, FixtureTestConfig},
         },
         utils::ExprCtx,
-        visit::{noop_fold_type, visit_mut_pass, Fold, Visit},
+        visit::{visit_mut_pass, visit_pass, Visit},
     },
 };
 use swc_relay::{relay, RelayLanguageConfig};
@@ -696,6 +696,7 @@ fn test_edge_assert(input: PathBuf) {
                     ExprCtx {
                         is_unresolved_ref_safe: false,
                         unresolved_ctxt: SyntaxContext::empty().apply_mark(unresolved_mark),
+                        in_strict: false,
                     },
                     true,
                     true,
@@ -715,30 +716,5 @@ fn lint_to_fold<R>(r: R) -> impl Pass
 where
     R: Visit,
 {
-    LintFolder(r)
-}
-
-struct LintFolder<R>(R)
-where
-    R: Visit;
-
-impl<R> Fold for LintFolder<R>
-where
-    R: Visit,
-{
-    noop_fold_type!();
-
-    #[inline(always)]
-    fn fold_module(&mut self, program: Module) -> Module {
-        self.0.visit_module(&program);
-
-        program
-    }
-
-    #[inline(always)]
-    fn fold_script(&mut self, program: Script) -> Script {
-        self.0.visit_script(&program);
-
-        program
-    }
+    visit_pass(r)
 }
