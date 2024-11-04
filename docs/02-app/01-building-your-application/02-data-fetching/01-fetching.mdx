@@ -279,16 +279,18 @@ interface Post {
 }
 
 async function getPost(id: string) {
-  let res = await fetch(`https://api.vercel.app/blog/${id}`, { cache: 'force-cache' })
+  let res = await fetch(`https://api.vercel.app/blog/${id}`, {
+    cache: 'force-cache',
+  })
   let post: Post = await res.json()
   if (!post) notFound()
   return post
 }
 
 export async function generateStaticParams() {
-  let posts = await fetch('https://api.vercel.app/blog', { cache: 'force-cache' }).then((res) =>
-    res.json()
-  )
+  let posts = await fetch('https://api.vercel.app/blog', {
+    cache: 'force-cache',
+  }).then((res) => res.json())
 
   return posts.map((post: Post) => ({
     id: post.id,
