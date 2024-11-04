@@ -12,9 +12,8 @@ use swc_core::{
         FileName, Mark, SourceFile, SourceMap, SyntaxContext,
     },
     ecma::{
-        ast::EsVersion,
+        ast::{noop_pass, EsVersion},
         parser::parse_file_as_module,
-        transforms::base::pass::noop,
         visit::{visit_mut_pass, Fold},
     },
 };
@@ -131,7 +130,7 @@ where
     C: Clone + Comments + 'a,
 {
     #[cfg(target_arch = "wasm32")]
-    let relay_plugin = noop();
+    let relay_plugin = noop_pass();
 
     #[cfg(not(target_arch = "wasm32"))]
     let relay_plugin = {
@@ -144,7 +143,7 @@ where
                 None,
             ))
         } else {
-            Either::Right(noop())
+            Either::Right(noop_pass())
         }
     };
 
@@ -174,7 +173,7 @@ where
             styled_jsx::visitor::NativeConfig { process_css: None },
         ))
     } else {
-        Either::Right(noop())
+        Either::Right(noop_pass())
     };
 
     (
@@ -190,7 +189,7 @@ where
                     opts.app_dir.clone(),
                 ))
             }
-            _ => Either::Right(noop()),
+            _ => Either::Right(noop_pass()),
         },
         styled_jsx,
         match &opts.styled_components {
@@ -200,7 +199,7 @@ where
                 config.clone(),
                 NoopComments,
             )),
-            None => Either::Right(noop()),
+            None => Either::Right(noop_pass()),
         },
         Optional::new(
             crate::transforms::next_ssg::next_ssg(eliminated_packages),
@@ -236,37 +235,37 @@ where
                 config.clone(),
                 SyntaxContext::empty().apply_mark(unresolved_mark),
             )),
-            _ => Either::Right(noop()),
+            _ => Either::Right(noop_pass()),
         },
         match &opts.react_remove_properties {
             Some(config) if config.truthy() => Either::Left(
                 react_remove_properties::react_remove_properties(config.clone()),
             ),
-            _ => Either::Right(noop()),
+            _ => Either::Right(noop_pass()),
         },
         match &opts.shake_exports {
             Some(config) => Either::Left(crate::transforms::shake_exports::shake_exports(
                 config.clone(),
             )),
-            None => Either::Right(noop()),
+            None => Either::Right(noop_pass()),
         },
         match &opts.auto_modularize_imports {
             Some(config) => Either::Left(
                 crate::transforms::named_import_transform::named_import_transform(config.clone()),
             ),
-            None => Either::Right(noop()),
+            None => Either::Right(noop_pass()),
         },
         match &opts.optimize_barrel_exports {
             Some(config) => Either::Left(crate::transforms::optimize_barrel::optimize_barrel(
                 config.clone(),
             )),
-            _ => Either::Right(noop()),
+            _ => Either::Right(noop_pass()),
         },
         match &opts.optimize_server_react {
             Some(config) => Either::Left(
                 crate::transforms::optimize_server_react::optimize_server_react(config.clone()),
             ),
-            _ => Either::Right(noop()),
+            _ => Either::Right(noop_pass()),
         },
         opts.emotion
             .as_ref()
@@ -288,11 +287,11 @@ where
                     None
                 }
             })
-            .unwrap_or_else(|| Either::Right(noop())),
+            .unwrap_or_else(|| Either::Right(noop_pass())),
         modularize_imports::modularize_imports(modularize_imports_config),
         match &opts.font_loaders {
             Some(config) => Either::Left(next_font_loaders(config.clone())),
-            None => Either::Right(noop()),
+            None => Either::Right(noop_pass()),
         },
         match &opts.server_actions {
             Some(config) => Either::Left(crate::transforms::server_actions::server_actions(
@@ -300,7 +299,7 @@ where
                 config.clone(),
                 comments.clone(),
             )),
-            None => Either::Right(noop()),
+            None => Either::Right(noop_pass()),
         },
         match &opts.cjs_require_optimizer {
             Some(config) => Either::Left(visit_mut_pass(
@@ -309,7 +308,7 @@ where
                     SyntaxContext::empty().apply_mark(unresolved_mark),
                 ),
             )),
-            None => Either::Right(noop()),
+            None => Either::Right(noop_pass()),
         },
         Optional::new(
             crate::transforms::debug_fn_name::debug_fn_name(),
