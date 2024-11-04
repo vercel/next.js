@@ -5,7 +5,7 @@ use swc_core::{
         ast::*,
         atoms::{js_word, JsWord},
         transforms::optimization::simplify::dce::{dce, Config as DCEConfig},
-        visit::{fold_pass, Fold, FoldWith},
+        visit::{fold_pass, Fold, FoldWith, VisitMutWith},
     },
 };
 
@@ -28,9 +28,10 @@ struct ExportShaker {
 }
 
 impl Fold for ExportShaker {
-    fn fold_module(&mut self, module: Module) -> Module {
-        let module = module.fold_children_with(self);
-        module.fold_with(&mut dce(DCEConfig::default(), Mark::new()))
+    fn fold_module(&mut self, mut module: Module) -> Module {
+        module = module.fold_children_with(self);
+        module.visit_mut_with(&mut dce(DCEConfig::default(), Mark::new()));
+        module
     }
 
     fn fold_module_items(&mut self, items: Vec<ModuleItem>) -> Vec<ModuleItem> {
