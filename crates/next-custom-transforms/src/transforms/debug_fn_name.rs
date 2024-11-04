@@ -9,12 +9,12 @@ use swc_core::{
             KeyValueProp, MemberProp, ObjectLit, PropOrSpread, VarDeclarator,
         },
         utils::ExprFactory,
-        visit::{as_folder, Fold, VisitMut, VisitMutWith},
+        visit::{visit_mut_pass, Fold, VisitMut, VisitMutWith},
     },
 };
 
 pub fn debug_fn_name() -> impl VisitMut + Fold {
-    as_folder(DebugFnName::default())
+    visit_mut_pass(DebugFnName::default())
 }
 
 #[derive(Default)]
