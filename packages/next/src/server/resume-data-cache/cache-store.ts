@@ -13,6 +13,7 @@ interface CacheStore<T, S = T> {
   set(key: string, value: T): void
   entries(): Promise<[string, S][]>
   seal(): void
+  readonly size: number
 }
 
 /**
@@ -43,6 +44,10 @@ export class FetchCacheStore implements CacheStore<CachedFetchValue> {
       throw new Error('FetchCacheStore is immutable')
     }
     this.store.set(key, value)
+  }
+
+  public get size(): number {
+    return this.store.size
   }
 
   public get(key: string): CachedFetchValue | undefined {
@@ -120,6 +125,10 @@ export class UseCacheCacheStore
 
   public get(key: string): Promise<CacheEntry> | undefined {
     return this.store.get(key)
+  }
+
+  public get size(): number {
+    return this.store.size
   }
 
   public async entries(): Promise<[string, CacheCacheStoreSerialized][]> {
