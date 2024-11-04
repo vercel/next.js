@@ -52,7 +52,7 @@ export default async function Page() {
 }
 ```
 
-```tsx filename="app/page.tsx" highlight={5} switcher
+```jsx filename="app/page.js" highlight={5} switcher
 'use cache'
 import { unstable_cacheLife as cacheLife } from 'next/cache'
 
@@ -142,7 +142,7 @@ module.exports = nextConfig
 
 The example above caches for 14 days, checks for updates daily, and expires the cache after 14 days. You can then reference this profile throughout your application by its name:
 
-```tsx filename="app/page.tsx" highlight={4}
+```tsx filename="app/page.tsx" highlight={5}
 'use cache'
 import { unstable_cacheLife as cacheLife } from 'next/cache'
 
@@ -181,7 +181,7 @@ module.exports = nextConfig
 
 For specific use cases, you can set a custom cache profile by passing an object to the `cacheLife` function:
 
-```tsx filename="app/page.tsx" highlight={5-9}
+```tsx filename="app/page.tsx" highlight={5-9} switcher
 'use cache'
 import { unstable_cacheLife as cacheLife } from 'next/cache'
 
@@ -196,7 +196,7 @@ export default async function Page() {
 }
 ```
 
-```jsx filename="app/page.js" highlight={5-9}
+```jsx filename="app/page.js" highlight={5-9} switcher
 'use cache'
 import { unstable_cacheLife as cacheLife } from 'next/cache'
 
