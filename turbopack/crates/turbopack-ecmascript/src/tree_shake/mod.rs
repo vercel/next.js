@@ -428,7 +428,7 @@ pub(super) async fn split(
     parsed: Vc<ParseResult>,
 ) -> Result<Vc<SplitResult>> {
     // Do not split already split module
-    if ident.await?.part.is_some() {
+    if !ident.await?.parts.is_empty() {
         return Ok(SplitResult::Failed {
             parse_result: parsed,
         }
