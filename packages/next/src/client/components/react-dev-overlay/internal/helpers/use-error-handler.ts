@@ -6,6 +6,7 @@ import { formatConsoleArgs } from '../../../../lib/console'
 import isError from '../../../../../lib/is-error'
 import { createUnhandledError } from './console-error'
 import { enqueueConsecutiveDedupedError } from './enqueue-client-error'
+import { appendOwnerStack } from './stitched-error'
 
 export type ErrorHandler = (error: Error) => void
 
@@ -23,6 +24,8 @@ export function handleClientError(
     // If it's not an error, format the args into an error
     const formattedErrorMessage = formatConsoleArgs(consoleErrorArgs)
     error = createUnhandledError(formattedErrorMessage)
+    // Append owner stack to unhandled errors created from the console.error message
+    appendOwnerStack(error)
   } else {
     error = originError
   }
