@@ -76,7 +76,12 @@ function awaitMemberAccessOfProp(
       j
     )
 
-    if (!parentScopeOfMemberAccess.value?.async) {
+    // When the parent scope is sync, and it's also not the function itself, which means it's not able to convert to async.
+    if (
+      parentScopeOfMemberAccess &&
+      !parentScopeOfMemberAccess.value?.async &&
+      parentScopeOfMemberAccess.node !== path.node
+    ) {
       // If it's not able to convert, add a comment to the prop access to warn the user
       // e.g. the parent scope is sync, await keyword can't be applied
       const comment = ` ${NEXT_CODEMOD_ERROR_PREFIX} '${propIdName}.${memberProperty.name}' is accessed without awaiting.`
