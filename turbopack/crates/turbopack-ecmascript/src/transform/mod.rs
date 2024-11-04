@@ -249,7 +249,7 @@ impl EcmascriptInputTransform {
 
                 // Explicit type annotation to ensure that we don't duplicate transforms in the
                 // final binary
-                *program = module_program.fold_with(&mut chain!(
+                *program = module_program.fold_with(&mut (
                     preset_env::preset_env::<&'_ dyn Comments>(
                         top_level_mark,
                         Some(&comments),
@@ -283,10 +283,7 @@ impl EcmascriptInputTransform {
                 };
 
                 let p = std::mem::replace(program, Program::Module(Module::dummy()));
-                *program = p.fold_with(&mut chain!(
-                    decorators(config),
-                    inject_helpers(unresolved_mark)
-                ));
+                *program = p.fold_with(&mut (decorators(config), inject_helpers(unresolved_mark)));
             }
             EcmascriptInputTransform::Plugin(transform) => {
                 transform.await?.transform(program, ctx).await?
