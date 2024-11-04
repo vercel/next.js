@@ -355,7 +355,10 @@ fn react_server_components_server_graph_fixture(input: PathBuf) {
         },
         &input,
         &output,
-        Default::default(),
+        FixtureTestConfig {
+            module: Some(true),
+            ..Default::default()
+        },
     );
 }
 
@@ -719,6 +722,7 @@ fn test_edge_assert(input: PathBuf) {
         &output,
         FixtureTestConfig {
             allow_error: true,
+            module: Some(true),
             ..Default::default()
         },
     );
