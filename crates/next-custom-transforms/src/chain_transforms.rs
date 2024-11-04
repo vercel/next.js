@@ -12,9 +12,9 @@ use swc_core::{
         FileName, Mark, SourceFile, SourceMap, SyntaxContext,
     },
     ecma::{
-        ast::{noop_pass, EsVersion},
+        ast::{noop_pass, EsVersion, Pass},
         parser::parse_file_as_module,
-        visit::{visit_mut_pass, Fold},
+        visit::visit_mut_pass,
     },
 };
 
@@ -125,7 +125,7 @@ pub fn custom_before_pass<'a, C>(
     comments: C,
     eliminated_packages: Rc<RefCell<FxHashSet<String>>>,
     unresolved_mark: Mark,
-) -> impl Fold + 'a
+) -> impl Pass + 'a
 where
     C: Clone + Comments + 'a,
 {
