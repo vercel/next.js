@@ -2,7 +2,7 @@
 
 type UnhandledError = Error & { digest: 'NEXT_UNHANDLED_ERROR' }
 
-// This is a custom unhandled error where we only has the stringified message without stack.
+// This is a custom unhandled error where we only have the stringified message without stack.
 export function createUnhandledError(message: string): UnhandledError {
   const error = new Error(message) as UnhandledError
   error.digest = 'NEXT_UNHANDLED_ERROR'

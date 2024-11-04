@@ -1,205 +1,103 @@
 import { nextTestSetup } from 'e2e-utils'
-import { getRedboxSource, waitForAndOpenRuntimeError } from 'next-test-utils'
+import {
+  getRedboxSource,
+  waitForAndOpenRuntimeError,
+  getStackFramesContent,
+} from 'next-test-utils'
 
 // TODO: When owner stack is enabled by default, remove the condition and only keep one test
 const isOwnerStackEnabled =
   process.env.TEST_OWNER_STACK !== 'false' ||
   process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
 
-async function getStackFramesContent(browser) {
-  const stackFrameElements = await browser.elementsByCss(
-    '[data-nextjs-call-stack-frame]'
-  )
-  const stackFramesContent = (
-    await Promise.all(
-      stackFrameElements.map(async (frame) => {
-        const functionNameEl = await frame.$('[data-nextjs-frame-expanded]')
-        const sourceEl = await frame.$('[data-has-source]')
-        const functionName = functionNameEl
-          ? await functionNameEl.innerText()
-          : ''
-        const source = sourceEl ? await sourceEl.innerText() : ''
+;(isOwnerStackEnabled ? describe : describe.skip)(
+  'app-dir - owner-stack-react-missing-key-prop',
+  () => {
+    const { next } = nextTestSetup({
+      files: __dirname,
+    })
 
-        if (!functionName) {
-          return ''
-        }
-        return `at ${functionName} (${source})`
-      })
-    )
-  )
-    .filter(Boolean)
-    .join('\n')
+    it('should catch invalid element from on rsc component', async () => {
+      const browser = await next.browser('/rsc')
+      await waitForAndOpenRuntimeError(browser)
 
-  return stackFramesContent
-}
+      const stackFramesContent = await getStackFramesContent(browser)
+      const source = await getRedboxSource(browser)
 
-describe('owner-stack-react-missing-key-prop', () => {
-  const { next } = nextTestSetup({
-    files: __dirname,
-  })
-
-  let nextConfig: string = ''
-  beforeAll(async () => {
-    if (!isOwnerStackEnabled) {
-      await next.stop()
-      await next.patchFile('next.config.js', (content: string) => {
-        nextConfig = content
-        return content.replace(
-          `reactOwnerStack: true`,
-          `reactOwnerStack: false`
-        )
-      })
-      await next.start()
-    }
-  })
-  afterAll(async () => {
-    if (!isOwnerStackEnabled) {
-      await next.stop()
-      // Restore original next.config.js
-      await next.patchFile('next.config.js', nextConfig)
-    }
-  })
-
-  it('should catch invalid element from on rsc component', async () => {
-    const browser = await next.browser('/rsc')
-    await waitForAndOpenRuntimeError(browser)
-
-    const stackFramesContent = await getStackFramesContent(browser)
-    const source = await getRedboxSource(browser)
-
-    if (process.env.TURBOPACK) {
-      if (isOwnerStackEnabled) {
+      if (process.env.TURBOPACK) {
         // FIXME: the methodName of the stack frame is not aligned between Turbopack and Webpack
         expect(stackFramesContent).toMatchInlineSnapshot(
           `"at Page (app/rsc/page.tsx (6:13))"`
         )
         expect(source).toMatchInlineSnapshot(`
-          "app/rsc/page.tsx (7:9) @ <anonymous>
+        "app/rsc/page.tsx (7:9) @ <anonymous>
 
-             5 |     <div>
-             6 |       {list.map((item, index) => (
-          >  7 |         <span>{item}</span>
-               |         ^
-             8 |       ))}
-             9 |     </div>
-            10 |   )"
-        `)
+           5 |     <div>
+           6 |       {list.map((item, index) => (
+        >  7 |         <span>{item}</span>
+             |         ^
+           8 |       ))}
+           9 |     </div>
+          10 |   )"
+      `)
       } else {
-        expect(stackFramesContent).toMatchInlineSnapshot(`""`)
-        expect(source).toMatchInlineSnapshot(`
-          "app/rsc/page.tsx (5:5) @ Page
-
-            3 | export default function Page() {
-            4 |   return (
-          > 5 |     <div>
-              |     ^
-            6 |       {list.map((item, index) => (
-            7 |         <span>{item}</span>
-            8 |       ))}"
-        `)
-      }
-    } else {
-      if (isOwnerStackEnabled) {
         // FIXME: the methodName of the stack frame is not aligned between Turbopack and Webpack
         expect(stackFramesContent).toMatchInlineSnapshot(
           `"at map (app/rsc/page.tsx (6:13))"`
         )
         expect(source).toMatchInlineSnapshot(`
-          "app/rsc/page.tsx (7:10) @ span
+        "app/rsc/page.tsx (7:10) @ span
 
-             5 |     <div>
-             6 |       {list.map((item, index) => (
-          >  7 |         <span>{item}</span>
-               |          ^
-             8 |       ))}
-             9 |     </div>
-            10 |   )"
-        `)
-      } else {
-        expect(stackFramesContent).toMatchInlineSnapshot(`""`)
-        expect(source).toMatchInlineSnapshot(`
-          "app/rsc/page.tsx (5:6) @ div
-
-            3 | export default function Page() {
-            4 |   return (
-          > 5 |     <div>
-              |      ^
-            6 |       {list.map((item, index) => (
-            7 |         <span>{item}</span>
-            8 |       ))}"
-        `)
+           5 |     <div>
+           6 |       {list.map((item, index) => (
+        >  7 |         <span>{item}</span>
+             |          ^
+           8 |       ))}
+           9 |     </div>
+          10 |   )"
+      `)
       }
-    }
-  })
+    })
 
-  it('should catch invalid element from on ssr client component', async () => {
-    const browser = await next.browser('/ssr')
-    await waitForAndOpenRuntimeError(browser)
+    it('should catch invalid element from on ssr client component', async () => {
+      const browser = await next.browser('/ssr')
+      await waitForAndOpenRuntimeError(browser)
 
-    const stackFramesContent = await getStackFramesContent(browser)
-    const source = await getRedboxSource(browser)
-    if (process.env.TURBOPACK) {
-      if (isOwnerStackEnabled) {
+      const stackFramesContent = await getStackFramesContent(browser)
+      const source = await getRedboxSource(browser)
+      if (process.env.TURBOPACK) {
         // FIXME: the methodName of the stack frame is not aligned between Turbopack and Webpack
         expect(stackFramesContent).toMatchInlineSnapshot(
           `"at Page (app/ssr/page.tsx (8:13))"`
         )
         expect(source).toMatchInlineSnapshot(`
-          "app/ssr/page.tsx (9:9) @ <unknown>
+        "app/ssr/page.tsx (9:9) @ <unknown>
 
-             7 |     <div>
-             8 |       {list.map((item, index) => (
-          >  9 |         <p>{item}</p>
-               |         ^
-            10 |       ))}
-            11 |     </div>
-            12 |   )"
-        `)
+           7 |     <div>
+           8 |       {list.map((item, index) => (
+        >  9 |         <p>{item}</p>
+             |         ^
+          10 |       ))}
+          11 |     </div>
+          12 |   )"
+      `)
       } else {
-        expect(stackFramesContent).toMatchInlineSnapshot(`""`)
-        expect(source).toMatchInlineSnapshot(`
-          "app/ssr/page.tsx (7:5) @ Page
-
-             5 | export default function Page() {
-             6 |   return (
-          >  7 |     <div>
-               |     ^
-             8 |       {list.map((item, index) => (
-             9 |         <p>{item}</p>
-            10 |       ))}"
-        `)
-      }
-    } else {
-      if (isOwnerStackEnabled) {
         // FIXME: the methodName of the stack frame is not aligned between Turbopack and Webpack
         expect(stackFramesContent).toMatchInlineSnapshot(
           `"at map (app/ssr/page.tsx (8:13))"`
         )
         expect(source).toMatchInlineSnapshot(`
-          "app/ssr/page.tsx (9:10) @ p
+        "app/ssr/page.tsx (9:10) @ p
 
-             7 |     <div>
-             8 |       {list.map((item, index) => (
-          >  9 |         <p>{item}</p>
-               |          ^
-            10 |       ))}
-            11 |     </div>
-            12 |   )"
-        `)
-      } else {
-        expect(stackFramesContent).toMatchInlineSnapshot(`""`)
-        expect(source).toMatchInlineSnapshot(`
-          "app/ssr/page.tsx (7:6) @ div
-
-             5 | export default function Page() {
-             6 |   return (
-          >  7 |     <div>
-               |      ^
-             8 |       {list.map((item, index) => (
-             9 |         <p>{item}</p>
-            10 |       ))}"
-        `)
+           7 |     <div>
+           8 |       {list.map((item, index) => (
+        >  9 |         <p>{item}</p>
+             |          ^
+          10 |       ))}
+          11 |     </div>
+          12 |   )"
+      `)
       }
-    }
-  })
-})
+    })
+  }
+)
