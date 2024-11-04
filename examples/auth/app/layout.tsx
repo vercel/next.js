@@ -2,7 +2,7 @@ import "./globals.css";
 
 export const metadata = {
   title: "Next.js Authentication",
-  description: "Example using NextAuth.js",
+  description: "Example using Auth.js",
 };
 
 export default function RootLayout({
