@@ -263,7 +263,11 @@ This example caches the result of the database query for 1 hour (3600 seconds). 
 
 Next.js uses APIs like `generateMetadata` and `generateStaticParams` where you will need to use the same data fetched in the `page`.
 
-If you are using `fetch`, requests are automatically [memoized](/docs/app/building-your-application/caching#request-memoization). This means you can safely call the same URL with the same options, and only one request will be made.
+If you are using `fetch`, requests can be [memoized](/docs/app/building-your-application/caching#request-memoization) by adding `cache: 'force-cache'`. This means you can safely call the same URL with the same options, and only one request will be made.
+
+> **Good to know:**
+>
+> - In previous versions of Next.js, using `fetch` would have a default `cache` value of `force-cache`. This changed in version 15, to a default of `cache: no-store`.
 
 ```tsx filename="app/page.tsx" switcher
 import { notFound } from 'next/navigation'
@@ -275,16 +279,18 @@ interface Post {
 }
 
 async function getPost(id: string) {
-  let res = await fetch(`https://api.vercel.app/blog/${id}`)
+  let res = await fetch(`https://api.vercel.app/blog/${id}`, {
+    cache: 'force-cache',
+  })
   let post: Post = await res.json()
   if (!post) notFound()
   return post
 }
 
 export async function generateStaticParams() {
-  let posts = await fetch('https://api.vercel.app/blog').then((res) =>
-    res.json()
-  )
+  let posts = await fetch('https://api.vercel.app/blog', {
+    cache: 'force-cache',
+  }).then((res) => res.json())
 
   return posts.map((post: Post) => ({
     id: post.id,
