@@ -178,18 +178,19 @@ where
         Either::Right(noop())
     };
 
-    chain!(
+    (
         crate::transforms::disallow_re_export_all_in_page::disallow_re_export_all_in_page(
-            opts.is_page_file
+            opts.is_page_file,
         ),
         match &opts.server_components {
-            Some(config) if config.truthy() =>
+            Some(config) if config.truthy() => {
                 Either::Left(react_server_components::server_components(
                     file.name.clone(),
                     config.clone(),
                     comments.clone(),
                     opts.app_dir.clone(),
-                )),
+                ))
+            }
             _ => Either::Right(noop()),
         },
         styled_jsx,
@@ -198,13 +199,13 @@ where
                 file.name.clone(),
                 file.src_hash,
                 config.clone(),
-                NoopComments
+                NoopComments,
             )),
             None => Either::Right(noop()),
         },
         Optional::new(
             crate::transforms::next_ssg::next_ssg(eliminated_packages),
-            !opts.disable_next_ssg
+            !opts.disable_next_ssg,
         ),
         crate::transforms::amp_attributes::amp_attributes(),
         next_dynamic(
@@ -214,8 +215,9 @@ where
                 Some(config) if config.truthy() => match config {
                     // Always enable the Server Components mode for both
                     // server and client layers.
-                    react_server_components::Config::WithOptions(config) =>
-                        config.is_react_server_layer,
+                    react_server_components::Config::WithOptions(config) => {
+                        config.is_react_server_layer
+                    }
                     _ => false,
                 },
                 _ => false,
@@ -227,43 +229,43 @@ where
         ),
         Optional::new(
             crate::transforms::page_config::page_config(opts.is_development, opts.is_page_file),
-            !opts.disable_page_config
+            !opts.disable_page_config,
         ),
         relay_plugin,
         match &opts.remove_console {
             Some(config) if config.truthy() => Either::Left(remove_console::remove_console(
                 config.clone(),
-                SyntaxContext::empty().apply_mark(unresolved_mark)
+                SyntaxContext::empty().apply_mark(unresolved_mark),
             )),
             _ => Either::Right(noop()),
         },
         match &opts.react_remove_properties {
             Some(config) if config.truthy() => Either::Left(
-                react_remove_properties::react_remove_properties(config.clone())
+                react_remove_properties::react_remove_properties(config.clone()),
             ),
             _ => Either::Right(noop()),
         },
         match &opts.shake_exports {
             Some(config) => Either::Left(crate::transforms::shake_exports::shake_exports(
-                config.clone()
+                config.clone(),
             )),
             None => Either::Right(noop()),
         },
         match &opts.auto_modularize_imports {
             Some(config) => Either::Left(
-                crate::transforms::named_import_transform::named_import_transform(config.clone())
+                crate::transforms::named_import_transform::named_import_transform(config.clone()),
             ),
             None => Either::Right(noop()),
         },
         match &opts.optimize_barrel_exports {
             Some(config) => Either::Left(crate::transforms::optimize_barrel::optimize_barrel(
-                config.clone()
+                config.clone(),
             )),
             _ => Either::Right(noop()),
         },
         match &opts.optimize_server_react {
             Some(config) => Either::Left(
-                crate::transforms::optimize_server_react::optimize_server_react(config.clone())
+                crate::transforms::optimize_server_react::optimize_server_react(config.clone()),
             ),
             _ => Either::Right(noop()),
         },
@@ -312,12 +314,12 @@ where
         },
         Optional::new(
             crate::transforms::debug_fn_name::debug_fn_name(),
-            opts.debug_function_name
+            opts.debug_function_name,
         ),
         as_folder(crate::transforms::pure::pure_magic(comments.clone())),
         Optional::new(
             linter(lint_codemod_comments(comments)),
-            opts.lint_codemod_comments
+            opts.lint_codemod_comments,
         ),
     )
 }
