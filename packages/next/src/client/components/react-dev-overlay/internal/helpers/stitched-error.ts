@@ -37,7 +37,7 @@ export function getReactStitchedError<T = unknown>(err: T): Error | T {
   return newError
 }
 
-export function appendOwnerStack(error: Error) {
+function appendOwnerStack(error: Error) {
   let stack = error.stack || ''
   // Avoid duplicate overriding stack frames
   const ownerStack = captureOwnerStack()
