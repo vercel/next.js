@@ -47,7 +47,7 @@ export function getServerSideProps() {
                     &Default::default(),
                     comments,
                     |_| next_ssg(eliminated_packages.clone()),
-                    |_| noop(),
+                    |_| noop_pass(),
                 )
             })
         })
