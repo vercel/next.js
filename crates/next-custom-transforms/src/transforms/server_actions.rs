@@ -18,7 +18,7 @@ use swc_core::{
         ast::*,
         atoms::JsWord,
         utils::{private_ident, quote_ident, ExprFactory},
-        visit::{as_folder, noop_visit_mut_type, Fold, VisitMut, VisitMutWith},
+        visit::{noop_visit_mut_type, visit_mut_pass, Fold, VisitMut, VisitMutWith},
     },
 };
 
@@ -40,7 +40,7 @@ pub fn server_actions<C: Comments>(
     config: Config,
     comments: C,
 ) -> impl VisitMut + Fold {
-    as_folder(ServerActions {
+    visit_mut_pass(ServerActions {
         config,
         comments,
         file_name: file_name.to_string(),
