@@ -2966,7 +2966,7 @@ impl ValueToString for ModulePart {
                 format!("export * as {}", export.await?).into()
             }
             ModulePart::Internal(id) => format!("internal part {}", id).into(),
-            ModulePart::InternalEvaluation(id) => format!("internal evaluation part {}", id).into(),
+            ModulePart::InternalEvaluation(id) => format!("internal part {}", id).into(),
             ModulePart::Locals => "locals".into(),
             ModulePart::Exports => "exports".into(),
             ModulePart::Facade => "facade".into(),
