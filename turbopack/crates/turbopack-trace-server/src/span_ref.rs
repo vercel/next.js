@@ -268,6 +268,9 @@ impl<'a> SpanRef<'a> {
                     self_time += duration * duration / concurrent_time;
                 }
             }
+            if self.children().next().is_none() {
+                self_time = max(self_time, 1);
+            }
             self_time
         })
     }
