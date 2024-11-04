@@ -42,8 +42,8 @@ const isOwnerStackEnabled =
         `)
       } else {
         expect(stackFramesContent).toMatchInlineSnapshot(`
-            "at BrowserOnly (app/browser/page.js (11:11))
-            at Inner (app/browser/page.js (15:11))"
+          "at BrowserOnly (app/browser/page.js (11:11))
+          at Inner (app/browser/page.js (15:11))"
         `)
         // FIXME: the methodName should be `@ BrowserOnly` instead of `@ Foo`
         expect(source).toMatchInlineSnapshot(`
