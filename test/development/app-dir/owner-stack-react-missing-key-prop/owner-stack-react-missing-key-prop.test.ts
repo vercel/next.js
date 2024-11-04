@@ -1,7 +1,10 @@
 import { nextTestSetup } from 'e2e-utils'
 import { getRedboxSource, waitForAndOpenRuntimeError } from 'next-test-utils'
 
-const isOwnerStackEnabled = process.env.TEST_OWNER_STACK !== 'false'
+// TODO: When owner stack is enabled by default, remove the condition and only keep one test
+const isOwnerStackEnabled =
+  process.env.TEST_OWNER_STACK !== 'false' ||
+  process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
 
 async function getStackFramesContent(browser) {
   const stackFrameElements = await browser.elementsByCss(
@@ -66,6 +69,7 @@ describe('owner-stack-react-missing-key-prop', () => {
 
     if (process.env.TURBOPACK) {
       if (isOwnerStackEnabled) {
+        // FIXME: the methodName of the stack frame is not aligned between Turbopack and Webpack
         expect(stackFramesContent).toMatchInlineSnapshot(
           `"at Page (app/rsc/page.tsx (6:13))"`
         )
@@ -96,6 +100,7 @@ describe('owner-stack-react-missing-key-prop', () => {
       }
     } else {
       if (isOwnerStackEnabled) {
+        // FIXME: the methodName of the stack frame is not aligned between Turbopack and Webpack
         expect(stackFramesContent).toMatchInlineSnapshot(
           `"at map (app/rsc/page.tsx (6:13))"`
         )
@@ -135,6 +140,7 @@ describe('owner-stack-react-missing-key-prop', () => {
     const source = await getRedboxSource(browser)
     if (process.env.TURBOPACK) {
       if (isOwnerStackEnabled) {
+        // FIXME: the methodName of the stack frame is not aligned between Turbopack and Webpack
         expect(stackFramesContent).toMatchInlineSnapshot(
           `"at Page (app/ssr/page.tsx (8:13))"`
         )
@@ -165,6 +171,7 @@ describe('owner-stack-react-missing-key-prop', () => {
       }
     } else {
       if (isOwnerStackEnabled) {
+        // FIXME: the methodName of the stack frame is not aligned between Turbopack and Webpack
         expect(stackFramesContent).toMatchInlineSnapshot(
           `"at map (app/ssr/page.tsx (8:13))"`
         )
