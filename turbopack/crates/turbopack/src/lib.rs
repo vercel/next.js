@@ -164,7 +164,7 @@ async fn apply_module_type(
             }
 
             if runtime_code {
-                Vc::upcast(builder.build())
+                ResolvedVc::upcast(builder.build().to_resolved().await?)
             } else {
                 let module = builder.build();
                 let part_ref = if let Some(part) = part {
@@ -246,47 +246,64 @@ async fn apply_module_type(
                     }
                     None => Vc::upcast(module),
                 }
+                .to_resolved()
+                .await?
             }
         }
-        ModuleType::Json => Vc::upcast(JsonModuleAsset::new(source)),
-        ModuleType::Raw => Vc::upcast(RawModule::new(source)),
+        ModuleType::Json => ResolvedVc::upcast(JsonModuleAsset::new(source).to_resolved().await?),
+        ModuleType::Raw => ResolvedVc::upcast(RawModule::new(source).to_resolved().await?),
         ModuleType::CssGlobal => {
             return Ok(module_asset_context.process(
                 source,
                 Value::new(ReferenceType::Css(CssReferenceSubType::Internal)),
             ))
         }
-        ModuleType::CssModule => Vc::upcast(ModuleCssAsset::new(
-            source,
-            Vc::upcast(module_asset_context),
-        )),
-        ModuleType::Css { ty, use_swc_css } => Vc::upcast(CssModuleAsset::new(
-            source,
-            Vc::upcast(module_asset_context),
-            *ty,
-            module_asset_context
-                .module_options_context()
+        ModuleType::CssModule => ResolvedVc::upcast(
+            ModuleCssAsset::new(source, Vc::upcast(module_asset_context))
+                .to_resolved()
+                .await?,
+        ),
+        ModuleType::Css { ty, use_swc_css } => ResolvedVc::upcast(
+            CssModuleAsset::new(
+                source,
+                Vc::upcast(module_asset_context),
+                *ty,
+                module_asset_context
+                    .module_options_context()
+                    .await?
+                    .css
+                    .minify_type,
+                *use_swc_css,
+                if let ReferenceType::Css(CssReferenceSubType::AtImport(import)) =
+                    reference_type.into_value()
+                {
+                    import
+                } else {
+                    None
+                },
+            )
+            .to_resolved()
+            .await?,
+        ),
+        ModuleType::Static => ResolvedVc::upcast(
+            StaticModuleAsset::new(source, Vc::upcast(module_asset_context))
+                .to_resolved()
+                .await?,
+        ),
+        ModuleType::WebAssembly { source_ty } => ResolvedVc::upcast(
+            WebAssemblyModuleAsset::new(
+                WebAssemblySource::new(source, *source_ty),
+                Vc::upcast(module_asset_context),
+            )
+            .to_resolved()
+            .await?,
+        ),
+        ModuleType::Custom(custom) => {
+            custom
+                .create_module(source, module_asset_context, part)
+                .to_resolved()
                 .await?
-                .css
-                .minify_type,
-            *use_swc_css,
-            if let ReferenceType::Css(CssReferenceSubType::AtImport(import)) =
-                reference_type.into_value()
-            {
-                import
-            } else {
-                None
-            },
-        )),
-        ModuleType::Static => Vc::upcast(StaticModuleAsset::new(
-            source,
-            Vc::upcast(module_asset_context),
-        )),
-        ModuleType::WebAssembly { source_ty } => Vc::upcast(WebAssemblyModuleAsset::new(
-            WebAssemblySource::new(source, *source_ty),
-            Vc::upcast(module_asset_context),
-        )),
-        ModuleType::Custom(custom) => custom.create_module(source, module_asset_context, part),
+        }
     })
     .cell())
 }
@@ -717,7 +734,9 @@ impl AssetContext for ModuleAssetContext {
                         self.process_with_transition_rules(source, reference_type)
                     };
                     Ok(match *process_result.await? {
-                        ProcessResult::Module(m) => ModuleResolveResultItem::Module(Vc::upcast(m)),
+                        ProcessResult::Module(m) => {
+                            ModuleResolveResultItem::Module(ResolvedVc::upcast(m))
+                        }
                         ProcessResult::Ignore => ModuleResolveResultItem::Ignore,
                     })
                 }
@@ -937,10 +956,10 @@ pub async fn replace_externals(
         };
 
         let module = CachedExternalModule::new(request.clone(), external_type)
-            .resolve()
+            .to_resolved()
             .await?;
 
-        *item = ModuleResolveResultItem::Module(Vc::upcast(module));
+        *item = ModuleResolveResultItem::Module(ResolvedVc::upcast(module));
     }
 
     Ok(result)

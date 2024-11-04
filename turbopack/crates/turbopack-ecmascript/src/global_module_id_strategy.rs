@@ -36,18 +36,19 @@ impl ReferencedModule {
     }
 }
 
-// TODO(LichuAcu): Reduce type complexity
-#[allow(clippy::type_complexity)]
-type ModulesAndAsyncLoaders = Vec<(Vec<Vc<Box<dyn Module>>>, Option<Vc<Box<dyn Module>>>)>;
-
 #[turbo_tasks::value(transparent)]
-pub struct ReferencedModules(Vec<Vc<ReferencedModule>>);
+pub struct ReferencedModules(Vec<ResolvedVc<ReferencedModule>>);
 
 #[turbo_tasks::function]
 async fn referenced_modules(module: Vc<Box<dyn Module>>) -> Result<Vc<ReferencedModules>> {
     let references = module.references().await?;
 
-    let mut set = FxIndexSet::default();
+    // TODO(LichuAcu): Reduce type complexity
+    #[allow(clippy::type_complexity)]
+    type ModulesAndAsyncLoaders = Vec<(
+        Vec<ResolvedVc<Box<dyn Module>>>,
+        Option<ResolvedVc<Box<dyn Module>>>,
+    )>;
     let modules_and_async_loaders: ModulesAndAsyncLoaders = references
         .iter()
         .map(|reference| async move {
@@ -79,20 +80,18 @@ async fn referenced_modules(module: Vc<Box<dyn Module>>) -> Result<Vc<Referenced
         .try_join()
         .await?;
 
+    let mut set = FxIndexSet::default();
     let mut modules = Vec::new();
-
     for (module_list, async_loader) in modules_and_async_loaders {
         for module in module_list {
             if set.insert(module) {
-                modules.push(ReferencedModule::Module(module).cell());
+                modules.push(ReferencedModule::Module(*module).resolved_cell());
             }
         }
         if let Some(async_loader_module) = async_loader {
             if set.insert(async_loader_module) {
-                modules.push(
-                    ReferencedModule::AsyncLoaderModule(async_loader_module.to_resolved().await?)
-                        .cell(),
-                );
+                modules
+                    .push(ReferencedModule::AsyncLoaderModule(async_loader_module).resolved_cell());
             }
         }
     }
@@ -101,12 +100,12 @@ async fn referenced_modules(module: Vc<Box<dyn Module>>) -> Result<Vc<Referenced
 }
 
 pub async fn get_children_modules(
-    parent: Vc<ReferencedModule>,
-) -> Result<impl Iterator<Item = Vc<ReferencedModule>> + Send> {
+    parent: ResolvedVc<ReferencedModule>,
+) -> Result<impl Iterator<Item = ResolvedVc<ReferencedModule>> + Send> {
     let parent_module = parent.await?.module();
     let mut modules = referenced_modules(parent_module).await?.clone_value();
     for module in parent_module.additional_layers_modules().await? {
-        modules.push(ReferencedModule::Module(*module).cell());
+        modules.push(ReferencedModule::Module(**module).resolved_cell());
     }
     Ok(modules.into_iter())
 }
@@ -125,7 +124,7 @@ pub async fn children_modules_idents(
             root_modules
                 .await?
                 .iter()
-                .map(|module| ReferencedModule::Module(*module).cell())
+                .map(|module| ReferencedModule::Module(**module).resolved_cell())
                 .collect::<Vec<_>>(),
             get_children_modules,
         )

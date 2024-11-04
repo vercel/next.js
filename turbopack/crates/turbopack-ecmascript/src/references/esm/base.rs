@@ -84,10 +84,10 @@ impl ReferencedAsset {
                 }
                 &ModuleResolveResultItem::Module(module) => {
                     if let Some(placeable) =
-                        Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkPlaceable>>(module)
+                        ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkPlaceable>>(module)
                             .await?
                     {
-                        return Ok(ReferencedAsset::Some(placeable.to_resolved().await?).cell());
+                        return Ok(ReferencedAsset::Some(placeable).cell());
                     }
                 }
                 // TODO ignore should probably be handled differently
@@ -167,7 +167,9 @@ impl ModuleReference for EsmAssetReference {
                             .expect("EsmAssetReference origin should be a EcmascriptModuleAsset");
 
                     return Ok(ModuleResolveResult::module(
-                        EcmascriptModulePartAsset::select_part(module, *part),
+                        EcmascriptModulePartAsset::select_part(module, *part)
+                            .to_resolved()
+                            .await?,
                     )
                     .cell());
                 }
@@ -188,12 +190,12 @@ impl ModuleReference for EsmAssetReference {
             let part = part.await?;
             if let &ModulePart::Export(export_name) = &*part {
                 for &module in result.primary_modules().await? {
-                    if let Some(module) = Vc::try_resolve_downcast(module).await? {
+                    if let Some(module) = ResolvedVc::try_downcast(module).await? {
                         let export = export_name.await?;
-                        if *is_export_missing(module, export.clone_value()).await? {
+                        if *is_export_missing(*module, export.clone_value()).await? {
                             InvalidExport {
                                 export: *export_name,
-                                module,
+                                module: *module,
                                 source: self.issue_source,
                             }
                             .cell()

@@ -119,7 +119,7 @@ impl Module for ManifestAsyncModule {
                 .copied()
                 .map(|chunk| {
                     Vc::upcast(SingleOutputAssetReference::new(
-                        chunk,
+                        *chunk,
                         manifest_chunk_reference_description(),
                     ))
                 })

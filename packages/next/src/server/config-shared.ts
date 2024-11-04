@@ -1039,7 +1039,7 @@ export const defaultConfig: NextConfig = {
       seconds: {
         stale: undefined, // defaults to staleTimes.dynamic
         revalidate: 1, // 1 second
-        expire: 1, // 1 minute
+        expire: 60, // 1 minute
       },
       minutes: {
         stale: 60 * 5, // 5 minutes

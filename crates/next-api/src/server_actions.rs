@@ -19,7 +19,7 @@ use swc_core::{
 use tracing::Instrument;
 use turbo_tasks::{
     graph::{GraphTraversal, NonDeterministic},
-    FxIndexMap, RcStr, TryFlatJoinIterExt, Value, ValueToString, Vc,
+    FxIndexMap, RcStr, ResolvedVc, TryFlatJoinIterExt, Value, ValueToString, Vc,
 };
 use turbo_tasks_fs::{self, rope::RopeBuilder, File, FileSystemPath};
 use turbopack_core::{
@@ -43,7 +43,7 @@ use turbopack_ecmascript::{
 #[turbo_tasks::value]
 pub(crate) struct ServerActionsManifest {
     pub loader: Vc<Box<dyn EvaluatableAsset>>,
-    pub manifest: Vc<Box<dyn OutputAsset>>,
+    pub manifest: ResolvedVc<Box<dyn OutputAsset>>,
 }
 
 /// Scans the RSC entry point's full module graph looking for exported Server
@@ -141,7 +141,7 @@ async fn build_manifest(
     runtime: NextRuntime,
     actions: Vc<AllActions>,
     chunk_item: Vc<Box<dyn ChunkItem>>,
-) -> Result<Vc<Box<dyn OutputAsset>>> {
+) -> Result<ResolvedVc<Box<dyn OutputAsset>>> {
     let manifest_path_prefix = &page_name;
     let manifest_path = node_root
         .join(format!("server/app{manifest_path_prefix}/server-reference-manifest.json",).into());
@@ -170,10 +170,14 @@ async fn build_manifest(
         entry.layer.insert(&key, *layer);
     }
 
-    Ok(Vc::upcast(VirtualOutputAsset::new(
-        manifest_path,
-        AssetContent::file(File::from(serde_json::to_string_pretty(&manifest)?).into()),
-    )))
+    Ok(ResolvedVc::upcast(
+        VirtualOutputAsset::new(
+            manifest_path,
+            AssetContent::file(File::from(serde_json::to_string_pretty(&manifest)?).into()),
+        )
+        .to_resolved()
+        .await?,
+    ))
 }
 
 /// Traverses the entire module graph starting from [Module], looking for magic
@@ -181,7 +185,7 @@ async fn build_manifest(
 /// returned along with the module which exports that action.
 #[turbo_tasks::function]
 async fn get_actions(
-    rsc_entry: Vc<Box<dyn Module>>,
+    rsc_entry: ResolvedVc<Box<dyn Module>>,
     server_reference_modules: Vc<Modules>,
     asset_context: Vc<Box<dyn AssetContext>>,
 ) -> Result<Vc<AllActions>> {
@@ -213,7 +217,7 @@ async fn get_actions(
             let module = if *layer == ActionLayer::Rsc {
                 *module
             } else {
-                to_rsc_context(*module, asset_context).await?
+                to_rsc_context(**module, asset_context).await?
             };
 
             for (hash_id, name) in &*actions_map.await? {
@@ -242,7 +246,7 @@ async fn get_actions(
 async fn to_rsc_context(
     module: Vc<Box<dyn Module>>,
     asset_context: Vc<Box<dyn AssetContext>>,
-) -> Result<Vc<Box<dyn Module>>> {
+) -> Result<ResolvedVc<Box<dyn Module>>> {
     let source = FileSource::new_with_query(module.ident().path(), module.ident().query());
     let module = asset_context
         .process(
@@ -251,16 +255,18 @@ async fn to_rsc_context(
                 EcmaScriptModulesReferenceSubType::Undefined,
             )),
         )
-        .module();
+        .module()
+        .to_resolved()
+        .await?;
     Ok(module)
 }
 
 /// Our graph traversal visitor, which finds the primary modules directly
 /// referenced by parent.
 async fn get_referenced_modules(
-    (layer, module): (ActionLayer, Vc<Box<dyn Module>>),
-) -> Result<impl Iterator<Item = (ActionLayer, Vc<Box<dyn Module>>)> + Send> {
-    primary_referenced_modules(module)
+    (layer, module): (ActionLayer, ResolvedVc<Box<dyn Module>>),
+) -> Result<impl Iterator<Item = (ActionLayer, ResolvedVc<Box<dyn Module>>)> + Send> {
+    primary_referenced_modules(*module)
         .await
         .map(|modules| modules.into_iter().map(move |&m| (layer, m)))
 }
@@ -409,16 +415,16 @@ fn all_export_names(program: &Program) -> Vec<Atom> {
 /// Converts our cached [parse_actions] call into a data type suitable for
 /// collecting into a flat-mapped [FxIndexMap].
 async fn parse_actions_filter_map(
-    (layer, module): (ActionLayer, Vc<Box<dyn Module>>),
-) -> Result<Option<((ActionLayer, Vc<Box<dyn Module>>), Vc<ActionMap>)>> {
-    parse_actions(module).await.map(|option_action_map| {
+    (layer, module): (ActionLayer, ResolvedVc<Box<dyn Module>>),
+) -> Result<Option<((ActionLayer, ResolvedVc<Box<dyn Module>>), Vc<ActionMap>)>> {
+    parse_actions(*module).await.map(|option_action_map| {
         option_action_map
             .clone_value()
             .map(|action_map| ((layer, module), action_map))
     })
 }
 
-type HashToLayerNameModule = FxIndexMap<String, (ActionLayer, String, Vc<Box<dyn Module>>)>;
+type HashToLayerNameModule = FxIndexMap<String, (ActionLayer, String, ResolvedVc<Box<dyn Module>>)>;
 
 /// A mapping of every module which exports a Server Action, with the hashed id
 /// and exported name of each found action.

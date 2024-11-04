@@ -205,7 +205,7 @@ impl ChunkItem for ChunkGroupFilesChunkItem {
                 .copied()
                 .map(|chunk| {
                     SingleOutputAssetReference::new(
-                        chunk,
+                        *chunk,
                         chunk_group_chunk_reference_description(),
                     )
                 })
