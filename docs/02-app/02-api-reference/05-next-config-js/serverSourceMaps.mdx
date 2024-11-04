@@ -1,0 +1,36 @@
+---
+title: serverSourceMaps
+description: Enables source maps generation for the server production bundle.
+---
+
+Since Next.js minifies the server production bundle, source maps are disabled by default. To enable source maps generation, set `serverSourceMaps` to `true`.
+
+```js filename="next.config.js" switcher
+/** @type {import('next').NextConfig} */
+
+const nextConfig = {
+  serverSourceMaps: true,
+}
+
+module.exports = nextConfig
+```
+
+```js filename="next.config.mjs" switcher
+/** @type {import('next').NextConfig} */
+
+const nextConfig = {
+  serverSourceMaps: true,
+}
+
+export default nextConfig
+```
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  serverSourceMaps: true,
+}
+
+export default nextConfig
+```
