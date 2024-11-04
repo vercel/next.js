@@ -33,7 +33,7 @@ use swc_core::{
             testing::{test, test_fixture, FixtureTestConfig},
         },
         utils::ExprCtx,
-        visit::{as_folder, noop_fold_type, Fold, Visit},
+        visit::{noop_fold_type, visit_mut_pass, Fold, Visit},
     },
 };
 use swc_relay::{relay, RelayLanguageConfig};
@@ -459,7 +459,7 @@ fn cjs_optimize_fixture(input: PathBuf) {
 
             (
                 resolver(unresolved_mark, top_level_mark, false),
-                as_folder(cjs_optimizer(
+                visit_mut_pass(cjs_optimizer(
                     json(
                         r#"
                         {
@@ -601,7 +601,7 @@ fn pure(input: PathBuf) {
 
             (
                 resolver(unresolved_mark, top_level_mark, false),
-                as_folder(pure_magic(tr.comments.clone())),
+                visit_mut_pass(pure_magic(tr.comments.clone())),
             )
         },
         &input,
