@@ -50,7 +50,9 @@ impl RocksDbKeyValueDatabase {
         options.set_env(&env);
         options.create_if_missing(true);
         options.create_missing_column_families(true);
-        // options.set_atomic_flush(true);
+        if USE_ATOMIC_FLUSH {
+            options.set_atomic_flush(true);
+        }
         options.set_allow_concurrent_memtable_write(false);
         options.set_allow_mmap_reads(true);
         options.set_allow_mmap_writes(true);
