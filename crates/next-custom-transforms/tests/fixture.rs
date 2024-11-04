@@ -329,7 +329,10 @@ fn react_server_components_typescript(input: PathBuf) {
         },
         &input,
         &output,
-        Default::default(),
+        FixtureTestConfig {
+            module: Some(true),
+            ..Default::default()
+        },
     );
 }
 
@@ -646,7 +649,10 @@ fn run_stip_page_exports_test(input: &Path, output: &Path, mode: ExportFilter) {
         },
         input,
         output,
-        Default::default(),
+        FixtureTestConfig {
+            module: Some(true),
+            ..Default::default()
+        },
     );
 }
 
