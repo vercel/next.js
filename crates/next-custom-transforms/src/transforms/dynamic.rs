@@ -14,7 +14,7 @@ use swc_core::{
             ObjectLit, Pass, Prop, PropName, PropOrSpread, Stmt, Str, Tpl, UnaryExpr, UnaryOp,
         },
         utils::{private_ident, quote_ident, ExprFactory},
-        visit::{Fold, FoldWith},
+        visit::{fold_pass, Fold, FoldWith},
     },
     quote,
 };
@@ -33,7 +33,7 @@ pub fn next_dynamic(
     filename: Arc<FileName>,
     pages_or_app_dir: Option<PathBuf>,
 ) -> impl Pass {
-    NextDynamicPatcher {
+    fold_pass(NextDynamicPatcher {
         is_development,
         is_server_compiler,
         is_react_server_layer,
@@ -52,7 +52,7 @@ pub fn next_dynamic(
                 imports: vec![],
             },
         },
-    }
+    })
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
