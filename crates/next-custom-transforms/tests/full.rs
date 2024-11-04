@@ -104,7 +104,7 @@ fn test(input: &Path, minify: bool) {
                         unresolved_mark,
                     )
                 },
-                |_| noop(),
+                |_| noop_pass(),
             ) {
                 Ok(v) => {
                     NormalizedOutput::from(v.code)
