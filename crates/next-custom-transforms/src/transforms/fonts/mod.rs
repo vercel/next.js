@@ -3,7 +3,7 @@ use serde::Deserialize;
 use swc_core::{
     common::{collections::AHashMap, BytePos, Spanned},
     ecma::{
-        ast::{Id, ModuleItem},
+        ast::{Id, ModuleItem, Pass},
         atoms::JsWord,
         visit::{noop_visit_mut_type, visit_mut_pass, Fold, VisitMut, VisitWith},
     },
@@ -20,7 +20,7 @@ pub struct Config {
     pub relative_file_path_from_root: JsWord,
 }
 
-pub fn next_font_loaders(config: Config) -> impl Fold + VisitMut {
+pub fn next_font_loaders(config: Config) -> impl Pass + VisitMut {
     visit_mut_pass(NextFontLoaders {
         config,
         state: State {
