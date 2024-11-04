@@ -145,7 +145,7 @@ impl Task for TransformTask {
                                         unresolved_mark,
                                     )
                                 },
-                                |_| noop(),
+                                |_| noop_pass(),
                             )
                         })
                     },
