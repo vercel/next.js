@@ -4,11 +4,11 @@ use swc_core::ecma::{
         Pass,
     },
     atoms::JsWord,
-    visit::Fold,
+    visit::{fold_pass, Fold},
 };
 
 pub fn amp_attributes() -> impl Pass {
-    AmpAttributePatcher::default()
+    fold_pass(AmpAttributePatcher::default())
 }
 
 #[derive(Debug, Default)]
