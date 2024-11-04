@@ -105,10 +105,13 @@ export function createInitialRouterState({
       null,
   }
 
-  if (location) {
+  if (process.env.NODE_ENV !== 'development' && location) {
     // Seed the prefetch cache with this page's data.
     // This is to prevent needlessly re-prefetching a page that is already reusable,
     // and will avoid triggering a loading state/data fetch stall when navigating back to the page.
+    // We don't currently do this in development because links aren't prefetched in development
+    // so having a mismatch between prefetch/no prefetch provides inconsistent behavior based on which page
+    // was loaded first.
     const url = new URL(
       `${location.pathname}${location.search}`,
       location.origin
