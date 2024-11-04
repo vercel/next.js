@@ -172,9 +172,9 @@ import { RouteKind } from './route-kind'
 import type { RouteModule } from './route-modules/route-module'
 import { FallbackMode, parseFallbackField } from '../lib/fallback'
 import { toResponseCacheEntry } from './response-cache/utils'
-import { scheduleOnNextTick } from '../lib/scheduler'
 import { PrefetchCacheScopes } from './lib/prefetch-cache-scopes'
 import { runWithCacheScope } from './async-storage/cache-scope.external'
+import { scheduleAfterMicrotasks } from '../lib/scheduler'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -3199,7 +3199,7 @@ export default abstract class Server<
       // the route shell.
       !isDebugFallbackShell
     ) {
-      scheduleOnNextTick(async () => {
+      scheduleAfterMicrotasks(async () => {
         try {
           await this.responseCache.get(
             ssgCacheKey,

@@ -34,6 +34,7 @@ import {
 import type { CacheScopeStore } from '../async-storage/cache-scope.external'
 import DefaultCacheHandler from '../lib/cache-handlers/default'
 import type { CacheHandler, CacheEntry } from '../lib/cache-handlers/types'
+import { scheduleOnNextTick } from '../../lib/scheduler'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -483,7 +484,7 @@ export function cache(kind: string, id: string, fn: any) {
           // giving up. When we give up, we still want to render the content of this cache
           // as deeply as we can so that we can suspend as deeply as possible in the tree
           // or not at all if we don't end up waiting for the input.
-          process.nextTick(() => controller.abort())
+          scheduleOnNextTick(() => controller.abort())
         }
       }
 

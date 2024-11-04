@@ -5,6 +5,8 @@
  * and should only be used in codepaths gated with this feature.
  */
 
+import { scheduleOnNextTick } from '../../lib/scheduler'
+
 export class CacheSignal {
   private count: number
   private earlyListeners: Array<() => void>
@@ -23,7 +25,7 @@ export class CacheSignal {
   private noMorePendingCaches() {
     if (!this.tickPending) {
       this.tickPending = true
-      process.nextTick(() => {
+      scheduleOnNextTick(() => {
         this.tickPending = false
         if (this.count === 0) {
           for (let i = 0; i < this.earlyListeners.length; i++) {

@@ -40,7 +40,7 @@ import {
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from './hot-reloader-types'
 import { isAppPageRouteDefinition } from '../route-definitions/app-page-route-definition'
-import { scheduleOnNextTick } from '../../lib/scheduler'
+import { scheduleAfterMicrotasks } from '../../lib/scheduler'
 import { Batcher } from '../../lib/batcher'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { PAGE_TYPES } from '../../lib/page-types'
@@ -914,7 +914,7 @@ export function onDemandEntryHandler({
     // details that would possibly bust the cache should be listed here.
     cacheKeyFn: (options) => JSON.stringify(options),
     // Schedule the invocation of the ensurePageImpl function on the next tick.
-    schedulerFn: scheduleOnNextTick,
+    schedulerFn: scheduleAfterMicrotasks,
   })
 
   return {

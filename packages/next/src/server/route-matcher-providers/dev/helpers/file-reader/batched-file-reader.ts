@@ -1,3 +1,4 @@
+import { scheduleAfterMicrotasks } from '../../../../../lib/scheduler'
 import type { FileReader } from './file-reader'
 
 interface FileReaderBatch {
@@ -18,18 +19,6 @@ export class BatchedFileReader implements FileReader {
 
   constructor(private readonly reader: FileReader) {}
 
-  // This allows us to schedule the batches after all the promises associated
-  // with loading files.
-  private schedulePromise?: Promise<void>
-  private schedule(callback: Function) {
-    if (!this.schedulePromise) {
-      this.schedulePromise = Promise.resolve()
-    }
-    this.schedulePromise.then(() => {
-      process.nextTick(callback)
-    })
-  }
-
   private getOrCreateBatch(): FileReaderBatch {
     // If there is an existing batch and it's not completed, then reuse it.
     if (this.batch && !this.batch.completed) {
@@ -44,7 +33,7 @@ export class BatchedFileReader implements FileReader {
 
     this.batch = batch
 
-    this.schedule(async () => {
+    scheduleAfterMicrotasks(async () => {
       batch.completed = true
       if (batch.directories.length === 0) return
 

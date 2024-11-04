@@ -8,7 +8,7 @@ import {
 } from './types'
 
 import { Batcher } from '../../lib/batcher'
-import { scheduleOnNextTick } from '../../lib/scheduler'
+import { scheduleAfterMicrotasks } from '../../lib/scheduler'
 import {
   fromResponseCacheEntry,
   routeKindToIncrementalCacheKind,
@@ -31,7 +31,7 @@ export default class ResponseCache implements ResponseCacheBase {
     // We wait to do any async work until after we've added our promise to
     // `pendingResponses` to ensure that any any other calls will reuse the
     // same promise until we've fully finished our work.
-    schedulerFn: scheduleOnNextTick,
+    schedulerFn: scheduleAfterMicrotasks,
   })
 
   private previousCacheItem?: {
