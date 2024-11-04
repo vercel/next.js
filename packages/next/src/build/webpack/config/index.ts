@@ -42,7 +42,7 @@ export async function buildConfiguration(
     future: NextConfigComplete['future']
     experimental: NextConfigComplete['experimental']
     disableStaticImages: NextConfigComplete['disableStaticImages']
-    serverSourceMaps: NextConfigComplete['experimental']['serverSourceMaps']
+    serverSourceMaps: NextConfigComplete['serverSourceMaps']
   }
 ): Promise<webpack.Configuration> {
   const ctx: ConfigurationContext = {

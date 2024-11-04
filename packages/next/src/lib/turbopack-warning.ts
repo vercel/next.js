@@ -27,7 +27,7 @@ const unsupportedTurbopackNextConfigOptions = [
   // 'experimental.optimizeServerReact',
   'experimental.clientRouterFilterAllowedRate',
   // 'experimental.serverMinification',
-  // 'experimental.serverSourceMaps',
+  // 'serverSourceMaps',
 
   'experimental.allowedRevalidateHeaderKeys',
   'experimental.extensionAlias',
