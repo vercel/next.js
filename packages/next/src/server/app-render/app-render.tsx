@@ -509,6 +509,7 @@ function createErrorContext(
 async function generateDynamicFlightRenderResult(
   req: BaseNextRequest,
   ctx: AppRenderContext,
+  requestStore: RequestStore,
   options?: {
     actionResult: ActionResult
     skipFlight: boolean
@@ -534,7 +535,12 @@ async function generateDynamicFlightRenderResult(
   const RSCPayload: RSCPayload & {
     /** Only available during dynamicIO development builds. Used for logging errors. */
     _validation?: Promise<React.ReactNode>
-  } = await generateDynamicRSCPayload(ctx, options)
+  } = await workUnitAsyncStorage.run(
+    requestStore,
+    generateDynamicRSCPayload,
+    ctx,
+    options
+  )
 
   if (
     // We only want this behavior when running `next dev`
@@ -559,7 +565,9 @@ async function generateDynamicFlightRenderResult(
 
   // For app dir, use the bundled version of Flight server renderer (renderToReadableStream)
   // which contains the subset React.
-  const flightReadableStream = ctx.componentMod.renderToReadableStream(
+  const flightReadableStream = workUnitAsyncStorage.run(
+    requestStore,
+    ctx.componentMod.renderToReadableStream,
     RSCPayload,
     ctx.clientReferenceManifest.clientModules,
     {
@@ -583,13 +591,7 @@ async function generateDynamicFlightRenderResult(
 async function warmupDevRender(
   req: BaseNextRequest,
   ctx: AppRenderContext,
-  requestStore: RequestStore,
-  options?: {
-    actionResult: ActionResult
-    skipFlight: boolean
-    componentTree?: CacheNodeSeedData
-    preloadCallbacks?: PreloadCallbacks
-  }
+  requestStore: RequestStore
 ): Promise<RenderResult> {
   const renderOpts = ctx.renderOpts
   if (!renderOpts.dev) {
@@ -622,8 +624,7 @@ async function warmupDevRender(
   const rscPayload = await workUnitAsyncStorage.run(
     requestStore,
     generateDynamicRSCPayload,
-    ctx,
-    options
+    ctx
   )
 
   // For app dir, use the bundled version of Flight server renderer (renderToReadableStream)
@@ -989,12 +990,12 @@ async function renderToHTMLOrFlightImpl(
   pagePath: string,
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts,
-  requestStore: RequestStore,
   workStore: WorkStore,
   parsedRequestHeaders: ParsedRequestHeaders,
   requestEndedState: { ended?: boolean },
   postponedState: PostponedState | null,
-  implicitTags: Array<string>
+  implicitTags: Array<string>,
+  serverComponentsHmrCache: ServerComponentsHmrCache | undefined
 ) {
   const isNotFoundPath = pagePath === '/404'
   if (isNotFoundPath) {
@@ -1047,26 +1048,6 @@ async function renderToHTMLOrFlightImpl(
     isNodeNextRequest(req)
   ) {
     req.originalRequest.on('end', () => {
-      const prerenderStore = workUnitAsyncStorage.getStore()
-      const isPPR =
-        prerenderStore &&
-        (prerenderStore.type === 'prerender' ||
-          prerenderStore.type === 'prerender-ppr')
-          ? !!prerenderStore.dynamicTracking?.dynamicAccesses?.length
-          : false
-
-      if (
-        process.env.NODE_ENV === 'development' &&
-        renderOpts.setAppIsrStatus &&
-        !isPPR &&
-        !requestStore.usedDynamic &&
-        !workStore.forceDynamic
-      ) {
-        // only node can be ISR so we only need to update the status here
-        const { pathname } = new URL(req.url || '/', 'http://n')
-        renderOpts.setAppIsrStatus(pathname, true)
-      }
-
       requestEndedState.ended = true
 
       if ('performance' in globalThis) {
@@ -1130,6 +1111,7 @@ async function renderToHTMLOrFlightImpl(
     isPrefetchRequest,
     isRSCRequest,
     isDevWarmupRequest,
+    isHmrRefresh,
     nonce,
   } = parsedRequestHeaders
 
@@ -1287,10 +1269,44 @@ async function renderToHTMLOrFlightImpl(
     return new RenderResult(await streamToString(response.stream), options)
   } else {
     // We're rendering dynamically
+    const renderResumeDataCache =
+      renderOpts.devWarmupRenderResumeDataCache ??
+      postponedState?.renderResumeDataCache
+
+    const requestStore = createRequestStoreForRender(
+      req,
+      res,
+      url,
+      implicitTags,
+      renderOpts.onUpdateCookies,
+      renderOpts.previewProps,
+      isHmrRefresh,
+      serverComponentsHmrCache,
+      renderResumeDataCache
+    )
+
+    if (
+      process.env.NODE_ENV === 'development' &&
+      renderOpts.setAppIsrStatus &&
+      // The type check here ensures that `req` is correctly typed, and the
+      // environment variable check provides dead code elimination.
+      process.env.NEXT_RUNTIME !== 'edge' &&
+      isNodeNextRequest(req)
+    ) {
+      const setAppIsrStatus = renderOpts.setAppIsrStatus
+      req.originalRequest.on('end', () => {
+        if (!requestStore.usedDynamic && !workStore.forceDynamic) {
+          // only node can be ISR so we only need to update the status here
+          const { pathname } = new URL(req.url || '/', 'http://n')
+          setAppIsrStatus(pathname, true)
+        }
+      })
+    }
+
     if (isDevWarmupRequest) {
       return warmupDevRender(req, ctx, requestStore)
     } else if (isRSCRequest) {
-      return generateDynamicFlightRenderResult(req, ctx)
+      return generateDynamicFlightRenderResult(req, ctx, requestStore)
     }
 
     const renderToStreamWithTracing = getTracer().wrap(
@@ -1415,7 +1431,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
     isRoutePPREnabled: renderOpts.experimental.isRoutePPREnabled === true,
   })
 
-  const { isHmrRefresh, isPrefetchRequest } = parsedRequestHeaders
+  const { isPrefetchRequest } = parsedRequestHeaders
 
   const requestEndedState = { ended: false }
   let postponedState: PostponedState | null = null
@@ -1444,30 +1460,10 @@ export const renderToHTMLOrFlight: AppPageRender = (
     )
   }
 
-  const renderResumeDataCache =
-    renderOpts.devWarmupRenderResumeDataCache ??
-    postponedState?.renderResumeDataCache
-
   const implicitTags = getImplicitTags(
     renderOpts.routeModule.definition.page,
     url,
     fallbackRouteParams
-  )
-
-  // TODO: We need to refactor this so that prerenders do not rely upon the
-  // existence of an outer scoped request store. Then we should move this
-  // store generation inside the appropriate scope like `renderToStream` where
-  // we know we're handling a Request and not a Prerender
-  const requestStore = createRequestStoreForRender(
-    req,
-    res,
-    url,
-    implicitTags,
-    renderOpts.onUpdateCookies,
-    renderResumeDataCache,
-    renderOpts.previewProps,
-    isHmrRefresh,
-    serverComponentsHmrCache
   )
 
   const workStore = createWorkStore({
@@ -1479,24 +1475,24 @@ export const renderToHTMLOrFlight: AppPageRender = (
     isPrefetchRequest,
   })
 
-  return workAsyncStorage.run(workStore, () => {
-    return workUnitAsyncStorage.run(requestStore, () => {
-      return renderToHTMLOrFlightImpl(
-        req,
-        res,
-        url,
-        pagePath,
-        query,
-        renderOpts,
-        requestStore,
-        workStore,
-        parsedRequestHeaders,
-        requestEndedState,
-        postponedState,
-        implicitTags
-      )
-    })
-  })
+  return workAsyncStorage.run(
+    workStore,
+    // The function to run
+    renderToHTMLOrFlightImpl,
+    // all of it's args
+    req,
+    res,
+    url,
+    pagePath,
+    query,
+    renderOpts,
+    workStore,
+    parsedRequestHeaders,
+    requestEndedState,
+    postponedState,
+    implicitTags,
+    serverComponentsHmrCache
+  )
 }
 
 async function renderToStream(
