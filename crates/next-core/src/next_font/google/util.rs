@@ -1,4 +1,4 @@
-use std::cmp::Ordering;
+use std::{cmp::Ordering, collections::BTreeSet};
 
 use anyhow::{anyhow, bail, Context, Result};
 use turbo_tasks::{FxIndexSet, RcStr};
@@ -15,12 +15,13 @@ pub(super) struct FontAxes {
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub(super) enum FontAxesWeights {
     Variable(Option<RcStr>),
-    Fixed(Vec<u16>),
+    // A list of fixed weights. Sorted in ascending order as a BTreeSet.
+    Fixed(BTreeSet<u16>),
 }
 
 impl Default for FontAxesWeights {
     fn default() -> Self {
-        FontAxesWeights::Fixed(vec![])
+        FontAxesWeights::Fixed(Default::default())
     }
 }
 
@@ -104,7 +105,7 @@ pub(super) fn get_font_axes(
         }
 
         FontWeights::Fixed(weights) => Ok(FontAxes {
-            wght: FontAxesWeights::Fixed(weights.to_owned()),
+            wght: FontAxesWeights::Fixed(weights.iter().copied().collect()),
             ital,
             variable_axes: None,
         }),
@@ -156,16 +157,12 @@ pub(super) fn get_stylesheet_url(
 
     let weights = match &axes.wght {
         FontAxesWeights::Variable(Some(wght)) => {
-            vec![VariantValue::String(wght.to_owned())]
+            vec![VariantValue::String(wght.clone())]
         }
         FontAxesWeights::Variable(None) => {
             vec![]
         }
-        FontAxesWeights::Fixed(wghts) => {
-            let mut wghts = wghts.clone();
-            wghts.sort();
-            wghts.iter().map(|w| VariantValue::U16(*w)).collect()
-        }
+        FontAxesWeights::Fixed(wghts) => wghts.iter().map(|w| VariantValue::U16(*w)).collect(),
     };
 
     if weights.is_empty() {
@@ -258,13 +255,8 @@ pub(super) fn get_stylesheet_url(
 
             let mut variant_values = variants
                 .iter()
-                .map(|variant| {
-                    variant
-                        .iter()
-                        .map(|pair| pair.1.clone())
-                        .collect::<Vec<VariantValue>>()
-                })
-                .collect::<Vec<Vec<VariantValue>>>();
+                .map(|variant| variant.iter().map(|pair| &pair.1).collect::<Vec<_>>())
+                .collect::<Vec<Vec<_>>>();
             variant_values.sort();
 
             // An encoding of the series of sorted variant values, with variants delimited
@@ -274,11 +266,11 @@ pub(super) fn get_stylesheet_url(
                 .iter()
                 .map(|v| {
                     v.iter()
-                        .map(|vv| std::convert::Into::<RcStr>::into(vv.clone()))
-                        .collect::<Vec<RcStr>>()
+                        .map(|vv| RcStr::from((*vv).clone()))
+                        .collect::<Vec<_>>()
                         .join(",")
                 })
-                .collect::<Vec<String>>()
+                .collect::<Vec<_>>()
                 .join(";");
 
             Ok(format!(
@@ -295,6 +287,8 @@ pub(super) fn get_stylesheet_url(
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeSet;
+
     use anyhow::Result;
     use turbo_tasks::fxindexset;
     use turbo_tasks_fs::json::parse_json_with_source_context;
@@ -462,7 +456,7 @@ mod tests {
         assert_eq!(
             get_font_axes(&data, "Hind", &FontWeights::Fixed(vec![500]), &[], &None)?,
             FontAxes {
-                wght: FontAxesWeights::Fixed(vec![500]),
+                wght: FontAxesWeights::Fixed(BTreeSet::from([500])),
                 ..Default::default()
             }
         );
@@ -476,7 +470,7 @@ mod tests {
                 GOOGLE_FONTS_STYLESHEET_URL,
                 "Roboto Mono",
                 &FontAxes {
-                    wght: FontAxesWeights::Fixed(vec![500]),
+                    wght: FontAxesWeights::Fixed(BTreeSet::from([500])),
                     ital: fxindexset! {FontStyle::Normal},
                     variable_axes: None
                 },
@@ -495,7 +489,7 @@ mod tests {
                 GOOGLE_FONTS_STYLESHEET_URL,
                 "Roboto Serif",
                 &FontAxes {
-                    wght: FontAxesWeights::Fixed(vec![500]),
+                    wght: FontAxesWeights::Fixed(BTreeSet::from([500])),
                     ital: fxindexset! {FontStyle::Normal},
                     variable_axes: Some(vec![
                         ("GRAD".into(), "-50..100".into()),
@@ -518,7 +512,7 @@ mod tests {
                 GOOGLE_FONTS_STYLESHEET_URL,
                 "Roboto Serif",
                 &FontAxes {
-                    wght: FontAxesWeights::Fixed(vec![1000, 500, 200]),
+                    wght: FontAxesWeights::Fixed(BTreeSet::from([1000, 500, 200])),
                     ital: fxindexset! {FontStyle::Normal},
                     variable_axes: None
                 },
@@ -537,7 +531,7 @@ mod tests {
                 GOOGLE_FONTS_STYLESHEET_URL,
                 "Roboto Serif",
                 &FontAxes {
-                    wght: FontAxesWeights::Fixed(vec![500, 300]),
+                    wght: FontAxesWeights::Fixed(BTreeSet::from([500, 300])),
                     ital: fxindexset! {FontStyle::Normal, FontStyle::Italic},
                     variable_axes: Some(vec![
                         ("GRAD".into(), "-50..100".into()),
@@ -615,7 +609,7 @@ mod tests {
                 GOOGLE_FONTS_STYLESHEET_URL,
                 "Hind",
                 &FontAxes {
-                    wght: FontAxesWeights::Fixed(vec![500]),
+                    wght: FontAxesWeights::Fixed(BTreeSet::from([500])),
                     ..Default::default()
                 },
                 "optional"
