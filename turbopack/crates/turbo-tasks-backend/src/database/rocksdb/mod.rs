@@ -56,8 +56,9 @@ impl RocksDbKeyValueDatabase {
         options.set_allow_concurrent_memtable_write(false);
         options.set_allow_mmap_reads(true);
         options.set_allow_mmap_writes(true);
-        options.set_max_background_jobs(parallelism);
+        #[allow(deprecated)]
         options.set_max_background_flushes(parallelism);
+        #[allow(deprecated)]
         options.set_max_background_compactions(parallelism);
         options.set_enable_blob_files(true);
         options.set_enable_blob_gc(true);
