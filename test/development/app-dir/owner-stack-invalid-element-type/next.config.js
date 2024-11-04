@@ -3,7 +3,7 @@
  */
 const nextConfig = {
   experimental: {
-    reactOwnerStack: true,
+    reactOwnerStack: process.env.TEST_OWNER_STACK !== 'false',
   },
 }
 
