@@ -5,7 +5,7 @@ use swc_core::{
     ecma::{
         ast::{Id, ModuleItem},
         atoms::JsWord,
-        visit::{as_folder, noop_visit_mut_type, Fold, VisitMut, VisitWith},
+        visit::{noop_visit_mut_type, visit_mut_pass, Fold, VisitMut, VisitWith},
     },
 };
 
@@ -21,7 +21,7 @@ pub struct Config {
 }
 
 pub fn next_font_loaders(config: Config) -> impl Fold + VisitMut {
-    as_folder(NextFontLoaders {
+    visit_mut_pass(NextFontLoaders {
         config,
         state: State {
             ..Default::default()
