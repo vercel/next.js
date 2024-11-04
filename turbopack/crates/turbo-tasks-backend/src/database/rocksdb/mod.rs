@@ -65,6 +65,7 @@ impl RocksDbKeyValueDatabase {
         options.set_min_blob_size(1 * 1024 * 1024);
         let mut cf_options = rocksdb::Options::default();
         cf_options.set_compaction_style(rocksdb::DBCompactionStyle::Universal);
+        cf_options.set_level_compaction_dynamic_level_bytes(false);
         cf_options.set_allow_concurrent_memtable_write(false);
         cf_options.set_prefix_extractor(SliceTransform::create_noop());
         cf_options.set_memtable_factory(rocksdb::MemtableFactory::Vector);
