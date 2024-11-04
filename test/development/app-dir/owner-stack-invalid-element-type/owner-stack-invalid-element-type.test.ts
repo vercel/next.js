@@ -70,9 +70,10 @@ describe('app-dir - owner-stack-invalid-element-type', () => {
     if (process.env.TURBOPACK) {
       if (isOwnerStackEnabled) {
         // FIXME: the methodName of the stack frame is not aligned between Turbopack and Webpack
-        expect(stackFramesContent).toMatchInlineSnapshot(
-          `"at Page (app/browser/page.js (10:10))"`
-        )
+        expect(stackFramesContent).toMatchInlineSnapshot(`
+          "at Inner (app/browser/page.js (12:5))
+          at Page (app/browser/page.js (17:10))"
+        `)
       } else {
         // The stack frame of the triggered line is missing
         expect(stackFramesContent).toMatchInlineSnapshot(`""`)
@@ -91,9 +92,10 @@ describe('app-dir - owner-stack-invalid-element-type', () => {
     } else {
       if (isOwnerStackEnabled) {
         // FIXME: the methodName of the stack frame is not aligned between Turbopack and Webpack
-        expect(stackFramesContent).toMatchInlineSnapshot(
-          `"at BrowserOnly (app/browser/page.js (10:11))"`
-        )
+        expect(stackFramesContent).toMatchInlineSnapshot(`
+          "at BrowserOnly (app/browser/page.js (12:6))
+          at Inner (app/browser/page.js (17:11))"
+        `)
       } else {
         // The stack frame of the triggered line is missing
         expect(stackFramesContent).toMatchInlineSnapshot(`""`)
@@ -122,28 +124,28 @@ describe('app-dir - owner-stack-invalid-element-type', () => {
     if (process.env.TURBOPACK) {
       expect(stackFramesContent).toMatchInlineSnapshot(`""`)
       expect(source).toMatchInlineSnapshot(`
-        "app/rsc/page.js (6:7) @ Page
+        "app/rsc/page.js (6:5) @ Inner
 
-          4 |   return (
-          5 |     <div>
-        > 6 |       <Foo />
-            |       ^
-          7 |     </div>
-          8 |   )
-          9 | }"
+          4 | function Inner() {
+          5 |   return (
+        > 6 |     <Foo />
+            |     ^
+          7 |   )
+          8 | }
+          9 |"
       `)
     } else {
       expect(stackFramesContent).toMatchInlineSnapshot(`""`)
       expect(source).toMatchInlineSnapshot(`
-        "app/rsc/page.js (6:8) @ Foo
+        "app/rsc/page.js (6:6) @ Foo
 
-          4 |   return (
-          5 |     <div>
-        > 6 |       <Foo />
-            |        ^
-          7 |     </div>
-          8 |   )
-          9 | }"
+          4 | function Inner() {
+          5 |   return (
+        > 6 |     <Foo />
+            |      ^
+          7 |   )
+          8 | }
+          9 |"
       `)
     }
   })
@@ -158,28 +160,28 @@ describe('app-dir - owner-stack-invalid-element-type', () => {
     if (process.env.TURBOPACK) {
       expect(stackFramesContent).toMatchInlineSnapshot(`""`)
       expect(source).toMatchInlineSnapshot(`
-        "app/ssr/page.js (8:7) @ Page
+        "app/ssr/page.js (8:5) @ Inner
 
-           6 |   return (
-           7 |     <div>
-        >  8 |       <Foo />
-             |       ^
-           9 |     </div>
-          10 |   )
-          11 | }"
+           6 | function Inner() {
+           7 |   return (
+        >  8 |     <Foo />
+             |     ^
+           9 |   )
+          10 | }
+          11 |"
       `)
     } else {
       expect(stackFramesContent).toMatchInlineSnapshot(`""`)
       expect(source).toMatchInlineSnapshot(`
-        "app/ssr/page.js (8:8) @ Foo
+        "app/ssr/page.js (8:6) @ Foo
 
-           6 |   return (
-           7 |     <div>
-        >  8 |       <Foo />
-             |        ^
-           9 |     </div>
-          10 |   )
-          11 | }"
+           6 | function Inner() {
+           7 |   return (
+        >  8 |     <Foo />
+             |      ^
+           9 |   )
+          10 | }
+          11 |"
       `)
     }
   })

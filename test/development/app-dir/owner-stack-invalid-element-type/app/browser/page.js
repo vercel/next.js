@@ -6,6 +6,11 @@ const BrowserOnly = dynamic(() => import('./browser-only'), {
   ssr: false,
 })
 
-export default function Page() {
+// Intermediate component for testing owner stack
+function Inner() {
   return <BrowserOnly />
+}
+
+export default function Page() {
+  return <Inner />
 }
