@@ -27,37 +27,37 @@ const isOwnerStackEnabled =
       if (process.env.TURBOPACK) {
         // FIXME: the methodName of the stack frame is not aligned between Turbopack and Webpack
         expect(stackFramesContent).toMatchInlineSnapshot(`
-        "at Inner (app/browser/page.js (11:10))
-        at Page (app/browser/page.js (15:10))"
-      `)
+          "at Inner (app/browser/page.js (11:10))
+          at Page (app/browser/page.js (15:10))"
+        `)
         expect(source).toMatchInlineSnapshot(`
-        "app/browser/browser-only.js (8:7) @ BrowserOnly
+          "app/browser/browser-only.js (8:7) @ BrowserOnly
 
-           6 |   return (
-           7 |     <div>
-        >  8 |       <Foo />
-             |       ^
-           9 |     </div>
-          10 |   )
-          11 | }"
-      `)
+             6 |   return (
+             7 |     <div>
+          >  8 |       <Foo />
+               |       ^
+             9 |     </div>
+            10 |   )
+            11 | }"
+        `)
       } else {
         // FIXME: the methodName of the stack frame is not aligned between Turbopack and Webpack
         expect(stackFramesContent).toMatchInlineSnapshot(`
-        "at BrowserOnly (app/browser/page.js (11:11))
-        at Inner (app/browser/page.js (15:11))"
-      `)
+            "at BrowserOnly (app/browser/page.js (11:11))
+            at Inner (app/browser/page.js (15:11))"
+        `)
         expect(source).toMatchInlineSnapshot(`
-        "app/browser/browser-only.js (8:8) @ Foo
+          "app/browser/browser-only.js (8:8) @ Foo
 
-           6 |   return (
-           7 |     <div>
-        >  8 |       <Foo />
-             |        ^
-           9 |     </div>
-          10 |   )
-          11 | }"
-      `)
+             6 |   return (
+             7 |     <div>
+          >  8 |       <Foo />
+               |        ^
+             9 |     </div>
+            10 |   )
+            11 | }"
+        `)
       }
     })
 
@@ -69,33 +69,35 @@ const isOwnerStackEnabled =
       const source = await getRedboxSource(browser)
 
       if (process.env.TURBOPACK) {
-        expect(stackFramesContent).toMatchInlineSnapshot(`""`)
+        expect(stackFramesContent).toMatchInlineSnapshot(
+          `"at Page (app/rsc/page.js (11:7))"`
+        )
         expect(source).toMatchInlineSnapshot(`
-        "app/rsc/page.js (5:10) @ Inner
+          "app/rsc/page.js (5:10) @ Inner
 
-          3 | // Intermediate component for testing owner stack
-          4 | function Inner() {
-        > 5 |   return <Foo />
-            |          ^
-          6 | }
-          7 |
-          8 | export default function Page() {"
-      `)
+            3 | // Intermediate component for testing owner stack
+            4 | function Inner() {
+          > 5 |   return <Foo />
+              |          ^
+            6 | }
+            7 |
+            8 | export default function Page() {"
+        `)
       } else {
         expect(stackFramesContent).toMatchInlineSnapshot(
           `"at Inner (app/rsc/page.js (11:8))"`
         )
         expect(source).toMatchInlineSnapshot(`
-        "app/rsc/page.js (5:11) @ Foo
+          "app/rsc/page.js (5:11) @ Foo
 
-          3 | // Intermediate component for testing owner stack
-          4 | function Inner() {
-        > 5 |   return <Foo />
-            |           ^
-          6 | }
-          7 |
-          8 | export default function Page() {"
-      `)
+            3 | // Intermediate component for testing owner stack
+            4 | function Inner() {
+          > 5 |   return <Foo />
+              |           ^
+            6 | }
+            7 |
+            8 | export default function Page() {"
+        `)
       }
     })
 
@@ -107,33 +109,35 @@ const isOwnerStackEnabled =
       const stackFramesContent = await getStackFramesContent(browser)
       const source = await getRedboxSource(browser)
       if (process.env.TURBOPACK) {
-        expect(stackFramesContent).toMatchInlineSnapshot(`""`)
+        expect(stackFramesContent).toMatchInlineSnapshot(
+          `"at Page (app/ssr/page.js (13:7))"`
+        )
         expect(source).toMatchInlineSnapshot(`
-        "app/ssr/page.js (7:10) @ Inner
+          "app/ssr/page.js (7:10) @ Inner
 
-           5 | // Intermediate component for testing owner stack
-           6 | function Inner() {
-        >  7 |   return <Foo />
-             |          ^
-           8 | }
-           9 |
-          10 | export default function Page() {"
-      `)
+             5 | // Intermediate component for testing owner stack
+             6 | function Inner() {
+          >  7 |   return <Foo />
+               |          ^
+             8 | }
+             9 |
+            10 | export default function Page() {"
+        `)
       } else {
         expect(stackFramesContent).toMatchInlineSnapshot(
           `"at Inner (app/ssr/page.js (13:8))"`
         )
         expect(source).toMatchInlineSnapshot(`
-        "app/ssr/page.js (7:11) @ Foo
+          "app/ssr/page.js (7:11) @ Foo
 
-           5 | // Intermediate component for testing owner stack
-           6 | function Inner() {
-        >  7 |   return <Foo />
-             |           ^
-           8 | }
-           9 |
-          10 | export default function Page() {"
-      `)
+             5 | // Intermediate component for testing owner stack
+             6 | function Inner() {
+          >  7 |   return <Foo />
+               |           ^
+             8 | }
+             9 |
+            10 | export default function Page() {"
+        `)
       }
     })
   }
