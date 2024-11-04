@@ -417,7 +417,10 @@ fn server_actions_server_fixture(input: PathBuf) {
         },
         &input,
         &output,
-        Default::default(),
+        FixtureTestConfig {
+            module: Some(true),
+            ..Default::default()
+        },
     );
 }
 
