@@ -12,12 +12,11 @@ use swc_core::{
         ast::{EsVersion, Program},
         codegen::{
             text_writer::{self, JsWriter, WriteJs},
-            Emitter, Node,
+            Emitter,
         },
         minifier::option::{ExtraOptions, MangleOptions, MinifyOptions},
         parser::{lexer::Lexer, Parser, StringInput, Syntax},
         transforms::base::fixer::paren_remover,
-        visit::FoldWith,
     },
 };
 use turbo_tasks::Vc;
@@ -144,8 +143,8 @@ fn print_program(
                 wr,
             };
 
-            program
-                .emit_with(&mut emitter)
+            emitter
+                .emit_program(&program)
                 .context("failed to emit module")?;
         }
         // Invalid utf8 is valid in javascript world.
