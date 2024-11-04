@@ -3,17 +3,19 @@ use std::{fmt::Debug, hash::Hash, sync::Arc};
 use anyhow::Result;
 use async_trait::async_trait;
 use swc_core::{
+    atoms::Atom,
     base::SwcComments,
     common::{collections::AHashMap, comments::Comments, util::take::Take, Mark, SourceMap},
     ecma::{
         ast::{Module, ModuleItem, Program, Script},
         preset_env::{self, Targets},
         transforms::{
-            base::{feature::FeatureFlag, helpers::inject_helpers, Assumptions},
+            base::{assumptions::Assumptions, feature::FeatureFlag, helpers::inject_helpers},
             optimization::inline_globals2,
             react::react,
         },
     },
+    quote,
 };
 use turbo_tasks::{RcStr, ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
@@ -126,8 +128,8 @@ impl EcmascriptInputTransform {
         } = ctx;
         match self {
             EcmascriptInputTransform::GlobalTypeofs { window_value } => {
-                let mut typeofs: AHashMap<JsWord, JsWord> = Default::default();
-                typeofs.insert("window".into(), JsWord::from(&**window_value));
+                let mut typeofs: AHashMap<Atom, Atom> = Default::default();
+                typeofs.insert(Atom::from("window"), Atom::from(&**window_value));
 
                 program.mutate(inline_globals2(
                     Default::default(),
