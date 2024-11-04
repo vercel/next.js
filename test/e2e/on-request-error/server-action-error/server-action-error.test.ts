@@ -30,6 +30,7 @@ describe('on-request-error - server-action-error', () => {
       expect(recordLogLines).toEqual(
         expect.arrayContaining([expect.stringContaining(errorMessage)])
       )
+      // TODO: remove custom duration in case we increase the default.
     }, 5000)
 
     const json = await getOutputLogJson(next, outputLogPath)
@@ -40,7 +41,7 @@ describe('on-request-error - server-action-error', () => {
       payload: {
         message: errorMessage,
         request: {
-          url,
+          path: url,
           method: 'POST',
           headers: expect.objectContaining({
             accept: 'text/x-component',

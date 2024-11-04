@@ -1,14 +1,14 @@
 use anyhow::Result;
-use turbo_tasks::{RcStr, Value, Vc};
-use turbopack_binding::turbopack::{
-    core::{context::ProcessResult, reference_type::ReferenceType, source::Source},
-    turbopack::{transition::Transition, ModuleAssetContext},
-};
+use turbo_tasks::{RcStr, ResolvedVc, Value, Vc};
+use turbopack::{transition::Transition, ModuleAssetContext};
+use turbopack_core::{context::ProcessResult, reference_type::ReferenceType, source::Source};
 
 use super::NextDynamicEntryModule;
 
 /// This transition is used to create the marker asset for a next/dynamic
-/// import. This will get picked up during module processing and will be used to
+/// import.
+///
+/// This will get picked up during module processing and will be used to
 /// create the dynamic entry, and the dynamic manifest entry.
 #[turbo_tasks::value]
 pub struct NextDynamicTransition {
@@ -34,21 +34,27 @@ impl Transition for NextDynamicTransition {
     async fn process(
         self: Vc<Self>,
         source: Vc<Box<dyn Source>>,
-        context: Vc<ModuleAssetContext>,
+        module_asset_context: Vc<ModuleAssetContext>,
         _reference_type: Value<ReferenceType>,
     ) -> Result<Vc<ProcessResult>> {
-        let context = self.process_context(context);
+        let module_asset_context = self.process_context(module_asset_context);
 
         let this = self.await?;
 
         Ok(match *this
             .client_transition
-            .process(source, context, Value::new(ReferenceType::Undefined))
+            .process(
+                source,
+                module_asset_context,
+                Value::new(ReferenceType::Undefined),
+            )
             .await?
         {
-            ProcessResult::Module(client_module) => {
-                ProcessResult::Module(Vc::upcast(NextDynamicEntryModule::new(client_module)))
-            }
+            ProcessResult::Module(client_module) => ProcessResult::Module(ResolvedVc::upcast(
+                NextDynamicEntryModule::new(*client_module)
+                    .to_resolved()
+                    .await?,
+            )),
             ProcessResult::Ignore => ProcessResult::Ignore,
         }
         .cell())

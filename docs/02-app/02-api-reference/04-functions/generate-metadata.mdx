@@ -46,6 +46,7 @@ export async function generateMetadata({ params }) {
 >
 > - The `metadata` object and `generateMetadata` function exports are **only supported in Server Components**.
 > - You cannot export both the `metadata` object and `generateMetadata` function from the same route segment.
+> - On the initial load, streaming is blocked until `generateMetadata` has fully resolved, including any content from `loading.js`.
 
 ## The `metadata` object
 
@@ -81,8 +82,8 @@ Dynamic metadata depends on **dynamic information**, such as the current route p
 import type { Metadata, ResolvingMetadata } from 'next'
 
 type Props = {
-  params: { id: string }
-  searchParams: { [key: string]: string | string[] | undefined }
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }
 
 export async function generateMetadata(
@@ -90,7 +91,7 @@ export async function generateMetadata(
   parent: ResolvingMetadata
 ): Promise<Metadata> {
   // read route params
-  const id = params.id
+  const id = (await params).id
 
   // fetch data
   const product = await fetch(`https://.../${id}`).then((res) => res.json())
@@ -112,7 +113,7 @@ export default function Page({ params, searchParams }: Props) {}
 ```jsx filename="app/products/[id]/page.js" switcher
 export async function generateMetadata({ params, searchParams }, parent) {
   // read route params
-  const id = params.id
+  const id = (await params).id
 
   // fetch data
   const product = await fetch(`https://.../${id}`).then((res) => res.json())
@@ -502,6 +503,11 @@ export const metadata = {
         height: 600,
       },
     ],
+    audio: [
+      {
+        url: 'https://nextjs.org/audio.mp3', // Must be an absolute URL
+      },
+    ],
     locale: 'en_US',
     type: 'website',
   },
@@ -514,13 +520,17 @@ export const metadata = {
 <meta property="og:url" content="https://nextjs.org/" />
 <meta property="og:site_name" content="Next.js" />
 <meta property="og:locale" content="en_US" />
-<meta property="og:image:url" content="https://nextjs.org/og.png" />
+<meta property="og:image" content="https://nextjs.org/og.png" />
 <meta property="og:image:width" content="800" />
 <meta property="og:image:height" content="600" />
-<meta property="og:image:url" content="https://nextjs.org/og-alt.png" />
+<meta property="og:image" content="https://nextjs.org/og-alt.png" />
 <meta property="og:image:width" content="1800" />
 <meta property="og:image:height" content="1600" />
 <meta property="og:image:alt" content="My custom alt" />
+<meta property="og:video" content="https://nextjs.org/video.mp4" />
+<meta property="og:video:width" content="800" />
+<meta property="og:video:height" content="600" />
+<meta property="og:audio" content="https://nextjs.org/audio.mp3" />
 <meta property="og:type" content="website" />
 ```
 
@@ -800,7 +810,7 @@ export const metadata = {
   name="apple-itunes-app"
   content="app-id=myAppStoreID, app-argument=myAppArgument"
 />
-<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-title" content="Apple Web App" />
 <link
   href="/assets/startup/apple-touch-startup-image-768x1004.png"
@@ -1017,7 +1027,7 @@ The following metadata types do not currently have built-in support. However, th
 | `<meta http-equiv="...">`     | Use appropriate HTTP Headers via [`redirect()`](/docs/app/api-reference/functions/redirect), [Middleware](/docs/app/building-your-application/routing/middleware#nextresponse), [Security Headers](/docs/app/api-reference/next-config-js/headers) |
 | `<base>`                      | Render the tag in the layout or page itself.                                                                                                                                                                                                       |
 | `<noscript>`                  | Render the tag in the layout or page itself.                                                                                                                                                                                                       |
-| `<style>`                     | Learn more about [styling in Next.js](/docs/app/building-your-application/styling/stylesheets).                                                                                                                                                    |
+| `<style>`                     | Learn more about [styling in Next.js](/docs/app/building-your-application/styling/css).                                                                                                                                                            |
 | `<script>`                    | Learn more about [using scripts](/docs/app/building-your-application/optimizing/scripts).                                                                                                                                                          |
 | `<link rel="stylesheet" />`   | `import` stylesheets directly in the layout or page itself.                                                                                                                                                                                        |
 | `<link rel="preload />`       | Use [ReactDOM preload method](#link-relpreload)                                                                                                                                                                                                    |
@@ -1145,8 +1155,8 @@ export async function generateMetadata(): Promise<Metadata> {
 import type { Metadata } from 'next'
 
 type Props = {
-  params: { id: string }
-  searchParams: { [key: string]: string | string[] | undefined }
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }
 
 export function generateMetadata({ params, searchParams }: Props): Metadata {

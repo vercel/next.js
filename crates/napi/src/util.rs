@@ -26,12 +26,103 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 */
 
-use std::{cell::RefCell, path::PathBuf};
+use std::{
+    cell::RefCell,
+    env,
+    fs::OpenOptions,
+    io::{self, BufRead, Write},
+    path::PathBuf,
+    sync::Mutex,
+    time::Instant,
+};
 
 use anyhow::anyhow;
 use napi::bindgen_prelude::{External, Status};
+use once_cell::sync::Lazy;
+use owo_colors::OwoColorize;
 use tracing_chrome::{ChromeLayerBuilder, FlushGuard};
 use tracing_subscriber::{filter, prelude::*, util::SubscriberInitExt, Layer};
+
+static LOG_THROTTLE: Mutex<Option<Instant>> = Mutex::new(None);
+static LOG_DIVIDER: &str = "---------------------------";
+static PANIC_LOG: Lazy<PathBuf> = Lazy::new(|| {
+    let mut path = env::temp_dir();
+    path.push(format!("next-panic-{:x}.log", rand::random::<u128>()));
+    path
+});
+
+pub fn log_internal_error_and_inform(err_info: &str) {
+    if cfg!(debug_assertions)
+        || env::var("SWC_DEBUG") == Ok("1".to_string())
+        || env::var("CI").is_ok_and(|v| !v.is_empty())
+    {
+        eprintln!(
+            "{}: An unexpected Turbopack error occurred:\n{}",
+            "FATAL".red().bold(),
+            err_info
+        );
+        return;
+    }
+
+    // hold open this mutex guard to prevent concurrent writes to the file!
+    let mut last_error_time = LOG_THROTTLE.lock().unwrap();
+    if let Some(last_error_time) = last_error_time.as_ref() {
+        if last_error_time.elapsed().as_secs() < 1 {
+            // Throttle panic logging to once per second
+            return;
+        }
+    }
+    *last_error_time = Some(Instant::now());
+
+    let size = std::fs::metadata(PANIC_LOG.as_path()).map(|m| m.len());
+    if let Ok(size) = size {
+        if size > 512 * 1024 {
+            // Truncate the earliest error from log file if it's larger than 512KB
+            let new_lines = {
+                let log_read = OpenOptions::new()
+                    .read(true)
+                    .open(PANIC_LOG.as_path())
+                    .unwrap_or_else(|_| panic!("Failed to open {}", PANIC_LOG.to_string_lossy()));
+
+                io::BufReader::new(&log_read)
+                    .lines()
+                    .skip(1)
+                    .skip_while(|line| match line {
+                        Ok(line) => !line.starts_with(LOG_DIVIDER),
+                        Err(_) => false,
+                    })
+                    .collect::<Vec<_>>()
+            };
+
+            let mut log_write = OpenOptions::new()
+                .create(true)
+                .truncate(true)
+                .write(true)
+                .open(PANIC_LOG.as_path())
+                .unwrap_or_else(|_| panic!("Failed to open {}", PANIC_LOG.to_string_lossy()));
+
+            for line in new_lines {
+                match line {
+                    Ok(line) => {
+                        writeln!(log_write, "{}", line).unwrap();
+                    }
+                    Err(_) => {
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    let mut log_file = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(PANIC_LOG.as_path())
+        .unwrap_or_else(|_| panic!("Failed to open {}", PANIC_LOG.to_string_lossy()));
+
+    writeln!(log_file, "{}\n{}", LOG_DIVIDER, err_info).unwrap();
+    eprintln!("{}: An unexpected Turbopack error occurred. Please report the content of {} to https://github.com/vercel/next.js/issues/new", "FATAL".red().bold(), PANIC_LOG.to_string_lossy());
+}
 
 #[napi]
 pub fn get_target_triple() -> String {

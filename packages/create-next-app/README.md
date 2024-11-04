@@ -59,7 +59,7 @@ Options:
 
     Initialize inside a `src/` directory.
 
-  --turbo
+  --turbopack
 
     Enable Turbopack by default for development.
 
@@ -107,6 +107,10 @@ Options:
   --skip-install
 
     Explicitly tell the CLI to skip installing packages
+
+  --disable-git
+
+    Explicitly tell the CLI to skip initializing a git repository.
 
   --yes
 

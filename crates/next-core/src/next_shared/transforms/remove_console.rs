@@ -1,19 +1,15 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use turbo_tasks::Vc;
-use turbopack_binding::{
-    swc::core::{
-        common::{util::take::Take, SyntaxContext},
-        ecma::{
-            ast::{Module, Program},
-            visit::FoldWith,
-        },
-    },
-    turbopack::{
-        ecmascript::{CustomTransformer, TransformContext},
-        turbopack::module_options::ModuleRule,
+use swc_core::{
+    common::{util::take::Take, SyntaxContext},
+    ecma::{
+        ast::{Module, Program},
+        visit::FoldWith,
     },
 };
+use turbo_tasks::Vc;
+use turbopack::module_options::ModuleRule;
+use turbopack_ecmascript::{CustomTransformer, TransformContext};
 
 use super::get_ecma_transform_rule;
 use crate::next_config::{NextConfig, RemoveConsoleConfig};
@@ -25,10 +21,10 @@ pub async fn get_remove_console_transform_rule(
     let enable_mdx_rs = next_config.mdx_rs().await?.is_some();
 
     let module_rule = next_config
+        .compiler()
         .await?
-        .compiler
+        .remove_console
         .as_ref()
-        .and_then(|value| value.remove_console.as_ref())
         .and_then(|config| match config {
             RemoveConsoleConfig::Boolean(false) => None,
             RemoveConsoleConfig::Boolean(true) => Some(remove_console::Config::All(true)),

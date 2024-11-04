@@ -365,6 +365,11 @@ exports.StrictMode = REACT_STRICT_MODE_TYPE;
 exports.Suspense = REACT_SUSPENSE_TYPE;
 exports.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE =
   ReactSharedInternals;
+exports.__COMPILER_RUNTIME = {
+  c: function (size) {
+    return ReactSharedInternals.H.useMemoCache(size);
+  }
+};
 exports.act = function () {
   throw Error("act(...) is not supported in production builds of React.");
 };
@@ -372,6 +377,9 @@ exports.cache = function (fn) {
   return function () {
     return fn.apply(null, arguments);
   };
+};
+exports.captureOwnerStack = function () {
+  return null;
 };
 exports.cloneElement = function (element, config, children) {
   if (null === element || void 0 === element)
@@ -469,13 +477,13 @@ exports.memo = function (type, compare) {
 };
 exports.startTransition = function (scope) {
   var prevTransition = ReactSharedInternals.T,
-    transition = {};
-  ReactSharedInternals.T = transition;
+    currentTransition = {};
+  ReactSharedInternals.T = currentTransition;
   try {
     var returnValue = scope(),
       onStartTransitionFinish = ReactSharedInternals.S;
     null !== onStartTransitionFinish &&
-      onStartTransitionFinish(transition, returnValue);
+      onStartTransitionFinish(currentTransition, returnValue);
     "object" === typeof returnValue &&
       null !== returnValue &&
       "function" === typeof returnValue.then &&
@@ -559,4 +567,4 @@ exports.useSyncExternalStore = function (
 exports.useTransition = function () {
   return ReactSharedInternals.H.useTransition();
 };
-exports.version = "19.0.0-experimental-6230622a1a-20240610";
+exports.version = "19.0.0-experimental-7c8e5e7a-20241101";

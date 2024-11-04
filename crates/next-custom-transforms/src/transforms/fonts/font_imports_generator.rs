@@ -1,5 +1,5 @@
 use serde_json::Value;
-use turbopack_binding::swc::core::{
+use swc_core::{
     common::{errors::HANDLER, Spanned, DUMMY_SP},
     ecma::{
         ast::*,
@@ -13,7 +13,7 @@ pub struct FontImportsGenerator<'a> {
     pub relative_path: &'a str,
 }
 
-impl<'a> FontImportsGenerator<'a> {
+impl FontImportsGenerator<'_> {
     fn check_call_expr(
         &mut self,
         call_expr: &CallExpr,
@@ -145,7 +145,7 @@ impl<'a> FontImportsGenerator<'a> {
     }
 }
 
-impl<'a> Visit for FontImportsGenerator<'a> {
+impl Visit for FontImportsGenerator<'_> {
     noop_visit_type!();
 
     fn visit_module_item(&mut self, item: &ModuleItem) {

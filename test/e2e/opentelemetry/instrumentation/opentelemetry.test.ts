@@ -12,7 +12,7 @@ const EXTERNAL = {
 const COLLECTOR_PORT = 9001
 
 describe('opentelemetry', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next, skipped, isNextDev } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
     dependencies: require('./package.json').dependencies,
@@ -61,7 +61,7 @@ describe('opentelemetry', () => {
       },
     },
   ]) {
-    // turbopack does not support experimental.instrumentationHook
+    // turbopack does not support instrumentation.js
     ;(process.env.TURBOPACK || process.env.__NEXT_EXPERIMENTAL_PPR
       ? describe.skip
       : describe)(env.name, () => {
@@ -168,7 +168,13 @@ describe('opentelemetry', () => {
                     },
                     {
                       attributes: {
-                        'next.clientComponentLoadCount': 3,
+                        'next.clientComponentLoadCount': isNextDev
+                          ? // In dev, additional client components are being loaded
+                            // due to RSC props being deserialized.
+                            9
+                          : 6,
+                        'next.span_type':
+                          'NextNodeServer.clientComponentLoading',
                       },
                       kind: 0,
                       name: 'NextNodeServer.clientComponentLoading',
@@ -836,7 +842,7 @@ describe('opentelemetry with disabled fetch tracing', () => {
     await collector.shutdown()
   })
 
-  // turbopack does not support experimental.instrumentationHook
+  // turbopack does not support instrumentation.js
   ;(process.env.TURBOPACK || process.env.__NEXT_EXPERIMENTAL_PPR
     ? describe.skip
     : describe)('root context', () => {

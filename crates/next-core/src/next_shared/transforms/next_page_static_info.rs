@@ -4,18 +4,14 @@ use next_custom_transforms::transforms::page_static_info::{
     collect_exports, extract_exported_const_values, Const,
 };
 use serde_json::Value;
+use swc_core::ecma::ast::Program;
 use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_binding::{
-    swc::core::ecma::ast::Program,
-    turbopack::{
-        core::issue::{
-            Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString,
-        },
-        ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext},
-        turbopack::module_options::{ModuleRule, ModuleRuleEffect},
-    },
+use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
+use turbopack_core::issue::{
+    Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString,
 };
+use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext};
 
 use super::module_rule_match_js_no_url;
 use crate::{next_client::ClientContextType, next_server::ServerContextType};
@@ -161,8 +157,8 @@ impl Issue for PageStaticInfoIssue {
     }
 
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<OptionStyledString>> {
-        Ok(Vc::cell(Some(
+    fn description(&self) -> Vc<OptionStyledString> {
+        Vc::cell(Some(
             StyledString::Line(
                 self.messages
                     .iter()
@@ -170,6 +166,6 @@ impl Issue for PageStaticInfoIssue {
                     .collect::<Vec<StyledString>>(),
             )
             .cell(),
-        )))
+        ))
     }
 }

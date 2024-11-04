@@ -1,0 +1,99 @@
+binPath = (???*0* | ???*1*)
+- *0* binPath
+  ⚠️  pattern without value
+- *1* require.resolve*2*(
+        `${(???*3* | "esbuild-windows-arm64" | "esbuild-windows-32" | "esbuild-windows-64" | ???*4* | ???*6*)}/${(???*7* | "esbuild.exe" | ???*8*)}`
+    )
+  ⚠️  require.resolve non constant
+  ⚠️  This value might have side effects
+- *2* require.resolve: The require.resolve method from CommonJS
+- *3* pkg
+  ⚠️  pattern without value
+- *4* {}[???*5*]
+  ⚠️  unknown object prototype methods or values
+  ⚠️  This value might have side effects
+- *5* FreeVar(platformKey)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *6* unknown mutation
+  ⚠️  This value might have side effects
+- *7* subpath
+  ⚠️  pattern without value
+- *8* unknown mutation
+  ⚠️  This value might have side effects
+
+e = ???*0*
+- *0* e
+  ⚠️  pattern without value
+
+generateBinPath = (...) => binPath
+
+knownWindowsPackages = {
+    "win32 arm64 LE": "esbuild-windows-arm64",
+    "win32 ia32 LE": "esbuild-windows-32",
+    "win32 x64 LE": "esbuild-windows-64"
+}
+
+path = path*0*
+- *0* path: The Node.js path module: https://nodejs.org/api/path.html
+
+path2 = path*0*
+- *0* path: The Node.js path module: https://nodejs.org/api/path.html
+
+pkg#3 = (???*0* | "esbuild-windows-arm64" | "esbuild-windows-32" | "esbuild-windows-64" | ???*1*)
+- *0* pkg
+  ⚠️  pattern without value
+- *1* {}[???*2*]
+  ⚠️  unknown object prototype methods or values
+  ⚠️  This value might have side effects
+- *2* FreeVar(platformKey)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+pkg#4 = (???*0* | "esbuild-windows-arm64" | "esbuild-windows-32" | "esbuild-windows-64" | ???*1* | ???*3*)
+- *0* pkg
+  ⚠️  pattern without value
+- *1* {}[???*2*]
+  ⚠️  unknown object prototype methods or values
+  ⚠️  This value might have side effects
+- *2* FreeVar(platformKey)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *3* unknown mutation
+  ⚠️  This value might have side effects
+
+pkgAndSubpathForCurrentPlatform = (...) => {"pkg": pkg, "subpath": subpath}
+
+subpath#3 = (???*0* | "esbuild.exe")
+- *0* subpath
+  ⚠️  pattern without value
+
+subpath#4 = (???*0* | "esbuild.exe" | ???*1*)
+- *0* subpath
+  ⚠️  pattern without value
+- *1* unknown mutation
+  ⚠️  This value might have side effects
+
+x = (???*0* | ???*1*)
+- *0* binPath
+  ⚠️  pattern without value
+- *1* require.resolve*2*(
+        `${(???*3* | "esbuild-windows-arm64" | "esbuild-windows-32" | "esbuild-windows-64" | ???*4* | ???*6*)}/${(???*7* | "esbuild.exe" | ???*8*)}`
+    )
+  ⚠️  require.resolve non constant
+  ⚠️  This value might have side effects
+- *2* require.resolve: The require.resolve method from CommonJS
+- *3* pkg
+  ⚠️  pattern without value
+- *4* {}[???*5*]
+  ⚠️  unknown object prototype methods or values
+  ⚠️  This value might have side effects
+- *5* FreeVar(platformKey)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *6* unknown mutation
+  ⚠️  This value might have side effects
+- *7* subpath
+  ⚠️  pattern without value
+- *8* unknown mutation
+  ⚠️  This value might have side effects

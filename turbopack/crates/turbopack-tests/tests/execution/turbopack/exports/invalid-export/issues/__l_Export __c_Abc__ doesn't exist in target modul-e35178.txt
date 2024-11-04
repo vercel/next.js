@@ -1,0 +1,20 @@
+error - [bindings] [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/invalid-export/input/invalid-export/index.js  /turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/invalid-export/input/invalid-export/index.js:1:0  Export Abc doesn't exist in target module
+  
+         + v-----------------------------v
+       1 + import { Abc } from "./module";
+         + ^-----------------------------^
+       2 | // We don't report errors for unused invalid exports
+       3 | import { Def } from "./module";
+       4 | import * as X from "./module";
+       5 | 
+  
+  The export Abc was not found in module [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/invalid-export/input/invalid-export/module.js [test] (ecmascript) <exports>.
+  
+  Did you mean to import Abd?
+  
+  All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+  
+  
+  | These are the exports of the module:
+  | Abd, Eef, a, b, c
+  |

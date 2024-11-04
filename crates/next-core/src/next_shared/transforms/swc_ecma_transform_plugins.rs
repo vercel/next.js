@@ -3,7 +3,7 @@ use anyhow::Result;
 use turbo_tasks::RcStr;
 use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_binding::turbopack::turbopack::module_options::ModuleRule;
+use turbopack::module_options::ModuleRule;
 
 use crate::next_config::NextConfig;
 
@@ -11,7 +11,7 @@ pub async fn get_swc_ecma_transform_plugin_rule(
     next_config: Vc<NextConfig>,
     project_path: Vc<FileSystemPath>,
 ) -> Result<Option<ModuleRule>> {
-    match next_config.await?.experimental.swc_plugins.as_ref() {
+    match next_config.experimental().await?.swc_plugins.as_ref() {
         Some(plugin_configs) if !plugin_configs.is_empty() => {
             #[cfg(feature = "plugin")]
             {
@@ -38,17 +38,14 @@ pub async fn get_swc_ecma_transform_rule_impl(
     use anyhow::{bail, Context};
     use turbo_tasks::Value;
     use turbo_tasks_fs::FileContent;
-    use turbopack_binding::turbopack::{
-        core::{
-            asset::Asset,
-            issue::IssueSeverity,
-            reference_type::{CommonJsReferenceSubType, ReferenceType},
-            resolve::{handle_resolve_error, parse::Request, pattern::Pattern, resolve},
-        },
-        ecmascript_plugin::transform::swc_ecma_transform_plugins::{
-            SwcEcmaTransformPluginsTransformer, SwcPluginModule,
-        },
-        turbopack::{resolve_options, resolve_options_context::ResolveOptionsContext},
+    use turbopack::{resolve_options, resolve_options_context::ResolveOptionsContext};
+    use turbopack_core::{
+        asset::Asset,
+        reference_type::{CommonJsReferenceSubType, ReferenceType},
+        resolve::{handle_resolve_error, parse::Request, pattern::Pattern, resolve},
+    };
+    use turbopack_ecmascript_plugins::transform::swc_ecma_transform_plugins::{
+        SwcEcmaTransformPluginsTransformer, SwcPluginModule,
     };
 
     use crate::next_shared::transforms::get_ecma_transform_rule;
@@ -64,7 +61,7 @@ pub async fn get_swc_ecma_transform_rule_impl(
         let resolve_options = resolve_options(
             project_path,
             ResolveOptionsContext {
-                enable_node_modules: Some(project_path.root().resolve().await?),
+                enable_node_modules: Some(project_path.root().to_resolved().await?),
                 enable_node_native_modules: true,
                 ..Default::default()
             }
@@ -83,7 +80,7 @@ pub async fn get_swc_ecma_transform_rule_impl(
             project_path,
             request,
             resolve_options,
-            IssueSeverity::Error.cell(),
+            false,
             None,
         )
         .await?;
@@ -99,10 +96,7 @@ pub async fn get_swc_ecma_transform_rule_impl(
         };
 
         plugins.push((
-            SwcPluginModule::cell(SwcPluginModule::new(
-                name,
-                file.content().to_bytes()?.to_vec(),
-            )),
+            SwcPluginModule::new(name, file.content().to_bytes()?.to_vec()).resolved_cell(),
             config.clone(),
         ));
     }

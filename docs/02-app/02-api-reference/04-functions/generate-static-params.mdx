@@ -17,13 +17,13 @@ export async function generateStaticParams() {
 
 // Multiple versions of this page will be statically generated
 // using the `params` returned by `generateStaticParams`
-export default function Page({ params }) {
-  const { slug } = params
+export default async function Page({ params }) {
+  const { slug } = await params
   // ...
 }
 ```
 
-> **Good to know**
+> **Good to know**:
 >
 > - You can use the [`dynamicParams`](/docs/app/api-reference/file-conventions/route-segment-config#dynamicparams) segment config option to control what happens when a dynamic segment is visited that was not generated with `generateStaticParams`.
 > - You must return [an empty array from `generateStaticParams`](#all-paths-at-build-time) or utilize [`export const dynamic = 'force-static'`](/docs/app/api-reference/file-conventions/route-segment-config#dynamic) in order to revalidate (ISR) [paths at runtime](#all-paths-at-runtime).
@@ -65,8 +65,8 @@ export function generateStaticParams() {
 // - /product/1
 // - /product/2
 // - /product/3
-export default function Page({ params }: { params: { id: string } }) {
-  const { id } = params
+export default async function Page({ params }: { params: { id: string } }) {
+  const { id } = await params
   // ...
 }
 ```
@@ -81,8 +81,8 @@ export function generateStaticParams() {
 // - /product/1
 // - /product/2
 // - /product/3
-export default function Page({ params }) {
-  const { id } = params
+export default async function Page({ params }) {
+  const { id } = await params
   // ...
 }
 ```
@@ -103,12 +103,12 @@ export function generateStaticParams() {
 // - /products/a/1
 // - /products/b/2
 // - /products/c/3
-export default function Page({
+export default async function Page({
   params,
 }: {
   params: { category: string; product: string }
 }) {
-  const { category, product } = params
+  const { category, product } = await params
   // ...
 }
 ```
@@ -127,8 +127,8 @@ export function generateStaticParams() {
 // - /products/a/1
 // - /products/b/2
 // - /products/c/3
-export default function Page({ params }) {
-  const { category, product } = params
+export default async function Page({ params }) {
+  const { category, product } = await params
   // ...
 }
 ```
@@ -145,8 +145,8 @@ export function generateStaticParams() {
 // - /product/a/1
 // - /product/b/2
 // - /product/c/3
-export default function Page({ params }: { params: { slug: string[] } }) {
-  const { slug } = params
+export default async function Page({ params }: { params: { slug: string[] } }) {
+  const { slug } = await params
   // ...
 }
 ```
@@ -161,8 +161,8 @@ export function generateStaticParams() {
 // - /product/a/1
 // - /product/b/2
 // - /product/c/3
-export default function Page({ params }) {
-  const { slug } = params
+export default async function Page({ params }) {
+  const { slug } = await params
   // ...
 }
 ```

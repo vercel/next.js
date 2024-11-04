@@ -100,7 +100,11 @@ describe('Graceful Shutdown', () => {
       app = await initNextServerScript(
         serverFile,
         /- Local:/,
-        { ...process.env, PORT: appPort.toString() },
+        {
+          ...process.env,
+          NEXT_EXIT_TIMEOUT_MS: '10',
+          PORT: appPort.toString(),
+        },
         undefined,
         { cwd: next.testDir }
       )

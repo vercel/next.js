@@ -1,6 +1,6 @@
 use anyhow::{bail, Result};
 use turbo_tasks::{RcStr, Vc};
-use turbopack_binding::turbopack::node::route_matcher::{Params, RouteMatcher, RouteMatcherRef};
+use turbopack_node::route_matcher::{Params, RouteMatcher, RouteMatcherRef};
 
 use self::{
     all::AllMatch,
@@ -21,8 +21,8 @@ pub(crate) struct NextExactMatcher {
 #[turbo_tasks::value_impl]
 impl NextExactMatcher {
     #[turbo_tasks::function]
-    pub async fn new(path: Vc<RcStr>) -> Result<Vc<Self>> {
-        Ok(Self::cell(NextExactMatcher { path }))
+    pub fn new(path: Vc<RcStr>) -> Vc<Self> {
+        Self::cell(NextExactMatcher { path })
     }
 }
 

@@ -18,6 +18,7 @@ import type {
   NextApiRequest,
   NextApiHandler,
 } from './shared/lib/utils'
+import type { GetStaticPathsFallback } from './lib/fallback'
 
 import type { NextApiRequestCookies } from './server/api-utils'
 
@@ -185,8 +186,8 @@ export type GetStaticPropsResult<Props> =
 
 /**
  * Static Site Generation feature for Next.js.
- * @link https://nextjs.org/docs/basic-features/data-fetching/get-static-props
- * @link https://nextjs.org/docs/basic-features/typescript#static-generation-and-server-side-rendering
+ * @link https://nextjs.org/docs/pages/building-your-application/data-fetching/get-static-props
+ * @link https://nextjs.org/docs/pages/building-your-application/configuring/typescript#static-generation-and-server-side-rendering
  * @example
  * ```ts
  * export const getStaticProps: GetStaticProps = async (context) => {
@@ -220,13 +221,13 @@ export type GetStaticPathsResult<
   Params extends ParsedUrlQuery = ParsedUrlQuery,
 > = {
   paths: Array<string | { params: Params; locale?: string }>
-  fallback: boolean | 'blocking'
+  fallback: GetStaticPathsFallback
 }
 
 /**
  * Define a list of paths to be statically generated if dynamic routes exist.
- * @link https://nextjs.org/docs/basic-features/data-fetching/get-static-paths
- * @link https://nextjs.org/docs/basic-features/typescript#static-generation-and-server-side-rendering
+ * @link https://nextjs.org/docs/pages/building-your-application/data-fetching/get-static-paths
+ * @link https://nextjs.org/docs/pages/building-your-application/configuring/typescript#static-generation-and-server-side-rendering
  * @example
  * ```ts
  * export const getStaticPaths: GetStaticPaths = async () => {
@@ -240,7 +241,7 @@ export type GetStaticPaths<Params extends ParsedUrlQuery = ParsedUrlQuery> = (
 
 /**
  * Context object passed into `getServerSideProps`.
- * @link https://nextjs.org/docs/api-reference/data-fetching/get-server-side-props#context-parameter
+ * @link https://nextjs.org/docs/pages/api-reference/functions/get-server-side-props#context-parameter
  */
 export type GetServerSidePropsContext<
   Params extends ParsedUrlQuery = ParsedUrlQuery,
@@ -272,8 +273,8 @@ export type GetServerSidePropsResult<Props> =
 
 /**
  * Server-side Rendering feature for Next.js.
- * @link https://nextjs.org/docs/basic-features/data-fetching/get-server-side-props
- * @link https://nextjs.org/docs/basic-features/typescript#static-generation-and-server-side-rendering
+ * @link https://nextjs.org/docs/pages/building-your-application/data-fetching/get-server-side-props
+ * @link https://nextjs.org/docs/pages/building-your-application/configuring/typescript#static-generation-and-server-side-rendering
  * @example
  * ```ts
  * export const getServerSideProps: GetServerSideProps = async (context) => {

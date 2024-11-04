@@ -4,9 +4,8 @@ pub(crate) mod client_reference_manifest;
 
 use std::collections::HashMap;
 
-use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, RcStr, TaskInput};
+use turbo_tasks::{trace::TraceRawVcs, FxIndexMap, FxIndexSet, RcStr, TaskInput};
 
 use crate::next_config::{CrossOriginConfig, Rewrites, RouteHas};
 
@@ -56,9 +55,8 @@ impl Default for MiddlewaresManifest {
     TraceRawVcs,
     Serialize,
     Deserialize,
-    Default,
 )]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", default)]
 pub struct MiddlewareMatcher {
     // When skipped next.js with fill that during merging.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -72,6 +70,18 @@ pub struct MiddlewareMatcher {
     pub original_source: RcStr,
 }
 
+impl Default for MiddlewareMatcher {
+    fn default() -> Self {
+        Self {
+            regexp: None,
+            locale: true,
+            has: None,
+            missing: None,
+            original_source: Default::default(),
+        }
+    }
+}
+
 fn bool_is_true(b: &bool) -> bool {
     *b
 }
@@ -82,13 +92,11 @@ pub struct EdgeFunctionDefinition {
     pub name: RcStr,
     pub page: RcStr,
     pub matchers: Vec<MiddlewareMatcher>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub wasm: Vec<AssetBinding>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub assets: Vec<AssetBinding>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub regions: Option<Regions>,
-    pub env: IndexMap<RcStr, RcStr>,
+    pub env: FxIndexMap<RcStr, RcStr>,
 }
 
 #[derive(Serialize, Default, Debug)]
@@ -186,9 +194,16 @@ pub struct ActionManifestEntry<'a> {
 }
 
 #[derive(Serialize, Debug)]
-#[serde(rename_all = "camelCase")]
+pub struct ActionManifestWorkerEntry<'a> {
+    #[serde(rename = "moduleId")]
+    pub module_id: ActionManifestModuleId<'a>,
+    #[serde(rename = "async")]
+    pub is_async: bool,
+}
+
+#[derive(Serialize, Debug)]
 #[serde(untagged)]
-pub enum ActionManifestWorkerEntry<'a> {
+pub enum ActionManifestModuleId<'a> {
     String(&'a str),
     Number(f64),
 }
@@ -207,7 +222,7 @@ pub enum ActionManifestWorkerEntry<'a> {
     Serialize,
     Deserialize,
 )]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "kebab-case")]
 pub enum ActionLayer {
     Rsc,
     ActionBrowser,
@@ -226,12 +241,18 @@ pub struct ClientReferenceManifest {
     /// Same as `ssr_module_mapping`, but for Edge SSR.
     #[serde(rename = "edgeSSRModuleMapping")]
     pub edge_ssr_module_mapping: HashMap<ModuleId, ManifestNode>,
+    /// Mapping of client module ID to corresponding RSC module ID and required
+    /// RSC chunks.
+    pub rsc_module_mapping: HashMap<ModuleId, ManifestNode>,
+    /// Same as `rsc_module_mapping`, but for Edge RSC.
+    #[serde(rename = "edgeRscModuleMapping")]
+    pub edge_rsc_module_mapping: HashMap<ModuleId, ManifestNode>,
     /// Mapping of server component path to required CSS client chunks.
     #[serde(rename = "entryCSSFiles")]
-    pub entry_css_files: HashMap<RcStr, IndexSet<RcStr>>,
+    pub entry_css_files: HashMap<RcStr, FxIndexSet<RcStr>>,
     /// Mapping of server component path to required JS client chunks.
     #[serde(rename = "entryJSFiles")]
-    pub entry_js_files: HashMap<RcStr, IndexSet<RcStr>>,
+    pub entry_js_files: HashMap<RcStr, FxIndexSet<RcStr>>,
 }
 
 #[derive(Serialize, Default, Debug)]
@@ -298,4 +319,40 @@ pub struct ClientBuildManifest<'a> {
 
     #[serde(flatten)]
     pub pages: HashMap<RcStr, Vec<&'a str>>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_middleware_matcher_serialization() {
+        let matchers = vec![
+            MiddlewareMatcher {
+                regexp: None,
+                locale: false,
+                has: None,
+                missing: None,
+                original_source: "".into(),
+            },
+            MiddlewareMatcher {
+                regexp: Some(".*".into()),
+                locale: true,
+                has: Some(vec![RouteHas::Query {
+                    key: "foo".into(),
+                    value: None,
+                }]),
+                missing: Some(vec![RouteHas::Query {
+                    key: "bar".into(),
+                    value: Some("value".into()),
+                }]),
+                original_source: "source".into(),
+            },
+        ];
+
+        let serialized = serde_json::to_string(&matchers).unwrap();
+        let deserialized: Vec<MiddlewareMatcher> = serde_json::from_str(&serialized).unwrap();
+
+        assert_eq!(matchers, deserialized);
+    }
 }

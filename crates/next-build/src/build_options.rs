@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use next_core::next_config::Rewrites;
-use turbopack_binding::turbopack::core::issue::IssueSeverity;
+use turbopack_core::issue::IssueSeverity;
 
 #[derive(Clone, Debug)]
 pub struct BuildOptions {

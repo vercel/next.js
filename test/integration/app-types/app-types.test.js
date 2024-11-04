@@ -40,8 +40,8 @@ const appDir = __dirname
           ),
         ].map(([, line]) => +line)
 
-        const ST = 17
-        const ED = 34
+        const ST = 18
+        const ED = 35
         expect(errorLines).toEqual(
           Array.from({ length: ED - ST + 1 }, (_, i) => i + ST)
         )
@@ -57,6 +57,21 @@ const appDir = __dirname
 
         const ST = 11
         const ED = 13
+        expect(errorLines).toEqual(
+          Array.from({ length: ED - ST + 1 }, (_, i) => i + ST)
+        )
+      })
+
+      it('should generate route types correctly and report form errors', async () => {
+        // Make sure all errors were reported and other Forms passed type checking
+        const errorLines = [
+          ...errors.matchAll(
+            /\.\/src\/app\/type-checks\/form\/page\.tsx:(\d+):/g
+          ),
+        ].map(([, line]) => +line)
+
+        const ST = 8
+        const ED = 10
         expect(errorLines).toEqual(
           Array.from({ length: ED - ST + 1 }, (_, i) => i + ST)
         )

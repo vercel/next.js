@@ -1,0 +1,3 @@
+module.exports={"[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/ecmascript_minify/input/index.js [test] (ecmascript)":function(t){var{r:e,f:o,i:s,s:c,v:l,n:r,c:i,M:n,l:a,j:p,P:m,U:u,R:b,b:d,g:f,__dirname:g,m:j,e:k,t:v}=t;{let t="Hello";console.log("Hello, world!",3,t),console.log(t)}}};
+
+//# sourceMappingURL=b1abf_turbopack-tests_tests_snapshot_basic_ecmascript_minify_input_index_6869f8.js.map

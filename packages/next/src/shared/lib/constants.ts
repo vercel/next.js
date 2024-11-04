@@ -29,6 +29,7 @@ export const PHASE_DEVELOPMENT_SERVER = 'phase-development-server'
 export const PHASE_TEST = 'phase-test'
 export const PHASE_INFO = 'phase-info'
 export const PAGES_MANIFEST = 'pages-manifest.json'
+export const WEBPACK_STATS = 'webpack-stats.json'
 export const APP_PATHS_MANIFEST = 'app-paths-manifest.json'
 export const APP_PATH_ROUTES_MANIFEST = 'app-path-routes-manifest.json'
 export const BUILD_MANIFEST = 'build-manifest.json'
@@ -48,7 +49,6 @@ export const TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST =
   '_clientMiddlewareManifest.json'
 export const DEV_CLIENT_MIDDLEWARE_MANIFEST = '_devMiddlewareManifest.json'
 export const REACT_LOADABLE_MANIFEST = 'react-loadable-manifest.json'
-export const AUTOMATIC_FONT_OPTIMIZATION_MANIFEST = 'font-manifest.json'
 export const SERVER_DIRECTORY = 'server'
 export const CONFIG_FILES = [
   'next.config.js',
@@ -96,11 +96,6 @@ export const DEFAULT_RUNTIME_WEBPACK = 'webpack-runtime'
 export const EDGE_RUNTIME_WEBPACK = 'edge-runtime-webpack'
 export const STATIC_PROPS_ID = '__N_SSG'
 export const SERVER_PROPS_ID = '__N_SSP'
-export const GOOGLE_FONT_PROVIDER = 'https://fonts.googleapis.com/'
-export const OPTIMIZED_FONT_PROVIDERS = [
-  { url: GOOGLE_FONT_PROVIDER, preconnect: 'https://fonts.gstatic.com' },
-  { url: 'https://use.typekit.net', preconnect: 'https://use.typekit.net' },
-]
 export const DEFAULT_SERIF_FONT = {
   name: 'Times New Roman',
   xAvgCharWidth: 821,

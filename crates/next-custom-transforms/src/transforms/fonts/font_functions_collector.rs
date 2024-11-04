@@ -1,4 +1,4 @@
-use turbopack_binding::swc::core::{
+use swc_core::{
     common::errors::HANDLER,
     ecma::{
         ast::*,
@@ -12,7 +12,7 @@ pub struct FontFunctionsCollector<'a> {
     pub state: &'a mut super::State,
 }
 
-impl<'a> Visit for FontFunctionsCollector<'a> {
+impl Visit for FontFunctionsCollector<'_> {
     noop_visit_type!();
 
     fn visit_import_decl(&mut self, import_decl: &ImportDecl) {
@@ -21,39 +21,19 @@ impl<'a> Visit for FontFunctionsCollector<'a> {
                 .removeable_module_items
                 .insert(import_decl.span.lo);
             for specifier in &import_decl.specifiers {
-                match specifier {
+                let (local, function_name) = match specifier {
                     ImportSpecifier::Named(ImportNamedSpecifier {
                         local, imported, ..
                     }) => {
-                        self.state
-                            .font_functions_in_allowed_scope
-                            .insert(local.span.lo);
-
                         let function_name = if let Some(ModuleExportName::Ident(ident)) = imported {
                             ident.sym.clone()
                         } else {
                             local.sym.clone()
                         };
-                        self.state.font_functions.insert(
-                            local.to_id(),
-                            super::FontFunction {
-                                loader: import_decl.src.value.clone(),
-                                function_name: Some(function_name),
-                            },
-                        );
+
+                        (local, Some(function_name))
                     }
-                    ImportSpecifier::Default(ImportDefaultSpecifier { local, .. }) => {
-                        self.state
-                            .font_functions_in_allowed_scope
-                            .insert(local.span.lo);
-                        self.state.font_functions.insert(
-                            local.to_id(),
-                            super::FontFunction {
-                                loader: import_decl.src.value.clone(),
-                                function_name: None,
-                            },
-                        );
-                    }
+                    ImportSpecifier::Default(ImportDefaultSpecifier { local, .. }) => (local, None),
                     ImportSpecifier::Namespace(_) => {
                         HANDLER.with(|handler| {
                             handler
@@ -63,8 +43,21 @@ impl<'a> Visit for FontFunctionsCollector<'a> {
                                 )
                                 .emit()
                         });
+                        continue;
                     }
-                }
+                };
+
+                self.state
+                    .font_functions_in_allowed_scope
+                    .insert(local.span.lo);
+
+                self.state.font_functions.insert(
+                    local.to_id(),
+                    super::FontFunction {
+                        loader: import_decl.src.value.clone(),
+                        function_name,
+                    },
+                );
             }
         }
     }

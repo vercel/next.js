@@ -1,0 +1,13 @@
+[92;4msuggestion - [analysis] [project]/turbopack/crates/turbopack-tests/tests/snapshot/dynamic-request/very-dynamic/input/index.js  /turbopack/crates/turbopack-tests/tests/snapshot/dynamic-request/very-dynamic/input/index.js:10:0  lint TP1002 require(FreeVar(Math)["random"]()) is very dynamic
+  
+       6 | child_process.spawnSync(unknown);
+       7 | child_process.spawnSync("node", unknown);
+       8 | child_process.spawnSync("node", [unknown, unknown]);
+       9 | 
+         + v--------------v
+      10 + require(unknown);
+         + ^--------------^
+      11 | 
+      12 | import(unknown);
+      13 | 
+      14 | fs.readFileSync(unknown);

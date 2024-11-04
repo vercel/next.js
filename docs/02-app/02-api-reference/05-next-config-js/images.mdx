@@ -66,6 +66,8 @@ To learn more about configuring the behavior of the built-in [Image Optimization
 - [Sirv](#sirv)
 - [Supabase](#supabase)
 - [Thumbor](#thumbor)
+- [Imagekit](#imagekitio)
+- [Nitrogen AIO](#nitrogen-aio)
 
 ### Akamai
 
@@ -238,5 +240,32 @@ export default function supabaseLoader({ src, width, quality }) {
 export default function thumborLoader({ src, width, quality }) {
   const params = [`${width}x0`, `filters:quality(${quality || 75})`]
   return `https://example.com${params.join('/')}${src}`
+}
+```
+
+### ImageKit.io
+
+```js
+// Docs: https://imagekit.io/docs/image-transformation
+export default function imageKitLoader({ src, width, quality }) {
+  const params = [`w-${width}`, `q-${quality || 80}`]
+  return `https://ik.imagekit.io/your_imagekit_id/${src}?tr=${params.join(',')}`
+}
+```
+
+### Nitrogen AIO
+
+```js
+// Docs: https://docs.n7.io/aio/intergrations/
+export default function aioLoader({ src, width, quality }) {
+  const url = new URL(src, window.location.href)
+  const params = url.searchParams
+  const aioParams = params.getAll('aio')
+  aioParams.push(`w-${width}`)
+  if (quality) {
+    aioParams.push(`q-${quality.toString()}`)
+  }
+  params.set('aio', aioParams.join(';'))
+  return url.href
 }
 ```

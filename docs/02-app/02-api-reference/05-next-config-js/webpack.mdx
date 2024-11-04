@@ -12,8 +12,8 @@ Before continuing to add custom webpack configuration to your application make s
 
 <AppOnly>
 
-- [CSS imports](/docs/app/building-your-application/styling)
-- [CSS modules](/docs/app/building-your-application/styling/stylesheets)
+- [CSS imports](/docs/app/building-your-application/styling/css)
+- [CSS modules](/docs/app/building-your-application/styling/css#css-modules)
 - [Sass/SCSS imports](/docs/app/building-your-application/styling/sass)
 - [Sass/SCSS modules](/docs/app/building-your-application/styling/sass)
 
@@ -22,7 +22,7 @@ Before continuing to add custom webpack configuration to your application make s
 <PagesOnly>
 
 - [CSS imports](/docs/pages/building-your-application/styling)
-- [CSS modules](/docs/pages/building-your-application/styling/css-modules)
+- [CSS modules](/docs/pages/building-your-application/styling/css)
 - [Sass/SCSS imports](/docs/pages/building-your-application/styling/sass)
 - [Sass/SCSS modules](/docs/pages/building-your-application/styling/sass)
 - [Customizing babel configuration](/docs/pages/building-your-application/configuring/babel)
@@ -52,12 +52,12 @@ module.exports = {
 
 The second argument to the `webpack` function is an object with the following properties:
 
-- `buildId`: `String` - The build id, used as a unique identifier between builds
-- `dev`: `Boolean` - Indicates if the compilation will be done in development
-- `isServer`: `Boolean` - It's `true` for server-side compilation, and `false` for client-side compilation
+- `buildId`: `String` - The build id, used as a unique identifier between builds.
+- `dev`: `Boolean` - Indicates if the compilation will be done in development.
+- `isServer`: `Boolean` - It's `true` for server-side compilation, and `false` for client-side compilation.
 - `nextRuntime`: `String | undefined` - The target runtime for server-side compilation; either `"edge"` or `"nodejs"`, it's `undefined` for client-side compilation.
 - `defaultLoaders`: `Object` - Default loaders used internally by Next.js:
-  - `babel`: `Object` - Default `babel-loader` configuration
+  - `babel`: `Object` - Default `babel-loader` configuration.
 
 Example usage of `defaultLoaders.babel`:
 
@@ -85,4 +85,4 @@ module.exports = {
 
 #### `nextRuntime`
 
-Notice that `isServer` is `true` when `nextRuntime` is `"edge"` or `"nodejs"`, nextRuntime "`edge`" is currently for middleware and Server Components in edge runtime only.
+Notice that `isServer` is `true` when `nextRuntime` is `"edge"` or `"nodejs"`, `nextRuntime` `"edge"` is currently for middleware and Server Components in edge runtime only.

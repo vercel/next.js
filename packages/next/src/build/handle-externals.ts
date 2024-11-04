@@ -119,7 +119,7 @@ export async function resolveExternal(
       // Same as above: if the package, when required from the root,
       // would be different from what the real resolution would use, we
       // cannot externalize it.
-      // if request is pointing to a symlink it could point to the the same file,
+      // if request is pointing to a symlink it could point to the same file,
       // the resolver will resolve symlinks so this is handled
       if (baseRes !== res || isEsm !== baseIsEsm) {
         res = null
@@ -192,7 +192,7 @@ export function makeExternalHandler({
       }
 
       const notExternalModules =
-        /^(?:private-next-pages\/|next\/(?:dist\/pages\/|(?:app|document|link|image|legacy\/image|constants|dynamic|script|navigation|headers|router)$)|string-hash|private-next-rsc-action-validate|private-next-rsc-action-client-wrapper|private-next-rsc-server-reference$)/
+        /^(?:private-next-pages\/|next\/(?:dist\/pages\/|(?:app|document|link|form|image|legacy\/image|constants|dynamic|script|navigation|headers|router)$)|string-hash|private-next-rsc-action-validate|private-next-rsc-action-client-wrapper|private-next-rsc-server-reference|private-next-rsc-cache-wrapper$)/
       if (notExternalModules.test(request)) {
         return
       }

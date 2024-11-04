@@ -2,8 +2,7 @@ use std::{fmt::Display, str::FromStr};
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{RcStr, Vc};
-use turbopack_binding::turbo::tasks::{trace::TraceRawVcs, Value};
+use turbo_tasks::{trace::TraceRawVcs, RcStr, Value, Vc};
 
 use super::request::{
     AdjustFontFallback, NextFontLocalRequest, NextFontLocalRequestArguments, SrcDescriptor,
@@ -42,8 +41,8 @@ impl NextFontLocalOptions {
     }
 
     #[turbo_tasks::function]
-    pub async fn font_family(self: Vc<Self>) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(self.await?.variable_name.clone()))
+    pub fn font_family(&self) -> Vc<RcStr> {
+        Vc::cell(self.variable_name.clone())
     }
 }
 
@@ -174,7 +173,7 @@ pub(super) fn options_from_request(request: &NextFontLocalRequest) -> Result<Nex
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use turbopack_binding::turbo::tasks_fs::json::parse_json_with_source_context;
+    use turbo_tasks_fs::json::parse_json_with_source_context;
 
     use super::{options_from_request, NextFontLocalOptions};
     use crate::next_font::local::{

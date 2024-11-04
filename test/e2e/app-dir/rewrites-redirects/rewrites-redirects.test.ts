@@ -68,5 +68,14 @@ describe('redirects and rewrites', () => {
       const url = new URL(await browser.url())
       expect(url.pathname).toEndWith('-after/thing')
     })
+    it('should redirect from next.config.js correctly with empty query params', async () => {
+      const browser = await next.browser('/?q=1&=')
+      await browser
+        .elementById(`${testType}-config-redirect`)
+        .click()
+        .waitForElementByCss('.page_config-redirect-after')
+      const url = new URL(await browser.url())
+      expect(url.pathname).toEndWith('-after')
+    })
   })
 })

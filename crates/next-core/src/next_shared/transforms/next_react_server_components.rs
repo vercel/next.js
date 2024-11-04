@@ -1,18 +1,14 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use next_custom_transforms::transforms::react_server_components::*;
+use swc_core::{
+    common::FileName,
+    ecma::{ast::Program, visit::VisitWith},
+};
 use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_binding::{
-    swc::core::{
-        common::FileName,
-        ecma::{ast::Program, visit::VisitWith},
-    },
-    turbopack::{
-        ecmascript::{CustomTransformer, TransformContext},
-        turbopack::module_options::ModuleRule,
-    },
-};
+use turbopack::module_options::ModuleRule;
+use turbopack_ecmascript::{CustomTransformer, TransformContext};
 
 use super::get_ecma_transform_rule;
 use crate::next_config::NextConfig;
@@ -38,9 +34,15 @@ pub async fn get_next_react_server_components_transform_rule(
     app_dir: Option<Vc<FileSystemPath>>,
 ) -> Result<ModuleRule> {
     let enable_mdx_rs = next_config.mdx_rs().await?.is_some();
+    let dynamic_io_enabled = next_config
+        .experimental()
+        .await?
+        .dynamic_io
+        .unwrap_or(false);
     Ok(get_ecma_transform_rule(
         Box::new(NextJsReactServerComponents::new(
             is_react_server_layer,
+            dynamic_io_enabled,
             app_dir,
         )),
         enable_mdx_rs,
@@ -51,13 +53,19 @@ pub async fn get_next_react_server_components_transform_rule(
 #[derive(Debug)]
 struct NextJsReactServerComponents {
     is_react_server_layer: bool,
+    dynamic_io_enabled: bool,
     app_dir: Option<Vc<FileSystemPath>>,
 }
 
 impl NextJsReactServerComponents {
-    fn new(is_react_server_layer: bool, app_dir: Option<Vc<FileSystemPath>>) -> Self {
+    fn new(
+        is_react_server_layer: bool,
+        dynamic_io_enabled: bool,
+        app_dir: Option<Vc<FileSystemPath>>,
+    ) -> Self {
         Self {
             is_react_server_layer,
+            dynamic_io_enabled,
             app_dir,
         }
     }
@@ -77,6 +85,7 @@ impl CustomTransformer for NextJsReactServerComponents {
             file_name,
             Config::WithOptions(Options {
                 is_react_server_layer: self.is_react_server_layer,
+                dynamic_io_enabled: self.dynamic_io_enabled,
             }),
             match self.app_dir {
                 None => None,

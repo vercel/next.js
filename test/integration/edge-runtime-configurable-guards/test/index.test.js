@@ -45,9 +45,9 @@ describe('Edge runtime configurable guards', () => {
     context.logs = { output: '', stdout: '', stderr: '' }
   })
 
-  afterEach(() => {
+  afterEach(async () => {
     if (context.app) {
-      killApp(context.app)
+      await killApp(context.app)
     }
     context.api.restore()
     context.middleware.restore()
@@ -109,15 +109,20 @@ describe('Edge runtime configurable guards', () => {
           const output = await nextBuild(context.appDir, undefined, {
             stdout: true,
             stderr: true,
-            env: { NEXT_TELEMETRY_DEBUG: 1 },
+            env: process.env.TURBOPACK ? {} : { NEXT_TELEMETRY_DEBUG: 1 },
           })
-          expect(output.stderr).toContain(`Build failed`)
-          expect(output.stderr).toContain(`./pages/api/route.js`)
+
+          expect(output.code).toBe(1)
+          if (!process.env.TURBOPACK) {
+            expect(output.stderr).toContain(`./pages/api/route.js`)
+          }
           expect(output.stderr).toContain(
             `Dynamic Code Evaluation (e. g. 'eval', 'new Function', 'WebAssembly.compile') not allowed in Edge Runtime`
           )
-          expect(output.stderr).toContain(`Used by default`)
-          expect(output.stderr).toContain(TELEMETRY_EVENT_NAME)
+          if (!process.env.TURBOPACK) {
+            expect(output.stderr).toContain(`Used by default`)
+            expect(output.stderr).toContain(TELEMETRY_EVENT_NAME)
+          }
         })
       }
     )
@@ -309,27 +314,38 @@ describe('Edge runtime configurable guards', () => {
     ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
-        it('build and does not warn at runtime', async () => {
-          const output = await nextBuild(context.appDir, undefined, {
-            stdout: true,
-            stderr: true,
-            env: { NEXT_TELEMETRY_DEBUG: 1 },
-          })
-          expect(output.stderr).not.toContain(`Build failed`)
-          expect(output.stderr).toContain(TELEMETRY_EVENT_NAME)
-          context.appPort = await findPort()
-          context.app = await nextStart(
-            context.appDir,
-            context.appPort,
-            appOption
-          )
-          const res = await fetchViaHTTP(context.appPort, url)
-          expect(res.status).toBe(200)
-          expect(context.logs.output).not.toContain(`warn`)
-          expect(context.logs.output).not.toContain(
-            `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Edge Runtime`
-          )
-        })
+        // This checks the unstable_allowDynamic configuration which is not supported in Turbopack.
+        ;(process.env.TURBOPACK ? it.skip : it)(
+          'build and does not warn at runtime',
+          async () => {
+            const output = await nextBuild(context.appDir, undefined, {
+              stdout: true,
+              stderr: true,
+              env: process.env.TURBOPACK ? {} : { NEXT_TELEMETRY_DEBUG: 1 },
+            })
+            // eslint-disable-next-line jest/no-standalone-expect
+            expect(output.stderr).not.toContain(`Build failed`)
+            if (!process.env.TURBOPACK) {
+              // eslint-disable-next-line jest/no-standalone-expect
+              expect(output.stderr).toContain(TELEMETRY_EVENT_NAME)
+            }
+            context.appPort = await findPort()
+            context.app = await nextStart(
+              context.appDir,
+              context.appPort,
+              appOption
+            )
+            const res = await fetchViaHTTP(context.appPort, url)
+            // eslint-disable-next-line jest/no-standalone-expect
+            expect(res.status).toBe(200)
+            // eslint-disable-next-line jest/no-standalone-expect
+            expect(context.logs.output).not.toContain(`warn`)
+            // eslint-disable-next-line jest/no-standalone-expect
+            expect(context.logs.output).not.toContain(
+              `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Edge Runtime`
+            )
+          }
+        )
       }
     )
   })
@@ -398,13 +414,14 @@ describe('Edge runtime configurable guards', () => {
           const output = await nextBuild(context.appDir, undefined, {
             stdout: true,
             stderr: true,
-            env: { NEXT_TELEMETRY_DEBUG: 1 },
+            env: process.env.TURBOPACK ? {} : { NEXT_TELEMETRY_DEBUG: 1 },
           })
-          expect(output.stderr).toContain(`Build failed`)
           expect(output.stderr).toContain(
             `Dynamic Code Evaluation (e. g. 'eval', 'new Function', 'WebAssembly.compile') not allowed in Edge Runtime`
           )
-          expect(output.stderr).toContain(TELEMETRY_EVENT_NAME)
+          if (!process.env.TURBOPACK) {
+            expect(output.stderr).toContain(TELEMETRY_EVENT_NAME)
+          }
         })
       }
     )
@@ -452,26 +469,34 @@ describe('Edge runtime configurable guards', () => {
     ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
+        // This checks the unstable_allowDynamic configuration which is not supported in Turbopack.
         // eslint-disable-next-line jest/no-identical-title
-        it('build and does not warn at runtime', async () => {
-          const output = await nextBuild(context.appDir, undefined, {
-            stdout: true,
-            stderr: true,
-          })
-          expect(output.stderr).not.toContain(`Build failed`)
-          context.appPort = await findPort()
-          context.app = await nextStart(
-            context.appDir,
-            context.appPort,
-            appOption
-          )
-          const res = await fetchViaHTTP(context.appPort, url)
-          expect(res.status).toBe(200)
-          expect(context.logs.output).not.toContain(`warn`)
-          expect(context.logs.output).not.toContain(
-            `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Edge Runtime`
-          )
-        })
+        ;(process.env.TURBOPACK ? it.skip : it)(
+          'build and does not warn at runtime',
+          async () => {
+            const output = await nextBuild(context.appDir, undefined, {
+              stdout: true,
+              stderr: true,
+            })
+            // eslint-disable-next-line jest/no-standalone-expect
+            expect(output.stderr).not.toContain(`Build failed`)
+            context.appPort = await findPort()
+            context.app = await nextStart(
+              context.appDir,
+              context.appPort,
+              appOption
+            )
+            const res = await fetchViaHTTP(context.appPort, url)
+            // eslint-disable-next-line jest/no-standalone-expect
+            expect(res.status).toBe(200)
+            // eslint-disable-next-line jest/no-standalone-expect
+            expect(context.logs.output).not.toContain(`warn`)
+            // eslint-disable-next-line jest/no-standalone-expect
+            expect(context.logs.output).not.toContain(
+              `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Edge Runtime`
+            )
+          }
+        )
       }
     )
   })

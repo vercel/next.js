@@ -1,13 +1,15 @@
 import type { IncrementalCache } from '../../lib/incremental-cache'
 
 import { CACHE_ONE_YEAR } from '../../../lib/constants'
+import { validateRevalidate, validateTags } from '../../lib/patch-fetch'
+import { workAsyncStorage } from '../../app-render/work-async-storage.external'
+import { workUnitAsyncStorage } from '../../app-render/work-unit-async-storage.external'
 import {
-  addImplicitTags,
-  validateRevalidate,
-  validateTags,
-} from '../../lib/patch-fetch'
-import { staticGenerationAsyncStorage } from '../../../client/components/static-generation-async-storage.external'
-import { requestAsyncStorage } from '../../../client/components/request-async-storage.external'
+  CachedRouteKind,
+  IncrementalCacheKind,
+  type CachedFetchData,
+} from '../../response-cache'
+import type { UnstableCacheStore } from '../../app-render/work-unit-async-storage.external'
 
 type Callback = (...args: any[]) => Promise<any>
 
@@ -25,14 +27,14 @@ async function cacheNewResult<T>(
   await incrementalCache.set(
     cacheKey,
     {
-      kind: 'FETCH',
+      kind: CachedRouteKind.FETCH,
       data: {
         headers: {},
         // TODO: handle non-JSON values?
         body: JSON.stringify(result),
         status: 200,
         url: '',
-      },
+      } satisfies CachedFetchData,
       revalidate: typeof revalidate !== 'number' ? CACHE_ONE_YEAR : revalidate,
     },
     {
@@ -91,15 +93,14 @@ export function unstable_cache<T extends Callback>(
   }`
 
   const cachedCb = async (...args: any[]) => {
-    const staticGenerationStore = staticGenerationAsyncStorage.getStore()
-    const requestStore = requestAsyncStorage.getStore()
+    const workStore = workAsyncStorage.getStore()
+    const workUnitStore = workUnitAsyncStorage.getStore()
 
     // We must be able to find the incremental cache otherwise we throw
     const maybeIncrementalCache:
       | import('../../lib/incremental-cache').IncrementalCache
       | undefined =
-      staticGenerationStore?.incrementalCache ||
-      (globalThis as any).__incrementalCache
+      workStore?.incrementalCache || (globalThis as any).__incrementalCache
 
     if (!maybeIncrementalCache) {
       throw new Error(
@@ -108,167 +109,241 @@ export function unstable_cache<T extends Callback>(
     }
     const incrementalCache = maybeIncrementalCache
 
-    // If there's no request store, we aren't in a request (or we're not in app
-    // router)  and if there's no static generation store, we aren't in app
-    // router. Default to an empty pathname and search params when there's no
-    // request store or static generation store available.
-    const pathname =
-      requestStore?.url.pathname ?? staticGenerationStore?.route ?? ''
-    const searchParams = new URLSearchParams(requestStore?.url.search ?? '')
+    const cacheSignal =
+      workUnitStore && workUnitStore.type === 'prerender'
+        ? workUnitStore.cacheSignal
+        : null
+    if (cacheSignal) {
+      cacheSignal.beginRead()
+    }
+    try {
+      // If there's no request store, we aren't in a request (or we're not in app
+      // router)  and if there's no static generation store, we aren't in app
+      // router. Default to an empty pathname and search params when there's no
+      // request store or static generation store available.
+      const requestStore =
+        workUnitStore && workUnitStore.type === 'request'
+          ? workUnitStore
+          : undefined
+      const pathname = requestStore?.url.pathname ?? workStore?.route ?? ''
+      const searchParams = new URLSearchParams(requestStore?.url.search ?? '')
 
-    const sortedSearchKeys = [...searchParams.keys()].sort((a, b) => {
-      return a.localeCompare(b)
-    })
-    const sortedSearch = sortedSearchKeys
-      .map((key) => `${key}=${searchParams.get(key)}`)
-      .join('&')
+      const sortedSearchKeys = [...searchParams.keys()].sort((a, b) => {
+        return a.localeCompare(b)
+      })
+      const sortedSearch = sortedSearchKeys
+        .map((key) => `${key}=${searchParams.get(key)}`)
+        .join('&')
 
-    // Construct the complete cache key for this function invocation
-    // @TODO stringify is likely not safe here. We will coerce undefined to null which will make
-    // the keyspace smaller than the execution space
-    const invocationKey = `${fixedKey}-${JSON.stringify(args)}`
-    const cacheKey = await incrementalCache.generateCacheKey(invocationKey)
-    // $urlWithPath,$sortedQueryStringKeys,$hashOfEveryThingElse
-    const fetchUrl = `unstable_cache ${pathname}${sortedSearch.length ? '?' : ''}${sortedSearch} ${cb.name ? ` ${cb.name}` : cacheKey}`
-    const fetchIdx =
-      (staticGenerationStore
-        ? staticGenerationStore.nextFetchId
-        : noStoreFetchIdx) ?? 1
+      // Construct the complete cache key for this function invocation
+      // @TODO stringify is likely not safe here. We will coerce undefined to null which will make
+      // the keyspace smaller than the execution space
+      const invocationKey = `${fixedKey}-${JSON.stringify(args)}`
+      const cacheKey = await incrementalCache.generateCacheKey(invocationKey)
+      // $urlWithPath,$sortedQueryStringKeys,$hashOfEveryThingElse
+      const fetchUrl = `unstable_cache ${pathname}${sortedSearch.length ? '?' : ''}${sortedSearch} ${cb.name ? ` ${cb.name}` : cacheKey}`
+      const fetchIdx =
+        (workStore ? workStore.nextFetchId : noStoreFetchIdx) ?? 1
 
-    if (staticGenerationStore) {
-      staticGenerationStore.nextFetchId = fetchIdx + 1
+      if (workStore) {
+        workStore.nextFetchId = fetchIdx + 1
 
-      // We are in an App Router context. We try to return the cached entry if it exists and is valid
-      // If the entry is fresh we return it. If the entry is stale we return it but revalidate the entry in
-      // the background. If the entry is missing or invalid we generate a new entry and return it.
+        // We are in an App Router context. We try to return the cached entry if it exists and is valid
+        // If the entry is fresh we return it. If the entry is stale we return it but revalidate the entry in
+        // the background. If the entry is missing or invalid we generate a new entry and return it.
 
-      // We update the store's revalidate property if the option.revalidate is a higher precedence
-      if (typeof options.revalidate === 'number') {
+        // We update the store's revalidate property if the option.revalidate is a higher precedence
         if (
-          typeof staticGenerationStore.revalidate === 'number' &&
-          staticGenerationStore.revalidate < options.revalidate
+          workUnitStore &&
+          (workUnitStore.type === 'cache' ||
+            workUnitStore.type === 'prerender' ||
+            workUnitStore.type === 'prerender-ppr' ||
+            workUnitStore.type === 'prerender-legacy')
         ) {
-          // The store is already revalidating on a shorter time interval, leave it alone
-        } else {
-          staticGenerationStore.revalidate = options.revalidate
-        }
-      } else if (
-        options.revalidate === false &&
-        typeof staticGenerationStore.revalidate === 'undefined'
-      ) {
-        // The store has not defined revalidate type so we can use the false option
-        staticGenerationStore.revalidate = options.revalidate
-      }
+          // options.revalidate === undefined doesn't affect timing.
+          // options.revalidate === false doesn't shrink timing. it stays at the maximum.
+          if (typeof options.revalidate === 'number') {
+            if (workUnitStore.revalidate < options.revalidate) {
+              // The store is already revalidating on a shorter time interval, leave it alone
+            } else {
+              workUnitStore.revalidate = options.revalidate
+            }
+          }
 
-      // We need to accumulate the tags for this invocation within the store
-      if (!staticGenerationStore.tags) {
-        staticGenerationStore.tags = tags.slice()
-      } else {
-        for (const tag of tags) {
-          // @TODO refactor tags to be a set to avoid this O(n) lookup
-          if (!staticGenerationStore.tags.includes(tag)) {
-            staticGenerationStore.tags.push(tag)
+          // We need to accumulate the tags for this invocation within the store
+          const collectedTags = workUnitStore.tags
+          if (collectedTags === null) {
+            workUnitStore.tags = tags.slice()
+          } else {
+            for (const tag of tags) {
+              // @TODO refactor tags to be a set to avoid this O(n) lookup
+              if (!collectedTags.includes(tag)) {
+                collectedTags.push(tag)
+              }
+            }
           }
         }
-      }
-      // @TODO check on this API. addImplicitTags mutates the store and returns the implicit tags. The naming
-      // of this function is potentially a little confusing
-      const implicitTags = addImplicitTags(staticGenerationStore, requestStore)
 
-      if (
-        // when we are nested inside of other unstable_cache's
-        // we should bypass cache similar to fetches
-        staticGenerationStore.fetchCache !== 'force-no-store' &&
-        !staticGenerationStore.isOnDemandRevalidate &&
-        !incrementalCache.isOnDemandRevalidate &&
-        !staticGenerationStore.isDraftMode
-      ) {
-        // We attempt to get the current cache entry from the incremental cache.
-        const cacheEntry = await incrementalCache.get(cacheKey, {
-          kindHint: 'fetch',
-          revalidate: options.revalidate,
-          tags,
-          softTags: implicitTags,
-          fetchIdx,
-          fetchUrl,
-        })
+        const implicitTags =
+          !workUnitStore || workUnitStore.type === 'unstable-cache'
+            ? []
+            : workUnitStore.implicitTags
 
-        if (cacheEntry && cacheEntry.value) {
-          // The entry exists and has a value
-          if (cacheEntry.value.kind !== 'FETCH') {
-            // The entry is invalid and we need a special warning
-            // @TODO why do we warn this way? Should this just be an error? How are these errors surfaced
-            // so bugs can be reported
-            // @TODO the invocation key can have sensitive data in it. we should not log this entire object
-            console.error(
-              `Invariant invalid cacheEntry returned for ${invocationKey}`
-            )
-            // will fall through to generating a new cache entry below
-          } else {
-            // We have a valid cache entry so we will be returning it. We also check to see if we need
-            // to background revalidate it by checking if it is stale.
-            const cachedResponse =
-              cacheEntry.value.data.body !== undefined
+        const isNestedUnstableCache =
+          workUnitStore && workUnitStore.type === 'unstable-cache'
+        if (
+          // when we are nested inside of other unstable_cache's
+          // we should bypass cache similar to fetches
+          !isNestedUnstableCache &&
+          workStore.fetchCache !== 'force-no-store' &&
+          !workStore.isOnDemandRevalidate &&
+          !incrementalCache.isOnDemandRevalidate &&
+          !workStore.isDraftMode
+        ) {
+          // We attempt to get the current cache entry from the incremental cache.
+          const cacheEntry = await incrementalCache.get(cacheKey, {
+            kind: IncrementalCacheKind.FETCH,
+            revalidate: options.revalidate,
+            tags,
+            softTags: implicitTags,
+            fetchIdx,
+            fetchUrl,
+            isFallback: false,
+          })
+
+          if (cacheEntry && cacheEntry.value) {
+            // The entry exists and has a value
+            if (cacheEntry.value.kind !== CachedRouteKind.FETCH) {
+              // The entry is invalid and we need a special warning
+              // @TODO why do we warn this way? Should this just be an error? How are these errors surfaced
+              // so bugs can be reported
+              // @TODO the invocation key can have sensitive data in it. we should not log this entire object
+              console.error(
+                `Invariant invalid cacheEntry returned for ${invocationKey}`
+              )
+              // will fall through to generating a new cache entry below
+            } else {
+              // We have a valid cache entry so we will be returning it. We also check to see if we need
+              // to background revalidate it by checking if it is stale.
+              const cachedResponse =
+                cacheEntry.value.data.body !== undefined
+                  ? JSON.parse(cacheEntry.value.data.body)
+                  : undefined
+              if (cacheEntry.isStale) {
+                // In App Router we return the stale result and revalidate in the background
+                if (!workStore.pendingRevalidates) {
+                  workStore.pendingRevalidates = {}
+                }
+                const innerCacheStore: UnstableCacheStore = {
+                  type: 'unstable-cache',
+                  phase: 'render',
+                }
+                // We run the cache function asynchronously and save the result when it completes
+                workStore.pendingRevalidates[invocationKey] =
+                  workUnitAsyncStorage
+                    .run(innerCacheStore, cb, ...args)
+                    .then((result) => {
+                      return cacheNewResult(
+                        result,
+                        incrementalCache,
+                        cacheKey,
+                        tags,
+                        options.revalidate,
+                        fetchIdx,
+                        fetchUrl
+                      )
+                    })
+                    // @TODO This error handling seems wrong. We swallow the error?
+                    .catch((err) =>
+                      console.error(
+                        `revalidating cache with key: ${invocationKey}`,
+                        err
+                      )
+                    )
+              }
+              // We had a valid cache entry so we return it here
+              return cachedResponse
+            }
+          }
+        }
+
+        const innerCacheStore: UnstableCacheStore = {
+          type: 'unstable-cache',
+          phase: 'render',
+        }
+        // If we got this far then we had an invalid cache entry and need to generate a new one
+        const result = await workUnitAsyncStorage.run(
+          innerCacheStore,
+          cb,
+          ...args
+        )
+
+        if (!workStore.isDraftMode) {
+          cacheNewResult(
+            result,
+            incrementalCache,
+            cacheKey,
+            tags,
+            options.revalidate,
+            fetchIdx,
+            fetchUrl
+          )
+        }
+
+        return result
+      } else {
+        noStoreFetchIdx += 1
+        // We are in Pages Router or were called outside of a render. We don't have a store
+        // so we just call the callback directly when it needs to run.
+        // If the entry is fresh we return it. If the entry is stale we return it but revalidate the entry in
+        // the background. If the entry is missing or invalid we generate a new entry and return it.
+
+        if (!incrementalCache.isOnDemandRevalidate) {
+          // We aren't doing an on demand revalidation so we check use the cache if valid
+          const implicitTags =
+            !workUnitStore || workUnitStore.type === 'unstable-cache'
+              ? []
+              : workUnitStore.implicitTags
+
+          const cacheEntry = await incrementalCache.get(cacheKey, {
+            kind: IncrementalCacheKind.FETCH,
+            revalidate: options.revalidate,
+            tags,
+            fetchIdx,
+            fetchUrl,
+            softTags: implicitTags,
+            isFallback: false,
+          })
+
+          if (cacheEntry && cacheEntry.value) {
+            // The entry exists and has a value
+            if (cacheEntry.value.kind !== CachedRouteKind.FETCH) {
+              // The entry is invalid and we need a special warning
+              // @TODO why do we warn this way? Should this just be an error? How are these errors surfaced
+              // so bugs can be reported
+              console.error(
+                `Invariant invalid cacheEntry returned for ${invocationKey}`
+              )
+              // will fall through to generating a new cache entry below
+            } else if (!cacheEntry.isStale) {
+              // We have a valid cache entry and it is fresh so we return it
+              return cacheEntry.value.data.body !== undefined
                 ? JSON.parse(cacheEntry.value.data.body)
                 : undefined
-            if (cacheEntry.isStale) {
-              // In App Router we return the stale result and revalidate in the background
-              if (!staticGenerationStore.pendingRevalidates) {
-                staticGenerationStore.pendingRevalidates = {}
-              }
-              // We run the cache function asynchronously and save the result when it completes
-              staticGenerationStore.pendingRevalidates[invocationKey] =
-                staticGenerationAsyncStorage
-                  .run(
-                    {
-                      ...staticGenerationStore,
-                      // force any nested fetches to bypass cache so they revalidate
-                      // when the unstable_cache call is revalidated
-                      fetchCache: 'force-no-store',
-                      isUnstableCacheCallback: true,
-                    },
-                    cb,
-                    ...args
-                  )
-                  .then((result) => {
-                    return cacheNewResult(
-                      result,
-                      incrementalCache,
-                      cacheKey,
-                      tags,
-                      options.revalidate,
-                      fetchIdx,
-                      fetchUrl
-                    )
-                  })
-                  // @TODO This error handling seems wrong. We swallow the error?
-                  .catch((err) =>
-                    console.error(
-                      `revalidating cache with key: ${invocationKey}`,
-                      err
-                    )
-                  )
             }
-            // We had a valid cache entry so we return it here
-            return cachedResponse
           }
         }
-      }
 
-      // If we got this far then we had an invalid cache entry and need to generate a new one
-      const result = await staticGenerationAsyncStorage.run(
-        {
-          ...staticGenerationStore,
-          // force any nested fetches to bypass cache so they revalidate
-          // when the unstable_cache call is revalidated
-          fetchCache: 'force-no-store',
-          isUnstableCacheCallback: true,
-        },
-        cb,
-        ...args
-      )
-
-      if (!staticGenerationStore.isDraftMode) {
+        const innerCacheStore: UnstableCacheStore = {
+          type: 'unstable-cache',
+          phase: 'render',
+        }
+        // If we got this far then we had an invalid cache entry and need to generate a new one
+        const result = await workUnitAsyncStorage.run(
+          innerCacheStore,
+          cb,
+          ...args
+        )
         cacheNewResult(
           result,
           incrementalCache,
@@ -278,87 +353,12 @@ export function unstable_cache<T extends Callback>(
           fetchIdx,
           fetchUrl
         )
+        return result
       }
-
-      return result
-    } else {
-      noStoreFetchIdx += 1
-      // We are in Pages Router or were called outside of a render. We don't have a store
-      // so we just call the callback directly when it needs to run.
-      // If the entry is fresh we return it. If the entry is stale we return it but revalidate the entry in
-      // the background. If the entry is missing or invalid we generate a new entry and return it.
-
-      if (!incrementalCache.isOnDemandRevalidate) {
-        // We aren't doing an on demand revalidation so we check use the cache if valid
-
-        // @TODO check on this API. addImplicitTags mutates the store and returns the implicit tags. The naming
-        // of this function is potentially a little confusing
-        const implicitTags =
-          staticGenerationStore &&
-          addImplicitTags(staticGenerationStore, requestStore)
-
-        const cacheEntry = await incrementalCache.get(cacheKey, {
-          kindHint: 'fetch',
-          revalidate: options.revalidate,
-          tags,
-          fetchIdx,
-          fetchUrl,
-          softTags: implicitTags,
-        })
-
-        if (cacheEntry && cacheEntry.value) {
-          // The entry exists and has a value
-          if (cacheEntry.value.kind !== 'FETCH') {
-            // The entry is invalid and we need a special warning
-            // @TODO why do we warn this way? Should this just be an error? How are these errors surfaced
-            // so bugs can be reported
-            console.error(
-              `Invariant invalid cacheEntry returned for ${invocationKey}`
-            )
-            // will fall through to generating a new cache entry below
-          } else if (!cacheEntry.isStale) {
-            // We have a valid cache entry and it is fresh so we return it
-            return cacheEntry.value.data.body !== undefined
-              ? JSON.parse(cacheEntry.value.data.body)
-              : undefined
-          }
-        }
+    } finally {
+      if (cacheSignal) {
+        cacheSignal.endRead()
       }
-
-      // If we got this far then we had an invalid cache entry and need to generate a new one
-      // @TODO this storage wrapper is included here because it existed prior to the latest refactor
-      // however it is incorrect logic because it causes any internal cache calls to follow the App Router
-      // path rather than Pages router path. This may mean there is existing buggy behavior however no specific
-      // issues are known at this time. The whole static generation storage pathways should be reworked
-      // to allow tracking which "mode" we are in without the presence of a store or not. For now I have
-      // maintained the existing behavior to limit the impact of the current refactor
-      const result = await staticGenerationAsyncStorage.run(
-        // We are making a fake store that is useful for scoping fetchCache: 'force-no-store' and isUnstableCacheCallback: true
-        // The fact that we need to construct this kind of fake store indicates the code is not factored correctly
-        // @TODO refactor to not require this fake store object
-        {
-          // force any nested fetches to bypass cache so they revalidate
-          // when the unstable_cache call is revalidated
-          fetchCache: 'force-no-store',
-          isUnstableCacheCallback: true,
-          route: '/',
-          page: '/',
-          isStaticGeneration: false,
-          prerenderState: null,
-        },
-        cb,
-        ...args
-      )
-      cacheNewResult(
-        result,
-        incrementalCache,
-        cacheKey,
-        tags,
-        options.revalidate,
-        fetchIdx,
-        fetchUrl
-      )
-      return result
     }
   }
   // TODO: once AsyncLocalStorage.run() returns the correct types this override will no longer be necessary

@@ -1,13 +1,11 @@
 use anyhow::Result;
 use next_core::{all_assets_from_entries, next_manifests::AssetBinding};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, RcStr, TryFlatJoinIterExt, Vc};
-use turbopack_binding::{
-    turbo::tasks_fs::FileSystemPath,
-    turbopack::core::{
-        asset::{Asset, AssetContent},
-        output::{OutputAsset, OutputAssets},
-    },
+use turbo_tasks::{trace::TraceRawVcs, RcStr, ResolvedVc, TryFlatJoinIterExt, Vc};
+use turbo_tasks_fs::FileSystemPath;
+use turbopack_core::{
+    asset::{Asset, AssetContent},
+    output::{OutputAsset, OutputAssets},
 };
 
 /// A reference to a server file with content hash for change detection
@@ -73,24 +71,22 @@ pub async fn all_paths_in_root(
 
 pub(crate) async fn get_paths_from_root(
     root: &FileSystemPath,
-    output_assets: &[Vc<Box<dyn OutputAsset>>],
+    output_assets: &[ResolvedVc<Box<dyn OutputAsset>>],
     filter: impl FnOnce(&str) -> bool + Copy,
 ) -> Result<Vec<RcStr>> {
     output_assets
         .iter()
-        .map({
-            move |&file| async move {
-                let path = &*file.ident().path().await?;
-                let Some(relative) = root.get_path_to(path) else {
-                    return Ok(None);
-                };
+        .map(move |&file| async move {
+            let path = &*file.ident().path().await?;
+            let Some(relative) = root.get_path_to(path) else {
+                return Ok(None);
+            };
 
-                Ok(if filter(relative) {
-                    Some(relative.into())
-                } else {
-                    None
-                })
-            }
+            Ok(if filter(relative) {
+                Some(relative.into())
+            } else {
+                None
+            })
         })
         .try_flat_join()
         .await
@@ -98,21 +94,21 @@ pub(crate) async fn get_paths_from_root(
 
 pub(crate) async fn get_js_paths_from_root(
     root: &FileSystemPath,
-    output_assets: &[Vc<Box<dyn OutputAsset>>],
+    output_assets: &[ResolvedVc<Box<dyn OutputAsset>>],
 ) -> Result<Vec<RcStr>> {
     get_paths_from_root(root, output_assets, |path| path.ends_with(".js")).await
 }
 
 pub(crate) async fn get_wasm_paths_from_root(
     root: &FileSystemPath,
-    output_assets: &[Vc<Box<dyn OutputAsset>>],
+    output_assets: &[ResolvedVc<Box<dyn OutputAsset>>],
 ) -> Result<Vec<RcStr>> {
     get_paths_from_root(root, output_assets, |path| path.ends_with(".wasm")).await
 }
 
 pub(crate) async fn get_font_paths_from_root(
     root: &FileSystemPath,
-    output_assets: &[Vc<Box<dyn OutputAsset>>],
+    output_assets: &[ResolvedVc<Box<dyn OutputAsset>>],
 ) -> Result<Vec<RcStr>> {
     get_paths_from_root(root, output_assets, |path| {
         path.ends_with(".woff")
@@ -158,6 +154,16 @@ pub(crate) fn wasm_paths_to_bindings(paths: Vec<RcStr>) -> Vec<AssetBinding> {
                 name: format!("wasm_{}", escaped).into(),
                 file_path: path,
             }
+        })
+        .collect()
+}
+
+pub(crate) fn paths_to_bindings(paths: Vec<RcStr>) -> Vec<AssetBinding> {
+    paths
+        .into_iter()
+        .map(|path| AssetBinding {
+            name: path.clone(),
+            file_path: path,
         })
         .collect()
 }

@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use lazy_static::lazy_static;
-use turbopack_binding::swc::core::ecma::{
+use swc_core::ecma::{
     ast::{
         Decl, ExportDecl, ExportNamedSpecifier, ExportSpecifier, Expr, ExprOrSpread, ExprStmt, Lit,
         ModuleExportName, ModuleItem, NamedExport, Pat, Stmt, Str, VarDeclarator,

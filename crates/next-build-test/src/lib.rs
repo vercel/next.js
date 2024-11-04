@@ -1,6 +1,7 @@
 #![feature(future_join)]
 #![feature(min_specialization)]
 #![feature(arbitrary_self_types)]
+#![feature(arbitrary_self_types_pointers)]
 
 use std::{str::FromStr, time::Instant};
 
@@ -10,8 +11,9 @@ use next_api::{
     project::{ProjectContainer, ProjectOptions},
     route::{Endpoint, Route},
 };
-use turbo_tasks::{RcStr, TransientInstance, TurboTasks, Vc};
-use turbopack_binding::turbo::{malloc::TurboMalloc, tasks_memory::MemoryBackend};
+use turbo_tasks::{RcStr, ReadConsistency, TransientInstance, TurboTasks, Vc};
+use turbo_tasks_malloc::TurboMalloc;
+use turbo_tasks_memory::MemoryBackend;
 
 pub async fn main_inner(
     tt: &TurboTasks<MemoryBackend>,
@@ -30,14 +32,19 @@ pub async fn main_inner(
 
     if matches!(strat, Strategy::Development { .. }) {
         options.dev = true;
-        options.watch = true;
+        options.watch.enable = true;
     } else {
         options.dev = false;
-        options.watch = false;
+        options.watch.enable = false;
     }
 
     let project = tt
-        .run_once(async { Ok(ProjectContainer::new(options)) })
+        .run_once(async {
+            let project = ProjectContainer::new("next-build-test".into(), options.dev);
+            let project = project.resolve().await?;
+            project.initialize(options).await?;
+            Ok(project)
+        })
         .await?;
 
     tracing::info!("collecting endpoints");
@@ -251,16 +258,13 @@ async fn hmr(tt: &TurboTasks<MemoryBackend>, project: Vc<ProjectContainer>) -> R
             let session = session.clone();
             async move {
                 let project = project.project();
-                project
-                    .hmr_update(
-                        ident.clone(),
-                        project.hmr_version_state(ident.clone(), session),
-                    )
-                    .await?;
+                let state = project.hmr_version_state(ident.clone(), session);
+                project.hmr_update(ident.clone(), state).await?;
                 Ok(Vc::<()>::cell(()))
             }
         });
-        tt.wait_task_completion(task, true).await?;
+        tt.wait_task_completion(task, ReadConsistency::Strong)
+            .await?;
         let e = start.elapsed();
         if e.as_millis() > 10 {
             tracing::info!("HMR: {:?} {:?}", ident, e);

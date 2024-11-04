@@ -1,6 +1,6 @@
 use rustc_hash::FxHashSet;
 use serde::Deserialize;
-use turbopack_binding::swc::core::{
+use swc_core::{
     common::{collections::AHashMap, BytePos, Spanned},
     ecma::{
         ast::{Id, ModuleItem},

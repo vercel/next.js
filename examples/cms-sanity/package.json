@@ -2,7 +2,7 @@
   "private": true,
   "scripts": {
     "predev": "npm run typegen",
-    "dev": "next",
+    "dev": "next --turbo",
     "prebuild": "npm run typegen",
     "build": "next build",
     "start": "next start",
@@ -13,32 +13,32 @@
     "typegen": "sanity schema extract && sanity typegen generate"
   },
   "dependencies": {
-    "@sanity/assist": "^3.0.4",
-    "@sanity/icons": "^3.0.0",
+    "@sanity/assist": "^3.0.8",
+    "@sanity/icons": "^3.4.0",
     "@sanity/image-url": "^1.0.2",
-    "@sanity/preview-url-secret": "^1.6.7",
-    "@sanity/vision": "^3.44.0",
-    "@tailwindcss/typography": "^0.5.13",
-    "@types/node": "^20.14.1",
-    "@types/react": "^18.3.3",
-    "@types/react-dom": "^18.3.0",
-    "@vercel/speed-insights": "^1.0.11",
-    "autoprefixer": "^10.4.19",
-    "date-fns": "^3.6.0",
-    "next": "^14.2.3",
-    "next-sanity": "^9.3.10",
-    "postcss": "^8.4.38",
+    "@sanity/preview-url-secret": "^2.0.0",
+    "@sanity/vision": "^3.62.0",
+    "@tailwindcss/typography": "^0.5.15",
+    "@types/node": "^22.7.8",
+    "@types/react": "^18.3.11",
+    "@types/react-dom": "^18.3.1",
+    "@vercel/speed-insights": "^1.0.13",
+    "autoprefixer": "^10.4.20",
+    "date-fns": "^4.1.0",
+    "next": "^15.0.0",
+    "next-sanity": "^9.7.0",
+    "postcss": "^8.4.47",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "sanity": "^3.44.0",
+    "sanity": "^3.62.0",
     "sanity-plugin-asset-source-unsplash": "^3.0.1",
     "server-only": "^0.0.1",
-    "styled-components": "^6.1.11",
-    "tailwindcss": "^3.4.3",
-    "typescript": "5.4.5"
+    "styled-components": "^6.1.13",
+    "tailwindcss": "^3.4.14",
+    "typescript": "5.6.3"
   },
   "devDependencies": {
-    "eslint": "^8.57.0",
-    "eslint-config-next": "^14.2.3"
+    "eslint": "^9.13.0",
+    "eslint-config-next": "^15.0.0"
   }
 }

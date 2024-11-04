@@ -1,17 +1,12 @@
 use anyhow::Result;
-use indexmap::indexmap;
-use turbo_tasks::{RcStr, Value, ValueToString, Vc};
-use turbopack_binding::{
-    turbo::tasks_fs::FileSystemPath,
-    turbopack::{
-        core::{
-            context::AssetContext,
-            module::Module,
-            reference_type::{EntryReferenceSubType, ReferenceType},
-            source::Source,
-        },
-        turbopack::ModuleAssetContext,
-    },
+use turbo_tasks::{fxindexmap, RcStr, ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks_fs::FileSystemPath;
+use turbopack::ModuleAssetContext;
+use turbopack_core::{
+    context::AssetContext,
+    module::Module,
+    reference_type::{EntryReferenceSubType, ReferenceType},
+    source::Source,
 };
 
 use crate::{
@@ -26,8 +21,8 @@ use crate::{
 /// Computes the entry for a Next.js app route.
 /// # Arguments
 ///
-/// * `original_segment_config` - A next segment config to be specified
-///   explicitly for the given source.
+/// * `original_segment_config` - A next segment config to be specified explicitly for the given
+///   source.
 /// For some cases `source` may not be the original but the handler (dynamic
 /// metadata) which will lose segment config.
 #[turbo_tasks::function]
@@ -50,7 +45,7 @@ pub async fn get_app_route_entry(
     };
 
     let is_edge = matches!(config.await?.runtime, Some(NextRuntime::Edge));
-    let context = if is_edge {
+    let module_asset_context = if is_edge {
         edge_context
     } else {
         nodejs_context
@@ -78,7 +73,7 @@ pub async fn get_app_route_entry(
     let virtual_source = load_next_js_template(
         "app-route.js",
         project_root,
-        indexmap! {
+        fxindexmap! {
             "VAR_DEFINITION_PAGE" => page.to_string().into(),
             "VAR_DEFINITION_PATHNAME" => pathname.clone(),
             "VAR_DEFINITION_FILENAME" => path.file_stem().await?.as_ref().unwrap().as_str().into(),
@@ -87,25 +82,27 @@ pub async fn get_app_route_entry(
             "VAR_RESOLVED_PAGE_PATH" => path.to_string().await?.clone_value(),
             "VAR_USERLAND" => INNER.into(),
         },
-        indexmap! {
+        fxindexmap! {
             "nextConfigOutput" => output_type
         },
-        indexmap! {},
+        fxindexmap! {},
     )
     .await?;
 
-    let userland_module = context
+    let userland_module = module_asset_context
         .process(
             source,
             Value::new(ReferenceType::Entry(EntryReferenceSubType::AppRoute)),
         )
-        .module();
+        .module()
+        .to_resolved()
+        .await?;
 
-    let inner_assets = indexmap! {
+    let inner_assets = fxindexmap! {
         INNER.into() => userland_module
     };
 
-    let mut rsc_entry = context
+    let mut rsc_entry = module_asset_context
         .process(
             Vc::upcast(virtual_source),
             Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
@@ -114,17 +111,18 @@ pub async fn get_app_route_entry(
 
     if is_edge {
         rsc_entry = wrap_edge_route(
-            Vc::upcast(context),
+            Vc::upcast(module_asset_context),
             project_root,
             rsc_entry,
-            pathname.clone(),
+            page,
+            next_config,
         );
     }
 
     Ok(AppEntry {
         pathname,
         original_name,
-        rsc_entry,
+        rsc_entry: rsc_entry.to_resolved().await?,
         config,
     }
     .cell())
@@ -132,34 +130,45 @@ pub async fn get_app_route_entry(
 
 #[turbo_tasks::function]
 async fn wrap_edge_route(
-    context: Vc<Box<dyn AssetContext>>,
+    asset_context: Vc<Box<dyn AssetContext>>,
     project_root: Vc<FileSystemPath>,
-    entry: Vc<Box<dyn Module>>,
-    pathname: RcStr,
+    entry: ResolvedVc<Box<dyn Module>>,
+    page: AppPage,
+    next_config: Vc<NextConfig>,
 ) -> Result<Vc<Box<dyn Module>>> {
     const INNER: &str = "INNER_ROUTE_ENTRY";
+
+    let next_config = &*next_config.await?;
 
     let source = load_next_js_template(
         "edge-app-route.js",
         project_root,
-        indexmap! {
+        fxindexmap! {
             "VAR_USERLAND" => INNER.into(),
+            "VAR_PAGE" => page.to_string().into(),
         },
-        indexmap! {},
-        indexmap! {},
+        fxindexmap! {
+            "nextConfig" => serde_json::to_string(next_config)?.into(),
+        },
+        fxindexmap! {},
     )
     .await?;
 
-    let inner_assets = indexmap! {
+    let inner_assets = fxindexmap! {
         INNER.into() => entry
     };
 
-    let wrapped = context
+    let wrapped = asset_context
         .process(
             Vc::upcast(source),
             Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
         )
         .module();
 
-    Ok(wrap_edge_entry(context, project_root, wrapped, pathname))
+    Ok(wrap_edge_entry(
+        asset_context,
+        project_root,
+        wrapped,
+        AppPath::from(page).to_string().into(),
+    ))
 }

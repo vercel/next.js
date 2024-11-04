@@ -1,0 +1,56 @@
+err = ???*0*
+- *0* err
+  ⚠️  pattern without value
+
+errors = []
+
+path = (
+  | `../src/build/Release/sharp-${???*0*}.node`
+  | "../src/build/Release/sharp-wasm32.node"
+  | `@img/sharp-${???*1*}/sharp.node`
+  | "@img/sharp-wasm32/sharp.node"
+  | ???*2*
+)
+- *0* module<./libvips, {}>["runtimePlatformArch"]()
+  ⚠️  nested operation
+- *1* module<./libvips, {}>["runtimePlatformArch"]()
+  ⚠️  nested operation
+- *2* unknown mutation
+  ⚠️  This value might have side effects
+
+paths = [
+    `../src/build/Release/sharp-${???*0*}.node`,
+    "../src/build/Release/sharp-wasm32.node",
+    `@img/sharp-${???*1*}/sharp.node`,
+    "@img/sharp-wasm32/sharp.node"
+]
+- *0* module<./libvips, {}>["runtimePlatformArch"]()
+  ⚠️  nested operation
+- *1* module<./libvips, {}>["runtimePlatformArch"]()
+  ⚠️  nested operation
+
+runtimePlatform = module<./libvips, {}>["runtimePlatformArch"]()
+
+runtimePlatformArch = module<./libvips, {}>["runtimePlatformArch"]
+
+sharp = (???*0* | ???*1*)
+- *0* sharp
+  ⚠️  pattern without value
+- *1* require*2*(
+        (
+          | `../src/build/Release/sharp-${???*3*}.node`
+          | "../src/build/Release/sharp-wasm32.node"
+          | `@img/sharp-${???*4*}/sharp.node`
+          | "@img/sharp-wasm32/sharp.node"
+          | ???*5*
+        )
+    )
+  ⚠️  only constant argument is supported
+  ⚠️  This value might have side effects
+- *2* require: The require method from CommonJS
+- *3* module<./libvips, {}>["runtimePlatformArch"]()
+  ⚠️  nested operation
+- *4* module<./libvips, {}>["runtimePlatformArch"]()
+  ⚠️  nested operation
+- *5* unknown mutation
+  ⚠️  This value might have side effects

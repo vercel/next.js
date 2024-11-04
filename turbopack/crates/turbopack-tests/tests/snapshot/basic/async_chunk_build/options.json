@@ -1,0 +1,4 @@
+{
+  "minifyType": "NoMinify",
+  "runtime": "NodeJs"
+}

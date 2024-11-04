@@ -1,0 +1,52 @@
+0 -> 5 member call = ???*0*["r"](???*1*)
+- *0* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *1* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+0 -> 7 member call = ???*0*["d"](???*1*, {"default": (...) => handler})
+- *0* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *1* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+0 -> 8 free var = FreeVar(require)
+
+0 -> 9 call = require*0*("fs/promises")
+- *0* require: The require method from CommonJS
+
+0 -> 11 member call = fs*0*["readFile"]("./hello.txt", "utf-8")
+- *0* fs: The Node.js fs module: https://nodejs.org/api/fs.html
+
+0 -> 14 member call = ???*0*["status"](200)
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+0 -> 15 member call = ???*0*["json"](
+    {"users": [{"id": 1}, {"id": 2}, {"id": 3}], "hello": ???*2*}
+)
+- *0* ???*1*["status"](200)
+  ⚠️  unknown callee object
+- *1* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *2* fs.readFile*3*("./hello.txt", "utf-8")
+  ⚠️  unsupported function
+  ⚠️  This value might have side effects
+- *3* fs.readFile: A file reading method from the Node.js fs module: https://nodejs.org/api/fs.html
+
+0 -> 16 free var = FreeVar(require)
+
+0 -> 17 call = require*0*("../../webpack-api-runtime.js")
+- *0* require: The require method from CommonJS
+
+0 -> 19 member call = module<../../webpack-api-runtime.js, {}>["C"]({})
+
+0 -> 21 call = module<../../webpack-api-runtime.js, {}>(???*0*)
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+
+0 -> 22 call = (...) => __webpack_require__(???*0*)(5166)
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+
+0 -> 24 free var = FreeVar(module)

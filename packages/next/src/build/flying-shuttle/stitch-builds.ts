@@ -17,7 +17,6 @@ import {
   APP_BUILD_MANIFEST,
   APP_PATH_ROUTES_MANIFEST,
   APP_PATHS_MANIFEST,
-  AUTOMATIC_FONT_OPTIMIZATION_MANIFEST,
   BUILD_MANIFEST,
   CLIENT_REFERENCE_MANIFEST,
   FUNCTIONS_CONFIG_MANIFEST,
@@ -32,6 +31,7 @@ import {
 } from '../../shared/lib/constants'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import type { NextConfigComplete } from '../../server/config-shared'
+import { isMetadataRoute } from '../../lib/metadata/is-metadata-route'
 
 export async function stitchBuilds(
   {
@@ -78,19 +78,6 @@ export async function stitchBuilds(
     pagesManifest?: PagesManifest
   } = {}
 
-  // we need to copy the chunks from the shuttle folder
-  // to the distDir (we copy all server split chunks currently)
-  await recursiveCopy(
-    path.join(shuttleDir, 'server'),
-    path.join(distDir, 'server'),
-    {
-      filter(item) {
-        // we copy page chunks separately to not copy stale entries
-        return !item.match(/^[/\\](pages|app)[/\\]/)
-      },
-      overwrite: true,
-    }
-  )
   // copy static chunks (this includes stale chunks but won't be loaded)
   // unless referenced
   await recursiveCopy(
@@ -99,34 +86,51 @@ export async function stitchBuilds(
     { overwrite: true }
   )
 
-  async function copyPageChunk(entry: string, type: 'app' | 'pages') {
-    // copy entry chunk and flight manifest stuff
-    // TODO: copy .map files?
-    const entryFile = path.join('server', type, `${entry}.js`)
+  async function copyIfNoDestFile(srcFile: string, destFile: string) {
+    const content = await fs.promises.readFile(srcFile)
+    await fs.promises
+      .writeFile(destFile, content, { flag: 'wx' })
+      .catch((err) => {
+        if (err.code !== 'EEXIST') {
+          throw err
+        }
+      })
+  }
 
+  async function copyPageChunk(entry: string, type: 'app' | 'pages') {
+    const entryFile = path.join('server', type, `${entry}.js`)
     await fs.promises.mkdir(path.join(distDir, path.dirname(entryFile)), {
       recursive: true,
     })
-    await fs.promises.copyFile(
+    await copyIfNoDestFile(
       path.join(shuttleDir, entryFile + '.nft.json'),
       path.join(distDir, entryFile + '.nft.json')
     )
 
-    if (type === 'app' && !entry.endsWith('/route')) {
+    if (type === 'app' && !isMetadataRoute(entry)) {
       const clientRefManifestFile = path.join(
         'server',
         type,
         `${entry}_${CLIENT_REFERENCE_MANIFEST}.js`
       )
-      await fs.promises.copyFile(
+      await copyIfNoDestFile(
         path.join(shuttleDir, clientRefManifestFile),
         path.join(distDir, clientRefManifestFile)
       )
     }
-    await fs.promises.copyFile(
+    await copyIfNoDestFile(
       path.join(shuttleDir, entryFile),
       path.join(distDir, entryFile)
     )
+    // copy map file as well if it exists
+    await copyIfNoDestFile(
+      path.join(shuttleDir, `${entryFile}.map`),
+      path.join(distDir, `${entryFile}.map`)
+    ).catch((err) => {
+      if (err.code !== 'ENOENT') {
+        throw err
+      }
+    })
   }
   const copySema = new Sema(8)
 
@@ -144,6 +148,9 @@ export async function stitchBuilds(
           if (normalizedEntry === '/') {
             normalizedEntry = '/index'
           }
+          if (normalizedEntry === '/not-found') {
+            normalizedEntry = '/_not-found/page'
+          }
           await copyPageChunk(normalizedEntry, type)
         } finally {
           copySema.release()
@@ -151,8 +158,6 @@ export async function stitchBuilds(
       })
     )
   }
-  // always attempt copying not-found chunk
-  await copyPageChunk('/_not-found/page', 'app').catch(() => {})
 
   // merge dynamic/static routes in routes-manifest
   const [restoreRoutesManifest, currentRoutesManifest] = await Promise.all(
@@ -163,21 +168,22 @@ export async function stitchBuilds(
   )
   const dynamicRouteMap: Record<string, any> = {}
   const combinedDynamicRoutes: Record<string, any>[] = [
-    ...currentRoutesManifest.dynamicRoutes,
     ...restoreRoutesManifest.dynamicRoutes,
+    ...currentRoutesManifest.dynamicRoutes,
   ]
   for (const route of combinedDynamicRoutes) {
     dynamicRouteMap[route.page] = route
   }
 
   const mergedRoutesManifest = {
+    ...restoreRoutesManifest,
     ...currentRoutesManifest,
     dynamicRoutes: getSortedRoutes(
       combinedDynamicRoutes.map((item) => item.page)
     ).map((page) => dynamicRouteMap[page]),
     staticRoutes: [
-      ...currentRoutesManifest.staticRoutes,
       ...restoreRoutesManifest.staticRoutes,
+      ...currentRoutesManifest.staticRoutes,
     ],
   }
   await fs.promises.writeFile(
@@ -313,6 +319,7 @@ export async function stitchBuilds(
       )
     )
   const mergedMiddlewareManifest = {
+    ...restoreMiddlewareManifest,
     ...currentMiddlewareManifest,
     functions: {
       ...restoreMiddlewareManifest.functions,
@@ -346,6 +353,7 @@ export async function stitchBuilds(
     ].map(async (file) => JSON.parse(await fs.promises.readFile(file, 'utf8')))
   )
   const mergedNextFontManifest = {
+    ...restoreNextFontManifest,
     ...currentNextFontManifest,
     pages: {
       ...restoreNextFontManifest.pages,
@@ -368,22 +376,6 @@ export async function stitchBuilds(
     )}`
   )
 
-  // for server/font-manifest.json we just merge the arrays
-  for (const file of [AUTOMATIC_FONT_OPTIMIZATION_MANIFEST]) {
-    const [restoreFontManifest, currentFontManifest] = await Promise.all(
-      [
-        path.join(shuttleDir, 'server', file),
-        path.join(distDir, 'server', file),
-      ].map(async (f) => JSON.parse(await fs.promises.readFile(f, 'utf8')))
-    )
-    const mergedFontManifest = [...restoreFontManifest, ...currentFontManifest]
-
-    await fs.promises.writeFile(
-      path.join(distDir, 'server', file),
-      JSON.stringify(mergedFontManifest, null, 2)
-    )
-  }
-
   // for server/functions-config-manifest.json we just merge
   // the functions field
   const [restoreFunctionsConfigManifest, currentFunctionsConfigManifest] =
@@ -396,6 +388,7 @@ export async function stitchBuilds(
       )
     )
   const mergedFunctionsConfigManifest = {
+    ...restoreFunctionsConfigManifest,
     ...currentFunctionsConfigManifest,
     functions: {
       ...restoreFunctionsConfigManifest.functions,
@@ -464,6 +457,7 @@ export async function stitchBuilds(
       )
     )
   const mergedServerRefManifest = {
+    ...restoreServerRefManifest,
     ...currentServerRefManifest,
     node: {
       ...restoreServerRefManifest.node,
@@ -484,9 +478,6 @@ export async function stitchBuilds(
       JSON.stringify(mergedServerRefManifest)
     )}`
   )
-
-  // TODO: inline env variables post build by find/replace
-  // in all the chunks for NEXT_PUBLIC_?
 
   return updatedManifests
 }

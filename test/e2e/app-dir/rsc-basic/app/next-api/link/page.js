@@ -1,8 +1,8 @@
 import Link from 'next/link'
 import Nav from '../../../components/nav'
 
-export default function LinkPage({ searchParams }) {
-  const queryId = searchParams.id || '0'
+export default async function LinkPage({ searchParams }) {
+  const queryId = (await searchParams).id || '0'
   const id = parseInt(queryId)
   return (
     <>

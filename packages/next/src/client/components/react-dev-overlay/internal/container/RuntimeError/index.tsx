@@ -1,10 +1,9 @@
 import * as React from 'react'
 import { CodeFrame } from '../../components/CodeFrame'
-import type { ReadyRuntimeError } from '../../helpers/getErrorByType'
+import type { ReadyRuntimeError } from '../../helpers/get-error-by-type'
 import { noop as css } from '../../helpers/noop-template'
 import { groupStackFramesByFramework } from '../../helpers/group-stack-frames-by-framework'
 import { GroupedStackFrames } from './GroupedStackFrames'
-import { CopyButton } from '../../components/copy-button'
 
 export type RuntimeErrorProps = { error: ReadyRuntimeError }
 
@@ -34,30 +33,18 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
       }
     }, [error.frames])
 
-  const [all, setAll] = React.useState(firstFrame == null)
+  const { leadingFramesGroupedByFramework, stackFramesGroupedByFramework } =
+    React.useMemo(() => {
+      const leadingFrames = allLeadingFrames.filter((f) => f.expanded)
 
-  const {
-    canShowMore,
-    leadingFramesGroupedByFramework,
-    stackFramesGroupedByFramework,
-  } = React.useMemo(() => {
-    const leadingFrames = allLeadingFrames.filter((f) => f.expanded || all)
-    const visibleCallStackFrames = allCallStackFrames.filter(
-      (f) => f.expanded || all
-    )
+      return {
+        stackFramesGroupedByFramework:
+          groupStackFramesByFramework(allCallStackFrames),
 
-    return {
-      canShowMore:
-        allCallStackFrames.length !== visibleCallStackFrames.length ||
-        (all && firstFrame != null),
-
-      stackFramesGroupedByFramework:
-        groupStackFramesByFramework(allCallStackFrames),
-
-      leadingFramesGroupedByFramework:
-        groupStackFramesByFramework(leadingFrames),
-    }
-  }, [all, allCallStackFrames, allLeadingFrames, firstFrame])
+        leadingFramesGroupedByFramework:
+          groupStackFramesByFramework(leadingFrames),
+      }
+    }, [allCallStackFrames, allLeadingFrames])
 
   return (
     <React.Fragment>
@@ -76,32 +63,11 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
 
       {stackFramesGroupedByFramework.length ? (
         <React.Fragment>
-          <h2>
-            Call Stack
-            {error.error.stack && (
-              <CopyButton
-                actionLabel="Copy error stack"
-                successLabel="Copied"
-                content={error.error.stack}
-              />
-            )}
-          </h2>
+          <h2>Call Stack</h2>
 
           <GroupedStackFrames
             groupedStackFrames={stackFramesGroupedByFramework}
           />
-        </React.Fragment>
-      ) : undefined}
-      {canShowMore ? (
-        <React.Fragment>
-          <button
-            tabIndex={10}
-            data-nextjs-data-runtime-error-collapsed-action
-            type="button"
-            onClick={() => setAll(!all)}
-          >
-            {all ? 'Hide' : 'Show'} collapsed frames
-          </button>
         </React.Fragment>
       ) : undefined}
     </React.Fragment>
@@ -109,22 +75,13 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
 }
 
 export const styles = css`
-  button[data-nextjs-data-runtime-error-collapsed-action] {
-    background: none;
-    border: none;
-    padding: 0;
-    font-size: var(--size-font-small);
-    line-height: var(--size-font-bigger);
-    color: var(--color-accents-3);
-  }
-
   [data-nextjs-call-stack-frame]:not(:last-child),
   [data-nextjs-component-stack-frame]:not(:last-child) {
     margin-bottom: var(--size-gap-double);
   }
 
-  [data-nextjs-data-runtime-error-copy-stack],
-  [data-nextjs-data-runtime-error-copy-stack]:focus:not(:focus-visible) {
+  [data-nextjs-data-runtime-error-copy-button],
+  [data-nextjs-data-runtime-error-copy-button]:focus:not(:focus-visible) {
     position: relative;
     margin-left: var(--size-gap);
     padding: 0;
@@ -132,24 +89,24 @@ export const styles = css`
     background: none;
     outline: none;
   }
-  [data-nextjs-data-runtime-error-copy-stack] > svg {
+  [data-nextjs-data-runtime-error-copy-button] > svg {
     vertical-align: middle;
   }
-  .nextjs-data-runtime-error-copy-stack {
+  .nextjs-data-runtime-error-copy-button {
     color: inherit;
   }
-  .nextjs-data-runtime-error-copy-stack--initial:hover {
+  .nextjs-data-runtime-error-copy-button--initial:hover {
     cursor: pointer;
   }
-  .nextjs-data-runtime-error-copy-stack[aria-disabled='true'] {
+  .nextjs-data-runtime-error-copy-button[aria-disabled='true'] {
     opacity: 0.3;
     cursor: not-allowed;
   }
-  .nextjs-data-runtime-error-copy-stack--error,
-  .nextjs-data-runtime-error-copy-stack--error:hover {
+  .nextjs-data-runtime-error-copy-button--error,
+  .nextjs-data-runtime-error-copy-button--error:hover {
     color: var(--color-ansi-red);
   }
-  .nextjs-data-runtime-error-copy-stack--success {
+  .nextjs-data-runtime-error-copy-button--success {
     color: var(--color-ansi-green);
   }
 
@@ -159,7 +116,7 @@ export const styles = css`
     margin-bottom: var(--size-gap);
     font-family: var(--font-stack-monospace);
     font-size: var(--size-font);
-    color: #222;
+    color: #666;
   }
   [data-nextjs-call-stack-frame] > h3[data-nextjs-frame-expanded='false'] {
     color: #666;

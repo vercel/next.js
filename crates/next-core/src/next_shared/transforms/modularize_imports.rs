@@ -2,29 +2,22 @@ use std::collections::HashMap;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use indexmap::IndexMap;
+use modularize_imports::{modularize_imports, PackageConfig};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, Vc};
-use turbopack_binding::{
-    swc::{
-        core::{
-            common::util::take::Take,
-            ecma::{
-                ast::{Module, Program},
-                visit::FoldWith,
-            },
-        },
-        custom_transform::modularize_imports::{self, modularize_imports, PackageConfig},
-    },
-    turbopack::{
-        ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext},
-        turbopack::module_options::{ModuleRule, ModuleRuleEffect},
+use swc_core::{
+    common::util::take::Take,
+    ecma::{
+        ast::{Module, Program},
+        visit::FoldWith,
     },
 };
+use turbo_tasks::{trace::TraceRawVcs, FxIndexMap, Vc};
+use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
+use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext};
 
 use super::module_rule_match_js_no_url;
 
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub struct ModularizeImportPackageConfig {
     pub transform: Transform,
@@ -34,7 +27,7 @@ pub struct ModularizeImportPackageConfig {
     pub skip_default_conversion: bool,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(untagged)]
 pub enum Transform {
     #[default]
@@ -45,7 +38,7 @@ pub enum Transform {
 
 /// Returns a rule which applies the Next.js modularize imports transform.
 pub fn get_next_modularize_imports_rule(
-    modularize_imports_config: &IndexMap<String, ModularizeImportPackageConfig>,
+    modularize_imports_config: &FxIndexMap<String, ModularizeImportPackageConfig>,
     enable_mdx_rs: bool,
 ) -> ModuleRule {
     let transformer = EcmascriptInputTransform::Plugin(Vc::cell(Box::new(
@@ -66,7 +59,7 @@ struct ModularizeImportsTransformer {
 }
 
 impl ModularizeImportsTransformer {
-    fn new(packages: &IndexMap<String, ModularizeImportPackageConfig>) -> Self {
+    fn new(packages: &FxIndexMap<String, ModularizeImportPackageConfig>) -> Self {
         Self {
             packages: packages
                 .iter()
@@ -100,11 +93,9 @@ impl CustomTransformer for ModularizeImportsTransformer {
     #[tracing::instrument(level = tracing::Level::TRACE, name = "modularize_imports", skip_all)]
     async fn transform(&self, program: &mut Program, _ctx: &TransformContext<'_>) -> Result<()> {
         let p = std::mem::replace(program, Program::Module(Module::dummy()));
-        *program = p.fold_with(&mut modularize_imports(
-            turbopack_binding::swc::custom_transform::modularize_imports::Config {
-                packages: self.packages.clone(),
-            },
-        ));
+        *program = p.fold_with(&mut modularize_imports(modularize_imports::Config {
+            packages: self.packages.clone(),
+        }));
 
         Ok(())
     }

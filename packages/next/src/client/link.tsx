@@ -148,8 +148,11 @@ function prefetch(
   }
 
   // We should only dedupe requests when experimental.optimisticClientCache is
-  // disabled.
-  if (!options.bypassPrefetchedCheck) {
+  // disabled & when we're not using the app router. App router handles
+  // reusing an existing prefetch entry (if it exists) for the same URL.
+  // If we dedupe in here, we will cause a race where different prefetch kinds
+  // to the same URL (ie auto vs true) will cause one to be ignored.
+  if (!options.bypassPrefetchedCheck && !isAppRouter) {
     const locale =
       // Let the link's locale prop override the default router locale.
       typeof options.locale !== 'undefined'
@@ -433,16 +436,6 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           const _: never = key
         }
       })
-
-      // This hook is in a conditional but that is ok because `process.env.NODE_ENV` never changes
-      // eslint-disable-next-line react-hooks/rules-of-hooks
-      const hasWarned = React.useRef(false)
-      if (props.prefetch && !hasWarned.current && !isAppRouter) {
-        hasWarned.current = true
-        console.warn(
-          'Next.js auto-prefetches automatically based on viewport. The prefetch attribute is no longer needed. More: https://nextjs.org/docs/messages/prefetch-true-deprecated'
-        )
-      }
     }
 
     if (process.env.NODE_ENV !== 'production') {

@@ -1,29 +1,34 @@
-import { useMemo, type Ref } from 'react'
+import { useMemo, useRef, type Ref } from 'react'
 
+// This is a compatibility hook to support React 18 and 19 refs.
+// In 19, a cleanup function from refs may be returned.
+// In 18, returning a cleanup function creates a warning.
+// Since we take userspace refs, we don't know ahead of time if a cleanup function will be returned.
+// This implements cleanup functions with the old behavior in 18.
+// We know refs are always called alternating with `null` and then `T`.
+// So a call with `null` means we need to call the previous cleanup functions.
 export function useMergedRef<TElement>(
   refA: Ref<TElement>,
   refB: Ref<TElement>
 ): Ref<TElement> {
-  return useMemo(() => mergeRefs(refA, refB), [refA, refB])
-}
+  const cleanupA = useRef<() => void>(() => {})
+  const cleanupB = useRef<() => void>(() => {})
 
-export function mergeRefs<TElement>(
-  refA: Ref<TElement>,
-  refB: Ref<TElement>
-): Ref<TElement> {
-  if (!refA || !refB) {
-    return refA || refB
-  }
-
-  return (current: TElement) => {
-    const cleanupA = applyRef(refA, current)
-    const cleanupB = applyRef(refB, current)
-
-    return () => {
-      cleanupA()
-      cleanupB()
+  return useMemo(() => {
+    if (!refA || !refB) {
+      return refA || refB
     }
-  }
+
+    return (current: TElement | null): void => {
+      if (current === null) {
+        cleanupA.current()
+        cleanupB.current()
+      } else {
+        cleanupA.current = applyRef(refA, current)
+        cleanupB.current = applyRef(refB, current)
+      }
+    }
+  }, [refA, refB])
 }
 
 function applyRef<TElement>(

@@ -1,0 +1,35 @@
+0 -> 2 member call = ["../lib/a.js", "../lib/b.js"]["map"]((...) => file)
+
+2 -> 3 unreachable = ???*0*
+- *0* unreachable
+  ⚠️  This value might have side effects
+
+0 -> 5 member call = ["../lib/a.js", "../lib/b.js"]["map"]((...) => [file])
+
+5 -> 6 unreachable = ???*0*
+- *0* unreachable
+  ⚠️  This value might have side effects
+
+0 -> 8 member call = ["../lib/a.js", "../lib/b.js"]["map"]((...) => FreeVar(require)["resolve"](file))
+
+8 -> 10 free var = FreeVar(require)
+
+8 -> 11 member call = require*0*["resolve"](???*1*)
+- *0* require: The require method from CommonJS
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+8 -> 12 unreachable = ???*0*
+- *0* unreachable
+  ⚠️  This value might have side effects
+
+0 -> 14 free var = FreeVar(require)
+
+0 -> 15 member call = require*0*["resolve"](???*1*)
+- *0* require: The require method from CommonJS
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 16 unreachable = ???*0*
+- *0* unreachable
+  ⚠️  This value might have side effects

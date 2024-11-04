@@ -16,8 +16,12 @@ CacheHandler.onCreation(async () => {
       });
 
       // Redis won't work without error handling.
+      // NB do not throw exceptions in the redis error listener,
+      // because it will prevent reconnection after a socket exception.
       client.on("error", (e) => {
-        throw e;
+        if (typeof process.env.NEXT_PRIVATE_DEBUG_CACHE !== "undefined") {
+          console.warn("Redis error", e);
+        }
       });
     } catch (error) {
       console.warn("Failed to create Redis client:", error);

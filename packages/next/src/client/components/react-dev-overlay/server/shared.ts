@@ -31,6 +31,8 @@ export function findSourcePackage({
       return 'react'
     } else if (nextInternalsRe.test(file)) {
       return 'next'
+    } else if (file.startsWith('[turbopack]/')) {
+      return 'next'
     }
   }
 
@@ -48,7 +50,7 @@ export function findSourcePackage({
 export function getOriginalCodeFrame(
   frame: StackFrame,
   source: string | null
-): string | null | undefined {
+): string | null {
   if (!source || isInternal(frame.file)) {
     return null
   }
@@ -63,7 +65,7 @@ export function getOriginalCodeFrame(
         column: frame.column ?? 0,
       },
     },
-    { forceColor: true }
+    { forceColor: process.stdout.isTTY }
   )
 }
 
@@ -86,4 +88,8 @@ export function json(res: ServerResponse, data: any) {
   res
     .setHeader('Content-Type', 'application/json')
     .end(Buffer.from(JSON.stringify(data)))
+}
+
+export function jsonString(res: ServerResponse, data: string) {
+  res.setHeader('Content-Type', 'application/json').end(Buffer.from(data))
 }

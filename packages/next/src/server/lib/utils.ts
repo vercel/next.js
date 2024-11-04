@@ -261,10 +261,12 @@ export function parseValidPositiveInteger(value: string): number {
 
 export const RESTART_EXIT_CODE = 77
 
+export type NodeInspectType = 'inspect' | 'inspect-brk' | undefined
+
 /**
  * Get the debug type from the `NODE_OPTIONS` environment variable.
  */
-export function getNodeDebugType() {
+export function getNodeDebugType(): NodeInspectType {
   const args = [...process.execArgv, ...getNodeOptionsArgs()]
   if (args.length === 0) return
 

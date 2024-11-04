@@ -1,24 +1,17 @@
 import { nextTestSetup } from 'e2e-utils'
 import { assertHasRedbox, getRedboxHeader } from 'next-test-utils'
 
-process.env.__TEST_SENTINEL = 'build'
+process.env.__TEST_SENTINEL = 'at buildtime'
 
 describe('dynamic-data', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname + '/fixtures/main',
-    skipStart: true,
     skipDeployment: true,
   })
 
   if (skipped) {
     return
   }
-
-  beforeAll(async () => {
-    await next.start()
-    // This will update the __TEST_SENTINEL value to "run"
-    await next.render('/setenv?value=run')
-  })
 
   it('should render the dynamic apis dynamically when used in a top-level scope', async () => {
     const $ = await next.render$(
@@ -33,22 +26,16 @@ describe('dynamic-data', () => {
     )
     if (isNextDev) {
       // in dev we expect the entire page to be rendered at runtime
-      expect($('#layout').text()).toBe('run')
-      expect($('#page').text()).toBe('run')
-      // we expect there to be no suspense boundary in fallback state
-      expect($('#boundary').html()).toBeNull()
+      expect($('#layout').text()).toBe('at runtime')
+      expect($('#page').text()).toBe('at runtime')
     } else if (process.env.__NEXT_EXPERIMENTAL_PPR) {
       // in PPR we expect the shell to be rendered at build and the page to be rendered at runtime
-      expect($('#layout').text()).toBe('build')
-      expect($('#page').text()).toBe('run')
-      // we expect there to be a suspense boundary in fallback state
-      expect($('#boundary').html()).not.toBeNull()
+      expect($('#layout').text()).toBe('at buildtime')
+      expect($('#page').text()).toBe('at runtime')
     } else {
       // in static generation we expect the entire page to be rendered at runtime
-      expect($('#layout').text()).toBe('run')
-      expect($('#page').text()).toBe('run')
-      // we expect there to be no suspense boundary in fallback state
-      expect($('#boundary').html()).toBeNull()
+      expect($('#layout').text()).toBe('at runtime')
+      expect($('#page').text()).toBe('at runtime')
     }
 
     expect($('#headers .fooheader').text()).toBe('foo header value')
@@ -69,23 +56,17 @@ describe('dynamic-data', () => {
     )
     if (isNextDev) {
       // in dev we expect the entire page to be rendered at runtime
-      expect($('#layout').text()).toBe('run')
-      expect($('#page').text()).toBe('run')
-      // we expect there to be no suspense boundary in fallback state
-      expect($('#boundary').html()).toBeNull()
+      expect($('#layout').text()).toBe('at runtime')
+      expect($('#page').text()).toBe('at runtime')
     } else if (process.env.__NEXT_EXPERIMENTAL_PPR) {
       // @TODO this should actually be build but there is a bug in how we do segment level dynamic in PPR at the moment
       // see note in create-component-tree
-      expect($('#layout').text()).toBe('run')
-      expect($('#page').text()).toBe('run')
-      // we expect there to be a suspense boundary in fallback state
-      expect($('#boundary').html()).toBeNull()
+      expect($('#layout').text()).toBe('at runtime')
+      expect($('#page').text()).toBe('at runtime')
     } else {
       // in static generation we expect the entire page to be rendered at runtime
-      expect($('#layout').text()).toBe('run')
-      expect($('#page').text()).toBe('run')
-      // we expect there to be no suspense boundary in fallback state
-      expect($('#boundary').html()).toBeNull()
+      expect($('#layout').text()).toBe('at runtime')
+      expect($('#page').text()).toBe('at runtime')
     }
 
     expect($('#headers .fooheader').text()).toBe('foo header value')
@@ -106,20 +87,18 @@ describe('dynamic-data', () => {
     )
     if (isNextDev) {
       // in dev we expect the entire page to be rendered at runtime
-      expect($('#layout').text()).toBe('run')
-      expect($('#page').text()).toBe('run')
-      // we expect there to be no suspense boundary in fallback state
-      expect($('#boundary').html()).toBeNull()
+      expect($('#layout').text()).toBe('at runtime')
+      expect($('#page').text()).toBe('at runtime')
     } else if (process.env.__NEXT_EXPERIMENTAL_PPR) {
       // in PPR we expect the shell to be rendered at build and the page to be rendered at runtime
-      expect($('#layout').text()).toBe('build')
-      expect($('#page').text()).toBe('build')
+      expect($('#layout').text()).toBe('at buildtime')
+      expect($('#page').text()).toBe('at buildtime')
       // we expect there to be a suspense boundary in fallback state
       expect($('#boundary').html()).toBeNull()
     } else {
       // in static generation we expect the entire page to be rendered at runtime
-      expect($('#layout').text()).toBe('build')
-      expect($('#page').text()).toBe('build')
+      expect($('#layout').text()).toBe('at buildtime')
+      expect($('#page').text()).toBe('at buildtime')
       // we expect there to be no suspense boundary in fallback state
       expect($('#boundary').html()).toBeNull()
     }
@@ -142,20 +121,20 @@ describe('dynamic-data', () => {
     )
     if (isNextDev) {
       // in dev we expect the entire page to be rendered at runtime
-      expect($('#layout').text()).toBe('run')
-      expect($('#page').text()).toBe('run')
+      expect($('#layout').text()).toBe('at runtime')
+      expect($('#page').text()).toBe('at runtime')
       // we don't assert the state of the fallback because it can depend on the timing
       // of when streaming starts and how fast the client references resolve
     } else if (process.env.__NEXT_EXPERIMENTAL_PPR) {
       // in PPR we expect the shell to be rendered at build and the page to be rendered at runtime
-      expect($('#layout').text()).toBe('build')
-      expect($('#page').text()).toBe('run')
+      expect($('#layout').text()).toBe('at buildtime')
+      expect($('#page').text()).toBe('at runtime')
       // we expect there to be a suspense boundary in fallback state
       expect($('#boundary').html()).not.toBeNull()
     } else {
       // in static generation we expect the entire page to be rendered at runtime
-      expect($('#layout').text()).toBe('run')
-      expect($('#page').text()).toBe('run')
+      expect($('#layout').text()).toBe('at runtime')
+      expect($('#page').text()).toBe('at runtime')
       // we don't assert the state of the fallback because it can depend on the timing
       // of when streaming starts and how fast the client references resolve
     }
@@ -206,6 +185,16 @@ describe('dynamic-data with dynamic = "error"', () => {
         await browser.close()
       }
 
+      browser = await next.browser('/connection')
+      try {
+        await assertHasRedbox(browser)
+        expect(await getRedboxHeader(browser)).toMatch(
+          'Error: Route /connection with `dynamic = "error"` couldn\'t be rendered statically because it used `connection`'
+        )
+      } finally {
+        await browser.close()
+      }
+
       browser = await next.browser('/headers?foo=foosearch')
       try {
         await assertHasRedbox(browser)
@@ -220,7 +209,7 @@ describe('dynamic-data with dynamic = "error"', () => {
       try {
         await assertHasRedbox(browser)
         expect(await getRedboxHeader(browser)).toMatch(
-          'Error: Route /search with `dynamic = "error"` couldn\'t be rendered statically because it used `searchParams`'
+          'Error: Route /search with `dynamic = "error"` couldn\'t be rendered statically because it used `searchParams.then`'
         )
       } finally {
         await browser.close()
@@ -238,16 +227,19 @@ describe('dynamic-data with dynamic = "error"', () => {
         'Error: Route /cookies with `dynamic = "error"` couldn\'t be rendered statically because it used `cookies`'
       )
       expect(next.cliOutput).toMatch(
+        'Error: Route /connection with `dynamic = "error"` couldn\'t be rendered statically because it used `connection`'
+      )
+      expect(next.cliOutput).toMatch(
         'Error: Route /headers with `dynamic = "error"` couldn\'t be rendered statically because it used `headers`'
       )
       expect(next.cliOutput).toMatch(
-        'Error: Route /search with `dynamic = "error"` couldn\'t be rendered statically because it used `searchParams`.'
+        'Error: Route /search with `dynamic = "error"` couldn\'t be rendered statically because it used `await searchParams`, `searchParams.then`, or similar'
       )
       expect(next.cliOutput).toMatch(
-        'Error: Route /routes/form-data/error with `dynamic = "error"` couldn\'t be rendered statically because it used `request.formData`.'
+        'Error: Route /routes/form-data/error with `dynamic = "error"` couldn\'t be rendered statically because it used `request.formData`'
       )
       expect(next.cliOutput).toMatch(
-        'Error: Route /routes/next-url/error with `dynamic = "error"` couldn\'t be rendered statically because it used `nextUrl.toString`.'
+        'Error: Route /routes/next-url/error with `dynamic = "error"` couldn\'t be rendered statically because it used `nextUrl.toString`'
       )
     })
   }
@@ -284,6 +276,16 @@ describe('dynamic-data inside cache scope', () => {
         await browser.close()
       }
 
+      browser = await next.browser('/connection')
+      try {
+        await assertHasRedbox(browser)
+        expect(await getRedboxHeader(browser)).toMatch(
+          'Error: Route /connection used "connection" inside a function cached with "unstable_cache(...)".'
+        )
+      } finally {
+        await browser.close()
+      }
+
       browser = await next.browser('/headers')
       try {
         await assertHasRedbox(browser)
@@ -303,6 +305,9 @@ describe('dynamic-data inside cache scope', () => {
       }
       expect(next.cliOutput).toMatch(
         'Error: Route /cookies used "cookies" inside a function cached with "unstable_cache(...)".'
+      )
+      expect(next.cliOutput).toMatch(
+        'Error: Route /connection used "connection" inside a function cached with "unstable_cache(...)".'
       )
       expect(next.cliOutput).toMatch(
         'Error: Route /headers used "headers" inside a function cached with "unstable_cache(...)".'

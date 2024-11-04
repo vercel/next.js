@@ -16,8 +16,26 @@ export default function FilterItemDropdown({ list }) {
         ()=>null
     ];
     const ref = useRef(null);
-    null;
-    null;
+    process.env.__NEXT_PRIVATE_MINIMIZE_MACRO_FALSE && useEffect(()=>{
+        const handleClickOutside = (event)=>{
+            if (ref.current && !ref.current.contains(event.target)) {
+                setOpenSelect(false);
+            }
+        };
+        window.addEventListener('click', handleClickOutside);
+        return ()=>window.removeEventListener('click', handleClickOutside);
+    }, []);
+    process.env.__NEXT_PRIVATE_MINIMIZE_MACRO_FALSE && useEffect(()=>{
+        list.forEach((listItem)=>{
+            if ('path' in listItem && pathname === listItem.path || 'slug' in listItem && searchParams.get('sort') === listItem.slug) {
+                setActive(listItem.title);
+            }
+        });
+    }, [
+        pathname,
+        list,
+        searchParams
+    ]);
     return <div className="relative" ref={ref}>
       <div onClick={()=>{
         setOpenSelect(!openSelect);

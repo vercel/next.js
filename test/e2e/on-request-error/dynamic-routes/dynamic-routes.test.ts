@@ -23,6 +23,7 @@ describe('on-request-error - dynamic-routes', () => {
       expect(recordLogLines).toEqual(
         expect.arrayContaining([expect.stringContaining(errorMessage)])
       )
+      // TODO: remove custom duration in case we increase the default.
     }, 5000)
 
     const json = await getOutputLogJson(next, outputLogPath)
@@ -45,7 +46,7 @@ describe('on-request-error - dynamic-routes', () => {
         payload: {
           message: 'server-dynamic-page-node-error',
           request: {
-            url: '/app-page/dynamic/123?apple=dope',
+            path: '/app-page/dynamic/123?apple=dope',
           },
           context: {
             routerKind: 'App Router',
@@ -65,7 +66,7 @@ describe('on-request-error - dynamic-routes', () => {
         payload: {
           message: 'server-dynamic-route-node-error',
           request: {
-            url: '/app-route/dynamic/123?apple=dope',
+            path: '/app-route/dynamic/123?apple=dope',
           },
           context: {
             routerKind: 'App Router',
@@ -86,7 +87,7 @@ describe('on-request-error - dynamic-routes', () => {
         payload: {
           message: 'server-suspense-page-node-error',
           request: {
-            url: '/app-page/suspense',
+            path: '/app-page/suspense',
           },
           context: {
             routerKind: 'App Router',
@@ -109,7 +110,7 @@ describe('on-request-error - dynamic-routes', () => {
         payload: {
           message: 'pages-page-node-error',
           request: {
-            url: '/pages-page/dynamic/123?apple=dope',
+            path: '/pages-page/dynamic/123?apple=dope',
           },
           context: {
             routerKind: 'Pages Router',
@@ -130,7 +131,7 @@ describe('on-request-error - dynamic-routes', () => {
         payload: {
           message: 'pages-api-node-error',
           request: {
-            url: '/api/dynamic/123?apple=dope',
+            path: '/api/dynamic/123?apple=dope',
           },
           context: {
             routerKind: 'Pages Router',

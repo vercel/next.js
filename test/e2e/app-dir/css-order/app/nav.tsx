@@ -80,6 +80,11 @@ export default function Nav() {
             Global Second
           </Link>
         </li>
+        <li>
+          <Link href={'/vendor'} id="vendor">
+            Vendor
+          </Link>
+        </li>
       </ul>
       <h3>Pages</h3>
       <ul>

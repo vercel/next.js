@@ -1,14 +1,12 @@
 use anyhow::{anyhow, Context, Result};
-use indexmap::{indexset, IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{RcStr, Vc};
-use turbopack_binding::turbo::tasks::{trace::TraceRawVcs, Value};
+use turbo_tasks::{fxindexset, trace::TraceRawVcs, FxIndexMap, FxIndexSet, RcStr, Value, Vc};
 
 use super::request::{NextFontRequest, OneOrManyStrings};
 
 const ALLOWED_DISPLAY_VALUES: &[&str] = &["auto", "block", "swap", "fallback", "optional"];
 
-pub(super) type FontData = IndexMap<RcStr, FontDataEntry>;
+pub(super) type FontData = FxIndexMap<RcStr, FontDataEntry>;
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Clone, Debug, PartialOrd, Ord, Hash)]
@@ -36,8 +34,8 @@ impl NextFontGoogleOptions {
     }
 
     #[turbo_tasks::function]
-    pub async fn font_family(self: Vc<Self>) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell((*self.await?.font_family).into()))
+    pub fn font_family(&self) -> Vc<RcStr> {
+        Vc::cell((*self.font_family).into())
     }
 }
 
@@ -71,7 +69,7 @@ impl Eq for Axis {}
 // https://github.com/vercel/next.js/blob/28454c6ddbc310419467e5415aee26e48d079b46/packages/font/src/google/utils.ts#L22
 pub(super) fn options_from_request(
     request: &NextFontRequest,
-    data: &IndexMap<RcStr, FontDataEntry>,
+    data: &FxIndexMap<RcStr, FontDataEntry>,
 ) -> Result<NextFontGoogleOptions> {
     if request.arguments.len() > 1 {
         return Err(anyhow!(
@@ -85,11 +83,11 @@ pub(super) fn options_from_request(
     let font_family: RcStr = request.import.replace('_', " ").into();
     let font_data = data.get(&font_family).context("Unknown font")?;
 
-    let requested_weights: IndexSet<RcStr> = argument
+    let requested_weights: FxIndexSet<RcStr> = argument
         .weight
         .map(|w| match w {
-            OneOrManyStrings::One(one) => indexset! {one},
-            OneOrManyStrings::Many(many) => IndexSet::from_iter(many),
+            OneOrManyStrings::One(one) => fxindexset![one],
+            OneOrManyStrings::Many(many) => many.into_iter().collect(),
         })
         .unwrap_or_default();
 
@@ -194,16 +192,15 @@ pub(super) fn options_from_request(
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use indexmap::IndexMap;
-    use turbo_tasks::RcStr;
-    use turbopack_binding::turbo::tasks_fs::json::parse_json_with_source_context;
+    use turbo_tasks::{FxIndexMap, RcStr};
+    use turbo_tasks_fs::json::parse_json_with_source_context;
 
     use super::{options_from_request, FontDataEntry, NextFontGoogleOptions};
     use crate::next_font::google::{options::FontWeights, request::NextFontRequest};
 
     #[test]
     fn test_errors_on_unknown_font() -> Result<()> {
-        let data: IndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
+        let data: FxIndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {
@@ -236,7 +233,7 @@ mod tests {
 
     #[test]
     fn test_default_values_when_no_arguments() -> Result<()> {
-        let data: IndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
+        let data: FxIndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {
@@ -279,7 +276,7 @@ mod tests {
 
     #[test]
     fn test_errors_when_no_weights_chosen_no_variable() -> Result<()> {
-        let data: IndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
+        let data: FxIndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {
@@ -315,7 +312,7 @@ mod tests {
 
     #[test]
     fn test_errors_on_unnecessary_weights() -> Result<()> {
-        let data: IndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
+        let data: FxIndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {
@@ -354,7 +351,7 @@ mod tests {
 
     #[test]
     fn test_errors_on_unvavailable_weights() -> Result<()> {
-        let data: IndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
+        let data: FxIndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {
@@ -392,7 +389,7 @@ mod tests {
 
     #[test]
     fn test_defaults_to_only_style_when_one_available() -> Result<()> {
-        let data: IndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
+        let data: FxIndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {
@@ -424,7 +421,7 @@ mod tests {
 
     #[test]
     fn test_defaults_to_normal_style_when_multiple() -> Result<()> {
-        let data: IndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
+        let data: FxIndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {
@@ -456,7 +453,7 @@ mod tests {
 
     #[test]
     fn test_errors_on_unknown_styles() -> Result<()> {
-        let data: IndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
+        let data: FxIndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {
@@ -496,7 +493,7 @@ mod tests {
 
     #[test]
     fn test_errors_on_unknown_display() -> Result<()> {
-        let data: IndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
+        let data: FxIndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {
@@ -537,7 +534,7 @@ mod tests {
 
     #[test]
     fn test_errors_on_axes_without_variable() -> Result<()> {
-        let data: IndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
+        let data: FxIndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {

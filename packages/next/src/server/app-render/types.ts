@@ -5,9 +5,10 @@ import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
 import type { ParsedUrlQuery } from 'querystring'
 import type { AppPageModule } from '../route-modules/app-page/module'
-import type { SwrDelta } from '../lib/revalidate'
+import type { ExpireTime } from '../lib/revalidate'
 import type { LoadingModuleData } from '../../shared/lib/app-router-context.shared-runtime'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
+import type { __ApiPreviewProps } from '../api-utils'
 
 import s from 'next/dist/compiled/superstruct'
 import type { RequestLifecycleOpts } from '../base-server'
@@ -90,11 +91,18 @@ export type FlightSegmentPath =
  */
 export type CacheNodeSeedData = [
   segment: Segment,
+  node: React.ReactNode | null,
   parallelRoutes: {
     [parallelRouterKey: string]: CacheNodeSeedData | null
   },
-  node: React.ReactNode | null,
   loading: LoadingModuleData,
+]
+
+export type FlightDataSegment = [
+  /* segment of the rendered slice: */ Segment,
+  /* treePatch */ FlightRouterState,
+  /* cacheNodeSeedData */ CacheNodeSeedData | null, // Can be null during prefetch if there's no loading component
+  /* head */ React.ReactNode | null,
 ]
 
 export type FlightDataPath =
@@ -104,10 +112,7 @@ export type FlightDataPath =
   | [
       // Holds full path to the segment.
       ...FlightSegmentPath[],
-      /* segment of the rendered slice: */ Segment,
-      /* treePatch */ FlightRouterState,
-      /* cacheNodeSeedData */ CacheNodeSeedData, // Can be null during prefetch if there's no loading component
-      /* head */ React.ReactNode | null,
+      ...FlightDataSegment,
     ]
 
 /**
@@ -126,6 +131,7 @@ export type ServerOnInstrumentationRequestError = (
 ) => void | Promise<void>
 
 export interface RenderOptsPartial {
+  previewProps: __ApiPreviewProps | undefined
   err?: Error | null
   dev?: boolean
   buildId: string
@@ -141,7 +147,10 @@ export interface RenderOptsPartial {
   nextFontManifest?: DeepReadonly<NextFontManifest>
   isBot?: boolean
   incrementalCache?: import('../lib/incremental-cache').IncrementalCache
-  setAppIsrStatus?: (key: string, value: false | number | null) => void
+  cacheLifeProfiles?: {
+    [profile: string]: import('../use-cache/cache-life').CacheLife
+  }
+  setAppIsrStatus?: (key: string, value: boolean | null) => void
   isRevalidate?: boolean
   nextExport?: boolean
   nextConfigOutput?: 'standalone' | 'export'
@@ -162,15 +171,17 @@ export interface RenderOptsPartial {
   }
   params?: ParsedUrlQuery
   isPrefetch?: boolean
+  isDevWarmup?: boolean
   experimental: {
     /**
      * When true, it indicates that the current page supports partial
      * prerendering.
      */
     isRoutePPREnabled?: boolean
-    swrDelta: SwrDelta | undefined
+    expireTime: ExpireTime | undefined
     clientTraceMetadata: string[] | undefined
     after: boolean
+    dynamicIO: boolean
   }
   postponed?: string
   /**
@@ -185,6 +196,13 @@ export interface RenderOptsPartial {
    * statically generated.
    */
   isDebugDynamicAccesses?: boolean
+
+  /**
+   * The maximum length of the headers that are emitted by React and added to
+   * the response.
+   */
+  reactMaxHeadersLength: number | undefined
+
   isStaticGeneration?: boolean
 }
 
@@ -199,8 +217,8 @@ export type InitialRSCPayload = {
   b: string
   /** assetPrefix */
   p: string
-  /** initialCanonicalUrl */
-  c: string
+  /** initialCanonicalUrlParts */
+  c: string[]
   /** couldBeIntercepted */
   i: boolean
   /** initialFlightData */
@@ -208,7 +226,11 @@ export type InitialRSCPayload = {
   /** missingSlots */
   m: Set<string> | undefined
   /** GlobalError */
-  G: React.ComponentType<any>
+  G: [React.ComponentType<any>, React.ReactNode | undefined]
+  /** postponed */
+  s: boolean
+  /** prerendered */
+  S: boolean
 }
 
 // Response from `createFromFetch` for normal rendering
@@ -217,6 +239,8 @@ export type NavigationFlightResponse = {
   b: string
   /** flightData */
   f: FlightData
+  /** prerendered */
+  S: boolean
 }
 
 // Response from `createFromFetch` for server actions. Action's flight data can be null
@@ -226,18 +250,7 @@ export type ActionFlightResponse = {
   /** buildId */
   b: string
   /** flightData */
-  f: FlightData | null
-}
-
-export type FetchServerResponseResult = {
-  /** flightData */
   f: FlightData
-  /** canonicalUrl */
-  c: URL | undefined
-  /** couldBeIntercepted */
-  i: boolean
-  /** isPrerender */
-  p: boolean
 }
 
 export type RSCPayload =

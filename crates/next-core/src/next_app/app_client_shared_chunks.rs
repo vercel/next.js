@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_tasks::{Value, Vc};
-use turbopack_binding::turbopack::core::{
+use turbopack_core::{
     chunk::{
         availability_info::AvailabilityInfo, ChunkGroupResult, ChunkingContext, EvaluatableAssets,
     },

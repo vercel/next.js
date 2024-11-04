@@ -1,8 +1,6 @@
 use turbo_tasks::{RcStr, Vc};
-use turbopack_binding::{
-    turbo::tasks_fs::{FileContent, FileSystem, FileSystemPath},
-    turbopack::core::{file_source::FileSource, source::Source},
-};
+use turbo_tasks_fs::{FileContent, FileSystem, FileSystemPath};
+use turbopack_core::{file_source::FileSource, source::Source};
 
 pub const VIRTUAL_PACKAGE_NAME: &str = "@vercel/turbopack-next";
 

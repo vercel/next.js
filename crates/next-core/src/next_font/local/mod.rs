@@ -1,24 +1,20 @@
 use anyhow::{bail, Context, Result};
 use indoc::formatdoc;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{RcStr, Vc};
-use turbo_tasks_fs::glob::Glob;
-use turbopack_binding::{
-    turbo::{
-        tasks::Value,
-        tasks_fs::{json::parse_json_with_source_context, FileContent, FileSystemPath},
+use turbo_tasks::{RcStr, Value, Vc};
+use turbo_tasks_fs::{
+    glob::Glob, json::parse_json_with_source_context, FileContent, FileSystemPath,
+};
+use turbopack_core::{
+    asset::AssetContent,
+    issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
+    reference_type::ReferenceType,
+    resolve::{
+        parse::Request,
+        plugin::{BeforeResolvePlugin, BeforeResolvePluginCondition},
+        ResolveResult, ResolveResultItem, ResolveResultOption,
     },
-    turbopack::core::{
-        asset::AssetContent,
-        issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
-        reference_type::ReferenceType,
-        resolve::{
-            parse::Request,
-            plugin::{BeforeResolvePlugin, BeforeResolvePluginCondition},
-            ResolveResult, ResolveResultItem, ResolveResultOption,
-        },
-        virtual_source::VirtualSource,
-    },
+    virtual_source::VirtualSource,
 };
 
 use self::{
@@ -69,7 +65,7 @@ impl NextFontLocalResolvePlugin {
 #[turbo_tasks::value_impl]
 impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
     #[turbo_tasks::function]
-    async fn before_resolve_condition(&self) -> Vc<BeforeResolvePluginCondition> {
+    fn before_resolve_condition(&self) -> Vc<BeforeResolvePluginCondition> {
         BeforeResolvePluginCondition::from_request_glob(Glob::new(
             "{next,@vercel/turbopack-next/internal}/font/local/*".into(),
         ))
@@ -325,8 +321,8 @@ impl Issue for FontResolvingIssue {
     }
 
     #[turbo_tasks::function]
-    async fn file_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
-        Ok(self.await?.origin_path)
+    fn file_path(&self) -> Vc<FileSystemPath> {
+        self.origin_path
     }
 
     #[turbo_tasks::function]

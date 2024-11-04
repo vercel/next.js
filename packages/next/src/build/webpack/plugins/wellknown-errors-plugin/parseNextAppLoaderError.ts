@@ -8,7 +8,7 @@ export function getNextAppLoaderError(
   compiler: webpack.Compiler
 ): SimpleWebpackError | false {
   try {
-    if (!module.loaders[0].loader.includes('next-app-loader.js')) {
+    if (!module.loaders[0].loader.includes('next-app-loader')) {
       return false
     }
 

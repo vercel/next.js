@@ -1,20 +1,16 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use next_custom_transforms::transforms::dynamic::{next_dynamic, NextDynamicMode};
-use turbo_tasks::Vc;
-use turbopack_binding::{
-    swc::core::{
-        common::{util::take::Take, FileName},
-        ecma::{
-            ast::{Module, Program},
-            visit::FoldWith,
-        },
-    },
-    turbopack::{
-        ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext},
-        turbopack::module_options::{ModuleRule, ModuleRuleEffect},
+use swc_core::{
+    common::{util::take::Take, FileName},
+    ecma::{
+        ast::{Module, Program},
+        visit::FoldWith,
     },
 };
+use turbo_tasks::Vc;
+use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
+use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext};
 
 use super::module_rule_match_js_no_url;
 use crate::mode::NextMode;
@@ -61,7 +57,7 @@ impl CustomTransformer for NextJsDynamic {
             self.is_react_server_layer,
             self.is_app_dir,
             NextDynamicMode::Webpack,
-            FileName::Real(ctx.file_path_str.into()),
+            FileName::Real(ctx.file_path_str.into()).into(),
             None,
         ));
 

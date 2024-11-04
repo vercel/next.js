@@ -1,5 +1,5 @@
+use mdxjs::{compile, Options};
 use napi::bindgen_prelude::*;
-use turbopack_binding::features::mdxjs::{compile, Options};
 
 pub struct MdxCompileTask {
     pub input: String,
@@ -14,7 +14,7 @@ impl Task for MdxCompileTask {
         let options: Options = serde_json::from_slice(&self.option)?;
 
         compile(&self.input, &options)
-            .map_err(|err| napi::Error::new(Status::GenericFailure, format!("{:?}", err)))
+            .map_err(|err| napi::Error::new(Status::GenericFailure, err.to_string()))
     }
 
     fn resolve(&mut self, _env: Env, output: Self::Output) -> napi::Result<Self::JsValue> {

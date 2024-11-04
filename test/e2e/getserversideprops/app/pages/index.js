@@ -93,6 +93,8 @@ const Page = ({ world, time, url }) => {
       <Link href="/something?another=thing" id="something-query">
         to something?another=thing
       </Link>
+      <br />
+      <Link href="/redirect-page">to redirect-page</Link>
     </>
   )
 }

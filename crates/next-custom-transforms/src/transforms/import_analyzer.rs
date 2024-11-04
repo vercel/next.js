@@ -1,4 +1,4 @@
-use turbopack_binding::swc::core::{
+use swc_core::{
     atoms::JsWord,
     common::collections::{AHashMap, AHashSet},
     ecma::{

@@ -2,18 +2,14 @@ use std::io::Write;
 
 use anyhow::{bail, Result};
 use turbo_tasks::{RcStr, Vc};
-use turbopack_binding::{
-    turbo::tasks_fs::{rope::RopeBuilder, FileContent},
-    turbopack::{
-        core::{
-            asset::{Asset, AssetContent},
-            ident::AssetIdent,
-            source::Source,
-        },
-        ecmascript::utils::StringifyJs,
-        image::process::{get_meta_data, BlurPlaceholderOptions},
-    },
+use turbo_tasks_fs::{rope::RopeBuilder, FileContent};
+use turbopack_core::{
+    asset::{Asset, AssetContent},
+    ident::AssetIdent,
+    source::Source,
 };
+use turbopack_ecmascript::utils::StringifyJs;
+use turbopack_image::process::{get_meta_data, BlurPlaceholderOptions};
 
 use super::module::BlurPlaceholderMode;
 
@@ -62,7 +58,7 @@ impl Asset for StructuredImageFileSource {
         let blur_options = blur_options();
         match self.blur_placeholder_mode {
             BlurPlaceholderMode::NextImageUrl => {
-                let info = get_meta_data(self.image.ident(), content, None).await?;
+                let info = get_meta_data(self.image.ident(), *content, None).await?;
                 let width = info.width;
                 let height = info.height;
                 let blur_options = blur_options.await?;
@@ -90,7 +86,7 @@ impl Asset for StructuredImageFileSource {
                 )?;
             }
             BlurPlaceholderMode::DataUrl => {
-                let info = get_meta_data(self.image.ident(), content, Some(blur_options)).await?;
+                let info = get_meta_data(self.image.ident(), *content, Some(blur_options)).await?;
                 writeln!(
                     result,
                     "export default {{ src, width: {width}, height: {height}, blurDataURL: \
@@ -106,7 +102,7 @@ impl Asset for StructuredImageFileSource {
                 )?;
             }
             BlurPlaceholderMode::None => {
-                let info = get_meta_data(self.image.ident(), content, None).await?;
+                let info = get_meta_data(self.image.ident(), *content, None).await?;
                 writeln!(
                     result,
                     "export default {{ src, width: {width}, height: {height} }}",
@@ -115,6 +111,6 @@ impl Asset for StructuredImageFileSource {
                 )?;
             }
         };
-        Ok(AssetContent::File(FileContent::Content(result.build().into()).cell()).cell())
+        Ok(AssetContent::File(FileContent::Content(result.build().into()).resolved_cell()).cell())
     }
 }

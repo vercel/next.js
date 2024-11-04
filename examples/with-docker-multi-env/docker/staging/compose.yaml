@@ -1,0 +1,8 @@
+services:
+  with-docker-multi-env-staging:
+    build:
+      context: ../../
+      dockerfile: docker/staging/Dockerfile
+    image: with-docker-multi-env-staging
+    ports:
+      - "3002:3000"

@@ -18786,7 +18786,11 @@ async function render(satori2, resvg, opts, defaultFonts, element) {
       value: options.width
     }
   });
-  return resvgJS.render().asPng();
+  const pngData = resvgJS.render();
+  const pngBuffer = pngData.asPng();
+  pngData.free();
+  resvgJS.free();
+  return pngBuffer;
 }
 
 // src/figma/index.tsx

@@ -1,5 +1,5 @@
 use serde::Deserialize;
-use turbopack_binding::swc::core::{
+use swc_core::{
     common::Mark,
     ecma::{
         ast::*,

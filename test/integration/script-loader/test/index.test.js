@@ -219,7 +219,9 @@ const runTests = (isDev) => {
     if (!isDev) {
       // Script is inserted before CSS
       expect(
-        $(`#inline-before ~ link[href^="/_next/static/css"]`).length
+        $(`#inline-before ~ link[href^="/_next/static/"]`).filter(
+          (i, element) => $(element).attr('href')?.endsWith('.css')
+        ).length
       ).toBeGreaterThan(0)
     }
   })

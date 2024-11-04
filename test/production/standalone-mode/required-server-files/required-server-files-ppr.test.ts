@@ -115,14 +115,26 @@ describe('required server files app router', () => {
     expect(next.cliOutput).not.toContain('ERR_INVALID_URL')
   })
 
-  it('should properly stream resume', async () => {
-    const res = await fetchViaHTTP(appPort, '/delayed', undefined, {
+  it.each([
+    {
+      name: 'with Next-Resume',
       headers: {
-        'x-matched-path': '/_next/postponed/resume/delayed',
+        'x-matched-path': '/delayed',
+        'next-resume': '1',
       },
+    },
+    {
+      name: 'without Next-Resume',
+      headers: { 'x-matched-path': '/_next/postponed/resume/delayed' },
+    },
+  ])('should properly stream resume $name', async ({ headers }) => {
+    const res = await fetchViaHTTP(appPort, '/delayed', undefined, {
+      headers,
       method: 'POST',
       body: delayedPostpone,
     })
+
+    expect(res.status).toBe(200)
 
     let chunks = []
 
@@ -201,7 +213,21 @@ describe('required server files app router', () => {
   })
 
   describe('middleware rewrite', () => {
-    it('should work with a dynamic path', async () => {
+    it.each([
+      {
+        name: 'with Next-Resume',
+        headers: {
+          'x-matched-path': '/rewrite/first-cookie',
+          'next-resume': '1',
+        },
+      },
+      {
+        name: 'without Next-Resume',
+        headers: {
+          'x-matched-path': '/_next/postponed/resume/rewrite/first-cookie',
+        },
+      },
+    ])('should work with a dynamic path ($name)', async ({ headers }) => {
       const res = await fetchViaHTTP(
         appPort,
         '/rewrite-with-cookie',
@@ -209,7 +235,8 @@ describe('required server files app router', () => {
         {
           method: 'POST',
           headers: {
-            'x-matched-path': '/_next/postponed/resume/rewrite/first-cookie',
+            'x-matched-path': '/rewrite/first-cookie',
+            'next-resume': '1',
           },
           body: rewritePostpone,
         }
@@ -224,44 +251,59 @@ describe('required server files app router', () => {
     })
   })
 
-  it('should still render when postponed is corrupted', async () => {
-    const random = Math.random().toString(36).substring(2)
-
-    const res = await fetchViaHTTP(appPort, '/dyn/' + random, undefined, {
-      method: 'POST',
-      headers: {
+  it.each([
+    {
+      name: 'with Next-Resume',
+      headers: () => ({
+        'x-matched-path': '/dyn/[slug]',
+        'next-resume': '1',
+      }),
+    },
+    {
+      name: 'without Next-Resume',
+      headers: (random) => ({
         'x-matched-path': '/_next/postponed/resume/dyn/' + random,
-      },
-      // This is a corrupted postponed JSON payload.
-      body: '{',
-    })
+      }),
+    },
+  ])(
+    'should still render when postponed is corrupted $name',
+    async ({ headers }) => {
+      const random = Math.random().toString(36).substring(2)
 
-    expect(res.status).toBe(200)
+      const res = await fetchViaHTTP(appPort, '/dyn/' + random, undefined, {
+        method: 'POST',
+        headers: headers(random),
+        // This is a corrupted postponed JSON payload.
+        body: '{',
+      })
 
-    const html = await res.text()
+      expect(res.status).toBe(200)
 
-    // Expect that the closing HTML tag is still present, indicating a
-    // successful render.
-    expect(html).toContain('</html>')
-  })
+      const html = await res.text()
+
+      // Expect that the closing HTML tag is still present, indicating a
+      // successful render.
+      expect(html).toContain('</html>')
+    }
+  )
 
   it('should send cache tags in minimal mode for ISR', async () => {
     for (const [path, tags] of [
       [
         '/isr/first',
-        'isr-page,_N_T_/layout,_N_T_/isr/layout,_N_T_/isr/[slug]/layout,_N_T_/isr/[slug]/page,_N_T_/isr/first',
+        '_N_T_/layout,_N_T_/isr/layout,_N_T_/isr/[slug]/layout,_N_T_/isr/[slug]/page,_N_T_/isr/first,isr-page',
       ],
       [
         '/isr/second',
-        'isr-page,_N_T_/layout,_N_T_/isr/layout,_N_T_/isr/[slug]/layout,_N_T_/isr/[slug]/page,_N_T_/isr/second',
+        '_N_T_/layout,_N_T_/isr/layout,_N_T_/isr/[slug]/layout,_N_T_/isr/[slug]/page,_N_T_/isr/second,isr-page',
       ],
       [
         '/api/isr/first',
-        'isr-page,_N_T_/layout,_N_T_/api/layout,_N_T_/api/isr/layout,_N_T_/api/isr/[slug]/layout,_N_T_/api/isr/[slug]/route,_N_T_/api/isr/first',
+        '_N_T_/layout,_N_T_/api/layout,_N_T_/api/isr/layout,_N_T_/api/isr/[slug]/layout,_N_T_/api/isr/[slug]/route,_N_T_/api/isr/first,isr-page',
       ],
       [
         '/api/isr/second',
-        'isr-page,_N_T_/layout,_N_T_/api/layout,_N_T_/api/isr/layout,_N_T_/api/isr/[slug]/layout,_N_T_/api/isr/[slug]/route,_N_T_/api/isr/second',
+        '_N_T_/layout,_N_T_/api/layout,_N_T_/api/isr/layout,_N_T_/api/isr/[slug]/layout,_N_T_/api/isr/[slug]/route,_N_T_/api/isr/second,isr-page',
       ],
     ]) {
       require('console').error('checking', { path, tags })
@@ -311,7 +353,7 @@ describe('required server files app router', () => {
   it('should handle RSC requests', async () => {
     const res = await fetchViaHTTP(appPort, '/dyn/first.rsc', undefined, {
       headers: {
-        'x-matched-path': '/dyn/first',
+        'x-matched-path': '/dyn/[slug]',
       },
     })
 
@@ -327,7 +369,7 @@ describe('required server files app router', () => {
       undefined,
       {
         headers: {
-          'x-matched-path': '/dyn/first',
+          'x-matched-path': '/dyn/[slug]',
         },
       }
     )
@@ -335,5 +377,28 @@ describe('required server files app router', () => {
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toEqual('text/x-component')
     expect(res.headers.has('x-nextjs-postponed')).toBeTrue()
+  })
+
+  it('should handle revalidating the fallback page', async () => {
+    const res = await fetchViaHTTP(appPort, '/postpone/isr/[slug]', undefined, {
+      headers: {
+        'x-matched-path': '/postpone/isr/[slug]',
+        // We don't include the `x-now-route-matches` header because we want to
+        // test that the fallback route params are correctly set.
+      },
+    })
+
+    expect(res.status).toBe(200)
+
+    const html = await res.text()
+
+    expect(html).not.toContain('</html>')
+
+    const $ = cheerio.load(html)
+
+    expect($('#page').text()).toBeEmpty()
+    expect($('#params').text()).toBeEmpty()
+    expect($('#now').text()).toBeEmpty()
+    expect($('#loading').text()).toBe('/postpone/isr/[slug]')
   })
 })
