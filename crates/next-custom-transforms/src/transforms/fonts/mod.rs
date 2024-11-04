@@ -5,7 +5,7 @@ use swc_core::{
     ecma::{
         ast::{Id, ModuleItem, Pass},
         atoms::JsWord,
-        visit::{noop_visit_mut_type, visit_mut_pass, Fold, VisitMut, VisitWith},
+        visit::{noop_visit_mut_type, visit_mut_pass, VisitMut, VisitWith},
     },
 };
 
