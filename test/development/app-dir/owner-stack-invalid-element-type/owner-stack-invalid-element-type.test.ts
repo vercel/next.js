@@ -2,7 +2,9 @@ import { nextTestSetup } from 'e2e-utils'
 import { assertHasRedbox, getRedboxSource } from 'next-test-utils'
 
 // TODO: When owner stack is enabled by default, remove the condition and only keep one test
-const isOwnerStackEnabled = process.env.TEST_OWNER_STACK !== 'false'
+const isOwnerStackEnabled =
+  process.env.TEST_OWNER_STACK !== 'false' ||
+  process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
 
 async function getStackFramesContent(browser) {
   const stackFrameElements = await browser.elementsByCss(
