@@ -106,9 +106,7 @@ export async function walkTreeWithFlightRouterState({
     // Segment in router state does not match current segment
     !matchSegment(actualSegment, flightRouterState[0]) ||
     // Last item in the tree
-    parallelRoutesKeys.length === 0 ||
-    // Explicit refresh
-    flightRouterState[3] === 'refetch'
+    parallelRoutesKeys.length === 0
 
   // Pre-PPR, the `loading` component signals to the router how deep to render the component tree
   // to ensure prefetches are quick and inexpensive. If there's no `loading` component anywhere in the tree being rendered,
@@ -231,13 +229,8 @@ export async function walkTreeWithFlightRouterState({
 
     for (const subPath of subPaths) {
       // we don't need to send over default routes in the flight data
-      // because they are always ignored by the client, unless it's a refetch
-      if (
-        subPath[0] === DEFAULT_SEGMENT_KEY &&
-        flightRouterState &&
-        !!flightRouterState[1][parallelRouteKey][0] &&
-        flightRouterState[1][parallelRouteKey][3] !== 'refetch'
-      ) {
+      // because they are always ignored by the client
+      if (subPath[0] === DEFAULT_SEGMENT_KEY) {
         continue
       }
 
