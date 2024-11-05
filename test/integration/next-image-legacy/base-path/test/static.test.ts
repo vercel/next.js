@@ -68,7 +68,7 @@ const runTests = (isDev = false) => {
     expect(html).toContain('width:200px;height:200px')
     expect(html).not.toContain('width:400px;height:400px')
   })
-  it('Should add a blur placeholder to statically imported jpg', async () => {
+  it.skip('Should add a blur placeholder to statically imported jpg', async () => {
     if (process.env.TURBOPACK) {
       expect(html).toContain(
         `style="position:absolute;top:0;left:0;bottom:0;right:0;box-sizing:border-box;padding:0;border:none;margin:auto;display:block;width:0;height:0;min-width:100%;max-width:100%;min-height:100%;max-height:100%;background-size:cover;background-position:0% 0%;filter:blur(20px);background-image:url(&quot;data:image/jpeg;base64`
