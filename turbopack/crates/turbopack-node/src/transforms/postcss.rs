@@ -118,16 +118,16 @@ impl PostCssTransform {
 #[turbo_tasks::value_impl]
 impl SourceTransform for PostCssTransform {
     #[turbo_tasks::function]
-    fn transform(&self, source: Vc<Box<dyn Source>>) -> Vc<Box<dyn Source>> {
-        Vc::upcast(
+    async fn transform(&self, source: Vc<Box<dyn Source>>) -> Result<Vc<Box<dyn Source>>> {
+        Ok(Vc::upcast(
             PostCssTransformedAsset {
                 evaluate_context: self.evaluate_context,
-                execution_context: self.execution_context,
+                execution_context: self.execution_context.to_resolved().await?,
                 config_location: self.config_location,
-                source,
+                source: source.to_resolved().await?,
             }
             .cell(),
-        )
+        ))
     }
 }
 
