@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
 use serde_json::Value as JsonValue;
-use turbo_tasks::{FxIndexSet, RcStr, Value, Vc};
+use turbo_tasks::{FxIndexSet, RcStr, ResolvedVc, Value, Vc};
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -55,16 +55,16 @@ pub fn create_node_rendered_source(
     debug: bool,
 ) -> Vc<Box<dyn ContentSource>> {
     let source = NodeRenderContentSource {
-        cwd,
-        env,
+        cwd: cwd.to_resolved().await?,
+        env: env.to_resolved().await?,
         base_segments,
         route_type,
-        server_root,
-        route_match,
-        pathname,
-        entry,
-        fallback_page,
-        render_data,
+        server_root: server_root.to_resolved().await?,
+        route_match: route_match.to_resolved().await?,
+        pathname: pathname.to_resolved().await?,
+        entry: entry.to_resolved().await?,
+        fallback_page: fallback_page.to_resolved().await?,
+        render_data: render_data.to_resolved().await?,
         debug,
     }
     .cell();
@@ -82,16 +82,16 @@ pub fn create_node_rendered_source(
 /// see [create_node_rendered_source]
 #[turbo_tasks::value]
 pub struct NodeRenderContentSource {
-    cwd: Vc<FileSystemPath>,
-    env: Vc<Box<dyn ProcessEnv>>,
+    cwd: ResolvedVc<FileSystemPath>,
+    env: ResolvedVc<Box<dyn ProcessEnv>>,
     base_segments: Vec<BaseSegment>,
     route_type: RouteType,
-    server_root: Vc<FileSystemPath>,
-    route_match: Vc<Box<dyn RouteMatcher>>,
-    pathname: Vc<RcStr>,
-    entry: Vc<Box<dyn NodeEntry>>,
-    fallback_page: Vc<DevHtmlAsset>,
-    render_data: Vc<JsonValue>,
+    server_root: ResolvedVc<FileSystemPath>,
+    route_match: ResolvedVc<Box<dyn RouteMatcher>>,
+    pathname: ResolvedVc<RcStr>,
+    entry: ResolvedVc<Box<dyn NodeEntry>>,
+    fallback_page: ResolvedVc<DevHtmlAsset>,
+    render_data: ResolvedVc<JsonValue>,
     debug: bool,
 }
 
@@ -99,7 +99,7 @@ pub struct NodeRenderContentSource {
 impl NodeRenderContentSource {
     #[turbo_tasks::function]
     pub fn get_pathname(&self) -> Vc<RcStr> {
-        self.pathname
+        *self.pathname
     }
 }
 
@@ -109,9 +109,9 @@ impl GetContentSource for NodeRenderContentSource {
     /// assets. This is wrapped into [LazyInstantiatedContentSource].
     #[turbo_tasks::function]
     async fn content_source(&self) -> Result<Vc<Box<dyn ContentSource>>> {
-        let entries = self.entry.entries();
+        let entries = (*self.entry).entries();
         let mut set = FxIndexSet::default();
-        for &reference in self.fallback_page.references().await?.iter() {
+        for &reference in (*self.fallback_page).references().await?.iter() {
             set.insert(reference);
         }
         for &entry in entries.await?.iter() {
@@ -129,7 +129,7 @@ impl GetContentSource for NodeRenderContentSource {
             )
         }
         Ok(Vc::upcast(AssetGraphContentSource::new_lazy_multiple(
-            self.server_root,
+            *self.server_root,
             Vc::cell(set),
         )))
     }
@@ -169,8 +169,8 @@ impl GetContentSourceContent for NodeRenderContentSource {
         path: RcStr,
         data: Value<ContentSourceData>,
     ) -> Result<Vc<ContentSourceContent>> {
-        let pathname = self.pathname.await?;
-        let Some(params) = &*self.route_match.params(path.clone()).await? else {
+        let pathname = *self.pathname;
+        let Some(params) = &*(*self.route_match).params(path.clone()).await? else {
             return Err(anyhow!(
                 "Non matching path ({}) provided for {}",
                 path,
@@ -188,14 +188,14 @@ impl GetContentSourceContent for NodeRenderContentSource {
         else {
             return Err(anyhow!("Missing request data"));
         };
-        let entry = self.entry.entry(data.clone()).await?;
+        let entry = (*self.entry).entry(data.clone()).await?;
         let result = render_static(
-            self.cwd,
-            self.env,
-            self.server_root.join(path.clone()),
+            *self.cwd,
+            *self.env,
+            (*self.server_root).join(path.clone()),
             entry.module,
             entry.runtime_entries,
-            self.fallback_page,
+            *self.fallback_page,
             entry.chunking_context,
             entry.intermediate_output_path,
             entry.output_root,
@@ -208,7 +208,7 @@ impl GetContentSourceContent for NodeRenderContentSource {
                 raw_query: raw_query.clone(),
                 raw_headers: raw_headers.clone(),
                 path: pathname.as_str().into(),
-                data: Some(self.render_data.await?),
+                data: Some(*self.render_data),
             }
             .cell(),
             self.debug,
@@ -260,7 +260,7 @@ impl Introspectable for NodeRenderContentSource {
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<RcStr> {
-        self.pathname
+        *self.pathname
     }
 
     #[turbo_tasks::function]
@@ -277,7 +277,7 @@ impl Introspectable for NodeRenderContentSource {
     #[turbo_tasks::function]
     async fn children(&self) -> Result<Vc<IntrospectableChildren>> {
         let mut set = FxIndexSet::default();
-        for &entry in self.entry.entries().await?.iter() {
+        for &entry in (*self.entry).entries().await?.iter() {
             let entry = entry.await?;
             set.insert((
                 Vc::cell("module".into()),

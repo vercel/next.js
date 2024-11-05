@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
 use serde_json::Value as JsonValue;
-use turbo_tasks::{FxIndexSet, RcStr, Value, Vc};
+use turbo_tasks::{FxIndexSet, RcStr, ResolvedVc, Value, Vc};
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::introspect::{
@@ -32,15 +32,15 @@ pub fn create_node_api_source(
 ) -> Vc<Box<dyn ContentSource>> {
     Vc::upcast(
         NodeApiContentSource {
-            cwd,
-            env,
+            cwd: cwd.to_resolved().await?,
+            env: env.to_resolved().await?,
             base_segments,
             route_type,
-            server_root,
-            pathname,
-            route_match,
-            entry,
-            render_data,
+            server_root: server_root.to_resolved().await?,
+            pathname: pathname.to_resolved().await?,
+            route_match: route_match.to_resolved().await?,
+            entry: entry.to_resolved().await?,
+            render_data: render_data.to_resolved().await?,
             debug,
         }
         .cell(),
@@ -55,15 +55,15 @@ pub fn create_node_api_source(
 /// to this directory.
 #[turbo_tasks::value]
 pub struct NodeApiContentSource {
-    cwd: Vc<FileSystemPath>,
-    env: Vc<Box<dyn ProcessEnv>>,
+    cwd: ResolvedVc<FileSystemPath>,
+    env: ResolvedVc<Box<dyn ProcessEnv>>,
     base_segments: Vec<BaseSegment>,
     route_type: RouteType,
-    server_root: Vc<FileSystemPath>,
-    pathname: Vc<RcStr>,
-    route_match: Vc<Box<dyn RouteMatcher>>,
-    entry: Vc<Box<dyn NodeEntry>>,
-    render_data: Vc<JsonValue>,
+    server_root: ResolvedVc<FileSystemPath>,
+    pathname: ResolvedVc<RcStr>,
+    route_match: ResolvedVc<Box<dyn RouteMatcher>>,
+    entry: ResolvedVc<Box<dyn NodeEntry>>,
+    render_data: ResolvedVc<JsonValue>,
     debug: bool,
 }
 
@@ -71,7 +71,7 @@ pub struct NodeApiContentSource {
 impl NodeApiContentSource {
     #[turbo_tasks::function]
     pub fn get_pathname(&self) -> Vc<RcStr> {
-        self.pathname
+        *self.pathname
     }
 }
 
@@ -111,7 +111,7 @@ impl GetContentSourceContent for NodeApiContentSource {
         path: RcStr,
         data: Value<ContentSourceData>,
     ) -> Result<Vc<ContentSourceContent>> {
-        let Some(params) = &*self.route_match.params(path.clone()).await? else {
+        let Some(params) = &*(*self.route_match).params(path.clone()).await? else {
             return Err(anyhow!("Non matching path provided"));
         };
         let ContentSourceData {
@@ -126,12 +126,12 @@ impl GetContentSourceContent for NodeApiContentSource {
         else {
             return Err(anyhow!("Missing request data"));
         };
-        let entry = self.entry.entry(data.clone()).await?;
+        let entry = (*self.entry).entry(data.clone()).await?;
         Ok(ContentSourceContent::HttpProxy(
             render_proxy(
-                self.cwd,
-                self.env,
-                self.server_root.join(path.clone()),
+                *self.cwd,
+                *self.env,
+                (*self.server_root).join(path.clone()),
                 entry.module,
                 entry.runtime_entries,
                 entry.chunking_context,
@@ -146,7 +146,7 @@ impl GetContentSourceContent for NodeApiContentSource {
                     raw_query: raw_query.clone(),
                     raw_headers: raw_headers.clone(),
                     path: format!("/{}", path).into(),
-                    data: Some(self.render_data.await?),
+                    data: Some(*self.render_data),
                 }
                 .cell(),
                 *body,
@@ -173,7 +173,7 @@ impl Introspectable for NodeApiContentSource {
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<RcStr> {
-        self.pathname
+        *self.pathname
     }
 
     #[turbo_tasks::function]
@@ -190,7 +190,7 @@ impl Introspectable for NodeApiContentSource {
     #[turbo_tasks::function]
     async fn children(&self) -> Result<Vc<IntrospectableChildren>> {
         let mut set = FxIndexSet::default();
-        for &entry in self.entry.entries().await?.iter() {
+        for &entry in (*self.entry).entries().await?.iter() {
             let entry = entry.await?;
             set.insert((
                 Vc::cell("module".into()),
