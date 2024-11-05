@@ -232,11 +232,11 @@ impl WebpackLoadersProcessedAsset {
             chunking_context: chunking_context.to_resolved().await?,
             resolve_options_context: Some(transform.resolve_options_context.to_resolved().await?),
             args: vec![
-                ResolvedVc::cell(content.into()),
+                Vc::cell(content.into()),
                 // We need to pass the query string to the loader
-                ResolvedVc::cell(resource_path.to_string().into()),
-                ResolvedVc::cell(this.source.ident().query().await?.to_string().into()),
-                ResolvedVc::cell(json!(*loaders)),
+                Vc::cell(resource_path.to_string().into()),
+                Vc::cell(this.source.ident().query().await?.to_string().into()),
+                Vc::cell(json!(*loaders)),
             ],
             additional_invalidation: Completion::immutable().to_resolved().await?,
         })
@@ -386,7 +386,7 @@ pub struct WebpackLoaderContext {
     pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
     pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     pub resolve_options_context: Option<ResolvedVc<ResolveOptionsContext>>,
-    pub args: Vec<ResolvedVc<JsonValue>>,
+    pub args: Vec<Vc<JsonValue>>,
     pub additional_invalidation: ResolvedVc<Completion>,
 }
 
@@ -419,7 +419,7 @@ impl EvaluateContext for WebpackLoaderContext {
     }
 
     fn cwd(&self) -> Vc<turbo_tasks_fs::FileSystemPath> {
-        self.cwd
+        *self.cwd
     }
 
     fn keep_alive(&self) -> bool {
@@ -432,7 +432,12 @@ impl EvaluateContext for WebpackLoaderContext {
             context_ident: self.context_ident_for_issue,
             assets_for_source_mapping: pool.assets_for_source_mapping,
             assets_root: pool.assets_root,
-            project_dir: self.chunking_context.context_path().root(),
+            project_dir: self
+                .chunking_context
+                .context_path()
+                .root()
+                .to_resolved()
+                .await?,
         }
         .cell()
         .emit();
@@ -456,7 +461,7 @@ impl EvaluateContext for WebpackLoaderContext {
                 // TODO We might miss some changes that happened during execution
                 BuildDependencyIssue {
                     context_ident: self.context_ident_for_issue,
-                    path: self.cwd.join(path),
+                    path: self.cwd.join(path).to_resolved().await?,
                 }
                 .cell()
                 .emit();
@@ -561,16 +566,23 @@ impl EvaluateContext for WebpackLoaderContext {
                 .collect();
 
             EvaluateErrorLoggingIssue {
-                file_path: self.context_ident_for_issue.path(),
+                file_path: self.context_ident_for_issue.path().to_resolved().await?,
                 logging: logs,
                 severity: if has_errors {
                     IssueSeverity::Error.cell()
                 } else {
-                    IssueSeverity::Warning.cell()
-                },
+                    IssueSeverity::Warning.into()
+                }
+                .to_resolved()
+                .await?,
                 assets_for_source_mapping: pool.assets_for_source_mapping,
                 assets_root: pool.assets_root,
-                project_dir: self.chunking_context.context_path().root(),
+                project_dir: self
+                    .chunking_context
+                    .context_path()
+                    .root()
+                    .to_resolved()
+                    .await?,
             }
             .cell()
             .emit();
@@ -661,8 +673,8 @@ async fn apply_webpack_resolve_options(
 /// An issue that occurred while evaluating node code.
 #[turbo_tasks::value(shared)]
 pub struct BuildDependencyIssue {
-    pub context_ident: Vc<AssetIdent>,
-    pub path: Vc<FileSystemPath>,
+    pub context_ident: ResolvedVc<AssetIdent>,
+    pub path: ResolvedVc<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
@@ -810,7 +822,7 @@ pub struct EvaluateErrorLoggingIssue {
 impl Issue for EvaluateErrorLoggingIssue {
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        self.file_path
+        *self.file_path
     }
 
     #[turbo_tasks::function]
@@ -820,7 +832,7 @@ impl Issue for EvaluateErrorLoggingIssue {
 
     #[turbo_tasks::function]
     fn severity(&self) -> Vc<IssueSeverity> {
-        self.severity
+        *self.severity
     }
 
     #[turbo_tasks::function]
