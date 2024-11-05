@@ -719,9 +719,9 @@ impl NodeJsPool {
         cwd: PathBuf,
         entrypoint: PathBuf,
         env: HashMap<RcStr, RcStr>,
-        assets_for_source_mapping: Vc<AssetsForSourceMapping>,
-        assets_root: Vc<FileSystemPath>,
-        project_dir: Vc<FileSystemPath>,
+        assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
+        assets_root: ResolvedVc<FileSystemPath>,
+        project_dir: ResolvedVc<FileSystemPath>,
         concurrency: usize,
         debug: bool,
     ) -> Self {
