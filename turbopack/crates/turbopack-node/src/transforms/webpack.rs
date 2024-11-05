@@ -469,12 +469,17 @@ impl EvaluateContext for WebpackLoaderContext {
             }
             InfoMessage::EmittedError { error, severity } => {
                 EvaluateEmittedErrorIssue {
-                    file_path: self.context_ident_for_issue.path(),
+                    file_path: self.context_ident_for_issue.path().to_resolved().await?,
                     error,
-                    severity: severity.cell(),
+                    severity: severity.cell().to_resolved().await?,
                     assets_for_source_mapping: pool.assets_for_source_mapping,
                     assets_root: pool.assets_root,
-                    project_dir: self.chunking_context.context_path().root(),
+                    project_dir: self
+                        .chunking_context
+                        .context_path()
+                        .root()
+                        .to_resolved()
+                        .await?,
                 }
                 .cell()
                 .emit();
@@ -763,7 +768,7 @@ impl Issue for EvaluateEmittedErrorIssue {
 
     #[turbo_tasks::function]
     fn severity(&self) -> Vc<IssueSeverity> {
-        self.severity
+        *self.severity
     }
 
     #[turbo_tasks::function]
@@ -777,9 +782,9 @@ impl Issue for EvaluateEmittedErrorIssue {
             StyledString::Text(
                 self.error
                     .print(
-                        self.assets_for_source_mapping,
-                        self.assets_root,
-                        self.project_dir,
+                        *self.assets_for_source_mapping,
+                        *self.assets_root,
+                        *self.project_dir,
                         FormattingMode::Plain,
                     )
                     .await?
