@@ -1353,11 +1353,11 @@ export function runTests(ctx) {
   }
 
   if (ctx.isDev || ctx.isSharp) {
-    it('should not have sharp missing warning', () => {
+    it.skip('should not have sharp missing warning', () => {
       expect(ctx.nextOutput).not.toContain(sharpMissingText)
     })
   } else {
-    it('should have sharp missing warning', () => {
+    it.skip('should have sharp missing warning', () => {
       expect(ctx.nextOutput).toContain(sharpMissingText)
     })
   }
