@@ -50,7 +50,7 @@ pub async fn get_next_client_transforms_rules(
             if !foreign_code {
                 rules.push(
                     get_next_pages_transforms_rule(
-                        pages_dir,
+                        *pages_dir,
                         ExportFilter::StripDataExports,
                         enable_mdx_rs,
                     )

@@ -85,41 +85,14 @@ use crate::{
 
 #[turbo_tasks::value]
 pub struct AppProject {
-    project: Vc<Project>,
-    app_dir: Vc<FileSystemPath>,
+    project: ResolvedVc<Project>,
+    app_dir: ResolvedVc<FileSystemPath>,
 }
 
 #[turbo_tasks::value(transparent)]
 pub struct OptionAppProject(Option<Vc<AppProject>>);
 
-impl AppProject {
-    fn client_ty(self: Vc<Self>) -> ClientContextType {
-        ClientContextType::App {
-            app_dir: self.app_dir(),
-        }
-    }
-
-    fn rsc_ty(self: Vc<Self>) -> ServerContextType {
-        ServerContextType::AppRSC {
-            app_dir: self.app_dir(),
-            client_transition: Some(Vc::upcast(self.client_transition())),
-            ecmascript_client_reference_transition_name: Some(self.client_transition_name()),
-        }
-    }
-
-    fn route_ty(self: Vc<Self>) -> ServerContextType {
-        ServerContextType::AppRoute {
-            app_dir: self.app_dir(),
-            ecmascript_client_reference_transition_name: Some(self.client_transition_name()),
-        }
-    }
-
-    fn ssr_ty(self: Vc<Self>) -> ServerContextType {
-        ServerContextType::AppSSR {
-            app_dir: self.app_dir(),
-        }
-    }
-}
+impl AppProject {}
 
 pub(crate) const ECMASCRIPT_CLIENT_TRANSITION_NAME: &str = "next-ecmascript-client-reference";
 
@@ -134,46 +107,83 @@ fn styles_rule_condition() -> RuleCondition {
 #[turbo_tasks::value_impl]
 impl AppProject {
     #[turbo_tasks::function]
-    pub fn new(project: Vc<Project>, app_dir: Vc<FileSystemPath>) -> Vc<Self> {
+    pub fn new(project: ResolvedVc<Project>, app_dir: ResolvedVc<FileSystemPath>) -> Vc<Self> {
         AppProject { project, app_dir }.cell()
     }
 
     #[turbo_tasks::function]
     fn project(&self) -> Vc<Project> {
-        self.project
+        *self.project
     }
 
     #[turbo_tasks::function]
     fn app_dir(&self) -> Vc<FileSystemPath> {
-        self.app_dir
+        *self.app_dir
+    }
+
+    #[turbo_tasks::function]
+    fn client_ty(&self) -> Vc<ClientContextType> {
+        ClientContextType::App {
+            app_dir: self.app_dir,
+        }
+        .cell()
+    }
+
+    #[turbo_tasks::function]
+    async fn rsc_ty(self: Vc<Self>) -> Result<Vc<ServerContextType>> {
+        let this = self.await?;
+        Ok(ServerContextType::AppRSC {
+            app_dir: this.app_dir,
+            client_transition: Some(Vc::upcast(self.client_transition())),
+            ecmascript_client_reference_transition_name: Some(self.client_transition_name()),
+        }
+        .cell())
+    }
+
+    #[turbo_tasks::function]
+    async fn route_ty(self: Vc<Self>) -> Result<Vc<ServerContextType>> {
+        let this = self.await?;
+        Ok(ServerContextType::AppRoute {
+            app_dir: this.app_dir,
+            ecmascript_client_reference_transition_name: Some(self.client_transition_name()),
+        }
+        .cell())
+    }
+
+    #[turbo_tasks::function]
+    fn ssr_ty(&self) -> Vc<ServerContextType> {
+        ServerContextType::AppSSR {
+            app_dir: self.app_dir,
+        }
+        .cell()
     }
 
     #[turbo_tasks::function]
     fn app_entrypoints(&self) -> Vc<AppEntrypoints> {
-        get_entrypoints(self.app_dir, self.project.next_config().page_extensions())
+        get_entrypoints(*self.app_dir, self.project.next_config().page_extensions())
     }
 
     #[turbo_tasks::function]
-    fn client_module_options_context(self: Vc<Self>) -> Vc<ModuleOptionsContext> {
-        get_client_module_options_context(
+    async fn client_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
+        Ok(get_client_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
             self.project().client_compile_time_info().environment(),
-            Value::new(self.client_ty()),
+            Value::new(self.client_ty().await?.clone_value()),
             self.project().next_mode(),
             self.project().next_config(),
-        )
+        ))
     }
 
     #[turbo_tasks::function]
-    fn client_resolve_options_context(self: Vc<Self>) -> Vc<ResolveOptionsContext> {
-        get_client_resolve_options_context(
+    async fn client_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
+        Ok(get_client_resolve_options_context(
             self.project().project_path(),
-            Value::new(self.client_ty()),
+            Value::new(self.client_ty().await?.clone_value()),
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
-        )
+        ))
     }
 
     #[turbo_tasks::function]
@@ -188,95 +198,97 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    fn rsc_module_options_context(self: Vc<Self>) -> Vc<ModuleOptionsContext> {
-        get_server_module_options_context(
+    async fn rsc_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
+        Ok(get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
-            Value::new(self.rsc_ty()),
+            Value::new(self.rsc_ty().await?.clone_value()),
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::NodeJs,
-        )
+        ))
     }
 
     #[turbo_tasks::function]
-    fn edge_rsc_module_options_context(self: Vc<Self>) -> Vc<ModuleOptionsContext> {
-        get_server_module_options_context(
+    async fn edge_rsc_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
+        Ok(get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
-            Value::new(self.rsc_ty()),
+            Value::new(self.rsc_ty().await?.clone_value()),
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::Edge,
-        )
+        ))
     }
 
     #[turbo_tasks::function]
-    fn route_module_options_context(self: Vc<Self>) -> Vc<ModuleOptionsContext> {
-        get_server_module_options_context(
+    async fn route_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
+        Ok(get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
-            Value::new(self.route_ty()),
+            Value::new(self.route_ty().await?.clone_value()),
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::NodeJs,
-        )
+        ))
     }
 
     #[turbo_tasks::function]
-    fn edge_route_module_options_context(self: Vc<Self>) -> Vc<ModuleOptionsContext> {
-        get_server_module_options_context(
+    async fn edge_route_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
+        Ok(get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
-            Value::new(self.route_ty()),
+            Value::new(self.route_ty().await?.clone_value()),
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::Edge,
-        )
+        ))
     }
 
     #[turbo_tasks::function]
-    fn rsc_resolve_options_context(self: Vc<Self>) -> Vc<ResolveOptionsContext> {
-        get_server_resolve_options_context(
+    async fn rsc_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
+        Ok(get_server_resolve_options_context(
             self.project().project_path(),
-            Value::new(self.rsc_ty()),
+            Value::new(self.rsc_ty().await?.clone_value()),
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
-        )
+        ))
     }
 
     #[turbo_tasks::function]
-    fn edge_rsc_resolve_options_context(self: Vc<Self>) -> Vc<ResolveOptionsContext> {
-        get_edge_resolve_options_context(
+    async fn edge_rsc_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
+        Ok(get_edge_resolve_options_context(
             self.project().project_path(),
-            Value::new(self.rsc_ty()),
+            Value::new(self.rsc_ty().await?.clone_value()),
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
-        )
+        ))
     }
 
     #[turbo_tasks::function]
-    fn route_resolve_options_context(self: Vc<Self>) -> Vc<ResolveOptionsContext> {
-        get_server_resolve_options_context(
+    async fn route_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
+        Ok(get_server_resolve_options_context(
             self.project().project_path(),
-            Value::new(self.route_ty()),
+            Value::new(self.route_ty().await?.clone_value()),
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
-        )
+        ))
     }
 
     #[turbo_tasks::function]
-    fn edge_route_resolve_options_context(self: Vc<Self>) -> Vc<ResolveOptionsContext> {
-        get_edge_resolve_options_context(
+    async fn edge_route_resolve_options_context(
+        self: Vc<Self>,
+    ) -> Result<Vc<ResolveOptionsContext>> {
+        Ok(get_edge_resolve_options_context(
             self.project().project_path(),
-            Value::new(self.route_ty()),
+            Value::new(self.route_ty().await?.clone_value()),
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
-        )
+        ))
     }
 
     #[turbo_tasks::function]
@@ -446,49 +458,49 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    fn ssr_module_options_context(self: Vc<Self>) -> Vc<ModuleOptionsContext> {
-        get_server_module_options_context(
+    async fn ssr_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
+        Ok(get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
-            Value::new(self.ssr_ty()),
+            Value::new(self.ssr_ty().await?.clone_value()),
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::NodeJs,
-        )
+        ))
     }
 
     #[turbo_tasks::function]
-    fn edge_ssr_module_options_context(self: Vc<Self>) -> Vc<ModuleOptionsContext> {
-        get_server_module_options_context(
+    async fn edge_ssr_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
+        Ok(get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
-            Value::new(self.ssr_ty()),
+            Value::new(self.ssr_ty().await?.clone_value()),
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::Edge,
-        )
+        ))
     }
 
     #[turbo_tasks::function]
-    fn ssr_resolve_options_context(self: Vc<Self>) -> Vc<ResolveOptionsContext> {
-        get_server_resolve_options_context(
+    async fn ssr_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
+        Ok(get_server_resolve_options_context(
             self.project().project_path(),
-            Value::new(self.ssr_ty()),
+            Value::new(self.ssr_ty().await?.clone_value()),
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
-        )
+        ))
     }
 
     #[turbo_tasks::function]
-    fn edge_ssr_resolve_options_context(self: Vc<Self>) -> Vc<ResolveOptionsContext> {
-        get_edge_resolve_options_context(
+    async fn edge_ssr_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
+        Ok(get_edge_resolve_options_context(
             self.project().project_path(),
-            Value::new(self.ssr_ty()),
+            Value::new(self.ssr_ty().await?.clone_value()),
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
-        )
+        ))
     }
 
     #[turbo_tasks::function]
@@ -532,8 +544,11 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    fn runtime_entries(self: Vc<Self>) -> Vc<RuntimeEntries> {
-        get_server_runtime_entries(Value::new(self.rsc_ty()), self.project().next_mode())
+    async fn runtime_entries(self: Vc<Self>) -> Result<Vc<RuntimeEntries>> {
+        Ok(get_server_runtime_entries(
+            Value::new(self.rsc_ty().await?.clone_value()),
+            self.project().next_mode(),
+        ))
     }
 
     #[turbo_tasks::function]
@@ -557,15 +572,15 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    fn client_runtime_entries(self: Vc<Self>) -> Vc<EvaluatableAssets> {
-        get_client_runtime_entries(
+    async fn client_runtime_entries(self: Vc<Self>) -> Result<Vc<EvaluatableAssets>> {
+        Ok(get_client_runtime_entries(
             self.project().project_path(),
-            Value::new(self.client_ty()),
+            Value::new(self.client_ty().await?.clone_value()),
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
         )
-        .resolve_entries(Vc::upcast(self.client_module_context()))
+        .resolve_entries(Vc::upcast(self.client_module_context())))
     }
 
     #[turbo_tasks::function]

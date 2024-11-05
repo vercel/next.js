@@ -271,6 +271,7 @@ pub async fn tsconfig_resolve_options(
                         context_dir = *new_context;
                     }
                 };
+                let context_dir = context_dir.to_resolved().await?;
                 for (key, value) in paths.iter() {
                     if let JsonValue::Array(vec) = value {
                         let entries = vec
@@ -319,7 +320,7 @@ pub async fn tsconfig_resolve_options(
     let import_map = if !all_paths.is_empty() {
         let mut import_map = ImportMap::empty();
         for (key, value) in all_paths {
-            import_map.insert_alias(AliasPattern::parse(key), value.into());
+            import_map.insert_alias(AliasPattern::parse(key), value.resolved_cell());
         }
         Some(import_map.resolved_cell())
     } else {
@@ -360,9 +361,9 @@ pub async fn apply_tsconfig_resolve_options(
         resolve_options.modules.insert(
             0,
             ResolveModules::Path {
-                dir: *base_url,
+                dir: base_url,
                 // tsconfig basepath doesn't apply to json requests
-                excluded_extensions: Vc::cell(fxindexset![".json".into()]),
+                excluded_extensions: ResolvedVc::cell(fxindexset![".json".into()]),
             },
         );
     }
