@@ -529,7 +529,7 @@ impl Project {
         let app_dir = find_app_dir(self.project_path()).await?;
 
         Ok(Vc::cell(
-            app_dir.map(|app_dir| AppProject::new(self, app_dir)),
+            app_dir.map(|app_dir| AppProject::new(self, *app_dir)),
         ))
     }
 
@@ -1001,7 +1001,7 @@ impl Project {
             self,
             middleware_asset_context,
             source,
-            app_dir,
+            app_dir.as_deref().copied(),
             ecmascript_client_reference_transition_name,
         )))
     }
@@ -1140,7 +1140,7 @@ impl Project {
             instrumentation_asset_context,
             source,
             is_edge,
-            app_dir,
+            app_dir.as_deref().copied(),
             ecmascript_client_reference_transition_name,
         )))
     }

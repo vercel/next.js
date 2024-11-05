@@ -2506,7 +2506,7 @@ async fn resolve_import_map_result(
     query: Vc<RcStr>,
 ) -> Result<Option<Vc<ResolveResult>>> {
     Ok(match result {
-        ImportMapResult::Result(result) => Some(*result),
+        ImportMapResult::Result(result) => Some(**result),
         ImportMapResult::Alias(request, alias_lookup_path) => {
             let request = *request;
             let lookup_path = match alias_lookup_path {
