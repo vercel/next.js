@@ -37,9 +37,10 @@ export type AppPageRenderResultMetadata = {
   segmentFlightData?: Map<string, Buffer>
 
   /**
-   * Generated during a prerender, this is used for resuming pages.
+   * In development, the cache is warmed up before the render. This is attached
+   * to the metadata so that it can be used during the render.
    */
-  immutableResumeDataCache?: ImmutableResumeDataCache
+  devWarmupImmutableResumeDataCache?: ImmutableResumeDataCache
 }
 
 export type PagesRenderResultMetadata = {

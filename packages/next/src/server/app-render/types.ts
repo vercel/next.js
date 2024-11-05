@@ -189,7 +189,7 @@ export interface RenderOptsPartial {
    * The resume data cache that was generated for this partially prerendered
    * page or during rendering.
    */
-  immutableResumeDataCache?: ImmutableResumeDataCache
+  devWarmupImmutableResumeDataCache?: ImmutableResumeDataCache
 
   /**
    * When true, only the static shell of the page will be rendered. This will

@@ -655,7 +655,9 @@ async function warmupDevRender(
   // lift the warmup pathway outside of renderToHTML... but for now this suffices
   return new FlightRenderResult('', {
     fetchMetrics: ctx.workStore.fetchMetrics,
-    immutableResumeDataCache: sealResumeDataCache(mutableResumeDataCache),
+    devWarmupImmutableResumeDataCache: sealResumeDataCache(
+      mutableResumeDataCache
+    ),
   })
 }
 
@@ -1420,9 +1422,9 @@ export const renderToHTMLOrFlight: AppPageRender = (
   // If provided, the postpone state should be parsed so it can be provided to
   // React.
   if (typeof renderOpts.postponed === 'string') {
-    if (fallbackRouteParams && fallbackRouteParams.size > 0) {
-      throw new Error(
-        'Invariant: postponed state should not be provided when fallback params are provided'
+    if (fallbackRouteParams) {
+      throw new InvariantError(
+        'postponed state should not be provided when fallback params are provided'
       )
     }
 
@@ -1431,6 +1433,19 @@ export const renderToHTMLOrFlight: AppPageRender = (
       renderOpts.params
     )
   }
+
+  if (
+    postponedState?.immutableResumeDataCache &&
+    renderOpts.devWarmupImmutableResumeDataCache
+  ) {
+    throw new InvariantError(
+      'postponed state and dev warmup immutable resume data cache should not be provided together'
+    )
+  }
+
+  const immutableResumeDataCache =
+    renderOpts.devWarmupImmutableResumeDataCache ??
+    postponedState?.immutableResumeDataCache
 
   const implicitTags = getImplicitTags(
     renderOpts.routeModule.definition.page,
@@ -1448,7 +1463,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
     url,
     implicitTags,
     renderOpts.onUpdateCookies,
-    renderOpts.immutableResumeDataCache,
+    immutableResumeDataCache,
     renderOpts.previewProps,
     isHmrRefresh,
     serverComponentsHmrCache
@@ -2745,9 +2760,6 @@ async function prerenderToStream(
 
         const flightData = await streamToBuffer(reactServerResult.asStream())
         metadata.flightData = flightData
-        metadata.immutableResumeDataCache = sealResumeDataCache(
-          mutableResumeDataCache
-        )
         metadata.segmentFlightData = await collectSegmentData(
           finalAttemptRSCPayload,
           flightData,
@@ -2758,13 +2770,16 @@ async function prerenderToStream(
         if (serverIsDynamic || clientIsDynamic) {
           if (postponed != null) {
             // Dynamic HTML case
-            metadata.postponed = getDynamicHTMLPostponedState(
+            metadata.postponed = await getDynamicHTMLPostponedState(
               postponed,
-              fallbackRouteParams
+              fallbackRouteParams,
+              sealResumeDataCache(mutableResumeDataCache)
             )
           } else {
             // Dynamic Data case
-            metadata.postponed = getDynamicDataPostponedState()
+            metadata.postponed = await getDynamicDataPostponedState(
+              sealResumeDataCache(mutableResumeDataCache)
+            )
           }
           reactServerResult.consume()
           return {
@@ -3207,9 +3222,6 @@ async function prerenderToStream(
           }
         }
 
-        metadata.immutableResumeDataCache = sealResumeDataCache(
-          mutableResumeDataCache
-        )
         const flightData = await streamToBuffer(
           serverPrerenderStreamResult.asStream()
         )
@@ -3353,9 +3365,6 @@ async function prerenderToStream(
           renderOpts
         )
       }
-      metadata.immutableResumeDataCache = sealResumeDataCache(
-        mutableResumeDataCache
-      )
 
       /**
        * When prerendering there are three outcomes to consider
@@ -3375,13 +3384,16 @@ async function prerenderToStream(
       if (accessedDynamicData(dynamicTracking.dynamicAccesses)) {
         if (postponed != null) {
           // Dynamic HTML case.
-          metadata.postponed = getDynamicHTMLPostponedState(
+          metadata.postponed = await getDynamicHTMLPostponedState(
             postponed,
-            fallbackRouteParams
+            fallbackRouteParams,
+            sealResumeDataCache(mutableResumeDataCache)
           )
         } else {
           // Dynamic Data case.
-          metadata.postponed = getDynamicDataPostponedState()
+          metadata.postponed = await getDynamicDataPostponedState(
+            sealResumeDataCache(mutableResumeDataCache)
+          )
         }
         // Regardless of whether this is the Dynamic HTML or Dynamic Data case we need to ensure we include
         // server inserted html in the static response because the html that is part of the prerender may depend on it
@@ -3403,7 +3415,9 @@ async function prerenderToStream(
         }
       } else if (fallbackRouteParams && fallbackRouteParams.size > 0) {
         // Rendering the fallback case.
-        metadata.postponed = getDynamicDataPostponedState()
+        metadata.postponed = await getDynamicDataPostponedState(
+          sealResumeDataCache(mutableResumeDataCache)
+        )
 
         return {
           digestErrorsMap: reactServerErrorsByDigest,

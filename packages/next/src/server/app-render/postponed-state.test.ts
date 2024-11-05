@@ -1,4 +1,9 @@
 import {
+  createMutableResumeDataCache,
+  sealResumeDataCache,
+} from '../resume-data-cache/resume-data-cache'
+import { streamFromString } from '../stream-utils/node-web-streams-helper'
+import {
   DynamicState,
   getDynamicDataPostponedState,
   getDynamicHTMLPostponedState,
@@ -6,30 +11,50 @@ import {
 } from './postponed-state'
 
 describe('getDynamicHTMLPostponedState', () => {
-  it('serializes a HTML postponed state with fallback params', () => {
+  it('serializes a HTML postponed state with fallback params', async () => {
     const key = '%%drp:slug:e9615126684e5%%'
     const fallbackRouteParams = new Map([['slug', key]])
-    const state = getDynamicHTMLPostponedState(
+    const mutableResumeDataCache = createMutableResumeDataCache()
+
+    mutableResumeDataCache.cache.set(
+      '1',
+      Promise.resolve({
+        value: streamFromString('hello'),
+        tags: [],
+        stale: 0,
+        timestamp: 0,
+        expire: 0,
+        revalidate: 0,
+      })
+    )
+
+    const state = await getDynamicHTMLPostponedState(
       { [key]: key, nested: { [key]: key } },
-      fallbackRouteParams
+      fallbackRouteParams,
+      sealResumeDataCache(mutableResumeDataCache)
     )
 
     expect(state).toMatchInlineSnapshot(
-      `"39[["slug","%%drp:slug:e9615126684e5%%"]]{"%%drp:slug:e9615126684e5%%":"%%drp:slug:e9615126684e5%%","nested":{"%%drp:slug:e9615126684e5%%":"%%drp:slug:e9615126684e5%%"}}"`
+      `"169:39[["slug","%%drp:slug:e9615126684e5%%"]]{"%%drp:slug:e9615126684e5%%":"%%drp:slug:e9615126684e5%%","nested":{"%%drp:slug:e9615126684e5%%":"%%drp:slug:e9615126684e5%%"}}{"store":{"fetch":{},"cache":{"1":{"value":"aGVsbG8=","tags":[],"stale":0,"timestamp":0,"expire":0,"revalidate":0}}}}"`
     )
   })
 
-  it('serializes a HTML postponed state without fallback params', () => {
-    const state = getDynamicHTMLPostponedState({ key: 'value' }, null)
-    expect(state).toMatchInlineSnapshot(`"{"key":"value"}"`)
+  it('serializes a HTML postponed state without fallback params', async () => {
+    const state = await getDynamicHTMLPostponedState(
+      { key: 'value' },
+      null,
+      sealResumeDataCache(createMutableResumeDataCache())
+    )
+    expect(state).toMatchInlineSnapshot(`"15:{"key":"value"}null"`)
   })
 
-  it('can serialize and deserialize a HTML postponed state with fallback params', () => {
+  it('can serialize and deserialize a HTML postponed state with fallback params', async () => {
     const key = '%%drp:slug:e9615126684e5%%'
     const fallbackRouteParams = new Map([['slug', key]])
-    const state = getDynamicHTMLPostponedState(
+    const state = await getDynamicHTMLPostponedState(
       { [key]: key },
-      fallbackRouteParams
+      fallbackRouteParams,
+      sealResumeDataCache(createMutableResumeDataCache())
     )
 
     const value = 'hello'
@@ -38,6 +63,9 @@ describe('getDynamicHTMLPostponedState', () => {
     expect(parsed).toEqual({
       type: DynamicState.HTML,
       data: { [value]: value },
+      immutableResumeDataCache: sealResumeDataCache(
+        createMutableResumeDataCache()
+      ),
     })
 
     // The replacements have been replaced.
@@ -46,15 +74,17 @@ describe('getDynamicHTMLPostponedState', () => {
 })
 
 describe('getDynamicDataPostponedState', () => {
-  it('serializes a data postponed state with fallback params', () => {
-    const state = getDynamicDataPostponedState()
-    expect(state).toMatchInlineSnapshot(`"null"`)
+  it('serializes a data postponed state with fallback params', async () => {
+    const state = await getDynamicDataPostponedState(
+      sealResumeDataCache(createMutableResumeDataCache())
+    )
+    expect(state).toMatchInlineSnapshot(`"4:nullnull"`)
   })
 })
 
 describe('parsePostponedState', () => {
   it('parses a HTML postponed state with fallback params', () => {
-    const state = `39[["slug","%%drp:slug:e9615126684e5%%"]]{"t":2,"d":{"nextSegmentId":2,"rootFormatContext":{"insertionMode":0,"selectedValue":null,"tagScope":0},"progressiveChunkSize":12800,"resumableState":{"idPrefix":"","nextFormID":0,"streamingFormat":0,"instructions":0,"hasBody":true,"hasHtml":true,"unknownResources":{},"dnsResources":{},"connectResources":{"default":{},"anonymous":{},"credentials":{}},"imageResources":{},"styleResources":{},"scriptResources":{"/_next/static/chunks/webpack-6b2534a6458c6fe5.js":null,"/_next/static/chunks/f5e865f6-5e04edf75402c5e9.js":null,"/_next/static/chunks/9440-26a4cfbb73347735.js":null,"/_next/static/chunks/main-app-315ef55d588dbeeb.js":null,"/_next/static/chunks/8630-8e01a4bea783c651.js":null,"/_next/static/chunks/app/layout-1b900e1a3caf3737.js":null},"moduleUnknownResources":{},"moduleScriptResources":{"/_next/static/chunks/webpack-6b2534a6458c6fe5.js":null}},"replayNodes":[["oR",0,[["Context.Provider",0,[["ServerInsertedHTMLProvider",0,[["Context.Provider",0,[["n7",0,[["nU",0,[["nF",0,[["n9",0,[["Fragment",0,[["Context.Provider",2,[["Context.Provider",0,[["Context.Provider",0,[["Context.Provider",0,[["Context.Provider",0,[["Context.Provider",0,[["nY",0,[["nX",0,[["Fragment","c",[["Fragment",0,[["html",1,[["body",0,[["main",3,[["j",0,[["Fragment",0,[["Context.Provider","validation",[["i",2,[["Fragment",0,[["E",0,[["R",0,[["h",0,[["Fragment",0,[["O",0,[["Fragment",0,[["s",0,[["c",0,[["s",0,[["c",0,[["v",0,[["Context.Provider",0,[["Fragment","c",[["j",1,[["Fragment",0,[["Context.Provider","slug|%%drp:slug:e9615126684e5%%|d",[["i",2,[["Fragment",0,[["E",0,[["R",0,[["h",0,[["Fragment",0,[["O",0,[["Fragment",0,[["s",0,[["Fragment",0,[["s",0,[["c",0,[["v",0,[["Context.Provider",0,[["Fragment","c",[["j",1,[["Fragment",0,[["Context.Provider","__PAGE__",[["i",2,[["Fragment",0,[["E",0,[["R",0,[["h",0,[["Fragment",0,[["O",0,[["Suspense",0,[["s",0,[["Fragment",0,[["s",0,[["c",0,[["v",0,[["Context.Provider",0,[["Fragment","c",[["Fragment",0,[],{"1":1}]],null]],null]],null]],null]],null]],null]],null]],null,["Suspense Fallback",0,[],null],0]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],"replaySlots":null}}`
+    const state = `2589:39[["slug","%%drp:slug:e9615126684e5%%"]]{"t":2,"d":{"nextSegmentId":2,"rootFormatContext":{"insertionMode":0,"selectedValue":null,"tagScope":0},"progressiveChunkSize":12800,"resumableState":{"idPrefix":"","nextFormID":0,"streamingFormat":0,"instructions":0,"hasBody":true,"hasHtml":true,"unknownResources":{},"dnsResources":{},"connectResources":{"default":{},"anonymous":{},"credentials":{}},"imageResources":{},"styleResources":{},"scriptResources":{"/_next/static/chunks/webpack-6b2534a6458c6fe5.js":null,"/_next/static/chunks/f5e865f6-5e04edf75402c5e9.js":null,"/_next/static/chunks/9440-26a4cfbb73347735.js":null,"/_next/static/chunks/main-app-315ef55d588dbeeb.js":null,"/_next/static/chunks/8630-8e01a4bea783c651.js":null,"/_next/static/chunks/app/layout-1b900e1a3caf3737.js":null},"moduleUnknownResources":{},"moduleScriptResources":{"/_next/static/chunks/webpack-6b2534a6458c6fe5.js":null}},"replayNodes":[["oR",0,[["Context.Provider",0,[["ServerInsertedHTMLProvider",0,[["Context.Provider",0,[["n7",0,[["nU",0,[["nF",0,[["n9",0,[["Fragment",0,[["Context.Provider",2,[["Context.Provider",0,[["Context.Provider",0,[["Context.Provider",0,[["Context.Provider",0,[["Context.Provider",0,[["nY",0,[["nX",0,[["Fragment","c",[["Fragment",0,[["html",1,[["body",0,[["main",3,[["j",0,[["Fragment",0,[["Context.Provider","validation",[["i",2,[["Fragment",0,[["E",0,[["R",0,[["h",0,[["Fragment",0,[["O",0,[["Fragment",0,[["s",0,[["c",0,[["s",0,[["c",0,[["v",0,[["Context.Provider",0,[["Fragment","c",[["j",1,[["Fragment",0,[["Context.Provider","slug|%%drp:slug:e9615126684e5%%|d",[["i",2,[["Fragment",0,[["E",0,[["R",0,[["h",0,[["Fragment",0,[["O",0,[["Fragment",0,[["s",0,[["Fragment",0,[["s",0,[["c",0,[["v",0,[["Context.Provider",0,[["Fragment","c",[["j",1,[["Fragment",0,[["Context.Provider","__PAGE__",[["i",2,[["Fragment",0,[["E",0,[["R",0,[["h",0,[["Fragment",0,[["O",0,[["Suspense",0,[["s",0,[["Fragment",0,[["s",0,[["c",0,[["v",0,[["Context.Provider",0,[["Fragment","c",[["Fragment",0,[],{"1":1}]],null]],null]],null]],null]],null]],null]],null]],null,["Suspense Fallback",0,[],null],0]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],"replaySlots":null}}null`
     const params = {
       slug: Math.random().toString(16).slice(3),
     }
@@ -64,6 +94,9 @@ describe('parsePostponedState', () => {
     expect(parsed).toEqual({
       type: DynamicState.HTML,
       data: expect.any(Object),
+      immutableResumeDataCache: sealResumeDataCache(
+        createMutableResumeDataCache()
+      ),
     })
 
     // Ensure that the replacement worked and removed all the placeholders.
@@ -71,7 +104,7 @@ describe('parsePostponedState', () => {
   })
 
   it('parses a HTML postponed state without fallback params', () => {
-    const state = `{}`
+    const state = `2:{}null`
     const params = {}
     const parsed = parsePostponedState(state, params)
 
@@ -79,16 +112,22 @@ describe('parsePostponedState', () => {
     expect(parsed).toEqual({
       type: DynamicState.HTML,
       data: expect.any(Object),
+      immutableResumeDataCache: sealResumeDataCache(
+        createMutableResumeDataCache()
+      ),
     })
   })
 
   it('parses a data postponed state', () => {
-    const state = 'null'
+    const state = '4:nullnull'
     const parsed = parsePostponedState(state, undefined)
 
     // Ensure that it parsed it correctly.
     expect(parsed).toEqual({
       type: DynamicState.DATA,
+      immutableResumeDataCache: sealResumeDataCache(
+        createMutableResumeDataCache()
+      ),
     })
   })
 })
