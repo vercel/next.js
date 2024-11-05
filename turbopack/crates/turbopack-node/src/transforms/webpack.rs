@@ -224,21 +224,21 @@ impl WebpackLoadersProcessedAsset {
         };
         let loaders = transform.loaders.await?;
         let config_value = evaluate_webpack_loader(WebpackLoaderContext {
-            module_asset: webpack_loaders_executor,
-            cwd: project_path,
-            env,
-            context_ident_for_issue: this.source.ident(),
-            asset_context: evaluate_context,
-            chunking_context,
+            module_asset: webpack_loaders_executor.to_resolved().await?,
+            cwd: project_path.to_resolved().await?,
+            env: env.to_resolved().await?,
+            context_ident_for_issue: this.source.ident().to_resolved().await?,
+            asset_context: evaluate_context.to_resolved().await?,
+            chunking_context: chunking_context.to_resolved().await?,
             resolve_options_context: Some(transform.resolve_options_context.to_resolved().await?),
             args: vec![
-                Vc::cell(content.into()),
+                ResolvedVc::cell(content.into()),
                 // We need to pass the query string to the loader
-                Vc::cell(resource_path.to_string().into()),
-                Vc::cell(this.source.ident().query().await?.to_string().into()),
-                Vc::cell(json!(*loaders)),
+                ResolvedVc::cell(resource_path.to_string().into()),
+                ResolvedVc::cell(this.source.ident().query().await?.to_string().into()),
+                ResolvedVc::cell(json!(*loaders)),
             ],
-            additional_invalidation: Completion::immutable(),
+            additional_invalidation: Completion::immutable().to_resolved().await?,
         })
         .await?;
 
@@ -403,13 +403,13 @@ impl EvaluateContext for WebpackLoaderContext {
 
     fn pool(&self) -> Vc<crate::pool::NodeJsPool> {
         get_evaluate_pool(
-            self.module_asset,
-            self.cwd,
-            self.env,
-            self.asset_context,
-            self.chunking_context,
+            *self.module_asset,
+            *self.cwd,
+            *self.env,
+            *self.asset_context,
+            *self.chunking_context,
             None,
-            self.additional_invalidation,
+            *self.additional_invalidation,
             should_debug("webpack_loader"),
         )
     }
