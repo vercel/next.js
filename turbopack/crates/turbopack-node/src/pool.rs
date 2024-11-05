@@ -88,9 +88,9 @@ impl NodeJsPoolProcess {
             Cow::Borrowed(text) => {
                 apply_source_mapping(
                     text,
-                    self.assets_for_source_mapping,
-                    self.assets_root,
-                    self.project_dir,
+                    *self.assets_for_source_mapping,
+                    *self.assets_root,
+                    *self.project_dir,
                     formatting_mode,
                 )
                 .await
@@ -98,9 +98,9 @@ impl NodeJsPoolProcess {
             Cow::Owned(ref text) => {
                 let cow = apply_source_mapping(
                     text,
-                    self.assets_for_source_mapping,
-                    self.assets_root,
-                    self.project_dir,
+                    *self.assets_for_source_mapping,
+                    *self.assets_root,
+                    *self.project_dir,
                     formatting_mode,
                 )
                 .await?;
@@ -792,9 +792,9 @@ impl NodeJsPool {
             self.cwd.as_path(),
             &self.env,
             self.entrypoint.as_path(),
-            self.assets_for_source_mapping,
-            self.assets_root,
-            self.project_dir,
+            *self.assets_for_source_mapping,
+            *self.assets_root,
+            *self.project_dir,
             self.shared_stdout.clone(),
             self.shared_stderr.clone(),
             self.debug,
