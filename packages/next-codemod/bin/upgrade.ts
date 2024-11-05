@@ -326,7 +326,7 @@ export async function runUpgrade(
       os.EOL
   )
 
-  runInstallation(packageManager)
+  runInstallation(packageManager, { cwd })
 
   for (const codemod of codemods) {
     await runTransform(codemod, cwd, { force: true, verbose })
@@ -646,7 +646,7 @@ function warnDependenciesOutOfRange(
   options: { verbose: boolean }
 ) {
   const { verbose } = options
-  const allDependenciesToInstall = {
+  const allDirectDependencies = {
     ...appPackageJson.dependencies,
     ...appPackageJson.devDependencies,
   }
@@ -661,34 +661,30 @@ function warnDependenciesOutOfRange(
     }
   >()
 
-  for (const dependency of Object.keys(allDependenciesToInstall)) {
+  const resolvedDependencyVersions = new Map<string, string>()
+  for (const dependency of Object.keys(allDirectDependencies)) {
     let pkgJson
-    try {
-      pkgJson = require(
-        require.resolve(`${dependency}/package.json`, { paths: [cwd] })
-      )
-    } catch (error) {
-      if (error.code === 'ERR_PACKAGE_PATH_NOT_EXPORTED') {
-        let pkgJsonFromNodeModules
-        try {
-          pkgJsonFromNodeModules = path.join(
-            cwd,
-            'node_modules',
-            dependency,
-            'package.json'
-          )
 
-          pkgJson = JSON.parse(fs.readFileSync(pkgJsonFromNodeModules, 'utf8'))
-        } catch {
-          console.warn(
-            `${pc.yellow('⚠')} Could not find package.json for dependency "${dependency}" at "${pkgJsonFromNodeModules}". This may affect peer dependency checks.`
-          )
-          continue
-        }
-      } else {
-        throw error
-      }
+    // TODO: Asking package manager for the installed version is most robust e.g. `pnpm why ${dependency}`
+    // require.resolve(`${dependency}/package.json`, { paths: [cwd] }) results in previously installed version being used in PNPM
+    let pkgJsonFromNodeModules
+    try {
+      pkgJsonFromNodeModules = path.join(
+        cwd,
+        'node_modules',
+        dependency,
+        'package.json'
+      )
+
+      pkgJson = JSON.parse(fs.readFileSync(pkgJsonFromNodeModules, 'utf8'))
+    } catch {
+      console.warn(
+        `${pc.yellow('⚠')} Could not find package.json for dependency "${dependency}" at "${pkgJsonFromNodeModules}". This may affect peer dependency checks.`
+      )
+      continue
     }
+
+    resolvedDependencyVersions.set(dependency, pkgJson.version)
 
     if ('peerDependencies' in pkgJson) {
       const peerDeps = pkgJson.peerDependencies
@@ -727,7 +723,7 @@ function warnDependenciesOutOfRange(
     )
     dependenciesOutOfRange.forEach((deps, packageName) => {
       console.log(
-        `${packageName} ${pc.gray(allDependenciesToInstall[packageName])}`
+        `${packageName} ${pc.gray(resolvedDependencyVersions.get(packageName))}`
       )
       Object.entries(deps).forEach(([depName, value], index, depsArray) => {
         const prefix = index === depsArray.length - 1 ? '  └── ' : '  ├── '
