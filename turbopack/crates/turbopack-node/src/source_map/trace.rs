@@ -4,7 +4,7 @@ use anyhow::Result;
 use mime::APPLICATION_JSON;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use turbo_tasks::{RcStr, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, Vc};
 use turbo_tasks_fs::File;
 use turbopack_core::{
     asset::AssetContent,
