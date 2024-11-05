@@ -6178,8 +6178,8 @@
               var type = node.type,
                 key = node.key;
               node = node.props;
-              var ref = node.ref;
-              ref = void 0 !== ref ? ref : null;
+              var refProp = node.ref;
+              refProp = void 0 !== refProp ? refProp : null;
               var debugTask = task.debugTask,
                 name = getComponentNameFromType(type);
               key = null == key ? (-1 === childIndex ? 0 : childIndex) : key;
@@ -6197,7 +6197,7 @@
                         childIndex,
                         type,
                         node,
-                        ref,
+                        refProp,
                         task.replay
                       )
                     )
@@ -6210,7 +6210,7 @@
                       childIndex,
                       type,
                       node,
-                      ref,
+                      refProp,
                       task.replay
                     )
                 : debugTask
@@ -6222,10 +6222,10 @@
                         keyPath,
                         type,
                         node,
-                        ref
+                        refProp
                       )
                     )
-                  : renderElement(request, task, keyPath, type, node, ref);
+                  : renderElement(request, task, keyPath, type, node, refProp);
               return;
             case REACT_PORTAL_TYPE:
               throw Error(
@@ -6300,17 +6300,17 @@
             thenableIndexCounter = 0;
             thenableState = key;
             key = [];
-            ref = !1;
+            refProp = !1;
             if (type === node)
               for (node = readPreviousThenableFromState(); void 0 !== node; ) {
                 if (node.done) {
-                  ref = !0;
+                  refProp = !0;
                   break;
                 }
                 key.push(node.value);
                 node = readPreviousThenableFromState();
               }
-            if (!ref)
+            if (!refProp)
               for (node = unwrapThenable(type.next()); !node.done; )
                 key.push(node.value), (node = unwrapThenable(type.next()));
             renderChildrenArray(request, task, key, childIndex);
@@ -8210,11 +8210,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.0.0-experimental-7c8e5e7a-20241101" !== isomorphicReactPackageVersion)
+      if ("19.0.0-experimental-33c7bd9a-20241104" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.0.0-experimental-7c8e5e7a-20241101\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.0.0-experimental-33c7bd9a-20241104\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     var React = require("next/dist/compiled/react-experimental"),
@@ -10001,5 +10001,5 @@ const setTimeoutOrImmediate =
     ? globalThis['set' + 'Immediate']
     : setTimeout;
 
-    exports.version = "19.0.0-experimental-7c8e5e7a-20241101";
+    exports.version = "19.0.0-experimental-33c7bd9a-20241104";
   })();

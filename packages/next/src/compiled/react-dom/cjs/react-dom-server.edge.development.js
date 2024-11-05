@@ -5636,8 +5636,8 @@
                 key = node.key,
                 props = node.props;
               node = props.ref;
-              var ref = void 0 !== node ? node : null;
-              var name = getComponentNameFromType(type),
+              var ref = void 0 !== node ? node : null,
+                name = getComponentNameFromType(type),
                 keyOrIndex =
                   null == key ? (-1 === childIndex ? 0 : childIndex) : key,
                 keyPath = [task.keyPath, name, keyOrIndex];
@@ -7313,11 +7313,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.0.0-rc-7c8e5e7a-20241101" !== isomorphicReactPackageVersion)
+      if ("19.0.0-rc-33c7bd9a-20241104" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.0.0-rc-7c8e5e7a-20241101\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.0.0-rc-33c7bd9a-20241104\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     var React = require("next/dist/compiled/react"),
@@ -8976,5 +8976,5 @@ const setTimeoutOrImmediate =
     ? globalThis['set' + 'Immediate']
     : setTimeout;
 
-    exports.version = "19.0.0-rc-7c8e5e7a-20241101";
+    exports.version = "19.0.0-rc-33c7bd9a-20241104";
   })();

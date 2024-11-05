@@ -4414,9 +4414,9 @@
       null === thenableState$1 && (thenableState$1 = createThenableState());
       return trackUsedThenable(thenableState$1, thenable, index);
     }
-    function coerceRef(returnFiber, current, workInProgress, element) {
-      returnFiber = element.props.ref;
-      workInProgress.ref = void 0 !== returnFiber ? returnFiber : null;
+    function coerceRef(workInProgress, element) {
+      element = element.props.ref;
+      workInProgress.ref = void 0 !== element ? element : null;
     }
     function throwOnInvalidObjectType(returnFiber, newChild) {
       if (newChild.$$typeof === REACT_LEGACY_ELEMENT_TYPE)
@@ -4565,18 +4565,18 @@
               callLazyInitInDEV(elementType) === current.type))
         )
           return (
-            (lanes = useFiber(current, element.props)),
-            coerceRef(returnFiber, current, lanes, element),
-            (lanes.return = returnFiber),
-            (lanes._debugOwner = element._owner),
-            (lanes._debugInfo = currentDebugInfo),
-            lanes
+            (current = useFiber(current, element.props)),
+            coerceRef(current, element),
+            (current.return = returnFiber),
+            (current._debugOwner = element._owner),
+            (current._debugInfo = currentDebugInfo),
+            current
           );
-        lanes = createFiberFromElement(element, returnFiber.mode, lanes);
-        coerceRef(returnFiber, current, lanes, element);
-        lanes.return = returnFiber;
-        lanes._debugInfo = currentDebugInfo;
-        return lanes;
+        current = createFiberFromElement(element, returnFiber.mode, lanes);
+        coerceRef(current, element);
+        current.return = returnFiber;
+        current._debugInfo = currentDebugInfo;
+        return current;
       }
       function updatePortal(returnFiber, current, portal, lanes) {
         if (
@@ -4641,7 +4641,7 @@
                   returnFiber.mode,
                   lanes
                 )),
-                coerceRef(returnFiber, null, lanes, newChild),
+                coerceRef(lanes, newChild),
                 (lanes.return = returnFiber),
                 (returnFiber = pushDebugInfo(newChild._debugInfo)),
                 (lanes._debugInfo = currentDebugInfo),
@@ -5156,80 +5156,72 @@
             case REACT_ELEMENT_TYPE:
               var prevDebugInfo = pushDebugInfo(newChild._debugInfo);
               a: {
-                for (
-                  var key = newChild.key, child = currentFirstChild;
-                  null !== child;
-
-                ) {
-                  if (child.key === key) {
+                for (var key = newChild.key; null !== currentFirstChild; ) {
+                  if (currentFirstChild.key === key) {
                     key = newChild.type;
                     if (key === REACT_FRAGMENT_TYPE) {
-                      if (7 === child.tag) {
-                        deleteRemainingChildren(returnFiber, child.sibling);
-                        currentFirstChild = useFiber(
-                          child,
+                      if (7 === currentFirstChild.tag) {
+                        deleteRemainingChildren(
+                          returnFiber,
+                          currentFirstChild.sibling
+                        );
+                        lanes = useFiber(
+                          currentFirstChild,
                           newChild.props.children
                         );
-                        currentFirstChild.return = returnFiber;
-                        currentFirstChild._debugOwner = newChild._owner;
-                        currentFirstChild._debugInfo = currentDebugInfo;
-                        validateFragmentProps(
-                          newChild,
-                          currentFirstChild,
-                          returnFiber
-                        );
-                        returnFiber = currentFirstChild;
+                        lanes.return = returnFiber;
+                        lanes._debugOwner = newChild._owner;
+                        lanes._debugInfo = currentDebugInfo;
+                        validateFragmentProps(newChild, lanes, returnFiber);
+                        returnFiber = lanes;
                         break a;
                       }
                     } else if (
-                      child.elementType === key ||
-                      isCompatibleFamilyForHotReloading(child, newChild) ||
+                      currentFirstChild.elementType === key ||
+                      isCompatibleFamilyForHotReloading(
+                        currentFirstChild,
+                        newChild
+                      ) ||
                       ("object" === typeof key &&
                         null !== key &&
                         key.$$typeof === REACT_LAZY_TYPE &&
-                        callLazyInitInDEV(key) === child.type)
+                        callLazyInitInDEV(key) === currentFirstChild.type)
                     ) {
-                      deleteRemainingChildren(returnFiber, child.sibling);
-                      currentFirstChild = useFiber(child, newChild.props);
-                      coerceRef(
+                      deleteRemainingChildren(
                         returnFiber,
-                        child,
-                        currentFirstChild,
-                        newChild
+                        currentFirstChild.sibling
                       );
-                      currentFirstChild.return = returnFiber;
-                      currentFirstChild._debugOwner = newChild._owner;
-                      currentFirstChild._debugInfo = currentDebugInfo;
-                      returnFiber = currentFirstChild;
+                      lanes = useFiber(currentFirstChild, newChild.props);
+                      coerceRef(lanes, newChild);
+                      lanes.return = returnFiber;
+                      lanes._debugOwner = newChild._owner;
+                      lanes._debugInfo = currentDebugInfo;
+                      returnFiber = lanes;
                       break a;
                     }
-                    deleteRemainingChildren(returnFiber, child);
+                    deleteRemainingChildren(returnFiber, currentFirstChild);
                     break;
-                  } else deleteChild(returnFiber, child);
-                  child = child.sibling;
+                  } else deleteChild(returnFiber, currentFirstChild);
+                  currentFirstChild = currentFirstChild.sibling;
                 }
                 newChild.type === REACT_FRAGMENT_TYPE
-                  ? ((currentFirstChild = createFiberFromFragment(
+                  ? ((lanes = createFiberFromFragment(
                       newChild.props.children,
                       returnFiber.mode,
                       lanes,
                       newChild.key
                     )),
-                    (currentFirstChild.return = returnFiber),
-                    (currentFirstChild._debugOwner = returnFiber),
-                    (currentFirstChild._debugInfo = currentDebugInfo),
-                    validateFragmentProps(
-                      newChild,
-                      currentFirstChild,
-                      returnFiber
-                    ),
-                    (returnFiber = currentFirstChild))
+                    (lanes.return = returnFiber),
+                    (lanes._debugOwner = returnFiber),
+                    (lanes._debugInfo = currentDebugInfo),
+                    validateFragmentProps(newChild, lanes, returnFiber),
+                    (returnFiber = lanes))
                   : ((lanes = createFiberFromElement(
                       newChild,
                       returnFiber.mode,
                       lanes
                     )),
-                    coerceRef(returnFiber, currentFirstChild, lanes, newChild),
+                    coerceRef(lanes, newChild),
                     (lanes.return = returnFiber),
                     (lanes._debugInfo = currentDebugInfo),
                     (returnFiber = lanes));
@@ -5257,12 +5249,12 @@
                         returnFiber,
                         currentFirstChild.sibling
                       );
-                      currentFirstChild = useFiber(
+                      lanes = useFiber(
                         currentFirstChild,
                         prevDebugInfo.children || []
                       );
-                      currentFirstChild.return = returnFiber;
-                      returnFiber = currentFirstChild;
+                      lanes.return = returnFiber;
+                      returnFiber = lanes;
                       break a;
                     } else {
                       deleteRemainingChildren(returnFiber, currentFirstChild);
@@ -5271,13 +5263,13 @@
                   else deleteChild(returnFiber, currentFirstChild);
                   currentFirstChild = currentFirstChild.sibling;
                 }
-                currentFirstChild = createFiberFromPortal(
+                lanes = createFiberFromPortal(
                   prevDebugInfo,
                   returnFiber.mode,
                   lanes
                 );
-                currentFirstChild.return = returnFiber;
-                returnFiber = currentFirstChild;
+                lanes.return = returnFiber;
+                returnFiber = lanes;
               }
               return placeSingleChild(returnFiber);
             case REACT_LAZY_TYPE:
@@ -5308,18 +5300,19 @@
             );
           if (getIteratorFn(newChild)) {
             prevDebugInfo = pushDebugInfo(newChild._debugInfo);
-            child = getIteratorFn(newChild);
-            if ("function" !== typeof child)
+            key = getIteratorFn(newChild);
+            if ("function" !== typeof key)
               throw Error(
                 "An object is not an iterable. This error is likely caused by a bug in React. Please file an issue."
               );
-            key = child.call(newChild);
-            if (key === newChild) {
+            var newChildren = key.call(newChild);
+            if (newChildren === newChild) {
               if (
                 0 !== returnFiber.tag ||
                 "[object GeneratorFunction]" !==
                   Object.prototype.toString.call(returnFiber.type) ||
-                "[object Generator]" !== Object.prototype.toString.call(key)
+                "[object Generator]" !==
+                  Object.prototype.toString.call(newChildren)
               )
                 didWarnAboutGenerators ||
                   console.error(
@@ -5327,7 +5320,7 @@
                   ),
                   (didWarnAboutGenerators = !0);
             } else
-              newChild.entries !== child ||
+              newChild.entries !== key ||
                 didWarnAboutMaps ||
                 (console.error(
                   "Using Maps as children is not supported. Use an array of keyed ReactElements instead."
@@ -5336,7 +5329,7 @@
             returnFiber = reconcileChildrenIterator(
               returnFiber,
               currentFirstChild,
-              key,
+              newChildren,
               lanes
             );
             currentDebugInfo = prevDebugInfo;
@@ -5375,22 +5368,19 @@
                   returnFiber,
                   currentFirstChild.sibling
                 ),
-                (currentFirstChild = useFiber(
-                  currentFirstChild,
-                  prevDebugInfo
-                )),
-                (currentFirstChild.return = returnFiber),
-                (returnFiber = currentFirstChild))
+                (lanes = useFiber(currentFirstChild, prevDebugInfo)),
+                (lanes.return = returnFiber),
+                (returnFiber = lanes))
               : (deleteRemainingChildren(returnFiber, currentFirstChild),
-                (currentFirstChild = createFiberFromText(
+                (lanes = createFiberFromText(
                   prevDebugInfo,
                   returnFiber.mode,
                   lanes
                 )),
-                (currentFirstChild.return = returnFiber),
-                (currentFirstChild._debugOwner = returnFiber),
-                (currentFirstChild._debugInfo = currentDebugInfo),
-                (returnFiber = currentFirstChild)),
+                (lanes.return = returnFiber),
+                (lanes._debugOwner = returnFiber),
+                (lanes._debugInfo = currentDebugInfo),
+                (returnFiber = lanes)),
             placeSingleChild(returnFiber)
           );
         "function" === typeof newChild &&
@@ -24502,11 +24492,11 @@
     };
     (function () {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.0.0-rc-7c8e5e7a-20241101" !== isomorphicReactPackageVersion)
+      if ("19.0.0-rc-33c7bd9a-20241104" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.0.0-rc-7c8e5e7a-20241101\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.0.0-rc-33c7bd9a-20241104\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     })();
     ("function" === typeof Map &&
@@ -24543,11 +24533,11 @@
       !(function () {
         var internals = {
           bundleType: 1,
-          version: "19.0.0-rc-7c8e5e7a-20241101",
+          version: "19.0.0-rc-33c7bd9a-20241104",
           rendererPackageName: "react-dom",
           currentDispatcherRef: ReactSharedInternals,
           findFiberByHostInstance: getClosestInstanceFromNode,
-          reconcilerVersion: "19.0.0-rc-7c8e5e7a-20241101"
+          reconcilerVersion: "19.0.0-rc-33c7bd9a-20241104"
         };
         internals.overrideHookState = overrideHookState;
         internals.overrideHookStateDeletePath = overrideHookStateDeletePath;
@@ -25021,7 +25011,7 @@
     exports.useFormStatus = function () {
       return resolveDispatcher().useHostTransitionStatus();
     };
-    exports.version = "19.0.0-rc-7c8e5e7a-20241101";
+    exports.version = "19.0.0-rc-33c7bd9a-20241104";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&
