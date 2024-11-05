@@ -121,10 +121,16 @@ impl SinglePatternMapping {
             }),
             Self::External(request, ExternalType::CommonJs) => Expr::Call(CallExpr {
                 callee: Callee::Expr(quote_expr!("__turbopack_external_require__")),
-                args: vec![ExprOrSpread {
-                    spread: None,
-                    expr: request.as_str().into(),
-                }],
+                args: vec![
+                    ExprOrSpread {
+                        spread: None,
+                        expr: request.as_str().into(),
+                    },
+                    ExprOrSpread {
+                        spread: None,
+                        expr: quote_expr!("() => require($arg)"),
+                    },
+                ],
                 span: DUMMY_SP,
                 ..Default::default()
             }),
@@ -170,7 +176,7 @@ impl SinglePatternMapping {
                         args: vec![ExprOrSpread {
                             spread: None,
                             expr: quote_expr!(
-                                "() => __turbopack_external_require__($arg, true)",
+                                "() => __turbopack_external_require__($arg, () => require($arg), true)",
                                 arg: Expr = key_expr.into_owned()
                             ),
                         }],
@@ -184,7 +190,7 @@ impl SinglePatternMapping {
                 args: vec![ExprOrSpread {
                     spread: None,
                     expr: quote_expr!(
-                        "() => __turbopack_external_require__($arg, true)",
+                        "() => __turbopack_external_require__($arg, () => require($arg), true)",
                         arg: Expr = key_expr.into_owned()
                     ),
                 }],
