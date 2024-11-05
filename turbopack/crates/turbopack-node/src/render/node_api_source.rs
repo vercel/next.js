@@ -194,13 +194,13 @@ impl Introspectable for NodeApiContentSource {
             let entry = entry.await?;
             set.insert((
                 Vc::cell("module".into()),
-                IntrospectableModule::new(Vc::upcast(entry.module)),
+                IntrospectableModule::new(Vc::upcast(*entry.module)),
             ));
             set.insert((
                 Vc::cell("intermediate asset".into()),
                 IntrospectableOutputAsset::new(get_intermediate_asset(
                     *entry.chunking_context,
-                    ResolvedVc::upcast(entry.module),
+                    Vc::upcast(*entry.module),
                     *entry.runtime_entries,
                 )),
             ));
