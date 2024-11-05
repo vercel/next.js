@@ -520,6 +520,11 @@ pub async fn get_server_module_options_context(
         },
         tree_shaking_mode: tree_shaking_mode_for_user_code,
         side_effect_free_packages: next_config.optimize_package_imports().await?.clone_value(),
+        enable_file_tracing: if next_mode.is_production() {
+            Some(project_path)
+        } else {
+            None
+        },
         ..Default::default()
     };
 
@@ -951,6 +956,7 @@ pub async fn get_server_chunking_context_with_client_assets(
     )
     .asset_prefix(asset_prefix)
     .minify_type(next_mode.minify_type())
+    .file_tracing(next_mode.is_production())
     .module_id_strategy(module_id_strategy)
     .build())
 }
@@ -977,6 +983,7 @@ pub async fn get_server_chunking_context(
         next_mode.runtime_type(),
     )
     .minify_type(next_mode.minify_type())
+    .file_tracing(next_mode.is_production())
     .module_id_strategy(module_id_strategy)
     .build())
 }
