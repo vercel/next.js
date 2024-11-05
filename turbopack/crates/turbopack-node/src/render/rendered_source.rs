@@ -223,9 +223,11 @@ impl GetContentSourceContent for NodeRenderContentSource {
                 content,
                 status_code,
                 headers,
-            } => {
-                ContentSourceContent::static_with_headers(content.versioned(), status_code, headers)
-            }
+            } => ContentSourceContent::static_with_headers(
+                content.versioned(),
+                status_code,
+                *headers,
+            ),
             StaticResult::StreamedContent {
                 status,
                 headers,
@@ -281,14 +283,14 @@ impl Introspectable for NodeRenderContentSource {
             let entry = entry.await?;
             set.insert((
                 Vc::cell("module".into()),
-                IntrospectableModule::new(Vc::upcast(entry.module)),
+                IntrospectableModule::new(Vc::upcast(*entry.module)),
             ));
             set.insert((
                 Vc::cell("intermediate asset".into()),
                 IntrospectableOutputAsset::new(get_intermediate_asset(
-                    entry.chunking_context,
-                    entry.module,
-                    entry.runtime_entries,
+                    *entry.chunking_context,
+                    *entry.module,
+                    *entry.runtime_entries,
                 )),
             ));
         }

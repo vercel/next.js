@@ -52,17 +52,17 @@ pub enum StaticResult {
 #[turbo_tasks::value_impl]
 impl StaticResult {
     #[turbo_tasks::function]
-    pub fn content(
+    pub async fn content(
         content: Vc<AssetContent>,
         status_code: u16,
         headers: Vc<HeaderList>,
-    ) -> Vc<Self> {
-        StaticResult::Content {
-            content,
+    ) -> Result<Vc<Self>> {
+        Ok(StaticResult::Content {
+            content: content.to_resolved().await?,
             status_code,
-            headers,
+            headers: headers.to_resolved().await?,
         }
-        .cell()
+        .cell())
     }
 
     #[turbo_tasks::function]
