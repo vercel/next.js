@@ -124,7 +124,7 @@ rendered as a Component or passed to props of a Client Component.`)}); },
 ${stringifiedResourceKey},
 "default",
 );\n`
-        } else {
+        } else if (ref) {
           esmSource += `export const ${ref} = registerClientReference(
 function() { throw new Error(${JSON.stringify(`Attempted to call ${ref}() from \
 the server but ${ref} is on the client. It's not possible to invoke a client \
