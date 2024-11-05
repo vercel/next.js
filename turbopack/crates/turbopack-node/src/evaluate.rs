@@ -173,9 +173,9 @@ pub async fn get_evaluate_pool(
             .iter()
             .map(|(k, v)| (k.clone(), v.clone()))
             .collect(),
-        assets_for_source_mapping,
-        output_root,
-        chunking_context.context_path().root(),
+        assets_for_source_mapping.to_resolved().await?,
+        output_root.to_resolved().await?,
+        chunking_context.context_path().root().to_resolved().await?,
         available_parallelism().map_or(1, |v| v.get()),
         debug,
     );
@@ -302,7 +302,10 @@ pub async fn evaluate(
         context_ident_for_issue: context_ident_for_issue.to_resolved().await?,
         asset_context: asset_context.to_resolved().await?,
         chunking_context: chunking_context.to_resolved().await?,
-        runtime_entries,
+        runtime_entries: match runtime_entries {
+            Some(runtime_entries) => Some(runtime_entries.to_resolved().await?),
+            None => None,
+        },
         args,
         additional_invalidation: additional_invalidation.to_resolved().await?,
         debug,
@@ -472,7 +475,7 @@ struct BasicEvaluateContext {
     asset_context: ResolvedVc<Box<dyn AssetContext>>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     runtime_entries: Option<ResolvedVc<EvaluatableAssets>>,
-    args: Vec<ResolvedVc<JsonValue>>,
+    args: Vec<Vc<JsonValue>>,
     additional_invalidation: ResolvedVc<Completion>,
     debug: bool,
 }
