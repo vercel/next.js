@@ -246,9 +246,9 @@ pub async fn get_renderer_pool(
             .iter()
             .map(|(k, v)| (k.clone(), v.clone()))
             .collect(),
-        assets_for_source_mapping,
-        output_root,
-        project_dir,
+        assets_for_source_mapping.to_resolved().await?,
+        output_root.to_resolved().await?,
+        project_dir.to_resolved().await?,
         available_parallelism().map_or(1, |v| v.get()),
         debug,
     )
