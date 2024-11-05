@@ -6,12 +6,9 @@ import DevToolsIgnorePlugin from '../../plugins/devtools-ignore-list-plugin'
 import EvalSourceMapDevToolPlugin from '../../plugins/eval-source-map-dev-tool-plugin'
 
 function shouldIgnorePath(modulePath: string): boolean {
-  // TODO: How to ignore list 'webpack:///../../../src/shared/lib/is-thenable.ts'
   return (
     modulePath.includes('node_modules') ||
-    // would filter 'webpack://_N_E/./app/page.tsx'
-    // modulePath.startsWith('webpack://_N_E/') ||
-    // e.g. 'webpack:///external commonjs "next/dist/compiled/next-server/app-page.runtime.dev.js"'
+    // Only relevant for when Next.js is symlinked e.g. in the Next.js monorepo
     modulePath.includes('next/dist')
   )
 }
@@ -42,14 +39,7 @@ export const base = curry(function base(
       // original source, including columns and original variable names.
       // This is desirable so the in-browser debugger can correctly pause
       // and show scoped variables with their original names.
-      // We're using a fork of `eval-source-map`
-      config.devtool = false
-      config.plugins ??= []
-      config.plugins.push(
-        new EvalSourceMapDevToolPlugin({
-          shouldIgnorePath,
-        })
-      )
+      config.devtool = 'eval-source-map'
     }
   } else {
     if (
@@ -74,6 +64,24 @@ export const base = curry(function base(
 
   if (!config.module) {
     config.module = { rules: [] }
+  }
+
+  config.plugins ??= []
+  if (config.devtool === 'source-map') {
+    config.plugins.push(
+      new DevToolsIgnorePlugin({
+        shouldIgnorePath,
+      })
+    )
+  } else if (config.devtool === 'eval-source-map') {
+    // We're using a fork of `eval-source-map`
+    config.devtool = false
+    config.plugins.push(
+      new EvalSourceMapDevToolPlugin({
+        moduleFilenameTemplate: config.output?.devtoolModuleFilenameTemplate,
+        shouldIgnorePath,
+      })
+    )
   }
 
   // TODO: add codemod for "Should not import the named export" with JSON files

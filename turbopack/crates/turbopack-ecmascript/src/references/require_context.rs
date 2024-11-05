@@ -201,7 +201,7 @@ impl RequireContextMap {
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct RequireContextAssetReference {
-    pub inner: Vc<RequireContextAsset>,
+    pub inner: ResolvedVc<RequireContextAsset>,
     pub dir: RcStr,
     pub include_subdirs: bool,
 
@@ -239,7 +239,7 @@ impl RequireContextAssetReference {
             dir: dir.clone(),
             include_subdirs,
         }
-        .cell();
+        .resolved_cell();
 
         Self::cell(RequireContextAssetReference {
             inner,
@@ -256,7 +256,7 @@ impl RequireContextAssetReference {
 impl ModuleReference for RequireContextAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        ModuleResolveResult::module(Vc::upcast(self.inner)).cell()
+        ModuleResolveResult::module(ResolvedVc::upcast(self.inner)).cell()
     }
 }
 

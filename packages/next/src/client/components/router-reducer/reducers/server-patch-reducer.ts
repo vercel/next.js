@@ -12,7 +12,6 @@ import { applyFlightData } from '../apply-flight-data'
 import { handleMutable } from '../handle-mutable'
 import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
 import { createEmptyCacheNode } from '../../app-router'
-import { handleSegmentMismatch } from '../handle-segment-mismatch'
 
 export function serverPatchReducer(
   state: ReadonlyReducerState,
@@ -51,8 +50,13 @@ export function serverPatchReducer(
       state.canonicalUrl
     )
 
+    // `applyRouterStatePatchToTree` returns `null` when it determined that the server response is not applicable to the current tree.
+    // In other words, the server responded with a tree that doesn't match what the client is currently rendering.
+    // This can happen if the server patch action took longer to resolve than a subsequent navigation which would have changed the tree.
+    // Previously this case triggered an MPA navigation but it should be safe to simply discard the server response rather than forcing
+    // the entire page to reload.
     if (newTree === null) {
-      return handleSegmentMismatch(state, action, treePatch)
+      return state
     }
 
     if (isNavigatingToNewRootLayout(currentTree, newTree)) {

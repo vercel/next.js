@@ -3,7 +3,7 @@ use swc_core::{
     ecma::ast::{Expr, ExprOrSpread, Lit, NewExpr},
     quote_expr,
 };
-use turbo_tasks::{RcStr, Value, ValueToString, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, Value, ValueToString, Vc};
 use turbopack_core::{
     chunk::{ChunkableModule, ChunkableModuleReference, ChunkingContext},
     issue::{code_gen::CodeGenerationIssue, IssueExt, IssueSeverity, IssueSource, StyledString},
@@ -66,7 +66,7 @@ impl WorkerAssetReference {
         let Some(module) = *module.first_module().await? else {
             bail!("Expected worker to resolve to a module");
         };
-        let Some(chunkable) = Vc::try_resolve_downcast::<Box<dyn ChunkableModule>>(module).await?
+        let Some(chunkable) = ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(module).await?
         else {
             CodeGenerationIssue {
                 severity: IssueSeverity::Bug.into(),
@@ -79,7 +79,7 @@ impl WorkerAssetReference {
             return Ok(None);
         };
 
-        Ok(Some(WorkerLoaderModule::new(chunkable)))
+        Ok(Some(WorkerLoaderModule::new(*chunkable)))
     }
 }
 
@@ -88,7 +88,10 @@ impl ModuleReference for WorkerAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         if let Some(worker_loader_module) = self.worker_loader_module().await? {
-            Ok(ModuleResolveResult::module(Vc::upcast(worker_loader_module)).cell())
+            Ok(ModuleResolveResult::module(ResolvedVc::upcast(
+                worker_loader_module.to_resolved().await?,
+            ))
+            .cell())
         } else {
             Ok(ModuleResolveResult::unresolvable().cell())
         }

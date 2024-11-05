@@ -16,6 +16,7 @@ export const ACTION_SUFFIX = '.action'
 export const NEXT_DATA_SUFFIX = '.json'
 export const NEXT_META_SUFFIX = '.meta'
 export const NEXT_BODY_SUFFIX = '.body'
+export const NEXT_STATIC_DATA_CACHE_SUFFIX = '.rdc.json'
 
 export const NEXT_CACHE_TAGS_HEADER = 'x-next-cache-tags'
 export const NEXT_CACHE_SOFT_TAGS_HEADER = 'x-next-cache-soft-tags'
@@ -107,7 +108,7 @@ const WEBPACK_LAYERS_NAMES = {
   shared: 'shared',
   /**
    * The layer for server-only runtime and picking up `react-server` export conditions.
-   * Including app router RSC pages and app router custom routes.
+   * Including app router RSC pages and app router custom routes and metadata routes.
    */
   reactServerComponents: 'rsc',
   /**
@@ -138,10 +139,6 @@ const WEBPACK_LAYERS_NAMES = {
    * The browser client bundle layer for App directory.
    */
   appPagesBrowser: 'app-pages-browser',
-  /**
-   * The server bundle layer for metadata routes.
-   */
-  appMetadataRoute: 'app-metadata-route',
 } as const
 
 export type WebpackLayerName =
@@ -153,12 +150,10 @@ const WEBPACK_LAYERS = {
     builtinReact: [
       WEBPACK_LAYERS_NAMES.reactServerComponents,
       WEBPACK_LAYERS_NAMES.actionBrowser,
-      WEBPACK_LAYERS_NAMES.appMetadataRoute,
     ],
     serverOnly: [
       WEBPACK_LAYERS_NAMES.reactServerComponents,
       WEBPACK_LAYERS_NAMES.actionBrowser,
-      WEBPACK_LAYERS_NAMES.appMetadataRoute,
       WEBPACK_LAYERS_NAMES.instrument,
       WEBPACK_LAYERS_NAMES.middleware,
     ],
@@ -173,7 +168,6 @@ const WEBPACK_LAYERS = {
     bundled: [
       WEBPACK_LAYERS_NAMES.reactServerComponents,
       WEBPACK_LAYERS_NAMES.actionBrowser,
-      WEBPACK_LAYERS_NAMES.appMetadataRoute,
       WEBPACK_LAYERS_NAMES.serverSideRendering,
       WEBPACK_LAYERS_NAMES.appPagesBrowser,
       WEBPACK_LAYERS_NAMES.shared,

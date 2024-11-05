@@ -93,9 +93,11 @@ pub trait Transition {
         let module_asset_context = self.process_context(module_asset_context);
         let m = module_asset_context.process_default(asset, reference_type);
         Ok(match *m.await? {
-            ProcessResult::Module(m) => {
-                ProcessResult::Module(self.process_module(m, module_asset_context))
-            }
+            ProcessResult::Module(m) => ProcessResult::Module(
+                self.process_module(*m, module_asset_context)
+                    .to_resolved()
+                    .await?,
+            ),
             ProcessResult::Ignore => ProcessResult::Ignore,
         }
         .cell())
