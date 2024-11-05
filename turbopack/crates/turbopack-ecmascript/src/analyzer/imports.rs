@@ -213,6 +213,10 @@ pub(crate) struct ImportMapReference {
 
 impl ImportMap {
     pub fn is_esm(&self, specified_type: SpecifiedModuleType) -> bool {
+        if self.has_exports {
+            return true;
+        }
+
         match specified_type {
             SpecifiedModuleType::Automatic => {
                 self.has_exports || self.has_imports || self.has_top_level_await

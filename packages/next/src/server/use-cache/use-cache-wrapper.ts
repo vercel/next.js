@@ -19,8 +19,8 @@ import type {
   WorkUnitStore,
 } from '../app-render/work-unit-async-storage.external'
 import {
-  getImmutableResumeDataCache,
-  getMutableResumeDataCache,
+  getRenderResumeDataCache,
+  getPrerenderResumeDataCache,
   workUnitAsyncStorage,
 } from '../app-render/work-unit-async-storage.external'
 import { runInCleanSnapshot } from '../app-render/clean-async-snapshot.external'
@@ -522,14 +522,14 @@ export function cache(kind: string, id: string, fn: any) {
       let stream: undefined | ReadableStream = undefined
 
       // Get an immutable and mutable versions of the resume data cache.
-      const mutableResumeDataCache = workUnitStore
-        ? getMutableResumeDataCache(workUnitStore)
+      const prerenderResumeDataCache = workUnitStore
+        ? getPrerenderResumeDataCache(workUnitStore)
         : null
-      const immutableResumeDataCache = workUnitStore
-        ? getImmutableResumeDataCache(workUnitStore)
+      const renderResumeDataCache = workUnitStore
+        ? getRenderResumeDataCache(workUnitStore)
         : null
 
-      if (immutableResumeDataCache) {
+      if (renderResumeDataCache) {
         const cacheSignal =
           workUnitStore && workUnitStore.type === 'prerender'
             ? workUnitStore.cacheSignal
@@ -538,8 +538,7 @@ export function cache(kind: string, id: string, fn: any) {
         if (cacheSignal) {
           cacheSignal.beginRead()
         }
-        const cachedEntry =
-          immutableResumeDataCache.cache.get(serializedCacheKey)
+        const cachedEntry = renderResumeDataCache.cache.get(serializedCacheKey)
         if (cachedEntry !== undefined) {
           const existingEntry = await cachedEntry
           propagateCacheLifeAndTags(workUnitStore, existingEntry)
@@ -644,11 +643,11 @@ export function cache(kind: string, id: string, fn: any) {
           )
 
           let savedCacheEntry
-          if (mutableResumeDataCache) {
+          if (prerenderResumeDataCache) {
             // Create a clone that goes into the cache scope memory cache.
             const split = clonePendingCacheEntry(pendingCacheEntry)
             savedCacheEntry = getNthCacheEntry(split, 0)
-            mutableResumeDataCache.cache.set(
+            prerenderResumeDataCache.cache.set(
               serializedCacheKey,
               getNthCacheEntry(split, 1)
             )
@@ -672,7 +671,7 @@ export function cache(kind: string, id: string, fn: any) {
 
           // If we have a cache scope, we need to clone the entry and set it on
           // the inner cache scope.
-          if (mutableResumeDataCache) {
+          if (prerenderResumeDataCache) {
             const [entryLeft, entryRight] = cloneCacheEntry(entry)
             if (cacheSignal) {
               stream = createTrackedReadableStream(entryLeft.value, cacheSignal)
@@ -680,7 +679,7 @@ export function cache(kind: string, id: string, fn: any) {
               stream = entryLeft.value
             }
 
-            mutableResumeDataCache.cache.set(
+            prerenderResumeDataCache.cache.set(
               serializedCacheKey,
               Promise.resolve(entryRight)
             )
@@ -703,10 +702,10 @@ export function cache(kind: string, id: string, fn: any) {
             )
 
             let savedCacheEntry: Promise<CacheEntry>
-            if (mutableResumeDataCache) {
+            if (prerenderResumeDataCache) {
               const split = clonePendingCacheEntry(pendingCacheEntry)
               savedCacheEntry = getNthCacheEntry(split, 0)
-              mutableResumeDataCache.cache.set(
+              prerenderResumeDataCache.cache.set(
                 serializedCacheKey,
                 getNthCacheEntry(split, 1)
               )
