@@ -40,6 +40,7 @@ import type {
   TurbopackResult,
   TurbopackStackFrame,
   Update,
+  UpdateInfoOpts,
   UpdateMessage,
   WrittenEndpoint,
 } from './types'
@@ -761,11 +762,12 @@ function bindingToApi(
       return binding.projectGetSourceMap(this._nativeProject, filePath)
     }
 
-    updateInfoSubscribe(aggregationMs: number) {
+    updateInfoSubscribe(opts: UpdateInfoOpts) {
       return subscribe<TurbopackResult<UpdateMessage>>(true, async (callback) =>
         binding.projectUpdateInfoSubscribe(
           this._nativeProject,
-          aggregationMs,
+          opts.aggregationMs,
+          opts.includeReasons ?? false,
           callback
         )
       )
