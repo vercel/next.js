@@ -266,9 +266,9 @@ impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> OutputStreamHandler<R, W> {
                             }
                             write_source_mapped_final(
                                 &entry.data,
-                                *assets_for_source_mapping,
-                                *root,
-                                *project_dir,
+                                **assets_for_source_mapping,
+                                **root,
+                                **project_dir,
                                 final_stream,
                             )
                             .await?;
@@ -293,9 +293,9 @@ impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> OutputStreamHandler<R, W> {
 
             write_source_mapped_final(
                 &buffer,
-                *assets_for_source_mapping,
-                *root,
-                *project_dir,
+                **assets_for_source_mapping,
+                **root,
+                **project_dir,
                 final_stream,
             )
             .await?;
@@ -408,26 +408,26 @@ impl NodeJsPoolProcess {
         let stdout_handler = OutputStreamHandler {
             stream: child_stdout,
             shared: shared_stdout,
-            assets_for_source_mapping,
-            root: assets_root,
-            project_dir,
+            assets_for_source_mapping: assets_for_source_mapping.to_resolved().await?,
+            root: assets_root.to_resolved().await?,
+            project_dir: project_dir.to_resolved().await?,
             final_stream: stdout(),
         };
         let stderr_handler = OutputStreamHandler {
             stream: child_stderr,
             shared: shared_stderr,
-            assets_for_source_mapping,
-            root: assets_root,
-            project_dir,
+            assets_for_source_mapping: assets_for_source_mapping.to_resolved().await?,
+            root: assets_root.to_resolved().await?,
+            project_dir: project_dir.to_resolved().await?,
             final_stream: stderr(),
         };
 
         let mut process = Self {
             child: Some(child),
             connection,
-            assets_for_source_mapping,
-            assets_root,
-            project_dir,
+            assets_for_source_mapping: assets_for_source_mapping.to_resolved().await?,
+            assets_root: assets_root.to_resolved().await?,
+            project_dir: project_dir.to_resolved().await?,
             stdout_handler,
             stderr_handler,
             debug,
