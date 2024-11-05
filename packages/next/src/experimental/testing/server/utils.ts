@@ -4,6 +4,16 @@ import { NodeNextRequest } from '../../../server/base-http/node'
 import type { BaseNextRequest } from '../../../server/base-http'
 import type { NextResponse } from '../../../server/web/exports'
 
+function parseUrl(url: string): URL | null {
+  // Calls to this function can be replaced with URL.parse once we update to
+  // Node 22.1.0 or later.
+  try {
+    return new URL(url)
+  } catch {
+    return null
+  }
+}
+
 export function constructRequest({
   url,
   headers = {},
@@ -15,6 +25,9 @@ export function constructRequest({
 }): BaseNextRequest {
   if (!headers) {
     headers = {}
+  }
+  if (!headers.host) {
+    headers.host = parseUrl(url)?.host
   }
   if (cookies) {
     headers = {
