@@ -465,15 +465,15 @@ async fn basic_compute(
 
 #[derive(Clone, PartialEq, Eq, Hash, TaskInput, Debug, Serialize, Deserialize)]
 struct BasicEvaluateContext {
-    module_asset: Vc<Box<dyn Module>>,
-    cwd: Vc<FileSystemPath>,
-    env: Vc<Box<dyn ProcessEnv>>,
-    context_ident_for_issue: Vc<AssetIdent>,
-    asset_context: Vc<Box<dyn AssetContext>>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
-    runtime_entries: Option<Vc<EvaluatableAssets>>,
-    args: Vec<Vc<JsonValue>>,
-    additional_invalidation: Vc<Completion>,
+    module_asset: ResolvedVc<Box<dyn Module>>,
+    cwd: ResolvedVc<FileSystemPath>,
+    env: ResolvedVc<Box<dyn ProcessEnv>>,
+    context_ident_for_issue: ResolvedVc<AssetIdent>,
+    asset_context: ResolvedVc<Box<dyn AssetContext>>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    runtime_entries: Option<ResolvedVc<EvaluatableAssets>>,
+    args: Vec<ResolvedVc<JsonValue>>,
+    additional_invalidation: ResolvedVc<Completion>,
     debug: bool,
 }
 
@@ -491,12 +491,12 @@ impl EvaluateContext for BasicEvaluateContext {
     fn pool(&self) -> Vc<crate::pool::NodeJsPool> {
         get_evaluate_pool(
             self.module_asset,
-            self.cwd,
-            self.env,
-            self.asset_context,
-            self.chunking_context,
-            self.runtime_entries,
-            self.additional_invalidation,
+            *self.cwd,
+            *self.env,
+            *self.asset_context,
+            *self.chunking_context,
+            self.runtime_entries.map(|r| *r),
+            *self.additional_invalidation,
             self.debug,
         )
     }
@@ -506,7 +506,7 @@ impl EvaluateContext for BasicEvaluateContext {
     }
 
     fn cwd(&self) -> Vc<turbo_tasks_fs::FileSystemPath> {
-        self.cwd
+        *self.cwd
     }
 
     fn keep_alive(&self) -> bool {
@@ -516,7 +516,7 @@ impl EvaluateContext for BasicEvaluateContext {
     async fn emit_error(&self, error: StructuredError, pool: &NodeJsPool) -> Result<()> {
         EvaluationIssue {
             error,
-            context_ident: self.context_ident_for_issue,
+            context_ident: *self.context_ident_for_issue,
             assets_for_source_mapping: pool.assets_for_source_mapping,
             assets_root: pool.assets_root,
             project_dir: self.chunking_context.context_path().root(),
