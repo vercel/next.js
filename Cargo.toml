@@ -95,7 +95,7 @@ testing = { version = "3.0.0" }
 # Keep consistent with preset_env_base through swc_core
 browserslist-rs = { version = "0.16.0" }
 miette = { version = "5.10.0", features = ["fancy"] }
-mdxjs = "0.2.11"
+mdxjs = "0.2.12"
 modularize_imports = { version = "0.68.29" }
 styled_components = { version = "0.96.27" }
 styled_jsx = { version = "0.73.39" }
