@@ -41,7 +41,7 @@ use crate::{
 /// for Node.js execution during rendering. The `chunking_context` should emit
 /// to this directory.
 #[turbo_tasks::function]
-pub fn create_node_rendered_source(
+pub async fn create_node_rendered_source(
     cwd: Vc<FileSystemPath>,
     env: Vc<Box<dyn ProcessEnv>>,
     base_segments: Vec<BaseSegment>,
@@ -53,7 +53,7 @@ pub fn create_node_rendered_source(
     fallback_page: Vc<DevHtmlAsset>,
     render_data: Vc<JsonValue>,
     debug: bool,
-) -> Vc<Box<dyn ContentSource>> {
+) -> Result<Vc<Box<dyn ContentSource>>> {
     let source = NodeRenderContentSource {
         cwd: cwd.to_resolved().await?,
         env: env.to_resolved().await?,
@@ -68,7 +68,7 @@ pub fn create_node_rendered_source(
         debug,
     }
     .cell();
-    Vc::upcast(ConditionalContentSource::new(
+    Ok(Vc::upcast(ConditionalContentSource::new(
         Vc::upcast(source),
         Vc::upcast(
             LazyInstantiatedContentSource {
@@ -76,7 +76,7 @@ pub fn create_node_rendered_source(
             }
             .cell(),
         ),
-    ))
+    )))
 }
 
 /// see [create_node_rendered_source]
@@ -118,10 +118,10 @@ impl GetContentSource for NodeRenderContentSource {
             let entry = entry.await?;
             set.extend(
                 external_asset_entrypoints(
-                    entry.module,
-                    entry.runtime_entries,
-                    entry.chunking_context,
-                    entry.intermediate_output_path,
+                    *entry.module,
+                    *entry.runtime_entries,
+                    *entry.chunking_context,
+                    *entry.intermediate_output_path,
                 )
                 .await?
                 .iter()
@@ -169,7 +169,7 @@ impl GetContentSourceContent for NodeRenderContentSource {
         path: RcStr,
         data: Value<ContentSourceData>,
     ) -> Result<Vc<ContentSourceContent>> {
-        let pathname = *self.pathname;
+        let pathname = self.pathname.await?;
         let Some(params) = &*(*self.route_match).params(path.clone()).await? else {
             return Err(anyhow!(
                 "Non matching path ({}) provided for {}",
@@ -208,7 +208,7 @@ impl GetContentSourceContent for NodeRenderContentSource {
                 raw_query: raw_query.clone(),
                 raw_headers: raw_headers.clone(),
                 path: pathname.as_str().into(),
-                data: Some(*self.render_data),
+                data: Some(*self.render_data.to_resolved().await?),
             }
             .cell(),
             self.debug,
