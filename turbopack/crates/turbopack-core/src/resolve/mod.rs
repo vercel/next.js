@@ -10,7 +10,7 @@ use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 use tracing::{Instrument, Level};
 use turbo_tasks::{
-    fxindexmap, fxindexset, trace::TraceRawVcs, FxIndexMap, RcStr, ResolvedVc, TaskInput,
+    fxindexmap, trace::TraceRawVcs, FxIndexMap, FxIndexSet, RcStr, ResolvedVc, TaskInput,
     TryJoinIterExt, Value, ValueToString, Vc,
 };
 use turbo_tasks_fs::{
@@ -31,7 +31,9 @@ use self::{
 use crate::{
     context::AssetContext,
     file_source::FileSource,
-    issue::{resolve::ResolvingIssue, IssueExt, IssueSource},
+    issue::{
+        module::emit_unknown_module_type_error, resolve::ResolvingIssue, IssueExt, IssueSource,
+    },
     module::{Module, Modules, OptionModule},
     output::{OutputAsset, OutputAssets},
     package_json::{read_package_json, PackageJsonIssue},
@@ -66,10 +68,29 @@ pub enum ModuleResolveResultItem {
     Module(ResolvedVc<Box<dyn Module>>),
     OutputAsset(ResolvedVc<Box<dyn OutputAsset>>),
     External(RcStr, ExternalType),
+    /// A module could not be created (according to the rules, e.g. no module type as assigned)
+    Unknown(Vc<Box<dyn Source>>),
     Ignore,
     Error(ResolvedVc<RcStr>),
     Empty,
     Custom(u8),
+}
+
+impl ModuleResolveResultItem {
+    pub async fn as_module(&self) -> Result<Option<ResolvedVc<Box<dyn Module>>>> {
+        Ok(match *self {
+            ModuleResolveResultItem::Module(module) => Some(module),
+            ModuleResolveResultItem::Unknown(source) => {
+                emit_unknown_module_type_error(source).await?;
+                None
+            }
+            ModuleResolveResultItem::Error(_err) => {
+                // TODO emit error?
+                None
+            }
+            _ => None,
+        })
+    }
 }
 
 #[turbo_tasks::value(shared)]
@@ -151,9 +172,12 @@ impl ModuleResolveResult {
         }
     }
 
-    pub fn primary_modules_iter(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + '_ {
-        self.primary.iter().filter_map(|(_, item)| match item {
-            &ModuleResolveResultItem::Module(a) => Some(a),
+    /// Returns all module results (but ignoring any errors).
+    pub fn primary_modules_raw_iter(
+        &self,
+    ) -> impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + '_ {
+        self.primary.iter().filter_map(|(_, item)| match *item {
+            ModuleResolveResultItem::Module(a) => Some(a),
             _ => None,
         })
     }
@@ -303,35 +327,23 @@ impl ModuleResolveResult {
 
     #[turbo_tasks::function]
     pub async fn first_module(&self) -> Result<Vc<OptionModule>> {
-        let first = self.primary.iter().find_map(|(_, item)| match item {
-            &ModuleResolveResultItem::Module(a) => Some(a),
-            _ => None,
-        });
-        let first_resolved = if let Some(first) = first {
-            Some(first.to_resolved().await?)
-        } else {
-            None
-        };
-        Ok(Vc::cell(first_resolved))
+        for (_, item) in self.primary.iter() {
+            if let Some(module) = item.as_module().await? {
+                return Ok(Vc::cell(Some(module)));
+            }
+        }
+        Ok(Vc::cell(None))
     }
 
     /// Returns a set (no duplicates) of primary modules in the result. All
     /// modules are already resolved Vc.
     #[turbo_tasks::function]
     pub async fn primary_modules(&self) -> Result<Vc<Modules>> {
-        let mut iter = self.primary_modules_iter();
-        let Some(first) = iter.next() else {
-            return Ok(Vc::cell(vec![]));
-        };
-
-        let Some(second) = iter.next() else {
-            return Ok(Vc::cell(vec![first]));
-        };
-
-        // We have at least two items, so we need to deduplicate them
-        let mut set = fxindexset![first, second];
-        for module in self.primary_modules_iter() {
-            set.insert(module);
+        let mut set = FxIndexSet::default();
+        for (_, item) in self.primary.iter() {
+            if let Some(module) = item.as_module().await? {
+                set.insert(module);
+            }
         }
         Ok(Vc::cell(set.into_iter().collect()))
     }
@@ -1474,10 +1486,9 @@ pub async fn url_resolve(
     } else {
         rel_result
     };
-    let result =
-        origin
-            .asset_context()
-            .process_resolve_result(result, reference_type.clone(), false);
+    let result = origin
+        .asset_context()
+        .process_resolve_result(result, reference_type.clone());
     handle_resolve_error(
         result,
         reference_type,

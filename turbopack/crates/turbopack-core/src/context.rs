@@ -4,7 +4,7 @@ use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 
 use crate::{
     compile_time_info::CompileTimeInfo,
-    issue::{module::ModuleIssue, IssueExt, StyledString},
+    issue::module::emit_unknown_module_type_error,
     module::{Module, OptionModule},
     reference_type::ReferenceType,
     resolve::{options::ResolveOptions, parse::Request, ModuleResolveResult, ResolveResult},
@@ -45,27 +45,11 @@ impl ProcessResult {
         Ok(Vc::cell(match self {
             ProcessResult::Module(module) => Some(*module),
             ProcessResult::Unknown(source) => {
-                ProcessResult::emit_unknown_error(*source).await?;
+                emit_unknown_module_type_error(*source).await?;
                 None
             }
             ProcessResult::Ignore => None,
         }))
-    }
-
-    #[turbo_tasks::function]
-    pub fn emit_unknown_error(source: Vc<Box<dyn Source>>) {
-        ModuleIssue {
-            ident: source.ident(),
-            title: StyledString::Text("Unknown module type".into()).cell(),
-            description: StyledString::Text(
-                r"This module doesn't have an associated type. Use a known file extension, or register a loader for it.
-
-Read more: https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders".into(),
-            )
-            .cell(),
-        }
-        .cell()
-        .emit();
     }
 }
 
@@ -108,7 +92,6 @@ pub trait AssetContext {
         self: Vc<Self>,
         result: Vc<ResolveResult>,
         reference_type: Value<ReferenceType>,
-        ignore_unknown: bool,
     ) -> Vc<ModuleResolveResult>;
 
     /// Gets a new AssetContext with the transition applied.
