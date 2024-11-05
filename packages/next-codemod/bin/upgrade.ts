@@ -357,7 +357,7 @@ export async function runUpgrade(
     console.log(`${pc.green('✔')} Codemods have been applied successfully.`)
   }
 
-  warnDependenciesOutOfRange(appPackageJson, versionMapping, { verbose })
+  warnDependenciesOutOfRange(appPackageJson, versionMapping)
 
   endMessage()
 }
@@ -642,10 +642,8 @@ function writeOverridesField(
 
 function warnDependenciesOutOfRange(
   appPackageJson: any,
-  versionMapping: Record<string, { version: string; required: boolean }>,
-  options: { verbose: boolean }
+  versionMapping: Record<string, { version: string; required: boolean }>
 ) {
-  const { verbose } = options
   const allDirectDependencies = {
     ...appPackageJson.dependencies,
     ...appPackageJson.devDependencies,
@@ -727,15 +725,9 @@ function warnDependenciesOutOfRange(
       )
       Object.entries(deps).forEach(([depName, value], index, depsArray) => {
         const prefix = index === depsArray.length - 1 ? '  └── ' : '  ├── '
-        if (verbose) {
-          console.log(
-            `${prefix}${pc.yellow('✕ unmet peer')} ${depName}@"${value.expectedVersionRange}": found ${value.currentVersion}`
-          )
-        } else {
-          console.log(
-            `${prefix}incompatible with ${depName}@${value.currentVersion}`
-          )
-        }
+        console.log(
+          `${prefix}${pc.yellow('✕ unmet peer')} ${depName}@"${value.expectedVersionRange}": found ${value.currentVersion}`
+        )
       })
     })
   }
