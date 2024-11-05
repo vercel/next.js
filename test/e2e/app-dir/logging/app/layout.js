@@ -1,5 +1,7 @@
 import Link from 'next/link'
 
+export const fetchCache = 'default-cache'
+
 export default function Layout({ children }) {
   return (
     <html>

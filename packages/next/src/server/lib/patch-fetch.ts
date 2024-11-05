@@ -303,9 +303,9 @@ export function createPatchedFetcher(
             // revalidate: 0 and cache: force-cache
             (currentFetchCacheConfig === 'force-cache' &&
               currentFetchRevalidate === 0) ||
-            // revalidate: >0 and cache: no-store
+            // revalidate: >0 or revalidate: false and cache: no-store
             (currentFetchCacheConfig === 'no-store' &&
-              currentFetchRevalidate > 0)
+              (currentFetchRevalidate > 0 || currentFetchRevalidate === false))
 
           if (isConflictingRevalidate) {
             cacheWarning = `Specified "cache: ${currentFetchCacheConfig}" and "revalidate: ${currentFetchRevalidate}", only one should be specified.`
@@ -331,6 +331,7 @@ export function createPatchedFetcher(
         const noFetchConfigAndForceDynamic =
           !pageFetchCacheMode &&
           !currentFetchCacheConfig &&
+          !currentFetchRevalidate &&
           workStore.forceDynamic
 
         if (
@@ -347,10 +348,6 @@ export function createPatchedFetcher(
           workUnitStore?.type !== 'cache' &&
           (hasExplicitFetchCacheOptOut || noFetchConfigAndForceDynamic)
         ) {
-          if (noFetchConfigAndForceDynamic && currentFetchRevalidate !== 0) {
-            cacheWarning = `Specified "dynamic: 'force-dynamic'" and "revalidate: ${currentFetchRevalidate}" without explicitly caching the fetch. This fetch will be treated as an uncached fetch.`
-          }
-
           currentFetchRevalidate = 0
         }
 
