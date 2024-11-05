@@ -1,7 +1,4 @@
-import {
-  createMutableResumeDataCache,
-  sealResumeDataCache,
-} from '../resume-data-cache/resume-data-cache'
+import { createPrerenderResumeDataCache } from '../resume-data-cache/resume-data-cache'
 import { streamFromString } from '../stream-utils/node-web-streams-helper'
 import {
   DynamicState,
@@ -14,9 +11,9 @@ describe('getDynamicHTMLPostponedState', () => {
   it('serializes a HTML postponed state with fallback params', async () => {
     const key = '%%drp:slug:e9615126684e5%%'
     const fallbackRouteParams = new Map([['slug', key]])
-    const mutableResumeDataCache = createMutableResumeDataCache()
+    const prerenderResumeDataCache = createPrerenderResumeDataCache()
 
-    mutableResumeDataCache.cache.set(
+    prerenderResumeDataCache.cache.set(
       '1',
       Promise.resolve({
         value: streamFromString('hello'),
@@ -31,7 +28,7 @@ describe('getDynamicHTMLPostponedState', () => {
     const state = await getDynamicHTMLPostponedState(
       { [key]: key, nested: { [key]: key } },
       fallbackRouteParams,
-      sealResumeDataCache(mutableResumeDataCache)
+      prerenderResumeDataCache
     )
 
     expect(state).toMatchInlineSnapshot(
@@ -43,7 +40,7 @@ describe('getDynamicHTMLPostponedState', () => {
     const state = await getDynamicHTMLPostponedState(
       { key: 'value' },
       null,
-      sealResumeDataCache(createMutableResumeDataCache())
+      createPrerenderResumeDataCache()
     )
     expect(state).toMatchInlineSnapshot(`"15:{"key":"value"}null"`)
   })
@@ -54,7 +51,7 @@ describe('getDynamicHTMLPostponedState', () => {
     const state = await getDynamicHTMLPostponedState(
       { [key]: key },
       fallbackRouteParams,
-      sealResumeDataCache(createMutableResumeDataCache())
+      createPrerenderResumeDataCache()
     )
 
     const value = 'hello'
@@ -63,9 +60,7 @@ describe('getDynamicHTMLPostponedState', () => {
     expect(parsed).toEqual({
       type: DynamicState.HTML,
       data: { [value]: value },
-      immutableResumeDataCache: sealResumeDataCache(
-        createMutableResumeDataCache()
-      ),
+      renderResumeDataCache: createPrerenderResumeDataCache(),
     })
 
     // The replacements have been replaced.
@@ -76,7 +71,7 @@ describe('getDynamicHTMLPostponedState', () => {
 describe('getDynamicDataPostponedState', () => {
   it('serializes a data postponed state with fallback params', async () => {
     const state = await getDynamicDataPostponedState(
-      sealResumeDataCache(createMutableResumeDataCache())
+      createPrerenderResumeDataCache()
     )
     expect(state).toMatchInlineSnapshot(`"4:nullnull"`)
   })
@@ -94,9 +89,7 @@ describe('parsePostponedState', () => {
     expect(parsed).toEqual({
       type: DynamicState.HTML,
       data: expect.any(Object),
-      immutableResumeDataCache: sealResumeDataCache(
-        createMutableResumeDataCache()
-      ),
+      renderResumeDataCache: createPrerenderResumeDataCache(),
     })
 
     // Ensure that the replacement worked and removed all the placeholders.
@@ -112,9 +105,7 @@ describe('parsePostponedState', () => {
     expect(parsed).toEqual({
       type: DynamicState.HTML,
       data: expect.any(Object),
-      immutableResumeDataCache: sealResumeDataCache(
-        createMutableResumeDataCache()
-      ),
+      renderResumeDataCache: createPrerenderResumeDataCache(),
     })
   })
 
@@ -125,9 +116,7 @@ describe('parsePostponedState', () => {
     // Ensure that it parsed it correctly.
     expect(parsed).toEqual({
       type: DynamicState.DATA,
-      immutableResumeDataCache: sealResumeDataCache(
-        createMutableResumeDataCache()
-      ),
+      renderResumeDataCache: createPrerenderResumeDataCache(),
     })
   })
 })

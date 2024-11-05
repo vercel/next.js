@@ -10,7 +10,7 @@ import {
   streamToString,
 } from './stream-utils/node-web-streams-helper'
 import { isAbortError, pipeToNodeResponse } from './pipe-readable'
-import type { ImmutableResumeDataCache } from './resume-data-cache/resume-data-cache'
+import type { PrerenderResumeDataCache } from './resume-data-cache/resume-data-cache'
 
 type ContentTypeOption = string | undefined
 
@@ -40,7 +40,7 @@ export type AppPageRenderResultMetadata = {
    * In development, the cache is warmed up before the render. This is attached
    * to the metadata so that it can be used during the render.
    */
-  devWarmupImmutableResumeDataCache?: ImmutableResumeDataCache
+  devWarmupPrerenderResumeDataCache?: PrerenderResumeDataCache
 }
 
 export type PagesRenderResultMetadata = {

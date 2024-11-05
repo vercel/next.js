@@ -6,59 +6,40 @@ import type { CacheEntry } from '../lib/cache-handlers/types'
 import type { CachedFetchValue } from '../response-cache/types'
 
 /**
- * A generic cache store interface.
+ * A generic cache store type that provides a subset of Map functionality
  */
-interface CacheStore<T, S = T> {
-  get(key: string): T | undefined
-  set(key: string, value: T): void
-  entries(): Promise<[string, S][]>
-  seal(): void
-  readonly size: number
+type CacheStore<T> = Pick<Map<string, T>, 'entries' | 'size' | 'get' | 'set'>
+
+/**
+ * A cache store specifically for fetch cache values
+ */
+export type FetchCacheStore = CacheStore<CachedFetchValue>
+
+/**
+ * Parses fetch cache entries into a FetchCacheStore
+ * @param entries - The entries to parse into the store
+ * @returns A new FetchCacheStore containing the entries
+ */
+export function parseFetchCacheStore(
+  entries: Iterable<[string, CachedFetchValue]>
+): FetchCacheStore {
+  return new Map(entries)
 }
 
 /**
- * A mutable cache store for the fetch cache.
+ * Stringifies a FetchCacheStore into an array of key-value pairs
+ * @param store - The store to stringify
+ * @returns A promise that resolves to an array of key-value pairs
  */
-export class FetchCacheStore implements CacheStore<CachedFetchValue> {
-  private readonly store: Map<string, CachedFetchValue>
-
-  /**
-   * Whether the store is immutable.
-   */
-  private immutable: boolean = false
-  public seal() {
-    this.immutable = true
-  }
-
-  constructor(entries?: Iterable<[string, CachedFetchValue]>) {
-    if (entries) {
-      this.immutable = true
-      this.store = new Map(entries)
-    } else {
-      this.store = new Map()
-    }
-  }
-
-  public set(key: string, value: CachedFetchValue): void {
-    if (this.immutable) {
-      throw new Error('FetchCacheStore is immutable')
-    }
-    this.store.set(key, value)
-  }
-
-  public get size(): number {
-    return this.store.size
-  }
-
-  public get(key: string): CachedFetchValue | undefined {
-    return this.store.get(key)
-  }
-
-  public async entries(): Promise<[string, CachedFetchValue][]> {
-    return Array.from(this.store.entries())
-  }
+export function stringifyFetchCacheStore(
+  entries: IterableIterator<[string, CachedFetchValue]>
+): [string, CachedFetchValue][] {
+  return Array.from(entries)
 }
 
+/**
+ * Serialized format for cache entries
+ */
 interface CacheCacheStoreSerialized {
   value: string
   tags: string[]
@@ -69,98 +50,89 @@ interface CacheCacheStoreSerialized {
 }
 
 /**
- * A mutable cache store for the "use cache" cache.
+ * A cache store specifically for "use cache" values that stores promises of
+ * cache entries.
  */
-export class UseCacheCacheStore
-  implements CacheStore<Promise<CacheEntry>, CacheCacheStoreSerialized>
-{
-  private readonly store = new Map<string, Promise<CacheEntry>>()
+export type UseCacheCacheStore = Pick<
+  Map<string, Promise<CacheEntry>>,
+  'entries' | 'size' | 'get' | 'set'
+>
 
-  /**
-   * Whether the store is immutable.
-   */
-  private immutable: boolean = false
-  public seal() {
-    this.immutable = true
-  }
+/**
+ * Parses serialized cache entries into a UseCacheCacheStore
+ * @param entries - The serialized entries to parse
+ * @returns A new UseCacheCacheStore containing the parsed entries
+ */
+export function parseUseCacheCacheStore(
+  entries: Iterable<[string, CacheCacheStoreSerialized]>
+): UseCacheCacheStore {
+  const store = new Map<string, Promise<CacheEntry>>()
 
-  constructor(entries?: Iterable<[string, CacheCacheStoreSerialized]>) {
-    if (entries) {
-      this.immutable = true
+  for (const [
+    key,
+    { value, tags, stale, timestamp, expire, revalidate },
+  ] of entries) {
+    store.set(
+      key,
+      Promise.resolve({
+        // Create a ReadableStream from the Uint8Array
+        value: new ReadableStream<Uint8Array>({
+          start(controller) {
+            // Enqueue the Uint8Array to the stream
+            controller.enqueue(stringToUint8Array(atob(value)))
 
-      for (const [
-        key,
-        { value, tags, stale, timestamp, expire, revalidate },
-      ] of entries) {
-        this.store.set(
-          key,
-          Promise.resolve({
-            // Create a ReadableStream from the Uint8Array
-            value: new ReadableStream<Uint8Array>({
-              start(controller) {
-                // Enqueue the Uint8Array to the stream
-                controller.enqueue(stringToUint8Array(atob(value)))
-
-                // Close the stream
-                controller.close()
-              },
-            }),
-            tags,
-            stale,
-            timestamp,
-            expire,
-            revalidate,
-          })
-        )
-      }
-    }
-  }
-
-  public set(key: string, value: Promise<CacheEntry>): void {
-    if (this.immutable) {
-      throw new Error('CacheCacheStore is immutable')
-    }
-    this.store.set(key, value)
-  }
-
-  public get(key: string): Promise<CacheEntry> | undefined {
-    return this.store.get(key)
-  }
-
-  public get size(): number {
-    return this.store.size
-  }
-
-  public async entries(): Promise<[string, CacheCacheStoreSerialized][]> {
-    return Promise.all(
-      Array.from(this.store.entries()).map(([key, value]) => {
-        return value.then(async (entry) => {
-          const [left, right] = entry.value.tee()
-          entry.value = right
-
-          let binaryString: string = ''
-
-          // We want to encode the value as a string, but we aren't sure if the
-          // value is a a stream of UTF-8 bytes or not, so let's just encode it
-          // as a string using base64.
-          for await (const chunk of left) {
-            binaryString += arrayBufferToString(chunk)
-          }
-
-          return [
-            key,
-            {
-              // Encode the value as a base64 string.
-              value: btoa(binaryString),
-              tags: entry.tags,
-              stale: entry.stale,
-              timestamp: entry.timestamp,
-              expire: entry.expire,
-              revalidate: entry.revalidate,
-            },
-          ] as [string, CacheCacheStoreSerialized]
-        })
+            // Close the stream
+            controller.close()
+          },
+        }),
+        tags,
+        stale,
+        timestamp,
+        expire,
+        revalidate,
       })
     )
   }
+
+  return store
+}
+
+/**
+ * Stringifies a UseCacheCacheStore into an array of key-value pairs
+ * @param store - The store to stringify
+ * @returns A promise that resolves to an array of key-value pairs with serialized values
+ */
+export async function stringifyUseCacheCacheStore(
+  entries: IterableIterator<[string, Promise<CacheEntry>]>
+): Promise<[string, CacheCacheStoreSerialized][]> {
+  return Promise.all(
+    Array.from(entries).map(([key, value]) => {
+      return value.then(async (entry) => {
+        const [left, right] = entry.value.tee()
+        entry.value = right
+
+        let binaryString: string = ''
+
+        // We want to encode the value as a string, but we aren't sure if the
+        // value is a a stream of UTF-8 bytes or not, so let's just encode it
+        // as a string using base64.
+        for await (const chunk of left) {
+          binaryString += arrayBufferToString(chunk)
+        }
+
+        return [
+          key,
+          {
+            // Encode the value as a base64 string.
+            value: btoa(binaryString),
+            tags: entry.tags,
+            stale: entry.stale,
+            timestamp: entry.timestamp,
+            expire: entry.expire,
+            revalidate: entry.revalidate,
+          },
+        ] as [string, CacheCacheStoreSerialized]
+      })
+    })
+  )
 }
