@@ -101,33 +101,33 @@ pub struct PostCssTransform {
 #[turbo_tasks::value_impl]
 impl PostCssTransform {
     #[turbo_tasks::function]
-    pub async fn new(
-        evaluate_context: Vc<Box<dyn AssetContext>>,
-        execution_context: Vc<ExecutionContext>,
+    pub fn new(
+        evaluate_context: ResolvedVc<Box<dyn AssetContext>>,
+        execution_context: ResolvedVc<ExecutionContext>,
         config_location: PostCssConfigLocation,
-    ) -> Result<Vc<Self>> {
-        Ok(PostCssTransform {
-            evaluate_context: evaluate_context.to_resolved().await?,
-            execution_context: execution_context.to_resolved().await?,
+    ) -> Vc<Self> {
+        PostCssTransform {
+            evaluate_context,
+            execution_context,
             config_location,
         }
-        .cell())
+        .cell()
     }
 }
 
 #[turbo_tasks::value_impl]
 impl SourceTransform for PostCssTransform {
     #[turbo_tasks::function]
-    async fn transform(&self, source: Vc<Box<dyn Source>>) -> Result<Vc<Box<dyn Source>>> {
-        Ok(Vc::upcast(
+    fn transform(&self, source: ResolvedVc<Box<dyn Source>>) -> Vc<Box<dyn Source>> {
+        Vc::upcast(
             PostCssTransformedAsset {
                 evaluate_context: self.evaluate_context,
-                execution_context: self.execution_context.to_resolved().await?,
+                execution_context: self.execution_context,
                 config_location: self.config_location,
-                source: source.to_resolved().await?,
+                source,
             }
             .cell(),
-        ))
+        )
     }
 }
 
@@ -236,17 +236,17 @@ pub struct JsonSource {
 #[turbo_tasks::value_impl]
 impl JsonSource {
     #[turbo_tasks::function]
-    pub async fn new(
-        path: Vc<FileSystemPath>,
-        key: Vc<Option<RcStr>>,
+    pub fn new(
+        path: ResolvedVc<FileSystemPath>,
+        key: ResolvedVc<Option<RcStr>>,
         allow_json5: bool,
-    ) -> Result<Vc<Self>> {
-        Ok(JsonSource {
-            path: path.to_resolved().await?,
-            key: key.to_resolved().await?,
+    ) -> Vc<Self> {
+        JsonSource {
+            path,
+            key,
             allow_json5,
         }
-        .cell())
+        .cell()
     }
 }
 
@@ -470,10 +470,7 @@ impl PostCssTransformedAsset {
         };
         let FileContent::Content(content) = &*file.await? else {
             return Ok(ProcessPostCssResult {
-                content: AssetContent::File(FileContent::NotFound.resolved_cell())
-                    .cell()
-                    .to_resolved()
-                    .await?,
+                content: AssetContent::File(FileContent::NotFound.resolved_cell()).resolved_cell(),
                 assets: Vec::new(),
             }
             .cell());
@@ -482,10 +479,14 @@ impl PostCssTransformedAsset {
         let evaluate_context = self.evaluate_context;
 
         // This invalidates the transform when the config changes.
-        let config_changed = config_changed(*evaluate_context, config_path);
+        let config_changed = config_changed(*evaluate_context, config_path)
+            .to_resolved()
+            .await?;
 
-        let postcss_executor =
-            postcss_executor(*evaluate_context, **project_path, config_path).module();
+        let postcss_executor = postcss_executor(*evaluate_context, **project_path, config_path)
+            .module()
+            .to_resolved()
+            .await?;
         let css_fs_path = self.source.ident().path();
 
         // We need to get a path relative to the project because the postcss loader
@@ -501,25 +502,22 @@ impl PostCssTransformedAsset {
         };
 
         let config_value = evaluate_webpack_loader(WebpackLoaderContext {
-            module_asset: postcss_executor.to_resolved().await?,
+            module_asset: postcss_executor,
             cwd: *project_path,
             env: *env,
             context_ident_for_issue: self.source.ident().to_resolved().await?,
-            asset_context: evaluate_context.to_resolved().await?,
-            chunking_context: chunking_context.to_resolved().await?,
+            asset_context: evaluate_context,
+            chunking_context: *chunking_context,
             resolve_options_context: None,
             args: vec![Vc::cell(content.into()), Vc::cell(css_path.into())],
-            additional_invalidation: config_changed.to_resolved().await?,
+            additional_invalidation: config_changed,
         })
         .await?;
 
         let SingleValue::Single(val) = config_value.try_into_single().await? else {
             // An error happened, which has already been converted into an issue.
             return Ok(ProcessPostCssResult {
-                content: AssetContent::File(FileContent::NotFound.resolved_cell())
-                    .cell()
-                    .to_resolved()
-                    .await?,
+                content: AssetContent::File(FileContent::NotFound.resolved_cell()).resolved_cell(),
                 assets: Vec::new(),
             }
             .cell());
@@ -530,12 +528,9 @@ impl PostCssTransformedAsset {
         // TODO handle SourceMap
         let file = File::from(processed_css.css);
         let assets = emitted_assets_to_virtual_sources(processed_css.assets).await?;
-        let content = AssetContent::File(FileContent::Content(file).resolved_cell()).cell();
-        Ok(ProcessPostCssResult {
-            content: content.to_resolved().await?,
-            assets,
-        }
-        .cell())
+        let content =
+            AssetContent::File(FileContent::Content(file).resolved_cell()).resolved_cell();
+        Ok(ProcessPostCssResult { content, assets }.cell())
     }
 }
 

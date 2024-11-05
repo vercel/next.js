@@ -41,34 +41,34 @@ use crate::{
 /// for Node.js execution during rendering. The `chunking_context` should emit
 /// to this directory.
 #[turbo_tasks::function]
-pub async fn create_node_rendered_source(
-    cwd: Vc<FileSystemPath>,
-    env: Vc<Box<dyn ProcessEnv>>,
+pub fn create_node_rendered_source(
+    cwd: ResolvedVc<FileSystemPath>,
+    env: ResolvedVc<Box<dyn ProcessEnv>>,
     base_segments: Vec<BaseSegment>,
     route_type: RouteType,
-    server_root: Vc<FileSystemPath>,
-    route_match: Vc<Box<dyn RouteMatcher>>,
-    pathname: Vc<RcStr>,
-    entry: Vc<Box<dyn NodeEntry>>,
-    fallback_page: Vc<DevHtmlAsset>,
-    render_data: Vc<JsonValue>,
+    server_root: ResolvedVc<FileSystemPath>,
+    route_match: ResolvedVc<Box<dyn RouteMatcher>>,
+    pathname: ResolvedVc<RcStr>,
+    entry: ResolvedVc<Box<dyn NodeEntry>>,
+    fallback_page: ResolvedVc<DevHtmlAsset>,
+    render_data: ResolvedVc<JsonValue>,
     debug: bool,
-) -> Result<Vc<Box<dyn ContentSource>>> {
+) -> Vc<Box<dyn ContentSource>> {
     let source = NodeRenderContentSource {
-        cwd: cwd.to_resolved().await?,
-        env: env.to_resolved().await?,
+        cwd,
+        env,
         base_segments,
         route_type,
-        server_root: server_root.to_resolved().await?,
-        route_match: route_match.to_resolved().await?,
-        pathname: pathname.to_resolved().await?,
-        entry: entry.to_resolved().await?,
-        fallback_page: fallback_page.to_resolved().await?,
-        render_data: render_data.to_resolved().await?,
+        server_root,
+        route_match,
+        pathname,
+        entry,
+        fallback_page,
+        render_data,
         debug,
     }
     .cell();
-    Ok(Vc::upcast(ConditionalContentSource::new(
+    Vc::upcast(ConditionalContentSource::new(
         Vc::upcast(source),
         Vc::upcast(
             LazyInstantiatedContentSource {
@@ -76,7 +76,7 @@ pub async fn create_node_rendered_source(
             }
             .cell(),
         ),
-    )))
+    ))
 }
 
 /// see [create_node_rendered_source]
@@ -109,9 +109,9 @@ impl GetContentSource for NodeRenderContentSource {
     /// assets. This is wrapped into [LazyInstantiatedContentSource].
     #[turbo_tasks::function]
     async fn content_source(&self) -> Result<Vc<Box<dyn ContentSource>>> {
-        let entries = (*self.entry).entries();
+        let entries = self.entry.entries();
         let mut set = FxIndexSet::default();
-        for &reference in (*self.fallback_page).references().await?.iter() {
+        for &reference in self.fallback_page.references().await?.iter() {
             set.insert(reference);
         }
         for &entry in entries.await?.iter() {
@@ -170,7 +170,7 @@ impl GetContentSourceContent for NodeRenderContentSource {
         data: Value<ContentSourceData>,
     ) -> Result<Vc<ContentSourceContent>> {
         let pathname = self.pathname.await?;
-        let Some(params) = &*(*self.route_match).params(path.clone()).await? else {
+        let Some(params) = &*self.route_match.params(path.clone()).await? else {
             return Err(anyhow!(
                 "Non matching path ({}) provided for {}",
                 path,
@@ -192,7 +192,7 @@ impl GetContentSourceContent for NodeRenderContentSource {
         let result = render_static(
             *self.cwd,
             *self.env,
-            (*self.server_root).join(path.clone()),
+            self.server_root.join(path.clone()),
             *entry.module,
             *entry.runtime_entries,
             *self.fallback_page,
@@ -279,7 +279,7 @@ impl Introspectable for NodeRenderContentSource {
     #[turbo_tasks::function]
     async fn children(&self) -> Result<Vc<IntrospectableChildren>> {
         let mut set = FxIndexSet::default();
-        for &entry in (*self.entry).entries().await?.iter() {
+        for &entry in self.entry.entries().await?.iter() {
             let entry = entry.await?;
             set.insert((
                 Vc::cell("module".into()),

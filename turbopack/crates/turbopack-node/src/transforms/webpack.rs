@@ -97,35 +97,38 @@ pub struct WebpackLoaders {
 #[turbo_tasks::value_impl]
 impl WebpackLoaders {
     #[turbo_tasks::function]
-    pub async fn new(
-        evaluate_context: Vc<Box<dyn AssetContext>>,
-        execution_context: Vc<ExecutionContext>,
-        loaders: Vc<WebpackLoaderItems>,
+    pub fn new(
+        evaluate_context: ResolvedVc<Box<dyn AssetContext>>,
+        execution_context: ResolvedVc<ExecutionContext>,
+        loaders: ResolvedVc<WebpackLoaderItems>,
         rename_as: Option<RcStr>,
-        resolve_options_context: Vc<ResolveOptionsContext>,
-    ) -> Result<Vc<Self>> {
-        Ok(WebpackLoaders {
-            evaluate_context: evaluate_context.to_resolved().await?,
-            execution_context: execution_context.to_resolved().await?,
-            loaders: loaders.to_resolved().await?,
+        resolve_options_context: ResolvedVc<ResolveOptionsContext>,
+    ) -> Vc<Self> {
+        WebpackLoaders {
+            evaluate_context,
+            execution_context,
+            loaders,
             rename_as,
-            resolve_options_context: resolve_options_context.to_resolved().await?,
+            resolve_options_context,
         }
-        .cell())
+        .cell()
     }
 }
 
 #[turbo_tasks::value_impl]
 impl SourceTransform for WebpackLoaders {
     #[turbo_tasks::function]
-    async fn transform(self: Vc<Self>, source: Vc<Box<dyn Source>>) -> Result<Vc<Box<dyn Source>>> {
-        Ok(Vc::upcast(
+    fn transform(
+        self: ResolvedVc<Self>,
+        source: ResolvedVc<Box<dyn Source>>,
+    ) -> Vc<Box<dyn Source>> {
+        Vc::upcast(
             WebpackLoadersProcessedAsset {
-                transform: self.to_resolved().await?,
-                source: source.to_resolved().await?,
+                transform: self,
+                source,
             }
             .cell(),
-        ))
+        )
     }
 }
 
@@ -209,7 +212,10 @@ impl WebpackLoadersProcessedAsset {
         let content = content.content().to_str()?;
         let evaluate_context = transform.evaluate_context;
 
-        let webpack_loaders_executor = webpack_loaders_executor(*evaluate_context).module();
+        let webpack_loaders_executor = webpack_loaders_executor(*evaluate_context)
+            .module()
+            .to_resolved()
+            .await?;
         let resource_fs_path = this.source.ident().path();
         let resource_fs_path_ref = resource_fs_path.await?;
         let Some(resource_path) = project_path
@@ -224,13 +230,13 @@ impl WebpackLoadersProcessedAsset {
         };
         let loaders = transform.loaders.await?;
         let config_value = evaluate_webpack_loader(WebpackLoaderContext {
-            module_asset: webpack_loaders_executor.to_resolved().await?,
-            cwd: project_path.to_resolved().await?,
-            env: env.to_resolved().await?,
+            module_asset: webpack_loaders_executor,
+            cwd: project_path,
+            env,
             context_ident_for_issue: this.source.ident().to_resolved().await?,
-            asset_context: evaluate_context.to_resolved().await?,
-            chunking_context: chunking_context.to_resolved().await?,
-            resolve_options_context: Some(transform.resolve_options_context.to_resolved().await?),
+            asset_context: evaluate_context,
+            chunking_context,
+            resolve_options_context: Some(transform.resolve_options_context),
             args: vec![
                 Vc::cell(content.into()),
                 // We need to pass the query string to the loader
@@ -260,7 +266,7 @@ impl WebpackLoadersProcessedAsset {
         let source_map = if let Some(source_map) = processed.map {
             SourceMap::new_from_file_content(FileContent::Content(File::from(source_map)).cell())
                 .await?
-                .map(|source_map| source_map.cell())
+                .map(|source_map| source_map.resolved_cell())
         } else {
             None
         };
@@ -273,14 +279,12 @@ impl WebpackLoadersProcessedAsset {
             .into_iter()
             .map(|asset| *asset)
             .collect();
-        let content = AssetContent::File(FileContent::Content(file).resolved_cell()).cell();
+        let content =
+            AssetContent::File(FileContent::Content(file).resolved_cell()).resolved_cell();
         Ok(ProcessWebpackLoadersResult {
-            content: content.to_resolved().await?,
+            content,
             assets,
-            source_map: match source_map {
-                Some(source_map) => Some(source_map.to_resolved().await?),
-                None => None,
-            },
+            source_map,
         }
         .cell())
     }
@@ -572,12 +576,10 @@ impl EvaluateContext for WebpackLoaderContext {
                 file_path: self.context_ident_for_issue.path().to_resolved().await?,
                 logging: logs,
                 severity: if has_errors {
-                    IssueSeverity::Error.cell()
+                    IssueSeverity::Error.resolved_cell()
                 } else {
-                    IssueSeverity::Warning.into()
-                }
-                .to_resolved()
-                .await?,
+                    IssueSeverity::Warning.resolved_cell()
+                },
                 assets_for_source_mapping: pool.assets_for_source_mapping,
                 assets_root: pool.assets_root,
                 project_dir: self

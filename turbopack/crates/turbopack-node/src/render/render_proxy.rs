@@ -33,31 +33,31 @@ use crate::{
 /// Renders a module as static HTML in a node.js process.
 #[turbo_tasks::function]
 pub async fn render_proxy(
-    cwd: Vc<FileSystemPath>,
-    env: Vc<Box<dyn ProcessEnv>>,
-    path: Vc<FileSystemPath>,
-    module: Vc<Box<dyn Module>>,
-    runtime_entries: Vc<EvaluatableAssets>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
-    intermediate_output_path: Vc<FileSystemPath>,
-    output_root: Vc<FileSystemPath>,
-    project_dir: Vc<FileSystemPath>,
-    data: Vc<RenderData>,
-    body: Vc<Body>,
+    cwd: ResolvedVc<FileSystemPath>,
+    env: ResolvedVc<Box<dyn ProcessEnv>>,
+    path: ResolvedVc<FileSystemPath>,
+    module: ResolvedVc<Box<dyn Module>>,
+    runtime_entries: ResolvedVc<EvaluatableAssets>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    intermediate_output_path: ResolvedVc<FileSystemPath>,
+    output_root: ResolvedVc<FileSystemPath>,
+    project_dir: ResolvedVc<FileSystemPath>,
+    data: ResolvedVc<RenderData>,
+    body: ResolvedVc<Body>,
     debug: bool,
 ) -> Result<Vc<ProxyResult>> {
     let render = render_stream(RenderStreamOptions {
-        cwd: cwd.to_resolved().await?,
-        env: env.to_resolved().await?,
-        path: path.to_resolved().await?,
-        module: module.to_resolved().await?,
-        runtime_entries: runtime_entries.to_resolved().await?,
-        chunking_context: chunking_context.to_resolved().await?,
-        intermediate_output_path: intermediate_output_path.to_resolved().await?,
-        output_root: output_root.to_resolved().await?,
-        project_dir: project_dir.to_resolved().await?,
-        data: data.to_resolved().await?,
-        body: body.to_resolved().await?,
+        cwd,
+        env,
+        path,
+        module,
+        runtime_entries,
+        chunking_context,
+        intermediate_output_path,
+        output_root,
+        project_dir,
+        data,
+        body,
         debug,
     })
     .await?;
@@ -94,7 +94,7 @@ pub async fn render_proxy(
 }
 
 async fn proxy_error(
-    path: Vc<FileSystemPath>,
+    path: ResolvedVc<FileSystemPath>,
     error: anyhow::Error,
     operation: Option<NodeJsOperation>,
 ) -> Result<(u16, RcStr)> {
@@ -120,11 +120,8 @@ async fn proxy_error(
     .clone_value();
 
     RenderingIssue {
-        file_path: path.to_resolved().await?,
-        message: StyledString::Text(message.into())
-            .cell()
-            .to_resolved()
-            .await?,
+        file_path: path,
+        message: StyledString::Text(message.into()).resolved_cell(),
         status: status.and_then(|status| status.code()),
     }
     .cell()
@@ -286,7 +283,7 @@ async fn render_stream_internal(
                     *project_dir
                 )
                 .await?;
-                let (status, body) =  proxy_error(*path, anyhow!("error rendering: {}", trace), Some(operation)).await?;
+                let (status, body) =  proxy_error(path, anyhow!("error rendering: {}", trace), Some(operation)).await?;
                 yield RenderItem::Headers(ResponseHeaders {
                     status,
                     headers: vec![(

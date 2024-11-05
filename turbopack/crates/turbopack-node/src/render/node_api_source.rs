@@ -18,33 +18,33 @@ use crate::{get_intermediate_asset, node_entry::NodeEntry, route_matcher::RouteM
 
 /// Creates a [NodeApiContentSource].
 #[turbo_tasks::function]
-pub async fn create_node_api_source(
-    cwd: Vc<FileSystemPath>,
-    env: Vc<Box<dyn ProcessEnv>>,
+pub fn create_node_api_source(
+    cwd: ResolvedVc<FileSystemPath>,
+    env: ResolvedVc<Box<dyn ProcessEnv>>,
     base_segments: Vec<BaseSegment>,
     route_type: RouteType,
-    server_root: Vc<FileSystemPath>,
-    route_match: Vc<Box<dyn RouteMatcher>>,
-    pathname: Vc<RcStr>,
-    entry: Vc<Box<dyn NodeEntry>>,
-    render_data: Vc<JsonValue>,
+    server_root: ResolvedVc<FileSystemPath>,
+    route_match: ResolvedVc<Box<dyn RouteMatcher>>,
+    pathname: ResolvedVc<RcStr>,
+    entry: ResolvedVc<Box<dyn NodeEntry>>,
+    render_data: ResolvedVc<JsonValue>,
     debug: bool,
-) -> Result<Vc<Box<dyn ContentSource>>> {
-    Ok(Vc::upcast(
+) -> Vc<Box<dyn ContentSource>> {
+    Vc::upcast(
         NodeApiContentSource {
-            cwd: cwd.to_resolved().await?,
-            env: env.to_resolved().await?,
+            cwd,
+            env,
             base_segments,
             route_type,
-            server_root: server_root.to_resolved().await?,
-            pathname: pathname.to_resolved().await?,
-            route_match: route_match.to_resolved().await?,
-            entry: entry.to_resolved().await?,
-            render_data: render_data.to_resolved().await?,
+            server_root,
+            pathname,
+            route_match,
+            entry,
+            render_data,
             debug,
         }
         .cell(),
-    ))
+    )
 }
 
 /// A content source that proxies API requests to one-off Node.js
@@ -111,7 +111,7 @@ impl GetContentSourceContent for NodeApiContentSource {
         path: RcStr,
         data: Value<ContentSourceData>,
     ) -> Result<Vc<ContentSourceContent>> {
-        let Some(params) = &*(*self.route_match).params(path.clone()).await? else {
+        let Some(params) = &*self.route_match.params(path.clone()).await? else {
             return Err(anyhow!("Non matching path provided"));
         };
         let ContentSourceData {
@@ -131,7 +131,7 @@ impl GetContentSourceContent for NodeApiContentSource {
             render_proxy(
                 *self.cwd,
                 *self.env,
-                (*self.server_root).join(path.clone()),
+                self.server_root.join(path.clone()),
                 *entry.module,
                 *entry.runtime_entries,
                 *entry.chunking_context,
@@ -190,7 +190,7 @@ impl Introspectable for NodeApiContentSource {
     #[turbo_tasks::function]
     async fn children(&self) -> Result<Vc<IntrospectableChildren>> {
         let mut set = FxIndexSet::default();
-        for &entry in (*self.entry).entries().await?.iter() {
+        for &entry in self.entry.entries().await?.iter() {
             let entry = entry.await?;
             set.insert((
                 Vc::cell("module".into()),

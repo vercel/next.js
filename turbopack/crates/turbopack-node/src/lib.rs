@@ -212,15 +212,15 @@ pub async fn get_renderer_pool(
     env: Vc<Box<dyn ProcessEnv>>,
     intermediate_asset: Vc<Box<dyn OutputAsset>>,
     intermediate_output_path: Vc<FileSystemPath>,
-    output_root: Vc<FileSystemPath>,
-    project_dir: Vc<FileSystemPath>,
+    output_root: ResolvedVc<FileSystemPath>,
+    project_dir: ResolvedVc<FileSystemPath>,
     debug: bool,
 ) -> Result<Vc<NodeJsPool>> {
     emit_package_json(intermediate_output_path).await?;
 
-    let emit = emit(intermediate_asset, output_root);
+    let emit = emit(intermediate_asset, *output_root);
     let assets_for_source_mapping =
-        internal_assets_for_source_mapping(intermediate_asset, output_root);
+        internal_assets_for_source_mapping(intermediate_asset, *output_root);
 
     let entrypoint = intermediate_asset.ident().path();
 
@@ -247,8 +247,8 @@ pub async fn get_renderer_pool(
             .map(|(k, v)| (k.clone(), v.clone()))
             .collect(),
         assets_for_source_mapping.to_resolved().await?,
-        output_root.to_resolved().await?,
-        project_dir.to_resolved().await?,
+        output_root,
+        project_dir,
         available_parallelism().map_or(1, |v| v.get()),
         debug,
     )

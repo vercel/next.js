@@ -159,12 +159,14 @@ pub async fn get_evaluate_pool(
         runtime_entries,
     );
 
-    let output_root: Vc<FileSystemPath> = chunking_context.output_root();
-    let _ = emit_package_json(output_root);
+    let output_root = chunking_context.output_root().to_resolved().await?;
+    let _ = emit_package_json(*output_root);
     // Invalidate pool when code content changes
     content_changed(Vc::upcast(bootstrap)).await?;
-    let _ = emit(bootstrap, output_root);
-    let assets_for_source_mapping = internal_assets_for_source_mapping(bootstrap, output_root);
+    let _ = emit(bootstrap, *output_root);
+    let assets_for_source_mapping = internal_assets_for_source_mapping(bootstrap, *output_root)
+        .to_resolved()
+        .await?;
     let pool = NodeJsPool::new(
         cwd,
         entrypoint,
@@ -173,8 +175,8 @@ pub async fn get_evaluate_pool(
             .iter()
             .map(|(k, v)| (k.clone(), v.clone()))
             .collect(),
-        assets_for_source_mapping.to_resolved().await?,
-        output_root.to_resolved().await?,
+        assets_for_source_mapping,
+        output_root,
         chunking_context.context_path().root().to_resolved().await?,
         available_parallelism().map_or(1, |v| v.get()),
         debug,
@@ -283,33 +285,30 @@ pub fn custom_evaluate(evaluate_context: impl EvaluateContext) -> Vc<JavaScriptE
 /// Pass the file you cared as `runtime_entries` to invalidate and reload the
 /// evaluated result automatically.
 #[turbo_tasks::function]
-pub async fn evaluate(
-    module_asset: Vc<Box<dyn Module>>,
-    cwd: Vc<FileSystemPath>,
-    env: Vc<Box<dyn ProcessEnv>>,
-    context_ident_for_issue: Vc<AssetIdent>,
-    asset_context: Vc<Box<dyn AssetContext>>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
-    runtime_entries: Option<Vc<EvaluatableAssets>>,
+pub fn evaluate(
+    module_asset: ResolvedVc<Box<dyn Module>>,
+    cwd: ResolvedVc<FileSystemPath>,
+    env: ResolvedVc<Box<dyn ProcessEnv>>,
+    context_ident_for_issue: ResolvedVc<AssetIdent>,
+    asset_context: ResolvedVc<Box<dyn AssetContext>>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    runtime_entries: Option<ResolvedVc<EvaluatableAssets>>,
     args: Vec<Vc<JsonValue>>,
-    additional_invalidation: Vc<Completion>,
+    additional_invalidation: ResolvedVc<Completion>,
     debug: bool,
-) -> Result<Vc<JavaScriptEvaluation>> {
-    Ok(custom_evaluate(BasicEvaluateContext {
-        module_asset: module_asset.to_resolved().await?,
-        cwd: cwd.to_resolved().await?,
-        env: env.to_resolved().await?,
-        context_ident_for_issue: context_ident_for_issue.to_resolved().await?,
-        asset_context: asset_context.to_resolved().await?,
-        chunking_context: chunking_context.to_resolved().await?,
-        runtime_entries: match runtime_entries {
-            Some(runtime_entries) => Some(runtime_entries.to_resolved().await?),
-            None => None,
-        },
+) -> Vc<JavaScriptEvaluation> {
+    custom_evaluate(BasicEvaluateContext {
+        module_asset,
+        cwd,
+        env,
+        context_ident_for_issue,
+        asset_context,
+        chunking_context,
+        runtime_entries,
         args,
-        additional_invalidation: additional_invalidation.to_resolved().await?,
+        additional_invalidation,
         debug,
-    }))
+    })
 }
 
 pub async fn compute(

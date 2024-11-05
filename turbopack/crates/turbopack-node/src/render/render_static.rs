@@ -52,17 +52,17 @@ pub enum StaticResult {
 #[turbo_tasks::value_impl]
 impl StaticResult {
     #[turbo_tasks::function]
-    pub async fn content(
-        content: Vc<AssetContent>,
+    pub fn content(
+        content: ResolvedVc<AssetContent>,
         status_code: u16,
-        headers: Vc<HeaderList>,
-    ) -> Result<Vc<Self>> {
-        Ok(StaticResult::Content {
-            content: content.to_resolved().await?,
+        headers: ResolvedVc<HeaderList>,
+    ) -> Vc<Self> {
+        StaticResult::Content {
+            content,
             status_code,
-            headers: headers.to_resolved().await?,
+            headers,
         }
-        .cell())
+        .cell()
     }
 
     #[turbo_tasks::function]
@@ -74,31 +74,31 @@ impl StaticResult {
 /// Renders a module as static HTML in a node.js process.
 #[turbo_tasks::function]
 pub async fn render_static(
-    cwd: Vc<FileSystemPath>,
-    env: Vc<Box<dyn ProcessEnv>>,
-    path: Vc<FileSystemPath>,
-    module: Vc<Box<dyn Module>>,
-    runtime_entries: Vc<EvaluatableAssets>,
-    fallback_page: Vc<DevHtmlAsset>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
-    intermediate_output_path: Vc<FileSystemPath>,
-    output_root: Vc<FileSystemPath>,
-    project_dir: Vc<FileSystemPath>,
-    data: Vc<RenderData>,
+    cwd: ResolvedVc<FileSystemPath>,
+    env: ResolvedVc<Box<dyn ProcessEnv>>,
+    path: ResolvedVc<FileSystemPath>,
+    module: ResolvedVc<Box<dyn Module>>,
+    runtime_entries: ResolvedVc<EvaluatableAssets>,
+    fallback_page: ResolvedVc<DevHtmlAsset>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    intermediate_output_path: ResolvedVc<FileSystemPath>,
+    output_root: ResolvedVc<FileSystemPath>,
+    project_dir: ResolvedVc<FileSystemPath>,
+    data: ResolvedVc<RenderData>,
     debug: bool,
 ) -> Result<Vc<StaticResult>> {
     let render = render_stream(RenderStreamOptions {
-        cwd: cwd.to_resolved().await?,
-        env: env.to_resolved().await?,
-        path: path.to_resolved().await?,
-        module: module.to_resolved().await?,
-        runtime_entries: runtime_entries.to_resolved().await?,
-        fallback_page: fallback_page.to_resolved().await?,
-        chunking_context: chunking_context.to_resolved().await?,
-        intermediate_output_path: intermediate_output_path.to_resolved().await?,
-        output_root: output_root.to_resolved().await?,
-        project_dir: project_dir.to_resolved().await?,
-        data: data.to_resolved().await?,
+        cwd,
+        env,
+        path,
+        module,
+        runtime_entries,
+        fallback_page,
+        chunking_context,
+        intermediate_output_path,
+        output_root,
+        project_dir,
+        data,
         debug,
     })
     .await?;
@@ -136,7 +136,7 @@ pub async fn render_static(
 }
 
 async fn static_error(
-    path: Vc<FileSystemPath>,
+    path: ResolvedVc<FileSystemPath>,
     error: anyhow::Error,
     operation: Option<NodeJsOperation>,
     fallback_page: Vc<DevHtmlAsset>,
@@ -168,11 +168,8 @@ async fn static_error(
     );
 
     let issue = RenderingIssue {
-        file_path: path.to_resolved().await?,
-        message: StyledString::Text(error.into())
-            .cell()
-            .to_resolved()
-            .await?,
+        file_path: path,
+        message: StyledString::Text(error.into()).resolved_cell(),
         status: status.and_then(|status| status.code()),
     };
 
@@ -353,7 +350,7 @@ async fn render_stream_internal(
                 .await?;
                 yield RenderItem::Response(
                     StaticResult::content(
-                        static_error(*path, anyhow!(trace), Some(operation), *fallback_page).await?,
+                        static_error(path, anyhow!(trace), Some(operation), *fallback_page).await?,
                         500,
                         HeaderList::empty(),
                     ).to_resolved().await?
