@@ -36,6 +36,7 @@ use turbo_tasks_fs::{
 };
 use turbopack::{
     module_options::ModuleOptionsContext,
+    nft_json::NftJsonAsset,
     resolve_options_context::ResolveOptionsContext,
     transition::{ContextTransition, TransitionOptions},
     ModuleAssetContext,
@@ -50,7 +51,7 @@ use turbopack_core::{
     file_source::FileSource,
     ident::AssetIdent,
     module::{Module, Modules},
-    output::{OutputAsset, OutputAssets},
+    output::{OptionOutputAsset, OutputAsset, OutputAssets},
     reference_type::{EcmaScriptModulesReferenceSubType, EntryReferenceSubType, ReferenceType},
     resolve::{origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
     source::Source,
@@ -877,9 +878,32 @@ impl PageEndpoint {
                 )
                 .await?;
 
+                let nft = if this
+                    .pages_project
+                    .project()
+                    .next_mode()
+                    .await?
+                    .is_production()
+                {
+                    ResolvedVc::cell(Some(ResolvedVc::upcast(
+                        NftJsonAsset::new(
+                            *ssr_entry_chunk,
+                            this.pages_project.project().output_fs(),
+                            this.pages_project.project().project_fs(),
+                            this.pages_project.project().client_fs(),
+                            vec![],
+                        )
+                        .to_resolved()
+                        .await?,
+                    )))
+                } else {
+                    ResolvedVc::cell(None)
+                };
+
                 Ok(SsrChunk::NodeJs {
                     entry: ssr_entry_chunk,
                     dynamic_import_entries,
+                    nft,
                 }
                 .cell())
             }
@@ -1095,10 +1119,14 @@ impl PageEndpoint {
             SsrChunk::NodeJs {
                 entry,
                 dynamic_import_entries,
+                nft,
             } => {
                 let pages_manifest = self.pages_manifest(*entry).to_resolved().await?;
                 server_assets.push(pages_manifest);
                 server_assets.push(entry);
+                if let Some(nft) = &*nft.await? {
+                    server_assets.push(*nft);
+                }
 
                 let loadable_manifest_output = self.react_loadable_manifest(dynamic_import_entries);
                 server_assets.extend(loadable_manifest_output.await?.iter().copied());
@@ -1371,6 +1399,7 @@ pub enum SsrChunk {
     NodeJs {
         entry: ResolvedVc<Box<dyn OutputAsset>>,
         dynamic_import_entries: Vc<DynamicImportedChunks>,
+        nft: ResolvedVc<OptionOutputAsset>,
     },
     Edge {
         files: Vc<OutputAssets>,
