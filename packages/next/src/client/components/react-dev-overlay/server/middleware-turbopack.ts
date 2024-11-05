@@ -12,10 +12,12 @@ import {
 
 import fs, { constants as FS } from 'fs/promises'
 import path from 'path'
+import url from 'url'
 import { launchEditor } from '../internal/helpers/launchEditor'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import type { Project, TurbopackStackFrame } from '../../../../build/swc/types'
 import { getSourceMapFromFile } from '../internal/helpers/get-source-map-from-file'
+import { findSourceMap } from 'node:module'
 
 const currentSourcesByFile: Map<string, Promise<string | null>> = new Map()
 export async function batchedTraceSource(
@@ -151,7 +153,10 @@ export function getOverlayMiddleware(project: Project) {
   }
 }
 
-export function getSourceMapMiddleware(project: Project, distDir: string) {
+export function getSourceMapMiddleware(
+  project: Project,
+  options: { assetPrefix: string; distDir: string }
+) {
   return async function (
     req: IncomingMessage,
     res: ServerResponse,
@@ -169,13 +174,34 @@ export function getSourceMapMiddleware(project: Project, distDir: string) {
       return badRequest(res)
     }
 
+    if (
+      filename.startsWith('webpack://') ||
+      filename.startsWith('webpack-internal:///')
+    ) {
+      const sourceMap = findSourceMap(filename)
+
+      if (sourceMap) {
+        return json(res, sourceMap.payload)
+      }
+
+      return noContent(res)
+    }
+
     try {
-      if (filename.startsWith('/_next/static')) {
+      const { assetPrefix, distDir } = options
+
+      if (filename.startsWith(`${assetPrefix}/_next/static`)) {
         filename = path.join(
           distDir,
-          // /_next/static/chunks/%5Bproject%5D... => static/chunks/[project]...
-          decodeURIComponent(filename.replace(/^\/_next\//, ''))
+          filename.replace(new RegExp(`^${assetPrefix}/_next/`), '')
         )
+      }
+
+      // Turbopack chunk filenames might be URL-encoded.
+      filename = decodeURI(filename)
+
+      if (path.isAbsolute(filename)) {
+        filename = url.pathToFileURL(filename).href
       }
 
       const sourceMapString = await project.getSourceMap(filename)
@@ -184,7 +210,7 @@ export function getSourceMapMiddleware(project: Project, distDir: string) {
         return jsonString(res, sourceMapString)
       }
 
-      if (filename.startsWith('file:') || filename.startsWith(path.sep)) {
+      if (filename.startsWith('file:')) {
         const sourceMap = await getSourceMapFromFile(filename)
 
         if (sourceMap) {

@@ -59,7 +59,7 @@ Options:
 
     Initialize inside a `src/` directory.
 
-  --turbo
+  --turbopack
 
     Enable Turbopack by default for development.
 

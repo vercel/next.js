@@ -147,8 +147,10 @@ describe(`app-dir-hmr`, () => {
         expect(await browser.elementByCss('p').text()).toBe('mac')
         await next.patchFile(envFile, 'MY_DEVICE="ipad"')
 
-        const logs = await browser.log()
+        let logs
+
         await retry(async () => {
+          logs = await browser.log()
           expect(logs).toEqual(
             expect.arrayContaining([
               expect.objectContaining({

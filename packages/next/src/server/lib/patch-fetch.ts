@@ -254,17 +254,20 @@ export function createPatchedFetcher(
           `fetch ${input.toString()}`
         )
 
-        if (
+        const revalidateStore =
           workUnitStore &&
           (workUnitStore.type === 'cache' ||
             workUnitStore.type === 'prerender' ||
             workUnitStore.type === 'prerender-ppr' ||
             workUnitStore.type === 'prerender-legacy')
-        ) {
+            ? workUnitStore
+            : undefined
+
+        if (revalidateStore) {
           if (Array.isArray(tags)) {
             // Collect tags onto parent caches or parent prerenders.
             const collectedTags =
-              workUnitStore.tags ?? (workUnitStore.tags = [])
+              revalidateStore.tags ?? (revalidateStore.tags = [])
             for (const tag of tags) {
               if (!collectedTags.includes(tag)) {
                 collectedTags.push(tag)
@@ -278,11 +281,13 @@ export function createPatchedFetcher(
             ? []
             : workUnitStore.implicitTags
 
-        // Inside unstable-cache we treat it the same as force-no-store on the page.
+        // Inside unstable-cache we treat it the same as force-no-store on the
+        // page.
         const pageFetchCacheMode =
           workUnitStore && workUnitStore.type === 'unstable-cache'
             ? 'force-no-store'
             : workStore.fetchCache
+
         const isUsingNoStore = !!workStore.isUnstableNoStore
 
         let currentFetchCacheConfig = getRequestMeta('cache')
@@ -304,16 +309,20 @@ export function createPatchedFetcher(
         if (currentFetchCacheConfig === 'force-cache') {
           currentFetchRevalidate = false
         } else if (
-          currentFetchCacheConfig === 'no-cache' ||
-          currentFetchCacheConfig === 'no-store' ||
-          pageFetchCacheMode === 'force-no-store' ||
-          pageFetchCacheMode === 'only-no-store' ||
-          // If no explicit fetch cache mode is set, but dynamic = `force-dynamic` is set,
-          // we shouldn't consider caching the fetch. This is because the `dynamic` cache
-          // is considered a "top-level" cache mode, whereas something like `fetchCache` is more
-          // fine-grained. Top-level modes are responsible for setting reasonable defaults for the
-          // other configurations.
-          (!pageFetchCacheMode && workStore.forceDynamic)
+          // if we are inside of "use cache"/"unstable_cache"
+          // we shouldn't set the revalidate to 0 as it's overridden
+          // by the cache context
+          workUnitStore?.type !== 'cache' &&
+          (currentFetchCacheConfig === 'no-cache' ||
+            currentFetchCacheConfig === 'no-store' ||
+            pageFetchCacheMode === 'force-no-store' ||
+            pageFetchCacheMode === 'only-no-store' ||
+            // If no explicit fetch cache mode is set, but dynamic = `force-dynamic` is set,
+            // we shouldn't consider caching the fetch. This is because the `dynamic` cache
+            // is considered a "top-level" cache mode, whereas something like `fetchCache` is more
+            // fine-grained. Top-level modes are responsible for setting reasonable defaults for the
+            // other configurations.
+            (!pageFetchCacheMode && workStore.forceDynamic))
         ) {
           currentFetchRevalidate = 0
         }
@@ -342,15 +351,6 @@ export function createPatchedFetcher(
         const isUnCacheableMethod = !['get', 'head'].includes(
           getRequestMeta('method')?.toLowerCase() || 'get'
         )
-
-        const revalidateStore =
-          workUnitStore &&
-          (workUnitStore.type === 'cache' ||
-            workUnitStore.type === 'prerender' ||
-            workUnitStore.type === 'prerender-ppr' ||
-            workUnitStore.type === 'prerender-legacy')
-            ? workUnitStore
-            : undefined
 
         /**
          * We automatically disable fetch caching under the following conditions:
@@ -499,7 +499,9 @@ export function createPatchedFetcher(
             }
           }
 
-          if (revalidateStore) {
+          // We only want to set the revalidate store's revalidate time if it
+          // was explicitly set for the fetch call, i.e. currentFetchRevalidate.
+          if (revalidateStore && currentFetchRevalidate === finalRevalidate) {
             revalidateStore.revalidate = finalRevalidate
           }
         }

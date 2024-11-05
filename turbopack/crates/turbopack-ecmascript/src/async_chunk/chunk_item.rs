@@ -187,7 +187,7 @@ impl ChunkItem for AsyncLoaderChunkItem {
                 .copied()
                 .map(|chunk| {
                     Vc::upcast(SingleOutputAssetReference::new(
-                        chunk,
+                        *chunk,
                         chunk_reference_description(),
                     ))
                 })

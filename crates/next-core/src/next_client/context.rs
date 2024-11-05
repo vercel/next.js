@@ -1,7 +1,7 @@
 use std::iter::once;
 
 use anyhow::Result;
-use turbo_tasks::{FxIndexMap, RcStr, Value, Vc};
+use turbo_tasks::{FxIndexMap, RcStr, ResolvedVc, Value, Vc};
 use turbo_tasks_env::EnvMap;
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack::{
@@ -127,11 +127,15 @@ pub fn get_client_compile_time_info(
     .cell()
 }
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
+#[turbo_tasks::value(shared, serialization = "auto_for_input")]
 #[derive(Debug, Copy, Clone, Hash)]
 pub enum ClientContextType {
-    Pages { pages_dir: Vc<FileSystemPath> },
-    App { app_dir: Vc<FileSystemPath> },
+    Pages {
+        pages_dir: ResolvedVc<FileSystemPath>,
+    },
+    App {
+        app_dir: ResolvedVc<FileSystemPath>,
+    },
     Fallback,
     Other,
 }
@@ -145,13 +149,19 @@ pub async fn get_client_resolve_options_context(
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<ResolveOptionsContext>> {
     let next_client_import_map =
-        get_next_client_import_map(project_path, ty, next_config, execution_context);
-    let next_client_fallback_import_map = get_next_client_fallback_import_map(ty);
+        get_next_client_import_map(project_path, ty, next_config, execution_context)
+            .to_resolved()
+            .await?;
+    let next_client_fallback_import_map = get_next_client_fallback_import_map(ty)
+        .to_resolved()
+        .await?;
     let next_client_resolved_map =
-        get_next_client_resolved_map(project_path, project_path, *mode.await?);
+        get_next_client_resolved_map(project_path, project_path, *mode.await?)
+            .to_resolved()
+            .await?;
     let custom_conditions = vec![mode.await?.condition().into()];
     let module_options_context = ResolveOptionsContext {
-        enable_node_modules: Some(project_path.root().resolve().await?),
+        enable_node_modules: Some(project_path.root().to_resolved().await?),
         custom_conditions,
         import_map: Some(next_client_import_map),
         fallback_import_map: Some(next_client_fallback_import_map),
@@ -159,13 +169,27 @@ pub async fn get_client_resolve_options_context(
         browser: true,
         module: true,
         before_resolve_plugins: vec![
-            Vc::upcast(get_invalid_server_only_resolve_plugin(project_path)),
-            Vc::upcast(ModuleFeatureReportResolvePlugin::new(project_path)),
-            Vc::upcast(NextFontLocalResolvePlugin::new(project_path)),
+            ResolvedVc::upcast(
+                get_invalid_server_only_resolve_plugin(project_path)
+                    .to_resolved()
+                    .await?,
+            ),
+            ResolvedVc::upcast(
+                ModuleFeatureReportResolvePlugin::new(project_path)
+                    .to_resolved()
+                    .await?,
+            ),
+            ResolvedVc::upcast(
+                NextFontLocalResolvePlugin::new(project_path)
+                    .to_resolved()
+                    .await?,
+            ),
         ],
-        after_resolve_plugins: vec![Vc::upcast(NextSharedRuntimeResolvePlugin::new(
-            project_path,
-        ))],
+        after_resolve_plugins: vec![ResolvedVc::upcast(
+            NextSharedRuntimeResolvePlugin::new(project_path)
+                .to_resolved()
+                .await?,
+        )],
         ..Default::default()
     };
     Ok(ResolveOptionsContext {
@@ -175,7 +199,7 @@ pub async fn get_client_resolve_options_context(
         custom_extensions: next_config.resolve_extension().await?.clone_value(),
         rules: vec![(
             foreign_code_context_condition(next_config, project_path).await?,
-            module_options_context.clone().cell(),
+            module_options_context.clone().resolved_cell(),
         )],
         ..module_options_context
     }
@@ -193,8 +217,8 @@ fn internal_assets_conditions() -> ContextCondition {
 #[turbo_tasks::function]
 pub async fn get_client_module_options_context(
     project_path: Vc<FileSystemPath>,
-    execution_context: Vc<ExecutionContext>,
-    env: Vc<Environment>,
+    execution_context: ResolvedVc<ExecutionContext>,
+    env: ResolvedVc<Environment>,
     ty: Value<ClientContextType>,
     mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
@@ -202,7 +226,7 @@ pub async fn get_client_module_options_context(
     let next_mode = mode.await?;
 
     let resolve_options_context =
-        get_client_resolve_options_context(project_path, ty, mode, next_config, execution_context);
+        get_client_resolve_options_context(project_path, ty, mode, next_config, *execution_context);
 
     let tsconfig = get_typescript_transform_options(project_path);
     let decorators_options = get_decorators_transform_options(project_path);
@@ -312,7 +336,7 @@ pub async fn get_client_module_options_context(
         ecmascript: EcmascriptOptionsContext {
             enable_jsx: Some(jsx_runtime_options),
             enable_typescript_transform: Some(tsconfig),
-            enable_decorators: Some(decorators_options),
+            enable_decorators: Some(decorators_options.to_resolved().await?),
             ..module_options_context.ecmascript.clone()
         },
         enable_webpack_loaders,
@@ -375,7 +399,7 @@ pub async fn get_client_chunking_context(
     .module_id_strategy(module_id_strategy);
 
     if next_mode.is_development() {
-        builder = builder.hot_module_replacement();
+        builder = builder.hot_module_replacement().use_file_source_map_uris();
     }
 
     Ok(Vc::upcast(builder.build()))
@@ -408,8 +432,10 @@ pub async fn get_client_runtime_entries(
         // because the bootstrap contains JSX which requires Refresh's global
         // functions to be available.
         if let Some(request) = enable_react_refresh {
-            runtime_entries
-                .push(RuntimeEntry::Request(request, project_root.join("_".into())).cell())
+            runtime_entries.push(
+                RuntimeEntry::Request(request.to_resolved().await?, project_root.join("_".into()))
+                    .cell(),
+            )
         };
     }
 
@@ -418,7 +444,9 @@ pub async fn get_client_runtime_entries(
             RuntimeEntry::Request(
                 Request::parse(Value::new(Pattern::Constant(
                     "next/dist/client/app-next-turbopack.js".into(),
-                ))),
+                )))
+                .to_resolved()
+                .await?,
                 project_root.join("_".into()),
             )
             .cell(),

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{FxIndexSet, RcStr, ValueToString, Vc};
+use turbo_tasks::{FxIndexSet, RcStr, ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{Chunk, ChunkingContext, OutputChunk, OutputChunkRuntimeInfo},
@@ -47,12 +47,12 @@ impl ValueToString for EcmascriptDevChunk {
 #[turbo_tasks::value_impl]
 impl OutputChunk for EcmascriptDevChunk {
     #[turbo_tasks::function]
-    fn runtime_info(&self) -> Vc<OutputChunkRuntimeInfo> {
-        OutputChunkRuntimeInfo {
-            included_ids: Some(self.chunk.entry_ids()),
+    async fn runtime_info(&self) -> Result<Vc<OutputChunkRuntimeInfo>> {
+        Ok(OutputChunkRuntimeInfo {
+            included_ids: Some(self.chunk.entry_ids().to_resolved().await?),
             ..Default::default()
         }
-        .cell()
+        .cell())
     }
 }
 
@@ -106,7 +106,9 @@ impl OutputAsset for EcmascriptDevChunk {
         references.extend(chunk_references.iter().copied());
 
         if include_source_map {
-            references.push(Vc::upcast(SourceMapAsset::new(Vc::upcast(self))));
+            references.push(ResolvedVc::upcast(
+                SourceMapAsset::new(Vc::upcast(self)).to_resolved().await?,
+            ));
         }
 
         Ok(Vc::cell(references))

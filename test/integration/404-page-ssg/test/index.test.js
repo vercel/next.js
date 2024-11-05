@@ -67,6 +67,13 @@ const runTests = (isDev) => {
         join(appDir, '.next/prerender-manifest.json')
       )
       expect(data.routes['/404']).toEqual({
+        allowHeader: [
+          'x-matched-path',
+          'x-prerender-revalidate',
+          'x-prerender-revalidate-if-generated',
+          'x-next-revalidated-tags',
+          'x-next-revalidate-tag-token',
+        ],
         initialRevalidateSeconds: false,
         srcRoute: null,
         dataRoute: `/_next/data/${buildId}/404.json`,

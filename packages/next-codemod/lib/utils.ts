@@ -101,12 +101,6 @@ export const TRANSFORMER_INQUIRER_CHOICES = [
   },
   {
     title:
-      'Transform `next/dynamic` imports accessing named exports to return an object with a `default` property',
-    value: 'next-dynamic-access-named-export',
-    version: '15.0.0-canary.44',
-  },
-  {
-    title:
       'Install `@vercel/functions` to replace `geo` and `ip` properties on `NextRequest`',
     value: 'next-request-geo-ip',
     version: '15.0.0-canary.153',

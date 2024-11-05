@@ -29,6 +29,11 @@ import {
   RSC_PREFETCH_SUFFIX,
   RSC_SUFFIX,
   NEXT_RESUME_HEADER,
+  PRERENDER_REVALIDATE_HEADER,
+  PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER,
+  NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
+  NEXT_CACHE_REVALIDATED_TAGS_HEADER,
+  MATCHED_PATH_HEADER,
 } from '../lib/constants'
 import { FileType, fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
@@ -255,6 +260,12 @@ export interface SsgRoute {
    * route.
    */
   renderingMode: RenderingMode | undefined
+
+  /**
+   * The headers that are allowed to be used when revalidating this route. These
+   * are used internally by Next.js to revalidate routes.
+   */
+  allowHeader: string[]
 }
 
 export interface DynamicSsgRoute {
@@ -292,7 +303,25 @@ export interface DynamicSsgRoute {
    * route.
    */
   renderingMode: RenderingMode | undefined
+
+  /**
+   * The headers that are allowed to be used when revalidating this route. These
+   * are used internally by Next.js to revalidate routes.
+   */
+  allowHeader: string[]
 }
+
+/**
+ * The headers that are allowed to be used when revalidating routes. Currently
+ * this includes both headers used by the pages and app routers.
+ */
+const ALLOWED_HEADERS: string[] = [
+  MATCHED_PATH_HEADER,
+  PRERENDER_REVALIDATE_HEADER,
+  PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER,
+  NEXT_CACHE_REVALIDATED_TAGS_HEADER,
+  NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
+]
 
 export type PrerenderManifest = {
   version: 4
@@ -649,12 +678,20 @@ const staticWorkerExposedMethods = [
 type StaticWorker = typeof import('./worker') & Worker
 export function createStaticWorker(
   config: NextConfigComplete,
-  onActivity?: () => void
+  progress?: {
+    run: () => void
+    clear: () => void
+  }
 ): StaticWorker {
   return new Worker(staticWorkerPath, {
     logger: Log,
     numWorkers: getNumberOfWorkers(config),
-    onActivity,
+    onActivity: () => {
+      progress?.run()
+    },
+    onActivityAbort: () => {
+      progress?.clear()
+    },
     forkOptions: {
       env: process.env,
     },
@@ -1516,7 +1553,7 @@ export default async function build(
                   remainingRampup--
                   sema.release()
                 }
-                progress()
+                progress.run()
               }
             })()
           )
@@ -2421,37 +2458,10 @@ export default async function build(
                   pageDuration: undefined,
                   ssgPageDurations: undefined,
                   hasEmptyPrelude: undefined,
-                  unsupportedSegmentConfigs:
-                    staticInfo && 'unsupportedSegmentConfigs' in staticInfo
-                      ? staticInfo.unsupportedSegmentConfigs
-                      : undefined,
                 })
               })
             })
         )
-
-        // When dynamicIO is enabled, certain segment configs are not supported as they conflict with dynamicIO behavior.
-        // This will print all the pages along with the segment configs that were used.
-        if (config.experimental.dynamicIO) {
-          const pagesWithSegmentConfigs: string[] = []
-
-          pageInfos.forEach((pageInfo, page) => {
-            if (
-              pageInfo.unsupportedSegmentConfigs &&
-              pageInfo.unsupportedSegmentConfigs.length > 0
-            ) {
-              const configs = pageInfo.unsupportedSegmentConfigs.join(', ')
-              pagesWithSegmentConfigs.push(`${page}: ${configs}`)
-            }
-          })
-
-          if (pagesWithSegmentConfigs.length > 0) {
-            Log.error(
-              `The following pages used segment configs which are not supported with "experimental.dynamicIO" and must be removed to build your application:\n${pagesWithSegmentConfigs.join('\n')}\n`
-            )
-            process.exit(1)
-          }
-        }
 
         if (hadUnsupportedValue) {
           Log.error(
@@ -3212,6 +3222,7 @@ export default async function build(
                   srcRoute: page,
                   dataRoute,
                   prefetchDataRoute,
+                  allowHeader: ALLOWED_HEADERS,
                 }
               } else {
                 hasRevalidateZero = true
@@ -3318,6 +3329,7 @@ export default async function build(
                           '\\.prefetch\\.rsc$'
                         )
                       ),
+                  allowHeader: ALLOWED_HEADERS,
                 }
               }
             }
@@ -3549,6 +3561,7 @@ export default async function build(
                         `${file}.json`
                       ),
                       prefetchDataRoute: undefined,
+                      allowHeader: ALLOWED_HEADERS,
                     }
                   }
                 } else {
@@ -3565,6 +3578,7 @@ export default async function build(
                     ),
                     // Pages does not have a prefetch data route.
                     prefetchDataRoute: undefined,
+                    allowHeader: ALLOWED_HEADERS,
                   }
                 }
                 // Set Page Revalidation Interval
@@ -3635,6 +3649,7 @@ export default async function build(
                     ),
                     // Pages does not have a prefetch data route.
                     prefetchDataRoute: undefined,
+                    allowHeader: ALLOWED_HEADERS,
                   }
 
                   // Set route Revalidation Interval
@@ -3730,6 +3745,7 @@ export default async function build(
             // Pages does not have a prefetch data route.
             prefetchDataRoute: undefined,
             prefetchDataRouteRegex: undefined,
+            allowHeader: ALLOWED_HEADERS,
           }
         })
 
@@ -3857,6 +3873,7 @@ export default async function build(
         mode: 'build',
         projectDir: dir,
         distDir: loadedConfig.distDir,
+        isTurboSession: turboNextBuild,
         sync: true,
       })
     }

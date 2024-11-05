@@ -5,7 +5,7 @@ use swc_core::{
     ecma::ast::{Decl, Expr, ExprStmt, Ident, Stmt},
     quote,
 };
-use turbo_tasks::{RcStr, Value, ValueToString, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::{
@@ -40,7 +40,7 @@ use crate::{
 
 #[turbo_tasks::value]
 pub enum ReferencedAsset {
-    Some(Vc<Box<dyn EcmascriptChunkPlaceable>>),
+    Some(ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>),
     External(RcStr, ExternalType),
     None,
     Unresolvable,
@@ -84,7 +84,7 @@ impl ReferencedAsset {
                 }
                 &ModuleResolveResultItem::Module(module) => {
                     if let Some(placeable) =
-                        Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkPlaceable>>(module)
+                        ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkPlaceable>>(module)
                             .await?
                     {
                         return Ok(ReferencedAsset::Some(placeable).cell());
@@ -105,7 +105,7 @@ pub struct EsmAssetReference {
     pub request: Vc<Request>,
     pub annotations: ImportAnnotations,
     pub issue_source: Vc<IssueSource>,
-    pub export_name: Option<Vc<ModulePart>>,
+    pub export_name: Option<ResolvedVc<ModulePart>>,
     pub import_externals: bool,
 }
 
@@ -127,7 +127,7 @@ impl EsmAssetReference {
         request: Vc<Request>,
         issue_source: Vc<IssueSource>,
         annotations: Value<ImportAnnotations>,
-        export_name: Option<Vc<ModulePart>>,
+        export_name: Option<ResolvedVc<ModulePart>>,
         import_externals: bool,
     ) -> Vc<Self> {
         Self::cell(EsmAssetReference {
@@ -167,7 +167,9 @@ impl ModuleReference for EsmAssetReference {
                             .expect("EsmAssetReference origin should be a EcmascriptModuleAsset");
 
                     return Ok(ModuleResolveResult::module(
-                        EcmascriptModulePartAsset::select_part(module, part),
+                        EcmascriptModulePartAsset::select_part(module, *part)
+                            .to_resolved()
+                            .await?,
                     )
                     .cell());
                 }
@@ -188,12 +190,12 @@ impl ModuleReference for EsmAssetReference {
             let part = part.await?;
             if let &ModulePart::Export(export_name) = &*part {
                 for &module in result.primary_modules().await? {
-                    if let Some(module) = Vc::try_resolve_downcast(module).await? {
+                    if let Some(module) = ResolvedVc::try_downcast(module).await? {
                         let export = export_name.await?;
-                        if *is_export_missing(module, export.clone_value()).await? {
+                        if *is_export_missing(*module, export.clone_value()).await? {
                             InvalidExport {
-                                export: export_name,
-                                module,
+                                export: *export_name,
+                                module: *module,
                                 source: self.issue_source,
                             }
                             .cell()

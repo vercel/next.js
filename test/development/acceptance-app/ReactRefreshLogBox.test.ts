@@ -4,7 +4,6 @@ import { FileRef, nextTestSetup } from 'e2e-utils'
 import {
   check,
   describeVariants as describe,
-  expandCallStack,
   getRedboxCallStackCollapsed,
   retry,
 } from 'next-test-utils'
@@ -777,7 +776,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     await cleanup()
   })
 
-  test('Call stack count for client error', async () => {
+  test('Call stack for client error', async () => {
     const { session, browser, cleanup } = await sandbox(
       next,
       new Map([
@@ -796,25 +795,24 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
       ])
     )
 
-    await session.assertHasRedbox()
+    try {
+      await session.assertHasRedbox()
 
-    await expandCallStack(browser)
+      // Should still show the errored line in source code
+      const source = await session.getRedboxSource()
+      expect(source).toContain('app/page.js')
+      expect(source).toContain(`throw new Error('Client error')`)
 
-    // Expect more than the default amount of frames
-    // The default stackTraceLimit results in max 9 [data-nextjs-call-stack-frame] elements
-    const callStackFrames = await browser.elementsByCss(
-      '[data-nextjs-call-stack-frame]'
-    )
-
-    expect(callStackFrames.length).toBeGreaterThan(9)
-
-    const moduleGroup = await browser.elementsByCss(
-      '[data-nextjs-collapsed-call-stack-details]'
-    )
-    // Expect some of the call stack frames to be grouped (by React or Next.js)
-    expect(moduleGroup.length).toBeGreaterThan(0)
-
-    await cleanup()
+      const stackFrameElements = await browser.elementsByCss(
+        '[data-nextjs-call-stack-frame]'
+      )
+      const stackFrames = (
+        await Promise.all(stackFrameElements.map((f) => f.innerText()))
+      ).filter(Boolean)
+      expect(stackFrames).toEqual([])
+    } finally {
+      await cleanup()
+    }
   })
 
   test('Call stack for server error', async () => {
@@ -840,29 +838,13 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
       expect(source).toContain('app/page.js')
       expect(source).toContain(`throw new Error('Server error')`)
 
-      await expect(
-        browser.hasElementByCssSelector(
-          '[data-nextjs-data-runtime-error-collapsed-action]'
-        )
-      ).resolves.toEqual(false)
-
       const stackFrameElements = await browser.elementsByCss(
         '[data-nextjs-call-stack-frame]'
       )
-      const stackFrames = await Promise.all(
-        stackFrameElements.map((f) => f.innerText())
-      )
-      expect(stackFrames).toEqual(
-        // TODO: Show useful stack
-        [
-          // Internal frames of React.
-          // Feel free to adjust until we show useful stacks.
-          '',
-          '',
-          '',
-          '',
-        ]
-      )
+      const stackFrames = (
+        await Promise.all(stackFrameElements.map((f) => f.innerText()))
+      ).filter(Boolean)
+      expect(stackFrames).toEqual([])
     } finally {
       await cleanup()
     }
@@ -898,12 +880,6 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
       expect(source).toContain(
         `throw new Error("This is an error from an anonymous function")`
       )
-
-      await expect(
-        browser.hasElementByCssSelector(
-          '[data-nextjs-data-runtime-error-collapsed-action]'
-        )
-      ).resolves.toEqual(false)
 
       const stackFrameElements = await browser.elementsByCss(
         '[data-nextjs-call-stack-frame]'
@@ -968,12 +944,6 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
       const source = await session.getRedboxSource()
       expect(source).toContain('app/page.js')
       expect(source).toContain(`new URL("/", "invalid")`)
-
-      await expect(
-        browser.hasElementByCssSelector(
-          '[data-nextjs-data-runtime-error-collapsed-action]'
-        )
-      ).resolves.toEqual(false)
 
       const stackFrameElements = await browser.elementsByCss(
         '[data-nextjs-call-stack-frame]'
@@ -1288,20 +1258,18 @@ export default function Home() {
       expect(stack).toMatchInlineSnapshot(`
         "app/utils.ts (1:7) @ eval
         ---
-        (app-pages-browser)/./app/utils.ts
+        ./app/utils.ts
         file://TEST_DIR/.next/static/chunks/app/page.js (39:1)
         ---
         Next.js
         ---
         eval
-        (app-pages-browser)/./app/page.js
+        ./app/page.js
         ---
-        (app-pages-browser)/./app/page.js
+        ./app/page.js
         file://TEST_DIR/.next/static/chunks/app/page.js (28:1)
         ---
-        Next.js
-        ---
-        React"
+        Next.js"
       `)
     }
 

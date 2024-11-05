@@ -61,10 +61,10 @@ impl EcmascriptModuleFacadeModule {
 #[turbo_tasks::value_impl]
 impl Module for EcmascriptModuleFacadeModule {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
         let inner = self.module.ident();
 
-        inner.with_part(self.ty)
+        Ok(inner.with_part(self.ty))
     }
 
     #[turbo_tasks::function]
@@ -255,7 +255,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
             star_exports,
         }
         .cell();
-        Ok(EcmascriptExports::EsmExports(exports).cell())
+        Ok(EcmascriptExports::EsmExports(exports.to_resolved().await?).cell())
     }
 
     #[turbo_tasks::function]

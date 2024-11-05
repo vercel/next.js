@@ -10,7 +10,7 @@ related:
 
 `draftMode` is an **async** function allows you to enable and disable [Draft Mode](/docs/app/building-your-application/configuring/draft-mode), as well as check if Draft Mode is enabled in a [Server Component](/docs/app/building-your-application/rendering/server-components).
 
-```tsx filename="app/page.ts"
+```tsx filename="app/page.ts" switcher
 import { draftMode } from 'next/headers'
 
 export default async function Page() {
@@ -18,7 +18,7 @@ export default async function Page() {
 }
 ```
 
-```jsx filename="app/page.js"
+```jsx filename="app/page.js" switcher
 import { draftMode } from 'next/headers'
 
 export default async function Page() {
@@ -39,7 +39,7 @@ The following methods and properties are available:
 ## Good to know
 
 - `draftMode` is an **asynchronous** function that returns a promise. You must use `async/await` or React's [`use`](https://react.dev/reference/react/use) function.
-  - In version 14 and earlier, `draftMode` was a synchronous function. To help with backwards compatability, you can still access it synchronoulsy in Next.js 15, but this behavior will be deprecated in the future.
+  - In version 14 and earlier, `draftMode` was a synchronous function. To help with backwards compatability, you can still access it synchronously in Next.js 15, but this behavior will be deprecated in the future.
 - A new bypass cookie value will be generated each time you run `next build`. This ensures that the bypass cookie can’t be guessed.
 - To test Draft Mode locally over HTTP, your browser will need to allow third-party cookies and local storage access.
 
@@ -101,7 +101,7 @@ Then, send a request to invoke the Route Handler. If calling the route using the
 
 You can check if Draft Mode is enabled in a Server Component with the `isEnabled` property:
 
-```tsx filename="app/page.ts"
+```tsx filename="app/page.ts" switcher
 import { draftMode } from 'next/headers'
 
 export default async function Page() {
@@ -115,7 +115,7 @@ export default async function Page() {
 }
 ```
 
-```jsx filename="app/page.js"
+```jsx filename="app/page.js" switcher
 import { draftMode } from 'next/headers'
 
 export default async function Page() {

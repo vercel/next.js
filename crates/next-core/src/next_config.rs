@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value as JsonValue;
-use turbo_tasks::{trace::TraceRawVcs, FxIndexMap, RcStr, TaskInput, Vc};
+use turbo_tasks::{trace::TraceRawVcs, FxIndexMap, RcStr, ResolvedVc, TaskInput, Vc};
 use turbo_tasks_env::EnvMap;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{
@@ -481,7 +481,7 @@ pub enum ReactCompilerOptionsOrBoolean {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct OptionalReactCompilerOptions(Option<Vc<ReactCompilerOptions>>);
+pub struct OptionalReactCompilerOptions(Option<ResolvedVc<ReactCompilerOptions>>);
 
 #[turbo_tasks::value(eq = "manual")]
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -501,7 +501,6 @@ pub struct ExperimentalConfig {
     pub strict_next_head: Option<bool>,
     pub swc_plugins: Option<Vec<(RcStr, serde_json::Value)>>,
     pub turbo: Option<ExperimentalTurboConfig>,
-    pub turbotrace: Option<serde_json::Value>,
     pub external_middleware_rewrites_resolve: Option<bool>,
     pub scroll_restoration: Option<bool>,
     pub use_deployment_id: Option<bool>,
@@ -518,7 +517,8 @@ pub struct ExperimentalConfig {
     pub server_actions: Option<ServerActionsOrLegacyBool>,
     pub sri: Option<SubResourceIntegrity>,
     react_compiler: Option<ReactCompilerOptionsOrBoolean>,
-
+    #[serde(rename = "dynamicIO")]
+    pub dynamic_io: Option<bool>,
     // ---
     // UNSUPPORTED
     // ---
@@ -561,8 +561,7 @@ pub struct ExperimentalConfig {
     /// directory.
     ppr: Option<ExperimentalPartialPrerendering>,
     taint: Option<bool>,
-    #[serde(rename = "dynamicIO")]
-    dynamic_io: Option<bool>,
+    react_owner_stack: Option<bool>,
     proxy_timeout: Option<f64>,
     /// enables the minification of server code.
     server_minification: Option<bool>,
@@ -1080,11 +1079,11 @@ impl NextConfig {
                         compilation_mode: None,
                         panic_threshold: None,
                     }
-                    .cell(),
+                    .resolved_cell(),
                 ))
             }
             Some(ReactCompilerOptionsOrBoolean::Option(options)) => OptionalReactCompilerOptions(
-                Some(ReactCompilerOptions { ..options.clone() }.cell()),
+                Some(ReactCompilerOptions { ..options.clone() }.resolved_cell()),
             ),
             _ => OptionalReactCompilerOptions(None),
         };
@@ -1146,6 +1145,13 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn enable_taint(&self) -> Vc<bool> {
         Vc::cell(self.experimental.taint.unwrap_or(false))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn enable_react_owner_stack(self: Vc<Self>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(
+            self.await?.experimental.react_owner_stack.unwrap_or(false),
+        ))
     }
 
     #[turbo_tasks::function]
