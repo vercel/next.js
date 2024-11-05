@@ -69,7 +69,7 @@ export class LRUCache<T> {
   }
 
   private evictLeastRecentlyUsed(): void {
-    const lruKey = this.cache.keys().next().value
+    const lruKey = this.cache.keys().next().value || ''
     const lruSize = this.sizes.get(lruKey) || 0
     this.totalSize -= lruSize
     this.cache.delete(lruKey)
