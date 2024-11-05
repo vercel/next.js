@@ -475,7 +475,7 @@ struct BasicEvaluateContext {
     asset_context: ResolvedVc<Box<dyn AssetContext>>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     runtime_entries: Option<ResolvedVc<EvaluatableAssets>>,
-    args: Vec<ResolvedVc<JsonValue>>,
+    args: Vec<Vc<JsonValue>>,
     additional_invalidation: ResolvedVc<Completion>,
     debug: bool,
 }
