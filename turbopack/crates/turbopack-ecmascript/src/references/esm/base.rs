@@ -50,6 +50,10 @@ impl ReferencedAsset {
     pub async fn get_ident(&self) -> Result<Option<String>> {
         Ok(match self {
             ReferencedAsset::Some(asset) => Some(Self::get_ident_from_placeable(asset).await?),
+            // TODO: do we need to mangle the source?
+            // ReferencedAsset::External(request, ty, Some(output)) => {
+            //     Some(output.ident().to_string())
+            // }
             ReferencedAsset::External(request, ty) => Some(magic_identifier::mangle(&format!(
                 "{ty} external {request}"
             ))),
@@ -358,6 +362,7 @@ impl CodeGenerateable for EsmAssetReference {
                             ),
                         ))
                     }
+                    // fallback in case we introduce a new `ExternalType`
                     #[allow(unreachable_patterns)]
                     ReferencedAsset::External(request, ty) => {
                         bail!(

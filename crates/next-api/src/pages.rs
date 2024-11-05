@@ -28,8 +28,7 @@ use next_core::{
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_tasks::{
-    trace::TraceRawVcs, Completion, FxIndexMap, RcStr, ResolvedVc, TaskInput, TryJoinIterExt,
-    Value, Vc,
+    fxindexmap, trace::TraceRawVcs, Completion, FxIndexMap, RcStr, ResolvedVc, TaskInput, Value, Vc,
 };
 use turbo_tasks_fs::{
     self, File, FileContent, FileSystem, FileSystemPath, FileSystemPathOption, VirtualFileSystem,
@@ -68,7 +67,7 @@ use crate::{
     loadable_manifest::create_react_loadable_manifest,
     nft_json::NftJsonAsset,
     paths::{
-        all_paths_in_root, all_server_paths, get_js_paths_from_root, get_paths_from_root,
+        all_paths_in_root, all_server_paths, get_asset_paths_from_root, get_js_paths_from_root,
         get_wasm_paths_from_root, paths_to_bindings, wasm_paths_to_bindings,
     },
     project::Project,
@@ -1017,37 +1016,21 @@ impl PageEndpoint {
     ) -> Result<Vc<Box<dyn OutputAsset>>> {
         let node_root = self.pages_project.project().node_root();
         let client_relative_path = self.pages_project.project().client_relative_path();
-        let client_relative_path_ref = client_relative_path.await?;
         let build_manifest = BuildManifest {
-            pages: [(
-                self.pathname.await?.clone_value(),
-                client_chunks
-                    .await?
-                    .iter()
-                    .copied()
-                    .map(|chunk| {
-                        let client_relative_path_ref = client_relative_path_ref.clone();
-                        async move {
-                            let chunk_path = chunk.ident().path().await?;
-                            Ok(client_relative_path_ref
-                                .get_path_to(&chunk_path)
-                                .context("client chunk entry path must be inside the client root")?
-                                .into())
-                        }
-                    })
-                    .try_join()
-                    .await?,
-            )]
-            .into_iter()
-            .collect(),
+            pages: fxindexmap!(self.pathname.await?.clone_value() => client_chunks),
             ..Default::default()
         };
         let manifest_path_prefix = get_asset_prefix_from_pathname(&self.pathname.await?);
-        Ok(Vc::upcast(VirtualOutputAsset::new(
-            node_root
-                .join(format!("server/pages{manifest_path_prefix}/build-manifest.json",).into()),
-            AssetContent::file(File::from(serde_json::to_string_pretty(&build_manifest)?).into()),
-        )))
+        Ok(Vc::upcast(
+            build_manifest
+                .build_output(
+                    node_root.join(
+                        format!("server/pages{manifest_path_prefix}/build-manifest.json",).into(),
+                    ),
+                    client_relative_path,
+                )
+                .await?,
+        ))
     }
 
     #[turbo_tasks::function]
@@ -1174,8 +1157,7 @@ impl PageEndpoint {
                     .extend(get_wasm_paths_from_root(&node_root_value, &all_output_assets).await?);
 
                 let all_assets =
-                    get_paths_from_root(&node_root_value, &all_output_assets, |_asset| true)
-                        .await?;
+                    get_asset_paths_from_root(&node_root_value, &all_output_assets).await?;
 
                 let named_regex = get_named_middleware_regex(&pathname).into();
                 let matchers = MiddlewareMatcher {

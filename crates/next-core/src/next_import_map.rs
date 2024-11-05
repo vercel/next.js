@@ -326,13 +326,8 @@ pub async fn get_next_server_import_map(
 
     let ty = ty.into_value();
 
-    let external = ImportMapping::External(
-        None,
-        ExternalType::CommonJs,
-        // TODO(arlyon): wiring up in a follow up PR
-        ExternalTraced::Untraced,
-    )
-    .resolved_cell();
+    let external = ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Traced)
+        .resolved_cell();
 
     import_map.insert_exact_alias("next/dist/server/require-hook", external);
     match ty {
