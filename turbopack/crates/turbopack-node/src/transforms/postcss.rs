@@ -93,25 +93,25 @@ fn postcss_configs() -> Vc<Vec<RcStr>> {
 
 #[turbo_tasks::value]
 pub struct PostCssTransform {
-    evaluate_context: Vc<Box<dyn AssetContext>>,
-    execution_context: Vc<ExecutionContext>,
+    evaluate_context: ResolvedVc<Box<dyn AssetContext>>,
+    execution_context: ResolvedVc<ExecutionContext>,
     config_location: PostCssConfigLocation,
 }
 
 #[turbo_tasks::value_impl]
 impl PostCssTransform {
     #[turbo_tasks::function]
-    pub fn new(
+    pub async fn new(
         evaluate_context: Vc<Box<dyn AssetContext>>,
         execution_context: Vc<ExecutionContext>,
         config_location: PostCssConfigLocation,
-    ) -> Vc<Self> {
-        PostCssTransform {
-            evaluate_context,
-            execution_context,
+    ) -> Result<Vc<Self>> {
+        Ok(PostCssTransform {
+            evaluate_context: evaluate_context.to_resolved().await?,
+            execution_context: execution_context.to_resolved().await?,
             config_location,
         }
-        .cell()
+        .cell())
     }
 }
 
@@ -133,8 +133,8 @@ impl SourceTransform for PostCssTransform {
 
 #[turbo_tasks::value]
 struct PostCssTransformedAsset {
-    evaluate_context: Vc<Box<dyn AssetContext>>,
-    execution_context: Vc<ExecutionContext>,
+    evaluate_context: ResolvedVc<Box<dyn AssetContext>>,
+    execution_context: ResolvedVc<ExecutionContext>,
     config_location: PostCssConfigLocation,
     source: Vc<Box<dyn Source>>,
 }
@@ -436,7 +436,7 @@ impl PostCssTransformedAsset {
             project_path,
             chunking_context,
             env,
-        } = *self.execution_context.await?;
+        } = *self.execution_context;
 
         // For this postcss transform, there is no gaurantee that looking up for the
         // source path will arrives specific project config for the postcss.
