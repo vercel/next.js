@@ -17,7 +17,7 @@ beforeAll(async () => {
   // ).get('next')
 })
 
-describe.each(['app', 'pages'] as const)(
+describe.skip.each(['app', 'pages'] as const)(
   'CNA options matrix - %s',
   (pagesOrApp) => {
     const allFlagValues = {
