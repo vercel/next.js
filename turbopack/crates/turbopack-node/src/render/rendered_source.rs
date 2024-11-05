@@ -208,7 +208,7 @@ impl GetContentSourceContent for NodeRenderContentSource {
                 raw_query: raw_query.clone(),
                 raw_headers: raw_headers.clone(),
                 path: pathname.as_str().into(),
-                data: Some(*self.render_data.to_resolved().await?),
+                data: Some(self.render_data.await?),
             }
             .cell(),
             self.debug,

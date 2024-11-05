@@ -741,19 +741,19 @@ async fn dir_dependency_shallow(glob: Vc<ReadGlobResult>) -> Result<Vc<Completio
 
 #[turbo_tasks::value(shared)]
 pub struct EvaluateEmittedErrorIssue {
-    pub file_path: Vc<FileSystemPath>,
-    pub severity: Vc<IssueSeverity>,
+    pub file_path: ResolvedVc<FileSystemPath>,
+    pub severity: ResolvedVc<IssueSeverity>,
     pub error: StructuredError,
-    pub assets_for_source_mapping: Vc<AssetsForSourceMapping>,
-    pub assets_root: Vc<FileSystemPath>,
-    pub project_dir: Vc<FileSystemPath>,
+    pub assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
+    pub assets_root: ResolvedVc<FileSystemPath>,
+    pub project_dir: ResolvedVc<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
 impl Issue for EvaluateEmittedErrorIssue {
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        self.file_path
+        *self.file_path
     }
 
     #[turbo_tasks::function]
@@ -792,13 +792,13 @@ impl Issue for EvaluateEmittedErrorIssue {
 
 #[turbo_tasks::value(shared)]
 pub struct EvaluateErrorLoggingIssue {
-    pub file_path: Vc<FileSystemPath>,
-    pub severity: Vc<IssueSeverity>,
+    pub file_path: ResolvedVc<FileSystemPath>,
+    pub severity: ResolvedVc<IssueSeverity>,
     #[turbo_tasks(trace_ignore)]
     pub logging: Vec<LogInfo>,
-    pub assets_for_source_mapping: Vc<AssetsForSourceMapping>,
-    pub assets_root: Vc<FileSystemPath>,
-    pub project_dir: Vc<FileSystemPath>,
+    pub assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
+    pub assets_root: ResolvedVc<FileSystemPath>,
+    pub project_dir: ResolvedVc<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
