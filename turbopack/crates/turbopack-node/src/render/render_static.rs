@@ -88,17 +88,17 @@ pub async fn render_static(
     debug: bool,
 ) -> Result<Vc<StaticResult>> {
     let render = render_stream(RenderStreamOptions {
-        cwd,
-        env,
-        path,
-        module,
-        runtime_entries,
-        fallback_page,
-        chunking_context,
-        intermediate_output_path,
-        output_root,
-        project_dir,
-        data,
+        cwd: cwd.to_resolved().await?,
+        env: env.to_resolved().await?,
+        path: path.to_resolved().await?,
+        module: module.to_resolved().await?,
+        runtime_entries: runtime_entries.to_resolved().await?,
+        fallback_page: fallback_page.to_resolved().await?,
+        chunking_context: chunking_context.to_resolved().await?,
+        intermediate_output_path: intermediate_output_path.to_resolved().await?,
+        output_root: output_root.to_resolved().await?,
+        project_dir: project_dir.to_resolved().await?,
+        data: data.to_resolved().await?,
         debug,
     })
     .await?;
@@ -204,17 +204,17 @@ struct RenderStream(#[turbo_tasks(trace_ignore)] Stream<RenderItemResult>);
 
 #[derive(Clone, Debug, TaskInput, PartialEq, Eq, Hash, Deserialize, Serialize)]
 struct RenderStreamOptions {
-    cwd: Vc<FileSystemPath>,
-    env: Vc<Box<dyn ProcessEnv>>,
-    path: Vc<FileSystemPath>,
-    module: Vc<Box<dyn Module>>,
-    runtime_entries: Vc<EvaluatableAssets>,
-    fallback_page: Vc<DevHtmlAsset>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
-    intermediate_output_path: Vc<FileSystemPath>,
-    output_root: Vc<FileSystemPath>,
-    project_dir: Vc<FileSystemPath>,
-    data: Vc<RenderData>,
+    cwd: ResolvedVc<FileSystemPath>,
+    env: ResolvedVc<Box<dyn ProcessEnv>>,
+    path: ResolvedVc<FileSystemPath>,
+    module: ResolvedVc<Box<dyn Module>>,
+    runtime_entries: ResolvedVc<EvaluatableAssets>,
+    fallback_page: ResolvedVc<DevHtmlAsset>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    intermediate_output_path: ResolvedVc<FileSystemPath>,
+    output_root: ResolvedVc<FileSystemPath>,
+    project_dir: ResolvedVc<FileSystemPath>,
+    data: ResolvedVc<RenderData>,
     debug: bool,
 }
 
@@ -288,17 +288,17 @@ async fn render_stream_internal(
 
     let stream = generator! {
         let intermediate_asset = get_intermediate_asset(
-            chunking_context,
-            module,
-            runtime_entries,
+            *chunking_context,
+            *module,
+            *runtime_entries,
         );
         let renderer_pool = get_renderer_pool(
-            cwd,
-            env,
+            *cwd,
+            *env,
             intermediate_asset,
-            intermediate_output_path,
-            output_root,
-            project_dir,
+            *intermediate_output_path,
+            *output_root,
+            *project_dir,
             debug,
         );
 
@@ -347,13 +347,13 @@ async fn render_stream_internal(
                 let trace = trace_stack(
                     error,
                     intermediate_asset,
-                    intermediate_output_path,
-                    project_dir,
+                    *intermediate_output_path,
+                    *project_dir,
                 )
                 .await?;
                 yield RenderItem::Response(
                     StaticResult::content(
-                        static_error(path, anyhow!(trace), Some(operation), fallback_page).await?,
+                        static_error(*path, anyhow!(trace), Some(operation), *fallback_page).await?,
                         500,
                         HeaderList::empty(),
                     ).to_resolved().await?
@@ -380,7 +380,7 @@ async fn render_stream_internal(
                     // headers/body to a proxy error.
                     operation.disallow_reuse();
                     let trace =
-                        trace_stack(error, intermediate_asset, intermediate_output_path, project_dir).await?;
+                        trace_stack(error, intermediate_asset, *intermediate_output_path, *project_dir).await?;
                         drop(guard);
                     Err(anyhow!("error during streaming render: {}", trace))?;
                     return;
