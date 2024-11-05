@@ -1421,10 +1421,12 @@ impl AggregationUpdateQueue {
                         });
                     }
                 }
-                self.push(AggregationUpdateJob::InnerOfUpperHasNewFollowers {
-                    upper_id,
-                    new_follower_ids: children,
-                });
+                if !children.is_empty() {
+                    self.push(AggregationUpdateJob::InnerOfUpperHasNewFollowers {
+                        upper_id,
+                        new_follower_ids: children,
+                    });
+                }
             }
         }
     }
