@@ -17,7 +17,7 @@ pub struct NodeRenderingEntry {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct NodeRenderingEntries(Vec<Vc<NodeRenderingEntry>>);
+pub struct NodeRenderingEntries(Vec<ResolvedVc<NodeRenderingEntry>>);
 
 /// Trait that allows to get the entry module for rendering something in Node.js
 #[turbo_tasks::value_trait]
