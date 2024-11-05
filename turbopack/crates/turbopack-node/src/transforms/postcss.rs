@@ -152,7 +152,7 @@ impl Asset for PostCssTransformedAsset {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
         let this = self.await?;
-        Ok(self
+        Ok(*self
             .process()
             .issue_file_path(this.source.ident().path(), "PostCSS processing")
             .await?
@@ -236,12 +236,17 @@ pub struct JsonSource {
 #[turbo_tasks::value_impl]
 impl JsonSource {
     #[turbo_tasks::function]
-    pub fn new(path: Vc<FileSystemPath>, key: Vc<Option<RcStr>>, allow_json5: bool) -> Vc<Self> {
-        Self::cell(JsonSource {
-            path,
-            key,
+    pub async fn new(
+        path: Vc<FileSystemPath>,
+        key: Vc<Option<RcStr>>,
+        allow_json5: bool,
+    ) -> Result<Vc<Self>> {
+        Ok(JsonSource {
+            path: path.to_resolved().await?,
+            key: key.to_resolved().await?,
             allow_json5,
-        })
+        }
+        .cell())
     }
 }
 
@@ -420,7 +425,7 @@ async fn find_config_in_location(
 impl GenerateSourceMap for PostCssTransformedAsset {
     #[turbo_tasks::function]
     async fn generate_source_map(&self) -> Result<Vc<OptionSourceMap>> {
-        let source = Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(self.source).await?;
+        let source = Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(*self.source).await?;
         match source {
             Some(source) => Ok(source.generate_source_map()),
             None => Ok(Vc::cell(None)),
@@ -450,10 +455,10 @@ impl PostCssTransformedAsset {
         //
         // We look for the config in the project path first, then the source path
         let Some(config_path) =
-            find_config_in_location(**project_path, self.config_location, self.source).await?
+            find_config_in_location(**project_path, self.config_location, *self.source).await?
         else {
             return Ok(ProcessPostCssResult {
-                content: self.source.content(),
+                content: self.source.content().to_resolved().await?,
                 assets: Vec::new(),
             }
             .cell());
@@ -465,7 +470,10 @@ impl PostCssTransformedAsset {
         };
         let FileContent::Content(content) = &*file.await? else {
             return Ok(ProcessPostCssResult {
-                content: AssetContent::File(FileContent::NotFound.resolved_cell()).cell(),
+                content: AssetContent::File(FileContent::NotFound.resolved_cell())
+                    .cell()
+                    .to_resolved()
+                    .await?,
                 assets: Vec::new(),
             }
             .cell());
@@ -508,7 +516,10 @@ impl PostCssTransformedAsset {
         let SingleValue::Single(val) = config_value.try_into_single().await? else {
             // An error happened, which has already been converted into an issue.
             return Ok(ProcessPostCssResult {
-                content: AssetContent::File(FileContent::NotFound.resolved_cell()).cell(),
+                content: AssetContent::File(FileContent::NotFound.resolved_cell())
+                    .cell()
+                    .to_resolved()
+                    .await?,
                 assets: Vec::new(),
             }
             .cell());
@@ -520,7 +531,11 @@ impl PostCssTransformedAsset {
         let file = File::from(processed_css.css);
         let assets = emitted_assets_to_virtual_sources(processed_css.assets).await?;
         let content = AssetContent::File(FileContent::Content(file).resolved_cell()).cell();
-        Ok(ProcessPostCssResult { content, assets }.cell())
+        Ok(ProcessPostCssResult {
+            content: content.to_resolved().await?,
+            assets,
+        }
+        .cell())
     }
 }
 
