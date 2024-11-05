@@ -102,14 +102,19 @@ pub enum TraceResult {
 #[turbo_tasks::value_impl]
 impl SourceMapTrace {
     #[turbo_tasks::function]
-    pub fn new(map: Vc<SourceMap>, line: usize, column: usize, name: Option<RcStr>) -> Vc<Self> {
-        SourceMapTrace {
-            map,
+    pub async fn new(
+        map: Vc<SourceMap>,
+        line: usize,
+        column: usize,
+        name: Option<RcStr>,
+    ) -> Result<Vc<Self>> {
+        Ok(SourceMapTrace {
+            map: map.to_resolved().await?,
             line,
             column,
             name,
         }
-        .cell()
+        .cell())
     }
 
     /// Traces the line/column through the source map into its original
