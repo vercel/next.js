@@ -894,9 +894,7 @@ impl Task {
             InProgress(..) => match result {
                 Ok(Ok(result)) => {
                     if state.output != result {
-                        if cfg!(feature = "print_task_invalidation")
-                            && state.output.content.is_some()
-                        {
+                        if backend.print_task_invalidation && state.output.content.is_some() {
                             println!(
                                 "Task {{ id: {}, name: {} }} invalidates:",
                                 *self.id, self.ty
@@ -1146,7 +1144,7 @@ impl Task {
                         drop(state);
                         change_job.apply(&aggregation_context);
 
-                        if cfg!(feature = "print_task_invalidation") {
+                        if backend.print_task_invalidation {
                             println!("invalidated Task {{ id: {}, name: {} }}", *self.id, self.ty);
                         }
                         turbo_tasks.schedule(self.id);
