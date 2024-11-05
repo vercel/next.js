@@ -6,7 +6,7 @@ use turbo_tasks::{RcStr, Vc};
 use turbo_tasks_fs::File;
 use turbopack_core::{
     asset::AssetContent,
-    chunk::{ChunkingContext, MinifyType, ModuleId},
+    chunk::{ChunkingContext, ModuleId},
     code_builder::{Code, CodeBuilder},
     output::OutputAsset,
     source_map::{GenerateSourceMap, OptionSourceMap},
@@ -113,14 +113,11 @@ impl EcmascriptDevChunkContent {
         }
 
         let code = code.build().cell();
-        if matches!(
+        Ok(minify(
+            chunk_path_vc,
+            code,
             this.chunking_context.await?.minify_type(),
-            MinifyType::Minify
-        ) {
-            return Ok(minify(chunk_path_vc, code));
-        }
-
-        Ok(code)
+        ))
     }
 }
 
