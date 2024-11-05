@@ -83,11 +83,8 @@ export async function collectSegmentData(
 
   // A mutable map to collect the results as we traverse the route tree.
   const resultMap = new Map<string, Buffer>()
-  // A mutable array to collect the promises for each segment stream, so that
-  // they can run in parallel.
-  const collectedTasks: Array<Promise<void>> = []
 
-  const tree = collectSegmentDataImpl(
+  const tree = await collectSegmentDataImpl(
     flightRouterState,
     fullPageDataBuffer,
     clientModules,
@@ -95,14 +92,8 @@ export async function collectSegmentData(
     [],
     '',
     '',
-    resultMap,
-    collectedTasks
+    resultMap
   )
-
-  // This will resolve either after a microtask (if none of the segments
-  // have dynamic data) or in the next tick (because of the abort signal passed
-  // to renderToReadableStream).
-  await Promise.all(collectedTasks)
 
   // Render the route tree to a special `/_tree` segment.
   const treePrefetch: RootTreePrefetch = {
@@ -117,7 +108,7 @@ export async function collectSegmentData(
   return resultMap
 }
 
-function collectSegmentDataImpl(
+async function collectSegmentDataImpl(
   route: FlightRouterState,
   fullPageDataBuffer: Buffer,
   clientModules: ManifestNode,
@@ -125,9 +116,8 @@ function collectSegmentDataImpl(
   segmentPath: Array<[string, Segment]>,
   segmentPathStr: string,
   accessToken: string,
-  segmentBufferMap: Map<string, Buffer>,
-  collectedTasks: Array<Promise<void>>
-): TreePrefetch {
+  segmentBufferMap: Map<string, Buffer>
+): Promise<TreePrefetch> {
   // Metadata about the segment. Sent as part of the tree prefetch. Null if
   // there are no children.
   let slotMetadata: { [parallelRouteKey: string]: TreePrefetch } | null = null
@@ -148,12 +138,12 @@ function collectSegmentDataImpl(
       '/' +
       encodeChildSegmentAsFilesystemSafePathname(parallelRouteKey, childSegment)
 
-    // Create an access token for each child slot
-    const childAccessToken = createSegmentAccessToken(
+    // Create an access token for each child slot.
+    const childAccessToken = await createSegmentAccessToken(
       segmentPathStr,
       parallelRouteKey
     )
-    const childTree = collectSegmentDataImpl(
+    const childTree = await collectSegmentDataImpl(
       childRoute,
       fullPageDataBuffer,
       clientModules,
@@ -161,8 +151,7 @@ function collectSegmentDataImpl(
       childSegmentPath,
       childSegmentPathStr,
       childAccessToken,
-      segmentBufferMap,
-      collectedTasks
+      segmentBufferMap
     )
     if (slotMetadata === null) {
       slotMetadata = {}
@@ -175,18 +164,16 @@ function collectSegmentDataImpl(
     childAccessTokens[parallelRouteKey] = childAccessToken
   }
 
-  // Spawn a task to render the segment data to a stream.
-  collectedTasks.push(
-    renderSegmentDataToStream(
-      fullPageDataBuffer,
-      clientModules,
-      serverConsumerManifest,
-      segmentPath,
-      segmentPathStr,
-      accessToken,
-      childAccessTokens,
-      segmentBufferMap
-    )
+  // Render the segment data to a stream.
+  await renderSegmentDataToStream(
+    fullPageDataBuffer,
+    clientModules,
+    serverConsumerManifest,
+    segmentPath,
+    segmentPathStr,
+    accessToken,
+    childAccessTokens,
+    segmentBufferMap
   )
 
   // Metadata about the segment. Sent to the client as part of the
@@ -414,10 +401,10 @@ function encodeParamValue(segment: string): string {
   return '$' + Buffer.from(segment, 'utf-8').toString('base64url')
 }
 
-function createSegmentAccessToken(
+async function createSegmentAccessToken(
   parentSegmentPathStr: string,
   parallelRouteKey: string
-): string {
+): Promise<string> {
   // Create an access token that the client passes when requesting a segment.
   // The token is sent to the client as part of the parent layout's data.
   //
@@ -430,9 +417,20 @@ function createSegmentAccessToken(
   // TODO: Because this only affects prefetches, this doesn't need to be secure.
   // It's just for obfuscation. But eventually we will use this technique when
   // performing dynamic navigations, to support auth checks in a layout that
-  // conditionally renders its slots. At that point we'll need to create an
-  // actual cryptographic hash with a salt.
-  return Buffer.from(parentSegmentPathStr + parallelRouteKey, 'utf-8')
-    .toString('hex')
-    .slice(0, 7)
+  // conditionally renders its slots. At that point we'll need to add a salt.
+
+  // Encode the inputs as Uint8Array
+  const encoder = new TextEncoder()
+  const data = encoder.encode(parentSegmentPathStr + parallelRouteKey)
+
+  // Use the Web Crypto API to generate a SHA-256 hash.
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+
+  // Convert the ArrayBuffer to a hex string
+  const hashArray = new Uint8Array(hashBuffer)
+  const hashHex = Array.from(hashArray)
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('')
+
+  return hashHex
 }
