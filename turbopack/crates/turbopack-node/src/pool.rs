@@ -27,7 +27,7 @@ use tokio::{
     sync::{OwnedSemaphorePermit, Semaphore},
     time::{sleep, timeout},
 };
-use turbo_tasks::{duration_span, FxIndexSet, RcStr, Vc};
+use turbo_tasks::{duration_span, FxIndexSet, RcStr, ResolvedVc, Vc};
 use turbo_tasks_fs::{json::parse_json_with_source_context, FileSystemPath};
 use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
 
@@ -688,9 +688,9 @@ pub struct NodeJsPool {
     cwd: PathBuf,
     entrypoint: PathBuf,
     env: HashMap<RcStr, RcStr>,
-    pub assets_for_source_mapping: Vc<AssetsForSourceMapping>,
-    pub assets_root: Vc<FileSystemPath>,
-    pub project_dir: Vc<FileSystemPath>,
+    pub assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
+    pub assets_root: ResolvedVc<FileSystemPath>,
+    pub project_dir: ResolvedVc<FileSystemPath>,
     #[turbo_tasks(trace_ignore, debug_ignore)]
     processes: Arc<Mutex<Vec<NodeJsPoolProcess>>>,
     /// Semaphore to limit the number of concurrent operations in general
