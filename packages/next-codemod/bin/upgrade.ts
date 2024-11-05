@@ -357,7 +357,7 @@ export async function runUpgrade(
     console.log(`${pc.green('✔')} Codemods have been applied successfully.`)
   }
 
-  warnDependenciesOutOfRange(appPackageJson, versionMapping)
+  warnDependenciesOutOfRange(appPackageJson, versionMapping, { verbose })
 
   endMessage()
 }
@@ -642,8 +642,10 @@ function writeOverridesField(
 
 function warnDependenciesOutOfRange(
   appPackageJson: any,
-  versionMapping: Record<string, { version: string; required: boolean }>
+  versionMapping: Record<string, { version: string; required: boolean }>,
+  options: { verbose: boolean }
 ) {
+  const { verbose } = options
   const allDependenciesToInstall = {
     ...appPackageJson.dependencies,
     ...appPackageJson.devDependencies,
@@ -720,7 +722,8 @@ function warnDependenciesOutOfRange(
     console.log(
       `${pc.yellow('⚠')} Found ${size} ${
         size === 1 ? 'dependency' : 'dependencies'
-      } out of range from their peer dependencies.`
+      } that seem incompatible with the upgraded package versions.\n` +
+        'You may have to update these packages to their latest version or file an issue to ask for support of the upgraded libraries.'
     )
     dependenciesOutOfRange.forEach((deps, packageName) => {
       console.log(
@@ -728,9 +731,15 @@ function warnDependenciesOutOfRange(
       )
       Object.entries(deps).forEach(([depName, value], index, depsArray) => {
         const prefix = index === depsArray.length - 1 ? '  └── ' : '  ├── '
-        console.log(
-          `${prefix}${pc.yellow('✕ unmet peer')} ${depName}@"${value.expectedVersionRange}": found ${value.currentVersion}`
-        )
+        if (verbose) {
+          console.log(
+            `${prefix}${pc.yellow('✕ unmet peer')} ${depName}@"${value.expectedVersionRange}": found ${value.currentVersion}`
+          )
+        } else {
+          console.log(
+            `${prefix}incompatible with ${depName}@${value.currentVersion}`
+          )
+        }
       })
     })
   }
