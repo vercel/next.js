@@ -51,10 +51,19 @@ impl NextMode {
         }
     }
 
-    pub fn minify_type(&self) -> MinifyType {
-        match self {
-            NextMode::Development => MinifyType::NoMinify,
-            NextMode::Build => MinifyType::Minify,
+    pub fn minify_type(&self, minify: Option<bool>) -> MinifyType {
+        match minify {
+            Some(minify) => {
+                if minify {
+                    MinifyType::Minify
+                } else {
+                    MinifyType::NoMinify
+                }
+            }
+            None => match self {
+                NextMode::Development => MinifyType::NoMinify,
+                NextMode::Build => MinifyType::Minify,
+            },
         }
     }
 
