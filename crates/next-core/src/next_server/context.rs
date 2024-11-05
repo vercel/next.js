@@ -419,7 +419,11 @@ pub async fn get_server_module_options_context(
     let foreign_code_context_condition =
         foreign_code_context_condition(next_config, project_path).await?;
     let postcss_transform_options = PostCssTransformOptions {
-        postcss_package: Some(get_postcss_package_mapping(project_path)),
+        postcss_package: Some(
+            get_postcss_package_mapping(project_path)
+                .to_resolved()
+                .await?,
+        ),
         config_location: PostCssConfigLocation::ProjectPathOrLocalPath,
         ..Default::default()
     };
