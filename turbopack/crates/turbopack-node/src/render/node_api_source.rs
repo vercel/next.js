@@ -18,7 +18,7 @@ use crate::{get_intermediate_asset, node_entry::NodeEntry, route_matcher::RouteM
 
 /// Creates a [NodeApiContentSource].
 #[turbo_tasks::function]
-pub fn create_node_api_source(
+pub async fn create_node_api_source(
     cwd: Vc<FileSystemPath>,
     env: Vc<Box<dyn ProcessEnv>>,
     base_segments: Vec<BaseSegment>,
@@ -29,8 +29,8 @@ pub fn create_node_api_source(
     entry: Vc<Box<dyn NodeEntry>>,
     render_data: Vc<JsonValue>,
     debug: bool,
-) -> Vc<Box<dyn ContentSource>> {
-    Vc::upcast(
+) -> Result<Vc<Box<dyn ContentSource>>> {
+    Ok(Vc::upcast(
         NodeApiContentSource {
             cwd: cwd.to_resolved().await?,
             env: env.to_resolved().await?,
@@ -44,7 +44,7 @@ pub fn create_node_api_source(
             debug,
         }
         .cell(),
-    )
+    ))
 }
 
 /// A content source that proxies API requests to one-off Node.js

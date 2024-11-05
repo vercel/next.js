@@ -379,15 +379,15 @@ pub enum ResponseMessage {
 
 #[derive(Clone, PartialEq, Eq, Hash, TaskInput, Serialize, Deserialize, Debug)]
 pub struct WebpackLoaderContext {
-    pub module_asset: Vc<Box<dyn Module>>,
-    pub cwd: Vc<FileSystemPath>,
-    pub env: Vc<Box<dyn ProcessEnv>>,
+    pub module_asset: ResolvedVc<Box<dyn Module>>,
+    pub cwd: ResolvedVc<FileSystemPath>,
+    pub env: ResolvedVc<Box<dyn ProcessEnv>>,
     pub context_ident_for_issue: Vc<AssetIdent>,
-    pub asset_context: Vc<Box<dyn AssetContext>>,
-    pub chunking_context: Vc<Box<dyn ChunkingContext>>,
+    pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
+    pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     pub resolve_options_context: Option<ResolvedVc<ResolveOptionsContext>>,
-    pub args: Vec<Vc<JsonValue>>,
-    pub additional_invalidation: Vc<Completion>,
+    pub args: Vec<ResolvedVc<JsonValue>>,
+    pub additional_invalidation: ResolvedVc<Completion>,
 }
 
 #[async_trait]

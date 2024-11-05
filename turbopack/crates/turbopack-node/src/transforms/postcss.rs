@@ -436,7 +436,7 @@ impl PostCssTransformedAsset {
             project_path,
             chunking_context,
             env,
-        } = *self.execution_context;
+        } = &*self.execution_context.await?;
 
         // For this postcss transform, there is no gaurantee that looking up for the
         // source path will arrives specific project config for the postcss.
@@ -474,10 +474,10 @@ impl PostCssTransformedAsset {
         let evaluate_context = self.evaluate_context;
 
         // This invalidates the transform when the config changes.
-        let config_changed = config_changed(evaluate_context, config_path);
+        let config_changed = config_changed(*evaluate_context, config_path);
 
         let postcss_executor =
-            postcss_executor(evaluate_context, project_path, config_path).module();
+            postcss_executor(*evaluate_context, project_path, config_path).module();
         let css_fs_path = self.source.ident().path();
 
         // We need to get a path relative to the project because the postcss loader
@@ -494,11 +494,11 @@ impl PostCssTransformedAsset {
 
         let config_value = evaluate_webpack_loader(WebpackLoaderContext {
             module_asset: postcss_executor,
-            cwd: project_path,
-            env,
+            cwd: **project_path,
+            env: **env,
             context_ident_for_issue: self.source.ident(),
-            asset_context: evaluate_context,
-            chunking_context,
+            asset_context: evaluate_context.to_resolved().await?,
+            chunking_context: chunking_context.to_resolved().await?,
             resolve_options_context: None,
             args: vec![Vc::cell(content.into()), Vc::cell(css_path.into())],
             additional_invalidation: config_changed,
