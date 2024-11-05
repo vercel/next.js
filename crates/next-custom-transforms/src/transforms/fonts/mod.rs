@@ -74,14 +74,30 @@ impl VisitMut for NextFontLoaders {
                 };
             items.visit_with(&mut wrong_scope);
 
+            fn is_removable(ctx: &NextFontLoaders, item: &ModuleItem) -> bool {
+                ctx.state.removeable_module_items.contains(&item.span_lo())
+            }
+
+            let first_removable_index = items
+                .iter()
+                .position(|item| is_removable(self, item))
+                .unwrap();
+
+            let mut new_items = Vec::new();
+
             // Remove marked module items
-            items.retain(|item| !self.state.removeable_module_items.contains(&item.span_lo()));
+            items.retain(|item| !is_removable(self, item));
+            new_items.append(items);
 
             // Add font imports and exports
-            let mut new_items = Vec::new();
-            new_items.append(&mut self.state.font_imports);
-            new_items.append(items);
+            new_items.splice(first_removable_index..first_removable_index, {
+                // we need to move the values out of the state in order to be able to splice() them
+                let mut font_imports = Vec::with_capacity(self.state.font_imports.len());
+                font_imports.append(&mut self.state.font_imports);
+                font_imports
+            });
             new_items.append(&mut self.state.font_exports);
+
             *items = new_items;
         }
     }
