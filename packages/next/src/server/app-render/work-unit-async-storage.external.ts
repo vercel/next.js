@@ -9,6 +9,10 @@ import type { DynamicTrackingState } from './dynamic-rendering'
 // Share the instance module in the next-shared layer
 import { workUnitAsyncStorage } from './work-unit-async-storage-instance' with { 'turbopack-transition': 'next-shared' }
 import type { ServerComponentsHmrCache } from '../response-cache'
+import type {
+  ImmutableResumeDataCache,
+  MutableResumeDataCache,
+} from '../resume-data-cache/resume-data-cache'
 
 type WorkUnitPhase = 'action' | 'render' | 'after'
 
@@ -48,6 +52,16 @@ export type RequestStore = {
   readonly serverComponentsHmrCache?: ServerComponentsHmrCache
 
   readonly implicitTags: string[]
+
+  /**
+   * The resume data cache for this request. This will be a immutable cache.
+   */
+  immutableResumeDataCache: ImmutableResumeDataCache | null
+
+  /**
+   * The resume data cache for this request. This will be a mutable cache.
+   */
+  mutableResumeDataCache: MutableResumeDataCache | null
 
   // DEV-only
   usedDynamic?: boolean
@@ -97,6 +111,11 @@ export type PrerenderStoreModern = {
   stale: number // client expiration time
   tags: null | string[]
 
+  /**
+   * The resume data cache for this prerender.
+   */
+  mutableResumeDataCache: MutableResumeDataCache | null
+
   // DEV ONLY
   // When used this flag informs certain APIs to skip logging because we're
   // not part of the primary render path and are just prerendering to produce
@@ -113,6 +132,11 @@ export type PrerenderStorePPR = {
   expire: number // server expiration time
   stale: number // client expiration time
   tags: null | string[]
+
+  /**
+   * The resume data cache for this prerender.
+   */
+  mutableResumeDataCache: MutableResumeDataCache
 } & PhasePartial
 
 export type PrerenderStoreLegacy = {
@@ -190,4 +214,38 @@ export function getExpectedRequestStore(
   throw new Error(
     `\`${callingExpression}\` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
   )
+}
+
+export function getMutableResumeDataCache(
+  workUnitStore: WorkUnitStore
+): MutableResumeDataCache | null {
+  if (
+    workUnitStore.type !== 'prerender-legacy' &&
+    workUnitStore.type !== 'cache' &&
+    workUnitStore.type !== 'unstable-cache'
+  ) {
+    return workUnitStore.mutableResumeDataCache
+  }
+
+  return null
+}
+
+export function getImmutableResumeDataCache(
+  workUnitStore: WorkUnitStore
+): ImmutableResumeDataCache | null {
+  if (
+    workUnitStore.type !== 'prerender-legacy' &&
+    workUnitStore.type !== 'cache' &&
+    workUnitStore.type !== 'unstable-cache'
+  ) {
+    if (workUnitStore.type === 'request') {
+      return workUnitStore.immutableResumeDataCache
+    }
+
+    // We return the mutable resume data cache here as an immutable version of
+    // the cache as it can also be used for reading.
+    return workUnitStore.mutableResumeDataCache
+  }
+
+  return null
 }

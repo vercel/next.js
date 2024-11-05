@@ -43,7 +43,7 @@ impl NextEdgeUnsupportedModuleReplacer {
 impl ImportMappingReplacement for NextEdgeUnsupportedModuleReplacer {
     #[turbo_tasks::function]
     fn replace(&self, _capture: Vc<Pattern>) -> Vc<ReplacedImportMapping> {
-        ReplacedImportMapping::Ignore.into()
+        ReplacedImportMapping::Ignore.cell()
     }
 
     #[turbo_tasks::function]
@@ -63,11 +63,12 @@ impl ImportMappingReplacement for NextEdgeUnsupportedModuleReplacer {
             };
             let content = AssetContent::file(File::from(code).into());
             let source = VirtualSource::new(root_path, content);
-            return Ok(
-                ImportMapResult::Result(ResolveResult::source(Vc::upcast(source)).into()).into(),
-            );
+            return Ok(ImportMapResult::Result(
+                ResolveResult::source(Vc::upcast(source)).resolved_cell(),
+            )
+            .cell());
         };
 
-        Ok(ImportMapResult::NoEntry.into())
+        Ok(ImportMapResult::NoEntry.cell())
     }
 }

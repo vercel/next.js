@@ -45,7 +45,10 @@ import type {
 } from '../build'
 import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
-import type { AppPageRouteModule } from './route-modules/app-page/module'
+import type {
+  AppPageRouteHandlerContext,
+  AppPageRouteModule,
+} from './route-modules/app-page/module'
 import type { PagesAPIRouteMatch } from './route-matches/pages-api-route-match'
 import type { AppRouteRouteHandlerContext } from './route-modules/app-route/module'
 import type {
@@ -57,6 +60,7 @@ import type { MiddlewareMatcher } from '../build/analysis/get-page-static-info'
 import type { TLSSocket } from 'tls'
 import type { PathnameNormalizer } from './normalizers/request/pathname-normalizer'
 import type { InstrumentationModule } from './instrumentation/types'
+import type { ImmutableResumeDataCache } from './resume-data-cache/resume-data-cache'
 
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { formatHostname } from './lib/format-hostname'
@@ -173,8 +177,6 @@ import type { RouteModule } from './route-modules/route-module'
 import { FallbackMode, parseFallbackField } from '../lib/fallback'
 import { toResponseCacheEntry } from './response-cache/utils'
 import { scheduleOnNextTick } from '../lib/scheduler'
-import { PrefetchCacheScopes } from './lib/prefetch-cache-scopes'
-import { runWithCacheScope } from './async-storage/cache-scope.external'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -456,8 +458,6 @@ export default abstract class Server<
   }
 
   private readonly isAppPPREnabled: boolean
-
-  private readonly prefetchCacheScopesDev = new PrefetchCacheScopes()
 
   /**
    * This is used to persist cache scopes across
@@ -2396,14 +2396,15 @@ export default abstract class Server<
       postponed: string | undefined
 
       /**
+       * The resume data cache for this render. This is only provided when
+       * resuming a render that has been postponed.
+       */
+      immutableResumeDataCache: ImmutableResumeDataCache | undefined
+
+      /**
        * The unknown route params for this render.
        */
       fallbackRouteParams: FallbackRouteParams | null
-
-      /**
-       * Whether or not this render is a warmup render for dev mode.
-       */
-      isDevWarmup?: boolean
     }
     type Renderer = (
       context: RendererContext
@@ -2411,8 +2412,8 @@ export default abstract class Server<
 
     const doRender: Renderer = async ({
       postponed,
+      immutableResumeDataCache,
       fallbackRouteParams,
-      isDevWarmup,
     }) => {
       // In development, we always want to generate dynamic HTML.
       let supportsDynamicResponse: boolean =
@@ -2486,8 +2487,8 @@ export default abstract class Server<
         isOnDemandRevalidate,
         isDraftMode: isPreviewMode,
         isServerAction,
-        isDevWarmup,
         postponed,
+        immutableResumeDataCache,
         waitUntil: this.getWaitUntil(),
         onClose: res.onClose.bind(res),
         onAfterTaskError: undefined,
@@ -2589,6 +2590,7 @@ export default abstract class Server<
                   status: response.status,
                   body: Buffer.from(await blob.arrayBuffer()),
                   headers,
+                  immutableResumeDataCache: undefined,
                 },
                 revalidate,
                 isFallback: false,
@@ -2681,15 +2683,35 @@ export default abstract class Server<
             // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
             renderOpts.nextFontManifest = this.nextFontManifest
 
-            // Call the built-in render method on the module.
-            result = await module.render(req, res, {
+            const context: AppPageRouteHandlerContext = {
               page: is404Page ? '/404' : pathname,
               params: opts.params,
               query,
               fallbackRouteParams,
               renderOpts,
               serverComponentsHmrCache: this.getServerComponentsHmrCache(),
-            })
+            }
+
+            // If we're in dev, and this isn't s prefetch or a server action,
+            // we should seed the resume data cache.
+            if (
+              this.nextConfig.experimental.dynamicIO &&
+              this.renderOpts.dev &&
+              !isPrefetchRSCRequest &&
+              !isServerAction
+            ) {
+              const warmup = await module.warmup(req, res, context)
+
+              // If the warmup is successful, we should use the resume data
+              // cache from the warmup.
+              if (warmup.metadata.immutableResumeDataCache) {
+                renderOpts.immutableResumeDataCache =
+                  warmup.metadata.immutableResumeDataCache
+              }
+            }
+
+            // Call the built-in render method on the module.
+            result = await module.render(req, res, context)
           }
         } else {
           throw new Error('Invariant: Unknown route module type')
@@ -2784,6 +2806,9 @@ export default abstract class Server<
             postponed: metadata.postponed,
             status: res.statusCode,
             segmentData: undefined,
+            immutableResumeDataCache: metadata.immutableResumeDataCache
+              ? metadata.immutableResumeDataCache
+              : undefined,
           } satisfies CachedAppPageValue,
           revalidate: metadata.revalidate,
           isFallback: !!fallbackRouteParams,
@@ -2807,7 +2832,6 @@ export default abstract class Server<
       hasResolved,
       previousCacheEntry,
       isRevalidating,
-      isDevWarmup,
     }): Promise<ResponseCacheEntry | null> => {
       const isProduction = !this.renderOpts.dev
       const didRespond = hasResolved || res.sent
@@ -2955,6 +2979,7 @@ export default abstract class Server<
               // router.
               return doRender({
                 postponed: undefined,
+                immutableResumeDataCache: undefined,
                 fallbackRouteParams: null,
               })
             },
@@ -2983,6 +3008,7 @@ export default abstract class Server<
                 // We pass `undefined` as rendering a fallback isn't resumed
                 // here.
                 postponed: undefined,
+                immutableResumeDataCache: undefined,
                 fallbackRouteParams:
                   // If we're in production of we're debugging the fallback
                   // shell then we should postpone when dynamic params are
@@ -3053,56 +3079,14 @@ export default abstract class Server<
       // Perform the render.
       const result = await doRender({
         postponed,
+        immutableResumeDataCache: undefined,
         fallbackRouteParams,
-        isDevWarmup,
       })
       if (!result) return null
 
       return {
         ...result,
         revalidate: result.revalidate,
-      }
-    }
-
-    if (this.nextConfig.experimental.dynamicIO) {
-      const originalResponseGenerator = responseGenerator
-
-      responseGenerator = async (
-        state: Parameters<ResponseGenerator>[0]
-      ): ReturnType<typeof responseGenerator> => {
-        if (this.renderOpts.dev) {
-          let cache = this.prefetchCacheScopesDev.get(urlPathname)
-
-          if (isServerAction || !cache) {
-            cache = new Map()
-            this.prefetchCacheScopesDev.set(urlPathname, cache)
-          }
-
-          // we need to seed the prefetch cache scope in dev
-          // since we did not have a prefetch cache available
-          // and this is not a prefetch request
-          if (
-            !isPrefetchRSCRequest &&
-            routeModule?.definition.kind === RouteKind.APP_PAGE &&
-            !isServerAction
-          ) {
-            await runWithCacheScope({ cache }, () =>
-              originalResponseGenerator({ ...state, isDevWarmup: true })
-            )
-          }
-
-          const response = runWithCacheScope({ cache }, () =>
-            originalResponseGenerator(state)
-          )
-
-          // Clear the prefetch cache to ensure a clean slate for the next
-          // request.
-          this.prefetchCacheScopesDev.del(urlPathname)
-
-          return response
-        }
-
-        return originalResponseGenerator(state)
       }
     }
 
@@ -3197,7 +3181,8 @@ export default abstract class Server<
       !isOnDemandRevalidate &&
       // When we're debugging the fallback shell, we don't want to regenerate
       // the route shell.
-      !isDebugFallbackShell
+      !isDebugFallbackShell &&
+      process.env.DISABLE_ROUTE_SHELL_GENERATION !== 'true'
     ) {
       scheduleOnNextTick(async () => {
         try {
@@ -3209,6 +3194,7 @@ export default abstract class Server<
                 // fallbackRouteParams.
                 fallbackRouteParams: null,
                 postponed: undefined,
+                immutableResumeDataCache: undefined,
               }),
             {
               routeKind: RouteKind.APP_PAGE,
@@ -3557,6 +3543,7 @@ export default abstract class Server<
       // we've already chained the transformer's readable to the render result.
       doRender({
         postponed: cachedData.postponed,
+        immutableResumeDataCache: cachedData.immutableResumeDataCache,
         // This is a resume render, not a fallback render, so we don't need to
         // set this.
         fallbackRouteParams: null,
