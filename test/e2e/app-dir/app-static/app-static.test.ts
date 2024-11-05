@@ -211,6 +211,29 @@ describe('app-dir static/dynamic handling', () => {
       })
     })
 
+    it('should infer a fetch cache of "force-cache" when force-dynamic is used on a fetch with revalidate', async () => {
+      let currentData: string | undefined
+      await retry(async () => {
+        const $ = await next.render$('/force-dynamic-fetch-cache/revalidate')
+        const initialData = $('#data').text()
+        expect($('#data').text()).toBeTruthy()
+
+        const $2 = await next.render$('/force-dynamic-fetch-cache/revalidate')
+        currentData = $2('#data').text()
+        expect(currentData).toBeTruthy()
+        expect(currentData).toBe(initialData)
+      })
+
+      // wait for revalidation
+      await waitFor(3000)
+      await retry(async () => {
+        const $3 = await next.render$('/force-dynamic-fetch-cache/revalidate')
+        const finalValue = $3('#data').text()
+        expect(finalValue).toBeTruthy()
+        expect(finalValue).not.toBe(currentData)
+      })
+    })
+
     it('force-dynamic should supercede a "default" cache value', async () => {
       const $ = await next.render$('/force-dynamic-fetch-cache/default-cache')
       const initData = $('#data').text()
@@ -857,6 +880,8 @@ describe('app-dir static/dynamic handling', () => {
           "force-dynamic-fetch-cache/no-fetch-cache/page_client-reference-manifest.js",
           "force-dynamic-fetch-cache/no-fetch-cache/route/route.js",
           "force-dynamic-fetch-cache/no-fetch-cache/route/route_client-reference-manifest.js",
+          "force-dynamic-fetch-cache/revalidate/page.js",
+          "force-dynamic-fetch-cache/revalidate/page_client-reference-manifest.js",
           "force-dynamic-fetch-cache/with-fetch-cache/page.js",
           "force-dynamic-fetch-cache/with-fetch-cache/page_client-reference-manifest.js",
           "force-dynamic-fetch-cache/with-fetch-cache/route/route.js",
