@@ -654,12 +654,7 @@ impl AssetContext for ModuleAssetContext {
             resolve_options,
         );
 
-        let mut result = self.process_resolve_result(
-            result.resolve().await?,
-            reference_type,
-            // TODO
-            // request.request_pattern().await?.has_dynamic_parts(),
-        );
+        let mut result = self.process_resolve_result(result.resolve().await?, reference_type);
 
         if *self.is_types_resolving_enabled().await? {
             let types_result = type_resolve(

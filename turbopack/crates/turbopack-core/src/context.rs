@@ -16,7 +16,7 @@ pub enum ProcessResult {
     /// A module was created.
     Module(ResolvedVc<Box<dyn Module>>),
 
-    /// A module could not be created (according to the rules, e.g. no module type as assigned)
+    /// A module could not be created (according to the rules, e.g. no module type was assigned)
     Unknown(Vc<Box<dyn Source>>),
 
     /// Reference is ignored. This should lead to no module being included by
