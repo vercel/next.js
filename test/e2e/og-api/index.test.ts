@@ -55,16 +55,32 @@ describe('og-api', () => {
     it('should copy files correctly', async () => {
       expect(next.cliOutput).not.toContain('Failed to copy traced files')
 
-      expect(
-        await fs.pathExists(
-          join(next.testDir, '.next/standalone/.next/server/pages/api/og.js')
-        )
-      ).toBe(true)
-      expect(
-        await fs.pathExists(
-          join(next.testDir, '.next/standalone/.next/server/edge-chunks')
-        )
-      ).toBe(true)
+      if (process.env.TURBOPACK) {
+        expect(
+          await fs.pathExists(
+            join(
+              next.testDir,
+              '.next/standalone/.next/server/pages/api/og/middleware-manifest.json'
+            )
+          )
+        ).toBe(true)
+        expect(
+          await fs.pathExists(
+            join(next.testDir, '.next/standalone/.next/server/edge/chunks')
+          )
+        ).toBe(true)
+      } else {
+        expect(
+          await fs.pathExists(
+            join(next.testDir, '.next/standalone/.next/server/pages/api/og.js')
+          )
+        ).toBe(true)
+        expect(
+          await fs.pathExists(
+            join(next.testDir, '.next/standalone/.next/server/edge-chunks')
+          )
+        ).toBe(true)
+      }
     })
   }
 
