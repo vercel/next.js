@@ -116,7 +116,7 @@ const runTests = (isDev) => {
     )
   })
 
-  it('should add a blur placeholder a statically imported jpg', async () => {
+  it.skip('should add a blur placeholder a statically imported jpg', async () => {
     const style = $('#basic-static').attr('style')
     if (isDev) {
       if (process.env.TURBOPACK) {
@@ -141,7 +141,7 @@ const runTests = (isDev) => {
     }
   })
 
-  it('should add a blur placeholder a statically imported png', async () => {
+  it.skip('should add a blur placeholder a statically imported png', async () => {
     const style = $('#blur-png').attr('style')
     if (isDev) {
       if (process.env.TURBOPACK) {

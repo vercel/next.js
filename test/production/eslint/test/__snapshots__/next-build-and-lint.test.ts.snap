@@ -394,6 +394,9 @@ exports[`Next Build production mode first time setup with TypeScript 1`] = `
     "no-array-constructor": [
       "off",
     ],
+    "no-class-assign": [
+      "off",
+    ],
     "no-const-assign": [
       "off",
     ],
