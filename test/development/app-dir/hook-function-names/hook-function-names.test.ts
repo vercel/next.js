@@ -18,7 +18,7 @@ describe('hook-function-names', () => {
     await waitForAndOpenRuntimeError(browser)
 
     expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
-      "app/button/page.tsx (7:11) @ eval
+      "app/button/page.tsx (7:11) @ Button.useCallback[handleClick]
 
          5 | const Button = ({ message }: { message: string }) => {
          6 |   const handleClick = useCallback(() => {
@@ -36,7 +36,7 @@ describe('hook-function-names', () => {
     await assertHasRedbox(browser)
 
     expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
-      "app/page.tsx (7:11) @ eval
+      "app/page.tsx (7:11) @ Page.useEffect
 
          5 | export default function Page() {
          6 |   useEffect(() => {

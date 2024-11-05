@@ -119,7 +119,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
       `)
     } else {
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
-        "index.js (7:11) @ eval
+        "index.js (7:11) @ Index.useCallback[increment]
 
            5 |   const increment = useCallback(() => {
            6 |     setCount(c => c + 1)
