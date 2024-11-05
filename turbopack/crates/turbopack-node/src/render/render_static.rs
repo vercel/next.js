@@ -37,13 +37,13 @@ use crate::{
 #[turbo_tasks::value]
 pub enum StaticResult {
     Content {
-        content: Vc<AssetContent>,
+        content: ResolvedVc<AssetContent>,
         status_code: u16,
-        headers: Vc<HeaderList>,
+        headers: ResolvedVc<HeaderList>,
     },
     StreamedContent {
         status: u16,
-        headers: Vc<HeaderList>,
+        headers: ResolvedVc<HeaderList>,
         body: Body,
     },
     Rewrite(ResolvedVc<Rewrite>),
