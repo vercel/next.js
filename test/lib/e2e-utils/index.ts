@@ -15,7 +15,7 @@ export type { NextInstance }
 // this is due to current --turbo test have a lot of tests fails with timeouts, ends up the whole
 // test job exceeds the 6 hours limit.
 let testTimeout = shouldRunTurboDevTest()
-  ? (240 * 1000) / 4
+  ? (240 * 1000) / 2
   : (process.platform === 'win32' ? 240 : 120) * 1000
 
 if (process.env.NEXT_E2E_TEST_TIMEOUT) {

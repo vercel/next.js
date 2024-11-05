@@ -232,7 +232,7 @@ async fn source(
     entry_requests: TransientInstance<Vec<EntryRequest>>,
     eager_compile: bool,
     browserslist_query: RcStr,
-) -> Result<Vc<Box<dyn ContentSource>>> {
+) -> Vc<Box<dyn ContentSource>> {
     let project_relative = project_dir.strip_prefix(&*root_dir).unwrap();
     let project_relative: RcStr = project_relative
         .strip_prefix(MAIN_SEPARATOR)
@@ -303,13 +303,11 @@ async fn source(
         .cell(),
     );
     let main_source = Vc::upcast(main_source);
-    let source = Vc::upcast(PrefixedRouterContentSource::new(
+    Vc::upcast(PrefixedRouterContentSource::new(
         Default::default(),
         vec![("__turbopack__".into(), introspect)],
         main_source,
-    ));
-
-    Ok(source)
+    ))
 }
 
 pub fn register() {

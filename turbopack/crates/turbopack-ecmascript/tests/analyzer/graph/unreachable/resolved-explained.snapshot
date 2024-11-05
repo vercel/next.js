@@ -26,4 +26,6 @@ x#10 = ???*0*
 
 x#17 = (...) => (undefined | FreeVar(undefined))
 
-y = ()
+y = ???*0*
+- *0* unknown mutation
+  ⚠️  This value might have side effects

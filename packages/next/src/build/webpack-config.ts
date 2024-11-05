@@ -88,6 +88,10 @@ import {
   getBabelLoader,
   getReactCompilerLoader,
 } from './get-babel-loader-config'
+import {
+  NEXT_PROJECT_ROOT,
+  NEXT_PROJECT_ROOT_DIST_CLIENT,
+} from './next-dir-paths'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 type ClientEntries = {
@@ -100,15 +104,8 @@ const EXTERNAL_PACKAGES =
 const DEFAULT_TRANSPILED_PACKAGES =
   require('../lib/default-transpiled-packages.json') as string[]
 
-export const NEXT_PROJECT_ROOT = path.join(__dirname, '..', '..')
-export const NEXT_PROJECT_ROOT_DIST = path.join(NEXT_PROJECT_ROOT, 'dist')
-const NEXT_PROJECT_ROOT_DIST_CLIENT = path.join(
-  NEXT_PROJECT_ROOT_DIST,
-  'client'
-)
-
-if (parseInt(React.version) < 19) {
-  throw new Error('Next.js requires react >= 19.0.0 to be installed.')
+if (parseInt(React.version) < 18) {
+  throw new Error('Next.js requires react >= 18.2.0 to be installed.')
 }
 
 export const babelIncludeRegexes: RegExp[] = [
@@ -130,14 +127,14 @@ const browserNonTranspileModules = [
 const precompileRegex = /[\\/]next[\\/]dist[\\/]compiled[\\/]/
 
 const asyncStoragesRegex =
-  /next[\\/]dist[\\/](esm[\\/])?client[\\/]components[\\/](static-generation-async-storage|action-async-storage|request-async-storage)/
+  /next[\\/]dist[\\/](esm[\\/])?server[\\/]app-render[\\/](work-async-storage|action-async-storage|work-unit-async-storage)/
 
 // Support for NODE_PATH
 const nodePathList = (process.env.NODE_PATH || '')
   .split(process.platform === 'win32' ? ';' : ':')
   .filter((p) => !!p)
 
-const watchOptions = Object.freeze({
+const baseWatchOptions: webpack.Configuration['watchOptions'] = Object.freeze({
   aggregateTimeout: 5,
   ignored:
     // Matches **/node_modules/**, **/.git/** and **/.next/**
@@ -489,6 +486,7 @@ export default async function getBaseWebpackConfig(
         transpilePackages: finalTranspilePackages,
         supportedBrowsers,
         swcCacheDir: path.join(dir, config?.distDir ?? '.next', 'cache', 'swc'),
+        serverReferenceHashSalt: encryptionKey,
         ...extraOptions,
       } satisfies SWCLoaderOptions,
     }
@@ -520,13 +518,6 @@ export default async function getBaseWebpackConfig(
     babel: useSWCLoader ? swcDefaultLoader : babelLoader!,
   }
 
-  const nextFlightLoader = {
-    loader: 'next-flight-loader',
-    options: {
-      isEdgeServer,
-    },
-  }
-
   const appServerLayerLoaders = hasAppDir
     ? [
         // When using Babel, we will have to add the SWC loader
@@ -540,7 +531,7 @@ export default async function getBaseWebpackConfig(
     : []
 
   const instrumentLayerLoaders = [
-    nextFlightLoader,
+    'next-flight-loader',
     // When using Babel, we will have to add the SWC loader
     // as an additional pass to handle RSC correctly.
     // This will cause some performance overhead but
@@ -550,7 +541,7 @@ export default async function getBaseWebpackConfig(
   ].filter(Boolean)
 
   const middlewareLayerLoaders = [
-    nextFlightLoader,
+    'next-flight-loader',
     // When using Babel, we will have to use SWC to do the optimization
     // for middleware to tree shake the unused default optimized imports like "next/server".
     // This will cause some performance overhead but
@@ -833,6 +824,8 @@ export default async function getBaseWebpackConfig(
 
   const aliasCodeConditionTest = [codeCondition.test, pageExtensionsRegex]
 
+  const builtinModules = require('module').builtinModules
+
   let webpackConfig: webpack.Configuration = {
     parallelism: Number(process.env.NEXT_WEBPACK_PARALLELISM) || undefined,
     ...(isNodeServer ? { externalsPresets: { node: true } } : {}),
@@ -856,6 +849,7 @@ export default async function getBaseWebpackConfig(
               : []),
           ]
         : [
+            ...builtinModules,
             ({
               context,
               request,
@@ -1101,7 +1095,10 @@ export default async function getBaseWebpackConfig(
         ...entrypoints,
       }
     },
-    watchOptions,
+    watchOptions: Object.freeze({
+      ...baseWatchOptions,
+      poll: config.watchOptions?.pollIntervalMs,
+    }),
     output: {
       // we must set publicPath to an empty value to override the default of
       // auto which doesn't work in IE11
@@ -1134,6 +1131,14 @@ export default async function getBaseWebpackConfig(
           }.js`,
       strictModuleExceptionHandling: true,
       crossOriginLoading: crossOrigin,
+      // if `sources[number]` is not an absolute path, it's is resolved
+      // relative to the location of the source map file (https://tc39.es/source-map/#resolving-sources).
+      // However, Webpack's `resource-path` is relative to the app dir.
+      // TODO: Either `sourceRoot` should be populated with the root and then we can use `[resource-path]`
+      // or we need a way to resolve return `path.relative(sourceMapLocation, info.resourcePath)`
+      devtoolModuleFilenameTemplate: dev
+        ? '[absolute-resource-path]'
+        : undefined,
       webassemblyModuleFilename: 'static/wasm/[modulehash].wasm',
       hashFunction: 'xxhash64',
       hashDigestLength: 16,
@@ -1182,6 +1187,7 @@ export default async function getBaseWebpackConfig(
         'next-flight-client-entry-loader',
         'next-flight-action-entry-loader',
         'next-flight-client-module-loader',
+        'next-flight-server-reference-proxy-loader',
         'empty-loader',
         'next-middleware-loader',
         'next-edge-function-loader',
@@ -1196,6 +1202,7 @@ export default async function getBaseWebpackConfig(
         'next-metadata-route-loader',
         'modularize-import-loader',
         'next-barrel-loader',
+        'next-error-browser-binary-loader',
       ].reduce(
         (alias, loader) => {
           // using multiple aliases to replace `resolveLoader.modules`
@@ -1283,6 +1290,14 @@ export default async function getBaseWebpackConfig(
             or: WEBPACK_LAYERS.GROUP.neutralTarget,
           },
         },
+        ...(isNodeServer
+          ? []
+          : [
+              {
+                test: /[\\/].*?\.node$/,
+                loader: 'next-error-browser-binary-loader',
+              },
+            ]),
         ...(hasAppDir
           ? [
               {
@@ -1296,7 +1311,7 @@ export default async function getBaseWebpackConfig(
                 resourceQuery: new RegExp(
                   WEBPACK_RESOURCE_QUERIES.metadataRoute
                 ),
-                layer: WEBPACK_LAYERS.appMetadataRoute,
+                layer: WEBPACK_LAYERS.reactServerComponents,
               },
               {
                 // Ensure that the app page module is in the client layers, this
@@ -1351,7 +1366,7 @@ export default async function getBaseWebpackConfig(
                     isEdgeServer,
                   }),
                 },
-                use: nextFlightLoader,
+                use: 'next-flight-loader',
               },
             ]
           : []),
@@ -1680,6 +1695,17 @@ export default async function getBaseWebpackConfig(
           test: /[\\/]next[\\/]dist[\\/](esm[\\/])?server[\\/]og[\\/]image-response\.js/,
           sideEffects: false,
         },
+        // Mark the action-client-wrapper module as side-effects free to make sure
+        // the individual transformed module of client action can be tree-shaken.
+        // This will make modules processed by `next-flight-server-reference-proxy-loader` become side-effects free,
+        // then on client side the module ids will become tree-shakable.
+        // e.g. the output of client action module will look like:
+        // `export { a } from 'next-flight-server-reference-proxy-loader?id=idOfA&name=a!
+        // `export { b } from 'next-flight-server-reference-proxy-loader?id=idOfB&name=b!
+        {
+          test: /[\\/]next[\\/]dist[\\/](esm[\\/])?build[\\/]webpack[\\/]loaders[\\/]next-flight-loader[\\/]action-client-wrapper\.js/,
+          sideEffects: false,
+        },
         {
           // This loader rule should be before other rules, as it can output code
           // that still contains `"use client"` or `"use server"` statements that
@@ -1791,7 +1817,6 @@ export default async function getBaseWebpackConfig(
             esmExternals: config.experimental.esmExternals,
             outputFileTracingRoot: config.outputFileTracingRoot,
             appDirEnabled: hasAppDir,
-            turbotrace: config.experimental.turbotrace,
             optOutBundlingPackages,
             traceIgnores: [],
             flyingShuttle: Boolean(flyingShuttle),
@@ -1839,7 +1864,7 @@ export default async function getBaseWebpackConfig(
           isEdgeRuntime: isEdgeServer,
           distDir: !dev ? distDir : undefined,
         }),
-      // MiddlewarePlugin should be after DefinePlugin so  NEXT_PUBLIC_*
+      // MiddlewarePlugin should be after DefinePlugin so NEXT_PUBLIC_*
       // replacement is done before its process.env.* handling
       isEdgeServer &&
         new MiddlewarePlugin({
@@ -1864,6 +1889,7 @@ export default async function getBaseWebpackConfig(
       new WellKnownErrorsPlugin(),
       isClient &&
         new CopyFilePlugin({
+          // file path to build output of `@next/polyfill-nomodule`
           filePath: require.resolve('./polyfills/polyfill-nomodule'),
           cacheKey: process.env.__NEXT_VERSION as string,
           name: `static/chunks/polyfills${dev ? '' : '-[hash]'}.js`,
@@ -1897,6 +1923,7 @@ export default async function getBaseWebpackConfig(
           isEdgeServer,
           pageExtensions: config.pageExtensions,
           typedRoutes: enableTypedRoutes,
+          cacheLifeConfig: config.experimental.cacheLife,
           originalRewrites,
           originalRedirects,
         }),
@@ -1930,7 +1957,6 @@ export default async function getBaseWebpackConfig(
               ['swcRemoveConsole', !!config.compiler?.removeConsole],
               ['swcImportSource', !!jsConfig?.compilerOptions?.jsxImportSource],
               ['swcEmotion', !!config.compiler?.emotion],
-              ['turbotrace', !!config.experimental.turbotrace],
               ['transpilePackages', !!config.transpilePackages],
               [
                 'skipMiddlewareUrlNormalize',
@@ -2085,6 +2111,7 @@ export default async function getBaseWebpackConfig(
     clientTraceMetadata: config.experimental.clientTraceMetadata,
     serverSourceMaps: config.experimental.serverSourceMaps,
     flyingShuttle: config.experimental.flyingShuttle,
+    serverReferenceHashSalt: encryptionKey,
   })
 
   const cache: any = {
@@ -2262,6 +2289,10 @@ export default async function getBaseWebpackConfig(
         '> Promise returned in next config. https://nextjs.org/docs/messages/promise-in-next-config'
       )
     }
+  }
+
+  if (isFullFlyingShuttle && !dev) {
+    webpack5Config.cache = false
   }
 
   const rules = webpackConfig.module?.rules || []

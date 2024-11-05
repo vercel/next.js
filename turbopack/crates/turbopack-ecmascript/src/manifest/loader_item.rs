@@ -27,11 +27,13 @@ fn modifier() -> Vc<RcStr> {
 }
 
 /// The manifest loader item is shipped in the same chunk that uses the dynamic
-/// `import()` expression. Its responsibility is to load the manifest chunk from
-/// the server. The dynamic import has been rewritten to import this manifest
-/// loader item, which will load the manifest chunk from the server, which
-/// will load all the chunks needed by the dynamic import. Finally, we'll be
-/// able to import the module we're trying to dynamically import.
+/// `import()` expression.
+///
+/// Its responsibility is to load the manifest chunk from the server. The
+/// dynamic import has been rewritten to import this manifest loader item,
+/// which will load the manifest chunk from the server, which will load all
+/// the chunks needed by the dynamic import. Finally, we'll be able to import
+/// the module we're trying to dynamically import.
 ///
 /// Splitting the dynamic import into a quickly generate-able manifest loader
 /// item and a slow-to-generate manifest chunk allows for faster incremental
@@ -58,13 +60,9 @@ impl ManifestLoaderChunkItem {
     }
 
     #[turbo_tasks::function]
-    pub async fn chunks_data(self: Vc<Self>) -> Result<Vc<ChunksData>> {
-        let this = self.await?;
-        let chunks = this.manifest.manifest_chunks();
-        Ok(ChunkData::from_assets(
-            this.chunking_context.output_root(),
-            chunks,
-        ))
+    pub fn chunks_data(&self) -> Vc<ChunksData> {
+        let chunks = self.manifest.manifest_chunks();
+        ChunkData::from_assets(self.chunking_context.output_root(), chunks)
     }
 
     #[turbo_tasks::function]
@@ -106,7 +104,7 @@ impl ChunkItem for ManifestLoaderChunkItem {
             .iter()
             .map(|&chunk| {
                 Vc::upcast(SingleOutputAssetReference::new(
-                    chunk,
+                    *chunk,
                     manifest_loader_chunk_reference_description(),
                 ))
             })
@@ -115,7 +113,7 @@ impl ChunkItem for ManifestLoaderChunkItem {
         for chunk_data in &*self.chunks_data().await? {
             references.extend(chunk_data.references().await?.iter().map(|&output_asset| {
                 Vc::upcast(SingleOutputAssetReference::new(
-                    output_asset,
+                    *output_asset,
                     chunk_data_reference_description(),
                 ))
             }));
@@ -125,8 +123,8 @@ impl ChunkItem for ManifestLoaderChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn chunking_context(&self) -> Result<Vc<Box<dyn ChunkingContext>>> {
-        Ok(Vc::upcast(self.chunking_context))
+    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
+        Vc::upcast(self.chunking_context)
     }
 
     #[turbo_tasks::function]

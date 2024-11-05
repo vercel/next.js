@@ -1,7 +1,7 @@
 use std::fmt::Write;
 
 use anyhow::Result;
-use turbo_tasks::{RcStr, ValueToString, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::File;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -100,15 +100,15 @@ fn single_item_modifier() -> Vc<RcStr> {
 #[turbo_tasks::value_impl]
 impl OutputAsset for SingleItemCssChunk {
     #[turbo_tasks::function]
-    async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        Ok(AssetIdent::from_path(
+    fn ident(&self) -> Vc<AssetIdent> {
+        AssetIdent::from_path(
             self.chunking_context.chunk_path(
                 self.item
                     .asset_ident()
                     .with_modifier(single_item_modifier()),
                 ".css".into(),
             ),
-        ))
+        )
     }
 
     #[turbo_tasks::function]
@@ -120,7 +120,11 @@ impl OutputAsset for SingleItemCssChunk {
             .reference_chunk_source_maps(Vc::upcast(self))
             .await?
         {
-            references.push(Vc::upcast(SingleItemCssChunkSourceMapAsset::new(self)));
+            references.push(ResolvedVc::upcast(
+                SingleItemCssChunkSourceMapAsset::new(self)
+                    .to_resolved()
+                    .await?,
+            ));
         }
         Ok(Vc::cell(references))
     }

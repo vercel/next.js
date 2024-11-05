@@ -1,19 +1,18 @@
-use std::{borrow::Cow, fmt::Write};
+use std::fmt::Write;
 
 use anyhow::{bail, Result};
-use indexmap::IndexSet;
 use rustc_hash::FxHashMap;
 use swc_core::{
-    common::{util::take::Take, SyntaxContext, DUMMY_SP, GLOBALS},
+    common::{comments::Comments, util::take::Take, SyntaxContext, DUMMY_SP, GLOBALS},
     ecma::{
         ast::{
-            ExportAll, ExportNamedSpecifier, Id, Ident, ImportDecl, Module, ModuleDecl,
-            ModuleExportName, ModuleItem, NamedExport, Program,
+            ExportAll, ExportNamedSpecifier, Expr, ExprStmt, Id, Ident, ImportDecl, Lit, Module,
+            ModuleDecl, ModuleExportName, ModuleItem, NamedExport, Program, Stmt,
         },
         codegen::to_code,
     },
 };
-use turbo_tasks::{RcStr, ValueToString, Vc};
+use turbo_tasks::{FxIndexSet, RcStr, ValueToString, Vc};
 use turbopack_core::{ident::AssetIdent, resolve::ModulePart, source::Source};
 
 pub(crate) use self::graph::{
@@ -52,24 +51,25 @@ struct VarState {
     last_writes: Vec<ItemId>,
     /// The module items that might read that variable.
     last_reads: Vec<ItemId>,
+
+    last_op: Option<VarOp>,
 }
 
-fn get_var<'a>(map: &'a FxHashMap<Id, VarState>, id: &Id) -> Cow<'a, VarState> {
-    let v = map.get(id);
-    match v {
-        Some(v) => Cow::Borrowed(v),
-        None => Cow::Owned(Default::default()),
-    }
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum VarOp {
+    Read,
+    Write,
 }
 
 impl Analyzer<'_> {
     pub(super) fn analyze(
         module: &Module,
+        comments: &dyn Comments,
         unresolved_ctxt: SyntaxContext,
         top_level_ctxt: SyntaxContext,
     ) -> (DepGraph, FxHashMap<ItemId, ItemData>) {
         let mut g = DepGraph::default();
-        let (item_ids, mut items) = g.init(module, unresolved_ctxt, top_level_ctxt);
+        let (item_ids, mut items) = g.init(module, comments, unresolved_ctxt, top_level_ctxt);
 
         let mut analyzer = Analyzer {
             g: &mut g,
@@ -94,8 +94,8 @@ impl Analyzer<'_> {
     ///
     ///
     /// Returns all (EVENTUAL_READ/WRITE_VARS) in the module.
-    fn hoist_vars_and_bindings(&mut self) -> IndexSet<Id> {
-        let mut eventual_ids = IndexSet::default();
+    fn hoist_vars_and_bindings(&mut self) -> FxIndexSet<Id> {
+        let mut eventual_ids = FxIndexSet::default();
 
         for item_id in self.item_ids.iter() {
             if let Some(item) = self.items.get(item_id) {
@@ -104,7 +104,7 @@ impl Analyzer<'_> {
 
                 if item.is_hoisted && item.side_effects {
                     self.g
-                        .add_strong_deps(item_id, self.last_side_effects.iter());
+                        .add_strong_deps(item_id, self.last_side_effects.last());
 
                     self.last_side_effects.push(item_id.clone());
                 }
@@ -130,7 +130,7 @@ impl Analyzer<'_> {
     }
 
     /// Phase 2: Immediate evaluation
-    fn evaluate_immediate(&mut self, _module: &Module, eventual_ids: &IndexSet<Id>) {
+    fn evaluate_immediate(&mut self, _module: &Module, eventual_ids: &FxIndexSet<Id>) {
         for item_id in self.item_ids.iter() {
             if let Some(item) = self.items.get(item_id) {
                 // Ignore HOISTED module items, they have been processed in phase 1 already.
@@ -147,11 +147,12 @@ impl Analyzer<'_> {
 
                 // For each var in READ_VARS:
                 for id in item.read_vars.iter() {
-                    // Create a strong dependency to all module items listed in LAST_WRITES for that
-                    // var.
+                    // read (last: read) -> ref last_writes, push last_reads
+                    // read (last: (read +) write) -> ref last_writes, clear last_reads, push
+                    // last_reads
 
                     // (the writes need to be executed before this read)
-                    let state = get_var(&self.vars, id);
+                    let state = self.vars.entry(id.clone()).or_default();
                     self.g.add_strong_deps(item_id, state.last_writes.iter());
 
                     if let Some(declarator) = &state.declarator {
@@ -160,6 +161,10 @@ impl Analyzer<'_> {
                             self.g
                                 .add_strong_deps(item_id, [declarator].iter().copied());
                         }
+                    }
+
+                    if state.last_op == Some(VarOp::Write) && !item.write_vars.contains(id) {
+                        state.last_reads.clear();
                     }
                 }
 
@@ -171,7 +176,7 @@ impl Analyzer<'_> {
                     // (the reads need to be executed before this write, when
                     // it’s needed)
 
-                    let state = get_var(&self.vars, id);
+                    let state = self.vars.entry(id.clone()).or_default();
                     self.g.add_weak_deps(item_id, state.last_reads.iter());
 
                     if let Some(declarator) = &state.declarator {
@@ -180,18 +185,40 @@ impl Analyzer<'_> {
                             self.g.add_strong_deps(item_id, [declarator]);
                         }
                     }
+
+                    if !item.read_vars.contains(id) {
+                        // write (last: read) -> weak_ref last_reads, clear last_writes, push
+                        // last_writes
+
+                        if state.last_op == Some(VarOp::Read) {
+                            state.last_writes.clear();
+                        } else if state.last_op == Some(VarOp::Write) {
+                            // write (last: (read +) write) -> weak_ref last_reads, push last_writes
+                        }
+                    } else {
+                        // read+write (last: read) -> weak_ref last_reads, ref last_writes, clear
+                        // last_reads, clear last_writes, push last_reads, push last_writes
+
+                        // read+write (last: (read +) write) -> ref last_writes, clear
+                        // last_reads, clear last_writes, push
+                        // last_reads, push last_writes
+                        if state.last_op.is_some() {
+                            state.last_reads.clear();
+                            state.last_writes.clear();
+                        }
+                    }
                 }
 
                 if item.side_effects {
                     // Create a strong dependency to LAST_SIDE_EFFECT.
 
                     self.g
-                        .add_strong_deps(item_id, self.last_side_effects.iter());
+                        .add_strong_deps(item_id, self.last_side_effects.last());
 
                     // Create weak dependencies to all LAST_WRITES and
                     // LAST_READS.
                     for id in eventual_ids.iter() {
-                        let state = get_var(&self.vars, id);
+                        let state = self.vars.entry(id.clone()).or_default();
 
                         self.g.add_weak_deps(item_id, state.last_writes.iter());
                         self.g.add_weak_deps(item_id, state.last_reads.iter());
@@ -241,6 +268,13 @@ impl Analyzer<'_> {
                     state
                         .last_reads
                         .retain(|last_read| !self.g.has_dep(item_id, last_read, true));
+
+                    state.last_op = Some(VarOp::Read);
+                }
+
+                for id in item.write_vars.iter() {
+                    let state = self.vars.entry(id.clone()).or_default();
+                    state.last_op = Some(VarOp::Write);
                 }
 
                 if item.side_effects {
@@ -260,7 +294,7 @@ impl Analyzer<'_> {
                     // Create a strong dependency to all module items listed in
                     // LAST_WRITES for that var.
 
-                    let state = get_var(&self.vars, id);
+                    let state = self.vars.entry(id.clone()).or_default();
                     self.g.add_strong_deps(item_id, state.last_writes.iter());
 
                     if let Some(declarator) = &state.declarator {
@@ -276,7 +310,7 @@ impl Analyzer<'_> {
                     // Create a weak dependency to all module items listed in
                     // LAST_READS for that var.
 
-                    let state = get_var(&self.vars, id);
+                    let state = self.vars.entry(id.clone()).or_default();
 
                     self.g.add_weak_deps(item_id, state.last_reads.iter());
 
@@ -303,12 +337,12 @@ impl Analyzer<'_> {
                         // Create a strong dependency to LAST_SIDE_EFFECTS
 
                         self.g
-                            .add_strong_deps(item_id, self.last_side_effects.iter());
+                            .add_strong_deps(item_id, self.last_side_effects.last());
                     }
                     ItemIdGroupKind::Export(local, _) => {
                         // Create a strong dependency to LAST_WRITES for this var
 
-                        let state = get_var(&self.vars, local);
+                        let state = self.vars.entry(local.clone()).or_default();
 
                         self.g.add_strong_deps(item_id, state.last_writes.iter());
                     }
@@ -397,7 +431,7 @@ pub(crate) enum SplitResult {
         modules: Vec<Vc<ParseResult>>,
 
         #[turbo_tasks(trace_ignore)]
-        deps: FxHashMap<u32, Vec<u32>>,
+        deps: FxHashMap<u32, Vec<PartId>>,
 
         #[turbo_tasks(debug_ignore, trace_ignore)]
         star_reexports: Vec<ExportAll>,
@@ -427,6 +461,24 @@ pub(super) async fn split(
     source: Vc<Box<dyn Source>>,
     parsed: Vc<ParseResult>,
 ) -> Result<Vc<SplitResult>> {
+    // Do not split already split module
+    if !ident.await?.parts.is_empty() {
+        return Ok(SplitResult::Failed {
+            parse_result: parsed,
+        }
+        .cell());
+    }
+
+    // Turbopack has a bug related to parsing of CJS files where the package.json has
+    // a `"type": "module"` and the file is a CJS file.
+    let name = ident.to_string().await?;
+    if name.ends_with(".cjs") {
+        return Ok(SplitResult::Failed {
+            parse_result: parsed,
+        }
+        .cell());
+    }
+
     let parse_result = parsed.await?;
 
     match &*parse_result {
@@ -451,9 +503,26 @@ pub(super) async fn split(
                 Program::Script(..) => unreachable!("CJS is already handled"),
             };
 
+            // We copy directives like `use client` or `use server` to each module
+            let directives = module
+                .body
+                .iter()
+                .take_while(|item| {
+                    matches!(
+                        item,
+                        ModuleItem::Stmt(Stmt::Expr(ExprStmt {
+                            expr: box Expr::Lit(Lit::Str(..)),
+                            ..
+                        }))
+                    )
+                })
+                .cloned()
+                .collect::<Vec<_>>();
+
             let (mut dep_graph, items) = GLOBALS.set(globals, || {
                 Analyzer::analyze(
                     module,
+                    comments,
                     SyntaxContext::empty().apply_mark(eval_context.unresolved_mark),
                     SyntaxContext::empty().apply_mark(eval_context.top_level_mark),
                 )
@@ -466,7 +535,7 @@ pub(super) async fn split(
                 part_deps,
                 modules,
                 star_reexports,
-            } = dep_graph.split_module(&items);
+            } = dep_graph.split_module(&directives, &items);
 
             assert_ne!(modules.len(), 0, "modules.len() == 0;\nModule: {module:?}",);
 
@@ -518,7 +587,7 @@ pub(super) async fn split(
 }
 
 #[turbo_tasks::function]
-pub(super) async fn part_of_module(
+pub(crate) async fn part_of_module(
     split_data: Vc<SplitResult>,
     part: Vc<ModulePart>,
 ) -> Result<Vc<ParseResult>> {
@@ -614,83 +683,6 @@ pub(super) async fn part_of_module(
                         None,
                     );
 
-                    return Ok(ParseResult::Ok {
-                        program,
-                        comments: comments.clone(),
-                        eval_context,
-                        globals: globals.clone(),
-                        source_map: source_map.clone(),
-                    }
-                    .cell());
-                } else {
-                    unreachable!()
-                }
-            }
-
-            if matches!(&*part.await?, ModulePart::Exports) {
-                if let ParseResult::Ok {
-                    comments,
-                    eval_context,
-                    globals,
-                    source_map,
-                    ..
-                } = &*modules[0].await?
-                {
-                    let mut export_names = entrypoints
-                        .keys()
-                        .filter_map(|key| {
-                            if let Key::Export(v) = key {
-                                Some(v.clone())
-                            } else {
-                                None
-                            }
-                        })
-                        .collect::<Vec<_>>();
-                    export_names.sort();
-
-                    let mut module = Module::dummy();
-
-                    for export_name in export_names {
-                        // We can't use quote! as `with` is not standard yet
-                        let chunk_prop =
-                            create_turbopack_part_id_assert(PartId::Export(export_name.clone()));
-
-                        let specifier =
-                            swc_core::ecma::ast::ExportSpecifier::Named(ExportNamedSpecifier {
-                                span: DUMMY_SP,
-                                orig: ModuleExportName::Ident(Ident::new(
-                                    export_name.as_str().into(),
-                                    DUMMY_SP,
-                                    Default::default(),
-                                )),
-                                exported: None,
-                                is_type_only: false,
-                            });
-                        module
-                            .body
-                            .push(ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(
-                                NamedExport {
-                                    span: DUMMY_SP,
-                                    specifiers: vec![specifier],
-                                    src: Some(Box::new(TURBOPACK_PART_IMPORT_SOURCE.into())),
-                                    type_only: false,
-                                    with: Some(Box::new(chunk_prop)),
-                                },
-                            )));
-                    }
-
-                    module.body.extend(star_reexports.iter().map(|export_all| {
-                        ModuleItem::ModuleDecl(ModuleDecl::ExportAll(export_all.clone()))
-                    }));
-
-                    let program = Program::Module(module);
-                    let eval_context = EvalContext::new(
-                        &program,
-                        eval_context.unresolved_mark,
-                        eval_context.top_level_mark,
-                        None,
-                        None,
-                    );
                     return Ok(ParseResult::Ok {
                         program,
                         comments: comments.clone(),

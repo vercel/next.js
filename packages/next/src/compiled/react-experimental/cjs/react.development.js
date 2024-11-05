@@ -771,6 +771,11 @@
     exports.Suspense = REACT_SUSPENSE_TYPE;
     exports.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE =
       ReactSharedInternals;
+    exports.__COMPILER_RUNTIME = {
+      c: function (size) {
+        return resolveDispatcher().useMemoCache(size);
+      }
+    };
     exports.act = function (callback) {
       var prevActQueue = ReactSharedInternals.actQueue,
         prevActScopeDepth = actScopeDepth;
@@ -1120,15 +1125,14 @@
     };
     exports.startTransition = function (scope) {
       var prevTransition = ReactSharedInternals.T,
-        transition = {};
-      ReactSharedInternals.T = transition;
-      var currentTransition = ReactSharedInternals.T;
-      ReactSharedInternals.T._updatedFibers = new Set();
+        currentTransition = {};
+      ReactSharedInternals.T = currentTransition;
+      currentTransition._updatedFibers = new Set();
       try {
         var returnValue = scope(),
           onStartTransitionFinish = ReactSharedInternals.S;
         null !== onStartTransitionFinish &&
-          onStartTransitionFinish(transition, returnValue);
+          onStartTransitionFinish(currentTransition, returnValue);
         "object" === typeof returnValue &&
           null !== returnValue &&
           "function" === typeof returnValue.then &&
@@ -1233,7 +1237,7 @@
     exports.useTransition = function () {
       return resolveDispatcher().useTransition();
     };
-    exports.version = "19.0.0-experimental-94e652d5-20240912";
+    exports.version = "19.0.0-experimental-7c8e5e7a-20241101";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

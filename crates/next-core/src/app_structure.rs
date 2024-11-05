@@ -1,17 +1,13 @@
 use std::collections::BTreeMap;
 
 use anyhow::{bail, Context, Result};
-use indexmap::{
-    indexmap,
-    map::{Entry, OccupiedEntry},
-    IndexMap,
-};
+use indexmap::map::{Entry, OccupiedEntry};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, RcStr, TaskInput, TryJoinIterExt, ValueToString,
-    Vc,
+    debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs, FxIndexMap, RcStr, ResolvedVc,
+    TaskInput, TryJoinIterExt, ValueDefault, ValueToString, Vc,
 };
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath};
 use turbopack_core::issue::{
@@ -32,7 +28,7 @@ use crate::{
 /// A final route in the app directory.
 #[turbo_tasks::value]
 #[derive(Default, Debug, Clone)]
-pub struct Components {
+pub struct AppDirModules {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub page: Option<Vc<FileSystemPath>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -40,7 +36,7 @@ pub struct Components {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<Vc<FileSystemPath>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub global_error: Option<Vc<FileSystemPath>>,
+    pub global_error: Option<ResolvedVc<FileSystemPath>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub loading: Option<Vc<FileSystemPath>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -50,12 +46,12 @@ pub struct Components {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub default: Option<Vc<FileSystemPath>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub route: Option<Vc<FileSystemPath>>,
-    #[serde(skip_serializing_if = "Metadata::is_empty")]
+    pub route: Option<ResolvedVc<FileSystemPath>>,
+    #[serde(skip_serializing_if = "Metadata::is_empty", default)]
     pub metadata: Metadata,
 }
 
-impl Components {
+impl AppDirModules {
     fn without_leafs(&self) -> Self {
         Self {
             page: None,
@@ -137,13 +133,13 @@ impl From<MetadataWithAltItem> for MetadataItem {
 /// Metadata file that can be placed in any segment of the app directory.
 #[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, TraceRawVcs)]
 pub struct Metadata {
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub icon: Vec<MetadataWithAltItem>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub apple: Vec<MetadataWithAltItem>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub twitter: Vec<MetadataWithAltItem>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub open_graph: Vec<MetadataWithAltItem>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sitemap: Option<MetadataItem>,
@@ -203,8 +199,8 @@ impl GlobalMetadata {
 #[derive(Debug)]
 pub struct DirectoryTree {
     /// key is e.g. "dashboard", "(dashboard)", "@slot"
-    pub subdirectories: BTreeMap<RcStr, Vc<DirectoryTree>>,
-    pub components: Components,
+    pub subdirectories: BTreeMap<RcStr, ResolvedVc<DirectoryTree>>,
+    pub modules: AppDirModules,
 }
 
 #[turbo_tasks::value]
@@ -212,7 +208,7 @@ pub struct DirectoryTree {
 struct PlainDirectoryTree {
     /// key is e.g. "dashboard", "(dashboard)", "@slot"
     pub subdirectories: BTreeMap<RcStr, PlainDirectoryTree>,
-    pub components: Components,
+    pub modules: AppDirModules,
 }
 
 #[turbo_tasks::value_impl]
@@ -227,14 +223,14 @@ impl DirectoryTree {
 
         Ok(PlainDirectoryTree {
             subdirectories,
-            components: self.components.clone(),
+            modules: self.modules.clone(),
         }
         .cell())
     }
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct OptionAppDir(Option<Vc<FileSystemPath>>);
+pub struct OptionAppDir(Option<ResolvedVc<FileSystemPath>>);
 
 /// Finds and returns the [DirectoryTree] of the app directory if existing.
 #[turbo_tasks::function]
@@ -248,7 +244,7 @@ pub async fn find_app_dir(project_path: Vc<FileSystemPath>) -> Result<Vc<OptionA
     } else {
         return Ok(Vc::cell(None));
     }
-    .resolve()
+    .to_resolved()
     .await?;
 
     Ok(Vc::cell(Some(app_dir)))
@@ -278,14 +274,14 @@ async fn get_directory_tree_internal(
         // so we just return an empty tree here.
         return Ok(DirectoryTree {
             subdirectories: Default::default(),
-            components: Components::default(),
+            modules: AppDirModules::default(),
         }
         .cell());
     };
     let page_extensions_value = page_extensions.await?;
 
     let mut subdirectories = BTreeMap::new();
-    let mut components = Components::default();
+    let mut modules = AppDirModules::default();
 
     let mut metadata_icon = Vec::new();
     let mut metadata_apple = Vec::new();
@@ -296,7 +292,6 @@ async fn get_directory_tree_internal(
         let entry = entry.resolve_symlink().await?;
         match entry {
             DirectoryEntry::File(file) => {
-                let file = file.resolve().await?;
                 // Do not process .d.ts files as routes
                 if basename.ends_with(".d.ts") {
                     continue;
@@ -304,15 +299,15 @@ async fn get_directory_tree_internal(
                 if let Some((stem, ext)) = basename.split_once('.') {
                     if page_extensions_value.iter().any(|e| e == ext) {
                         match stem {
-                            "page" => components.page = Some(file),
-                            "layout" => components.layout = Some(file),
-                            "error" => components.error = Some(file),
-                            "global-error" => components.global_error = Some(file),
-                            "loading" => components.loading = Some(file),
-                            "template" => components.template = Some(file),
-                            "not-found" => components.not_found = Some(file),
-                            "default" => components.default = Some(file),
-                            "route" => components.route = Some(file),
+                            "page" => modules.page = Some(*file),
+                            "layout" => modules.layout = Some(*file),
+                            "error" => modules.error = Some(*file),
+                            "global-error" => modules.global_error = Some(file),
+                            "loading" => modules.loading = Some(*file),
+                            "template" => modules.template = Some(*file),
+                            "not-found" => modules.not_found = Some(*file),
+                            "default" => modules.default = Some(*file),
+                            "route" => modules.route = Some(file),
                             _ => {}
                         }
                     }
@@ -334,10 +329,9 @@ async fn get_directory_tree_internal(
                     "opengraph-image" => &mut metadata_open_graph,
                     "sitemap" => {
                         if dynamic {
-                            components.metadata.sitemap =
-                                Some(MetadataItem::Dynamic { path: file });
+                            modules.metadata.sitemap = Some(MetadataItem::Dynamic { path: *file });
                         } else {
-                            components.metadata.sitemap = Some(MetadataItem::Static { path: file });
+                            modules.metadata.sitemap = Some(MetadataItem::Static { path: *file });
                         }
                         continue;
                     }
@@ -345,7 +339,7 @@ async fn get_directory_tree_internal(
                 };
 
                 if dynamic {
-                    entry.push((number, MetadataWithAltItem::Dynamic { path: file }));
+                    entry.push((number, MetadataWithAltItem::Dynamic { path: *file }));
                     continue;
                 }
 
@@ -361,16 +355,17 @@ async fn get_directory_tree_internal(
                 entry.push((
                     number,
                     MetadataWithAltItem::Static {
-                        path: file,
+                        path: *file,
                         alt_path,
                     },
                 ));
             }
             DirectoryEntry::Directory(dir) => {
-                let dir = dir.resolve().await?;
                 // appDir ignores paths starting with an underscore
                 if !basename.starts_with('_') {
-                    let result = get_directory_tree(dir, page_extensions);
+                    let result = get_directory_tree(*dir, page_extensions)
+                        .to_resolved()
+                        .await?;
                     subdirectories.insert(basename.clone(), result);
                 }
             }
@@ -384,29 +379,29 @@ async fn get_directory_tree_internal(
         list.into_iter().map(|(_, item)| item).collect()
     }
 
-    components.metadata.icon = sort(metadata_icon);
-    components.metadata.apple = sort(metadata_apple);
-    components.metadata.twitter = sort(metadata_twitter);
-    components.metadata.open_graph = sort(metadata_open_graph);
+    modules.metadata.icon = sort(metadata_icon);
+    modules.metadata.apple = sort(metadata_apple);
+    modules.metadata.twitter = sort(metadata_twitter);
+    modules.metadata.open_graph = sort(metadata_open_graph);
 
     Ok(DirectoryTree {
         subdirectories,
-        components,
+        modules,
     }
     .cell())
 }
 
 #[turbo_tasks::value]
 #[derive(Debug, Clone)]
-pub struct LoaderTree {
+pub struct AppPageLoaderTree {
     pub page: AppPage,
     pub segment: RcStr,
-    pub parallel_routes: IndexMap<RcStr, LoaderTree>,
-    pub components: Components,
+    pub parallel_routes: FxIndexMap<RcStr, AppPageLoaderTree>,
+    pub modules: AppDirModules,
     pub global_metadata: Vc<GlobalMetadata>,
 }
 
-impl LoaderTree {
+impl AppPageLoaderTree {
     /// Returns true if there's a page match in this loader tree.
     pub fn has_page(&self) -> bool {
         if &*self.segment == "__PAGE__" {
@@ -422,7 +417,7 @@ impl LoaderTree {
         false
     }
 
-    /// Returns whether or not the only match in this tree is for a catch-all
+    /// Returns whether the only match in this tree is for a catch-all
     /// route.
     pub fn has_only_catchall(&self) -> bool {
         if &*self.segment == "__PAGE__" && !self.page.is_catchall() {
@@ -436,6 +431,21 @@ impl LoaderTree {
         }
 
         true
+    }
+
+    /// Returns true if this loader tree contains an intercepting route match.
+    pub fn is_intercepting(&self) -> bool {
+        if self.page.is_intercepting() && self.has_page() {
+            return true;
+        }
+
+        for (_, tree) in &self.parallel_routes {
+            if tree.is_intercepting() {
+                return true;
+            }
+        }
+
+        false
     }
 
     /// Returns the specificity of the page (i.e. the number of segments
@@ -455,6 +465,17 @@ impl LoaderTree {
     }
 }
 
+#[turbo_tasks::value(transparent)]
+pub struct FileSystemPathVec(Vec<ResolvedVc<FileSystemPath>>);
+
+#[turbo_tasks::value_impl]
+impl ValueDefault for FileSystemPathVec {
+    #[turbo_tasks::function]
+    fn value_default() -> Vc<Self> {
+        Vc::cell(Vec::new())
+    }
+}
+
 #[derive(
     Clone,
     PartialEq,
@@ -470,12 +491,12 @@ impl LoaderTree {
 pub enum Entrypoint {
     AppPage {
         pages: Vec<AppPage>,
-        loader_tree: Vc<LoaderTree>,
+        loader_tree: ResolvedVc<AppPageLoaderTree>,
     },
     AppRoute {
         page: AppPage,
-        path: Vc<FileSystemPath>,
-        root_layouts: Vc<Vec<Vc<FileSystemPath>>>,
+        path: ResolvedVc<FileSystemPath>,
+        root_layouts: ResolvedVc<FileSystemPathVec>,
     },
     AppMetadata {
         page: AppPage,
@@ -494,7 +515,7 @@ impl Entrypoint {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct Entrypoints(IndexMap<AppPath, Entrypoint>);
+pub struct Entrypoints(FxIndexMap<AppPath, Entrypoint>);
 
 fn is_parallel_route(name: &str) -> bool {
     name.starts_with('@')
@@ -541,9 +562,9 @@ fn conflict_issue(
 
 fn add_app_page(
     app_dir: Vc<FileSystemPath>,
-    result: &mut IndexMap<AppPath, Entrypoint>,
+    result: &mut FxIndexMap<AppPath, Entrypoint>,
     page: AppPage,
-    loader_tree: Vc<LoaderTree>,
+    loader_tree: ResolvedVc<AppPageLoaderTree>,
 ) {
     let mut e = match result.entry(page.clone().into()) {
         Entry::Occupied(e) => e,
@@ -600,10 +621,10 @@ fn add_app_page(
 
 fn add_app_route(
     app_dir: Vc<FileSystemPath>,
-    result: &mut IndexMap<AppPath, Entrypoint>,
+    result: &mut FxIndexMap<AppPath, Entrypoint>,
     page: AppPage,
-    path: Vc<FileSystemPath>,
-    root_layouts: Vc<Vec<Vc<FileSystemPath>>>,
+    path: ResolvedVc<FileSystemPath>,
+    root_layouts: ResolvedVc<FileSystemPathVec>,
 ) {
     let e = match result.entry(page.clone().into()) {
         Entry::Occupied(e) => e,
@@ -643,7 +664,7 @@ fn add_app_route(
 
 fn add_app_metadata_route(
     app_dir: Vc<FileSystemPath>,
-    result: &mut IndexMap<AppPath, Entrypoint>,
+    result: &mut FxIndexMap<AppPath, Entrypoint>,
     page: AppPage,
     metadata: MetadataItem,
 ) {
@@ -697,7 +718,7 @@ fn directory_tree_to_entrypoints(
     app_dir: Vc<FileSystemPath>,
     directory_tree: Vc<DirectoryTree>,
     global_metadata: Vc<GlobalMetadata>,
-    root_layouts: Vc<Vec<Vc<FileSystemPath>>>,
+    root_layouts: Vc<FileSystemPathVec>,
 ) -> Vc<Entrypoints> {
     directory_tree_to_entrypoints_internal(
         app_dir,
@@ -718,9 +739,8 @@ struct DuplicateParallelRouteIssue {
 #[turbo_tasks::value_impl]
 impl Issue for DuplicateParallelRouteIssue {
     #[turbo_tasks::function]
-    async fn file_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
-        let this = self.await?;
-        Ok(this.app_dir.join(this.page.to_string().into()))
+    fn file_path(&self) -> Vc<FileSystemPath> {
+        self.app_dir.join(self.page.to_string().into())
     }
 
     #[turbo_tasks::function]
@@ -737,7 +757,7 @@ impl Issue for DuplicateParallelRouteIssue {
     }
 }
 
-fn page_path_except_parallel(loader_tree: &LoaderTree) -> Option<AppPage> {
+fn page_path_except_parallel(loader_tree: &AppPageLoaderTree) -> Option<AppPage> {
     if loader_tree.page.iter().any(|v| {
         matches!(
             v,
@@ -749,7 +769,7 @@ fn page_path_except_parallel(loader_tree: &LoaderTree) -> Option<AppPage> {
         return None;
     }
 
-    if loader_tree.components.page.is_some() {
+    if loader_tree.modules.page.is_some() {
         return Some(loader_tree.page.clone());
     }
 
@@ -762,7 +782,7 @@ fn page_path_except_parallel(loader_tree: &LoaderTree) -> Option<AppPage> {
 
 fn check_duplicate(
     duplicate: &mut FxHashMap<AppPath, AppPage>,
-    loader_tree: &LoaderTree,
+    loader_tree: &AppPageLoaderTree,
     app_dir: Vc<FileSystemPath>,
 ) {
     let page_path = page_path_except_parallel(loader_tree);
@@ -781,6 +801,9 @@ fn check_duplicate(
     }
 }
 
+#[turbo_tasks::value(transparent)]
+struct AppPageLoaderTreeOption(Option<ResolvedVc<AppPageLoaderTree>>);
+
 /// creates the loader tree for a specific route (pathname / [AppPath])
 #[turbo_tasks::function]
 async fn directory_tree_to_loader_tree(
@@ -791,7 +814,7 @@ async fn directory_tree_to_loader_tree(
     app_page: AppPage,
     // the page this loader tree is constructed for
     for_app_path: AppPath,
-) -> Result<Vc<Option<Vc<LoaderTree>>>> {
+) -> Result<Vc<AppPageLoaderTreeOption>> {
     let plain_tree = &*directory_tree.into_plain().await?;
 
     let tree = directory_tree_to_loader_tree_internal(
@@ -803,7 +826,7 @@ async fn directory_tree_to_loader_tree(
         for_app_path,
     )?;
 
-    Ok(Vc::cell(tree.map(|tree| tree.cell())))
+    Ok(Vc::cell(tree.map(AppPageLoaderTree::resolved_cell)))
 }
 
 fn directory_tree_to_loader_tree_internal(
@@ -814,36 +837,36 @@ fn directory_tree_to_loader_tree_internal(
     app_page: AppPage,
     // the page this loader tree is constructed for
     for_app_path: AppPath,
-) -> Result<Option<LoaderTree>> {
+) -> Result<Option<AppPageLoaderTree>> {
     let app_path = AppPath::from(app_page.clone());
 
     if !for_app_path.contains(&app_path) {
         return Ok(None);
     }
 
-    let mut components = directory_tree.components.clone();
+    let mut modules = directory_tree.modules.clone();
 
     // Capture the current page for the metadata to calculate segment relative to
     // the corresponding page for the static metadata files.
-    components.metadata.base_page = Some(app_page.clone());
+    modules.metadata.base_page = Some(app_page.clone());
 
     // the root directory in the app dir.
     let is_root_directory = app_page.is_root();
     // an alternative root layout (in a route group which affects the page, but not
     // the path).
-    let is_root_layout = app_path.is_root() && components.layout.is_some();
+    let is_root_layout = app_path.is_root() && modules.layout.is_some();
 
-    if (is_root_directory || is_root_layout) && components.not_found.is_none() {
-        components.not_found = Some(
+    if (is_root_directory || is_root_layout) && modules.not_found.is_none() {
+        modules.not_found = Some(
             get_next_package(app_dir).join("dist/client/components/not-found-error.js".into()),
         );
     }
 
-    let mut tree = LoaderTree {
+    let mut tree = AppPageLoaderTree {
         page: app_page.clone(),
         segment: directory_name.clone(),
-        parallel_routes: IndexMap::new(),
-        components: components.without_leafs(),
+        parallel_routes: FxIndexMap::default(),
+        modules: modules.without_leafs(),
         global_metadata,
     };
 
@@ -854,18 +877,18 @@ fn directory_tree_to_loader_tree_internal(
     }
 
     if let Some(page) = (app_path == for_app_path || app_path.is_catchall())
-        .then_some(components.page)
+        .then_some(modules.page)
         .flatten()
     {
         tree.parallel_routes.insert(
             "children".into(),
-            LoaderTree {
+            AppPageLoaderTree {
                 page: app_page.clone(),
                 segment: "__PAGE__".into(),
-                parallel_routes: IndexMap::new(),
-                components: Components {
+                parallel_routes: FxIndexMap::default(),
+                modules: AppDirModules {
                     page: Some(page),
-                    metadata: components.metadata,
+                    metadata: modules.metadata,
                     ..Default::default()
                 },
                 global_metadata,
@@ -940,49 +963,49 @@ fn directory_tree_to_loader_tree_internal(
         }
     }
 
+    // make sure we don't have a match for other slots if there's an intercepting route match
+    // we only check subtrees as the current level could trigger `is_intercepting`
+    if tree
+        .parallel_routes
+        .iter()
+        .any(|(_, parallel_tree)| parallel_tree.is_intercepting())
+    {
+        let mut keys_to_replace = Vec::new();
+
+        for (key, parallel_tree) in &tree.parallel_routes {
+            if !parallel_tree.is_intercepting() {
+                keys_to_replace.push(key.clone());
+            }
+        }
+
+        for key in keys_to_replace {
+            let subdir_name: RcStr = format!("@{}", key).into();
+
+            let default = if key == "children" {
+                modules.default
+            } else if let Some(subdirectory) = directory_tree.subdirectories.get(&subdir_name) {
+                subdirectory.modules.default
+            } else {
+                None
+            };
+
+            tree.parallel_routes.insert(
+                key,
+                default_route_tree(app_dir, global_metadata, app_page.clone(), default),
+            );
+        }
+    }
+
     if tree.parallel_routes.is_empty() {
-        tree.segment = "__DEFAULT__".into();
-        if let Some(default) = components.default {
-            tree.components = Components {
-                default: Some(default),
-                ..Default::default()
-            };
-        } else if current_level_is_parallel_route {
-            // default fallback component
-            tree.components = Components {
-                default: Some(
-                    get_next_package(app_dir)
-                        .join("dist/client/components/parallel-route-default.js".into()),
-                ),
-                ..Default::default()
-            };
+        if modules.default.is_some() || current_level_is_parallel_route {
+            tree = default_route_tree(app_dir, global_metadata, app_page, modules.default);
         } else {
             return Ok(None);
         }
     } else if tree.parallel_routes.get("children").is_none() {
         tree.parallel_routes.insert(
             "children".into(),
-            LoaderTree {
-                page: app_page.clone(),
-                segment: "__DEFAULT__".into(),
-                parallel_routes: IndexMap::new(),
-                components: if let Some(default) = components.default {
-                    Components {
-                        default: Some(default),
-                        ..Default::default()
-                    }
-                } else {
-                    // default fallback component
-                    Components {
-                        default: Some(
-                            get_next_package(app_dir)
-                                .join("dist/client/components/parallel-route-default.js".into()),
-                        ),
-                        ..Default::default()
-                    }
-                },
-                global_metadata,
-            },
+            default_route_tree(app_dir, global_metadata, app_page, modules.default),
         );
     }
 
@@ -997,6 +1020,35 @@ fn directory_tree_to_loader_tree_internal(
     Ok(Some(tree))
 }
 
+fn default_route_tree(
+    app_dir: Vc<FileSystemPath>,
+    global_metadata: Vc<GlobalMetadata>,
+    app_page: AppPage,
+    default_component: Option<Vc<FileSystemPath>>,
+) -> AppPageLoaderTree {
+    AppPageLoaderTree {
+        page: app_page.clone(),
+        segment: "__DEFAULT__".into(),
+        parallel_routes: FxIndexMap::default(),
+        modules: if let Some(default) = default_component {
+            AppDirModules {
+                default: Some(default),
+                ..Default::default()
+            }
+        } else {
+            // default fallback component
+            AppDirModules {
+                default: Some(
+                    get_next_package(app_dir)
+                        .join("dist/client/components/parallel-route-default.js".into()),
+                ),
+                ..Default::default()
+            }
+        },
+        global_metadata,
+    }
+}
+
 #[turbo_tasks::function]
 async fn directory_tree_to_entrypoints_internal(
     app_dir: Vc<FileSystemPath>,
@@ -1004,7 +1056,7 @@ async fn directory_tree_to_entrypoints_internal(
     directory_name: RcStr,
     directory_tree: Vc<DirectoryTree>,
     app_page: AppPage,
-    root_layouts: Vc<Vec<Vc<FileSystemPath>>>,
+    root_layouts: ResolvedVc<FileSystemPathVec>,
 ) -> Result<Vc<Entrypoints>> {
     let span = tracing::info_span!("build layout trees", name = display(&app_page));
     directory_tree_to_entrypoints_internal_untraced(
@@ -1025,27 +1077,27 @@ async fn directory_tree_to_entrypoints_internal_untraced(
     directory_name: RcStr,
     directory_tree: Vc<DirectoryTree>,
     app_page: AppPage,
-    root_layouts: Vc<Vec<Vc<FileSystemPath>>>,
+    root_layouts: ResolvedVc<FileSystemPathVec>,
 ) -> Result<Vc<Entrypoints>> {
-    let mut result = IndexMap::new();
+    let mut result = FxIndexMap::default();
 
     let directory_tree_vc = directory_tree;
     let directory_tree = &*directory_tree.await?;
 
     let subdirectories = &directory_tree.subdirectories;
-    let components = &directory_tree.components;
+    let modules = &directory_tree.modules;
     // Route can have its own segment config, also can inherit from the layout root
     // segment config. https://nextjs.org/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes#segment-runtime-option
     // Pass down layouts from each tree to apply segment config when adding route.
-    let root_layouts = if let Some(layout) = components.layout {
-        let mut layouts = (*root_layouts.await?).clone();
-        layouts.push(layout);
-        Vc::cell(layouts)
+    let root_layouts = if let Some(layout) = modules.layout {
+        let mut layouts = root_layouts.await?.clone_value();
+        layouts.push(layout.to_resolved().await?);
+        ResolvedVc::cell(layouts)
     } else {
         root_layouts
     };
 
-    if components.page.is_some() {
+    if modules.page.is_some() {
         let app_path = AppPath::from(app_page.clone());
 
         let loader_tree = *directory_tree_to_loader_tree(
@@ -1062,16 +1114,19 @@ async fn directory_tree_to_entrypoints_internal_untraced(
             app_dir,
             &mut result,
             app_page.complete(PageType::Page)?,
-            loader_tree.context("loader tree should be created for a page/default")?,
+            loader_tree
+                .context("loader tree should be created for a page/default")?
+                .to_resolved()
+                .await?,
         );
     }
 
-    if let Some(route) = components.route {
+    if let Some(route) = modules.route {
         add_app_route(
             app_dir,
             &mut result,
             app_page.complete(PageType::Route)?,
-            route,
+            route.to_resolved().await?,
             root_layouts,
         );
     }
@@ -1083,7 +1138,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
         open_graph,
         sitemap,
         base_page: _,
-    } = &components.metadata;
+    } = &modules.metadata;
 
     for meta in sitemap
         .iter()
@@ -1124,32 +1179,32 @@ async fn directory_tree_to_entrypoints_internal_untraced(
 
         // Next.js has this logic in "collect-app-paths", where the root not-found page
         // is considered as its own entry point.
-        let not_found_tree = LoaderTree {
+        let not_found_tree = AppPageLoaderTree {
                 page: app_page.clone(),
                 segment: directory_name.clone(),
-                parallel_routes: indexmap! {
-                    "children".into() => LoaderTree {
+                parallel_routes: fxindexmap! {
+                    "children".into() => AppPageLoaderTree {
                         page: app_page.clone(),
                         segment: "/_not-found".into(),
-                        parallel_routes: indexmap! {
-                            "children".into() => LoaderTree {
+                        parallel_routes: fxindexmap! {
+                            "children".into() => AppPageLoaderTree {
                                 page: app_page.clone(),
                                 segment: "__PAGE__".into(),
-                                parallel_routes: IndexMap::new(),
-                                components: Components {
-                                    page: components.not_found.or_else(|| Some(get_next_package(app_dir).join("dist/client/components/not-found-error.js".into()))),
+                                parallel_routes: FxIndexMap::default(),
+                                modules: AppDirModules {
+                                    page: modules.not_found.or_else(|| Some(get_next_package(app_dir).join("dist/client/components/not-found-error.js".into()))),
                                     ..Default::default()
                                 },
                                 global_metadata
                             }
                         },
-                        components: Components::default(),
+                        modules: AppDirModules::default(),
                         global_metadata,
                     },
                 },
-                components: components.without_leafs(),
+                modules: modules.without_leafs(),
                 global_metadata,
-            }.cell();
+            }.resolved_cell();
 
         {
             let app_page = app_page
@@ -1179,9 +1234,9 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                 app_dir,
                 global_metadata,
                 subdir_name.clone(),
-                subdirectory,
+                *subdirectory,
                 child_app_page.clone(),
-                root_layouts,
+                *root_layouts,
             )
             .await?;
 
@@ -1236,7 +1291,9 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                             &mut result,
                             page.clone(),
                             loader_tree
-                                .context("loader tree should be created for a page/default")?,
+                                .context("loader tree should be created for a page/default")?
+                                .to_resolved()
+                                .await?,
                         );
                     }
                 }
@@ -1288,9 +1345,9 @@ pub async fn get_global_metadata(
         };
 
         if dynamic {
-            *entry = Some(MetadataItem::Dynamic { path: file });
+            *entry = Some(MetadataItem::Dynamic { path: *file });
         } else {
-            *entry = Some(MetadataItem::Static { path: file });
+            *entry = Some(MetadataItem::Static { path: *file });
         }
         // TODO(WEB-952) handle symlinks in app dir
     }
@@ -1313,8 +1370,8 @@ impl Issue for DirectoryTreeIssue {
     }
 
     #[turbo_tasks::function]
-    async fn title(&self) -> Result<Vc<StyledString>> {
-        Ok(StyledString::Text("An issue occurred while preparing your Next.js app".into()).cell())
+    fn title(&self) -> Vc<StyledString> {
+        StyledString::Text("An issue occurred while preparing your Next.js app".into()).cell()
     }
 
     #[turbo_tasks::function]

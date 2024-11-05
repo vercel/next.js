@@ -1,12 +1,16 @@
 'use client'
 
-import { useEffect, type HTMLProps, type FormEvent } from 'react'
-import { useRouter } from './components/navigation'
+import { useEffect, type HTMLProps, type FormEvent, useContext } from 'react'
 import { addBasePath } from './add-base-path'
 import { useIntersection } from './use-intersection'
 import { useMergedRef } from './use-merged-ref'
-import type { AppRouterInstance } from '../shared/lib/app-router-context.shared-runtime'
+import {
+  AppRouterContext,
+  type AppRouterInstance,
+} from '../shared/lib/app-router-context.shared-runtime'
 import { PrefetchKind } from './components/router-reducer/router-reducer-types'
+import { RouterContext } from '../shared/lib/router-context.shared-runtime'
+import type { NextRouter } from './router'
 
 const DISALLOWED_FORM_PROPS = ['method', 'encType', 'target'] as const
 
@@ -21,6 +25,20 @@ type InternalFormProps = {
    * - If `action` is a function, it will be called when the form is submitted. See the [React docs](https://react.dev/reference/react-dom/components/form#props) for more.
    */
   action: NonNullable<HTMLFormProps['action']>
+  /**
+   * Controls how the route specified by `action` is prefetched.
+   * Any `<Form />` that is in the viewport (initially or through scroll) will be prefetched.
+   * Prefetch can be disabled by passing `prefetch={false}`. Prefetching is only enabled in production.
+   *
+   * Options:
+   * - `null` (default): For statically generated pages, this will prefetch the full React Server Component data. For dynamic pages, this will prefetch up to the nearest route segment with a [`loading.js`](https://nextjs.org/docs/app/api-reference/file-conventions/loading) file. If there is no loading file, it will not fetch the full tree to avoid fetching too much data.
+   * - `false`: This will not prefetch any data.
+   *
+   * In pages dir, prefetching is not supported, and passing this prop will emit a warning.
+   *
+   * @defaultValue `null`
+   */
+  prefetch?: false | null
   /**
    * Whether submitting the form should replace the current `history` state instead of adding a new url into the stack.
    * Only valid if `action` is a string.
@@ -45,12 +63,63 @@ export type FormProps<RouteInferType = any> = InternalFormProps
 export default function Form({
   replace,
   scroll,
+  prefetch: prefetchProp,
   ref: externalRef,
   ...props
 }: FormProps) {
+  const router = useAppOrPagesRouter()
+
   const actionProp = props.action
   const isNavigatingForm = typeof actionProp === 'string'
 
+  // Validate `action`
+  if (process.env.NODE_ENV === 'development') {
+    if (isNavigatingForm) {
+      checkActionUrl(actionProp, 'action')
+    }
+  }
+
+  // Validate `prefetch`
+  if (process.env.NODE_ENV === 'development') {
+    if (
+      !(
+        prefetchProp === undefined ||
+        prefetchProp === false ||
+        prefetchProp === null
+      )
+    ) {
+      console.error('The `prefetch` prop of <Form> must be `false` or `null`')
+    }
+
+    if (prefetchProp !== undefined) {
+      if (!isAppRouter(router)) {
+        console.error(
+          'Passing `prefetch` to a <Form> has no effect in the pages directory.'
+        )
+      } else if (!isNavigatingForm) {
+        console.error(
+          'Passing `prefetch` to a <Form> whose `action` is a function has no effect.'
+        )
+      }
+    }
+  }
+
+  const prefetch =
+    prefetchProp === false || prefetchProp === null ? prefetchProp : null
+
+  // Validate `scroll` and `replace`
+  if (process.env.NODE_ENV === 'development') {
+    if (!isNavigatingForm && (replace !== undefined || scroll !== undefined)) {
+      console.error(
+        'Passing `replace` or `scroll` to a <Form> whose `action` is a function has no effect.\n' +
+          'See the relevant docs to learn how to control this behavior for navigations triggered from actions:\n' +
+          '  `redirect()`       - https://nextjs.org/docs/app/api-reference/functions/redirect#parameters\n' +
+          '  `router.replace()` - https://nextjs.org/docs/app/api-reference/functions/use-router#userouter\n'
+      )
+    }
+  }
+
+  // Clean up any unsupported form props (and warn if present)
   for (const key of DISALLOWED_FORM_PROPS) {
     if (key in props) {
       if (process.env.NODE_ENV === 'development') {
@@ -66,11 +135,16 @@ export default function Form({
     }
   }
 
-  const router = useRouter()
+  const isPrefetchEnabled =
+    // there is no notion of instant loading states in pages dir, so prefetching is pointless
+    isAppRouter(router) &&
+    // if we don't have an action path, we can't preload anything anyway.
+    isNavigatingForm &&
+    prefetch === null
 
   const [setIntersectionRef, isVisible] = useIntersection({
     rootMargin: '200px',
-    disabled: !isNavigatingForm, // if we don't have an action path, we can't preload anything anyway.
+    disabled: !isPrefetchEnabled,
   })
 
   const ownRef = useMergedRef<HTMLFormElement>(
@@ -79,40 +153,22 @@ export default function Form({
   )
 
   useEffect(() => {
-    if (!isNavigatingForm) {
-      return
-    }
-
-    if (!isVisible) {
+    if (!isVisible || !isPrefetchEnabled) {
       return
     }
 
     try {
-      // TODO: do we need to take the current field values here?
-      // or are we assuming that queryparams can't affect this (but what about rewrites)?
-      router.prefetch(actionProp, { kind: PrefetchKind.AUTO })
+      const prefetchKind = PrefetchKind.AUTO
+      router.prefetch(actionProp, { kind: prefetchKind })
     } catch (err) {
       console.error(err)
     }
-  }, [isNavigatingForm, isVisible, actionProp, router])
+  }, [isPrefetchEnabled, isVisible, actionProp, prefetch, router])
 
   if (!isNavigatingForm) {
-    if (process.env.NODE_ENV === 'development') {
-      if (replace !== undefined || scroll !== undefined) {
-        console.error(
-          'Passing `replace` or `scroll` to a <Form> whose `action` is a function has no effect.\n' +
-            'See the relevant docs to learn how to control this behavior for navigations triggered from actions:\n' +
-            '  `redirect()`       - https://nextjs.org/docs/app/api-reference/functions/redirect#parameters\n' +
-            '  `router.replace()` - https://nextjs.org/docs/app/api-reference/functions/use-router#userouter\n'
-        )
-      }
-    }
     return <form {...props} ref={ownRef} />
   }
 
-  if (process.env.NODE_ENV === 'development') {
-    checkActionUrl(actionProp, 'action')
-  }
   const actionHref = addBasePath(actionProp)
 
   return (
@@ -146,7 +202,7 @@ function onFormSubmit(
     onSubmit: FormProps['onSubmit']
     replace: FormProps['replace']
     scroll: FormProps['scroll']
-    router: AppRouterInstance
+    router: SomeRouter
   }
 ) {
   if (typeof onSubmit === 'function') {
@@ -246,7 +302,37 @@ function onFormSubmit(
   event.preventDefault()
 
   const method = replace ? 'replace' : 'push'
-  router[method](targetUrl.href, { scroll })
+  const targetHref = targetUrl.href
+  if (isAppRouter(router)) {
+    router[method](targetHref, { scroll })
+  } else {
+    // TODO(form): Make this use a transition so that pending states work
+    //
+    // Unlike the app router, pages router doesn't use startTransition,
+    // and can't easily be wrapped in one because of implementation details
+    // (e.g. it doesn't use any react state)
+    // But it's important to have this wrapped in a transition because
+    // pending states from e.g. `useFormStatus` rely on that.
+    // So this needs some follow up work.
+    router[method](targetHref, undefined, { scroll })
+  }
+}
+
+type SomeRouter = AppRouterInstance | NextRouter
+
+function isAppRouter(router: SomeRouter): router is AppRouterInstance {
+  return !('asPath' in router)
+}
+
+function useAppOrPagesRouter(): SomeRouter {
+  const pagesRouter = useContext(RouterContext)
+  const appRouter = useContext(AppRouterContext)
+  if (pagesRouter) {
+    return pagesRouter
+  } else {
+    // We're in the app directory if there is no pages router.
+    return appRouter!
+  }
 }
 
 function checkActionUrl(action: string, source: 'action' | 'formAction') {

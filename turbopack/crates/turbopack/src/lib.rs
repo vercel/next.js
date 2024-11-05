@@ -2,10 +2,10 @@
 #![feature(trivial_bounds)]
 #![feature(min_specialization)]
 #![feature(map_try_insert)]
-#![feature(option_get_or_insert_default)]
 #![feature(hash_set_entry)]
 #![recursion_limit = "256"]
 #![feature(arbitrary_self_types)]
+#![feature(arbitrary_self_types_pointers)]
 
 pub mod evaluate_context;
 mod graph;
@@ -30,7 +30,7 @@ use ecmascript::{
 use graph::{aggregate, AggregatedGraph, AggregatedGraphNodeContent};
 use module_options::{ModuleOptions, ModuleOptionsContext, ModuleRuleEffect, ModuleType};
 use tracing::Instrument;
-use turbo_tasks::{Completion, RcStr, Value, ValueToString, Vc};
+use turbo_tasks::{Completion, RcStr, ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 pub use turbopack_core::condition;
 use turbopack_core::{
@@ -106,7 +106,7 @@ async fn apply_module_type(
     module_type: Vc<ModuleType>,
     reference_type: Value<ReferenceType>,
     part: Option<Vc<ModulePart>>,
-    inner_assets: Option<Vc<InnerAssets>>,
+    inner_assets: Option<ResolvedVc<InnerAssets>>,
     runtime_code: bool,
 ) -> Result<Vc<ProcessResult>> {
     let module_type = &*module_type.await?;
@@ -164,7 +164,7 @@ async fn apply_module_type(
             }
 
             if runtime_code {
-                Vc::upcast(builder.build())
+                ResolvedVc::upcast(builder.build().to_resolved().await?)
             } else {
                 let module = builder.build();
                 let part_ref = if let Some(part) = part {
@@ -190,11 +190,10 @@ async fn apply_module_type(
                 let options = options.await?;
                 match options.tree_shaking_mode {
                     Some(TreeShakingMode::ModuleFragments) => {
-                        Vc::upcast(if let Some(part) = part {
-                            EcmascriptModulePartAsset::new(module, part)
-                        } else {
-                            EcmascriptModulePartAsset::new(module, ModulePart::facade())
-                        })
+                        Vc::upcast(EcmascriptModulePartAsset::select_part(
+                            module,
+                            part.unwrap_or(ModulePart::facade()),
+                        ))
                     }
                     Some(TreeShakingMode::ReexportsOnly) => {
                         if let Some(part) = part {
@@ -231,7 +230,9 @@ async fn apply_module_type(
                                     }
                                 }
                                 _ => bail!(
-                                    "Invalid module part for reexports only tree shaking mode"
+                                    "Invalid module part \"{}\" for reexports only tree shaking \
+                                     mode",
+                                    part.to_string().await?
                                 ),
                             }
                         } else if *module.get_exports().needs_facade().await? {
@@ -245,42 +246,64 @@ async fn apply_module_type(
                     }
                     None => Vc::upcast(module),
                 }
+                .to_resolved()
+                .await?
             }
         }
-        ModuleType::Json => Vc::upcast(JsonModuleAsset::new(source)),
-        ModuleType::Raw => Vc::upcast(RawModule::new(source)),
+        ModuleType::Json => ResolvedVc::upcast(JsonModuleAsset::new(source).to_resolved().await?),
+        ModuleType::Raw => ResolvedVc::upcast(RawModule::new(source).to_resolved().await?),
         ModuleType::CssGlobal => {
             return Ok(module_asset_context.process(
                 source,
                 Value::new(ReferenceType::Css(CssReferenceSubType::Internal)),
             ))
         }
-        ModuleType::CssModule => Vc::upcast(ModuleCssAsset::new(
-            source,
-            Vc::upcast(module_asset_context),
-        )),
-        ModuleType::Css { ty, use_swc_css } => Vc::upcast(CssModuleAsset::new(
-            source,
-            Vc::upcast(module_asset_context),
-            *ty,
-            *use_swc_css,
-            if let ReferenceType::Css(CssReferenceSubType::AtImport(import)) =
-                reference_type.into_value()
-            {
-                import
-            } else {
-                None
-            },
-        )),
-        ModuleType::Static => Vc::upcast(StaticModuleAsset::new(
-            source,
-            Vc::upcast(module_asset_context),
-        )),
-        ModuleType::WebAssembly { source_ty } => Vc::upcast(WebAssemblyModuleAsset::new(
-            WebAssemblySource::new(source, *source_ty),
-            Vc::upcast(module_asset_context),
-        )),
-        ModuleType::Custom(custom) => custom.create_module(source, module_asset_context, part),
+        ModuleType::CssModule => ResolvedVc::upcast(
+            ModuleCssAsset::new(source, Vc::upcast(module_asset_context))
+                .to_resolved()
+                .await?,
+        ),
+        ModuleType::Css { ty, use_swc_css } => ResolvedVc::upcast(
+            CssModuleAsset::new(
+                source,
+                Vc::upcast(module_asset_context),
+                *ty,
+                module_asset_context
+                    .module_options_context()
+                    .await?
+                    .css
+                    .minify_type,
+                *use_swc_css,
+                if let ReferenceType::Css(CssReferenceSubType::AtImport(import)) =
+                    reference_type.into_value()
+                {
+                    import
+                } else {
+                    None
+                },
+            )
+            .to_resolved()
+            .await?,
+        ),
+        ModuleType::Static => ResolvedVc::upcast(
+            StaticModuleAsset::new(source, Vc::upcast(module_asset_context))
+                .to_resolved()
+                .await?,
+        ),
+        ModuleType::WebAssembly { source_ty } => ResolvedVc::upcast(
+            WebAssemblyModuleAsset::new(
+                WebAssemblySource::new(source, *source_ty),
+                Vc::upcast(module_asset_context),
+            )
+            .to_resolved()
+            .await?,
+        ),
+        ModuleType::Custom(custom) => {
+            custom
+                .create_module(source, module_asset_context, part)
+                .to_resolved()
+                .await?
+        }
     })
     .cell())
 }
@@ -326,7 +349,7 @@ pub struct ModuleAssetContext {
     pub module_options_context: Vc<ModuleOptionsContext>,
     pub resolve_options_context: Vc<ResolveOptionsContext>,
     pub layer: Vc<RcStr>,
-    transition: Option<Vc<Box<dyn Transition>>>,
+    transition: Option<ResolvedVc<Box<dyn Transition>>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -356,7 +379,7 @@ impl ModuleAssetContext {
         module_options_context: Vc<ModuleOptionsContext>,
         resolve_options_context: Vc<ResolveOptionsContext>,
         layer: Vc<RcStr>,
-        transition: Vc<Box<dyn Transition>>,
+        transition: ResolvedVc<Box<dyn Transition>>,
     ) -> Vc<Self> {
         Self::cell(ModuleAssetContext {
             transitions,
@@ -369,18 +392,18 @@ impl ModuleAssetContext {
     }
 
     #[turbo_tasks::function]
-    pub async fn module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
-        Ok(self.await?.module_options_context)
+    pub fn module_options_context(&self) -> Vc<ModuleOptionsContext> {
+        self.module_options_context
     }
 
     #[turbo_tasks::function]
-    pub async fn resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
-        Ok(self.await?.resolve_options_context)
+    pub fn resolve_options_context(&self) -> Vc<ResolveOptionsContext> {
+        self.resolve_options_context
     }
 
     #[turbo_tasks::function]
-    pub async fn is_types_resolving_enabled(self: Vc<Self>) -> Result<Vc<bool>> {
-        let resolve_options_context = self.await?.resolve_options_context.await?;
+    pub async fn is_types_resolving_enabled(&self) -> Result<Vc<bool>> {
+        let resolve_options_context = self.resolve_options_context.await?;
         Ok(Vc::cell(
             resolve_options_context.enable_types && resolve_options_context.enable_typescript,
         ))
@@ -478,7 +501,7 @@ async fn process_default_internal(
     let reference_type = reference_type.into_value();
     let part: Option<Vc<ModulePart>> = match &reference_type {
         ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::ImportPart(part)) => {
-            Some(*part)
+            Some(**part)
         }
         _ => None,
     };
@@ -711,7 +734,9 @@ impl AssetContext for ModuleAssetContext {
                         self.process_with_transition_rules(source, reference_type)
                     };
                     Ok(match *process_result.await? {
-                        ProcessResult::Module(m) => ModuleResolveResultItem::Module(Vc::upcast(m)),
+                        ProcessResult::Module(m) => {
+                            ModuleResolveResultItem::Module(ResolvedVc::upcast(m))
+                        }
                         ProcessResult::Ignore => ModuleResolveResultItem::Ignore,
                     })
                 }
@@ -770,12 +795,8 @@ impl AssetContext for ModuleAssetContext {
     }
 
     #[turbo_tasks::function]
-    async fn side_effect_free_packages(self: Vc<Self>) -> Result<Vc<Glob>> {
-        let pkgs = &*self
-            .await?
-            .module_options_context
-            .await?
-            .side_effect_free_packages;
+    async fn side_effect_free_packages(&self) -> Result<Vc<Glob>> {
+        let pkgs = &*self.module_options_context.await?.side_effect_free_packages;
 
         let mut globs = Vec::with_capacity(pkgs.len());
 
@@ -788,7 +809,7 @@ impl AssetContext for ModuleAssetContext {
 }
 
 #[turbo_tasks::function]
-pub async fn emit_with_completion(
+pub fn emit_with_completion(
     asset: Vc<Box<dyn OutputAsset>>,
     output_dir: Vc<FileSystemPath>,
 ) -> Vc<Completion> {
@@ -796,7 +817,7 @@ pub async fn emit_with_completion(
 }
 
 #[turbo_tasks::function]
-async fn emit_assets_aggregated(
+fn emit_assets_aggregated(
     asset: Vc<Box<dyn OutputAsset>>,
     output_dir: Vc<FileSystemPath>,
 ) -> Vc<Completion> {
@@ -821,7 +842,7 @@ async fn emit_aggregated_assets(
 }
 
 #[turbo_tasks::function]
-pub async fn emit_asset(asset: Vc<Box<dyn OutputAsset>>) -> Vc<Completion> {
+pub fn emit_asset(asset: Vc<Box<dyn OutputAsset>>) -> Vc<Completion> {
     asset.content().write(asset.ident().path())
 }
 
@@ -842,7 +863,7 @@ type OutputAssetSet = HashSet<Vc<Box<dyn OutputAsset>>>;
 
 #[turbo_tasks::value(shared)]
 struct ReferencesList {
-    referenced_by: HashMap<Vc<Box<dyn OutputAsset>>, OutputAssetSet>,
+    referenced_by: HashMap<ResolvedVc<Box<dyn OutputAsset>>, OutputAssetSet>,
 }
 
 #[turbo_tasks::function]
@@ -851,12 +872,16 @@ async fn compute_back_references(aggregated: Vc<AggregatedGraph>) -> Result<Vc<R
         &AggregatedGraphNodeContent::Asset(asset) => {
             let mut referenced_by = HashMap::new();
             for reference in asset.references().await?.iter() {
-                referenced_by.insert(*reference, [asset].into_iter().collect());
+                referenced_by.insert(
+                    reference.to_resolved().await?,
+                    [asset].into_iter().collect(),
+                );
             }
             ReferencesList { referenced_by }.into()
         }
         AggregatedGraphNodeContent::Children(children) => {
-            let mut referenced_by = HashMap::<Vc<Box<dyn OutputAsset>>, OutputAssetSet>::new();
+            let mut referenced_by =
+                HashMap::<ResolvedVc<Box<dyn OutputAsset>>, OutputAssetSet>::new();
             let lists = children
                 .iter()
                 .map(|child| compute_back_references(*child))
@@ -882,7 +907,7 @@ async fn top_references(list: Vc<ReferencesList>) -> Result<Vc<ReferencesList>> 
     let list = list.await?;
     const N: usize = 5;
     let mut top = Vec::<(
-        &Vc<Box<dyn OutputAsset>>,
+        &ResolvedVc<Box<dyn OutputAsset>>,
         &HashSet<Vc<Box<dyn OutputAsset>>>,
     )>::new();
     for tuple in list.referenced_by.iter() {
@@ -931,10 +956,10 @@ pub async fn replace_externals(
         };
 
         let module = CachedExternalModule::new(request.clone(), external_type)
-            .resolve()
+            .to_resolved()
             .await?;
 
-        *item = ModuleResolveResultItem::Module(Vc::upcast(module));
+        *item = ModuleResolveResultItem::Module(ResolvedVc::upcast(module));
     }
 
     Ok(result)

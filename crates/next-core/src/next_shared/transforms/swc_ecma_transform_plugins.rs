@@ -11,7 +11,7 @@ pub async fn get_swc_ecma_transform_plugin_rule(
     next_config: Vc<NextConfig>,
     project_path: Vc<FileSystemPath>,
 ) -> Result<Option<ModuleRule>> {
-    match next_config.await?.experimental.swc_plugins.as_ref() {
+    match next_config.experimental().await?.swc_plugins.as_ref() {
         Some(plugin_configs) if !plugin_configs.is_empty() => {
             #[cfg(feature = "plugin")]
             {
@@ -41,7 +41,6 @@ pub async fn get_swc_ecma_transform_rule_impl(
     use turbopack::{resolve_options, resolve_options_context::ResolveOptionsContext};
     use turbopack_core::{
         asset::Asset,
-        issue::IssueSeverity,
         reference_type::{CommonJsReferenceSubType, ReferenceType},
         resolve::{handle_resolve_error, parse::Request, pattern::Pattern, resolve},
     };
@@ -62,7 +61,7 @@ pub async fn get_swc_ecma_transform_rule_impl(
         let resolve_options = resolve_options(
             project_path,
             ResolveOptionsContext {
-                enable_node_modules: Some(project_path.root().resolve().await?),
+                enable_node_modules: Some(project_path.root().to_resolved().await?),
                 enable_node_native_modules: true,
                 ..Default::default()
             }
@@ -81,7 +80,7 @@ pub async fn get_swc_ecma_transform_rule_impl(
             project_path,
             request,
             resolve_options,
-            IssueSeverity::Error.cell(),
+            false,
             None,
         )
         .await?;
@@ -97,10 +96,7 @@ pub async fn get_swc_ecma_transform_rule_impl(
         };
 
         plugins.push((
-            SwcPluginModule::cell(SwcPluginModule::new(
-                name,
-                file.content().to_bytes()?.to_vec(),
-            )),
+            SwcPluginModule::new(name, file.content().to_bytes()?.to_vec()).resolved_cell(),
             config.clone(),
         ));
     }

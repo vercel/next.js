@@ -81,34 +81,7 @@ export default function Page() {
 > - `experimental_ppr` will apply to all children of the route segment, including nested layouts and pages. You don't have to add it to every file, only the top segment of a route.
 > - To disable PPR for children segments, you can set `experimental_ppr` to `false` in the child segment.
 
-### Enabling PPR (Version 14)
-
-For version 14, you can enable it by adding the [`ppr`](/docs/app/api-reference/next-config-js/ppr) option to your `next.config.js` file. This will apply to all routes in your application:
-
-```ts filename="next.config.ts" switcher
-import type { NextConfig } from 'next'
-
-const nextConfig: NextConfig = {
-  experimental: {
-    ppr: true,
-  },
-}
-
-export default nextConfig
-```
-
-```js filename="next.config.js" switcher
-/** @type {import('next').NextConfig} */
-const nextConfig = {
-  experimental: {
-    ppr: true,
-  },
-}
-
-module.exports = nextConfig
-```
-
-| Version   | Changes                        |
-| --------- | ------------------------------ |
-| `v15.0.0` | `incremental` value introduced |
-| `v14.0.0` | experimental `ppr` introduced  |
+| Version   | Changes                                     |
+| --------- | ------------------------------------------- |
+| `v15.0.0` | experimental `incremental` value introduced |
+| `v14.0.0` | experimental `ppr` introduced               |

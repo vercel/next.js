@@ -12,7 +12,7 @@ import type { TypeCheckResult } from './typescript/runTypeCheck'
 import { writeAppTypeDeclarations } from './typescript/writeAppTypeDeclarations'
 import { writeConfigurationDefaults } from './typescript/writeConfigurationDefaults'
 import { installDependencies } from './install-dependencies'
-import { isCI } from '../telemetry/ci-info'
+import { isCI } from '../server/ci-info'
 import { missingDepsError } from './typescript/missingDependencyError'
 
 const requiredPackages = [
@@ -87,7 +87,7 @@ export async function verifyTypeScriptSetup({
           bold(
             'If you are not trying to use TypeScript, please remove the ' +
               cyan('tsconfig.json') +
-              ' file from your package root (and any TypeScript files in your pages directory).'
+              ' file from your package root (and any TypeScript files in your app and pages directories).'
           ) +
           '\n'
       )

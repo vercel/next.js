@@ -21,8 +21,9 @@ use RopeElem::{Local, Shared};
 
 static EMPTY_BUF: &[u8] = &[];
 
-/// A Rope provides an efficient structure for sharing bytes/strings between
-/// multiple sources. Cloning a Rope is extremely cheap (Arc and usize), and
+/// An efficient structure for sharing bytes/strings between multiple sources.
+///
+/// Cloning a Rope is extremely cheap (Arc and usize), and
 /// sharing the contents of one Rope can be done by just cloning an Arc.
 ///
 /// Ropes are immutable, in order to construct one see [RopeBuilder].

@@ -8,13 +8,12 @@ use futures::{
     pin_mut, SinkExt, StreamExt,
 };
 use futures_retry::{FutureRetry, RetryPolicy};
-use indexmap::indexmap;
 use parking_lot::Mutex;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use turbo_tasks::{
-    duration_span, mark_finished, prevent_gc, util::SharedError, Completion, RawVc, TaskInput,
-    TryJoinIterExt, Value, Vc,
+    duration_span, fxindexmap, mark_finished, prevent_gc, util::SharedError, Completion, RawVc,
+    ResolvedVc, TaskInput, TryJoinIterExt, Value, Vc,
 };
 use turbo_tasks_bytes::{Bytes, Stream};
 use turbo_tasks_env::ProcessEnv;
@@ -29,6 +28,7 @@ use turbopack_core::{
     ident::AssetIdent,
     issue::{Issue, IssueExt, IssueStage, OptionStyledString, StyledString},
     module::Module,
+    output::OutputAssets,
     reference_type::{InnerAssets, ReferenceType},
     virtual_source::VirtualSource,
 };
@@ -81,7 +81,7 @@ pub struct JavaScriptEvaluation(#[turbo_tasks(trace_ignore)] JavaScriptStream);
 /// Pass the file you cared as `runtime_entries` to invalidate and reload the
 /// evaluated result automatically.
 pub async fn get_evaluate_pool(
-    module_asset: Vc<Box<dyn Module>>,
+    module_asset: ResolvedVc<Box<dyn Module>>,
     cwd: Vc<FileSystemPath>,
     env: Vc<Box<dyn ProcessEnv>>,
     asset_context: Vc<Box<dyn AssetContext>>,
@@ -95,7 +95,9 @@ pub async fn get_evaluate_pool(
             Vc::upcast(FileSource::new(embed_file_path("ipc/evaluate.ts".into()))),
             Value::new(ReferenceType::Internal(InnerAssets::empty())),
         )
-        .module();
+        .module()
+        .to_resolved()
+        .await?;
 
     let module_path = module_asset.ident().path().await?;
     let file_name = module_path.file_name();
@@ -115,7 +117,7 @@ pub async fn get_evaluate_pool(
                     File::from("import { run } from 'RUNTIME'; run(() => import('INNER'))").into(),
                 ),
             )),
-            Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
+            Value::new(ReferenceType::Internal(Vc::cell(fxindexmap! {
                 "INNER".into() => module_asset,
                 "RUNTIME".into() => runtime_asset
             }))),
@@ -150,8 +152,12 @@ pub async fn get_evaluate_pool(
         Vc::<EvaluatableAssets>::cell(entries)
     };
 
-    let bootstrap =
-        chunking_context.root_entry_chunk_group_asset(path, entry_module, runtime_entries);
+    let bootstrap = chunking_context.root_entry_chunk_group_asset(
+        path,
+        entry_module,
+        OutputAssets::empty(),
+        runtime_entries,
+    );
 
     let output_root: Vc<FileSystemPath> = chunking_context.output_root();
     let _ = emit_package_json(output_root);

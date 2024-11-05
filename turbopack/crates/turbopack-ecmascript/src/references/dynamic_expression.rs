@@ -63,9 +63,6 @@ impl CodeGenerateable for DynamicExpression {
             }
         };
 
-        Ok(CodeGeneration {
-            visitors: vec![visitor],
-        }
-        .cell())
+        Ok(CodeGeneration::visitors(vec![visitor]))
     }
 }

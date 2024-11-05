@@ -29,6 +29,7 @@ DEALINGS IN THE SOFTWARE.
 #![recursion_limit = "2048"]
 //#![deny(clippy::all)]
 #![feature(arbitrary_self_types)]
+#![feature(arbitrary_self_types_pointers)]
 
 #[macro_use]
 extern crate napi_derive;
@@ -47,8 +48,6 @@ use swc_core::{
     common::{FilePathMapping, SourceMap},
 };
 
-#[cfg(not(target_arch = "wasm32"))]
-pub mod app_structure;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod css;
 pub mod mdx;
@@ -81,7 +80,7 @@ static ALLOC: dhat::Alloc = dhat::Alloc;
 
 fn init() {
     set_hook(Box::new(|panic_info| {
-        util::log_panic_and_inform(format!(
+        util::log_internal_error_and_inform(&format!(
             "Panic: {}\nBacktrace: {:?}",
             panic_info,
             Backtrace::new()

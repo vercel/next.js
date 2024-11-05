@@ -44,9 +44,9 @@ describe('Edge runtime code with imports', () => {
     await remove(join(__dirname, '../.next'))
   })
 
-  afterEach(() => {
+  afterEach(async () => {
     if (context.app) {
-      killApp(context.app)
+      await killApp(context.app)
     }
     context.api.restore()
     context.middleware.restore()

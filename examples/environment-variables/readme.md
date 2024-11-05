@@ -2,7 +2,7 @@
 
 This example shows how to use [environment variables in Next.js](https://nextjs.org/docs/basic-features/environment-variables).
 
-The index page ([pages/index.js](pages/index.js)) will show you how to [access environment variables in the server](https://nextjs.org/docs/basic-features/environment-variables#loading-environment-variables), and how to [expose environment variables to the browser](https://nextjs.org/docs/basic-features/environment-variables#exposing-environment-variables-to-the-browser).
+The index page ([app/page.tsx](app/page.tsx)) will show you how to [access environment variables in the server](https://nextjs.org/docs/app/building-your-application/configuring/environment-variables), and how to [expose environment variables to the browser](https://nextjs.org/docs/basic-features/environment-variables#exposing-environment-variables-to-the-browser).
 
 ## Deploy your own
 

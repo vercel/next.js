@@ -1,5 +1,6 @@
 #![feature(min_specialization)]
 #![feature(arbitrary_self_types)]
+#![feature(arbitrary_self_types_pointers)]
 
 mod nft_json;
 
@@ -22,13 +23,12 @@ use serde::Deserialize;
 use serde::Serialize;
 use tokio::sync::mpsc::channel;
 use turbo_tasks::{
-    backend::Backend, util::FormatDuration, RcStr, ReadConsistency, TaskId, TransientInstance,
-    TransientValue, TurboTasks, UpdateInfo, Value, Vc,
+    backend::Backend, util::FormatDuration, RcStr, ReadConsistency, ResolvedVc, TaskId,
+    TransientInstance, TransientValue, TurboTasks, UpdateInfo, Value, Vc,
 };
 use turbo_tasks_fs::{
     glob::Glob, DirectoryEntry, DiskFileSystem, FileSystem, FileSystemPath, ReadGlobResult,
 };
-use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
     emit_asset, emit_with_completion, module_options::ModuleOptionsContext, rebase::RebasedAsset,
     ModuleAssetContext,
@@ -177,7 +177,7 @@ fn default_output_directory() -> String {
 }
 
 impl Args {
-    fn common(&self) -> &CommonArgs {
+    pub fn common(&self) -> &CommonArgs {
         match self {
             Args::Print { common, .. }
             | Args::Annotate { common, .. }
@@ -190,7 +190,7 @@ impl Args {
 async fn create_fs(name: &str, root: &str, watch: bool) -> Result<Vc<Box<dyn FileSystem>>> {
     let fs = DiskFileSystem::new(name.into(), root.into(), vec![]);
     if watch {
-        fs.await?.start_watching()?;
+        fs.await?.start_watching(None).await?;
     } else {
         fs.await?.invalidate_with_reason();
     }
@@ -200,18 +200,20 @@ async fn create_fs(name: &str, root: &str, watch: bool) -> Result<Vc<Box<dyn Fil
 async fn add_glob_results(
     asset_context: Vc<Box<dyn AssetContext>>,
     result: Vc<ReadGlobResult>,
-    list: &mut Vec<Vc<Box<dyn Module>>>,
+    list: &mut Vec<ResolvedVc<Box<dyn Module>>>,
 ) -> Result<()> {
     let result = result.await?;
     for entry in result.results.values() {
         if let DirectoryEntry::File(path) = entry {
-            let source = Vc::upcast(FileSource::new(*path));
+            let source = Vc::upcast(FileSource::new(**path));
             let module = asset_context
                 .process(
                     source,
                     Value::new(turbopack_core::reference_type::ReferenceType::Undefined),
                 )
-                .module();
+                .module()
+                .to_resolved()
+                .await?;
             list.push(module);
         }
     }
@@ -219,12 +221,12 @@ async fn add_glob_results(
         fn recurse<'a>(
             asset_context: Vc<Box<dyn AssetContext>>,
             result: Vc<ReadGlobResult>,
-            list: &'a mut Vec<Vc<Box<dyn Module>>>,
+            list: &'a mut Vec<ResolvedVc<Box<dyn Module>>>,
         ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>> {
             Box::pin(add_glob_results(asset_context, result, list))
         }
         // Boxing for async recursion
-        recurse(asset_context, *result, list).await?;
+        recurse(asset_context, **result, list).await?;
     }
     Ok(())
 }
@@ -260,7 +262,9 @@ async fn input_to_modules(
                     source,
                     Value::new(turbopack_core::reference_type::ReferenceType::Undefined),
                 )
-                .module();
+                .module()
+                .to_resolved()
+                .await?;
             list.push(module);
         } else {
             let glob = Glob::new(input);
@@ -310,78 +314,16 @@ fn process_input(dir: &Path, context_directory: &str, input: &[String]) -> Resul
         .collect()
 }
 
-pub async fn start(
+pub async fn start<B: Backend>(
     args: Arc<Args>,
-    turbo_tasks: Option<&Arc<TurboTasks<MemoryBackend>>>,
+    turbo_tasks: Arc<TurboTasks<B>>,
     module_options: Option<ModuleOptionsContext>,
     resolve_options: Option<ResolveOptionsContext>,
 ) -> Result<Vec<RcStr>> {
     register();
-    let &CommonArgs {
-        memory_limit,
-        #[cfg(feature = "persistent_cache")]
-            cache: CacheArgs {
-            ref cache,
-            ref cache_fully,
-        },
-        ..
-    } = args.common();
-    #[cfg(feature = "persistent_cache")]
-    if let Some(cache) = cache {
-        use tokio::time::timeout;
-        use turbo_tasks_memory::MemoryBackendWithPersistedGraph;
-        use turbo_tasks_rocksdb::RocksDbPersistedGraph;
-
-        run(
-            &args,
-            || {
-                let start = Instant::now();
-                let backend = MemoryBackendWithPersistedGraph::new(
-                    RocksDbPersistedGraph::new(cache).unwrap(),
-                );
-                let tt = TurboTasks::new(backend);
-                let elapsed = start.elapsed();
-                println!("restored cache {}", FormatDuration(elapsed));
-                tt
-            },
-            |tt, _, duration| async move {
-                let mut start = Instant::now();
-                if *cache_fully {
-                    tt.wait_background_done().await;
-                    tt.stop_and_wait().await;
-                    let elapsed = start.elapsed();
-                    println!("flushed cache {}", FormatDuration(elapsed));
-                } else {
-                    let background_timeout =
-                        std::cmp::max(duration / 5, Duration::from_millis(100));
-                    let timed_out = timeout(background_timeout, tt.wait_background_done())
-                        .await
-                        .is_err();
-                    tt.stop_and_wait().await;
-                    let elapsed = start.elapsed();
-                    if timed_out {
-                        println!("flushed cache partially {}", FormatDuration(elapsed));
-                    } else {
-                        println!("flushed cache completely {}", FormatDuration(elapsed));
-                    }
-                }
-                start = Instant::now();
-                drop(tt);
-                let elapsed = start.elapsed();
-                println!("writing cache {}", FormatDuration(elapsed));
-            },
-        )
-        .await;
-        return;
-    }
-
     run(
-        args.clone(),
-        || {
-            turbo_tasks.cloned().unwrap_or_else(|| {
-                TurboTasks::new(MemoryBackend::new(memory_limit.unwrap_or(usize::MAX)))
-            })
-        },
+        args,
+        turbo_tasks,
         |_, _, _| async move {},
         module_options,
         resolve_options,
@@ -391,7 +333,7 @@ pub async fn start(
 
 async fn run<B: Backend + 'static, F: Future<Output = ()>>(
     args: Arc<Args>,
-    create_tt: impl Fn() -> Arc<TurboTasks<B>>,
+    tt: Arc<TurboTasks<B>>,
     final_finish: impl FnOnce(Arc<TurboTasks<B>>, TaskId, Duration) -> F,
     module_options: Option<ModuleOptionsContext>,
     resolve_options: Option<ResolveOptionsContext>,
@@ -459,7 +401,6 @@ async fn run<B: Backend + 'static, F: Future<Output = ()>>(
         matches!(&*args, Args::Annotate { .. }) || matches!(&*args, Args::Print { .. });
     let (sender, mut receiver) = channel(1);
     let dir = current_dir().unwrap();
-    let tt = create_tt();
     let module_options = TransientInstance::new(module_options.unwrap_or_default());
     let resolve_options = TransientInstance::new(resolve_options.unwrap_or_default());
     let log_options = TransientInstance::new(LogOptions {
@@ -553,7 +494,7 @@ async fn main_operation(
             )
             .await?;
             for module in modules.iter() {
-                let set = all_modules_and_affecting_sources(*module)
+                let set = all_modules_and_affecting_sources(**module)
                     .issue_file_path(module.ident().path(), "gathering list of assets")
                     .await?;
                 for asset in set.await?.iter() {
@@ -580,7 +521,7 @@ async fn main_operation(
             .await?
             .iter()
             {
-                let nft_asset = NftJsonAsset::new(*module);
+                let nft_asset = NftJsonAsset::new(**module);
                 let path = nft_asset.ident().path().await?.path.clone();
                 output_nft_assets.push(path);
                 emits.push(emit_asset(Vc::upcast(nft_asset)));
@@ -613,7 +554,7 @@ async fn main_operation(
             .await?
             .iter()
             {
-                let rebased = Vc::upcast(RebasedAsset::new(*module, input_dir, output_dir));
+                let rebased = Vc::upcast(RebasedAsset::new(**module, input_dir, output_dir));
                 emits.push(emit_with_completion(rebased, output_dir));
             }
             // Wait for all files to be emitted
@@ -628,7 +569,7 @@ async fn main_operation(
 
 #[turbo_tasks::function]
 async fn create_module_asset(
-    root: Vc<FileSystemPath>,
+    root: ResolvedVc<FileSystemPath>,
     process_cwd: Option<RcStr>,
     module_options: TransientInstance<ModuleOptionsContext>,
     resolve_options: TransientInstance<ResolveOptionsContext>,
@@ -639,18 +580,24 @@ async fn create_module_asset(
             ..Default::default()
         }
         .into(),
-    )));
-    let compile_time_info = CompileTimeInfo::builder(env).cell();
+    )))
+    .to_resolved()
+    .await?;
+    let compile_time_info = CompileTimeInfo::builder(*env).cell();
     let glob_mappings = vec![
         (
             root,
-            Glob::new("**/*/next/dist/server/next.js".into()),
-            ImportMapping::Ignore.into(),
+            Glob::new("**/*/next/dist/server/next.js".into())
+                .to_resolved()
+                .await?,
+            ImportMapping::Ignore.resolved_cell(),
         ),
         (
             root,
-            Glob::new("**/*/next/dist/bin/next".into()),
-            ImportMapping::Ignore.into(),
+            Glob::new("**/*/next/dist/bin/next".into())
+                .to_resolved()
+                .await?,
+            ImportMapping::Ignore.resolved_cell(),
         ),
     ];
     let mut resolve_options = ResolveOptionsContext::clone(&*resolve_options);
@@ -662,7 +609,7 @@ async fn create_module_asset(
             ResolvedMap {
                 by_glob: glob_mappings,
             }
-            .cell(),
+            .resolved_cell(),
         );
     }
 

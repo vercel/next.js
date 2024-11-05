@@ -10,7 +10,7 @@ pub use custom_module_type::CustomModuleType;
 pub use module_options_context::*;
 pub use module_rule::*;
 pub use rule_condition::*;
-use turbo_tasks::{RcStr, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, Vc};
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 use turbopack_core::{
     reference_type::{CssReferenceSubType, ReferenceType, UrlReferenceSubType},
@@ -29,27 +29,27 @@ use crate::{
 #[turbo_tasks::function]
 async fn package_import_map_from_import_mapping(
     package_name: RcStr,
-    package_mapping: Vc<ImportMapping>,
-) -> Result<Vc<ImportMap>> {
+    package_mapping: ResolvedVc<ImportMapping>,
+) -> Vc<ImportMap> {
     let mut import_map = ImportMap::default();
     import_map.insert_exact_alias(
         format!("@vercel/turbopack/{}", package_name),
         package_mapping,
     );
-    Ok(import_map.cell())
+    import_map.cell()
 }
 
 #[turbo_tasks::function]
 async fn package_import_map_from_context(
     package_name: RcStr,
-    context_path: Vc<FileSystemPath>,
-) -> Result<Vc<ImportMap>> {
+    context_path: ResolvedVc<FileSystemPath>,
+) -> Vc<ImportMap> {
     let mut import_map = ImportMap::default();
     import_map.insert_exact_alias(
         format!("@vercel/turbopack/{}", package_name),
-        ImportMapping::PrimaryAlternative(package_name, Some(context_path)).cell(),
+        ImportMapping::PrimaryAlternative(package_name, Some(context_path)).resolved_cell(),
     );
-    Ok(import_map.cell())
+    import_map.cell()
 }
 
 #[turbo_tasks::value(cell = "new", eq = "manual")]
@@ -140,7 +140,9 @@ impl ModuleOptions {
         let ecmascript_options_vc = ecmascript_options.cell();
 
         if let Some(env) = preset_env_versions {
-            transforms.push(EcmascriptInputTransform::PresetEnv(env));
+            transforms.push(EcmascriptInputTransform::PresetEnv(
+                env.to_resolved().await?,
+            ));
         }
 
         if let Some(enable_typeof_window_inlining) = enable_typeof_window_inlining {
@@ -418,13 +420,13 @@ impl ModuleOptions {
                     vec![ModuleRuleEffect::SourceTransforms(Vc::cell(vec![
                         Vc::upcast(PostCssTransform::new(
                             node_evaluate_asset_context(
-                                execution_context,
+                                *execution_context,
                                 Some(import_map),
                                 None,
                                 "postcss".into(),
                                 true,
                             ),
-                            execution_context,
+                            *execution_context,
                             options.config_location,
                         )),
                     ]))],
@@ -562,13 +564,13 @@ impl ModuleOptions {
                     vec![ModuleRuleEffect::SourceTransforms(Vc::cell(vec![
                         Vc::upcast(WebpackLoaders::new(
                             node_evaluate_asset_context(
-                                execution_context,
+                                *execution_context,
                                 Some(import_map),
                                 None,
                                 "webpack_loaders".into(),
                                 false,
                             ),
-                            execution_context,
+                            *execution_context,
                             rule.loaders,
                             rule.rename_as.clone(),
                             resolve_options_context,

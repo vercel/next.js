@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
 use mime_guess::mime::TEXT_HTML_UTF_8;
-use turbo_tasks::{RcStr, ReadRef, TryJoinIterExt, Value, Vc};
+use turbo_tasks::{RcStr, ReadRef, ResolvedVc, TryJoinIterExt, Value, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbo_tasks_hash::{encode_hex, Xxh3Hash64Hasher};
 use turbopack_core::{
@@ -18,7 +18,7 @@ use turbopack_core::{
 // TODO(WEB-945) This should become a struct once we have a
 // `turbo_tasks::input` attribute macro/`Input` derive macro.
 type DevHtmlEntry = (
-    Vc<Box<dyn ChunkableModule>>,
+    ResolvedVc<Box<dyn ChunkableModule>>,
     Vc<Box<dyn ChunkingContext>>,
     Option<Vc<EvaluatableAssets>>,
 );
@@ -126,10 +126,8 @@ impl DevHtmlAsset {
     }
 
     #[turbo_tasks::function]
-    async fn chunks(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
-        let this = self.await?;
-
-        let all_assets = this
+    async fn chunks(&self) -> Result<Vc<OutputAssets>> {
+        let all_assets = self
             .entries
             .iter()
             .map(|entry| async move {
@@ -137,9 +135,9 @@ impl DevHtmlAsset {
 
                 let assets = if let Some(runtime_entries) = runtime_entries {
                     let runtime_entries = if let Some(evaluatable) =
-                        Vc::try_resolve_downcast(chunkable_module).await?
+                        ResolvedVc::try_downcast(chunkable_module).await?
                     {
-                        runtime_entries.with_entry(evaluatable)
+                        runtime_entries.with_entry(*evaluatable)
                     } else {
                         runtime_entries
                     };
@@ -149,7 +147,7 @@ impl DevHtmlAsset {
                         Value::new(AvailabilityInfo::Root),
                     )
                 } else {
-                    chunking_context.root_chunk_group_assets(Vc::upcast(chunkable_module))
+                    chunking_context.root_chunk_group_assets(*ResolvedVc::upcast(chunkable_module))
                 };
 
                 assets.await
@@ -180,13 +178,11 @@ impl DevHtmlAssetContent {
 #[turbo_tasks::value_impl]
 impl DevHtmlAssetContent {
     #[turbo_tasks::function]
-    async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
-        let this = self.await?;
-
+    async fn content(&self) -> Result<Vc<AssetContent>> {
         let mut scripts = Vec::new();
         let mut stylesheets = Vec::new();
 
-        for relative_path in &*this.chunk_paths {
+        for relative_path in &*self.chunk_paths {
             if relative_path.ends_with(".js") {
                 scripts.push(format!("<script src=\"{}\"></script>", relative_path));
             } else if relative_path.ends_with(".css") {
@@ -199,7 +195,7 @@ impl DevHtmlAssetContent {
             }
         }
 
-        let body = match &this.body {
+        let body = match &self.body {
             Some(body) => body.as_str(),
             None => "",
         };
@@ -245,7 +241,7 @@ struct DevHtmlAssetVersion {
 #[turbo_tasks::value_impl]
 impl Version for DevHtmlAssetVersion {
     #[turbo_tasks::function]
-    async fn id(&self) -> Result<Vc<RcStr>> {
+    fn id(&self) -> Vc<RcStr> {
         let mut hasher = Xxh3Hash64Hasher::new();
         for relative_path in &*self.content.chunk_paths {
             hasher.write_ref(relative_path);
@@ -255,6 +251,6 @@ impl Version for DevHtmlAssetVersion {
         }
         let hash = hasher.finish();
         let hex_hash = encode_hex(hash);
-        Ok(Vc::cell(hex_hash.into()))
+        Vc::cell(hex_hash.into())
     }
 }

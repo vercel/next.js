@@ -1,6 +1,6 @@
 import React from 'react'
 
-async function CustomComponent() {
+function CustomComponent() {
   return (
     <div>
       <h1>the content of a dynamic component</h1>

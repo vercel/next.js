@@ -10,7 +10,7 @@ The Next.js CLI allows you to develop, build, start your application, and more.
 Basic usage:
 
 ```bash filename="Terminal"
-npm run next [command] [options]
+npx next [command] [options]
 ```
 
 ## Reference
@@ -26,14 +26,14 @@ The following options are available:
 
 The following commands are available:
 
-| Command                               | Description                                                                                                                                                                                                                        |
-| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`dev`](#next-dev-options)            | Starts Next.js in development mode with Hot Module Reloading, error reporting, and more.                                                                                                                                           |
-| [`build`](#next-build-options)        | Creates an optimized production build of your application. Displaying information about each route.                                                                                                                                |
-| [`start`](#next-start-options)        | Starts Next.js in production mode. The application should be compiled with `next build` first.                                                                                                                                     |
-| [`info`](next-info-options)           | Prints relevant details about the current system which can be used to report Next.js bugs.                                                                                                                                         |
-| [`lint`](next-lint-options)           | Runs ESLint for all files in the `/src`, `/app`, `/pages`, `/components`, and `/lib` directories. It also provides a guided setup to install any required dependencies if ESLint it is not already configured in your application. |
-| [`telemetry`](next-telemetry-options) | Allows you to enable or disable Next.js' completely anonymous telemetry collection.                                                                                                                                                |
+| Command                                | Description                                                                                                                                                                                                                        |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`dev`](#next-dev-options)             | Starts Next.js in development mode with Hot Module Reloading, error reporting, and more.                                                                                                                                           |
+| [`build`](#next-build-options)         | Creates an optimized production build of your application. Displaying information about each route.                                                                                                                                |
+| [`start`](#next-start-options)         | Starts Next.js in production mode. The application should be compiled with `next build` first.                                                                                                                                     |
+| [`info`](#next-info-options)           | Prints relevant details about the current system which can be used to report Next.js bugs.                                                                                                                                         |
+| [`lint`](#next-lint-options)           | Runs ESLint for all files in the `/src`, `/app`, `/pages`, `/components`, and `/lib` directories. It also provides a guided setup to install any required dependencies if ESLint it is not already configured in your application. |
+| [`telemetry`](#next-telemetry-options) | Allows you to enable or disable Next.js' completely anonymous telemetry collection.                                                                                                                                                |
 
 > **Good to know**: Running `next` without a command is an alias for `next dev`.
 
@@ -45,7 +45,7 @@ The following commands are available:
 | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `-h, --help`                             | Show all available options.                                                                                                                          |
 | `[directory]`                            | A directory in which to build the application. If not provided, current directory is used.                                                           |
-| `--turbo`                                | Starts development mode using [Turbopack](https://nextjs.org/docs/architecture/turbopack).                                                           |
+| `--turbopack`                            | Starts development mode using [Turbopack](https://nextjs.org/docs/architecture/turbopack).                                                           |
 | `-p` or `--port <port>`                  | Specify a port number on which to start the application. Default: 3000, env: PORT                                                                    |
 | `-H`or `--hostname <hostname>`           | Specify a hostname on which to start the application. Useful for making the application available for other devices on the network. Default: 0.0.0.0 |
 | `--experimental-https`                   | Starts the server with HTTPS and generates a self-signed certificate.                                                                                |
@@ -206,6 +206,8 @@ For certain use cases like webhooks or authentication, you can use [HTTPS](https
 ```bash filename="Terminal"
 next dev --experimental-https
 ```
+
+With the generated certificate, the Next.js development server will exist at `https://localhost:3000`. The default port `3000` is used unless a port is specified with `-p`, `--port`, or `PORT`.
 
 You can also provide a custom certificate and key with `--experimental-https-key` and `--experimental-https-cert`. Optionally, you can provide a custom CA certificate with `--experimental-https-ca` as well.
 

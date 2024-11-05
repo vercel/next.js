@@ -1,7 +1,6 @@
 use std::{future::Future, io, io::ErrorKind, path::Path, thread::sleep, time::Duration};
 
 use futures_retry::{ErrorHandler, FutureRetry, RetryPolicy};
-use tokio::task::spawn_blocking;
 
 const MAX_RETRY_ATTEMPTS: usize = 10;
 
@@ -23,21 +22,14 @@ where
     }
 }
 
-pub(crate) async fn retry_blocking<R, F>(
-    path: impl AsRef<Path>,
-    span: tracing::Span,
-    func: F,
-) -> io::Result<R>
+pub(crate) async fn retry_blocking<R, F>(path: impl AsRef<Path>, func: F) -> io::Result<R>
 where
     F: Fn(&Path) -> io::Result<R> + Send + 'static,
     R: Send + 'static,
 {
     let path = path.as_ref().to_owned();
 
-    let current_span = tracing::Span::current();
-    asyncify(move || {
-        let _entered = current_span.entered();
-        let _entered = span.entered();
+    turbo_tasks::spawn_blocking(move || {
         let mut attempt = 1;
 
         loop {
@@ -82,17 +74,5 @@ impl ErrorHandler<io::Error> for FsRetryHandler {
         } else {
             RetryPolicy::WaitRetry(get_retry_wait_time(attempt))
         }
-    }
-}
-
-// stolen from tokio::fs
-async fn asyncify<F, T>(f: F) -> io::Result<T>
-where
-    F: FnOnce() -> io::Result<T> + Send + 'static,
-    T: Send + 'static,
-{
-    match spawn_blocking(f).await {
-        Ok(res) => res,
-        Err(_) => Err(io::Error::new(ErrorKind::Other, "background task failed")),
     }
 }

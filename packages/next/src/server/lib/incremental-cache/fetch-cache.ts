@@ -5,14 +5,14 @@ import {
   type IncrementalCacheValue,
 } from '../../response-cache'
 
-import LRUCache from 'next/dist/compiled/lru-cache'
+import { LRUCache } from '../lru-cache'
 import {
   CACHE_ONE_YEAR,
   NEXT_CACHE_SOFT_TAGS_HEADER,
 } from '../../../lib/constants'
 
 let rateLimitedUntil = 0
-let memoryCache: LRUCache<string, CacheHandlerValue> | undefined
+let memoryCache: LRUCache<CacheHandlerValue> | undefined
 
 interface NextFetchCacheParams {
   internal?: boolean
@@ -127,30 +127,29 @@ export default class FetchCache implements CacheHandler {
           console.log('using memory store for fetch cache')
         }
 
-        memoryCache = new LRUCache({
-          max: ctx.maxMemoryCacheSize,
-          length({ value }) {
-            if (!value) {
-              return 25
-            } else if (value.kind === CachedRouteKind.REDIRECT) {
-              return JSON.stringify(value.props).length
-            } else if (value.kind === CachedRouteKind.IMAGE) {
-              throw new Error('invariant image should not be incremental-cache')
-            } else if (value.kind === CachedRouteKind.FETCH) {
-              return JSON.stringify(value.data || '').length
-            } else if (value.kind === CachedRouteKind.APP_ROUTE) {
-              return value.body.length
-            }
-            // rough estimate of size of cache value
-            return (
-              value.html.length +
-              (JSON.stringify(
-                value.kind === CachedRouteKind.APP_PAGE
-                  ? value.rscData
-                  : value.pageData
-              )?.length || 0)
-            )
-          },
+        memoryCache = new LRUCache(ctx.maxMemoryCacheSize, function length({
+          value,
+        }) {
+          if (!value) {
+            return 25
+          } else if (value.kind === CachedRouteKind.REDIRECT) {
+            return JSON.stringify(value.props).length
+          } else if (value.kind === CachedRouteKind.IMAGE) {
+            throw new Error('invariant image should not be incremental-cache')
+          } else if (value.kind === CachedRouteKind.FETCH) {
+            return JSON.stringify(value.data || '').length
+          } else if (value.kind === CachedRouteKind.APP_ROUTE) {
+            return value.body.length
+          }
+          // rough estimate of size of cache value
+          return (
+            value.html.length +
+            (JSON.stringify(
+              value.kind === CachedRouteKind.APP_PAGE
+                ? value.rscData
+                : value.pageData
+            )?.length || 0)
+          )
         })
       }
     } else {
@@ -182,29 +181,32 @@ export default class FetchCache implements CacheHandler {
       return
     }
 
-    try {
-      const res = await fetchRetryWithTimeout(
-        `${this.cacheEndpoint}/v1/suspense-cache/revalidate?tags=${tags
-          .map((tag) => encodeURIComponent(tag))
-          .join(',')}`,
-        {
-          method: 'POST',
-          headers: this.headers,
-          // @ts-expect-error not on public type
-          next: { internal: true },
+    for (let i = 0; i < Math.ceil(tags.length / 64); i++) {
+      const currentTags = tags.slice(i * 64, i * 64 + 64)
+      try {
+        const res = await fetchRetryWithTimeout(
+          `${this.cacheEndpoint}/v1/suspense-cache/revalidate?tags=${currentTags
+            .map((tag) => encodeURIComponent(tag))
+            .join(',')}`,
+          {
+            method: 'POST',
+            headers: this.headers,
+            // @ts-expect-error not on public type
+            next: { internal: true },
+          }
+        )
+
+        if (res.status === 429) {
+          const retryAfter = res.headers.get('retry-after') || '60000'
+          rateLimitedUntil = Date.now() + parseInt(retryAfter)
         }
-      )
 
-      if (res.status === 429) {
-        const retryAfter = res.headers.get('retry-after') || '60000'
-        rateLimitedUntil = Date.now() + parseInt(retryAfter)
+        if (!res.ok) {
+          throw new Error(`Request failed with status ${res.status}.`)
+        }
+      } catch (err) {
+        console.warn(`Failed to revalidate tag`, currentTags, err)
       }
-
-      if (!res.ok) {
-        throw new Error(`Request failed with status ${res.status}.`)
-      }
-    } catch (err) {
-      console.warn(`Failed to revalidate tag ${tags}`, err)
     }
   }
 

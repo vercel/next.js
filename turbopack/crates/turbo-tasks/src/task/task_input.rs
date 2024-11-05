@@ -1,7 +1,6 @@
-use std::{any::Any, fmt::Debug, hash::Hash};
+use std::{any::Any, fmt::Debug, future::Future, hash::Hash, time::Duration};
 
 use anyhow::Result;
-use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -12,10 +11,9 @@ use crate::{
 /// [`#[turbo_tasks::function]`][crate::function] argument.
 ///
 /// See also [`ConcreteTaskInput`].
-#[async_trait]
 pub trait TaskInput: Send + Sync + Clone + Debug + PartialEq + Eq + Hash {
-    async fn resolve(&self) -> Result<Self> {
-        Ok(self.clone())
+    fn resolve(&self) -> impl Future<Output = Result<Self>> + Send + '_ {
+        async { Ok(self.clone()) }
     }
     fn is_resolved(&self) -> bool {
         true
@@ -28,7 +26,6 @@ pub trait TaskInput: Send + Sync + Clone + Debug + PartialEq + Eq + Hash {
 macro_rules! impl_task_input {
     ($($t:ty),*) => {
         $(
-            #[async_trait]
             impl TaskInput for $t {}
         )*
     };
@@ -45,10 +42,10 @@ impl_task_input! {
     usize,
     RcStr,
     TaskId,
-    ValueTypeId
+    ValueTypeId,
+    Duration
 }
 
-#[async_trait]
 impl<T> TaskInput for Vec<T>
 where
     T: TaskInput,
@@ -70,7 +67,6 @@ where
     }
 }
 
-#[async_trait]
 impl<T> TaskInput for Option<T>
 where
     T: TaskInput,
@@ -97,7 +93,6 @@ where
     }
 }
 
-#[async_trait]
 impl<T> TaskInput for Vc<T>
 where
     T: Send,
@@ -115,6 +110,8 @@ where
     }
 }
 
+// `TaskInput` isn't needed/used for a bare `ResolvedVc`, as we'll expose `ResolvedVc` arguments as
+// `Vc`, but it is useful for structs that contain `ResolvedVc` and want to derive `TaskInput`.
 impl<T> TaskInput for ResolvedVc<T>
 where
     T: Send,
@@ -124,7 +121,11 @@ where
     }
 
     fn is_transient(&self) -> bool {
-        self.node.node.get_task_id().is_transient()
+        self.node.is_transient()
+    }
+
+    async fn resolve(&self) -> Result<Self> {
+        Ok(*self)
     }
 }
 
@@ -220,7 +221,6 @@ impl<'de, T> Deserialize<'de> for TransientInstance<T> {
 
 macro_rules! tuple_impls {
     ( $( $name:ident )+ ) => {
-        #[async_trait]
         impl<$($name: TaskInput),+> TaskInput for ($($name,)+)
         where $($name: TaskInput),+
         {

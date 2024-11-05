@@ -135,6 +135,11 @@ export interface RequestMeta {
    * Whether the request is a middleware invocation
    */
   middlewareInvoke?: boolean
+
+  /**
+   * Whether the default route matches were set on the request during routing.
+   */
+  didSetDefaultRouteMatches?: boolean
 }
 
 /**

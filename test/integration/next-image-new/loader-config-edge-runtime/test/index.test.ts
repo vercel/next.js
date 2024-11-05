@@ -51,8 +51,8 @@ describe('Image Loader Config with Edge Runtime', () => {
         app = await launchApp(appDir, appPort)
         browser = await webdriver(appPort, '/')
       })
-      afterAll(() => {
-        killApp(app)
+      afterAll(async () => {
+        await killApp(app)
         if (browser) {
           browser.close()
         }
@@ -69,8 +69,8 @@ describe('Image Loader Config with Edge Runtime', () => {
         app = await nextStart(appDir, appPort)
         browser = await webdriver(appPort, '/')
       })
-      afterAll(() => {
-        killApp(app)
+      afterAll(async () => {
+        await killApp(app)
         if (browser) {
           browser.close()
         }

@@ -30,6 +30,7 @@ import type {
   TemplateString,
   Verification,
   ThemeColorDescriptor,
+  Videos,
 } from './metadata-types'
 import type { Manifest as ManifestFile } from './manifest-types'
 import type { OpenGraph, ResolvedOpenGraph } from './opengraph-types'
@@ -359,7 +360,7 @@ interface Metadata extends DeprecatedMetadataFields {
    * @example
    * ```tsx
    * { capable: true, title: "My Website", statusBarStyle: "black-translucent" }
-   * <meta name="apple-mobile-web-app-capable" content="yes" />
+   * <meta name="mobile-web-app-capable" content="yes" />
    * <meta name="apple-mobile-web-app-title" content="My Website" />
    * <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
    * ```
@@ -607,6 +608,7 @@ type SitemapFile = Array<{
     languages?: Languages<string>
   }
   images?: string[]
+  videos?: Videos[]
 }>
 
 type ResolvingMetadata = Promise<ResolvedMetadata>

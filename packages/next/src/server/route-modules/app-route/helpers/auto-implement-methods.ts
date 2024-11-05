@@ -1,9 +1,12 @@
 import type { AppRouteHandlerFn, AppRouteHandlers } from '../module'
 
 import { HTTP_METHODS, type HTTP_METHOD } from '../../../web/http'
-import { handleMethodNotAllowedResponse } from '../../helpers/response-handlers'
 
 const AUTOMATIC_ROUTE_METHODS = ['HEAD', 'OPTIONS'] as const
+
+function handleMethodNotAllowedResponse(): Response {
+  return new Response(null, { status: 405 })
+}
 
 export function autoImplementMethods(
   handlers: AppRouteHandlers

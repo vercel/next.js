@@ -89,22 +89,5 @@ describe('Auto Export', () => {
       const caughtWarns = await browser.eval(`window.caughtWarns`)
       expect(caughtWarns).toEqual([])
     })
-
-    it('should include error link when hydration error does occur', async () => {
-      const browser = await webdriver(appPort, '/post-1/hydrate-error', {
-        pushErrorAsConsoleLog: true,
-      })
-      const logs = await browser.log()
-      expect(logs).toEqual(
-        expect.arrayContaining([
-          {
-            message: expect.stringContaining(
-              'https://react.dev/link/hydration-mismatch'
-            ),
-            source: 'error',
-          },
-        ])
-      )
-    })
   })
 })

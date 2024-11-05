@@ -13,7 +13,7 @@ import {
 import * as vendoredContexts from './vendored/contexts/entrypoints'
 import type { BaseNextRequest, BaseNextResponse } from '../../base-http'
 import type { ServerComponentsHmrCache } from '../../response-cache'
-import type { FallbackRouteParams } from '../../../client/components/fallback-params'
+import type { FallbackRouteParams } from '../../request/fallback-params'
 
 let vendoredReactRSC
 let vendoredReactSSR
@@ -37,7 +37,7 @@ type AppPageUserlandModule = {
   loaderTree: LoaderTree
 }
 
-interface AppPageRouteHandlerContext extends RouteModuleHandleContext {
+export interface AppPageRouteHandlerContext extends RouteModuleHandleContext {
   page: string
   query: NextParsedUrlQuery
   fallbackRouteParams: FallbackRouteParams | null
@@ -66,7 +66,25 @@ export class AppPageRouteModule extends RouteModule<
       context.query,
       context.fallbackRouteParams,
       context.renderOpts,
-      context.serverComponentsHmrCache
+      context.serverComponentsHmrCache,
+      false
+    )
+  }
+
+  public warmup(
+    req: BaseNextRequest,
+    res: BaseNextResponse,
+    context: AppPageRouteHandlerContext
+  ): Promise<RenderResult> {
+    return renderToHTMLOrFlight(
+      req,
+      res,
+      context.page,
+      context.query,
+      context.fallbackRouteParams,
+      context.renderOpts,
+      context.serverComponentsHmrCache,
+      true
     )
   }
 }

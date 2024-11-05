@@ -497,7 +497,7 @@ function makeErrorEmitter(
           ? {
             name: error.name,
             message: error.message,
-            stack: parseStackTrace(error.stack),
+            stack: error.stack ? parseStackTrace(error.stack) : [],
           }
           : {
             name: "Error",

@@ -21,8 +21,8 @@ describe('dynamic = "error" in devmode', () => {
 
         import Component from '../../index'
 
-        export default function Page() {
-          cookies()
+        export default async function Page() {
+          await cookies()
           return <Component />
         }
 
@@ -33,7 +33,7 @@ describe('dynamic = "error" in devmode', () => {
     await session.assertHasRedbox()
     console.log(await session.getRedboxDescription())
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
-      `"Error: Route /server with \`dynamic = "error"\` couldn't be rendered statically because it used \`cookies\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering"`
+      `"[ Server ] Error: Route /server with \`dynamic = "error"\` couldn't be rendered statically because it used \`cookies\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering"`
     )
 
     await cleanup()

@@ -43,6 +43,7 @@ describe('createInitialRouterState', () => {
       location: new URL('/linking', 'https://localhost') as any,
       couldBeIntercepted: false,
       postponed: false,
+      prerendered: false,
     })
 
     const state2 = createInitialRouterState({
@@ -55,6 +56,7 @@ describe('createInitialRouterState', () => {
       location: new URL('/linking', 'https://localhost') as any,
       couldBeIntercepted: false,
       postponed: false,
+      prerendered: false,
     })
 
     const expectedCache: CacheNode = {
@@ -119,6 +121,7 @@ describe('createInitialRouterState', () => {
             treeAtTimeOfPrefetch: initialTree,
             status: PrefetchCacheEntryStatus.fresh,
             url: new URL('/linking', 'https://localhost'),
+            staleTime: -1,
           },
         ],
       ]),

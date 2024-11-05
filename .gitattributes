@@ -8,4 +8,4 @@ turbopack/crates/turbo-tasks-macros-tests/tests/**/*.stderr linguist-generated=t
 turbopack/crates/turbopack-ecmascript/tests/tree-shaker/analyzer/**/output.md linguist-generated=true
 turbopack/crates/turbopack-tests/tests/snapshot/**/output/** linguist-generated=true
 
-.config/ast-grep/rule-tests/__snapshots__/** linguist-generated=true
+**/__snapshots__/** linguist-generated=true

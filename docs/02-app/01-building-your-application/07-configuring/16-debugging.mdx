@@ -1,11 +1,11 @@
 ---
 title: Debugging
-description: Learn how to debug your Next.js application with VS Code or Chrome DevTools.
+description: Learn how to debug your Next.js application with VS Code, Chrome DevTools, or Firefox DevTools.
 ---
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
 
-This documentation explains how you can debug your Next.js frontend and backend code with full source maps support using either the [VS Code debugger](https://code.visualstudio.com/docs/editor/debugging) or [Chrome DevTools](https://developers.google.com/web/tools/chrome-devtools).
+This documentation explains how you can debug your Next.js frontend and backend code with full source maps support using the [VS Code debugger](https://code.visualstudio.com/docs/editor/debugging), [Chrome DevTools](https://developers.google.com/web/tools/chrome-devtools), or [Firefox DevTools](https://firefox-source-docs.mozilla.org/devtools-user/).
 
 Any debugger that can attach to Node.js can also be used to debug a Next.js application. You can find more details in the Node.js [Debugging Guide](https://nodejs.org/en/docs/guides/debugging-getting-started/).
 
@@ -30,6 +30,19 @@ Create a file named `.vscode/launch.json` at the root of your project with the f
       "url": "http://localhost:3000"
     },
     {
+      "name": "Next.js: debug client-side (Firefox)",
+      "type": "firefox",
+      "request": "launch",
+      "url": "http://localhost:3000",
+      "reAttach": true,
+      "pathMappings": [
+        {
+          "url": "webpack://_N_E",
+          "path": "${workspaceFolder}"
+        }
+      ]
+    },
+    {
       "name": "Next.js: debug full stack",
       "type": "node",
       "request": "launch",
@@ -48,6 +61,8 @@ Create a file named `.vscode/launch.json` at the root of your project with the f
 }
 ```
 
+> **Note**: To use Firefox debugging in VS Code, you'll need to install the [Firefox Debugger extension](https://marketplace.visualstudio.com/items?itemName=firefox-devtools.vscode-firefox-debug).
+
 `npm run dev` can be replaced with `yarn dev` if you're using Yarn or `pnpm dev` if you're using pnpm.
 
 If you're [changing the port number](/docs/pages/api-reference/cli/next#next-dev-options) your application starts on, replace the `3000` in `http://localhost:3000` with the port you're using instead.
@@ -58,23 +73,40 @@ Now go to the Debug panel (`Ctrl+Shift+D` on Windows/Linux, `⇧+⌘+D` on macOS
 
 ## Using the Debugger in Jetbrains WebStorm
 
-Click the drop down menu listing the runtime configuration, and click `Edit Configurations...`. Create a `Javascript Debug` debug configuration with `http://localhost:3000` as the URL. Customize to your liking (e.g. Browser for debugging, store as project file), and click `OK`. Run this debug configuration, and the selected browser should automatically open. At this point, you should have 2 applications in debug mode: the NextJS node application, and the client/ browser application.
+Click the drop down menu listing the runtime configuration, and click `Edit Configurations...`. Create a `JavaScript Debug` debug configuration with `http://localhost:3000` as the URL. Customize to your liking (e.g. Browser for debugging, store as project file), and click `OK`. Run this debug configuration, and the selected browser should automatically open. At this point, you should have 2 applications in debug mode: the NextJS node application, and the client/browser application.
 
-## Debugging with Chrome DevTools
+## Debugging with Browser DevTools
 
 ### Client-side code
 
-Start your development server as usual by running `next dev`, `npm run dev`, or `yarn dev`. Once the server starts, open `http://localhost:3000` (or your alternate URL) in Chrome. Next, open Chrome's Developer Tools (`Ctrl+Shift+J` on Windows/Linux, `⌥+⌘+I` on macOS), then go to the **Sources** tab.
+Start your development server as usual by running `next dev`, `npm run dev`, or `yarn dev`. Once the server starts, open `http://localhost:3000` (or your alternate URL) in your preferred browser.
 
-Now, any time your client-side code reaches a [`debugger`](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Statements/debugger) statement, code execution will pause and that file will appear in the debug area. You can also press `Ctrl+P` on Windows/Linux or `⌘+P` on macOS to search for a file and set breakpoints manually. Note that when searching here, your source files will have paths starting with `webpack://_N_E/./`.
+For Chrome:
+
+- Open Chrome's Developer Tools (`Ctrl+Shift+J` on Windows/Linux, `⌥+⌘+I` on macOS)
+- Go to the **Sources** tab
+
+For Firefox:
+
+- Open Firefox's Developer Tools (`Ctrl+Shift+I` on Windows/Linux, `⌥+⌘+I` on macOS)
+- Go to the **Debugger** tab
+
+In either browser, any time your client-side code reaches a [`debugger`](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Statements/debugger) statement, code execution will pause and that file will appear in the debug area. You can also search for files to set breakpoints manually:
+
+- In Chrome: Press `Ctrl+P` on Windows/Linux or `⌘+P` on macOS
+- In Firefox: Press `Ctrl+P` on Windows/Linux or `⌘+P` on macOS, or use the file tree in the left panel
+
+Note that when searching, your source files will have paths starting with `webpack://_N_E/./`.
 
 ### Server-side code
 
-To debug server-side Next.js code with Chrome DevTools, you need to pass the [`--inspect`](https://nodejs.org/api/cli.html#cli_inspect_host_port) flag to the underlying Node.js process:
+To debug server-side Next.js code with browser DevTools, you need to pass the [`--inspect`](https://nodejs.org/api/cli.html#cli_inspect_host_port) flag to the underlying Node.js process:
 
 ```bash filename="Terminal"
 NODE_OPTIONS='--inspect' next dev
 ```
+
+> **Good to know**: Use `NODE_OPTIONS='--inspect=0.0.0.0'` to allow remote debugging access outside localhost, such as when running the app in a Docker container.
 
 If you're using `npm run dev` or `yarn dev` then you should update the `dev` script on your `package.json`:
 
@@ -94,18 +126,31 @@ For help, see: https://nodejs.org/en/docs/inspector
 ready - started server on 0.0.0.0:3000, url: http://localhost:3000
 ```
 
-Once the server starts, open a new tab in Chrome and visit `chrome://inspect`, where you should see your Next.js application inside the **Remote Target** section. Click **inspect** under your application to open a separate DevTools window, then go to the **Sources** tab.
+For Chrome:
 
-Debugging server-side code here works much like debugging client-side code with Chrome DevTools, except that when you search for files here with `Ctrl+P` or `⌘+P`, your source files will have paths starting with `webpack://{application-name}/./` (where `{application-name}` will be replaced with the name of your application according to your `package.json` file).
+1. Open a new tab and visit `chrome://inspect`
+2. Look for your Next.js application in the **Remote Target** section
+3. Click **inspect** to open a separate DevTools window
+4. Go to the **Sources** tab
 
-### Inspect Server Errors with Chrome DevTools
+For Firefox:
+
+1. Open a new tab and visit `about:debugging`
+2. Click **This Firefox** in the left sidebar
+3. Under **Remote Targets**, find your Next.js application
+4. Click **Inspect** to open the debugger
+5. Go to the **Debugger** tab
+
+Debugging server-side code works similarly to client-side debugging. When searching for files (`Ctrl+P`/`⌘+P`), your source files will have paths starting with `webpack://{application-name}/./` (where `{application-name}` will be replaced with the name of your application according to your `package.json` file).
+
+### Inspect Server Errors with Browser DevTools
 
 When you encounter an error, inspecting the source code can help trace the root cause of errors.
 
-Next.js will display a Node.js logo like a green button on the dev overlay. By clicking that button Chrome DevTool url is copied into clipboard, and you can open a new browser tab with that url to inspect the Next.js server process with Chrome DevTool.
+Next.js will display a Node.js logo like a green button on the dev overlay. By clicking that button, the DevTools URL is copied to your clipboard. You can open a new browser tab with that URL to inspect the Next.js server process.
 
 <Image
-  alt="Copy Chrome DevTool url example"
+  alt="Copy DevTools url example"
   srcLight="/docs/dark/copy-devtool-url-example.png"
   srcDark="/docs/dark/copy-devtool-url-example.png"
   width="1600"
@@ -134,3 +179,4 @@ To learn more about how to use a JavaScript debugger, take a look at the followi
 
 - [Node.js debugging in VS Code: Breakpoints](https://code.visualstudio.com/docs/nodejs/nodejs-debugging#_breakpoints)
 - [Chrome DevTools: Debug JavaScript](https://developers.google.com/web/tools/chrome-devtools/javascript)
+- [Firefox DevTools: Debugger](https://firefox-source-docs.mozilla.org/devtools-user/debugger/)

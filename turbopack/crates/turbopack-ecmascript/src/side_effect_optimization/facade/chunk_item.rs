@@ -2,11 +2,10 @@ use std::sync::Arc;
 
 use anyhow::{bail, Result};
 use swc_core::{
-    common::{util::take::Take, Globals, GLOBALS},
+    common::{util::take::Take, Globals},
     ecma::{
         ast::Program,
         codegen::{text_writer::JsWriter, Emitter},
-        visit::{VisitMutWith, VisitMutWithAstPath},
     },
 };
 use turbo_tasks::{TryJoinIterExt, Vc};
@@ -25,7 +24,7 @@ use crate::{
         EcmascriptChunkPlaceable, EcmascriptChunkType, EcmascriptExports,
     },
     code_gen::{CodeGenerateable, CodeGenerateableWithAsyncModuleInfo},
-    path_visitor::ApplyVisitors,
+    process_content_with_code_gens,
 };
 
 /// The chunk item for [EcmascriptModuleFacadeModule].
@@ -91,33 +90,8 @@ impl EcmascriptChunkItem for EcmascriptModuleFacadeChunkItem {
         let code_gens = code_gens.into_iter().try_join().await?;
         let code_gens = code_gens.iter().map(|cg| &**cg).collect::<Vec<_>>();
 
-        let mut visitors = Vec::new();
-        let mut root_visitors = Vec::new();
-        for code_gen in code_gens {
-            for (path, visitor) in code_gen.visitors.iter() {
-                if path.is_empty() {
-                    root_visitors.push(&**visitor);
-                } else {
-                    visitors.push((path, &**visitor));
-                }
-            }
-        }
-
         let mut program = Program::Module(swc_core::ecma::ast::Module::dummy());
-        GLOBALS.set(&Globals::new(), || {
-            if !visitors.is_empty() {
-                program.visit_mut_with_ast_path(
-                    &mut ApplyVisitors::new(visitors),
-                    &mut Default::default(),
-                );
-            }
-            for visitor in root_visitors {
-                program.visit_mut_with(&mut visitor.create());
-            }
-
-            program.visit_mut_with(&mut swc_core::ecma::transforms::base::hygiene::hygiene());
-            program.visit_mut_with(&mut swc_core::ecma::transforms::base::fixer::fixer(None));
-        });
+        process_content_with_code_gens(&mut program, &Globals::new(), None, &code_gens);
 
         let mut bytes: Vec<u8> = vec![];
 
@@ -162,8 +136,8 @@ impl ChunkItem for EcmascriptModuleFacadeChunkItem {
     }
 
     #[turbo_tasks::function]
-    fn asset_ident(&self) -> Result<Vc<AssetIdent>> {
-        Ok(self.module.ident())
+    fn asset_ident(&self) -> Vc<AssetIdent> {
+        self.module.ident()
     }
 
     #[turbo_tasks::function]

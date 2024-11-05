@@ -194,7 +194,7 @@ impl EdgesDataEntry {
                 | EdgesDataEntry::OutputAndCell0(type_id)
                 | EdgesDataEntry::ChildAndCell0(type_id)
                 | EdgesDataEntry::ChildOutputAndCell0(type_id),
-            ) => *type_id == cell_id.type_id,
+            ) => cell_id.index == 0 && *type_id == cell_id.type_id,
             (entry, EdgesDataEntry::Complex(set)) => set.contains(&entry),
             _ => false,
         }
@@ -330,26 +330,26 @@ impl EdgesDataEntry {
                 }
                 _ => {}
             },
-            EdgeEntry::Cell(_) => match self {
-                EdgesDataEntry::Cell0(_) => {
+            EdgeEntry::Cell(cell_id) if cell_id.index == 0 => match self {
+                EdgesDataEntry::Cell0(value_ty) if cell_id.type_id == *value_ty => {
                     *self = EdgesDataEntry::Empty;
                     return true;
                 }
-                EdgesDataEntry::OutputAndCell0(_) => {
+                EdgesDataEntry::OutputAndCell0(value_ty) if cell_id.type_id == *value_ty => {
                     *self = EdgesDataEntry::Output;
                     return true;
                 }
-                EdgesDataEntry::ChildAndCell0(_) => {
+                EdgesDataEntry::ChildAndCell0(value_ty) if cell_id.type_id == *value_ty => {
                     *self = EdgesDataEntry::Child;
                     return true;
                 }
-                EdgesDataEntry::ChildOutputAndCell0(_) => {
+                EdgesDataEntry::ChildOutputAndCell0(value_ty) if cell_id.type_id == *value_ty => {
                     *self = EdgesDataEntry::ChildAndOutput;
                     return true;
                 }
                 _ => {}
             },
-            EdgeEntry::Collectibles(_) => {}
+            EdgeEntry::Cell(_) | EdgeEntry::Collectibles(_) => {}
         }
         if let EdgesDataEntry::Complex(set) = self {
             if set.remove(&entry) {

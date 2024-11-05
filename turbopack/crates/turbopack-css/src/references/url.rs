@@ -10,14 +10,14 @@ use swc_core::css::{
     ast::UrlValue,
     visit::{VisitMut, VisitMutWith},
 };
-use turbo_tasks::{debug::ValueDebug, RcStr, Value, ValueToString, Vc};
+use turbo_tasks::{debug::ValueDebug, RcStr, ResolvedVc, Value, ValueToString, Vc};
 use turbopack_core::{
     chunk::{
         ChunkableModule, ChunkableModuleReference, ChunkingContext, ChunkingType,
         ChunkingTypeOption,
     },
     ident::AssetIdent,
-    issue::{IssueSeverity, IssueSource},
+    issue::IssueSource,
     output::OutputAsset,
     reference::ModuleReference,
     reference_type::{ReferenceType, UrlReferenceSubType},
@@ -28,7 +28,7 @@ use crate::{embed::CssEmbed, StyleSheetLike};
 
 #[turbo_tasks::value(into = "new")]
 pub enum ReferencedAsset {
-    Some(Vc<Box<dyn OutputAsset>>),
+    Some(ResolvedVc<Box<dyn OutputAsset>>),
     None,
 }
 
@@ -62,13 +62,16 @@ impl UrlAssetReference {
     ) -> Result<Vc<ReferencedAsset>> {
         if let Some(module) = *self.resolve_reference().first_module().await? {
             if let Some(chunkable) =
-                Vc::try_resolve_downcast::<Box<dyn ChunkableModule>>(module).await?
+                ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(module).await?
             {
                 let chunk_item = chunkable.as_chunk_item(chunking_context);
                 if let Some(embeddable) =
                     Vc::try_resolve_downcast::<Box<dyn CssEmbed>>(chunk_item).await?
                 {
-                    return Ok(ReferencedAsset::Some(embeddable.embedded_asset()).into());
+                    return Ok(ReferencedAsset::Some(
+                        embeddable.embedded_asset().to_resolved().await?,
+                    )
+                    .into());
                 }
             }
             bail!(
@@ -90,7 +93,7 @@ impl ModuleReference for UrlAssetReference {
             self.request,
             Value::new(ReferenceType::Url(UrlReferenceSubType::CssUrl)),
             Some(self.issue_source),
-            IssueSeverity::Error.cell(),
+            false,
         )
     }
 }
@@ -182,7 +185,7 @@ impl VisitMut for AssetReferenceReplacer<'_> {
     }
 }
 
-impl<'i> Visitor<'i> for AssetReferenceReplacer<'_> {
+impl Visitor<'_> for AssetReferenceReplacer<'_> {
     type Error = Infallible;
 
     fn visit_types(&self) -> lightningcss::visitor::VisitTypes {

@@ -43,7 +43,8 @@ import { isBot } from './utils/is-bot'
 import { omit } from './utils/omit'
 import { interpolateAs } from './utils/interpolate-as'
 import { handleSmoothScroll } from './utils/handle-smooth-scroll'
-import type { Params } from '../../../client/components/params'
+import type { Params } from '../../../server/request/params'
+import { MATCHED_PATH_HEADER } from '../../../lib/constants'
 
 declare global {
   interface Window {
@@ -174,7 +175,7 @@ function getMiddlewareData<T extends FetchDataOutput>(
   let rewriteTarget =
     rewriteHeader || response.headers.get('x-nextjs-matched-path')
 
-  const matchedPath = response.headers.get('x-matched-path')
+  const matchedPath = response.headers.get(MATCHED_PATH_HEADER)
 
   if (
     matchedPath &&

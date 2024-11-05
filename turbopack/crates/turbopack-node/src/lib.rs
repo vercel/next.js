@@ -1,16 +1,16 @@
 #![feature(async_closure)]
 #![feature(min_specialization)]
 #![feature(arbitrary_self_types)]
+#![feature(arbitrary_self_types_pointers)]
 #![feature(extract_if)]
 
 use std::{collections::HashMap, iter::once, thread::available_parallelism};
 
 use anyhow::{bail, Result};
-use indexmap::IndexSet;
 pub use node_entry::{NodeEntry, NodeRenderingEntries, NodeRenderingEntry};
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
-    Completion, Completions, RcStr, TryJoinIterExt, ValueToString, Vc,
+    Completion, Completions, FxIndexSet, RcStr, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
 };
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::{to_sys_path, File, FileSystemPath};
@@ -18,7 +18,7 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkingContext, ChunkingContextExt, EvaluatableAssets},
     module::Module,
-    output::{OutputAsset, OutputAssetsSet},
+    output::{OutputAsset, OutputAssets, OutputAssetsSet},
     source_map::GenerateSourceMap,
     virtual_output::VirtualOutputAsset,
 };
@@ -78,7 +78,7 @@ async fn internal_assets(
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct AssetsForSourceMapping(HashMap<String, Vc<Box<dyn GenerateSourceMap>>>);
+pub struct AssetsForSourceMapping(HashMap<String, ResolvedVc<Box<dyn GenerateSourceMap>>>);
 
 /// Extracts a map of "internal" assets ([`internal_assets`]) which implement
 /// the [GenerateSourceMap] trait.
@@ -92,7 +92,7 @@ async fn internal_assets_for_source_mapping(
     let mut internal_assets_for_source_mapping = HashMap::new();
     for asset in internal_assets.iter() {
         if let Some(generate_source_map) =
-            Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(*asset).await?
+            ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(*asset).await?
         {
             if let Some(path) = intermediate_output_path.get_path_to(&*asset.ident().path().await?)
             {
@@ -127,14 +127,14 @@ pub async fn external_asset_entrypoints(
 /// assets.
 #[turbo_tasks::function]
 async fn separate_assets(
-    intermediate_asset: Vc<Box<dyn OutputAsset>>,
+    intermediate_asset: ResolvedVc<Box<dyn OutputAsset>>,
     intermediate_output_path: Vc<FileSystemPath>,
 ) -> Result<Vc<SeparatedAssets>> {
     let intermediate_output_path = &*intermediate_output_path.await?;
     #[derive(PartialEq, Eq, Hash, Clone, Copy)]
     enum Type {
-        Internal(Vc<Box<dyn OutputAsset>>),
-        External(Vc<Box<dyn OutputAsset>>),
+        Internal(ResolvedVc<Box<dyn OutputAsset>>),
+        External(ResolvedVc<Box<dyn OutputAsset>>),
     }
     let get_asset_children = |asset| async move {
         let Type::Internal(asset) = asset else {
@@ -155,9 +155,9 @@ async fn separate_assets(
                     .await?
                     .is_inside_ref(intermediate_output_path)
                 {
-                    Ok(Type::Internal(*asset))
+                    Ok(Type::Internal(asset.to_resolved().await?))
                 } else {
-                    Ok(Type::External(*asset))
+                    Ok(Type::External(asset.to_resolved().await?))
                 }
             })
             .try_join()
@@ -171,8 +171,8 @@ async fn separate_assets(
         .completed()?
         .into_inner();
 
-    let mut internal_assets = IndexSet::new();
-    let mut external_asset_entrypoints = IndexSet::new();
+    let mut internal_assets = FxIndexSet::default();
+    let mut external_asset_entrypoints = FxIndexSet::default();
 
     for item in graph.into_reverse_topological() {
         match item {
@@ -257,16 +257,17 @@ pub async fn get_renderer_pool(
 
 /// Converts a module graph into node.js executable assets
 #[turbo_tasks::function]
-pub async fn get_intermediate_asset(
+pub fn get_intermediate_asset(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     main_entry: Vc<Box<dyn Module>>,
     other_entries: Vc<EvaluatableAssets>,
-) -> Result<Vc<Box<dyn OutputAsset>>> {
-    Ok(Vc::upcast(chunking_context.root_entry_chunk_group_asset(
+) -> Vc<Box<dyn OutputAsset>> {
+    Vc::upcast(chunking_context.root_entry_chunk_group_asset(
         chunking_context.chunk_path(main_entry.ident(), ".js".into()),
         main_entry,
+        OutputAssets::empty(),
         other_entries,
-    )))
+    ))
 }
 
 #[derive(Clone, Debug)]

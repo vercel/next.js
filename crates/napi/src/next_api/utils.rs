@@ -1,4 +1,6 @@
-use std::{collections::HashMap, future::Future, ops::Deref, sync::Arc};
+use std::{
+    collections::HashMap, future::Future, ops::Deref, path::PathBuf, sync::Arc, time::Duration,
+};
 
 use anyhow::{anyhow, Context, Result};
 use napi::{
@@ -7,9 +9,11 @@ use napi::{
     JsFunction, JsObject, JsUnknown, NapiRaw, NapiValue, Status,
 };
 use serde::Serialize;
-use turbo_tasks::{ReadRef, TaskId, TryJoinIterExt, TurboTasks, Vc};
+use turbo_tasks::{
+    trace::TraceRawVcs, ReadRef, TaskId, TryJoinIterExt, TurboTasks, UpdateInfo, Vc,
+};
+use turbo_tasks_backend::{default_backing_storage, DefaultBackingStorage};
 use turbo_tasks_fs::FileContent;
-use turbo_tasks_memory::MemoryBackend;
 use turbopack_core::{
     diagnostics::{Diagnostic, DiagnosticContextExt, PlainDiagnostic},
     error::PrettyPrintError,
@@ -17,22 +21,140 @@ use turbopack_core::{
     source_pos::SourcePos,
 };
 
+use crate::util::log_internal_error_and_inform;
+
+#[derive(Clone)]
+pub enum NextTurboTasks {
+    Memory(Arc<TurboTasks<turbo_tasks_memory::MemoryBackend>>),
+    PersistentCaching(
+        Arc<TurboTasks<turbo_tasks_backend::TurboTasksBackend<DefaultBackingStorage>>>,
+    ),
+}
+
+impl NextTurboTasks {
+    pub fn dispose_root_task(&self, task: TaskId) {
+        match self {
+            NextTurboTasks::Memory(turbo_tasks) => turbo_tasks.dispose_root_task(task),
+            NextTurboTasks::PersistentCaching(turbo_tasks) => turbo_tasks.dispose_root_task(task),
+        }
+    }
+
+    pub fn spawn_root_task<T, F, Fut>(&self, functor: F) -> TaskId
+    where
+        T: Send,
+        F: Fn() -> Fut + Send + Sync + Clone + 'static,
+        Fut: Future<Output = Result<Vc<T>>> + Send,
+    {
+        match self {
+            NextTurboTasks::Memory(turbo_tasks) => turbo_tasks.spawn_root_task(functor),
+            NextTurboTasks::PersistentCaching(turbo_tasks) => turbo_tasks.spawn_root_task(functor),
+        }
+    }
+
+    pub async fn run_once<T: TraceRawVcs + Send + 'static>(
+        &self,
+        future: impl Future<Output = Result<T>> + Send + 'static,
+    ) -> Result<T> {
+        match self {
+            NextTurboTasks::Memory(turbo_tasks) => turbo_tasks.run_once(future).await,
+            NextTurboTasks::PersistentCaching(turbo_tasks) => turbo_tasks.run_once(future).await,
+        }
+    }
+
+    pub fn spawn_once_task<T, Fut>(&self, future: Fut) -> TaskId
+    where
+        T: Send,
+        Fut: Future<Output = Result<Vc<T>>> + Send + 'static,
+    {
+        match self {
+            NextTurboTasks::Memory(turbo_tasks) => turbo_tasks.spawn_once_task(future),
+            NextTurboTasks::PersistentCaching(turbo_tasks) => turbo_tasks.spawn_once_task(future),
+        }
+    }
+
+    pub async fn aggregated_update_info(
+        &self,
+        aggregation: Duration,
+        timeout: Duration,
+    ) -> Option<UpdateInfo> {
+        match self {
+            NextTurboTasks::Memory(turbo_tasks) => {
+                turbo_tasks
+                    .aggregated_update_info(aggregation, timeout)
+                    .await
+            }
+            NextTurboTasks::PersistentCaching(turbo_tasks) => {
+                turbo_tasks
+                    .aggregated_update_info(aggregation, timeout)
+                    .await
+            }
+        }
+    }
+
+    pub async fn get_or_wait_aggregated_update_info(&self, aggregation: Duration) -> UpdateInfo {
+        match self {
+            NextTurboTasks::Memory(turbo_tasks) => {
+                turbo_tasks
+                    .get_or_wait_aggregated_update_info(aggregation)
+                    .await
+            }
+            NextTurboTasks::PersistentCaching(turbo_tasks) => {
+                turbo_tasks
+                    .get_or_wait_aggregated_update_info(aggregation)
+                    .await
+            }
+        }
+    }
+
+    pub fn memory_backend(&self) -> Option<&turbo_tasks_memory::MemoryBackend> {
+        match self {
+            NextTurboTasks::Memory(turbo_tasks) => Some(turbo_tasks.backend()),
+            NextTurboTasks::PersistentCaching(_) => None,
+        }
+    }
+
+    pub async fn stop_and_wait(&self) {
+        match self {
+            NextTurboTasks::Memory(turbo_tasks) => turbo_tasks.stop_and_wait().await,
+            NextTurboTasks::PersistentCaching(turbo_tasks) => turbo_tasks.stop_and_wait().await,
+        }
+    }
+}
+
+pub fn create_turbo_tasks(
+    output_path: PathBuf,
+    persistent_caching: bool,
+    memory_limit: usize,
+) -> Result<NextTurboTasks> {
+    Ok(if persistent_caching {
+        NextTurboTasks::PersistentCaching(TurboTasks::new(
+            turbo_tasks_backend::TurboTasksBackend::new(default_backing_storage(
+                &output_path.join("cache/turbopack"),
+            )?),
+        ))
+    } else {
+        NextTurboTasks::Memory(TurboTasks::new(turbo_tasks_memory::MemoryBackend::new(
+            memory_limit,
+        )))
+    })
+}
+
 /// A helper type to hold both a Vc operation and the TurboTasks root process.
 /// Without this, we'd need to pass both individually all over the place
 #[derive(Clone)]
 pub struct VcArc<T> {
-    turbo_tasks: Arc<TurboTasks<MemoryBackend>>,
+    turbo_tasks: NextTurboTasks,
     /// The Vc. Must be resolved, otherwise you are referencing an inactive
     /// operation.
     vc: T,
 }
 
 impl<T> VcArc<T> {
-    pub fn new(turbo_tasks: Arc<TurboTasks<MemoryBackend>>, vc: T) -> Self {
+    pub fn new(turbo_tasks: NextTurboTasks, vc: T) -> Self {
         Self { turbo_tasks, vc }
     }
 
-    pub fn turbo_tasks(&self) -> &Arc<TurboTasks<MemoryBackend>> {
+    pub fn turbo_tasks(&self) -> &NextTurboTasks {
         &self.turbo_tasks
     }
 }
@@ -55,7 +177,7 @@ pub fn serde_enum_to_string<T: Serialize>(value: &T) -> Result<String> {
 /// The root of our turbopack computation.
 pub struct RootTask {
     #[allow(dead_code)]
-    turbo_tasks: Arc<TurboTasks<MemoryBackend>>,
+    turbo_tasks: NextTurboTasks,
     #[allow(dead_code)]
     task_id: Option<TaskId>,
 }
@@ -299,7 +421,7 @@ impl<T: ToNapiValue> ToNapiValue for TurbopackResult<T> {
 }
 
 pub fn subscribe<T: 'static + Send + Sync, F: Future<Output = Result<T>> + Send, V: ToNapiValue>(
-    turbo_tasks: Arc<TurboTasks<MemoryBackend>>,
+    turbo_tasks: NextTurboTasks,
     func: JsFunction,
     handler: impl 'static + Sync + Send + Clone + Fn() -> F,
     mapper: impl 'static + Sync + Send + FnMut(ThreadSafeCallContext<T>) -> napi::Result<Vec<V>>,
@@ -312,7 +434,11 @@ pub fn subscribe<T: 'static + Send + Sync, F: Future<Output = Result<T>> + Send,
             let result = handler().await;
 
             let status = func.call(
-                result.map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string())),
+                result.map_err(|e| {
+                    let error = PrettyPrintError(&e).to_string();
+                    log_internal_error_and_inform(&error);
+                    napi::Error::from_reason(error)
+                }),
                 ThreadsafeFunctionCallMode::NonBlocking,
             );
             if !matches!(status, Status::Ok) {

@@ -15,7 +15,11 @@ export const scheduleOnNextTick = <T = void>(cb: ScheduledFn<T>): void => {
   // This was inspired by the implementation of the DataLoader interface: https://github.com/graphql/dataloader/blob/d336bd15282664e0be4b4a657cb796f09bafbc6b/src/index.js#L213-L255
   //
   Promise.resolve().then(() => {
-    process.nextTick(cb)
+    if (process.env.NEXT_RUNTIME === 'edge') {
+      setTimeout(cb, 0)
+    } else {
+      process.nextTick(cb)
+    }
   })
 }
 

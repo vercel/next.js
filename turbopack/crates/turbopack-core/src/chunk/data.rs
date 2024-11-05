@@ -126,7 +126,7 @@ impl ChunkData {
             chunks
                 .await?
                 .iter()
-                .map(|&chunk| ChunkData::from_asset(output_root, chunk))
+                .map(|&chunk| ChunkData::from_asset(output_root, *chunk))
                 .try_join()
                 .await?
                 .into_iter()
@@ -137,7 +137,7 @@ impl ChunkData {
 
     /// Returns [`OutputAsset`]s that this chunk data references.
     #[turbo_tasks::function]
-    pub async fn references(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
-        Ok(self.await?.references)
+    pub fn references(&self) -> Vc<OutputAssets> {
+        self.references
     }
 }

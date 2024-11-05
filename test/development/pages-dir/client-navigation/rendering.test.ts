@@ -13,6 +13,8 @@ import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST } from 'next/constants'
 import path from 'path'
 import url from 'url'
 
+const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
+
 describe('Client Navigation rendering', () => {
   const { next } = nextTestSetup({
     files: path.join(__dirname, 'fixture'),
@@ -609,7 +611,13 @@ describe.each([[false], [true]])(
       const documentHeadElement =
         '<meta name="keywords" content="document head test"/>'
 
-      expect(html).toContain(`<head>${nextHeadElement}${documentHeadElement}`)
+      expect(html).toContain(
+        isReact18
+          ? // charset is not actually at the top.
+            // data-next-hide-fouc comes first
+            `</style></noscript>${nextHeadElement}${documentHeadElement}`
+          : `<head>${nextHeadElement}${documentHeadElement}`
+      )
     })
   }
 )

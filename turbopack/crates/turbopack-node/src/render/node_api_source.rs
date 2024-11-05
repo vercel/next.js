@@ -1,7 +1,6 @@
 use anyhow::{anyhow, Result};
-use indexmap::IndexSet;
 use serde_json::Value as JsonValue;
-use turbo_tasks::{RcStr, Value, Vc};
+use turbo_tasks::{FxIndexSet, RcStr, Value, Vc};
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::introspect::{
@@ -71,8 +70,8 @@ pub struct NodeApiContentSource {
 #[turbo_tasks::value_impl]
 impl NodeApiContentSource {
     #[turbo_tasks::function]
-    pub async fn get_pathname(self: Vc<Self>) -> Result<Vc<RcStr>> {
-        Ok(self.await?.pathname)
+    pub fn get_pathname(&self) -> Vc<RcStr> {
+        self.pathname
     }
 }
 
@@ -128,30 +127,34 @@ impl GetContentSourceContent for NodeApiContentSource {
             return Err(anyhow!("Missing request data"));
         };
         let entry = self.entry.entry(data.clone()).await?;
-        Ok(ContentSourceContent::HttpProxy(render_proxy(
-            self.cwd,
-            self.env,
-            self.server_root.join(path.clone()),
-            entry.module,
-            entry.runtime_entries,
-            entry.chunking_context,
-            entry.intermediate_output_path,
-            entry.output_root,
-            entry.project_dir,
-            RenderData {
-                params: params.clone(),
-                method: method.clone(),
-                url: url.clone(),
-                original_url: original_url.clone(),
-                raw_query: raw_query.clone(),
-                raw_headers: raw_headers.clone(),
-                path: format!("/{}", path).into(),
-                data: Some(self.render_data.await?),
-            }
-            .cell(),
-            *body,
-            self.debug,
-        ))
+        Ok(ContentSourceContent::HttpProxy(
+            render_proxy(
+                self.cwd,
+                self.env,
+                self.server_root.join(path.clone()),
+                entry.module,
+                entry.runtime_entries,
+                entry.chunking_context,
+                entry.intermediate_output_path,
+                entry.output_root,
+                entry.project_dir,
+                RenderData {
+                    params: params.clone(),
+                    method: method.clone(),
+                    url: url.clone(),
+                    original_url: original_url.clone(),
+                    raw_query: raw_query.clone(),
+                    raw_headers: raw_headers.clone(),
+                    path: format!("/{}", path).into(),
+                    data: Some(self.render_data.await?),
+                }
+                .cell(),
+                *body,
+                self.debug,
+            )
+            .to_resolved()
+            .await?,
+        )
         .cell())
     }
 }
@@ -174,19 +177,19 @@ impl Introspectable for NodeApiContentSource {
     }
 
     #[turbo_tasks::function]
-    async fn details(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
+    async fn details(&self) -> Vc<RcStr> {
+        Vc::cell(
             format!(
                 "base: {:?}\ntype: {:?}",
                 self.base_segments, self.route_type
             )
             .into(),
-        ))
+        )
     }
 
     #[turbo_tasks::function]
     async fn children(&self) -> Result<Vc<IntrospectableChildren>> {
-        let mut set = IndexSet::new();
+        let mut set = FxIndexSet::default();
         for &entry in self.entry.entries().await?.iter() {
             let entry = entry.await?;
             set.insert((

@@ -1,6 +1,5 @@
 use anyhow::Result;
-use indexmap::indexmap;
-use turbo_tasks::{TaskInput, Value, Vc};
+use turbo_tasks::{fxindexmap, ResolvedVc, TaskInput, Value, Vc};
 use turbopack::{module_options::CustomModuleType, ModuleAssetContext};
 use turbopack_core::{
     context::AssetContext, module::Module, reference_type::ReferenceType, resolve::ModulePart,
@@ -41,8 +40,10 @@ impl StructuredImageModuleType {
         blur_placeholder_mode: BlurPlaceholderMode,
         module_asset_context: Vc<ModuleAssetContext>,
     ) -> Result<Vc<Box<dyn Module>>> {
-        let static_asset = StaticModuleAsset::new(source, Vc::upcast(module_asset_context));
-        let module = module_asset_context
+        let static_asset = StaticModuleAsset::new(source, Vc::upcast(module_asset_context))
+            .to_resolved()
+            .await?;
+        Ok(module_asset_context
             .process(
                 Vc::upcast(
                     StructuredImageFileSource {
@@ -51,12 +52,11 @@ impl StructuredImageModuleType {
                     }
                     .cell(),
                 ),
-                Value::new(ReferenceType::Internal(Vc::cell(indexmap!(
-                    "IMAGE".into() => Vc::upcast(static_asset)
+                Value::new(ReferenceType::Internal(Vc::cell(fxindexmap!(
+                    "IMAGE".into() => ResolvedVc::upcast(static_asset)
                 )))),
             )
-            .module();
-        Ok(module)
+            .module())
     }
 
     #[turbo_tasks::function]

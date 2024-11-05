@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry, waitFor } from 'next-test-utils'
-import type { Response } from 'playwright'
+import type { Request, Response } from 'playwright'
 
 describe('app dir - navigation', () => {
   const { next, isNextDev, isNextStart, isNextDeploy } = nextTestSetup({
@@ -192,12 +192,17 @@ describe('app dir - navigation', () => {
       await checkLink('top', 0)
       await checkLink('non-existent', 0)
 
-      // there should have been no RSC calls to fetch data
-      expect(hasRscRequest).toBe(false)
+      if (!isNextDev) {
+        // there should have been no RSC calls to fetch data
+        // this is skipped in development because there'll never be a prefetch cache
+        // entry for the loaded page and so every request will be a cache miss.
+        expect(hasRscRequest).toBe(false)
+      }
 
-      // There should be an RSC request if the query param is changed
       await checkLink('query-param', 2284)
       await browser.waitForIdleNetwork()
+
+      // There should be an RSC request if the query param is changed
       expect(hasRscRequest).toBe(true)
     })
 
@@ -488,7 +493,16 @@ describe('app dir - navigation', () => {
       it.each(['/redirect/servercomponent', 'redirect/redirect-with-loading'])(
         'should only trigger the redirect once (%s)',
         async (path) => {
-          const browser = await next.browser(path)
+          const requestedPathnames: string[] = []
+
+          const browser = await next.browser(path, {
+            beforePageLoad(page) {
+              page.on('request', async (req: Request) => {
+                requestedPathnames.push(new URL(req.url()).pathname)
+              })
+            },
+          })
+
           const initialTimestamp = await browser
             .waitForElementByCss('#timestamp')
             .text()
@@ -523,6 +537,13 @@ describe('app dir - navigation', () => {
             }
             // If it's our "forcing continue" error, do nothing. This means we succeeded.
           }
+
+          // Ensure the redirect target page was only requested once.
+          expect(
+            requestedPathnames.filter(
+              (pathname) => pathname === '/redirect/result'
+            )
+          ).toHaveLength(1)
         }
       )
     })

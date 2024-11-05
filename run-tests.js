@@ -20,7 +20,7 @@ const { getTestFilter } = require('./test/get-test-filter')
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.0.0-rc-94e652d5-20240912";
+const nextjsReactPeerVersion = "19.0.0-rc-7c8e5e7a-20241101";
 
 let argv = require('yargs/yargs')(process.argv.slice(2))
   .string('type')
@@ -76,7 +76,7 @@ const TIMINGS_API_HEADERS = {
 
 const testFilters = {
   development: new RegExp(
-    '^(test/(development|e2e)|packages/.*/src/.*)/.*\\.test\\.(js|jsx|ts|tsx)$'
+    '^(test/(development|e2e)|packages/.*/src/.*|packages/next-codemod/.*)/.*\\.test\\.(js|jsx|ts|tsx)$'
   ),
   production: new RegExp(
     '^(test/(production|e2e))/.*\\.test\\.(js|jsx|ts|tsx)$'
@@ -480,6 +480,10 @@ ${ENDGROUP}`)
         // unset CI env so CI behavior is only explicitly
         // tested when enabled
         CI: '',
+        // But some tests need to fork based on machine? CI? behavior differences
+        // Only use read this in tests.
+        // For implementation forks, use `process.env.CI` instead
+        NEXT_TEST_CI: process.env.CI,
 
         ...(options.local
           ? {}

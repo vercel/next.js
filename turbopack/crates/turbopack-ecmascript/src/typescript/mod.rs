@@ -1,11 +1,10 @@
 use anyhow::Result;
 use serde_json::Value as JsonValue;
-use turbo_tasks::{RcStr, Value, ValueToString, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::DirectoryContent;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     ident::AssetIdent,
-    issue::IssueSeverity,
     module::Module,
     raw_module::RawModule,
     reference::{ModuleReference, ModuleReferences},
@@ -182,7 +181,7 @@ impl CompilerReference {
 impl ModuleReference for CompilerReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        cjs_resolve(self.origin, self.request, None, IssueSeverity::Error.cell())
+        cjs_resolve(self.origin, self.request, None, false)
     }
 }
 
@@ -213,8 +212,13 @@ impl TsExtendsReference {
 #[turbo_tasks::value_impl]
 impl ModuleReference for TsExtendsReference {
     #[turbo_tasks::function]
-    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        ModuleResolveResult::module(Vc::upcast(RawModule::new(Vc::upcast(self.config)))).cell()
+    async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
+        Ok(ModuleResolveResult::module(ResolvedVc::upcast(
+            RawModule::new(Vc::upcast(self.config))
+                .to_resolved()
+                .await?,
+        ))
+        .cell())
     }
 }
 
@@ -251,7 +255,7 @@ impl TsNodeRequireReference {
 impl ModuleReference for TsNodeRequireReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        cjs_resolve(self.origin, self.request, None, IssueSeverity::Error.cell())
+        cjs_resolve(self.origin, self.request, None, false)
     }
 }
 

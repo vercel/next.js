@@ -3,7 +3,7 @@ use std::io::Write;
 use anyhow::{bail, Result};
 use indoc::writedoc;
 use serde::Serialize;
-use turbo_tasks::{RcStr, ReadRef, TryJoinIterExt, Value, ValueToString, Vc};
+use turbo_tasks::{RcStr, ReadRef, ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc};
 use turbo_tasks_fs::File;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -57,12 +57,8 @@ impl EcmascriptDevEvaluateChunk {
     }
 
     #[turbo_tasks::function]
-    async fn chunks_data(self: Vc<Self>) -> Result<Vc<ChunksData>> {
-        let this = self.await?;
-        Ok(ChunkData::from_assets(
-            this.chunking_context.output_root(),
-            this.other_chunks,
-        ))
+    fn chunks_data(&self) -> Vc<ChunksData> {
+        ChunkData::from_assets(self.chunking_context.output_root(), self.other_chunks)
     }
 
     #[turbo_tasks::function]
@@ -147,6 +143,7 @@ impl EcmascriptDevEvaluateChunk {
                 let runtime_code = turbopack_ecmascript_runtime::get_browser_runtime_code(
                     environment,
                     chunking_context.chunk_base_path(),
+                    Value::new(chunking_context.runtime_type()),
                     Vc::cell(output_root.to_string().into()),
                 );
                 code.push_code(&*runtime_code.await?);
@@ -155,6 +152,7 @@ impl EcmascriptDevEvaluateChunk {
                 let runtime_code = turbopack_ecmascript_runtime::get_browser_runtime_code(
                     environment,
                     chunking_context.chunk_base_path(),
+                    Value::new(chunking_context.runtime_type()),
                     Vc::cell(output_root.to_string().into()),
                 );
                 code.push_code(&*runtime_code.await?);
@@ -190,8 +188,8 @@ impl EcmascriptDevEvaluateChunk {
 #[turbo_tasks::value_impl]
 impl ValueToString for EcmascriptDevEvaluateChunk {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell("Ecmascript Dev Evaluate Chunk".into()))
+    fn to_string(&self) -> Vc<RcStr> {
+        Vc::cell("Ecmascript Dev Evaluate Chunk".into())
     }
 }
 
@@ -236,7 +234,9 @@ impl OutputAsset for EcmascriptDevEvaluateChunk {
             .await?;
 
         if include_source_map {
-            references.push(Vc::upcast(SourceMapAsset::new(Vc::upcast(self))));
+            references.push(ResolvedVc::upcast(
+                SourceMapAsset::new(Vc::upcast(self)).to_resolved().await?,
+            ));
         }
 
         for chunk_data in &*self.chunks_data().await? {

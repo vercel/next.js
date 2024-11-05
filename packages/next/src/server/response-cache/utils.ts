@@ -32,6 +32,9 @@ export async function fromResponseCacheEntry(
               rscData: cacheEntry.value.rscData,
               headers: cacheEntry.value.headers,
               status: cacheEntry.value.status,
+              segmentData: cacheEntry.value.segmentData,
+              immutableResumeDataCache:
+                cacheEntry.value.immutableResumeDataCache,
             }
           : cacheEntry.value,
   }
@@ -70,6 +73,8 @@ export async function toResponseCacheEntry(
               headers: response.value.headers,
               status: response.value.status,
               postponed: response.value.postponed,
+              segmentData: response.value.segmentData,
+              immutableResumeDataCache: response.value.immutableResumeDataCache,
             } satisfies CachedAppPageValue)
           : response.value,
   }

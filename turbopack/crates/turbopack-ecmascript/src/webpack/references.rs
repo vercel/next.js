@@ -67,7 +67,7 @@ struct ModuleReferencesVisitor<'a> {
     transforms: Vc<EcmascriptInputTransforms>,
 }
 
-impl<'a> Visit for ModuleReferencesVisitor<'a> {
+impl Visit for ModuleReferencesVisitor<'_> {
     fn visit_call_expr(&mut self, call: &CallExpr) {
         if let Some(member) = call.callee.as_expr().and_then(|e| e.as_member()) {
             if let (Some(obj), Some(prop)) = (member.obj.as_ident(), member.prop.as_ident()) {

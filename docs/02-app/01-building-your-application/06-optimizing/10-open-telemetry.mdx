@@ -5,8 +5,6 @@ description: Learn how to instrument your Next.js app with OpenTelemetry.
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
 
-> **Good to know**: This feature is **experimental**, you need to explicitly opt-in by providing `experimental.instrumentationHook = true;` in your `next.config.js`.
-
 Observability is crucial for understanding and optimizing the behavior and performance of your Next.js app.
 
 As applications become more complex, it becomes increasingly difficult to identify and diagnose issues that may arise. By leveraging observability tools, such as logging and metrics, developers can gain insights into their application's behavior and identify areas for optimization. With observability, developers can proactively address issues before they become major problems and provide a better user experience. Therefore, it is highly recommended to use observability in your Next.js applications to improve performance, optimize resources, and enhance user experience.
@@ -113,15 +111,15 @@ export async function register() {
 ```
 
 ```ts filename="instrumentation.node.ts" switcher
-import { NodeSDK } from '@opentelemetry/sdk-node'
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http'
 import { Resource } from '@opentelemetry/resources'
-import { SEMRESATTRS_SERVICE_NAME } from '@opentelemetry/semantic-conventions'
+import { NodeSDK } from '@opentelemetry/sdk-node'
 import { SimpleSpanProcessor } from '@opentelemetry/sdk-trace-node'
+import { ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions'
 
 const sdk = new NodeSDK({
   resource: new Resource({
-    [SEMRESATTRS_SERVICE_NAME]: 'next-app',
+    [ATTR_SERVICE_NAME]: 'next-app',
   }),
   spanProcessor: new SimpleSpanProcessor(new OTLPTraceExporter()),
 })
@@ -129,15 +127,15 @@ sdk.start()
 ```
 
 ```js filename="instrumentation.node.js" switcher
-import { NodeSDK } from '@opentelemetry/sdk-node'
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http'
 import { Resource } from '@opentelemetry/resources'
-import { SEMRESATTRS_SERVICE_NAME } from '@opentelemetry/semantic-conventions'
+import { NodeSDK } from '@opentelemetry/sdk-node'
 import { SimpleSpanProcessor } from '@opentelemetry/sdk-trace-node'
+import { ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions'
 
 const sdk = new NodeSDK({
   resource: new Resource({
-    [SEMRESATTRS_SERVICE_NAME]: 'next-app',
+    [ATTR_SERVICE_NAME]: 'next-app',
   }),
   spanProcessor: new SimpleSpanProcessor(new OTLPTraceExporter()),
 })
@@ -279,7 +277,7 @@ This span can be turned off by setting `NEXT_OTEL_FETCH_DISABLED=1` in your envi
 
 - `next.span_type`: `AppRouteRouteHandlers.runHandler`.
 
-This span represents the execution of an API route handler in the app router.
+This span represents the execution of an API Route Handler in the app router.
 
 Attributes:
 
