@@ -344,12 +344,23 @@ impl<'a> SpanRef<'a> {
     }
 
     pub fn search(&self, query: &str) -> impl Iterator<Item = SpanRef<'a>> {
-        let index = self.search_index();
+        let mut query_items = query.split(",").map(str::trim);
+        let index: &HashMap<String, Vec<std::num::NonZero<usize>>> = self.search_index();
         let mut result = HashSet::new();
+        let query = query_items.next().unwrap();
         for (key, spans) in index {
             if key.contains(query) {
                 result.extend(spans.iter().copied());
             }
+        }
+        for query in query_items {
+            let mut and_result = HashSet::new();
+            for (key, spans) in index {
+                if key.contains(query) {
+                    and_result.extend(spans.iter().copied());
+                }
+            }
+            result.retain(|index| and_result.contains(index));
         }
         let store = self.store;
         result.into_iter().map(move |index| SpanRef {
