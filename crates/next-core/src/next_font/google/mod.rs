@@ -690,10 +690,10 @@ async fn get_mock_stylesheet(
     let val = evaluate(
         mocked_response_asset,
         root,
-        env,
+        *env,
         AssetIdent::from_path(loader_path),
         asset_context,
-        chunking_context,
+        *chunking_context,
         None,
         vec![],
         Completion::immutable(),
