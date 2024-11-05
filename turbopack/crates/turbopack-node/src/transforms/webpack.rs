@@ -479,7 +479,7 @@ impl EvaluateContext for WebpackLoaderContext {
                 EvaluateEmittedErrorIssue {
                     file_path: self.context_ident_for_issue.path().to_resolved().await?,
                     error,
-                    severity: severity.cell().to_resolved().await?,
+                    severity: severity.resolved_cell(),
                     assets_for_source_mapping: pool.assets_for_source_mapping,
                     assets_root: pool.assets_root,
                     project_dir: self
