@@ -16,13 +16,14 @@ use swc_core::{
         },
         minifier::option::{ExtraOptions, MangleOptions, MinifyOptions},
         parser::{lexer::Lexer, Parser, StringInput, Syntax},
-        transforms::base::fixer::paren_remover,
-        visit::FoldWith,
+        transforms::base::{fixer::paren_remover, hygiene::hygiene_with_config},
+        visit::{FoldWith, VisitMutWith},
     },
 };
 use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
+    chunk::MinifyType,
     code_builder::{Code, CodeBuilder},
     source_map::GenerateSourceMap,
 };
@@ -30,7 +31,11 @@ use turbopack_core::{
 use crate::ParseResultSourceMap;
 
 #[turbo_tasks::function]
-pub async fn minify(path: Vc<FileSystemPath>, code: Vc<Code>) -> Result<Vc<Code>> {
+pub async fn minify(
+    path: Vc<FileSystemPath>,
+    code: Vc<Code>,
+    mode: MinifyType,
+) -> Result<Vc<Code>> {
     let path = path.await?;
     let original_map = code.generate_source_map();
     let code = code.await?;
@@ -82,11 +87,17 @@ pub async fn minify(path: Vc<FileSystemPath>, code: Vc<Code>) -> Result<Vc<Code>
                     Some(&comments),
                     None,
                     &MinifyOptions {
-                        compress: Some(Default::default()),
-                        mangle: Some(MangleOptions {
-                            reserved: vec!["AbortSignal".into()],
-                            ..Default::default()
-                        }),
+                        compress: match mode {
+                            MinifyType::Minify => Some(Default::default()),
+                            MinifyType::NoMinify => None,
+                        },
+                        mangle: match mode {
+                            MinifyType::Minify => Some(MangleOptions {
+                                reserved: vec!["AbortSignal".into()],
+                                ..Default::default()
+                            }),
+                            MinifyType::NoMinify => None,
+                        },
                         ..Default::default()
                     },
                     &ExtraOptions {
@@ -96,6 +107,15 @@ pub async fn minify(path: Vc<FileSystemPath>, code: Vc<Code>) -> Result<Vc<Code>
                     },
                 );
 
+                if let MinifyType::NoMinify = mode {
+                    program.visit_mut_with(&mut hygiene_with_config(
+                        ecma::transforms::base::hygiene::Config {
+                            top_level_mark,
+                            ..Default::default()
+                        },
+                    ))
+                }
+
                 program.fold_with(&mut ecma::transforms::base::fixer::fixer(Some(
                     &comments as &dyn Comments,
                 )))
@@ -103,7 +123,7 @@ pub async fn minify(path: Vc<FileSystemPath>, code: Vc<Code>) -> Result<Vc<Code>
         })
     })?;
 
-    let (src, src_map_buf) = print_program(cm.clone(), program)?;
+    let (src, src_map_buf) = print_program(cm.clone(), program, mode)?;
 
     let mut builder = CodeBuilder::default();
     builder.push_source(
@@ -125,6 +145,7 @@ pub async fn minify(path: Vc<FileSystemPath>, code: Vc<Code>) -> Result<Vc<Code>
 fn print_program(
     cm: Arc<SwcSourceMap>,
     program: Program,
+    mode: MinifyType,
 ) -> Result<(String, Vec<(BytePos, LineCol)>)> {
     let mut src_map_buf = vec![];
 
@@ -139,7 +160,10 @@ fn print_program(
             )))) as Box<dyn WriteJs>;
 
             let mut emitter = Emitter {
-                cfg: swc_core::ecma::codegen::Config::default().with_minify(true),
+                cfg: swc_core::ecma::codegen::Config::default().with_minify(match mode {
+                    MinifyType::Minify => true,
+                    MinifyType::NoMinify => false,
+                }),
                 comments: None,
                 cm: cm.clone(),
                 wr,
