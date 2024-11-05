@@ -169,7 +169,7 @@ impl GenerateSourceMap for WebpackLoadersProcessedAsset {
 struct ProcessWebpackLoadersResult {
     content: ResolvedVc<AssetContent>,
     source_map: Option<ResolvedVc<SourceMap>>,
-    assets: Vec<ResolvedVc<VirtualSource>>,
+    assets: Vec<Vc<VirtualSource>>,
 }
 
 #[turbo_tasks::function]
