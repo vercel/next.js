@@ -186,8 +186,8 @@ async fn separate_assets(
     }
 
     Ok(SeparatedAssets {
-        internal_assets: Vc::cell(internal_assets),
-        external_asset_entrypoints: Vc::cell(external_asset_entrypoints),
+        internal_assets: ResolvedVc::cell(internal_assets),
+        external_asset_entrypoints: ResolvedVc::cell(external_asset_entrypoints),
     }
     .cell())
 }
