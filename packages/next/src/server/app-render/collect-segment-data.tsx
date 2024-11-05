@@ -19,9 +19,43 @@ import { UNDERSCORE_NOT_FOUND_ROUTE } from '../../api/constants'
 import { waitAtLeastOneReactRenderTask } from '../../lib/scheduler'
 import type { LoadingModuleData } from '../../shared/lib/app-router-context.shared-runtime'
 
+// Contains metadata about the route tree. The client must fetch this before
+// it can fetch any actual segment data.
+type RootTreePrefetch = {
+  tree: TreePrefetch
+  staleTime: number
+}
+
+type TreePrefetch = {
+  // The key to use when requesting the data for this segment (analogous to a
+  // URL). Also used as a cache key, although the server may specify a different
+  // cache key when it responds (analagous to a Vary header), like to omit
+  // params if they aren't used to compute the response. (This part not
+  // yet implemented)
+  key: string
+
+  // Child segments.
+  slots: null | {
+    [parallelRouteKey: string]: TreePrefetch
+  }
+
+  // Extra fields that only exist so we can reconstruct a FlightRouterState on
+  // the client. We may be able to unify TreePrefetch and FlightRouterState
+  // after some refactoring, but in the meantime it would be wasteful to add a
+  // bunch of new prefetch-only fields to FlightRouterState. So think of
+  // TreePrefetch as a superset of FlightRouterState.
+  extra: [segment: Segment, isRootLayout: boolean]
+}
+
+type SegmentPrefetch = {
+  rsc: React.ReactNode | null
+  loading: LoadingModuleData
+}
+
 export async function collectSegmentData(
-  routeTree: FlightRouterState,
+  flightRouterState: FlightRouterState,
   fullPageDataBuffer: Buffer,
+  staleTime: number,
   clientModules: ManifestNode,
   serverConsumerManifest: any
 ): Promise<Map<string, Buffer>> {
@@ -43,19 +77,19 @@ export async function collectSegmentData(
   } catch {}
 
   // A mutable map to collect the results as we traverse the route tree.
-  const segmentBufferMap = new Map<string, Buffer>()
+  const resultMap = new Map<string, Buffer>()
   // A mutable array to collect the promises for each segment stream, so that
   // they can run in parallel.
   const collectedTasks: Array<Promise<void>> = []
 
-  collectSegmentDataImpl(
-    routeTree,
+  const tree = collectSegmentDataImpl(
+    flightRouterState,
     fullPageDataBuffer,
     clientModules,
     serverConsumerManifest,
     [],
     '',
-    segmentBufferMap,
+    resultMap,
     collectedTasks
   )
 
@@ -64,7 +98,17 @@ export async function collectSegmentData(
   // to renderToReadableStream).
   await Promise.all(collectedTasks)
 
-  return segmentBufferMap
+  // Render the route tree to a special `/_tree` segment.
+  const treePrefetch: RootTreePrefetch = {
+    tree,
+    staleTime,
+  }
+  const treeStream = renderToReadableStream(treePrefetch, clientModules)
+  const routeBuffer = await streamToBuffer(treeStream)
+
+  resultMap.set('/_tree', routeBuffer)
+
+  return resultMap
 }
 
 function collectSegmentDataImpl(
@@ -76,7 +120,9 @@ function collectSegmentDataImpl(
   segmentPathStr: string,
   segmentBufferMap: Map<string, Buffer>,
   collectedTasks: Array<Promise<void>>
-): void {
+): TreePrefetch {
+  const slots: { [parallelRouteKey: string]: TreePrefetch } = {}
+
   const children = route[1]
   for (const parallelRouteKey in children) {
     const childRoute = children[parallelRouteKey]
@@ -88,7 +134,8 @@ function collectSegmentDataImpl(
       segmentPathStr +
       '/' +
       encodeChildSegmentAsFilesystemSafePathname(parallelRouteKey, childSegment)
-    collectSegmentDataImpl(
+
+    const childTree = collectSegmentDataImpl(
       childRoute,
       fullPageDataBuffer,
       clientModules,
@@ -98,6 +145,7 @@ function collectSegmentDataImpl(
       segmentBufferMap,
       collectedTasks
     )
+    slots[parallelRouteKey] = childTree
   }
 
   // Spawn a task to render the segment data to a stream.
@@ -111,6 +159,16 @@ function collectSegmentDataImpl(
       segmentBufferMap
     )
   )
+
+  // Metadata about the segment. Sent to the client as part of the
+  // tree prefetch.
+  const segment = route[0]
+  const isRootLayout = route[4]
+  return {
+    key: segmentPathStr,
+    slots,
+    extra: [segment, isRootLayout === true],
+  }
 }
 
 async function renderSegmentDataToStream(
@@ -159,11 +217,6 @@ async function renderSegmentDataToStream(
     // If there are any errors, then we skip the segment. The effect is that
     // a prefetch for this segment will 404.
   }
-}
-
-type SegmentPrefetch = {
-  rsc: React.ReactNode | null
-  loading: LoadingModuleData
 }
 
 async function PickSegment({

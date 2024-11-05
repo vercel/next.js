@@ -14,6 +14,21 @@ describe('per segment prefetching', () => {
   // these types of requests. This tests that the server responds correctly.
   // TODO: Replace with e2e tests once more is implemented.
 
+  it('prefetch a route tree', async () => {
+    const response = await next.fetch('/en', {
+      headers: {
+        RSC: '1',
+        'Next-Router-Prefetch': '1',
+        'Next-Router-Segment-Prefetch': '/_tree',
+      },
+    })
+    expect(response.status).toBe(200)
+    const responseText = await response.text()
+    // This is a basic check to ensure that the name of an expected field is
+    // somewhere in the Flight stream.
+    expect(responseText).toInclude('"staleTime"')
+  })
+
   it('prefetch an individual segment', async () => {
     const response = await next.fetch('/en', {
       headers: {
