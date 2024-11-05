@@ -345,7 +345,7 @@ impl<'a> SpanRef<'a> {
 
     pub fn search(&self, query: &str) -> impl Iterator<Item = SpanRef<'a>> {
         let mut query_items = query.split(",").map(str::trim);
-        let index: &HashMap<String, Vec<std::num::NonZero<usize>>> = self.search_index();
+        let index = self.search_index();
         let mut result = HashSet::new();
         let query = query_items.next().unwrap();
         for (key, spans) in index {
