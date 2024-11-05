@@ -551,7 +551,7 @@ struct PostCssTransformIssue {
 impl Issue for PostCssTransformIssue {
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        self.source
+        *self.source
     }
 
     #[turbo_tasks::function]
@@ -566,7 +566,7 @@ impl Issue for PostCssTransformIssue {
 
     #[turbo_tasks::function]
     fn severity(&self) -> Vc<IssueSeverity> {
-        self.severity
+        *self.severity
     }
 
     #[turbo_tasks::function]
