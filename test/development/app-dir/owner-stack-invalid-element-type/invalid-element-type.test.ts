@@ -27,7 +27,6 @@ const isOwnerStackEnabled =
 
       const stackFramesContent = await getStackFramesContent(browser)
       if (process.env.TURBOPACK) {
-        // FIXME: the methodName of the stack frame is not aligned between Turbopack and Webpack
         expect(stackFramesContent).toMatchInlineSnapshot(`""`)
         expect(source).toMatchInlineSnapshot(`
           "app/browser/browser-only.js (8:7) @ BrowserOnly
@@ -41,8 +40,8 @@ const isOwnerStackEnabled =
             11 | }"
         `)
       } else {
-        // FIXME: the methodName of the stack frame is not aligned between Turbopack and Webpack
         expect(stackFramesContent).toMatchInlineSnapshot(`""`)
+        // FIXME: the methodName should be `@ BrowserOnly` instead of `@ Foo`
         expect(source).toMatchInlineSnapshot(`
           "app/browser/browser-only.js (8:8) @ Foo
 
@@ -79,6 +78,7 @@ const isOwnerStackEnabled =
         `)
       } else {
         expect(stackFramesContent).toMatchInlineSnapshot(`""`)
+        // FIXME: the methodName should be `@ Inner` instead of `@ Foo`
         expect(source).toMatchInlineSnapshot(`
           "app/rsc/page.js (5:11) @ Foo
 
@@ -115,6 +115,7 @@ const isOwnerStackEnabled =
         `)
       } else {
         expect(stackFramesContent).toMatchInlineSnapshot(`""`)
+        // FIXME: the methodName should be `@ Inner` instead of `@ Foo`
         expect(source).toMatchInlineSnapshot(`
           "app/ssr/page.js (7:11) @ Foo
 
