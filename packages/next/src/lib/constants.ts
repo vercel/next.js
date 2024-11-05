@@ -16,6 +16,7 @@ export const ACTION_SUFFIX = '.action'
 export const NEXT_DATA_SUFFIX = '.json'
 export const NEXT_META_SUFFIX = '.meta'
 export const NEXT_BODY_SUFFIX = '.body'
+export const NEXT_STATIC_DATA_CACHE_SUFFIX = '.rdc.json'
 
 export const NEXT_CACHE_TAGS_HEADER = 'x-next-cache-tags'
 export const NEXT_CACHE_SOFT_TAGS_HEADER = 'x-next-cache-soft-tags'
