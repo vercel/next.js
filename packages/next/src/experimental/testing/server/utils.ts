@@ -3,16 +3,7 @@ import { MockedRequest } from '../../../server/lib/mock-request'
 import { NodeNextRequest } from '../../../server/base-http/node'
 import type { BaseNextRequest } from '../../../server/base-http'
 import type { NextResponse } from '../../../server/web/exports'
-
-function parseUrl(url: string): URL | null {
-  // Calls to this function can be replaced with URL.parse once we update to
-  // Node 22.1.0 or later.
-  try {
-    return new URL(url)
-  } catch {
-    return null
-  }
-}
+import { parseUrl } from '../../../lib/url'
 
 export function constructRequest({
   url,
