@@ -436,7 +436,7 @@ async function createComponentTreeInternal({
             injectedJS: injectedJSWithCurrentLayout,
             injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
             asNotFound,
-            metadataOutlet,
+            metadataOutlet: isChildrenRouteKey ? metadataOutlet : undefined,
             ctx,
             missingSlots,
           })
