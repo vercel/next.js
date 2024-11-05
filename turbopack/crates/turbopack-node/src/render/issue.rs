@@ -1,12 +1,12 @@
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::issue::{Issue, IssueStage, OptionStyledString, StyledString};
 
 #[turbo_tasks::value(shared)]
 #[derive(Copy, Clone)]
 pub struct RenderingIssue {
-    pub file_path: Vc<FileSystemPath>,
-    pub message: Vc<StyledString>,
+    pub file_path: ResolvedVc<FileSystemPath>,
+    pub message: ResolvedVc<StyledString>,
     pub status: Option<i32>,
 }
 
