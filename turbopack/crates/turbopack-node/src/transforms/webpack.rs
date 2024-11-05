@@ -161,7 +161,7 @@ impl Asset for WebpackLoadersProcessedAsset {
 impl GenerateSourceMap for WebpackLoadersProcessedAsset {
     #[turbo_tasks::function]
     async fn generate_source_map(self: Vc<Self>) -> Result<Vc<OptionSourceMap>> {
-        Ok(Vc::cell(self.process().await?.source_map))
+        Ok(Vc::cell(self.process().await?.source_map.map(|v| *v)))
     }
 }
 
@@ -200,7 +200,7 @@ impl WebpackLoadersProcessedAsset {
         };
         let FileContent::Content(content) = &*file.await? else {
             return Ok(ProcessWebpackLoadersResult {
-                content: AssetContent::File(FileContent::NotFound.resolved_cell()).cell(),
+                content: AssetContent::File(FileContent::NotFound.resolved_cell()).resolved_cell(),
                 assets: Vec::new(),
                 source_map: None,
             }
@@ -209,7 +209,7 @@ impl WebpackLoadersProcessedAsset {
         let content = content.content().to_str()?;
         let evaluate_context = transform.evaluate_context;
 
-        let webpack_loaders_executor = webpack_loaders_executor(evaluate_context).module();
+        let webpack_loaders_executor = webpack_loaders_executor(*evaluate_context).module();
         let resource_fs_path = this.source.ident().path();
         let resource_fs_path_ref = resource_fs_path.await?;
         let Some(resource_path) = project_path
@@ -245,7 +245,7 @@ impl WebpackLoadersProcessedAsset {
         let SingleValue::Single(val) = config_value.try_into_single().await? else {
             // An error happened, which has already been converted into an issue.
             return Ok(ProcessWebpackLoadersResult {
-                content: AssetContent::File(FileContent::NotFound.resolved_cell()).cell(),
+                content: AssetContent::File(FileContent::NotFound.resolved_cell()).resolved_cell(),
                 assets: Vec::new(),
                 source_map: None,
             }
@@ -275,9 +275,12 @@ impl WebpackLoadersProcessedAsset {
             .collect();
         let content = AssetContent::File(FileContent::Content(file).resolved_cell()).cell();
         Ok(ProcessWebpackLoadersResult {
-            content,
+            content: content.to_resolved().await?,
             assets,
-            source_map,
+            source_map: match source_map {
+                Some(source_map) => Some(source_map.to_resolved().await?),
+                None => None,
+            },
         }
         .cell())
     }
