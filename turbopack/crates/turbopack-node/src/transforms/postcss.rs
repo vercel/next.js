@@ -57,7 +57,7 @@ pub enum PostCssConfigLocation {
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Default)]
 pub struct PostCssTransformOptions {
-    pub postcss_package: Option<Vc<ImportMapping>>,
+    pub postcss_package: Option<ResolvedVc<ImportMapping>>,
     pub config_location: PostCssConfigLocation,
     pub placeholder_for_future_extensions: u8,
 }
@@ -136,7 +136,7 @@ struct PostCssTransformedAsset {
     evaluate_context: ResolvedVc<Box<dyn AssetContext>>,
     execution_context: ResolvedVc<ExecutionContext>,
     config_location: PostCssConfigLocation,
-    source: Vc<Box<dyn Source>>,
+    source: ResolvedVc<Box<dyn Source>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -163,7 +163,7 @@ impl Asset for PostCssTransformedAsset {
 
 #[turbo_tasks::value]
 struct ProcessPostCssResult {
-    content: Vc<AssetContent>,
+    content: ResolvedVc<AssetContent>,
     assets: Vec<ResolvedVc<VirtualSource>>,
 }
 
@@ -228,8 +228,8 @@ async fn extra_configs_changed(
 
 #[turbo_tasks::value]
 pub struct JsonSource {
-    pub path: Vc<FileSystemPath>,
-    pub key: Vc<Option<RcStr>>,
+    pub path: ResolvedVc<FileSystemPath>,
+    pub key: ResolvedVc<Option<RcStr>>,
     pub allow_json5: bool,
 }
 
@@ -526,9 +526,9 @@ impl PostCssTransformedAsset {
 
 #[turbo_tasks::value]
 struct PostCssTransformIssue {
-    source: Vc<FileSystemPath>,
+    source: ResolvedVc<FileSystemPath>,
     description: RcStr,
-    severity: Vc<IssueSeverity>,
+    severity: ResolvedVc<IssueSeverity>,
     title: RcStr,
 }
 
