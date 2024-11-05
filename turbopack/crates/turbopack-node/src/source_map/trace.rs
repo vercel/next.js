@@ -85,7 +85,7 @@ impl Display for StackFrame<'_> {
 #[turbo_tasks::value(shared)]
 #[derive(Debug)]
 pub struct SourceMapTrace {
-    map: Vc<SourceMap>,
+    map: ResolvedVc<SourceMap>,
     line: usize,
     column: usize,
     name: Option<RcStr>,
