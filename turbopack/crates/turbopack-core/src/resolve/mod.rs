@@ -38,6 +38,7 @@ use crate::{
     raw_module::RawModule,
     reference_type::ReferenceType,
     resolve::{
+        node::{node_cjs_resolve_options, node_esm_resolve_options},
         pattern::{read_matches, PatternMatch},
         plugin::AfterResolvePlugin,
     },
@@ -65,7 +66,12 @@ use crate::{error::PrettyPrintError, issue::IssueSeverity};
 pub enum ModuleResolveResultItem {
     Module(ResolvedVc<Box<dyn Module>>),
     OutputAsset(ResolvedVc<Box<dyn OutputAsset>>),
-    External(RcStr, ExternalType),
+    External {
+        /// uri, path, reference, etc.
+        name: RcStr,
+        ty: ExternalType,
+        traced: Option<ResolvedVc<ModuleResolveResult>>,
+    },
     Ignore,
     Error(ResolvedVc<RcStr>),
     Empty,
@@ -350,6 +356,24 @@ impl ModuleResolveResult {
     }
 }
 
+#[derive(Copy, Clone)]
+#[turbo_tasks::value(shared)]
+pub enum ExternalTraced {
+    Untraced,
+    Traced(Vc<FileSystemPath>),
+}
+
+impl ExternalTraced {
+    async fn as_string(&self) -> Result<String> {
+        Ok(match self {
+            ExternalTraced::Untraced => "untraced".to_string(),
+            ExternalTraced::Traced(context) => {
+                format!("traced from {}", context.to_string().await?)
+            }
+        })
+    }
+}
+
 #[derive(
     Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize, TraceRawVcs, TaskInput,
 )]
@@ -370,10 +394,15 @@ impl Display for ExternalType {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub enum ResolveResultItem {
     Source(Vc<Box<dyn Source>>),
-    External(RcStr, ExternalType),
+    External {
+        /// uri, path, reference, etc.
+        name: RcStr,
+        ty: ExternalType,
+        traced: ExternalTraced,
+    },
     Ignore,
     Error(Vc<RcStr>),
     Empty,
@@ -424,7 +453,7 @@ impl RequestKey {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct ResolveResult {
     pub primary: FxIndexMap<RequestKey, ResolveResultItem>,
     pub affecting_sources: Vec<Vc<Box<dyn Source>>>,
@@ -453,10 +482,14 @@ impl ValueToString for ResolveResult {
                 ResolveResultItem::Source(a) => {
                     result.push_str(&a.ident().to_string().await?);
                 }
-                ResolveResultItem::External(s, ty) => {
+                ResolveResultItem::External {
+                    name: s,
+                    ty,
+                    traced,
+                } => {
                     result.push_str("external ");
                     result.push_str(s);
-                    write!(result, " ({})", ty)?;
+                    write!(result, " ({}, {})", ty, traced.as_string().await?)?;
                 }
                 ResolveResultItem::Ignore => {
                     result.push_str("ignore");
@@ -651,9 +684,17 @@ impl ResolveResult {
                             request,
                             match item {
                                 ResolveResultItem::Source(source) => asset_fn(source).await?,
-                                ResolveResultItem::External(s, ty) => {
-                                    ModuleResolveResultItem::External(s, ty)
-                                }
+                                ResolveResultItem::External {
+                                    name,
+                                    ty,
+                                    // TODO remove this whole function? it's easy to drop traced
+                                    // externals now
+                                    traced: _,
+                                } => ModuleResolveResultItem::External {
+                                    name,
+                                    ty,
+                                    traced: None,
+                                },
                                 ResolveResultItem::Ignore => ModuleResolveResultItem::Ignore,
                                 ResolveResultItem::Empty => ModuleResolveResultItem::Empty,
                                 ResolveResultItem::Error(e) => {
@@ -665,6 +706,29 @@ impl ResolveResult {
                             },
                         ))
                     }
+                })
+                .try_join()
+                .await?
+                .into_iter()
+                .collect(),
+            affecting_sources: self.affecting_sources.clone(),
+        })
+    }
+
+    pub async fn map_items_module<A, AF>(&self, source_fn: A) -> Result<ModuleResolveResult>
+    where
+        A: Fn(ResolveResultItem) -> AF,
+        AF: Future<Output = Result<ModuleResolveResultItem>>,
+    {
+        Ok(ModuleResolveResult {
+            primary: self
+                .primary
+                .iter()
+                .map(|(request, item)| {
+                    let asset_fn = &source_fn;
+                    let request = request.clone();
+                    let item = item.clone();
+                    async move { Ok((request, asset_fn(item).await?)) }
                 })
                 .try_join()
                 .await?
@@ -1455,9 +1519,10 @@ pub async fn url_resolve(
     } else {
         rel_result
     };
-    let result = origin
-        .asset_context()
-        .process_resolve_result(result, reference_type.clone());
+    let result =
+        origin
+            .asset_context()
+            .process_resolve_result(result, reference_type.clone(), false);
     handle_resolve_error(
         result,
         reference_type,
@@ -1825,7 +1890,11 @@ async fn resolve_internal_inline(
                 let uri: RcStr = format!("{}{}", protocol, remainder).into();
                 ResolveResult::primary_with_key(
                     RequestKey::new(uri.clone()),
-                    ResolveResultItem::External(uri, ExternalType::Url),
+                    ResolveResultItem::External {
+                        name: uri,
+                        ty: ExternalType::Url,
+                        traced: ExternalTraced::Untraced,
+                    },
                 )
                 .into()
             }
@@ -2522,6 +2591,48 @@ async fn resolve_import_map_result(
                     request.request_pattern(),
                     original_request.request_pattern(),
                 ))
+            }
+        }
+        ImportMapResult::External(name, ty, traced, primary_alt) => {
+            let result = Some(
+                ResolveResult::primary(ResolveResultItem::External {
+                    name: name.clone(),
+                    ty: *ty,
+                    traced: *traced,
+                })
+                .cell(),
+            );
+
+            if let Some(context_dir) = primary_alt {
+                let request = Request::parse_string(name.clone());
+
+                // We must avoid cycles during resolving
+                if request.resolve().await? == *original_request
+                    && context_dir.resolve().await? == *original_lookup_path
+                {
+                    None
+                } else {
+                    let resolve_internal = resolve_internal(
+                        *context_dir,
+                        request,
+                        match ty {
+                            ExternalType::Url => options,
+                            // TODO is that root correct?
+                            ExternalType::CommonJs => node_cjs_resolve_options(context_dir.root()),
+                            ExternalType::EcmaScriptModule => {
+                                node_esm_resolve_options(context_dir.root())
+                            }
+                        },
+                    );
+
+                    if *resolve_internal.is_unresolvable().await? {
+                        None
+                    } else {
+                        result
+                    }
+                }
+            } else {
+                result
             }
         }
         ImportMapResult::Alternatives(list) => {

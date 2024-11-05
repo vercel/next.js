@@ -11,7 +11,6 @@ pub mod evaluate_context;
 mod graph;
 pub mod module_options;
 pub mod nft_json;
-pub mod rebase;
 pub mod transition;
 pub(crate) mod unsupported_sass;
 
@@ -725,7 +724,11 @@ impl AssetContext for ModuleAssetContext {
             request,
             resolve_options,
         );
-        let mut result = self.process_resolve_result(result.resolve().await?, reference_type);
+        let mut result = self.process_resolve_result(
+            result.resolve().await?,
+            reference_type,
+            request.request_pattern().await?.has_dynamic_parts(),
+        );
 
         if *self.is_types_resolving_enabled().await? {
             let types_result = type_resolve(
@@ -744,6 +747,7 @@ impl AssetContext for ModuleAssetContext {
         self: Vc<Self>,
         result: Vc<ResolveResult>,
         reference_type: Value<ReferenceType>,
+        ignore_unknown: bool,
     ) -> Result<Vc<ModuleResolveResult>> {
         let this = self.await?;
         let transition = this.transition;
@@ -761,6 +765,12 @@ impl AssetContext for ModuleAssetContext {
                     Ok(match *process_result.await? {
                         ProcessResult::Module(m) => {
                             ModuleResolveResultItem::Module(ResolvedVc::upcast(m))
+                        }
+                        ProcessResult::Unknown(source) => {
+                            if !ignore_unknown {
+                                ProcessResult::emit_unknown_error(source).await?;
+                            }
+                            ModuleResolveResultItem::Ignore
                         }
                         ProcessResult::Ignore => ModuleResolveResultItem::Ignore,
                     })
@@ -961,7 +971,10 @@ pub async fn replace_externals(
     import_externals: bool,
 ) -> Result<ModuleResolveResult> {
     for item in result.primary.values_mut() {
-        let ModuleResolveResultItem::External(request, ty) = item else {
+        let ModuleResolveResultItem::External {
+            name: request, ty, ..
+        } = item
+        else {
             continue;
         };
 
@@ -980,7 +993,7 @@ pub async fn replace_externals(
             }
         };
 
-        let module = CachedExternalModule::new(request.clone(), external_type)
+        let module = CachedExternalModule::new(request.clone(), external_type, vec![])
             .to_resolved()
             .await?;
 
