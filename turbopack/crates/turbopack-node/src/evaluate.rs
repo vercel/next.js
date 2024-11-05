@@ -295,7 +295,7 @@ pub async fn evaluate(
     additional_invalidation: Vc<Completion>,
     debug: bool,
 ) -> Result<Vc<JavaScriptEvaluation>> {
-    custom_evaluate(BasicEvaluateContext {
+    Ok(custom_evaluate(BasicEvaluateContext {
         module_asset: module_asset.resolve().await?,
         cwd: cwd.resolve().await?,
         env: env.resolve().await?,
@@ -306,7 +306,7 @@ pub async fn evaluate(
         args,
         additional_invalidation: additional_invalidation.resolve().await?,
         debug,
-    })
+    }))
 }
 
 pub async fn compute(
@@ -490,7 +490,7 @@ impl EvaluateContext for BasicEvaluateContext {
 
     fn pool(&self) -> Vc<crate::pool::NodeJsPool> {
         get_evaluate_pool(
-            self.module_asset,
+            *self.module_asset,
             *self.cwd,
             *self.env,
             *self.asset_context,
@@ -556,8 +556,8 @@ async fn print_error(
 ) -> Result<String> {
     error
         .print(
-            pool.assets_for_source_mapping,
-            pool.assets_root,
+            *pool.assets_for_source_mapping,
+            *pool.assets_root,
             evaluate_context.cwd(),
             FormattingMode::Plain,
         )
@@ -566,11 +566,11 @@ async fn print_error(
 /// An issue that occurred while evaluating node code.
 #[turbo_tasks::value(shared)]
 pub struct EvaluationIssue {
-    pub context_ident: Vc<AssetIdent>,
+    pub context_ident: ResolvedVc<AssetIdent>,
     pub error: StructuredError,
-    pub assets_for_source_mapping: Vc<AssetsForSourceMapping>,
-    pub assets_root: Vc<FileSystemPath>,
-    pub project_dir: Vc<FileSystemPath>,
+    pub assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
+    pub assets_root: ResolvedVc<FileSystemPath>,
+    pub project_dir: ResolvedVc<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
@@ -596,9 +596,9 @@ impl Issue for EvaluationIssue {
             StyledString::Text(
                 self.error
                     .print(
-                        self.assets_for_source_mapping,
-                        self.assets_root,
-                        self.project_dir,
+                        *self.assets_for_source_mapping,
+                        *self.assets_root,
+                        *self.project_dir,
                         FormattingMode::Plain,
                     )
                     .await?

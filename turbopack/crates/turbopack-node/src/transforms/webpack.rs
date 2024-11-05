@@ -382,7 +382,7 @@ pub struct WebpackLoaderContext {
     pub module_asset: ResolvedVc<Box<dyn Module>>,
     pub cwd: ResolvedVc<FileSystemPath>,
     pub env: ResolvedVc<Box<dyn ProcessEnv>>,
-    pub context_ident_for_issue: Vc<AssetIdent>,
+    pub context_ident_for_issue: ResolvedVc<AssetIdent>,
     pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
     pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     pub resolve_options_context: Option<ResolvedVc<ResolveOptionsContext>>,
