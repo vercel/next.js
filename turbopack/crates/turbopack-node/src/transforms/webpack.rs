@@ -118,14 +118,14 @@ impl WebpackLoaders {
 #[turbo_tasks::value_impl]
 impl SourceTransform for WebpackLoaders {
     #[turbo_tasks::function]
-    fn transform(self: Vc<Self>, source: Vc<Box<dyn Source>>) -> Vc<Box<dyn Source>> {
-        Vc::upcast(
+    async fn transform(self: Vc<Self>, source: Vc<Box<dyn Source>>) -> Result<Vc<Box<dyn Source>>> {
+        Ok(Vc::upcast(
             WebpackLoadersProcessedAsset {
-                transform: self,
-                source,
+                transform: self.to_resolved().await?,
+                source: source.to_resolved().await?,
             }
             .cell(),
-        )
+        ))
     }
 }
 
@@ -153,7 +153,7 @@ impl Source for WebpackLoadersProcessedAsset {
 impl Asset for WebpackLoadersProcessedAsset {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
-        Ok(self.process().await?.content)
+        Ok(*self.process().await?.content)
     }
 }
 
