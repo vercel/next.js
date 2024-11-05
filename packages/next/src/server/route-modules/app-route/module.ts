@@ -357,7 +357,7 @@ export class AppRouteRouteModule extends RouteModule<
               expire: INFINITE_CACHE,
               stale: INFINITE_CACHE,
               tags: [...implicitTags],
-              mutableResumeDataCache: null,
+              prerenderResumeDataCache: null,
             })
 
           let prospectiveResult
@@ -441,7 +441,7 @@ export class AppRouteRouteModule extends RouteModule<
             expire: INFINITE_CACHE,
             stale: INFINITE_CACHE,
             tags: [...implicitTags],
-            mutableResumeDataCache: null,
+            prerenderResumeDataCache: null,
           })
 
           let responseHandled = false

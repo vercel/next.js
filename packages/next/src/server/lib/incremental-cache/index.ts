@@ -23,7 +23,10 @@ import {
 import { toRoute } from '../to-route'
 import { SharedRevalidateTimings } from './shared-revalidate-timings'
 import { workUnitAsyncStorage } from '../../app-render/work-unit-async-storage-instance'
-import { getMutableResumeDataCache } from '../../app-render/work-unit-async-storage.external'
+import {
+  getPrerenderResumeDataCache,
+  getRenderResumeDataCache,
+} from '../../app-render/work-unit-async-storage.external'
 
 export interface CacheHandlerContext {
   fs?: CacheFs
@@ -404,7 +407,7 @@ export class IncrementalCache implements IncrementalCacheType {
     if (this.hasDynamicIO && ctx.kind === IncrementalCacheKind.FETCH) {
       const workUnitStore = workUnitAsyncStorage.getStore()
       const resumeDataCache = workUnitStore
-        ? getMutableResumeDataCache(workUnitStore)
+        ? getRenderResumeDataCache(workUnitStore)
         : null
       if (resumeDataCache) {
         const memoryCacheData = resumeDataCache.fetch.get(cacheKey)
@@ -548,11 +551,11 @@ export class IncrementalCache implements IncrementalCacheType {
     // to allow the RSC debug info to have the right environment associated to it.
     if (this.hasDynamicIO && data?.kind === CachedRouteKind.FETCH) {
       const workUnitStore = workUnitAsyncStorage.getStore()
-      const mutableResumeDataCache = workUnitStore
-        ? getMutableResumeDataCache(workUnitStore)
+      const prerenderResumeDataCache = workUnitStore
+        ? getPrerenderResumeDataCache(workUnitStore)
         : null
-      if (mutableResumeDataCache) {
-        mutableResumeDataCache.fetch.set(pathname, data)
+      if (prerenderResumeDataCache) {
+        prerenderResumeDataCache.fetch.set(pathname, data)
       }
     }
 
