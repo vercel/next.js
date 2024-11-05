@@ -2,6 +2,7 @@ import type { OutgoingHttpHeaders } from 'http'
 import type RenderResult from '../render-result'
 import type { Revalidate } from '../lib/revalidate'
 import type { RouteKind } from '../route-kind'
+import type { ImmutableResumeDataCache } from '../resume-data-cache/resume-data-cache'
 
 export interface ResponseCacheBase {
   get(
@@ -78,6 +79,7 @@ export interface CachedAppPageValue {
   postponed: string | undefined
   headers: OutgoingHttpHeaders | undefined
   segmentData: { [segmentPath: string]: string } | undefined
+  immutableResumeDataCache: ImmutableResumeDataCache | undefined
 }
 
 export interface CachedPageValue {
@@ -97,6 +99,7 @@ export interface CachedRouteValue {
   body: Buffer
   status: number
   headers: OutgoingHttpHeaders
+  immutableResumeDataCache: ImmutableResumeDataCache | undefined
 }
 
 export interface CachedImageValue {
@@ -119,6 +122,7 @@ export interface IncrementalCachedAppPageValue {
   postponed: string | undefined
   status: number | undefined
   segmentData: { [segmentPath: string]: string } | undefined
+  immutableResumeDataCache: ImmutableResumeDataCache | undefined
 }
 
 export interface IncrementalCachedPageValue {
@@ -172,7 +176,6 @@ export type ResponseGenerator = (state: {
   hasResolved: boolean
   previousCacheEntry?: IncrementalCacheItem
   isRevalidating?: boolean
-  isDevWarmup?: boolean
 }) => Promise<ResponseCacheEntry | null>
 
 export type IncrementalCacheItem = {
