@@ -372,6 +372,22 @@ pub mod ser_as_string {
     }
 }
 
+pub mod ser_option_as_string {
+    use serde::{ser::Error, Serializer};
+
+    use super::Rope;
+
+    /// Serializes a Rope into a string.
+    pub fn serialize<S: Serializer>(rope: &Option<Rope>, serializer: S) -> Result<S::Ok, S::Error> {
+        if let Some(rope) = rope {
+            let s = rope.to_str().map_err(Error::custom)?;
+            serializer.serialize_some(&s)
+        } else {
+            serializer.serialize_none()
+        }
+    }
+}
+
 impl PartialEq for Rope {
     // Ropes with similar contents are equals, regardless of their structure.
     fn eq(&self, other: &Self) -> bool {
