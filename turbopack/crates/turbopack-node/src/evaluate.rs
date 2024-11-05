@@ -516,10 +516,15 @@ impl EvaluateContext for BasicEvaluateContext {
     async fn emit_error(&self, error: StructuredError, pool: &NodeJsPool) -> Result<()> {
         EvaluationIssue {
             error,
-            context_ident: *self.context_ident_for_issue,
+            context_ident: self.context_ident_for_issue,
             assets_for_source_mapping: pool.assets_for_source_mapping,
             assets_root: pool.assets_root,
-            project_dir: self.chunking_context.context_path().root(),
+            project_dir: self
+                .chunking_context
+                .context_path()
+                .root()
+                .to_resolved()
+                .await?,
         }
         .cell()
         .emit();
