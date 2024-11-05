@@ -126,7 +126,7 @@ pub async fn render_static(
             });
             StaticResult::StreamedContent {
                 status: data.status,
-                headers: Vc::cell(data.headers),
+                headers: ResolvedVc::cell(data.headers),
                 body: Body::from_stream(body),
             }
             .cell()
