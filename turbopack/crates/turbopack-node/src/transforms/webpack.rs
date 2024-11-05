@@ -87,11 +87,11 @@ pub struct WebpackLoaderItems(pub Vec<WebpackLoaderItem>);
 
 #[turbo_tasks::value]
 pub struct WebpackLoaders {
-    evaluate_context: Vc<Box<dyn AssetContext>>,
-    execution_context: Vc<ExecutionContext>,
-    loaders: Vc<WebpackLoaderItems>,
+    evaluate_context: ResolvedVc<Box<dyn AssetContext>>,
+    execution_context: ResolvedVc<ExecutionContext>,
+    loaders: ResolvedVc<WebpackLoaderItems>,
     rename_as: Option<RcStr>,
-    resolve_options_context: Vc<ResolveOptionsContext>,
+    resolve_options_context: ResolvedVc<ResolveOptionsContext>,
 }
 
 #[turbo_tasks::value_impl]
@@ -131,8 +131,8 @@ impl SourceTransform for WebpackLoaders {
 
 #[turbo_tasks::value]
 struct WebpackLoadersProcessedAsset {
-    transform: Vc<WebpackLoaders>,
-    source: Vc<Box<dyn Source>>,
+    transform: ResolvedVc<WebpackLoaders>,
+    source: ResolvedVc<Box<dyn Source>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -167,9 +167,9 @@ impl GenerateSourceMap for WebpackLoadersProcessedAsset {
 
 #[turbo_tasks::value]
 struct ProcessWebpackLoadersResult {
-    content: Vc<AssetContent>,
-    source_map: Option<Vc<SourceMap>>,
-    assets: Vec<Vc<VirtualSource>>,
+    content: ResolvedVc<AssetContent>,
+    source_map: Option<ResolvedVc<SourceMap>>,
+    assets: Vec<ResolvedVc<VirtualSource>>,
 }
 
 #[turbo_tasks::function]
@@ -386,7 +386,7 @@ pub struct WebpackLoaderContext {
     pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
     pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     pub resolve_options_context: Option<ResolvedVc<ResolveOptionsContext>>,
-    pub args: Vec<Vc<JsonValue>>,
+    pub args: Vec<ResolvedVc<JsonValue>>,
     pub additional_invalidation: ResolvedVc<Completion>,
 }
 
