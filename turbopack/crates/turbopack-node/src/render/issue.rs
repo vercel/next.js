@@ -24,12 +24,12 @@ impl Issue for RenderingIssue {
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        self.file_path
+        *self.file_path
     }
 
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(self.message))
+        Vc::cell(Some(*self.message))
     }
 
     #[turbo_tasks::function]

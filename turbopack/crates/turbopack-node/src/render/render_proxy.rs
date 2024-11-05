@@ -120,8 +120,11 @@ async fn proxy_error(
     .clone_value();
 
     RenderingIssue {
-        file_path: path,
-        message: StyledString::Text(message.into()).cell(),
+        file_path: path.to_resolved().await?,
+        message: StyledString::Text(message.into())
+            .cell()
+            .to_resolved()
+            .await?,
         status: status.and_then(|status| status.code()),
     }
     .cell()

@@ -168,8 +168,11 @@ async fn static_error(
     );
 
     let issue = RenderingIssue {
-        file_path: path,
-        message: StyledString::Text(error.into()).cell(),
+        file_path: path.to_resolved().await?,
+        message: StyledString::Text(error.into())
+            .cell()
+            .to_resolved()
+            .await?,
         status: status.and_then(|status| status.code()),
     };
 
