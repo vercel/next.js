@@ -25,7 +25,6 @@ const isOwnerStackEnabled =
       const source = await getRedboxSource(browser)
 
       if (process.env.TURBOPACK) {
-        // FIXME: the methodName of the stack frame is not aligned between Turbopack and Webpack
         expect(stackFramesContent).toMatchInlineSnapshot(
           `"at Page (app/rsc/page.tsx (6:13))"`
         )
@@ -41,10 +40,11 @@ const isOwnerStackEnabled =
           10 |   )"
       `)
       } else {
-        // FIXME: the methodName of the stack frame is not aligned between Turbopack and Webpack
+        // FIXME: the owner stack method names should be `Page` instead of `map`
         expect(stackFramesContent).toMatchInlineSnapshot(
           `"at map (app/rsc/page.tsx (6:13))"`
         )
+        // FIXME: the methodName should be `@ <anonymous>` instead of `@ span`
         expect(source).toMatchInlineSnapshot(`
         "app/rsc/page.tsx (7:10) @ span
 
@@ -66,7 +66,6 @@ const isOwnerStackEnabled =
       const stackFramesContent = await getStackFramesContent(browser)
       const source = await getRedboxSource(browser)
       if (process.env.TURBOPACK) {
-        // FIXME: the methodName of the stack frame is not aligned between Turbopack and Webpack
         expect(stackFramesContent).toMatchInlineSnapshot(
           `"at Page (app/ssr/page.tsx (8:13))"`
         )
@@ -82,10 +81,11 @@ const isOwnerStackEnabled =
           12 |   )"
       `)
       } else {
-        // FIXME: the methodName of the stack frame is not aligned between Turbopack and Webpack
+        // FIXME: the owner stack method names should be `Page` instead of `map`
         expect(stackFramesContent).toMatchInlineSnapshot(
           `"at map (app/ssr/page.tsx (8:13))"`
         )
+        // FIXME: the methodName should be `@ <unknown>` instead of `@ p`
         expect(source).toMatchInlineSnapshot(`
         "app/ssr/page.tsx (9:10) @ p
 

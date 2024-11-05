@@ -80,6 +80,7 @@ async function getStackFramesContent(browser) {
       `)
       } else {
         expect(stackFramesContent).toMatchInlineSnapshot(`""`)
+        // FIXME: the methodName should be `@ Page` instead of `@ div`
         expect(source).toMatchInlineSnapshot(`
         "app/rsc/page.tsx (5:6) @ div
 
@@ -115,6 +116,7 @@ async function getStackFramesContent(browser) {
       `)
       } else {
         expect(stackFramesContent).toMatchInlineSnapshot(`""`)
+        // FIXME: the methodName should be `@ Page` instead of `@ div`
         expect(source).toMatchInlineSnapshot(`
         "app/ssr/page.tsx (7:6) @ div
 
