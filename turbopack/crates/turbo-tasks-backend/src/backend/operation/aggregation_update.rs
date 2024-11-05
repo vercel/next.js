@@ -1143,7 +1143,7 @@ impl AggregationUpdateQueue {
                     },
                     1
                 ) {
-                    upper_ids_as_follower.push(upper_id);
+                    upper_ids_as_follower.extend(iter_uppers(&upper));
                 }
                 false
             } else {
@@ -1385,9 +1385,10 @@ impl AggregationUpdateQueue {
                 },
                 1
             ) {
+                let upper_ids = get_uppers(&upper);
                 drop(upper);
-                self.push(AggregationUpdateJob::InnerOfUpperHasNewFollower {
-                    upper_id,
+                self.push(AggregationUpdateJob::InnerOfUppersHasNewFollower {
+                    upper_ids,
                     new_follower_id,
                 });
             }
