@@ -41,6 +41,7 @@ const isOwnerStackEnabled =
             11 | }"
         `)
       } else {
+        // FIXME: the owner stack method names should be `Inner > Page`
         expect(stackFramesContent).toMatchInlineSnapshot(`
           "at BrowserOnly (app/browser/page.js (11:11))
           at Inner (app/browser/page.js (15:11))"
@@ -83,11 +84,11 @@ const isOwnerStackEnabled =
             8 | export default function Page() {"
         `)
       } else {
-        // FIXME: the methodName should be `@ Page` instead of `@ Inner`
+        // FIXME: the owner stack method names should be `Page`
         expect(stackFramesContent).toMatchInlineSnapshot(
           `"at Inner (app/rsc/page.js (11:8))"`
         )
-        // FIXME: the methodName should be `@ Inner` instead of `@ Foo`
+        // FIXME: the methodName should be `@ Inner`
         expect(source).toMatchInlineSnapshot(`
           "app/rsc/page.js (5:11) @ Foo
 
@@ -125,11 +126,11 @@ const isOwnerStackEnabled =
             10 | export default function Page() {"
         `)
       } else {
-        // FIXME: the methodName should be `@ Inner` instead of `@ Foo`
+        // FIXME: the owner stack method names should be `Page`
         expect(stackFramesContent).toMatchInlineSnapshot(
           `"at Inner (app/ssr/page.js (13:8))"`
         )
-        // FIXME: the methodName should be `@ Inner` instead of `@ Foo`
+        // FIXME: the methodName should be `@ Inner`
         expect(source).toMatchInlineSnapshot(`
           "app/ssr/page.js (7:11) @ Foo
 
