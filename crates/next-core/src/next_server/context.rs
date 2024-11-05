@@ -72,36 +72,36 @@ use crate::{
     },
 };
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
+#[turbo_tasks::value(shared, serialization = "auto_for_input")]
 #[derive(Debug, Copy, Clone, Hash)]
 pub enum ServerContextType {
     Pages {
-        pages_dir: Vc<FileSystemPath>,
+        pages_dir: ResolvedVc<FileSystemPath>,
     },
     PagesApi {
-        pages_dir: Vc<FileSystemPath>,
+        pages_dir: ResolvedVc<FileSystemPath>,
     },
     PagesData {
-        pages_dir: Vc<FileSystemPath>,
+        pages_dir: ResolvedVc<FileSystemPath>,
     },
     AppSSR {
-        app_dir: Vc<FileSystemPath>,
+        app_dir: ResolvedVc<FileSystemPath>,
     },
     AppRSC {
-        app_dir: Vc<FileSystemPath>,
+        app_dir: ResolvedVc<FileSystemPath>,
         ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
         client_transition: Option<Vc<Box<dyn Transition>>>,
     },
     AppRoute {
-        app_dir: Vc<FileSystemPath>,
+        app_dir: ResolvedVc<FileSystemPath>,
         ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
     },
     Middleware {
-        app_dir: Option<Vc<FileSystemPath>>,
+        app_dir: Option<ResolvedVc<FileSystemPath>>,
         ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
     },
     Instrumentation {
-        app_dir: Option<Vc<FileSystemPath>>,
+        app_dir: Option<ResolvedVc<FileSystemPath>>,
         ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
     },
 }
@@ -622,7 +622,7 @@ pub async fn get_server_module_options_context(
             foreign_next_server_rules.extend(internal_custom_rules);
 
             custom_source_transform_rules.push(
-                get_next_react_server_components_transform_rule(next_config, false, Some(app_dir))
+                get_next_react_server_components_transform_rule(next_config, false, Some(*app_dir))
                     .await?,
             );
 
@@ -701,7 +701,7 @@ pub async fn get_server_module_options_context(
             foreign_next_server_rules.extend(internal_custom_rules);
 
             custom_source_transform_rules.push(
-                get_next_react_server_components_transform_rule(next_config, true, Some(app_dir))
+                get_next_react_server_components_transform_rule(next_config, true, Some(*app_dir))
                     .await?,
             );
 
@@ -755,7 +755,7 @@ pub async fn get_server_module_options_context(
             next_server_rules.extend(source_transform_rules);
 
             let mut common_next_server_rules = vec![
-                get_next_react_server_components_transform_rule(next_config, true, Some(app_dir))
+                get_next_react_server_components_transform_rule(next_config, true, Some(*app_dir))
                     .await?,
             ];
 
@@ -856,7 +856,12 @@ pub async fn get_server_module_options_context(
             }
 
             custom_source_transform_rules.push(
-                get_next_react_server_components_transform_rule(next_config, true, app_dir).await?,
+                get_next_react_server_components_transform_rule(
+                    next_config,
+                    true,
+                    app_dir.as_deref().copied(),
+                )
+                .await?,
             );
 
             internal_custom_rules.extend(custom_source_transform_rules.iter().cloned());

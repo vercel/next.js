@@ -44,9 +44,14 @@ pub async fn node_evaluate_asset_context(
         "@vercel/turbopack-node/",
         ImportMapping::PrimaryAlternative(
             "./*".into(),
-            Some(turbopack_node::embed_js::embed_fs().root()),
+            Some(
+                turbopack_node::embed_js::embed_fs()
+                    .root()
+                    .to_resolved()
+                    .await?,
+            ),
         )
-        .cell(),
+        .resolved_cell(),
     );
     let import_map = import_map.resolved_cell();
     let node_env: RcStr =

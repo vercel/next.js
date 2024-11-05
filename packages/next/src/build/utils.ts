@@ -318,11 +318,11 @@ export async function computeFromManifest(
   return lastCompute!
 }
 
-export function isMiddlewareFilename(file?: string) {
+export function isMiddlewareFilename(file?: string | null) {
   return file === MIDDLEWARE_FILENAME || file === `src/${MIDDLEWARE_FILENAME}`
 }
 
-export function isInstrumentationHookFilename(file?: string) {
+export function isInstrumentationHookFilename(file?: string | null) {
   return (
     file === INSTRUMENTATION_HOOK_FILENAME ||
     file === `src/${INSTRUMENTATION_HOOK_FILENAME}`
