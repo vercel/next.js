@@ -2763,6 +2763,7 @@ async function prerenderToStream(
         metadata.segmentFlightData = await collectSegmentData(
           finalAttemptRSCPayload,
           flightData,
+          finalRenderPrerenderStore,
           ComponentMod,
           renderOpts
         )
@@ -3229,6 +3230,7 @@ async function prerenderToStream(
         metadata.segmentFlightData = await collectSegmentData(
           finalServerPayload,
           flightData,
+          finalClientPrerenderStore,
           ComponentMod,
           renderOpts
         )
@@ -3361,6 +3363,7 @@ async function prerenderToStream(
         metadata.segmentFlightData = await collectSegmentData(
           RSCPayload,
           flightData,
+          ssrPrerenderStore,
           ComponentMod,
           renderOpts
         )
@@ -3553,6 +3556,7 @@ async function prerenderToStream(
         metadata.segmentFlightData = await collectSegmentData(
           RSCPayload,
           flightData,
+          prerenderLegacyStore,
           ComponentMod,
           renderOpts
         )
@@ -3714,6 +3718,7 @@ async function prerenderToStream(
         metadata.segmentFlightData = await collectSegmentData(
           errorRSCPayload,
           flightData,
+          prerenderLegacyStore,
           ComponentMod,
           renderOpts
         )
@@ -3847,6 +3852,7 @@ const getGlobalErrorStyles = async (
 async function collectSegmentData(
   rscPayload: InitialRSCPayload,
   fullPageDataBuffer: Buffer,
+  prerenderStore: PrerenderStore,
   ComponentMod: AppPageModule,
   renderOpts: RenderOpts
 ): Promise<Map<string, Buffer> | undefined> {
@@ -3896,9 +3902,11 @@ async function collectSegmentData(
     serverModuleMap: null,
   }
 
+  const staleTime = prerenderStore.stale
   return await ComponentMod.collectSegmentData(
     routeTree,
     fullPageDataBuffer,
+    staleTime,
     clientReferenceManifest.clientModules as ManifestNode,
     serverConsumerManifest
   )
