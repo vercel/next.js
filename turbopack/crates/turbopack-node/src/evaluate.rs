@@ -296,15 +296,15 @@ pub async fn evaluate(
     debug: bool,
 ) -> Result<Vc<JavaScriptEvaluation>> {
     Ok(custom_evaluate(BasicEvaluateContext {
-        module_asset: module_asset.resolve().await?,
-        cwd: cwd.resolve().await?,
-        env: env.resolve().await?,
-        context_ident_for_issue: context_ident_for_issue.resolve().await?,
-        asset_context: asset_context.resolve().await?,
-        chunking_context: chunking_context.resolve().await?,
+        module_asset: module_asset.to_resolved().await?,
+        cwd: cwd.to_resolved().await?,
+        env: env.to_resolved().await?,
+        context_ident_for_issue: context_ident_for_issue.to_resolved().await?,
+        asset_context: asset_context.to_resolved().await?,
+        chunking_context: chunking_context.to_resolved().await?,
         runtime_entries,
         args,
-        additional_invalidation: additional_invalidation.resolve().await?,
+        additional_invalidation: additional_invalidation.to_resolved().await?,
         debug,
     }))
 }
