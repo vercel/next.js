@@ -52,13 +52,15 @@ When setting a cookie, the following properties from the `options` object are su
 | `expires`         | Date                                   | Defines the exact date when the cookie will expire.                                |
 | `maxAge`          | Number                                 | Sets the cookie’s lifespan in seconds.                                             |
 | `domain`          | String                                 | Specifies the domain where the cookie is available.                                |
-| `path`            | String                                 | Limits the cookie's scope to a specific path within the domain.                    |
-| `secure`          | Boolean,                               | Ensures the cookie is sent only over HTTPS connections for added security.         |
+| `path`            | String, default: `'/'`                 | Limits the cookie's scope to a specific path within the domain.                    |
+| `secure`          | Boolean                                | Ensures the cookie is sent only over HTTPS connections for added security.         |
 | `httpOnly`        | Boolean                                | Restricts the cookie to HTTP requests, preventing client-side access.              |
 | `sameSite`        | Boolean, `'lax'`, `'strict'`, `'none'` | Controls the cookie's cross-site request behavior.                                 |
 | `priority`        | String (`"low"`, `"medium"`, `"high"`) | Specifies the cookie's priority                                                    |
 | `encode('value')` | Function                               | Specifies a function that will be used to encode a cookie's value.                 |
 | `partitioned`     | Boolean                                | Indicates whether the cookie is [partitioned](https://github.com/privacycg/CHIPS). |
+
+The only option with a default value is `path`.
 
 To learn more about these options, see the [MDN docs](https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies).
 

@@ -204,14 +204,20 @@ export async function getSourceMapFromCompilation(
 export async function getSource(
   filename: string,
   options: {
+    assetPrefix: string
     distDirectory: string
     getCompilations: () => webpack.Compilation[]
   }
 ): Promise<Source | undefined> {
-  const { distDirectory, getCompilations } = options
+  const { assetPrefix, distDirectory, getCompilations } = options
 
-  if (filename.startsWith('/_next/static')) {
-    filename = path.join(distDirectory, filename.replace(/^\/_next\//, ''))
+  // With Webpack, this branch can only be hit when manually changing from
+  // `eval-source-map` to `source-map` for testing purposes.
+  if (filename.startsWith(`${assetPrefix}/_next/static`)) {
+    filename = path.join(
+      distDirectory,
+      filename.replace(new RegExp(`^${assetPrefix}/_next/`), '')
+    )
   }
 
   if (path.isAbsolute(filename)) {
@@ -256,6 +262,7 @@ export async function getSource(
 }
 
 export function getOverlayMiddleware(options: {
+  assetPrefix: string
   distDirectory: string
   rootDirectory: string
   clientStats: () => webpack.Stats | null
@@ -263,6 +270,7 @@ export function getOverlayMiddleware(options: {
   edgeServerStats: () => webpack.Stats | null
 }) {
   const {
+    assetPrefix,
     distDirectory,
     rootDirectory,
     clientStats,
@@ -309,6 +317,7 @@ export function getOverlayMiddleware(options: {
 
       try {
         source = await getSource(frame.file, {
+          assetPrefix,
           distDirectory,
           getCompilations: () => {
             const compilations: webpack.Compilation[] = []
@@ -410,12 +419,19 @@ export function getOverlayMiddleware(options: {
 }
 
 export function getSourceMapMiddleware(options: {
+  assetPrefix: string
   distDirectory: string
   clientStats: () => webpack.Stats | null
   serverStats: () => webpack.Stats | null
   edgeServerStats: () => webpack.Stats | null
 }) {
-  const { distDirectory, clientStats, serverStats, edgeServerStats } = options
+  const {
+    assetPrefix,
+    distDirectory,
+    clientStats,
+    serverStats,
+    edgeServerStats,
+  } = options
 
   return async function (
     req: IncomingMessage,
@@ -438,6 +454,7 @@ export function getSourceMapMiddleware(options: {
 
     try {
       source = await getSource(filename, {
+        assetPrefix,
         distDirectory,
         getCompilations: () => {
           const compilations: webpack.Compilation[] = []

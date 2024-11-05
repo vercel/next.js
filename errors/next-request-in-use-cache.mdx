@@ -12,12 +12,12 @@ Instead of calling this inside the `"use cache"` function, move it outside the f
 
 Before:
 
-```jsx filename="app/page.js"
+```jsx filename="app/page.js" highlight={5}
 import { cookies } from 'next/headers'
 
 async function getExampleData() {
   "use cache"
-- const isLoggedIn = (await cookies()).has('token')
+  const isLoggedIn = (await cookies()).has('token')
   ...
 }
 
@@ -29,7 +29,7 @@ export default async function Page() {
 
 After:
 
-```jsx filename="app/page.js"
+```jsx filename="app/page.js" highlight={9}
 import { cookies } from 'next/headers'
 
 async function getExampleData(isLoggedIn) {
@@ -38,7 +38,7 @@ async function getExampleData(isLoggedIn) {
 }
 
 export default async function Page() {
-+ const isLoggedIn = (await cookies()).has('token')
+  const isLoggedIn = (await cookies()).has('token')
   const data = await getExampleData(isLoggedIn)
   return ...
 }
