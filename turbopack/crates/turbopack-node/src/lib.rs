@@ -57,8 +57,8 @@ async fn emit(
 #[derive(Debug)]
 #[turbo_tasks::value]
 struct SeparatedAssets {
-    internal_assets: Vc<OutputAssetsSet>,
-    external_asset_entrypoints: Vc<OutputAssetsSet>,
+    internal_assets: ResolvedVc<OutputAssetsSet>,
+    external_asset_entrypoints: ResolvedVc<OutputAssetsSet>,
 }
 
 /// Extracts the subgraph of "internal" assets (assets within the passes
