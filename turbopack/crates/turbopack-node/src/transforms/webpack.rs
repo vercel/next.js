@@ -97,21 +97,21 @@ pub struct WebpackLoaders {
 #[turbo_tasks::value_impl]
 impl WebpackLoaders {
     #[turbo_tasks::function]
-    pub fn new(
+    pub async fn new(
         evaluate_context: Vc<Box<dyn AssetContext>>,
         execution_context: Vc<ExecutionContext>,
         loaders: Vc<WebpackLoaderItems>,
         rename_as: Option<RcStr>,
         resolve_options_context: Vc<ResolveOptionsContext>,
-    ) -> Vc<Self> {
-        WebpackLoaders {
-            evaluate_context,
-            execution_context,
-            loaders,
+    ) -> Result<Vc<Self>> {
+        Ok(WebpackLoaders {
+            evaluate_context: evaluate_context.to_resolved().await?,
+            execution_context: execution_context.to_resolved().await?,
+            loaders: loaders.to_resolved().await?,
             rename_as,
-            resolve_options_context,
+            resolve_options_context: resolve_options_context.to_resolved().await?,
         }
-        .cell()
+        .cell())
     }
 }
 
@@ -386,7 +386,7 @@ pub struct WebpackLoaderContext {
     pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
     pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     pub resolve_options_context: Option<ResolvedVc<ResolveOptionsContext>>,
-    pub args: Vec<ResolvedVc<JsonValue>>,
+    pub args: Vec<Vc<JsonValue>>,
     pub additional_invalidation: ResolvedVc<Completion>,
 }
 
