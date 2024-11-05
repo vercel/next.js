@@ -69,9 +69,9 @@ impl FormattingMode {
 struct NodeJsPoolProcess {
     child: Option<Child>,
     connection: TcpStream,
-    assets_for_source_mapping: Vc<AssetsForSourceMapping>,
-    assets_root: Vc<FileSystemPath>,
-    project_dir: Vc<FileSystemPath>,
+    assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
+    assets_root: ResolvedVc<FileSystemPath>,
+    project_dir: ResolvedVc<FileSystemPath>,
     stdout_handler: OutputStreamHandler<ChildStdout, Stdout>,
     stderr_handler: OutputStreamHandler<ChildStderr, Stderr>,
     debug: bool,
@@ -127,9 +127,9 @@ static MARKER_STR: &str = "TURBOPACK_OUTPUT_";
 struct OutputStreamHandler<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> {
     stream: BufReader<R>,
     shared: SharedOutputSet,
-    assets_for_source_mapping: Vc<AssetsForSourceMapping>,
-    root: Vc<FileSystemPath>,
-    project_dir: Vc<FileSystemPath>,
+    assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
+    root: ResolvedVc<FileSystemPath>,
+    project_dir: ResolvedVc<FileSystemPath>,
     final_stream: W,
 }
 
