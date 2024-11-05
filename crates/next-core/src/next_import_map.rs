@@ -10,7 +10,7 @@ use turbopack_core::{
         options::{ConditionValue, ImportMap, ImportMapping, ResolvedMap},
         parse::Request,
         pattern::Pattern,
-        resolve, AliasPattern, ExternalType, ResolveAliasMap, SubpathValue,
+        resolve, AliasPattern, ExternalTraced, ExternalType, ResolveAliasMap, SubpathValue,
     },
     source::Source,
 };
@@ -239,7 +239,9 @@ pub async fn get_next_client_import_map(
 
 /// Computes the Next-specific client import map.
 #[turbo_tasks::function]
-pub async fn get_next_build_import_map() -> Result<Vc<ImportMap>> {
+pub async fn get_next_build_import_map(
+    project_path: ResolvedVc<FileSystemPath>,
+) -> Result<Vc<ImportMap>> {
     let mut import_map = ImportMap::empty();
 
     insert_package_alias(
@@ -248,15 +250,26 @@ pub async fn get_next_build_import_map() -> Result<Vc<ImportMap>> {
         next_js_fs().root().to_resolved().await?,
     );
 
-    let external = ImportMapping::External(None, ExternalType::CommonJs).resolved_cell();
+    let external = ImportMapping::External(
+        None,
+        ExternalType::CommonJs,
+        ExternalTraced::Traced(project_path),
+        None,
+    )
+    .resolved_cell();
 
     import_map.insert_exact_alias("next", external);
     import_map.insert_wildcard_alias("next/", external);
     import_map.insert_exact_alias("styled-jsx", external);
     import_map.insert_exact_alias(
         "styled-jsx/style",
-        ImportMapping::External(Some("styled-jsx/style.js".into()), ExternalType::CommonJs)
-            .resolved_cell(),
+        ImportMapping::External(
+            Some("styled-jsx/style.js".into()),
+            ExternalType::CommonJs,
+            ExternalTraced::Traced(project_path),
+            None,
+        )
+        .resolved_cell(),
     );
     import_map.insert_wildcard_alias("styled-jsx/", external);
 
@@ -321,7 +334,14 @@ pub async fn get_next_server_import_map(
 
     let ty = ty.into_value();
 
-    let external = ImportMapping::External(None, ExternalType::CommonJs).resolved_cell();
+    let external = ImportMapping::External(
+        None,
+        ExternalType::CommonJs,
+        // TODO(arlyon): wiring up in a follow up PR
+        ExternalTraced::Untraced,
+        None,
+    )
+    .resolved_cell();
 
     import_map.insert_exact_alias("next/dist/server/require-hook", external);
     match ty {
@@ -336,8 +356,13 @@ pub async fn get_next_server_import_map(
             import_map.insert_exact_alias("styled-jsx", external);
             import_map.insert_exact_alias(
                 "styled-jsx/style",
-                ImportMapping::External(Some("styled-jsx/style.js".into()), ExternalType::CommonJs)
-                    .resolved_cell(),
+                ImportMapping::External(
+                    Some("styled-jsx/style.js".into()),
+                    ExternalType::CommonJs,
+                    ExternalTraced::Traced(project_path),
+                    None,
+                )
+                .resolved_cell(),
             );
             import_map.insert_wildcard_alias("styled-jsx/", external);
             // TODO: we should not bundle next/dist/build/utils in the pages renderer at all
@@ -562,12 +587,12 @@ async fn insert_next_server_special_aliases(
     let external_cjs_if_node =
         move |context_dir: ResolvedVc<FileSystemPath>, request: &str| match runtime {
             NextRuntime::Edge => request_to_import_mapping(context_dir, request),
-            NextRuntime::NodeJs => external_request_to_cjs_import_mapping(request),
+            NextRuntime::NodeJs => external_request_to_cjs_import_mapping(context_dir, request),
         };
     let external_esm_if_node =
         move |context_dir: ResolvedVc<FileSystemPath>, request: &str| match runtime {
             NextRuntime::Edge => request_to_import_mapping(context_dir, request),
-            NextRuntime::NodeJs => external_request_to_esm_import_mapping(request),
+            NextRuntime::NodeJs => external_request_to_esm_import_mapping(context_dir, request),
         };
 
     import_map.insert_exact_alias(
@@ -1119,12 +1144,30 @@ fn request_to_import_mapping(
 
 /// Creates a direct import mapping to the result of resolving an external
 /// request.
-fn external_request_to_cjs_import_mapping(request: &str) -> ResolvedVc<ImportMapping> {
-    ImportMapping::External(Some(request.into()), ExternalType::CommonJs).resolved_cell()
+fn external_request_to_cjs_import_mapping(
+    context_dir: ResolvedVc<FileSystemPath>,
+    request: &str,
+) -> ResolvedVc<ImportMapping> {
+    ImportMapping::External(
+        Some(request.into()),
+        ExternalType::CommonJs,
+        ExternalTraced::Traced(context_dir),
+        Some(context_dir),
+    )
+    .resolved_cell()
 }
 
 /// Creates a direct import mapping to the result of resolving an external
 /// request.
-fn external_request_to_esm_import_mapping(request: &str) -> ResolvedVc<ImportMapping> {
-    ImportMapping::External(Some(request.into()), ExternalType::EcmaScriptModule).resolved_cell()
+fn external_request_to_esm_import_mapping(
+    context_dir: ResolvedVc<FileSystemPath>,
+    request: &str,
+) -> ResolvedVc<ImportMapping> {
+    ImportMapping::External(
+        Some(request.into()),
+        ExternalType::EcmaScriptModule,
+        ExternalTraced::Traced(context_dir),
+        Some(context_dir),
+    )
+    .resolved_cell()
 }

@@ -10,7 +10,6 @@
 pub mod evaluate_context;
 mod graph;
 pub mod module_options;
-pub mod rebase;
 pub mod transition;
 pub(crate) mod unsupported_sass;
 
@@ -909,7 +908,10 @@ pub async fn replace_externals(
     import_externals: bool,
 ) -> Result<ModuleResolveResult> {
     for item in result.primary.values_mut() {
-        let ModuleResolveResultItem::External(request, ty) = item else {
+        let ModuleResolveResultItem::External {
+            name: request, ty, ..
+        } = item
+        else {
             continue;
         };
 
@@ -928,7 +930,7 @@ pub async fn replace_externals(
             }
         };
 
-        let module = CachedExternalModule::new(request.clone(), external_type)
+        let module = CachedExternalModule::new(request.clone(), external_type, vec![])
             .to_resolved()
             .await?;
 

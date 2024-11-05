@@ -79,7 +79,9 @@ impl ReferencedAsset {
         }
         for (_, result) in result.primary.iter() {
             match result {
-                ModuleResolveResultItem::External(request, ty) => {
+                ModuleResolveResultItem::External {
+                    name: request, ty, ..
+                } => {
                     return Ok(ReferencedAsset::External(request.clone(), *ty).cell());
                 }
                 &ModuleResolveResultItem::Module(module) => {

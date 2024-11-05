@@ -1,7 +1,7 @@
 use anyhow::Result;
 use turbo_tasks::{RcStr, ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_core::resolve::{options::ImportMapping, ExternalType};
+use turbopack_core::resolve::{options::ImportMapping, ExternalTraced, ExternalType};
 
 use crate::next_import_map::get_next_package;
 
@@ -23,11 +23,14 @@ pub async fn get_postcss_package_mapping(
 
 #[turbo_tasks::function]
 pub async fn get_external_next_compiled_package_mapping(
+    project_path: ResolvedVc<FileSystemPath>,
     package_name: Vc<RcStr>,
 ) -> Result<Vc<ImportMapping>> {
     Ok(ImportMapping::Alternatives(vec![ImportMapping::External(
         Some(format!("next/dist/compiled/{}", &*package_name.await?).into()),
         ExternalType::CommonJs,
+        ExternalTraced::Traced(project_path),
+        None,
     )
     .resolved_cell()])
     .cell())

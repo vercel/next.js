@@ -12,8 +12,8 @@ use turbopack_core::{
         parse::Request,
         pattern::Pattern,
         plugin::{AfterResolvePlugin, AfterResolvePluginCondition},
-        resolve, ExternalType, FindContextFileResult, ResolveResult, ResolveResultItem,
-        ResolveResultOption,
+        resolve, ExternalTraced, ExternalType, FindContextFileResult, ResolveResult,
+        ResolveResultItem, ResolveResultOption,
     },
     source::Source,
 };
@@ -375,10 +375,12 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
             (FileType::CommonJs, false) => {
                 // mark as external
                 Ok(ResolveResultOption::some(
-                    ResolveResult::primary(ResolveResultItem::External(
-                        request_str.into(),
-                        ExternalType::CommonJs,
-                    ))
+                    ResolveResult::primary(ResolveResultItem::External {
+                        name: request_str.into(),
+                        ty: ExternalType::CommonJs,
+                        // TODO(arlyon): wiring up in a follow up PR
+                        traced: ExternalTraced::Untraced,
+                    })
                     .cell(),
                 ))
             }
@@ -412,14 +414,16 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                 } else {
                     // mark as external
                     Ok(ResolveResultOption::some(
-                        ResolveResult::primary(ResolveResultItem::External(
-                            request_str.into(),
-                            if resolves_equal {
+                        ResolveResult::primary(ResolveResultItem::External {
+                            name: request_str.into(),
+                            ty: if resolves_equal {
                                 ExternalType::CommonJs
                             } else {
                                 ExternalType::EcmaScriptModule
                             },
-                        ))
+                            // TODO(arlyon): wiring up in a follow up PR
+                            traced: ExternalTraced::Untraced,
+                        })
                         .cell(),
                     ))
                 }
@@ -427,10 +431,12 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
             (FileType::EcmaScriptModule, true) => {
                 // mark as external
                 Ok(ResolveResultOption::some(
-                    ResolveResult::primary(ResolveResultItem::External(
-                        request_str.into(),
-                        ExternalType::EcmaScriptModule,
-                    ))
+                    ResolveResult::primary(ResolveResultItem::External {
+                        name: request_str.into(),
+                        ty: ExternalType::EcmaScriptModule,
+                        // TODO(arlyon): wiring up in a follow up PR
+                        traced: ExternalTraced::Untraced,
+                    })
                     .cell(),
                 ))
             }
