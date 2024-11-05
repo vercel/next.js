@@ -60,7 +60,6 @@ import type { MiddlewareMatcher } from '../build/analysis/get-page-static-info'
 import type { TLSSocket } from 'tls'
 import type { PathnameNormalizer } from './normalizers/request/pathname-normalizer'
 import type { InstrumentationModule } from './instrumentation/types'
-import type { ImmutableResumeDataCache } from './resume-data-cache/resume-data-cache'
 
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { formatHostname } from './lib/format-hostname'
@@ -149,7 +148,6 @@ import { matchNextDataPathname } from './lib/match-next-data-pathname'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
 import { decodePathParams } from './lib/router-utils/decode-path-params'
 import { RSCPathnameNormalizer } from './normalizers/request/rsc'
-import { PostponedPathnameNormalizer } from './normalizers/request/postponed'
 import { stripFlightHeaders } from './app-render/strip-flight-headers'
 import {
   isAppPageRouteModule,
@@ -177,6 +175,7 @@ import type { RouteModule } from './route-modules/route-module'
 import { FallbackMode, parseFallbackField } from '../lib/fallback'
 import { toResponseCacheEntry } from './response-cache/utils'
 import { scheduleOnNextTick } from '../lib/scheduler'
+import { createRenderResumeDataCache } from './resume-data-cache/resume-data-cache'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -448,10 +447,6 @@ export default abstract class Server<
   protected readonly localeNormalizer?: LocaleRouteNormalizer
 
   protected readonly normalizers: {
-    /**
-     * @deprecated
-     */
-    readonly postponed: PostponedPathnameNormalizer | undefined
     readonly rsc: RSCPathnameNormalizer | undefined
     readonly prefetchRSC: PrefetchRSCPathnameNormalizer | undefined
     readonly data: NextDataPathnameNormalizer | undefined
@@ -538,10 +533,6 @@ export default abstract class Server<
       // We should normalize the pathname from the RSC prefix only in minimal
       // mode as otherwise that route is not exposed external to the server as
       // we instead only rely on the headers.
-      postponed:
-        this.isAppPPREnabled && this.minimalMode
-          ? new PostponedPathnameNormalizer()
-          : undefined,
       rsc:
         this.enabledDirectories.app && this.minimalMode
           ? new RSCPathnameNormalizer()
@@ -1082,34 +1073,6 @@ export default abstract class Server<
             parsedUrl.query.__nextDataReq = '1'
           }
           // In minimal mode, if PPR is enabled, then we should check to see if
-          // the matched path is a postponed path, and if it is, handle it.
-          else if (
-            this.normalizers.postponed?.match(matchedPath) &&
-            req.method === 'POST'
-          ) {
-            // Decode the postponed state from the request body, it will come as
-            // an array of buffers, so collect them and then concat them to form
-            // the string.
-            const body: Array<Buffer> = []
-            for await (const chunk of req.body) {
-              body.push(chunk)
-            }
-            const postponed = Buffer.concat(body).toString('utf8')
-
-            addRequestMeta(req, 'postponed', postponed)
-
-            // If the request does not have the `x-now-route-matches` header,
-            // it means that the request has it's exact path specified in the
-            // `x-matched-path` header. In this case, we should update the
-            // pathname to the matched path.
-            if (!req.headers['x-now-route-matches']) {
-              urlPathname = this.normalizers.postponed.normalize(
-                matchedPath,
-                true
-              )
-            }
-          }
-          // In minimal mode, if PPR is enabled, then we should check to see if
           // the request should be a resume request.
           else if (
             this.isAppPPREnabled &&
@@ -1578,10 +1541,6 @@ export default abstract class Server<
 
     if (this.normalizers.data) {
       normalizers.push(this.normalizers.data)
-    }
-
-    if (this.normalizers.postponed) {
-      normalizers.push(this.normalizers.postponed)
     }
 
     // We have to put the prefetch normalizer before the RSC normalizer
@@ -2396,12 +2355,6 @@ export default abstract class Server<
       postponed: string | undefined
 
       /**
-       * The resume data cache for this render. This is only provided when
-       * resuming a render that has been postponed.
-       */
-      immutableResumeDataCache: ImmutableResumeDataCache | undefined
-
-      /**
        * The unknown route params for this render.
        */
       fallbackRouteParams: FallbackRouteParams | null
@@ -2410,11 +2363,7 @@ export default abstract class Server<
       context: RendererContext
     ) => Promise<ResponseCacheEntry | null>
 
-    const doRender: Renderer = async ({
-      postponed,
-      immutableResumeDataCache,
-      fallbackRouteParams,
-    }) => {
+    const doRender: Renderer = async ({ postponed, fallbackRouteParams }) => {
       // In development, we always want to generate dynamic HTML.
       let supportsDynamicResponse: boolean =
         // If we're in development, we always support dynamic HTML, unless it's
@@ -2488,7 +2437,6 @@ export default abstract class Server<
         isDraftMode: isPreviewMode,
         isServerAction,
         postponed,
-        immutableResumeDataCache,
         waitUntil: this.getWaitUntil(),
         onClose: res.onClose.bind(res),
         onAfterTaskError: undefined,
@@ -2590,7 +2538,6 @@ export default abstract class Server<
                   status: response.status,
                   body: Buffer.from(await blob.arrayBuffer()),
                   headers,
-                  immutableResumeDataCache: undefined,
                 },
                 revalidate,
                 isFallback: false,
@@ -2692,6 +2639,7 @@ export default abstract class Server<
               serverComponentsHmrCache: this.getServerComponentsHmrCache(),
             }
 
+            // TODO: adapt for putting the RDC inside the postponed data
             // If we're in dev, and this isn't s prefetch or a server action,
             // we should seed the resume data cache.
             if (
@@ -2704,9 +2652,11 @@ export default abstract class Server<
 
               // If the warmup is successful, we should use the resume data
               // cache from the warmup.
-              if (warmup.metadata.immutableResumeDataCache) {
-                renderOpts.immutableResumeDataCache =
-                  warmup.metadata.immutableResumeDataCache
+              if (warmup.metadata.devWarmupPrerenderResumeDataCache) {
+                renderOpts.devWarmupRenderResumeDataCache =
+                  createRenderResumeDataCache(
+                    warmup.metadata.devWarmupPrerenderResumeDataCache
+                  )
               }
             }
 
@@ -2806,9 +2756,6 @@ export default abstract class Server<
             postponed: metadata.postponed,
             status: res.statusCode,
             segmentData: undefined,
-            immutableResumeDataCache: metadata.immutableResumeDataCache
-              ? metadata.immutableResumeDataCache
-              : undefined,
           } satisfies CachedAppPageValue,
           revalidate: metadata.revalidate,
           isFallback: !!fallbackRouteParams,
@@ -2979,7 +2926,6 @@ export default abstract class Server<
               // router.
               return doRender({
                 postponed: undefined,
-                immutableResumeDataCache: undefined,
                 fallbackRouteParams: null,
               })
             },
@@ -3008,7 +2954,6 @@ export default abstract class Server<
                 // We pass `undefined` as rendering a fallback isn't resumed
                 // here.
                 postponed: undefined,
-                immutableResumeDataCache: undefined,
                 fallbackRouteParams:
                   // If we're in production of we're debugging the fallback
                   // shell then we should postpone when dynamic params are
@@ -3079,7 +3024,6 @@ export default abstract class Server<
       // Perform the render.
       const result = await doRender({
         postponed,
-        immutableResumeDataCache: undefined,
         fallbackRouteParams,
       })
       if (!result) return null
@@ -3194,7 +3138,6 @@ export default abstract class Server<
                 // fallbackRouteParams.
                 fallbackRouteParams: null,
                 postponed: undefined,
-                immutableResumeDataCache: undefined,
               }),
             {
               routeKind: RouteKind.APP_PAGE,
@@ -3543,7 +3486,6 @@ export default abstract class Server<
       // we've already chained the transformer's readable to the render result.
       doRender({
         postponed: cachedData.postponed,
-        immutableResumeDataCache: cachedData.immutableResumeDataCache,
         // This is a resume render, not a fallback render, so we don't need to
         // set this.
         fallbackRouteParams: null,

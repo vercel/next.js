@@ -742,6 +742,19 @@ describe('app-dir static/dynamic handling', () => {
   })
 
   if (isNextStart) {
+    it('should not encode dynamic parameters as search parameters in RSC data', async () => {
+      const data = process.env.__NEXT_EXPERIMENTAL_PPR
+        ? await next.readFile('.next/server/app/blog/seb.prefetch.rsc')
+        : await next.readFile('.next/server/app/blog/seb.rsc')
+
+      // During SSG, pages that correspond with dynamic routes shouldn't have any search
+      // parameters in the `__PAGE__` segment string. The only time we expect to see
+      // search parameters in the `__PAGE__` segment string is when the RSC data is
+      // requested from the client with search parameters.
+      expect(data).not.toContain('__PAGE__?')
+      expect(data).toContain('__PAGE__')
+    })
+
     it('should output HTML/RSC files for static paths', async () => {
       const files = (
         await glob('**/*', {
