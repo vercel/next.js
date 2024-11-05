@@ -835,6 +835,8 @@ describe('app-dir static/dynamic handling', () => {
           "fetch-no-cache/page_client-reference-manifest.js",
           "flight/[slug]/[slug2]/page.js",
           "flight/[slug]/[slug2]/page_client-reference-manifest.js",
+          "force-cache-revalidate/page.js",
+          "force-cache-revalidate/page_client-reference-manifest.js",
           "force-cache.html",
           "force-cache.rsc",
           "force-cache/large-data/page.js",
@@ -2790,7 +2792,6 @@ describe('app-dir static/dynamic handling', () => {
 
     let prevHtml = await res.text()
     let prev$ = cheerio.load(prevHtml)
-    const cliOutputLength = next.cliOutput.length
 
     await retry(async () => {
       const curRes = await next.fetch('/force-cache')
@@ -2813,18 +2814,42 @@ describe('app-dir static/dynamic handling', () => {
         prev$('#data-auto-cache').text()
       )
     })
+  })
 
-    if (isNextDev) {
-      await retry(() => {
-        const cliOutput = next.cliOutput
-          .slice(cliOutputLength)
-          .replace(/in \d+ms/g, 'in 0ms') // stub request durations
+  it('should cache correctly for cache: "force-cache" and "revalidate"', async () => {
+    let prevValue: string | undefined
+    await retry(async () => {
+      const res = await next.fetch('/force-cache-revalidate')
+      expect(res.status).toBe(200)
 
-        expect(stripAnsi(cliOutput)).toContain(`
- │ GET https://next-data-api-en../api/random?d4 200 in 0ms (cache hit)
- │ │ ⚠ Specified "cache: force-cache" and "revalidate: 3", only one should be specified.`)
-      })
-    }
+      let prevHtml = await res.text()
+      let prev$ = cheerio.load(prevHtml)
+
+      const curRes = await next.fetch('/force-cache-revalidate')
+      expect(curRes.status).toBe(200)
+
+      const curHtml = await curRes.text()
+      const cur$ = cheerio.load(curHtml)
+
+      expect(cur$('#data-force-cache').text()).toBe(
+        prev$('#data-force-cache').text()
+      )
+
+      prevValue = cur$('#data-force-cache').text()
+    })
+
+    // wait for revalidation
+    await waitFor(3000)
+
+    await retry(async () => {
+      const curRes = await next.fetch('/force-cache-revalidate')
+      expect(curRes.status).toBe(200)
+
+      const curHtml = await curRes.text()
+      const cur$ = cheerio.load(curHtml)
+
+      expect(cur$('#data-force-cache').text()).not.toBe(prevValue)
+    })
   })
 
   it('should cache correctly for cache: no-store', async () => {
