@@ -283,7 +283,7 @@ pub fn custom_evaluate(evaluate_context: impl EvaluateContext) -> Vc<JavaScriptE
 /// Pass the file you cared as `runtime_entries` to invalidate and reload the
 /// evaluated result automatically.
 #[turbo_tasks::function]
-pub fn evaluate(
+pub async fn evaluate(
     module_asset: Vc<Box<dyn Module>>,
     cwd: Vc<FileSystemPath>,
     env: Vc<Box<dyn ProcessEnv>>,
@@ -294,17 +294,17 @@ pub fn evaluate(
     args: Vec<Vc<JsonValue>>,
     additional_invalidation: Vc<Completion>,
     debug: bool,
-) -> Vc<JavaScriptEvaluation> {
+) -> Result<Vc<JavaScriptEvaluation>> {
     custom_evaluate(BasicEvaluateContext {
-        module_asset,
-        cwd,
-        env,
-        context_ident_for_issue,
-        asset_context,
-        chunking_context,
+        module_asset: module_asset.resolve().await?,
+        cwd: cwd.resolve().await?,
+        env: env.resolve().await?,
+        context_ident_for_issue: context_ident_for_issue.resolve().await?,
+        asset_context: asset_context.resolve().await?,
+        chunking_context: chunking_context.resolve().await?,
         runtime_entries,
         args,
-        additional_invalidation,
+        additional_invalidation: additional_invalidation.resolve().await?,
         debug,
     })
 }
