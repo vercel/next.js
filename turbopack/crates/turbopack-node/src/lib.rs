@@ -70,7 +70,7 @@ async fn internal_assets(
     intermediate_output_path: Vc<FileSystemPath>,
 ) -> Result<Vc<OutputAssetsSet>> {
     Ok(
-        separate_assets(intermediate_asset, intermediate_output_path)
+        *separate_assets(intermediate_asset, intermediate_output_path)
             .strongly_consistent()
             .await?
             .internal_assets,
@@ -112,7 +112,7 @@ pub async fn external_asset_entrypoints(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     intermediate_output_path: Vc<FileSystemPath>,
 ) -> Result<Vc<OutputAssetsSet>> {
-    Ok(separate_assets(
+    Ok(*separate_assets(
         get_intermediate_asset(chunking_context, module, runtime_entries)
             .resolve()
             .await?,
