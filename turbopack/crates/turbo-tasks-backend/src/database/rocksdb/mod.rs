@@ -62,7 +62,7 @@ impl RocksDbKeyValueDatabase {
         options.set_max_background_compactions(parallelism);
         options.set_enable_blob_files(true);
         options.set_enable_blob_gc(true);
-        options.set_min_blob_size(1 * 1024 * 1024);
+        options.set_min_blob_size(1024 * 1024);
         let mut cf_options = rocksdb::Options::default();
         cf_options.set_compaction_style(rocksdb::DBCompactionStyle::Universal);
         cf_options.set_level_compaction_dynamic_level_bytes(false);
@@ -74,7 +74,7 @@ impl RocksDbKeyValueDatabase {
         cf_options.set_bottommost_compression_type(rocksdb::DBCompressionType::Zstd);
         cf_options.set_bottommost_zstd_max_train_bytes(1024, true);
         cf_options.optimize_for_point_lookup(8);
-        cf_options.set_min_blob_size(1 * 1024 * 1024);
+        cf_options.set_min_blob_size(1024 * 1024);
         cf_options.set_enable_blob_files(true);
         cf_options.set_blob_compression_type(rocksdb::DBCompressionType::Zstd);
 
@@ -152,7 +152,7 @@ impl KeyValueDatabase for RocksDbKeyValueDatabase {
     fn write_batch(&self) -> Result<Self::WriteBatch<'_>> {
         Ok(RocksDbWriteBatch {
             batch: RdbWriteBack::default(),
-            this: &self,
+            this: self,
         })
     }
 }
