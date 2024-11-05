@@ -87,14 +87,12 @@ describe('config-testing-utils', () => {
                 has: [
                   {
                     type: 'host',
-                    // key: 'host',
                     value: 'nextjs.org',
                   },
                 ],
                 missing: [
                   {
                     type: 'host',
-                    // key: 'host',
                     value: 'othersite.com',
                   },
                 ],
