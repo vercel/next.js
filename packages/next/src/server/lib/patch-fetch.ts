@@ -347,6 +347,10 @@ export function createPatchedFetcher(
           workUnitStore?.type !== 'cache' &&
           (hasExplicitFetchCacheOptOut || noFetchConfigAndForceDynamic)
         ) {
+          if (noFetchConfigAndForceDynamic && currentFetchRevalidate !== 0) {
+            cacheWarning = `Specified "dynamic: 'force-dynamic'" and "revalidate: ${currentFetchRevalidate}" without explicitly caching the fetch. This fetch will be treated as an uncached fetch.`
+          }
+
           currentFetchRevalidate = 0
         }
 

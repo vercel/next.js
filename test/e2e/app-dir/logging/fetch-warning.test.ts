@@ -17,50 +17,67 @@ describe('app-dir - fetch warnings', () => {
     await next.stop()
     await next.deleteFile('next.config.js')
     await next.start()
-    await next.fetch('/cache-revalidate')
   })
 
   if (isNextDev) {
-    describe('force-cache and revalidate: 0', () => {
-      it('should log when request input is a string', async () => {
-        await retry(() => {
-          expect(next.cliOutput).toInclude(`
+    describe('static pages', () => {
+      beforeAll(async () => {
+        await next.fetch('/cache-revalidate')
+      })
+      describe('force-cache and revalidate: 0', () => {
+        it('should log when request input is a string', async () => {
+          await retry(() => {
+            expect(next.cliOutput).toInclude(`
  │ GET https://next-data-api-endpoint.vercel.app/api/random?request-string
  │ │ ⚠ Specified "cache: force-cache" and "revalidate: 0", only one should be specified.`)
+          })
         })
-      })
 
-      it('should log when request input is a Request instance', async () => {
-        await retry(() => {
-          expect(next.cliOutput).toInclude(`
+        it('should log when request input is a Request instance', async () => {
+          await retry(() => {
+            expect(next.cliOutput).toInclude(`
  │ GET https://next-data-api-endpoint.vercel.app/api/random?request-input-cache-override
  │ │ ⚠ Specified "cache: force-cache" and "revalidate: 0", only one should be specified.`)
+          })
+        })
+
+        it('should not log when not overriding cache within the Request object', async () => {
+          await retry(() => {
+            expect(next.cliOutput).not.toInclude(`
+ │ GET https://next-data-api-endpoint.vercel.app/api/random?request-input
+ │ │ ⚠ Specified "cache:`)
+          })
         })
       })
 
-      it('should not log when not overriding cache within the Request object', async () => {
-        await retry(() => {
-          expect(next.cliOutput).not.toInclude(`
- │ GET https://next-data-api-endpoint.vercel.app/api/random?request-input
- │ │ ⚠ Specified "cache:`)
+      describe('no-store and revalidate > 0', () => {
+        it('should log when request input is a string', async () => {
+          await retry(() => {
+            expect(next.cliOutput).toInclude(`
+ │ GET https://next-data-api-endpoint.vercel.app/api/random?no-store-request-string
+ │ │ ⚠ Specified "cache: no-store" and "revalidate: 3", only one should be specified.`)
+          })
+        })
+
+        it('should log when request input is a Request instance', async () => {
+          await retry(() => {
+            expect(next.cliOutput).toInclude(`
+ │ GET https://next-data-api-endpoint.vercel.app/api/random?no-store-request-input-cache-override
+ │ │ ⚠ Specified "cache: no-store" and "revalidate: 3", only one should be specified.`)
+          })
         })
       })
     })
 
-    describe('no-store and revalidate > 0', () => {
-      it('should log when request input is a string', async () => {
-        await retry(() => {
-          expect(next.cliOutput).toInclude(`
- │ GET https://next-data-api-endpoint.vercel.app/api/random?no-store-request-string
- │ │ ⚠ Specified "cache: no-store" and "revalidate: 3", only one should be specified.`)
-        })
+    describe('dynamic pages', () => {
+      beforeAll(async () => {
+        await next.fetch('/cache-revalidate/force-dynamic')
       })
-
-      it('should log when request input is a Request instance', async () => {
+      it('should log a warning when specifying a revalidate value without an explicit cache config', async () => {
         await retry(() => {
           expect(next.cliOutput).toInclude(`
- │ GET https://next-data-api-endpoint.vercel.app/api/random?no-store-request-input-cache-override
- │ │ ⚠ Specified "cache: no-store" and "revalidate: 3", only one should be specified.`)
+ │ GET https://next-data-api-endpoint.vercel.app/api/random?revalidate-3
+ │ │ ⚠ Specified "dynamic: 'force-dynamic'" and "revalidate: 3" without explicitly caching the fetch. This fetch will be treated as an uncached fetch.`)
         })
       })
     })
