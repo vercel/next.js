@@ -8,7 +8,7 @@ use std::fmt::Write;
 
 use anyhow::{bail, Result};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{Value, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystem;
 use turbopack_core::{
     asset::{Asset, AssetContent},

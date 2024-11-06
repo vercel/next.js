@@ -6,7 +6,7 @@ use swc_core::{
         visit::{Visit, VisitWith},
     },
 };
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbopack_core::{
     reference::{ModuleReference, ModuleReferences},
     source::Source,

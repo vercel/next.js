@@ -12,7 +12,7 @@ use swc_core::{
         visit::{Visit, VisitWith},
     },
 };
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::source::Source;
 

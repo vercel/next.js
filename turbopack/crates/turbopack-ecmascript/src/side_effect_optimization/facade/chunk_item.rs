@@ -8,7 +8,7 @@ use swc_core::{
         codegen::{text_writer::JsWriter, Emitter},
     },
 };
-use turbo_tasks::{TryJoinIterExt, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::rope::RopeBuilder;
 use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkingContext},

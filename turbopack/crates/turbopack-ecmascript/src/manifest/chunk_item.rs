@@ -1,6 +1,6 @@
 use anyhow::Result;
 use indoc::formatdoc;
-use turbo_tasks::{TryJoinIterExt, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::{
     chunk::{ChunkData, ChunkItem, ChunkType, ChunkingContext, ChunksData},
     ident::AssetIdent,

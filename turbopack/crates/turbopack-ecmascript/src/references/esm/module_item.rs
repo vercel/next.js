@@ -9,7 +9,7 @@ use swc_core::{
     },
     quote,
 };
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::chunk::ChunkingContext;
 
 use crate::{

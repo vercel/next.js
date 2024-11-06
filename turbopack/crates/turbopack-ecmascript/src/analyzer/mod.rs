@@ -26,7 +26,7 @@ use swc_core::{
     },
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, FxIndexSet, Vc};
+use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, Vc};
 use turbopack_core::compile_time_info::{
     CompileTimeDefineValue, DefineableNameSegment, FreeVarReference,
 };

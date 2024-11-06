@@ -6,7 +6,7 @@ use swc_core::{
     ecma::ast::{Expr, Ident},
     quote,
 };
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::chunk::ChunkingContext;
 

@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, EvaluatableAsset},

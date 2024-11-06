@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{

@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use anyhow::{bail, Result};
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{glob::Glob, File, FileContent};
 use turbopack_core::{
     asset::{Asset, AssetContent},

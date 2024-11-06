@@ -14,7 +14,7 @@ use swc_core::{
     },
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{trace::TraceRawVcs, TaskInput, Vc};
+use turbo_tasks::{trace::TraceRawVcs, ResolvedVc, TaskInput, Vc};
 use turbopack_core::chunk::ChunkingContext;
 
 use super::EsmAssetReference;

@@ -5,7 +5,7 @@ use swc_core::{
     quote,
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{Value, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
 use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext},
     issue::IssueSource,

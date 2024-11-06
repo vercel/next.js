@@ -1,7 +1,7 @@
 use anyhow::{bail, Result};
 use indoc::formatdoc;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{TryJoinIterExt, Value, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc};
 use turbopack_core::{
     chunk::{
         availability_info::AvailabilityInfo, ChunkData, ChunkItem, ChunkType, ChunkingContext,

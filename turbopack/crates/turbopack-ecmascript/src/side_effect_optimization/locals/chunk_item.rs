@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkingContext},
     ident::AssetIdent,

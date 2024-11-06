@@ -1,6 +1,6 @@
 use anyhow::Result;
 use swc_core::quote;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbopack_core::chunk::ChunkingContext;
 
 use super::AstPath;
