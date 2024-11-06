@@ -159,7 +159,7 @@ impl EcmascriptChunkItemContent {
                 None => None,
             }
         } else {
-            self.source_map
+            self.source_map.map(|v| *v)
         };
 
         code.push_source(&self.inner_code, source_map);
