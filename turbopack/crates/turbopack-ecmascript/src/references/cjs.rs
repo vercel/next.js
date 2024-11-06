@@ -87,20 +87,20 @@ pub struct CjsRequireAssetReference {
 #[turbo_tasks::value_impl]
 impl CjsRequireAssetReference {
     #[turbo_tasks::function]
-    pub fn new(
+    pub async fn new(
         origin: Vc<Box<dyn ResolveOrigin>>,
         request: Vc<Request>,
         path: Vc<AstPath>,
         issue_source: Vc<IssueSource>,
         in_try: bool,
-    ) -> Vc<Self> {
-        Self::cell(CjsRequireAssetReference {
-            origin,
-            request,
-            path,
-            issue_source,
+    ) -> Result<Vc<Self>> {
+        Ok(Self::cell(CjsRequireAssetReference {
+            origin: origin.to_resolved().await?,
+            request: request.to_resolved().await?,
+            path: path.to_resolved().await?,
+            issue_source: issue_source.to_resolved().await?,
             in_try,
-        })
+        }))
     }
 }
 
@@ -109,9 +109,9 @@ impl ModuleReference for CjsRequireAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
         cjs_resolve(
-            self.origin,
-            self.request,
-            Some(self.issue_source),
+            *self.origin,
+            *self.request,
+            Some(*self.issue_source),
             self.in_try,
         )
     }
