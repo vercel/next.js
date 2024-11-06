@@ -1160,7 +1160,14 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 span,
                 in_try: _,
             } => {
-                handle_free_var(&ast_path, var, span, &analysis_state, &mut analysis).await?;
+                // FreeVar("require") might be turbopackIgnore-d
+                if !analysis_state
+                    .link_value(var.clone(), eval_context.imports.get_attributes(span))
+                    .await?
+                    .is_unknown()
+                {
+                    handle_free_var(&ast_path, var, span, &analysis_state, &mut analysis).await?;
+                }
             }
             Effect::Member {
                 obj,
