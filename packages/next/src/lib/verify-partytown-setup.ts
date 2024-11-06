@@ -8,6 +8,7 @@ import { fileExists, FileType } from './file-exists'
 import { FatalError } from './fatal-error'
 import * as Log from '../build/output/log'
 import { getPkgManager } from './helpers/get-pkg-manager'
+import { readFile } from 'fs/promises'
 
 async function missingDependencyError(dir: string) {
   const packageManager = getPkgManager(dir)
@@ -61,10 +62,49 @@ async function copyPartytownStaticFiles(
   await copyLibFiles(partytownLibDir)
 }
 
-export async function verifyPartytownSetup(
-  dir: string,
+async function verifyRootLayoutImport(appDir: string) {
+  const possibleLayoutFiles = [
+    'layout.ts',
+    'layout.tsx',
+    'layout.js',
+    'layout.jsx',
+  ]
+  let rootLayoutPath: string | undefined
+  let rootLayoutContent: string | undefined
+
+  for (const file of possibleLayoutFiles) {
+    const filePath = path.join(appDir, file)
+    if (await fileExists(filePath, FileType.File)) {
+      rootLayoutPath = filePath
+      rootLayoutContent = await readFile(filePath, 'utf8')
+      break
+    }
+  }
+
+  if (!rootLayoutPath || !rootLayoutContent) return
+
+  const stripComments = (content: string) =>
+    content.replace(/\/\/.*|\/\*[\s\S]*?\*\//g, '')
+  const hasPartytownComponent = /<Partytown/i.test(
+    stripComments(rootLayoutContent)
+  )
+
+  if (!hasPartytownComponent) {
+    Log.warn(
+      `Partytown is installed, but the <Partytown /> component is not properly set up in your root layout file ${bold(rootLayoutPath)}. Make sure to import and use the <Partytown /> component for proper setup with the App Router.`
+    )
+  }
+}
+
+export async function verifyPartytownSetup({
+  dir,
+  targetDir,
+  appDir,
+}: {
+  dir: string
   targetDir: string
-): Promise<void> {
+  appDir?: string
+}): Promise<void> {
   try {
     const partytownDeps: NecessaryDependencies = await hasNecessaryDependencies(
       dir,
@@ -82,6 +122,9 @@ export async function verifyPartytownSetup(
     } else {
       try {
         await copyPartytownStaticFiles(partytownDeps, targetDir)
+        if (appDir) {
+          await verifyRootLayoutImport(appDir)
+        }
       } catch (err) {
         Log.warn(
           `Partytown library files could not be copied to the static directory. Please ensure that ${bold(

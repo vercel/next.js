@@ -125,7 +125,7 @@ Refer to the [`next/script`](/docs/app/api-reference/components/script#strategy)
 
 ### Offloading Scripts To A Web Worker (experimental)
 
-> **Warning:** The `worker` strategy is not yet stable and does not yet work with the [`app`](/docs/app/building-your-application/routing/defining-routes) directory. Use with caution.
+> **Warning:** The `worker` strategy is not yet stable. Use with caution.
 
 Scripts that use the `worker` strategy are offloaded and executed in a web worker with [Partytown](https://partytown.builder.io/). This can improve the performance of your site by dedicating the main thread to the rest of your application code.
 
@@ -147,7 +147,84 @@ npm run dev
 
 You'll see instructions like these: Please install Partytown by running `npm install @builder.io/partytown`
 
+<AppOnly>
+
+To use the `worker` strategy with the App Router, you need to import the `Partytown` component in your root layout. This ensures that Partytown is properly set up in your application.
+
+```tsx filename="app/layout.tsx" switcher
+import { Partytown } from '@builder.io/partytown/react'
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html lang="en">
+      <head>
+        <Partytown lib={'/_next/static/~partytown/'} />
+      </head>
+      <body>
+        {/* Layout UI */}
+        <main>{children}</main>
+      </body>
+    </html>
+  )
+}
+```
+
+```jsx filename="app/layout.js" switcher
+import { Partytown } from '@builder.io/partytown/react'
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en">
+      <head>
+        <Partytown lib={'/_next/static/~partytown/'} />
+      </head>
+      <body>
+        {/* Layout UI */}
+        <main>{children}</main>
+      </body>
+    </html>
+  )
+}
+```
+
+> **Note**: The `lib={"/_next/static/~partytown/"}` prop is required in the App Router to tell Partytown where Next.js stores its library files. Unless you choose to save these files in a different directory, you must include this path to ensure Partytown can properly load and run its scripts.
+
+</AppOnly>
+
 Once setup is complete, defining `strategy="worker"` will automatically instantiate Partytown in your application and offload the script to a web worker.
+
+<AppOnly>
+
+```tsx filename="app/home/page.tsx" switcher
+import Script from 'next/script'
+
+export default function Home() {
+  return (
+    <>
+      <Script src="https://example.com/script.js" strategy="worker" />
+    </>
+  )
+}
+```
+
+```jsx filename="app/home/page.js" switcher
+import Script from 'next/script'
+
+export default function Home() {
+  return (
+    <>
+      <Script src="https://example.com/script.js" strategy="worker" />
+    </>
+  )
+}
+```
+
+</AppOnly>
+<PagesOnly>
 
 ```tsx filename="pages/home.tsx" switcher
 import Script from 'next/script'
@@ -172,6 +249,8 @@ export default function Home() {
   )
 }
 ```
+
+</PagesOnly>
 
 There are a number of trade-offs that need to be considered when loading a third-party script in a web worker. Please see Partytown's [tradeoffs](https://partytown.builder.io/trade-offs) documentation for more information.
 
