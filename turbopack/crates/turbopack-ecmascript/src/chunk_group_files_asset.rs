@@ -37,9 +37,9 @@ fn modifier() -> Vc<RcStr> {
 /// ChunkGroup with the provided ChunkingContext.
 #[turbo_tasks::value(shared)]
 pub struct ChunkGroupFilesAsset {
-    pub module: Vc<Box<dyn ChunkableModule>>,
-    pub client_root: Vc<FileSystemPath>,
-    pub chunking_context: Vc<Box<dyn ChunkingContext>>,
+    pub module: ResolvedVc<Box<dyn ChunkableModule>>,
+    pub client_root: ResolvedVc<FileSystemPath>,
+    pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     pub runtime_entries: Option<ResolvedVc<EvaluatableAssets>>,
 }
 
@@ -116,9 +116,9 @@ impl EcmascriptChunkPlaceable for ChunkGroupFilesAsset {
 
 #[turbo_tasks::value]
 struct ChunkGroupFilesChunkItem {
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
-    client_root: Vc<FileSystemPath>,
-    inner: Vc<ChunkGroupFilesAsset>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    client_root: ResolvedVc<FileSystemPath>,
+    inner: ResolvedVc<ChunkGroupFilesAsset>,
 }
 
 #[turbo_tasks::value_impl]
