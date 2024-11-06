@@ -342,7 +342,7 @@ impl DepGraph {
                 let data = data.get(id).unwrap();
 
                 for var in data.var_decls.iter() {
-                    required_vars.remove(var);
+                    required_vars.swap_remove(var);
                 }
 
                 // Depend on import statements from 'ImportBinding'
@@ -462,7 +462,7 @@ impl DepGraph {
                                 is_type_only: false,
                             });
 
-                            required_vars.remove(export);
+                            required_vars.swap_remove(export);
 
                             deps.push(PartId::Export(export.0.as_str().into()));
 
@@ -944,7 +944,7 @@ impl DepGraph {
                                     &top_level_vars,
                                 )
                             };
-                            used_ids.read.remove(&default_var.to_id());
+                            used_ids.read.swap_remove(&default_var.to_id());
                             used_ids.write.insert(default_var.to_id());
                             let mut captured_ids = if export.decl.is_fn_expr() {
                                 ids_captured_by(
@@ -956,7 +956,7 @@ impl DepGraph {
                             } else {
                                 Vars::default()
                             };
-                            captured_ids.read.remove(&default_var.to_id());
+                            captured_ids.read.swap_remove(&default_var.to_id());
 
                             let data = ItemData {
                                 read_vars: used_ids.read,
