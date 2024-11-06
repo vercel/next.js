@@ -64,13 +64,13 @@ pub async fn well_known_function_call(
         ),
         WellKnownFunctionKind::Require => require(args),
         WellKnownFunctionKind::RequireContextRequire(value) => {
-            require_context_require(value, args).await?
+            require_context_require(*value, args).await?
         }
         WellKnownFunctionKind::RequireContextRequireKeys(value) => {
-            require_context_require_keys(value, args).await?
+            require_context_require_keys(*value, args).await?
         }
         WellKnownFunctionKind::RequireContextRequireResolve(value) => {
-            require_context_require_resolve(value, args).await?
+            require_context_require_resolve(*value, args).await?
         }
         WellKnownFunctionKind::PathToFileUrl => path_to_file_url(args),
         WellKnownFunctionKind::OsArch => compile_time_info
@@ -362,7 +362,7 @@ pub async fn require_context_require(
         return Ok(JsValue::unknown(
             JsValue::call(
                 Box::new(JsValue::WellKnownFunction(
-                    WellKnownFunctionKind::RequireContextRequire(val),
+                    WellKnownFunctionKind::RequireContextRequire(val.to_resolved().await?),
                 )),
                 args,
             ),
@@ -375,7 +375,7 @@ pub async fn require_context_require(
         return Ok(JsValue::unknown(
             JsValue::call(
                 Box::new(JsValue::WellKnownFunction(
-                    WellKnownFunctionKind::RequireContextRequire(val),
+                    WellKnownFunctionKind::RequireContextRequire(val.to_resolved().await?),
                 )),
                 args,
             ),
@@ -389,7 +389,7 @@ pub async fn require_context_require(
         return Ok(JsValue::unknown(
             JsValue::call(
                 Box::new(JsValue::WellKnownFunction(
-                    WellKnownFunctionKind::RequireContextRequire(val),
+                    WellKnownFunctionKind::RequireContextRequire(val.to_resolved().await?),
                 )),
                 args,
             ),
@@ -417,7 +417,7 @@ pub async fn require_context_require_keys(
         JsValue::unknown(
             JsValue::call(
                 Box::new(JsValue::WellKnownFunction(
-                    WellKnownFunctionKind::RequireContextRequireKeys(val),
+                    WellKnownFunctionKind::RequireContextRequireKeys(val.to_resolved().await?),
                 )),
                 args,
             ),
@@ -436,7 +436,7 @@ pub async fn require_context_require_resolve(
         return Ok(JsValue::unknown(
             JsValue::call(
                 Box::new(JsValue::WellKnownFunction(
-                    WellKnownFunctionKind::RequireContextRequireResolve(val),
+                    WellKnownFunctionKind::RequireContextRequireResolve(val.to_resolved().await?),
                 )),
                 args,
             ),
@@ -449,7 +449,7 @@ pub async fn require_context_require_resolve(
         return Ok(JsValue::unknown(
             JsValue::call(
                 Box::new(JsValue::WellKnownFunction(
-                    WellKnownFunctionKind::RequireContextRequireResolve(val),
+                    WellKnownFunctionKind::RequireContextRequireResolve(val.to_resolved().await?),
                 )),
                 args,
             ),
@@ -463,7 +463,7 @@ pub async fn require_context_require_resolve(
         return Ok(JsValue::unknown(
             JsValue::call(
                 Box::new(JsValue::WellKnownFunction(
-                    WellKnownFunctionKind::RequireContextRequireResolve(val),
+                    WellKnownFunctionKind::RequireContextRequireResolve(val.to_resolved().await?),
                 )),
                 args,
             ),
