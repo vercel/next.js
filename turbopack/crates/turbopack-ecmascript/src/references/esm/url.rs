@@ -60,7 +60,7 @@ pub struct UrlAssetReference {
 #[turbo_tasks::value_impl]
 impl UrlAssetReference {
     #[turbo_tasks::function]
-    pub fn new(
+    pub async fn new(
         origin: Vc<Box<dyn ResolveOrigin>>,
         request: Vc<Request>,
         rendering: Vc<Rendering>,
@@ -68,17 +68,17 @@ impl UrlAssetReference {
         issue_source: Vc<IssueSource>,
         in_try: bool,
         url_rewrite_behavior: Vc<UrlRewriteBehavior>,
-    ) -> Vc<Self> {
-        UrlAssetReference {
-            origin,
-            request,
-            rendering,
-            ast_path,
-            issue_source,
+    ) -> Result<Vc<Self>> {
+        Ok(UrlAssetReference {
+            origin: origin.to_resolved().await?,
+            request: request.to_resolved().await?,
+            rendering: rendering.to_resolved().await?,
+            ast_path: ast_path.to_resolved().await?,
+            issue_source: issue_source.to_resolved().await?,
             in_try,
-            url_rewrite_behavior,
+            url_rewrite_behavior: url_rewrite_behavior.to_resolved().await?,
         }
-        .cell()
+        .cell())
     }
 
     #[turbo_tasks::function]

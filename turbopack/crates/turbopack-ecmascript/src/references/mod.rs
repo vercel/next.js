@@ -358,9 +358,9 @@ impl<'a> AnalysisState<'a> {
             &early_value_visitor,
             &|value| {
                 value_visitor(
-                    self.origin,
+                    *self.origin,
                     value,
-                    self.compile_time_info,
+                    *self.compile_time_info,
                     self.var_graph,
                     attributes,
                 )
@@ -742,7 +742,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     let exports = if !esm_exports.is_empty() || !esm_star_exports.is_empty() {
         if specified_type == SpecifiedModuleType::CommonJs {
             SpecifiedModuleTypeIssue {
-                path: source.ident().path(),
+                path: source.ident().path().to_resolved().await?,
                 specified_type,
             }
             .cell()
