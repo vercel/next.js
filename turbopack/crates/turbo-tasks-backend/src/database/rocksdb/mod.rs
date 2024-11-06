@@ -2,8 +2,13 @@ use std::{
     cell::UnsafeCell,
     hash::{BuildHasher, BuildHasherDefault},
     iter::once,
+    mem::replace,
     path::Path,
-    thread::{available_parallelism, scope},
+    sync::{
+        mpsc::{sync_channel, SyncSender},
+        Arc,
+    },
+    thread::{available_parallelism, scope, spawn, JoinHandle},
     time::Instant,
 };
 
@@ -16,12 +21,6 @@ use crate::database::{
     key_value_database::{KeySpace, KeyValueDatabase},
     write_batch::{BaseWriteBatch, ConcurrentWriteBatch, WriteBatch},
 };
-
-#[derive(Default)]
-struct RdbWriteBatch(rocksdb::WriteBatch);
-
-unsafe impl Send for RdbWriteBatch {}
-unsafe impl Sync for RdbWriteBatch {}
 
 macro_rules! make_names {
     ($name: ident, $prefix: literal) => {
@@ -46,7 +45,7 @@ make_names!(FORWARD_TASK_CACHE, "forward-task-cache-");
 make_names!(REVERSE_TASK_CACHE, "reverse-task-cache-");
 
 pub struct RocksDbKeyValueDatabase {
-    db: DB,
+    db: Arc<DB>,
 }
 
 impl RocksDbKeyValueDatabase {
@@ -93,7 +92,7 @@ impl RocksDbKeyValueDatabase {
             .map(|name| (name, cf_options.clone()))
             .collect::<Vec<_>>();
         let db = DB::open_cf_with_opts(&options, path, cfs)?;
-        Ok(Self { db })
+        Ok(Self { db: Arc::new(db) })
     }
 
     fn all_cf_names() -> impl Iterator<Item = &'static str> {
@@ -113,13 +112,7 @@ impl RocksDbKeyValueDatabase {
             (hash as u8 & (SHARDS as u8 - 1)) as usize
         };
         self.db
-            .cf_handle(match key_space {
-                KeySpace::Infra => "default",
-                KeySpace::TaskMeta => TASK_META[shard],
-                KeySpace::TaskData => TASK_DATA[shard],
-                KeySpace::ForwardTaskCache => FORWARD_TASK_CACHE[shard],
-                KeySpace::ReverseTaskCache => REVERSE_TASK_CACHE[shard],
-            })
+            .cf_handle(cf_name(key_space, shard))
             .context("Failed to get column family")
     }
 }
@@ -163,16 +156,54 @@ impl KeyValueDatabase for RocksDbKeyValueDatabase {
     fn write_batch<'l>(
         &'l self,
     ) -> Result<WriteBatch<'l, Self::SerialWriteBatch<'l>, Self::ConcurrentWriteBatch<'l>>> {
-        Ok(WriteBatch::concurrent(RocksDbWriteBatch {
-            batches: ThreadLocal::new(),
-            this: self,
-        }))
+        Ok(WriteBatch::concurrent(RocksDbWriteBatch::new(self)))
     }
 }
 
+struct JobEntry {
+    cf_name: &'static str,
+    key: Vec<u8>,
+    value: Option<Vec<u8>>,
+}
+
 pub struct RocksDbWriteBatch<'a> {
-    batches: ThreadLocal<UnsafeCell<RdbWriteBatch>>,
+    sender: SyncSender<Vec<JobEntry>>,
+    thread_local: ThreadLocal<UnsafeCell<Vec<JobEntry>>>,
+    thread: JoinHandle<Result<rocksdb::WriteBatch>>,
     this: &'a RocksDbKeyValueDatabase,
+}
+
+impl<'a> RocksDbWriteBatch<'a> {
+    fn new(this: &'a RocksDbKeyValueDatabase) -> Self {
+        let (sender, receiver) = sync_channel(1024);
+        let db = this.db.clone();
+        Self {
+            sender,
+            thread_local: ThreadLocal::new(),
+            thread: spawn(move || {
+                println!("thread started");
+                let mut batch = rocksdb::WriteBatch::default();
+                for JobEntry {
+                    cf_name,
+                    key,
+                    value,
+                } in receiver.iter().flatten()
+                {
+                    let cf = db
+                        .cf_handle(cf_name)
+                        .context("Failed to get column family")?;
+                    if let Some(value) = value {
+                        batch.put_cf(cf, key, value);
+                    } else {
+                        batch.delete_cf(cf, key);
+                    }
+                }
+                println!("thread ended");
+                anyhow::Ok(batch)
+            }),
+            this,
+        }
+    }
 }
 
 impl<'a> BaseWriteBatch<'a> for RocksDbWriteBatch<'a> {
@@ -190,38 +221,23 @@ impl<'a> BaseWriteBatch<'a> for RocksDbWriteBatch<'a> {
     }
 
     fn commit(self) -> Result<()> {
+        println!("commit started");
+        let start = Instant::now();
+        for vec in self.thread_local.into_iter() {
+            let vec = vec.into_inner();
+            if !vec.is_empty() {
+                self.sender.send(vec)?;
+            }
+        }
+        drop(self.sender);
+        let batch = self.thread.join().unwrap()?;
+        println!("Finishing batch took {:?}", start.elapsed());
         let start = Instant::now();
         let mut write_options = WriteOptions::default();
         if USE_ATOMIC_FLUSH {
             write_options.disable_wal(true);
         }
-        let batches = self
-            .batches
-            .into_iter()
-            .map(|batch| batch.into_inner().0)
-            .collect::<Vec<_>>();
-        if batches.is_empty() {
-            return Ok(());
-        }
-        // For consistency we need to merge all write batches into a single large one
-        // But it has an header of (sequence number: u64, count: u32) for each batch which need to
-        // be merged
-        let data = batches.iter().map(|batch| batch.data()).collect::<Vec<_>>();
-        let size = data.iter().map(|data| data.len() - 12).sum::<usize>();
-        let count = data
-            .iter()
-            .map(|data| u32::from_ne_bytes(TryInto::try_into(&data[8..12]).unwrap()))
-            .sum::<u32>();
-        let mut new_data = Vec::with_capacity(size + 12);
-        new_data.extend_from_slice(&data.first().unwrap()[0..8]);
-        new_data.extend_from_slice(&count.to_ne_bytes());
-        for data in data {
-            new_data.extend_from_slice(&data[12..]);
-        }
-        drop(batches);
-        self.this
-            .db
-            .write_opt(rocksdb::WriteBatch::from_data(&new_data), &write_options)?;
+        self.this.db.write_opt(batch, &write_options)?;
         println!("Write took {:?}", start.elapsed());
         let start = Instant::now();
         if !USE_ATOMIC_FLUSH {
@@ -253,6 +269,21 @@ impl<'a> BaseWriteBatch<'a> for RocksDbWriteBatch<'a> {
     }
 }
 
+impl<'a> RocksDbWriteBatch<'a> {
+    fn push_job(&self, job: JobEntry) -> Result<()> {
+        let cell = self
+            .thread_local
+            .get_or(|| UnsafeCell::new(Vec::with_capacity(1024)));
+        // SAFETY: We are the only thread that has access to this thread-local
+        let vec = unsafe { &mut *cell.get() };
+        vec.push(job);
+        if vec.len() == vec.capacity() {
+            self.sender.send(replace(vec, Vec::with_capacity(1024)))?;
+        }
+        Ok(())
+    }
+}
+
 impl<'a> ConcurrentWriteBatch<'a> for RocksDbWriteBatch<'a> {
     fn put(
         &self,
@@ -260,22 +291,42 @@ impl<'a> ConcurrentWriteBatch<'a> for RocksDbWriteBatch<'a> {
         key: std::borrow::Cow<[u8]>,
         value: std::borrow::Cow<[u8]>,
     ) -> Result<()> {
-        let cf = self.this.cf_handle(key_space, &key)?;
-        self.get_write_batch().put_cf(cf, key, value);
+        let cf_name = cf_name(key_space, key_to_shard(&key));
+        self.push_job(JobEntry {
+            cf_name,
+            key: key.into_owned(),
+            value: Some(value.into_owned()),
+        })?;
         Ok(())
     }
 
     fn delete(&self, key_space: KeySpace, key: std::borrow::Cow<[u8]>) -> Result<()> {
-        let cf = self.this.cf_handle(key_space, &key)?;
-        self.get_write_batch().delete_cf(cf, key);
+        let cf_name = cf_name(key_space, key_to_shard(&key));
+        self.push_job(JobEntry {
+            cf_name,
+            key: key.into_owned(),
+            value: None,
+        })?;
         Ok(())
     }
 }
 
-impl<'a> RocksDbWriteBatch<'a> {
-    fn get_write_batch(&self) -> &mut rocksdb::WriteBatch {
-        let cell = &self.batches.get_or(|| UnsafeCell::new(Default::default()));
-        // Safety: We're the only thread accessing this cell (It's a thread local)
-        &mut unsafe { &mut *cell.get() }.0
+fn key_to_shard(key: &[u8]) -> usize {
+    if key.len() <= 4 {
+        // It's a TaskId in little-endian, we can take the first byte
+        (key[0] & (SHARDS as u8 - 1)) as usize
+    } else {
+        let hash = BuildHasherDefault::<FxHasher>::default().hash_one(key);
+        (hash as u8 & (SHARDS as u8 - 1)) as usize
+    }
+}
+
+fn cf_name(key_space: KeySpace, shard: usize) -> &'static str {
+    match key_space {
+        KeySpace::Infra => "default",
+        KeySpace::TaskMeta => TASK_META[shard],
+        KeySpace::TaskData => TASK_DATA[shard],
+        KeySpace::ForwardTaskCache => FORWARD_TASK_CACHE[shard],
+        KeySpace::ReverseTaskCache => REVERSE_TASK_CACHE[shard],
     }
 }
