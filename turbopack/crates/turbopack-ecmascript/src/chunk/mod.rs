@@ -127,7 +127,7 @@ impl Chunk for EcmascriptChunk {
 
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        Vc::upcast(self.chunking_context)
+        *ResolvedVc::upcast(self.chunking_context)
     }
 
     #[turbo_tasks::function]
@@ -163,7 +163,7 @@ impl ValueToString for EcmascriptChunk {
 impl EcmascriptChunk {
     #[turbo_tasks::function]
     pub fn chunk_content(&self) -> Vc<EcmascriptChunkContent> {
-        self.content
+        *self.content
     }
 
     #[turbo_tasks::function]
