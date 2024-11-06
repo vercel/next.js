@@ -117,10 +117,10 @@ pub struct AmdDefineWithDependenciesCodeGen {
 impl AmdDefineWithDependenciesCodeGen {
     pub fn new(
         dependencies_requests: Vec<AmdDefineDependencyElement>,
-        origin: Vc<Box<dyn ResolveOrigin>>,
-        path: Vc<AstPath>,
+        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+        path: ResolvedVc<AstPath>,
         factory_type: AmdDefineFactoryType,
-        issue_source: Vc<IssueSource>,
+        issue_source: ResolvedVc<IssueSource>,
         in_try: bool,
     ) -> Vc<Self> {
         Self::cell(AmdDefineWithDependenciesCodeGen {
