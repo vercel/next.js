@@ -52,7 +52,7 @@ pub enum EsmExport {
 
 #[turbo_tasks::function]
 pub async fn is_export_missing(
-    module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
+    module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     export_name: RcStr,
 ) -> Result<Vc<bool>> {
     let exports = module.get_exports().await?;
@@ -271,7 +271,7 @@ struct AllExportNamesResult {
 
 #[turbo_tasks::function]
 async fn get_all_export_names(
-    module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
+    module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
 ) -> Result<Vc<AllExportNamesResult>> {
     let exports = module.get_exports().await?;
     let EcmascriptExports::EsmExports(exports) = &*exports else {

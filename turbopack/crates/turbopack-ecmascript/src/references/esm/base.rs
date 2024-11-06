@@ -193,7 +193,7 @@ impl ModuleReference for EsmAssetReference {
                 for &module in result.primary_modules().await? {
                     if let Some(module) = ResolvedVc::try_downcast(module).await? {
                         let export = export_name.await?;
-                        if *is_export_missing(*module, export.clone_value()).await? {
+                        if is_export_missing(*module, export.clone_value()).await? {
                             InvalidExport {
                                 export: export_name,
                                 module,
@@ -427,7 +427,7 @@ impl Issue for InvalidExport {
     #[turbo_tasks::function]
     async fn description(&self) -> Result<Vc<OptionStyledString>> {
         let export = self.export.await?;
-        let export_names = all_known_export_names(self.module).await?;
+        let export_names = all_known_export_names(*self.module).await?;
         let did_you_mean = export_names
             .iter()
             .map(|s| (s, jaro(export.as_str(), s.as_str())))

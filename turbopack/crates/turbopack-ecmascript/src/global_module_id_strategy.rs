@@ -31,7 +31,7 @@ pub enum ReferencedModule {
 impl ReferencedModule {
     fn module(&self) -> Vc<Box<dyn Module>> {
         match *self {
-            ReferencedModule::Module(module) => module,
+            ReferencedModule::Module(module) => *module,
             ReferencedModule::AsyncLoaderModule(module) => *module,
         }
     }
