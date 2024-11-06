@@ -246,12 +246,6 @@ export interface NapiUpdateMessage {
 export interface NapiUpdateInfo {
   duration: number
   tasks: number
-  /**
-   * A human-readable list of invalidation reasons (typically changed file paths) if known. Will
-   * be `None` if [`NapiUpdateInfoOpts::include_reasons`] is `false` or if no reason was
-   * specified (not every invalidation includes a reason).
-   */
-  reasons?: string
 }
 /**
  * Subscribes to lifecycle events of the compilation.
@@ -269,7 +263,6 @@ export interface NapiUpdateInfo {
 export function projectUpdateInfoSubscribe(
   project: { __napiType: 'Project' },
   aggregationMs: number,
-  includeReasons: boolean,
   func: (...args: any[]) => any
 ): void
 export interface StackFrame {
