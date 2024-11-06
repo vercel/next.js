@@ -43,8 +43,8 @@ fn modifier() -> Vc<RcStr> {
 /// import appears in.
 #[turbo_tasks::value]
 pub struct ManifestLoaderChunkItem {
-    manifest: Vc<ManifestAsyncModule>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
+    manifest: ResolvedVc<ManifestAsyncModule>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
 
 #[turbo_tasks::value_impl]

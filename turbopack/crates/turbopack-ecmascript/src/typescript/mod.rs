@@ -169,8 +169,8 @@ impl Asset for TsConfigModuleAsset {
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct CompilerReference {
-    pub origin: Vc<Box<dyn ResolveOrigin>>,
-    pub request: Vc<Request>,
+    pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    pub request: ResolvedVc<Request>,
 }
 
 #[turbo_tasks::value_impl]
@@ -202,7 +202,7 @@ impl ValueToString for CompilerReference {
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct TsExtendsReference {
-    pub config: Vc<Box<dyn Source>>,
+    pub config: ResolvedVc<Box<dyn Source>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -243,8 +243,8 @@ impl ValueToString for TsExtendsReference {
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct TsNodeRequireReference {
-    pub origin: Vc<Box<dyn ResolveOrigin>>,
-    pub request: Vc<Request>,
+    pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    pub request: ResolvedVc<Request>,
 }
 
 #[turbo_tasks::value_impl]
@@ -280,8 +280,8 @@ impl ValueToString for TsNodeRequireReference {
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct TsConfigTypesReference {
-    pub origin: Vc<Box<dyn ResolveOrigin>>,
-    pub request: Vc<Request>,
+    pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    pub request: ResolvedVc<Request>,
 }
 
 #[turbo_tasks::value_impl]

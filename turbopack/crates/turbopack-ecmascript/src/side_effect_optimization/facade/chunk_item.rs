@@ -30,8 +30,8 @@ use crate::{
 /// The chunk item for [EcmascriptModuleFacadeModule].
 #[turbo_tasks::value(shared)]
 pub struct EcmascriptModuleFacadeChunkItem {
-    pub(crate) module: Vc<EcmascriptModuleFacadeModule>,
-    pub(crate) chunking_context: Vc<Box<dyn ChunkingContext>>,
+    pub(crate) module: ResolvedVc<EcmascriptModuleFacadeModule>,
+    pub(crate) chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
 
 #[turbo_tasks::value_impl]

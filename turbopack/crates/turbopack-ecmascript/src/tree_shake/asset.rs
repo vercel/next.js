@@ -26,8 +26,8 @@ use crate::{
 /// This type is used for an advanced tree shkaing.
 #[turbo_tasks::value]
 pub struct EcmascriptModulePartAsset {
-    pub full_module: Vc<EcmascriptModuleAsset>,
-    pub part: Vc<ModulePart>,
+    pub full_module: ResolvedVc<EcmascriptModuleAsset>,
+    pub part: ResolvedVc<ModulePart>,
 }
 
 #[turbo_tasks::value_impl]

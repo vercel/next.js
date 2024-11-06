@@ -24,8 +24,8 @@ use crate::{
 
 #[turbo_tasks::value(shared)]
 pub struct WorkerLoaderChunkItem {
-    pub module: Vc<WorkerLoaderModule>,
-    pub chunking_context: Vc<Box<dyn ChunkingContext>>,
+    pub module: ResolvedVc<WorkerLoaderModule>,
+    pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
 
 #[turbo_tasks::function]

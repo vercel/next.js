@@ -27,7 +27,7 @@ use crate::{
 /// from [EcmascriptModuleFacadeModule] instead.
 #[turbo_tasks::value]
 pub struct EcmascriptModuleLocalsModule {
-    pub module: Vc<EcmascriptModuleAsset>,
+    pub module: ResolvedVc<EcmascriptModuleAsset>,
 }
 
 #[turbo_tasks::value_impl]

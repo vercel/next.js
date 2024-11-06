@@ -16,8 +16,8 @@ use crate::EcmascriptAnalyzable;
 /// the final runtime code, while keeping source map information.
 #[turbo_tasks::value]
 pub struct StaticEcmascriptCode {
-    asset_context: Vc<Box<dyn AssetContext>>,
-    asset: Vc<Box<dyn EcmascriptAnalyzable>>,
+    asset_context: ResolvedVc<Box<dyn AssetContext>>,
+    asset: ResolvedVc<Box<dyn EcmascriptAnalyzable>>,
 }
 
 #[turbo_tasks::value_impl]

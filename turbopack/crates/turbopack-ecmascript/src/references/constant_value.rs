@@ -12,7 +12,7 @@ use crate::{
 #[turbo_tasks::value]
 pub struct ConstantValue {
     value: CompileTimeDefineValue,
-    path: Vc<AstPath>,
+    path: ResolvedVc<AstPath>,
 }
 
 #[turbo_tasks::value_impl]

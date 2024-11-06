@@ -136,7 +136,7 @@ impl DirList {
 }
 
 #[turbo_tasks::value(transparent)]
-pub(crate) struct FlatDirList(FxIndexMap<RcStr, Vc<FileSystemPath>>);
+pub(crate) struct FlatDirList(FxIndexMap<RcStr, ResolvedVc<FileSystemPath>>);
 
 #[turbo_tasks::value_impl]
 impl FlatDirList {
@@ -150,8 +150,8 @@ impl FlatDirList {
 #[derive(Debug)]
 pub struct RequireContextMapEntry {
     pub origin_relative: RcStr,
-    pub request: Vc<Request>,
-    pub result: Vc<ModuleResolveResult>,
+    pub request: ResolvedVc<Request>,
+    pub result: ResolvedVc<ModuleResolveResult>,
 }
 
 /// The resolved context map for a `require.context(..)` call.
@@ -206,8 +206,8 @@ pub struct RequireContextAssetReference {
     pub dir: RcStr,
     pub include_subdirs: bool,
 
-    pub path: Vc<AstPath>,
-    pub issue_source: Option<Vc<IssueSource>>,
+    pub path: ResolvedVc<AstPath>,
+    pub issue_source: Option<ResolvedVc<IssueSource>>,
     pub in_try: bool,
 }
 
@@ -306,7 +306,7 @@ impl CodeGenerateable for RequireContextAssetReference {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct ResolvedModuleReference(Vc<ModuleResolveResult>);
+pub struct ResolvedModuleReference(ResolvedVc<ModuleResolveResult>);
 
 #[turbo_tasks::value_impl]
 impl ModuleReference for ResolvedModuleReference {
@@ -329,10 +329,10 @@ impl ChunkableModuleReference for ResolvedModuleReference {}
 
 #[turbo_tasks::value]
 pub struct RequireContextAsset {
-    source: Vc<Box<dyn Source>>,
+    source: ResolvedVc<Box<dyn Source>>,
 
-    origin: Vc<Box<dyn ResolveOrigin>>,
-    map: Vc<RequireContextMap>,
+    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    map: ResolvedVc<RequireContextMap>,
 
     dir: RcStr,
     include_subdirs: bool,
@@ -410,11 +410,11 @@ impl EcmascriptChunkPlaceable for RequireContextAsset {
 
 #[turbo_tasks::value]
 pub struct RequireContextChunkItem {
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
-    inner: Vc<RequireContextAsset>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    inner: ResolvedVc<RequireContextAsset>,
 
-    origin: Vc<Box<dyn ResolveOrigin>>,
-    map: Vc<RequireContextMap>,
+    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    map: ResolvedVc<RequireContextMap>,
 }
 
 #[turbo_tasks::value_impl]

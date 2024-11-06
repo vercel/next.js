@@ -176,8 +176,8 @@ impl EcmascriptChunkPlaceable for CachedExternalModule {
 
 #[turbo_tasks::value]
 pub struct CachedExternalModuleChunkItem {
-    module: Vc<CachedExternalModule>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
+    module: ResolvedVc<CachedExternalModule>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -253,7 +253,7 @@ impl EcmascriptChunkItem for CachedExternalModuleChunkItem {
 /// "client modules" and "client modules ssr".
 #[turbo_tasks::value]
 pub struct IncludeIdentModule {
-    ident: Vc<AssetIdent>,
+    ident: ResolvedVc<AssetIdent>,
 }
 
 #[turbo_tasks::value_impl]

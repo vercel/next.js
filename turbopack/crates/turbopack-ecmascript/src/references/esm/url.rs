@@ -48,13 +48,13 @@ pub enum UrlRewriteBehavior {
 /// referenced file to be imported/fetched/etc.
 #[turbo_tasks::value]
 pub struct UrlAssetReference {
-    origin: Vc<Box<dyn ResolveOrigin>>,
-    request: Vc<Request>,
-    rendering: Vc<Rendering>,
-    ast_path: Vc<AstPath>,
-    issue_source: Vc<IssueSource>,
+    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    request: ResolvedVc<Request>,
+    rendering: ResolvedVc<Rendering>,
+    ast_path: ResolvedVc<AstPath>,
+    issue_source: ResolvedVc<IssueSource>,
     in_try: bool,
-    url_rewrite_behavior: Vc<UrlRewriteBehavior>,
+    url_rewrite_behavior: ResolvedVc<UrlRewriteBehavior>,
 }
 
 #[turbo_tasks::value_impl]

@@ -442,14 +442,14 @@ async fn get_part_id(result: &SplitResult, part: Vc<ModulePart>) -> Result<u32> 
 #[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
 pub(crate) enum SplitResult {
     Ok {
-        asset_ident: Vc<AssetIdent>,
+        asset_ident: ResolvedVc<AssetIdent>,
 
         /// `u32` is a index to `modules`.
         #[turbo_tasks(trace_ignore)]
         entrypoints: FxHashMap<Key, u32>,
 
         #[turbo_tasks(debug_ignore, trace_ignore)]
-        modules: Vec<Vc<ParseResult>>,
+        modules: Vec<ResolvedVc<ParseResult>>,
 
         #[turbo_tasks(trace_ignore)]
         deps: FxHashMap<u32, Vec<PartId>>,
@@ -458,7 +458,7 @@ pub(crate) enum SplitResult {
         star_reexports: Vec<ExportAll>,
     },
     Failed {
-        parse_result: Vc<ParseResult>,
+        parse_result: ResolvedVc<ParseResult>,
     },
 }
 

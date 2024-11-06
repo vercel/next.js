@@ -20,7 +20,7 @@ fn modifier() -> Vc<RcStr> {
 /// and exports a URL to pass to the worker constructor.
 #[turbo_tasks::value]
 pub struct WorkerLoaderModule {
-    pub inner: Vc<Box<dyn ChunkableModule>>,
+    pub inner: ResolvedVc<Box<dyn ChunkableModule>>,
 }
 
 #[turbo_tasks::value_impl]

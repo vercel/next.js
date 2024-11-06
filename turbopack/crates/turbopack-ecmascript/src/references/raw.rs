@@ -10,8 +10,8 @@ use turbopack_core::{
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct FileSourceReference {
-    pub source: Vc<Box<dyn Source>>,
-    pub path: Vc<Pattern>,
+    pub source: ResolvedVc<Box<dyn Source>>,
+    pub path: ResolvedVc<Pattern>,
 }
 
 #[turbo_tasks::value_impl]

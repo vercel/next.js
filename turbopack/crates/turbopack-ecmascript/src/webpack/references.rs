@@ -62,9 +62,9 @@ pub async fn module_references(
 }
 
 struct ModuleReferencesVisitor<'a> {
-    runtime: Vc<WebpackRuntime>,
-    references: &'a mut Vec<Vc<Box<dyn ModuleReference>>>,
-    transforms: Vc<EcmascriptInputTransforms>,
+    runtime: ResolvedVc<WebpackRuntime>,
+    references: &'a mut Vec<ResolvedVc<Box<dyn ModuleReference>>>,
+    transforms: ResolvedVc<EcmascriptInputTransforms>,
 }
 
 impl Visit for ModuleReferencesVisitor<'_> {

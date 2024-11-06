@@ -24,7 +24,7 @@ pub struct PreprocessedChildrenIdents {
 #[derive(Clone, Hash)]
 #[turbo_tasks::value(shared)]
 pub enum ReferencedModule {
-    Module(Vc<Box<dyn Module>>),
+    Module(ResolvedVc<Box<dyn Module>>),
     AsyncLoaderModule(ResolvedVc<Box<dyn Module>>),
 }
 

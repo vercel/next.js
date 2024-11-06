@@ -43,9 +43,9 @@ pub enum EsmExport {
     /// An imported binding that is exported (export { a as b } from "...")
     ///
     /// The last bool is true if the binding is a mutable binding
-    ImportedBinding(Vc<Box<dyn ModuleReference>>, RcStr, bool),
+    ImportedBinding(ResolvedVc<Box<dyn ModuleReference>>, RcStr, bool),
     /// An imported namespace that is exported (export * from "...")
-    ImportedNamespace(Vc<Box<dyn ModuleReference>>),
+    ImportedNamespace(ResolvedVc<Box<dyn ModuleReference>>),
     /// An error occurred while resolving the export
     Error,
 }
@@ -118,7 +118,7 @@ pub enum FoundExportType {
 
 #[turbo_tasks::value]
 pub struct FollowExportsResult {
-    pub module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
+    pub module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     pub export_name: Option<RcStr>,
     pub ty: FoundExportType,
 }
@@ -264,8 +264,8 @@ async fn handle_declared_export(
 
 #[turbo_tasks::value]
 struct AllExportNamesResult {
-    esm_exports: FxIndexMap<RcStr, Vc<Box<dyn EcmascriptChunkPlaceable>>>,
-    dynamic_exporting_modules: Vec<Vc<Box<dyn EcmascriptChunkPlaceable>>>,
+    esm_exports: FxIndexMap<RcStr, ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
+    dynamic_exporting_modules: Vec<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
 }
 
 #[turbo_tasks::function]
@@ -415,7 +415,7 @@ fn emit_star_exports_issue(source_ident: Vc<AssetIdent>, message: RcStr) {
 #[derive(Hash, Debug)]
 pub struct EsmExports {
     pub exports: BTreeMap<RcStr, EsmExport>,
-    pub star_exports: Vec<Vc<Box<dyn ModuleReference>>>,
+    pub star_exports: Vec<ResolvedVc<Box<dyn ModuleReference>>>,
 }
 
 /// The expanded version of [EsmExports], the `exports` field here includes all

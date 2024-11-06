@@ -31,7 +31,7 @@ pub enum WebpackRuntime {
         /// before converting to string
         #[turbo_tasks(trace_ignore)]
         chunk_request_expr: JsValue,
-        context_path: Vc<FileSystemPath>,
+        context_path: ResolvedVc<FileSystemPath>,
     },
     None,
 }

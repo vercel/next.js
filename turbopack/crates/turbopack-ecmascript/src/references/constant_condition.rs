@@ -20,7 +20,7 @@ pub enum ConstantConditionValue {
 #[turbo_tasks::value]
 pub struct ConstantCondition {
     value: ConstantConditionValue,
-    path: Vc<AstPath>,
+    path: ResolvedVc<AstPath>,
 }
 
 #[turbo_tasks::value_impl]

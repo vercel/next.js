@@ -126,8 +126,8 @@ async fn side_effects_from_package_json(
 
 #[turbo_tasks::value]
 struct SideEffectsInPackageJsonIssue {
-    path: Vc<FileSystemPath>,
-    description: Option<Vc<StyledString>>,
+    path: ResolvedVc<FileSystemPath>,
+    description: Option<ResolvedVc<StyledString>>,
 }
 
 #[turbo_tasks::value_impl]

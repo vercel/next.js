@@ -19,7 +19,7 @@ fn modifier() -> Vc<RcStr> {
 /// export of a JS module.
 #[turbo_tasks::value]
 pub struct TextContentFileSource {
-    pub source: Vc<Box<dyn Source>>,
+    pub source: ResolvedVc<Box<dyn Source>>,
 }
 
 #[turbo_tasks::value_impl]

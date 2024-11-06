@@ -28,8 +28,8 @@ use crate::{
 /// [EcmascriptModuleLocalsModule]. It allows to follow
 #[turbo_tasks::value]
 pub struct EcmascriptModuleFacadeModule {
-    pub module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
-    pub ty: Vc<ModulePart>,
+    pub module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    pub ty: ResolvedVc<ModulePart>,
 }
 
 #[turbo_tasks::value_impl]

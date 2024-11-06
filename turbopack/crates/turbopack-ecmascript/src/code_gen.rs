@@ -108,7 +108,7 @@ pub trait CodeGenerateableWithAsyncModuleInfo {
 
 #[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat)]
 pub enum CodeGen {
-    CodeGenerateable(Vc<Box<dyn CodeGenerateable>>),
+    CodeGenerateable(ResolvedVc<Box<dyn CodeGenerateable>>),
     CodeGenerateableWithAsyncModuleInfo(ResolvedVc<Box<dyn CodeGenerateableWithAsyncModuleInfo>>),
 }
 

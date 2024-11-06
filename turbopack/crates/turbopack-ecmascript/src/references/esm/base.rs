@@ -102,10 +102,10 @@ impl ReferencedAsset {
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct EsmAssetReference {
-    pub origin: Vc<Box<dyn ResolveOrigin>>,
-    pub request: Vc<Request>,
+    pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    pub request: ResolvedVc<Request>,
     pub annotations: ImportAnnotations,
-    pub issue_source: Vc<IssueSource>,
+    pub issue_source: ResolvedVc<IssueSource>,
     pub export_name: Option<ResolvedVc<ModulePart>>,
     pub import_externals: bool,
 }

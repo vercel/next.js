@@ -22,8 +22,8 @@ use crate::{
 /// __turbopack_import__ the actual module that was dynamically imported.
 #[turbo_tasks::value(shared)]
 pub(super) struct ManifestChunkItem {
-    pub chunking_context: Vc<Box<dyn ChunkingContext>>,
-    pub manifest: Vc<ManifestAsyncModule>,
+    pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    pub manifest: ResolvedVc<ManifestAsyncModule>,
 }
 
 #[turbo_tasks::value_impl]

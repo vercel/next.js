@@ -24,7 +24,7 @@ use crate::{
 #[turbo_tasks::value(shared)]
 #[derive(Hash, Debug)]
 pub struct ImportMetaBinding {
-    path: Vc<FileSystemPath>,
+    path: ResolvedVc<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
@@ -79,7 +79,7 @@ impl CodeGenerateable for ImportMetaBinding {
 #[turbo_tasks::value(shared)]
 #[derive(Hash, Debug)]
 pub struct ImportMetaRef {
-    ast_path: Vc<AstPath>,
+    ast_path: ResolvedVc<AstPath>,
 }
 
 #[turbo_tasks::value_impl]

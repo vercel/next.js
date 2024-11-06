@@ -40,9 +40,9 @@ impl EsmBindings {
 
 #[derive(Hash, Clone, Debug, TaskInput, Serialize, Deserialize, PartialEq, Eq, TraceRawVcs)]
 pub struct EsmBinding {
-    pub reference: Vc<EsmAssetReference>,
+    pub reference: ResolvedVc<EsmAssetReference>,
     pub export: Option<RcStr>,
-    pub ast_path: Vc<AstPath>,
+    pub ast_path: ResolvedVc<AstPath>,
 }
 
 impl EsmBinding {

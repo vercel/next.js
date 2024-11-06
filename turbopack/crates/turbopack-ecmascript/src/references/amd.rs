@@ -32,9 +32,9 @@ use crate::{
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct AmdDefineAssetReference {
-    origin: Vc<Box<dyn ResolveOrigin>>,
-    request: Vc<Request>,
-    issue_source: Vc<IssueSource>,
+    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    request: ResolvedVc<Request>,
+    issue_source: ResolvedVc<IssueSource>,
     in_try: bool,
 }
 
@@ -85,7 +85,7 @@ impl ChunkableModuleReference for AmdDefineAssetReference {}
 #[derive(ValueDebugFormat, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, Clone)]
 pub enum AmdDefineDependencyElement {
     Request {
-        request: Vc<Request>,
+        request: ResolvedVc<Request>,
         request_str: String,
     },
     Exports,
@@ -106,10 +106,10 @@ pub enum AmdDefineFactoryType {
 #[derive(Debug)]
 pub struct AmdDefineWithDependenciesCodeGen {
     dependencies_requests: Vec<AmdDefineDependencyElement>,
-    origin: Vc<Box<dyn ResolveOrigin>>,
-    path: Vc<AstPath>,
+    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    path: ResolvedVc<AstPath>,
     factory_type: AmdDefineFactoryType,
-    issue_source: Vc<IssueSource>,
+    issue_source: ResolvedVc<IssueSource>,
     in_try: bool,
 }
 

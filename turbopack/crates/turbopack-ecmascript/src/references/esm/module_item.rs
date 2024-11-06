@@ -24,7 +24,7 @@ use crate::{
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct EsmModuleItem {
-    pub path: Vc<AstPath>,
+    pub path: ResolvedVc<AstPath>,
 }
 
 #[turbo_tasks::value_impl]

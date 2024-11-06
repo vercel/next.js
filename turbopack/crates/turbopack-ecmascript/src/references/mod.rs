@@ -146,28 +146,28 @@ use crate::{
 #[turbo_tasks::value(shared)]
 #[derive(Clone)]
 pub struct AnalyzeEcmascriptModuleResult {
-    pub references: Vc<ModuleReferences>,
-    pub local_references: Vc<ModuleReferences>,
-    pub reexport_references: Vc<ModuleReferences>,
-    pub evaluation_references: Vc<ModuleReferences>,
-    pub code_generation: Vc<CodeGenerateables>,
-    pub exports: Vc<EcmascriptExports>,
-    pub async_module: Vc<OptionAsyncModule>,
+    pub references: ResolvedVc<ModuleReferences>,
+    pub local_references: ResolvedVc<ModuleReferences>,
+    pub reexport_references: ResolvedVc<ModuleReferences>,
+    pub evaluation_references: ResolvedVc<ModuleReferences>,
+    pub code_generation: ResolvedVc<CodeGenerateables>,
+    pub exports: ResolvedVc<EcmascriptExports>,
+    pub async_module: ResolvedVc<OptionAsyncModule>,
     /// `true` when the analysis was successful.
     pub successful: bool,
-    pub source_map: Vc<OptionSourceMap>,
+    pub source_map: ResolvedVc<OptionSourceMap>,
 }
 
 /// A temporary analysis result builder to pass around, to be turned into an
 /// `Vc<AnalyzeEcmascriptModuleResult>` eventually.
 pub struct AnalyzeEcmascriptModuleResultBuilder {
-    references: FxIndexSet<Vc<Box<dyn ModuleReference>>>,
-    local_references: FxIndexSet<Vc<Box<dyn ModuleReference>>>,
-    reexport_references: FxIndexSet<Vc<Box<dyn ModuleReference>>>,
-    evaluation_references: FxIndexSet<Vc<Box<dyn ModuleReference>>>,
+    references: FxIndexSet<ResolvedVc<Box<dyn ModuleReference>>>,
+    local_references: FxIndexSet<ResolvedVc<Box<dyn ModuleReference>>>,
+    reexport_references: FxIndexSet<ResolvedVc<Box<dyn ModuleReference>>>,
+    evaluation_references: FxIndexSet<ResolvedVc<Box<dyn ModuleReference>>>,
     code_gens: Vec<CodeGen>,
     exports: EcmascriptExports,
-    async_module: Vc<OptionAsyncModule>,
+    async_module: ResolvedVc<OptionAsyncModule>,
     successful: bool,
     source_map: Option<ResolvedVc<OptionSourceMap>>,
     bindings: Vec<EsmBinding>,
@@ -351,9 +351,9 @@ impl Default for AnalyzeEcmascriptModuleResultBuilder {
 
 struct AnalysisState<'a> {
     handler: &'a Handler,
-    source: Vc<Box<dyn Source>>,
-    origin: Vc<Box<dyn ResolveOrigin>>,
-    compile_time_info: Vc<CompileTimeInfo>,
+    source: ResolvedVc<Box<dyn Source>>,
+    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    compile_time_info: ResolvedVc<CompileTimeInfo>,
     var_graph: &'a VarGraph,
     /// This is the current state of known values of function
     /// arguments.
@@ -2719,10 +2719,10 @@ impl StaticAnalyser {
 struct ModuleReferencesVisitor<'a> {
     eval_context: &'a EvalContext,
     old_analyser: StaticAnalyser,
-    import_references: &'a [Vc<EsmAssetReference>],
+    import_references: &'a [ResolvedVc<EsmAssetReference>],
     analysis: &'a mut AnalyzeEcmascriptModuleResultBuilder,
     esm_exports: BTreeMap<RcStr, EsmExport>,
-    esm_star_exports: Vec<Vc<Box<dyn ModuleReference>>>,
+    esm_star_exports: Vec<ResolvedVc<Box<dyn ModuleReference>>>,
     webpack_runtime: Option<(RcStr, Span)>,
     webpack_entry: bool,
     webpack_chunks: Vec<Lit>,

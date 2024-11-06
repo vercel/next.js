@@ -33,8 +33,8 @@ fn modifier() -> Vc<RcStr> {
 /// import appears in.
 #[turbo_tasks::value(shared)]
 pub struct ManifestAsyncModule {
-    pub inner: Vc<Box<dyn ChunkableModule>>,
-    pub chunking_context: Vc<Box<dyn ChunkingContext>>,
+    pub inner: ResolvedVc<Box<dyn ChunkableModule>>,
+    pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     pub availability_info: AvailabilityInfo,
 }
 

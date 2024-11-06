@@ -18,7 +18,7 @@ enum DynamicExpressionType {
 
 #[turbo_tasks::value]
 pub struct DynamicExpression {
-    path: Vc<AstPath>,
+    path: ResolvedVc<AstPath>,
     ty: DynamicExpressionType,
 }
 

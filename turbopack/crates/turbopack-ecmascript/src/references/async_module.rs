@@ -51,7 +51,7 @@ pub struct AsyncModule {
 
 /// Option<[AsyncModule]>.
 #[turbo_tasks::value(transparent)]
-pub struct OptionAsyncModule(Option<Vc<AsyncModule>>);
+pub struct OptionAsyncModule(Option<ResolvedVc<AsyncModule>>);
 
 #[turbo_tasks::value_impl]
 impl OptionAsyncModule {

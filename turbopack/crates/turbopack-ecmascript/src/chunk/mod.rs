@@ -36,8 +36,8 @@ pub use self::{
 
 #[turbo_tasks::value]
 pub struct EcmascriptChunk {
-    pub chunking_context: Vc<Box<dyn ChunkingContext>>,
-    pub content: Vc<EcmascriptChunkContent>,
+    pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    pub content: ResolvedVc<EcmascriptChunkContent>,
 }
 
 #[turbo_tasks::value_impl]

@@ -27,7 +27,7 @@ use crate::{
 
 #[turbo_tasks::value]
 pub struct Unreachable {
-    range: Vc<AstPathRange>,
+    range: ResolvedVc<AstPathRange>,
 }
 
 #[turbo_tasks::value_impl]
