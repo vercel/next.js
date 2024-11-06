@@ -41,16 +41,16 @@ pub struct ManifestAsyncModule {
 #[turbo_tasks::value_impl]
 impl ManifestAsyncModule {
     #[turbo_tasks::function]
-    pub fn new(
+    pub async fn new(
         module: Vc<Box<dyn ChunkableModule>>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         availability_info: Value<AvailabilityInfo>,
-    ) -> Vc<Self> {
-        Self::cell(ManifestAsyncModule {
+    ) -> Result<Vc<Self>> {
+        Ok(Self::cell(ManifestAsyncModule {
             inner: module.to_resolved().await?,
             chunking_context: chunking_context.to_resolved().await?,
             availability_info: availability_info.into_value(),
-        })
+        }))
     }
 
     #[turbo_tasks::function]
