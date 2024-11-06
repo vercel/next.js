@@ -47,8 +47,8 @@ impl ManifestAsyncModule {
         availability_info: Value<AvailabilityInfo>,
     ) -> Vc<Self> {
         Self::cell(ManifestAsyncModule {
-            inner: module,
-            chunking_context,
+            inner: module.to_resolved().await?,
+            chunking_context: chunking_context.to_resolved().await?,
             availability_info: availability_info.into_value(),
         })
     }
