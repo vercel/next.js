@@ -387,7 +387,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
         let module_type_result = *self.determine_module_type().await?;
 
         Ok(EcmascriptModuleContent::new(
-            parsed,
+            *parsed,
             self.ident(),
             module_type_result.module_type,
             chunking_context,
@@ -465,7 +465,7 @@ impl EcmascriptModuleAsset {
 
     #[turbo_tasks::function]
     pub fn parse(&self) -> Vc<ParseResult> {
-        parse(self.source, Value::new(self.ty), self.transforms)
+        parse(*self.source, Value::new(self.ty), *self.transforms)
     }
 
     #[turbo_tasks::function]
@@ -560,14 +560,14 @@ impl Asset for EcmascriptModuleAsset {
 #[turbo_tasks::value_impl]
 impl ChunkableModule for EcmascriptModuleAsset {
     #[turbo_tasks::function]
-    fn as_chunk_item(
+    async fn as_chunk_item(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Vc<Box<dyn ChunkItem>> {
-        Vc::upcast(ModuleChunkItem::cell(ModuleChunkItem {
-            module: self,
-            chunking_context,
-        }))
+    ) -> Result<Vc<Box<dyn ChunkItem>>> {
+        Ok(Vc::upcast(ModuleChunkItem::cell(ModuleChunkItem {
+            module: self.to_resolved().await?,
+            chunking_context: chunking_context.to_resolved().await?,
+        })))
     }
 }
 
