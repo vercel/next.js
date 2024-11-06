@@ -477,7 +477,7 @@ export default class NextNodeServer extends BaseServer<
     res: NodeNextResponse,
     options: {
       result: RenderResult
-      type: 'html' | 'json'
+      type: 'html' | 'json' | 'rsc'
       generateEtags: boolean
       poweredByHeader: boolean
       revalidate: Revalidate | undefined
@@ -590,7 +590,9 @@ export default class NextNodeServer extends BaseServer<
           // This code path does not service revalidations for unknown param
           // shells. As a result, we don't need to pass in the unknown params.
           null,
-          renderOpts
+          renderOpts,
+          this.getServerComponentsHmrCache(),
+          false
         )
       }
 

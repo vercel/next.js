@@ -1,10 +1,7 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use next_custom_transforms::transforms::page_config::page_config;
-use swc_core::{
-    common::util::take::Take,
-    ecma::{ast::*, visit::FoldWith},
-};
+use swc_core::ecma::ast::*;
 use turbo_tasks::{ReadRef, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
@@ -38,9 +35,7 @@ struct NextPageConfig {
 impl CustomTransformer for NextPageConfig {
     #[tracing::instrument(level = tracing::Level::TRACE, name = "next_page_config", skip_all)]
     async fn transform(&self, program: &mut Program, _ctx: &TransformContext<'_>) -> Result<()> {
-        let p = std::mem::replace(program, Program::Module(Module::dummy()));
-
-        *program = p.fold_with(&mut page_config(self.is_development, true));
+        program.mutate(page_config(self.is_development, true));
         Ok(())
     }
 }

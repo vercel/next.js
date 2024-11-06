@@ -3,13 +3,7 @@ use async_trait::async_trait;
 use next_custom_transforms::transforms::strip_page_exports::{
     next_transform_strip_page_exports, ExportFilter,
 };
-use swc_core::{
-    common::util::take::Take,
-    ecma::{
-        ast::{Module, Program},
-        visit::FoldWith,
-    },
-};
+use swc_core::ecma::ast::Program;
 use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect, RuleCondition};
@@ -66,9 +60,7 @@ impl CustomTransformer for NextJsStripPageExports {
     async fn transform(&self, program: &mut Program, _ctx: &TransformContext<'_>) -> Result<()> {
         // TODO(alexkirsz) Connect the eliminated_packages to telemetry.
         let eliminated_packages = Default::default();
-
-        let p = std::mem::replace(program, Program::Module(Module::dummy()));
-        *program = p.fold_with(&mut next_transform_strip_page_exports(
+        program.mutate(next_transform_strip_page_exports(
             self.export_filter,
             eliminated_packages,
         ));
