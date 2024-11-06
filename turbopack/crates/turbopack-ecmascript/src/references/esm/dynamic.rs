@@ -96,15 +96,15 @@ impl CodeGenerateable for EsmAsyncAssetReference {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
         let pm = PatternMapping::resolve_request(
-            self.request,
-            self.origin,
+            *self.request,
+            *self.origin,
             Vc::upcast(chunking_context),
             esm_resolve(
-                self.origin,
-                self.request,
+                *self.origin,
+                *self.request,
                 Value::new(EcmaScriptModulesReferenceSubType::DynamicImport),
                 self.in_try,
-                Some(self.issue_source),
+                Some(*self.issue_source),
             ),
             if matches!(
                 *chunking_context.environment().chunk_loading().await?,
