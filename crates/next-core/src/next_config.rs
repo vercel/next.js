@@ -403,6 +403,7 @@ pub struct ExperimentalTurboConfig {
     pub use_swc_css: Option<bool>,
     pub tree_shaking: Option<bool>,
     pub module_id_strategy: Option<ModuleIdStrategy>,
+    pub minify: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
@@ -1233,6 +1234,11 @@ impl NextConfig {
             return Vc::cell(None);
         };
         Vc::cell(Some(module_id_strategy.clone()))
+    }
+
+    #[turbo_tasks::function]
+    pub fn turbo_minify(&self) -> Vc<Option<bool>> {
+        Vc::cell(self.experimental.turbo.as_ref().and_then(|t| t.minify))
     }
 }
 
