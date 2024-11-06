@@ -54,7 +54,7 @@ export const init = async (ipc: Ipc<IpcInfoMessage, IpcRequestMessage>) => {
       let pluginFactory = arg;
 
       if (typeof pluginFactory === "string") {
-        pluginFactory = __turbopack_external_require__(pluginFactory, () => require(pluginFactory));
+        pluginFactory = require(/* turbopackIgnore: true */ pluginFactory);
       }
 
       if (pluginFactory.default) {
