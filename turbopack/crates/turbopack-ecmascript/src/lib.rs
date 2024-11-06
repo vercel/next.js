@@ -714,15 +714,15 @@ impl EcmascriptModuleContent {
     /// Creates a new [`Vc<EcmascriptModuleContent>`].
     #[turbo_tasks::function]
     pub async fn new(
-        parsed: ResolvedVc<ParseResult>,
-        ident: ResolvedVc<AssetIdent>,
+        parsed: Vc<ParseResult>,
+        ident: Vc<AssetIdent>,
         specified_module_type: SpecifiedModuleType,
-        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-        references: ResolvedVc<ModuleReferences>,
-        code_generation: ResolvedVc<CodeGenerateables>,
-        async_module: ResolvedVc<OptionAsyncModule>,
-        source_map: ResolvedVc<OptionSourceMap>,
-        exports: ResolvedVc<EcmascriptExports>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        references: Vc<ModuleReferences>,
+        code_generation: Vc<CodeGenerateables>,
+        async_module: Vc<OptionAsyncModule>,
+        source_map: Vc<OptionSourceMap>,
+        exports: Vc<EcmascriptExports>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<Self>> {
         let mut code_gens = Vec::new();
@@ -765,10 +765,10 @@ impl EcmascriptModuleContent {
 
         gen_content_with_code_gens(
             parsed.to_resolved().await?,
-            ident,
+            *ident,
             specified_module_type,
             &code_gens,
-            source_map,
+            *source_map,
         )
         .await
     }
