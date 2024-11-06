@@ -181,10 +181,10 @@ impl ModuleReference for EsmAssetReference {
 
         let result = esm_resolve(
             self.get_origin().resolve().await?,
-            self.request,
+            *self.request,
             Value::new(ty),
             false,
-            Some(self.issue_source),
+            Some(*self.issue_source),
         );
 
         if let Some(part) = self.export_name {
