@@ -596,7 +596,7 @@ impl ResolveOrigin for EcmascriptModuleAsset {
 
     #[turbo_tasks::function]
     fn asset_context(&self) -> Vc<Box<dyn AssetContext>> {
-        self.asset_context
+        *self.asset_context
     }
 
     #[turbo_tasks::function]
@@ -651,7 +651,7 @@ impl ChunkItem for ModuleChunkItem {
     #[turbo_tasks::function]
     async fn is_self_async(&self) -> Result<Vc<bool>> {
         if let Some(async_module) = *self.module.get_async_module().await? {
-            Ok(async_module.is_self_async(self.module.analyze().await?.references))
+            Ok(async_module.is_self_async(*self.module.analyze().await?.references))
         } else {
             Ok(Vc::cell(false))
         }
