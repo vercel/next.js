@@ -12,7 +12,7 @@ use next_custom_transforms::transforms::{
     strip_page_exports::{next_transform_strip_page_exports, ExportFilter},
 };
 use swc_core::{
-    common::{chain, FileName, Mark},
+    common::{FileName, Mark},
     ecma::{
         parser::{EsSyntax, Syntax},
         transforms::{
@@ -40,6 +40,7 @@ fn re_export_all_in_page(input: PathBuf) {
         &output,
         FixtureTestConfig {
             allow_error: true,
+            module: Some(true),
             ..Default::default()
         },
     );
@@ -65,6 +66,7 @@ fn next_dynamic_errors(input: PathBuf) {
         &output,
         FixtureTestConfig {
             allow_error: true,
+            module: Some(true),
             ..Default::default()
         },
     );
@@ -80,6 +82,7 @@ fn next_ssg_errors(input: PathBuf) {
         &output,
         FixtureTestConfig {
             allow_error: true,
+            module: Some(true),
             ..Default::default()
         },
     );
@@ -96,6 +99,7 @@ fn react_server_components_server_graph_errors(input: PathBuf) {
                 FileName::Real(PathBuf::from("/some-project/src/layout.js")).into(),
                 Config::WithOptions(Options {
                     is_react_server_layer: true,
+                    dynamic_io_enabled: false,
                 }),
                 tr.comments.as_ref().clone(),
                 None,
@@ -105,6 +109,7 @@ fn react_server_components_server_graph_errors(input: PathBuf) {
         &output,
         FixtureTestConfig {
             allow_error: true,
+            module: Some(true),
             ..Default::default()
         },
     );
@@ -121,6 +126,7 @@ fn react_server_components_client_graph_errors(input: PathBuf) {
                 FileName::Real(PathBuf::from("/some-project/src/page.js")).into(),
                 Config::WithOptions(Options {
                     is_react_server_layer: false,
+                    dynamic_io_enabled: false,
                 }),
                 tr.comments.as_ref().clone(),
                 None,
@@ -130,6 +136,7 @@ fn react_server_components_client_graph_errors(input: PathBuf) {
         &output,
         FixtureTestConfig {
             allow_error: true,
+            module: Some(true),
             ..Default::default()
         },
     );
@@ -150,6 +157,7 @@ fn next_font_loaders_errors(input: PathBuf) {
         &output,
         FixtureTestConfig {
             allow_error: true,
+            module: Some(true),
             ..Default::default()
         },
     );
@@ -162,13 +170,14 @@ fn react_server_actions_server_errors(input: PathBuf) {
     test_fixture(
         syntax(),
         &|tr| {
-            chain!(
+            (
                 resolver(Mark::new(), Mark::new(), false),
                 server_components(
                     FileName::Real(PathBuf::from("/app/item.js")).into(),
                     Config::WithOptions(Options {
-                        is_react_server_layer: true
-                    },),
+                        is_react_server_layer: true,
+                        dynamic_io_enabled: false,
+                    }),
                     tr.comments.as_ref().clone(),
                     None,
                 ),
@@ -177,16 +186,17 @@ fn react_server_actions_server_errors(input: PathBuf) {
                     server_actions::Config {
                         is_react_server_layer: true,
                         enabled: true,
-                        hash_salt: "".into()
+                        hash_salt: "".into(),
                     },
                     tr.comments.as_ref().clone(),
-                )
+                ),
             )
         },
         &input,
         &output,
         FixtureTestConfig {
             allow_error: true,
+            module: Some(true),
             ..Default::default()
         },
     );
@@ -199,13 +209,14 @@ fn react_server_actions_client_errors(input: PathBuf) {
     test_fixture(
         syntax(),
         &|tr| {
-            chain!(
+            (
                 resolver(Mark::new(), Mark::new(), false),
                 server_components(
                     FileName::Real(PathBuf::from("/app/item.js")).into(),
                     Config::WithOptions(Options {
-                        is_react_server_layer: false
-                    },),
+                        is_react_server_layer: false,
+                        dynamic_io_enabled: false,
+                    }),
                     tr.comments.as_ref().clone(),
                     None,
                 ),
@@ -214,16 +225,17 @@ fn react_server_actions_client_errors(input: PathBuf) {
                     server_actions::Config {
                         is_react_server_layer: false,
                         enabled: true,
-                        hash_salt: "".into()
+                        hash_salt: "".into(),
                     },
                     tr.comments.as_ref().clone(),
-                )
+                ),
             )
         },
         &input,
         &output,
         FixtureTestConfig {
             allow_error: true,
+            module: Some(true),
             ..Default::default()
         },
     );
@@ -241,6 +253,7 @@ fn next_transform_strip_page_exports_errors(input: PathBuf) {
         &output,
         FixtureTestConfig {
             allow_error: true,
+            module: Some(true),
             ..Default::default()
         },
     );

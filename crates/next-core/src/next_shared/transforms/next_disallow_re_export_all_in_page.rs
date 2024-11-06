@@ -1,10 +1,7 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use next_custom_transforms::transforms::disallow_re_export_all_in_page::disallow_re_export_all_in_page;
-use swc_core::{
-    common::util::take::Take,
-    ecma::{ast::*, visit::FoldWith},
-};
+use swc_core::ecma::ast::*;
 use turbo_tasks::{ReadRef, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
@@ -34,8 +31,7 @@ struct NextDisallowReExportAllInPage;
 impl CustomTransformer for NextDisallowReExportAllInPage {
     #[tracing::instrument(level = tracing::Level::TRACE, name = "next_disallow_reexport_all", skip_all)]
     async fn transform(&self, program: &mut Program, _ctx: &TransformContext<'_>) -> Result<()> {
-        let p = std::mem::replace(program, Program::Module(Module::dummy()));
-        *program = p.fold_with(&mut disallow_re_export_all_in_page(true));
+        program.mutate(disallow_re_export_all_in_page(true));
         Ok(())
     }
 }

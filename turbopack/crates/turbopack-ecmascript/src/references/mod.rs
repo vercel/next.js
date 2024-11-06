@@ -240,14 +240,14 @@ impl AnalyzeEcmascriptModuleResultBuilder {
 
     /// Adds a codegen to the analysis result.
     #[allow(dead_code)]
-    pub fn add_code_gen_with_availability_info<C>(&mut self, code_gen: Vc<C>)
+    pub fn add_code_gen_with_availability_info<C>(&mut self, code_gen: ResolvedVc<C>)
     where
         C: Upcast<Box<dyn CodeGenerateableWithAsyncModuleInfo>>,
     {
         self.code_gens
-            .push(CodeGen::CodeGenerateableWithAsyncModuleInfo(Vc::upcast(
-                code_gen,
-            )));
+            .push(CodeGen::CodeGenerateableWithAsyncModuleInfo(
+                ResolvedVc::upcast(code_gen),
+            ));
     }
 
     pub fn add_binding(&mut self, binding: EsmBinding) {
@@ -319,7 +319,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                     *c = c.resolve().await?;
                 }
                 CodeGen::CodeGenerateableWithAsyncModuleInfo(c) => {
-                    *c = c.resolve().await?;
+                    *c = c.to_resolved().await?;
                 }
             }
         }
@@ -3067,7 +3067,7 @@ async fn resolve_as_webpack_runtime(
     );
 
     if let Some(source) = *resolved.first_source().await? {
-        Ok(webpack_runtime(source, transforms))
+        Ok(webpack_runtime(*source, transforms))
     } else {
         Ok(WebpackRuntime::None.into())
     }

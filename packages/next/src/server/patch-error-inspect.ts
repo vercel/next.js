@@ -1,10 +1,25 @@
-import { findSourceMap } from 'module'
+import { findSourceMap, type SourceMapPayload } from 'module'
+import * as path from 'path'
+import * as url from 'url'
 import type * as util from 'util'
 import { SourceMapConsumer as SyncSourceMapConsumer } from 'next/dist/compiled/source-map'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import { parseStack } from '../client/components/react-dev-overlay/server/middleware'
 import { getOriginalCodeFrame } from '../client/components/react-dev-overlay/server/shared'
 import { workUnitAsyncStorage } from './app-render/work-unit-async-storage.external'
+
+interface ModernRawSourceMap extends SourceMapPayload {
+  ignoreList?: number[]
+}
+
+interface IgnoreableStackFrame extends StackFrame {
+  ignored: boolean
+}
+
+type SourceMapCache = Map<
+  string,
+  { map: SyncSourceMapConsumer; raw: ModernRawSourceMap }
+>
 
 // TODO: Implement for Edge runtime
 const inspectSymbol = Symbol.for('nodejs.util.inspect.custom')
@@ -14,9 +29,21 @@ function frameToString(frame: StackFrame): string {
   if (frame.column !== null && sourceLocation !== '') {
     sourceLocation += `:${frame.column}`
   }
+
+  const filePath =
+    frame.file !== null &&
+    frame.file.startsWith('file://') &&
+    URL.canParse(frame.file)
+      ? // If not relative to CWD, the path is ambiguous to IDEs and clicking will prompt to select the file first.
+        // In a multi-app repo, this leads to potentially larger file names but will make clicking snappy.
+        // There's no tradeoff for the cases where `dir` in `next dev [dir]` is omitted
+        // since relative to cwd is both the shortest and snappiest.
+        path.relative(process.cwd(), url.fileURLToPath(frame.file))
+      : frame.file
+
   return frame.methodName
-    ? `    at ${frame.methodName} (${frame.file}${sourceLocation})`
-    : `    at ${frame.file}${frame.lineNumber}:${frame.column}`
+    ? `    at ${frame.methodName} (${filePath}${sourceLocation})`
+    : `    at ${filePath}${frame.lineNumber}:${frame.column}`
 }
 
 function computeErrorName(error: Error): string {
@@ -40,25 +67,14 @@ function prepareUnsourcemappedStackTrace(
 }
 
 function shouldIgnoreListByDefault(file: string): boolean {
-  return (
-    // TODO: Solve via `ignoreList` instead. Tricky because node internals are not part of the sourcemap.
-    file.startsWith('node:')
-    // C&P from setup-dev-bundler
-    // TODO: Taken from setup-dev-bundler but these seem too broad
-    // file.includes('web/adapter') ||
-    // file.includes('web/globals') ||
-    // file.includes('sandbox/context') ||
-    // TODO: Seems too aggressive?
-    // file.includes('<anonymous>') ||
-    // file.startsWith('eval')
-  )
+  return file.startsWith('node:')
 }
 
 function getSourcemappedFrameIfPossible(
   frame: StackFrame,
-  sourcemapConsumers: Map<string, SyncSourceMapConsumer>
+  sourceMapCache: SourceMapCache
 ): {
-  stack: StackFrame
+  stack: IgnoreableStackFrame
   // DEV only
   code: string | null
 } | null {
@@ -66,20 +82,29 @@ function getSourcemappedFrameIfPossible(
     return null
   }
 
-  let sourcemap = sourcemapConsumers.get(frame.file)
-  if (sourcemap === undefined) {
-    const moduleSourcemap = findSourceMap(frame.file)
-    if (moduleSourcemap === undefined) {
+  const sourceMapCacheEntry = sourceMapCache.get(frame.file)
+  let sourceMap: SyncSourceMapConsumer
+  let rawSourceMap: ModernRawSourceMap
+  if (sourceMapCacheEntry === undefined) {
+    const moduleSourceMap = findSourceMap(frame.file)
+    if (moduleSourceMap === undefined) {
       return null
     }
-    sourcemap = new SyncSourceMapConsumer(
+    rawSourceMap = moduleSourceMap.payload
+    sourceMap = new SyncSourceMapConsumer(
       // @ts-expect-error -- Module.SourceMap['version'] is number but SyncSourceMapConsumer wants a string
-      moduleSourcemap.payload
+      rawSourceMap
     )
-    sourcemapConsumers.set(frame.file, sourcemap)
+    sourceMapCache.set(frame.file, {
+      map: sourceMap,
+      raw: rawSourceMap,
+    })
+  } else {
+    sourceMap = sourceMapCacheEntry.map
+    rawSourceMap = sourceMapCacheEntry.raw
   }
 
-  const sourcePosition = sourcemap.originalPositionFor({
+  const sourcePosition = sourceMap.originalPositionFor({
     column: frame.column ?? 0,
     line: frame.lineNumber ?? 1,
   })
@@ -89,12 +114,16 @@ function getSourcemappedFrameIfPossible(
   }
 
   const sourceContent: string | null =
-    sourcemap.sourceContentFor(
+    sourceMap.sourceContentFor(
       sourcePosition.source,
       /* returnNullOnMissing */ true
     ) ?? null
 
-  const originalFrame: StackFrame = {
+  // TODO: O(n^2). Consider moving `ignoreList` into a Set
+  const sourceIndex = rawSourceMap.sources.indexOf(sourcePosition.source)
+  const ignored = rawSourceMap.ignoreList?.includes(sourceIndex) ?? false
+
+  const originalFrame: IgnoreableStackFrame = {
     methodName:
       sourcePosition.name ||
       // default is not a valid identifier in JS so webpack uses a custom variable when it's an unnamed default export
@@ -107,6 +136,7 @@ function getSourcemappedFrameIfPossible(
     lineNumber: sourcePosition.line,
     // TODO: c&p from async createOriginalStackFrame but why not frame.arguments?
     arguments: [],
+    ignored,
   }
 
   const codeFrame =
@@ -138,7 +168,7 @@ function parseAndSourceMap(error: Error): string {
   }
 
   const unsourcemappedStack = parseStack(unparsedStack)
-  const sourcemapConsumers = new Map<string, SyncSourceMapConsumer>()
+  const sourceMapCache: SourceMapCache = new Map()
 
   let sourceMappedStack = ''
   let sourceFrameDEV: null | string = null
@@ -148,22 +178,25 @@ function parseAndSourceMap(error: Error): string {
     } else if (!shouldIgnoreListByDefault(frame.file)) {
       const sourcemappedFrame = getSourcemappedFrameIfPossible(
         frame,
-        sourcemapConsumers
+        sourceMapCache
       )
 
       if (sourcemappedFrame === null) {
         sourceMappedStack += '\n' + frameToString(frame)
       } else {
-        // TODO: Use the first frame that's not ignore-listed
         if (
           process.env.NODE_ENV !== 'production' &&
           sourcemappedFrame.code !== null &&
-          sourceFrameDEV === null
+          sourceFrameDEV === null &&
+          // TODO: Is this the right choice?
+          !sourcemappedFrame.stack.ignored
         ) {
           sourceFrameDEV = sourcemappedFrame.code
         }
-        // TODO: Hide if ignore-listed but consider what happens if every frame is ignore listed.
-        sourceMappedStack += '\n' + frameToString(sourcemappedFrame.stack)
+        if (!sourcemappedFrame.stack.ignored) {
+          // TODO: Consider what happens if every frame is ignore listed.
+          sourceMappedStack += '\n' + frameToString(sourcemappedFrame.stack)
+        }
       }
     }
   }

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{RcStr, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -232,7 +232,7 @@ impl CssChunkItem for CssModuleChunkItem {
                     .iter()
                 {
                     if let Some(placeable) =
-                        Vc::try_resolve_downcast::<Box<dyn CssChunkPlaceable>>(module).await?
+                        ResolvedVc::try_downcast::<Box<dyn CssChunkPlaceable>>(module).await?
                     {
                         let item = placeable.as_chunk_item(chunking_context);
                         if let Some(css_item) =
@@ -257,7 +257,7 @@ impl CssChunkItem for CssModuleChunkItem {
                     .iter()
                 {
                     if let Some(placeable) =
-                        Vc::try_resolve_downcast::<Box<dyn CssChunkPlaceable>>(module).await?
+                        ResolvedVc::try_downcast::<Box<dyn CssChunkPlaceable>>(module).await?
                     {
                         let item = placeable.as_chunk_item(chunking_context);
                         if let Some(css_item) =

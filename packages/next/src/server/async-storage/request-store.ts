@@ -21,6 +21,7 @@ import { ResponseCookies, RequestCookies } from '../web/spec-extension/cookies'
 import { DraftModeProvider } from './draft-mode-provider'
 import { splitCookiesString } from '../web/utils'
 import type { ServerComponentsHmrCache } from '../response-cache'
+import type { RenderResumeDataCache } from '../resume-data-cache/resume-data-cache'
 
 function getHeaders(headers: Headers | IncomingHttpHeaders): ReadonlyHeaders {
   const cleaned = HeadersAdapter.from(headers)
@@ -43,7 +44,7 @@ export type WrapperRenderOpts = Partial<Pick<RenderOpts, 'onUpdateCookies'>> & {
   previewProps?: __ApiPreviewProps
 }
 
-export type RequestContext = RequestResponsePair & {
+type RequestContext = RequestResponsePair & {
   /**
    * The URL of the request. This only specifies the pathname and the search
    * part of the URL. This is only undefined when generating static paths (ie,
@@ -107,6 +108,7 @@ export function createRequestStoreForRender(
   url: RequestContext['url'],
   implicitTags: RequestContext['implicitTags'],
   onUpdateCookies: RenderOpts['onUpdateCookies'],
+  renderResumeDataCache: RenderResumeDataCache | undefined,
   previewProps: WrapperRenderOpts['previewProps'],
   isHmrRefresh: RequestContext['isHmrRefresh'],
   serverComponentsHmrCache: RequestContext['serverComponentsHmrCache']
@@ -119,6 +121,7 @@ export function createRequestStoreForRender(
     url,
     implicitTags,
     onUpdateCookies,
+    renderResumeDataCache,
     previewProps,
     isHmrRefresh,
     serverComponentsHmrCache
@@ -140,6 +143,7 @@ export function createRequestStoreForAPI(
     url,
     implicitTags,
     onUpdateCookies,
+    undefined,
     previewProps,
     false,
     undefined
@@ -153,6 +157,7 @@ function createRequestStoreImpl(
   url: RequestContext['url'],
   implicitTags: RequestContext['implicitTags'],
   onUpdateCookies: RenderOpts['onUpdateCookies'],
+  renderResumeDataCache: RenderResumeDataCache | undefined,
   previewProps: WrapperRenderOpts['previewProps'],
   isHmrRefresh: RequestContext['isHmrRefresh'],
   serverComponentsHmrCache: RequestContext['serverComponentsHmrCache']
@@ -242,7 +247,8 @@ function createRequestStoreImpl(
 
       return cache.draftMode
     },
-
+    renderResumeDataCache: renderResumeDataCache ?? null,
+    devWarmupPrerenderResumeDataCache: null,
     isHmrRefresh,
     serverComponentsHmrCache:
       serverComponentsHmrCache ||

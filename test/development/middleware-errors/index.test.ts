@@ -55,7 +55,7 @@ describe('middleware - development errors', () => {
       const browser = await next.browser('/')
       await assertHasRedbox(browser)
       await next.patchFile('middleware.js', `export default function () {}`)
-      await assertHasRedbox(browser)
+      await assertNoRedbox(browser)
     })
   })
 
@@ -138,8 +138,11 @@ describe('middleware - development errors', () => {
               '\n    at eval (./middleware.js:4:9)' +
               '\n    at <unknown> (./middleware.js:4:9'
           : '\n ⨯ Error [ReferenceError]: test is not defined' +
+              // TODO: Redundant and not clickable
               '\n    at eval (file://webpack-internal:///(middleware)/./middleware.js)' +
-              '\n    at eval (webpack://_N_E/middleware.js?3bcb:4:8)'
+              '\n    at eval (middleware.js:4:8)' +
+              // TODO: Should be ignore-listed
+              '\n    at fn (node_modules'
       )
       expect(stripAnsi(next.cliOutput)).toContain(
         isTurbopack
@@ -157,7 +160,7 @@ describe('middleware - development errors', () => {
       await assertHasRedbox(browser)
       expect(await getRedboxSource(browser)).toContain(`eval('test')`)
       await next.patchFile('middleware.js', `export default function () {}`)
-      await assertHasRedbox(browser)
+      await assertNoRedbox(browser)
     })
   })
 
@@ -181,14 +184,18 @@ describe('middleware - development errors', () => {
       await retry(() => {
         expect(stripAnsi(next.cliOutput)).toContain(`Error: booooom!`)
       })
-      // TODO: assert on full, ignore-listed stack
       expect(stripAnsi(next.cliOutput)).toContain(
         isTurbopack
           ? '\n ⨯ middleware.js (3:13) @ [project]/middleware.js [middleware] (ecmascript)' +
               '\n ⨯ Error: booooom!' +
               '\n    at <unknown> ([project]/middleware.js [middleware] (ecmascript) (./middleware.js:3:13)'
           : '\n ⨯ Error: booooom!' +
-              '\n    at <unknown> (webpack://_N_E/middleware.js'
+              // TODO: Should be anonymous method without a method name
+              '\n    at <unknown> (middleware.js:3)' +
+              // TODO: Should be ignore-listed
+              '\n    at eval (middleware.js:3:12)' +
+              '\n    at (middleware)/./middleware.js (.next/server/middleware.js:40:1)' +
+              '\n    at __webpack_require__ '
       )
     })
 
@@ -200,7 +207,7 @@ describe('middleware - development errors', () => {
       expect(source).toContain('middleware.js')
       expect(source).not.toContain('//middleware.js')
       await next.patchFile('middleware.js', `export default function () {}`)
-      await assertHasRedbox(browser)
+      await assertNoRedbox(browser)
     })
   })
 
@@ -304,7 +311,7 @@ describe('middleware - development errors', () => {
         await browser.elementByCss('#nextjs__container_errors_desc').text()
       ).toEqual('Failed to compile')
       await next.patchFile('middleware.js', `export default function () {}`)
-      await assertHasRedbox(browser)
+      await assertNoRedbox(browser)
       expect(await browser.elementByCss('#page-title')).toBeTruthy()
     })
   })

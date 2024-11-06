@@ -2,7 +2,7 @@ use std::io::Write;
 
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, Upcast, ValueToString, Vc};
+use turbo_tasks::{trace::TraceRawVcs, ResolvedVc, Upcast, ValueToString, Vc};
 use turbo_tasks_fs::{rope::Rope, FileSystemPath};
 use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkItem, ChunkItemExt, ChunkingContext},
@@ -24,7 +24,7 @@ pub struct EcmascriptChunkItemContent {
     pub inner_code: Rope,
     pub source_map: Option<Vc<Box<dyn GenerateSourceMap>>>,
     pub options: EcmascriptChunkItemOptions,
-    pub rewrite_source_path: Option<Vc<FileSystemPath>>,
+    pub rewrite_source_path: Option<ResolvedVc<FileSystemPath>>,
     pub placeholder_for_future_extensions: (),
 }
 
@@ -48,7 +48,7 @@ impl EcmascriptChunkItemContent {
 
         Ok(EcmascriptChunkItemContent {
             rewrite_source_path: if *chunking_context.should_use_file_source_map_uris().await? {
-                Some(chunking_context.context_path())
+                Some(chunking_context.context_path().to_resolved().await?)
             } else {
                 None
             },
@@ -153,7 +153,7 @@ impl EcmascriptChunkItemContent {
         let source_map = if let Some(rewrite_source_path) = self.rewrite_source_path {
             let source_map = self.source_map.map(|m| m.generate_source_map());
             match source_map {
-                Some(map) => fileify_source_map(map, rewrite_source_path)
+                Some(map) => fileify_source_map(map, *rewrite_source_path)
                     .await?
                     .map(Vc::upcast),
                 None => None,

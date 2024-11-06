@@ -4978,6 +4978,35 @@
     "styles": ["normal"],
     "subsets": ["kannada", "latin", "latin-ext"]
   },
+  "Hubot Sans": {
+    "weights": [
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "styles": ["normal", "italic"],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 75,
+        "max": 125,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 200,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["latin", "latin-ext", "vietnamese"]
+  },
   "Hurricane": {
     "weights": ["400"],
     "styles": ["normal"],
@@ -5770,6 +5799,16 @@
       }
     ],
     "subsets": ["latin", "latin-ext"]
+  },
+  "Karla Tamil Inclined": {
+    "weights": ["400", "700"],
+    "styles": ["normal"],
+    "subsets": ["tamil"]
+  },
+  "Karla Tamil Upright": {
+    "weights": ["400", "700"],
+    "styles": ["normal"],
+    "subsets": ["tamil"]
   },
   "Karma": {
     "weights": ["300", "400", "500", "600", "700"],
@@ -7223,8 +7262,16 @@
     "subsets": ["latin"]
   },
   "Miriam Libre": {
-    "weights": ["400", "700"],
+    "weights": ["400", "500", "600", "700", "variable"],
     "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ],
     "subsets": ["hebrew", "latin", "latin-ext"]
   },
   "Mirza": {
@@ -7307,6 +7354,35 @@
     "weights": ["400"],
     "styles": ["italic"],
     "subsets": ["latin", "latin-ext"]
+  },
+  "Mona Sans": {
+    "weights": [
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "styles": ["normal", "italic"],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 75,
+        "max": 125,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 200,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["latin", "latin-ext", "vietnamese"]
   },
   "Monda": {
     "weights": ["400", "500", "600", "700", "variable"],
@@ -14168,12 +14244,12 @@
   "Spectral": {
     "weights": ["200", "300", "400", "500", "600", "700", "800"],
     "styles": ["normal", "italic"],
-    "subsets": ["cyrillic", "latin", "latin-ext", "vietnamese"]
+    "subsets": ["cyrillic", "cyrillic-ext", "latin", "latin-ext", "vietnamese"]
   },
   "Spectral SC": {
     "weights": ["200", "300", "400", "500", "600", "700", "800"],
     "styles": ["normal", "italic"],
-    "subsets": ["cyrillic", "latin", "latin-ext", "vietnamese"]
+    "subsets": ["cyrillic", "cyrillic-ext", "latin", "latin-ext", "vietnamese"]
   },
   "Spicy Rice": {
     "weights": ["400"],

@@ -8711,6 +8711,29 @@ export declare function Hubballi<
   adjustFontFallback?: boolean
   subsets?: Array<'kannada' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Hubot_Sans<
+  T extends CssVariable | undefined = undefined,
+>(options?: {
+  weight?:
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | 'variable'
+    | Array<'200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
+  axes?: 'wdth'[]
+}): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Hurricane<
   T extends CssVariable | undefined = undefined,
 >(options: {
@@ -10245,6 +10268,30 @@ export declare function Karla<
   fallback?: string[]
   adjustFontFallback?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
+}): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Karla_Tamil_Inclined<
+  T extends CssVariable | undefined = undefined,
+>(options: {
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<'tamil'>
+}): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Karla_Tamil_Upright<
+  T extends CssVariable | undefined = undefined,
+>(options: {
+  weight: '400' | '700' | Array<'400' | '700'>
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<'tamil'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Karma<
   T extends CssVariable | undefined = undefined,
@@ -12934,8 +12981,14 @@ export declare function Miniver<
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Miriam_Libre<
   T extends CssVariable | undefined = undefined,
->(options: {
-  weight: '400' | '700' | Array<'400' | '700'>
+>(options?: {
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
@@ -13121,6 +13174,29 @@ export declare function Molle<
   fallback?: string[]
   adjustFontFallback?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
+}): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Mona_Sans<
+  T extends CssVariable | undefined = undefined,
+>(options?: {
+  weight?:
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | 'variable'
+    | Array<'200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
+  axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Monda<
   T extends CssVariable | undefined = undefined,
@@ -23640,7 +23716,9 @@ export declare function Spectral<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'vietnamese'>
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Spectral_SC<
   T extends CssVariable | undefined = undefined,
@@ -23660,7 +23738,9 @@ export declare function Spectral_SC<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'vietnamese'>
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Spicy_Rice<
   T extends CssVariable | undefined = undefined,

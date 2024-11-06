@@ -96,7 +96,7 @@ pub trait ChunkableModule: Module + Asset {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct Chunks(Vec<Vc<Box<dyn Chunk>>>);
+pub struct Chunks(Vec<ResolvedVc<Box<dyn Chunk>>>);
 
 #[turbo_tasks::value_impl]
 impl Chunks {
@@ -370,7 +370,7 @@ async fn graph_node_to_referenced_nodes(
                 .into_iter()
                 .map(|&module| async move {
                     let Some(chunkable_module) =
-                        Vc::try_resolve_sidecast::<Box<dyn ChunkableModule>>(module).await?
+                        ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(module).await?
                     else {
                         return Ok((
                             Some(ChunkGraphEdge {
@@ -458,7 +458,7 @@ async fn graph_node_to_referenced_nodes(
                                     Some(ChunkGraphEdge {
                                         key: None,
                                         node: ChunkContentGraphNode::AsyncModule {
-                                            module: chunkable_module,
+                                            module: *chunkable_module,
                                         },
                                     }),
                                     None,
