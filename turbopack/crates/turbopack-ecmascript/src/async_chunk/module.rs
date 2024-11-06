@@ -34,8 +34,8 @@ impl AsyncLoaderModule {
         availability_info: Value<AvailabilityInfo>,
     ) -> Vc<Self> {
         Self::cell(AsyncLoaderModule {
-            inner: module,
-            chunking_context,
+            inner: module.to_resolved().await?,
+            chunking_context: chunking_context.to_resolved().await?,
             availability_info: availability_info.into_value(),
         })
     }
@@ -61,7 +61,7 @@ impl Module for AsyncLoaderModule {
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
         Ok(Vc::cell(vec![Vc::upcast(SingleModuleReference::new(
-            Vc::upcast(self.await?.inner),
+            *ResolvedVc::upcast(self.await?.inner),
             inner_module_reference_description(),
         ))]))
     }
