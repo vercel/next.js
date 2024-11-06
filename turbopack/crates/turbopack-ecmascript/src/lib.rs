@@ -275,11 +275,11 @@ pub trait EcmascriptAnalyzable {
 
 impl EcmascriptModuleAsset {
     pub fn builder(
-        source: Vc<Box<dyn Source>>,
-        asset_context: Vc<Box<dyn AssetContext>>,
-        transforms: Vc<EcmascriptInputTransforms>,
-        options: Vc<EcmascriptOptions>,
-        compile_time_info: Vc<CompileTimeInfo>,
+        source: ResolvedVc<Box<dyn Source>>,
+        asset_context: ResolvedVc<Box<dyn AssetContext>>,
+        transforms: ResolvedVc<EcmascriptInputTransforms>,
+        options: ResolvedVc<EcmascriptOptions>,
+        compile_time_info: ResolvedVc<CompileTimeInfo>,
     ) -> EcmascriptModuleAssetBuilder {
         EcmascriptModuleAssetBuilder {
             source,
@@ -380,7 +380,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<EcmascriptModuleContent>> {
-        let parsed = self.parse().resolve().await?;
+        let parsed = self.parse().to_resolved().await?;
 
         let analyze = self.analyze().await?;
 
@@ -405,13 +405,13 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
 impl EcmascriptModuleAsset {
     #[turbo_tasks::function]
     pub fn new(
-        source: Vc<Box<dyn Source>>,
-        asset_context: Vc<Box<dyn AssetContext>>,
+        source: ResolvedVc<Box<dyn Source>>,
+        asset_context: ResolvedVc<Box<dyn AssetContext>>,
 
         ty: Value<EcmascriptModuleAssetType>,
-        transforms: Vc<EcmascriptInputTransforms>,
-        options: Vc<EcmascriptOptions>,
-        compile_time_info: Vc<CompileTimeInfo>,
+        transforms: ResolvedVc<EcmascriptInputTransforms>,
+        options: ResolvedVc<EcmascriptOptions>,
+        compile_time_info: ResolvedVc<CompileTimeInfo>,
     ) -> Vc<Self> {
         Self::cell(EcmascriptModuleAsset {
             source,
@@ -428,12 +428,12 @@ impl EcmascriptModuleAsset {
 
     #[turbo_tasks::function]
     pub fn new_with_inner_assets(
-        source: Vc<Box<dyn Source>>,
-        asset_context: Vc<Box<dyn AssetContext>>,
+        source: ResolvedVc<Box<dyn Source>>,
+        asset_context: ResolvedVc<Box<dyn AssetContext>>,
         ty: Value<EcmascriptModuleAssetType>,
-        transforms: Vc<EcmascriptInputTransforms>,
-        options: Vc<EcmascriptOptions>,
-        compile_time_info: Vc<CompileTimeInfo>,
+        transforms: ResolvedVc<EcmascriptInputTransforms>,
+        options: ResolvedVc<EcmascriptOptions>,
+        compile_time_info: ResolvedVc<CompileTimeInfo>,
         inner_assets: ResolvedVc<InnerAssets>,
     ) -> Vc<Self> {
         Self::cell(EcmascriptModuleAsset {
@@ -450,7 +450,7 @@ impl EcmascriptModuleAsset {
 
     #[turbo_tasks::function]
     pub fn source(&self) -> Vc<Box<dyn Source>> {
-        self.source
+        *self.source
     }
 
     #[turbo_tasks::function]
@@ -460,12 +460,12 @@ impl EcmascriptModuleAsset {
 
     #[turbo_tasks::function]
     pub fn options(&self) -> Vc<EcmascriptOptions> {
-        self.options
+        *self.options
     }
 
     #[turbo_tasks::function]
     pub fn parse(&self) -> Vc<ParseResult> {
-        parse(self.source, Value::new(self.ty), self.transforms)
+        parse(*self.source, Value::new(self.ty), *self.transforms)
     }
 
     #[turbo_tasks::function]
@@ -575,12 +575,12 @@ impl ChunkableModule for EcmascriptModuleAsset {
 impl EcmascriptChunkPlaceable for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     async fn get_exports(self: Vc<Self>) -> Result<Vc<EcmascriptExports>> {
-        Ok(self.analyze().await?.exports)
+        Ok(*self.analyze().await?.exports)
     }
 
     #[turbo_tasks::function]
     async fn get_async_module(self: Vc<Self>) -> Result<Vc<OptionAsyncModule>> {
-        Ok(self.analyze().await?.async_module)
+        Ok(*self.analyze().await?.async_module)
     }
 }
 
@@ -633,7 +633,7 @@ impl ChunkItem for ModuleChunkItem {
 
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        Vc::upcast(self.chunking_context)
+        *ResolvedVc::upcast(self.chunking_context)
     }
 
     #[turbo_tasks::function]
@@ -662,7 +662,7 @@ impl ChunkItem for ModuleChunkItem {
 impl EcmascriptChunkItem for ModuleChunkItem {
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        self.chunking_context
+        *self.chunking_context
     }
 
     #[turbo_tasks::function]
@@ -714,15 +714,15 @@ impl EcmascriptModuleContent {
     /// Creates a new [`Vc<EcmascriptModuleContent>`].
     #[turbo_tasks::function]
     pub async fn new(
-        parsed: Vc<ParseResult>,
-        ident: Vc<AssetIdent>,
+        parsed: ResolvedVc<ParseResult>,
+        ident: ResolvedVc<AssetIdent>,
         specified_module_type: SpecifiedModuleType,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-        references: Vc<ModuleReferences>,
-        code_generation: Vc<CodeGenerateables>,
-        async_module: Vc<OptionAsyncModule>,
-        source_map: Vc<OptionSourceMap>,
-        exports: Vc<EcmascriptExports>,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+        references: ResolvedVc<ModuleReferences>,
+        code_generation: ResolvedVc<CodeGenerateables>,
+        async_module: ResolvedVc<OptionAsyncModule>,
+        source_map: ResolvedVc<OptionSourceMap>,
+        exports: ResolvedVc<EcmascriptExports>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<Self>> {
         let mut code_gens = Vec::new();
@@ -731,32 +731,32 @@ impl EcmascriptModuleContent {
             if let Some(code_gen) =
                 Vc::try_resolve_sidecast::<Box<dyn CodeGenerateableWithAsyncModuleInfo>>(r).await?
             {
-                code_gens.push(code_gen.code_generation(chunking_context, async_module_info));
+                code_gens.push(code_gen.code_generation(*chunking_context, async_module_info));
             } else if let Some(code_gen) =
                 Vc::try_resolve_sidecast::<Box<dyn CodeGenerateable>>(r).await?
             {
-                code_gens.push(code_gen.code_generation(chunking_context));
+                code_gens.push(code_gen.code_generation(*chunking_context));
             }
         }
         if let Some(async_module) = *async_module.await? {
             code_gens.push(async_module.code_generation(
-                chunking_context,
+                *chunking_context,
                 async_module_info,
-                references,
+                *references,
             ));
         }
         for c in code_generation.await?.iter() {
             match c {
                 CodeGen::CodeGenerateable(c) => {
-                    code_gens.push(c.code_generation(chunking_context));
+                    code_gens.push(c.code_generation(*chunking_context));
                 }
                 CodeGen::CodeGenerateableWithAsyncModuleInfo(c) => {
-                    code_gens.push(c.code_generation(chunking_context, async_module_info));
+                    code_gens.push(c.code_generation(*chunking_context, async_module_info));
                 }
             }
         }
         if let EcmascriptExports::EsmExports(exports) = *exports.await? {
-            code_gens.push(exports.code_generation(chunking_context));
+            code_gens.push(exports.code_generation(*chunking_context));
         }
 
         // need to keep that around to allow references into that

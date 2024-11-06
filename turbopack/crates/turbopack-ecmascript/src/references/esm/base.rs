@@ -260,7 +260,7 @@ impl CodeGenerateable for EsmAssetReference {
             if let ReferencedAsset::Unresolvable = &*referenced_asset {
                 // Insert code that throws immediately at time of import if a request is
                 // unresolvable
-                let request = request_to_string(this.request).await?.to_string();
+                let request = request_to_string(*this.request).await?.to_string();
                 let stmt = Stmt::Expr(ExprStmt {
                     expr: Box::new(throw_module_not_found_expr(&request)),
                     span: DUMMY_SP,
