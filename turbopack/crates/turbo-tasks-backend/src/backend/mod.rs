@@ -120,6 +120,16 @@ pub struct BackendOptions {
     pub storage_mode: Option<StorageMode>,
 }
 
+impl Default for BackendOptions {
+    fn default() -> Self {
+        Self {
+            dependency_tracking: true,
+            children_tracking: true,
+            storage_mode: Some(StorageMode::ReadWrite),
+        }
+    }
+}
+
 pub struct TurboTasksBackend<B: BackingStorage>(Arc<TurboTasksBackendInner<B>>);
 
 struct TurboTasksBackendInner<B: BackingStorage> {
@@ -871,6 +881,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         task_id: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
+        if !self.should_track_dependencies() {
+            panic!("Dependency tracking is disabled so invalidation is not allowed");
+        }
         operation::InvalidateOperation::run(
             smallvec![task_id],
             TaskDirtyCause::Unknown,
@@ -883,6 +896,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         tasks: &[TaskId],
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
+        if !self.should_track_dependencies() {
+            panic!("Dependency tracking is disabled so invalidation is not allowed");
+        }
         operation::InvalidateOperation::run(
             tasks.iter().copied().collect(),
             TaskDirtyCause::Unknown,
@@ -895,6 +911,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         tasks: &AutoSet<TaskId, BuildHasherDefault<FxHasher>, 2>,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
+        if !self.should_track_dependencies() {
+            panic!("Dependency tracking is disabled so invalidation is not allowed");
+        }
         operation::InvalidateOperation::run(
             tasks.iter().copied().collect(),
             TaskDirtyCause::Unknown,
