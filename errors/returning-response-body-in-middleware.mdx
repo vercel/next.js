@@ -12,7 +12,7 @@ title: Returning response body in Middleware
 
 Migrate to using `rewrite`/`redirect` to Pages/API Routes handling a response.
 
-#### Explanation
+### Explanation
 
 To respect the differences in client-side and server-side navigation, and to help ensure that developers do not build insecure Middleware, Middleware can no longer produce a response body. This ensures that Middleware is only used to `rewrite`, `redirect`, or modify the incoming request (e.g. [setting cookies](/docs/pages/building-your-application/routing/middleware#using-cookies)).
 
