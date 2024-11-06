@@ -1,10 +1,10 @@
 ---
-title: Next.js Project Structure
+title: Project Structure
 nav_title: Project Structure
 description: A list of folders and files conventions in a Next.js project
 ---
 
-This page provides an overview of the project structure of a Next.js application. It covers top-level files and folders, configuration files, and routing conventions within the `app` and `pages` directories.
+This page provides an overview of the project structure of a Next.js application. It covers top-level files and folders, configuration files, and routing conventions.
 
 Click the file and folder names to learn more about each convention.
 
@@ -48,11 +48,13 @@ Top-level files are used to configure your application, manage dependencies, run
 | `tsconfig.json`                                                                             | Configuration file for TypeScript       |
 | `jsconfig.json`                                                                             | Configuration file for JavaScript       |
 
-## `app` Routing Conventions
+<AppOnly>
+
+## Routing Conventions
 
 The following file conventions are used to define routes and handle metadata in the [`app` router](/docs/app).
 
-### Routing Files
+### Files
 
 |                                                                                 |                     |                              |
 | ------------------------------------------------------------------------------- | ------------------- | ---------------------------- |
@@ -128,11 +130,15 @@ The following file conventions are used to define routes and handle metadata in 
 | [`robots`](/docs/app/api-reference/file-conventions/metadata/robots#static-robotstxt)                        | `.txt`      | Robots file           |
 | [`robots`](/docs/app/api-reference/file-conventions/metadata/robots#generate-a-robots-file)                  | `.js` `.ts` | Generated Robots file |
 
-## `pages` Routing Conventions
+</AppOnly>
+
+<PagesOnly>
+
+## Routing Conventions
 
 The following file conventions are used to define routes in the [`pages` router](/docs/pages).
 
-### Special Files
+### Files
 
 |                                                                                                             |                     |                   |
 | ----------------------------------------------------------------------------------------------------------- | ------------------- | ----------------- |
@@ -165,3 +171,5 @@ The following file conventions are used to define routes in the [`pages` router]
 | [`[file]`](/docs/pages/building-your-application/routing/dynamic-routes)                                          | `.js` `.jsx` `.tsx` | Dynamic route segment            |
 | [`[...file]`](/docs/pages/building-your-application/routing/dynamic-routes#catch-all-segments)                    | `.js` `.jsx` `.tsx` | Catch-all route segment          |
 | [`[[...file]]`](/docs/pages/building-your-application/routing/dynamic-routes#optional-catch-all-segments)         | `.js` `.jsx` `.tsx` | Optional catch-all route segment |
+
+</PagesOnly>
