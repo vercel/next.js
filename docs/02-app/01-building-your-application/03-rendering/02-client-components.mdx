@@ -70,6 +70,8 @@ The diagram below shows that using `onClick` and `useState` in a nested componen
 >
 > However, `"use client"` doesn't need to be defined in every component that needs to be rendered on the client. Once you define the boundary, all child components and modules imported into it are considered part of the client bundle.
 
+> **Good to know**: You may have also heard of `"use server"`, but it is _not_ the opposite of `"use client"`. You shouldn't use `"use server"` to mark server components like you would with `"use client"` for client components: Use the [recommended composition patterns](/docs/app/building-your-application/rendering/composition-patterns#supported-pattern-passing-server-components-to-client-components-as-props) to interleave server and client components; and use `"use server"` for [server actions](/docs/app/building-your-application/data-fetching/forms-and-mutations). To mark a component as a server component (to throw a compile error if imported to a client component), you should use [`server-only`](/docs/app/building-your-application/rendering/composition-patterns#keeping-server-only-code-out-of-the-client-environment) instead.
+
 ## How are Client Components Rendered?
 
 In Next.js, Client Components are rendered differently depending on whether the request is part of a full page load (an initial visit to your application or a page reload triggered by a browser refresh) or a subsequent navigation.
