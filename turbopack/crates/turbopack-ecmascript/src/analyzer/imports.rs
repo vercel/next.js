@@ -156,7 +156,7 @@ pub(crate) struct ImportMap {
 ///
 /// [magic]: https://webpack.js.org/api/module-methods/#magic-comments
 #[derive(Debug)]
-pub(crate) struct ImportAttributes {
+pub struct ImportAttributes {
     /// Should we ignore this import expression when bundling? If so, the import expression will be
     /// left as-is in Turbopack's output.
     ///
