@@ -137,7 +137,7 @@ impl ChunkItem for ManifestLoaderChunkItem {
 
     #[turbo_tasks::function]
     fn module(&self) -> Vc<Box<dyn Module>> {
-        Vc::upcast(self.manifest)
+        *ResolvedVc::upcast(self.manifest)
     }
 }
 
@@ -145,7 +145,7 @@ impl ChunkItem for ManifestLoaderChunkItem {
 impl EcmascriptChunkItem for ManifestLoaderChunkItem {
     #[turbo_tasks::function]
     async fn chunking_context(&self) -> Result<Vc<Box<dyn ChunkingContext>>> {
-        Ok(self.manifest.await?.chunking_context)
+        Ok(*self.manifest.await?.chunking_context)
     }
 
     #[turbo_tasks::function]

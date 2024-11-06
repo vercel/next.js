@@ -465,7 +465,7 @@ impl EcmascriptModuleAsset {
 
     #[turbo_tasks::function]
     pub fn parse(&self) -> Vc<ParseResult> {
-        parse(*self.source, Value::new(self.ty), *self.transforms)
+        parse(self.source, Value::new(self.ty), self.transforms)
     }
 
     #[turbo_tasks::function]
@@ -834,7 +834,7 @@ async fn gen_content_with_code_gens(
 
             Ok(EcmascriptModuleContent {
                 inner_code: bytes.into(),
-                source_map: Some(Vc::upcast(srcmap)),
+                source_map: Some(ResolvedVc::upcast(srcmap.to_resolved().await?)),
                 is_esm: eval_context.is_esm(specified_module_type),
             }
             .cell())
