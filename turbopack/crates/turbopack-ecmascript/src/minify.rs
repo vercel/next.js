@@ -145,7 +145,7 @@ pub async fn minify(
 fn print_program(
     cm: Arc<SwcSourceMap>,
     program: Program,
-    mode: MinifyType,
+    minify: MinifyType,
 ) -> Result<(String, Vec<(BytePos, LineCol)>)> {
     let mut src_map_buf = vec![];
 
@@ -160,10 +160,8 @@ fn print_program(
             )))) as Box<dyn WriteJs>;
 
             let mut emitter = Emitter {
-                cfg: swc_core::ecma::codegen::Config::default().with_minify(match mode {
-                    MinifyType::Minify => true,
-                    MinifyType::NoMinify => false,
-                }),
+                cfg: swc_core::ecma::codegen::Config::default()
+                    .with_minify(matches!(minify, MinifyType::Minify)),
                 comments: None,
                 cm: cm.clone(),
                 wr,
