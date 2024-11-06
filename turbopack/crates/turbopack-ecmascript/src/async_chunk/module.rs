@@ -78,16 +78,16 @@ impl Asset for AsyncLoaderModule {
 #[turbo_tasks::value_impl]
 impl ChunkableModule for AsyncLoaderModule {
     #[turbo_tasks::function]
-    fn as_chunk_item(
+    async fn as_chunk_item(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
-        Vc::upcast(
+    ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
+        Ok(Vc::upcast(
             AsyncLoaderChunkItem {
-                chunking_context,
-                module: self,
+                chunking_context: chunking_context.to_resolved().await?,
+                module: self.to_resolved().await?,
             }
             .cell(),
-        )
+        ))
     }
 }
