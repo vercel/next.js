@@ -21,7 +21,8 @@ use turbopack_ecmascript_plugins::transform::{
 use turbopack_node::transforms::webpack::{WebpackLoaderItem, WebpackLoaderItems};
 
 use crate::{
-    next_import_map::mdx_import_source_file, next_shared::transforms::ModularizeImportPackageConfig,
+    mode::NextMode, next_import_map::mdx_import_source_file,
+    next_shared::transforms::ModularizeImportPackageConfig,
 };
 
 #[turbo_tasks::value]
@@ -1237,8 +1238,12 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn turbo_minify(&self) -> Vc<Option<bool>> {
-        Vc::cell(self.experimental.turbo.as_ref().and_then(|t| t.minify))
+    pub async fn turbo_minify(&self, mode: Vc<NextMode>) -> Result<Vc<bool>> {
+        let minify = self.experimental.turbo.as_ref().and_then(|t| t.minify);
+
+        Ok(Vc::cell(
+            minify.unwrap_or(matches!(*mode.await?, NextMode::Build)),
+        ))
     }
 }
 
