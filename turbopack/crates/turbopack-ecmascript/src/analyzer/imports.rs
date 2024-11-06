@@ -209,7 +209,7 @@ pub(crate) struct ImportMapReference {
     pub module_path: JsWord,
     pub imported_symbol: ImportedSymbol,
     pub annotations: ImportAnnotations,
-    pub issue_source: Option<ResolvedVc<IssueSource>>,
+    pub issue_source: Option<Vc<IssueSource>>,
 }
 
 impl ImportMap {
@@ -291,7 +291,7 @@ impl ImportMap {
 
 struct Analyzer<'a> {
     data: &'a mut ImportMap,
-    source: Option<ResolvedVc<Box<dyn Source>>>,
+    source: Option<Vc<Box<dyn Source>>>,
     comments: Option<&'a dyn Comments>,
 }
 
