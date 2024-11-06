@@ -189,7 +189,7 @@ async fn parse_internal(
         Err(error) => {
             let error: RcStr = PrettyPrintError(&error).to_string().into();
             ReadSourceIssue {
-                source,
+                source: source.to_resolved().await?,
                 error: error.clone(),
             }
             .cell()
@@ -231,7 +231,7 @@ async fn parse_internal(
                 Err(error) => {
                     let error: RcStr = PrettyPrintError(&error).to_string().into();
                     ReadSourceIssue {
-                        source,
+                        source: source.to_resolved().await?,
                         error: error.clone(),
                     }
                     .cell()
