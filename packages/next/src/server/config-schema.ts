@@ -410,6 +410,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
               .optional(),
             memoryLimit: z.number().optional(),
             moduleIdStrategy: z.enum(['named', 'deterministic']).optional(),
+            minify: z.boolean().optional(),
           })
           .optional(),
         optimizePackageImports: z.array(z.string()).optional(),
