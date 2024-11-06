@@ -153,13 +153,13 @@ impl CodeGenerateable for AmdDefineWithDependenciesCodeGen {
                         request_str,
                     } => ResolvedElement::PatternMapping {
                         pattern_mapping: PatternMapping::resolve_request(
-                            *request,
+                            **request,
                             self.origin,
                             Vc::upcast(chunking_context),
                             cjs_resolve(
-                                self.origin,
-                                *request,
-                                Some(self.issue_source),
+                                *self.origin,
+                                **request,
+                                Some(*self.issue_source),
                                 self.in_try,
                             ),
                             Value::new(ChunkItem),
