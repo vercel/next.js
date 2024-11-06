@@ -437,38 +437,38 @@ export { NextScript as i } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 12
 ```js
-import { e as Document } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -7,
-    __turbopack_original__: 'next/document'
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
 };
-import { c as _jsxs } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -4,
-    __turbopack_original__: "react/jsx-runtime"
+import Document from 'next/document';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
 };
-import { d as _Fragment } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -5,
-    __turbopack_original__: "react/jsx-runtime"
+import { jsxs as _jsxs } from "react/jsx-runtime";
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
 };
-import { b as _jsx } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -3,
-    __turbopack_original__: "react/jsx-runtime"
+import { Fragment as _Fragment } from "react/jsx-runtime";
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
 };
-import { f as Html } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -8,
-    __turbopack_original__: 'next/document'
+import { jsx as _jsx } from "react/jsx-runtime";
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
 };
-import { g as Head } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -9,
-    __turbopack_original__: 'next/document'
+import { Html } from 'next/document';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
 };
-import { h as Main } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -10,
-    __turbopack_original__: 'next/document'
+import { Head } from 'next/document';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
 };
-import { i as NextScript } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -11,
-    __turbopack_original__: 'next/document'
+import { Main } from 'next/document';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
 };
+import { NextScript } from 'next/document';
 class MyDocument extends Document {
     static async getInitialProps(ctx) {
         const initialProps = await Document.getInitialProps(ctx);
@@ -667,38 +667,38 @@ export { NextScript as i } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 12
 ```js
-import { e as Document } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -7,
-    __turbopack_original__: 'next/document'
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
 };
-import { c as _jsxs } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -4,
-    __turbopack_original__: "react/jsx-runtime"
+import Document from 'next/document';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
 };
-import { d as _Fragment } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -5,
-    __turbopack_original__: "react/jsx-runtime"
+import { jsxs as _jsxs } from "react/jsx-runtime";
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
 };
-import { b as _jsx } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -3,
-    __turbopack_original__: "react/jsx-runtime"
+import { Fragment as _Fragment } from "react/jsx-runtime";
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
 };
-import { f as Html } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -8,
-    __turbopack_original__: 'next/document'
+import { jsx as _jsx } from "react/jsx-runtime";
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
 };
-import { g as Head } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -9,
-    __turbopack_original__: 'next/document'
+import { Html } from 'next/document';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
 };
-import { h as Main } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -10,
-    __turbopack_original__: 'next/document'
+import { Head } from 'next/document';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
 };
-import { i as NextScript } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -11,
-    __turbopack_original__: 'next/document'
+import { Main } from 'next/document';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
 };
+import { NextScript } from 'next/document';
 class MyDocument extends Document {
     static async getInitialProps(ctx) {
         const initialProps = await Document.getInitialProps(ctx);

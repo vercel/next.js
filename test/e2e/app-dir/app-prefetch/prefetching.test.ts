@@ -232,7 +232,7 @@ describe('app dir - prefetching', () => {
     })
 
     const prefetchResponse = await response.text()
-    expect(prefetchResponse).toContain('Page Data!')
+    expect(prefetchResponse).not.toContain('Page Data!')
     expect(prefetchResponse).not.toContain('Layout Data!')
     expect(prefetchResponse).not.toContain('Loading Prefetch Auto')
   })

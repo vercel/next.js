@@ -474,10 +474,13 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         cell: CellId,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> Result<Result<TypedCellContent, EventListener>> {
-        let mut ctx = self.execute_context(turbo_tasks);
-        let mut task = ctx.task(task_id, TaskDataCategory::Data);
-        if let Some(content) = get!(task, CellData { cell }) {
-            let content = content.clone();
+        fn add_cell_dependency(
+            mut task: impl TaskGuard,
+            reader: Option<TaskId>,
+            cell: CellId,
+            task_id: TaskId,
+            ctx: &mut impl ExecuteContext<'_>,
+        ) {
             if let Some(reader) = reader {
                 let _ = task.add(CachedDataItem::CellDependent {
                     cell,
@@ -498,6 +501,13 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     let _ = reader_task.add(CachedDataItem::CellDependency { target, value: () });
                 }
             }
+        }
+
+        let mut ctx = self.execute_context(turbo_tasks);
+        let mut task = ctx.task(task_id, TaskDataCategory::Data);
+        if let Some(content) = get!(task, CellData { cell }) {
+            let content = content.clone();
+            add_cell_dependency(task, reader, cell, task_id, &mut ctx);
             return Ok(Ok(TypedCellContent(
                 cell.type_id,
                 CellContent(Some(content.1)),
@@ -511,12 +521,18 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 cell_type: cell.type_id
             }
         ) else {
+            add_cell_dependency(task, reader, cell, task_id, &mut ctx);
             bail!(
-                "Cell {cell:?} no longer exists in task {task_id:?} (no cell of this type exists)"
+                "Cell {cell:?} no longer exists in task {} (no cell of this type exists)",
+                ctx.get_task_description(task_id)
             );
         };
         if cell.index > *max_id {
-            bail!("Cell {cell:?} no longer exists in task {task_id:?} (index out of bounds)");
+            add_cell_dependency(task, reader, cell, task_id, &mut ctx);
+            bail!(
+                "Cell {cell:?} no longer exists in task {} (index out of bounds)",
+                ctx.get_task_description(task_id)
+            );
         }
 
         // Cell should exist, but data was dropped or is not serializable. We need to recompute the

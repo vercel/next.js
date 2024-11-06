@@ -281,30 +281,30 @@ impl PagesProject {
     }
 
     #[turbo_tasks::function]
-    fn client_module_options_context(self: Vc<Self>) -> Vc<ModuleOptionsContext> {
-        get_client_module_options_context(
+    async fn client_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
+        Ok(get_client_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
             self.project().client_compile_time_info().environment(),
             Value::new(ClientContextType::Pages {
-                pages_dir: self.pages_dir(),
+                pages_dir: self.pages_dir().to_resolved().await?,
             }),
             self.project().next_mode(),
             self.project().next_config(),
-        )
+        ))
     }
 
     #[turbo_tasks::function]
-    fn client_resolve_options_context(self: Vc<Self>) -> Vc<ResolveOptionsContext> {
-        get_client_resolve_options_context(
+    async fn client_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
+        Ok(get_client_resolve_options_context(
             self.project().project_path(),
             Value::new(ClientContextType::Pages {
-                pages_dir: self.pages_dir(),
+                pages_dir: self.pages_dir().to_resolved().await?,
             }),
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
-        )
+        ))
     }
 
     #[turbo_tasks::function]
@@ -387,153 +387,155 @@ impl PagesProject {
     }
 
     #[turbo_tasks::function]
-    fn ssr_module_options_context(self: Vc<Self>) -> Vc<ModuleOptionsContext> {
-        get_server_module_options_context(
+    async fn ssr_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
+        Ok(get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
             Value::new(ServerContextType::Pages {
-                pages_dir: self.pages_dir(),
+                pages_dir: self.pages_dir().to_resolved().await?,
             }),
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::NodeJs,
-        )
+        ))
     }
 
     #[turbo_tasks::function]
-    fn edge_ssr_module_options_context(self: Vc<Self>) -> Vc<ModuleOptionsContext> {
-        get_server_module_options_context(
+    async fn edge_ssr_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
+        Ok(get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
             Value::new(ServerContextType::Pages {
-                pages_dir: self.pages_dir(),
+                pages_dir: self.pages_dir().to_resolved().await?,
             }),
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::Edge,
-        )
+        ))
     }
 
     #[turbo_tasks::function]
-    fn api_module_options_context(self: Vc<Self>) -> Vc<ModuleOptionsContext> {
-        get_server_module_options_context(
+    async fn api_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
+        Ok(get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
             Value::new(ServerContextType::PagesApi {
-                pages_dir: self.pages_dir(),
+                pages_dir: self.pages_dir().to_resolved().await?,
             }),
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::NodeJs,
-        )
+        ))
     }
 
     #[turbo_tasks::function]
-    fn edge_api_module_options_context(self: Vc<Self>) -> Vc<ModuleOptionsContext> {
-        get_server_module_options_context(
+    async fn edge_api_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
+        Ok(get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
             Value::new(ServerContextType::PagesApi {
-                pages_dir: self.pages_dir(),
+                pages_dir: self.pages_dir().to_resolved().await?,
             }),
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::Edge,
-        )
+        ))
     }
 
     #[turbo_tasks::function]
-    fn ssr_data_module_options_context(self: Vc<Self>) -> Vc<ModuleOptionsContext> {
-        get_server_module_options_context(
+    async fn ssr_data_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
+        Ok(get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
             Value::new(ServerContextType::PagesData {
-                pages_dir: self.pages_dir(),
+                pages_dir: self.pages_dir().to_resolved().await?,
             }),
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::NodeJs,
-        )
+        ))
     }
 
     #[turbo_tasks::function]
-    fn edge_ssr_data_module_options_context(self: Vc<Self>) -> Vc<ModuleOptionsContext> {
-        get_server_module_options_context(
+    async fn edge_ssr_data_module_options_context(
+        self: Vc<Self>,
+    ) -> Result<Vc<ModuleOptionsContext>> {
+        Ok(get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
             Value::new(ServerContextType::PagesData {
-                pages_dir: self.pages_dir(),
+                pages_dir: self.pages_dir().to_resolved().await?,
             }),
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::Edge,
-        )
+        ))
     }
 
     #[turbo_tasks::function]
-    fn ssr_resolve_options_context(self: Vc<Self>) -> Vc<ResolveOptionsContext> {
-        get_server_resolve_options_context(
+    async fn ssr_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
+        Ok(get_server_resolve_options_context(
             self.project().project_path(),
             // NOTE(alexkirsz) This could be `PagesData` for the data endpoint, but it doesn't
             // matter (for now at least) because `get_server_resolve_options_context` doesn't
             // differentiate between the two.
             Value::new(ServerContextType::Pages {
-                pages_dir: self.pages_dir(),
+                pages_dir: self.pages_dir().to_resolved().await?,
             }),
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
-        )
+        ))
     }
 
     #[turbo_tasks::function]
-    fn edge_ssr_resolve_options_context(self: Vc<Self>) -> Vc<ResolveOptionsContext> {
-        get_edge_resolve_options_context(
+    async fn edge_ssr_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
+        Ok(get_edge_resolve_options_context(
             self.project().project_path(),
             // NOTE(alexkirsz) This could be `PagesData` for the data endpoint, but it doesn't
             // matter (for now at least) because `get_server_resolve_options_context` doesn't
             // differentiate between the two.
             Value::new(ServerContextType::Pages {
-                pages_dir: self.pages_dir(),
+                pages_dir: self.pages_dir().to_resolved().await?,
             }),
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
-        )
+        ))
     }
 
     #[turbo_tasks::function]
-    fn client_runtime_entries(self: Vc<Self>) -> Vc<EvaluatableAssets> {
+    async fn client_runtime_entries(self: Vc<Self>) -> Result<Vc<EvaluatableAssets>> {
         let client_runtime_entries = get_client_runtime_entries(
             self.project().project_path(),
             Value::new(ClientContextType::Pages {
-                pages_dir: self.pages_dir(),
+                pages_dir: self.pages_dir().to_resolved().await?,
             }),
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
         );
-        client_runtime_entries.resolve_entries(self.client_module_context())
+        Ok(client_runtime_entries.resolve_entries(self.client_module_context()))
     }
 
     #[turbo_tasks::function]
-    fn runtime_entries(self: Vc<Self>) -> Vc<RuntimeEntries> {
-        get_server_runtime_entries(
+    async fn runtime_entries(self: Vc<Self>) -> Result<Vc<RuntimeEntries>> {
+        Ok(get_server_runtime_entries(
             Value::new(ServerContextType::Pages {
-                pages_dir: self.pages_dir(),
+                pages_dir: self.pages_dir().to_resolved().await?,
             }),
             self.project().next_mode(),
-        )
+        ))
     }
 
     #[turbo_tasks::function]
-    fn data_runtime_entries(self: Vc<Self>) -> Vc<RuntimeEntries> {
-        get_server_runtime_entries(
+    async fn data_runtime_entries(self: Vc<Self>) -> Result<Vc<RuntimeEntries>> {
+        Ok(get_server_runtime_entries(
             Value::new(ServerContextType::PagesData {
-                pages_dir: self.pages_dir(),
+                pages_dir: self.pages_dir().to_resolved().await?,
             }),
             self.project().next_mode(),
-        )
+        ))
     }
 
     #[turbo_tasks::function]

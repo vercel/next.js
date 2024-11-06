@@ -174,6 +174,18 @@ export class NextDevInstance extends NextInstance {
               throw new Error('Server has not finished restarting.')
             }
           })
+        } else {
+          try {
+            await retry(async () => {
+              const cliOutput = this.cliOutput.slice(cliOutputLength)
+
+              if (!this.serverCompiledPattern.test(cliOutput)) {
+                throw new Error('Server has not finished restarting.')
+              }
+            }, 5000)
+          } catch (e) {
+            /** Fail silently because not all change will be reflected in the server output */
+          }
         }
       }
     }

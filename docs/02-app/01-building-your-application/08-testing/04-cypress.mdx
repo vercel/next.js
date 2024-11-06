@@ -8,7 +8,6 @@ description: Learn how to set up Cypress with Next.js for End-to-End (E2E) and C
 
 > **Warning:**
 >
-> - For **component testing**, Cypress currently does not support [Next.js version 14](https://github.com/cypress-io/cypress/issues/28185) and `async` Server Components. These issues are being tracked. For now, component testing works with Next.js version 13, and we recommend E2E testing for `async` Server Components.
 > - Cypress versions below 13.6.3 do not support [TypeScript version 5](https://github.com/cypress-io/cypress/issues/27731) with `moduleResolution:"bundler"`. However, this issue has been resolved in Cypress version 13.6.3 and later. [cypress v13.6.3](https://docs.cypress.io/guides/references/changelog#13-6-3)
 
 <AppOnly>
@@ -59,9 +58,9 @@ You can choose to configure **E2E Testing** and/or **Component Testing**. Select
 
 ## Creating your first Cypress E2E test
 
-Ensure your `cypress.config.js` file has the following configuration:
+Ensure your `cypress.config` file has the following configuration:
 
-```ts filename="cypress.config.ts"
+```ts filename="cypress.config.ts" switcher
 import { defineConfig } from 'cypress'
 
 export default defineConfig({
@@ -71,7 +70,7 @@ export default defineConfig({
 })
 ```
 
-```js filename="cypress.config.js"
+```js filename="cypress.config.js" switcher
 const { defineConfig } = require('cypress')
 
 module.exports = defineConfig({
@@ -167,22 +166,22 @@ describe('Navigation', () => {
 
 Cypress will simulate a user navigating your application, this requires your Next.js server to be running. We recommend running your tests against your production code to more closely resemble how your application will behave.
 
-Run `npm run build && npm run start` to build your Next.js application, then run `npm run cypress:open` in another terminal window to start Cypress and run your E2E testing suite.
+Run `npm run build && npm run start` to build your Next.js application, then run `npm run cypress:open` in another terminal window to start Cypress and run your E2E Testing suite.
 
 > **Good to know:**
 >
 > - You can use `cy.visit("/")` instead of `cy.visit("http://localhost:3000/")` by adding `baseUrl: 'http://localhost:3000'` to the `cypress.config.js` configuration file.
-> - Alternatively, you can install the `start-server-and-test` package to run the Next.js production server in conjunction with Cypress. After installation, add `"test": "start-server-and-test start http://localhost:3000 cypress"` to your `package.json` scripts field. Remember to rebuild your application after new changes.
+> - Alternatively, you can install the [`start-server-and-test`](https://www.npmjs.com/package/start-server-and-test) package to run the Next.js production server in conjunction with Cypress. After installation, add `"test": "start-server-and-test start http://localhost:3000 cypress"` to your `package.json` scripts field. Remember to rebuild your application after new changes.
 
 ## Creating your first Cypress component test
 
 Component tests build and mount a specific component without having to bundle your whole application or start a server.
 
-Select **Component Testing** in the Cypress app, then select **Next.js** as your front-end framework. A `cypress/component` folder will be created in your project, and a `cypress.config.js` file will be updated to enable component testing.
+Select **Component Testing** in the Cypress app, then select **Next.js** as your front-end framework. A `cypress/component` folder will be created in your project, and a `cypress.config.js` file will be updated to enable Component Testing.
 
-Ensure your `cypress.config.js` file has the following configuration:
+Ensure your `cypress.config` file has the following configuration:
 
-```ts filename="cypress.config.ts"
+```ts filename="cypress.config.ts" switcher
 import { defineConfig } from 'cypress'
 
 export default defineConfig({
@@ -195,7 +194,7 @@ export default defineConfig({
 })
 ```
 
-```js filename="cypress.config.js"
+```js filename="cypress.config.js" switcher
 const { defineConfig } = require('cypress')
 
 module.exports = defineConfig({
@@ -256,12 +255,12 @@ describe('<AboutPage />', () => {
 
 > **Good to know**:
 >
-> - Cypress currently doesn't support component testing for `async` Server Components. We recommend using E2E testing.
+> - Cypress currently doesn't support Component Testing for `async` Server Components. We recommend using E2E testing.
 > - Since component tests do not require a Next.js server, features like `<Image />` that rely on a server being available may not function out-of-the-box.
 
 ### Running Component Tests
 
-Run `npm run cypress:open` in your terminal to start Cypress and run your component testing suite.
+Run `npm run cypress:open` in your terminal to start Cypress and run your Component Testing suite.
 
 ## Continuous Integration (CI)
 
