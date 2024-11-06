@@ -263,7 +263,7 @@ Learn more about how the [Router Cache](/docs/app/building-your-application/cach
 
 Partial rendering means only the route segments that change on navigation re-render on the client, and any shared segments are preserved.
 
-For example, when navigating between two sibling routes, `/dashboard/settings` and `/dashboard/analytics`, the `settings` and `analytics` pages will be rendered, and the shared `dashboard` layout will be preserved.
+For example, when navigating between two sibling routes, `/dashboard/settings` and `/dashboard/analytics`, the `settings` page will be unmounted, the `analytics` page will be mounted with fresh state, and the shared `dashboard` layout will be preserved. This behavior is also present between two routes on the same dynamic segment e.g. with `/blog/[slug]/page` and navigating from `/blog/first` to `/blog/second`.
 
 <Image
   alt="How partial rendering works"

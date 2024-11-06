@@ -10,7 +10,7 @@ import { promisify } from 'util'
 import http from 'http'
 import path from 'path'
 
-import cheerio from 'cheerio'
+import type cheerio from 'cheerio'
 import spawn from 'cross-spawn'
 import { writeFile } from 'fs-extra'
 import getPort from 'get-port'
@@ -681,7 +681,7 @@ export async function startCleanStaticServer(dir: string) {
 
 /**
  * Check for content in 1 second intervals timing out after 30 seconds.
- *
+ * @deprecated use retry + expect instead
  * @param {() => Promise<unknown> | unknown} contentFn
  * @param {RegExp | string | number} regex
  * @param {boolean} hardError
@@ -916,10 +916,8 @@ export async function getRedboxHeader(browser: BrowserInterface) {
 }
 
 export async function getRedboxTotalErrorCount(browser: BrowserInterface) {
-  return parseInt(
-    (await getRedboxHeader(browser)).match(/\d+ of (\d+) error/)?.[1],
-    10
-  )
+  const header = (await getRedboxHeader(browser)) || ''
+  return parseInt(header.match(/\d+ of (\d+) error/)?.[1], 10)
 }
 
 export async function getRedboxSource(browser: BrowserInterface) {
@@ -987,6 +985,29 @@ export async function getRedboxDescriptionWarning(browser: BrowserInterface) {
   )
 }
 
+export async function getRedboxErrorLink(
+  browser: BrowserInterface
+): Promise<string | undefined> {
+  return retry(
+    () =>
+      evaluate(browser, () => {
+        const portal = [].slice
+          .call(document.querySelectorAll('nextjs-portal'))
+          .find((p) =>
+            p.shadowRoot.querySelector('[data-nextjs-dialog-header]')
+          )
+        const root = portal.shadowRoot
+        const text = root.querySelector(
+          '#nextjs__container_errors__link'
+        )?.innerText
+        return text
+      }),
+    3000,
+    500,
+    'getRedboxDescriptionWarning'
+  )
+}
+
 export function getBrowserBodyText(browser: BrowserInterface) {
   return browser.eval('document.getElementsByTagName("body")[0].innerText')
 }
@@ -1001,6 +1022,10 @@ function readJson(path: string) {
 
 export function getBuildManifest(dir: string) {
   return readJson(path.join(dir, '.next/build-manifest.json'))
+}
+
+export function getImagesManifest(dir: string) {
+  return readJson(path.join(dir, '.next/images-manifest.json'))
 }
 
 export function getPageFilesFromBuildManifest(dir: string, page: string) {
@@ -1228,18 +1253,9 @@ export async function toggleCollapseComponentStack(
     .click()
 }
 
-export async function expandCallStack(
-  browser: BrowserInterface
-): Promise<void> {
-  // Open full Call Stack
-  await browser
-    .elementByCss('[data-nextjs-data-runtime-error-collapsed-action]')
-    .click()
-}
-
 export async function getRedboxCallStack(
   browser: BrowserInterface
-): Promise<string> {
+): Promise<string | null> {
   await browser.waitForElementByCss('[data-nextjs-call-stack-frame]', 30000)
 
   const callStackFrameElements = await browser.elementsByCss(
@@ -1476,3 +1492,30 @@ export const checkLink = (
   rel: string,
   content: string | string[]
 ) => checkMeta(browser, rel, content, 'rel', 'link', 'href')
+
+export async function getStackFramesContent(browser) {
+  const stackFrameElements = await browser.elementsByCss(
+    '[data-nextjs-call-stack-frame]'
+  )
+  const stackFramesContent = (
+    await Promise.all(
+      stackFrameElements.map(async (frame) => {
+        const functionNameEl = await frame.$('[data-nextjs-frame-expanded]')
+        const sourceEl = await frame.$('[data-has-source]')
+        const functionName = functionNameEl
+          ? await functionNameEl.innerText()
+          : ''
+        const source = sourceEl ? await sourceEl.innerText() : ''
+
+        if (!functionName) {
+          return ''
+        }
+        return `at ${functionName} (${source})`
+      })
+    )
+  )
+    .filter(Boolean)
+    .join('\n')
+
+  return stackFramesContent
+}

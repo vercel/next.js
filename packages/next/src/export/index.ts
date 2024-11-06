@@ -49,7 +49,6 @@ import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { isAppPageRoute } from '../lib/is-app-page-route'
 import isError from '../lib/is-error'
 import { formatManifest } from '../build/manifests/formatter/format-manifest'
-import { validateRevalidate } from '../server/lib/patch-fetch'
 import { TurborepoAccessTraceResult } from '../build/turborepo-access-trace'
 import { createProgress } from '../build/progress'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
@@ -342,6 +341,7 @@ async function exportAppImpl(
     largePageDataBytes: nextConfig.experimental.largePageDataBytes,
     serverActions: nextConfig.experimental.serverActions,
     serverComponents: enabledDirectories.app,
+    cacheLifeProfiles: nextConfig.experimental.cacheLife,
     nextFontManifest: require(
       join(distDir, 'server', `${NEXT_FONT_MANIFEST}.json`)
     ),
@@ -355,7 +355,7 @@ async function exportAppImpl(
     deploymentId: nextConfig.deploymentId,
     experimental: {
       clientTraceMetadata: nextConfig.experimental.clientTraceMetadata,
-      swrDelta: nextConfig.swrDelta,
+      expireTime: nextConfig.expireTime,
       after: nextConfig.experimental.after ?? false,
       dynamicIO: nextConfig.experimental.dynamicIO ?? false,
     },
@@ -599,7 +599,7 @@ async function exportAppImpl(
       // Update path info by path.
       const info = collector.byPath.get(path) ?? {}
       if (typeof result.revalidate !== 'undefined') {
-        info.revalidate = validateRevalidate(result.revalidate, path)
+        info.revalidate = result.revalidate
       }
       if (typeof result.metadata !== 'undefined') {
         info.metadata = result.metadata

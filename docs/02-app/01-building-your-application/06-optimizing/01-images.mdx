@@ -41,7 +41,7 @@ You can then define the `src` for your image (either local or remote).
 
 To use a local image, `import` your `.jpg`, `.png`, or `.webp` image files.
 
-Next.js will [automatically determine](#image-sizing) the intrisic `width` and `height` of your image based on the imported file. These values are used to determine the image ratio and prevent [Cumulative Layout Shift](https://nextjs.org/learn/seo/web-performance/cls) while your image is loading.
+Next.js will [automatically determine](#image-sizing) the intrinsic `width` and `height` of your image based on the imported file. These values are used to determine the image ratio and prevent [Cumulative Layout Shift](https://nextjs.org/learn/seo/web-performance/cls) while your image is loading.
 
 <AppOnly>
 
@@ -88,6 +88,21 @@ export default function Page() {
 </PagesOnly>
 
 > **Warning:** Dynamic `await import()` or `require()` are _not_ supported. The `import` must be static so it can be analyzed at build time.
+
+You can optionally configure `localPatterns` in your `next.config.js` file in order to allow specific images and block all others.
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    localPatterns: [
+      {
+        pathname: '/assets/images/**',
+        search: '',
+      },
+    ],
+  },
+}
+```
 
 ### Remote Images
 

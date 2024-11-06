@@ -54,9 +54,11 @@ impl Asset for FileSource {
                 .cell()),
                 _ => Err(anyhow::anyhow!("Invalid symlink")),
             },
-            FileSystemEntryType::File => Ok(AssetContent::File(self.path.read()).cell()),
+            FileSystemEntryType::File => {
+                Ok(AssetContent::File(self.path.read().to_resolved().await?).cell())
+            }
             FileSystemEntryType::NotFound => {
-                Ok(AssetContent::File(FileContent::NotFound.cell()).cell())
+                Ok(AssetContent::File(FileContent::NotFound.resolved_cell()).cell())
             }
             _ => Err(anyhow::anyhow!("Invalid file type {:?}", file_type)),
         }

@@ -8,7 +8,7 @@ use next_core::{
     util::{parse_config_from_source, MiddlewareMatcherKind},
 };
 use tracing::Instrument;
-use turbo_tasks::{Completion, RcStr, Value, Vc};
+use turbo_tasks::{Completion, RcStr, ResolvedVc, Value, Vc};
 use turbo_tasks_fs::{self, File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
@@ -36,8 +36,8 @@ pub struct MiddlewareEndpoint {
     project: Vc<Project>,
     asset_context: Vc<Box<dyn AssetContext>>,
     source: Vc<Box<dyn Source>>,
-    app_dir: Option<Vc<FileSystemPath>>,
-    ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
+    app_dir: Option<ResolvedVc<FileSystemPath>>,
+    ecmascript_client_reference_transition_name: Option<ResolvedVc<RcStr>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -47,8 +47,8 @@ impl MiddlewareEndpoint {
         project: Vc<Project>,
         asset_context: Vc<Box<dyn AssetContext>>,
         source: Vc<Box<dyn Source>>,
-        app_dir: Option<Vc<FileSystemPath>>,
-        ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
+        app_dir: Option<ResolvedVc<FileSystemPath>>,
+        ecmascript_client_reference_transition_name: Option<ResolvedVc<RcStr>>,
     ) -> Vc<Self> {
         Self {
             project,
@@ -87,7 +87,9 @@ impl MiddlewareEndpoint {
             Value::new(ServerContextType::Middleware {
                 app_dir: self.app_dir,
                 ecmascript_client_reference_transition_name: self
-                    .ecmascript_client_reference_transition_name,
+                    .ecmascript_client_reference_transition_name
+                    .as_deref()
+                    .copied(),
             }),
             self.project.next_mode(),
         )
@@ -106,7 +108,7 @@ impl MiddlewareEndpoint {
             .context("Entry module must be evaluatable")?;
         evaluatable_assets.push(evaluatable);
 
-        let edge_chunking_context = self.project.edge_chunking_context(true);
+        let edge_chunking_context = self.project.edge_chunking_context(false);
 
         let edge_files = edge_chunking_context.evaluated_chunk_group_assets(
             module.ident(),
@@ -183,29 +185,26 @@ impl MiddlewareEndpoint {
                     let has_locale = matcher.locale;
 
                     if has_i18n_locales && has_locale {
-                        source = format!(
-                            "/:nextInternalLocale((?!_next/)[^/.]{{1,}}){}",
-                            if is_root {
-                                "".to_string()
-                            } else {
-                                source.to_string()
-                            }
-                        );
+                        if is_root {
+                            source.clear();
+                        }
+                        source.insert_str(0, "/:nextInternalLocale((?!_next/)[^/.]{1,})");
                     }
 
-                    let last_part = if is_root {
-                        format!(
-                            "({}/?index|/?index\\\\.json)?",
-                            if has_i18n { "|\\\\.json|" } else { "" }
-                        )
+                    if is_root {
+                        source.push('(');
+                        if has_i18n {
+                            source.push_str("|\\\\.json|");
+                        }
+                        source.push_str("/?index|/?index\\\\.json)?")
                     } else {
-                        "(.json)?".into()
+                        source.push_str("{(\\\\.json)}?")
                     };
 
-                    source = format!("/:nextData(_next/data/[^/]{{1,}})?{}{}", source, last_part);
+                    source.insert_str(0, "/:nextData(_next/data/[^/]{1,})?");
 
                     if let Some(base_path) = base_path {
-                        source = format!("{}{}", base_path, source);
+                        source.insert_str(0, base_path);
                     }
 
                     // TODO: The implementation of getMiddlewareMatchers outputs a regex here using
@@ -240,7 +239,7 @@ impl MiddlewareEndpoint {
                 .collect(),
             ..Default::default()
         };
-        let middleware_manifest_v2 = Vc::upcast(VirtualOutputAsset::new(
+        let middleware_manifest_v2 = VirtualOutputAsset::new(
             node_root.join("server/middleware/middleware-manifest.json".into()),
             AssetContent::file(
                 FileContent::Content(File::from(serde_json::to_string_pretty(
@@ -248,8 +247,10 @@ impl MiddlewareEndpoint {
                 )?))
                 .cell(),
             ),
-        ));
-        output_assets.push(middleware_manifest_v2);
+        )
+        .to_resolved()
+        .await?;
+        output_assets.push(ResolvedVc::upcast(middleware_manifest_v2));
 
         Ok(Vc::cell(output_assets))
     }
@@ -310,7 +311,7 @@ impl Endpoint for MiddlewareEndpoint {
     }
 
     #[turbo_tasks::function]
-    fn root_modules(self: Vc<Self>) -> Vc<Modules> {
-        Vc::cell(vec![self.userland_module()])
+    async fn root_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
+        Ok(Vc::cell(vec![self.userland_module().to_resolved().await?]))
     }
 }

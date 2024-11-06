@@ -10,7 +10,7 @@ struct _FutureRacePop<'a, T, F: Future<Output = T> + Unpin> {
     futures: &'a mut Vec<F>,
 }
 
-impl<'a, T, F: Future<Output = T> + Unpin> Future for _FutureRacePop<'a, T, F> {
+impl<T, F: Future<Output = T> + Unpin> Future for _FutureRacePop<'_, T, F> {
     type Output = Option<T>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {

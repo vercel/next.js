@@ -1,6 +1,5 @@
-use indexmap::indexmap;
 use indoc::formatdoc;
-use turbo_tasks::{RcStr, Value, Vc};
+use turbo_tasks::{fxindexmap, RcStr, ResolvedVc, Value, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent, context::AssetContext, module::Module, reference_type::ReferenceType,
@@ -12,7 +11,7 @@ use turbopack_ecmascript::utils::StringifyJs;
 pub async fn wrap_edge_entry(
     asset_context: Vc<Box<dyn AssetContext>>,
     project_root: Vc<FileSystemPath>,
-    entry: Vc<Box<dyn Module>>,
+    entry: ResolvedVc<Box<dyn Module>>,
     pathname: RcStr,
 ) -> Vc<Box<dyn Module>> {
     // The wrapped module could be an async module, we handle that with the proxy
@@ -33,7 +32,7 @@ pub async fn wrap_edge_entry(
         AssetContent::file(file.into()),
     );
 
-    let inner_assets = indexmap! {
+    let inner_assets = fxindexmap! {
         "MODULE".into() => entry
     };
 

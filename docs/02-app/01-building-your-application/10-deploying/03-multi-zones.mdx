@@ -100,7 +100,7 @@ Routing requests through [`rewrites`](/docs/app/api-reference/next-config-js/rew
 ```js filename="middleware.js"
 export async function middleware(request) {
   const { pathname, search } = req.nextUrl;
-  if (pathname === '/your-path' && myFeaturFlag.isEnabled()) {
+  if (pathname === '/your-path' && myFeatureFlag.isEnabled()) {
     return NextResponse.rewrite(`${rewriteDomain}${pathname}${search});
   }
 }

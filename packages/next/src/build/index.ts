@@ -3,7 +3,6 @@ import type { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import type { ExportPathMap, NextConfigComplete } from '../server/config-shared'
 import type { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import type { ActionManifest } from './webpack/plugins/flight-client-entry-plugin'
-import type { ExportAppOptions } from '../export/types'
 import type { Revalidate } from '../server/lib/revalidate'
 
 import '../lib/setup-exception-listeners'
@@ -30,6 +29,11 @@ import {
   RSC_PREFETCH_SUFFIX,
   RSC_SUFFIX,
   NEXT_RESUME_HEADER,
+  PRERENDER_REVALIDATE_HEADER,
+  PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER,
+  NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
+  NEXT_CACHE_REVALIDATED_TAGS_HEADER,
+  MATCHED_PATH_HEADER,
 } from '../lib/constants'
 import { FileType, fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
@@ -128,9 +132,9 @@ import {
   isAppBuiltinNotFoundPage,
   collectRoutesUsingEdgeRuntime,
   collectMeta,
-  // getSupportedBrowsers,
 } from './utils'
-import type { PageInfo, PageInfos, AppConfig, PrerenderedRoute } from './utils'
+import type { PageInfo, PageInfos, PrerenderedRoute } from './utils'
+import type { AppSegmentConfig } from './segment-config/app/app-segment-config'
 import { writeBuildId } from './write-build-id'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import isError from '../lib/is-error'
@@ -156,6 +160,7 @@ import {
   RSC_CONTENT_TYPE_HEADER,
   NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_DID_POSTPONE_HEADER,
+  NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
 } from '../client/components/app-router-headers'
 import { webpackBuild } from './webpack-build'
 import { NextBuildContext, type MappedPages } from './build-context'
@@ -187,6 +192,7 @@ import {
   handlePagesErrorRoute,
   formatIssue,
   isRelevantWarning,
+  isPersistentCachingEnabled,
 } from '../server/dev/turbopack-utils'
 import { TurbopackManifestLoader } from '../server/dev/turbopack/manifest-loader'
 import type { Entrypoints } from '../server/dev/turbopack/types'
@@ -209,6 +215,7 @@ import { stitchBuilds } from './flying-shuttle/stitch-builds'
 import { inlineStaticEnv } from './flying-shuttle/inline-static-env'
 import { FallbackMode, fallbackModeToFallbackField } from '../lib/fallback'
 import { RenderingMode } from './rendering-mode'
+import { getParamKeys } from '../server/request/fallback-params'
 
 type Fallback = null | boolean | string
 
@@ -253,6 +260,12 @@ export interface SsgRoute {
    * route.
    */
   renderingMode: RenderingMode | undefined
+
+  /**
+   * The headers that are allowed to be used when revalidating this route. These
+   * are used internally by Next.js to revalidate routes.
+   */
+  allowHeader: string[]
 }
 
 export interface DynamicSsgRoute {
@@ -290,7 +303,25 @@ export interface DynamicSsgRoute {
    * route.
    */
   renderingMode: RenderingMode | undefined
+
+  /**
+   * The headers that are allowed to be used when revalidating this route. These
+   * are used internally by Next.js to revalidate routes.
+   */
+  allowHeader: string[]
 }
+
+/**
+ * The headers that are allowed to be used when revalidating routes. Currently
+ * this includes both headers used by the pages and app routers.
+ */
+const ALLOWED_HEADERS: string[] = [
+  MATCHED_PATH_HEADER,
+  PRERENDER_REVALIDATE_HEADER,
+  PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER,
+  NEXT_CACHE_REVALIDATED_TAGS_HEADER,
+  NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
+]
 
 export type PrerenderManifest = {
   version: 4
@@ -461,7 +492,12 @@ async function writeClientSsgManifest(
 
 interface FunctionsConfigManifest {
   version: number
-  functions: Record<string, Record<string, string | number>>
+  functions: Record<
+    string,
+    {
+      maxDuration?: number | undefined
+    }
+  >
 }
 
 async function writeFunctionsConfigManifest(
@@ -500,6 +536,8 @@ async function writeImagesManifest(
   const images = { ...config.images }
   const { deviceSizes, imageSizes } = images
   ;(images as any).sizes = [...deviceSizes, ...imageSizes]
+
+  // By default, remotePatterns will allow no remote images ([])
   images.remotePatterns = (config?.images?.remotePatterns || []).map((p) => ({
     // Modifying the manifest should also modify matchRemotePattern()
     protocol: p.protocol,
@@ -508,6 +546,15 @@ async function writeImagesManifest(
     pathname: makeRe(p.pathname ?? '**', { dot: true }).source,
     search: p.search,
   }))
+
+  // By default, localPatterns will allow all local images (undefined)
+  if (config?.images?.localPatterns) {
+    images.localPatterns = config.images.localPatterns.map((p) => ({
+      // Modifying the manifest should also modify matchLocalPattern()
+      pathname: makeRe(p.pathname ?? '**', { dot: true }).source,
+      search: p.search,
+    }))
+  }
 
   await writeManifest(path.join(distDir, IMAGES_MANIFEST), {
     version: 1,
@@ -631,12 +678,20 @@ const staticWorkerExposedMethods = [
 type StaticWorker = typeof import('./worker') & Worker
 export function createStaticWorker(
   config: NextConfigComplete,
-  onActivity?: () => void
+  progress?: {
+    run: () => void
+    clear: () => void
+  }
 ): StaticWorker {
   return new Worker(staticWorkerPath, {
     logger: Log,
     numWorkers: getNumberOfWorkers(config),
-    onActivity,
+    onActivity: () => {
+      progress?.run()
+    },
+    onActivityAbort: () => {
+      progress?.clear()
+    },
     forkOptions: {
       env: process.env,
     },
@@ -1203,6 +1258,7 @@ export default async function build(
         config.basePath ? `${config.basePath}${p}` : p
       )
 
+      const isAppDynamicIOEnabled = Boolean(config.experimental.dynamicIO)
       const isAppPPREnabled = checkIsAppPPREnabled(config.experimental.ppr)
 
       const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
@@ -1241,7 +1297,7 @@ export default async function build(
               header: RSC_HEADER,
               // This vary header is used as a default. It is technically re-assigned in `base-server`,
               // and may include an additional Vary option for `Next-URL`.
-              varyHeader: `${RSC_HEADER}, ${NEXT_ROUTER_STATE_TREE_HEADER}, ${NEXT_ROUTER_PREFETCH_HEADER}`,
+              varyHeader: `${RSC_HEADER}, ${NEXT_ROUTER_STATE_TREE_HEADER}, ${NEXT_ROUTER_PREFETCH_HEADER}, ${NEXT_ROUTER_SEGMENT_PREFETCH_HEADER}`,
               prefetchHeader: NEXT_ROUTER_PREFETCH_HEADER,
               didPostponeHeader: NEXT_DID_POSTPONE_HEADER,
               contentTypeHeader: RSC_CONTENT_TYPE_HEADER,
@@ -1367,9 +1423,12 @@ export default async function build(
               config.experimental?.turbo?.root ||
               config.outputFileTracingRoot ||
               dir,
+            distDir,
             nextConfig: config,
             jsConfig: await getTurbopackJsConfig(dir, config),
-            watch: false,
+            watch: {
+              enable: false,
+            },
             dev,
             env: process.env as Record<string, string>,
             defineEnv: createDefineEnv({
@@ -1389,6 +1448,7 @@ export default async function build(
             browserslistQuery: supportedBrowsers.join(', '),
           },
           {
+            persistentCaching: isPersistentCachingEnabled(config),
             memoryLimit: config.experimental.turbo?.memoryLimit,
           }
         )
@@ -1472,7 +1532,15 @@ export default async function build(
           'Building'
         )
         const promises: Promise<any>[] = []
-        const sema = new Sema(10)
+
+        // Concurrency will start at INITIAL_CONCURRENCY and
+        // slowly ramp up to CONCURRENCY by increasing the
+        // concurrency by 1 every time a task is completed.
+        const INITIAL_CONCURRENCY = 5
+        const CONCURRENCY = 10
+
+        const sema = new Sema(INITIAL_CONCURRENCY)
+        let remainingRampup = CONCURRENCY - INITIAL_CONCURRENCY
         const enqueue = (fn: () => Promise<void>) => {
           promises.push(
             (async () => {
@@ -1481,7 +1549,11 @@ export default async function build(
                 await fn()
               } finally {
                 sema.release()
-                progress()
+                if (remainingRampup > 0) {
+                  remainingRampup--
+                  sema.release()
+                }
+                progress.run()
               }
             })()
           )
@@ -1591,8 +1663,9 @@ export default async function build(
           )
         }
 
+        const time = process.hrtime(startTime)
         return {
-          duration: process.hrtime(startTime)[0],
+          duration: time[0] + time[1] / 1e9,
           buildTraceContext: undefined,
           shutdownPromise,
         }
@@ -1652,11 +1725,21 @@ export default async function build(
 
           buildTraceContext = rest.buildTraceContext
 
-          Log.event('Compiled successfully')
+          let durationString
+          if (compilerDuration > 120) {
+            durationString = `${Math.round(compilerDuration / 6) / 10}min`
+          } else if (compilerDuration > 20) {
+            durationString = `${Math.round(compilerDuration)}s`
+          } else if (compilerDuration > 2) {
+            durationString = `${Math.round(compilerDuration * 10) / 10}s`
+          } else {
+            durationString = `${Math.round(compilerDuration * 1000)}ms`
+          }
+          Log.event(`Compiled successfully in ${durationString}`)
 
           telemetry.record(
             eventBuildCompleted(pagesPaths, {
-              durationInSeconds: compilerDuration,
+              durationInSeconds: Math.round(compilerDuration),
               totalAppPagesCount,
             })
           )
@@ -1816,9 +1899,13 @@ export default async function build(
       const serverPropsPages = new Set<string>()
       const additionalPaths = new Map<string, PrerenderedRoute[]>()
       const staticPaths = new Map<string, PrerenderedRoute[]>()
+      const prospectiveRenders = new Map<
+        string,
+        { page: string; originalAppPath: string }
+      >()
       const appNormalizedPaths = new Map<string, string>()
       const fallbackModes = new Map<string, FallbackMode>()
-      const appDefaultConfigs = new Map<string, AppConfig>()
+      const appDefaultConfigs = new Map<string, AppSegmentConfig>()
       const pageInfos: PageInfos = new Map<string, PageInfo>()
       let pagesManifest = await readManifest<PagesManifest>(pagesManifestPath)
       const buildManifest = await readManifest<BuildManifest>(buildManifestPath)
@@ -1900,13 +1987,13 @@ export default async function build(
               distDir,
               configFileName,
               runtimeEnvConfig,
-              dynamicIO: Boolean(config.experimental.dynamicIO),
+              dynamicIO: isAppDynamicIOEnabled,
               httpAgentOptions: config.httpAgentOptions,
               locales: config.i18n?.locales,
               defaultLocale: config.i18n?.defaultLocale,
               nextConfigOutput: config.output,
               pprConfig: config.experimental.ppr,
-              isAppPPRFallbacksEnabled: config.experimental.pprFallbacks,
+              cacheLifeProfiles: config.experimental.cacheLife,
               buildId,
             })
         )
@@ -2066,9 +2153,15 @@ export default async function build(
                     })
                   : undefined
 
-                if (staticInfo?.extraConfig) {
-                  functionsConfigManifest.functions[page] =
-                    staticInfo.extraConfig
+                // If there's any thing that would contribute to the functions
+                // configuration, we need to add it to the manifest.
+                if (
+                  typeof staticInfo?.runtime !== 'undefined' ||
+                  typeof staticInfo?.maxDuration !== 'undefined'
+                ) {
+                  functionsConfigManifest.functions[page] = {
+                    maxDuration: staticInfo?.maxDuration,
+                  }
                 }
 
                 const pageRuntime = middlewareManifest.functions[
@@ -2117,16 +2210,16 @@ export default async function build(
                             pageRuntime,
                             edgeInfo,
                             pageType,
-                            dynamicIO: Boolean(config.experimental.dynamicIO),
+                            dynamicIO: isAppDynamicIOEnabled,
                             cacheHandler: config.cacheHandler,
+                            cacheHandlers: config.experimental.cacheHandlers,
                             isrFlushToDisk: ciEnvironment.hasNextSupport
                               ? false
                               : config.experimental.isrFlushToDisk,
                             maxMemoryCacheSize: config.cacheMaxMemorySize,
                             nextConfigOutput: config.output,
                             pprConfig: config.experimental.ppr,
-                            isAppPPRFallbacksEnabled:
-                              config.experimental.pprFallbacks,
+                            cacheLifeProfiles: config.experimental.cacheLife,
                             buildId,
                           })
                         }
@@ -2143,6 +2236,8 @@ export default async function build(
                             `Using edge runtime on a page currently disables static generation for that page`
                           )
                         } else {
+                          const isDynamic = isDynamicRoute(page)
+
                           // If this route can be partially pre-rendered, then
                           // mark it as such and mark that it can be
                           // generated server-side.
@@ -2152,6 +2247,18 @@ export default async function build(
                             isStatic = true
 
                             staticPaths.set(originalAppPath, [])
+                          }
+                          // As PPR isn't enabled for this route, if dynamic IO
+                          // is enabled, and this is a dynamic route, we should
+                          // complete a prospective render for the route so that
+                          // we can use the fallback behavior. This lets us
+                          // check that dynamic pages won't error when they
+                          // enable PPR.
+                          else if (config.experimental.dynamicIO && isDynamic) {
+                            prospectiveRenders.set(originalAppPath, {
+                              page,
+                              originalAppPath,
+                            })
                           }
 
                           if (
@@ -2170,7 +2277,6 @@ export default async function build(
 
                           const appConfig = workerResult.appConfig || {}
                           if (appConfig.revalidate !== 0) {
-                            const isDynamic = isDynamicRoute(page)
                             const hasGenerateStaticParams =
                               workerResult.prerenderedRoutes &&
                               workerResult.prerenderedRoutes.length > 0
@@ -2194,7 +2300,7 @@ export default async function build(
                                 {
                                   path: page,
                                   encoded: page,
-                                  fallbackRouteParams: [],
+                                  fallbackRouteParams: undefined,
                                 },
                               ])
                               isStatic = true
@@ -2416,6 +2522,16 @@ export default async function build(
       const requiredServerFilesManifest = nextBuildSpan
         .traceChild('generate-required-server-files')
         .traceFn(() => {
+          const normalizedCacheHandlers: Record<string, string> = {}
+
+          for (const [key, value] of Object.entries(
+            config.experimental.cacheHandlers || {}
+          )) {
+            if (key && value) {
+              normalizedCacheHandlers[key] = path.relative(distDir, value)
+            }
+          }
+
           const serverFilesManifest: RequiredServerFilesManifest = {
             version: 1,
             config: {
@@ -2431,6 +2547,7 @@ export default async function build(
                 : config.cacheHandler,
               experimental: {
                 ...config.experimental,
+                cacheHandlers: normalizedCacheHandlers,
                 trustHostHeader: ciEnvironment.hasNextSupport,
 
                 // @ts-expect-error internal field TODO: fix this, should use a separate mechanism to pass the info.
@@ -2842,6 +2959,28 @@ export default async function build(
                 })
               })
 
+              // If the app does have dynamic IO enabled but does not have PPR
+              // enabled, then we need to perform a prospective render for all
+              // the dynamic pages to ensure that they won't error during
+              // rendering (due to a missing prelude).
+              for (const {
+                page,
+                originalAppPath,
+              } of prospectiveRenders.values()) {
+                defaultMap[page] = {
+                  page: originalAppPath,
+                  query: { __nextSsgPath: page },
+                  _fallbackRouteParams: getParamKeys(page),
+                  // Prospective renders are only enabled for app pages.
+                  _isAppDir: true,
+                  // Prospective renders are only enabled when PPR is disabled.
+                  _isRoutePPREnabled: false,
+                  _isProspectiveRender: true,
+                  // Dynamic IO does not currently support `dynamic === 'error'`.
+                  _isDynamicError: false,
+                }
+              }
+
               if (i18n) {
                 for (const page of [
                   ...staticPages,
@@ -2878,21 +3017,20 @@ export default async function build(
             },
           }
 
-          const exportOptions: ExportAppOptions = {
-            nextConfig: exportConfig,
-            enabledDirectories,
-            silent: true,
-            buildExport: true,
-            debugOutput,
-            pages: combinedPages,
-            outdir: path.join(distDir, 'export'),
-            statusMessage: 'Generating static pages',
-            numWorkers: getNumberOfWorkers(exportConfig),
-          }
-
+          const outdir = path.join(distDir, 'export')
           const exportResult = await exportApp(
             dir,
-            exportOptions,
+            {
+              nextConfig: exportConfig,
+              enabledDirectories,
+              silent: true,
+              buildExport: true,
+              debugOutput,
+              pages: combinedPages,
+              outdir,
+              statusMessage: 'Generating static pages',
+              numWorkers: getNumberOfWorkers(exportConfig),
+            },
             nextBuildSpan
           )
 
@@ -3084,6 +3222,7 @@ export default async function build(
                   srcRoute: page,
                   dataRoute,
                   prefetchDataRoute,
+                  allowHeader: ALLOWED_HEADERS,
                 }
               } else {
                 hasRevalidateZero = true
@@ -3101,7 +3240,7 @@ export default async function build(
               // When PPR fallbacks aren't used, we need to include it here. If
               // they are enabled, then it'll already be included in the
               // prerendered routes.
-              if (!isRoutePPREnabled || !config.experimental.pprFallbacks) {
+              if (!isRoutePPREnabled) {
                 dynamicRoutes.push(page)
               }
 
@@ -3190,6 +3329,7 @@ export default async function build(
                           '\\.prefetch\\.rsc$'
                         )
                       ),
+                  allowHeader: ALLOWED_HEADERS,
                 }
               }
             }
@@ -3207,7 +3347,7 @@ export default async function build(
               .traceChild('move-exported-page')
               .traceAsyncFn(async () => {
                 file = `${file}.${ext}`
-                const orig = path.join(exportOptions.outdir, file)
+                const orig = path.join(outdir, file)
                 const pagePath = getPagePath(
                   originPage,
                   distDir,
@@ -3293,7 +3433,7 @@ export default async function build(
                       .replace(/\\/g, '/')
 
                     const updatedOrig = path.join(
-                      exportOptions.outdir,
+                      outdir,
                       locale + localeExt,
                       page === '/' ? '' : file
                     )
@@ -3421,6 +3561,7 @@ export default async function build(
                         `${file}.json`
                       ),
                       prefetchDataRoute: undefined,
+                      allowHeader: ALLOWED_HEADERS,
                     }
                   }
                 } else {
@@ -3437,6 +3578,7 @@ export default async function build(
                     ),
                     // Pages does not have a prefetch data route.
                     prefetchDataRoute: undefined,
+                    allowHeader: ALLOWED_HEADERS,
                   }
                 }
                 // Set Page Revalidation Interval
@@ -3507,6 +3649,7 @@ export default async function build(
                     ),
                     // Pages does not have a prefetch data route.
                     prefetchDataRoute: undefined,
+                    allowHeader: ALLOWED_HEADERS,
                   }
 
                   // Set route Revalidation Interval
@@ -3519,7 +3662,7 @@ export default async function build(
           }
 
           // remove temporary export folder
-          await fs.rm(exportOptions.outdir, { recursive: true, force: true })
+          await fs.rm(outdir, { recursive: true, force: true })
           await writeManifest(pagesManifestPath, pagesManifest)
         })
       }
@@ -3602,6 +3745,7 @@ export default async function build(
             // Pages does not have a prefetch data route.
             prefetchDataRoute: undefined,
             prefetchDataRouteRegex: undefined,
+            allowHeader: ALLOWED_HEADERS,
           }
         })
 
@@ -3729,6 +3873,7 @@ export default async function build(
         mode: 'build',
         projectDir: dir,
         distDir: loadedConfig.distDir,
+        isTurboSession: turboNextBuild,
         sync: true,
       })
     }

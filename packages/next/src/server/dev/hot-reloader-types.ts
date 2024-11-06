@@ -76,6 +76,7 @@ interface RemovedPageAction {
 
 export interface ReloadPageAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE
+  data: string
 }
 
 interface ServerComponentChangesAction {
@@ -111,7 +112,7 @@ export interface TurbopackConnectedAction {
 
 export interface AppIsrManifestAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.APP_ISR_MANIFEST
-  data: Record<string, false | number>
+  data: Record<string, boolean>
 }
 
 export type HMR_ACTION_TYPES =

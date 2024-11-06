@@ -1,6 +1,7 @@
 import Link from 'next/link'
 
-export default function Page({ params }) {
+export default async function Page(props) {
+  const params = await props.params
   return (
     <div>
       <h1 id="slug-page">Visiting page {params.slug}</h1>

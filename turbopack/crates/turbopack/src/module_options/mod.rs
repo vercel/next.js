@@ -10,7 +10,7 @@ pub use custom_module_type::CustomModuleType;
 pub use module_options_context::*;
 pub use module_rule::*;
 pub use rule_condition::*;
-use turbo_tasks::{RcStr, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, Vc};
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 use turbopack_core::{
     reference_type::{CssReferenceSubType, ReferenceType, UrlReferenceSubType},
@@ -29,7 +29,7 @@ use crate::{
 #[turbo_tasks::function]
 async fn package_import_map_from_import_mapping(
     package_name: RcStr,
-    package_mapping: Vc<ImportMapping>,
+    package_mapping: ResolvedVc<ImportMapping>,
 ) -> Vc<ImportMap> {
     let mut import_map = ImportMap::default();
     import_map.insert_exact_alias(
@@ -42,12 +42,12 @@ async fn package_import_map_from_import_mapping(
 #[turbo_tasks::function]
 async fn package_import_map_from_context(
     package_name: RcStr,
-    context_path: Vc<FileSystemPath>,
+    context_path: ResolvedVc<FileSystemPath>,
 ) -> Vc<ImportMap> {
     let mut import_map = ImportMap::default();
     import_map.insert_exact_alias(
         format!("@vercel/turbopack/{}", package_name),
-        ImportMapping::PrimaryAlternative(package_name, Some(context_path)).cell(),
+        ImportMapping::PrimaryAlternative(package_name, Some(context_path)).resolved_cell(),
     );
     import_map.cell()
 }
@@ -93,7 +93,6 @@ impl ModuleOptions {
             execution_context,
             ref rules,
             tree_shaking_mode,
-            special_exports,
             ..
         } = *module_options_context.await?;
 
@@ -136,13 +135,14 @@ impl ModuleOptions {
             import_externals,
             ignore_dynamic_requests,
             refresh,
-            special_exports: special_exports.unwrap_or_else(|| Vc::cell(vec![])),
             ..Default::default()
         };
         let ecmascript_options_vc = ecmascript_options.cell();
 
         if let Some(env) = preset_env_versions {
-            transforms.push(EcmascriptInputTransform::PresetEnv(env));
+            transforms.push(EcmascriptInputTransform::PresetEnv(
+                env.to_resolved().await?,
+            ));
         }
 
         if let Some(enable_typeof_window_inlining) = enable_typeof_window_inlining {
@@ -410,7 +410,7 @@ impl ModuleOptions {
                     .context("execution_context is required for the postcss_transform")?;
 
                 let import_map = if let Some(postcss_package) = options.postcss_package {
-                    package_import_map_from_import_mapping("postcss".into(), postcss_package)
+                    package_import_map_from_import_mapping("postcss".into(), *postcss_package)
                 } else {
                     package_import_map_from_context("postcss".into(), path)
                 };
@@ -420,13 +420,13 @@ impl ModuleOptions {
                     vec![ModuleRuleEffect::SourceTransforms(Vc::cell(vec![
                         Vc::upcast(PostCssTransform::new(
                             node_evaluate_asset_context(
-                                execution_context,
+                                *execution_context,
                                 Some(import_map),
                                 None,
                                 "postcss".into(),
                                 true,
                             ),
-                            execution_context,
+                            *execution_context,
                             options.config_location,
                         )),
                     ]))],
@@ -564,13 +564,13 @@ impl ModuleOptions {
                     vec![ModuleRuleEffect::SourceTransforms(Vc::cell(vec![
                         Vc::upcast(WebpackLoaders::new(
                             node_evaluate_asset_context(
-                                execution_context,
+                                *execution_context,
                                 Some(import_map),
                                 None,
                                 "webpack_loaders".into(),
                                 false,
                             ),
-                            execution_context,
+                            *execution_context,
                             rule.loaders,
                             rule.rename_as.clone(),
                             resolve_options_context,

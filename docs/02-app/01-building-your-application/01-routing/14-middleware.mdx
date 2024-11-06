@@ -25,7 +25,7 @@ Recognizing situations where middleware may not be the optimal approach is just 
 - Complex Data Fetching and Manipulation: Middleware is not designed for direct data fetching or manipulation, this should be done within Route Handlers or server-side utilities instead.
 - Heavy Computational Tasks: Middleware should be lightweight and respond quickly or it can cause delays in page load. Heavy computational tasks or long-running processes should be done within dedicated Route Handlers.
 - Extensive Session Management: While Middleware can manage basic session tasks, extensive session management should be managed by dedicated authentication services or within Route Handlers.
-- Direct Database Operations: Performing direct database operations within Middleware is not recommended. Database interactions should done within Route Handlers or server-side utilities.
+- Direct Database Operations: Performing direct database operations within Middleware is not recommended. Database interactions should be done within Route Handlers or server-side utilities.
 
 ## Convention
 
@@ -569,6 +569,36 @@ export default async function middleware(req) {
   // with the flag this now /_next/data/build-id/hello.json
   // without the flag this would be normalized to /hello
 }
+```
+
+## Unit Testing (experimental)
+
+Starting in Next.js 15.1, the `next/experimental/testing/server` package contains utilities to help unit test middleware files. Unit testing middleware can help ensure that it's only run on desired paths and that custom routing logic works as intended before code reaches production.
+
+The `unstable_doesMiddlewareMatch` function can be used to assert whether middleware will run for the provided URL, headers, and cookies.
+
+```js
+import { unstable_doesMiddlewareMatch } from 'next/experimental/testing/server'
+
+expect(
+  unstable_doesMiddlewareMatch({
+    config,
+    nextConfig,
+    url: '/test',
+  })
+).toEqual(false)
+```
+
+The entire middleware function can also be tested.
+
+```js
+import { isRewrite, getRewrittenUrl } from 'next/experimental/testing/server'
+
+const request = new NextRequest('https://nextjs.org/docs')
+const response = await middleware(request)
+expect(isRewrite(response)).toEqual(true)
+expect(getRewrittenUrl(response)).toEqual('https://other-domain.com/docs')
+// getRedirectUrl could also be used if the response were a redirect
 ```
 
 ## Runtime

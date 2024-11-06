@@ -1,6 +1,9 @@
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import type { OriginalStackFrameResponse } from '../../server/shared'
-
+import {
+  isWebpackInternalResource,
+  formatFrameSourceFile,
+} from './webpack-module-path'
 export interface OriginalStackFrame extends OriginalStackFrameResponse {
   error: boolean
   reason: string | null
@@ -62,6 +65,7 @@ function getOriginalStackFrame(
 
   if (
     source.file === '<anonymous>' ||
+    source.file === 'file://' ||
     source.file?.match(/^node:/) ||
     source.file?.match(/https?:\/\//)
   ) {
@@ -102,63 +106,53 @@ export function getOriginalStackFrames(
   )
 }
 
-const webpackRegExes = [
-  /^webpack-internal:\/\/\/(\.)?(\((\w+)\))?/,
-  /^(webpack:\/\/\/(\.)?|webpack:\/\/(_N_E\/)?)(\((\w+)\))?/,
-]
-
-function isWebpackBundled(file: string) {
-  return webpackRegExes.some((regEx) => regEx.test(file))
-}
-
-/**
- * Format the webpack internal id to original file path
- * webpack-internal:///./src/hello.tsx => ./src/hello.tsx
- * webpack://_N_E/./src/hello.tsx => ./src/hello.tsx
- * webpack://./src/hello.tsx => ./src/hello.tsx
- * webpack:///./src/hello.tsx => ./src/hello.tsx
- *
- * <anonymous> => ''
- */
-function formatFrameSourceFile(file: string) {
-  if (file === '<anonymous>') return ''
-  for (const regex of webpackRegExes) file = file.replace(regex, '')
-  return file
-}
-
 export function getFrameSource(frame: StackFrame): string {
   if (!frame.file) return ''
 
-  let str = ''
-  try {
-    const u = new URL(frame.file)
+  const isWebpackFrame = isWebpackInternalResource(frame.file)
 
-    // Strip the origin for same-origin scripts.
-    if (globalThis.location?.origin !== u.origin) {
-      // URLs can be valid without an `origin`, so long as they have a
-      // `protocol`. However, `origin` is preferred.
-      if (u.origin === 'null') {
-        str += u.protocol
+  let str = ''
+  // Skip URL parsing for webpack internal file paths.
+  if (isWebpackFrame) {
+    str = formatFrameSourceFile(frame.file)
+  } else {
+    try {
+      const u = new URL(frame.file)
+
+      let parsedPath = ''
+      // Strip the origin for same-origin scripts.
+      if (globalThis.location?.origin !== u.origin) {
+        // URLs can be valid without an `origin`, so long as they have a
+        // `protocol`. However, `origin` is preferred.
+        if (u.origin === 'null') {
+          parsedPath += u.protocol
+        } else {
+          parsedPath += u.origin
+        }
+      }
+
+      // Strip query string information as it's typically too verbose to be
+      // meaningful.
+      parsedPath += u.pathname
+      str = formatFrameSourceFile(parsedPath)
+    } catch {
+      str = formatFrameSourceFile(frame.file)
+    }
+  }
+
+  if (!isWebpackInternalResource(frame.file) && frame.lineNumber != null) {
+    // If the method name is replayed from server, e.g. Page [Server],
+    // and it's formatted to empty string, recover it as <anonymous> to display it.
+    if (!str && frame.methodName.endsWith(' [Server]')) {
+      str = '<anonymous>'
+    }
+    if (str) {
+      if (frame.column != null) {
+        str += ` (${frame.lineNumber}:${frame.column})`
       } else {
-        str += u.origin
+        str += ` (${frame.lineNumber})`
       }
     }
-
-    // Strip query string information as it's typically too verbose to be
-    // meaningful.
-    str += u.pathname
-    str += ' '
-    str = formatFrameSourceFile(str)
-  } catch {
-    str += formatFrameSourceFile(frame.file || '') + ' '
   }
-
-  if (!isWebpackBundled(frame.file) && frame.lineNumber != null) {
-    if (frame.column != null) {
-      str += `(${frame.lineNumber}:${frame.column}) `
-    } else {
-      str += `(${frame.lineNumber}) `
-    }
-  }
-  return str.slice(0, -1)
+  return str
 }

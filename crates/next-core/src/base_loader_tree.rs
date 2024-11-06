@@ -1,7 +1,6 @@
 use anyhow::Result;
-use indexmap::IndexMap;
 use indoc::formatdoc;
-use turbo_tasks::{RcStr, Value, ValueToString, Vc};
+use turbo_tasks::{FxIndexMap, RcStr, ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::{transition::Transition, ModuleAssetContext};
 use turbopack_core::{
@@ -13,7 +12,7 @@ use turbopack_core::{
 use turbopack_ecmascript::{magic_identifier, utils::StringifyJs};
 
 pub struct BaseLoaderTreeBuilder {
-    pub inner_assets: IndexMap<RcStr, Vc<Box<dyn Module>>>,
+    pub inner_assets: FxIndexMap<RcStr, ResolvedVc<Box<dyn Module>>>,
     counter: usize,
     pub imports: Vec<RcStr>,
     pub module_asset_context: Vc<ModuleAssetContext>,
@@ -29,6 +28,7 @@ pub enum AppDirModuleType {
     Loading,
     Template,
     NotFound,
+    GlobalError,
 }
 
 impl AppDirModuleType {
@@ -41,6 +41,7 @@ impl AppDirModuleType {
             AppDirModuleType::Loading => "loading",
             AppDirModuleType::Template => "template",
             AppDirModuleType::NotFound => "not-found",
+            AppDirModuleType::GlobalError => "global-error",
         }
     }
 }
@@ -51,7 +52,7 @@ impl BaseLoaderTreeBuilder {
         server_component_transition: Vc<Box<dyn Transition>>,
     ) -> Self {
         BaseLoaderTreeBuilder {
-            inner_assets: IndexMap::new(),
+            inner_assets: FxIndexMap::default(),
             counter: 0,
             imports: Vec::new(),
             module_asset_context,
@@ -100,7 +101,10 @@ impl BaseLoaderTreeBuilder {
             .into(),
         );
 
-        let module = self.process_source(Vc::upcast(FileSource::new(path)));
+        let module = self
+            .process_source(Vc::upcast(FileSource::new(path)))
+            .to_resolved()
+            .await?;
 
         self.inner_assets
             .insert(format!("MODULE_{i}").into(), module);

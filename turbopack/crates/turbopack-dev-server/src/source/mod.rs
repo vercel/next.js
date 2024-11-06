@@ -18,7 +18,8 @@ use anyhow::Result;
 use futures::{stream::Stream as StreamTrait, TryStreamExt};
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    trace::TraceRawVcs, util::SharedError, Completion, RcStr, Upcast, Value, ValueDefault, Vc,
+    trace::TraceRawVcs, util::SharedError, Completion, RcStr, ResolvedVc, Upcast, Value,
+    ValueDefault, Vc,
 };
 use turbo_tasks_bytes::{Bytes, Stream, StreamRead};
 use turbo_tasks_fs::FileSystemPath;
@@ -88,9 +89,9 @@ pub struct StaticContent {
 /// The content of a result that is returned by a content source.
 pub enum ContentSourceContent {
     NotFound,
-    Static(Vc<StaticContent>),
-    HttpProxy(Vc<ProxyResult>),
-    Rewrite(Vc<Rewrite>),
+    Static(ResolvedVc<StaticContent>),
+    HttpProxy(ResolvedVc<ProxyResult>),
+    Rewrite(ResolvedVc<Rewrite>),
     /// Continue with the next route
     Next,
 }
@@ -118,31 +119,33 @@ impl GetContentSourceContent for ContentSourceContent {
 #[turbo_tasks::value_impl]
 impl ContentSourceContent {
     #[turbo_tasks::function]
-    pub fn static_content(content: Vc<Box<dyn VersionedContent>>) -> Vc<ContentSourceContent> {
+    pub fn static_content(
+        content: ResolvedVc<Box<dyn VersionedContent>>,
+    ) -> Vc<ContentSourceContent> {
         ContentSourceContent::Static(
             StaticContent {
-                content,
+                content: *content,
                 status_code: 200,
                 headers: HeaderList::empty(),
             }
-            .cell(),
+            .resolved_cell(),
         )
         .cell()
     }
 
     #[turbo_tasks::function]
     pub fn static_with_headers(
-        content: Vc<Box<dyn VersionedContent>>,
+        content: ResolvedVc<Box<dyn VersionedContent>>,
         status_code: u16,
-        headers: Vc<HeaderList>,
+        headers: ResolvedVc<HeaderList>,
     ) -> Vc<ContentSourceContent> {
         ContentSourceContent::Static(
             StaticContent {
-                content,
+                content: *content,
                 status_code,
-                headers,
+                headers: *headers,
             }
-            .cell(),
+            .resolved_cell(),
         )
         .cell()
     }
@@ -503,11 +506,11 @@ pub struct Rewrite {
 
     /// A [Headers] which will be appended to the eventual, fully resolved
     /// content result. This overwrites any previous matching headers.
-    pub response_headers: Option<Vc<HeaderList>>,
+    pub response_headers: Option<ResolvedVc<HeaderList>>,
 
     /// A [HeaderList] which will overwrite the values used during the lookup
     /// process. All headers not present in this list will be deleted.
-    pub request_headers: Option<Vc<HeaderList>>,
+    pub request_headers: Option<ResolvedVc<HeaderList>>,
 }
 
 pub struct RewriteBuilder {
@@ -553,14 +556,14 @@ impl RewriteBuilder {
 
     /// Sets response headers to append to the eventual, fully resolved content
     /// result.
-    pub fn response_headers(mut self, headers: Vc<HeaderList>) -> Self {
+    pub fn response_headers(mut self, headers: ResolvedVc<HeaderList>) -> Self {
         self.rewrite.response_headers = Some(headers);
         self
     }
 
     /// Sets request headers to overwrite the headers used during the lookup
     /// process.
-    pub fn request_headers(mut self, headers: Vc<HeaderList>) -> Self {
+    pub fn request_headers(mut self, headers: ResolvedVc<HeaderList>) -> Self {
         self.rewrite.request_headers = Some(headers);
         self
     }

@@ -1,5 +1,5 @@
 import * as Bus from './bus'
-import { parseStack } from '../internal/helpers/parseStack'
+import { parseStack } from '../internal/helpers/parse-stack'
 import { parseComponentStack } from '../internal/helpers/parse-component-stack'
 import {
   hydrationErrorState,
@@ -44,7 +44,7 @@ function handleError(error: unknown) {
     Bus.emit({
       type: ACTION_UNHANDLED_ERROR,
       reason: error,
-      frames: parseStack(error.stack!),
+      frames: parseStack(error.stack),
       componentStackFrames,
     })
   }
@@ -138,6 +138,6 @@ export function onVersionInfo(versionInfo: VersionInfo) {
   Bus.emit({ type: ACTION_VERSION_INFO, versionInfo })
 }
 
-export { getErrorByType } from '../internal/helpers/getErrorByType'
-export { getServerError } from '../internal/helpers/nodeStackFrames'
+export { getErrorByType } from '../internal/helpers/get-error-by-type'
+export { getServerError } from '../internal/helpers/node-stack-frames'
 export { default as ReactDevOverlay } from './ReactDevOverlay'

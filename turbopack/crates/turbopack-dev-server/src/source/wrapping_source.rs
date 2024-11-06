@@ -79,7 +79,7 @@ impl GetContentSourceContent for WrappedGetContentSourceContent {
                     response_headers: rewrite.response_headers,
                     request_headers: rewrite.request_headers,
                 }
-                .cell(),
+                .resolved_cell(),
             )
             .cell());
         }

@@ -37,6 +37,30 @@ describe('getImageProps()', () => {
       ['src', '/_next/image?url=%2Ftest.png&w=256&q=75'],
     ])
   })
+
+  it('should have correct type for props', async () => {
+    const { props } = getImageProps({
+      alt: 'a nice desc',
+      id: 'my-image',
+      src: '/test.png',
+      width: 100,
+      height: 200,
+    })
+
+    expect(props.alt).toBeString()
+    expect(props.id).toBeString()
+    expect(props.loading).toBeString()
+
+    expect(props.width).toBeNumber()
+    expect(props.height).toBeNumber()
+
+    expect(props.decoding).toBeString()
+    expect(props.style).toBeObject()
+    expect(props.style.color).toBeString()
+    expect(props.src).toBeString()
+    expect(props.srcSet).toBeString()
+  })
+
   it('should handle priority', async () => {
     const { props } = getImageProps({
       alt: 'a nice desc',

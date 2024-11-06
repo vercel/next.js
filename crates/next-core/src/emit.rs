@@ -2,7 +2,7 @@ use anyhow::Result;
 use tracing::Instrument;
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
-    Completion, Completions, TryFlatJoinIterExt, ValueToString, Vc,
+    Completion, Completions, ResolvedVc, TryFlatJoinIterExt, ValueToString, Vc,
 };
 use turbo_tasks_fs::{rebase, FileSystemPath};
 use turbopack_core::{
@@ -108,8 +108,8 @@ pub async fn all_assets_from_entries(entries: Vc<OutputAssets>) -> Result<Vc<Out
 
 /// Computes the list of all chunk children of a given chunk.
 async fn get_referenced_assets(
-    asset: Vc<Box<dyn OutputAsset>>,
-) -> Result<impl Iterator<Item = Vc<Box<dyn OutputAsset>>> + Send> {
+    asset: ResolvedVc<Box<dyn OutputAsset>>,
+) -> Result<impl Iterator<Item = ResolvedVc<Box<dyn OutputAsset>>> + Send> {
     Ok(asset
         .references()
         .await?

@@ -1,9 +1,9 @@
 use anyhow::Result;
-use turbo_tasks::{RcStr, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
+    chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext, MinifyType},
     context::AssetContext,
     ident::AssetIdent,
     module::Module,
@@ -40,6 +40,7 @@ pub struct CssModuleAsset {
     asset_context: Vc<Box<dyn AssetContext>>,
     import_context: Option<Vc<ImportContext>>,
     ty: CssModuleAssetType,
+    minify_type: MinifyType,
     use_swc_css: bool,
 }
 
@@ -51,6 +52,7 @@ impl CssModuleAsset {
         source: Vc<Box<dyn Source>>,
         asset_context: Vc<Box<dyn AssetContext>>,
         ty: CssModuleAssetType,
+        minify_type: MinifyType,
         use_swc_css: bool,
         import_context: Option<Vc<ImportContext>>,
     ) -> Vc<Self> {
@@ -59,6 +61,7 @@ impl CssModuleAsset {
             asset_context,
             import_context,
             ty,
+            minify_type,
             use_swc_css,
         })
     }
@@ -100,10 +103,11 @@ impl ProcessCss for CssModuleAsset {
     fn finalize_css(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
+        minify_type: MinifyType,
     ) -> Vc<FinalCssResult> {
         let process_result = self.get_css_with_placeholder();
 
-        finalize_css(process_result, chunking_context)
+        finalize_css(process_result, chunking_context, minify_type)
     }
 }
 
@@ -228,13 +232,16 @@ impl CssChunkItem for CssModuleChunkItem {
                     .iter()
                 {
                     if let Some(placeable) =
-                        Vc::try_resolve_downcast::<Box<dyn CssChunkPlaceable>>(module).await?
+                        ResolvedVc::try_downcast::<Box<dyn CssChunkPlaceable>>(module).await?
                     {
                         let item = placeable.as_chunk_item(chunking_context);
                         if let Some(css_item) =
                             Vc::try_resolve_downcast::<Box<dyn CssChunkItem>>(item).await?
                         {
-                            imports.push(CssImport::Internal(import_ref, css_item));
+                            imports.push(CssImport::Internal(
+                                import_ref.to_resolved().await?,
+                                css_item,
+                            ));
                         }
                     }
                 }
@@ -250,13 +257,13 @@ impl CssChunkItem for CssModuleChunkItem {
                     .iter()
                 {
                     if let Some(placeable) =
-                        Vc::try_resolve_downcast::<Box<dyn CssChunkPlaceable>>(module).await?
+                        ResolvedVc::try_downcast::<Box<dyn CssChunkPlaceable>>(module).await?
                     {
                         let item = placeable.as_chunk_item(chunking_context);
                         if let Some(css_item) =
                             Vc::try_resolve_downcast::<Box<dyn CssChunkItem>>(item).await?
                         {
-                            imports.push(CssImport::Composes(css_item));
+                            imports.push(CssImport::Composes(css_item.to_resolved().await?));
                         }
                     }
                 }
@@ -281,7 +288,10 @@ impl CssChunkItem for CssModuleChunkItem {
             }
         }
 
-        let result = self.module.finalize_css(chunking_context).await?;
+        let result = self
+            .module
+            .finalize_css(chunking_context, self.module.await?.minify_type)
+            .await?;
 
         if let FinalCssResult::Ok {
             output_code,

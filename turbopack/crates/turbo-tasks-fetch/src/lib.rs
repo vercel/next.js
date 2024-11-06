@@ -1,8 +1,9 @@
 #![feature(min_specialization)]
 #![feature(arbitrary_self_types)]
+#![feature(arbitrary_self_types_pointers)]
 
 use anyhow::Result;
-use turbo_tasks::{RcStr, Vc};
+use turbo_tasks::{mark_session_dependent, RcStr, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::issue::{Issue, IssueSeverity, IssueStage, OptionStyledString, StyledString};
 
@@ -82,9 +83,12 @@ pub async fn fetch(
             }
             .cell())))
         }
-        Err(err) => Ok(Vc::cell(Err(
-            FetchError::from_reqwest_error(&err, url).cell()
-        ))),
+        Err(err) => {
+            mark_session_dependent();
+            Ok(Vc::cell(Err(
+                FetchError::from_reqwest_error(&err, url).cell()
+            )))
+        }
     }
 }
 

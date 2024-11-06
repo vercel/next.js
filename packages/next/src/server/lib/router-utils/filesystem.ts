@@ -13,7 +13,7 @@ import path from 'path'
 import fs from 'fs/promises'
 import * as Log from '../../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
-import LRUCache from 'next/dist/compiled/lru-cache'
+import { LRUCache } from '../lru-cache'
 import loadCustomRoutes, { type Rewrite } from '../../../lib/load-custom-routes'
 import { modifyRouteRegex } from '../../../lib/redirect-status'
 import { FileType, fileExists } from '../../../lib/file-exists'
@@ -38,7 +38,6 @@ import {
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route'
 import { RSCPathnameNormalizer } from '../../normalizers/request/rsc'
-import { PostponedPathnameNormalizer } from '../../normalizers/request/postponed'
 import { PrefetchRSCPathnameNormalizer } from '../../normalizers/request/prefetch-rsc'
 import { encodeURIPath } from '../../../shared/lib/encode-uri-path'
 
@@ -105,17 +104,13 @@ export async function setupFsCheck(opts: {
   ) => void
 }) {
   const getItemsLru = !opts.dev
-    ? new LRUCache<string, FsOutput | null>({
-        max: 1024 * 1024,
-        length(value, key) {
-          if (!value) return key?.length || 0
-          return (
-            (key || '').length +
-            (value.fsPath || '').length +
-            value.itemPath.length +
-            value.type.length
-          )
-        },
+    ? new LRUCache<FsOutput | null>(1024 * 1024, function length(value) {
+        if (!value) return 0
+        return (
+          (value.fsPath || '').length +
+          value.itemPath.length +
+          value.type.length
+        )
       })
     : undefined
 
@@ -385,9 +380,6 @@ export async function setupFsCheck(opts: {
     prefetchRSC: opts.config.experimental.ppr
       ? new PrefetchRSCPathnameNormalizer()
       : undefined,
-    postponed: opts.config.experimental.ppr
-      ? new PostponedPathnameNormalizer()
-      : undefined,
   }
 
   return {
@@ -446,8 +438,6 @@ export async function setupFsCheck(opts: {
           itemPath = normalizers.prefetchRSC.normalize(itemPath, true)
         } else if (normalizers.rsc.match(itemPath)) {
           itemPath = normalizers.rsc.normalize(itemPath, true)
-        } else if (normalizers.postponed?.match(itemPath)) {
-          itemPath = normalizers.postponed.normalize(itemPath, true)
         }
       }
 

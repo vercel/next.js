@@ -52,7 +52,7 @@ pub fn on_added<C: AggregationContext>(
     let uppers = node.uppers();
     let uppers_len = uppers.len();
     let optimize =
-        (!already_optimizing_for_upper && uppers_len >= MAX_UPPERS && uppers_len.count_ones() == 1)
+        (!already_optimizing_for_upper && uppers_len >= MAX_UPPERS && uppers_len.is_power_of_two())
             .then(|| (true, uppers.iter().cloned().collect::<StackVec<_>>()));
     let (add_change, followers) = match &mut *node {
         AggregationNode::Leaf { .. } => {

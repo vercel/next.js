@@ -1,12 +1,23 @@
 import type { NextConfigComplete } from '../../server/config-shared'
 import type { __ApiPreviewProps } from '../../server/api-utils'
-import type { ExternalObject, RefCell, TurboTasks } from './generated-native'
+import type {
+  ExternalObject,
+  NextTurboTasks,
+  RefCell,
+  NapiUpdateInfo as UpdateInfo,
+} from './generated-native'
+
+export type { NapiUpdateInfo as UpdateInfo } from './generated-native'
 
 export interface Binding {
   isWasm: boolean
   turbo: {
-    startTrace(options: any, turboTasks: ExternalObject<TurboTasks>): any
-    createTurboTasks(memoryLimit?: number): ExternalObject<TurboTasks>
+    startTrace(options: any, turboTasks: ExternalObject<NextTurboTasks>): any
+    createTurboTasks(
+      outputPath: string,
+      persistentCaching: boolean,
+      memoryLimit?: number
+    ): ExternalObject<NextTurboTasks>
     createProject(
       options: ProjectOptions,
       turboEngineOptions?: TurboEngineOptions
@@ -105,6 +116,11 @@ export type TurbopackResult<T = {}> = T & {
 
 export interface TurboEngineOptions {
   /**
+   * Use the new backend with persistent caching enabled.
+   */
+  persistentCaching?: boolean
+
+  /**
    * An upper bound of memory that turbopack will attempt to stay under.
    */
   memoryLimit?: number
@@ -182,9 +198,9 @@ export type UpdateMessage =
       value: UpdateInfo
     }
 
-export interface UpdateInfo {
-  duration: number
-  tasks: number
+export interface UpdateInfoOpts {
+  aggregationMs: number
+  includeReasons?: boolean
 }
 
 export interface Project {
@@ -200,12 +216,14 @@ export interface Project {
 
   getSourceForAsset(filePath: string): Promise<string | null>
 
+  getSourceMap(filePath: string): Promise<string | null>
+
   traceSource(
     stackFrame: TurbopackStackFrame
   ): Promise<TurbopackStackFrame | null>
 
   updateInfoSubscribe(
-    aggregationMs: number
+    opts?: UpdateInfoOpts
   ): AsyncIterableIterator<TurbopackResult<UpdateMessage>>
 
   shutdown(): Promise<void>
@@ -321,6 +339,11 @@ export interface ProjectOptions {
   projectPath: string
 
   /**
+   * The path to the .next directory.
+   */
+  distDir: string
+
+  /**
    * The next.config.js contents.
    */
   nextConfig: NextConfigComplete
@@ -346,7 +369,10 @@ export interface ProjectOptions {
   /**
    * Whether to watch the filesystem for file changes.
    */
-  watch: boolean
+  watch: {
+    enable: boolean
+    pollIntervalMs?: number
+  }
 
   /**
    * The mode in which Next.js is running.

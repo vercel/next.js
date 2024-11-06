@@ -1,5 +1,7 @@
 #![cfg(test)]
 #![feature(arbitrary_self_types)]
+#![feature(arbitrary_self_types_pointers)]
+#![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
 mod util;
 
@@ -7,11 +9,10 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 use dunce::canonicalize;
-use indexmap::indexmap;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, Completion, RcStr, TryJoinIterExt, TurboTasks,
-    Value, Vc,
+    debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs, Completion, RcStr, ResolvedVc,
+    TryJoinIterExt, TurboTasks, Value, Vc,
 };
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::CommandLineProcessEnv;
@@ -189,7 +190,7 @@ struct PreparedTest {
     path: Vc<FileSystemPath>,
     project_path: Vc<FileSystemPath>,
     tests_path: Vc<FileSystemPath>,
-    project_root: Vc<FileSystemPath>,
+    project_root: ResolvedVc<FileSystemPath>,
     options: TestOptions,
 }
 
@@ -205,7 +206,7 @@ async fn prepare_test(resource: RcStr) -> Result<Vc<PreparedTest>> {
 
     let root_fs = DiskFileSystem::new("workspace".into(), REPO_ROOT.clone(), vec![]);
     let project_fs = DiskFileSystem::new("project".into(), REPO_ROOT.clone(), vec![]);
-    let project_root = project_fs.root();
+    let project_root = project_fs.root().to_resolved().await?;
 
     let relative_path = resource_path.strip_prefix(&*REPO_ROOT).context(format!(
         "stripping repo root {:?} from resource path {:?}",
@@ -273,7 +274,7 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
     let mut import_map = ImportMap::empty();
     import_map.insert_wildcard_alias(
         "esm-external/",
-        ImportMapping::External(Some("*".into()), ExternalType::EcmaScriptModule).cell(),
+        ImportMapping::External(Some("*".into()), ExternalType::EcmaScriptModule).resolved_cell(),
     );
 
     let asset_context: Vc<Box<dyn AssetContext>> = Vc::upcast(ModuleAssetContext::new(
@@ -285,7 +286,7 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
                 import_externals: true,
                 ..Default::default()
             },
-            preset_env_versions: Some(env),
+            preset_env_versions: Some(env.to_resolved().await?),
             tree_shaking_mode: options.tree_shaking_mode,
             rules: vec![(
                 ContextCondition::InDirectory("node_modules".into()),
@@ -310,11 +311,11 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
                     browser: true,
                     ..Default::default()
                 }
-                .cell(),
+                .resolved_cell(),
             )],
             browser: true,
             module: true,
-            import_map: Some(import_map.cell()),
+            import_map: Some(import_map.resolved_cell()),
             ..Default::default()
         }
         .cell(),
@@ -322,7 +323,7 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
     ));
 
     let chunking_context = NodeJsChunkingContext::builder(
-        project_root,
+        *project_root,
         chunk_root_path,
         static_root_path,
         chunk_root_path,
@@ -340,12 +341,14 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
             Vc::upcast(test_source),
             Value::new(ReferenceType::Internal(InnerAssets::empty())),
         )
-        .module();
+        .module()
+        .to_resolved()
+        .await?;
 
     let jest_entry_asset = asset_context
         .process(
             Vc::upcast(jest_entry_source),
-            Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
+            Value::new(ReferenceType::Internal(Vc::cell(fxindexmap! {
                 "TESTS".into() => test_asset,
             }))),
         )

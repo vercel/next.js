@@ -1,4 +1,6 @@
 #![feature(arbitrary_self_types)]
+#![feature(arbitrary_self_types_pointers)]
+#![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
 use anyhow::Result;
 use turbo_tasks::{ReadRef, ResolvedVc, Vc};
@@ -55,6 +57,22 @@ async fn test_resolved_vc_as_arg() -> Result<()> {
         assert!(!unresolved.is_resolved());
         // calling a function should cause it's arguments to get resolved automatically
         assert_resolved(unresolved).await?;
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn test_into_future() -> Result<()> {
+    run(&REGISTRATION, || async {
+        let mut resolved = ResolvedVc::cell(42);
+        let _: ReadRef<u32> = resolved.await?;
+        let _: ReadRef<u32> = (&resolved).await?;
+        let _: ReadRef<u32> = (&mut resolved).await?;
+        let mut unresolved = Vc::cell(42);
+        let _: ReadRef<u32> = unresolved.await?;
+        let _: ReadRef<u32> = (&unresolved).await?;
+        let _: ReadRef<u32> = (&mut unresolved).await?;
         Ok(())
     })
     .await

@@ -1,4 +1,5 @@
-import { staticGenerationAsyncStorage } from '../../../client/components/static-generation-async-storage.external'
+import { workAsyncStorage } from '../../app-render/work-async-storage.external'
+import { workUnitAsyncStorage } from '../../app-render/work-unit-async-storage.external'
 import { markCurrentScopeAsDynamic } from '../../app-render/dynamic-rendering'
 
 /**
@@ -18,7 +19,8 @@ import { markCurrentScopeAsDynamic } from '../../app-render/dynamic-rendering'
  */
 export function unstable_noStore() {
   const callingExpression = 'unstable_noStore()'
-  const store = staticGenerationAsyncStorage.getStore()
+  const store = workAsyncStorage.getStore()
+  const workUnitStore = workUnitAsyncStorage.getStore()
   if (!store) {
     // This generally implies we are being called in Pages router. We should probably not support
     // unstable_noStore in contexts outside of `react-server` condition but since we historically
@@ -28,6 +30,10 @@ export function unstable_noStore() {
     return
   } else {
     store.isUnstableNoStore = true
-    markCurrentScopeAsDynamic(store, callingExpression)
+    if (workUnitStore && workUnitStore.type === 'prerender') {
+      // unstable_noStore() is a noop in Dynamic I/O.
+    } else {
+      markCurrentScopeAsDynamic(store, workUnitStore, callingExpression)
+    }
   }
 }

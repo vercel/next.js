@@ -1,5 +1,6 @@
 #![feature(min_specialization)]
 #![feature(arbitrary_self_types)]
+#![feature(arbitrary_self_types_pointers)]
 
 use anyhow::Result;
 use mdxjs::{compile, MdxParseOptions, Options};
@@ -223,7 +224,7 @@ impl MdxTransformedAsset {
                 .emit();
 
                 Ok(MdxTransformResult {
-                    content: AssetContent::File(FileContent::NotFound.cell()).cell(),
+                    content: AssetContent::File(FileContent::NotFound.resolved_cell()).cell(),
                 }
                 .cell())
             }

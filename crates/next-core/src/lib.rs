@@ -2,6 +2,7 @@
 #![feature(str_split_remainder)]
 #![feature(impl_trait_in_assoc_type)]
 #![feature(arbitrary_self_types)]
+#![feature(arbitrary_self_types_pointers)]
 #![feature(iter_intersperse)]
 
 mod app_page_loader_tree;

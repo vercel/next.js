@@ -14,7 +14,7 @@ describe('dynamic-io', () => {
 
   if (WITH_PPR) {
     it('should partially prerender pages that use async headers', async () => {
-      let $ = await next.render$('/headers/static-behavior/async_boundary', {})
+      let $ = await next.render$('/headers/static-behavior/async', {})
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#page').text()).toBe('at runtime')
@@ -24,45 +24,23 @@ describe('dynamic-io', () => {
         expect($('#page').text()).toBe('at buildtime')
         expect($('#x-sentinel').text()).toBe('hello')
       }
-
-      $ = await next.render$('/headers/static-behavior/async_root', {})
-      if (isNextDev) {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-        expect($('#x-sentinel').text()).toBe('hello')
-      } else {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-        expect($('#x-sentinel').text()).toBe('hello')
-      }
     })
 
     it('should partially prerender pages that use sync headers', async () => {
-      let $ = await next.render$('/headers/static-behavior/sync_boundary', {})
+      let $ = await next.render$('/headers/static-behavior/sync', {})
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#page').text()).toBe('at runtime')
         expect($('#x-sentinel').text()).toBe('hello')
       } else {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-        expect($('#x-sentinel').text()).toBe('hello')
-      }
-
-      $ = await next.render$('/headers/static-behavior/sync_root', {})
-      if (isNextDev) {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-        expect($('#x-sentinel').text()).toBe('hello')
-      } else {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
+        expect($('#layout').text()).toBe('at buildtime')
+        expect($('#page').text()).toBe('at buildtime')
         expect($('#x-sentinel').text()).toBe('hello')
       }
     })
   } else {
     it('should produce dynamic pages when using async or sync headers', async () => {
-      let $ = await next.render$('/headers/static-behavior/sync_boundary', {})
+      let $ = await next.render$('/headers/static-behavior/sync', {})
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#page').text()).toBe('at runtime')
@@ -73,29 +51,7 @@ describe('dynamic-io', () => {
         expect($('#x-sentinel').text()).toBe('hello')
       }
 
-      $ = await next.render$('/headers/static-behavior/sync_root', {})
-      if (isNextDev) {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-        expect($('#x-sentinel').text()).toBe('hello')
-      } else {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-        expect($('#x-sentinel').text()).toBe('hello')
-      }
-
-      $ = await next.render$('/headers/static-behavior/async_boundary', {})
-      if (isNextDev) {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-        expect($('#x-sentinel').text()).toBe('hello')
-      } else {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-        expect($('#x-sentinel').text()).toBe('hello')
-      }
-
-      $ = await next.render$('/headers/static-behavior/async_root', {})
+      $ = await next.render$('/headers/static-behavior/async', {})
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#page').text()).toBe('at runtime')
@@ -127,7 +83,7 @@ describe('dynamic-io', () => {
     let $ = await next.render$('/headers/exercise/async', {})
     let cookieWarnings = next.cliOutput
       .split('\n')
-      .filter((l) => l.includes('In route /headers/exercise'))
+      .filter((l) => l.includes('Route "/headers/exercise'))
 
     expect(cookieWarnings).toHaveLength(0)
 
@@ -206,7 +162,7 @@ describe('dynamic-io', () => {
     let $ = await next.render$('/headers/exercise/sync', {})
     let headerWarnings = next.cliOutput
       .split('\n')
-      .filter((l) => l.includes('In route /headers/exercise'))
+      .filter((l) => l.includes('Route "/headers/exercise'))
 
     if (!isNextDev) {
       expect(headerWarnings).toHaveLength(0)
@@ -220,9 +176,9 @@ describe('dynamic-io', () => {
     expect($('#append-value-x-sentinel').text()).toContain('hello')
     if (isNextDev) {
       expect(headerWarnings[i++]).toContain(
-        "headers().append('x-sentinel', ...)"
+        "`headers().append('x-sentinel', ...)`"
       )
-      expect(headerWarnings[i++]).toContain("headers().get('x-sentinel')")
+      expect(headerWarnings[i++]).toContain("`headers().get('x-sentinel')`")
     }
 
     // headers().delete('...')
@@ -231,23 +187,23 @@ describe('dynamic-io', () => {
     )
     expect($('#delete-value-x-sentinel').text()).toContain('hello')
     if (isNextDev) {
-      expect(headerWarnings[i++]).toContain("headers().delete('x-sentinel')")
-      expect(headerWarnings[i++]).toContain("headers().get('x-sentinel')")
+      expect(headerWarnings[i++]).toContain("`headers().delete('x-sentinel')`")
+      expect(headerWarnings[i++]).toContain("`headers().get('x-sentinel')`")
     }
 
     // headers().get('...')
     expect($('#get-x-sentinel').text()).toContain('hello')
     if (isNextDev) {
-      expect(headerWarnings[i++]).toContain("headers().get('x-sentinel')")
+      expect(headerWarnings[i++]).toContain("`headers().get('x-sentinel')`")
     }
 
     // cookies().has('...')
     expect($('#has-x-sentinel').text()).toContain('true')
     expect($('#has-x-sentinel-foobar').text()).toContain('false')
     if (isNextDev) {
-      expect(headerWarnings[i++]).toContain("headers().has('x-sentinel')")
+      expect(headerWarnings[i++]).toContain("`headers().has('x-sentinel')`")
       expect(headerWarnings[i++]).toContain(
-        "headers().has('x-sentinel-foobar')"
+        "`headers().has('x-sentinel-foobar')`"
       )
     }
 
@@ -257,8 +213,10 @@ describe('dynamic-io', () => {
     )
     expect($('#set-value-x-sentinel').text()).toContain('hello')
     if (isNextDev) {
-      expect(headerWarnings[i++]).toContain("headers().set('x-sentinel', ...)")
-      expect(headerWarnings[i++]).toContain("headers().get('x-sentinel')")
+      expect(headerWarnings[i++]).toContain(
+        "`headers().set('x-sentinel', ...)`"
+      )
+      expect(headerWarnings[i++]).toContain("`headers().get('x-sentinel')`")
     }
 
     // headers().getSetCookie()
@@ -266,7 +224,7 @@ describe('dynamic-io', () => {
     // not response headers and is not mutable.
     expect($('#get-set-cookie').text()).toEqual('[]')
     if (isNextDev) {
-      expect(headerWarnings[i++]).toContain('headers().getSetCookie()')
+      expect(headerWarnings[i++]).toContain('`headers().getSetCookie()`')
     }
 
     // headers().forEach(...)
@@ -276,7 +234,7 @@ describe('dynamic-io', () => {
     )
     expect($('#for-each-x-sentinel-rand').length).toBe(1)
     if (isNextDev) {
-      expect(headerWarnings[i++]).toContain('headers().forEach(...)')
+      expect(headerWarnings[i++]).toContain('`headers().forEach(...)`')
     }
 
     // headers().keys(...)
@@ -284,7 +242,7 @@ describe('dynamic-io', () => {
     expect($('#keys-x-sentinel-path').text()).toContain('x-sentinel-path')
     expect($('#keys-x-sentinel-rand').text()).toContain('x-sentinel-rand')
     if (isNextDev) {
-      expect(headerWarnings[i++]).toContain('headers().keys()')
+      expect(headerWarnings[i++]).toContain('`headers().keys()`')
     }
 
     // headers().values(...)
@@ -294,7 +252,7 @@ describe('dynamic-io', () => {
     )
     expect($('[data-class="values"]').length).toBe(3)
     if (isNextDev) {
-      expect(headerWarnings[i++]).toContain('headers().values()')
+      expect(headerWarnings[i++]).toContain('`headers().values()`')
     }
 
     // headers().entries(...)
@@ -304,7 +262,7 @@ describe('dynamic-io', () => {
     )
     expect($('#entries-x-sentinel-rand').length).toBe(1)
     if (isNextDev) {
-      expect(headerWarnings[i++]).toContain('headers().entries()')
+      expect(headerWarnings[i++]).toContain('`headers().entries()`')
     }
 
     // for...of headers()
@@ -314,7 +272,9 @@ describe('dynamic-io', () => {
     )
     expect($('#for-of-x-sentinel-rand').length).toBe(1)
     if (isNextDev) {
-      expect(headerWarnings[i++]).toContain('for...of headers()')
+      expect(headerWarnings[i++]).toContain(
+        '`...headers()` or similar iteration'
+      )
     }
 
     // ...headers()
@@ -324,7 +284,9 @@ describe('dynamic-io', () => {
     )
     expect($('#spread-x-sentinel-rand').length).toBe(1)
     if (isNextDev) {
-      expect(headerWarnings[i++]).toContain('...headers()')
+      expect(headerWarnings[i++]).toContain(
+        '`...headers()` or similar iteration'
+      )
     }
 
     if (isNextDev) {

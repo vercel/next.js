@@ -5,14 +5,13 @@ use std::{
     vec,
 };
 
-use indexmap::IndexMap;
-
 use crate::{
     bottom_up::build_bottom_up_graph,
     span::{Span, SpanEvent, SpanExtra, SpanGraphEvent, SpanIndex, SpanNames, SpanTimeData},
     span_bottom_up_ref::SpanBottomUpRef,
     span_graph_ref::{event_map_to_list, SpanGraphEventRef, SpanGraphRef},
     store::{SpanId, Store},
+    FxIndexMap,
 };
 
 #[derive(Copy, Clone)]
@@ -269,6 +268,9 @@ impl<'a> SpanRef<'a> {
                     self_time += duration * duration / concurrent_time;
                 }
             }
+            if self.children().next().is_none() {
+                self_time = max(self_time, 1);
+            }
             self_time
         })
     }
@@ -296,7 +298,8 @@ impl<'a> SpanRef<'a> {
         self.extra()
             .graph
             .get_or_init(|| {
-                let mut map: IndexMap<&str, (Vec<SpanIndex>, Vec<SpanIndex>)> = IndexMap::new();
+                let mut map: FxIndexMap<&str, (Vec<SpanIndex>, Vec<SpanIndex>)> =
+                    FxIndexMap::default();
                 let mut queue = VecDeque::with_capacity(8);
                 for child in self.children() {
                     let name = child.group_name();
@@ -341,12 +344,23 @@ impl<'a> SpanRef<'a> {
     }
 
     pub fn search(&self, query: &str) -> impl Iterator<Item = SpanRef<'a>> {
-        let index = self.search_index();
+        let mut query_items = query.split(",").map(str::trim);
+        let index: &HashMap<String, Vec<std::num::NonZero<usize>>> = self.search_index();
         let mut result = HashSet::new();
+        let query = query_items.next().unwrap();
         for (key, spans) in index {
             if key.contains(query) {
                 result.extend(spans.iter().copied());
             }
+        }
+        for query in query_items {
+            let mut and_result = HashSet::new();
+            for (key, spans) in index {
+                if key.contains(query) {
+                    and_result.extend(spans.iter().copied());
+                }
+            }
+            result.retain(|index| and_result.contains(index));
         }
         let store = self.store;
         result.into_iter().map(move |index| SpanRef {
@@ -403,7 +417,7 @@ impl<'a> SpanRef<'a> {
     }
 }
 
-impl<'a> Debug for SpanRef<'a> {
+impl Debug for SpanRef<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("SpanRef")
             .field("id", &self.id())

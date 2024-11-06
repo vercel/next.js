@@ -1,3 +1,4 @@
+#![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 #![cfg(test)]
 
 mod util;
@@ -13,7 +14,8 @@ use dunce::canonicalize;
 use serde::Deserialize;
 use serde_json::json;
 use turbo_tasks::{
-    RcStr, ReadConsistency, ReadRef, TryJoinIterExt, TurboTasks, Value, ValueToString, Vc,
+    RcStr, ReadConsistency, ReadRef, ResolvedVc, TryJoinIterExt, TurboTasks, Value, ValueToString,
+    Vc,
 };
 use turbo_tasks_env::DotenvProcessEnv;
 use turbo_tasks_fs::{
@@ -195,7 +197,7 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
     };
     let root_fs = DiskFileSystem::new("workspace".into(), REPO_ROOT.clone(), vec![]);
     let project_fs = DiskFileSystem::new("project".into(), REPO_ROOT.clone(), vec![]);
-    let project_root = project_fs.root();
+    let project_root = project_fs.root().to_resolved().await?;
 
     let relative_path = test_path.strip_prefix(&*REPO_ROOT)?;
     let relative_path: RcStr = sys_to_unix(relative_path.to_str().unwrap()).into();
@@ -277,7 +279,7 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 use_swc_css: options.use_swc_css,
                 ..Default::default()
             },
-            preset_env_versions: Some(env),
+            preset_env_versions: Some(env.to_resolved().await?),
             rules: vec![(
                 ContextCondition::InDirectory("node_modules".into()),
                 ModuleOptionsContext {
@@ -306,7 +308,7 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                     custom_conditions: vec!["development".into()],
                     ..Default::default()
                 }
-                .cell(),
+                .resolved_cell(),
             )],
             ..Default::default()
         }
@@ -324,7 +326,7 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
     let chunking_context: Vc<Box<dyn ChunkingContext>> = match options.runtime {
         Runtime::Browser => Vc::upcast(
             BrowserChunkingContext::builder(
-                project_root,
+                *project_root,
                 path,
                 path,
                 chunk_root_path,
@@ -336,7 +338,7 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         ),
         Runtime::NodeJs => Vc::upcast(
             NodeJsChunkingContext::builder(
-                project_root,
+                *project_root,
                 path,
                 path,
                 chunk_root_path,
@@ -439,10 +441,10 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
 }
 
 async fn walk_asset(
-    asset: Vc<Box<dyn OutputAsset>>,
+    asset: ResolvedVc<Box<dyn OutputAsset>>,
     output_path: &ReadRef<FileSystemPath>,
     seen: &mut HashSet<Vc<FileSystemPath>>,
-    queue: &mut VecDeque<Vc<Box<dyn OutputAsset>>>,
+    queue: &mut VecDeque<ResolvedVc<Box<dyn OutputAsset>>>,
 ) -> Result<()> {
     let path = asset.ident().path().resolve().await?;
 
@@ -462,7 +464,7 @@ async fn walk_asset(
             .iter()
             .copied()
             .map(|asset| async move {
-                Ok(Vc::try_resolve_downcast::<Box<dyn OutputAsset>>(asset).await?)
+                Ok(ResolvedVc::try_downcast::<Box<dyn OutputAsset>>(asset).await?)
             })
             .try_join()
             .await?

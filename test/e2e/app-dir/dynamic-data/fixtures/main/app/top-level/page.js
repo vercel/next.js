@@ -1,8 +1,10 @@
 import { headers, cookies } from 'next/headers'
+import { connection } from 'next/server'
 
 import { PageSentinel } from '../getSentinelValue'
 
 export default async function Page({ searchParams }) {
+  await connection()
   return (
     <div>
       <PageSentinel />
@@ -13,7 +15,7 @@ export default async function Page({ searchParams }) {
       </section>
       <section id="headers">
         <h3>headers</h3>
-        {Array.from(headers().entries()).map(([key, value]) => {
+        {Array.from((await headers()).entries()).map(([key, value]) => {
           if (key === 'cookie') return null
           return (
             <div key={key}>
