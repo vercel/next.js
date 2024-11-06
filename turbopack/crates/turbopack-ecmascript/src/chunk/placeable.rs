@@ -56,7 +56,7 @@ async fn side_effects_from_package_json(
                             }
                         } else {
                             SideEffectsInPackageJsonIssue {
-                                path: package_json,
+                                path: package_json.to_resolved().await?,
                                 description: Some(
                                     StyledString::Text(
                                         format!(
@@ -66,7 +66,7 @@ async fn side_effects_from_package_json(
                                         )
                                         .into(),
                                     )
-                                    .cell(),
+                                    .resolved_cell(),
                                 ),
                             }
                             .cell()
@@ -88,7 +88,7 @@ async fn side_effects_from_package_json(
                                             )
                                             .into(),
                                         )
-                                        .cell(),
+                                        .resolved_cell(),
                                     ),
                                 }
                                 .cell()
@@ -113,7 +113,7 @@ async fn side_effects_from_package_json(
                             )
                             .into(),
                         )
-                        .cell(),
+                        .resolved_cell(),
                     ),
                 }
                 .cell()
@@ -126,7 +126,7 @@ async fn side_effects_from_package_json(
 
 #[turbo_tasks::value]
 struct SideEffectsInPackageJsonIssue {
-    path: ResolvedVc<FileSystemPath>,
+    path: Vc<FileSystemPath>,
     description: Option<ResolvedVc<StyledString>>,
 }
 
