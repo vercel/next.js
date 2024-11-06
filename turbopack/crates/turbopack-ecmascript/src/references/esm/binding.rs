@@ -47,9 +47,9 @@ pub struct EsmBinding {
 
 impl EsmBinding {
     pub fn new(
-        reference: Vc<EsmAssetReference>,
+        reference: ResolvedVc<EsmAssetReference>,
         export: Option<RcStr>,
-        ast_path: Vc<AstPath>,
+        ast_path: ResolvedVc<AstPath>,
     ) -> Self {
         EsmBinding {
             reference,
