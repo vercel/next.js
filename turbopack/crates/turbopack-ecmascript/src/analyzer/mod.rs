@@ -3838,7 +3838,7 @@ fn is_unresolved_id(i: &Id, unresolved_mark: Mark) -> bool {
 #[doc(hidden)]
 pub mod test_utils {
     use anyhow::Result;
-    use turbo_tasks::{FxIndexMap, Vc};
+    use turbo_tasks::{FxIndexMap, ResolvedVc, Vc};
     use turbopack_core::{compile_time_info::CompileTimeInfo, error::PrettyPrintError};
 
     use super::{
@@ -3900,7 +3900,7 @@ pub mod test_utils {
                     map.insert("./c".into(), format!("[context: {}]/c", options.dir).into());
 
                     JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContextRequire(
-                        Vc::cell(map),
+                        ResolvedVc::cell(map),
                     ))
                 }
                 Err(err) => v.into_unknown(true, PrettyPrintError(&err).to_string()),
