@@ -729,9 +729,9 @@ impl AssetContext for ModuleAssetContext {
                 let reference_type = reference_type.clone();
                 async move {
                     let process_result = if let Some(transition) = transition {
-                        transition.process(source, self, reference_type)
+                        transition.process(*source, self, reference_type)
                     } else {
-                        self.process_with_transition_rules(source, reference_type)
+                        self.process_with_transition_rules(*source, reference_type)
                     };
                     Ok(match *process_result.await? {
                         ProcessResult::Module(m) => {
