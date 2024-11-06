@@ -154,7 +154,7 @@ pub async fn follow_reexports(
         // Try to find the export in the local exports
         let exports_ref = exports.await?;
         if let Some(export) = exports_ref.exports.get(&export_name) {
-            match handle_declared_export(*module, export_name, export, side_effect_free_packages)
+            match handle_declared_export(module, export_name, export, side_effect_free_packages)
                 .await?
             {
                 ControlFlow::Continue((m, n)) => {
@@ -206,7 +206,7 @@ pub async fn follow_reexports(
 }
 
 async fn handle_declared_export(
-    module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
+    module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     export_name: RcStr,
     export: &EsmExport,
     side_effect_free_packages: Vc<Glob>,
