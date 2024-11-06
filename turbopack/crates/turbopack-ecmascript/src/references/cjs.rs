@@ -140,11 +140,11 @@ impl CodeGenerateable for CjsRequireAssetReference {
         let pm = PatternMapping::resolve_request(
             self.request,
             self.origin,
-            Vc::upcast(chunking_context),
+            *Vc::upcast(chunking_context),
             cjs_resolve(
-                self.origin,
-                self.request,
-                Some(self.issue_source),
+                *self.origin,
+                *self.request,
+                Some(*self.issue_source),
                 self.in_try,
             ),
             Value::new(ChunkItem),
@@ -249,9 +249,9 @@ impl CodeGenerateable for CjsRequireResolveAssetReference {
             self.origin,
             Vc::upcast(chunking_context),
             cjs_resolve(
-                self.origin,
-                self.request,
-                Some(self.issue_source),
+                *self.origin,
+                *self.request,
+                Some(*self.issue_source),
                 self.in_try,
             ),
             Value::new(ChunkItem),
