@@ -153,6 +153,8 @@ export default async function Page() {
 
 If you want the current time to represent the time of a user Request, add `await connection()` before you read the current time. This instructs Next.js that everything after the `await connection()` requires there to be a user Request before it can run. If you add `await connection()` you will also need to ensure there is a Suspense boundary somewhere above the waiting component that describes a fallback UI React can use. The Suspense can be anywhere in the parent component stack but it is shown here above the waiting component for demonstration purposes.
 
+Before:
+
 ```jsx filename="app/page.js"
 export default async function Page() {
   const currentTime = Date.now()

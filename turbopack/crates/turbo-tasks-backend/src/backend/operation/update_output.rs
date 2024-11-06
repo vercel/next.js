@@ -88,13 +88,20 @@ impl UpdateOutputOperation {
             }
             Ok(Err(err)) => {
                 task.insert(CachedDataItem::Error {
-                    value: SharedError::new(err),
+                    value: SharedError::new(err.context(format!(
+                        "Execution of {} failed",
+                        ctx.get_task_description(task_id)
+                    ))),
                 });
                 OutputValue::Error
             }
             Err(panic) => {
                 task.insert(CachedDataItem::Error {
-                    value: SharedError::new(anyhow!("Panic: {:?}", panic)),
+                    value: SharedError::new(anyhow!(
+                        "Panic in {}: {:?}",
+                        ctx.get_task_description(task_id),
+                        panic
+                    )),
                 });
                 OutputValue::Panic
             }
