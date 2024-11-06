@@ -463,7 +463,7 @@ impl Issue for InvalidExport {
 
     #[turbo_tasks::function]
     async fn detail(&self) -> Result<Vc<OptionStyledString>> {
-        let export_names = all_known_export_names(self.module).await?;
+        let export_names = all_known_export_names(*self.module).await?;
         Ok(Vc::cell(Some(
             StyledString::Line(vec![
                 StyledString::Text("These are the exports of the module:\n".into()),
