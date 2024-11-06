@@ -1,5 +1,6 @@
 pub mod analyze;
 pub mod code_gen;
+pub mod module;
 pub mod resolve;
 
 use std::{
