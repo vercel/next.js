@@ -6,7 +6,7 @@ use turbo_tasks::{ReadRef, TryJoinIterExt, Vc};
 use turbo_tasks_fs::File;
 use turbopack_core::{
     asset::AssetContent,
-    chunk::{ChunkItemExt, ChunkingContext, ModuleId},
+    chunk::{ChunkItemExt, ChunkingContext, MinifyType, ModuleId},
     code_builder::{Code, CodeBuilder},
     output::OutputAsset,
     source_map::{GenerateSourceMap, OptionSourceMap},
@@ -76,7 +76,7 @@ impl EcmascriptBuildNodeChunkContent {
             code,
             r#"
                 module.exports = {{
-
+    
             "#,
         )?;
 
@@ -98,12 +98,14 @@ impl EcmascriptBuildNodeChunkContent {
         }
 
         let code = code.build().cell();
-
-        Ok(minify(
-            chunk_path_vc,
-            code,
+        if matches!(
             this.chunking_context.await?.minify_type(),
-        ))
+            MinifyType::Minify
+        ) {
+            return Ok(minify(chunk_path_vc, code));
+        }
+
+        Ok(code)
     }
 
     #[turbo_tasks::function]

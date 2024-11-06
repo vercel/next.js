@@ -9,7 +9,7 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
         ChunkData, ChunkItemExt, ChunkableModule, ChunkingContext, ChunksData, EvaluatableAssets,
-        ModuleId,
+        MinifyType, ModuleId,
     },
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
@@ -174,11 +174,14 @@ impl EcmascriptDevEvaluateChunk {
         }
 
         let code = code.build().cell();
-        Ok(minify(
-            chunk_path_vc,
-            code,
+        if matches!(
             this.chunking_context.await?.minify_type(),
-        ))
+            MinifyType::Minify
+        ) {
+            return Ok(minify(chunk_path_vc, code));
+        }
+
+        Ok(code)
     }
 }
 
