@@ -45,3 +45,11 @@
 
 0 -> 14 call = require*0*("t_r_f")
 - *0* require: The require method from CommonJS
+
+0 -> 15 free var = FreeVar(require)
+
+0 -> 16 call = ???*0*("exported_t_r")
+- *0* require*1*
+  ⚠️  ignored require
+  ⚠️  This value might have side effects
+- *1* require: The require method from CommonJS
