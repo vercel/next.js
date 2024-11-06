@@ -144,7 +144,7 @@ impl Issue for SideEffectsInPackageJsonIssue {
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        self.path
+        *self.path
     }
 
     #[turbo_tasks::function]
@@ -154,7 +154,7 @@ impl Issue for SideEffectsInPackageJsonIssue {
 
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(self.description)
+        *ResolvedVc::cell(self.description)
     }
 }
 
