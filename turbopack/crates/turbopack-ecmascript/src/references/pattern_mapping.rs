@@ -107,33 +107,15 @@ impl SinglePatternMapping {
         match self {
             Self::Invalid => self.create_id(key_expr),
             Self::Unresolvable(request) => throw_module_not_found_expr(request),
-            Self::Ignored => {
-                quote!("{}" as Expr)
-            }
-            Self::Module(_) | Self::ModuleLoader(_) => Expr::Call(CallExpr {
-                callee: Callee::Expr(quote_expr!("__turbopack_require__")),
-                args: vec![ExprOrSpread {
-                    spread: None,
-                    expr: Box::new(self.create_id(key_expr)),
-                }],
-                span: DUMMY_SP,
-                ..Default::default()
-            }),
-            Self::External(request, ExternalType::CommonJs) => Expr::Call(CallExpr {
-                callee: Callee::Expr(quote_expr!("__turbopack_external_require__")),
-                args: vec![
-                    ExprOrSpread {
-                        spread: None,
-                        expr: request.as_str().into(),
-                    },
-                    ExprOrSpread {
-                        spread: None,
-                        expr: quote_expr!("() => require($arg)"),
-                    },
-                ],
-                span: DUMMY_SP,
-                ..Default::default()
-            }),
+            Self::Ignored => *quote_expr!("{}"),
+            Self::Module(_) | Self::ModuleLoader(_) => *quote_expr!(
+                "__turbopack_require__($arg)",
+                arg: Expr = self.create_id(key_expr)
+            ),
+            Self::External(request, ExternalType::CommonJs) => *quote_expr!(
+                "__turbopack_external_require__($arg, () => require($arg))",
+                arg: Expr = request.as_str().into()
+            ),
             Self::External(request, ty) => throw_module_not_found_error_expr(
                 request,
                 &format!("Unsupported external type {:?} for commonjs reference", ty),

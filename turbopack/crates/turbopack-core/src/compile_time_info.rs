@@ -206,6 +206,7 @@ pub enum FreeVarReference {
         lookup_path: Option<ResolvedVc<FileSystemPath>>,
         export: Option<RcStr>,
     },
+    Ident(RcStr),
     Value(CompileTimeDefineValue),
     Error(RcStr),
 }

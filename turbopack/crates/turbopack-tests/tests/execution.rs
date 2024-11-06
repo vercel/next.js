@@ -281,6 +281,16 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
         )
         .resolved_cell(),
     );
+    import_map.insert_exact_alias(
+        "jest-circus",
+        ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Untraced)
+            .resolved_cell(),
+    );
+    import_map.insert_exact_alias(
+        "expect",
+        ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Untraced)
+            .resolved_cell(),
+    );
 
     let asset_context: Vc<Box<dyn AssetContext>> = Vc::upcast(ModuleAssetContext::new(
         Default::default(),

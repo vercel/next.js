@@ -81,7 +81,8 @@ impl CachedExternalModule {
         } else {
             writeln!(
                 code,
-                "const mod = __turbopack_external_require__({});",
+                "const mod = __turbopack_external_require__({}, () => require({}));",
+                StringifyJs(&self.request),
                 StringifyJs(&self.request)
             )?;
         }
