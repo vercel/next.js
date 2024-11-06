@@ -83,20 +83,15 @@ impl VisitMut for NextFontLoaders {
                 .position(|item| is_removable(self, item))
                 .unwrap();
 
-            let mut new_items = Vec::new();
-
             // Remove marked module items
             items.retain(|item| !is_removable(self, item));
-            new_items.append(items);
 
             // Add font imports and exports
-            new_items.splice(
+            items.splice(
                 first_removable_index..first_removable_index,
                 std::mem::take(&mut self.state.font_imports),
             );
-            new_items.append(&mut self.state.font_exports);
-
-            *items = new_items;
+            items.append(&mut self.state.font_exports);
         }
     }
 }
