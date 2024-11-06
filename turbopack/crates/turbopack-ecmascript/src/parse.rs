@@ -396,7 +396,7 @@ async fn parse_file_content(
                 file_path_str: &fs_path.path,
                 file_name_str: fs_path.file_name(),
                 file_name_hash: file_path_hash,
-                file_path: fs_path_vc,
+                file_path: fs_path_vc.to_resolved().await?,
             };
             let span = tracing::trace_span!("transforms");
             async {
