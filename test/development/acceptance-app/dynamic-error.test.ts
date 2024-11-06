@@ -7,31 +7,30 @@ import { outdent } from 'outdent'
 describe('dynamic = "error" in devmode', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
-    skipStart: true,
   })
 
   it('should show error overlay when dynamic is forced', async () => {
-    const { session, cleanup } = await sandbox(next, undefined, '/server')
+    const { session, cleanup } = await sandbox(
+      next,
+      new Map([
+        [
+          'app/server/page.js',
+          outdent`
+          import { cookies } from 'next/headers';
 
-    // dynamic = "error" and force dynamic
-    await session.patch(
-      'app/server/page.js',
-      outdent`
-        import { cookies } from 'next/headers';
+          export default async function Page() {
+            await cookies()
+            return null
+          }
 
-        import Component from '../../index'
-
-        export default async function Page() {
-          await cookies()
-          return <Component />
-        }
-
-        export const dynamic = "error"
-      `
+          export const dynamic = "error"
+        `,
+        ],
+      ]),
+      '/server'
     )
 
     await session.assertHasRedbox()
-    console.log(await session.getRedboxDescription())
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
       `"[ Server ] Error: Route /server with \`dynamic = "error"\` couldn't be rendered statically because it used \`cookies\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering"`
     )

@@ -419,7 +419,11 @@ pub async fn get_server_module_options_context(
     let foreign_code_context_condition =
         foreign_code_context_condition(next_config, project_path).await?;
     let postcss_transform_options = PostCssTransformOptions {
-        postcss_package: Some(get_postcss_package_mapping(project_path)),
+        postcss_package: Some(
+            get_postcss_package_mapping(project_path)
+                .to_resolved()
+                .await?,
+        ),
         config_location: PostCssConfigLocation::ProjectPathOrLocalPath,
         ..Default::default()
     };
@@ -945,7 +949,7 @@ pub async fn get_server_chunking_context_with_client_assets(
     // TODO(alexkirsz) This should return a trait that can be implemented by the
     // different server chunking contexts. OR the build chunking context should
     // support both production and development modes.
-    Ok(NodeJsChunkingContext::builder(
+    let mut builder = NodeJsChunkingContext::builder(
         project_path,
         node_root,
         client_root,
@@ -956,8 +960,12 @@ pub async fn get_server_chunking_context_with_client_assets(
     )
     .asset_prefix(asset_prefix)
     .minify_type(next_mode.minify_type())
-    .module_id_strategy(module_id_strategy)
-    .build())
+    .module_id_strategy(module_id_strategy);
+
+    if next_mode.is_development() {
+        builder = builder.use_file_source_map_uris();
+    }
+    Ok(builder.build())
 }
 
 #[turbo_tasks::function]
@@ -972,7 +980,7 @@ pub async fn get_server_chunking_context(
     // TODO(alexkirsz) This should return a trait that can be implemented by the
     // different server chunking contexts. OR the build chunking context should
     // support both production and development modes.
-    Ok(NodeJsChunkingContext::builder(
+    let mut builder = NodeJsChunkingContext::builder(
         project_path,
         node_root,
         node_root,
@@ -982,6 +990,11 @@ pub async fn get_server_chunking_context(
         next_mode.runtime_type(),
     )
     .minify_type(next_mode.minify_type())
-    .module_id_strategy(module_id_strategy)
-    .build())
+    .module_id_strategy(module_id_strategy);
+
+    if next_mode.is_development() {
+        builder = builder.use_file_source_map_uris()
+    }
+
+    Ok(builder.build())
 }

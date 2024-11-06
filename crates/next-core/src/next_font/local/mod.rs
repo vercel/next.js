@@ -1,7 +1,7 @@
 use anyhow::{bail, Context, Result};
 use indoc::formatdoc;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{RcStr, Value, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, Value, Vc};
 use turbo_tasks_fs::{
     glob::Glob, json::parse_json_with_source_context, FileContent, FileSystemPath,
 };
@@ -174,10 +174,12 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
                         .into(),
                     ),
                     AssetContent::file(FileContent::Content(file_content.into()).into()),
-                );
+                )
+                .to_resolved()
+                .await?;
 
                 Ok(ResolveResultOption::some(
-                    ResolveResult::source(Vc::upcast(js_asset)).into(),
+                    ResolveResult::source(ResolvedVc::upcast(js_asset)).cell(),
                 ))
             }
             "@vercel/turbopack-next/internal/font/local/cssmodule.module.css" => {
@@ -202,11 +204,13 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
 
                 let css_asset = VirtualSource::new(
                     css_virtual_path,
-                    AssetContent::file(FileContent::Content(stylesheet.into()).into()),
-                );
+                    AssetContent::file(FileContent::Content(stylesheet.into()).cell()),
+                )
+                .to_resolved()
+                .await?;
 
                 Ok(ResolveResultOption::some(
-                    ResolveResult::source(Vc::upcast(css_asset)).into(),
+                    ResolveResult::source(ResolvedVc::upcast(css_asset)).cell(),
                 ))
             }
             "@vercel/turbopack-next/internal/font/local/font" => {
@@ -233,10 +237,12 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
                 let font_file = lookup_path.join(path.clone()).read();
 
                 let font_source =
-                    VirtualSource::new(font_virtual_path, AssetContent::file(font_file));
+                    VirtualSource::new(font_virtual_path, AssetContent::file(font_file))
+                        .to_resolved()
+                        .await?;
 
                 Ok(ResolveResultOption::some(
-                    ResolveResult::source(Vc::upcast(font_source)).into(),
+                    ResolveResult::source(ResolvedVc::upcast(font_source)).cell(),
                 ))
             }
             _ => Ok(ResolveResultOption::none()),

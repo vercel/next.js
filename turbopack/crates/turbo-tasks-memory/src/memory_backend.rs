@@ -62,6 +62,7 @@ pub struct MemoryBackend {
     gc_queue: Option<GcQueue>,
     idle_gc_active: AtomicBool,
     task_statistics: TaskStatisticsApi,
+    pub(crate) print_task_invalidation: bool,
 }
 
 impl Default for MemoryBackend {
@@ -71,7 +72,7 @@ impl Default for MemoryBackend {
 }
 
 impl MemoryBackend {
-    pub fn new(memory_limit: usize) -> Self {
+    pub fn new(memory_limit_bytes: usize) -> Self {
         let shard_amount =
             (std::thread::available_parallelism().map_or(1, usize::from) * 32).next_power_of_two();
         Self {
@@ -84,11 +85,20 @@ impl MemoryBackend {
                 Default::default(),
                 shard_amount,
             ),
-            memory_limit: AtomicUsize::new(memory_limit),
-            gc_queue: (memory_limit != usize::MAX).then(GcQueue::new),
+            memory_limit: AtomicUsize::new(memory_limit_bytes),
+            gc_queue: (memory_limit_bytes != usize::MAX).then(GcQueue::new),
             idle_gc_active: AtomicBool::new(false),
             task_statistics: TaskStatisticsApi::default(),
+            print_task_invalidation: false,
         }
+    }
+
+    /// A debug feature that prints detailed task invalidation information to stdout if enabled.
+    ///
+    /// To enable this in next.js, use the `NEXT_TURBOPACK_PRINT_TASK_INVALIDATION` environment
+    /// variable.
+    pub fn print_task_invalidation(&mut self, value: bool) {
+        self.print_task_invalidation = value;
     }
 
     fn connect_task_child(

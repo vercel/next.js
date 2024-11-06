@@ -16,7 +16,7 @@ import type { InstrumentationOnRequestError } from '../instrumentation/types'
 import type { NextRequestHint } from '../web/adapter'
 import type { BaseNextRequest } from '../base-http'
 import type { IncomingMessage } from 'http'
-import type { ImmutableResumeDataCache } from '../resume-data-cache/resume-data-cache'
+import type { RenderResumeDataCache } from '../resume-data-cache/resume-data-cache'
 
 export type DynamicParamTypes =
   | 'catchall'
@@ -187,9 +187,9 @@ export interface RenderOptsPartial {
 
   /**
    * The resume data cache that was generated for this partially prerendered
-   * page or during rendering.
+   * page during dev warmup.
    */
-  devWarmupImmutableResumeDataCache?: ImmutableResumeDataCache
+  devWarmupRenderResumeDataCache?: RenderResumeDataCache
 
   /**
    * When true, only the static shell of the page will be rendered. This will

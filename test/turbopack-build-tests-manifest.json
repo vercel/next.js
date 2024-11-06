@@ -16630,8 +16630,7 @@
       "passed": [],
       "failed": [
         "required server files app router middleware rewrite should work with a dynamic path",
-        "required server files app router middleware rewrite should work with a dynamic path (with Next-Resume)",
-        "required server files app router middleware rewrite should work with a dynamic path (without Next-Resume)",
+        "required server files app router middleware rewrite should work with a dynamic path with Next-Resume",
         "required server files app router should handle RSC requests",
         "required server files app router should handle prefetch RSC requests",
         "required server files app router should not fail caching",
