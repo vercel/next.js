@@ -245,8 +245,8 @@ impl CodeGenerateable for CjsRequireResolveAssetReference {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
         let pm = PatternMapping::resolve_request(
-            self.request,
-            self.origin,
+            *self.request,
+            *self.origin,
             Vc::upcast(chunking_context),
             cjs_resolve(
                 *self.origin,
