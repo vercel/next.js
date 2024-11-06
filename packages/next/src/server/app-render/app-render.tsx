@@ -2761,7 +2761,6 @@ async function prerenderToStream(
         const flightData = await streamToBuffer(reactServerResult.asStream())
         metadata.flightData = flightData
         metadata.segmentFlightData = await collectSegmentData(
-          finalAttemptRSCPayload,
           flightData,
           finalRenderPrerenderStore,
           ComponentMod,
@@ -3228,7 +3227,6 @@ async function prerenderToStream(
         )
         metadata.flightData = flightData
         metadata.segmentFlightData = await collectSegmentData(
-          finalServerPayload,
           flightData,
           finalClientPrerenderStore,
           ComponentMod,
@@ -3361,7 +3359,6 @@ async function prerenderToStream(
       if (shouldGenerateStaticFlightData(workStore)) {
         metadata.flightData = flightData
         metadata.segmentFlightData = await collectSegmentData(
-          RSCPayload,
           flightData,
           ssrPrerenderStore,
           ComponentMod,
@@ -3554,7 +3551,6 @@ async function prerenderToStream(
         const flightData = await streamToBuffer(reactServerResult.asStream())
         metadata.flightData = flightData
         metadata.segmentFlightData = await collectSegmentData(
-          RSCPayload,
           flightData,
           prerenderLegacyStore,
           ComponentMod,
@@ -3709,7 +3705,6 @@ async function prerenderToStream(
         )
         metadata.flightData = flightData
         metadata.segmentFlightData = await collectSegmentData(
-          errorRSCPayload,
           flightData,
           prerenderLegacyStore,
           ComponentMod,
@@ -3843,7 +3838,6 @@ const getGlobalErrorStyles = async (
 }
 
 async function collectSegmentData(
-  rscPayload: InitialRSCPayload,
   fullPageDataBuffer: Buffer,
   prerenderStore: PrerenderStore,
   ComponentMod: AppPageModule,
@@ -3870,18 +3864,6 @@ async function collectSegmentData(
     return
   }
 
-  // FlightDataPath is an unsound type, hence the additional checks.
-  const flightDataPaths = rscPayload.f
-  if (flightDataPaths.length !== 1 && flightDataPaths[0].length !== 3) {
-    console.error(
-      'Internal Next.js error: InitialRSCPayload does not match the expected ' +
-        'shape for a prerendered page during segment prefetch generation.'
-    )
-    return
-  }
-  const routeTree: FlightRouterState = flightDataPaths[0][0]
-  const seedData: CacheNodeSeedData = flightDataPaths[0][1]
-
   // Manifest passed to the Flight client for reading the full-page Flight
   // stream. Based off similar code in use-cache-wrapper.ts.
   const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
@@ -3898,8 +3880,6 @@ async function collectSegmentData(
 
   const staleTime = prerenderStore.stale
   return await ComponentMod.collectSegmentData(
-    routeTree,
-    seedData,
     fullPageDataBuffer,
     staleTime,
     clientReferenceManifest.clientModules as ManifestNode,
