@@ -28,16 +28,16 @@ pub struct AsyncLoaderModule {
 #[turbo_tasks::value_impl]
 impl AsyncLoaderModule {
     #[turbo_tasks::function]
-    pub fn new(
+    pub async fn new(
         module: Vc<Box<dyn ChunkableModule>>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         availability_info: Value<AvailabilityInfo>,
-    ) -> Vc<Self> {
-        Self::cell(AsyncLoaderModule {
+    ) -> Result<Vc<Self>> {
+        Ok(Self::cell(AsyncLoaderModule {
             inner: module.to_resolved().await?,
             chunking_context: chunking_context.to_resolved().await?,
             availability_info: availability_info.into_value(),
-        })
+        }))
     }
 
     #[turbo_tasks::function]
@@ -55,7 +55,7 @@ fn inner_module_reference_description() -> Vc<RcStr> {
 impl Module for AsyncLoaderModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        Self::asset_ident_for(self.inner)
+        Self::asset_ident_for(*self.inner)
     }
 
     #[turbo_tasks::function]
