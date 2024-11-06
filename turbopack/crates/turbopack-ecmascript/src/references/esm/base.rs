@@ -195,8 +195,8 @@ impl ModuleReference for EsmAssetReference {
                         let export = export_name.await?;
                         if *is_export_missing(*module, export.clone_value()).await? {
                             InvalidExport {
-                                export: *export_name,
-                                module: *module,
+                                export: export_name,
+                                module,
                                 source: self.issue_source,
                             }
                             .cell()
