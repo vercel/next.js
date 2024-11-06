@@ -68,7 +68,7 @@ impl AsyncLoaderChunkItem {
 impl EcmascriptChunkItem for AsyncLoaderChunkItem {
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        self.chunking_context
+        *self.chunking_context
     }
 
     #[turbo_tasks::function]
