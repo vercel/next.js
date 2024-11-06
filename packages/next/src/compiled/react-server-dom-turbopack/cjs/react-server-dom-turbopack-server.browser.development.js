@@ -187,16 +187,10 @@
           ((hasProperties = !0), (trimmed[key] = options[key]));
       return hasProperties ? trimmed : null;
     }
-    function prepareStackTrace(error, structuredStackTrace) {
-      error = (error.name || "Error") + ": " + (error.message || "");
-      for (var i = 0; i < structuredStackTrace.length; i++)
-        error += "\n    at " + structuredStackTrace[i].toString();
-      return error;
-    }
     function parseStackTrace(error, skipFrames) {
       a: {
         var previousPrepare = Error.prepareStackTrace;
-        Error.prepareStackTrace = prepareStackTrace;
+        Error.prepareStackTrace = void 0;
         try {
           var stack = String(error.stack);
           break a;

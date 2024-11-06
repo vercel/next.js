@@ -11,6 +11,7 @@
   "scripts": {
     "lint": "eslint src/",
     "prerelease": "pnpm run build",
+    "test": "node --import tsx --test src/**/*-test.ts",
     "build": "tsc"
   },
   "files": [
@@ -33,7 +34,8 @@
     "@types/inquirer": "^9.0.3",
     "@types/minimist": "^1.2.2",
     "@types/node": "^20.3.0",
-    "@types/split2": "^4.2.0"
+    "@types/split2": "^4.2.0",
+    "tsx": "4.19.2"
   },
   "dependencies": {
     "@datadog/datadog-api-client": "^1.13.0",

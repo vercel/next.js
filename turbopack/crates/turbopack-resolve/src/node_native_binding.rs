@@ -209,8 +209,11 @@ pub async fn resolve_node_pre_gyp_files(
                         .await?,
                     affecting_paths
                         .into_iter()
-                        .map(|p| Vc::upcast(FileSource::new(p)))
-                        .collect(),
+                        .map(|p| async move {
+                            anyhow::Ok(ResolvedVc::upcast(FileSource::new(p).to_resolved().await?))
+                        })
+                        .try_join()
+                        .await?,
                 )
                 .cell());
             }

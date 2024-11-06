@@ -14,7 +14,7 @@ use swc_core::{
     },
     ecma::{
         ast::*,
-        visit::{noop_fold_type, noop_visit_type, Fold, FoldWith, Visit, VisitWith},
+        visit::{fold_pass, noop_fold_type, noop_visit_type, Fold, FoldWith, Visit, VisitWith},
     },
 };
 
@@ -58,8 +58,8 @@ impl PageMode {
 pub fn next_transform_strip_page_exports(
     filter: ExportFilter,
     ssr_removed_packages: Rc<RefCell<FxHashSet<String>>>,
-) -> impl Fold {
-    Repeat::new(NextSsg {
+) -> impl Pass {
+    fold_pass(Repeat::new(NextSsg {
         state: State {
             ssr_removed_packages,
             filter,
@@ -67,7 +67,7 @@ pub fn next_transform_strip_page_exports(
         },
         in_lhs_of_var: false,
         remove_expression: false,
-    })
+    }))
 }
 
 /// State of the transforms. Shared by the analyzer and the transform.

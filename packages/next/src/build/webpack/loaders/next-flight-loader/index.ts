@@ -34,10 +34,7 @@ export function getAssumedSourceType(
 
   if (sourceType === 'auto') {
     if (detectedClientEntryType === 'auto') {
-      if (
-        clientRefs.length === 0 ||
-        (clientRefs.length === 1 && clientRefs[0] === '')
-      ) {
+      if (clientRefs.length === 0) {
         // If there's zero export detected in the client boundary, and it's the
         // `auto` type, we can safely assume it's a CJS module because it doesn't
         // have ESM exports.
@@ -102,6 +99,10 @@ export default function transformSource(
     const stringifiedResourceKey = JSON.stringify(resourceKey)
 
     if (assumedSourceType === 'module') {
+      if (clientRefs.length === 0) {
+        return this.callback(null, 'export {}')
+      }
+
       if (clientRefs.includes('*')) {
         this.callback(
           new Error(

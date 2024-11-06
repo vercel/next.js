@@ -93,6 +93,7 @@ const isTestMode = !!(
   process.env.__NEXT_TEST_MODE ||
   process.env.DEBUG
 )
+const includeUpdateReasons = !!process.env.NEXT_TURBOPACK_INCLUDE_UPDATE_REASONS
 
 const sessionId = Math.floor(Number.MAX_SAFE_INTEGER * Math.random())
 
@@ -1018,13 +1019,21 @@ export async function createHotReloaderTurbopack(
   })
 
   async function handleProjectUpdates() {
-    for await (const updateMessage of project.updateInfoSubscribe(30)) {
+    for await (const updateMessage of project.updateInfoSubscribe({
+      aggregationMs: 30,
+      includeReasons: includeUpdateReasons,
+    })) {
       switch (updateMessage.updateType) {
         case 'start': {
           hotReloader.send({ action: HMR_ACTIONS_SENT_TO_BROWSER.BUILDING })
           break
         }
         case 'end': {
+          if (updateMessage.value.reasons) {
+            // debug: only populated when `process.env.NEXT_TURBOPACK_INCLUDE_UPDATE_REASONS` is set
+            // and a reason was supplied when the invalidation happened (not always true)
+            console.log('[Update Reasons]', updateMessage.value.reasons)
+          }
           sendEnqueuedMessages()
 
           function addErrors(
