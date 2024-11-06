@@ -33,18 +33,18 @@ pub struct CjsAssetReference {
 #[turbo_tasks::value_impl]
 impl CjsAssetReference {
     #[turbo_tasks::function]
-    pub fn new(
+    pub async fn new(
         origin: Vc<Box<dyn ResolveOrigin>>,
         request: Vc<Request>,
         issue_source: Vc<IssueSource>,
         in_try: bool,
-    ) -> Vc<Self> {
-        Self::cell(CjsAssetReference {
-            origin,
-            request,
-            issue_source,
+    ) -> Result<Vc<Self>> {
+        Ok(Self::cell(CjsAssetReference {
+            origin: origin.to_resolved().await?,
+            request: request.to_resolved().await?,
+            issue_source: issue_source.to_resolved().await?,
             in_try,
-        })
+        }))
     }
 }
 
@@ -138,9 +138,9 @@ impl CodeGenerateable for CjsRequireAssetReference {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
         let pm = PatternMapping::resolve_request(
-            self.request,
-            self.origin,
-            *Vc::upcast(chunking_context),
+            *self.request,
+            *self.origin,
+            Vc::upcast(chunking_context),
             cjs_resolve(
                 *self.origin,
                 *self.request,
