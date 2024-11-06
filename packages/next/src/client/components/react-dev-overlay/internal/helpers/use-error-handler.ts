@@ -6,6 +6,7 @@ import { formatConsoleArgs } from '../../../../lib/console'
 import isError from '../../../../../lib/is-error'
 import { createUnhandledError } from './console-error'
 import { enqueueConsecutiveDedupedError } from './enqueue-client-error'
+import { getReactStitchedError } from './stitched-error'
 
 export type ErrorHandler = (error: Error) => void
 
@@ -22,7 +23,7 @@ export function handleClientError(
   if (!originError || !isError(originError)) {
     // If it's not an error, format the args into an error
     const formattedErrorMessage = formatConsoleArgs(consoleErrorArgs)
-    error = createUnhandledError(formattedErrorMessage)
+    error = getReactStitchedError(createUnhandledError(formattedErrorMessage))
   } else {
     error = originError
   }
