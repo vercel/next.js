@@ -90,12 +90,10 @@ impl VisitMut for NextFontLoaders {
             new_items.append(items);
 
             // Add font imports and exports
-            new_items.splice(first_removable_index..first_removable_index, {
-                // we need to move the values out of the state in order to be able to splice() them
-                let mut font_imports = Vec::with_capacity(self.state.font_imports.len());
-                font_imports.append(&mut self.state.font_imports);
-                font_imports
-            });
+            new_items.splice(
+                first_removable_index..first_removable_index,
+                std::mem::take(&mut self.state.font_imports),
+            );
             new_items.append(&mut self.state.font_exports);
 
             *items = new_items;
