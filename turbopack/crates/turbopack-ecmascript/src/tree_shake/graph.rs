@@ -1233,6 +1233,7 @@ impl DepGraph {
                                     e.may_have_side_effects(&ExprCtx {
                                         unresolved_ctxt,
                                         is_unresolved_ref_safe: false,
+                                        in_strict: false,
                                     })
                                 }));
 

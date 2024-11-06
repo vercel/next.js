@@ -18,7 +18,7 @@ use swc_core::{
         ast::*,
         atoms::JsWord,
         utils::{private_ident, quote_ident, ExprFactory},
-        visit::{as_folder, noop_visit_mut_type, Fold, VisitMut, VisitMutWith},
+        visit::{noop_visit_mut_type, visit_mut_pass, VisitMut, VisitMutWith},
     },
 };
 
@@ -35,12 +35,8 @@ pub struct Config {
 pub type ActionsMap = BTreeMap<String, String>;
 
 #[tracing::instrument(level = tracing::Level::TRACE, skip_all)]
-pub fn server_actions<C: Comments>(
-    file_name: &FileName,
-    config: Config,
-    comments: C,
-) -> impl VisitMut + Fold {
-    as_folder(ServerActions {
+pub fn server_actions<C: Comments>(file_name: &FileName, config: Config, comments: C) -> impl Pass {
+    visit_mut_pass(ServerActions {
         config,
         comments,
         file_name: file_name.to_string(),
