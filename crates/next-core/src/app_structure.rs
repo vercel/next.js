@@ -230,7 +230,7 @@ impl DirectoryTree {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct OptionAppDir(Option<Vc<FileSystemPath>>);
+pub struct OptionAppDir(Option<ResolvedVc<FileSystemPath>>);
 
 /// Finds and returns the [DirectoryTree] of the app directory if existing.
 #[turbo_tasks::function]
@@ -244,7 +244,7 @@ pub async fn find_app_dir(project_path: Vc<FileSystemPath>) -> Result<Vc<OptionA
     } else {
         return Ok(Vc::cell(None));
     }
-    .resolve()
+    .to_resolved()
     .await?;
 
     Ok(Vc::cell(Some(app_dir)))

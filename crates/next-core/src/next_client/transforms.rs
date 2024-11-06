@@ -8,10 +8,10 @@ use crate::{
     next_client::context::ClientContextType,
     next_config::NextConfig,
     next_shared::transforms::{
-        get_next_dynamic_transform_rule, get_next_font_transform_rule, get_next_image_rule,
-        get_next_lint_transform_rule, get_next_modularize_imports_rule,
-        get_next_pages_transforms_rule, get_server_actions_transform_rule,
-        next_amp_attributes::get_next_amp_attr_rule,
+        debug_fn_name::get_debug_fn_name_rule, get_next_dynamic_transform_rule,
+        get_next_font_transform_rule, get_next_image_rule, get_next_lint_transform_rule,
+        get_next_modularize_imports_rule, get_next_pages_transforms_rule,
+        get_server_actions_transform_rule, next_amp_attributes::get_next_amp_attr_rule,
         next_cjs_optimizer::get_next_cjs_optimizer_rule,
         next_disallow_re_export_all_in_page::get_next_disallow_export_all_in_page_rule,
         next_page_config::get_next_page_config_rule,
@@ -43,6 +43,10 @@ pub async fn get_next_client_transforms_rules(
 
     rules.push(get_next_font_transform_rule(enable_mdx_rs));
 
+    if mode.await?.is_development() {
+        rules.push(get_debug_fn_name_rule(enable_mdx_rs));
+    }
+
     let mut is_app_dir = false;
 
     match context_ty {
@@ -50,7 +54,7 @@ pub async fn get_next_client_transforms_rules(
             if !foreign_code {
                 rules.push(
                     get_next_pages_transforms_rule(
-                        pages_dir,
+                        *pages_dir,
                         ExportFilter::StripDataExports,
                         enable_mdx_rs,
                     )
