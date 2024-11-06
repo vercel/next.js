@@ -121,10 +121,9 @@ impl EcmascriptChunkItemContent {
             args.push("e: exports");
         }
         if self.options.stub_require {
-            args.push("z: require");
-        } else {
-            args.push("t: require");
+            args.push("z: __turbopack_require_stub__");
         }
+        args.push("t: require");
         if self.options.wasm {
             args.push("w: __turbopack_wasm__");
             args.push("u: __turbopack_wasm_module__");
@@ -193,8 +192,8 @@ pub struct EcmascriptChunkItemOptions {
     /// Whether this chunk item's module factory should include an `exports`
     /// argument.
     pub exports: bool,
-    /// Whether this chunk item's module factory should include an argument for the real `require`,
-    /// or just a throwing stub (for ESM)
+    /// Whether this chunk item's module factory should include an argument for a throwing require
+    /// stub (for ESM)
     pub stub_require: bool,
     /// Whether this chunk item's module factory should include a
     /// `__turbopack_external_require__` argument.

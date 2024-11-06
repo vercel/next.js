@@ -6,6 +6,7 @@ pub mod constant_value;
 pub mod dynamic_expression;
 pub mod esm;
 pub mod external_module;
+pub mod ident;
 pub mod node;
 pub mod pattern_mapping;
 pub mod raw;
@@ -133,6 +134,7 @@ use crate::{
         cjs::{CjsRequireAssetReference, CjsRequireCacheAccess, CjsRequireResolveAssetReference},
         dynamic_expression::DynamicExpression,
         esm::{module_id::EsmModuleIdAssetReference, EsmBinding, UrlRewriteBehavior},
+        ident::IdentReplacement,
         node::PackageJsonReference,
         require_context::{RequireContextAssetReference, RequireContextMap},
         type_issue::SpecifiedModuleTypeIssue,
@@ -1242,10 +1244,10 @@ async fn compile_time_info_for_module_type(
     let free_var_references = compile_time_info.free_var_references;
 
     let mut free_var_references = free_var_references.await?.clone_value();
-    let (typeof_exports, typeof_module) = if is_esm {
-        ("undefined", "undefined")
+    let (typeof_exports, typeof_module, require) = if is_esm {
+        ("undefined", "undefined", Some("__turbopack_require_stub__"))
     } else {
-        ("object", "object")
+        ("object", "object", None)
     };
     free_var_references
         .entry(vec![
@@ -1272,6 +1274,11 @@ async fn compile_time_info_for_module_type(
             DefineableNameSegment::TypeOf,
         ])
         .or_insert("function".into());
+    if let Some(require) = require {
+        free_var_references
+            .entry(vec![DefineableNameSegment::Name("require".into())])
+            .or_insert(FreeVarReference::Ident(require.into()));
+    }
 
     Ok(CompileTimeInfo {
         environment: compile_time_info.environment,
@@ -2200,6 +2207,12 @@ async fn handle_free_var_reference(
         FreeVarReference::Value(value) => {
             analysis.add_code_gen(ConstantValue::new(
                 Value::new(value.clone()),
+                Vc::cell(ast_path.to_vec()),
+            ));
+        }
+        FreeVarReference::Ident(value) => {
+            analysis.add_code_gen(IdentReplacement::new(
+                value.clone(),
                 Vc::cell(ast_path.to_vec()),
             ));
         }
