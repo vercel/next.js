@@ -35,6 +35,18 @@ This will create a folder at `.next/standalone` which can then be deployed on it
 
 Additionally, a minimal `server.js` file is also output which can be used instead of `next start`. This minimal server does not copy the `public` or `.next/static` folders by default as these should ideally be handled by a CDN instead, although these folders can be copied to the `standalone/public` and `standalone/.next/static` folders manually, after which `server.js` file will serve these automatically.
 
+To copy these manually, you can use the `cp` command-line tool after you `next build`:
+
+```bash filename="Terminal"
+cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/
+```
+
+To start your minimal `server.js` file locally, run the following command:
+
+```bash filename="Terminal"
+node .next/standalone/server.js
+```
+
 <AppOnly>
 
 > **Good to know**:
