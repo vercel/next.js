@@ -156,7 +156,7 @@ pub(crate) struct ImportMap {
 ///
 /// [magic]: https://webpack.js.org/api/module-methods/#magic-comments
 #[derive(Debug)]
-pub(crate) struct ImportAttributes {
+pub struct ImportAttributes {
     /// Should we ignore this import expression when bundling? If so, the import expression will be
     /// left as-is in Turbopack's output.
     ///
@@ -476,14 +476,29 @@ impl Visit for Analyzer<'_> {
         }
     }
 
-    fn visit_export_decl(&mut self, _: &ExportDecl) {
+    fn visit_export_decl(&mut self, n: &ExportDecl) {
         self.data.has_exports = true;
+
+        if self.comments.is_some() {
+            // only visit children if we potentially need to mark import / requires
+            n.visit_children_with(self);
+        }
     }
-    fn visit_export_default_decl(&mut self, _: &ExportDefaultDecl) {
+    fn visit_export_default_decl(&mut self, n: &ExportDefaultDecl) {
         self.data.has_exports = true;
+
+        if self.comments.is_some() {
+            // only visit children if we potentially need to mark import / requires
+            n.visit_children_with(self);
+        }
     }
-    fn visit_export_default_expr(&mut self, _: &ExportDefaultExpr) {
+    fn visit_export_default_expr(&mut self, n: &ExportDefaultExpr) {
         self.data.has_exports = true;
+
+        if self.comments.is_some() {
+            // only visit children if we potentially need to mark import / requires
+            n.visit_children_with(self);
+        }
     }
 
     fn visit_program(&mut self, m: &Program) {

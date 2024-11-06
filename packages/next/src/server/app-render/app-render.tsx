@@ -3880,6 +3880,7 @@ async function collectSegmentData(
     return
   }
   const routeTree: FlightRouterState = flightDataPaths[0][0]
+  const seedData: CacheNodeSeedData = flightDataPaths[0][1]
 
   // Manifest passed to the Flight client for reading the full-page Flight
   // stream. Based off similar code in use-cache-wrapper.ts.
@@ -3898,6 +3899,7 @@ async function collectSegmentData(
   const staleTime = prerenderStore.stale
   return await ComponentMod.collectSegmentData(
     routeTree,
+    seedData,
     fullPageDataBuffer,
     staleTime,
     clientReferenceManifest.clientModules as ManifestNode,
