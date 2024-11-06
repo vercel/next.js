@@ -38,7 +38,7 @@ impl AsyncLoaderChunkItem {
                 .get(
                     module
                         .inner
-                        .as_chunk_item(Vc::upcast(self.chunking_context))
+                        .as_chunk_item(*ResolvedVc::upcast(self.chunking_context))
                         .resolve()
                         .await?,
                 )
@@ -49,7 +49,7 @@ impl AsyncLoaderChunkItem {
             }
         }
         Ok(self.chunking_context.chunk_group_assets(
-            Vc::upcast(module.inner),
+            *ResolvedVc::upcast(module.inner),
             Value::new(module.availability_info),
         ))
     }
@@ -77,11 +77,11 @@ impl EcmascriptChunkItem for AsyncLoaderChunkItem {
         let module = this.module.await?;
 
         let id = if let Some(placeable) =
-            Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkPlaceable>>(module.inner).await?
+            Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkPlaceable>>(*module.inner).await?
         {
             Some(
                 placeable
-                    .as_chunk_item(Vc::upcast(this.chunking_context))
+                    .as_chunk_item(*ResolvedVc::upcast(this.chunking_context))
                     .id()
                     .await?,
             )
@@ -198,7 +198,7 @@ impl ChunkItem for AsyncLoaderChunkItem {
 
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        Vc::upcast(self.chunking_context)
+        *ResolvedVc::upcast(self.chunking_context)
     }
 
     #[turbo_tasks::function]
@@ -210,6 +210,6 @@ impl ChunkItem for AsyncLoaderChunkItem {
 
     #[turbo_tasks::function]
     fn module(&self) -> Vc<Box<dyn Module>> {
-        Vc::upcast(self.module)
+        *ResolvedVc::upcast(self.module)
     }
 }
