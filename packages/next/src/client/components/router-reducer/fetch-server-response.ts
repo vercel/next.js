@@ -2,8 +2,8 @@
 
 // @ts-ignore
 // eslint-disable-next-line import/no-extraneous-dependencies
-// import { createFromFetch } from 'react-server-dom-webpack/client'
-const { createFromFetch } = (
+// import { createFromReadableStream } from 'react-server-dom-webpack/client'
+const { createFromReadableStream } = (
   !!process.env.NEXT_RUNTIME
     ? // eslint-disable-next-line import/no-extraneous-dependencies
       require('react-server-dom-webpack/client.edge')
@@ -195,7 +195,7 @@ export async function fetchServerResponse(
 
     // If fetch returns something different than flight response handle it like a mpa navigation
     // If the fetch was not 200, we also handle it like a mpa navigation
-    if (!isFlightResponse || !res.ok) {
+    if (!isFlightResponse || !res.ok || !res.body) {
       // in case the original URL came with a hash, preserve it before redirecting to the new URL
       if (url.hash) {
         responseUrl.hash = url.hash
@@ -213,8 +213,8 @@ export async function fetchServerResponse(
     }
 
     // Handle the `fetch` readable stream that can be unwrapped by `React.use`.
-    const response: NavigationFlightResponse = await createFromFetch(
-      Promise.resolve(res),
+    const response: NavigationFlightResponse = await createFromReadableStream(
+      res.body,
       { callServer, findSourceMapURL }
     )
 
