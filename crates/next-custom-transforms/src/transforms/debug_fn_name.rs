@@ -6,15 +6,15 @@ use swc_core::{
     ecma::{
         ast::{
             CallExpr, Callee, ExportDefaultDecl, ExportDefaultExpr, Expr, FnDecl, FnExpr,
-            KeyValueProp, MemberProp, ObjectLit, PropOrSpread, VarDeclarator,
+            KeyValueProp, MemberProp, ObjectLit, Pass, PropOrSpread, VarDeclarator,
         },
         utils::ExprFactory,
-        visit::{as_folder, Fold, VisitMut, VisitMutWith},
+        visit::{visit_mut_pass, VisitMut, VisitMutWith},
     },
 };
 
-pub fn debug_fn_name() -> impl VisitMut + Fold {
-    as_folder(DebugFnName::default())
+pub fn debug_fn_name() -> impl VisitMut + Pass {
+    visit_mut_pass(DebugFnName::default())
 }
 
 #[derive(Default)]
