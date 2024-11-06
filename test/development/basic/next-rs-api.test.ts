@@ -231,7 +231,7 @@ describe('next.rs api', () => {
       browserslistQuery: 'last 2 versions',
     })
     projectUpdateSubscription = filterMapAsyncIterator(
-      project.updateInfoSubscribe(1000),
+      project.updateInfoSubscribe({ aggregationMs: 1000 }),
       (update) => (update.updateType === 'end' ? update.value : undefined)
     )
   })

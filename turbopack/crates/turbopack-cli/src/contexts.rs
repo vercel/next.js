@@ -50,7 +50,9 @@ async fn foreign_code_context_condition() -> Result<ContextCondition> {
 }
 
 #[turbo_tasks::function]
-pub fn get_client_import_map(project_path: Vc<FileSystemPath>) -> Vc<ImportMap> {
+pub async fn get_client_import_map(
+    project_path: ResolvedVc<FileSystemPath>,
+) -> Result<Vc<ImportMap>> {
     let mut import_map = ImportMap::empty();
 
     import_map.insert_singleton_alias("@swc/helpers", project_path);
@@ -62,12 +64,17 @@ pub fn get_client_import_map(project_path: Vc<FileSystemPath>) -> Vc<ImportMap> 
         "@vercel/turbopack-ecmascript-runtime/",
         ImportMapping::PrimaryAlternative(
             "./*".into(),
-            Some(turbopack_ecmascript_runtime::embed_fs().root()),
+            Some(
+                turbopack_ecmascript_runtime::embed_fs()
+                    .root()
+                    .to_resolved()
+                    .await?,
+            ),
         )
-        .cell(),
+        .resolved_cell(),
     );
 
-    import_map.cell()
+    Ok(import_map.cell())
 }
 
 #[turbo_tasks::function]

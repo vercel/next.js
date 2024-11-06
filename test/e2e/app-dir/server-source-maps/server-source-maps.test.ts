@@ -31,28 +31,19 @@ describe('app-dir - server source maps', () => {
     if (isNextDev) {
       await retry(() => {
         expect(normalizeCliOutput(next.cliOutput)).toContain(
-          isTurbopack
-            ? '\nError: Boom' +
-                '\n    at logError (turbopack://[project]/app/rsc-error-log/page.js:2:16)' +
-                '\n    at Page (turbopack://[project]/app/rsc-error-log/page.js:7:2)' +
-                '\n  1 | function logError() {' +
-                "\n> 2 |   const error = new Error('Boom')" +
-                '\n    |                ^' +
-                '\n  3 |   console.error(error)' +
-                '\n  4 | }' +
-                '\n  5 |' +
-                '\n'
-            : '\nError: Boom' +
-                '\n    at logError (app/rsc-error-log/page.js:2:16)' +
-                // FIXME: Method name should be "Page"
-                '\n    at logError (app/rsc-error-log/page.js:7:2)' +
-                '\n  1 | function logError() {' +
-                "\n> 2 |   const error = new Error('Boom')" +
-                '\n    |                ^' +
-                '\n  3 |   console.error(error)' +
-                '\n  4 | }' +
-                '\n  5 |' +
-                '\n'
+          '\nError: Boom' +
+            '\n    at logError (app/rsc-error-log/page.js:2:16)' +
+            (isTurbopack
+              ? '\n    at Page (app/rsc-error-log/page.js:7:2)'
+              : // FIXME: Method name should be "Page"
+                '\n    at logError (app/rsc-error-log/page.js:7:2)') +
+            '\n  1 | function logError() {' +
+            "\n> 2 |   const error = new Error('Boom')" +
+            '\n    |                ^' +
+            '\n  3 |   console.error(error)' +
+            '\n  4 | }' +
+            '\n  5 |' +
+            '\n'
         )
       })
     } else {
@@ -66,46 +57,28 @@ describe('app-dir - server source maps', () => {
     if (isNextDev) {
       await retry(() => {
         expect(normalizeCliOutput(next.cliOutput)).toContain(
-          isTurbopack
-            ? '\nError: Boom' +
-                '\n    at logError (turbopack://[project]/app/rsc-error-log-cause/page.js:2:16)' +
-                '\n    at Page (turbopack://[project]/app/rsc-error-log-cause/page.js:8:2)' +
-                '\n  1 | function logError(cause) {' +
-                "\n> 2 |   const error = new Error('Boom', { cause })" +
-                '\n    |                ^' +
-                '\n  3 |   console.error(error)' +
-                '\n  4 | }' +
-                '\n  5 | {' +
-                '\n  [cause]: Error: Boom' +
-                '\n      at Page (turbopack://[project]/app/rsc-error-log-cause/page.js:7:16)' +
-                '\n     5 |' +
-                '\n     6 | export default function Page() {' +
-                "\n  >  7 |   const error = new Error('Boom')" +
-                '\n       |                ^' +
-                '\n     8 |   logError(error)' +
-                '\n     9 |   return null' +
-                '\n    10 | }' +
-                '\n'
-            : '\nError: Boom' +
-                '\n    at logError (app/rsc-error-log-cause/page.js:2:16)' +
-                // FIXME: Method name should be "Page"
-                '\n    at logError (app/rsc-error-log-cause/page.js:8:2)' +
-                '\n  1 | function logError(cause) {' +
-                "\n> 2 |   const error = new Error('Boom', { cause })" +
-                '\n    |                ^' +
-                '\n  3 |   console.error(error)' +
-                '\n  4 | }' +
-                '\n  5 | {' +
-                '\n  [cause]: Error: Boom' +
-                '\n      at Page (app/rsc-error-log-cause/page.js:7:16)' +
-                '\n     5 |' +
-                '\n     6 | export default function Page() {' +
-                "\n  >  7 |   const error = new Error('Boom')" +
-                '\n       |                ^' +
-                '\n     8 |   logError(error)' +
-                '\n     9 |   return null' +
-                '\n    10 | }' +
-                '\n'
+          '\nError: Boom' +
+            '\n    at logError (app/rsc-error-log-cause/page.js:2:16)' +
+            (isTurbopack
+              ? '\n    at Page (app/rsc-error-log-cause/page.js:8:2)'
+              : // FIXME: Method name should be "Page"
+                '\n    at logError (app/rsc-error-log-cause/page.js:8:2)') +
+            '\n  1 | function logError(cause) {' +
+            "\n> 2 |   const error = new Error('Boom', { cause })" +
+            '\n    |                ^' +
+            '\n  3 |   console.error(error)' +
+            '\n  4 | }' +
+            '\n  5 | {' +
+            '\n  [cause]: Error: Boom' +
+            '\n      at Page (app/rsc-error-log-cause/page.js:7:16)' +
+            '\n     5 |' +
+            '\n     6 | export default function Page() {' +
+            "\n  >  7 |   const error = new Error('Boom')" +
+            '\n       |                ^' +
+            '\n     8 |   logError(error)' +
+            '\n     9 |   return null' +
+            '\n    10 | }' +
+            '\n'
         )
       })
     } else {
