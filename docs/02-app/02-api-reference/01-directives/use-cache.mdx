@@ -65,7 +65,7 @@ export async function getData() {
 - Functions that use the `use cache` directive must not have any side-effects, such as modifying state, directly manipulating the DOM, or setting timers to execute code at intervals.
 - If used alongside [Partial Prerendering](/docs/app/building-your-application/rendering/partial-prerendering), segments that have `use cache` will be prerendered as part of the static HTML shell.
 - The `use cache` directive will be available separately from the [`dynamicIO`](/docs/app/api-reference/next-config-js/dynamicIO) flag in the future.
-- Unlike [`unstable_cache`](/docs/app/api-reference/legacy-apis/unstable_cache) which only supports JSON data, `use cache` can cache any serializable data React can render, including the render output of components.
+- Unlike [`unstable_cache`](/docs/app/api-reference/functions/unstable_cache) which only supports JSON data, `use cache` can cache any serializable data React can render, including the render output of components.
 
 ## Examples
 
