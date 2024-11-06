@@ -30,8 +30,11 @@ pub struct ImportMetaBinding {
 #[turbo_tasks::value_impl]
 impl ImportMetaBinding {
     #[turbo_tasks::function]
-    pub fn new(path: Vc<FileSystemPath>) -> Vc<Self> {
-        ImportMetaBinding { path }.cell()
+    pub async fn new(path: Vc<FileSystemPath>) -> Result<Vc<Self>> {
+        Ok(ImportMetaBinding {
+            path: path.to_resolved().await?,
+        }
+        .cell())
     }
 }
 
@@ -42,7 +45,7 @@ impl CodeGenerateable for ImportMetaBinding {
         &self,
         _context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
-        let path = as_abs_path(self.path).await?.as_str().map_or_else(
+        let path = as_abs_path(*self.path).await?.as_str().map_or_else(
             || {
                 quote!(
                     "(() => { throw new Error('could not convert import.meta.url to filepath') })()"
