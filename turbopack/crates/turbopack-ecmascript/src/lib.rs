@@ -645,7 +645,7 @@ impl ChunkItem for ModuleChunkItem {
 
     #[turbo_tasks::function]
     fn module(&self) -> Vc<Box<dyn Module>> {
-        Vc::upcast(self.module)
+        *ResolvedVc::upcast(self.module)
     }
 
     #[turbo_tasks::function]
@@ -689,11 +689,11 @@ impl EcmascriptChunkItem for ModuleChunkItem {
         // TODO check if we need to pass async_module_info at all
         let content = this
             .module
-            .module_content(this.chunking_context, async_module_info);
+            .module_content(*this.chunking_context, async_module_info);
 
         Ok(EcmascriptChunkItemContent::new(
             content,
-            this.chunking_context,
+            *this.chunking_context,
             this.module.options(),
             async_module_options,
         ))
@@ -786,7 +786,7 @@ impl EcmascriptModuleContent {
 }
 
 async fn gen_content_with_code_gens(
-    parsed: Vc<ParseResult>,
+    parsed: ResolvedVc<ParseResult>,
     ident: Vc<AssetIdent>,
     specified_module_type: SpecifiedModuleType,
     code_gens: &[&CodeGeneration],
