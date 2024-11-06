@@ -19,7 +19,10 @@ import type { RequestStore } from '../app-render/work-unit-async-storage.externa
 import type { NextParsedUrlQuery } from '../request-meta'
 import type { LoaderTree } from '../lib/app-dir-module'
 import type { AppPageModule } from '../route-modules/app-page/module'
-import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
+import type {
+  ClientReferenceManifest,
+  ManifestNode,
+} from '../../build/webpack/plugins/flight-manifest-plugin'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 import type { IncomingHttpHeaders } from 'http'
@@ -168,6 +171,7 @@ import './clean-async-snapshot.external'
 import { INFINITE_CACHE } from '../../lib/constants'
 import { createComponentStylesAndScripts } from './create-component-styles-and-scripts'
 import { parseLoaderTree } from './parse-loader-tree'
+import { createPrerenderResumeDataCache } from '../resume-data-cache/resume-data-cache'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -183,7 +187,7 @@ export type GenerateFlight = typeof generateDynamicFlightRenderResult
 
 export type AppRenderContext = {
   workStore: WorkStore
-  requestStore: RequestStore
+  url: ReturnType<typeof parseRelativeUrl>
   componentMod: AppPageModule
   renderOpts: RenderOpts
   parsedRequestHeaders: ParsedRequestHeaders
@@ -395,7 +399,6 @@ async function generateDynamicRSCPayload(
     skipFlight: boolean
   }
 ): Promise<RSCPayload> {
-  ctx.requestStore.phase = 'render'
   // Flight data that is going to be passed to the browser.
   // Currently a single item array but in the future multiple patches might be combined in a single request.
 
@@ -416,11 +419,11 @@ async function generateDynamicRSCPayload(
     },
     getDynamicParamFromSegment,
     appUsingSizeAdjustment,
-    requestStore: { url },
     query,
     requestId,
     flightRouterState,
     workStore,
+    url,
   } = ctx
 
   if (!options?.skipFlight) {
@@ -580,6 +583,7 @@ async function generateDynamicFlightRenderResult(
 async function warmupDevRender(
   req: BaseNextRequest,
   ctx: AppRenderContext,
+  requestStore: RequestStore,
   options?: {
     actionResult: ActionResult
     skipFlight: boolean
@@ -606,11 +610,27 @@ async function warmupDevRender(
     onFlightDataRenderError
   )
 
-  const rscPayload = await generateDynamicRSCPayload(ctx, options)
+  // We're doing a dev warmup, so we should create a new resume data cache so
+  // we can fill it.
+  const devWarmupPrerenderResumeDataCache = createPrerenderResumeDataCache()
+
+  // Attach this to the request store so that it can be used during the
+  // render.
+  requestStore.devWarmupPrerenderResumeDataCache =
+    devWarmupPrerenderResumeDataCache
+
+  const rscPayload = await workUnitAsyncStorage.run(
+    requestStore,
+    generateDynamicRSCPayload,
+    ctx,
+    options
+  )
 
   // For app dir, use the bundled version of Flight server renderer (renderToReadableStream)
   // which contains the subset React.
-  const flightReadableStream = ctx.componentMod.renderToReadableStream(
+  const flightReadableStream = workUnitAsyncStorage.run(
+    requestStore,
+    ctx.componentMod.renderToReadableStream,
     rscPayload,
     ctx.clientReferenceManifest.clientModules,
     {
@@ -619,17 +639,24 @@ async function warmupDevRender(
   )
 
   const reader = flightReadableStream.getReader()
+
+  // Read the entire stream.
   while (true) {
     if ((await reader.read()).done) {
       break
     }
   }
 
+  // As we're finished rendering, remove the reference to the prerender resume
+  // data cache so it can't be written to again.
+  requestStore.devWarmupPrerenderResumeDataCache = null
+
   // We don't really want to return a result here but the stack of functions
   // that calls into renderToHTML... expects a result. We should refactor this to
   // lift the warmup pathway outside of renderToHTML... but for now this suffices
   return new FlightRenderResult('', {
     fetchMetrics: ctx.workStore.fetchMetrics,
+    devWarmupPrerenderResumeDataCache,
   })
 }
 
@@ -671,9 +698,10 @@ async function getRSCPayload(
       MetadataBoundary,
       ViewportBoundary,
     },
-    requestStore: { url },
+    url,
     workStore,
   } = ctx
+
   const initialTree = createFlightRouterStateFromLoaderTree(
     tree,
     getDynamicParamFromSegment,
@@ -776,7 +804,7 @@ async function getErrorRSCPayload(
       MetadataBoundary,
       ViewportBoundary,
     },
-    requestStore: { url },
+    url,
     requestId,
     workStore,
   } = ctx
@@ -957,6 +985,7 @@ export type BinaryStreamOf<T> = ReadableStream<Uint8Array>
 async function renderToHTMLOrFlightImpl(
   req: BaseNextRequest,
   res: BaseNextResponse,
+  url: ReturnType<typeof parseRelativeUrl>,
   pagePath: string,
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts,
@@ -964,7 +993,8 @@ async function renderToHTMLOrFlightImpl(
   workStore: WorkStore,
   parsedRequestHeaders: ParsedRequestHeaders,
   requestEndedState: { ended?: boolean },
-  postponedState: PostponedState | null
+  postponedState: PostponedState | null,
+  implicitTags: Array<string>
 ) {
   const isNotFoundPath = pagePath === '/404'
   if (isNotFoundPath) {
@@ -1132,8 +1162,8 @@ async function renderToHTMLOrFlightImpl(
 
   const ctx: AppRenderContext = {
     componentMod: ComponentMod,
+    url,
     renderOpts,
-    requestStore,
     workStore,
     parsedRequestHeaders,
     getDynamicParamFromSegment,
@@ -1174,7 +1204,8 @@ async function renderToHTMLOrFlightImpl(
       ctx,
       metadata,
       workStore,
-      loaderTree
+      loaderTree,
+      implicitTags
     )
 
     // If we're debugging partial prerendering, print all the dynamic API accesses
@@ -1253,37 +1284,11 @@ async function renderToHTMLOrFlightImpl(
       }
     }
 
-    // Per-segment prefetch data
-    //
-    // All of the segments for a page are generated simultaneously, including
-    // during revalidations. This is to ensure consistency, because it's
-    // possible for a mismatch between a layout and page segment can cause the
-    // client to error during rendering. We want to preserve the ability of the
-    // client to recover from such a mismatch by re-requesting all the segments
-    // to get a consistent view of the page.
-    //
-    // TODO (Per Segment Prefetching): This is placeholder data. Populate with
-    // the actual data generated during prerender.
-    if (renderOpts.experimental.isRoutePPREnabled === true) {
-      const placeholder = Buffer.from(
-        'TODO (Per Segment Prefetching): Not yet implemented\n'
-      )
-      metadata.segmentFlightData = new Map([
-        // Root segment
-        ['/', placeholder],
-        ['/blog', placeholder],
-        // TODO: Update the client to use the same encoding for segment paths that
-        // we use here, so we don't have to convert between them. Needs to be
-        // filesystem safe.
-        ['/blog/[post]-1-d', placeholder],
-      ])
-    }
-
     return new RenderResult(await streamToString(response.stream), options)
   } else {
     // We're rendering dynamically
     if (isDevWarmupRequest) {
-      return warmupDevRender(req, ctx)
+      return warmupDevRender(req, ctx, requestStore)
     } else if (isRSCRequest) {
       return generateDynamicFlightRenderResult(req, ctx)
     }
@@ -1383,7 +1388,8 @@ export type AppPageRender = (
   query: NextParsedUrlQuery,
   fallbackRouteParams: FallbackRouteParams | null,
   renderOpts: RenderOpts,
-  serverComponentsHmrCache?: ServerComponentsHmrCache
+  serverComponentsHmrCache: ServerComponentsHmrCache | undefined,
+  isDevWarmup: boolean
 ) => Promise<RenderResult<AppPageRenderResultMetadata>>
 
 export const renderToHTMLOrFlight: AppPageRender = (
@@ -1393,7 +1399,8 @@ export const renderToHTMLOrFlight: AppPageRender = (
   query,
   fallbackRouteParams,
   renderOpts,
-  serverComponentsHmrCache
+  serverComponentsHmrCache,
+  isDevWarmup
 ) => {
   if (!req.url) {
     throw new Error('Invalid URL')
@@ -1404,7 +1411,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
   // We read these values from the request object as, in certain cases,
   // base-server will strip them to opt into different rendering behavior.
   const parsedRequestHeaders = parseRequestHeaders(req.headers, {
-    isDevWarmup: renderOpts.isDevWarmup,
+    isDevWarmup,
     isRoutePPREnabled: renderOpts.experimental.isRoutePPREnabled === true,
   })
 
@@ -1416,9 +1423,9 @@ export const renderToHTMLOrFlight: AppPageRender = (
   // If provided, the postpone state should be parsed so it can be provided to
   // React.
   if (typeof renderOpts.postponed === 'string') {
-    if (fallbackRouteParams && fallbackRouteParams.size > 0) {
-      throw new Error(
-        'Invariant: postponed state should not be provided when fallback params are provided'
+    if (fallbackRouteParams) {
+      throw new InvariantError(
+        'postponed state should not be provided when fallback params are provided'
       )
     }
 
@@ -1428,11 +1435,25 @@ export const renderToHTMLOrFlight: AppPageRender = (
     )
   }
 
+  if (
+    postponedState?.renderResumeDataCache &&
+    renderOpts.devWarmupRenderResumeDataCache
+  ) {
+    throw new InvariantError(
+      'postponed state and dev warmup immutable resume data cache should not be provided together'
+    )
+  }
+
+  const renderResumeDataCache =
+    renderOpts.devWarmupRenderResumeDataCache ??
+    postponedState?.renderResumeDataCache
+
   const implicitTags = getImplicitTags(
     renderOpts.routeModule.definition.page,
     url,
     fallbackRouteParams
   )
+
   // TODO: We need to refactor this so that prerenders do not rely upon the
   // existence of an outer scoped request store. Then we should move this
   // store generation inside the appropriate scope like `renderToStream` where
@@ -1443,6 +1464,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
     url,
     implicitTags,
     renderOpts.onUpdateCookies,
+    renderResumeDataCache,
     renderOpts.previewProps,
     isHmrRefresh,
     serverComponentsHmrCache
@@ -1462,6 +1484,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
       return renderToHTMLOrFlightImpl(
         req,
         res,
+        url,
         pagePath,
         query,
         renderOpts,
@@ -1469,7 +1492,8 @@ export const renderToHTMLOrFlight: AppPageRender = (
         workStore,
         parsedRequestHeaders,
         requestEndedState,
-        postponedState
+        postponedState,
+        implicitTags
       )
     })
   })
@@ -1823,7 +1847,7 @@ async function renderToStream(
       // If there were mutable cookies set, we need to set them on the
       // response.
       const headers = new Headers()
-      if (appendMutableCookies(headers, ctx.requestStore.mutableCookies)) {
+      if (appendMutableCookies(headers, requestStore.mutableCookies)) {
         setHeader('set-cookie', Array.from(headers.values()))
       }
 
@@ -1965,10 +1989,11 @@ async function spawnDynamicValidationInDev(
   const initialServerRenderController = new AbortController()
 
   const cacheSignal = new CacheSignal()
+  const prerenderResumeDataCache = createPrerenderResumeDataCache()
   const initialServerPrerenderStore: PrerenderStore = {
     type: 'prerender',
     phase: 'render',
-    implicitTags: ctx.requestStore.implicitTags,
+    implicitTags: [],
     renderSignal: initialServerRenderController.signal,
     controller: initialServerPrerenderController,
     cacheSignal,
@@ -1976,14 +2001,15 @@ async function spawnDynamicValidationInDev(
     revalidate: INFINITE_CACHE,
     expire: INFINITE_CACHE,
     stale: INFINITE_CACHE,
-    tags: [...ctx.requestStore.implicitTags],
+    tags: [],
+    prerenderResumeDataCache,
   }
 
   const initialClientController = new AbortController()
   const initialClientPrerenderStore: PrerenderStore = {
     type: 'prerender',
     phase: 'render',
-    implicitTags: ctx.requestStore.implicitTags,
+    implicitTags: [],
     renderSignal: initialClientController.signal,
     controller: initialClientController,
     cacheSignal,
@@ -1991,7 +2017,8 @@ async function spawnDynamicValidationInDev(
     revalidate: INFINITE_CACHE,
     expire: INFINITE_CACHE,
     stale: INFINITE_CACHE,
-    tags: [...ctx.requestStore.implicitTags],
+    tags: [],
+    prerenderResumeDataCache,
   }
 
   // We're not going to use the result of this render because the only time it could be used
@@ -2113,7 +2140,7 @@ async function spawnDynamicValidationInDev(
   const finalServerPrerenderStore: PrerenderStore = {
     type: 'prerender',
     phase: 'render',
-    implicitTags: ctx.requestStore.implicitTags,
+    implicitTags: [],
     renderSignal: finalServerController.signal,
     controller: finalServerController,
     // During the final prerender we don't need to track cache access so we omit the signal
@@ -2122,7 +2149,8 @@ async function spawnDynamicValidationInDev(
     revalidate: INFINITE_CACHE,
     expire: INFINITE_CACHE,
     stale: INFINITE_CACHE,
-    tags: [...ctx.requestStore.implicitTags],
+    tags: [],
+    prerenderResumeDataCache,
   }
 
   const finalClientController = new AbortController()
@@ -2132,7 +2160,7 @@ async function spawnDynamicValidationInDev(
   const finalClientPrerenderStore: PrerenderStore = {
     type: 'prerender',
     phase: 'render',
-    implicitTags: ctx.requestStore.implicitTags,
+    implicitTags: [],
     renderSignal: finalClientController.signal,
     controller: finalClientController,
     // During the final prerender we don't need to track cache access so we omit the signal
@@ -2141,7 +2169,8 @@ async function spawnDynamicValidationInDev(
     revalidate: INFINITE_CACHE,
     expire: INFINITE_CACHE,
     stale: INFINITE_CACHE,
-    tags: [...ctx.requestStore.implicitTags],
+    tags: [],
+    prerenderResumeDataCache,
   }
 
   const finalServerPayload = await workUnitAsyncStorage.run(
@@ -2278,10 +2307,9 @@ async function prerenderToStream(
   ctx: AppRenderContext,
   metadata: AppPageRenderResultMetadata,
   workStore: WorkStore,
-  tree: LoaderTree
+  tree: LoaderTree,
+  implicitTags: Array<string>
 ): Promise<PrerenderToStreamResult> {
-  ctx.requestStore.phase = 'render'
-
   // When prerendering formState is always null. We still include it
   // because some shared APIs expect a formState value and this is slightly
   // more explicit than making it an optional function argument
@@ -2409,10 +2437,16 @@ async function prerenderToStream(
         // to cut the render off.
         const cacheSignal = new CacheSignal()
 
+        // The resume data cache here should use a fresh instance as it's
+        // performing a fresh prerender. If we get to implementing the
+        // prerendering of an already prerendered page, we should use the passed
+        // resume data cache instead.
+        const prerenderResumeDataCache = createPrerenderResumeDataCache()
+
         const initialServerPrerenderStore: PrerenderStore = (prerenderStore = {
           type: 'prerender',
           phase: 'render',
-          implicitTags: ctx.requestStore.implicitTags,
+          implicitTags: implicitTags,
           renderSignal: initialServerRenderController.signal,
           controller: initialServerPrerenderController,
           cacheSignal,
@@ -2420,7 +2454,8 @@ async function prerenderToStream(
           revalidate: INFINITE_CACHE,
           expire: INFINITE_CACHE,
           stale: INFINITE_CACHE,
-          tags: [...ctx.requestStore.implicitTags],
+          tags: [...implicitTags],
+          prerenderResumeDataCache,
         })
 
         // We're not going to use the result of this render because the only time it could be used
@@ -2498,7 +2533,7 @@ async function prerenderToStream(
           const initialClientPrerenderStore: PrerenderStore = {
             type: 'prerender',
             phase: 'render',
-            implicitTags: ctx.requestStore.implicitTags,
+            implicitTags: implicitTags,
             renderSignal: initialClientController.signal,
             controller: initialClientController,
             cacheSignal: null,
@@ -2506,7 +2541,8 @@ async function prerenderToStream(
             revalidate: INFINITE_CACHE,
             expire: INFINITE_CACHE,
             stale: INFINITE_CACHE,
-            tags: [...ctx.requestStore.implicitTags],
+            tags: [...implicitTags],
+            prerenderResumeDataCache,
           }
 
           const prerender = require('react-dom/static.edge')
@@ -2576,7 +2612,7 @@ async function prerenderToStream(
         const finalRenderPrerenderStore: PrerenderStore = (prerenderStore = {
           type: 'prerender',
           phase: 'render',
-          implicitTags: ctx.requestStore.implicitTags,
+          implicitTags: implicitTags,
           renderSignal: finalServerController.signal,
           controller: finalServerController,
           // During the final prerender we don't need to track cache access so we omit the signal
@@ -2585,7 +2621,8 @@ async function prerenderToStream(
           revalidate: INFINITE_CACHE,
           expire: INFINITE_CACHE,
           stale: INFINITE_CACHE,
-          tags: [...ctx.requestStore.implicitTags],
+          tags: [...implicitTags],
+          prerenderResumeDataCache,
         })
 
         const finalAttemptRSCPayload = await workUnitAsyncStorage.run(
@@ -2632,7 +2669,7 @@ async function prerenderToStream(
         const finalClientPrerenderStore: PrerenderStore = {
           type: 'prerender',
           phase: 'render',
-          implicitTags: ctx.requestStore.implicitTags,
+          implicitTags: implicitTags,
           renderSignal: finalClientController.signal,
           controller: finalClientController,
           // For HTML Generation we don't need to track cache reads (RSC only)
@@ -2641,7 +2678,8 @@ async function prerenderToStream(
           revalidate: INFINITE_CACHE,
           expire: INFINITE_CACHE,
           stale: INFINITE_CACHE,
-          tags: [...ctx.requestStore.implicitTags],
+          tags: [...implicitTags],
+          prerenderResumeDataCache,
         }
 
         let clientIsDynamic = false
@@ -2720,18 +2758,29 @@ async function prerenderToStream(
           tracingMetadata: tracingMetadata,
         })
 
-        metadata.flightData = await streamToBuffer(reactServerResult.asStream())
+        const flightData = await streamToBuffer(reactServerResult.asStream())
+        metadata.flightData = flightData
+        metadata.segmentFlightData = await collectSegmentData(
+          finalAttemptRSCPayload,
+          flightData,
+          finalRenderPrerenderStore,
+          ComponentMod,
+          renderOpts
+        )
 
         if (serverIsDynamic || clientIsDynamic) {
           if (postponed != null) {
             // Dynamic HTML case
-            metadata.postponed = getDynamicHTMLPostponedState(
+            metadata.postponed = await getDynamicHTMLPostponedState(
               postponed,
-              fallbackRouteParams
+              fallbackRouteParams,
+              prerenderResumeDataCache
             )
           } else {
             // Dynamic Data case
-            metadata.postponed = getDynamicDataPostponedState()
+            metadata.postponed = await getDynamicDataPostponedState(
+              prerenderResumeDataCache
+            )
           }
           reactServerResult.consume()
           return {
@@ -2849,10 +2898,12 @@ async function prerenderToStream(
         const initialServerRenderController = new AbortController()
 
         const cacheSignal = new CacheSignal()
+        const prerenderResumeDataCache = createPrerenderResumeDataCache()
+
         const initialServerPrerenderStore: PrerenderStore = (prerenderStore = {
           type: 'prerender',
           phase: 'render',
-          implicitTags: ctx.requestStore.implicitTags,
+          implicitTags: implicitTags,
           renderSignal: initialServerRenderController.signal,
           controller: initialServerPrerenderController,
           cacheSignal,
@@ -2860,14 +2911,15 @@ async function prerenderToStream(
           revalidate: INFINITE_CACHE,
           expire: INFINITE_CACHE,
           stale: INFINITE_CACHE,
-          tags: [...ctx.requestStore.implicitTags],
+          tags: [...implicitTags],
+          prerenderResumeDataCache,
         })
 
         const initialClientController = new AbortController()
         const initialClientPrerenderStore: PrerenderStore = (prerenderStore = {
           type: 'prerender',
           phase: 'render',
-          implicitTags: ctx.requestStore.implicitTags,
+          implicitTags: implicitTags,
           renderSignal: initialClientController.signal,
           controller: initialClientController,
           cacheSignal,
@@ -2875,7 +2927,8 @@ async function prerenderToStream(
           revalidate: INFINITE_CACHE,
           expire: INFINITE_CACHE,
           stale: INFINITE_CACHE,
-          tags: [...ctx.requestStore.implicitTags],
+          tags: [...implicitTags],
+          prerenderResumeDataCache,
         })
 
         // We're not going to use the result of this render because the only time it could be used
@@ -3008,7 +3061,7 @@ async function prerenderToStream(
         const finalServerPrerenderStore: PrerenderStore = (prerenderStore = {
           type: 'prerender',
           phase: 'render',
-          implicitTags: ctx.requestStore.implicitTags,
+          implicitTags: implicitTags,
           renderSignal: finalServerController.signal,
           controller: finalServerController,
           // During the final prerender we don't need to track cache access so we omit the signal
@@ -3017,7 +3070,8 @@ async function prerenderToStream(
           revalidate: INFINITE_CACHE,
           expire: INFINITE_CACHE,
           stale: INFINITE_CACHE,
-          tags: [...ctx.requestStore.implicitTags],
+          tags: [...implicitTags],
+          prerenderResumeDataCache,
         })
 
         let clientIsDynamic = false
@@ -3030,7 +3084,7 @@ async function prerenderToStream(
         const finalClientPrerenderStore: PrerenderStore = (prerenderStore = {
           type: 'prerender',
           phase: 'render',
-          implicitTags: ctx.requestStore.implicitTags,
+          implicitTags: implicitTags,
           renderSignal: finalClientController.signal,
           controller: finalClientController,
           // During the final prerender we don't need to track cache access so we omit the signal
@@ -3039,7 +3093,8 @@ async function prerenderToStream(
           revalidate: INFINITE_CACHE,
           expire: INFINITE_CACHE,
           stale: INFINITE_CACHE,
-          tags: [...ctx.requestStore.implicitTags],
+          tags: [...implicitTags],
+          prerenderResumeDataCache,
         })
 
         const finalServerPayload = await workUnitAsyncStorage.run(
@@ -3168,11 +3223,16 @@ async function prerenderToStream(
           }
         }
 
-        // const reactServerResult =
-        //   await createReactServerPrerenderResultFromRender(reactServerStream!)
-
-        metadata.flightData = await streamToBuffer(
+        const flightData = await streamToBuffer(
           serverPrerenderStreamResult.asStream()
+        )
+        metadata.flightData = flightData
+        metadata.segmentFlightData = await collectSegmentData(
+          finalServerPayload,
+          flightData,
+          finalClientPrerenderStore,
+          ComponentMod,
+          renderOpts
         )
 
         const getServerInsertedHTML = makeGetServerInsertedHTML({
@@ -3213,15 +3273,18 @@ async function prerenderToStream(
       let dynamicTracking = createDynamicTrackingState(
         renderOpts.isDebugDynamicAccesses
       )
+
+      const prerenderResumeDataCache = createPrerenderResumeDataCache()
       const reactServerPrerenderStore: PrerenderStore = (prerenderStore = {
         type: 'prerender-ppr',
         phase: 'render',
-        implicitTags: ctx.requestStore.implicitTags,
+        implicitTags: implicitTags,
         dynamicTracking,
         revalidate: INFINITE_CACHE,
         expire: INFINITE_CACHE,
         stale: INFINITE_CACHE,
-        tags: [...ctx.requestStore.implicitTags],
+        tags: [...implicitTags],
+        prerenderResumeDataCache,
       })
       const RSCPayload = await workUnitAsyncStorage.run(
         reactServerPrerenderStore,
@@ -3247,12 +3310,13 @@ async function prerenderToStream(
       const ssrPrerenderStore: PrerenderStore = {
         type: 'prerender-ppr',
         phase: 'render',
-        implicitTags: ctx.requestStore.implicitTags,
+        implicitTags: implicitTags,
         dynamicTracking,
         revalidate: INFINITE_CACHE,
         expire: INFINITE_CACHE,
         stale: INFINITE_CACHE,
-        tags: [...ctx.requestStore.implicitTags],
+        tags: [...implicitTags],
+        prerenderResumeDataCache,
       }
       const prerender = require('react-dom/static.edge')
         .prerender as (typeof import('react-dom/static.edge'))['prerender']
@@ -3296,6 +3360,13 @@ async function prerenderToStream(
 
       if (shouldGenerateStaticFlightData(workStore)) {
         metadata.flightData = flightData
+        metadata.segmentFlightData = await collectSegmentData(
+          RSCPayload,
+          flightData,
+          ssrPrerenderStore,
+          ComponentMod,
+          renderOpts
+        )
       }
 
       /**
@@ -3316,13 +3387,16 @@ async function prerenderToStream(
       if (accessedDynamicData(dynamicTracking.dynamicAccesses)) {
         if (postponed != null) {
           // Dynamic HTML case.
-          metadata.postponed = getDynamicHTMLPostponedState(
+          metadata.postponed = await getDynamicHTMLPostponedState(
             postponed,
-            fallbackRouteParams
+            fallbackRouteParams,
+            prerenderResumeDataCache
           )
         } else {
           // Dynamic Data case.
-          metadata.postponed = getDynamicDataPostponedState()
+          metadata.postponed = await getDynamicDataPostponedState(
+            prerenderResumeDataCache
+          )
         }
         // Regardless of whether this is the Dynamic HTML or Dynamic Data case we need to ensure we include
         // server inserted html in the static response because the html that is part of the prerender may depend on it
@@ -3344,7 +3418,9 @@ async function prerenderToStream(
         }
       } else if (fallbackRouteParams && fallbackRouteParams.size > 0) {
         // Rendering the fallback case.
-        metadata.postponed = getDynamicDataPostponedState()
+        metadata.postponed = await getDynamicDataPostponedState(
+          prerenderResumeDataCache
+        )
 
         return {
           digestErrorsMap: reactServerErrorsByDigest,
@@ -3422,11 +3498,11 @@ async function prerenderToStream(
       const prerenderLegacyStore: PrerenderStore = (prerenderStore = {
         type: 'prerender-legacy',
         phase: 'render',
-        implicitTags: ctx.requestStore.implicitTags,
+        implicitTags: implicitTags,
         revalidate: INFINITE_CACHE,
         expire: INFINITE_CACHE,
         stale: INFINITE_CACHE,
-        tags: [...ctx.requestStore.implicitTags],
+        tags: [...implicitTags],
       })
       // This is a regular static generation. We don't do dynamic tracking because we rely on
       // the old-school dynamic error handling to bail out of static generation
@@ -3475,7 +3551,15 @@ async function prerenderToStream(
       )
 
       if (shouldGenerateStaticFlightData(workStore)) {
-        metadata.flightData = await streamToBuffer(reactServerResult.asStream())
+        const flightData = await streamToBuffer(reactServerResult.asStream())
+        metadata.flightData = flightData
+        metadata.segmentFlightData = await collectSegmentData(
+          RSCPayload,
+          flightData,
+          prerenderLegacyStore,
+          ComponentMod,
+          renderOpts
+        )
       }
 
       const getServerInsertedHTML = makeGetServerInsertedHTML({
@@ -3558,13 +3642,6 @@ async function prerenderToStream(
         renderOpts.basePath
       )
 
-      // If there were mutable cookies set, we need to set them on the
-      // response.
-      const headers = new Headers()
-      if (appendMutableCookies(headers, ctx.requestStore.mutableCookies)) {
-        setHeader('set-cookie', Array.from(headers.values()))
-      }
-
       setHeader('location', redirectUrl)
     } else if (!shouldBailoutToCSR) {
       res.statusCode = 500
@@ -3583,11 +3660,11 @@ async function prerenderToStream(
     const prerenderLegacyStore: PrerenderStore = (prerenderStore = {
       type: 'prerender-legacy',
       phase: 'render',
-      implicitTags: ctx.requestStore.implicitTags,
+      implicitTags: implicitTags,
       revalidate: INFINITE_CACHE,
       expire: INFINITE_CACHE,
       stale: INFINITE_CACHE,
-      tags: [...ctx.requestStore.implicitTags],
+      tags: [...implicitTags],
     })
     const errorRSCPayload = await workUnitAsyncStorage.run(
       prerenderLegacyStore,
@@ -3627,8 +3704,16 @@ async function prerenderToStream(
       })
 
       if (shouldGenerateStaticFlightData(workStore)) {
-        metadata.flightData = await streamToBuffer(
+        const flightData = await streamToBuffer(
           reactServerPrerenderResult.asStream()
+        )
+        metadata.flightData = flightData
+        metadata.segmentFlightData = await collectSegmentData(
+          errorRSCPayload,
+          flightData,
+          prerenderLegacyStore,
+          ComponentMod,
+          renderOpts
         )
       }
 
@@ -3755,4 +3840,67 @@ const getGlobalErrorStyles = async (
   }
 
   return globalErrorStyles
+}
+
+async function collectSegmentData(
+  rscPayload: InitialRSCPayload,
+  fullPageDataBuffer: Buffer,
+  prerenderStore: PrerenderStore,
+  ComponentMod: AppPageModule,
+  renderOpts: RenderOpts
+): Promise<Map<string, Buffer> | undefined> {
+  // Per-segment prefetch data
+  //
+  // All of the segments for a page are generated simultaneously, including
+  // during revalidations. This is to ensure consistency, because it's
+  // possible for a mismatch between a layout and page segment can cause the
+  // client to error during rendering. We want to preserve the ability of the
+  // client to recover from such a mismatch by re-requesting all the segments
+  // to get a consistent view of the page.
+  //
+  // For performance, we reuse the Flight output that was created when
+  // generating the initial page HTML. The Flight stream for the whole page is
+  // decomposed into a separate stream per segment.
+
+  const clientReferenceManifest = renderOpts.clientReferenceManifest
+  if (
+    !clientReferenceManifest ||
+    renderOpts.experimental.isRoutePPREnabled !== true
+  ) {
+    return
+  }
+
+  // FlightDataPath is an unsound type, hence the additional checks.
+  const flightDataPaths = rscPayload.f
+  if (flightDataPaths.length !== 1 && flightDataPaths[0].length !== 3) {
+    console.error(
+      'Internal Next.js error: InitialRSCPayload does not match the expected ' +
+        'shape for a prerendered page during segment prefetch generation.'
+    )
+    return
+  }
+  const routeTree: FlightRouterState = flightDataPaths[0][0]
+
+  // Manifest passed to the Flight client for reading the full-page Flight
+  // stream. Based off similar code in use-cache-wrapper.ts.
+  const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
+  const serverConsumerManifest = {
+    // moduleLoading must be null because we don't want to trigger preloads of ClientReferences
+    // to be added to the consumer. Instead, we'll wait for any ClientReference to be emitted
+    // which themselves will handle the preloading.
+    moduleLoading: null,
+    moduleMap: isEdgeRuntime
+      ? clientReferenceManifest.edgeRscModuleMapping
+      : clientReferenceManifest.rscModuleMapping,
+    serverModuleMap: null,
+  }
+
+  const staleTime = prerenderStore.stale
+  return await ComponentMod.collectSegmentData(
+    routeTree,
+    fullPageDataBuffer,
+    staleTime,
+    clientReferenceManifest.clientModules as ManifestNode,
+    serverConsumerManifest
+  )
 }

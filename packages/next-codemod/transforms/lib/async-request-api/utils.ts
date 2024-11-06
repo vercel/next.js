@@ -266,6 +266,7 @@ export function findClosetParentFunctionScope(
   path: ASTPath,
   j: API['jscodeshift']
 ) {
+  if (!path.scope) return null
   let parentFunctionPath = path.scope.path
   while (parentFunctionPath && !isFunctionScope(parentFunctionPath, j)) {
     parentFunctionPath = parentFunctionPath.parent

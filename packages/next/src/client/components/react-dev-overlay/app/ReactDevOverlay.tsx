@@ -1,9 +1,8 @@
 import React from 'react'
-import { ACTION_UNHANDLED_ERROR, type OverlayState } from '../shared'
+import type { OverlayState } from '../shared'
 import { ShadowPortal } from '../internal/components/ShadowPortal'
 import { BuildError } from '../internal/container/BuildError'
-import { Errors, type SupportedErrorEvent } from '../internal/container/Errors'
-import { parseStack } from '../internal/helpers/parse-stack'
+import { Errors } from '../internal/container/Errors'
 import { StaticIndicator } from '../internal/container/StaticIndicator'
 import { Base } from '../internal/styles/Base'
 import { ComponentStyles } from '../internal/styles/ComponentStyles'
@@ -13,7 +12,7 @@ import type { Dispatcher } from './hot-reloader-client'
 import { RuntimeErrorHandler } from '../internal/helpers/runtime-error-handler'
 
 interface ReactDevOverlayState {
-  reactError: SupportedErrorEvent | null
+  isReactError: boolean
 }
 export default class ReactDevOverlay extends React.PureComponent<
   {
@@ -23,27 +22,20 @@ export default class ReactDevOverlay extends React.PureComponent<
   },
   ReactDevOverlayState
 > {
-  state = { reactError: null }
+  state = { isReactError: false }
 
   static getDerivedStateFromError(error: Error): ReactDevOverlayState {
-    if (!error.stack) return { reactError: null }
+    if (!error.stack) return { isReactError: false }
 
     RuntimeErrorHandler.hadRuntimeError = true
     return {
-      reactError: {
-        id: 0,
-        event: {
-          type: ACTION_UNHANDLED_ERROR,
-          reason: error,
-          frames: parseStack(error.stack),
-        },
-      },
+      isReactError: true,
     }
   }
 
   render() {
     const { state, children, dispatcher } = this.props
-    const { reactError } = this.state
+    const { isReactError } = this.state
 
     const hasBuildError = state.buildError != null
     const hasRuntimeErrors = Boolean(state.errors.length)
@@ -52,7 +44,7 @@ export default class ReactDevOverlay extends React.PureComponent<
 
     return (
       <>
-        {reactError ? (
+        {isReactError ? (
           <html>
             <head></head>
             <body></body>
@@ -78,8 +70,10 @@ export default class ReactDevOverlay extends React.PureComponent<
               {hasRuntimeErrors ? (
                 <Errors
                   isAppDir={true}
-                  initialDisplayState={reactError ? 'fullscreen' : 'minimized'}
-                  errors={reactError ? [reactError] : state.errors}
+                  initialDisplayState={
+                    isReactError ? 'fullscreen' : 'minimized'
+                  }
+                  errors={state.errors}
                   versionInfo={state.versionInfo}
                   hasStaticIndicator={hasStaticIndicator}
                   debugInfo={debugInfo}

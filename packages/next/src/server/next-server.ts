@@ -590,7 +590,9 @@ export default class NextNodeServer extends BaseServer<
           // This code path does not service revalidations for unknown param
           // shells. As a result, we don't need to pass in the unknown params.
           null,
-          renderOpts
+          renderOpts,
+          this.getServerComponentsHmrCache(),
+          false
         )
       }
 

@@ -13,6 +13,7 @@ import { pathToFileURL } from "url";
     "j",
     "console",
     "datadog",
+    "snowflake",
     "interactive",
     "i",
     "help",
@@ -54,6 +55,12 @@ import { pathToFileURL } from "url";
     );
     console.log(
       "                                     (requires DATADOG_API_KEY environment variables)"
+    );
+    console.log(
+      "  --snowflake[=<batch-uri>]          Upload the results to Snowflake"
+    );
+    console.log(
+      "                                     (requires SNOWFLAKE_TOPIC_NAME and SNOWFLAKE_SCHEMA_ID and environment variables)"
     );
     console.log("## Help");
     console.log("  --help, -h, -?                     Show this help");
@@ -104,6 +111,10 @@ import { pathToFileURL } from "url";
     args.datadog &&
       (await import("./interfaces/datadog.js")).default(
         typeof args.datadog === "string" ? { host: args.datadog } : undefined
+      ),
+    args.snowflake &&
+      (await import("./interfaces/snowflake.js")).default(
+        typeof args.snowflake === "string" ? { gatewayUri: args.snowflake } : undefined
       ),
     args.console !== false &&
       (await import("./interfaces/console.js")).default(),
