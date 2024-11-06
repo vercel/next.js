@@ -893,10 +893,6 @@ pub fn project_hmr_identifiers_subscribe(
     )
 }
 
-struct NapiUpdateInfoOpts {
-    include_reasons: bool,
-}
-
 enum UpdateMessage {
     Start,
     End(UpdateInfo),
@@ -908,8 +904,8 @@ struct NapiUpdateMessage {
     pub value: Option<NapiUpdateInfo>,
 }
 
-impl NapiUpdateMessage {
-    fn from_update_message(update_message: UpdateMessage, opts: NapiUpdateInfoOpts) -> Self {
+impl From<UpdateMessage> for NapiUpdateMessage {
+    fn from(update_message: UpdateMessage) -> Self {
         match update_message {
             UpdateMessage::Start => NapiUpdateMessage {
                 update_type: "start".to_string(),
@@ -917,7 +913,7 @@ impl NapiUpdateMessage {
             },
             UpdateMessage::End(info) => NapiUpdateMessage {
                 update_type: "end".to_string(),
-                value: Some(NapiUpdateInfo::from_update_info(info, opts)),
+                value: Some(info.into()),
             },
         }
     }
@@ -927,27 +923,13 @@ impl NapiUpdateMessage {
 struct NapiUpdateInfo {
     pub duration: u32,
     pub tasks: u32,
-    /// A human-readable list of invalidation reasons (typically changed file paths) if known. Will
-    /// be `None` if [`NapiUpdateInfoOpts::include_reasons`] is `false` or if no reason was
-    /// specified (not every invalidation includes a reason).
-    pub reasons: Option<String>,
 }
 
-impl NapiUpdateInfo {
-    fn from_update_info(update_info: UpdateInfo, opts: NapiUpdateInfoOpts) -> Self {
+impl From<UpdateInfo> for NapiUpdateInfo {
+    fn from(update_info: UpdateInfo) -> Self {
         Self {
-            // u32::MAX in milliseconds is 49.71 days
-            duration: update_info
-                .duration
-                .as_millis()
-                .try_into()
-                .expect("update duration in milliseconds should not exceed u32::MAX"),
-            tasks: update_info
-                .tasks
-                .try_into()
-                .expect("number of tasks should not exceed u32::MAX"),
-            reasons: (opts.include_reasons && !update_info.reasons.is_empty())
-                .then(|| update_info.reasons.to_string()),
+            duration: update_info.duration.as_millis() as u32,
+            tasks: update_info.tasks as u32,
         }
     }
 }
@@ -967,17 +949,12 @@ impl NapiUpdateInfo {
 pub fn project_update_info_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     aggregation_ms: u32,
-    include_reasons: bool,
     func: JsFunction,
 ) -> napi::Result<()> {
-    let func: ThreadsafeFunction<UpdateMessage> =
-        func.create_threadsafe_function(0, move |ctx| {
-            let message = ctx.value;
-            Ok(vec![NapiUpdateMessage::from_update_message(
-                message,
-                NapiUpdateInfoOpts { include_reasons },
-            )])
-        })?;
+    let func: ThreadsafeFunction<UpdateMessage> = func.create_threadsafe_function(0, |ctx| {
+        let message = ctx.value;
+        Ok(vec![NapiUpdateMessage::from(message)])
+    })?;
     let turbo_tasks = project.turbo_tasks.clone();
     tokio::spawn(async move {
         loop {
