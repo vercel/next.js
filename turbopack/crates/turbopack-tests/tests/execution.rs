@@ -274,7 +274,7 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
     let mut import_map = ImportMap::empty();
     import_map.insert_wildcard_alias(
         "esm-external/",
-        ImportMapping::External(Some("*".into()), ExternalType::EcmaScriptModule).cell(),
+        ImportMapping::External(Some("*".into()), ExternalType::EcmaScriptModule).resolved_cell(),
     );
 
     let asset_context: Vc<Box<dyn AssetContext>> = Vc::upcast(ModuleAssetContext::new(

@@ -72,36 +72,36 @@ use crate::{
     },
 };
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
+#[turbo_tasks::value(shared, serialization = "auto_for_input")]
 #[derive(Debug, Copy, Clone, Hash)]
 pub enum ServerContextType {
     Pages {
-        pages_dir: Vc<FileSystemPath>,
+        pages_dir: ResolvedVc<FileSystemPath>,
     },
     PagesApi {
-        pages_dir: Vc<FileSystemPath>,
+        pages_dir: ResolvedVc<FileSystemPath>,
     },
     PagesData {
-        pages_dir: Vc<FileSystemPath>,
+        pages_dir: ResolvedVc<FileSystemPath>,
     },
     AppSSR {
-        app_dir: Vc<FileSystemPath>,
+        app_dir: ResolvedVc<FileSystemPath>,
     },
     AppRSC {
-        app_dir: Vc<FileSystemPath>,
+        app_dir: ResolvedVc<FileSystemPath>,
         ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
         client_transition: Option<Vc<Box<dyn Transition>>>,
     },
     AppRoute {
-        app_dir: Vc<FileSystemPath>,
+        app_dir: ResolvedVc<FileSystemPath>,
         ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
     },
     Middleware {
-        app_dir: Option<Vc<FileSystemPath>>,
+        app_dir: Option<ResolvedVc<FileSystemPath>>,
         ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
     },
     Instrumentation {
-        app_dir: Option<Vc<FileSystemPath>>,
+        app_dir: Option<ResolvedVc<FileSystemPath>>,
         ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
     },
 }
@@ -419,7 +419,11 @@ pub async fn get_server_module_options_context(
     let foreign_code_context_condition =
         foreign_code_context_condition(next_config, project_path).await?;
     let postcss_transform_options = PostCssTransformOptions {
-        postcss_package: Some(get_postcss_package_mapping(project_path)),
+        postcss_package: Some(
+            get_postcss_package_mapping(project_path)
+                .to_resolved()
+                .await?,
+        ),
         config_location: PostCssConfigLocation::ProjectPathOrLocalPath,
         ..Default::default()
     };
@@ -622,7 +626,7 @@ pub async fn get_server_module_options_context(
             foreign_next_server_rules.extend(internal_custom_rules);
 
             custom_source_transform_rules.push(
-                get_next_react_server_components_transform_rule(next_config, false, Some(app_dir))
+                get_next_react_server_components_transform_rule(next_config, false, Some(*app_dir))
                     .await?,
             );
 
@@ -701,7 +705,7 @@ pub async fn get_server_module_options_context(
             foreign_next_server_rules.extend(internal_custom_rules);
 
             custom_source_transform_rules.push(
-                get_next_react_server_components_transform_rule(next_config, true, Some(app_dir))
+                get_next_react_server_components_transform_rule(next_config, true, Some(*app_dir))
                     .await?,
             );
 
@@ -755,7 +759,7 @@ pub async fn get_server_module_options_context(
             next_server_rules.extend(source_transform_rules);
 
             let mut common_next_server_rules = vec![
-                get_next_react_server_components_transform_rule(next_config, true, Some(app_dir))
+                get_next_react_server_components_transform_rule(next_config, true, Some(*app_dir))
                     .await?,
             ];
 
@@ -856,7 +860,12 @@ pub async fn get_server_module_options_context(
             }
 
             custom_source_transform_rules.push(
-                get_next_react_server_components_transform_rule(next_config, true, app_dir).await?,
+                get_next_react_server_components_transform_rule(
+                    next_config,
+                    true,
+                    app_dir.as_deref().copied(),
+                )
+                .await?,
             );
 
             internal_custom_rules.extend(custom_source_transform_rules.iter().cloned());
@@ -940,7 +949,7 @@ pub async fn get_server_chunking_context_with_client_assets(
     // TODO(alexkirsz) This should return a trait that can be implemented by the
     // different server chunking contexts. OR the build chunking context should
     // support both production and development modes.
-    Ok(NodeJsChunkingContext::builder(
+    let mut builder = NodeJsChunkingContext::builder(
         project_path,
         node_root,
         client_root,
@@ -951,8 +960,12 @@ pub async fn get_server_chunking_context_with_client_assets(
     )
     .asset_prefix(asset_prefix)
     .minify_type(next_mode.minify_type())
-    .module_id_strategy(module_id_strategy)
-    .build())
+    .module_id_strategy(module_id_strategy);
+
+    if next_mode.is_development() {
+        builder = builder.use_file_source_map_uris();
+    }
+    Ok(builder.build())
 }
 
 #[turbo_tasks::function]
@@ -967,7 +980,7 @@ pub async fn get_server_chunking_context(
     // TODO(alexkirsz) This should return a trait that can be implemented by the
     // different server chunking contexts. OR the build chunking context should
     // support both production and development modes.
-    Ok(NodeJsChunkingContext::builder(
+    let mut builder = NodeJsChunkingContext::builder(
         project_path,
         node_root,
         node_root,
@@ -977,6 +990,11 @@ pub async fn get_server_chunking_context(
         next_mode.runtime_type(),
     )
     .minify_type(next_mode.minify_type())
-    .module_id_strategy(module_id_strategy)
-    .build())
+    .module_id_strategy(module_id_strategy);
+
+    if next_mode.is_development() {
+        builder = builder.use_file_source_map_uris()
+    }
+
+    Ok(builder.build())
 }

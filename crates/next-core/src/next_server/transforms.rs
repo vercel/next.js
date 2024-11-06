@@ -70,7 +70,7 @@ pub async fn get_next_server_transforms_rules(
             if !foreign_code {
                 rules.push(
                     get_next_pages_transforms_rule(
-                        pages_dir,
+                        *pages_dir,
                         ExportFilter::StripDefaultExport,
                         mdx_rs,
                     )

@@ -127,11 +127,15 @@ pub fn get_client_compile_time_info(
     .cell()
 }
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
+#[turbo_tasks::value(shared, serialization = "auto_for_input")]
 #[derive(Debug, Copy, Clone, Hash)]
 pub enum ClientContextType {
-    Pages { pages_dir: Vc<FileSystemPath> },
-    App { app_dir: Vc<FileSystemPath> },
+    Pages {
+        pages_dir: ResolvedVc<FileSystemPath>,
+    },
+    App {
+        app_dir: ResolvedVc<FileSystemPath>,
+    },
     Fallback,
     Other,
 }
@@ -285,7 +289,11 @@ pub async fn get_client_module_options_context(
     next_client_rules.extend(additional_rules);
 
     let postcss_transform_options = PostCssTransformOptions {
-        postcss_package: Some(get_postcss_package_mapping(project_path)),
+        postcss_package: Some(
+            get_postcss_package_mapping(project_path)
+                .to_resolved()
+                .await?,
+        ),
         config_location: PostCssConfigLocation::ProjectPathOrLocalPath,
         ..Default::default()
     };

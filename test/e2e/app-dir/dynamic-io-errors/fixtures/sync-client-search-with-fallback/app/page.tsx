@@ -6,9 +6,7 @@ import { type UnsafeUnwrappedSearchParams } from 'next/server'
 import { IndirectionOne, IndirectionTwo, IndirectionThree } from './indirection'
 
 type SearchParams = { foo: string | string[] | undefined }
-export default async function Page(props: {
-  searchParams: Promise<SearchParams>
-}) {
+export default function Page(props: { searchParams: Promise<SearchParams> }) {
   return (
     <>
       <p>
