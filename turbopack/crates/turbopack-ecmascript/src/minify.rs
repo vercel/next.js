@@ -12,18 +12,17 @@ use swc_core::{
         ast::{EsVersion, Program},
         codegen::{
             text_writer::{self, JsWriter, WriteJs},
-            Emitter, Node,
+            Emitter,
         },
         minifier::option::{ExtraOptions, MangleOptions, MinifyOptions},
         parser::{lexer::Lexer, Parser, StringInput, Syntax},
-        transforms::base::{fixer::paren_remover, hygiene::hygiene_with_config},
-        visit::{FoldWith, VisitMutWith},
+        transforms::base::fixer::paren_remover,
+        visit::FoldWith,
     },
 };
 use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    chunk::MinifyType,
     code_builder::{Code, CodeBuilder},
     source_map::GenerateSourceMap,
 };
@@ -31,11 +30,7 @@ use turbopack_core::{
 use crate::ParseResultSourceMap;
 
 #[turbo_tasks::function]
-pub async fn minify(
-    path: Vc<FileSystemPath>,
-    code: Vc<Code>,
-    mode: MinifyType,
-) -> Result<Vc<Code>> {
+pub async fn minify(path: Vc<FileSystemPath>, code: Vc<Code>) -> Result<Vc<Code>> {
     let path = path.await?;
     let original_map = code.generate_source_map();
     let code = code.await?;
@@ -87,17 +82,11 @@ pub async fn minify(
                     Some(&comments),
                     None,
                     &MinifyOptions {
-                        compress: match mode {
-                            MinifyType::Minify => Some(Default::default()),
-                            MinifyType::NoMinify => None,
-                        },
-                        mangle: match mode {
-                            MinifyType::Minify => Some(MangleOptions {
-                                reserved: vec!["AbortSignal".into()],
-                                ..Default::default()
-                            }),
-                            MinifyType::NoMinify => None,
-                        },
+                        compress: Some(Default::default()),
+                        mangle: Some(MangleOptions {
+                            reserved: vec!["AbortSignal".into()],
+                            ..Default::default()
+                        }),
                         ..Default::default()
                     },
                     &ExtraOptions {
@@ -107,15 +96,6 @@ pub async fn minify(
                     },
                 );
 
-                if let MinifyType::NoMinify = mode {
-                    program.visit_mut_with(&mut hygiene_with_config(
-                        ecma::transforms::base::hygiene::Config {
-                            top_level_mark,
-                            ..Default::default()
-                        },
-                    ))
-                }
-
                 program.fold_with(&mut ecma::transforms::base::fixer::fixer(Some(
                     &comments as &dyn Comments,
                 )))
@@ -123,7 +103,7 @@ pub async fn minify(
         })
     })?;
 
-    let (src, src_map_buf) = print_program(cm.clone(), program, mode)?;
+    let (src, src_map_buf) = print_program(cm.clone(), program)?;
 
     let mut builder = CodeBuilder::default();
     builder.push_source(
@@ -145,7 +125,6 @@ pub async fn minify(
 fn print_program(
     cm: Arc<SwcSourceMap>,
     program: Program,
-    minify: MinifyType,
 ) -> Result<(String, Vec<(BytePos, LineCol)>)> {
     let mut src_map_buf = vec![];
 
@@ -160,15 +139,14 @@ fn print_program(
             )))) as Box<dyn WriteJs>;
 
             let mut emitter = Emitter {
-                cfg: swc_core::ecma::codegen::Config::default()
-                    .with_minify(matches!(minify, MinifyType::Minify)),
+                cfg: swc_core::ecma::codegen::Config::default().with_minify(true),
                 comments: None,
                 cm: cm.clone(),
                 wr,
             };
 
-            program
-                .emit_with(&mut emitter)
+            emitter
+                .emit_program(&program)
                 .context("failed to emit module")?;
         }
         // Invalid utf8 is valid in javascript world.
