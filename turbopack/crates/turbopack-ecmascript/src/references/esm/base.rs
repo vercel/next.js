@@ -162,13 +162,13 @@ impl ModuleReference for EsmAssetReference {
         if let Request::Module { module, .. } = &*self.request.await? {
             if module == TURBOPACK_PART_IMPORT_SOURCE {
                 if let Some(part) = self.export_name {
-                    let module: Vc<crate::EcmascriptModuleAsset> =
-                        Vc::try_resolve_downcast_type(self.origin)
+                    let module: ResolvedVc<crate::EcmascriptModuleAsset> =
+                        ResolvedVc::try_downcast_type(self.origin)
                             .await?
                             .expect("EsmAssetReference origin should be a EcmascriptModuleAsset");
 
                     return Ok(ModuleResolveResult::module(
-                        EcmascriptModulePartAsset::select_part(module, *part)
+                        EcmascriptModulePartAsset::select_part(*module, *part)
                             .to_resolved()
                             .await?,
                     )

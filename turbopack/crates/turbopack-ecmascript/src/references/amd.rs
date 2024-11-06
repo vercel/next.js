@@ -42,18 +42,18 @@ pub struct AmdDefineAssetReference {
 #[turbo_tasks::value_impl]
 impl AmdDefineAssetReference {
     #[turbo_tasks::function]
-    pub fn new(
+    pub async fn new(
         origin: Vc<Box<dyn ResolveOrigin>>,
         request: Vc<Request>,
         issue_source: Vc<IssueSource>,
         in_try: bool,
-    ) -> Vc<Self> {
-        Self::cell(AmdDefineAssetReference {
-            origin,
-            request,
-            issue_source,
+    ) -> Result<Vc<Self>> {
+        Ok(Self::cell(AmdDefineAssetReference {
+            origin: origin.to_resolved().await?,
+            request: request.to_resolved().await?,
+            issue_source: issue_source.to_resolved().await?,
             in_try,
-        })
+        }))
     }
 }
 
@@ -62,9 +62,9 @@ impl ModuleReference for AmdDefineAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
         cjs_resolve(
-            self.origin,
-            self.request,
-            Some(self.issue_source),
+            *self.origin,
+            *self.request,
+            Some(*self.issue_source),
             self.in_try,
         )
     }
