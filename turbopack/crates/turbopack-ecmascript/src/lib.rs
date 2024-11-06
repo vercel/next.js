@@ -214,22 +214,22 @@ impl EcmascriptModuleAssetBuilder {
     pub fn build(self) -> Vc<EcmascriptModuleAsset> {
         if let Some(inner_assets) = self.inner_assets {
             EcmascriptModuleAsset::new_with_inner_assets(
-                self.source,
-                self.asset_context,
+                *self.source,
+                *self.asset_context,
                 Value::new(self.ty),
-                self.transforms,
-                self.options,
-                self.compile_time_info,
+                *self.transforms,
+                *self.options,
+                *self.compile_time_info,
                 *inner_assets,
             )
         } else {
             EcmascriptModuleAsset::new(
-                self.source,
-                self.asset_context,
+                *self.source,
+                *self.asset_context,
                 Value::new(self.ty),
-                self.transforms,
-                self.options,
-                self.compile_time_info,
+                *self.transforms,
+                *self.options,
+                *self.compile_time_info,
             )
         }
     }
@@ -391,11 +391,11 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
             self.ident(),
             module_type_result.module_type,
             chunking_context,
-            analyze.references,
-            analyze.code_generation,
-            analyze.async_module,
-            analyze.source_map,
-            analyze.exports,
+            *analyze.references,
+            *analyze.code_generation,
+            *analyze.async_module,
+            *analyze.source_map,
+            *analyze.exports,
             async_module_info,
         ))
     }
