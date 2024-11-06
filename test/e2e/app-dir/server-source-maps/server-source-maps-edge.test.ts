@@ -28,10 +28,12 @@ describe('app-dir - server source maps edge runtime', () => {
       })
       expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
         isTurbopack
-          ? // TODO(veil): Error stack should be printed
-            '\n[Error: Boom]\n'
-          : // TODO(veil): Error stack should be printed
-            '\n[Error: Boom]\n'
+          ? '\nError: Boom' +
+              // TODO(veil): Should be sourcemapped
+              '\n    at logError (/'
+          : '\nError: Boom' +
+              // TODO(veil): Should be sourcemapped
+              '\n    at logError (webpack'
       )
     } else {
       // TODO: Test `next build` with `--enable-source-maps`.
