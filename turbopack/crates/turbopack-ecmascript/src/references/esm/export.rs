@@ -154,7 +154,7 @@ pub async fn follow_reexports(
         // Try to find the export in the local exports
         let exports_ref = exports.await?;
         if let Some(export) = exports_ref.exports.get(&export_name) {
-            match handle_declared_export(module, export_name, export, side_effect_free_packages)
+            match handle_declared_export(*module, export_name, export, side_effect_free_packages)
                 .await?
             {
                 ControlFlow::Continue((m, n)) => {
@@ -210,7 +210,8 @@ async fn handle_declared_export(
     export_name: RcStr,
     export: &EsmExport,
     side_effect_free_packages: Vc<Glob>,
-) -> Result<ControlFlow<FollowExportsResult, (Vc<Box<dyn EcmascriptChunkPlaceable>>, RcStr)>> {
+) -> Result<ControlFlow<FollowExportsResult, (ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, RcStr)>>
+{
     match export {
         EsmExport::ImportedBinding(reference, name, _) => {
             if let ReferencedAsset::Some(module) =
@@ -221,7 +222,7 @@ async fn handle_declared_export(
                     .await?
                 {
                     return Ok(ControlFlow::Break(FollowExportsResult {
-                        module: *module,
+                        module,
                         export_name: Some(name.clone()),
                         ty: FoundExportType::SideEffects,
                     }));
