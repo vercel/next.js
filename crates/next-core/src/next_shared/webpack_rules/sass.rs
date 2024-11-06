@@ -36,9 +36,19 @@ pub async fn maybe_add_sass_loader(
         let additional_data = sass_options
             .get("prependData")
             .or(sass_options.get("additionalData"));
+        // TODO: Remove sass-loader-16 once we upgrade sass-loader to 16
+        let use_upgraded_loader = sass_options
+            .get("experimental")
+            .and_then(|e| e.get("useUpgradedLoader"))
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
         let rule = rules.get_mut(pattern);
         let sass_loader = WebpackLoaderItem {
-            loader: "next/dist/compiled/sass-loader".into(),
+            loader: if use_upgraded_loader {
+                "next/dist/compiled/sass-loader-16".into()
+            } else {
+                "next/dist/compiled/sass-loader".into()
+            },
             options: take(
                 serde_json::json!({
                     "implementation": sass_options.get("implementation"),

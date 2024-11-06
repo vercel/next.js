@@ -797,6 +797,9 @@ export interface NextConfig extends Record<string, any> {
 
   /** @see [Customizing sass options](https://nextjs.org/docs/app/api-reference/next-config-js/sassOptions) */
   sassOptions?: {
+    experimental?: {
+      useUpgradedLoader?: boolean
+    }
     implementation?: string
     [key: string]: any
   }

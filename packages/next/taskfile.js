@@ -1882,6 +1882,7 @@ externals['sass-loader'] = 'next/dist/compiled/sass-loader'
 // eslint-disable-next-line camelcase
 export async function ncc_sass_loader(task, opts) {
   const sassLoaderPath = require.resolve('sass-loader')
+  console.log({ sassLoaderPath })
   const utilsPath = join(dirname(sassLoaderPath), 'utils.js')
   const originalContent = await fs.readFile(utilsPath, 'utf8')
 
@@ -1905,6 +1906,36 @@ export async function ncc_sass_loader(task, opts) {
       target: 'es5',
     })
     .target('src/compiled/sass-loader')
+}
+// TODO: Remove sass-loader-16 once we upgrade sass-loader to 16
+externals['sass-loader-16'] = 'next/dist/compiled/sass-loader-16'
+// eslint-disable-next-line camelcase
+export async function ncc_sass_loader_16(task, opts) {
+  const sassLoader16Path = require.resolve('sass-loader-16')
+  console.log({ sassLoader16Path })
+  const utilsPath = join(dirname(sassLoader16Path), 'utils.js')
+  const originalContent = await fs.readFile(utilsPath, 'utf8')
+
+  await fs.writeFile(
+    utilsPath,
+    originalContent.replace(
+      /require\.resolve\(["'](sass|node-sass)["']\)/g,
+      'eval("require").resolve("$1")'
+    )
+  )
+
+  await task
+    .source(relative(__dirname, sassLoader16Path))
+    .ncc({
+      packageName: 'sass-loader-16',
+      externals: {
+        ...externals,
+        'schema-utils': externals['schema-utils3'],
+        'loader-utils': externals['loader-utils2'],
+      },
+      target: 'es5',
+    })
+    .target('src/compiled/sass-loader-16')
 }
 // eslint-disable-next-line camelcase
 externals['schema-utils'] = 'MISSING_VERSION schema-utils version not specified'
@@ -2426,6 +2457,7 @@ export async function ncc(task, opts) {
       'copy_constants_browserify',
       'copy_vendor_react',
       'ncc_sass_loader',
+      'ncc_sass_loader_16',
       'ncc_jest_worker',
       'ncc_edge_runtime_cookies',
       'ncc_edge_runtime_primitives',

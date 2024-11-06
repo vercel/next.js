@@ -151,6 +151,7 @@ export const css = curry(async function css(
     prependData: sassPrependData,
     additionalData: sassAdditionalData,
     implementation: sassImplementation,
+    experimental: { useUpgradedLoader: sassUseUpgradedLoader } = {},
     ...sassOptions
   } = ctx.sassOptions
 
@@ -166,7 +167,11 @@ export const css = curry(async function css(
     // First, process files with `sass-loader`: this inlines content, and
     // compiles away the proprietary syntax.
     {
-      loader: require.resolve('next/dist/compiled/sass-loader'),
+      loader: require.resolve(
+        sassUseUpgradedLoader
+          ? 'next/dist/compiled/sass-loader-16'
+          : 'next/dist/compiled/sass-loader'
+      ),
       options: {
         implementation: sassImplementation,
         // Source maps are required so that `resolve-url-loader` can locate
