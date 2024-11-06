@@ -289,7 +289,11 @@ pub async fn get_client_module_options_context(
     next_client_rules.extend(additional_rules);
 
     let postcss_transform_options = PostCssTransformOptions {
-        postcss_package: Some(get_postcss_package_mapping(project_path)),
+        postcss_package: Some(
+            get_postcss_package_mapping(project_path)
+                .to_resolved()
+                .await?,
+        ),
         config_location: PostCssConfigLocation::ProjectPathOrLocalPath,
         ..Default::default()
     };
