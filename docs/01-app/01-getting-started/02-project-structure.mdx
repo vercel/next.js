@@ -6,7 +6,9 @@ description: A list of folders and files conventions in a Next.js project, and t
 
 This page provides an overview of the folder and file conventions in a Next.js project, as well as tips for organizing your project.
 
-## Top-level folders
+## Folder and file conventions
+
+### Top-level folders
 
 Top-level folders are used to organize your application's code and static assets.
 
@@ -25,7 +27,7 @@ Top-level folders are used to organize your application's code and static assets
 | [`public`](/docs/app/building-your-application/optimizing/static-assets) | Static assets to be served         |
 | [`src`](/docs/app/building-your-application/configuring/src-directory)   | Optional application source folder |
 
-## Top-level files
+### Top-level files
 
 Top-level files are used to configure your application, manage dependencies, run middleware, integrate monitoring tools, and define environment variables.
 
@@ -48,11 +50,7 @@ Top-level files are used to configure your application, manage dependencies, run
 
 <AppOnly>
 
-## Routing Conventions
-
-The following file conventions are used to define routes and handle metadata in the [`app` router](/docs/app).
-
-### Files
+### Routing Files
 
 |                                                                                 |                     |                              |
 | ------------------------------------------------------------------------------- | ------------------- | ---------------------------- |
@@ -66,14 +64,14 @@ The following file conventions are used to define routes and handle metadata in 
 | [`template`](/docs/app/api-reference/file-conventions/template)                 | `.js` `.jsx` `.tsx` | Re-rendered layout           |
 | [`default`](/docs/app/api-reference/file-conventions/default)                   | `.js` `.jsx` `.tsx` | Parallel route fallback page |
 
-### Nested Routes
+### Nested routes
 
 |                                                                              |                      |
 | ---------------------------------------------------------------------------- | -------------------- |
 | [`folder`](/docs/app/building-your-application/routing#route-segments)       | Route segment        |
 | [`folder/folder`](/docs/app/building-your-application/routing#nested-routes) | Nested route segment |
 
-### Dynamic Routes
+### Dynamic routes
 
 |                                                                                                           |                                  |
 | --------------------------------------------------------------------------------------------------------- | -------------------------------- |
@@ -81,7 +79,7 @@ The following file conventions are used to define routes and handle metadata in 
 | [`[...folder]`](/docs/app/building-your-application/routing/dynamic-routes#catch-all-segments)            | Catch-all route segment          |
 | [`[[...folder]]`](/docs/app/building-your-application/routing/dynamic-routes#optional-catch-all-segments) | Optional catch-all route segment |
 
-### Route Groups and Private Folders
+### Route Groups and private folders
 
 |                                                                                     |                                                  |
 | ----------------------------------------------------------------------------------- | ------------------------------------------------ |
@@ -98,9 +96,9 @@ The following file conventions are used to define routes and handle metadata in 
 | [`(..)(..)folder`](/docs/app/building-your-application/routing/intercepting-routes#convention) | Intercept two levels above |
 | [`(...)folder`](/docs/app/building-your-application/routing/intercepting-routes#convention)    | Intercept from root        |
 
-### Metadata File Conventions
+### Metadata file conventions
 
-#### App Icons
+#### App icons
 
 |                                                                                                                 |                                     |                          |
 | --------------------------------------------------------------------------------------------------------------- | ----------------------------------- | ------------------------ |
@@ -110,7 +108,7 @@ The following file conventions are used to define routes and handle metadata in 
 | [`apple-icon`](/docs/app/api-reference/file-conventions/metadata/app-icons#apple-icon)                          | `.jpg` `.jpeg`, `.png`              | Apple App Icon file      |
 | [`apple-icon`](/docs/app/api-reference/file-conventions/metadata/app-icons#generate-icons-using-code-js-ts-tsx) | `.js` `.ts` `.tsx`                  | Generated Apple App Icon |
 
-#### Open Graph and Twitter Images
+#### Open Graph and Twitter images
 
 |                                                                                                                             |                              |                            |
 | --------------------------------------------------------------------------------------------------------------------------- | ---------------------------- | -------------------------- |
@@ -132,11 +130,7 @@ The following file conventions are used to define routes and handle metadata in 
 
 <PagesOnly>
 
-## Routing Conventions
-
-The following file conventions are used to define routes in the [`pages` router](/docs/pages).
-
-### Files
+### Files conventions
 
 |                                                                                                             |                     |                   |
 | ----------------------------------------------------------------------------------------------------------- | ------------------- | ----------------- |
@@ -157,7 +151,7 @@ The following file conventions are used to define routes in the [`pages` router]
 | [`index`](/docs/pages/building-your-application/routing/pages-and-layouts#index-routes)        | `.js` `.jsx` `.tsx` | Home page   |
 | [`file`](/docs/pages/building-your-application/routing/pages-and-layouts)                      | `.js` `.jsx` `.tsx` | Nested page |
 
-### Dynamic Routes
+### Dynamic routes
 
 |                                                                                                                   |                     |                                  |
 | ----------------------------------------------------------------------------------------------------------------- | ------------------- | -------------------------------- |
