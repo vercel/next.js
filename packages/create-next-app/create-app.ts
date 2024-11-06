@@ -65,7 +65,7 @@ export async function createApp({
       repoUrl = new URL(example)
     } catch (error: unknown) {
       const err = error as Error
-      if (err instanceof TypeError) {
+      if (!(err instanceof TypeError)) {
         console.error(error)
         process.exit(1)
       }
