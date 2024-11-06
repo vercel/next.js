@@ -392,9 +392,9 @@ fn var_decl_with_span(mut decl: Stmt, span: Span) -> Stmt {
 
 #[turbo_tasks::value(shared)]
 pub struct InvalidExport {
-    export: Vc<RcStr>,
-    module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
-    source: Vc<IssueSource>,
+    export: ResolvedVc<RcStr>,
+    module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    source: ResolvedVc<IssueSource>,
 }
 
 #[turbo_tasks::value_impl]
