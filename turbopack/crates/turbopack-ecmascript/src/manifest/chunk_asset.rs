@@ -148,8 +148,8 @@ impl ChunkableModule for ManifestAsyncModule {
     ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
         Vc::upcast(
             ManifestChunkItem {
-                chunking_context,
-                manifest: self,
+                chunking_context: chunking_context.to_resolved().await?,
+                manifest: self.to_resolved().await?,
             }
             .cell(),
         )
