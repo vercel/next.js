@@ -1,10 +1,7 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use next_custom_transforms::transforms::server_actions::{server_actions, Config};
-use swc_core::{
-    common::FileName,
-    ecma::{ast::Program, visit::VisitMutWith},
-};
+use swc_core::{common::FileName, ecma::ast::Program};
 use turbo_tasks::Vc;
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
 use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext};
@@ -42,7 +39,7 @@ struct NextServerActions {
 impl CustomTransformer for NextServerActions {
     #[tracing::instrument(level = tracing::Level::TRACE, name = "server_actions", skip_all)]
     async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
-        let mut actions = server_actions(
+        let actions = server_actions(
             &FileName::Real(ctx.file_path_str.into()),
             Config {
                 is_react_server_layer: matches!(self.transform, ActionsTransform::Server),
@@ -52,7 +49,7 @@ impl CustomTransformer for NextServerActions {
             ctx.comments.clone(),
         );
 
-        program.visit_mut_with(&mut actions);
+        program.mutate(actions);
         Ok(())
     }
 }
