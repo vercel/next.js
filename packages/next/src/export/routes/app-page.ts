@@ -16,7 +16,6 @@ import {
   RSC_SUFFIX,
   RSC_SEGMENTS_DIR_SUFFIX,
   RSC_SEGMENT_SUFFIX,
-  NEXT_STATIC_DATA_CACHE_SUFFIX,
 } from '../../lib/constants'
 import { hasNextSupport } from '../../server/ci-info'
 import { lazyRenderAppPage } from '../../server/route-modules/app-page/module.render'
@@ -28,7 +27,6 @@ import type { WorkStore } from '../../server/app-render/work-async-storage.exter
 import type { FallbackRouteParams } from '../../server/request/fallback-params'
 import { AfterRunner } from '../../server/after/run-with-after'
 import type { RequestLifecycleOpts } from '../../server/base-server'
-import { stringifyResumeDataCache } from '../../server/resume-data-cache/serialization'
 
 export const enum ExportedAppPageFiles {
   HTML = 'HTML',
@@ -37,7 +35,6 @@ export const enum ExportedAppPageFiles {
   PREFETCH_FLIGHT_SEGMENT = 'PREFETCH_FLIGHT_SEGMENT',
   META = 'META',
   POSTPONED = 'POSTPONED',
-  RESUME_CACHE = 'RESUME_CACHE',
 }
 
 export async function prospectiveRenderAppPage(
@@ -150,7 +147,6 @@ export async function exportAppPage(
       fetchTags,
       fetchMetrics,
       segmentFlightData,
-      immutableResumeDataCache,
     } = metadata
 
     // Ensure we don't postpone without having PPR enabled.
@@ -256,14 +252,6 @@ export async function exportAppPage(
       html ?? '',
       'utf8'
     )
-
-    if (immutableResumeDataCache) {
-      await fileWriter(
-        ExportedAppPageFiles.RESUME_CACHE,
-        htmlFilepath.replace(/\.html$/, NEXT_STATIC_DATA_CACHE_SUFFIX),
-        await stringifyResumeDataCache(immutableResumeDataCache)
-      )
-    }
 
     const isParallelRoute = /\/@\w+/.test(page)
     const isNonSuccessfulStatusCode = res.statusCode > 300

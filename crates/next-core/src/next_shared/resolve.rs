@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use anyhow::Result;
 use lazy_static::lazy_static;
-use turbo_tasks::{RcStr, Value, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, Value, Vc};
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 use turbopack_core::{
     diagnostics::DiagnosticExt,
@@ -319,7 +319,10 @@ impl AfterResolvePlugin for NextNodeSharedRuntimeResolvePlugin {
             .join(format!("{base}/{resource_request}").into());
 
         Ok(Vc::cell(Some(
-            ResolveResult::source(Vc::upcast(FileSource::new(new_path))).into(),
+            ResolveResult::source(ResolvedVc::upcast(
+                FileSource::new(new_path).to_resolved().await?,
+            ))
+            .cell(),
         )))
     }
 }
@@ -418,7 +421,10 @@ impl AfterResolvePlugin for NextSharedRuntimeResolvePlugin {
         let modified_path = raw_fs_path.path.replace("next/dist/esm/", "next/dist/");
         let new_path = fs_path.root().join(modified_path.into());
         Ok(Vc::cell(Some(
-            ResolveResult::source(Vc::upcast(FileSource::new(new_path))).into(),
+            ResolveResult::source(ResolvedVc::upcast(
+                FileSource::new(new_path).to_resolved().await?,
+            ))
+            .cell(),
         )))
     }
 }

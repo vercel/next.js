@@ -616,13 +616,13 @@ A common use case for this is when you want to iterate over a collection of MDX 
 > - Using `fs`, `globby`, etc. can only be used server-side.
 > - View the [Portfolio Starter Kit](https://vercel.com/templates/next.js/portfolio-starter-kit) template for a complete working example.
 
-## Remark and Rehype Plugins
+## remark and rehype Plugins
 
-You can optionally provide `remark` and `rehype` plugins to transform the MDX content.
+You can optionally provide remark and rehype plugins to transform the MDX content.
 
-For example, you can use `remark-gfm` to support GitHub Flavored Markdown.
+For example, you can use [`remark-gfm`](https://github.com/remarkjs/remark-gfm) to support GitHub Flavored Markdown.
 
-Since the `remark` and `rehype` ecosystem is ESM only, you'll need to use `next.config.mjs` as the configuration file.
+Since the remark and rehype ecosystem is ESM only, you'll need to use `next.config.mjs` or `next.config.ts` as the configuration file.
 
 ```js filename="next.config.mjs"
 import remarkGfm from 'remark-gfm'
@@ -630,7 +630,7 @@ import createMDX from '@next/mdx'
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Configure `pageExtensions`` to include MDX files
+  // Allow .mdx extensions for files
   pageExtensions: ['js', 'jsx', 'md', 'mdx', 'ts', 'tsx'],
   // Optionally, add any other Next.js config below
 }
@@ -643,9 +643,13 @@ const withMDX = createMDX({
   },
 })
 
-// Wrap MDX and Next.js config with each other
+// Combine MDX and Next.js config
 export default withMDX(nextConfig)
 ```
+
+> **Good to know**:
+>
+> remark and rehype plugins cannot be used with [Turbopack](/docs/architecture/turbopack), due to lack of plugins support in [`mdxRs`](#using-the-rust-based-mdx-compiler-experimental)
 
 ## Remote MDX
 

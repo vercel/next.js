@@ -10,7 +10,7 @@ import {
   streamToString,
 } from './stream-utils/node-web-streams-helper'
 import { isAbortError, pipeToNodeResponse } from './pipe-readable'
-import type { ImmutableResumeDataCache } from './resume-data-cache/resume-data-cache'
+import type { PrerenderResumeDataCache } from './resume-data-cache/resume-data-cache'
 
 type ContentTypeOption = string | undefined
 
@@ -37,9 +37,10 @@ export type AppPageRenderResultMetadata = {
   segmentFlightData?: Map<string, Buffer>
 
   /**
-   * Generated during a prerender, this is used for resuming pages.
+   * In development, the cache is warmed up before the render. This is attached
+   * to the metadata so that it can be used during the render.
    */
-  immutableResumeDataCache?: ImmutableResumeDataCache
+  devWarmupPrerenderResumeDataCache?: PrerenderResumeDataCache
 }
 
 export type PagesRenderResultMetadata = {

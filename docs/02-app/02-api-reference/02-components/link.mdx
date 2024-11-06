@@ -1136,7 +1136,7 @@ export default function Page() {
   const isAuthed = useIsAuthed()
   const path = isAuthed ? '/auth/dashboard' : '/public/dashboard'
   return (
-    <Link as="/dashboard" href href={path}>
+    <Link as="/dashboard" href={path}>
       Dashboard
     </Link>
   )
@@ -1174,7 +1174,7 @@ export default function Home() {
   const isAuthed = useIsAuthed()
   const path = isAuthed ? '/auth/dashboard' : '/public/dashboard'
   return (
-    <Link as="/dashboard" href href={path}>
+    <Link as="/dashboard" href={path}>
       Dashboard
     </Link>
   )
