@@ -54,6 +54,11 @@ impl NodeJsChunkingContextBuilder {
         self
     }
 
+    pub fn use_file_source_map_uris(mut self) -> Self {
+        self.chunking_context.should_use_file_source_map_uris = true;
+        self
+    }
+
     pub fn module_id_strategy(mut self, module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>) -> Self {
         self.chunking_context.module_id_strategy = module_id_strategy;
         self
@@ -92,6 +97,8 @@ pub struct NodeJsChunkingContext {
     manifest_chunks: bool,
     /// The strategy to use for generating module ids
     module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
+    /// Whether to use file:// uris for source map sources
+    should_use_file_source_map_uris: bool,
 }
 
 impl NodeJsChunkingContext {
@@ -117,6 +124,7 @@ impl NodeJsChunkingContext {
                 runtime_type,
                 minify_type: MinifyType::NoMinify,
                 manifest_chunks: false,
+                should_use_file_source_map_uris: false,
                 module_id_strategy: Vc::upcast(DevModuleIdStrategy::new()),
             },
         }
@@ -233,7 +241,7 @@ impl ChunkingContext for NodeJsChunkingContext {
 
     #[turbo_tasks::function]
     fn should_use_file_source_map_uris(&self) -> Vc<bool> {
-        Vc::cell(false)
+        Vc::cell(self.should_use_file_source_map_uris)
     }
 
     #[turbo_tasks::function]

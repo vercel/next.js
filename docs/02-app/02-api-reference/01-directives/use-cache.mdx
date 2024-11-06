@@ -13,11 +13,11 @@ related:
     - app/api-reference/functions/revalidateTag
 ---
 
-The `use cache` directive designates a component and/or a function to be cached. It can be used at the top of a file to indicate that all exports in the file are cacheable, or inline at the top of a function or component to inform Next.js the return value should be cached and reused for subsequent requests. This is an experimental Next.js feature, and not a native React feature like `use client` or `use server`.
+The `use cache` directive designates a component and/or a function to be cached. It can be used at the top of a file to indicate that all exports in the file are cacheable, or inline at the top of a function or component to inform Next.js the return value should be cached and reused for subsequent requests. This is an experimental Next.js feature, and not a native React feature like [`use client`](/docs/app/api-reference/directives/use-client) or [`use server`](/docs/app/api-reference/directives/use-server).
 
 ## Usage
 
-Enable support for the `use cache` directive with the `dynamicIO` flag in your `next.config.ts` file:
+Enable support for the `use cache` directive with the [`dynamicIO`](/docs/app/api-reference/next-config-js/dynamicIO) flag in your `next.config.ts` file:
 
 ```ts filename="next.config.ts"
 import type { NextConfig } from 'next'
@@ -58,11 +58,13 @@ export async function getData() {
 ## Good to know
 
 - `use cache` is an experimental Next.js feature, and not a native React feature like [`use client`](/docs/app/api-reference/directives/use-client) or [`use server`](/docs/app/api-reference/directives/use-server).
-- The arguments (or props) passed to a cached function must be [serializable](https://react.dev/reference/rsc/use-server#serializable-parameters-and-return-values) by React. This means they can be converted to a format like JSON. Non-serializable props like functions or React elements cannot be used as arguments.
+- Any [serializable](https://react.dev/reference/rsc/use-server#serializable-parameters-and-return-values) arguments (or props) passed to the cached function, as well as any serializable values it reads from the parent scope, will be converted to a format like JSON and automatically become a part of the cache key.
+- Any non-serializable arguments, props, or closed-over values will turn into opaque references inside the cached function, and can be only passed through and not inspected nor modified. These non-serializable values will be filled in at the request time and won't become a part of the cache key.
+  - For example, a cached function can take in JSX as a `children` prop and return `<div>{children}</div>`, but it won't be able to introspect the actual `children` object.
 - The return value of the cacheable function must also be serializable. This ensures that the cached data can be stored and retrieved correctly.
 - Functions that use the `use cache` directive must not have any side-effects, such as modifying state, directly manipulating the DOM, or setting timers to execute code at intervals.
 - If used alongside [Partial Prerendering](/docs/app/building-your-application/rendering/partial-prerendering), segments that have `use cache` will be prerendered as part of the static HTML shell.
-- The `use cache` directive will be available separately from the `dynamicIO` flag in the future.
+- The `use cache` directive will be available separately from the [`dynamicIO`](/docs/app/api-reference/next-config-js/dynamicIO) flag in the future.
 - Unlike [`unstable_cache`](/docs/app/api-reference/legacy-apis/unstable_cache) which only supports JSON data, `use cache` can cache any serializable data React can render, including the render output of components.
 
 ## Examples
@@ -127,7 +129,7 @@ export default Page() {
 }
 ```
 
-> This is recommended for applications that previously used the [`export const dynamic = "force-cache"`](/docs/app/building-your-application/caching#opting-out-1) option, and will ensure the entire route is prerendered.
+> This is recommended for applications that previously used the [`export const dynamic = "force-static"`](/docs/app/api-reference/file-conventions/route-segment-config#dynamic) option, and will ensure the entire route is prerendered.
 
 ### Caching component output with `use cache`
 
