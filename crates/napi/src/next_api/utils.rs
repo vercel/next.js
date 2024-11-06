@@ -129,11 +129,7 @@ pub fn create_turbo_tasks(
     Ok(if persistent_caching {
         NextTurboTasks::PersistentCaching(TurboTasks::new(
             turbo_tasks_backend::TurboTasksBackend::new(
-                turbo_tasks_backend::BackendOptions {
-                    dependency_tracking: true,
-                    children_tracking: true,
-                    storage_mode: Some(turbo_tasks_backend::StorageMode::ReadWrite),
-                },
+                turbo_tasks_backend::BackendOptions::default(),
                 default_backing_storage(&output_path.join("cache/turbopack"))?,
             ),
         ))
