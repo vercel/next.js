@@ -285,43 +285,24 @@ impl AnalyzeEcmascriptModuleResultBuilder {
         }
 
         let mut references: Vec<_> = self.references.into_iter().collect();
-        for r in references.iter_mut() {
-            *r = r.resolve().await?;
-        }
         let mut local_references: Vec<_> = track_reexport_references
             .then(|| self.local_references.into_iter())
             .into_iter()
             .flatten()
             .collect();
-        for r in local_references.iter_mut() {
-            *r = r.resolve().await?;
-        }
+
         let mut reexport_references: Vec<_> = track_reexport_references
             .then(|| self.reexport_references.into_iter())
             .into_iter()
             .flatten()
             .collect();
-        for r in reexport_references.iter_mut() {
-            *r = r.resolve().await?;
-        }
+
         let mut evaluation_references: Vec<_> = track_reexport_references
             .then(|| self.evaluation_references.into_iter())
             .into_iter()
             .flatten()
             .collect();
-        for r in evaluation_references.iter_mut() {
-            *r = r.resolve().await?;
-        }
-        for c in self.code_gens.iter_mut() {
-            match c {
-                CodeGen::CodeGenerateable(c) => {
-                    *c = c.resolve().await?;
-                }
-                CodeGen::CodeGenerateableWithAsyncModuleInfo(c) => {
-                    *c = c.to_resolved().await?;
-                }
-            }
-        }
+
         let source_map = if let Some(source_map) = self.source_map {
             source_map
         } else {
