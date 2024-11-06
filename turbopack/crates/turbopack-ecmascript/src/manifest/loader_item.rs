@@ -50,14 +50,14 @@ pub struct ManifestLoaderChunkItem {
 #[turbo_tasks::value_impl]
 impl ManifestLoaderChunkItem {
     #[turbo_tasks::function]
-    pub fn new(
+    pub async fn new(
         manifest: Vc<ManifestAsyncModule>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Vc<Self> {
-        Self::cell(ManifestLoaderChunkItem {
-            manifest,
-            chunking_context,
-        })
+    ) -> Result<Vc<Self>> {
+        Ok(Self::cell(ManifestLoaderChunkItem {
+            manifest: manifest.to_resolved().await?,
+            chunking_context: chunking_context.to_resolved().await?,
+        }))
     }
 
     #[turbo_tasks::function]
@@ -125,7 +125,7 @@ impl ChunkItem for ManifestLoaderChunkItem {
 
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        Vc::upcast(self.chunking_context)
+        *ResolvedVc::upcast(self.chunking_context)
     }
 
     #[turbo_tasks::function]
