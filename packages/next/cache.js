@@ -2,14 +2,8 @@ const cacheExports = {
   unstable_cache: require('next/dist/server/web/spec-extension/unstable-cache')
     .unstable_cache,
 
-  /**
-   * @deprecated this function has been deprecated in favor of expireTag()
-   */
   revalidateTag: require('next/dist/server/web/spec-extension/revalidate')
     .revalidateTag,
-  /**
-   * @deprecated this function has been deprecated in favor of expirePath()
-   */
   revalidatePath: require('next/dist/server/web/spec-extension/revalidate')
     .revalidatePath,
 
@@ -32,8 +26,16 @@ module.exports = cacheExports
 
 // make import { xxx } from 'next/cache' work
 exports.unstable_cache = cacheExports.unstable_cache
+/**
+ * @deprecated this function has been deprecated in favor of expirePath()
+ */
 exports.revalidatePath = cacheExports.revalidatePath
+/**
+ * @deprecated this function has been deprecated in favor of expireTag()
+ */
 exports.revalidateTag = cacheExports.revalidateTag
+exports.expireTag = cacheExports.expireTag
+exports.expirePath = cacheExports.expirePath
 exports.unstable_noStore = cacheExports.unstable_noStore
 exports.unstable_cacheLife = cacheExports.unstable_cacheLife
 exports.unstable_cacheTag = cacheExports.unstable_cacheTag
