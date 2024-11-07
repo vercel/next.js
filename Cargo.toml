@@ -136,7 +136,7 @@ console = "0.15.5"
 console-subscriber = "0.1.8"
 criterion = "0.5.1"
 crossbeam-channel = "0.5.8"
-dashmap = "5.4.0"
+dashmap = "6.1.0"
 dhat = { version = "0.3.2" }
 dialoguer = "0.10.3"
 dunce = "1.0.3"
