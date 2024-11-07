@@ -132,6 +132,9 @@ impl Default for BackendOptions {
 
 pub struct TurboTasksBackend<B: BackingStorage>(Arc<TurboTasksBackendInner<B>>);
 
+type TaskCacheLog = Sharded<ChunkedVec<(Arc<CachedTaskType>, TaskId)>>;
+type StorageLog = Sharded<ChunkedVec<CachedDataUpdate>>;
+
 struct TurboTasksBackendInner<B: BackingStorage> {
     options: BackendOptions,
 
@@ -141,12 +144,12 @@ struct TurboTasksBackendInner<B: BackingStorage> {
     persisted_task_id_factory: IdFactoryWithReuse<TaskId>,
     transient_task_id_factory: IdFactoryWithReuse<TaskId>,
 
-    persisted_task_cache_log: Option<Sharded<ChunkedVec<(Arc<CachedTaskType>, TaskId)>>>,
+    persisted_task_cache_log: Option<TaskCacheLog>,
     task_cache: BiMap<Arc<CachedTaskType>, TaskId>,
     transient_tasks: DashMap<TaskId, Arc<TransientTask>, BuildHasherDefault<FxHasher>>,
 
-    persisted_storage_data_log: Option<Sharded<ChunkedVec<CachedDataUpdate>>>,
-    persisted_storage_meta_log: Option<Sharded<ChunkedVec<CachedDataUpdate>>>,
+    persisted_storage_data_log: Option<StorageLog>,
+    persisted_storage_meta_log: Option<StorageLog>,
     storage: Storage<TaskId, CachedDataItem>,
 
     /// Number of executing operations + Highest bit is set when snapshot is
