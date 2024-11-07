@@ -815,6 +815,10 @@ export default class NextNodeServer extends BaseServer<
     if (!parsedUrl.pathname || !parsedUrl.pathname.startsWith('/_next/image')) {
       return false
     }
+    // Ignore if its a middleware request
+    if (getRequestMeta(req, 'middlewareInvoke')) {
+      return false
+    }
 
     if (
       this.minimalMode ||
@@ -914,7 +918,7 @@ export default class NextNodeServer extends BaseServer<
           cacheEntry.revalidate || 0,
           Boolean(this.renderOpts.dev)
         )
-        return false // There might be middleware for this request
+        return true
       } catch (err) {
         if (err instanceof ImageError) {
           res.statusCode = err.statusCode
