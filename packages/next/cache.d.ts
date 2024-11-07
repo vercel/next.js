@@ -1,12 +1,6 @@
 export { unstable_cache } from 'next/dist/server/web/spec-extension/unstable-cache'
 export {
-  /**
-   * @deprecated this function has been deprecated in favor of expirePath()
-   */
   revalidateTag,
-  /**
-   * @deprecated this function has been deprecated in favor of expireTag()
-   */
   revalidatePath,
   expirePath,
   expireTag,
