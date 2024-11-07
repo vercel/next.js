@@ -218,6 +218,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
             useLightningcss: z.boolean().optional(),
           }),
         ]),
+        define: z.record(z.string(), z.string()).optional(),
       })
       .optional(),
     compress: z.boolean().optional(),
@@ -410,7 +411,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
               .optional(),
             memoryLimit: z.number().optional(),
             moduleIdStrategy: z.enum(['named', 'deterministic']).optional(),
-            define: z.record(z.string(), z.string()).optional(),
           })
           .optional(),
         optimizePackageImports: z.array(z.string()).optional(),

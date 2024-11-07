@@ -1,9 +1,7 @@
 module.exports = {
-  experimental: {
-    turbo: {
-      define: {
-        MY_MAGIC_VARIABLE: JSON.stringify('foobar'),
-      },
+  compiler: {
+    define: {
+      MY_MAGIC_VARIABLE: 'foobar',
     },
   },
 }

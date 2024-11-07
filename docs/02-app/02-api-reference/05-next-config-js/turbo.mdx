@@ -54,7 +54,6 @@ The following options are available for the `turbo` configuration:
 | `useSwcCss`         | Use `swc_css` instead of `lightningcss` for Turbopack                     |
 | `treeshaking`       | Enable tree shaking for the turbopack dev server and build.               |
 | `memoryLimit`       | A target memory limit for turbo, in bytes.                                |
-| `define`            | Replace variables in your code during the build.                          |
 
 ### Supported loaders
 
@@ -164,24 +163,6 @@ module.exports = {
   experimental: {
     turbo: {
       moduleIdStrategy: 'deterministic',
-    },
-  },
-}
-```
-
-### Replacing variables during build
-
-The `define` option allows you to statically replace variables in your code at build-time.
-The option takes an object as key-value pairs, where the keys are the variables that should be replaced with the corresponding values.
-
-Use the `define` field in `next.config.js`:
-
-```js filename="next.config.js"
-module.exports = {
-  experimental: {
-    turbo: {
-      MY_STRING_VARIABLE: JSON.stringify('my-string'),
-      MY_NUMBER_VARIABLE: '42',
     },
   },
 }

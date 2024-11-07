@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 
-describe('define', () => {
+describe('compiler.define', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
