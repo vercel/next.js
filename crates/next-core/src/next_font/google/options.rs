@@ -99,8 +99,9 @@ pub(super) fn options_from_request(
         })
         .unwrap_or_default();
 
+    let supports_variable_weight = font_data.weights.iter().any(|el| el == "variable");
     let weights = if requested_weights.is_empty() {
-        if !font_data.weights.contains(&"variable".into()) {
+        if !supports_variable_weight {
             return Err(anyhow!(
                 "Missing weight for {}. Available weights: {}",
                 font_family,
@@ -171,11 +172,11 @@ pub(super) fn options_from_request(
 
     if let Some(axes) = argument.axes.as_ref() {
         if !axes.is_empty() {
-            if !matches!(weights, FontWeights::Variable) {
+            if !supports_variable_weight {
                 return Err(anyhow!("Axes can only be defined for variable fonts."));
             }
 
-            if weights.get(0) != Some(&FontWeights::Variable) {
+            if weights != FontWeights::Variable {
                 return Err(anyhow!(
                     "Axes can only be defined for variable fonts when the weight property is \
                      nonexistent or set to `variable`."
@@ -217,7 +218,7 @@ mod tests {
                     "styles": ["normal", "italic"]
                 }
             }
-  "#,
+            "#,
         )?;
 
         let request: NextFontRequest = parse_json_with_source_context(
@@ -228,7 +229,7 @@ mod tests {
                 "variableName": "inter",
                 "arguments": [{}]
             }
-        "#,
+            "#,
         )?;
 
         match options_from_request(&request, &data) {
@@ -250,7 +251,7 @@ mod tests {
                     "styles": ["normal", "italic"]
                 }
             }
-  "#,
+            "#,
         )?;
 
         let request: NextFontRequest = parse_json_with_source_context(
@@ -261,7 +262,7 @@ mod tests {
                 "variableName": "abeezee",
                 "arguments": []
             }
-        "#,
+            "#,
         )?;
 
         assert_eq!(
@@ -293,7 +294,7 @@ mod tests {
                     "styles": ["normal", "italic"]
                 }
             }
-  "#,
+            "#,
         )?;
 
         let request: NextFontRequest = parse_json_with_source_context(
@@ -304,7 +305,7 @@ mod tests {
                 "variableName": "abeezee",
                 "arguments": [{}]
             }
-        "#,
+            "#,
         )?;
 
         match options_from_request(&request, &data) {
@@ -329,7 +330,7 @@ mod tests {
                     "styles": ["normal", "italic"]
                 }
             }
-  "#,
+            "#,
         )?;
 
         let request: NextFontRequest = parse_json_with_source_context(
@@ -342,7 +343,7 @@ mod tests {
                     "weight": ["400", "variable"]
                 }]
             }
-        "#,
+            "#,
         )?;
 
         match options_from_request(&request, &data) {
@@ -368,7 +369,7 @@ mod tests {
                     "styles": ["normal", "italic"]
                 }
             }
-  "#,
+            "#,
         )?;
 
         let request: NextFontRequest = parse_json_with_source_context(
@@ -381,7 +382,7 @@ mod tests {
                     "weight": ["200"]
                 }]
             }
-        "#,
+            "#,
         )?;
 
         match options_from_request(&request, &data) {
@@ -406,7 +407,7 @@ mod tests {
                     "styles": ["italic"]
                 }
             }
-  "#,
+            "#,
         )?;
 
         let request: NextFontRequest = parse_json_with_source_context(
@@ -419,7 +420,7 @@ mod tests {
                     "weight": ["400"]
                 }]
             }
-        "#,
+            "#,
         )?;
 
         let options = options_from_request(&request, &data)?;
@@ -438,7 +439,7 @@ mod tests {
                     "styles": ["normal", "italic"]
                 }
             }
-  "#,
+            "#,
         )?;
 
         let request: NextFontRequest = parse_json_with_source_context(
@@ -451,7 +452,7 @@ mod tests {
                     "weight": ["400"]
                 }]
             }
-        "#,
+            "#,
         )?;
 
         let options = options_from_request(&request, &data)?;
@@ -470,7 +471,7 @@ mod tests {
                     "styles": ["normal", "italic"]
                 }
             }
-  "#,
+            "#,
         )?;
 
         let request: NextFontRequest = parse_json_with_source_context(
@@ -484,7 +485,7 @@ mod tests {
                     "style": ["foo"]
                 }]
             }
-        "#,
+            "#,
         )?;
 
         match options_from_request(&request, &data) {
@@ -510,7 +511,7 @@ mod tests {
                     "styles": ["normal", "italic"]
                 }
             }
-  "#,
+            "#,
         )?;
 
         let request: NextFontRequest = parse_json_with_source_context(
@@ -524,7 +525,7 @@ mod tests {
                     "display": "foo"
                 }]
             }
-        "#,
+            "#,
         )?;
 
         match options_from_request(&request, &data) {
@@ -551,7 +552,7 @@ mod tests {
                     "styles": ["normal", "italic"]
                 }
             }
-  "#,
+            "#,
         )?;
 
         let request: NextFontRequest = parse_json_with_source_context(
@@ -565,7 +566,7 @@ mod tests {
                     "axes": ["wght"]
                 }]
             }
-        "#,
+            "#,
         )?;
 
         match options_from_request(&request, &data) {
@@ -592,7 +593,7 @@ mod tests {
                     "styles": ["normal", "italic"]
                 }
             }
-  "#,
+            "#,
         )?;
 
         let request: NextFontRequest = parse_json_with_source_context(
@@ -606,7 +607,7 @@ mod tests {
                     "axes": ["wght"]
                 }]
             }
-        "#,
+            "#,
         )?;
 
         match options_from_request(&request, &data) {
