@@ -763,58 +763,47 @@ impl AssetContext for ModuleAssetContext {
                         }
                         ResolveResultItem::External { name, ty, traced } => {
                             let replacement = if replace_externals {
-                                let additional_refs = match traced {
-                                    // TODO can we get away without module_context.enable_tracing ?
-                                    ExternalTraced::Traced(tracing_root) => {
-                                        if self
-                                            .module_options_context()
-                                            .await?
-                                            .enable_file_tracing
-                                            .as_ref()
-                                            .is_some()
-                                        {
-                                            let externals_context =
-                                                externals_tracing_module_context(ty);
-                                            let out_dir = tracing_root.join("index".into());
+                                let additional_refs: Vec<Vc<Box<dyn ModuleReference>>> = if let (
+                                    ExternalTraced::Traced,
+                                    Some(tracing_root),
+                                ) = (
+                                    traced,
+                                    self.module_options_context()
+                                        .await?
+                                        .enable_externals_tracing,
+                                ) {
+                                    let externals_context = externals_tracing_module_context(ty);
+                                    let out_dir = tracing_root.join("index".into());
 
-                                            let external_result = (externals_context
-                                                .resolve_asset(
-                                                    out_dir,
-                                                    Request::parse_string(name.clone()),
-                                                    externals_context.resolve_options(
-                                                        out_dir,
-                                                        reference_type.clone(),
-                                                    ),
-                                                    reference_type,
-                                                ))
-                                            .await?;
+                                    let external_result = externals_context
+                                        .resolve_asset(
+                                            out_dir,
+                                            Request::parse_string(name.clone()),
+                                            externals_context
+                                                .resolve_options(out_dir, reference_type.clone()),
+                                            reference_type,
+                                        )
+                                        .await?;
 
-                                            let modules = affecting_sources
-                                                .iter()
-                                                .chain(external_result.affecting_sources.iter())
-                                                .map(|s| {
-                                                    Vc::upcast::<Box<dyn Module>>(RawModule::new(
-                                                        **s,
-                                                    ))
-                                                })
-                                                .chain(
-                                                    external_result
-                                                        .primary_modules_raw_iter()
-                                                        .map(|rvc| *rvc),
-                                                );
+                                    let modules = affecting_sources
+                                        .iter()
+                                        .chain(external_result.affecting_sources.iter())
+                                        .map(|s| Vc::upcast::<Box<dyn Module>>(RawModule::new(**s)))
+                                        .chain(
+                                            external_result
+                                                .primary_modules_raw_iter()
+                                                .map(|rvc| *rvc),
+                                        );
 
-                                            modules
-                                                .map(|s| {
-                                                    Vc::upcast::<Box<dyn ModuleReference>>(
-                                                        TracedModuleReference::new(s),
-                                                    )
-                                                })
-                                                .collect()
-                                        } else {
-                                            vec![]
-                                        }
-                                    }
-                                    _ => vec![],
+                                    modules
+                                        .map(|s| {
+                                            Vc::upcast::<Box<dyn ModuleReference>>(
+                                                TracedModuleReference::new(s),
+                                            )
+                                        })
+                                        .collect()
+                                } else {
+                                    vec![]
                                 };
 
                                 replace_external(&name, ty, additional_refs, import_externals)
