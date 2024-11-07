@@ -211,6 +211,29 @@ describe('app-dir static/dynamic handling', () => {
       })
     })
 
+    it('should infer a fetch cache of "force-cache" when force-dynamic is used on a fetch with revalidate', async () => {
+      let currentData: string | undefined
+      await retry(async () => {
+        const $ = await next.render$('/force-dynamic-fetch-cache/revalidate')
+        const initialData = $('#data').text()
+        expect($('#data').text()).toBeTruthy()
+
+        const $2 = await next.render$('/force-dynamic-fetch-cache/revalidate')
+        currentData = $2('#data').text()
+        expect(currentData).toBeTruthy()
+        expect(currentData).toBe(initialData)
+      })
+
+      // wait for revalidation
+      await waitFor(3000)
+      await retry(async () => {
+        const $3 = await next.render$('/force-dynamic-fetch-cache/revalidate')
+        const finalValue = $3('#data').text()
+        expect(finalValue).toBeTruthy()
+        expect(finalValue).not.toBe(currentData)
+      })
+    })
+
     it('force-dynamic should supercede a "default" cache value', async () => {
       const $ = await next.render$('/force-dynamic-fetch-cache/default-cache')
       const initData = $('#data').text()
@@ -742,6 +765,19 @@ describe('app-dir static/dynamic handling', () => {
   })
 
   if (isNextStart) {
+    it('should not encode dynamic parameters as search parameters in RSC data', async () => {
+      const data = process.env.__NEXT_EXPERIMENTAL_PPR
+        ? await next.readFile('.next/server/app/blog/seb.prefetch.rsc')
+        : await next.readFile('.next/server/app/blog/seb.rsc')
+
+      // During SSG, pages that correspond with dynamic routes shouldn't have any search
+      // parameters in the `__PAGE__` segment string. The only time we expect to see
+      // search parameters in the `__PAGE__` segment string is when the RSC data is
+      // requested from the client with search parameters.
+      expect(data).not.toContain('__PAGE__?')
+      expect(data).toContain('__PAGE__')
+    })
+
     it('should output HTML/RSC files for static paths', async () => {
       const files = (
         await glob('**/*', {
@@ -822,6 +858,8 @@ describe('app-dir static/dynamic handling', () => {
           "fetch-no-cache/page_client-reference-manifest.js",
           "flight/[slug]/[slug2]/page.js",
           "flight/[slug]/[slug2]/page_client-reference-manifest.js",
+          "force-cache-revalidate/page.js",
+          "force-cache-revalidate/page_client-reference-manifest.js",
           "force-cache.html",
           "force-cache.rsc",
           "force-cache/large-data/page.js",
@@ -842,6 +880,8 @@ describe('app-dir static/dynamic handling', () => {
           "force-dynamic-fetch-cache/no-fetch-cache/page_client-reference-manifest.js",
           "force-dynamic-fetch-cache/no-fetch-cache/route/route.js",
           "force-dynamic-fetch-cache/no-fetch-cache/route/route_client-reference-manifest.js",
+          "force-dynamic-fetch-cache/revalidate/page.js",
+          "force-dynamic-fetch-cache/revalidate/page_client-reference-manifest.js",
           "force-dynamic-fetch-cache/with-fetch-cache/page.js",
           "force-dynamic-fetch-cache/with-fetch-cache/page_client-reference-manifest.js",
           "force-dynamic-fetch-cache/with-fetch-cache/route/route.js",
@@ -2777,7 +2817,6 @@ describe('app-dir static/dynamic handling', () => {
 
     let prevHtml = await res.text()
     let prev$ = cheerio.load(prevHtml)
-    const cliOutputLength = next.cliOutput.length
 
     await retry(async () => {
       const curRes = await next.fetch('/force-cache')
@@ -2800,18 +2839,42 @@ describe('app-dir static/dynamic handling', () => {
         prev$('#data-auto-cache').text()
       )
     })
+  })
 
-    if (isNextDev) {
-      await retry(() => {
-        const cliOutput = next.cliOutput
-          .slice(cliOutputLength)
-          .replace(/in \d+ms/g, 'in 0ms') // stub request durations
+  it('should cache correctly for cache: "force-cache" and "revalidate"', async () => {
+    let prevValue: string | undefined
+    await retry(async () => {
+      const res = await next.fetch('/force-cache-revalidate')
+      expect(res.status).toBe(200)
 
-        expect(stripAnsi(cliOutput)).toContain(`
- │ GET https://next-data-api-en../api/random?d4 200 in 0ms (cache hit)
- │ │ ⚠ Specified "cache: force-cache" and "revalidate: 3", only one should be specified.`)
-      })
-    }
+      let prevHtml = await res.text()
+      let prev$ = cheerio.load(prevHtml)
+
+      const curRes = await next.fetch('/force-cache-revalidate')
+      expect(curRes.status).toBe(200)
+
+      const curHtml = await curRes.text()
+      const cur$ = cheerio.load(curHtml)
+
+      expect(cur$('#data-force-cache').text()).toBe(
+        prev$('#data-force-cache').text()
+      )
+
+      prevValue = cur$('#data-force-cache').text()
+    })
+
+    // wait for revalidation
+    await waitFor(3000)
+
+    await retry(async () => {
+      const curRes = await next.fetch('/force-cache-revalidate')
+      expect(curRes.status).toBe(200)
+
+      const curHtml = await curRes.text()
+      const cur$ = cheerio.load(curHtml)
+
+      expect(cur$('#data-force-cache').text()).not.toBe(prevValue)
+    })
   })
 
   it('should cache correctly for cache: no-store', async () => {

@@ -172,7 +172,6 @@ export type ResponseGenerator = (state: {
   hasResolved: boolean
   previousCacheEntry?: IncrementalCacheItem
   isRevalidating?: boolean
-  isDevWarmup?: boolean
 }) => Promise<ResponseCacheEntry | null>
 
 export type IncrementalCacheItem = {

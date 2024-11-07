@@ -70,10 +70,12 @@ export class LRUCache<T> {
 
   private evictLeastRecentlyUsed(): void {
     const lruKey = this.cache.keys().next().value
-    const lruSize = this.sizes.get(lruKey) || 0
-    this.totalSize -= lruSize
-    this.cache.delete(lruKey)
-    this.sizes.delete(lruKey)
+    if (lruKey !== undefined) {
+      const lruSize = this.sizes.get(lruKey) || 0
+      this.totalSize -= lruSize
+      this.cache.delete(lruKey)
+      this.sizes.delete(lruKey)
+    }
   }
 
   reset() {

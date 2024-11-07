@@ -14,7 +14,7 @@ import {
 export class ReadonlyRequestCookiesError extends Error {
   constructor() {
     super(
-      'Cookies can only be modified in a Server Action or Route Handler. Read more: https://nextjs.org/docs/app/api-reference/functions/cookies#cookiessetname-value-options'
+      'Cookies can only be modified in a Server Action or Route Handler. Read more: https://nextjs.org/docs/app/api-reference/functions/cookies#options'
     )
   }
 

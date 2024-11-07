@@ -55,7 +55,7 @@ describe('middleware - development errors', () => {
       const browser = await next.browser('/')
       await assertHasRedbox(browser)
       await next.patchFile('middleware.js', `export default function () {}`)
-      await assertHasRedbox(browser)
+      await assertNoRedbox(browser)
     })
   })
 
@@ -160,7 +160,7 @@ describe('middleware - development errors', () => {
       await assertHasRedbox(browser)
       expect(await getRedboxSource(browser)).toContain(`eval('test')`)
       await next.patchFile('middleware.js', `export default function () {}`)
-      await assertHasRedbox(browser)
+      await assertNoRedbox(browser)
     })
   })
 
@@ -207,7 +207,7 @@ describe('middleware - development errors', () => {
       expect(source).toContain('middleware.js')
       expect(source).not.toContain('//middleware.js')
       await next.patchFile('middleware.js', `export default function () {}`)
-      await assertHasRedbox(browser)
+      await assertNoRedbox(browser)
     })
   })
 
@@ -311,7 +311,7 @@ describe('middleware - development errors', () => {
         await browser.elementByCss('#nextjs__container_errors_desc').text()
       ).toEqual('Failed to compile')
       await next.patchFile('middleware.js', `export default function () {}`)
-      await assertHasRedbox(browser)
+      await assertNoRedbox(browser)
       expect(await browser.elementByCss('#page-title')).toBeTruthy()
     })
   })

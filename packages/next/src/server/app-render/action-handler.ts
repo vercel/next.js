@@ -468,6 +468,7 @@ export async function handleAction({
     // We want the render to see any cookie writes that we performed during the action,
     // so we need to update the immutable cookies to reflect the changes.
     synchronizeMutableCookies(requestStore)
+    requestStore.phase = 'render'
     return generateFlight(...args)
   }
 
@@ -994,6 +995,7 @@ export async function handleAction({
         // swallow error, it's gonna be handled on the client
       }
 
+      requestStore.phase = 'render'
       return {
         type: 'done',
         result: await generateFlight(req, ctx, {
