@@ -122,8 +122,9 @@ impl EcmascriptChunkItemContent {
         }
         if self.options.stub_require {
             args.push("z: __turbopack_require_stub__");
+        } else {
+            args.push("t: __turbopack_require_real__");
         }
-        args.push("t: require");
         if self.options.wasm {
             args.push("w: __turbopack_wasm__");
             args.push("u: __turbopack_wasm_module__");

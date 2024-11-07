@@ -1252,9 +1252,9 @@ async fn compile_time_info_for_module_type(
 
     let mut free_var_references = free_var_references.await?.clone_value();
     let (typeof_exports, typeof_module, require) = if is_esm {
-        ("undefined", "undefined", Some("__turbopack_require_stub__"))
+        ("undefined", "undefined", "__turbopack_require_stub__")
     } else {
-        ("object", "object", None)
+        ("object", "object", "__turbopack_require_real__")
     };
     free_var_references
         .entry(vec![
@@ -1281,11 +1281,9 @@ async fn compile_time_info_for_module_type(
             DefineableNameSegment::TypeOf,
         ])
         .or_insert("function".into());
-    if let Some(require) = require {
-        free_var_references
-            .entry(vec![DefineableNameSegment::Name("require".into())])
-            .or_insert(FreeVarReference::Ident(require.into()));
-    }
+    free_var_references
+        .entry(vec![DefineableNameSegment::Name("require".into())])
+        .or_insert(FreeVarReference::Ident(require.into()));
 
     Ok(CompileTimeInfo {
         environment: compile_time_info.environment,
