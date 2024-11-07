@@ -8,7 +8,7 @@ description: API Reference for the expirePath function.
 > **Good to know**:
 >
 > - `expirePath` is available in both [Node.js and Edge runtimes](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes).
-> - `expirePath` only invalidates the cache when the included path is next visited. This means calling `expirePath` with a dynamic route segment will not immediately trigger many revalidations at once. The invalidation only happens when the path is next visited.
+> - `expirePath` only invalidates the cache when the included path is next visited. This means calling `expirePath` with a dynamic route segment will not immediately trigger many expirations at once. The invalidation only happens when the path is next visited.
 > - Currently, `expirePath` invalidates all the routes in the [client-side Router Cache](/docs/app/building-your-application/caching#client-side-router-cache) when used in a server action. This behavior is temporary and will be updated in the future to apply only to the specific path.
 > - Using `expirePath` invalidates **only the specific path** in the [server-side Route Cache](/docs/app/building-your-application/caching#full-route-cache).
 
@@ -18,8 +18,8 @@ description: API Reference for the expirePath function.
 expirePath(path: string, type?: 'page' | 'layout'): void;
 ```
 
-- `path`: Either a string representing the filesystem path associated with the data you want to revalidate (for example, `/product/[slug]/page`), or the literal route segment (for example, `/product/123`). Must be less than 1024 characters. This value is case-sensitive.
-- `type`: (optional) `'page'` or `'layout'` string to change the type of path to revalidate. If `path` contains a dynamic segment (for example, `/product/[slug]/page`), this parameter is required. If path refers to the literal route segment, e.g., `/product/1` for a dynamic page (e.g., `/product/[slug]/page`), you should not provide `type`.
+- `path`: Either a string representing the filesystem path associated with the data you want to expire (for example, `/product/[slug]/page`), or the literal route segment (for example, `/product/123`). Must be less than 1024 characters. This value is case-sensitive.
+- `type`: (optional) `'page'` or `'layout'` string to change the type of path to expire. If `path` contains a dynamic segment (for example, `/product/[slug]/page`), this parameter is required. If path refers to the literal route segment, e.g., `/product/1` for a dynamic page (e.g., `/product/[slug]/page`), you should not provide `type`.
 
 ## Returns
 
@@ -27,16 +27,16 @@ expirePath(path: string, type?: 'page' | 'layout'): void;
 
 ## Examples
 
-### Revalidating A Specific URL
+### Expiring A Specific URL
 
 ```ts
 import { expirePath } from 'next/cache'
 expirePath('/blog/post-1')
 ```
 
-This will revalidate one specific URL on the next page visit.
+This will purge the cache for one specific URL on the next page visit.
 
-### Revalidating A Page Path
+### Expiring A Page Path
 
 ```ts
 import { expirePath } from 'next/cache'
@@ -45,9 +45,9 @@ expirePath('/blog/[slug]', 'page')
 expirePath('/(main)/blog/[slug]', 'page')
 ```
 
-This will revalidate any URL that matches the provided `page` file on the next page visit. This will _not_ invalidate pages beneath the specific page. For example, `/blog/[slug]` won't invalidate `/blog/[slug]/[author]`.
+This will purge the cache any URL that matches the provided `page` file on the next page visit. This will _not_ invalidate pages beneath the specific page. For example, `/blog/[slug]` won't invalidate `/blog/[slug]/[author]`.
 
-### Revalidating A Layout Path
+### Expiring A Layout Path
 
 ```ts
 import { expirePath } from 'next/cache'
@@ -56,9 +56,9 @@ expirePath('/blog/[slug]', 'layout')
 expirePath('/(main)/post/[slug]', 'layout')
 ```
 
-This will revalidate any URL that matches the provided `layout` file on the next page visit. This will cause pages beneath with the same layout to revalidate on the next visit. For example, in the above case, `/blog/[slug]/[another]` would also revalidate on the next visit.
+This will purge the cache on any URL that matches the provided `layout` file on the next page visit. This will cause pages beneath with the same layout to revalidate on the next visit. For example, in the above case, `/blog/[slug]/[another]` would also revalidate on the next visit.
 
-### Revalidating All Data
+### Expiring All Data
 
 ```ts
 import { expirePath } from 'next/cache'
@@ -66,7 +66,7 @@ import { expirePath } from 'next/cache'
 expirePath('/', 'layout')
 ```
 
-This will purge the Client-side Router Cache, and revalidate the Data Cache on the next page visit.
+This will purge the Data Cache on the next page visit.
 
 ### Server Action
 
@@ -83,7 +83,7 @@ export default async function submit() {
 
 ### Route Handler
 
-```ts filename="app/api/revalidate/route.ts" switcher
+```ts filename="app/api/expire/route.ts" switcher
 import { expirePath } from 'next/cache'
 import type { NextRequest } from 'next/server'
 
@@ -96,14 +96,14 @@ export async function GET(request: NextRequest) {
   }
 
   return Response.json({
-    revalidated: false,
+    expired: false,
     now: Date.now(),
-    message: 'Missing path to revalidate',
+    message: 'Missing path to expire',
   })
 }
 ```
 
-```js filename="app/api/revalidate/route.js" switcher
+```js filename="app/api/expire/route.js" switcher
 import { expirePath } from 'next/cache'
 
 export async function GET(request) {
@@ -111,13 +111,13 @@ export async function GET(request) {
 
   if (path) {
     expirePath(path)
-    return Response.json({ revalidated: true, now: Date.now() })
+    return Response.json({ expired: true, now: Date.now() })
   }
 
   return Response.json({
-    revalidated: false,
+    expired: false,
     now: Date.now(),
-    message: 'Missing path to revalidate',
+    message: 'Missing path to expire',
   })
 }
 ```
