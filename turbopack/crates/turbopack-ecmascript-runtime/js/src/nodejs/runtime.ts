@@ -38,7 +38,11 @@ function stringifySourceInfo(source: SourceInfo): string {
   }
 }
 
-type ExternalRequire = (id: ModuleId) => Exports | EsmNamespaceObject;
+type ExternalRequire = (
+  id: ModuleId,
+  thunk: () => any,
+  esm?: boolean
+) => Exports | EsmNamespaceObject;
 type ExternalImport = (id: ModuleId) => Promise<Exports | EsmNamespaceObject>;
 
 interface TurbopackNodeBuildContext extends TurbopackBaseContext<Module> {
