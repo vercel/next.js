@@ -16,6 +16,7 @@ import {
   getServerModuleMap,
   stringToUint8Array,
 } from './encryption-utils'
+import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -56,7 +57,7 @@ async function encodeActionBoundArg(actionId: string, arg: string) {
 
   // Get 16 random bytes as iv.
   const randomBytes = new Uint8Array(16)
-  crypto.getRandomValues(randomBytes)
+  workUnitAsyncStorage.exit(() => crypto.getRandomValues(randomBytes))
   const ivValue = arrayBufferToString(randomBytes.buffer)
 
   const encrypted = await encrypt(
