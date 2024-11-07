@@ -1,23 +1,21 @@
 ---
-title: revalidatePath
-description: API Reference for the revalidatePath function.
+title: expirePath
+description: API Reference for the expirePath function.
 ---
 
-**Warning**: `revalidatePath` has been deprecated in favor of `expirePath` and will be removed in a future version.
-
-`revalidatePath` allows you to purge [cached data](/docs/app/building-your-application/caching) on-demand for a specific path.
+`expirePath` allows you to purge [cached data](/docs/app/building-your-application/caching) on-demand for a specific path.
 
 > **Good to know**:
 >
-> - `revalidatePath` is available in both [Node.js and Edge runtimes](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes).
-> - `revalidatePath` only invalidates the cache when the included path is next visited. This means calling `revalidatePath` with a dynamic route segment will not immediately trigger many revalidations at once. The invalidation only happens when the path is next visited.
-> - Currently, `revalidatePath` invalidates all the routes in the [client-side Router Cache](/docs/app/building-your-application/caching#client-side-router-cache). This behavior is temporary and will be updated in the future to apply only to the specific path.
-> - Using `revalidatePath` invalidates **only the specific path** in the [server-side Route Cache](/docs/app/building-your-application/caching#full-route-cache).
+> - `expirePath` is available in both [Node.js and Edge runtimes](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes).
+> - `expirePath` only invalidates the cache when the included path is next visited. This means calling `expirePath` with a dynamic route segment will not immediately trigger many revalidations at once. The invalidation only happens when the path is next visited.
+> - Currently, `expirePath` invalidates all the routes in the [client-side Router Cache](/docs/app/building-your-application/caching#client-side-router-cache). This behavior is temporary and will be updated in the future to apply only to the specific path.
+> - Using `expirePath` invalidates **only the specific path** in the [server-side Route Cache](/docs/app/building-your-application/caching#full-route-cache).
 
 ## Parameters
 
 ```tsx
-revalidatePath(path: string, type?: 'page' | 'layout'): void;
+expirePath(path: string, type?: 'page' | 'layout'): void;
 ```
 
 - `path`: Either a string representing the filesystem path associated with the data you want to revalidate (for example, `/product/[slug]/page`), or the literal route segment (for example, `/product/123`). Must be less than 1024 characters. This value is case-sensitive.
@@ -25,15 +23,15 @@ revalidatePath(path: string, type?: 'page' | 'layout'): void;
 
 ## Returns
 
-`revalidatePath` does not return a value.
+`expirePath` does not return a value.
 
 ## Examples
 
 ### Revalidating A Specific URL
 
 ```ts
-import { revalidatePath } from 'next/cache'
-revalidatePath('/blog/post-1')
+import { expirePath } from 'next/cache'
+expirePath('/blog/post-1')
 ```
 
 This will revalidate one specific URL on the next page visit.
@@ -41,10 +39,10 @@ This will revalidate one specific URL on the next page visit.
 ### Revalidating A Page Path
 
 ```ts
-import { revalidatePath } from 'next/cache'
-revalidatePath('/blog/[slug]', 'page')
+import { expirePath } from 'next/cache'
+expirePath('/blog/[slug]', 'page')
 // or with route groups
-revalidatePath('/(main)/blog/[slug]', 'page')
+expirePath('/(main)/blog/[slug]', 'page')
 ```
 
 This will revalidate any URL that matches the provided `page` file on the next page visit. This will _not_ invalidate pages beneath the specific page. For example, `/blog/[slug]` won't invalidate `/blog/[slug]/[author]`.
@@ -52,10 +50,10 @@ This will revalidate any URL that matches the provided `page` file on the next p
 ### Revalidating A Layout Path
 
 ```ts
-import { revalidatePath } from 'next/cache'
-revalidatePath('/blog/[slug]', 'layout')
+import { expirePath } from 'next/cache'
+expirePath('/blog/[slug]', 'layout')
 // or with route groups
-revalidatePath('/(main)/post/[slug]', 'layout')
+expirePath('/(main)/post/[slug]', 'layout')
 ```
 
 This will revalidate any URL that matches the provided `layout` file on the next page visit. This will cause pages beneath with the same layout to revalidate on the next visit. For example, in the above case, `/blog/[slug]/[another]` would also revalidate on the next visit.
@@ -63,9 +61,9 @@ This will revalidate any URL that matches the provided `layout` file on the next
 ### Revalidating All Data
 
 ```ts
-import { revalidatePath } from 'next/cache'
+import { expirePath } from 'next/cache'
 
-revalidatePath('/', 'layout')
+expirePath('/', 'layout')
 ```
 
 This will purge the Client-side Router Cache, and revalidate the Data Cache on the next page visit.
@@ -75,25 +73,25 @@ This will purge the Client-side Router Cache, and revalidate the Data Cache on t
 ```ts filename="app/actions.ts" switcher
 'use server'
 
-import { revalidatePath } from 'next/cache'
+import { expirePath } from 'next/cache'
 
 export default async function submit() {
   await submitForm()
-  revalidatePath('/')
+  expirePath('/')
 }
 ```
 
 ### Route Handler
 
 ```ts filename="app/api/revalidate/route.ts" switcher
-import { revalidatePath } from 'next/cache'
+import { expirePath } from 'next/cache'
 import type { NextRequest } from 'next/server'
 
 export async function GET(request: NextRequest) {
   const path = request.nextUrl.searchParams.get('path')
 
   if (path) {
-    revalidatePath(path)
+    expirePath(path)
     return Response.json({ revalidated: true, now: Date.now() })
   }
 
@@ -106,13 +104,13 @@ export async function GET(request: NextRequest) {
 ```
 
 ```js filename="app/api/revalidate/route.js" switcher
-import { revalidatePath } from 'next/cache'
+import { expirePath } from 'next/cache'
 
 export async function GET(request) {
   const path = request.nextUrl.searchParams.get('path')
 
   if (path) {
-    revalidatePath(path)
+    expirePath(path)
     return Response.json({ revalidated: true, now: Date.now() })
   }
 

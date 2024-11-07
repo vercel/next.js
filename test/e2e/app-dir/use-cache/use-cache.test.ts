@@ -177,12 +177,12 @@ describe('use-cache', () => {
 
   // TODO: pending tags handling on deploy
   if (!isNextDeploy) {
-    it('should update after revalidateTag correctly', async () => {
+    it('should update after expireTag correctly', async () => {
       const browser = await next.browser('/cache-tag')
       const initial = await browser.elementByCss('#a').text()
 
       // Bust the ISR cache first, to populate the in-memory cache for the
-      // subsequent revalidateTag calls.
+      // subsequent expireTag calls.
       await browser.elementByCss('#revalidate-path').click()
       await retry(async () => {
         expect(await browser.elementByCss('#a').text()).not.toBe(initial)
@@ -313,7 +313,7 @@ describe('use-cache', () => {
     })
   })
 
-  it('should be able to revalidate a page using revalidateTag', async () => {
+  it('should be able to revalidate a page using expireTag', async () => {
     const browser = await next.browser(`/form`)
     const time1 = await browser.waitForElementByCss('#t').text()
 
