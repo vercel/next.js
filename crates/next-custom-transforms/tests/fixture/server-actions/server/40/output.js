@@ -1,8 +1,7 @@
 /* __next_internal_action_entry_do_not_use__ {"401c36b06e398c97abe5d5d7ae8c672bfddf4e1b91":"$$RSC_SERVER_ACTION_2","c03128060c414d59f8552e4788b846c0d2b7f74743":"$$RSC_SERVER_CACHE_0"} */ import { registerServerReference } from "private-next-rsc-server-reference";
 import { encryptActionBoundArgs, decryptActionBoundArgs } from "private-next-rsc-action-encryption";
 import { cache as $$cache__ } from "private-next-rsc-cache-wrapper";
-export var $$RSC_SERVER_CACHE_0 = $$cache__("default", "c03128060c414d59f8552e4788b846c0d2b7f74743", true, async function cache($$ACTION_CLOSURE_BOUND, e) {
-    var [$$ACTION_ARG_0, $$ACTION_ARG_1] = $$ACTION_CLOSURE_BOUND;
+export var $$RSC_SERVER_CACHE_0 = $$cache__("default", "c03128060c414d59f8552e4788b846c0d2b7f74743", 2, async function cache($$ACTION_ARG_0, $$ACTION_ARG_1, e) {
     const f = $$ACTION_ARG_0 + e;
     return [
         f,

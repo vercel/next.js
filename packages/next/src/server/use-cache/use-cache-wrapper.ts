@@ -438,7 +438,7 @@ function createTrackedReadableStream(
 export function cache(
   kind: string,
   id: string,
-  hasBoundArgs: boolean,
+  boundArgsLength: number,
   fn: any
 ) {
   if (!process.env.__NEXT_DYNAMIC_IO) {
@@ -502,22 +502,29 @@ export function cache(
         }
       }
 
-      if (hasBoundArgs) {
-        if (args.length < 1) {
+      if (boundArgsLength > 0) {
+        if (args.length === 0) {
           throw new InvariantError(
-            'Expected server closure to receive at least one argument, got: ' +
-              args.length
+            `Expected the "use cache" function ${JSON.stringify(fn.name)} to receive its encrypted bound arguments as the first argument.`
           )
         }
-        const [encryptedBound, ...rest] = args
-        const decryptedBound = await decryptActionBoundArgs(id, encryptedBound)
-        if (!Array.isArray(decryptedBound)) {
+
+        const [encryptedBoundArgs, ...otherArgs] = args
+        const boundArgs = await decryptActionBoundArgs(id, encryptedBoundArgs)
+
+        if (!Array.isArray(boundArgs)) {
           throw new InvariantError(
-            'Expected bound closure args to deserialize into an array, got: ' +
-              typeof decryptedBound
+            `Expected the bound arguments of "use cache" function ${JSON.stringify(fn.name)} to deserialize into an array, got ${typeof boundArgs} instead.`
           )
         }
-        args = [decryptedBound, ...rest]
+
+        if (boundArgsLength !== boundArgs.length) {
+          throw new InvariantError(
+            `Expected the "use cache" function ${JSON.stringify(fn.name)} to receive ${boundArgsLength} bound arguments, got ${boundArgs.length} instead.`
+          )
+        }
+
+        args = [...boundArgs, ...otherArgs]
       }
 
       const temporaryReferences = createClientTemporaryReferenceSet()
