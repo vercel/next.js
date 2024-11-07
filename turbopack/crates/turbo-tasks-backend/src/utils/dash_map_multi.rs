@@ -112,7 +112,10 @@ where
     let shards = map.shards();
     if s1 == s2 {
         let mut guard = shards[s1].write();
-        let mut bucket1 = guard
+
+        // we need to call `find_or_find_insert_slot` to avoid overwriting existing entries, but we
+        // can't use the returned bucket until after we get `bucket2` (below)
+        let _ = guard
             .find_or_find_insert_slot(h1, eq1, hash_entry)
             .unwrap_or_else(|slot| unsafe {
                 // SAFETY: This slot was previously returned by `find_or_find_insert_slot`, and no
@@ -122,18 +125,18 @@ where
 
         let bucket2 = guard
             .find_or_find_insert_slot(h2, eq2, hash_entry)
-            .unwrap_or_else(|slot| {
-                let b2 = unsafe {
-                    // SAFETY: See bucket1
-                    guard.insert_in_slot(h2, slot, (key2.clone(), SharedValue::new(insert_with())))
-                };
-                // inserting a new entry might invalidate the bucket pointer of the first entry
-                bucket1 = guard.find(h1, eq1).expect(
-                    "failed to find bucket of previously inserted item, is the hash or eq \
-                     implementation incorrect?",
-                );
-                b2
+            .unwrap_or_else(|slot| unsafe {
+                // SAFETY: See previous call above
+                guard.insert_in_slot(h2, slot, (key2.clone(), SharedValue::new(insert_with())))
             });
+
+        // Getting `bucket2` might invalidate the bucket pointer of the first entry, *even if no
+        // insert happens* as `RawTable::find_or_find_insert_slot` will *sometimes* resize the
+        // table, as it unconditionally reserves space for a potential insertion.
+        let bucket1 = guard.find(h1, eq1).expect(
+            "failed to find bucket of previously inserted item, is the hash or eq implementation \
+             incorrect?",
+        );
 
         // this assertion is needed for memory safety reasons
         assert!(
