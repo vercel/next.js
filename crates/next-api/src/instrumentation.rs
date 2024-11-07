@@ -7,7 +7,7 @@ use next_core::{
 };
 use tracing::Instrument;
 use turbo_tasks::{Completion, RcStr, ResolvedVc, Value, Vc};
-use turbo_tasks_fs::{File, FileContent, FileSystemPath};
+use turbo_tasks_fs::{File, FileContent, FileSystem, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
     chunk::{
