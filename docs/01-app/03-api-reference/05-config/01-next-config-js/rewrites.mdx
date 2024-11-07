@@ -15,7 +15,7 @@ Rewrites act as a URL proxy and mask the destination path, making it appear the 
 
 <PagesOnly>
 
-Rewrites act as a URL proxy and mask the destination path, making it appear the user hasn't changed their location on the site. In contrast, [redirects](/docs/pages/api-reference/next-config-js/redirects) will reroute to a new page and show the URL changes.
+Rewrites act as a URL proxy and mask the destination path, making it appear the user hasn't changed their location on the site. In contrast, [redirects](/docs/pages/api-reference/config/next-config-js/redirects) will reroute to a new page and show the URL changes.
 
 </PagesOnly>
 
@@ -99,8 +99,8 @@ The order Next.js routes are checked is:
 
 <PagesOnly>
 
-1. [headers](/docs/pages/api-reference/next-config-js/headers) are checked/applied
-2. [redirects](/docs/pages/api-reference/next-config-js/redirects) are checked/applied
+1. [headers](/docs/pages/api-reference/config/next-config-js/headers) are checked/applied
+2. [redirects](/docs/pages/api-reference/config/next-config-js/redirects) are checked/applied
 3. `beforeFiles` rewrites are checked/applied
 4. static files from the [public directory](/docs/pages/building-your-application/optimizing/static-assets), `_next/static` files, and non-dynamic pages are checked/served
 5. `afterFiles` rewrites are checked/applied, if one of these rewrites is matched we check dynamic routes/static files after each match
