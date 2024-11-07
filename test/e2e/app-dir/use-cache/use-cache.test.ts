@@ -162,7 +162,29 @@ describe('use-cache', () => {
 
     await retry(async () => {
       threeRandomValues = await browser.elementByCss('p').text()
-      expect(threeRandomValues).toMatch(/\d\.\d+ \d\.\d+/)
+      expect(threeRandomValues).toMatch(/\d\.\d+ \d\.\d+ \d\.\d+/)
+    })
+
+    await browser.elementById('reset-button').click()
+    expect(await browser.elementByCss('p').text()).toBe('0 0 0')
+
+    await browser.elementById('submit-button').click()
+
+    await retry(async () => {
+      expect(await browser.elementByCss('p').text()).toBe(threeRandomValues)
+    })
+  })
+
+  it('should cache results for cached closures passed to client components', async () => {
+    const browser = await next.browser('/passed-to-client-closure')
+    expect(await browser.elementByCss('p').text()).toBe('0 0 0')
+    await browser.elementById('submit-button').click()
+
+    let threeRandomValues: string
+
+    await retry(async () => {
+      threeRandomValues = await browser.elementByCss('p').text()
+      expect(threeRandomValues).toMatch(/100\.\d+ 100\.\d+ 100\.\d+/)
     })
 
     await browser.elementById('reset-button').click()
