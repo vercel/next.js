@@ -1,4 +1,9 @@
-import type { CacheNodeSeedData, FlightRouterState, Segment } from './types'
+import type {
+  CacheNodeSeedData,
+  FlightRouterState,
+  InitialRSCPayload,
+  Segment,
+} from './types'
 import type { ManifestNode } from '../../build/webpack/plugins/flight-manifest-plugin'
 
 // eslint-disable-next-line import/no-extraneous-dependencies
@@ -53,8 +58,6 @@ type SegmentPrefetch = {
 }
 
 export async function collectSegmentData(
-  flightRouterState: FlightRouterState,
-  seedData: CacheNodeSeedData,
   fullPageDataBuffer: Buffer,
   staleTime: number,
   clientModules: ManifestNode,
@@ -62,12 +65,14 @@ export async function collectSegmentData(
 ): Promise<Map<string, Buffer>> {
   // Traverse the router tree and generate a prefetch response for each segment.
 
+  // A mutable map to collect the results as we traverse the route tree.
+  const resultMap = new Map<string, Buffer>()
+
   // Before we start, warm up the module cache by decoding the page data once.
   // Then we can assume that any remaining async tasks that occur the next time
   // are due to hanging promises caused by dynamic data access. Note we only
   // have to do this once per page, not per individual segment.
   //
-  // Based on similar strategy in warmFlightResponse.
   try {
     await createFromReadableStream(streamFromBuffer(fullPageDataBuffer), {
       serverConsumerManifest,
@@ -75,34 +80,22 @@ export async function collectSegmentData(
     await waitAtLeastOneReactRenderTask()
   } catch {}
 
-  // A mutable map to collect the results as we traverse the route tree.
-  const resultMap = new Map<string, Buffer>()
-
-  const tree = await collectSegmentDataImpl(
-    flightRouterState,
-    seedData,
-    fullPageDataBuffer,
-    clientModules,
-    serverConsumerManifest,
-    '',
-    '',
-    resultMap
-  )
-
-  // Render the route tree to a special `/_tree` segment.
-  const treePrefetch: RootTreePrefetch = {
-    tree,
-    staleTime,
-  }
+  // Generate a stream for the route tree prefetch. While we're walking the
+  // tree, we'll also spawn additional tasks to generate the segment prefetches.
+  // The promises for these tasks are pushed to a mutable array that we will
+  // await once the route tree is fully rendered.
+  const segmentTasks: Array<Promise<[string, Buffer]>> = []
   const treeStream = await renderToReadableStream(
-    // SegmentPrefetch is not a valid return type for a React component, but
+    // RootTreePrefetch is not a valid return type for a React component, but
     // we need to use a component so that when we decode the original stream
     // inside of it, the side effects are transferred to the new stream.
     // @ts-expect-error
     <PrefetchTreeData
       fullPageDataBuffer={fullPageDataBuffer}
       serverConsumerManifest={serverConsumerManifest}
-      treePrefetch={treePrefetch}
+      clientModules={clientModules}
+      staleTime={staleTime}
+      segmentTasks={segmentTasks}
     />,
     clientModules,
     {
@@ -116,10 +109,78 @@ export async function collectSegmentData(
       },
     }
   )
+
+  // Write the route tree to a special `/_tree` segment.
   const treeBuffer = await streamToBuffer(treeStream)
   resultMap.set('/_tree', treeBuffer)
 
+  // Now that we've finished rendering the route tree, all the segment tasks
+  // should have been spawned. Await them in parallel and write the segment
+  // prefetches to the result map.
+  for (const [segmentPath, buffer] of await Promise.all(segmentTasks)) {
+    resultMap.set(segmentPath, buffer)
+  }
+
   return resultMap
+}
+
+async function PrefetchTreeData({
+  fullPageDataBuffer,
+  serverConsumerManifest,
+  clientModules,
+  staleTime,
+  segmentTasks,
+}: {
+  fullPageDataBuffer: Buffer
+  serverConsumerManifest: any
+  clientModules: ManifestNode
+  staleTime: number
+  segmentTasks: Array<Promise<[string, Buffer]>>
+}): Promise<RootTreePrefetch | null> {
+  // We're currently rendering a Flight response for the route tree prefetch.
+  // Inside this component, decode the Flight stream for the whole page. This is
+  // a hack to transfer the side effects from the original Flight stream (e.g.
+  // Float preloads) onto the Flight stream for the tree prefetch.
+  // TODO: React needs a better way to do this. Needed for Server Actions, too.
+  const initialRSCPayload: InitialRSCPayload = await createFromReadableStream(
+    streamFromBuffer(fullPageDataBuffer),
+    {
+      serverConsumerManifest,
+    }
+  )
+
+  // FlightDataPath is an unsound type, hence the additional checks.
+  const flightDataPaths = initialRSCPayload.f
+  if (flightDataPaths.length !== 1 && flightDataPaths[0].length !== 3) {
+    console.error(
+      'Internal Next.js error: InitialRSCPayload does not match the expected ' +
+        'shape for a prerendered page during segment prefetch generation.'
+    )
+    return null
+  }
+  const flightRouterState: FlightRouterState = flightDataPaths[0][0]
+  const seedData: CacheNodeSeedData = flightDataPaths[0][1]
+
+  // Compute the route metadata tree by traversing the FlightRouterState. As we
+  // walk the tree, we will also spawn a task to produce a prefetch response for
+  // each segment.
+  const tree = await collectSegmentDataImpl(
+    flightRouterState,
+    seedData,
+    fullPageDataBuffer,
+    clientModules,
+    serverConsumerManifest,
+    '',
+    '',
+    segmentTasks
+  )
+
+  // Render the route tree to a special `/_tree` segment.
+  const treePrefetch: RootTreePrefetch = {
+    tree,
+    staleTime,
+  }
+  return treePrefetch
 }
 
 async function collectSegmentDataImpl(
@@ -130,7 +191,7 @@ async function collectSegmentDataImpl(
   serverConsumerManifest: any,
   segmentPathStr: string,
   accessToken: string,
-  segmentBufferMap: Map<string, Buffer>
+  segmentTasks: Array<Promise<[string, Buffer]>>
 ): Promise<TreePrefetch> {
   // Metadata about the segment. Sent as part of the tree prefetch. Null if
   // there are no children.
@@ -168,7 +229,7 @@ async function collectSegmentDataImpl(
       serverConsumerManifest,
       childSegmentPathStr,
       childAccessToken,
-      segmentBufferMap
+      segmentTasks
     )
     if (slotMetadata === null) {
       slotMetadata = {}
@@ -181,6 +242,39 @@ async function collectSegmentDataImpl(
     childAccessTokens[parallelRouteKey] = childAccessToken
   }
 
+  // Spawn a task to write the segment data to a new Flight stream.
+  segmentTasks.push(
+    // Since we're already in the middle of a render, wait until after the
+    // current task to escape the current rendering context.
+    waitAtLeastOneReactRenderTask().then(() =>
+      renderSegmentPrefetch(
+        seedData,
+        segmentPathStr,
+        accessToken,
+        childAccessTokens,
+        clientModules
+      )
+    )
+  )
+
+  // Metadata about the segment. Sent to the client as part of the
+  // tree prefetch.
+  const segment = route[0]
+  const isRootLayout = route[4]
+  return {
+    key: segmentPathStr === '' ? '/' : segmentPathStr,
+    slots: slotMetadata,
+    extra: [segment, isRootLayout === true],
+  }
+}
+
+async function renderSegmentPrefetch(
+  seedData: CacheNodeSeedData,
+  segmentPathStr: string,
+  accessToken: string,
+  childAccessTokens: { [parallelRouteKey: string]: string } | null,
+  clientModules: ManifestNode
+): Promise<[string, Buffer]> {
   // Render the segment data to a stream.
   // In the future, this is where we can include additional metadata, like the
   // stale time and cache tags.
@@ -210,7 +304,7 @@ async function collectSegmentDataImpl(
   const segmentBuffer = await streamToBuffer(segmentStream)
   // Add the buffer to the result map.
   if (segmentPathStr === '') {
-    segmentBufferMap.set('/', segmentBuffer)
+    return ['/', segmentBuffer]
   } else {
     // The access token is appended to the end of the segment name. To request
     // a segment, the client sends a header like:
@@ -220,53 +314,8 @@ async function collectSegmentDataImpl(
     // The segment path is provided by the tree prefetch, and the access
     // token is provided in the parent layout's data.
     const fullPath = `${segmentPathStr}.${accessToken}`
-    segmentBufferMap.set(fullPath, segmentBuffer)
+    return [fullPath, segmentBuffer]
   }
-
-  // Metadata about the segment. Sent to the client as part of the
-  // tree prefetch.
-  const segment = route[0]
-  const isRootLayout = route[4]
-  return {
-    key: segmentPathStr === '' ? '/' : segmentPathStr,
-    slots: slotMetadata,
-    extra: [segment, isRootLayout === true],
-  }
-}
-
-async function PrefetchTreeData({
-  fullPageDataBuffer,
-  serverConsumerManifest,
-  treePrefetch,
-}: {
-  fullPageDataBuffer: Buffer
-  serverConsumerManifest: any
-  treePrefetch: RootTreePrefetch
-}): Promise<RootTreePrefetch | null> {
-  // We're currently rendering a Flight response for a segment prefetch. Inside
-  // this component, decode the Flight stream for the whole page. This is a hack
-  // to transfer the side effects from the original Flight stream (e.g. Float
-  // preloads) onto the Flight stream for the tree prefetch.
-  // TODO: React needs a better way to do this. Needed for Server Actions, too.
-
-  const replayConsoleLogs = true
-  await Promise.race([
-    createFromReadableStream(streamFromBuffer(fullPageDataBuffer), {
-      serverConsumerManifest,
-      replayConsoleLogs,
-    }),
-
-    // If the page contains dynamic data, the stream will hang indefinitely. So,
-    // at the end of the current task, stop waiting and proceed rendering. This
-    // is similar to the AbortSignal strategy we use for generating segment
-    // data, except we don't actually want or need to abort the outer stream in
-    // this case.
-    waitAtLeastOneReactRenderTask(),
-  ])
-
-  // By this point the side effects have been transfered and we can render the
-  // tree metadata.
-  return treePrefetch
 }
 
 // TODO: Consider updating or unifying this encoding logic for segments with

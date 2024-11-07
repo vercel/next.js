@@ -1,3 +1,5 @@
+# syntax=docker.io/docker/dockerfile:1
+
 FROM ubuntu:22.04
 
 LABEL com.github.actions.name="Next.js PR Stats"
