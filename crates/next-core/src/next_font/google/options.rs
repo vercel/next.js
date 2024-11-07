@@ -170,8 +170,17 @@ pub(super) fn options_from_request(
     }
 
     if let Some(axes) = argument.axes.as_ref() {
-        if !axes.is_empty() && !matches!(weights, FontWeights::Variable) {
-            return Err(anyhow!("Axes can only be defined for variable fonts"));
+        if !axes.is_empty() {
+            if !matches!(weights, FontWeights::Variable) {
+                return Err(anyhow!("Axes can only be defined for variable fonts."));
+            }
+
+            if weights.get(0) != Some(&FontWeights::Variable) {
+                return Err(anyhow!(
+                    "Axes can only be defined for variable fonts when the weight property is \
+                     nonexistent or set to `variable`."
+                ));
+            }
         }
     }
 
@@ -564,7 +573,7 @@ mod tests {
             Err(err) => {
                 assert_eq!(
                     err.to_string(),
-                    "Axes can only be defined for variable fonts"
+                    "Axes can only be defined for variable fonts."
                 )
             }
         }
