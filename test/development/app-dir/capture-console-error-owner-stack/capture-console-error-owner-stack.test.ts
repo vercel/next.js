@@ -24,18 +24,10 @@ async function getRedboxResult(browser: any) {
   }
   return result
 }
-
-describe('app-dir - capture-console-error', () => {
+describe('app-dir - capture-console-error-owner-stack', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
-
-  if (process.env.__NEXT_EXPERIMENTAL_PPR === 'true') {
-    it('skip test for experimental PPR', () => {
-      // Cover these tests in the owner stack tests suite
-    })
-    return
-  }
 
   it('should capture browser console error and format the error message', async () => {
     const browser = await next.browser('/browser/event')
@@ -49,7 +41,8 @@ describe('app-dir - capture-console-error', () => {
     if (process.env.TURBOPACK) {
       expect(result).toMatchInlineSnapshot(`
         {
-          "callStacks": "",
+          "callStacks": "Page
+        app/browser/event/page.js (5:5)",
           "count": 1,
           "description": "trigger an console <error>",
           "source": "app/browser/event/page.js (7:17) @ onClick
@@ -67,7 +60,8 @@ describe('app-dir - capture-console-error', () => {
     } else {
       expect(result).toMatchInlineSnapshot(`
         {
-          "callStacks": "",
+          "callStacks": "button
+        app/browser/event/page.js (5:6)",
           "count": 1,
           "description": "trigger an console <error>",
           "source": "app/browser/event/page.js (7:17) @ error
@@ -79,6 +73,7 @@ describe('app-dir - capture-console-error', () => {
            8 |       }}
            9 |     >
           10 |       click to error",
+          "title": "Console Error",
         }
       `)
     }
@@ -96,7 +91,7 @@ describe('app-dir - capture-console-error', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "callStacks": "",
-          "count": 2,
+          "count": 1,
           "description": "trigger an console.error in render",
           "source": "app/browser/render/page.js (4:11) @ Page
 
@@ -114,7 +109,7 @@ describe('app-dir - capture-console-error', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "callStacks": "",
-          "count": 2,
+          "count": 1,
           "description": "trigger an console.error in render",
           "source": "app/browser/render/page.js (4:11) @ error
 
@@ -125,6 +120,7 @@ describe('app-dir - capture-console-error', () => {
           5 |   return <p>render</p>
           6 | }
           7 |",
+          "title": "Console Error",
         }
       `)
     }
@@ -142,7 +138,7 @@ describe('app-dir - capture-console-error', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "callStacks": "",
-          "count": 2,
+          "count": 1,
           "description": "trigger an console.error in render",
           "source": "app/browser/render/page.js (4:11) @ Page
 
@@ -160,7 +156,7 @@ describe('app-dir - capture-console-error', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "callStacks": "",
-          "count": 2,
+          "count": 1,
           "description": "trigger an console.error in render",
           "source": "app/browser/render/page.js (4:11) @ error
 
@@ -171,6 +167,7 @@ describe('app-dir - capture-console-error', () => {
           5 |   return <p>render</p>
           6 | }
           7 |",
+          "title": "Console Error",
         }
       `)
     }
@@ -188,7 +185,7 @@ describe('app-dir - capture-console-error', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "callStacks": "",
-          "count": 2,
+          "count": 1,
           "description": "ssr console error:client",
           "source": "app/ssr/page.js (4:11) @ Page
 
@@ -206,7 +203,7 @@ describe('app-dir - capture-console-error', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "callStacks": "",
-          "count": 2,
+          "count": 1,
           "description": "ssr console error:client",
           "source": "app/ssr/page.js (4:11) @ error
 
@@ -217,6 +214,7 @@ describe('app-dir - capture-console-error', () => {
           5 |     'ssr console error:' + (typeof window === 'undefined' ? 'server' : 'client')
           6 |   )
           7 |   return <p>ssr</p>",
+          "title": "Console Error",
         }
       `)
     }
@@ -234,7 +232,7 @@ describe('app-dir - capture-console-error', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "callStacks": "",
-          "count": 2,
+          "count": 1,
           "description": "Error: page error",
           "source": "app/ssr-error-instance/page.js (4:11) @ Page
 
@@ -252,17 +250,18 @@ describe('app-dir - capture-console-error', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "callStacks": "",
-          "count": 2,
-          "description": "page error",
-          "source": "app/ssr-error-instance/page.js (4:17) @ Page
+          "count": 1,
+          "description": "Error: page error",
+          "source": "app/ssr-error-instance/page.js (4:11) @ error
 
           2 |
           3 | export default function Page() {
         > 4 |   console.error(new Error('page error'))
-            |                 ^
+            |           ^
           5 |   return <p>ssr</p>
           6 | }
           7 |",
+          "title": "Console Error",
         }
       `)
     }
@@ -298,7 +297,7 @@ describe('app-dir - capture-console-error', () => {
         {
           "callStacks": "",
           "count": 1,
-          "description": "[ Server ] boom",
+          "description": "[ Server ] Error: boom",
           "source": "app/rsc/page.js (2:17) @ Page
 
           1 | export default function Page() {
@@ -307,6 +306,7 @@ describe('app-dir - capture-console-error', () => {
           3 |   return <p>rsc</p>
           4 | }
           5 |",
+          "title": "Unhandled Runtime Error",
         }
       `)
     }
