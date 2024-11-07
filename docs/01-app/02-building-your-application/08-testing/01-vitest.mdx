@@ -20,24 +20,22 @@ npx create-next-app@latest --example with-vitest with-vitest-app
 
 To manually set up Vitest, install `vitest` and the following packages as dev dependencies:
 
-```bash filename="Terminal"
+```bash filename="Terminal" switcher
+# Using TypeScript
+npm install -D vitest @vitejs/plugin-react jsdom @testing-library/react @testing-library/dom vite-tsconfig-paths
+# Using JavaScript
 npm install -D vitest @vitejs/plugin-react jsdom @testing-library/react @testing-library/dom
-# or
-yarn add -D vitest @vitejs/plugin-react jsdom @testing-library/react @testing-library/dom
-# or
-pnpm install -D vitest @vitejs/plugin-react jsdom @testing-library/react @testing-library/dom
-# or
-bun add -D vitest @vitejs/plugin-react jsdom @testing-library/react @testing-library/dom
 ```
 
-Create a `vitest.config.ts|js` file in the root of your project, and add the following options:
+Create a `vitest.config.mts|js` file in the root of your project, and add the following options:
 
-```ts filename="vitest.config.ts" switcher
+```ts filename="vitest.config.mts" switcher
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
+import tsconfigPaths from 'vite-tsconfig-paths'
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [tsconfigPaths(), react()],
   test: {
     environment: 'jsdom',
   },

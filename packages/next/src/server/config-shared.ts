@@ -179,6 +179,11 @@ export interface ExperimentalTurboOptions {
    * directory can be resolved by turbopack.
    */
   root?: string
+
+  /**
+   * Enable minification. Defaults to true in build mode and false in dev mode.
+   */
+  minify?: boolean
 }
 
 export interface WebpackConfigContext {

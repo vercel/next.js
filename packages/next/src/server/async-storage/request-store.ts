@@ -108,10 +108,10 @@ export function createRequestStoreForRender(
   url: RequestContext['url'],
   implicitTags: RequestContext['implicitTags'],
   onUpdateCookies: RenderOpts['onUpdateCookies'],
-  renderResumeDataCache: RenderResumeDataCache | undefined,
   previewProps: WrapperRenderOpts['previewProps'],
   isHmrRefresh: RequestContext['isHmrRefresh'],
-  serverComponentsHmrCache: RequestContext['serverComponentsHmrCache']
+  serverComponentsHmrCache: RequestContext['serverComponentsHmrCache'],
+  renderResumeDataCache: RenderResumeDataCache | undefined
 ): RequestStore {
   return createRequestStoreImpl(
     // Pages start in render phase by default
@@ -248,7 +248,6 @@ function createRequestStoreImpl(
       return cache.draftMode
     },
     renderResumeDataCache: renderResumeDataCache ?? null,
-    devWarmupPrerenderResumeDataCache: null,
     isHmrRefresh,
     serverComponentsHmrCache:
       serverComponentsHmrCache ||

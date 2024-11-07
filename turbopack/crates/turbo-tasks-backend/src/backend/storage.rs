@@ -359,7 +359,7 @@ where
     T: KeyValuePair,
     T::Key: Indexed,
 {
-    inner: RefMut<'a, K, InnerStorage<T>, BuildHasherDefault<FxHasher>>,
+    inner: RefMut<'a, K, InnerStorage<T>>,
 }
 
 impl<K, T> Deref for StorageWriteGuard<'_, K, T>

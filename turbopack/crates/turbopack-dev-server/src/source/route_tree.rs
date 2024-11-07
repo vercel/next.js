@@ -151,7 +151,7 @@ impl RouteTree {
             self.not_found_sources
                 .extend(other.not_found_sources.iter().copied());
             for (key, value) in other.static_segments.iter() {
-                if let Some((key, self_value)) = self.static_segments.remove_entry(key) {
+                if let Some((key, self_value)) = self.static_segments.swap_remove_entry(key) {
                     static_segments.insert(key, vec![self_value, *value]);
                 } else if let Some(list) = static_segments.get_mut(key) {
                     list.push(*value);

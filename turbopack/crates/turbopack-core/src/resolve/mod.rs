@@ -2929,6 +2929,8 @@ pub enum ModulePart {
     RenamedNamespace { export: Vc<RcStr> },
     /// A pointer to a specific part.
     Internal(u32),
+    /// A pointer to a specific part, but with evaluation.
+    InternalEvaluation(u32),
     /// The local declarations of a module.
     Locals,
     /// The whole exports of a module.
@@ -2968,6 +2970,10 @@ impl ModulePart {
         ModulePart::Internal(id).cell()
     }
     #[turbo_tasks::function]
+    pub fn internal_evaluation(id: u32) -> Vc<Self> {
+        ModulePart::InternalEvaluation(id).cell()
+    }
+    #[turbo_tasks::function]
     pub fn locals() -> Vc<Self> {
         ModulePart::Locals.cell()
     }
@@ -2999,7 +3005,8 @@ impl ValueToString for ModulePart {
             ModulePart::RenamedNamespace { export } => {
                 format!("export * as {}", export.await?).into()
             }
-            ModulePart::Internal(id) => format!("internal part {}", id,).into(),
+            ModulePart::Internal(id) => format!("internal part {}", id).into(),
+            ModulePart::InternalEvaluation(id) => format!("internal part {}", id).into(),
             ModulePart::Locals => "locals".into(),
             ModulePart::Exports => "exports".into(),
             ModulePart::Facade => "facade".into(),
