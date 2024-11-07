@@ -1025,27 +1025,21 @@ export function runTests(ctx: RunTestsCtx) {
     const query = { url: `\\//example.com`, w: ctx.w, q: 1 }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
     expect(res.status).toBe(400)
-    expect(await res.text()).toBe(
-      `"url" parameter cannot be a protocol-relative URL (//)`
-    )
+    expect(await res.text()).toBe(`"url" parameter is invalid`)
   })
 
   it('should fail when url is protocol relative via a second escaped slash', async () => {
     const query = { url: `/\\/example.com`, w: ctx.w, q: 1 }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
     expect(res.status).toBe(400)
-    expect(await res.text()).toBe(
-      `"url" parameter cannot be a protocol-relative URL (//)`
-    )
+    expect(await res.text()).toBe(`"url" parameter is invalid`)
   })
 
   it('should fail when url is protocol relative via two escaped slashes', async () => {
     const query = { url: `\\/\\/example.com`, w: ctx.w, q: 1 }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
     expect(res.status).toBe(400)
-    expect(await res.text()).toBe(
-      `"url" parameter cannot be a protocol-relative URL (//)`
-    )
+    expect(await res.text()).toBe(`"url" parameter is invalid`)
   })
 
   describe('recursive url is not allowed', () => {
