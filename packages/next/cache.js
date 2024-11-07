@@ -26,13 +26,7 @@ module.exports = cacheExports
 
 // make import { xxx } from 'next/cache' work
 exports.unstable_cache = cacheExports.unstable_cache
-/**
- * @deprecated this function has been deprecated in favor of expirePath()
- */
 exports.revalidatePath = cacheExports.revalidatePath
-/**
- * @deprecated this function has been deprecated in favor of expireTag()
- */
 exports.revalidateTag = cacheExports.revalidateTag
 exports.expireTag = cacheExports.expireTag
 exports.expirePath = cacheExports.expirePath
