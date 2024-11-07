@@ -283,14 +283,18 @@ impl AssetIdent {
                     5_u8.deterministic_hash(&mut hasher);
                     id.deterministic_hash(&mut hasher);
                 }
-                ModulePart::Locals => {
+                ModulePart::InternalEvaluation(id) => {
                     6_u8.deterministic_hash(&mut hasher);
+                    id.deterministic_hash(&mut hasher);
                 }
-                ModulePart::Exports => {
+                ModulePart::Locals => {
                     7_u8.deterministic_hash(&mut hasher);
                 }
-                ModulePart::Facade => {
+                ModulePart::Exports => {
                     8_u8.deterministic_hash(&mut hasher);
+                }
+                ModulePart::Facade => {
+                    9_u8.deterministic_hash(&mut hasher);
                 }
             }
 
