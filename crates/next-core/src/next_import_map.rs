@@ -239,9 +239,7 @@ pub async fn get_next_client_import_map(
 
 /// Computes the Next-specific client import map.
 #[turbo_tasks::function]
-pub async fn get_next_build_import_map(
-    project_path: ResolvedVc<FileSystemPath>,
-) -> Result<Vc<ImportMap>> {
+pub async fn get_next_build_import_map() -> Result<Vc<ImportMap>> {
     let mut import_map = ImportMap::empty();
 
     insert_package_alias(
@@ -250,13 +248,9 @@ pub async fn get_next_build_import_map(
         next_js_fs().root().to_resolved().await?,
     );
 
-    let external = ImportMapping::External(
-        None,
-        ExternalType::CommonJs,
-        ExternalTraced::Traced(project_path),
-        None,
-    )
-    .resolved_cell();
+    let external =
+        ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Traced, None)
+            .resolved_cell();
 
     import_map.insert_exact_alias("next", external);
     import_map.insert_wildcard_alias("next/", external);
@@ -266,7 +260,7 @@ pub async fn get_next_build_import_map(
         ImportMapping::External(
             Some("styled-jsx/style.js".into()),
             ExternalType::CommonJs,
-            ExternalTraced::Traced(project_path),
+            ExternalTraced::Traced,
             None,
         )
         .resolved_cell(),
@@ -359,7 +353,7 @@ pub async fn get_next_server_import_map(
                 ImportMapping::External(
                     Some("styled-jsx/style.js".into()),
                     ExternalType::CommonJs,
-                    ExternalTraced::Traced(project_path),
+                    ExternalTraced::Traced,
                     None,
                 )
                 .resolved_cell(),
@@ -1151,7 +1145,7 @@ fn external_request_to_cjs_import_mapping(
     ImportMapping::External(
         Some(request.into()),
         ExternalType::CommonJs,
-        ExternalTraced::Traced(context_dir),
+        ExternalTraced::Traced,
         Some(context_dir),
     )
     .resolved_cell()
@@ -1166,7 +1160,7 @@ fn external_request_to_esm_import_mapping(
     ImportMapping::External(
         Some(request.into()),
         ExternalType::EcmaScriptModule,
-        ExternalTraced::Traced(context_dir),
+        ExternalTraced::Traced,
         Some(context_dir),
     )
     .resolved_cell()

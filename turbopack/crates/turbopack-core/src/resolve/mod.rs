@@ -372,17 +372,15 @@ impl ModuleResolveResult {
 #[turbo_tasks::value(shared)]
 pub enum ExternalTraced {
     Untraced,
-    Traced(ResolvedVc<FileSystemPath>),
+    Traced,
 }
 
-impl ExternalTraced {
-    async fn as_string(&self) -> Result<String> {
-        Ok(match self {
-            ExternalTraced::Untraced => "untraced".to_string(),
-            ExternalTraced::Traced(context) => {
-                format!("traced from {}", context.to_string().await?)
-            }
-        })
+impl Display for ExternalTraced {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ExternalTraced::Untraced => write!(f, "untraced"),
+            ExternalTraced::Traced => write!(f, "traced"),
+        }
     }
 }
 
@@ -501,7 +499,7 @@ impl ValueToString for ResolveResult {
                 } => {
                     result.push_str("external ");
                     result.push_str(s);
-                    write!(result, " ({}, {})", ty, traced.as_string().await?)?;
+                    write!(result, " ({}, {})", ty, traced)?;
                 }
                 ResolveResultItem::Ignore => {
                     result.push_str("ignore");

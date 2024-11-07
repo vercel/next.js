@@ -245,7 +245,7 @@ impl AfterResolvePlugin for NextExternalResolvePlugin {
             ResolveResult::primary(ResolveResultItem::External {
                 name: specifier.clone(),
                 ty: ExternalType::CommonJs,
-                traced: ExternalTraced::Traced(self.project_path),
+                traced: ExternalTraced::Traced,
             })
             .into(),
         )))
