@@ -556,6 +556,34 @@ jobs:
           name: npm-publish-logs
           path: /home/runner/.npm/_logs/*
 
+  publish-turbopack-npm-packages:
+    # Matches the commit message written by turbopack/xtask/src/publish.rs:377
+    if: "${{(github.ref == 'refs/heads/canary') && startsWith(github.event.head_commit.message, 'chore: release turbopack npm packages')}}"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_LTS_VERSION }}
+          check-latest: true
+      - run: corepack enable
+
+      - uses: ./.github/actions/setup-rust
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpx turbo@canary run build --only --filter='./turbopack/packages/*'
+
+      - name: Write NPM_TOKEN
+        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN_ELEVATED }}" > ~/.npmrc
+
+      - name: Publish
+        run: cargo xtask workspace --publish
+
   deployExamples:
     if: ${{ needs.deploy-target.outputs.value != 'automated-preview' }}
     name: Deploy examples

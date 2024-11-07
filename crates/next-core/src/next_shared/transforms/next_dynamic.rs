@@ -1,13 +1,7 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use next_custom_transforms::transforms::dynamic::{next_dynamic, NextDynamicMode};
-use swc_core::{
-    common::{util::take::Take, FileName},
-    ecma::{
-        ast::{Module, Program},
-        visit::FoldWith,
-    },
-};
+use swc_core::{common::FileName, ecma::ast::Program};
 use turbo_tasks::Vc;
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
 use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext};
@@ -50,8 +44,7 @@ struct NextJsDynamic {
 impl CustomTransformer for NextJsDynamic {
     #[tracing::instrument(level = tracing::Level::TRACE, name = "next_dynamic", skip_all)]
     async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
-        let p = std::mem::replace(program, Program::Module(Module::dummy()));
-        *program = p.fold_with(&mut next_dynamic(
+        program.mutate(next_dynamic(
             self.mode.is_development(),
             self.is_server_compiler,
             self.is_react_server_layer,

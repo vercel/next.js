@@ -71,19 +71,19 @@ After:
 ```jsx filename="app/page.js"
 import { Suspense } from 'react'
 
-async function getLatestTransactions() {
-  return db.query(...)
+async function TransactionList() {
+  const transactions = await db.query(...)
+  return ...
 }
 
 function TransactionSkeleton() {
-  return <div>...</div>
+  return <ul>...</ul>
 }
 
 export default async function Page() {
-  const transactions = await getLatestTransactions(token);
   return (
     <Suspense fallback={<TransactionSkeleton />}>
-      <TransactionList transactions={transactions}>
+      <TransactionList/>
     </Suspense>
   )
 }
@@ -199,7 +199,7 @@ import { cookies } from 'next/headers'
 import { Map } from './map'
 
 export default async function Page({ searchParams }) {
-  const coords = searchParams.then(sp => { lat: sp.lat, lng: sp.lng })
+  const coords = searchParams.then(sp => ({ lat: sp.lat, lng: sp.lng }))
   return (
     <Suspense fallback="loading your inbox...">
       <Map coord={coords}>

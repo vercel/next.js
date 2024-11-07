@@ -19,6 +19,7 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::analyzer::{
     graph::{create_graph, EvalContext, VarGraph},
+    imports::ImportAttributes,
     linker::link,
     test_utils::{early_visitor, visitor},
 };
@@ -108,7 +109,7 @@ fn bench_link(b: &mut Bencher, input: &BenchInput) {
                     &input.var_graph,
                     val.clone(),
                     &early_visitor,
-                    &(|val| visitor(val, compile_time_info)),
+                    &(|val| visitor(val, compile_time_info, ImportAttributes::empty_ref())),
                     Default::default(),
                 )
                 .await

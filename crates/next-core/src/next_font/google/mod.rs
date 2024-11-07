@@ -133,11 +133,11 @@ impl NextFontGoogleReplacer {
                 .into(),
             )
             .cell()),
-        );
-        Ok(
-            ImportMapResult::Result(ResolveResult::source(Vc::upcast(js_asset)).resolved_cell())
-                .cell(),
+        ).to_resolved().await?;
+        Ok(ImportMapResult::Result(
+            ResolveResult::source(ResolvedVc::upcast(js_asset)).resolved_cell(),
         )
+        .cell())
     }
 }
 
@@ -267,7 +267,7 @@ impl NextFontGoogleCssModuleReplacer {
         .await?;
 
         Ok(ImportMapResult::Result(
-            ResolveResult::source(*ResolvedVc::upcast(css_asset)).resolved_cell(),
+            ResolveResult::source(ResolvedVc::upcast(css_asset)).resolved_cell(),
         )
         .cell())
     }
@@ -386,12 +386,14 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
         let font_source = VirtualSource::new(
             font_virtual_path,
             AssetContent::file(FileContent::Content(font.await?.0.as_slice().into()).cell()),
-        );
-
-        Ok(
-            ImportMapResult::Result(ResolveResult::source(Vc::upcast(font_source)).resolved_cell())
-                .cell(),
         )
+        .to_resolved()
+        .await?;
+
+        Ok(ImportMapResult::Result(
+            ResolveResult::source(ResolvedVc::upcast(font_source)).resolved_cell(),
+        )
+        .cell())
     }
 }
 
@@ -690,10 +692,10 @@ async fn get_mock_stylesheet(
     let val = evaluate(
         mocked_response_asset,
         root,
-        env,
+        *env,
         AssetIdent::from_path(loader_path),
         asset_context,
-        chunking_context,
+        *chunking_context,
         None,
         vec![],
         Completion::immutable(),

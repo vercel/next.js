@@ -135,10 +135,13 @@ export function getRSCModuleInformation(
     }
   }
 
-  const clientRefs = clientInfoMatch?.[1]?.split(',')
-  const clientEntryType = clientInfoMatch?.[2] as 'cjs' | 'auto'
+  const clientRefsString = clientInfoMatch?.[1]
+  const clientRefs = clientRefsString ? clientRefsString.split(',') : []
+  const clientEntryType = clientInfoMatch?.[2] as 'cjs' | 'auto' | undefined
 
-  const type = clientRefs ? RSC_MODULE_TYPES.client : RSC_MODULE_TYPES.server
+  const type = clientInfoMatch
+    ? RSC_MODULE_TYPES.client
+    : RSC_MODULE_TYPES.server
 
   return {
     type,

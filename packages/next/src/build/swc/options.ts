@@ -219,6 +219,7 @@ function getBaseSWCOptions({
     // On server side of pages router we prefer CJS.
     preferEsm: esm,
     lintCodemodComments: true,
+    debugFunctionName: development,
   }
 }
 
