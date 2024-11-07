@@ -30,7 +30,7 @@ export const FacebookPixel = (props: FBPixelProps) => {
         id="_next-fb-pixel"
         strategy="afterInteractive"
         dangerouslySetInnerHTML={{
-          _html: `
+          __html: `
 		  !function(f,b,e,v,n,t,s)
   {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
   n.callMethod.apply(n,arguments):n.queue.push(arguments)};
