@@ -26,7 +26,7 @@ struct IntKey([u8; 4]);
 
 impl IntKey {
     fn new(value: u32) -> Self {
-        Self(value.to_be_bytes())
+        Self(value.to_le_bytes())
     }
 }
 
@@ -37,7 +37,7 @@ impl AsRef<[u8]> for IntKey {
 }
 
 fn as_u32(bytes: impl Borrow<[u8]>) -> Result<u32> {
-    let n = u32::from_be_bytes(bytes.borrow().try_into()?);
+    let n = u32::from_le_bytes(bytes.borrow().try_into()?);
     Ok(n)
 }
 
@@ -144,7 +144,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
                     .put(
                         KeySpace::Infra,
                         Cow::Borrowed(IntKey::new(META_KEY_SESSION_ID).as_ref()),
-                        Cow::Borrowed(&session_id.to_be_bytes()),
+                        Cow::Borrowed(&session_id.to_le_bytes()),
                     )
                     .with_context(|| anyhow!("Unable to write next session id"))?;
             }
@@ -153,7 +153,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
                 KeySpace::Infra,
                 IntKey::new(META_KEY_NEXT_FREE_TASK_ID).as_ref(),
             )? {
-                Some(bytes) => u32::from_be_bytes(bytes.borrow().try_into()?),
+                Some(bytes) => u32::from_le_bytes(bytes.borrow().try_into()?),
                 None => 1,
             };
             {
@@ -187,7 +187,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
                         .put(
                             KeySpace::ForwardTaskCache,
                             Cow::Borrowed(&task_type_bytes),
-                            Cow::Borrowed(&task_id.to_be_bytes()),
+                            Cow::Borrowed(&task_id.to_le_bytes()),
                         )
                         .with_context(|| {
                             anyhow!("Unable to write task cache {task_type:?} => {task_id}")
@@ -208,7 +208,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
                     .put(
                         KeySpace::Infra,
                         Cow::Borrowed(IntKey::new(META_KEY_NEXT_FREE_TASK_ID).as_ref()),
-                        Cow::Borrowed(&next_task_id.to_be_bytes()),
+                        Cow::Borrowed(&next_task_id.to_le_bytes()),
                     )
                     .with_context(|| anyhow!("Unable to write next free task id"))?;
             }
@@ -279,7 +279,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
                 return Ok(None);
             };
             let bytes = bytes.borrow().try_into()?;
-            let id = TaskId::from(u32::from_be_bytes(bytes));
+            let id = TaskId::from(u32::from_le_bytes(bytes));
             Ok(Some(id))
         }
         let id = self

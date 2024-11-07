@@ -13,9 +13,11 @@ bench = false
 workspace = true
 
 [features]
-default = []
+default = ["rocksdb"]
 verify_serialization = []
 trace_aggregation_update = []
+lmdb = ["dep:lmdb-rkv"]
+rocksdb = ["dep:rocksdb"]
 
 [dependencies]
 anyhow = { workspace = true }
@@ -27,12 +29,13 @@ dashmap = { workspace = true, features = ["raw-api"]}
 either = { workspace = true }
 hashbrown = { workspace = true, features = ["raw"] }
 indexmap = { workspace = true }
-lmdb-rkv = "0.14.0"
+lmdb-rkv = { version = "0.14.0", optional = true }
 once_cell = { workspace = true }
 parking_lot = { workspace = true }
 pot = "3.0.0"
 rand = { workspace = true }
 rayon = { workspace = true }
+rocksdb = { version = "0.22.0", optional = true}
 rustc-hash = { workspace = true }
 serde = { workspace = true }
 serde_path_to_error = { workspace = true }
