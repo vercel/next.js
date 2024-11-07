@@ -37,8 +37,7 @@ use turbopack_core::{
     asset::Asset,
     compile_time_info::CompileTimeInfo,
     context::{AssetContext, ProcessResult},
-    ident::AssetIdent,
-    issue::{Issue, IssueExt, IssueStage, OptionStyledString, StyledString},
+    issue::{module::ModuleIssue, IssueExt, StyledString},
     module::Module,
     output::OutputAsset,
     raw_module::RawModule,
@@ -68,36 +67,6 @@ use self::{
     module_options::CustomModuleType,
     transition::{Transition, TransitionOptions},
 };
-
-#[turbo_tasks::value]
-struct ModuleIssue {
-    ident: Vc<AssetIdent>,
-    title: Vc<StyledString>,
-    description: Vc<StyledString>,
-}
-
-#[turbo_tasks::value_impl]
-impl Issue for ModuleIssue {
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::ProcessModule.cell()
-    }
-
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.ident.path()
-    }
-
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        self.title
-    }
-
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(self.description))
-    }
-}
 
 #[turbo_tasks::function]
 async fn apply_module_type(
@@ -173,7 +142,7 @@ async fn apply_module_type(
                     None
                 };
                 if let Some((part, _)) = part_ref {
-                    if let ModulePart::Evaluation = &*part {
+                    if let ModulePart::Evaluation | ModulePart::InternalEvaluation(..) = &*part {
                         // Skip the evaluation part if the module is marked as side effect free.
                         let side_effect_free_packages =
                             module_asset_context.side_effect_free_packages();
@@ -622,30 +591,14 @@ async fn process_default_internal(
         }
     }
 
-    let module_type = match current_module_type {
-        Some(module_type) => module_type,
-        None => {
-            ModuleIssue {
-                ident,
-                title: StyledString::Text("Unknown module type".into()).cell(),
-                description: StyledString::Text(
-                    r"This module doesn't have an associated type. Use a known file extension, or register a loader for it.
-
-Read more: https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders".into(),
-                )
-                .cell(),
-            }
-            .cell()
-            .emit();
-
-            return Ok(ProcessResult::Ignore.cell());
-        }
-    }.cell();
+    let Some(module_type) = current_module_type else {
+        return Ok(ProcessResult::Unknown(current_source).cell());
+    };
 
     Ok(apply_module_type(
         current_source,
         module_asset_context,
-        module_type,
+        module_type.cell(),
         Value::new(reference_type.clone()),
         part,
         inner_assets,
@@ -700,6 +653,7 @@ impl AssetContext for ModuleAssetContext {
             request,
             resolve_options,
         );
+
         let mut result = self.process_resolve_result(result.resolve().await?, reference_type);
 
         if *self.is_types_resolving_enabled().await? {
@@ -721,22 +675,18 @@ impl AssetContext for ModuleAssetContext {
         reference_type: Value<ReferenceType>,
     ) -> Result<Vc<ModuleResolveResult>> {
         let this = self.await?;
-        let transition = this.transition;
 
         let result = result
             .await?
             .map_module(|source| {
                 let reference_type = reference_type.clone();
                 async move {
-                    let process_result = if let Some(transition) = transition {
-                        transition.process(*source, self, reference_type)
-                    } else {
-                        self.process_with_transition_rules(*source, reference_type)
-                    };
+                    let process_result = self.process(*source, reference_type);
                     Ok(match *process_result.await? {
                         ProcessResult::Module(m) => {
                             ModuleResolveResultItem::Module(ResolvedVc::upcast(m))
                         }
+                        ProcessResult::Unknown(source) => ModuleResolveResultItem::Unknown(source),
                         ProcessResult::Ignore => ModuleResolveResultItem::Ignore,
                     })
                 }
