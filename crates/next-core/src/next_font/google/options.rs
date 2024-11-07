@@ -542,7 +542,7 @@ mod tests {
     }
 
     #[test]
-    fn test_errors_on_axes_without_variable() -> Result<()> {
+    fn test_errors_on_axes_without_variable_weight() -> Result<()> {
         let data: FxIndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
             r#"
             {
@@ -562,6 +562,47 @@ mod tests {
                 "variableName": "abeezee",
                 "arguments": [{
                     "weight": ["400"],
+                    "axes": ["wght"]
+                }]
+            }
+        "#,
+        )?;
+
+        match options_from_request(&request, &data) {
+            Ok(_) => panic!(),
+            Err(err) => {
+                assert_eq!(
+                    err.to_string(),
+                    "Axes can only be defined for variable fonts when the weight property is \
+                     nonexistent or set to `variable`."
+                )
+            }
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_errors_on_axes_without_variable_font() -> Result<()> {
+        let data: FxIndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
+            r#"
+            {
+                "ABeeZee": {
+                    "weights": ["400", "700"],
+                    "styles": ["normal", "italic"]
+                }
+            }
+  "#,
+        )?;
+
+        let request: NextFontRequest = parse_json_with_source_context(
+            r#"
+            {
+                "import": "ABeeZee",
+                "path": "index.js",
+                "variableName": "abeezee",
+                "arguments": [{
+                    "weight": ["400", "700"],
                     "axes": ["wght"]
                 }]
             }
