@@ -182,11 +182,11 @@ impl TurbopackFormat {
                 };
                 let mut values = values.into_iter().collect::<FxIndexMap<_, _>>();
                 let duration = values
-                    .remove("duration")
+                    .swap_remove("duration")
                     .and_then(|v| v.as_u64())
                     .unwrap_or(0);
                 let name = values
-                    .remove("name")
+                    .swap_remove("name")
                     .and_then(|v| v.as_str().map(|s| s.to_string()))
                     .unwrap_or("event".into());
 

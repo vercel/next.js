@@ -135,7 +135,7 @@ impl VersionedContentMap {
                     .get_mut(k)
                     // guaranteed
                     .unwrap()
-                    .remove(&assets);
+                    .swap_remove(&assets);
                 changed = changed || res
             }
             changed
