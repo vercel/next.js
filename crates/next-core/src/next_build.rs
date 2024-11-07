@@ -30,7 +30,6 @@ pub async fn get_external_next_compiled_package_mapping(
         Some(format!("next/dist/compiled/{}", &*package_name.await?).into()),
         ExternalType::CommonJs,
         ExternalTraced::Traced,
-        None,
     )
     .resolved_cell()])
     .cell())
