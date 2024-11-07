@@ -559,17 +559,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
 
 [[package]]
-name = "atty"
-version = "0.2.14"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d9b39be18770d11421cdb1b9947a45dd3f37e93092cbf377614828a319d5fee8"
-dependencies = [
- "hermit-abi 0.1.19",
- "libc",
- "winapi",
-]
-
-[[package]]
 name = "auto-hash-map"
 version = "0.1.0"
 dependencies = [
@@ -1134,18 +1123,6 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "3.2.25"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4ea181bf566f71cb9a5d17a59e1871af638180a18fb0035c92ae62b705207123"
-dependencies = [
- "bitflags 1.3.2",
- "clap_lex 0.2.4",
- "indexmap 1.9.3",
- "textwrap",
-]
-
-[[package]]
-name = "clap"
 version = "4.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b230ab84b0ffdf890d5a10abdbc8b83ae1c4918275daea1ab8801f71536b2651"
@@ -1162,7 +1139,7 @@ checksum = "ae129e2e766ae0ec03484e609954119f123cc1fe650337e155d03b022f24f7b4"
 dependencies = [
  "anstream",
  "anstyle",
- "clap_lex 0.7.0",
+ "clap_lex",
  "strsim 0.11.1",
 ]
 
@@ -1176,15 +1153,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.58",
-]
-
-[[package]]
-name = "clap_lex"
-version = "0.2.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2850f2f5a82cbf437dd5af4d49848fbdfc27c157c3d010345776f952765261c5"
-dependencies = [
- "os_str_bytes",
 ]
 
 [[package]]
@@ -1490,20 +1458,20 @@ dependencies = [
 
 [[package]]
 name = "criterion"
-version = "0.4.0"
+version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e7c76e09c1aae2bc52b3d2f29e13c6572553b30c4aa1b8a49fd70de6412654cb"
+checksum = "f2b12d017a929603d80db1831cd3a24082f8137ce19c69e6447f54f5fc8d692f"
 dependencies = [
  "anes",
- "atty",
  "cast",
  "ciborium",
- "clap 3.2.25",
+ "clap",
  "criterion-plot",
  "futures",
+ "is-terminal",
  "itertools 0.10.5",
- "lazy_static",
  "num-traits",
+ "once_cell",
  "oorandom",
  "plotters",
  "rayon",
@@ -2662,15 +2630,6 @@ checksum = "95505c38b4572b2d910cecb0281560f54b440a19336cbbcb27bf6ce6adc6f5a8"
 
 [[package]]
 name = "hermit-abi"
-version = "0.1.19"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "62b467343b94ba476dcb2500d242dadbb39557df889310ac77c5d99100aaac33"
-dependencies = [
- "libc",
-]
-
-[[package]]
-name = "hermit-abi"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "443144c8cdadd93ebf52ddb4056d257f5b52c04d3c804e657d19eb73fc33668b"
@@ -3096,6 +3055,17 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.58",
+]
+
+[[package]]
+name = "is-terminal"
+version = "0.4.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "261f68e344040fbd0edea105bef17c66edf46f984ddb1115b775ce31be948f4b"
+dependencies = [
+ "hermit-abi 0.4.0",
+ "libc",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -4194,7 +4164,7 @@ name = "node-file-trace"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 4.5.2",
+ "clap",
  "console-subscriber",
  "serde",
  "serde_json",
@@ -4448,12 +4418,6 @@ dependencies = [
  "pkg-config",
  "vcpkg",
 ]
-
-[[package]]
-name = "os_str_bytes"
-version = "6.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e2355d85b9a3786f481747ced0e0ff2ba35213a1f9bd406ed906554d7af805a1"
 
 [[package]]
 name = "ouroboros"
@@ -6365,7 +6329,7 @@ name = "swc-ast-explorer"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 4.5.2",
+ "clap",
  "owo-colors 3.5.0",
  "regex",
  "swc_core",
@@ -8395,7 +8359,7 @@ name = "turbo-static"
 version = "0.1.0"
 dependencies = [
  "bincode",
- "clap 4.5.2",
+ "clap",
  "ctrlc",
  "ignore",
  "itertools 0.10.5",
@@ -8760,7 +8724,7 @@ name = "turbopack-cli"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 4.5.2",
+ "clap",
  "console-subscriber",
  "criterion",
  "dunce",
@@ -8799,7 +8763,7 @@ name = "turbopack-cli-utils"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 4.5.2",
+ "clap",
  "crossterm 0.26.1",
  "owo-colors 3.5.0",
  "serde",
@@ -8845,7 +8809,7 @@ name = "turbopack-create-test-app"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 4.5.2",
+ "clap",
  "indoc",
  "pathdiff",
  "serde_json",
@@ -10723,7 +10687,7 @@ dependencies = [
  "anyhow",
  "cargo-lock",
  "chrono",
- "clap 4.5.2",
+ "clap",
  "indexmap 2.5.0",
  "inquire",
  "num-format",
