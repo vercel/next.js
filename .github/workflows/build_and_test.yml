@@ -192,6 +192,7 @@ jobs:
           - '--scenario=heavy-npm-deps-build-turbo-cache-enabled --page=homepage'
     uses: ./.github/workflows/build_reusable.yml
     with:
+      skipNativeBuild: 'yes'
       afterBuild: pnpm install && ./node_modules/.bin/devlow-bench ./scripts/devlow-bench.mjs --datadog=ubuntu-latest-16-core ${{ matrix.mode }} ${{ matrix.selector }}
       stepName: 'devlow-bench-${{ matrix.mode }}-${{ matrix.selector }}'
     secrets: inherit
