@@ -36,6 +36,8 @@ import {
 import DefaultCacheHandler from '../lib/cache-handlers/default'
 import type { CacheHandler, CacheEntry } from '../lib/cache-handlers/types'
 import type { CacheSignal } from '../app-render/cache-signal'
+import { decryptActionBoundArgs } from '../app-render/encryption'
+import { InvariantError } from '../../shared/lib/invariant-error'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -433,7 +435,12 @@ function createTrackedReadableStream(
   })
 }
 
-export function cache(kind: string, id: string, fn: any) {
+export function cache(
+  kind: string,
+  id: string,
+  hasBoundArgs: boolean,
+  fn: any
+) {
   if (!process.env.__NEXT_DYNAMIC_IO) {
     throw new Error(
       '"use cache" is only available with the experimental.dynamicIO config.'
@@ -493,6 +500,24 @@ export function cache(kind: string, id: string, fn: any) {
           // or not at all if we don't end up waiting for the input.
           process.nextTick(() => controller.abort())
         }
+      }
+
+      if (hasBoundArgs) {
+        if (args.length < 1) {
+          throw new InvariantError(
+            'Expected server closure to receive at least one argument, got: ' +
+              args.length
+          )
+        }
+        const [encryptedBound, ...rest] = args
+        const decryptedBound = await decryptActionBoundArgs(id, encryptedBound)
+        if (!Array.isArray(decryptedBound)) {
+          throw new InvariantError(
+            'Expected bound closure args to deserialize into an array, got: ' +
+              typeof decryptedBound
+          )
+        }
+        args = [decryptedBound, ...rest]
       }
 
       const temporaryReferences = createClientTemporaryReferenceSet()

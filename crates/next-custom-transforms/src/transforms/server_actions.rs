@@ -644,7 +644,7 @@ impl<C: Comments> ServerActions<C> {
                     .into(),
                 )));
             }
-            let decryption_decl = VarDecl {
+            let args_decl = VarDecl {
                 span: DUMMY_SP,
                 kind: VarDeclKind::Var,
                 declare: false,
@@ -656,18 +656,9 @@ impl<C: Comments> ServerActions<C> {
                         optional: false,
                         type_ann: None,
                     }),
-                    init: Some(Box::new(Expr::Await(AwaitExpr {
-                        span: DUMMY_SP,
-                        arg: Box::new(Expr::Call(CallExpr {
-                            span: DUMMY_SP,
-                            callee: quote_ident!("decryptActionBoundArgs").as_callee(),
-                            args: vec![
-                                reference_id.clone().as_arg(),
-                                quote_ident!("$$ACTION_CLOSURE_BOUND").as_arg(),
-                            ],
-                            ..Default::default()
-                        })),
-                    }))),
+                    init: Some(Box::new(Expr::Ident(
+                        quote_ident!("$$ACTION_CLOSURE_BOUND").into(),
+                    ))),
                     definite: Default::default(),
                 }],
                 ..Default::default()
@@ -675,13 +666,13 @@ impl<C: Comments> ServerActions<C> {
 
             match &mut new_body {
                 BlockStmtOrExpr::BlockStmt(body) => {
-                    body.stmts.insert(0, decryption_decl.into());
+                    body.stmts.insert(0, args_decl.into());
                 }
                 BlockStmtOrExpr::Expr(body_expr) => {
                     new_body = BlockStmtOrExpr::BlockStmt(BlockStmt {
                         span: DUMMY_SP,
                         stmts: vec![
-                            decryption_decl.into(),
+                            args_decl.into(),
                             Stmt::Return(ReturnStmt {
                                 span: DUMMY_SP,
                                 arg: Some(body_expr.take()),
@@ -737,6 +728,7 @@ impl<C: Comments> ServerActions<C> {
                             })),
                             cache_type,
                             &reference_id,
+                            !ids_from_closure.is_empty(),
                         )),
                         definite: false,
                     }],
@@ -853,7 +845,7 @@ impl<C: Comments> ServerActions<C> {
                     .into(),
                 )));
             }
-            let decryption_decl = VarDecl {
+            let args_decl = VarDecl {
                 span: DUMMY_SP,
                 kind: VarDeclKind::Var,
                 decls: vec![VarDeclarator {
@@ -864,29 +856,20 @@ impl<C: Comments> ServerActions<C> {
                         optional: false,
                         type_ann: None,
                     }),
-                    init: Some(Box::new(Expr::Await(AwaitExpr {
-                        span: DUMMY_SP,
-                        arg: Box::new(Expr::Call(CallExpr {
-                            span: DUMMY_SP,
-                            callee: quote_ident!("decryptActionBoundArgs").as_callee(),
-                            args: vec![
-                                reference_id.clone().as_arg(),
-                                quote_ident!("$$ACTION_CLOSURE_BOUND").as_arg(),
-                            ],
-                            ..Default::default()
-                        })),
-                    }))),
+                    init: Some(Box::new(Expr::Ident(
+                        quote_ident!("$$ACTION_CLOSURE_BOUND").into(),
+                    ))),
                     definite: Default::default(),
                 }],
                 ..Default::default()
             };
 
             if let Some(body) = &mut new_body {
-                body.stmts.insert(0, decryption_decl.into());
+                body.stmts.insert(0, args_decl.into());
             } else {
                 new_body = Some(BlockStmt {
                     span: DUMMY_SP,
-                    stmts: vec![decryption_decl.into()],
+                    stmts: vec![args_decl.into()],
                     ..Default::default()
                 });
             }
@@ -917,6 +900,7 @@ impl<C: Comments> ServerActions<C> {
                             })),
                             cache_type,
                             &reference_id,
+                            !ids_from_closure.is_empty(),
                         )),
                         definite: false,
                     }],
@@ -2270,7 +2254,7 @@ fn retain_names_from_declared_idents(
     *child_names = retained_names;
 }
 
-fn wrap_cache_expr(expr: Box<Expr>, name: &str, id: &str) -> Box<Expr> {
+fn wrap_cache_expr(expr: Box<Expr>, name: &str, id: &str, has_bound_args: bool) -> Box<Expr> {
     // expr -> $$cache__("name", "id", expr)
     Box::new(Expr::Call(CallExpr {
         span: DUMMY_SP,
@@ -2284,6 +2268,7 @@ fn wrap_cache_expr(expr: Box<Expr>, name: &str, id: &str) -> Box<Expr> {
                 spread: None,
                 expr: Box::new(id.into()),
             },
+            Bool::from(has_bound_args).as_arg(),
             expr.as_arg(),
         ],
         ..Default::default()

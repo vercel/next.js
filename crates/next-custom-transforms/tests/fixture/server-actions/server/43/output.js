@@ -7,7 +7,7 @@ export const $$RSC_SERVER_ACTION_0 = async function action($$ACTION_CLOSURE_BOUN
     var [$$ACTION_ARG_0] = await decryptActionBoundArgs("006a88810ecce4a4e8b59d53b8327d7e98bbf251d7", $$ACTION_CLOSURE_BOUND);
     console.log(secret, $$ACTION_ARG_0);
 };
-export var $$RSC_SERVER_CACHE_1 = $$cache__("default", "e0951c375b4a6a6e89d67b743ec5808127cfde405d", async function getCachedRandom(x, children) {
+export var $$RSC_SERVER_CACHE_1 = $$cache__("default", "e0951c375b4a6a6e89d67b743ec5808127cfde405d", false, async function getCachedRandom(x, children) {
     return {
         x,
         y: Math.random(),
