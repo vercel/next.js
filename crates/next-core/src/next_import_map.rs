@@ -248,9 +248,8 @@ pub async fn get_next_build_import_map() -> Result<Vc<ImportMap>> {
         next_js_fs().root().to_resolved().await?,
     );
 
-    let external =
-        ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Traced, None)
-            .resolved_cell();
+    let external = ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Traced)
+        .resolved_cell();
 
     import_map.insert_exact_alias("next", external);
     import_map.insert_wildcard_alias("next/", external);
@@ -261,7 +260,6 @@ pub async fn get_next_build_import_map() -> Result<Vc<ImportMap>> {
             Some("styled-jsx/style.js".into()),
             ExternalType::CommonJs,
             ExternalTraced::Traced,
-            None,
         )
         .resolved_cell(),
     );
@@ -333,7 +331,6 @@ pub async fn get_next_server_import_map(
         ExternalType::CommonJs,
         // TODO(arlyon): wiring up in a follow up PR
         ExternalTraced::Untraced,
-        None,
     )
     .resolved_cell();
 
@@ -354,7 +351,6 @@ pub async fn get_next_server_import_map(
                     Some("styled-jsx/style.js".into()),
                     ExternalType::CommonJs,
                     ExternalTraced::Traced,
-                    None,
                 )
                 .resolved_cell(),
             );
@@ -1142,11 +1138,11 @@ fn external_request_to_cjs_import_mapping(
     context_dir: ResolvedVc<FileSystemPath>,
     request: &str,
 ) -> ResolvedVc<ImportMapping> {
-    ImportMapping::External(
+    ImportMapping::PrimaryAlternativeExternal(
         Some(request.into()),
         ExternalType::CommonJs,
         ExternalTraced::Traced,
-        Some(context_dir),
+        context_dir,
     )
     .resolved_cell()
 }
@@ -1157,11 +1153,11 @@ fn external_request_to_esm_import_mapping(
     context_dir: ResolvedVc<FileSystemPath>,
     request: &str,
 ) -> ResolvedVc<ImportMapping> {
-    ImportMapping::External(
+    ImportMapping::PrimaryAlternativeExternal(
         Some(request.into()),
         ExternalType::EcmaScriptModule,
         ExternalTraced::Traced,
-        Some(context_dir),
+        context_dir,
     )
     .resolved_cell()
 }

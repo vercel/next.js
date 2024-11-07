@@ -2621,46 +2621,47 @@ async fn resolve_import_map_result(
                 ))
             }
         }
-        ImportMapResult::External(name, ty, traced, primary_alt) => {
-            let result = Some(
-                ResolveResult::primary(ResolveResultItem::External {
-                    name: name.clone(),
-                    ty: *ty,
-                    traced: *traced,
-                })
-                .cell(),
-            );
+        ImportMapResult::External(name, ty, traced) => Some(
+            ResolveResult::primary(ResolveResultItem::External {
+                name: name.clone(),
+                ty: *ty,
+                traced: *traced,
+            })
+            .cell(),
+        ),
+        ImportMapResult::AliasExternal(name, ty, traced, alias_lookup_path) => {
+            let request = Request::parse_string(name.clone());
 
-            if let Some(context_dir) = primary_alt {
-                let request = Request::parse_string(name.clone());
-
-                // We must avoid cycles during resolving
-                if request.resolve().await? == *original_request
-                    && context_dir.to_resolved().await? == original_lookup_path
-                {
-                    None
-                } else {
-                    let resolve_internal = resolve_internal(
-                        **context_dir,
-                        request,
-                        match ty {
-                            ExternalType::Url => options,
-                            // TODO is that root correct?
-                            ExternalType::CommonJs => node_cjs_resolve_options(context_dir.root()),
-                            ExternalType::EcmaScriptModule => {
-                                node_esm_resolve_options(context_dir.root())
-                            }
-                        },
-                    );
-
-                    if *resolve_internal.is_unresolvable().await? {
-                        None
-                    } else {
-                        result
+            // We must avoid cycles during resolving
+            if request.resolve().await? == *original_request
+                && alias_lookup_path.to_resolved().await? == original_lookup_path
+            {
+                None
+            } else if !(resolve_internal(
+                **alias_lookup_path,
+                request,
+                match ty {
+                    ExternalType::Url => options,
+                    // TODO is that root correct?
+                    ExternalType::CommonJs => node_cjs_resolve_options(alias_lookup_path.root()),
+                    ExternalType::EcmaScriptModule => {
+                        node_esm_resolve_options(alias_lookup_path.root())
                     }
-                }
+                },
+            )
+            .await?
+            .is_unresolvable_ref())
+            {
+                Some(
+                    ResolveResult::primary(ResolveResultItem::External {
+                        name: name.clone(),
+                        ty: *ty,
+                        traced: *traced,
+                    })
+                    .cell(),
+                )
             } else {
-                result
+                None
             }
         }
         ImportMapResult::Alternatives(list) => {

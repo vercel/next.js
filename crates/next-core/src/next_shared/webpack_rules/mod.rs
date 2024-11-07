@@ -38,7 +38,6 @@ async fn loader_runner_package_mapping() -> Result<Vc<ImportMapping>> {
         Some("next/dist/compiled/loader-runner".into()),
         ExternalType::CommonJs,
         ExternalTraced::Untraced,
-        None,
     )
     .resolved_cell()])
     .cell())

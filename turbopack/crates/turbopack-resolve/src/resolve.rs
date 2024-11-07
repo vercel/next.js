@@ -106,23 +106,13 @@ async fn base_resolve_options(
         for req in NODE_EXTERNALS {
             direct_mappings.insert(
                 AliasPattern::exact(req),
-                ImportMapping::External(
-                    None,
-                    ExternalType::CommonJs,
-                    ExternalTraced::Untraced,
-                    None,
-                )
-                .resolved_cell(),
+                ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Untraced)
+                    .resolved_cell(),
             );
             direct_mappings.insert(
                 AliasPattern::exact(format!("node:{req}")),
-                ImportMapping::External(
-                    None,
-                    ExternalType::CommonJs,
-                    ExternalTraced::Untraced,
-                    None,
-                )
-                .resolved_cell(),
+                ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Untraced)
+                    .resolved_cell(),
             );
         }
     }
@@ -134,19 +124,13 @@ async fn base_resolve_options(
                     Some(format!("node:{req}").into()),
                     ExternalType::CommonJs,
                     ExternalTraced::Untraced,
-                    None,
                 )
                 .resolved_cell(),
             );
             direct_mappings.insert(
                 AliasPattern::exact(format!("node:{req}")),
-                ImportMapping::External(
-                    None,
-                    ExternalType::CommonJs,
-                    ExternalTraced::Untraced,
-                    None,
-                )
-                .resolved_cell(),
+                ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Untraced)
+                    .resolved_cell(),
             );
         }
     }
