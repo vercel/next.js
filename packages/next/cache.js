@@ -1,10 +1,23 @@
 const cacheExports = {
   unstable_cache: require('next/dist/server/web/spec-extension/unstable-cache')
     .unstable_cache,
+
+  /**
+   * @deprecated this function has been deprecated in favor of expireTag()
+   */
   revalidateTag: require('next/dist/server/web/spec-extension/revalidate')
     .revalidateTag,
+  /**
+   * @deprecated this function has been deprecated in favor of expirePath()
+   */
   revalidatePath: require('next/dist/server/web/spec-extension/revalidate')
     .revalidatePath,
+
+  expireTag: require('next/dist/server/web/spec-extension/revalidate')
+    .expireTag,
+  expirePath: require('next/dist/server/web/spec-extension/revalidate')
+    .expirePath,
+
   unstable_noStore:
     require('next/dist/server/web/spec-extension/unstable-no-store')
       .unstable_noStore,
