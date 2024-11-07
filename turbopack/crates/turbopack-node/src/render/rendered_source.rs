@@ -171,11 +171,7 @@ impl GetContentSourceContent for NodeRenderContentSource {
     ) -> Result<Vc<ContentSourceContent>> {
         let pathname = self.pathname.await?;
         let Some(params) = &*self.route_match.params(path.clone()).await? else {
-            return Err(anyhow!(
-                "Non matching path ({}) provided for {}",
-                path,
-                pathname
-            ));
+            anyhow::bail!("Non matching path ({}) provided for {}", path, pathname)
         };
         let ContentSourceData {
             method: Some(method),
@@ -186,7 +182,7 @@ impl GetContentSourceContent for NodeRenderContentSource {
             ..
         } = &*data
         else {
-            return Err(anyhow!("Missing request data"));
+            anyhow::bail!("Missing request data")
         };
         let entry = (*self.entry).entry(data.clone()).await?;
         let result = render_static(

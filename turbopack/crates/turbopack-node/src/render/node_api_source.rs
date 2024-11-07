@@ -112,7 +112,7 @@ impl GetContentSourceContent for NodeApiContentSource {
         data: Value<ContentSourceData>,
     ) -> Result<Vc<ContentSourceContent>> {
         let Some(params) = &*self.route_match.params(path.clone()).await? else {
-            return Err(anyhow!("Non matching path provided"));
+            anyhow::bail!("Non matching path provided")
         };
         let ContentSourceData {
             method: Some(method),
@@ -124,7 +124,7 @@ impl GetContentSourceContent for NodeApiContentSource {
             ..
         } = &*data
         else {
-            return Err(anyhow!("Missing request data"));
+            anyhow::bail!("Missing request data")
         };
         let entry = (*self.entry).entry(data.clone()).await?;
         Ok(ContentSourceContent::HttpProxy(

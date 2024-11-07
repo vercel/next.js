@@ -37,10 +37,10 @@ impl OutputAsset for StaticAsset {
             if let FileContent::Content(file) = &*file.await? {
                 turbo_tasks_hash::hash_xxh3_hash64(file.content())
             } else {
-                return Err(anyhow!("StaticAsset::path: not found"));
+                anyhow::bail!("StaticAsset::path: not found")
             }
         } else {
-            return Err(anyhow!("StaticAsset::path: unsupported file content"));
+            anyhow::bail!("StaticAsset::path: unsupported file content")
         };
         let content_hash_b16 = turbo_tasks_hash::encode_hex(content_hash);
         let asset_path = self

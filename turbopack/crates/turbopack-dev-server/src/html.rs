@@ -191,7 +191,7 @@ impl DevHtmlAssetContent {
                     relative_path
                 ));
             } else {
-                return Err(anyhow!("chunk with unknown asset type: {}", relative_path));
+                anyhow::bail!("chunk with unknown asset type: {}", relative_path)
             }
         }
 

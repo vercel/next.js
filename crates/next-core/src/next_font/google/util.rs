@@ -72,12 +72,12 @@ pub(super) fn get_font_axes(
 
                 for tag in selected_variable_axes {
                     if !definable_axes_tags.contains(tag) {
-                        return Err(anyhow!(
+                        anyhow::bail!(
                             "Invalid axes value {} for font {}.\nAvailable axes: {}",
                             tag,
                             font_family,
                             definable_axes_tags.join(", ")
-                        ));
+                        )
                     }
                 }
             }
