@@ -52,7 +52,7 @@ async function cliPrompt(cwd: string): Promise<{ config?: any }> {
     bold(
       `${cyan(
         '?'
-      )} How would you like to configure ESLint? https://nextjs.org/docs/app/building-your-application/configuring/eslint`
+      )} How would you like to configure ESLint? https://nextjs.org/docs/app/api-reference/config/eslint`
     )
   )
 
@@ -263,7 +263,7 @@ async function lint(
     } else {
       Log.warn('')
       Log.warn(
-        'The Next.js plugin was not detected in your ESLint configuration. See https://nextjs.org/docs/app/building-your-application/configuring/eslint#migrating-existing-config'
+        'The Next.js plugin was not detected in your ESLint configuration. See https://nextjs.org/docs/app/api-reference/config/eslint#migrating-existing-config'
       )
     }
 
@@ -423,7 +423,7 @@ export async function runLintCheck(
         if (selectedConfig == null) {
           // Show a warning if no option is selected in prompt
           Log.warn(
-            'If you set up ESLint yourself, we recommend adding the Next.js ESLint plugin. See https://nextjs.org/docs/app/building-your-application/configuring/eslint#migrating-existing-config'
+            'If you set up ESLint yourself, we recommend adding the Next.js ESLint plugin. See https://nextjs.org/docs/app/api-reference/config/eslint#migrating-existing-config'
           )
           return null
         } else {
