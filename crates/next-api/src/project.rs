@@ -699,6 +699,7 @@ impl Project {
             self.client_compile_time_info().environment(),
             self.next_mode(),
             self.module_id_strategy(),
+            self.next_config().turbo_minify(self.next_mode()),
         )
     }
 
@@ -716,6 +717,7 @@ impl Project {
                 self.next_config().computed_asset_prefix(),
                 self.server_compile_time_info().environment(),
                 self.module_id_strategy(),
+                self.next_config().turbo_minify(self.next_mode()),
             )
         } else {
             get_server_chunking_context(
@@ -724,6 +726,7 @@ impl Project {
                 self.node_root(),
                 self.server_compile_time_info().environment(),
                 self.module_id_strategy(),
+                self.next_config().turbo_minify(self.next_mode()),
             )
         }
     }
@@ -742,6 +745,7 @@ impl Project {
                 self.next_config().computed_asset_prefix(),
                 self.edge_compile_time_info().environment(),
                 self.module_id_strategy(),
+                self.next_config().turbo_minify(self.next_mode()),
             )
         } else {
             get_edge_chunking_context(
@@ -750,6 +754,7 @@ impl Project {
                 self.node_root(),
                 self.edge_compile_time_info().environment(),
                 self.module_id_strategy(),
+                self.next_config().turbo_minify(self.next_mode()),
             )
         }
     }

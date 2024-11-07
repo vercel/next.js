@@ -135,7 +135,7 @@ clap = { version = "4.5.2", features = ["derive"] }
 concurrent-queue = "2.5.0"
 console = "0.15.5"
 console-subscriber = "0.1.8"
-criterion = "0.4.0"
+criterion = "0.5.1"
 crossbeam-channel = "0.5.8"
 dashmap = "5.4.0"
 dhat = { version = "0.3.2" }
@@ -147,7 +147,7 @@ futures-retry = "0.6.0"
 hashbrown = "0.14.5"
 httpmock = { version = "0.6.8", default-features = false }
 image = { version = "0.25.0", default-features = false }
-indexmap = "1.9.2"
+indexmap = "2.5.0"
 indicatif = "0.17.3"
 indoc = "2.0.0"
 itertools = "0.10.5"
