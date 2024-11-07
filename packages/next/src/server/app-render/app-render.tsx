@@ -171,7 +171,10 @@ import './clean-async-snapshot.external'
 import { INFINITE_CACHE } from '../../lib/constants'
 import { createComponentStylesAndScripts } from './create-component-styles-and-scripts'
 import { parseLoaderTree } from './parse-loader-tree'
-import { createPrerenderResumeDataCache } from '../resume-data-cache/resume-data-cache'
+import {
+  createPrerenderResumeDataCache,
+  createRenderResumeDataCache,
+} from '../resume-data-cache/resume-data-cache'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -590,8 +593,7 @@ async function generateDynamicFlightRenderResult(
  */
 async function warmupDevRender(
   req: BaseNextRequest,
-  ctx: AppRenderContext,
-  requestStore: RequestStore
+  ctx: AppRenderContext
 ): Promise<RenderResult> {
   const renderOpts = ctx.renderOpts
   if (!renderOpts.dev) {
@@ -614,50 +616,60 @@ async function warmupDevRender(
 
   // We're doing a dev warmup, so we should create a new resume data cache so
   // we can fill it.
-  const devWarmupPrerenderResumeDataCache = createPrerenderResumeDataCache()
+  const prerenderResumeDataCache = createPrerenderResumeDataCache()
 
-  // Attach this to the request store so that it can be used during the
-  // render.
-  requestStore.devWarmupPrerenderResumeDataCache =
-    devWarmupPrerenderResumeDataCache
+  const renderController = new AbortController()
+  const prerenderController = new AbortController()
+  const cacheSignal = new CacheSignal()
+  const prerenderStore: PrerenderStore = {
+    type: 'prerender',
+    phase: 'render',
+    implicitTags: [],
+    renderSignal: renderController.signal,
+    controller: prerenderController,
+    cacheSignal,
+    dynamicTracking: null,
+    revalidate: INFINITE_CACHE,
+    expire: INFINITE_CACHE,
+    stale: INFINITE_CACHE,
+    tags: [],
+    prerenderResumeDataCache,
+  }
 
   const rscPayload = await workUnitAsyncStorage.run(
-    requestStore,
+    prerenderStore,
     generateDynamicRSCPayload,
     ctx
   )
 
   // For app dir, use the bundled version of Flight server renderer (renderToReadableStream)
   // which contains the subset React.
-  const flightReadableStream = workUnitAsyncStorage.run(
-    requestStore,
+  workUnitAsyncStorage.run(
+    prerenderStore,
     ctx.componentMod.renderToReadableStream,
     rscPayload,
     ctx.clientReferenceManifest.clientModules,
     {
       onError,
+      signal: renderController.signal,
     }
   )
 
-  const reader = flightReadableStream.getReader()
-
-  // Read the entire stream.
-  while (true) {
-    if ((await reader.read()).done) {
-      break
-    }
-  }
-
-  // As we're finished rendering, remove the reference to the prerender resume
-  // data cache so it can't be written to again.
-  requestStore.devWarmupPrerenderResumeDataCache = null
+  // Wait for all caches to be finished filling
+  await cacheSignal.cacheReady()
+  // We unset the cache so any late over-run renders aren't able to write into this cache
+  prerenderStore.prerenderResumeDataCache = null
+  // Abort the render
+  renderController.abort()
 
   // We don't really want to return a result here but the stack of functions
   // that calls into renderToHTML... expects a result. We should refactor this to
   // lift the warmup pathway outside of renderToHTML... but for now this suffices
   return new FlightRenderResult('', {
     fetchMetrics: ctx.workStore.fetchMetrics,
-    devWarmupPrerenderResumeDataCache,
+    devRenderResumeDataCache: createRenderResumeDataCache(
+      prerenderResumeDataCache
+    ),
   })
 }
 
@@ -1270,7 +1282,7 @@ async function renderToHTMLOrFlightImpl(
   } else {
     // We're rendering dynamically
     const renderResumeDataCache =
-      renderOpts.devWarmupRenderResumeDataCache ??
+      renderOpts.devRenderResumeDataCache ??
       postponedState?.renderResumeDataCache
 
     const requestStore = createRequestStoreForRender(
@@ -1304,7 +1316,7 @@ async function renderToHTMLOrFlightImpl(
     }
 
     if (isDevWarmupRequest) {
-      return warmupDevRender(req, ctx, requestStore)
+      return warmupDevRender(req, ctx)
     } else if (isRSCRequest) {
       return generateDynamicFlightRenderResult(req, ctx, requestStore)
     }
@@ -1453,7 +1465,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
 
   if (
     postponedState?.renderResumeDataCache &&
-    renderOpts.devWarmupRenderResumeDataCache
+    renderOpts.devRenderResumeDataCache
   ) {
     throw new InvariantError(
       'postponed state and dev warmup immutable resume data cache should not be provided together'

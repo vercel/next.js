@@ -248,7 +248,6 @@ function createRequestStoreImpl(
       return cache.draftMode
     },
     renderResumeDataCache: renderResumeDataCache ?? null,
-    devWarmupPrerenderResumeDataCache: null,
     isHmrRefresh,
     serverComponentsHmrCache:
       serverComponentsHmrCache ||
