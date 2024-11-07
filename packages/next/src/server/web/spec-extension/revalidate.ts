@@ -34,7 +34,7 @@ export function revalidatePath(originalPath: string, type?: 'layout' | 'page') {
 /**
  * This function allows you to purge [cached data](https://nextjs.org/docs/app/building-your-application/caching) on-demand for a specific cache tag.
  *
- * Read more: [Next.js Docs: `revalidateTag`](https://nextjs.org/docs/app/api-reference/functions/expireTag)
+ * Read more: [Next.js Docs: `expireTag`](https://nextjs.org/docs/app/api-reference/functions/expireTag)
  */
 export function expireTag(...tags: string[]) {
   return revalidate(tags, `expireTag ${tags.join(', ')}`)
@@ -43,7 +43,7 @@ export function expireTag(...tags: string[]) {
 /**
  * This function allows you to purge [cached data](https://nextjs.org/docs/app/building-your-application/caching) on-demand for a specific path.
  *
- * Read more: [Next.js Docs: `revalidatePath`](https://nextjs.org/docs/app/api-reference/functions/revalidatePath)
+ * Read more: [Next.js Docs: `expirePath`](https://nextjs.org/docs/app/api-reference/functions/expirePath)
  */
 export function expirePath(originalPath: string, type?: 'layout' | 'page') {
   if (originalPath.length > NEXT_CACHE_SOFT_TAG_MAX_LENGTH) {
