@@ -127,7 +127,10 @@ pub struct ModuleOptionsContext {
 
     /// Generate (non-emitted) output assets for static assets and externals, to facilitate
     /// generating a list of all non-bundled files that will be required at runtime.
-    pub enable_file_tracing: Option<Vc<FileSystemPath>>,
+    ///
+    /// The filepath is the directory from which the bundled files will require the externals at
+    /// runtime.
+    pub enable_externals_tracing: Option<Vc<FileSystemPath>>,
 
     /// Custom rules to be applied after all default rules.
     pub module_rules: Vec<ModuleRule>,

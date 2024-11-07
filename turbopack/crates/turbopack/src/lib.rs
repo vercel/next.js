@@ -320,7 +320,7 @@ pub struct ModuleAssetContext {
     pub layer: Vc<RcStr>,
     transition: Option<ResolvedVc<Box<dyn Transition>>>,
     /// Whether to replace external resolutions with CachedExternalModules. Used with
-    /// ModuleOptionsContext.enable_tracing to handle transitive external dependencies.
+    /// ModuleOptionsContext.enable_externals_tracing to handle transitive external dependencies.
     replace_externals: bool,
 }
 
