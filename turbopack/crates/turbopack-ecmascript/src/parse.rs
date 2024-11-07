@@ -17,7 +17,7 @@ use swc_core::{
             helpers::{Helpers, HELPERS},
             resolver,
         },
-        visit::{FoldWith, VisitMutWith},
+        visit::VisitMutWith,
     },
 };
 use tracing::Instrument;
@@ -383,8 +383,8 @@ async fn parse_file_content(
                 es_version: EsVersion::latest(),
                 source_map: source_map.clone(),
             });
-            parsed_program =
-                parsed_program.fold_with(&mut swc_core::ecma::lints::rules::lint_to_fold(rules));
+
+            parsed_program.mutate(swc_core::ecma::lints::rules::lint_to_fold(rules));
             drop(span);
 
             let transform_context = TransformContext {

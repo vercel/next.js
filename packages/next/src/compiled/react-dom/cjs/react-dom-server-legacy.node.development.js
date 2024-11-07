@@ -5450,8 +5450,8 @@
                 key = node.key,
                 props = node.props;
               node = props.ref;
-              var ref = void 0 !== node ? node : null;
-              var name = getComponentNameFromType(type),
+              var ref = void 0 !== node ? node : null,
+                name = getComponentNameFromType(type),
                 keyOrIndex =
                   null == key ? (-1 === childIndex ? 0 : childIndex) : key,
                 keyPath = [task.keyPath, name, keyOrIndex];
@@ -8570,5 +8570,5 @@
         'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToPipeableStream" which supports Suspense on the server'
       );
     };
-    exports.version = "19.0.0-rc-7c8e5e7a-20241101";
+    exports.version = "19.0.0-rc-66855b96-20241106";
   })();
