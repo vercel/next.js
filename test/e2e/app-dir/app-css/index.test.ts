@@ -339,7 +339,8 @@ describe('app dir - css', () => {
         try {
           await next.patchFile(
             filePath,
-            origContent.replace('<h1>Hello</h1>', '<h1>Hello!</h1>')
+            origContent.replace('<h1>Hello</h1>', '<h1>Hello!</h1>'),
+            { skipWaitForChanges: true }
           )
 
           // Wait for HMR to trigger

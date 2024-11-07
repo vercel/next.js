@@ -70,48 +70,51 @@ describe('dynamic-io-segment-configs', () => {
           ${content}
         `
       },
-      async () => {
-        try {
-          await next.start()
-        } catch {
-          // we expect the build to fail
-        }
-
-        if (isNextDev) {
-          const browser = await next.browser('/revalidate')
-          await assertHasRedbox(browser)
-          const redbox = {
-            description: await getRedboxDescription(browser),
-            source: await getRedboxSource(browser),
+      {
+        skipWaitForChanges: true,
+        runWithTempContent: async () => {
+          try {
+            await next.start()
+          } catch {
+            // we expect the build to fail
           }
 
-          expect(redbox.description).toMatchInlineSnapshot(
-            `"Failed to compile"`
-          )
-          expect(redbox.source).toContain(
-            '"runtime" is not compatible with `nextConfig.experimental.dynamicIO`. Please remove it.'
-          )
-        } else {
-          await retry(async () => {
-            expect(next.cliOutput).toContain(
+          if (isNextDev) {
+            const browser = await next.browser('/revalidate')
+            await assertHasRedbox(browser)
+            const redbox = {
+              description: await getRedboxDescription(browser),
+              source: await getRedboxSource(browser),
+            }
+
+            expect(redbox.description).toMatchInlineSnapshot(
+              `"Failed to compile"`
+            )
+            expect(redbox.source).toContain(
               '"runtime" is not compatible with `nextConfig.experimental.dynamicIO`. Please remove it.'
             )
+          } else {
+            await retry(async () => {
+              expect(next.cliOutput).toContain(
+                '"runtime" is not compatible with `nextConfig.experimental.dynamicIO`. Please remove it.'
+              )
 
-            // the stack trace is different between turbopack/webpack
-            if (isTurbopack) {
-              expectLinesToAppearTogether(next.cliOutput, [
-                `Page: {"type":"app","side":"server","page":"/fetch-cache/page"}`,
-                './app/layout.tsx:2:24',
-              ])
-            } else {
-              expectLinesToAppearTogether(next.cliOutput, [
-                'Import trace for requested module:',
-                './app/fetch-cache/page.tsx',
-                './app/layout.tsx',
-              ])
-            }
-          })
-        }
+              // the stack trace is different between turbopack/webpack
+              if (isTurbopack) {
+                expectLinesToAppearTogether(next.cliOutput, [
+                  `Page: {"type":"app","side":"server","page":"/fetch-cache/page"}`,
+                  './app/layout.tsx:2:24',
+                ])
+              } else {
+                expectLinesToAppearTogether(next.cliOutput, [
+                  'Import trace for requested module:',
+                  './app/fetch-cache/page.tsx',
+                  './app/layout.tsx',
+                ])
+              }
+            })
+          }
+        },
       }
     )
   })

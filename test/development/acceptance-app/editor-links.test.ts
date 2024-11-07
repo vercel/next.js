@@ -62,7 +62,10 @@ describe('Error overlay - editor links', () => {
       outdent`
         import { useState } from 'react'
         export default () => 'hello world'
-      `
+      `,
+      {
+        skipWaitForChanges: true,
+      }
     )
 
     await session.assertHasRedbox()
@@ -107,7 +110,10 @@ describe('Error overlay - editor links', () => {
           outdent`
         import './mod1' 
         export default () => 'hello world'
-      `
+      `,
+          {
+            skipWaitForChanges: true,
+          }
         )
 
         await session.assertHasRedbox()
@@ -150,7 +156,8 @@ describe('Error overlay - editor links', () => {
           outdent`
         import './mod1' 
         export default () => 'hello world'
-      `
+      `,
+          { skipWaitForChanges: true }
         )
 
         await session.assertHasRedbox()

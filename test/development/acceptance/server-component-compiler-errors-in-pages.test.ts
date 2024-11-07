@@ -99,7 +99,8 @@ describe('Error Overlay for server components compiler errors in pages', () => {
         export default function Page() {
           return 'hello world'
         }
-      `
+      `,
+      { skipWaitForChanges: true }
     )
 
     await session.assertHasRedbox()
@@ -156,7 +157,8 @@ describe('Error Overlay for server components compiler errors in pages', () => {
         export default function Page() {
           return 'hello world'
         }
-      `
+      `,
+      { skipWaitForChanges: true }
     )
 
     await session.assertHasRedbox()

@@ -40,9 +40,13 @@ describe.each([
 
     ;(isNextDev ? describe : describe.skip)('development only', () => {
       it('should have body visible', async () => {
-        await next.patchFile('pages/index.js', (contents) => {
-          return contents.replace('<div />', '<div>')
-        })
+        await next.patchFile(
+          'pages/index.js',
+          (contents) => {
+            return contents.replace('<div />', '<div>')
+          },
+          { skipWaitForChanges: true }
+        )
 
         const browser = await next.browser('/')
         const currentDisplay = await browser.eval(

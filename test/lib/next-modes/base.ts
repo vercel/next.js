@@ -74,7 +74,7 @@ export class NextInstance {
   public forcedPort?: string
   public dirSuffix: string = ''
   public serverReadyPattern?: RegExp = / ✓ Ready in /
-  public serverCompiledPattern?: RegExp = / ✓ Compiled /
+  public serverCompiledPattern?: RegExp = /✓|⨯|Reload env/
 
   constructor(opts: NextInstanceOpts) {
     this.env = {}
@@ -501,7 +501,10 @@ export class NextInstance {
   public async patchFile(
     filename: string,
     content: string | ((content: string) => string),
-    runWithTempContent?: (context: { newFile: boolean }) => Promise<void>
+    config?: {
+      runWithTempContent?: (context: { newFile: boolean }) => Promise<void>
+      skipWaitForChanges?: boolean
+    }
   ): Promise<{ newFile: boolean }> {
     const outputPath = path.join(this.testDir, filename)
     const newFile = !existsSync(outputPath)
@@ -513,6 +516,7 @@ export class NextInstance {
       typeof content === 'function' ? content(previousContent) : content
     )
 
+    const runWithTempContent = config?.runWithTempContent
     if (runWithTempContent) {
       try {
         await runWithTempContent({ newFile })

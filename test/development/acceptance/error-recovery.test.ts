@@ -29,7 +29,8 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
             </main>
           )
         }
-      `
+      `,
+      { skipWaitForChanges: true }
     )
 
     await session.evaluate(() => document.querySelector('button').click())
@@ -37,7 +38,9 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('1')
 
-    await session.patch('index.js', `export default () => <div/`)
+    await session.patch('index.js', `export default () => <div/`, {
+      skipWaitForChanges: true,
+    })
 
     await session.assertHasRedbox()
     expect(await session.getRedboxSource()).toInclude(
@@ -59,7 +62,8 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
             </main>
           )
         }
-      `
+      `,
+      { skipWaitForChanges: true }
     )
 
     await check(

@@ -153,7 +153,10 @@ export class NextDevInstance extends NextInstance {
   public override async patchFile(
     filename: string,
     content: string | ((contents: string) => string),
-    runWithTempContent?: (context: { newFile: boolean }) => Promise<void>
+    config?: {
+      runWithTempContent?: (context: { newFile: boolean }) => Promise<void>
+      skipWaitForChanges?: boolean
+    }
   ) {
     const isServerRunning = this.childProcess && !this.isStopping
     const cliOutputLength = this.cliOutput.length
@@ -163,6 +166,9 @@ export class NextDevInstance extends NextInstance {
     }
 
     const waitForChanges = async ({ newFile }: { newFile: boolean }) => {
+      if (config?.skipWaitForChanges) {
+        return
+      }
       if (isServerRunning) {
         if (newFile) {
           await this.handleDevWatchDelayAfterChange(filename)
@@ -175,30 +181,28 @@ export class NextDevInstance extends NextInstance {
             }
           })
         } else {
-          try {
-            await retry(async () => {
-              const cliOutput = this.cliOutput.slice(cliOutputLength)
-
-              if (!this.serverCompiledPattern.test(cliOutput)) {
-                throw new Error('Server has not finished restarting.')
-              }
-            }, 5000)
-          } catch (e) {
-            /** Fail silently because not all change will be reflected in the server output */
-          }
+          await retry(async () => {
+            const cliOutput = this.cliOutput.slice(cliOutputLength)
+            if (!this.serverCompiledPattern.test(cliOutput)) {
+              throw new Error('Server has not responded to the file change.')
+            }
+          }, 5000)
         }
       }
     }
 
+    const runWithTempContent = config?.runWithTempContent
     if (runWithTempContent) {
-      return super.patchFile(filename, content, async ({ newFile }) => {
-        await waitForChanges({ newFile })
-        await runWithTempContent({ newFile })
+      return super.patchFile(filename, content, {
+        runWithTempContent: async ({ newFile }) => {
+          await waitForChanges({ newFile })
+          await runWithTempContent({ newFile })
+        },
       })
     }
 
     const { newFile } = await super.patchFile(filename, content)
-    await retry(() => waitForChanges({ newFile }))
+    await waitForChanges({ newFile })
 
     return { newFile }
   }

@@ -22,7 +22,10 @@ describe('Error overlay - RSC runtime errors', () => {
         callClientApi()
         return 'page'
       }
-    `
+    `,
+      {
+        skipWaitForChanges: true,
+      }
     )
 
     const browser = await next.browser('/server')
@@ -45,7 +48,10 @@ describe('Error overlay - RSC runtime errors', () => {
         callServerApi()
         return 'page'
       }
-    `
+    `,
+      {
+        skipWaitForChanges: true,
+      }
     )
 
     const browser = await next.browser('/client')
@@ -65,7 +71,10 @@ describe('Error overlay - RSC runtime errors', () => {
         export default function Page() {
           return <div>{alert('warn')}</div>
         }
-      `
+      `,
+      {
+        skipWaitForChanges: true,
+      }
     )
 
     const browser = await next.browser('/server')
@@ -84,7 +93,10 @@ describe('Error overlay - RSC runtime errors', () => {
           await fetch('http://locahost:3000/xxxx')
           return 'page'
         }
-        `
+        `,
+      {
+        skipWaitForChanges: true,
+      }
     )
     const browser = await next.browser('/server')
     await assertHasRedbox(browser)
@@ -102,7 +114,8 @@ describe('Error overlay - RSC runtime errors', () => {
         export default function Page() {
           throw new Error('test')
         }
-        `
+        `,
+      { skipWaitForChanges: true }
     )
     const browser = await next.browser('/server')
 
@@ -118,7 +131,8 @@ describe('Error overlay - RSC runtime errors', () => {
         export default function Page() {
           throw new Error('test')
         }
-        `
+        `,
+      { skipWaitForChanges: true }
     )
     const browser = await next.browser('/server')
 

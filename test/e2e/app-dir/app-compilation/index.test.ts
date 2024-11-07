@@ -48,12 +48,14 @@ describe('app dir', () => {
           'app/page-with-loading/page.js',
           (content) =>
             content.replace('hello from slow page', 'hello from new page'),
-          async () =>
-            retry(async () => {
-              const headline = await browser.elementByCss('h1').text()
-              expect(headline).toBe('hello from new page')
-              await browser.close()
-            })
+          {
+            runWithTempContent: async () =>
+              retry(async () => {
+                const headline = await browser.elementByCss('h1').text()
+                expect(headline).toBe('hello from new page')
+                await browser.close()
+              }),
+          }
         )
       })
     })

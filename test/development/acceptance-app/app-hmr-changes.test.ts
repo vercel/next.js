@@ -41,21 +41,35 @@ describe('Error overlay - RSC build errors', () => {
 
         const break1 = originalPage.replace('break 1', '<Figure>')
 
-        await session.patch(pagePath, break1)
+        await session.patch(pagePath, break1, {
+          skipWaitForChanges: true,
+        })
 
         const break2 = break1.replace('{/* break point 2 */}', '<Figure />')
 
-        await session.patch(pagePath, break2)
+        await session.patch(pagePath, break2, {
+          skipWaitForChanges: true,
+        })
 
         for (let i = 0; i < 5; i++) {
-          await session.patch(pagePath, break2.replace('break 3', '<Hello />'))
+          await session.patch(
+            pagePath,
+            break2.replace('break 3', '<Hello />'),
+            { skipWaitForChanges: true }
+          )
 
-          await session.patch(pagePath, break2)
+          await session.patch(pagePath, break2, {
+            skipWaitForChanges: true,
+          })
           await session.assertHasRedbox()
 
-          await session.patch(pagePath, break1)
+          await session.patch(pagePath, break1, {
+            skipWaitForChanges: true,
+          })
 
-          await session.patch(pagePath, originalPage)
+          await session.patch(pagePath, originalPage, {
+            skipWaitForChanges: true,
+          })
           await session.assertNoRedbox()
         }
 

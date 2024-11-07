@@ -77,7 +77,10 @@ describe('Type module interop', () => {
         JSON.stringify({
           ...pkg,
           type: 'module',
-        })
+        }),
+        {
+          skipWaitForChanges: true,
+        }
       )
     }
   })

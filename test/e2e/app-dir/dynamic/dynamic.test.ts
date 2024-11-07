@@ -69,7 +69,10 @@ describe('app dir - next/dynamic', () => {
       const page = await next.readFile(pagePath)
       await next.patchFile(
         pagePath,
-        page.replace('const isDevTest = false', 'const isDevTest = true')
+        page.replace('const isDevTest = false', 'const isDevTest = true'),
+        {
+          skipWaitForChanges: true,
+        }
       )
       await retry(async () => {
         const { status } = await next.fetch('/default-loading')

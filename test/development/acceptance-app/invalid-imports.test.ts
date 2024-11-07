@@ -227,7 +227,9 @@ describe('Error Overlay invalid imports', () => {
 
     const file = 'app/page.js'
     const content = await next.readFile(file)
-    await session.patch(file, "'use client'\n" + content)
+    await session.patch(file, "'use client'\n" + content, {
+      skipWaitForChanges: !!process.env.TURBOPACK, // TODO: server console did not show errors in turbopack, remove this flag when fixed
+    })
 
     await session.assertHasRedbox()
     if (process.env.TURBOPACK) {

@@ -19,8 +19,12 @@ describe('app-invalid-revalidate', () => {
     try {
       await next.patchFile(
         'app/layout.tsx',
-        origText.replace('// export', 'export')
+        origText.replace('// export', 'export'),
+        {
+          skipWaitForChanges: true,
+        }
       )
+
       await next.start().catch(() => {})
 
       await check(async () => {
@@ -30,7 +34,9 @@ describe('app-invalid-revalidate', () => {
         return next.cliOutput
       }, /Invalid revalidate value "1" on "\/", must be a non-negative number or false/)
     } finally {
-      await next.patchFile('app/layout.tsx', origText)
+      await next.patchFile('app/layout.tsx', origText, {
+        skipWaitForChanges: true,
+      })
     }
   })
 
@@ -41,7 +47,8 @@ describe('app-invalid-revalidate', () => {
     try {
       await next.patchFile(
         'app/page.tsx',
-        origText.replace('// export', 'export')
+        origText.replace('// export', 'export'),
+        { skipWaitForChanges: true }
       )
       await next.start().catch(() => {})
 
@@ -52,7 +59,9 @@ describe('app-invalid-revalidate', () => {
         return next.cliOutput
       }, /Invalid revalidate value "1" on "\/", must be a non-negative number or false/)
     } finally {
-      await next.patchFile('app/page.tsx', origText)
+      await next.patchFile('app/page.tsx', origText, {
+        skipWaitForChanges: true,
+      })
     }
   })
 
@@ -63,7 +72,8 @@ describe('app-invalid-revalidate', () => {
     try {
       await next.patchFile(
         'app/page.tsx',
-        origText.replace('// await', 'await')
+        origText.replace('// await', 'await'),
+        { skipWaitForChanges: true }
       )
       await next.start().catch(() => {})
 
@@ -74,7 +84,9 @@ describe('app-invalid-revalidate', () => {
         return next.cliOutput
       }, /Invalid revalidate value "1" on "\/", must be a non-negative number or false/)
     } finally {
-      await next.patchFile('app/page.tsx', origText)
+      await next.patchFile('app/page.tsx', origText, {
+        skipWaitForChanges: true,
+      })
     }
   })
 
@@ -85,7 +97,8 @@ describe('app-invalid-revalidate', () => {
     try {
       await next.patchFile(
         'app/page.tsx',
-        origText.replace('// await unstable', 'await unstable')
+        origText.replace('// await unstable', 'await unstable'),
+        { skipWaitForChanges: true }
       )
       await next.start().catch(() => {})
 
@@ -96,7 +109,9 @@ describe('app-invalid-revalidate', () => {
         return next.cliOutput
       }, /Invalid revalidate value "1" on "unstable_cache/)
     } finally {
-      await next.patchFile('app/page.tsx', origText)
+      await next.patchFile('app/page.tsx', origText, {
+        skipWaitForChanges: true,
+      })
     }
   })
 })

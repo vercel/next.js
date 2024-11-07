@@ -235,15 +235,18 @@ describe('app-dir - logging', () => {
           await next.patchFile(
             'app/fetch-no-store/page.js',
             (content) => content.replace('Hello World!', 'Hello Test!'),
-            async () =>
-              retry(async () => {
-                headline = await browser.waitForElementByCss('h1').text()
-                expect(headline).toBe('Hello Test!')
-                const logs = stripAnsi(next.cliOutput.slice(outputIndex))
-                expect(logs).toInclude(' GET /fetch-no-store')
-                expect(logs).not.toInclude(` │ GET `)
-                // TODO: remove custom duration in case we increase the default.
-              }, 5000)
+            {
+              runWithTempContent: async () => {
+                await retry(async () => {
+                  headline = await browser.waitForElementByCss('h1').text()
+                  expect(headline).toBe('Hello Test!')
+                  const logs = stripAnsi(next.cliOutput.slice(outputIndex))
+                  expect(logs).toInclude(' GET /fetch-no-store')
+                  expect(logs).not.toInclude(` │ GET `)
+                  // TODO: remove custom duration in case we increase the default.
+                }, 5000)
+              },
+            }
           )
         })
 
@@ -269,25 +272,27 @@ describe('app-dir - logging', () => {
             await next.patchFile(
               'app/fetch-no-store/page.js',
               (content) => content.replace('Hello World!', 'Hello Test!'),
-              async () => {
-                const expectedUrl = withFullUrlFetches
-                  ? 'https://next-data-api-endpoint.vercel.app/api/random'
-                  : 'https://next-data-api-en../api/random'
+              {
+                runWithTempContent: async () => {
+                  const expectedUrl = withFullUrlFetches
+                    ? 'https://next-data-api-endpoint.vercel.app/api/random'
+                    : 'https://next-data-api-en../api/random'
 
-                return retry(async () => {
-                  headline = await browser.waitForElementByCss('h1').text()
-                  expect(headline).toBe('Hello Test!')
+                  return retry(async () => {
+                    headline = await browser.waitForElementByCss('h1').text()
+                    expect(headline).toBe('Hello Test!')
 
-                  const logs = stripAnsi(
-                    next.cliOutput.slice(outputIndex)
-                  ).replace(/\d+ms/g, '1ms')
+                    const logs = stripAnsi(
+                      next.cliOutput.slice(outputIndex)
+                    ).replace(/\d+ms/g, '1ms')
 
-                  expect(logs).toInclude(' GET /fetch-no-store')
-                  expect(logs).toInclude(
-                    ` │ GET ${expectedUrl}?request-input 200 in 1ms (HMR cache)`
-                  )
-                  // TODO: remove custom duration in case we increase the default.
-                }, 5000)
+                    expect(logs).toInclude(' GET /fetch-no-store')
+                    expect(logs).toInclude(
+                      ` │ GET ${expectedUrl}?request-input 200 in 1ms (HMR cache)`
+                    )
+                    // TODO: remove custom duration in case we increase the default.
+                  }, 5000)
+                },
               }
             )
           })

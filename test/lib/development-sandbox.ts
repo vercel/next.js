@@ -14,8 +14,8 @@ import {
   getRedboxErrorLink,
 } from './next-test-utils'
 import webdriver, { WebdriverOptions } from './next-webdriver'
-import { NextInstance } from './next-modes/base'
 import { BrowserInterface } from './browsers/base'
+import { NextInstance } from './next-modes/base'
 
 export function waitForHydration(browser: BrowserInterface): Promise<void> {
   return browser.evalAsync(function () {
@@ -52,11 +52,18 @@ export async function sandbox(
   return {
     browser,
     session: {
-      async write(filename, content) {
-        // Update the file on filesystem
-        await next.patchFile(filename, content)
+      async write(
+        filename,
+        content,
+        config?: { skipWaitForChanges?: boolean }
+      ) {
+        await next.patchFile(filename, content, config)
       },
-      async patch(filename, content) {
+      async patch(
+        filename,
+        content,
+        config?: { skipWaitForChanges?: boolean }
+      ) {
         // Register an event for HMR completion
         await browser.eval(function () {
           ;(window as any).__HMR_STATE = 'pending'
@@ -70,7 +77,7 @@ export async function sandbox(
           }
         })
 
-        await this.write(filename, content)
+        await this.write(filename, content, config)
 
         for (;;) {
           const status = await browser.eval(() => (window as any).__HMR_STATE)

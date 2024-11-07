@@ -24,7 +24,10 @@ describe('middleware - development errors', () => {
         `
       export default function () {
         throw new Error('boom')
-      }`
+      }`,
+        {
+          skipWaitForChanges: true,
+        }
       )
 
       await next.start()
@@ -54,7 +57,9 @@ describe('middleware - development errors', () => {
     it('renders the error correctly and recovers', async () => {
       const browser = await next.browser('/')
       await assertHasRedbox(browser)
-      await next.patchFile('middleware.js', `export default function () {}`)
+      await next.patchFile('middleware.js', `export default function () {}`, {
+        skipWaitForChanges: true,
+      })
       await assertNoRedbox(browser)
     })
   })
@@ -71,7 +76,10 @@ describe('middleware - development errors', () => {
       export default function () {
         throwError()
         return NextResponse.next()
-      }`
+      }`,
+        {
+          skipWaitForChanges: true,
+        }
       )
 
       await next.start()
@@ -111,7 +119,10 @@ describe('middleware - development errors', () => {
       export default function () {
         eval('test')
         return NextResponse.next()
-      }`
+      }`,
+        {
+          skipWaitForChanges: true,
+        }
       )
 
       await next.start()
@@ -159,7 +170,9 @@ describe('middleware - development errors', () => {
       const browser = await next.browser('/')
       await assertHasRedbox(browser)
       expect(await getRedboxSource(browser)).toContain(`eval('test')`)
-      await next.patchFile('middleware.js', `export default function () {}`)
+      await next.patchFile('middleware.js', `export default function () {}`, {
+        skipWaitForChanges: true,
+      })
       await assertNoRedbox(browser)
     })
   })
@@ -173,7 +186,10 @@ describe('middleware - development errors', () => {
       throw new Error('booooom!')
       export default function () {
         return NextResponse.next()
-      }`
+      }`,
+        {
+          skipWaitForChanges: true,
+        }
       )
       await next.start()
     })
@@ -206,7 +222,9 @@ describe('middleware - development errors', () => {
       expect(source).toContain(`throw new Error('booooom!')`)
       expect(source).toContain('middleware.js')
       expect(source).not.toContain('//middleware.js')
-      await next.patchFile('middleware.js', `export default function () {}`)
+      await next.patchFile('middleware.js', `export default function () {}`, {
+        skipWaitForChanges: true,
+      })
       await assertNoRedbox(browser)
     })
   })
@@ -223,7 +241,10 @@ describe('middleware - development errors', () => {
 
       export default function () {
         return NextResponse.next()
-      }`
+      }`,
+        {
+          skipWaitForChanges: true,
+        }
       )
 
       await next.start()
@@ -257,7 +278,10 @@ describe('middleware - development errors', () => {
 
       export default function () {
         return NextResponse.next()
-      }`
+      }`,
+        {
+          skipWaitForChanges: true,
+        }
       )
 
       await next.start()
@@ -287,7 +311,9 @@ describe('middleware - development errors', () => {
 
   describe('when there is a compilation error from boot', () => {
     beforeEach(async () => {
-      await next.patchFile('middleware.js', `export default function () }`)
+      await next.patchFile('middleware.js', `export default function () }`, {
+        skipWaitForChanges: true,
+      })
 
       await next.start()
     })
@@ -310,7 +336,9 @@ describe('middleware - development errors', () => {
       expect(
         await browser.elementByCss('#nextjs__container_errors_desc').text()
       ).toEqual('Failed to compile')
-      await next.patchFile('middleware.js', `export default function () {}`)
+      await next.patchFile('middleware.js', `export default function () {}`, {
+        skipWaitForChanges: true,
+      })
       await assertNoRedbox(browser)
       expect(await browser.elementByCss('#page-title')).toBeTruthy()
     })
@@ -318,13 +346,17 @@ describe('middleware - development errors', () => {
 
   describe('when there is a compilation error after boot', () => {
     beforeEach(async () => {
-      await next.patchFile('middleware.js', `export default function () {}`)
+      await next.patchFile('middleware.js', `export default function () {}`, {
+        skipWaitForChanges: true,
+      })
 
       await next.start()
     })
 
     it('logs the error correctly', async () => {
-      await next.patchFile('middleware.js', `export default function () }`)
+      await next.patchFile('middleware.js', `export default function () }`, {
+        skipWaitForChanges: true,
+      })
       await next.fetch('/')
 
       await check(() => {
@@ -339,9 +371,13 @@ describe('middleware - development errors', () => {
     it('renders the error correctly and recovers', async () => {
       const browser = await next.browser('/')
       await assertNoRedbox(browser)
-      await next.patchFile('middleware.js', `export default function () }`)
+      await next.patchFile('middleware.js', `export default function () }`, {
+        skipWaitForChanges: true,
+      })
       await assertHasRedbox(browser)
-      await next.patchFile('middleware.js', `export default function () {}`)
+      await next.patchFile('middleware.js', `export default function () {}`, {
+        skipWaitForChanges: true,
+      })
       await assertNoRedbox(browser)
       expect(await browser.elementByCss('#page-title')).toBeTruthy()
     })

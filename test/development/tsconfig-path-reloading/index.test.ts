@@ -43,7 +43,9 @@ describe('tsconfig-path-reloading', () => {
       })
 
       if (addAfterStart) {
-        await next.patchFile(tsConfigFile, tsConfigContent)
+        await next.patchFile(tsConfigFile, tsConfigContent, {
+          skipWaitForChanges: true,
+        })
       }
     })
     afterAll(() => next.destroy())
@@ -79,7 +81,8 @@ describe('tsconfig-path-reloading', () => {
           `import {secondData} from "@lib/second-data"\n${indexContent.replace(
             '</p>',
             `</p><p id="second-data">{JSON.stringify(secondData)}</p>`
-          )}`
+          )}`,
+          { skipWaitForChanges: true }
         )
 
         await assertHasRedbox(browser)
@@ -100,7 +103,8 @@ describe('tsconfig-path-reloading', () => {
             },
             null,
             2
-          )
+          ),
+          { skipWaitForChanges: true }
         )
 
         await assertNoRedbox(browser)
@@ -111,8 +115,12 @@ describe('tsconfig-path-reloading', () => {
         expect(html2).toContain('first-data')
         expect(html2).toContain('second-data')
       } finally {
-        await next.patchFile(indexPage, indexContent)
-        await next.patchFile(tsConfigFile, tsconfigContent)
+        await next.patchFile(indexPage, indexContent, {
+          skipWaitForChanges: true,
+        })
+        await next.patchFile(tsConfigFile, tsconfigContent, {
+          skipWaitForChanges: true,
+        })
         await check(async () => {
           const html3 = await browser.eval('document.documentElement.innerHTML')
           return html3.includes('id="first-data"') &&
@@ -151,11 +159,15 @@ describe('tsconfig-path-reloading', () => {
             },
             null,
             2
-          )
+          ),
+          {
+            skipWaitForChanges: true,
+          }
         )
         await next.patchFile(
           indexPage,
-          indexContent.replace('@mybutton', '@myotherbutton')
+          indexContent.replace('@mybutton', '@myotherbutton'),
+          { skipWaitForChanges: true }
         )
 
         await assertNoRedbox(browser)
@@ -169,8 +181,12 @@ describe('tsconfig-path-reloading', () => {
           return 'success'
         }, 'success')
       } finally {
-        await next.patchFile(indexPage, indexContent)
-        await next.patchFile(tsConfigFile, tsconfigContent)
+        await next.patchFile(indexPage, indexContent, {
+          skipWaitForChanges: true,
+        })
+        await next.patchFile(tsConfigFile, tsconfigContent, {
+          skipWaitForChanges: true,
+        })
         await check(async () => {
           const html3 = await browser.eval('document.documentElement.innerHTML')
           return html3.includes('first button') &&

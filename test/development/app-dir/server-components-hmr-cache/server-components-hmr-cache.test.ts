@@ -25,15 +25,17 @@ describe('server-components-hmr-cache', () => {
       await next.patchFile(
         'components/shared-page.tsx',
         (content) => content.replace('foo', 'bar'),
-        async () => {
-          await retry(async () => {
-            const updatedContent = await browser.elementById('content').text()
-            expect(updatedContent).toBe('bar')
-            // TODO: remove custom duration in case we increase the default.
-          }, 5000)
+        {
+          runWithTempContent: async () => {
+            await retry(async () => {
+              const updatedContent = await browser.elementById('content').text()
+              expect(updatedContent).toBe('bar')
+              // TODO: remove custom duration in case we increase the default.
+            }, 5000)
 
-          const valueAfterPatch = await browser.elementById('value').text()
-          expect(valueBeforePatch).toEqual(valueAfterPatch)
+            const valueAfterPatch = await browser.elementById('value').text()
+            expect(valueBeforePatch).toEqual(valueAfterPatch)
+          },
         }
       )
     })
@@ -63,15 +65,19 @@ describe('server-components-hmr-cache', () => {
         await next.patchFile(
           'components/shared-page.tsx',
           (content) => content.replace('foo', 'bar'),
-          async () => {
-            await retry(async () => {
-              const updatedContent = await browser.elementById('content').text()
-              expect(updatedContent).toBe('bar')
-              // TODO: remove custom duration in case we increase the default.
-            }, 5000)
+          {
+            runWithTempContent: async () => {
+              await retry(async () => {
+                const updatedContent = await browser
+                  .elementById('content')
+                  .text()
+                expect(updatedContent).toBe('bar')
+                // TODO: remove custom duration in case we increase the default.
+              }, 5000)
 
-            const valueAfterPatch = getLoggedAfterValue()
-            expect(valueBeforePatch).toEqual(valueAfterPatch)
+              const valueAfterPatch = getLoggedAfterValue()
+              expect(valueBeforePatch).toEqual(valueAfterPatch)
+            },
           }
         )
       })
@@ -117,15 +123,19 @@ describe('server-components-hmr-cache', () => {
         await next.patchFile(
           'components/shared-page.tsx',
           (content) => content.replace('foo', 'bar'),
-          async () => {
-            await retry(async () => {
-              const updatedContent = await browser.elementById('content').text()
-              expect(updatedContent).toBe('bar')
-              // TODO: remove custom duration in case we increase the default.
-            }, 5000)
+          {
+            runWithTempContent: async () => {
+              await retry(async () => {
+                const updatedContent = await browser
+                  .elementById('content')
+                  .text()
+                expect(updatedContent).toBe('bar')
+                // TODO: remove custom duration in case we increase the default.
+              }, 5000)
 
-            const valueAfterPatch = await browser.elementById('value').text()
-            expect(valueBeforePatch).not.toEqual(valueAfterPatch)
+              const valueAfterPatch = await browser.elementById('value').text()
+              expect(valueBeforePatch).not.toEqual(valueAfterPatch)
+            },
           }
         )
       })
@@ -143,17 +153,19 @@ describe('server-components-hmr-cache', () => {
           await next.patchFile(
             'components/shared-page.tsx',
             (content) => content.replace('foo', 'bar'),
-            async () => {
-              await retry(async () => {
-                const updatedContent = await browser
-                  .elementById('content')
-                  .text()
-                expect(updatedContent).toBe('bar')
-                // TODO: remove custom duration in case we increase the default.
-              }, 5000)
+            {
+              runWithTempContent: async () => {
+                await retry(async () => {
+                  const updatedContent = await browser
+                    .elementById('content')
+                    .text()
+                  expect(updatedContent).toBe('bar')
+                  // TODO: remove custom duration in case we increase the default.
+                }, 5000)
 
-              const valueAfterPatch = await retry(() => getLoggedAfterValue())
-              expect(valueBeforePatch).not.toEqual(valueAfterPatch)
+                const valueAfterPatch = await retry(() => getLoggedAfterValue())
+                expect(valueBeforePatch).not.toEqual(valueAfterPatch)
+              },
             }
           )
         })

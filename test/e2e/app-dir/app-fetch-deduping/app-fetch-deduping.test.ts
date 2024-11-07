@@ -78,7 +78,8 @@ describe('app-fetch-deduping', () => {
             const time = await getTime()
           
             return <h1>{time}</h1>
-          }`
+          }`,
+          { skipWaitForChanges: true }
         )
 
         await next.render('/test')
@@ -104,7 +105,8 @@ describe('app-fetch-deduping', () => {
             const time = await getTime()
           
             return <h1>{time}</h1>
-          }`
+          }`,
+          { skipWaitForChanges: true }
         )
 
         await next.render('/test')

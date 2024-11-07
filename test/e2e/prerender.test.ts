@@ -1066,14 +1066,16 @@ describe('Prerender', () => {
 
         export default ({ url }) => <p>url: {url}</p>
       `,
-          async () =>
-            retry(async () => {
-              const html = await renderViaHTTP(next.url, '/url-prop')
-              expect(next.cliOutput).not.toMatch(
-                /The prop `url` is a reserved prop in Next.js for legacy reasons and will be overridden on page \/url-prop/
-              )
-              expect(html).toMatch(/url:.*?something/)
-            })
+          {
+            runWithTempContent: async () =>
+              retry(async () => {
+                const html = await renderViaHTTP(next.url, '/url-prop')
+                expect(next.cliOutput).not.toMatch(
+                  /The prop `url` is a reserved prop in Next.js for legacy reasons and will be overridden on page \/url-prop/
+                )
+                expect(html).toMatch(/url:.*?something/)
+              }),
+          }
         )
       })
 
@@ -1134,17 +1136,19 @@ describe('Prerender', () => {
         await next.patchFile(
           'pages/index.js',
           (content) => content.replace('// throw new', 'throw new'),
-          async () => {
-            // we need to reload the page to trigger getStaticProps
-            await browser.refresh()
+          {
+            runWithTempContent: async () => {
+              // we need to reload the page to trigger getStaticProps
+              await browser.refresh()
 
-            return retry(async () => {
-              await assertHasRedbox(browser)
-              const errOverlayContent = await getRedboxHeader(browser)
-              const errorMsg = /oops from getStaticProps/
-              expect(next.cliOutput).toMatch(errorMsg)
-              expect(errOverlayContent).toMatch(errorMsg)
-            })
+              return retry(async () => {
+                await assertHasRedbox(browser)
+                const errOverlayContent = await getRedboxHeader(browser)
+                const errorMsg = /oops from getStaticProps/
+                expect(next.cliOutput).toMatch(errorMsg)
+                expect(errOverlayContent).toMatch(errorMsg)
+              })
+            },
           }
         )
       })
@@ -1176,11 +1180,13 @@ describe('Prerender', () => {
         await next.patchFile(
           'pages/index.js',
           (content) => content.replace(/\/\/ bad-prop/, 'another: true,'),
-          async () =>
-            retry(async () => {
-              const html = await renderViaHTTP(next.url, '/')
-              expect(html).toMatch(/Additional keys were returned/)
-            })
+          {
+            runWithTempContent: async () =>
+              retry(async () => {
+                const html = await renderViaHTTP(next.url, '/')
+                expect(html).toMatch(/Additional keys were returned/)
+              }),
+          }
         )
       })
 
@@ -1197,13 +1203,15 @@ describe('Prerender', () => {
           }
           export default () => 'oops'
         `,
-          async () =>
-            retry(async () => {
-              const html = await renderViaHTTP(next.url, '/temp/hello')
-              expect(html).toMatch(
-                /getStaticPaths is required for dynamic SSG pages and is missing for/
-              )
-            })
+          {
+            runWithTempContent: async () =>
+              retry(async () => {
+                const html = await renderViaHTTP(next.url, '/temp/hello')
+                expect(html).toMatch(
+                  /getStaticPaths is required for dynamic SSG pages and is missing for/
+                )
+              }),
+          }
         )
       })
 
@@ -1225,11 +1233,13 @@ describe('Prerender', () => {
           }
           export default () => 'oops'
         `,
-          async () =>
-            retry(async () => {
-              const html = await renderViaHTTP(next.url, '/temp2/hello')
-              expect(html).toMatch(/`fallback` key must be returned from/)
-            })
+          {
+            runWithTempContent: async () =>
+              retry(async () => {
+                const html = await renderViaHTTP(next.url, '/temp2/hello')
+                expect(html).toMatch(/`fallback` key must be returned from/)
+              }),
+          }
         )
       })
 
@@ -2247,22 +2257,24 @@ describe('Prerender', () => {
 
     if (!isDev && !isDeploy) {
       it('should automatically reset cache TTL when an error occurs and build cache was available', async () => {
-        await next.patchFile('error.txt', 'yes', async () => {
-          await waitFor(2000)
+        await next.patchFile('error.txt', 'yes', {
+          runWithTempContent: async () => {
+            await waitFor(2000)
 
-          for (let i = 0; i < 5; i++) {
-            const res = await fetchViaHTTP(
-              next.url,
-              '/blocking-fallback/test-errors-1'
-            )
-            expect(res.status).toBe(200)
-          }
+            for (let i = 0; i < 5; i++) {
+              const res = await fetchViaHTTP(
+                next.url,
+                '/blocking-fallback/test-errors-1'
+              )
+              expect(res.status).toBe(200)
+            }
 
-          return retry(async () => {
-            expect(next.cliOutput).toMatch(
-              /throwing error for \/blocking-fallback\/test-errors-1/
-            )
-          })
+            return retry(async () => {
+              expect(next.cliOutput).toMatch(
+                /throwing error for \/blocking-fallback\/test-errors-1/
+              )
+            })
+          },
         })
       })
 
@@ -2275,20 +2287,22 @@ describe('Prerender', () => {
         expect(res.status).toBe(200)
         await waitFor(2000)
 
-        await next.patchFile('error.txt', 'yes', async () => {
-          for (let i = 0; i < 5; i++) {
-            const res = await fetchViaHTTP(
-              next.url,
-              '/blocking-fallback/test-errors-2'
-            )
-            expect(res.status).toBe(200)
-          }
+        await next.patchFile('error.txt', 'yes', {
+          runWithTempContent: async () => {
+            for (let i = 0; i < 5; i++) {
+              const res = await fetchViaHTTP(
+                next.url,
+                '/blocking-fallback/test-errors-2'
+              )
+              expect(res.status).toBe(200)
+            }
 
-          return retry(async () => {
-            expect(next.cliOutput).toMatch(
-              /throwing error for \/blocking-fallback\/test-errors-2/
-            )
-          })
+            return retry(async () => {
+              expect(next.cliOutput).toMatch(
+                /throwing error for \/blocking-fallback\/test-errors-2/
+              )
+            })
+          },
         })
       })
 
