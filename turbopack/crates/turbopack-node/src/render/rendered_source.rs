@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use serde_json::Value as JsonValue;
 use turbo_tasks::{FxIndexSet, RcStr, ResolvedVc, Value, Vc};
 use turbo_tasks_env::ProcessEnv;

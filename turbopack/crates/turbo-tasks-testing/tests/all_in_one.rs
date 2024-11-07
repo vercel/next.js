@@ -2,7 +2,7 @@
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{bail, Result};
 use turbo_tasks::{RcStr, ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_testing::{register, run, Registration};
 
@@ -143,7 +143,7 @@ trait MyTrait: ValueToString {
     // TODO #[turbo_tasks::function]
     async fn my_trait_function(self: Vc<Self>) -> Result<Vc<RcStr>> {
         if *self.to_string().await? != "42" {
-            anyhow::bail!("my_trait_function must only be called with 42 as value")
+            bail!("my_trait_function must only be called with 42 as value")
         }
         // Calling a function twice
         Ok(self.to_string())

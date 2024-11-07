@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{fxindexset, trace::TraceRawVcs, FxIndexMap, FxIndexSet, RcStr, Value, Vc};
 
