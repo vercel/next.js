@@ -50,7 +50,9 @@ async fn foreign_code_context_condition() -> Result<ContextCondition> {
 }
 
 #[turbo_tasks::function]
-pub fn get_client_import_map(project_path: Vc<FileSystemPath>) -> Vc<ImportMap> {
+pub async fn get_client_import_map(
+    project_path: ResolvedVc<FileSystemPath>,
+) -> Result<Vc<ImportMap>> {
     let mut import_map = ImportMap::empty();
 
     import_map.insert_singleton_alias("@swc/helpers", project_path);
@@ -62,21 +64,26 @@ pub fn get_client_import_map(project_path: Vc<FileSystemPath>) -> Vc<ImportMap> 
         "@vercel/turbopack-ecmascript-runtime/",
         ImportMapping::PrimaryAlternative(
             "./*".into(),
-            Some(turbopack_ecmascript_runtime::embed_fs().root()),
+            Some(
+                turbopack_ecmascript_runtime::embed_fs()
+                    .root()
+                    .to_resolved()
+                    .await?,
+            ),
         )
-        .cell(),
+        .resolved_cell(),
     );
 
-    import_map.cell()
+    Ok(import_map.cell())
 }
 
 #[turbo_tasks::function]
 pub async fn get_client_resolve_options_context(
     project_path: Vc<FileSystemPath>,
 ) -> Result<Vc<ResolveOptionsContext>> {
-    let next_client_import_map = get_client_import_map(project_path);
+    let next_client_import_map = get_client_import_map(project_path).to_resolved().await?;
     let module_options_context = ResolveOptionsContext {
-        enable_node_modules: Some(project_path.root().resolve().await?),
+        enable_node_modules: Some(project_path.root().to_resolved().await?),
         custom_conditions: vec!["development".into()],
         import_map: Some(next_client_import_map),
         browser: true,
@@ -88,7 +95,7 @@ pub async fn get_client_resolve_options_context(
         enable_react: true,
         rules: vec![(
             foreign_code_context_condition().await?,
-            module_options_context.clone().cell(),
+            module_options_context.clone().resolved_cell(),
         )],
         ..module_options_context
     }

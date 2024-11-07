@@ -2,7 +2,7 @@ use std::iter::once;
 
 use anyhow::{bail, Context, Result};
 use tracing::Instrument;
-use turbo_tasks::{RcStr, Value, ValueToString, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::{
@@ -54,6 +54,11 @@ impl NodeJsChunkingContextBuilder {
         self
     }
 
+    pub fn use_file_source_map_uris(mut self) -> Self {
+        self.chunking_context.should_use_file_source_map_uris = true;
+        self
+    }
+
     pub fn module_id_strategy(mut self, module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>) -> Self {
         self.chunking_context.module_id_strategy = module_id_strategy;
         self
@@ -92,6 +97,8 @@ pub struct NodeJsChunkingContext {
     manifest_chunks: bool,
     /// The strategy to use for generating module ids
     module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
+    /// Whether to use file:// uris for source map sources
+    should_use_file_source_map_uris: bool,
 }
 
 impl NodeJsChunkingContext {
@@ -117,6 +124,7 @@ impl NodeJsChunkingContext {
                 runtime_type,
                 minify_type: MinifyType::NoMinify,
                 manifest_chunks: false,
+                should_use_file_source_map_uris: false,
                 module_id_strategy: Vc::upcast(DevModuleIdStrategy::new()),
             },
         }
@@ -233,7 +241,7 @@ impl ChunkingContext for NodeJsChunkingContext {
 
     #[turbo_tasks::function]
     fn should_use_file_source_map_uris(&self) -> Vc<bool> {
-        Vc::cell(false)
+        Vc::cell(self.should_use_file_source_map_uris)
     }
 
     #[turbo_tasks::function]
@@ -280,15 +288,11 @@ impl ChunkingContext for NodeJsChunkingContext {
             )
             .await?;
 
-            let mut assets: Vec<Vc<Box<dyn OutputAsset>>> = chunks
+            let assets = chunks
                 .iter()
-                .map(|chunk| self.generate_chunk(*chunk))
-                .collect();
-
-            // Resolve assets
-            for asset in assets.iter_mut() {
-                *asset = asset.resolve().await?;
-            }
+                .map(|chunk| self.generate_chunk(**chunk).to_resolved())
+                .try_join()
+                .await?;
 
             Ok(ChunkGroupResult {
                 assets: Vc::cell(assets),
@@ -333,20 +337,30 @@ impl ChunkingContext for NodeJsChunkingContext {
         let other_chunks: Vec<_> = extra_chunks
             .iter()
             .copied()
-            .chain(chunks.iter().map(|chunk| self.generate_chunk(*chunk)))
+            .chain(
+                chunks
+                    .iter()
+                    .map(|chunk| self.generate_chunk(**chunk).to_resolved())
+                    .try_join()
+                    .await?,
+            )
             .collect();
 
         let Some(module) = Vc::try_resolve_downcast(module).await? else {
             bail!("module must be placeable in an ecmascript chunk");
         };
 
-        let asset = Vc::upcast(EcmascriptBuildNodeEntryChunk::new(
-            path,
-            self,
-            Vc::cell(other_chunks),
-            evaluatable_assets,
-            module,
-        ));
+        let asset = ResolvedVc::upcast(
+            EcmascriptBuildNodeEntryChunk::new(
+                path,
+                self,
+                Vc::cell(other_chunks),
+                evaluatable_assets,
+                module,
+            )
+            .to_resolved()
+            .await?,
+        );
 
         Ok(EntryChunkGroupResult {
             asset,

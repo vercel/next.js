@@ -21,7 +21,8 @@ use turbopack_ecmascript_plugins::transform::{
 use turbopack_node::transforms::webpack::{WebpackLoaderItem, WebpackLoaderItems};
 
 use crate::{
-    next_import_map::mdx_import_source_file, next_shared::transforms::ModularizeImportPackageConfig,
+    mode::NextMode, next_import_map::mdx_import_source_file,
+    next_shared::transforms::ModularizeImportPackageConfig,
 };
 
 #[turbo_tasks::value]
@@ -403,6 +404,7 @@ pub struct ExperimentalTurboConfig {
     pub use_swc_css: Option<bool>,
     pub tree_shaking: Option<bool>,
     pub module_id_strategy: Option<ModuleIdStrategy>,
+    pub minify: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
@@ -501,7 +503,6 @@ pub struct ExperimentalConfig {
     pub strict_next_head: Option<bool>,
     pub swc_plugins: Option<Vec<(RcStr, serde_json::Value)>>,
     pub turbo: Option<ExperimentalTurboConfig>,
-    pub turbotrace: Option<serde_json::Value>,
     pub external_middleware_rewrites_resolve: Option<bool>,
     pub scroll_restoration: Option<bool>,
     pub use_deployment_id: Option<bool>,
@@ -518,7 +519,8 @@ pub struct ExperimentalConfig {
     pub server_actions: Option<ServerActionsOrLegacyBool>,
     pub sri: Option<SubResourceIntegrity>,
     react_compiler: Option<ReactCompilerOptionsOrBoolean>,
-
+    #[serde(rename = "dynamicIO")]
+    pub dynamic_io: Option<bool>,
     // ---
     // UNSUPPORTED
     // ---
@@ -562,8 +564,6 @@ pub struct ExperimentalConfig {
     ppr: Option<ExperimentalPartialPrerendering>,
     taint: Option<bool>,
     react_owner_stack: Option<bool>,
-    #[serde(rename = "dynamicIO")]
-    dynamic_io: Option<bool>,
     proxy_timeout: Option<f64>,
     /// enables the minification of server code.
     server_minification: Option<bool>,
@@ -1235,6 +1235,15 @@ impl NextConfig {
             return Vc::cell(None);
         };
         Vc::cell(Some(module_id_strategy.clone()))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn turbo_minify(&self, mode: Vc<NextMode>) -> Result<Vc<bool>> {
+        let minify = self.experimental.turbo.as_ref().and_then(|t| t.minify);
+
+        Ok(Vc::cell(
+            minify.unwrap_or(matches!(*mode.await?, NextMode::Build)),
+        ))
     }
 }
 

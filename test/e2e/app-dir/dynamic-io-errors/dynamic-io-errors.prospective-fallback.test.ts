@@ -27,6 +27,7 @@ describe(`Dynamic IO Prospective Fallback`, () => {
         // we expect the build to fail
       }
 
+      // TODO: Assert on component stack
       expect(next.cliOutput).toContain(
         'Route "/blog/[slug]": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it.'
       )

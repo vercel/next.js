@@ -18,12 +18,14 @@ import type {
   UseCacheStore,
   WorkUnitStore,
 } from '../app-render/work-unit-async-storage.external'
-import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
+import {
+  getRenderResumeDataCache,
+  getPrerenderResumeDataCache,
+  workUnitAsyncStorage,
+} from '../app-render/work-unit-async-storage.external'
 import { runInCleanSnapshot } from '../app-render/clean-async-snapshot.external'
 
 import { makeHangingPromise } from '../dynamic-rendering-utils'
-
-import { cacheScopeAsyncLocalStorage } from '../async-storage/cache-scope.external'
 
 import type { ClientReferenceManifestForRsc } from '../../build/webpack/plugins/flight-manifest-plugin'
 
@@ -31,9 +33,9 @@ import {
   getClientReferenceManifestForRsc,
   getServerModuleMap,
 } from '../app-render/encryption-utils'
-import type { CacheScopeStore } from '../async-storage/cache-scope.external'
 import DefaultCacheHandler from '../lib/cache-handlers/default'
 import type { CacheHandler, CacheEntry } from '../lib/cache-handlers/types'
+import type { CacheSignal } from '../app-render/cache-signal'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -65,7 +67,6 @@ const cacheHandlerMap: Map<string, CacheHandler> = new Map([
 function generateCacheEntry(
   workStore: WorkStore,
   outerWorkUnitStore: WorkUnitStore | undefined,
-  cacheScope: undefined | CacheScopeStore,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
   encodedArguments: FormData | string,
   fn: any
@@ -79,7 +80,6 @@ function generateCacheEntry(
     generateCacheEntryWithRestoredWorkStore,
     workStore,
     outerWorkUnitStore,
-    cacheScope,
     clientReferenceManifest,
     encodedArguments,
     fn
@@ -89,7 +89,6 @@ function generateCacheEntry(
 function generateCacheEntryWithRestoredWorkStore(
   workStore: WorkStore,
   outerWorkUnitStore: WorkUnitStore | undefined,
-  cacheScope: undefined | CacheScopeStore,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
   encodedArguments: FormData | string,
   fn: any
@@ -101,19 +100,6 @@ function generateCacheEntryWithRestoredWorkStore(
   // in RequestStore but should be available to Caches need to move to WorkStore.
   // PrerenderStore is not needed inside the cache scope because the outer most one will
   // be the one to report its result to the outer Prerender.
-  if (cacheScope) {
-    return cacheScopeAsyncLocalStorage.run(cacheScope, () =>
-      workAsyncStorage.run(
-        workStore,
-        generateCacheEntryWithCacheContext,
-        workStore,
-        outerWorkUnitStore,
-        clientReferenceManifest,
-        encodedArguments,
-        fn
-      )
-    )
-  }
   return workAsyncStorage.run(
     workStore,
     generateCacheEntryWithCacheContext,
@@ -328,8 +314,8 @@ async function generateCacheEntryImpl(
     timer = setTimeout(() => {
       controller.abort(
         new Error(
-          'Filling a cache during prerender timed out like because request specific arguments such as ' +
-            'params, searchParams, cookies() or dynamic data was used inside the "use cache".'
+          'Filling a cache during prerender timed out, likely because request-specific arguments such as ' +
+            'params, searchParams, cookies() or dynamic data were used inside "use cache".'
         )
       )
     }, 50000)
@@ -367,10 +353,7 @@ async function generateCacheEntryImpl(
   return [returnStream, promiseOfCacheEntry]
 }
 
-async function clonePendingCacheEntry(
-  pendingCacheEntry: Promise<CacheEntry>
-): Promise<[CacheEntry, CacheEntry]> {
-  const entry = await pendingCacheEntry
+function cloneCacheEntry(entry: CacheEntry): [CacheEntry, CacheEntry] {
   const [streamA, streamB] = entry.value.tee()
   entry.value = streamA
   const clonedEntry: CacheEntry = {
@@ -382,6 +365,13 @@ async function clonePendingCacheEntry(
     tags: entry.tags,
   }
   return [entry, clonedEntry]
+}
+
+async function clonePendingCacheEntry(
+  pendingCacheEntry: Promise<CacheEntry>
+): Promise<[CacheEntry, CacheEntry]> {
+  const entry = await pendingCacheEntry
+  return cloneCacheEntry(entry)
 }
 
 async function getNthCacheEntry(
@@ -423,6 +413,24 @@ async function encodeFormData(formData: FormData): Promise<string> {
     result += stringValue.length.toString(16) + ':' + stringValue
   }
   return result
+}
+
+function createTrackedReadableStream(
+  stream: ReadableStream,
+  cacheSignal: CacheSignal
+) {
+  const reader = stream.getReader()
+  return new ReadableStream({
+    async pull(controller) {
+      const { done, value } = await reader.read()
+      if (done) {
+        controller.close()
+        cacheSignal.endRead()
+      } else {
+        controller.enqueue(value)
+      }
+    },
+  })
 }
 
 export function cache(kind: string, id: string, fn: any) {
@@ -513,11 +521,24 @@ export function cache(kind: string, id: string, fn: any) {
 
       let stream: undefined | ReadableStream = undefined
 
-      const cacheScope: undefined | CacheScopeStore =
-        cacheScopeAsyncLocalStorage.getStore()
-      if (cacheScope) {
-        const cachedEntry: undefined | Promise<CacheEntry> =
-          cacheScope.cache.get(serializedCacheKey)
+      // Get an immutable and mutable versions of the resume data cache.
+      const prerenderResumeDataCache = workUnitStore
+        ? getPrerenderResumeDataCache(workUnitStore)
+        : null
+      const renderResumeDataCache = workUnitStore
+        ? getRenderResumeDataCache(workUnitStore)
+        : null
+
+      if (renderResumeDataCache) {
+        const cacheSignal =
+          workUnitStore && workUnitStore.type === 'prerender'
+            ? workUnitStore.cacheSignal
+            : null
+
+        if (cacheSignal) {
+          cacheSignal.beginRead()
+        }
+        const cachedEntry = renderResumeDataCache.cache.get(serializedCacheKey)
         if (cachedEntry !== undefined) {
           const existingEntry = await cachedEntry
           propagateCacheLifeAndTags(workUnitStore, existingEntry)
@@ -532,6 +553,9 @@ export function cache(kind: string, id: string, fn: any) {
             // expire time is under 5 minutes, then we consider this cache entry dynamic
             // as it's not worth generating static pages for such data. It's better to leave
             // a PPR hole that can be filled in dynamically with a potentially cached entry.
+            if (cacheSignal) {
+              cacheSignal.endRead()
+            }
             return makeHangingPromise(
               workUnitStore.renderSignal,
               'dynamic "use cache"'
@@ -539,7 +563,18 @@ export function cache(kind: string, id: string, fn: any) {
           }
           const [streamA, streamB] = existingEntry.value.tee()
           existingEntry.value = streamB
-          stream = streamA
+
+          if (cacheSignal) {
+            // When we have a cacheSignal we need to block on reading the cache
+            // entry before ending the read.
+            stream = createTrackedReadableStream(streamA, cacheSignal)
+          } else {
+            stream = streamA
+          }
+        } else {
+          if (cacheSignal) {
+            cacheSignal.endRead()
+          }
         }
       }
 
@@ -576,6 +611,7 @@ export function cache(kind: string, id: string, fn: any) {
           if (cacheSignal) {
             cacheSignal.endRead()
           }
+
           return makeHangingPromise(
             workUnitStore.renderSignal,
             'dynamic "use cache"'
@@ -601,18 +637,20 @@ export function cache(kind: string, id: string, fn: any) {
           const [newStream, pendingCacheEntry] = await generateCacheEntry(
             workStore,
             workUnitStore,
-            cacheScope,
             clientReferenceManifest,
             encodedArguments,
             fn
           )
 
           let savedCacheEntry
-          if (cacheScope) {
+          if (prerenderResumeDataCache) {
             // Create a clone that goes into the cache scope memory cache.
             const split = clonePendingCacheEntry(pendingCacheEntry)
             savedCacheEntry = getNthCacheEntry(split, 0)
-            cacheScope.cache.set(serializedCacheKey, getNthCacheEntry(split, 1))
+            prerenderResumeDataCache.cache.set(
+              serializedCacheKey,
+              getNthCacheEntry(split, 1)
+            )
           } else {
             savedCacheEntry = pendingCacheEntry
           }
@@ -627,11 +665,29 @@ export function cache(kind: string, id: string, fn: any) {
           stream = newStream
         } else {
           propagateCacheLifeAndTags(workUnitStore, entry)
-          if (cacheSignal) {
+
+          // We want to return this stream, even if it's stale.
+          stream = entry.value
+
+          // If we have a cache scope, we need to clone the entry and set it on
+          // the inner cache scope.
+          if (prerenderResumeDataCache) {
+            const [entryLeft, entryRight] = cloneCacheEntry(entry)
+            if (cacheSignal) {
+              stream = createTrackedReadableStream(entryLeft.value, cacheSignal)
+            } else {
+              stream = entryLeft.value
+            }
+
+            prerenderResumeDataCache.cache.set(
+              serializedCacheKey,
+              Promise.resolve(entryRight)
+            )
+          } else {
             // If we're not regenerating we need to signal that we've finished
             // putting the entry into the cache scope at this point. Otherwise we do
             // that inside generateCacheEntry.
-            cacheSignal.endRead()
+            cacheSignal?.endRead()
           }
 
           if (currentTime > entry.timestamp + entry.revalidate * 1000) {
@@ -640,14 +696,26 @@ export function cache(kind: string, id: string, fn: any) {
             const [ignoredStream, pendingCacheEntry] = await generateCacheEntry(
               workStore,
               undefined, // This is not running within the context of this unit.
-              cacheScope,
               clientReferenceManifest,
               encodedArguments,
               fn
             )
+
+            let savedCacheEntry: Promise<CacheEntry>
+            if (prerenderResumeDataCache) {
+              const split = clonePendingCacheEntry(pendingCacheEntry)
+              savedCacheEntry = getNthCacheEntry(split, 0)
+              prerenderResumeDataCache.cache.set(
+                serializedCacheKey,
+                getNthCacheEntry(split, 1)
+              )
+            } else {
+              savedCacheEntry = pendingCacheEntry
+            }
+
             const promise = cacheHandler.set(
               serializedCacheKey,
-              pendingCacheEntry
+              savedCacheEntry
             )
 
             if (!workStore.pendingRevalidateWrites) {
@@ -657,8 +725,6 @@ export function cache(kind: string, id: string, fn: any) {
 
             await ignoredStream.cancel()
           }
-
-          stream = entry.value
         }
       }
 

@@ -127,7 +127,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
             <AppContainer>
               <Container fn={function fn}>
                 <ReactDevOverlay>
-                  <ErrorBoundary globalOverlay={undefined} isMounted={false} onError={function}>
+                  <ErrorBoundary globalOverlay={undefined} isMounted={false} ...>
                     <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
                       <App pageProps={{}} Component={function Mismatch} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                         <Mismatch>
@@ -222,7 +222,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
             <AppContainer>
               <Container fn={function fn}>
                 <ReactDevOverlay>
-                  <ErrorBoundary globalOverlay={undefined} isMounted={false} onError={function}>
+                  <ErrorBoundary globalOverlay={undefined} isMounted={false} ...>
                     <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
                       <App pageProps={{}} Component={function Mismatch} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                         <Mismatch>
@@ -312,7 +312,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
             <AppContainer>
               <Container fn={function fn}>
                 <ReactDevOverlay>
-                  <ErrorBoundary globalOverlay={undefined} isMounted={false} onError={function}>
+                  <ErrorBoundary globalOverlay={undefined} isMounted={false} ...>
                     <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
                       <App pageProps={{}} Component={function Mismatch} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                         <Mismatch>
@@ -388,7 +388,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
             <AppContainer>
               <Container fn={function fn}>
                 <ReactDevOverlay>
-                  <ErrorBoundary globalOverlay={undefined} isMounted={false} onError={function}>
+                  <ErrorBoundary globalOverlay={undefined} isMounted={false} ...>
                     <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
                       <App pageProps={{}} Component={function Mismatch} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                         <Mismatch>
@@ -474,7 +474,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
             <AppContainer>
               <Container fn={function fn}>
                 <ReactDevOverlay>
-                  <ErrorBoundary globalOverlay={undefined} isMounted={false} onError={function}>
+                  <ErrorBoundary globalOverlay={undefined} isMounted={false} ...>
                     <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
                       <App pageProps={{}} Component={function Mismatch} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                         <Mismatch>
@@ -561,7 +561,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
             <AppContainer>
               <Container fn={function fn}>
                 <ReactDevOverlay>
-                  <ErrorBoundary globalOverlay={undefined} isMounted={false} onError={function}>
+                  <ErrorBoundary globalOverlay={undefined} isMounted={false} ...>
                     <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
                       <App pageProps={{}} Component={function Page} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                         <Page>
@@ -1277,6 +1277,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
                           <Mismatch>
                             <p>
                               <span>
+                                ...
           +                      client
           -                      server"
         `)

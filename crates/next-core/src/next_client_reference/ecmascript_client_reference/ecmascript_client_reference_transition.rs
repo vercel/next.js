@@ -1,5 +1,5 @@
 use anyhow::{bail, Result};
-use turbo_tasks::{RcStr, Value, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, Value, Vc};
 use turbopack::{
     transition::{ContextTransition, Transition},
     ModuleAssetContext,
@@ -61,7 +61,7 @@ impl Transition for NextEcmascriptClientReferenceTransition {
         let this = self.await?;
 
         let ident = match part {
-            Some(part) => source.ident().with_part(part),
+            Some(part) => source.ident().with_part(*part),
             None => source.ident(),
         };
         let ident_ref = ident.await?;
@@ -101,13 +101,13 @@ impl Transition for NextEcmascriptClientReferenceTransition {
         };
 
         let Some(client_module) =
-            Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(client_module).await?
+            ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(client_module).await?
         else {
             bail!("client asset is not ecmascript chunk placeable");
         };
 
         let Some(ssr_module) =
-            Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(ssr_module).await?
+            ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(ssr_module).await?
         else {
             bail!("SSR asset is not ecmascript chunk placeable");
         };
@@ -123,14 +123,16 @@ impl Transition for NextEcmascriptClientReferenceTransition {
             module_asset_context.layer,
         );
 
-        Ok(
-            ProcessResult::Module(Vc::upcast(EcmascriptClientReferenceProxyModule::new(
+        Ok(ProcessResult::Module(ResolvedVc::upcast(
+            EcmascriptClientReferenceProxyModule::new(
                 ident,
                 Vc::upcast(server_context),
-                client_module,
-                ssr_module,
-            )))
-            .cell(),
-        )
+                *client_module,
+                *ssr_module,
+            )
+            .to_resolved()
+            .await?,
+        ))
+        .cell())
     }
 }

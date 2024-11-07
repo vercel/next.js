@@ -72,15 +72,17 @@ pub async fn get_client_runtime_entries(
                 request.to_resolved().await?,
                 project_path.join("_".into()).to_resolved().await?,
             )
-            .cell(),
+            .resolved_cell(),
         )
     };
 
     runtime_entries.push(
-        RuntimeEntry::Source(Vc::upcast(FileSource::new(embed_file_path(
-            "entry/bootstrap.ts".into(),
-        ))))
-        .cell(),
+        RuntimeEntry::Source(ResolvedVc::upcast(
+            FileSource::new(embed_file_path("entry/bootstrap.ts".into()))
+                .to_resolved()
+                .await?,
+        ))
+        .resolved_cell(),
     );
 
     Ok(Vc::cell(runtime_entries))
@@ -128,16 +130,16 @@ pub async fn create_web_entry_source(
         .flatten()
         .map(|module| async move {
             if let (Some(chnkable), Some(entry)) = (
-                Vc::try_resolve_sidecast::<Box<dyn ChunkableModule>>(module).await?,
-                Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(module).await?,
+                ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(module).await?,
+                ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(module).await?,
             ) {
                 Ok((
                     chnkable,
                     chunking_context,
-                    Some(runtime_entries.with_entry(entry)),
+                    Some(runtime_entries.with_entry(*entry)),
                 ))
             } else if let Some(chunkable) =
-                Vc::try_resolve_sidecast::<Box<dyn ChunkableModule>>(module).await?
+                ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(module).await?
             {
                 // TODO this is missing runtime code, so it's probably broken and we should also
                 // add an ecmascript chunk with the runtime code

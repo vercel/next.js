@@ -471,7 +471,6 @@ function processMessage(
         reloading = true
         return window.location.reload()
       }
-      resolvePendingHotUpdateWebpack()
       startTransition(() => {
         router.hmrRefresh()
         dispatcher.onRefresh()

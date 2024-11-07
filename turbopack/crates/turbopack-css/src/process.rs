@@ -502,7 +502,7 @@ pub async fn parse_css(
                     Err(_err) => ParseCssResult::Unparseable.cell(),
                     Ok(string) => {
                         process_content(
-                            *file_content,
+                            **file_content,
                             string.into_owned(),
                             fs_path,
                             ident_str,

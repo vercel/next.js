@@ -33,7 +33,7 @@ In future versions, these APIs will be async and direct access will not work as 
 
 The [`next-async-request-api` codemod](/docs/app/building-your-application/upgrading/codemods#next-async-request-api) can fix many of these cases automatically:
 
-```bash
+```bash filename="Terminal"
 $ npx @next/codemod@canary next-async-request-api .
 ```
 
@@ -43,7 +43,7 @@ If the warning occured on the Server (e.g. a route handler, or a Server Componen
 you must `await` the dynamic API to access its properties:
 
 ```js filename="app/[id]/page.js"
-function Page({ params }) {
+async function Page({ params }) {
   // asynchronous access of `params.id`.
   const { id } = await params
   return <p>ID: {id}</p>
