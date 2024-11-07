@@ -79,6 +79,7 @@ describe('app-dir - capture-console-error', () => {
            8 |       }}
            9 |     >
           10 |       click to error",
+          "title": "Console Error",
         }
       `)
     }
@@ -125,6 +126,7 @@ describe('app-dir - capture-console-error', () => {
           5 |   return <p>render</p>
           6 | }
           7 |",
+          "title": "Console Error",
         }
       `)
     }
@@ -171,6 +173,7 @@ describe('app-dir - capture-console-error', () => {
           5 |   return <p>render</p>
           6 | }
           7 |",
+          "title": "Console Error",
         }
       `)
     }
@@ -217,6 +220,7 @@ describe('app-dir - capture-console-error', () => {
           5 |     'ssr console error:' + (typeof window === 'undefined' ? 'server' : 'client')
           6 |   )
           7 |   return <p>ssr</p>",
+          "title": "Console Error",
         }
       `)
     }
@@ -236,12 +240,12 @@ describe('app-dir - capture-console-error', () => {
           "callStacks": "",
           "count": 2,
           "description": "Error: page error",
-          "source": "app/ssr-error-instance/page.js (4:11) @ Page
+          "source": "app/ssr-error-instance/page.js (4:17) @ Page
 
           2 |
           3 | export default function Page() {
         > 4 |   console.error(new Error('page error'))
-            |           ^
+            |                 ^
           5 |   return <p>ssr</p>
           6 | }
           7 |",
@@ -253,7 +257,7 @@ describe('app-dir - capture-console-error', () => {
         {
           "callStacks": "",
           "count": 2,
-          "description": "page error",
+          "description": "Error: page error",
           "source": "app/ssr-error-instance/page.js (4:17) @ Page
 
           2 |
@@ -263,6 +267,7 @@ describe('app-dir - capture-console-error', () => {
           5 |   return <p>ssr</p>
           6 | }
           7 |",
+          "title": "Console Error",
         }
       `)
     }
@@ -290,7 +295,7 @@ describe('app-dir - capture-console-error', () => {
           3 |   return <p>rsc</p>
           4 | }
           5 |",
-          "title": "Unhandled Runtime Error",
+          "title": "Console Error",
         }
       `)
     } else {
@@ -298,7 +303,7 @@ describe('app-dir - capture-console-error', () => {
         {
           "callStacks": "",
           "count": 1,
-          "description": "[ Server ] boom",
+          "description": "[ Server ] Error: boom",
           "source": "app/rsc/page.js (2:17) @ Page
 
           1 | export default function Page() {
@@ -307,6 +312,7 @@ describe('app-dir - capture-console-error', () => {
           3 |   return <p>rsc</p>
           4 | }
           5 |",
+          "title": "Console Error",
         }
       `)
     }

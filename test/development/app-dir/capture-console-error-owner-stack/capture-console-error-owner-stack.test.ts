@@ -234,12 +234,12 @@ describe('app-dir - capture-console-error-owner-stack', () => {
           "callStacks": "",
           "count": 1,
           "description": "Error: page error",
-          "source": "app/ssr-error-instance/page.js (4:11) @ Page
+          "source": "app/ssr-error-instance/page.js (4:17) @ Page
 
           2 |
           3 | export default function Page() {
         > 4 |   console.error(new Error('page error'))
-            |           ^
+            |                 ^
           5 |   return <p>ssr</p>
           6 | }
           7 |",
@@ -252,12 +252,12 @@ describe('app-dir - capture-console-error-owner-stack', () => {
           "callStacks": "",
           "count": 1,
           "description": "Error: page error",
-          "source": "app/ssr-error-instance/page.js (4:11) @ error
+          "source": "app/ssr-error-instance/page.js (4:17) @ Page
 
           2 |
           3 | export default function Page() {
         > 4 |   console.error(new Error('page error'))
-            |           ^
+            |                 ^
           5 |   return <p>ssr</p>
           6 | }
           7 |",
@@ -289,7 +289,7 @@ describe('app-dir - capture-console-error-owner-stack', () => {
           3 |   return <p>rsc</p>
           4 | }
           5 |",
-          "title": "Unhandled Runtime Error",
+          "title": "Console Error",
         }
       `)
     } else {
@@ -306,7 +306,7 @@ describe('app-dir - capture-console-error-owner-stack', () => {
           3 |   return <p>rsc</p>
           4 | }
           5 |",
-          "title": "Unhandled Runtime Error",
+          "title": "Console Error",
         }
       `)
     }
