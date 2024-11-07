@@ -8,6 +8,9 @@ import { createUnhandledError } from './console-error'
 import { enqueueConsecutiveDedupedError } from './enqueue-client-error'
 import { getReactStitchedError } from './stitched-error'
 
+const queueMicroTask =
+  globalThis.queueMicrotask || ((cb: () => void) => Promise.resolve().then(cb))
+
 export type ErrorHandler = (error: Error) => void
 
 const errorQueue: Array<Error> = []
@@ -33,7 +36,11 @@ export function handleClientError(
 
   enqueueConsecutiveDedupedError(errorQueue, error)
   for (const handler of errorHandlers) {
-    handler(error)
+    // Delayed the error being passed to React Dev Overlay,
+    // avoid the state being synchronously updated in the component.
+    queueMicroTask(() => {
+      handler(error)
+    })
   }
 }
 
