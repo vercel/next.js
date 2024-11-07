@@ -200,7 +200,7 @@ async fn create_fs(name: &str, root: &str, watch: bool) -> Result<Vc<Box<dyn Fil
 async fn add_glob_results(
     asset_context: Vc<Box<dyn AssetContext>>,
     result: Vc<ReadGlobResult>,
-    list: &mut Vec<Vc<Box<dyn Module>>>,
+    list: &mut Vec<ResolvedVc<Box<dyn Module>>>,
 ) -> Result<()> {
     let result = result.await?;
     for entry in result.results.values() {
@@ -211,7 +211,9 @@ async fn add_glob_results(
                     source,
                     Value::new(turbopack_core::reference_type::ReferenceType::Undefined),
                 )
-                .module();
+                .module()
+                .to_resolved()
+                .await?;
             list.push(module);
         }
     }
@@ -219,7 +221,7 @@ async fn add_glob_results(
         fn recurse<'a>(
             asset_context: Vc<Box<dyn AssetContext>>,
             result: Vc<ReadGlobResult>,
-            list: &'a mut Vec<Vc<Box<dyn Module>>>,
+            list: &'a mut Vec<ResolvedVc<Box<dyn Module>>>,
         ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>> {
             Box::pin(add_glob_results(asset_context, result, list))
         }
@@ -260,7 +262,9 @@ async fn input_to_modules(
                     source,
                     Value::new(turbopack_core::reference_type::ReferenceType::Undefined),
                 )
-                .module();
+                .module()
+                .to_resolved()
+                .await?;
             list.push(module);
         } else {
             let glob = Glob::new(input);
@@ -490,7 +494,7 @@ async fn main_operation(
             )
             .await?;
             for module in modules.iter() {
-                let set = all_modules_and_affecting_sources(*module)
+                let set = all_modules_and_affecting_sources(**module)
                     .issue_file_path(module.ident().path(), "gathering list of assets")
                     .await?;
                 for asset in set.await?.iter() {
@@ -517,7 +521,7 @@ async fn main_operation(
             .await?
             .iter()
             {
-                let nft_asset = NftJsonAsset::new(*module);
+                let nft_asset = NftJsonAsset::new(**module);
                 let path = nft_asset.ident().path().await?.path.clone();
                 output_nft_assets.push(path);
                 emits.push(emit_asset(Vc::upcast(nft_asset)));
@@ -550,7 +554,7 @@ async fn main_operation(
             .await?
             .iter()
             {
-                let rebased = Vc::upcast(RebasedAsset::new(*module, input_dir, output_dir));
+                let rebased = Vc::upcast(RebasedAsset::new(**module, input_dir, output_dir));
                 emits.push(emit_with_completion(rebased, output_dir));
             }
             // Wait for all files to be emitted
@@ -605,7 +609,7 @@ async fn create_module_asset(
             ResolvedMap {
                 by_glob: glob_mappings,
             }
-            .cell(),
+            .resolved_cell(),
         );
     }
 

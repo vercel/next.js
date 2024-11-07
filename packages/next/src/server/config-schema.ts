@@ -317,6 +317,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         imgOptConcurrency: z.number().int().optional().nullable(),
         imgOptTimeoutInSeconds: z.number().int().optional(),
         imgOptMaxInputPixels: z.number().int().optional(),
+        imgOptSequentialRead: z.boolean().optional().nullable(),
         internal_disableSyncDynamicAPIWarnings: z.boolean().optional(),
         isrFlushToDisk: z.boolean().optional(),
         largePageDataBytes: z.number().optional(),
@@ -410,32 +411,12 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
               .optional(),
             memoryLimit: z.number().optional(),
             moduleIdStrategy: z.enum(['named', 'deterministic']).optional(),
+            minify: z.boolean().optional(),
           })
           .optional(),
         optimizePackageImports: z.array(z.string()).optional(),
         optimizeServerReact: z.boolean().optional(),
         clientTraceMetadata: z.array(z.string()).optional(),
-        turbotrace: z
-          .object({
-            logLevel: z
-              .enum([
-                'bug',
-                'fatal',
-                'error',
-                'warning',
-                'hint',
-                'note',
-                'suggestions',
-                'info',
-              ])
-              .optional(),
-            logAll: z.boolean().optional(),
-            logDetail: z.boolean().optional(),
-            contextDirectory: z.string().optional(),
-            processCwd: z.string().optional(),
-            memoryLimit: z.number().int().optional(),
-          })
-          .optional(),
         serverMinification: z.boolean().optional(),
         serverSourceMaps: z.boolean().optional(),
         useWasmBinary: z.boolean().optional(),

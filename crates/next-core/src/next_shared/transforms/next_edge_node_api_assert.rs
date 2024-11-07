@@ -44,6 +44,7 @@ impl CustomTransformer for NextEdgeNodeApiAssert {
             ExprCtx {
                 is_unresolved_ref_safe: false,
                 unresolved_ctxt: SyntaxContext::empty().apply_mark(ctx.unresolved_mark),
+                in_strict: false,
             },
             self.should_error_for_node_apis,
             self.is_production,

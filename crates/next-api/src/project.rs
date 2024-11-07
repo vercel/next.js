@@ -27,8 +27,8 @@ use turbo_tasks::{
     fxindexmap,
     graph::{AdjacencyMap, GraphTraversal},
     trace::TraceRawVcs,
-    Completion, Completions, FxIndexMap, IntoTraitRef, RcStr, ReadRef, State, TaskInput,
-    TransientInstance, TryFlatJoinIterExt, Value, Vc,
+    Completion, Completions, FxIndexMap, IntoTraitRef, RcStr, ReadRef, ResolvedVc, State,
+    TaskInput, TransientInstance, TryFlatJoinIterExt, Value, Vc,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath, VirtualFileSystem};
@@ -529,7 +529,7 @@ impl Project {
         let app_dir = find_app_dir(self.project_path()).await?;
 
         Ok(Vc::cell(
-            app_dir.map(|app_dir| AppProject::new(self, app_dir)),
+            app_dir.map(|app_dir| AppProject::new(self, *app_dir)),
         ))
     }
 
@@ -699,6 +699,7 @@ impl Project {
             self.client_compile_time_info().environment(),
             self.next_mode(),
             self.module_id_strategy(),
+            self.next_config().turbo_minify(self.next_mode()),
         )
     }
 
@@ -716,6 +717,7 @@ impl Project {
                 self.next_config().computed_asset_prefix(),
                 self.server_compile_time_info().environment(),
                 self.module_id_strategy(),
+                self.next_config().turbo_minify(self.next_mode()),
             )
         } else {
             get_server_chunking_context(
@@ -724,6 +726,7 @@ impl Project {
                 self.node_root(),
                 self.server_compile_time_info().environment(),
                 self.module_id_strategy(),
+                self.next_config().turbo_minify(self.next_mode()),
             )
         }
     }
@@ -742,6 +745,7 @@ impl Project {
                 self.next_config().computed_asset_prefix(),
                 self.edge_compile_time_info().environment(),
                 self.module_id_strategy(),
+                self.next_config().turbo_minify(self.next_mode()),
             )
         } else {
             get_edge_chunking_context(
@@ -750,6 +754,7 @@ impl Project {
                 self.node_root(),
                 self.edge_compile_time_info().environment(),
                 self.module_id_strategy(),
+                self.next_config().turbo_minify(self.next_mode()),
             )
         }
     }
@@ -815,7 +820,7 @@ impl Project {
 
         emit_event("modularizeImports", config.modularize_imports.is_some());
         emit_event("transpilePackages", config.transpile_packages.is_some());
-        emit_event("turbotrace", config.experimental.turbotrace.is_some());
+        emit_event("turbotrace", false);
 
         // compiler options
         let compiler_options = config.compiler.as_ref();
@@ -1001,7 +1006,7 @@ impl Project {
             self,
             middleware_asset_context,
             source,
-            app_dir,
+            app_dir.as_deref().copied(),
             ecmascript_client_reference_transition_name,
         )))
     }
@@ -1140,7 +1145,7 @@ impl Project {
             instrumentation_asset_context,
             source,
             is_edge,
-            app_dir,
+            app_dir.as_deref().copied(),
             ecmascript_client_reference_transition_name,
         )))
     }
@@ -1278,10 +1283,10 @@ impl Project {
     #[turbo_tasks::function]
     pub async fn client_main_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
         let pages_project = self.pages_project();
-        let mut modules = vec![pages_project.client_main_module()];
+        let mut modules = vec![pages_project.client_main_module().to_resolved().await?];
 
         if let Some(app_project) = *self.app_project().await? {
-            modules.push(app_project.client_main_module());
+            modules.push(app_project.client_main_module().to_resolved().await?);
         }
 
         Ok(Vc::cell(modules))
@@ -1324,7 +1329,7 @@ async fn any_output_changed(
                 && (!server || !asset_path.path.ends_with(".css"))
                 && asset_path.is_inside_ref(path)
             {
-                Ok(Some(content_changed(Vc::upcast(m))))
+                Ok(Some(content_changed(*ResolvedVc::upcast(m))))
             } else {
                 Ok(None)
             }
@@ -1336,8 +1341,8 @@ async fn any_output_changed(
 }
 
 async fn get_referenced_output_assets(
-    parent: Vc<Box<dyn OutputAsset>>,
-) -> Result<impl Iterator<Item = Vc<Box<dyn OutputAsset>>> + Send> {
+    parent: ResolvedVc<Box<dyn OutputAsset>>,
+) -> Result<impl Iterator<Item = ResolvedVc<Box<dyn OutputAsset>>> + Send> {
     Ok(parent.references().await?.clone_value().into_iter())
 }
 

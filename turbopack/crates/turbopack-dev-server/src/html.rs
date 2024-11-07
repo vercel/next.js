@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
 use mime_guess::mime::TEXT_HTML_UTF_8;
-use turbo_tasks::{RcStr, ReadRef, TryJoinIterExt, Value, Vc};
+use turbo_tasks::{RcStr, ReadRef, ResolvedVc, TryJoinIterExt, Value, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbo_tasks_hash::{encode_hex, Xxh3Hash64Hasher};
 use turbopack_core::{
@@ -18,7 +18,7 @@ use turbopack_core::{
 // TODO(WEB-945) This should become a struct once we have a
 // `turbo_tasks::input` attribute macro/`Input` derive macro.
 type DevHtmlEntry = (
-    Vc<Box<dyn ChunkableModule>>,
+    ResolvedVc<Box<dyn ChunkableModule>>,
     Vc<Box<dyn ChunkingContext>>,
     Option<Vc<EvaluatableAssets>>,
 );
@@ -135,9 +135,9 @@ impl DevHtmlAsset {
 
                 let assets = if let Some(runtime_entries) = runtime_entries {
                     let runtime_entries = if let Some(evaluatable) =
-                        Vc::try_resolve_downcast(chunkable_module).await?
+                        ResolvedVc::try_downcast(chunkable_module).await?
                     {
-                        runtime_entries.with_entry(evaluatable)
+                        runtime_entries.with_entry(*evaluatable)
                     } else {
                         runtime_entries
                     };
@@ -147,7 +147,7 @@ impl DevHtmlAsset {
                         Value::new(AvailabilityInfo::Root),
                     )
                 } else {
-                    chunking_context.root_chunk_group_assets(Vc::upcast(chunkable_module))
+                    chunking_context.root_chunk_group_assets(*ResolvedVc::upcast(chunkable_module))
                 };
 
                 assets.await

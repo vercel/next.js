@@ -1,10 +1,7 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use next_custom_transforms::transforms::shake_exports::{shake_exports, Config};
-use swc_core::{
-    common::util::take::Take,
-    ecma::{ast::*, visit::FoldWith},
-};
+use swc_core::ecma::ast::*;
 use turbo_tasks::Vc;
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
 use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext};
@@ -33,9 +30,7 @@ struct NextShakeExports {
 impl CustomTransformer for NextShakeExports {
     #[tracing::instrument(level = tracing::Level::TRACE, name = "next_shake_exports", skip_all)]
     async fn transform(&self, program: &mut Program, _ctx: &TransformContext<'_>) -> Result<()> {
-        let p = std::mem::replace(program, Program::Module(Module::dummy()));
-
-        *program = p.fold_with(&mut shake_exports(Config {
+        program.mutate(shake_exports(Config {
             ignore: self.ignore.iter().map(|s| s.clone().into()).collect(),
         }));
         Ok(())
