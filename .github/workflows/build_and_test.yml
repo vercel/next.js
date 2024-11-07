@@ -207,6 +207,7 @@ jobs:
           - '--scenario=heavy-npm-deps-build-turbo-cache-enabled --page=homepage'
     uses: ./.github/workflows/build_reusable.yml
     with:
+      skipNativeBuild: 'yes'
       afterBuild: |
         ./node_modules/.bin/devlow-bench ./scripts/devlow-bench.mjs \
           --datadog=ubuntu-latest-16-core \
