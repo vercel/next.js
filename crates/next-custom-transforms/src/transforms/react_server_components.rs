@@ -15,7 +15,7 @@ use swc_core::{
         atoms::{js_word, JsWord},
         utils::{prepend_stmts, quote_ident, quote_str, ExprFactory},
         visit::{
-            as_folder, noop_visit_mut_type, noop_visit_type, Fold, Visit, VisitMut, VisitMutWith,
+            noop_visit_mut_type, noop_visit_type, visit_mut_pass, Visit, VisitMut, VisitMutWith,
             VisitWith,
         },
     },
@@ -1011,7 +1011,7 @@ pub fn server_components<C: Comments>(
     config: Config,
     comments: C,
     app_dir: Option<PathBuf>,
-) -> impl Fold + VisitMut {
+) -> impl Pass + VisitMut {
     let is_react_server_layer: bool = match &config {
         Config::WithOptions(x) => x.is_react_server_layer,
         _ => false,
@@ -1020,7 +1020,7 @@ pub fn server_components<C: Comments>(
         Config::WithOptions(x) => x.dynamic_io_enabled,
         _ => false,
     };
-    as_folder(ReactServerComponents {
+    visit_mut_pass(ReactServerComponents {
         is_react_server_layer,
         dynamic_io_enabled,
         comments,

@@ -4,10 +4,7 @@ import type {
   ExternalObject,
   NextTurboTasks,
   RefCell,
-  NapiUpdateInfo as UpdateInfo,
 } from './generated-native'
-
-export type { NapiUpdateInfo as UpdateInfo } from './generated-native'
 
 export interface Binding {
   isWasm: boolean
@@ -198,9 +195,9 @@ export type UpdateMessage =
       value: UpdateInfo
     }
 
-export interface UpdateInfoOpts {
-  aggregationMs: number
-  includeReasons?: boolean
+export interface UpdateInfo {
+  duration: number
+  tasks: number
 }
 
 export interface Project {
@@ -223,7 +220,7 @@ export interface Project {
   ): Promise<TurbopackStackFrame | null>
 
   updateInfoSubscribe(
-    opts?: UpdateInfoOpts
+    aggregationMs: number
   ): AsyncIterableIterator<TurbopackResult<UpdateMessage>>
 
   shutdown(): Promise<void>

@@ -2,13 +2,13 @@
 title: Cannot access Request information synchronously with Page or Layout or Route `params` or Page `searchParams`
 ---
 
-#### Why This Error Occurred
+## Why This Error Occurred
 
 In Next.js 15 `params` passed into Page and Layout components and `searchParams` passed into Page components are now Promises.
 
 To support migrating to the async `params` and `searchParams` Next.js 15 still supports accessing param and searchParam values directly on the Promise object. However when `dynamicIO` is enabled it is an error to do so.
 
-#### Possible Ways to Fix It
+## Possible Ways to Fix It
 
 If you haven't already followed the Next.js 15 upgrade guide which includes running a codemod to auto-convert to the necessary async form of `params` and `searchParams` start there.
 

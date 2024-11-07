@@ -370,7 +370,7 @@ struct AnalysisState<'a> {
 
 impl<'a> AnalysisState<'a> {
     /// Links a value to the graph, returning the linked value.
-    async fn link_value(&self, value: JsValue, overrides: &ImportAttributes) -> Result<JsValue> {
+    async fn link_value(&self, value: JsValue, attributes: &ImportAttributes) -> Result<JsValue> {
         let fun_args_values = self.fun_args_values.lock().clone();
         link(
             self.var_graph,
@@ -382,7 +382,7 @@ impl<'a> AnalysisState<'a> {
                     value,
                     self.compile_time_info,
                     self.var_graph,
-                    overrides,
+                    attributes,
                 )
             },
             fun_args_values,
@@ -608,7 +608,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     ImportedSymbol::Symbol(name) => Some(ModulePart::export((&**name).into())),
                     ImportedSymbol::PartEvaluation(part_id) => {
                         evaluation_references.push(i);
-                        Some(ModulePart::internal(*part_id))
+                        Some(ModulePart::internal_evaluation(*part_id))
                     }
                     ImportedSymbol::Part(part_id) => Some(ModulePart::internal(*part_id)),
                     ImportedSymbol::Exports => Some(ModulePart::exports()),
@@ -2436,10 +2436,10 @@ async fn value_visitor(
     v: JsValue,
     compile_time_info: Vc<CompileTimeInfo>,
     var_graph: &VarGraph,
-    overrides: &ImportAttributes,
+    attributes: &ImportAttributes,
 ) -> Result<(JsValue, bool)> {
     let (mut v, modified) =
-        value_visitor_inner(origin, v, compile_time_info, var_graph, overrides).await?;
+        value_visitor_inner(origin, v, compile_time_info, var_graph, attributes).await?;
     v.normalize_shallow();
     Ok((v, modified))
 }
@@ -2449,9 +2449,9 @@ async fn value_visitor_inner(
     v: JsValue,
     compile_time_info: Vc<CompileTimeInfo>,
     var_graph: &VarGraph,
-    overrides: &ImportAttributes,
+    attributes: &ImportAttributes,
 ) -> Result<(JsValue, bool)> {
-    let ImportAttributes { ignore, .. } = *overrides;
+    let ImportAttributes { ignore, .. } = *attributes;
     // This check is just an optimization
     if v.get_defineable_name_len().is_some() {
         let compile_time_info = compile_time_info.await?;
