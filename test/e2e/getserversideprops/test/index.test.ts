@@ -871,6 +871,7 @@ describe('getServerSideProps', () => {
         'world.txt': new FileRef(join(appDir, 'world.txt')),
         'next.config.js': new FileRef(join(appDir, 'next.config.js')),
       },
+      patchFileDelay: 500,
     })
     buildId = next.buildId
   })

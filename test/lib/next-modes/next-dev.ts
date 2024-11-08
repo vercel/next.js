@@ -2,7 +2,7 @@ import spawn from 'cross-spawn'
 import { Span } from 'next/dist/trace'
 import { NextInstance } from './base'
 import { getTurbopackFlag } from '../turbo'
-import { waitFor, retry } from 'next-test-utils'
+import { waitFor } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
 export class NextDevInstance extends NextInstance {
@@ -152,55 +152,13 @@ export class NextDevInstance extends NextInstance {
 
   public override async patchFile(
     filename: string,
-    content: string | ((contents: string) => string),
+    content: string | ((content: string) => string),
     runWithTempContent?: (context: { newFile: boolean }) => Promise<void>
   ) {
-    const isServerRunning = this.childProcess && !this.isStopping
-    const cliOutputLength = this.cliOutput.length
-
-    if (isServerRunning) {
-      await this.handleDevWatchDelayBeforeChange(filename)
-    }
-
-    const waitForChanges = async ({ newFile }: { newFile: boolean }) => {
-      if (isServerRunning) {
-        if (newFile) {
-          await this.handleDevWatchDelayAfterChange(filename)
-        } else if (filename.startsWith('next.config')) {
-          await retry(async () => {
-            const cliOutput = this.cliOutput.slice(cliOutputLength)
-
-            if (!this.serverReadyPattern.test(cliOutput)) {
-              throw new Error('Server has not finished restarting.')
-            }
-          })
-        } else {
-          try {
-            await retry(async () => {
-              const cliOutput = this.cliOutput.slice(cliOutputLength)
-
-              if (!this.serverCompiledPattern.test(cliOutput)) {
-                throw new Error('Server has not finished restarting.')
-              }
-            }, 5000)
-          } catch (e) {
-            /** Fail silently because not all change will be reflected in the server output */
-          }
-        }
-      }
-    }
-
-    if (runWithTempContent) {
-      return super.patchFile(filename, content, async ({ newFile }) => {
-        await waitForChanges({ newFile })
-        await runWithTempContent({ newFile })
-      })
-    }
-
-    const { newFile } = await super.patchFile(filename, content)
-    await retry(() => waitForChanges({ newFile }))
-
-    return { newFile }
+    await this.handleDevWatchDelayBeforeChange(filename)
+    const value = await super.patchFile(filename, content, runWithTempContent)
+    await this.handleDevWatchDelayAfterChange(filename)
+    return value
   }
 
   public override async renameFile(filename: string, newFilename: string) {
