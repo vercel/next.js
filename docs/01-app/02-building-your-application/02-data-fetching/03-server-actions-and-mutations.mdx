@@ -692,33 +692,7 @@ Remember to consider the [behavior and caveats](https://react.dev/reference/reac
 
 ### Error Handling
 
-When an error is thrown, it'll be caught by the nearest [`error.js`](/docs/app/building-your-application/routing/error-handling) or `<Suspense>` boundary on the client. We recommend using `try/catch` to return errors to be handled by your UI.
-
-For example, your Server Action might handle errors from creating a new item by returning a message:
-
-```ts filename="app/actions.ts" switcher
-'use server'
-
-export async function createTodo(prevState: any, formData: FormData) {
-  try {
-    // Mutate data
-  } catch (e) {
-    throw new Error('Failed to create task')
-  }
-}
-```
-
-```js filename="app/actions.js" switcher
-'use server'
-
-export async function createTodo(prevState, formData) {
-  try {
-    //  Mutate data
-  } catch (e) {
-    throw new Error('Failed to create task')
-  }
-}
-```
+When an error is thrown, it'll be caught by the nearest `error.js` or `<Suspense>` boundary on the client. See [Error Handling](/docs/app/building-your-application/routing/error-handling) for more information.
 
 > **Good to know:**
 >
