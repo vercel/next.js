@@ -8,7 +8,7 @@ import { ChildProcess } from 'child_process'
 import { createNextInstall } from '../create-next-install'
 import { Span } from 'next/dist/trace'
 import webdriver from '../next-webdriver'
-import { renderViaHTTP, fetchViaHTTP, findPort, waitFor } from 'next-test-utils'
+import { renderViaHTTP, fetchViaHTTP, findPort } from 'next-test-utils'
 import cheerio from 'cheerio'
 import { once } from 'events'
 import { BrowserInterface } from '../browsers/base'
@@ -75,7 +75,6 @@ export class NextInstance {
   public forcedPort?: string
   public dirSuffix: string = ''
   public serverReadyPattern?: RegExp = / ✓ Ready in /
-  public serverCompiledPattern?: RegExp = / ✓ Compiled /
   patchFileDelay: number = 0
 
   constructor(opts: NextInstanceOpts) {
@@ -510,15 +509,6 @@ export class NextInstance {
     await fs.mkdir(path.dirname(outputPath), { recursive: true })
     const previousContent = newFile ? undefined : await this.readFile(filename)
 
-    const waitForPatchFileDelay = async () => {
-      if (this.patchFileDelay > 0) {
-        console.warn(
-          `Applying patch delay of ${this.patchFileDelay}ms. Note: Introducing artificial delays is generally discouraged, as it may affect test reliability. However, this delay is configurable on a per-test basis.`
-        )
-        await waitFor(this.patchFileDelay)
-      }
-    }
-
     await fs.writeFile(
       outputPath,
       typeof content === 'function' ? content(previousContent) : content,
@@ -526,7 +516,6 @@ export class NextInstance {
         flush: true,
       }
     )
-    await waitForPatchFileDelay()
 
     if (runWithTempContent) {
       try {
@@ -538,7 +527,6 @@ export class NextInstance {
           await fs.writeFile(outputPath, previousContent, {
             flush: true,
           })
-          await waitForPatchFileDelay()
         }
       }
     }
