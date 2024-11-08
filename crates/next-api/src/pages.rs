@@ -882,7 +882,7 @@ impl PageEndpoint {
                 )
                 .await?;
 
-                let nft = if this
+                let server_asset_trace_file = if this
                     .pages_project
                     .project()
                     .next_mode()
@@ -892,8 +892,8 @@ impl PageEndpoint {
                     ResolvedVc::cell(Some(ResolvedVc::upcast(
                         NftJsonAsset::new(
                             *ssr_entry_chunk,
-                            this.pages_project.project().output_fs(),
-                            this.pages_project.project().project_fs(),
+                            this.pages_project.project().output_fs().root(),
+                            this.pages_project.project().project_fs().root(),
                             this.pages_project.project().client_fs(),
                             vec![],
                         )
@@ -907,7 +907,7 @@ impl PageEndpoint {
                 Ok(SsrChunk::NodeJs {
                     entry: ssr_entry_chunk,
                     dynamic_import_entries,
-                    nft,
+                    server_asset_trace_file,
                 }
                 .cell())
             }
@@ -1109,11 +1109,11 @@ impl PageEndpoint {
             SsrChunk::NodeJs {
                 entry,
                 dynamic_import_entries,
-                nft,
+                server_asset_trace_file,
             } => {
                 server_assets.push(entry);
-                if let Some(nft) = &*nft.await? {
-                    server_assets.push(*nft);
+                if let Some(server_asset_trace_file) = &*server_asset_trace_file.await? {
+                    server_assets.push(*server_asset_trace_file);
                 }
 
                 if emit_manifests {
@@ -1396,7 +1396,7 @@ pub enum SsrChunk {
     NodeJs {
         entry: ResolvedVc<Box<dyn OutputAsset>>,
         dynamic_import_entries: Vc<DynamicImportedChunks>,
-        nft: ResolvedVc<OptionOutputAsset>,
+        server_asset_trace_file: ResolvedVc<OptionOutputAsset>,
     },
     Edge {
         files: Vc<OutputAssets>,

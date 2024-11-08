@@ -8,7 +8,7 @@ use next_core::{
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{Completion, ResolvedVc, Value, Vc};
-use turbo_tasks_fs::{File, FileContent, FileSystemPath};
+use turbo_tasks_fs::{File, FileContent, FileSystem, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
     chunk::{
@@ -227,8 +227,8 @@ impl InstrumentationEndpoint {
                 output_assets.push(ResolvedVc::upcast(
                     NftJsonAsset::new(
                         *chunk,
-                        this.project.output_fs(),
-                        this.project.project_fs(),
+                        this.project.output_fs().root(),
+                        this.project.project_fs().root(),
                         this.project.client_fs(),
                         vec![],
                     )

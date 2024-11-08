@@ -1,8 +1,10 @@
+use std::collections::BTreeSet;
+
 use anyhow::{bail, Result};
 use serde_json::json;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, ValueToString, Vc};
-use turbo_tasks_fs::{DiskFileSystem, File, FileSystem, FileSystemPath, VirtualFileSystem};
+use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks_fs::{File, FileSystem, FileSystemPath, VirtualFileSystem};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     ident::AssetIdent,
@@ -20,8 +22,8 @@ use turbopack_core::{
 pub struct NftJsonAsset {
     /// The chunk for which the asset is being generated
     chunk: Vc<Box<dyn OutputAsset>>,
-    output_fs: Vc<DiskFileSystem>,
-    project_fs: Vc<DiskFileSystem>,
+    output_root: ResolvedVc<FileSystemPath>,
+    project_root: ResolvedVc<FileSystemPath>,
     client_fs: Vc<Box<dyn FileSystem>>,
     /// Additional assets to include in the nft json. This can be used to manually collect assets
     /// that are known to be required but are not in the graph yet, for whatever reason.
@@ -36,15 +38,15 @@ impl NftJsonAsset {
     #[turbo_tasks::function]
     pub fn new(
         chunk: Vc<Box<dyn OutputAsset>>,
-        output_fs: Vc<DiskFileSystem>,
-        project_fs: Vc<DiskFileSystem>,
+        output_root: ResolvedVc<FileSystemPath>,
+        project_root: ResolvedVc<FileSystemPath>,
         client_fs: Vc<Box<dyn FileSystem>>,
         additional_assets: Vec<ResolvedVc<Box<dyn OutputAsset>>>,
     ) -> Vc<Self> {
         NftJsonAsset {
             chunk,
-            output_fs,
-            project_fs,
+            output_root,
+            project_root,
             client_fs,
             additional_assets,
         }
@@ -60,13 +62,13 @@ impl NftJsonAsset {
     #[turbo_tasks::function]
     async fn ident_in_project_fs(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         let this = self.await?;
-        let project_fs = this.project_fs.await?;
-        let output_fs = this.output_fs.await?;
+        let project_root = this.project_root.await?;
+        let output_root = this.output_root.await?;
         let nft_folder = self.ident().path().parent().await?;
 
-        if let Some(subdir) = output_fs.root().strip_prefix(&**project_fs.root()) {
+        if let Some(subdir) = output_root.path.strip_prefix(&*project_root.path) {
             Ok(this
-                .project_fs
+                .project_root
                 .root()
                 .join(subdir.into())
                 .join(nft_folder.path.clone()))
@@ -74,6 +76,11 @@ impl NftJsonAsset {
             // TODO: what are the implications of this?
             bail!("output fs not inside project fs");
         }
+    }
+
+    #[turbo_tasks::function]
+    async fn nft_folder(self: Vc<Self>) -> Vc<FileSystemPath> {
+        self.ident().path().parent()
     }
 
     #[turbo_tasks::function]
@@ -91,23 +98,29 @@ impl NftJsonAsset {
         path: Vc<FileSystemPath>,
     ) -> Result<Vc<OutputSpecifier>> {
         let this = self.await?;
-        let path_fs = path.fs().resolve().await?;
         let path_ref = path.await?;
+        let path_fs = path_ref.fs;
         let nft_folder = self.ident().path().parent().await?;
 
-        if path_fs == Vc::upcast(this.output_fs.resolve().await?) {
-            // e.g. a referenced chunk
+        // include assets in the outputs such as referenced chunks
+        if path_ref.is_inside_ref(&*(this.output_root.await?)) {
             return Ok(Vc::cell(Some(
                 nft_folder.get_relative_path_to(&path_ref).unwrap(),
             )));
-        } else if path_fs == Vc::upcast(this.project_fs.resolve().await?) {
+        }
+
+        // include assets in the project root such as images
+        if path_ref.is_inside_ref(&*(this.project_root.await?)) {
             return Ok(Vc::cell(Some(
                 self.ident_in_project_fs()
                     .await?
                     .get_relative_path_to(&path_ref)
                     .unwrap(),
             )));
-        } else if path_fs == Vc::upcast(this.client_fs.resolve().await?) {
+        }
+
+        // assets that are needed on the client side such as fonts and icons
+        if path_fs == this.client_fs.to_resolved().await? {
             return Ok(Vc::cell(Some(
                 self.ident_in_client_fs()
                     .await?
@@ -118,20 +131,20 @@ impl NftJsonAsset {
             )));
         }
 
-        if let Some(path_fs) = Vc::try_resolve_downcast_type::<VirtualFileSystem>(path_fs).await? {
-            if path_fs.await?.name == "externals" || path_fs.await?.name == "traced" {
+        // items that are on the externals file system
+        if let Some(path_fs) = Vc::try_resolve_downcast_type::<VirtualFileSystem>(*path_fs).await? {
+            if path_fs.await?.name == "externals" {
                 return Ok(Vc::cell(Some(
                     self.ident_in_project_fs()
                         .await?
                         .get_relative_path_to(
-                            &*this.project_fs.root().join(path_ref.path.clone()).await?,
+                            &*this.project_root.root().join(path_ref.path.clone()).await?,
                         )
                         .unwrap(),
                 )));
             }
         }
 
-        println!("Unknown filesystem for {}", path.to_string().await?);
         Ok(Vc::cell(None))
     }
 }
@@ -154,7 +167,7 @@ impl Asset for NftJsonAsset {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
         let this = &*self.await?;
-        let mut result = Vec::new();
+        let mut result = BTreeSet::new();
 
         let chunk = this.chunk.to_resolved().await?;
         let entries = this
@@ -164,10 +177,6 @@ impl Asset for NftJsonAsset {
             .chain(std::iter::once(chunk))
             .collect();
         for referenced_chunk in all_assets_from_entries(Vc::cell(entries)).await? {
-            if referenced_chunk.ident().path().await?.extension_ref() == Some("map") {
-                continue;
-            }
-
             if chunk == referenced_chunk.to_resolved().await? {
                 continue;
             }
@@ -176,12 +185,10 @@ impl Asset for NftJsonAsset {
                 .get_output_specifier(referenced_chunk.ident().path())
                 .await?;
             if let Some(specifier) = &*specifier {
-                result.push(specifier.clone());
+                result.insert(specifier.clone());
             }
         }
 
-        result.sort();
-        result.dedup();
         let json = json!({
           "version": 1,
           "files": result
