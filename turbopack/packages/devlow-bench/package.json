@@ -1,7 +1,12 @@
 {
   "name": "@vercel/devlow-bench",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Benchmarking tool for the developer workflow",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vercel/next.js",
+    "directory": "turbopack/packages/devlow-bench"
+  },
   "publishConfig": {
     "access": "public"
   },

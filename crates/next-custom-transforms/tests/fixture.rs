@@ -430,6 +430,35 @@ fn server_actions_server_fixture(input: PathBuf) {
     );
 }
 
+#[fixture("tests/fixture/next-font-with-directive/**/input.js")]
+fn next_font_with_directive_fixture(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|_tr| {
+            (
+                resolver(Mark::new(), Mark::new(), false),
+                next_font_loaders(FontLoaderConfig {
+                    relative_file_path_from_root: "app/test.tsx".into(),
+                    font_loaders: vec!["@next/font/google".into()],
+                }),
+                server_actions(
+                    &FileName::Real("/app/test.tsx".into()),
+                    server_actions::Config {
+                        is_react_server_layer: true,
+                        enabled: true,
+                        hash_salt: "".into(),
+                    },
+                    _tr.comments.as_ref().clone(),
+                ),
+            )
+        },
+        &input,
+        &output,
+        Default::default(),
+    );
+}
+
 #[fixture("tests/fixture/server-actions/client/**/input.js")]
 fn server_actions_client_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");

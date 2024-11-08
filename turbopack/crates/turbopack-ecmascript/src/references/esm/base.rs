@@ -74,10 +74,10 @@ impl ReferencedAsset {
     pub async fn from_resolve_result(resolve_result: Vc<ModuleResolveResult>) -> Result<Vc<Self>> {
         // TODO handle multiple keyed results
         let result = resolve_result.await?;
-        if result.primary.is_empty() {
+        if result.is_unresolvable_ref() {
             return Ok(ReferencedAsset::Unresolvable.cell());
         }
-        for (_key, result) in result.primary.iter() {
+        for (_, result) in result.primary.iter() {
             match result {
                 ModuleResolveResultItem::External(request, ty) => {
                     return Ok(ReferencedAsset::External(request.clone(), *ty).cell());
