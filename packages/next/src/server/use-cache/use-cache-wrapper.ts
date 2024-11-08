@@ -509,7 +509,7 @@ export function cache(
           )
         }
 
-        const [encryptedBoundArgs, ...otherArgs] = args
+        const encryptedBoundArgs = args.shift()
         const boundArgs = await decryptActionBoundArgs(id, encryptedBoundArgs)
 
         if (!Array.isArray(boundArgs)) {
@@ -524,7 +524,7 @@ export function cache(
           )
         }
 
-        args = [...boundArgs, ...otherArgs]
+        args.unshift(...boundArgs)
       }
 
       const temporaryReferences = createClientTemporaryReferenceSet()
