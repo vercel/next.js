@@ -104,7 +104,7 @@ Image Optimization can be used with a [static export](/docs/app/building-your-ap
 
 Middleware uses a [runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes) that is a subset of all available Node.js APIs to help ensure low latency, since it may run in front of every route or asset in your application. This runtime does not require running “at the edge” and works in a single-region server. Additional configuration and infrastructure are required to run Middleware in multiple regions.
 
-If you are looking to add logic (or use an external package) that requires all Node.js APIs, you might be able to move this logic to a [layout](/docs/app/building-your-application/routing/layouts-and-templates#layouts) as a [Server Component](/docs/app/building-your-application/rendering/server-components). For example, checking [headers](/docs/app/api-reference/functions/headers) and [redirecting](/docs/app/api-reference/functions/redirect). You can also use headers, cookies, or query parameters to [redirect](/docs/app/api-reference/next-config-js/redirects#header-cookie-and-query-matching) or [rewrite](/docs/app/api-reference/next-config-js/rewrites#header-cookie-and-query-matching) through `next.config.js`. If that does not work, you can also use a [custom server](/docs/pages/building-your-application/configuring/custom-server).
+If you are looking to add logic (or use an external package) that requires all Node.js APIs, you might be able to move this logic to a [layout](/docs/app/building-your-application/routing/layouts-and-templates#layouts) as a [Server Component](/docs/app/building-your-application/rendering/server-components). For example, checking [headers](/docs/app/api-reference/functions/headers) and [redirecting](/docs/app/api-reference/functions/redirect). You can also use headers, cookies, or query parameters to [redirect](/docs/app/api-reference/config/next-config-js/redirects#header-cookie-and-query-matching) or [rewrite](/docs/app/api-reference/config/next-config-js/rewrites#header-cookie-and-query-matching) through `next.config.js`. If that does not work, you can also use a [custom server](/docs/pages/building-your-application/configuring/custom-server).
 
 ### Environment Variables
 
@@ -155,7 +155,7 @@ This allows you to use a singular Docker image that can be promoted through mult
 > **Good to know:**
 >
 > - You can run code on server startup using the [`register` function](/docs/app/building-your-application/optimizing/instrumentation).
-> - We do not recommend using the [runtimeConfig](/docs/pages/api-reference/next-config-js/runtime-configuration) option, as this does not work with the standalone output mode. Instead, we recommend [incrementally adopting](/docs/app/building-your-application/upgrading/app-router-migration) the App Router.
+> - We do not recommend using the [runtimeConfig](/docs/pages/api-reference/config/next-config-js/runtime-configuration) option, as this does not work with the standalone output mode. Instead, we recommend [incrementally adopting](/docs/app/building-your-application/upgrading/app-router-migration) the App Router.
 
 ### Caching and ISR
 
@@ -173,9 +173,9 @@ You can configure the Next.js cache location if you want to persist cached pages
 
 #### Static Assets
 
-If you want to host static assets on a different domain or CDN, you can use the `assetPrefix` [configuration](/docs/app/api-reference/next-config-js/assetPrefix) in `next.config.js`. Next.js will use this asset prefix when retrieving JavaScript or CSS files. Separating your assets to a different domain does come with the downside of extra time spent on DNS and TLS resolution.
+If you want to host static assets on a different domain or CDN, you can use the `assetPrefix` [configuration](/docs/app/api-reference/config/next-config-js/assetPrefix) in `next.config.js`. Next.js will use this asset prefix when retrieving JavaScript or CSS files. Separating your assets to a different domain does come with the downside of extra time spent on DNS and TLS resolution.
 
-[Learn more about `assetPrefix`](/docs/app/api-reference/next-config-js/assetPrefix).
+[Learn more about `assetPrefix`](/docs/app/api-reference/config/next-config-js/assetPrefix).
 
 #### Configuring Caching
 

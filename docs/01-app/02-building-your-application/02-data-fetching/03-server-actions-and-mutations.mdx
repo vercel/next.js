@@ -5,7 +5,7 @@ description: Learn how to handle form submissions and data mutations with Next.j
 related:
   description: Learn how to configure Server Actions in Next.js
   links:
-    - app/api-reference/next-config-js/serverActions
+    - app/api-reference/config/next-config-js/serverActions
 ---
 
 [Server Actions](https://react.dev/reference/rsc/server-actions) are **asynchronous functions** that are executed on the server. They can be called in Server and Client Components to handle form submissions and data mutations in Next.js applications.
@@ -692,33 +692,7 @@ Remember to consider the [behavior and caveats](https://react.dev/reference/reac
 
 ### Error Handling
 
-When an error is thrown, it'll be caught by the nearest [`error.js`](/docs/app/building-your-application/routing/error-handling) or `<Suspense>` boundary on the client. We recommend using `try/catch` to return errors to be handled by your UI.
-
-For example, your Server Action might handle errors from creating a new item by returning a message:
-
-```ts filename="app/actions.ts" switcher
-'use server'
-
-export async function createTodo(prevState: any, formData: FormData) {
-  try {
-    // Mutate data
-  } catch (e) {
-    throw new Error('Failed to create task')
-  }
-}
-```
-
-```js filename="app/actions.js" switcher
-'use server'
-
-export async function createTodo(prevState, formData) {
-  try {
-    //  Mutate data
-  } catch (e) {
-    throw new Error('Failed to create task')
-  }
-}
-```
+When an error is thrown, it'll be caught by the nearest `error.js` or `<Suspense>` boundary on the client. See [Error Handling](/docs/app/building-your-application/routing/error-handling) for more information.
 
 > **Good to know:**
 >
@@ -882,7 +856,7 @@ See [additional examples](/docs/app/api-reference/functions/cookies#deleting-coo
 ## Security
 
 By default, when a Server Action is created and exported, it creates a public HTTP endpoint
-and should be treated with the same security assumptions and authorization checks. This means, even if a Server Action or utility function is not imported elsewhere in your code, it’s still a publicly accessible.
+and should be treated with the same security assumptions and authorization checks. This means, even if a Server Action or utility function is not imported elsewhere in your code, it’s still publicly accessible.
 
 To improve security, Next.js has the following built-in features:
 
@@ -996,7 +970,7 @@ Behind the scenes, Server Actions use the `POST` method, and only this HTTP meth
 
 As an additional protection, Server Actions in Next.js also compare the [Origin header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Origin) to the [Host header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Host) (or `X-Forwarded-Host`). If these don't match, the request will be aborted. In other words, Server Actions can only be invoked on the same host as the page that hosts it.
 
-For large applications that use reverse proxies or multi-layered backend architectures (where the server API differs from the production domain), it's recommended to use the configuration option [`serverActions.allowedOrigins`](/docs/app/api-reference/next-config-js/serverActions) option to specify a list of safe origins. The option accepts an array of strings.
+For large applications that use reverse proxies or multi-layered backend architectures (where the server API differs from the production domain), it's recommended to use the configuration option [`serverActions.allowedOrigins`](/docs/app/api-reference/config/next-config-js/serverActions) option to specify a list of safe origins. The option accepts an array of strings.
 
 ```js filename="next.config.js"
 /** @type {import('next').NextConfig} */
