@@ -35,6 +35,7 @@ pub struct Span {
 
     // More nested fields, but memory lazily allocated
     pub time_data: OnceLock<Box<SpanTimeData>>,
+    pub logical_data: OnceLock<Box<SpanLogicalData>>,
     pub extra: OnceLock<Box<SpanExtra>>,
     pub names: OnceLock<Box<SpanNames>>,
 }
@@ -55,6 +56,11 @@ pub struct SpanTimeData {
     pub total_time: OnceLock<u64>,
     pub corrected_self_time: OnceLock<u64>,
     pub corrected_total_time: OnceLock<u64>,
+}
+
+#[derive(Default)]
+pub struct SpanLogicalData {
+    pub needed_space: OnceLock<u64>,
 }
 
 #[derive(Default)]
@@ -85,6 +91,10 @@ impl Span {
     pub fn time_data_mut(&mut self) -> &mut SpanTimeData {
         self.time_data();
         self.time_data.get_mut().unwrap()
+    }
+
+    pub fn logical_data(&self) -> &SpanLogicalData {
+        self.logical_data.get_or_init(Default::default)
     }
 
     pub fn extra(&self) -> &SpanExtra {
@@ -135,6 +145,7 @@ pub struct SpanGraph {
     pub total_span_count: OnceLock<u64>,
     pub corrected_self_time: OnceLock<u64>,
     pub corrected_total_time: OnceLock<u64>,
+    pub logical_needed_space: OnceLock<u64>,
     pub bottom_up: OnceLock<Vec<Arc<SpanBottomUp>>>,
 }
 

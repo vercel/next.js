@@ -7,12 +7,17 @@ use std::{
 
 use crate::{
     bottom_up::build_bottom_up_graph,
-    span::{Span, SpanEvent, SpanExtra, SpanGraphEvent, SpanIndex, SpanNames, SpanTimeData},
+    span::{
+        Span, SpanEvent, SpanExtra, SpanGraphEvent, SpanIndex, SpanLogicalData, SpanNames,
+        SpanTimeData,
+    },
     span_bottom_up_ref::SpanBottomUpRef,
     span_graph_ref::{event_map_to_list, SpanGraphEventRef, SpanGraphRef},
     store::{SpanId, Store},
     FxIndexMap,
 };
+
+pub const LOGICAL_MIN_MAX_FACTOR: u64 = 20;
 
 #[derive(Copy, Clone)]
 pub struct SpanRef<'a> {
@@ -44,6 +49,10 @@ impl<'a> SpanRef<'a> {
 
     pub fn time_data(&self) -> &'a SpanTimeData {
         self.span.time_data()
+    }
+
+    pub fn logical_data(&self) -> &'a SpanLogicalData {
+        self.span.logical_data()
     }
 
     pub fn extra(&self) -> &'a SpanExtra {
@@ -272,6 +281,23 @@ impl<'a> SpanRef<'a> {
                 self_time = max(self_time, 1);
             }
             self_time
+        })
+    }
+
+    pub fn logical_needed_space(&self) -> u64 {
+        *self.logical_data().needed_space.get_or_init(|| {
+            let children = self
+                .children()
+                .map(|child| child.logical_needed_space())
+                .collect::<Vec<_>>();
+            let Some(max_space) = children.iter().max() else {
+                return 1;
+            };
+            let min_space = max_space / LOGICAL_MIN_MAX_FACTOR;
+            children
+                .into_iter()
+                .map(|child| max(min_space, child))
+                .sum::<u64>()
         })
     }
 

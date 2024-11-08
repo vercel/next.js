@@ -6,6 +6,8 @@ use std::{
     sync::{atomic::AtomicU64, OnceLock},
 };
 
+use indexmap::IndexMap;
+
 use crate::{
     self_time_tree::SelfTimeTree,
     span::{Span, SpanEvent, SpanIndex},
@@ -43,6 +45,7 @@ fn new_root_span() -> Span {
         total_allocation_count: OnceLock::new(),
         total_span_count: OnceLock::new(),
         time_data: OnceLock::new(),
+        logical_data: OnceLock::new(),
         extra: OnceLock::new(),
         names: OnceLock::new(),
     }
@@ -98,6 +101,7 @@ impl Store {
             total_allocation_count: OnceLock::new(),
             total_span_count: OnceLock::new(),
             time_data: OnceLock::new(),
+            logical_data: OnceLock::new(),
             extra: OnceLock::new(),
             names: OnceLock::new(),
         });
@@ -124,7 +128,9 @@ impl Store {
         outdated_spans: &mut HashSet<SpanIndex>,
     ) {
         let span = &mut self.spans[span_index.get()];
-        span.args.extend(args);
+        let mut map = span.args.drain(..).collect::<IndexMap<_, _>>();
+        map.extend(args);
+        span.args.extend(map.into_iter());
         outdated_spans.insert(span_index);
     }
 
@@ -319,6 +325,7 @@ impl Store {
             span.total_allocation_count.take();
             span.total_span_count.take();
             span.extra.take();
+            span.logical_data.take();
         }
 
         for id in outdated_spans.iter() {
