@@ -289,7 +289,7 @@ export function getDefineEnv({
       : undefined),
   }
 
-  const userDefines = config.compiler.define ?? {}
+  const userDefines = config.compiler?.define ?? {}
   for (const key in userDefines) {
     if (defineEnv.hasOwnProperty(key)) {
       throw new Error(
