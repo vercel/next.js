@@ -251,8 +251,6 @@ impl VersionedContentMap {
             return Vc::cell(None);
         };
         // Need to reconnect the operation to the map
-        let compute_entry = compute_entry.connect();
-
-        compute_entry
+        compute_entry.connect()
     }
 }

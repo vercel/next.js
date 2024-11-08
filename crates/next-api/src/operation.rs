@@ -9,6 +9,7 @@ use crate::{
 };
 
 /// A derived type of Entrypoints, but with VcOperation<Endpoint> for every endpoint.
+///
 /// This is needed to call `write_to_disk` which expects an `VcOperation<Endpoint>`.
 /// This is important as VcOperations can be stored in the VersionedContentMap and can be exposed to
 /// JS via napi.
