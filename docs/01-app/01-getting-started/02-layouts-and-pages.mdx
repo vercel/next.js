@@ -248,7 +248,7 @@ In a nested route, the components of a segment will be nested **inside** the com
 
 ## Linking between pages
 
-You can use the [`<Link>` component](/docs/canary/app/api-reference/components/link) to navigate between routes. `<Link>` is a built-in Next.js component that extends the HTML `<a>` tag to provide [prefetching](#2-prefetching) and [client-side navigation](#client-side-navigation).
+You can use the [`<Link>` component](/docs/app/api-reference/components/link) to navigate between routes. `<Link>` is a built-in Next.js component that extends the HTML `<a>` tag to provide [prefetching](#2-prefetching) and [client-side navigation](#client-side-navigation).
 
 You can use it by importing it from `next/link`, and passing a `href` prop to the component:
 
@@ -279,3 +279,48 @@ export default function Post({ post }) {
 `<Link>` is the primary and recommended way to navigate between routes in your Next.js application. However, you can also use the [`useRouter` hook](/docs/app/api-reference/functions/use-router) for more advanced navigation.
 
 {/* TODO: Add Deep Dive Component */}
+
+**Deep Dive: How navigation works in Next.js**
+
+Next.js uses a hybrid approach for navigation. On the server, your application code is automatically [code-split](#1-code-splitting) by route segments. On the client, Next.js [prefetches](#2-prefetching) and [caches](#3-caching) these segments. This means, when a user navigates to a new route, the browser rerenders only the segments that change and not the whole page - improving the navigation experience and performance.
+
+### 1. Code Splitting
+
+Code splitting allows you to split your application code into smaller bundles to be downloaded and executed by the browser. With [React Server Components (RSC)](https://react.dev/reference/rsc/server-component), your application code is automatically code-split by route segments. This means only the code needed for the current route is loaded on navigation, reducing the amount of data transferred and execution time for each request.
+
+### 2. Prefetching
+
+Prefetching preloads routes in the background before users visit them. In Next.js, there are two ways routes are prefetched:
+
+- **`<Link>` component**: Route segments are automatically prefetched when links appear in the user's viewport, either during the initial page load or when they come into view through scrolling. Learn how to configure the prefetching behavior.
+- **`router.prefetch()`**: Allows you programatically prefetch routes.
+
+### 3. Browser Caching
+
+The RSC Payload of prefetched route segments and visited routes are stored in the browser cache. This avoid unecessary trips to the server on navigation.
+
+### 4. Partial Rendering
+
+On navigation, the browser cache is reused as much as possible. Partial rendering means only the route segments that change on navigation re-render on the client, and any shared segments are preserved.
+
+For example, when navigating between two sibling routes, `/blog/a` and `/blog/b`, page `a` will be unmounted, page `b` will be mounted with fresh state, and the shared `blog` layout will be preserved.
+
+{/* TODO: Update diagram */}
+
+<Image
+  alt="How partial rendering works"
+  srcLight="/docs/light/partial-rendering.png"
+  srcDark="/docs/dark/partial-rendering.png"
+  width="1600"
+  height="945"
+/>
+
+Without partial rendering, each navigation would cause the full page to re-render on the client. Rendering only the segment that changes reduces the amount of data transferred and execution time, leading to improved performance.
+
+### 5. Soft Navigation
+
+Browsers perform a "hard navigation" when navigating between pages. But Next.js enables "soft navigation" between pages. This enables client state in the layouts to be preserved during navigation.
+
+### 6. Back and forward navigation and scroll position
+
+By default, Next.js will maintain the scroll position for backwards and forwards navigation.
