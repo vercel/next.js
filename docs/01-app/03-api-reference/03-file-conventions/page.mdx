@@ -3,6 +3,17 @@ title: page.js
 description: API reference for the page.js file.
 ---
 
+> **Good to know**:
+>
+> - The `.js`, `.jsx`, or `.tsx` file extensions can be used for Pages.
+> - A page is always the [leaf](/docs/app/building-your-application/routing#terminology) of the [route subtree](/docs/app/building-your-application/routing#terminology).
+> - A `page.js` file is required to make a route segment publicly accessible.
+> - Pages are [Server Components](/docs/app/building-your-application/rendering/server-components) by default, but can be set to a [Client Component](/docs/app/building-your-application/rendering/client-components).
+> - Pages can fetch data. View the [Data Fetching](/docs/app/building-your-application/data-fetching) section for more information.
+
+> **Good to know**: `.js`, `.jsx`, or `.tsx` file extensions can be used for special files.
+> **Good to know**: The App Router takes priority over the Pages Router. Routes across directories should not resolve to the same URL path and will cause a build-time error to prevent a conflict.
+
 The `page` file is used to define a page in your Next.js application.
 
 ```tsx filename="app/blog/[slug]/page.tsx" switcher

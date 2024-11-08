@@ -3,6 +3,20 @@ title: layout.js
 description: API reference for the layout.js file.
 ---
 
+> **Good to know**:
+>
+> - `.js`, `.jsx`, or `.tsx` file extensions can be used for Layouts.
+> - Only the root layout can contain `<html>` and `<body>` tags.
+> - When a `layout.js` and `page.js` file are defined in the same folder, the layout will wrap the page.
+> - Layouts are [Server Components](/docs/app/building-your-application/rendering/server-components) by default but can be set to a [Client Component](/docs/app/building-your-application/rendering/client-components).
+> - Layouts can fetch data. View the [Data Fetching](/docs/app/building-your-application/data-fetching) section for more information.
+> - Passing data between a parent layout and its children is not possible. However, you can fetch the same data in a route more than once, and React will [automatically dedupe the requests](/docs/app/building-your-application/caching#request-memoization) without affecting performance.
+> - Layouts do not have access to `pathname` ([learn more](/docs/app/api-reference/file-conventions/layout)). But imported Client Components can access the pathname using [`usePathname`](/docs/app/api-reference/functions/use-pathname) hook.
+> - Layouts do not have access to the route segments below itself. To access all route segments, you can use [`useSelectedLayoutSegment`](/docs/app/api-reference/functions/use-selected-layout-segment) or [`useSelectedLayoutSegments`](/docs/app/api-reference/functions/use-selected-layout-segments) in a Client Component.
+> - You can use [Route Groups](/docs/app/building-your-application/routing/route-groups) to opt specific route segments in and out of shared layouts.
+> - You can use [Route Groups](/docs/app/building-your-application/routing/route-groups) to create multiple root layouts. See an [example here](/docs/app/building-your-application/routing/route-groups#creating-multiple-root-layouts).
+> - **Migrating from the `pages` directory:** The root layout replaces the [`_app.js`](/docs/pages/building-your-application/routing/custom-app) and [`_document.js`](/docs/pages/building-your-application/routing/custom-document) files. [View the migration guide](/docs/app/building-your-application/upgrading/app-router-migration#migrating-_documentjs-and-_appjs).
+
 The `layout` file is used to define a layout in your Next.js application.
 
 ```tsx filename="app/dashboard/layout.tsx" switcher
@@ -53,7 +67,7 @@ export default function RootLayout({ children }) {
 
 #### `children` (required)
 
-Layout components should accept and use a `children` prop. During rendering, `children` will be populated with the route segments the layout is wrapping. These will primarily be the component of a child [Layout](/docs/app/building-your-application/routing/pages) (if it exists) or [Page](/docs/app/building-your-application/routing/pages), but could also be other special files like [Loading](/docs/app/building-your-application/routing/loading-ui-and-streaming) or [Error](/docs/app/building-your-application/routing/error-handling) when applicable.
+Layout components should accept and use a `children` prop. During rendering, `children` will be populated with the route segments the layout is wrapping. These will primarily be the component of a child [Layout](/docs/app/getting-started/layouts-and-pages) (if it exists) or [Page](/docs/app/getting-started/layouts-and-pages), but could also be other special files like [Loading](/docs/app/building-your-application/routing/loading-ui-and-streaming) or [Error](/docs/app/building-your-application/routing/error-handling) when applicable.
 
 #### `params` (optional)
 
@@ -121,7 +135,7 @@ export default function RootLayout({ children }) {
 
 ### Layouts do not receive `searchParams`
 
-Unlike [Pages](/docs/app/api-reference/file-conventions/page), Layout components **do not** receive the `searchParams` prop. This is because a shared layout is [not re-rendered during navigation](/docs/app/building-your-application/routing/linking-and-navigating#4-partial-rendering) which could lead to stale `searchParams` between navigations.
+Unlike [Pages](/docs/app/api-reference/file-conventions/page), Layout components **do not** receive the `searchParams` prop. This is because a shared layout is [not re-rendered during navigation](/docs/app/getting-started/linking-and-navigating#4-partial-rendering) which could lead to stale `searchParams` between navigations.
 
 When using client-side navigation, Next.js automatically only renders the part of the page below the common layout between two routes.
 
@@ -145,7 +159,7 @@ Instead, use the Page [`searchParams`](/docs/app/api-reference/file-conventions/
 
 ### Layouts cannot access `pathname`
 
-Layouts cannot access `pathname`. This is because layouts are Server Components by default, and [don't rerender during client-side navigation](/docs/app/building-your-application/routing/linking-and-navigating#4-partial-rendering), which could lead to `pathname` becoming stale between navigations. To prevent staleness, Next.js would need to refetch all segments of a route, losing the benefits of caching and increasing the [RSC payload](/docs/app/building-your-application/rendering/server-components#what-is-the-react-server-component-payload-rsc) size on navigation.
+Layouts cannot access `pathname`. This is because layouts are Server Components by default, and [don't rerender during client-side navigation](/docs/app/getting-started/linking-and-navigating#4-partial-rendering), which could lead to `pathname` becoming stale between navigations. To prevent staleness, Next.js would need to refetch all segments of a route, losing the benefits of caching and increasing the [RSC payload](/docs/app/building-your-application/rendering/server-components#what-is-the-react-server-component-payload-rsc) size on navigation.
 
 Instead, you can extract the logic that depends on pathname into a Client Component and import it into your layouts. Since Client Components rerender (but are not refetched) during navigation, you can use Next.js hooks such as [`usePathname`](https://nextjs.org/docs/app/api-reference/functions/use-pathname) to access the current pathname and prevent staleness.
 
@@ -179,7 +193,7 @@ export default function Layout({ children }) {
 
 Common `pathname` patterns can also be implemented with [`params`](#params-optional) prop.
 
-See the [examples](/docs/app/building-your-application/routing/layouts-and-templates#examples) section for more information.
+See the [examples](/docs/app/getting-started/layouts-and-pages#examples) section for more information.
 
 ## Examples
 

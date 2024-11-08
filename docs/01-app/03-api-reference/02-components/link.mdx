@@ -5,7 +5,7 @@ description: Enable fast client-side navigation with the built-in `next/link` co
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
 
-`<Link>` is a React component that extends the HTML `<a>` element to provide [prefetching](/docs/app/building-your-application/routing/linking-and-navigating#2-prefetching) and client-side navigation between routes. It is the primary way to navigate between routes in Next.js.
+`<Link>` is a React component that extends the HTML `<a>` element to provide [prefetching](/docs/app/getting-started/linking-and-navigating#2-prefetching) and client-side navigation between routes. It is the primary way to navigate between routes in Next.js.
 
 Basic usage:
 
@@ -227,7 +227,7 @@ export default function Home() {
 
 ### `scroll`
 
-**Defaults to `true`.** The default scrolling behavior of `<Link>` in Next.js **is to maintain scroll position**, similar to how browsers handle back and forwards navigation. When you navigate to a new [Page](/docs/app/building-your-application/routing/pages), scroll position will stay the same as long as the Page is visible in the viewport. However, if the Page is not visible in the viewport, Next.js will scroll to the top of the first Page element.
+**Defaults to `true`.** The default scrolling behavior of `<Link>` in Next.js **is to maintain scroll position**, similar to how browsers handle back and forwards navigation. When you navigate to a new [Page](/docs/app/getting-started/layouts-and-pages), scroll position will stay the same as long as the Page is visible in the viewport. However, if the Page is not visible in the viewport, Next.js will scroll to the top of the first Page element.
 
 When `scroll = {false}`, Next.js will not attempt to scroll to the first Page element.
 
@@ -324,6 +324,16 @@ export default function Page() {
   )
 }
 ```
+
+The `<Link>`'s default prefetching behavior (i.e. when the `prefetch` prop is left unspecified or set to `null`) is different depending on your usage of [`loading.js`](/docs/app/api-reference/file-conventions/loading). Only the shared layout, down the rendered "tree" of components until the first `loading.js` file, is prefetched and cached for `30s`. This reduces the cost of fetching an entire dynamic route, and it means you can show an [instant loading state](/docs/app/building-your-application/routing/loading-ui-and-streaming#instant-loading-states) for better visual feedback to users.
+
+You can disable prefetching by setting the `prefetch` prop to `false`. Alternatively, you can prefetch the full page data beyond the loading boundaries by setting the `prefetch` prop to `true`.
+
+See the [`<Link>` API reference](/docs/app/api-reference/components/link) for more information.
+
+> **Good to know**:
+>
+> - Prefetching is not enabled in development, only in production.
 
 </AppOnly>
 
@@ -526,6 +536,96 @@ export default function PostList({ posts }) {
 }
 ```
 
+### Active nav links
+
+### Active Nav Links
+
+You can use the [usePathname()](/docs/app/api-reference/functions/use-pathname) hook to determine if a nav link is active.
+
+Since `usePathname()` is a client hook, you need to extract the nav links into a Client Component, which can be imported into your layout or template:
+
+```tsx filename="app/ui/nav-links.tsx" switcher
+'use client'
+
+import { usePathname } from 'next/navigation'
+import Link from 'next/link'
+
+export function NavLinks() {
+  const pathname = usePathname()
+
+  return (
+    <nav>
+      <Link className={`link ${pathname === '/' ? 'active' : ''}`} href="/">
+        Home
+      </Link>
+
+      <Link
+        className={`link ${pathname === '/about' ? 'active' : ''}`}
+        href="/about"
+      >
+        About
+      </Link>
+    </nav>
+  )
+}
+```
+
+```jsx filename="app/ui/nav-links.js" switcher
+'use client'
+
+import { usePathname } from 'next/navigation'
+import Link from 'next/link'
+
+export function Links() {
+  const pathname = usePathname()
+
+  return (
+    <nav>
+      <Link className={`link ${pathname === '/' ? 'active' : ''}`} href="/">
+        Home
+      </Link>
+
+      <Link
+        className={`link ${pathname === '/about' ? 'active' : ''}`}
+        href="/about"
+      >
+        About
+      </Link>
+    </nav>
+  )
+}
+```
+
+```tsx filename="app/layout.tsx" switcher
+import { NavLinks } from '@/app/ui/nav-links'
+
+export default function Layout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <body>
+        <NavLinks />
+        <main>{children}</main>
+      </body>
+    </html>
+  )
+}
+```
+
+```jsx filename="app/layout.js" switcher
+import { NavLinks } from '@/app/ui/nav-links'
+
+export default function Layout({ children }) {
+  return (
+    <html lang="en">
+      <body>
+        <NavLinks />
+        <main>{children}</main>
+      </body>
+    </html>
+  )
+}
+```
+
 ### Checking active links
 
 You can use [`usePathname()`](/docs/app/api-reference/functions/use-pathname) to determine if a link is active. For example, to add a class to the active link, you can check if the current `pathname` matches the `href` of the link:
@@ -595,7 +695,7 @@ If you'd like to scroll to a specific `id` on navigation, you can append your UR
 
 > **Good to know**:
 >
-> - Next.js will scroll to the [Page](/docs/app/building-your-application/routing/pages) if it is not visible in the viewport upon navigation.
+> - Next.js will scroll to the [Page](/docs/app/getting-started/layouts-and-pages) if it is not visible in the viewport upon navigation.
 
 </AppOnly>
 
@@ -1015,7 +1115,7 @@ export default function Home() {
 
 <AppOnly>
 
-The default scrolling behavior of `<Link>` in Next.js **is to maintain scroll position**, similar to how browsers handle back and forwards navigation. When you navigate to a new [Page](/docs/app/building-your-application/routing/pages), scroll position will stay the same as long as the Page is visible in the viewport.
+The default scrolling behavior of `<Link>` in Next.js **is to maintain scroll position**, similar to how browsers handle back and forwards navigation. When you navigate to a new [Page](/docs/app/getting-started/layouts-and-pages), scroll position will stay the same as long as the Page is visible in the viewport.
 
 However, if the Page is not visible in the viewport, Next.js will scroll to the top of the first Page element. If you'd like to disable this behavior, you can pass `scroll={false}` to the `<Link>` component, or `scroll: false` to `router.push()` or `router.replace()`.
 
