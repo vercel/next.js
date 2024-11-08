@@ -73,6 +73,7 @@ use crate::{
     },
     font::create_font_manifest,
     loadable_manifest::create_react_loadable_manifest,
+    nft_json::NftJsonAsset,
     paths::{
         all_paths_in_root, all_server_paths, get_js_paths_from_root, get_paths_from_root,
         get_wasm_paths_from_root, paths_to_bindings, wasm_paths_to_bindings,
@@ -1140,29 +1141,34 @@ impl AppEndpoint {
         let app_entry_chunks_ref = app_entry_chunks.await?;
         server_assets.extend(app_entry_chunks_ref.iter().copied());
 
-        if let (Some(client_references), Some(client_references_chunks)) =
-            (client_references, client_references_chunks)
-        {
-            let entry_manifest = ClientReferenceManifest::build_output(
-                node_root,
-                client_relative_path,
-                app_entry.original_name.clone(),
-                client_references,
-                client_references_chunks,
-                *app_entry_chunks,
-                Value::new(*app_entry_chunks_availability),
-                client_chunking_context,
-                ssr_chunking_context,
-                this.app_project.project().next_config(),
-                runtime,
-            )
-            .to_resolved()
-            .await?;
-            server_assets.insert(entry_manifest);
-            if runtime == NextRuntime::Edge {
-                middleware_assets.push(entry_manifest);
-            }
-        }
+        // these references are important for turbotrace
+        let client_reference_manifest =
+            if let (Some(client_references), Some(client_references_chunks)) =
+                (client_references, client_references_chunks)
+            {
+                let entry_manifest = ClientReferenceManifest::build_output(
+                    node_root,
+                    client_relative_path,
+                    app_entry.original_name.clone(),
+                    client_references,
+                    client_references_chunks,
+                    *app_entry_chunks,
+                    Value::new(*app_entry_chunks_availability),
+                    client_chunking_context,
+                    ssr_chunking_context,
+                    this.app_project.project().next_config(),
+                    runtime,
+                )
+                .to_resolved()
+                .await?;
+                server_assets.insert(entry_manifest);
+                if runtime == NextRuntime::Edge {
+                    middleware_assets.push(entry_manifest);
+                }
+                Some(entry_manifest)
+            } else {
+                None
+            };
 
         let client_assets = OutputAssets::new(client_assets.iter().map(|asset| **asset).collect());
 
@@ -1347,6 +1353,26 @@ impl AppEndpoint {
                     ),
                 );
                 server_assets.extend(loadable_manifest_output.await?.iter().copied());
+
+                if this
+                    .app_project
+                    .project()
+                    .next_mode()
+                    .await?
+                    .is_production()
+                {
+                    server_assets.insert(ResolvedVc::upcast(
+                        NftJsonAsset::new(
+                            *rsc_chunk,
+                            this.app_project.project().output_fs(),
+                            this.app_project.project().project_fs(),
+                            this.app_project.project().client_fs(),
+                            client_reference_manifest.iter().map(|m| **m).collect(),
+                        )
+                        .to_resolved()
+                        .await?,
+                    ));
+                }
 
                 AppEndpointOutput::NodeJs {
                     rsc_chunk,

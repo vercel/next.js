@@ -631,12 +631,12 @@ export interface NextConfig extends Record<string, any> {
 
   /**
    * @since version 11
-   * @see [ESLint configuration](https://nextjs.org/docs/app/building-your-application/configuring/eslint)
+   * @see [ESLint configuration](https://nextjs.org/docs/app/api-reference/config/eslint)
    */
   eslint?: ESLintConfig
 
   /**
-   * @see [Next.js TypeScript documentation](https://nextjs.org/docs/app/building-your-application/configuring/typescript)
+   * @see [Next.js TypeScript documentation](https://nextjs.org/docs/app/api-reference/config/typescript)
    */
   typescript?: TypeScriptConfig
 
