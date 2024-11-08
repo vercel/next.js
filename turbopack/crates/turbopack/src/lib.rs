@@ -319,6 +319,9 @@ pub struct ModuleAssetContext {
     pub resolve_options_context: Vc<ResolveOptionsContext>,
     pub layer: Vc<RcStr>,
     transition: Option<ResolvedVc<Box<dyn Transition>>>,
+    /// Whether to replace external resolutions with CachedExternalModules. Used with
+    /// ModuleOptionsContext.enable_externals_tracing to handle transitive external dependencies.
+    replace_externals: bool,
 }
 
 #[turbo_tasks::value_impl]
@@ -338,6 +341,7 @@ impl ModuleAssetContext {
             resolve_options_context,
             transition: None,
             layer,
+            replace_externals: true,
         })
     }
 
@@ -357,6 +361,26 @@ impl ModuleAssetContext {
             resolve_options_context,
             layer,
             transition: Some(transition),
+            replace_externals: true,
+        })
+    }
+
+    #[turbo_tasks::function]
+    fn new_without_replace_externals(
+        transitions: Vc<TransitionOptions>,
+        compile_time_info: Vc<CompileTimeInfo>,
+        module_options_context: Vc<ModuleOptionsContext>,
+        resolve_options_context: Vc<ResolveOptionsContext>,
+        layer: Vc<RcStr>,
+    ) -> Vc<Self> {
+        Self::cell(ModuleAssetContext {
+            transitions,
+            compile_time_info,
+            module_options_context,
+            resolve_options_context,
+            transition: None,
+            layer,
+            replace_externals: false,
         })
     }
 

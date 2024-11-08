@@ -175,7 +175,6 @@ import type { RouteModule } from './route-modules/route-module'
 import { FallbackMode, parseFallbackField } from '../lib/fallback'
 import { toResponseCacheEntry } from './response-cache/utils'
 import { scheduleOnNextTick } from '../lib/scheduler'
-import { createRenderResumeDataCache } from './resume-data-cache/resume-data-cache'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -2654,11 +2653,9 @@ export default abstract class Server<
 
               // If the warmup is successful, we should use the resume data
               // cache from the warmup.
-              if (warmup.metadata.devWarmupPrerenderResumeDataCache) {
-                renderOpts.devWarmupRenderResumeDataCache =
-                  createRenderResumeDataCache(
-                    warmup.metadata.devWarmupPrerenderResumeDataCache
-                  )
+              if (warmup.metadata.devRenderResumeDataCache) {
+                renderOpts.devRenderResumeDataCache =
+                  warmup.metadata.devRenderResumeDataCache
               }
             }
 

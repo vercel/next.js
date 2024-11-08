@@ -40,7 +40,6 @@ next-custom-transforms = { path = "crates/next-custom-transforms" }
 
 # Turbopack
 auto-hash-map = { path = "turbopack/crates/turbo-tasks-auto-hash-map" }
-node-file-trace = { path = "turbopack/crates/node-file-trace", default-features = false }
 swc-ast-explorer = { path = "turbopack/crates/turbopack-swc-ast-explorer" }
 turbo-prehash = { path = "turbopack/crates/turbo-prehash" }
 turbo-tasks-malloc = { path = "turbopack/crates/turbo-tasks-malloc", default-features = false }
@@ -137,7 +136,7 @@ console = "0.15.5"
 console-subscriber = "0.1.8"
 criterion = "0.5.1"
 crossbeam-channel = "0.5.8"
-dashmap = "5.4.0"
+dashmap = "6.1.0"
 dhat = { version = "0.3.2" }
 dialoguer = "0.10.3"
 dunce = "1.0.3"
