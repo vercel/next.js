@@ -9,6 +9,7 @@ description: API Reference for the expireTag function.
 >
 > - `expireTag` is available in both [Node.js and Edge runtimes](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes).
 > - `expireTag` only invalidates the cache when the path is next visited. This means calling `expireTag` with a dynamic route segment will not immediately trigger many expirations at once. The invalidation only happens when the path is next visited.
+
 ## Reference
 
 ### Parameters
@@ -34,6 +35,7 @@ fetch(url, { next: { tags: [...] } });
 ### Server Action
 
 You can invoke `expireTag` in a Server Action:
+
 ```ts filename="app/actions.ts" switcher
 'use server'
 

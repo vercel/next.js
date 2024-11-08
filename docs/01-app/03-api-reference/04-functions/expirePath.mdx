@@ -72,7 +72,8 @@ This will purge the Data Cache on the next page visit.
 
 ### Server Action
 
-You can call `expirePath` in a Server Action: 
+You can call `expirePath` in a Server Action:
+
 ```ts filename="app/actions.ts" switcher
 'use server'
 
@@ -87,6 +88,7 @@ export default async function submit() {
 ### Route Handler
 
 You can call `expirePath` in a Route Handler:
+
 ```ts filename="app/api/expire/route.ts" switcher
 import { expirePath } from 'next/cache'
 import type { NextRequest } from 'next/server'
