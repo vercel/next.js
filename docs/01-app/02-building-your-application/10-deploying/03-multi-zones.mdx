@@ -36,7 +36,7 @@ Navigating from a page in one zone to a page in another zone, such as from `/` t
 
 ## How to define a zone
 
-A zone is a normal Next.js application where you also configure an [assetPrefix](/docs/app/api-reference/next-config-js/assetPrefix) to avoid conflicts with pages and static files in other zones.
+A zone is a normal Next.js application where you also configure an [assetPrefix](/docs/app/api-reference/config/next-config-js/assetPrefix) to avoid conflicts with pages and static files in other zones.
 
 ```js filename="next.config.js"
 /** @type {import('next').NextConfig} */
@@ -72,7 +72,7 @@ const nextConfig = {
 
 With the Multi Zones set-up, you need to route the paths to the correct zone since they are served by different applications. You can use any HTTP proxy to do this, but one of the Next.js applications can also be used to route requests for the entire domain.
 
-To route to the correct zone using a Next.js application, you can use [`rewrites`](/docs/app/api-reference/next-config-js/rewrites). For each path served by a different zone, you would add a rewrite rule to send that path to the domain of the other zone. For example:
+To route to the correct zone using a Next.js application, you can use [`rewrites`](/docs/app/api-reference/config/next-config-js/rewrites). For each path served by a different zone, you would add a rewrite rule to send that path to the domain of the other zone. For example:
 
 ```js filename="next.config.js"
 async rewrites() {
@@ -95,7 +95,7 @@ async rewrites() {
 
 ### Routing requests using middleware
 
-Routing requests through [`rewrites`](/docs/app/api-reference/next-config-js/rewrites) is recommended to minimize latency overhead for the requests, but middleware can also be used when there is a need for a dynamic decision when routing. For example, if you are using a feature flag to decide where a path should be routed such as during a migration, you can use middleware.
+Routing requests through [`rewrites`](/docs/app/api-reference/config/next-config-js/rewrites) is recommended to minimize latency overhead for the requests, but middleware can also be used when there is a need for a dynamic decision when routing. For example, if you are using a feature flag to decide where a path should be routed such as during a migration, you can use middleware.
 
 ```js filename="middleware.js"
 export async function middleware(request) {
@@ -134,6 +134,6 @@ const nextConfig = {
 }
 ```
 
-See [`serverActions.allowedOrigins`](/docs/app/api-reference/next-config-js/serverActions#allowedorigins) for more information.
+See [`serverActions.allowedOrigins`](/docs/app/api-reference/config/next-config-js/serverActions#allowedorigins) for more information.
 
 </AppOnly>
