@@ -200,16 +200,16 @@ export async function signup(state, formData) {
 }
 ```
 
-Back in your `<SignupForm />`, you can use React's `useFormState` hook to display validation errors while the form is submitting:
+Back in your `<SignupForm />`, you can use React's `useActionState` hook to display validation errors while the form is submitting:
 
-```tsx filename="app/ui/signup-form.tsx" switcher highlight={7,15,21,27-39}
-'use client'
+```tsx filename="app/ui/signup-form.tsx" switcher highlight={7,15,21,27-36}
+"use client";
 
-import { useFormState, useFormStatus } from 'react-dom'
-import { signup } from '@/app/actions/auth'
+import { signup } from "@/app/actions/auth";
+import { useActionState } from "react";
 
-export function SignupForm() {
-  const [state, action] = useFormState(signup, undefined)
+export default function SignupForm() {
+  const [state, action, pending] = useActionState(signup, undefined);
 
   return (
     <form action={action}>
@@ -239,42 +239,34 @@ export function SignupForm() {
           </ul>
         </div>
       )}
-      <SubmitButton />
+      <button disabled={pending} type="submit">
+        Sign Up
+      </button>
     </form>
-  )
-}
-
-function SubmitButton() {
-  const { pending } = useFormStatus()
-
-  return (
-    <button disabled={pending} type="submit">
-      Sign Up
-    </button>
-  )
+  );
 }
 ```
 
-```jsx filename="app/ui/signup-form.js" switcher highlight={7,15,21,27-39}
-'use client'
+```jsx filename="app/ui/signup-form.js" switcher highlight={7,15,21,27-36}
+"use client";
 
-import { useFormState, useFormStatus } from 'react-dom'
-import { signup } from '@/app/actions/auth'
+import { signup } from "@/app/actions/auth";
+import { useActionState } from "react";
 
-export function SignupForm() {
-  const [state, action] = useFormState(signup, undefined)
+export default function SignupForm() {
+  const [state, action, pending] = useActionState(signup, undefined);
 
   return (
     <form action={action}>
       <div>
         <label htmlFor="name">Name</label>
-        <input id="name" name="name" placeholder="John Doe" />
+        <input id="name" name="name" placeholder="Name" />
       </div>
       {state?.errors?.name && <p>{state.errors.name}</p>}
 
       <div>
         <label htmlFor="email">Email</label>
-        <input id="email" name="email" placeholder="john@example.com" />
+        <input id="email" name="email" placeholder="Email" />
       </div>
       {state?.errors?.email && <p>{state.errors.email}</p>}
 
@@ -292,19 +284,11 @@ export function SignupForm() {
           </ul>
         </div>
       )}
-      <SubmitButton />
+      <button disabled={pending} type="submit">
+        Sign Up
+      </button>
     </form>
-  )
-}
-
-function SubmitButton() {
-  const { pending } = useFormStatus()
-
-  return (
-    <button disabled={pending} type="submit">
-      Sign Up
-    </button>
-  )
+  );
 }
 ```
 
