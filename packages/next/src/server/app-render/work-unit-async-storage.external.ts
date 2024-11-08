@@ -61,11 +61,6 @@ export type RequestStore = {
   // DEV-only
   usedDynamic?: boolean
   prerenderPhase?: boolean
-
-  /**
-   * The resume data cache for this request. This will be a mutable cache.
-   */
-  devWarmupPrerenderResumeDataCache: PrerenderResumeDataCache | null
 } & PhasePartial
 
 /**
@@ -220,14 +215,9 @@ export function getPrerenderResumeDataCache(
   workUnitStore: WorkUnitStore
 ): PrerenderResumeDataCache | null {
   if (
-    workUnitStore.type !== 'prerender-legacy' &&
-    workUnitStore.type !== 'cache' &&
-    workUnitStore.type !== 'unstable-cache'
+    workUnitStore.type === 'prerender' ||
+    workUnitStore.type === 'prerender-ppr'
   ) {
-    if (workUnitStore.type === 'request') {
-      return workUnitStore.devWarmupPrerenderResumeDataCache
-    }
-
     return workUnitStore.prerenderResumeDataCache
   }
 

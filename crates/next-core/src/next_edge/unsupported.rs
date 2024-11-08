@@ -1,6 +1,6 @@
 use anyhow::Result;
 use indoc::formatdoc;
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
@@ -62,9 +62,9 @@ impl ImportMappingReplacement for NextEdgeUnsupportedModuleReplacer {
               "#
             };
             let content = AssetContent::file(File::from(code).into());
-            let source = VirtualSource::new(root_path, content);
+            let source = VirtualSource::new(root_path, content).to_resolved().await?;
             return Ok(ImportMapResult::Result(
-                ResolveResult::source(Vc::upcast(source)).resolved_cell(),
+                ResolveResult::source(ResolvedVc::upcast(source)).resolved_cell(),
             )
             .cell());
         };

@@ -13,7 +13,7 @@ use turbopack::{
     transition::Transition,
 };
 use turbopack_core::{
-    chunk::module_id_strategies::ModuleIdStrategy,
+    chunk::{module_id_strategies::ModuleIdStrategy, MinifyType},
     compile_time_info::{
         CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefineableNameSegment,
         FreeVarReferences,
@@ -419,7 +419,11 @@ pub async fn get_server_module_options_context(
     let foreign_code_context_condition =
         foreign_code_context_condition(next_config, project_path).await?;
     let postcss_transform_options = PostCssTransformOptions {
-        postcss_package: Some(get_postcss_package_mapping(project_path)),
+        postcss_package: Some(
+            get_postcss_package_mapping(project_path)
+                .to_resolved()
+                .await?,
+        ),
         config_location: PostCssConfigLocation::ProjectPathOrLocalPath,
         ..Default::default()
     };
@@ -520,6 +524,11 @@ pub async fn get_server_module_options_context(
         },
         tree_shaking_mode: tree_shaking_mode_for_user_code,
         side_effect_free_packages: next_config.optimize_package_imports().await?.clone_value(),
+        enable_externals_tracing: if next_mode.is_production() {
+            Some(project_path)
+        } else {
+            None
+        },
         ..Default::default()
     };
 
@@ -940,6 +949,7 @@ pub async fn get_server_chunking_context_with_client_assets(
     asset_prefix: Vc<Option<RcStr>>,
     environment: Vc<Environment>,
     module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
+    turbo_minify: Vc<bool>,
 ) -> Result<Vc<NodeJsChunkingContext>> {
     let next_mode = mode.await?;
     // TODO(alexkirsz) This should return a trait that can be implemented by the
@@ -955,8 +965,13 @@ pub async fn get_server_chunking_context_with_client_assets(
         next_mode.runtime_type(),
     )
     .asset_prefix(asset_prefix)
-    .minify_type(next_mode.minify_type())
-    .module_id_strategy(module_id_strategy);
+    .minify_type(if *turbo_minify.await? {
+        MinifyType::Minify
+    } else {
+        MinifyType::NoMinify
+    })
+    .module_id_strategy(module_id_strategy)
+    .file_tracing(next_mode.is_production());
 
     if next_mode.is_development() {
         builder = builder.use_file_source_map_uris();
@@ -971,6 +986,7 @@ pub async fn get_server_chunking_context(
     node_root: Vc<FileSystemPath>,
     environment: Vc<Environment>,
     module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
+    turbo_minify: Vc<bool>,
 ) -> Result<Vc<NodeJsChunkingContext>> {
     let next_mode = mode.await?;
     // TODO(alexkirsz) This should return a trait that can be implemented by the
@@ -985,8 +1001,13 @@ pub async fn get_server_chunking_context(
         environment,
         next_mode.runtime_type(),
     )
-    .minify_type(next_mode.minify_type())
-    .module_id_strategy(module_id_strategy);
+    .minify_type(if *turbo_minify.await? {
+        MinifyType::Minify
+    } else {
+        MinifyType::NoMinify
+    })
+    .module_id_strategy(module_id_strategy)
+    .file_tracing(next_mode.is_production());
 
     if next_mode.is_development() {
         builder = builder.use_file_source_map_uris()

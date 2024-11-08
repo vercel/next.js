@@ -16,7 +16,10 @@ use turbo_tasks::{
 };
 use turbopack_core::{
     chunk::{ChunkItemExt, ChunkableModule, ChunkingContext, ModuleId},
-    issue::{code_gen::CodeGenerationIssue, IssueExt, IssueSeverity, StyledString},
+    issue::{
+        code_gen::CodeGenerationIssue, module::emit_unknown_module_type_error, IssueExt,
+        IssueSeverity, StyledString,
+    },
     resolve::{
         origin::ResolveOrigin, parse::Request, ExternalType, ModuleResolveResult,
         ModuleResolveResultItem,
@@ -317,7 +320,18 @@ async fn to_single_pattern_mapping(
             return Ok(SinglePatternMapping::External(s.clone(), *ty));
         }
         ModuleResolveResultItem::Ignore => return Ok(SinglePatternMapping::Ignored),
-        _ => {
+        ModuleResolveResultItem::Unknown(source) => {
+            emit_unknown_module_type_error(*source).await?;
+            return Ok(SinglePatternMapping::Unresolvable(
+                "unknown module type".to_string(),
+            ));
+        }
+        ModuleResolveResultItem::Error(str) => {
+            return Ok(SinglePatternMapping::Unresolvable(str.await?.to_string()))
+        }
+        ModuleResolveResultItem::OutputAsset(_)
+        | ModuleResolveResultItem::Empty
+        | ModuleResolveResultItem::Custom(_) => {
             // TODO implement mapping
             CodeGenerationIssue {
                 severity: IssueSeverity::Bug.into(),

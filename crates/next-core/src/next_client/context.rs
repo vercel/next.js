@@ -13,7 +13,7 @@ use turbopack::{
 };
 use turbopack_browser::{react_refresh::assert_can_resolve_react_refresh, BrowserChunkingContext};
 use turbopack_core::{
-    chunk::{module_id_strategies::ModuleIdStrategy, ChunkingContext},
+    chunk::{module_id_strategies::ModuleIdStrategy, ChunkingContext, MinifyType},
     compile_time_info::{
         CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefineableNameSegment,
         FreeVarReference, FreeVarReferences,
@@ -224,7 +224,6 @@ pub async fn get_client_module_options_context(
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let next_mode = mode.await?;
-
     let resolve_options_context =
         get_client_resolve_options_context(project_path, ty, mode, next_config, *execution_context);
 
@@ -289,7 +288,11 @@ pub async fn get_client_module_options_context(
     next_client_rules.extend(additional_rules);
 
     let postcss_transform_options = PostCssTransformOptions {
-        postcss_package: Some(get_postcss_package_mapping(project_path)),
+        postcss_package: Some(
+            get_postcss_package_mapping(project_path)
+                .to_resolved()
+                .await?,
+        ),
         config_location: PostCssConfigLocation::ProjectPathOrLocalPath,
         ..Default::default()
     };
@@ -343,7 +346,11 @@ pub async fn get_client_module_options_context(
         enable_mdx_rs,
         css: CssOptionsContext {
             use_swc_css,
-            minify_type: next_mode.minify_type(),
+            minify_type: if *next_config.turbo_minify(mode).await? {
+                MinifyType::Minify
+            } else {
+                MinifyType::NoMinify
+            },
             ..module_options_context.css
         },
         rules: vec![
@@ -382,6 +389,7 @@ pub async fn get_client_chunking_context(
     environment: Vc<Environment>,
     mode: Vc<NextMode>,
     module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
+    turbo_minify: Vc<bool>,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
     let next_mode = mode.await?;
     let mut builder = BrowserChunkingContext::builder(
@@ -394,7 +402,11 @@ pub async fn get_client_chunking_context(
         next_mode.runtime_type(),
     )
     .chunk_base_path(asset_prefix)
-    .minify_type(next_mode.minify_type())
+    .minify_type(if *turbo_minify.await? {
+        MinifyType::Minify
+    } else {
+        MinifyType::NoMinify
+    })
     .asset_base_path(asset_prefix)
     .module_id_strategy(module_id_strategy);
 

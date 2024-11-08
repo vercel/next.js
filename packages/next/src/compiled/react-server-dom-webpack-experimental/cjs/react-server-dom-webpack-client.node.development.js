@@ -1120,6 +1120,12 @@
         }
       return null;
     }
+    function prepareStackTrace(error, structuredStackTrace) {
+      error = (error.name || "Error") + ": " + (error.message || "");
+      for (var i = 0; i < structuredStackTrace.length; i++)
+        error += "\n    at " + structuredStackTrace[i].toString();
+      return error;
+    }
     function ReactPromise(status, value, reason, response) {
       this.status = status;
       this.value = value;
@@ -2264,7 +2270,7 @@
                 var JSCompiler_temp_const = info;
                 var error = ownerStack,
                   prevPrepareStackTrace = Error.prepareStackTrace;
-                Error.prepareStackTrace = void 0;
+                Error.prepareStackTrace = prepareStackTrace;
                 var stack = error.stack;
                 Error.prepareStackTrace = prevPrepareStackTrace;
                 stack.startsWith("Error: react-stack-top-frame\n") &&

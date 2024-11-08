@@ -246,12 +246,6 @@ export interface NapiUpdateMessage {
 export interface NapiUpdateInfo {
   duration: number
   tasks: number
-  /**
-   * A human-readable list of invalidation reasons (typically changed file paths) if known. Will
-   * be `None` if [`NapiUpdateInfoOpts::include_reasons`] is `false` or if no reason was
-   * specified (not every invalidation includes a reason).
-   */
-  reasons?: string
 }
 /**
  * Subscribes to lifecycle events of the compilation.
@@ -269,7 +263,6 @@ export interface NapiUpdateInfo {
 export function projectUpdateInfoSubscribe(
   project: { __napiType: 'Project' },
   aggregationMs: number,
-  includeReasons: boolean,
   func: (...args: any[]) => any
 ): void
 export interface StackFrame {
@@ -377,15 +370,6 @@ export interface NapiRewrite {
   has?: Array<NapiRouteHas>
   missing?: Array<NapiRouteHas>
 }
-export function createTurboTasks(
-  outputPath: string,
-  persistentCaching: boolean,
-  memoryLimit?: number | undefined | null
-): ExternalObject<NextTurboTasks>
-export function runTurboTracing(
-  options: Buffer,
-  turboTasks: ExternalObject<NextTurboTasks>
-): Promise<Array<string>>
 export function getTargetTriple(): string
 export function initHeapProfiler(): ExternalObject<RefCell>
 export function teardownHeapProfiler(

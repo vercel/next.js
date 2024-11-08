@@ -611,7 +611,7 @@
                 var JSCompiler_temp_const = info;
                 var error = ownerStack,
                   prevPrepareStackTrace = Error.prepareStackTrace;
-                Error.prepareStackTrace = void 0;
+                Error.prepareStackTrace = prepareStackTrace;
                 var stack = error.stack;
                 Error.prepareStackTrace = prevPrepareStackTrace;
                 stack.startsWith("Error: react-stack-top-frame\n") &&
