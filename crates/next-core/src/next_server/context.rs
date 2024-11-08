@@ -524,6 +524,11 @@ pub async fn get_server_module_options_context(
         },
         tree_shaking_mode: tree_shaking_mode_for_user_code,
         side_effect_free_packages: next_config.optimize_package_imports().await?.clone_value(),
+        enable_externals_tracing: if next_mode.is_production() {
+            Some(project_path)
+        } else {
+            None
+        },
         ..Default::default()
     };
 
@@ -965,7 +970,8 @@ pub async fn get_server_chunking_context_with_client_assets(
     } else {
         MinifyType::NoMinify
     })
-    .module_id_strategy(module_id_strategy);
+    .module_id_strategy(module_id_strategy)
+    .file_tracing(next_mode.is_production());
 
     if next_mode.is_development() {
         builder = builder.use_file_source_map_uris();
@@ -1000,7 +1006,8 @@ pub async fn get_server_chunking_context(
     } else {
         MinifyType::NoMinify
     })
-    .module_id_strategy(module_id_strategy);
+    .module_id_strategy(module_id_strategy)
+    .file_tracing(next_mode.is_production());
 
     if next_mode.is_development() {
         builder = builder.use_file_source_map_uris()
