@@ -179,6 +179,11 @@ export interface ExperimentalTurboOptions {
    * directory can be resolved by turbopack.
    */
   root?: string
+
+  /**
+   * Enable minification. Defaults to true in build mode and false in dev mode.
+   */
+  minify?: boolean
 }
 
 export interface WebpackConfigContext {
@@ -289,6 +294,7 @@ export interface ExperimentalConfig {
   imgOptConcurrency?: number | null
   imgOptTimeoutInSeconds?: number
   imgOptMaxInputPixels?: number
+  imgOptSequentialRead?: boolean | null
   optimisticClientCache?: boolean
   /**
    * @deprecated use config.expireTime instead
@@ -625,12 +631,12 @@ export interface NextConfig extends Record<string, any> {
 
   /**
    * @since version 11
-   * @see [ESLint configuration](https://nextjs.org/docs/app/building-your-application/configuring/eslint)
+   * @see [ESLint configuration](https://nextjs.org/docs/app/api-reference/config/eslint)
    */
   eslint?: ESLintConfig
 
   /**
-   * @see [Next.js TypeScript documentation](https://nextjs.org/docs/app/building-your-application/configuring/typescript)
+   * @see [Next.js TypeScript documentation](https://nextjs.org/docs/app/api-reference/config/typescript)
    */
   typescript?: TypeScriptConfig
 
@@ -1039,7 +1045,7 @@ export const defaultConfig: NextConfig = {
       seconds: {
         stale: undefined, // defaults to staleTimes.dynamic
         revalidate: 1, // 1 second
-        expire: 1, // 1 minute
+        expire: 60, // 1 minute
       },
       minutes: {
         stale: 60 * 5, // 5 minutes
@@ -1101,6 +1107,7 @@ export const defaultConfig: NextConfig = {
     imgOptConcurrency: null,
     imgOptTimeoutInSeconds: 7,
     imgOptMaxInputPixels: 268_402_689, // https://sharp.pixelplumbing.com/api-constructor#:~:text=%5Boptions.limitInputPixels%5D
+    imgOptSequentialRead: null,
     isrFlushToDisk: true,
     workerThreads: false,
     proxyTimeout: undefined,

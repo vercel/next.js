@@ -317,6 +317,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         imgOptConcurrency: z.number().int().optional().nullable(),
         imgOptTimeoutInSeconds: z.number().int().optional(),
         imgOptMaxInputPixels: z.number().int().optional(),
+        imgOptSequentialRead: z.boolean().optional().nullable(),
         internal_disableSyncDynamicAPIWarnings: z.boolean().optional(),
         isrFlushToDisk: z.boolean().optional(),
         largePageDataBytes: z.number().optional(),
@@ -410,6 +411,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
               .optional(),
             memoryLimit: z.number().optional(),
             moduleIdStrategy: z.enum(['named', 'deterministic']).optional(),
+            minify: z.boolean().optional(),
           })
           .optional(),
         optimizePackageImports: z.array(z.string()).optional(),

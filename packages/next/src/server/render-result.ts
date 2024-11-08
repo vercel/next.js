@@ -10,6 +10,7 @@ import {
   streamToString,
 } from './stream-utils/node-web-streams-helper'
 import { isAbortError, pipeToNodeResponse } from './pipe-readable'
+import type { RenderResumeDataCache } from './resume-data-cache/resume-data-cache'
 
 type ContentTypeOption = string | undefined
 
@@ -34,6 +35,12 @@ export type AppPageRenderResultMetadata = {
   fetchMetrics?: FetchMetrics
 
   segmentFlightData?: Map<string, Buffer>
+
+  /**
+   * In development, the cache is warmed up before the render. This is attached
+   * to the metadata so that it can be used during the render.
+   */
+  devRenderResumeDataCache?: RenderResumeDataCache
 }
 
 export type PagesRenderResultMetadata = {

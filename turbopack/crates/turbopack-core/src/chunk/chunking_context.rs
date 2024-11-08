@@ -84,6 +84,10 @@ pub trait ChunkingContext {
         Vc::cell(false)
     }
 
+    fn is_tracing_enabled(self: Vc<Self>) -> Vc<bool> {
+        Vc::cell(false)
+    }
+
     fn async_loader_chunk_item(
         &self,
         module: Vc<Box<dyn ChunkableModule>>,

@@ -529,7 +529,7 @@ impl Project {
         let app_dir = find_app_dir(self.project_path()).await?;
 
         Ok(Vc::cell(
-            app_dir.map(|app_dir| AppProject::new(self, app_dir)),
+            app_dir.map(|app_dir| AppProject::new(self, *app_dir)),
         ))
     }
 
@@ -539,7 +539,7 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    fn project_fs(&self) -> Vc<DiskFileSystem> {
+    pub fn project_fs(&self) -> Vc<DiskFileSystem> {
         DiskFileSystem::new(
             PROJECT_FILESYSTEM_NAME.into(),
             self.root_path.clone(),
@@ -548,7 +548,7 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    fn client_fs(self: Vc<Self>) -> Vc<Box<dyn FileSystem>> {
+    pub fn client_fs(self: Vc<Self>) -> Vc<Box<dyn FileSystem>> {
         let virtual_fs = VirtualFileSystem::new();
         Vc::upcast(virtual_fs)
     }
@@ -699,6 +699,7 @@ impl Project {
             self.client_compile_time_info().environment(),
             self.next_mode(),
             self.module_id_strategy(),
+            self.next_config().turbo_minify(self.next_mode()),
         )
     }
 
@@ -716,6 +717,7 @@ impl Project {
                 self.next_config().computed_asset_prefix(),
                 self.server_compile_time_info().environment(),
                 self.module_id_strategy(),
+                self.next_config().turbo_minify(self.next_mode()),
             )
         } else {
             get_server_chunking_context(
@@ -724,6 +726,7 @@ impl Project {
                 self.node_root(),
                 self.server_compile_time_info().environment(),
                 self.module_id_strategy(),
+                self.next_config().turbo_minify(self.next_mode()),
             )
         }
     }
@@ -742,6 +745,7 @@ impl Project {
                 self.next_config().computed_asset_prefix(),
                 self.edge_compile_time_info().environment(),
                 self.module_id_strategy(),
+                self.next_config().turbo_minify(self.next_mode()),
             )
         } else {
             get_edge_chunking_context(
@@ -750,6 +754,7 @@ impl Project {
                 self.node_root(),
                 self.edge_compile_time_info().environment(),
                 self.module_id_strategy(),
+                self.next_config().turbo_minify(self.next_mode()),
             )
         }
     }
@@ -1001,7 +1006,7 @@ impl Project {
             self,
             middleware_asset_context,
             source,
-            app_dir,
+            app_dir.as_deref().copied(),
             ecmascript_client_reference_transition_name,
         )))
     }
@@ -1140,7 +1145,7 @@ impl Project {
             instrumentation_asset_context,
             source,
             is_edge,
-            app_dir,
+            app_dir.as_deref().copied(),
             ecmascript_client_reference_transition_name,
         )))
     }

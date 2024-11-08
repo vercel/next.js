@@ -20,8 +20,8 @@ pub struct AssetIdent {
     pub assets: Vec<(ResolvedVc<RcStr>, ResolvedVc<AssetIdent>)>,
     /// The modifiers of this asset (e.g. `client chunks`)
     pub modifiers: Vec<Vc<RcStr>>,
-    /// The part of the asset that is a (ECMAScript) module
-    pub part: Option<ResolvedVc<ModulePart>>,
+    /// The parts of the asset that are (ECMAScript) modules
+    pub parts: Vec<ResolvedVc<ModulePart>>,
     /// The asset layer the asset was created from.
     pub layer: Option<ResolvedVc<RcStr>>,
 }
@@ -95,12 +95,14 @@ impl ValueToString for AssetIdent {
             s.push(')');
         }
 
-        if let Some(part) = self.part {
-            let part = part.to_string().await?;
-            // facade is not included in ident as switching between facade and non-facade shouldn't
-            // change the ident
-            if part.as_str() != "facade" {
-                write!(s, " <{}>", part)?;
+        if !self.parts.is_empty() {
+            for part in self.parts.iter() {
+                let part = part.to_string().await?;
+                // facade is not included in ident as switching between facade and non-facade
+                // shouldn't change the ident
+                if part.as_str() != "facade" {
+                    write!(s, " <{}>", part)?;
+                }
             }
         }
 
@@ -124,7 +126,7 @@ impl AssetIdent {
             fragment: None,
             assets: Vec::new(),
             modifiers: Vec::new(),
-            part: None,
+            parts: Vec::new(),
             layer: None,
         }))
     }
@@ -146,7 +148,7 @@ impl AssetIdent {
     #[turbo_tasks::function]
     pub fn with_part(&self, part: ResolvedVc<ModulePart>) -> Vc<Self> {
         let mut this = self.clone();
-        this.part = Some(part);
+        this.parts.push(part);
         Self::new(Value::new(this))
     }
 
@@ -224,7 +226,7 @@ impl AssetIdent {
             fragment,
             assets,
             modifiers,
-            part,
+            parts,
             layer,
         } = self;
         let query = query.await?;
@@ -255,7 +257,7 @@ impl AssetIdent {
             modifier.deterministic_hash(&mut hasher);
             has_hash = true;
         }
-        if let Some(part) = part {
+        for part in parts.iter() {
             4_u8.deterministic_hash(&mut hasher);
             match &*part.await? {
                 ModulePart::Evaluation => {
@@ -281,14 +283,18 @@ impl AssetIdent {
                     5_u8.deterministic_hash(&mut hasher);
                     id.deterministic_hash(&mut hasher);
                 }
-                ModulePart::Locals => {
+                ModulePart::InternalEvaluation(id) => {
                     6_u8.deterministic_hash(&mut hasher);
+                    id.deterministic_hash(&mut hasher);
                 }
-                ModulePart::Exports => {
+                ModulePart::Locals => {
                     7_u8.deterministic_hash(&mut hasher);
                 }
-                ModulePart::Facade => {
+                ModulePart::Exports => {
                     8_u8.deterministic_hash(&mut hasher);
+                }
+                ModulePart::Facade => {
+                    9_u8.deterministic_hash(&mut hasher);
                 }
             }
 
