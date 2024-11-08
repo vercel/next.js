@@ -12,7 +12,9 @@ description: API Reference for the expirePath function.
 > - Currently, `expirePath` invalidates all the routes in the [client-side Router Cache](/docs/app/building-your-application/caching#client-side-router-cache) when used in a server action. This behavior is temporary and will be updated in the future to apply only to the specific path.
 > - Using `expirePath` invalidates **only the specific path** in the [server-side Route Cache](/docs/app/building-your-application/caching#full-route-cache).
 
-## Parameters
+## Reference
+
+### Parameters
 
 ```tsx
 expirePath(path: string, type?: 'page' | 'layout'): void;
@@ -21,13 +23,13 @@ expirePath(path: string, type?: 'page' | 'layout'): void;
 - `path`: Either a string representing the filesystem path associated with the data you want to expire (for example, `/product/[slug]/page`), or the literal route segment (for example, `/product/123`). Must be less than 1024 characters. This value is case-sensitive.
 - `type`: (optional) `'page'` or `'layout'` string to change the type of path to expire. If `path` contains a dynamic segment (for example, `/product/[slug]/page`), this parameter is required. If path refers to the literal route segment, e.g., `/product/1` for a dynamic page (e.g., `/product/[slug]/page`), you should not provide `type`.
 
-## Returns
+### Returns
 
 `expirePath` does not return a value.
 
 ## Examples
 
-### Expiring A Specific URL
+### Expiring a specific URL
 
 ```ts
 import { expirePath } from 'next/cache'
@@ -36,7 +38,7 @@ expirePath('/blog/post-1')
 
 This will purge the cache for one specific URL on the next page visit.
 
-### Expiring A Page Path
+### Expiring a page path
 
 ```ts
 import { expirePath } from 'next/cache'
@@ -47,7 +49,7 @@ expirePath('/(main)/blog/[slug]', 'page')
 
 This will purge the cache any URL that matches the provided `page` file on the next page visit. This will _not_ invalidate pages beneath the specific page. For example, `/blog/[slug]` won't invalidate `/blog/[slug]/[author]`.
 
-### Expiring A Layout Path
+### Expiring a layout path
 
 ```ts
 import { expirePath } from 'next/cache'
@@ -58,7 +60,7 @@ expirePath('/(main)/post/[slug]', 'layout')
 
 This will purge the cache on any URL that matches the provided `layout` file on the next page visit. This will cause pages beneath with the same layout to revalidate on the next visit. For example, in the above case, `/blog/[slug]/[another]` would also revalidate on the next visit.
 
-### Expiring All Data
+### Expiring all data
 
 ```ts
 import { expirePath } from 'next/cache'
@@ -70,6 +72,7 @@ This will purge the Data Cache on the next page visit.
 
 ### Server Action
 
+You can call `expirePath` in a Server Action: 
 ```ts filename="app/actions.ts" switcher
 'use server'
 
@@ -83,6 +86,7 @@ export default async function submit() {
 
 ### Route Handler
 
+You can call `expirePath` in a Route Handler:
 ```ts filename="app/api/expire/route.ts" switcher
 import { expirePath } from 'next/cache'
 import type { NextRequest } from 'next/server'
