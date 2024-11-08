@@ -42,7 +42,7 @@ use turbo_tasks::{
     TryJoinIterExt, Value, ValueToString, Vc,
 };
 use turbo_tasks_env::{CustomProcessEnv, ProcessEnv};
-use turbo_tasks_fs::{File, FileContent, FileSystemPath};
+use turbo_tasks_fs::{File, FileContent, FileSystem, FileSystemPath};
 use turbopack::{
     module_options::{transition_rule::TransitionRule, ModuleOptionsContext, RuleCondition},
     resolve_options_context::ResolveOptionsContext,
@@ -1364,8 +1364,8 @@ impl AppEndpoint {
                     server_assets.insert(ResolvedVc::upcast(
                         NftJsonAsset::new(
                             *rsc_chunk,
-                            this.app_project.project().output_fs(),
-                            this.app_project.project().project_fs(),
+                            this.app_project.project().output_fs().root(),
+                            this.app_project.project().project_fs().root(),
                             this.app_project.project().client_fs(),
                             client_reference_manifest.iter().map(|m| **m).collect(),
                         )
