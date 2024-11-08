@@ -1563,9 +1563,9 @@ export async function isPageStatic({
           useCache: true,
           distDir,
         })
-        const mod = (
+        const mod =
           await runtime.context._ENTRIES[`middleware_${edgeInfo.name}`]
-        ).ComponentMod
+            .ComponentMod
 
         // This is not needed during require.
         const buildManifest = {} as BuildManifest

@@ -18,10 +18,19 @@ pub async fn wrap_edge_entry(
     // The wrapped module could be an async module, we handle that with the proxy
     // here. The comma expression makes sure we don't call the function with the
     // module as the "this" arg.
+    // Turn exports into functions that are also a thenable. This way you can await exports (e.g.
+    // for Components) or call them directly as though they are async function (e.g. edge
+    // functions/middleware, this is what the Edge Runtime does).
     let source = formatdoc!(
         r#"
             self._ENTRIES ||= {{}}
-            self._ENTRIES[{}] = import('MODULE')
+            self._ENTRIES[{}] = new Proxy(import('MODULE'), {{
+                get(modProm, name) {{
+                    let result = (...args) => modProm.then((mod) => (0, mod[name])(...args));
+                    result.then = (v) => v(modProm.then((mod) => (0, mod[name])));
+                    return result;
+                }}
+            }})
         "#,
         StringifyJs(&format_args!("middleware_{}", pathname))
     );
