@@ -38,18 +38,98 @@ use crate::{
     CellId, CollectiblesSource, RawVc, ResolveTypeError, SharedReference, ShrinkToFit,
 };
 
-/// A Value Cell (`Vc` for short) is a reference to a memoized computation
-/// result stored on the heap or in persistent cache, depending on the
-/// Turbo Engine backend implementation.
+/// A "Value Cell" (`Vc` for short) is a reference to a memoized computation result stored on the
+/// heap or in persistent cache, depending on the Turbo Engine backend implementation.
 ///
-/// In order to get a reference to the pointed value, you need to `.await` the
-/// [`Vc<T>`] to get a [`ReadRef<T>`][crate::ReadRef]:
+/// In order to get a reference to the pointed value, you need to `.await` the [`Vc<T>`] to get a
+/// [`ReadRef<T>`][`ReadRef`]:
 ///
 /// ```
 /// let some_vc: Vc<T>;
 /// let some_ref: ReadRef<T> = some_vc.await?;
 /// some_ref.some_method_on_t();
 /// ```
+///
+/// `Vc`s are similar to a [`Future`] or a Promise with a few key differences:
+///
+/// - Unlike futures (but like promises), the work that a `Vc` represents begins execution
+///   immediately, even if the `Vc` is not `await`ed.
+///
+/// - The value pointed to by a `Vc` can be invalidated by changing dependencies or cache evicted,
+///   meaning that `await`ing a `Vc` multiple times can give different results. A [`ReadRef`] is
+///   snapshot of the underlying cell at a point in time.
+///
+/// - Reading (`await`ing) `Vc`s causes the current task to be tracked a dependent of the `Vc`'s
+///   task or task cell. When the read task or task cell changes, the current task may be
+///   re-executed.
+///
+/// - `Vc` types are always [`Copy`]. Most [`Future`]s are not. This works because `Vc`s are
+///   represented as a few ids or indicies into data structures managed by the `turbo-tasks`
+///   framework. `Vc` types are not reference counted, but do support [tracing] for a hypothetical
+///   (unimplemented) garbage collector.
+///
+/// Internally, a `Vc` can have a number of representations:
+///
+/// - **Operation:** The synchronous return value of a [`turbo_tasks::function`]. Internally, this
+///   is stored using a task id. Exact type information of trait types (i.e. `Vc<Box<dyn Trait>>`)
+///   is not known because the function may not have finished execution yet. For this reason,
+///   operations cannot be downcast or sidecast without first being resolved.
+///
+/// - **Resolved Cell:** A reference to a cell constructed within a task, as part of a [`Vc::cell`]
+///   or `value_type.cell()` constructor. As the cell has been constructed at least once, the
+///   concrete type of the cell is known. This is stored as a combination of a task id, a type id,
+///   and a cell id.
+///
+/// - **Local Operation or Cell:** Same as above, but these values are stored in task-local state
+///   that is freed after their parent non-local task exits. These values are sometimes created when
+///   calling a [`turbo_tasks::function`].
+///
+/// <div class="warning">
+/// <p>
+/// Local <code>Vc</code>s are not valid outside of their parent task, so they must be implicitly
+/// (e.g. as an argument or return type) or explicitly (e.g. via <a
+/// href="#method.to_resolved"><code>Vc::to_resolved</code></a>) be converted to a non-local <a
+/// href="struct.ResolvedVc.html"><code>ResolvedVc</code></a> or <a
+/// href="struct.VcOperation.html"><code>VcOperation</code></a> before crossing task boundaries.
+/// </p>
+///
+/// <p>
+/// For this reason, <code>Vc</code> types (which are potentially local) will be disallowed as
+/// fields in <a href="attr.value.html"><code>turbo_tasks::value</code></a>s in the future.
+/// </p>
+/// </div>
+///
+/// These internal representations are stored using a type-erased [`RawVc`]. Type erasure reduces
+/// the [monomorphization] (and therefore binary size and compilation time) required to support
+/// `Vc`.
+///
+/// Because `Vc`s can be equivalent but have different representation, it's not recommended to
+/// compare `Vc`s by equality. Instead, you should convert a `Vc` to an explicit subtype first.
+///
+/// There are a couple of "subtypes" of `Vc`, both of which implement [`Deref<Target =
+/// Vc<T>>`][Deref]:
+///
+/// |                 | Representation?             | Non-Local? | Equality?          | Can be Downcast?    |
+/// |-----------------|-----------------------------|------------|--------------------|---------------------|
+/// | [`Vc`]          | One of many                 | ⚠️  Maybe   | ❌ Not recommended | ⚠️  After resolution |
+/// | [`ResolvedVc`]  | Task Id + Type Id + Cell Id | ✅ Yes     | ✅ Yes             | ✅ Yes              |
+/// | [`VcOperation`] | Task Id                     | ✅ Yes     | ✅ Yes             | ⚠️  After resolution |
+///
+/// [`ResolvedVc`] is typically preferred over [`VcOperation`], in part because any [`Vc`] can be
+/// converted to a [`ResolvedVc`] using [`Vc::to_resolved`], but not every [`Vc`] can be converted
+/// to a [`VcOperation`].
+///
+/// See the documentation for [`ResolvedVc`] and [`VcOperation`] for more details about these
+/// subtypes.
+///
+/// For a more in-depth explanation of the concepts behind value cells, [refer to the Turbopack
+/// book][book-cells].
+///
+/// [tracing]: crate::trace::TraceRawVcs
+/// [`ReadRef`]: crate::ReadRef
+/// [`turbo_tasks::function`]: crate::function
+/// [monomorphization]: https://doc.rust-lang.org/book/ch10-01-syntax.html#performance-of-code-using-generics
+/// [book-cells]: https://turbopack-rust-docs.vercel.sh/turbo-engine/cells.html
 #[must_use]
 #[derive(Serialize, Deserialize)]
 #[serde(transparent, bound = "")]

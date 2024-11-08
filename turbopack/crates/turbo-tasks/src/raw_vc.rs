@@ -54,6 +54,15 @@ impl Display for CellId {
     }
 }
 
+/// A type-erased representation of [`Vc`].
+///
+/// Type erasure reduces the [monomorphization] (and therefore binary size and compilation time)
+/// required to support `Vc`.
+///
+/// This type is heavily used within the [`Backend`][crate::backend::Backend] trait, but should
+/// otherwise be treated as an internal implementation detail of `turbo-tasks`.
+///
+/// [monomorphization]: https://doc.rust-lang.org/book/ch10-01-syntax.html#performance-of-code-using-generics
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum RawVc {
     TaskOutput(TaskId),
