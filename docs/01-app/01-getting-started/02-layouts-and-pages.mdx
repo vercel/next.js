@@ -4,11 +4,11 @@ nav_title: Layouts and Pages
 description: Learn how to create layouts and pages in your Next.js application, and link between them.
 ---
 
-Next.js uses **file-system based routing**, meaning you can create routes and related UI with folders and files. This page will guide you through how to create layouts and pages, and link between them.
+Next.js uses **file-system based routing**. You can use folders and files to define routes and related UI. This page will guide you through how to create layouts and pages, and link between them.
 
 ## Creating a page
 
-To create a page, add a [`page` file](/docs/app/api-reference/file-conventions/page) inside the `app` directory and default export a React component. For example, to create an home page (`/`):
+To create a page, add a [`page` file](/docs/app/api-reference/file-conventions/page) inside the `app` directory and default export a React component. For example, to create an index page (`/`):
 
 {/* TODO: Update diagram to only show the '/' route */}
 
@@ -38,7 +38,7 @@ A layout is UI that is **shared** between multiple pages. On navigation, layouts
 
 You can define a layout by default exporting a React component from a [`layout` file](/docs/app/api-reference/file-conventions/layout). The component should accept a `children` prop which can be page or another [layout](#nesting-layouts).
 
-For example, to create a [root layout](#root-layout-required) for your home page, add a `layout` file inside the `app` directory:
+For example, to create a layout that accepts your index page as child, add a `layout` file inside the `app` directory:
 
 {/* TODO: Add diagram that builds on previous one */}
 
@@ -73,6 +73,8 @@ export default function DashboardLayout({ children }) {
   )
 }
 ```
+
+The layout above is called a [root layout](#root-layout-required) because it is defined at the top level of the `app` directory.
 
 ### Root Layout (Required)
 
@@ -114,20 +116,18 @@ The following routing terminology is used in the documentation, and may be helpf
 
 ---
 
-A nested route is a route that can be composed of multiple URL segments. For example, the `/blog/[slug]` route is composed of three segments:
+A nested route is a route composed of multiple URL segments. For example, the `/blog/[slug]` route is composed of three segments:
 
 - `/` (Root Segment)
 - `blog` (Segment)
 - `[slug]` (Leaf Segment)
 
-In Next.js, a route is a single path of nested folders, following the file-system structure from the **root** down to a final **leaf**.
+In Next.js:
 
 - **Folders** are used to define the route segments that map to URL segments.
 - **Files** (like `page` and `layout`) are used to create UI that is shown for a segment.
 
-To create a nested route, you can nest folders inside each other. For example, to create a route `/blog`, create a folder in the `app` directory:
-
-Then, to make `/blog` publicly accessible, add a `page` file inside the `blog` folder.
+To add nested routes, you can nest folders inside each other. For example, to create a route for `/blog`, create a folder called `blog` in the `app` directory. Then, to make `/blog` publicly accessible, add a `page` file:
 
 {/* TODO: Diagram showing nested route */}
 
@@ -165,7 +165,7 @@ export default async function Page() {
 }
 ```
 
-To create a nested route for the specific blog post, create a new `[slug]` folder inside `blog` and add a `page` file.
+You can continue nesting folders to create nested routes. For example, to create a nested route for a specific post, create a new `[slug]` folder inside `blog` and add a `page` file:
 
 {/* TODO: Diagram showing nested route */}
 
@@ -185,7 +185,7 @@ export default function Page() {
 }
 ```
 
-> **Good to know**: The `[slug]` segment is a special **dynamic segment** used to generate multiple pages from data. This is useful for blog posts, product pages, etc. Learn more about [dynamic segments](/docs/app/building-your-application/routing/dynamic-routes).
+> **Good to know**: The `[slug]` segment is a special **dynamic segment** used to generate multiple pages from data. This is useful for blog posts, product pages, etc. Learn more about [dynamic route segments](/docs/app/building-your-application/routing/dynamic-routes).
 
 ### Nesting layouts
 
@@ -211,7 +211,7 @@ export default function BlogLayout({ children }) {
 }
 ```
 
-If you were to combine the two layouts above, the root layout (`app/layout.js`) would wrap the blog layout (`app/blog/layout.js`), which would wrap the blog post page (`app/blog/[slug]/page.js`).
+If you were to combine the two layouts above, the root layout (`app/layout.js`) would wrap the blog layout (`app/blog/layout.js`), which would wrap the blog (`app/blog/page.js`) and blog post page (`app/blog/[slug]/page.js`).
 
 {/* TODO: Diagram */}
 
@@ -248,9 +248,7 @@ In a nested route, the components of a segment will be nested **inside** the com
 
 ## Linking between pages
 
-You can use the [`<Link>` component](/docs/canary/app/api-reference/components/link) to navigate between routes. It is the primary and recommended way to navigate between routes.
-
-`<Link>` is a built-in Next.js component that extends the HTML `<a>` tag to provide [prefetching](#2-prefetching) and client-side navigation between routes.
+You can use the [`<Link>` component](/docs/canary/app/api-reference/components/link) to navigate between routes. `<Link>` is a built-in Next.js component that extends the HTML `<a>` tag to provide [prefetching](#2-prefetching) and [client-side navigation](#client-side-navigation).
 
 You can use it by importing it from `next/link`, and passing a `href` prop to the component:
 
@@ -277,5 +275,7 @@ export default function Post({ post }) {
   )
 }
 ```
+
+`<Link>` is the primary and recommended way to navigate between routes in your Next.js application. However, you can also use the [`useRouter` hook](/docs/app/api-reference/functions/use-router) for more advanced navigation.
 
 {/* TODO: Add Deep Dive Component */}
