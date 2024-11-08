@@ -1,70 +1,70 @@
 import {
-  type ActionInfo,
-  extractInfoFromActionId,
-  filterActionArgs,
-} from './server-action-info'
+  type ServerReferenceInfo,
+  extractInfoFromServerReferenceId,
+  filterArgs,
+} from './server-reference-info'
 
-describe('extractInfoFromActionId', () => {
-  test('should parse actionId with typeBit 0, no args used, no restArgs', () => {
-    const actionId = '00' // 0b00000000
+describe('extractInfoFromServerReferenceId', () => {
+  test('should parse id with typeBit 0, no args used, no restArgs', () => {
+    const id = '00' // 0b00000000
 
-    const expected: ActionInfo = {
+    const expected: ServerReferenceInfo = {
       type: 'server-action',
       usedArgs: [false, false, false, false, false, false],
       hasRestArgs: false,
     }
 
-    expect(extractInfoFromActionId(actionId)).toEqual(expected)
+    expect(extractInfoFromServerReferenceId(id)).toEqual(expected)
   })
 
-  test('should parse actionId with typeBit 1, all args used, restArgs true', () => {
-    const actionId = 'ff' // 0b11111111
+  test('should parse id with typeBit 1, all args used, restArgs true', () => {
+    const id = 'ff' // 0b11111111
 
-    const expected: ActionInfo = {
+    const expected: ServerReferenceInfo = {
       type: 'use-cache',
       usedArgs: [true, true, true, true, true, true],
       hasRestArgs: true,
     }
 
-    expect(extractInfoFromActionId(actionId)).toEqual(expected)
+    expect(extractInfoFromServerReferenceId(id)).toEqual(expected)
   })
 
-  test('should parse actionId with typeBit 0, argMask 0b101010, restArgs false', () => {
-    const actionId = '54' // 0b01010100
+  test('should parse id with typeBit 0, argMask 0b101010, restArgs false', () => {
+    const id = '54' // 0b01010100
 
-    const expected: ActionInfo = {
+    const expected: ServerReferenceInfo = {
       type: 'server-action',
       usedArgs: [true, false, true, false, true, false],
       hasRestArgs: false,
     }
 
-    expect(extractInfoFromActionId(actionId)).toEqual(expected)
+    expect(extractInfoFromServerReferenceId(id)).toEqual(expected)
   })
 
-  test('should parse actionId with typeBit 1, argMask 0b000101, restArgs true', () => {
-    const actionId = '8b' // 0b10001011
+  test('should parse id with typeBit 1, argMask 0b000101, restArgs true', () => {
+    const id = '8b' // 0b10001011
 
-    const expected: ActionInfo = {
+    const expected: ServerReferenceInfo = {
       type: 'use-cache',
       usedArgs: [false, false, false, true, false, true],
       hasRestArgs: true,
     }
 
-    expect(extractInfoFromActionId(actionId)).toEqual(expected)
+    expect(extractInfoFromServerReferenceId(id)).toEqual(expected)
   })
 })
 
-describe('filterActionArgs', () => {
+describe('filterArgs', () => {
   test('should return empty array when no args are used and no restArgs', () => {
     const args = ['arg1', 'arg2', 'arg3']
 
-    const actionInfo: ActionInfo = {
+    const info: ServerReferenceInfo = {
       type: 'server-action',
       usedArgs: [false, false, false, false, false, false],
       hasRestArgs: false,
     }
 
-    expect(filterActionArgs(args, actionInfo)).toEqual([])
+    expect(filterArgs(args, info)).toEqual([])
   })
 
   test('should return all args when all args are used and has restArgs', () => {
@@ -79,25 +79,25 @@ describe('filterActionArgs', () => {
       'restArg2',
     ]
 
-    const actionInfo: ActionInfo = {
+    const info: ServerReferenceInfo = {
       type: 'use-cache',
       usedArgs: [true, true, true, true, true, true],
       hasRestArgs: true,
     }
 
-    expect(filterActionArgs(args, actionInfo)).toEqual(args)
+    expect(filterArgs(args, info)).toEqual(args)
   })
 
   test('should filter args when some args are used and no restArgs', () => {
     const args = ['arg1', 'arg2', 'arg3', 'arg4', 'arg5', 'arg6']
 
-    const actionInfo: ActionInfo = {
+    const info: ServerReferenceInfo = {
       type: 'server-action',
       usedArgs: [true, false, true, false, true, false],
       hasRestArgs: false,
     }
 
-    expect(filterActionArgs(args, actionInfo)).toEqual([
+    expect(filterArgs(args, info)).toEqual([
       'arg1',
       undefined,
       'arg3',
@@ -119,13 +119,13 @@ describe('filterActionArgs', () => {
       'restArg2',
     ]
 
-    const actionInfo: ActionInfo = {
+    const info: ServerReferenceInfo = {
       type: 'use-cache',
       usedArgs: [false, false, false, true, false, true],
       hasRestArgs: true,
     }
 
-    expect(filterActionArgs(args, actionInfo)).toEqual([
+    expect(filterArgs(args, info)).toEqual([
       undefined,
       undefined,
       undefined,
@@ -149,13 +149,13 @@ describe('filterActionArgs', () => {
       'extraArg2',
     ]
 
-    const actionInfo: ActionInfo = {
+    const info: ServerReferenceInfo = {
       type: 'server-action',
       usedArgs: [true, true, true, true, true, true],
       hasRestArgs: false,
     }
 
-    expect(filterActionArgs(args, actionInfo)).toEqual([
+    expect(filterArgs(args, info)).toEqual([
       'arg1',
       'arg2',
       'arg3',
@@ -170,28 +170,24 @@ describe('filterActionArgs', () => {
   test('should handle args array shorter than 6 elements', () => {
     const args = ['arg1', 'arg2', 'arg3']
 
-    const actionInfo: ActionInfo = {
+    const info: ServerReferenceInfo = {
       type: 'server-action',
       usedArgs: [true, false, true, false, false, false],
       hasRestArgs: false,
     }
 
-    expect(filterActionArgs(args, actionInfo)).toEqual([
-      'arg1',
-      undefined,
-      'arg3',
-    ])
+    expect(filterArgs(args, info)).toEqual(['arg1', undefined, 'arg3'])
   })
 
   test('should handle empty args array', () => {
     const args: unknown[] = []
 
-    const actionInfo: ActionInfo = {
+    const info: ServerReferenceInfo = {
       type: 'server-action',
       usedArgs: [false, false, false, false, false, false],
       hasRestArgs: false,
     }
 
-    expect(filterActionArgs(args, actionInfo)).toEqual(args)
+    expect(filterArgs(args, info)).toEqual(args)
   })
 })
