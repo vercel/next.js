@@ -1,8 +1,5 @@
-'use client'
-
 function logError() {
-  const error = new Error('Boom')
-  console.error(error)
+  console.error(new Error('Boom'))
 }
 
 export default function Page() {

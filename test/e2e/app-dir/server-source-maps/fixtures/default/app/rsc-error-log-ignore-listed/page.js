@@ -1,3 +1,4 @@
+import { connection } from 'next/server'
 import { run } from 'internal-pkg'
 
 function logError() {
@@ -5,7 +6,9 @@ function logError() {
   console.error(error)
 }
 
-export default function Page() {
+export default async function Page() {
+  await connection()
+
   run(() => logError())
   return null
 }
