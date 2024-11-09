@@ -240,14 +240,14 @@ impl AnalyzeEcmascriptModuleResultBuilder {
 
     /// Adds a codegen to the analysis result.
     #[allow(dead_code)]
-    pub fn add_code_gen_with_availability_info<C>(&mut self, code_gen: Vc<C>)
+    pub fn add_code_gen_with_availability_info<C>(&mut self, code_gen: ResolvedVc<C>)
     where
         C: Upcast<Box<dyn CodeGenerateableWithAsyncModuleInfo>>,
     {
         self.code_gens
-            .push(CodeGen::CodeGenerateableWithAsyncModuleInfo(Vc::upcast(
-                code_gen,
-            )));
+            .push(CodeGen::CodeGenerateableWithAsyncModuleInfo(
+                ResolvedVc::upcast(code_gen),
+            ));
     }
 
     pub fn add_binding(&mut self, binding: EsmBinding) {
@@ -319,7 +319,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                     *c = c.resolve().await?;
                 }
                 CodeGen::CodeGenerateableWithAsyncModuleInfo(c) => {
-                    *c = c.resolve().await?;
+                    *c = c.to_resolved().await?;
                 }
             }
         }
@@ -370,7 +370,7 @@ struct AnalysisState<'a> {
 
 impl<'a> AnalysisState<'a> {
     /// Links a value to the graph, returning the linked value.
-    async fn link_value(&self, value: JsValue, overrides: &ImportAttributes) -> Result<JsValue> {
+    async fn link_value(&self, value: JsValue, attributes: &ImportAttributes) -> Result<JsValue> {
         let fun_args_values = self.fun_args_values.lock().clone();
         link(
             self.var_graph,
@@ -382,7 +382,7 @@ impl<'a> AnalysisState<'a> {
                     value,
                     self.compile_time_info,
                     self.var_graph,
-                    overrides,
+                    attributes,
                 )
             },
             fun_args_values,
@@ -540,6 +540,12 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             }
         }
     }
+    // TODO This is too eagerly generating the source map. We should store a GenerateSourceMap
+    // instead and only actually generate the SourceMap when it's needed. This would allow to avoid
+    // generating the source map when a module is never included in the final bundle. It allows
+    // analysis to finish earlier which makes references available earlier which benefits
+    // parallelism. When SourceMaps are emitted it moves that generation work to the code generation
+    // phase which is more parallelizable.
     let mut source_map_from_comment = false;
     if let Some((_, path)) = paths_by_pos.into_iter().max_by_key(|&(pos, _)| pos) {
         let origin_path = origin.origin_path();
@@ -608,7 +614,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     ImportedSymbol::Symbol(name) => Some(ModulePart::export((&**name).into())),
                     ImportedSymbol::PartEvaluation(part_id) => {
                         evaluation_references.push(i);
-                        Some(ModulePart::internal(*part_id))
+                        Some(ModulePart::internal_evaluation(*part_id))
                     }
                     ImportedSymbol::Part(part_id) => Some(ModulePart::internal(*part_id)),
                     ImportedSymbol::Exports => Some(ModulePart::exports()),
@@ -2436,10 +2442,10 @@ async fn value_visitor(
     v: JsValue,
     compile_time_info: Vc<CompileTimeInfo>,
     var_graph: &VarGraph,
-    overrides: &ImportAttributes,
+    attributes: &ImportAttributes,
 ) -> Result<(JsValue, bool)> {
     let (mut v, modified) =
-        value_visitor_inner(origin, v, compile_time_info, var_graph, overrides).await?;
+        value_visitor_inner(origin, v, compile_time_info, var_graph, attributes).await?;
     v.normalize_shallow();
     Ok((v, modified))
 }
@@ -2449,9 +2455,9 @@ async fn value_visitor_inner(
     v: JsValue,
     compile_time_info: Vc<CompileTimeInfo>,
     var_graph: &VarGraph,
-    overrides: &ImportAttributes,
+    attributes: &ImportAttributes,
 ) -> Result<(JsValue, bool)> {
-    let ImportAttributes { ignore, .. } = *overrides;
+    let ImportAttributes { ignore, .. } = *attributes;
     // This check is just an optimization
     if v.get_defineable_name_len().is_some() {
         let compile_time_info = compile_time_info.await?;
@@ -3067,7 +3073,7 @@ async fn resolve_as_webpack_runtime(
     );
 
     if let Some(source) = *resolved.first_source().await? {
-        Ok(webpack_runtime(source, transforms))
+        Ok(webpack_runtime(*source, transforms))
     } else {
         Ok(WebpackRuntime::None.into())
     }

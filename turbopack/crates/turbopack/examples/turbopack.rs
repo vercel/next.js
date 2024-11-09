@@ -52,7 +52,7 @@ async fn main() -> Result<()> {
                 ResolveOptionsContext {
                     enable_typescript: true,
                     enable_react: true,
-                    enable_node_modules: Some(fs.root()),
+                    enable_node_modules: Some(fs.root().to_resolved().await?),
                     custom_conditions: vec!["development".into()],
                     ..Default::default()
                 }
@@ -68,7 +68,7 @@ async fn main() -> Result<()> {
             let rebased = RebasedAsset::new(module, input, output);
             emit_with_completion(Vc::upcast(rebased), output).await?;
 
-            Ok::<Vc<()>, _>(Default::default())
+            anyhow::Ok::<Vc<()>>(Default::default())
         })
     });
     spawn({

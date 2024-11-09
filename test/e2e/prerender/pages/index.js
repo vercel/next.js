@@ -12,7 +12,6 @@ export async function getStaticProps() {
 const Page = ({ world, time }) => {
   return (
     <>
-      {/* <div id='after-change'>idk</div> */}
       <p>hello {world}</p>
       <span>time: {time}</span>
       <Link href="/non-json/[p]" as="/non-json/1" id="non-json">

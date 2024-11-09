@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{RcStr, ValueToString, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
     chunk::ChunkableModuleReference, module::Module, reference::ModuleReference,
     resolve::ModuleResolveResult,
@@ -7,13 +7,13 @@ use turbopack_core::{
 
 #[turbo_tasks::value]
 pub struct NextServerComponentModuleReference {
-    asset: Vc<Box<dyn Module>>,
+    asset: ResolvedVc<Box<dyn Module>>,
 }
 
 #[turbo_tasks::value_impl]
 impl NextServerComponentModuleReference {
     #[turbo_tasks::function]
-    pub fn new(asset: Vc<Box<dyn Module>>) -> Vc<Self> {
+    pub fn new(asset: ResolvedVc<Box<dyn Module>>) -> Vc<Self> {
         NextServerComponentModuleReference { asset }.cell()
     }
 }
