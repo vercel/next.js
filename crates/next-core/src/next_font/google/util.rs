@@ -1,6 +1,6 @@
 use std::{cmp::Ordering, collections::BTreeSet};
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{bail, Context, Result};
 use turbo_tasks::{FxIndexSet, RcStr};
 
 use super::options::{FontData, FontWeights};
@@ -72,12 +72,12 @@ pub(super) fn get_font_axes(
 
                 for tag in selected_variable_axes {
                     if !definable_axes_tags.contains(tag) {
-                        return Err(anyhow!(
+                        bail!(
                             "Invalid axes value {} for font {}.\nAvailable axes: {}",
                             tag,
                             font_family,
                             definable_axes_tags.join(", ")
-                        ));
+                        )
                     }
                 }
             }
