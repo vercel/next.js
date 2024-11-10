@@ -196,7 +196,7 @@ describe('Error overlay - RSC build errors', () => {
           3 | export default function ClientOnlyLib() {
           4 |   return 'client-only-lib'
 
-        You're importing a component that imports client-only. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.\\nLearn more: https://nextjs.org/docs/getting-started/react-essentials\\n\\n"
+        You're importing a component that imports client-only. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.\\nLearn more: https://nextjs.org/docs/app/building-your-application/rendering\\n\\n"
       `)
     } else {
       expect(await session.getRedboxSource()).toInclude(
@@ -342,7 +342,7 @@ describe('Error overlay - RSC build errors', () => {
             | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
         app/server-with-errors/error-file/error.js must be a Client Component. Add the "use client" directive the top of the file to resolve this issue.
-        Learn more: https://nextjs.org/docs/getting-started/react-essentials#client-components"
+        Learn more: https://nextjs.org/docs/app/building-your-application/rendering/client-components"
       `)
     } else {
       await check(() => session.getRedboxSource(), /Add the "use client"/)
@@ -353,7 +353,7 @@ describe('Error overlay - RSC build errors', () => {
       //   "./app/server-with-errors/error-file/error.js
       //   Error:   x TEST_DIR/app/server-with-errors/error-file/error.js must be a Client
       //     | Component. Add the "use client" directive the top of the file to resolve this issue.
-      //     | Learn more: https://nextjs.org/docs/getting-started/react-essentials#client-components
+      //     | Learn more: https://nextjs.org/docs/app/building-your-application/rendering/client-components
       //     |
       //     |
       //      ,----
