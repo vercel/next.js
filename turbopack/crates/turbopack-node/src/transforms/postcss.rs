@@ -279,7 +279,7 @@ impl Asset for JsonSource {
                 let value = match &*self.key.await? {
                     Some(key) => {
                         let Some(value) = json.get(&**key) else {
-                            return Err(anyhow::anyhow!("Invalid file type {:?}", file_type));
+                            anyhow::bail!("Invalid file type {:?}", file_type)
                         };
                         value
                     }
