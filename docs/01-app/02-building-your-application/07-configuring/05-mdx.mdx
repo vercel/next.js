@@ -649,7 +649,7 @@ export default withMDX(nextConfig)
 
 > **Good to know**:
 >
-> remark and rehype plugins cannot be used with [Turbopack](/docs/architecture/turbopack), due to lack of plugins support in [`mdxRs`](#using-the-rust-based-mdx-compiler-experimental)
+> remark and rehype plugins cannot be used with [Turbopack](/docs/architecture/turbopack) yet, due to [inability to pass JavaScript functions to Rust](https://github.com/vercel/next.js/issues/71819#issuecomment-2461802968)
 
 ## Remote MDX
 
@@ -785,10 +785,6 @@ module.exports = withMDX({
   },
 })
 ```
-
-> **Good to know**:
->
-> This option is required when processing markdown and MDX while using [Turbopack](/docs/architecture/turbopack) (`next dev --turbopack`).
 
 ## Helpful Links
 

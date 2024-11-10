@@ -560,6 +560,9 @@ jobs:
     # Matches the commit message written by turbopack/xtask/src/publish.rs:377
     if: "${{(github.ref == 'refs/heads/canary') && startsWith(github.event.head_commit.message, 'chore: release turbopack npm packages')}}"
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
     steps:
       - uses: actions/checkout@v3
 

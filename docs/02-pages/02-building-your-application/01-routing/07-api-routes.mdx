@@ -47,7 +47,7 @@ export default function handler(req, res) {
 > - API Routes [do not specify CORS headers](https://developer.mozilla.org/docs/Web/HTTP/CORS), meaning they are **same-origin only** by default. You can customize such behavior by wrapping the request handler with the [CORS request helpers](https://github.com/vercel/next.js/tree/canary/examples/api-routes-cors).
 
 - API Routes can't be used with [static exports](/docs/pages/building-your-application/deploying/static-exports). However, [Route Handlers](/docs/app/building-your-application/routing/route-handlers) in the App Router can.
-  > - API Routes will be affected by [`pageExtensions` configuration](/docs/pages/api-reference/next-config-js/pageExtensions) in `next.config.js`.
+  > - API Routes will be affected by [`pageExtensions` configuration](/docs/pages/api-reference/config/next-config-js/pageExtensions) in `next.config.js`.
 
 ## Parameters
 

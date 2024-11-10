@@ -540,6 +540,12 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             }
         }
     }
+    // TODO This is too eagerly generating the source map. We should store a GenerateSourceMap
+    // instead and only actually generate the SourceMap when it's needed. This would allow to avoid
+    // generating the source map when a module is never included in the final bundle. It allows
+    // analysis to finish earlier which makes references available earlier which benefits
+    // parallelism. When SourceMaps are emitted it moves that generation work to the code generation
+    // phase which is more parallelizable.
     let mut source_map_from_comment = false;
     if let Some((_, path)) = paths_by_pos.into_iter().max_by_key(|&(pos, _)| pos) {
         let origin_path = origin.origin_path();
