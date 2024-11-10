@@ -434,22 +434,6 @@ You can opt individual `fetch` into caching by setting the `cache` option to `fo
 fetch(`https://...`, { cache: 'force-cache' })
 ```
 
-Alternatively you can set the global caching behavior in your `next.config.js` file as follows::
-
-```ts filename="next.config.ts" switcher
-import type { NextConfig } from 'next'
-
-const nextConfig = {
-  experimental: {
-    staleTimes: {
-      dynamic: 30,
-    },
-  },
-}
-
-export default nextConfig
-```
-
 See the [`fetch` API Reference](/docs/app/api-reference/functions/fetch) for more options.
 
 ### `fetch options.next.revalidate`
