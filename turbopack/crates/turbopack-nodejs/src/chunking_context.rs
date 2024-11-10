@@ -44,6 +44,11 @@ impl NodeJsChunkingContextBuilder {
         self
     }
 
+    pub fn file_tracing(mut self, enable_tracing: bool) -> Self {
+        self.chunking_context.enable_file_tracing = enable_tracing;
+        self
+    }
+
     pub fn runtime_type(mut self, runtime_type: RuntimeType) -> Self {
         self.chunking_context.runtime_type = runtime_type;
         self
@@ -51,6 +56,11 @@ impl NodeJsChunkingContextBuilder {
 
     pub fn manifest_chunks(mut self, manifest_chunks: bool) -> Self {
         self.chunking_context.manifest_chunks = manifest_chunks;
+        self
+    }
+
+    pub fn use_file_source_map_uris(mut self) -> Self {
+        self.chunking_context.should_use_file_source_map_uris = true;
         self
     }
 
@@ -86,12 +96,16 @@ pub struct NodeJsChunkingContext {
     environment: Vc<Environment>,
     /// The kind of runtime to include in the output.
     runtime_type: RuntimeType,
+    /// Enable tracing for this chunking
+    enable_file_tracing: bool,
     /// Whether to minify resulting chunks
     minify_type: MinifyType,
     /// Whether to use manifest chunks for lazy compilation
     manifest_chunks: bool,
     /// The strategy to use for generating module ids
     module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
+    /// Whether to use file:// uris for source map sources
+    should_use_file_source_map_uris: bool,
 }
 
 impl NodeJsChunkingContext {
@@ -113,10 +127,12 @@ impl NodeJsChunkingContext {
                 chunk_root_path,
                 asset_root_path,
                 asset_prefix: Default::default(),
+                enable_file_tracing: false,
                 environment,
                 runtime_type,
                 minify_type: MinifyType::NoMinify,
                 manifest_chunks: false,
+                should_use_file_source_map_uris: false,
                 module_id_strategy: Vc::upcast(DevModuleIdStrategy::new()),
             },
         }
@@ -194,6 +210,11 @@ impl ChunkingContext for NodeJsChunkingContext {
     }
 
     #[turbo_tasks::function]
+    fn is_tracing_enabled(&self) -> Vc<bool> {
+        Vc::cell(self.enable_file_tracing)
+    }
+
+    #[turbo_tasks::function]
     async fn asset_url(self: Vc<Self>, ident: Vc<AssetIdent>) -> Result<Vc<RcStr>> {
         let this = self.await?;
         let asset_path = ident.path().await?.to_string();
@@ -233,7 +254,7 @@ impl ChunkingContext for NodeJsChunkingContext {
 
     #[turbo_tasks::function]
     fn should_use_file_source_map_uris(&self) -> Vc<bool> {
-        Vc::cell(false)
+        Vc::cell(self.should_use_file_source_map_uris)
     }
 
     #[turbo_tasks::function]

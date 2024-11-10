@@ -127,6 +127,16 @@ impl Pattern {
         }
     }
 
+    pub fn has_dynamic_parts(&self) -> bool {
+        match self {
+            Pattern::Constant(_) => false,
+            Pattern::Dynamic => true,
+            Pattern::Alternatives(list) | Pattern::Concatenation(list) => {
+                list.iter().any(|p| p.has_dynamic_parts())
+            }
+        }
+    }
+
     pub fn constant_prefix(&self) -> &str {
         // The normalized pattern is an Alternative of maximally merged
         // Concatenations, so extracting the first/only Concatenation child

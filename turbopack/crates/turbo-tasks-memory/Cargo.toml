@@ -48,7 +48,6 @@ turbo-tasks-build = { workspace = true }
 
 [features]
 track_unfinished = []
-print_task_invalidation = []
 default = []
 
 [[bench]]

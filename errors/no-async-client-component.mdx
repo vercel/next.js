@@ -30,8 +30,8 @@ We recommend fetching data on the server. For example:
 
 ```tsx filename="app/page.tsx"
 export default async function Page() {
-  let data = await fetch('https://api.vercel.app/blog')
-  let posts = await data.json()
+  const data = await fetch('https://api.vercel.app/blog')
+  const posts = await data.json()
   return (
     <ul>
       {posts.map((post) => (
@@ -68,7 +68,7 @@ export function BlogProvider({
 }
 
 export function useBlogContext() {
-  let context = useContext(BlogContext)
+  const context = useContext(BlogContext)
   if (!context) {
     throw new Error('useBlogContext must be used within a BlogProvider')
   }
@@ -82,7 +82,7 @@ Now, let's create the Promise in a Server Component and stream it to the client:
 import { BlogProvider } from './context'
 
 export default function Page() {
-  let blogPromise = fetch('https://api.vercel.app/blog').then((res) =>
+  const blogPromise = fetch('https://api.vercel.app/blog').then((res) =>
     res.json()
   )
 
@@ -103,8 +103,8 @@ import { use } from 'react'
 import { useBlogContext } from './context'
 
 export function BlogPosts() {
-  let blogPromise = useBlogContext()
-  let posts = use(blogPromise)
+  const blogPromise = useBlogContext()
+  const posts = use(blogPromise)
 
   return <div>{posts.length} blog posts</div>
 }
@@ -122,12 +122,12 @@ In scenarios where client fetching is needed, you can call `fetch` in `useEffect
 import { useState, useEffect } from 'react'
 
 export function Posts() {
-  let [posts, setPosts] = useState(null)
+  const [posts, setPosts] = useState(null)
 
   useEffect(() => {
     async function fetchPosts() {
-      let res = await fetch('https://api.vercel.app/blog')
-      let data = await res.json()
+      const res = await fetch('https://api.vercel.app/blog')
+      const data = await res.json()
       setPosts(data)
     }
     fetchPosts()

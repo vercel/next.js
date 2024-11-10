@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{fxindexset, trace::TraceRawVcs, FxIndexMap, FxIndexSet, RcStr, Value, Vc};
 
@@ -72,9 +72,7 @@ pub(super) fn options_from_request(
     data: &FxIndexMap<RcStr, FontDataEntry>,
 ) -> Result<NextFontGoogleOptions> {
     if request.arguments.len() > 1 {
-        return Err(anyhow!(
-            "Only zero or one arguments to font functions are currently supported"
-        ));
+        anyhow::bail!("Only zero or one arguments to font functions are currently supported")
     }
     // Invariant enforced above: either None or Some(the only item in the vec)
     let argument = request.arguments.last().cloned().unwrap_or_default();
@@ -99,35 +97,36 @@ pub(super) fn options_from_request(
         })
         .unwrap_or_default();
 
+    let supports_variable_weight = font_data.weights.iter().any(|el| el == "variable");
     let weights = if requested_weights.is_empty() {
-        if !font_data.weights.contains(&"variable".into()) {
-            return Err(anyhow!(
+        if !supports_variable_weight {
+            anyhow::bail!(
                 "Missing weight for {}. Available weights: {}",
                 font_family,
                 font_data.weights.join(", ")
-            ));
+            )
         }
 
         FontWeights::Variable
     } else if requested_weights.contains("variable") {
         if requested_weights.len() > 1 {
-            return Err(anyhow!(
+            anyhow::bail!(
                 "Unexpected `variable` in weight array for font {}. You only need `variable`, it \
                  includes all available weights.",
                 font_family
-            ));
+            )
         }
 
         FontWeights::Variable
     } else {
         for requested_weight in &requested_weights {
             if !font_data.weights.contains(requested_weight) {
-                return Err(anyhow!(
+                anyhow::bail!(
                     "Unknown weight {} for font {}.\nAvailable weights: {}",
                     requested_weight,
                     font_family,
                     font_data.weights.join(", ")
-                ));
+                )
             }
         }
 
@@ -149,29 +148,38 @@ pub(super) fn options_from_request(
 
     for requested_style in &styles {
         if !font_data.styles.contains(requested_style) {
-            return Err(anyhow!(
+            anyhow::bail!(
                 "Unknown style {} for font {}.\nAvailable styles: {}",
                 requested_style,
                 font_family,
                 font_data.styles.join(", ")
-            ));
+            )
         }
     }
 
     let display = argument.display.unwrap_or_else(|| "swap".into());
 
     if !ALLOWED_DISPLAY_VALUES.contains(&display.as_str()) {
-        return Err(anyhow!(
+        anyhow::bail!(
             "Invalid display value {} for font {}.\nAvailable display values: {}",
             display,
             font_family,
             ALLOWED_DISPLAY_VALUES.join(", ")
-        ));
+        )
     }
 
     if let Some(axes) = argument.axes.as_ref() {
-        if !axes.is_empty() && !matches!(weights, FontWeights::Variable) {
-            return Err(anyhow!("Axes can only be defined for variable fonts"));
+        if !axes.is_empty() {
+            if !supports_variable_weight {
+                anyhow::bail!("Axes can only be defined for variable fonts.")
+            }
+
+            if weights != FontWeights::Variable {
+                anyhow::bail!(
+                    "Axes can only be defined for variable fonts when the weight property is \
+                     nonexistent or set to `variable`."
+                )
+            }
         }
     }
 
@@ -208,7 +216,7 @@ mod tests {
                     "styles": ["normal", "italic"]
                 }
             }
-  "#,
+            "#,
         )?;
 
         let request: NextFontRequest = parse_json_with_source_context(
@@ -219,7 +227,7 @@ mod tests {
                 "variableName": "inter",
                 "arguments": [{}]
             }
-        "#,
+            "#,
         )?;
 
         match options_from_request(&request, &data) {
@@ -241,7 +249,7 @@ mod tests {
                     "styles": ["normal", "italic"]
                 }
             }
-  "#,
+            "#,
         )?;
 
         let request: NextFontRequest = parse_json_with_source_context(
@@ -252,7 +260,7 @@ mod tests {
                 "variableName": "abeezee",
                 "arguments": []
             }
-        "#,
+            "#,
         )?;
 
         assert_eq!(
@@ -284,7 +292,7 @@ mod tests {
                     "styles": ["normal", "italic"]
                 }
             }
-  "#,
+            "#,
         )?;
 
         let request: NextFontRequest = parse_json_with_source_context(
@@ -295,7 +303,7 @@ mod tests {
                 "variableName": "abeezee",
                 "arguments": [{}]
             }
-        "#,
+            "#,
         )?;
 
         match options_from_request(&request, &data) {
@@ -320,7 +328,7 @@ mod tests {
                     "styles": ["normal", "italic"]
                 }
             }
-  "#,
+            "#,
         )?;
 
         let request: NextFontRequest = parse_json_with_source_context(
@@ -333,7 +341,7 @@ mod tests {
                     "weight": ["400", "variable"]
                 }]
             }
-        "#,
+            "#,
         )?;
 
         match options_from_request(&request, &data) {
@@ -359,7 +367,7 @@ mod tests {
                     "styles": ["normal", "italic"]
                 }
             }
-  "#,
+            "#,
         )?;
 
         let request: NextFontRequest = parse_json_with_source_context(
@@ -372,7 +380,7 @@ mod tests {
                     "weight": ["200"]
                 }]
             }
-        "#,
+            "#,
         )?;
 
         match options_from_request(&request, &data) {
@@ -397,7 +405,7 @@ mod tests {
                     "styles": ["italic"]
                 }
             }
-  "#,
+            "#,
         )?;
 
         let request: NextFontRequest = parse_json_with_source_context(
@@ -410,7 +418,7 @@ mod tests {
                     "weight": ["400"]
                 }]
             }
-        "#,
+            "#,
         )?;
 
         let options = options_from_request(&request, &data)?;
@@ -429,7 +437,7 @@ mod tests {
                     "styles": ["normal", "italic"]
                 }
             }
-  "#,
+            "#,
         )?;
 
         let request: NextFontRequest = parse_json_with_source_context(
@@ -442,7 +450,7 @@ mod tests {
                     "weight": ["400"]
                 }]
             }
-        "#,
+            "#,
         )?;
 
         let options = options_from_request(&request, &data)?;
@@ -461,7 +469,7 @@ mod tests {
                     "styles": ["normal", "italic"]
                 }
             }
-  "#,
+            "#,
         )?;
 
         let request: NextFontRequest = parse_json_with_source_context(
@@ -475,7 +483,7 @@ mod tests {
                     "style": ["foo"]
                 }]
             }
-        "#,
+            "#,
         )?;
 
         match options_from_request(&request, &data) {
@@ -501,7 +509,7 @@ mod tests {
                     "styles": ["normal", "italic"]
                 }
             }
-  "#,
+            "#,
         )?;
 
         let request: NextFontRequest = parse_json_with_source_context(
@@ -515,7 +523,7 @@ mod tests {
                     "display": "foo"
                 }]
             }
-        "#,
+            "#,
         )?;
 
         match options_from_request(&request, &data) {
@@ -533,7 +541,7 @@ mod tests {
     }
 
     #[test]
-    fn test_errors_on_axes_without_variable() -> Result<()> {
+    fn test_errors_on_axes_without_variable_weight() -> Result<()> {
         let data: FxIndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
             r#"
             {
@@ -542,7 +550,7 @@ mod tests {
                     "styles": ["normal", "italic"]
                 }
             }
-  "#,
+            "#,
         )?;
 
         let request: NextFontRequest = parse_json_with_source_context(
@@ -556,7 +564,7 @@ mod tests {
                     "axes": ["wght"]
                 }]
             }
-        "#,
+            "#,
         )?;
 
         match options_from_request(&request, &data) {
@@ -564,7 +572,48 @@ mod tests {
             Err(err) => {
                 assert_eq!(
                     err.to_string(),
-                    "Axes can only be defined for variable fonts"
+                    "Axes can only be defined for variable fonts when the weight property is \
+                     nonexistent or set to `variable`."
+                )
+            }
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_errors_on_axes_without_variable_font() -> Result<()> {
+        let data: FxIndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
+            r#"
+            {
+                "ABeeZee": {
+                    "weights": ["400", "700"],
+                    "styles": ["normal", "italic"]
+                }
+            }
+            "#,
+        )?;
+
+        let request: NextFontRequest = parse_json_with_source_context(
+            r#"
+            {
+                "import": "ABeeZee",
+                "path": "index.js",
+                "variableName": "abeezee",
+                "arguments": [{
+                    "weight": ["400", "700"],
+                    "axes": ["wght"]
+                }]
+            }
+            "#,
+        )?;
+
+        match options_from_request(&request, &data) {
+            Ok(_) => panic!(),
+            Err(err) => {
+                assert_eq!(
+                    err.to_string(),
+                    "Axes can only be defined for variable fonts."
                 )
             }
         }

@@ -851,7 +851,7 @@ impl FileSystem for DiskFileSystem {
                 .with_context(|| format!("create symlink to {}", target))?;
             }
             LinkContent::Invalid => {
-                return Err(anyhow!("invalid symlink target: {}", full_path.display()));
+                anyhow::bail!("invalid symlink target: {}", full_path.display())
             }
             LinkContent::NotFound => {
                 retry_future(|| fs::remove_file(&full_path))
