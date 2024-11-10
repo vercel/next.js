@@ -1,13 +1,14 @@
 use swc_core::ecma::{
     ast::{
         Ident, IdentName, JSXAttr, JSXAttrName, JSXAttrOrSpread, JSXElementName, JSXOpeningElement,
+        Pass,
     },
     atoms::JsWord,
-    visit::Fold,
+    visit::{fold_pass, Fold},
 };
 
-pub fn amp_attributes() -> impl Fold {
-    AmpAttributePatcher::default()
+pub fn amp_attributes() -> impl Pass {
+    fold_pass(AmpAttributePatcher::default())
 }
 
 #[derive(Debug, Default)]

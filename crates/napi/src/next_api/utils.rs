@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap, future::Future, ops::Deref, path::PathBuf, sync::Arc, time::Duration,
+    collections::HashMap, env, future::Future, ops::Deref, path::PathBuf, sync::Arc, time::Duration,
 };
 
 use anyhow::{anyhow, Context, Result};
@@ -133,9 +133,11 @@ pub fn create_turbo_tasks(
             )?),
         ))
     } else {
-        NextTurboTasks::Memory(TurboTasks::new(turbo_tasks_memory::MemoryBackend::new(
-            memory_limit,
-        )))
+        let mut backend = turbo_tasks_memory::MemoryBackend::new(memory_limit);
+        if env::var_os("NEXT_TURBOPACK_PRINT_TASK_INVALIDATION").is_some() {
+            backend.print_task_invalidation(true);
+        }
+        NextTurboTasks::Memory(TurboTasks::new(backend))
     })
 }
 

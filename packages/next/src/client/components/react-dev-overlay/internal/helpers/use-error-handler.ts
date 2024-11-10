@@ -6,6 +6,10 @@ import { formatConsoleArgs } from '../../../../lib/console'
 import isError from '../../../../../lib/is-error'
 import { createUnhandledError } from './console-error'
 import { enqueueConsecutiveDedupedError } from './enqueue-client-error'
+import { getReactStitchedError } from './stitched-error'
+
+const queueMicroTask =
+  globalThis.queueMicrotask || ((cb: () => void) => Promise.resolve().then(cb))
 
 export type ErrorHandler = (error: Error) => void
 
@@ -22,7 +26,7 @@ export function handleClientError(
   if (!originError || !isError(originError)) {
     // If it's not an error, format the args into an error
     const formattedErrorMessage = formatConsoleArgs(consoleErrorArgs)
-    error = createUnhandledError(formattedErrorMessage)
+    error = getReactStitchedError(createUnhandledError(formattedErrorMessage))
   } else {
     error = originError
   }
@@ -32,7 +36,11 @@ export function handleClientError(
 
   enqueueConsecutiveDedupedError(errorQueue, error)
   for (const handler of errorHandlers) {
-    handler(error)
+    // Delayed the error being passed to React Dev Overlay,
+    // avoid the state being synchronously updated in the component.
+    queueMicroTask(() => {
+      handler(error)
+    })
   }
 }
 

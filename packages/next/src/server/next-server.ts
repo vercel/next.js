@@ -277,6 +277,11 @@ export default class NextNodeServer extends BaseServer<
     for (const page of Object.keys(appPathsManifest || {})) {
       await loadComponents({ distDir: this.distDir, page, isAppPath: true })
         .then(async ({ ComponentMod }) => {
+          // we need to ensure fetch is patched before we require the page,
+          // otherwise if the fetch is patched by user code, we will be patching it
+          // too late and there won't be any caching behaviors
+          ComponentMod.patchFetch()
+
           const webpackRequire = ComponentMod.__next_app__.require
           if (webpackRequire?.m) {
             for (const id of Object.keys(webpackRequire.m)) {
@@ -590,7 +595,9 @@ export default class NextNodeServer extends BaseServer<
           // This code path does not service revalidations for unknown param
           // shells. As a result, we don't need to pass in the unknown params.
           null,
-          renderOpts
+          renderOpts,
+          this.getServerComponentsHmrCache(),
+          false
         )
       }
 

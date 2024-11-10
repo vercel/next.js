@@ -49,6 +49,64 @@ describe('config-testing-utils', () => {
       )
     })
 
+    it("ignores redirect that doesn't match has", async () => {
+      const response = await unstable_getResponseFromNextConfig({
+        url: 'https://nextjs.org/test/foo',
+        nextConfig: {
+          async redirects() {
+            return [
+              {
+                source: '/test/:slug',
+                destination: '/test2/:slug',
+                permanent: false,
+                has: [
+                  {
+                    type: 'header',
+                    key: 'host',
+                    value: 'othersite.com',
+                  },
+                ],
+              },
+            ]
+          },
+        },
+      })
+      expect(response.status).toEqual(200)
+    })
+
+    it('redirects with has and missing', async () => {
+      const response = await unstable_getResponseFromNextConfig({
+        url: 'https://nextjs.org/test/foo',
+        nextConfig: {
+          async redirects() {
+            return [
+              {
+                source: '/test/:slug',
+                destination: '/test2/:slug',
+                permanent: false,
+                has: [
+                  {
+                    type: 'host',
+                    value: 'nextjs.org',
+                  },
+                ],
+                missing: [
+                  {
+                    type: 'host',
+                    value: 'othersite.com',
+                  },
+                ],
+              },
+            ]
+          },
+        },
+      })
+      expect(response.status).toEqual(307)
+      expect(response.headers.get('location')).toEqual(
+        'https://nextjs.org/test2/foo'
+      )
+    })
+
     it('redirects take precedence over rewrites', async () => {
       const response = await unstable_getResponseFromNextConfig({
         url: 'https://nextjs.org/test/foo',

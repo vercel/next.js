@@ -1,3 +1,5 @@
+# syntax=docker.io/docker/dockerfile:1
+
 # [Choice] Node.js version (use -bullseye variants on local arm64/Apple Silicon): 18-bullseye, 16-bullseye, 14-bullseye, 18-buster, 16-buster, 14-buster
 ARG VARIANT=20-bullseye
 FROM node:${VARIANT}
