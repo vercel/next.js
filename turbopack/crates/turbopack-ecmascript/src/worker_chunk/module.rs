@@ -45,13 +45,13 @@ fn inner_module_reference_description() -> Vc<RcStr> {
 impl Module for WorkerLoaderModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        Self::asset_ident_for(self.inner)
+        Self::asset_ident_for(*self.inner)
     }
 
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
         Ok(Vc::cell(vec![Vc::upcast(SingleModuleReference::new(
-            Vc::upcast(self.await?.inner),
+            *ResolvedVc::upcast(self.await?.inner),
             inner_module_reference_description(),
         ))]))
     }
