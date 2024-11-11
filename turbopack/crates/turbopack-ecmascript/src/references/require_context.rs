@@ -233,7 +233,7 @@ impl RequireContextAssetReference {
             origin.origin_path().parent().join(dir.clone()),
             include_subdirs,
             filter,
-            issue_source,
+            issue_source.map(|v| *v),
             in_try,
         )
         .to_resolved()
