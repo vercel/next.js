@@ -29,7 +29,7 @@ pub struct EsmModuleIdAssetReference {
 #[turbo_tasks::value_impl]
 impl EsmModuleIdAssetReference {
     #[turbo_tasks::function]
-    pub fn new(inner: Vc<EsmAssetReference>, ast_path: Vc<AstPath>) -> Vc<Self> {
+    pub fn new(inner: ResolvedVc<EsmAssetReference>, ast_path: ResolvedVc<AstPath>) -> Vc<Self> {
         Self::cell(EsmModuleIdAssetReference { inner, ast_path })
     }
 }
