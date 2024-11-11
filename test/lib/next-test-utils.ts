@@ -942,6 +942,26 @@ export async function getRedboxSource(browser: BrowserInterface) {
   )
 }
 
+export async function getRedboxTitle(browser: BrowserInterface) {
+  return retry(
+    () =>
+      evaluate(browser, () => {
+        const portal = [].slice
+          .call(document.querySelectorAll('nextjs-portal'))
+          .find((p) =>
+            p.shadowRoot.querySelector('[data-nextjs-dialog-header]')
+          )
+        const root = portal.shadowRoot
+        return root.querySelector(
+          '[data-nextjs-dialog-header] .nextjs__container_errors__error_title'
+        ).innerText
+      }),
+    3000,
+    500,
+    'getRedboxTitle'
+  )
+}
+
 export async function getRedboxDescription(browser: BrowserInterface) {
   return retry(
     () =>
