@@ -124,9 +124,9 @@ impl EsmAssetReference {
 impl EsmAssetReference {
     #[turbo_tasks::function]
     pub fn new(
-        origin: Vc<Box<dyn ResolveOrigin>>,
-        request: Vc<Request>,
-        issue_source: Vc<IssueSource>,
+        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+        request: ResolvedVc<Request>,
+        issue_source: ResolvedVc<IssueSource>,
         annotations: Value<ImportAnnotations>,
         export_name: Option<ResolvedVc<ModulePart>>,
         import_externals: bool,
