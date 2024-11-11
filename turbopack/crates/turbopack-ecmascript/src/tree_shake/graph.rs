@@ -1497,7 +1497,7 @@ fn merge_single_incoming_nodes<N>(g: &mut Graph<N, Dependency>) {
     }
 
     // Remove all edges from source
-    for node in removed_nodes {
+    for node in removed_nodes.into_iter().rev() {
         g.remove_node(node);
     }
 }
