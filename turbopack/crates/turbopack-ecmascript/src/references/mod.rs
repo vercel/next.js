@@ -701,7 +701,9 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     // Check if it was a webpack entry
     if let Some((request, span)) = webpack_runtime {
         let request = Request::parse(Value::new(request.into()));
-        let runtime = resolve_as_webpack_runtime(origin, request, transforms);
+        let runtime = resolve_as_webpack_runtime(origin, request, *transforms)
+            .to_resolved()
+            .await?;
 
         if let WebpackRuntime::Webpack5 { .. } = &*runtime.await? {
             ignore_effect_span = Some(span);
