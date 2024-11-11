@@ -2826,10 +2826,10 @@ impl StaticAnalyser {
 struct ModuleReferencesVisitor<'a> {
     eval_context: &'a EvalContext,
     old_analyser: StaticAnalyser,
-    import_references: &'a [ResolvedVc<EsmAssetReference>],
+    import_references: &'a [Vc<EsmAssetReference>],
     analysis: &'a mut AnalyzeEcmascriptModuleResultBuilder,
     esm_exports: BTreeMap<RcStr, EsmExport>,
-    esm_star_exports: Vec<ResolvedVc<Box<dyn ModuleReference>>>,
+    esm_star_exports: Vec<Vc<Box<dyn ModuleReference>>>,
     webpack_runtime: Option<(RcStr, Span)>,
     webpack_entry: bool,
     webpack_chunks: Vec<Lit>,
@@ -2838,7 +2838,7 @@ struct ModuleReferencesVisitor<'a> {
 impl<'a> ModuleReferencesVisitor<'a> {
     fn new(
         eval_context: &'a EvalContext,
-        import_references: &'a [ResolvedVc<EsmAssetReference>],
+        import_references: &'a [Vc<EsmAssetReference>],
         analysis: &'a mut AnalyzeEcmascriptModuleResultBuilder,
     ) -> Self {
         Self {
