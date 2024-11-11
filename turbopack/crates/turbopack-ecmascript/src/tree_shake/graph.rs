@@ -23,13 +23,12 @@ use swc_core::{
 use turbo_tasks::{FxIndexSet, RcStr};
 
 use super::{
-    optimizations::merge_single_incoming_nodes,
     util::{
         collect_top_level_decls, ids_captured_by, ids_used_by, ids_used_by_ignoring_nested, Vars,
     },
     Key, TURBOPACK_PART_IMPORT_SOURCE,
 };
-use crate::magic_identifier;
+use crate::{magic_identifier, tree_shake::optimizations::GraphOptimizer};
 
 /// The id of an item
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -730,7 +729,10 @@ impl DepGraph {
         let graph = self.g.idx_graph.clone().into_graph::<u32>();
 
         let mut condensed = condensation(graph, true);
-        merge_single_incoming_nodes(&mut condensed);
+        let optimizer = GraphOptimizer {
+            graph_ix: &self.g.graph_ix,
+        };
+        optimizer.merge_single_incoming_nodes(&mut condensed);
 
         let mut new_graph = InternedGraph::default();
 
