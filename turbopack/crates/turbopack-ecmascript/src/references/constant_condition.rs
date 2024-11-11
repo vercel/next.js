@@ -26,7 +26,7 @@ pub struct ConstantCondition {
 #[turbo_tasks::value_impl]
 impl ConstantCondition {
     #[turbo_tasks::function]
-    pub fn new(value: Value<ConstantConditionValue>, path: Vc<AstPath>) -> Vc<Self> {
+    pub fn new(value: Value<ConstantConditionValue>, path: ResolvedVc<AstPath>) -> Vc<Self> {
         Self::cell(ConstantCondition {
             value: value.into_value(),
             path,
