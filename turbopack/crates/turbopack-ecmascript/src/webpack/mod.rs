@@ -100,11 +100,11 @@ impl ModuleReference for WebpackChunkAssetReference {
                 let filename = format!("./chunks/{}.js", chunk_id).into();
                 let source = Vc::upcast(FileSource::new(context_path.join(filename)));
 
-                ModuleResolveResult::module(ResolvedVc::upcast(
-                    WebpackModuleAsset::new(source, self.runtime, self.transforms)
-                        .to_resolved()
-                        .await?,
-                ))
+                ModuleResolveResult::module(ResolvedVc::upcast(WebpackModuleAsset::new(
+                    source,
+                    self.runtime,
+                    self.transforms,
+                )))
                 .cell()
             }
             WebpackRuntime::None => ModuleResolveResult::unresolvable().cell(),
