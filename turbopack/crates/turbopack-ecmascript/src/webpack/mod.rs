@@ -61,7 +61,7 @@ impl Module for WebpackModuleAsset {
 
     #[turbo_tasks::function]
     fn references(&self) -> Vc<ModuleReferences> {
-        module_references(self.source, self.runtime, self.transforms)
+        module_references(*self.source, *self.runtime, *self.transforms)
     }
 }
 

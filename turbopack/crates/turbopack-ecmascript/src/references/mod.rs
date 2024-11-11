@@ -336,8 +336,8 @@ impl Default for AnalyzeEcmascriptModuleResultBuilder {
 struct AnalysisState<'a> {
     handler: &'a Handler,
     source: ResolvedVc<Box<dyn Source>>,
-    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
-    compile_time_info: ResolvedVc<CompileTimeInfo>,
+    origin: Vc<Box<dyn ResolveOrigin>>,
+    compile_time_info: Vc<CompileTimeInfo>,
     var_graph: &'a VarGraph,
     /// This is the current state of known values of function
     /// arguments.
