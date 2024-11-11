@@ -64,7 +64,7 @@ pub struct TsReferencePathAssetReference {
 #[turbo_tasks::value_impl]
 impl TsReferencePathAssetReference {
     #[turbo_tasks::function]
-    pub fn new(origin: Vc<Box<dyn ResolveOrigin>>, path: RcStr) -> Vc<Self> {
+    pub fn new(origin: ResolvedVc<Box<dyn ResolveOrigin>>, path: RcStr) -> Vc<Self> {
         Self::cell(TsReferencePathAssetReference { origin, path })
     }
 }
