@@ -546,11 +546,10 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         } else if path.starts_with("data:application/json;base64,") {
             let source_map_origin = origin_path;
             let source_map = maybe_decode_data_url(path.into());
-            analysis.set_source_map(
-                convert_to_turbopack_source_map(source_map, source_map_origin)
-                    .to_resolved()
-                    .await?,
-            );
+            analysis.set_source_map(convert_to_turbopack_source_map(
+                source_map,
+                source_map_origin,
+            ));
             source_map_from_comment = true;
         }
     }
@@ -703,7 +702,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     origin: origin.to_resolved().await?,
                     request,
                     runtime,
-                    transforms: *transforms,
+                    transforms,
                 }
                 .cell(),
             );
@@ -713,7 +712,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     WebpackEntryAssetReference {
                         source,
                         runtime,
-                        transforms: *transforms,
+                        transforms,
                     }
                     .cell(),
                 );
@@ -724,7 +723,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     WebpackChunkAssetReference {
                         chunk_id: chunk,
                         runtime,
-                        transforms: *transforms,
+                        transforms,
                     }
                     .cell(),
                 );
