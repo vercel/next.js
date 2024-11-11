@@ -30,7 +30,7 @@ pub struct EsmModuleItem {
 #[turbo_tasks::value_impl]
 impl EsmModuleItem {
     #[turbo_tasks::function]
-    pub fn new(path: Vc<AstPath>) -> Vc<Self> {
+    pub fn new(path: ResolvedVc<AstPath>) -> Vc<Self> {
         Self::cell(EsmModuleItem { path })
     }
 }
