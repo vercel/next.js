@@ -715,7 +715,9 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     let mut ignore_effect_span = None;
     // Check if it was a webpack entry
     if let Some((request, span)) = webpack_runtime {
-        let request = Request::parse(Value::new(request.into()));
+        let request = Request::parse(Value::new(request.into()))
+            .to_resolved()
+            .await?;
         let runtime = resolve_as_webpack_runtime(origin, request, *transforms)
             .to_resolved()
             .await?;
@@ -827,7 +829,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             has_top_level_await,
             import_externals,
         }
-        .cell();
+        .resolved_cell();
         analysis.set_async_module(async_module);
     } else if let Some(span) = top_level_await_span {
         AnalyzeIssue {
@@ -836,7 +838,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 .cell(),
             source_ident: source.ident(),
             severity: IssueSeverity::Error.into(),
-            source: Some(issue_source(source, span)),
+            source: Some(issue_source(*source, span)),
             title: Vc::cell("unexpected top level await".into()),
         }
         .cell()
@@ -1557,16 +1559,13 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                         return Ok(());
                     }
                 }
-                analysis
-                    .add_reference(CjsRequireResolveAssetReference::new(
-                        origin,
-                        Request::parse(Value::new(pat)),
-                        Vc::cell(ast_path.to_vec()),
-                        issue_source(source, span),
-                        in_try,
-                    ))
-                    .to_resolved()
-                    .await?;
+                analysis.add_reference(CjsRequireResolveAssetReference::new(
+                    origin,
+                    Request::parse(Value::new(pat)),
+                    Vc::cell(ast_path.to_vec()),
+                    issue_source(source, span),
+                    in_try,
+                ));
                 return Ok(());
             }
             let (args, hints) = explain_args(&args);
