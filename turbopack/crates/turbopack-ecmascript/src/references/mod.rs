@@ -361,9 +361,9 @@ impl<'a> AnalysisState<'a> {
             &early_value_visitor,
             &|value| {
                 value_visitor(
-                    *self.origin,
+                    self.origin,
                     value,
-                    *self.compile_time_info,
+                    self.compile_time_info,
                     self.var_graph,
                     attributes,
                 )
@@ -1335,7 +1335,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                             }
                         }
                         analysis.add_reference(UrlAssetReference::new(
-                            *origin,
+                            origin,
                             Request::parse(Value::new(pat)),
                             compile_time_info.environment().rendering(),
                             Vc::cell(ast_path.to_vec()),
@@ -1369,7 +1369,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
 
                     if *compile_time_info.environment().rendering().await? == Rendering::Client {
                         analysis.add_reference(WorkerAssetReference::new(
-                            *origin,
+                            origin,
                             Request::parse(Value::new(pat)),
                             Vc::cell(ast_path.to_vec()),
                             issue_source(*source, span),
