@@ -343,7 +343,7 @@ async fn graph_node_to_referenced_nodes(
         .map(|reference| async {
             let reference = *reference;
             let Some(chunkable_module_reference) =
-                ResolvedVc::try_downcast::<Box<dyn ChunkableModuleReference>>(reference).await?
+                Vc::try_resolve_downcast::<Box<dyn ChunkableModuleReference>>(reference).await?
             else {
                 return Ok(vec![ChunkGraphEdge {
                     key: None,
