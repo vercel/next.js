@@ -192,7 +192,7 @@ fn modifier() -> Vc<RcStr> {
 #[derive(Clone)]
 pub struct EcmascriptModuleAssetBuilder {
     source: ResolvedVc<Box<dyn Source>>,
-    asset_context: ResolvedVc<Box<dyn AssetContext>>,
+    asset_context: Vc<Box<dyn AssetContext>>,
     ty: EcmascriptModuleAssetType,
     transforms: ResolvedVc<EcmascriptInputTransforms>,
     options: ResolvedVc<EcmascriptOptions>,
@@ -215,7 +215,7 @@ impl EcmascriptModuleAssetBuilder {
         if let Some(inner_assets) = self.inner_assets {
             EcmascriptModuleAsset::new_with_inner_assets(
                 *self.source,
-                *self.asset_context,
+                self.asset_context,
                 Value::new(self.ty),
                 *self.transforms,
                 *self.options,
@@ -225,7 +225,7 @@ impl EcmascriptModuleAssetBuilder {
         } else {
             EcmascriptModuleAsset::new(
                 *self.source,
-                *self.asset_context,
+                self.asset_context,
                 Value::new(self.ty),
                 *self.transforms,
                 *self.options,
@@ -276,7 +276,7 @@ pub trait EcmascriptAnalyzable {
 impl EcmascriptModuleAsset {
     pub fn builder(
         source: ResolvedVc<Box<dyn Source>>,
-        asset_context: ResolvedVc<Box<dyn AssetContext>>,
+        asset_context: Vc<Box<dyn AssetContext>>,
         transforms: ResolvedVc<EcmascriptInputTransforms>,
         options: ResolvedVc<EcmascriptOptions>,
         compile_time_info: ResolvedVc<CompileTimeInfo>,
