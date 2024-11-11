@@ -913,7 +913,11 @@ pub(crate) async fn analyse_ecmascript_module_internal(
 
                 macro_rules! inactive {
                     ($block:ident) => {
-                        analysis.add_code_gen(Unreachable::new($block.range.clone().cell()));
+                        analysis.add_code_gen(
+                            Unreachable::new($block.range.clone().cell())
+                                .to_resolved()
+                                .await?,
+                        );
                     };
                 }
                 macro_rules! condition {
@@ -1223,10 +1227,14 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             } => {
                 if analysis_state.first_import_meta {
                     analysis_state.first_import_meta = false;
-                    analysis.add_code_gen(ImportMetaBinding::new(source.ident().path()));
+                    analysis.add_code_gen(
+                        ImportMetaBinding::new(source.ident().path())
+                            .to_resolved()
+                            .await?,
+                    );
                 }
 
-                analysis.add_code_gen(ImportMetaRef::new(Vc::cell(ast_path)));
+                analysis.add_code_gen(ImportMetaRef::new(Vc::cell(ast_path)).to_resolved().await?);
             }
         }
     }
@@ -1395,13 +1403,17 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     }
 
                     if *compile_time_info.environment().rendering().await? == Rendering::Client {
-                        analysis.add_reference(WorkerAssetReference::new(
-                            origin,
-                            Request::parse(Value::new(pat)),
-                            Vc::cell(ast_path.to_vec()),
-                            issue_source(source, span),
-                            in_try,
-                        ));
+                        analysis.add_reference(
+                            WorkerAssetReference::new(
+                                origin,
+                                Request::parse(Value::new(pat)),
+                                Vc::cell(ast_path.to_vec()),
+                                issue_source(source, span),
+                                in_try,
+                            )
+                            .to_resolved()
+                            .await?,
+                        );
                     }
 
                     return Ok(());
@@ -1471,14 +1483,18 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                         return Ok(());
                     }
                 }
-                analysis.add_reference(EsmAsyncAssetReference::new(
-                    *origin,
-                    Request::parse(Value::new(pat)),
-                    Vc::cell(ast_path.to_vec()),
-                    issue_source(*source, span),
-                    in_try,
-                    state.import_externals,
-                ));
+                analysis.add_reference(
+                    EsmAsyncAssetReference::new(
+                        *origin,
+                        Request::parse(Value::new(pat)),
+                        Vc::cell(ast_path.to_vec()),
+                        issue_source(*source, span),
+                        in_try,
+                        state.import_externals,
+                    )
+                    .to_resolved()
+                    .await?,
+                );
                 return Ok(());
             }
             let (args, hints) = explain_args(&args);
@@ -1734,12 +1750,16 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                         show_dynamic_warning = true;
                     }
                     if !dynamic || !ignore_dynamic_requests {
-                        analysis.add_reference(CjsAssetReference::new(
-                            origin,
-                            Request::parse(Value::new(pat)),
-                            issue_source(source, span),
-                            in_try,
-                        ));
+                        analysis.add_reference(
+                            CjsAssetReference::new(
+                                origin,
+                                Request::parse(Value::new(pat)),
+                                issue_source(source, span),
+                                in_try,
+                            )
+                            .to_resolved()
+                            .await?,
+                        );
                     }
                 }
                 let dynamic = !pat.has_constant_parts();
@@ -1938,13 +1958,11 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                                         .await?;
                                     js_value_to_pattern(&linked_func_call)
                                 };
-                                analysis
-                                    .add_reference(DirAssetReference::new(
-                                        source,
-                                        Pattern::new(abs_pattern),
-                                    ))
-                                    .to_resolved()
-                                    .await?;
+                                analysis.add_reference(
+                                    DirAssetReference::new(source, Pattern::new(abs_pattern))
+                                        .to_resolved()
+                                        .await?,
+                                );
                                 return Ok(());
                             }
                         }
