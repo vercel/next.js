@@ -38,10 +38,10 @@ pub struct EsmAsyncAssetReference {
 impl EsmAsyncAssetReference {
     #[turbo_tasks::function]
     pub fn new(
-        origin: Vc<Box<dyn ResolveOrigin>>,
-        request: Vc<Request>,
-        path: Vc<AstPath>,
-        issue_source: Vc<IssueSource>,
+        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+        request: ResolvedVc<Request>,
+        path: ResolvedVc<AstPath>,
+        issue_source: ResolvedVc<IssueSource>,
         in_try: bool,
         import_externals: bool,
     ) -> Vc<Self> {
@@ -61,8 +61,8 @@ impl ModuleReference for EsmAsyncAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
         esm_resolve(
-            self.origin,
-            self.request,
+            *self.origin,
+            *self.request,
             Value::new(EcmaScriptModulesReferenceSubType::DynamicImport),
             self.in_try,
             Some(*self.issue_source),
