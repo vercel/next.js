@@ -118,7 +118,7 @@ pub enum FoundExportType {
 
 #[turbo_tasks::value]
 pub struct FollowExportsResult {
-    pub module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    pub module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
     pub export_name: Option<RcStr>,
     pub ty: FoundExportType,
 }
@@ -264,8 +264,8 @@ async fn handle_declared_export(
 
 #[turbo_tasks::value]
 struct AllExportNamesResult {
-    esm_exports: FxIndexMap<RcStr, ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
-    dynamic_exporting_modules: Vec<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
+    esm_exports: FxIndexMap<RcStr, Vc<Box<dyn EcmascriptChunkPlaceable>>>,
+    dynamic_exporting_modules: Vec<Vc<Box<dyn EcmascriptChunkPlaceable>>>,
 }
 
 #[turbo_tasks::function]
