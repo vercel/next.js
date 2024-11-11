@@ -56,11 +56,11 @@ impl WorkerAssetReference {
         self: &WorkerAssetReference,
     ) -> Result<Option<Vc<WorkerLoaderModule>>> {
         let module = url_resolve(
-            self.origin,
-            self.request,
+            *self.origin,
+            *self.request,
             // TODO support more worker types
             Value::new(ReferenceType::Worker(WorkerReferenceSubType::WebWorker)),
-            Some(self.issue_source),
+            Some(*self.issue_source),
             self.in_try,
         );
 
