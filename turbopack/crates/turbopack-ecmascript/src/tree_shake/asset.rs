@@ -123,13 +123,13 @@ impl Module for EcmascriptModulePartAsset {
 
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
-        let split_data = split_module(self.full_module).await?;
+        let split_data = split_module(*self.full_module).await?;
 
-        let analyze = analyze(self.full_module, self.part).await?;
+        let analyze = analyze(*self.full_module, *self.part).await?;
 
         let deps = match &*split_data {
             SplitResult::Ok { deps, .. } => deps,
-            SplitResult::Failed { .. } => return Ok(analyze.references),
+            SplitResult::Failed { .. } => return Ok(*analyze.references),
         };
 
         let part_dep = |part: Vc<ModulePart>| -> Vc<Box<dyn ModuleReference>> {
