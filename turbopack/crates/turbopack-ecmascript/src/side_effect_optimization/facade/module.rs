@@ -239,7 +239,11 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
                 exports.insert(
                     export.await?.clone_value(),
                     EsmExport::ImportedBinding(
-                        Vc::upcast(EcmascriptModulePartReference::new(self.module)),
+                        ResolvedVc::upcast(
+                            EcmascriptModulePartReference::new(self.module)
+                                .to_resolved()
+                                .await?,
+                        ),
                         original_export.clone_value(),
                         false,
                     ),
@@ -248,9 +252,11 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
             ModulePart::RenamedNamespace { export } => {
                 exports.insert(
                     export.await?.clone_value(),
-                    EsmExport::ImportedNamespace(Vc::upcast(EcmascriptModulePartReference::new(
-                        self.module,
-                    ))),
+                    EsmExport::ImportedNamespace(ResolvedVc::upcast(
+                        EcmascriptModulePartReference::new(self.module)
+                            .to_resolved()
+                            .await?,
+                    )),
                 );
             }
             ModulePart::Evaluation => {
