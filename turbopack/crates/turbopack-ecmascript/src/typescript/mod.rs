@@ -208,7 +208,7 @@ pub struct TsExtendsReference {
 #[turbo_tasks::value_impl]
 impl TsExtendsReference {
     #[turbo_tasks::function]
-    pub fn new(config: Vc<Box<dyn Source>>) -> Vc<Self> {
+    pub fn new(config: ResolvedVc<Box<dyn Source>>) -> Vc<Self> {
         Self::cell(TsExtendsReference { config })
     }
 }
@@ -218,7 +218,7 @@ impl ModuleReference for TsExtendsReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         Ok(ModuleResolveResult::module(ResolvedVc::upcast(
-            RawModule::new(Vc::upcast(self.config))
+            RawModule::new(*ResolvedVc::upcast(self.config))
                 .to_resolved()
                 .await?,
         ))

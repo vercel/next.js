@@ -77,8 +77,8 @@ impl Asset for WebpackModuleAsset {
 pub struct WebpackChunkAssetReference {
     #[turbo_tasks(trace_ignore)]
     pub chunk_id: Lit,
-    pub runtime: ResolvedVc<WebpackRuntime>,
-    pub transforms: ResolvedVc<EcmascriptInputTransforms>,
+    pub runtime: Vc<WebpackRuntime>,
+    pub transforms: Vc<EcmascriptInputTransforms>,
 }
 
 #[turbo_tasks::value_impl]
