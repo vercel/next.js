@@ -74,19 +74,19 @@ impl EcmascriptChunkItem for EcmascriptModuleFacadeChunkItem {
             if let Some(code_gen) =
                 Vc::try_resolve_sidecast::<Box<dyn CodeGenerateableWithAsyncModuleInfo>>(r).await?
             {
-                code_gens.push(code_gen.code_generation(chunking_context, async_module_info));
+                code_gens.push(code_gen.code_generation(*chunking_context, async_module_info));
             } else if let Some(code_gen) =
                 Vc::try_resolve_sidecast::<Box<dyn CodeGenerateable>>(r).await?
             {
-                code_gens.push(code_gen.code_generation(chunking_context));
+                code_gens.push(code_gen.code_generation(*chunking_context));
             }
         }
         code_gens.push(self.module.async_module().code_generation(
-            chunking_context,
+            *chunking_context,
             async_module_info,
             references,
         ));
-        code_gens.push(exports.code_generation(chunking_context));
+        code_gens.push(exports.code_generation(*chunking_context));
         let code_gens = code_gens.into_iter().try_join().await?;
         let code_gens = code_gens.iter().map(|cg| &**cg).collect::<Vec<_>>();
 
