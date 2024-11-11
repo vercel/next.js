@@ -1998,7 +1998,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                                     js_value_to_pattern(&linked_func_call)
                                 };
                                 analysis.add_reference(
-                                    DirAssetReference::new(source, Pattern::new(abs_pattern))
+                                    DirAssetReference::new(*source, Pattern::new(abs_pattern))
                                         .to_resolved()
                                         .await?,
                                 );
@@ -2060,7 +2060,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     js_value_to_pattern(&linked_func_call)
                 };
                 analysis.add_reference(
-                    DirAssetReference::new(source, Pattern::new(abs_pattern))
+                    DirAssetReference::new(*source, Pattern::new(abs_pattern))
                         .to_resolved()
                         .await?,
                 );
