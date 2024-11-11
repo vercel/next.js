@@ -290,7 +290,10 @@ pub struct TsConfigTypesReference {
 #[turbo_tasks::value_impl]
 impl TsConfigTypesReference {
     #[turbo_tasks::function]
-    pub fn new(origin: Vc<Box<dyn ResolveOrigin>>, request: Vc<Request>) -> Vc<Self> {
+    pub fn new(
+        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+        request: ResolvedVc<Request>,
+    ) -> Vc<Self> {
         Self::cell(TsConfigTypesReference { origin, request })
     }
 }
@@ -299,7 +302,7 @@ impl TsConfigTypesReference {
 impl ModuleReference for TsConfigTypesReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        type_resolve(self.origin, self.request)
+        type_resolve(*self.origin, *self.request)
     }
 }
 
