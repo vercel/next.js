@@ -1371,11 +1371,11 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                         }
                         analysis.add_reference(
                             UrlAssetReference::new(
-                                origin,
+                                *origin,
                                 Request::parse(Value::new(pat)),
                                 compile_time_info.environment().rendering(),
                                 Vc::cell(ast_path.to_vec()),
-                                issue_source(source, span),
+                                issue_source(*source, span),
                                 in_try,
                                 url_rewrite_behavior
                                     .unwrap_or(UrlRewriteBehavior::Relative)
@@ -1409,10 +1409,10 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     if *compile_time_info.environment().rendering().await? == Rendering::Client {
                         analysis.add_reference(
                             WorkerAssetReference::new(
-                                origin,
+                                *origin,
                                 Request::parse(Value::new(pat)),
                                 Vc::cell(ast_path.to_vec()),
-                                issue_source(source, span),
+                                issue_source(*source, span),
                                 in_try,
                             )
                             .to_resolved()
@@ -1797,7 +1797,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 }
                 if !dynamic || !ignore_dynamic_requests {
                     analysis.add_reference(
-                        FileSourceReference::new(source, Pattern::new(pat))
+                        FileSourceReference::new(*source, Pattern::new(pat))
                             .to_resolved()
                             .await?,
                     )
@@ -1843,9 +1843,9 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 }
                 analysis.add_reference(
                     CjsAssetReference::new(
-                        origin,
+                        *origin,
                         Request::parse(Value::new(pat)),
-                        issue_source(source, span),
+                        issue_source(*source, span),
                         in_try,
                     )
                     .to_resolved()
