@@ -299,7 +299,11 @@ export async function generateStaticParams() {
   }))
 }
 
-export async function generateMetadata({ params }: { params: { id: string } }) {
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
   let post = await getPost(params.id)
 
   return {
@@ -307,7 +311,11 @@ export async function generateMetadata({ params }: { params: { id: string } }) {
   }
 }
 
-export default async function Page({ params }: { params: { id: string } }) {
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
   let post = await getPost(params.id)
 
   return (
@@ -339,7 +347,11 @@ export async function generateStaticParams() {
   }))
 }
 
-export async function generateMetadata({ params }) {
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
   let post = await getPost(params.id)
 
   return {
@@ -347,7 +359,11 @@ export async function generateMetadata({ params }) {
   }
 }
 
-export default async function Page({ params }) {
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
   let post = await getPost(params.id)
 
   return (
@@ -407,7 +423,7 @@ There may be cases where you want this pattern because one fetch depends on the 
 export default async function Page({
   params: { username },
 }: {
-  params: { username: string }
+  params: Promise<{ username: string }>
 }) {
   // Get artist information
   const artist = await getArtist(username)
@@ -439,7 +455,11 @@ async function Playlists({ artistID }: { artistID: string }) {
 ```
 
 ```jsx filename="app/artist/[username]/page.js" switcher
-export default async function Page({ params: { username } }) {
+export default async function Page({
+  params: { username },
+}: {
+  params: Promise<{ username: string }>
+}) {
   // Get artist information
   const artist = await getArtist(username)
 
@@ -455,7 +475,7 @@ export default async function Page({ params: { username } }) {
   )
 }
 
-async function Playlists({ artistID }) {
+async function Playlists({ artistID }: { artistID: string }) {
   // Use the artist ID to fetch playlists
   const playlists = await getArtistPlaylists(artistID)
 
@@ -499,7 +519,7 @@ async function getAlbums(username: string) {
 export default async function Page({
   params: { username },
 }: {
-  params: { username: string }
+  params: Promise<{ username: string }>
 }) {
   const artistData = getArtist(username)
   const albumsData = getAlbums(username)
@@ -519,17 +539,21 @@ export default async function Page({
 ```jsx filename="app/artist/[username]/page.js" switcher
 import Albums from './albums'
 
-async function getArtist(username) {
+async function getArtist(username: string) {
   const res = await fetch(`https://api.example.com/artist/${username}`)
   return res.json()
 }
 
-async function getAlbums(username) {
+async function getAlbums(username: string) {
   const res = await fetch(`https://api.example.com/artist/${username}/albums`)
   return res.json()
 }
 
-export default async function Page({ params: { username } }) {
+export default async function Page({
+  params: { username }
+}: {
+  params: Promise<{ username: string }>
+}) {
   const artistData = getArtist(username)
   const albumsData = getAlbums(username)
 
@@ -587,7 +611,7 @@ import Item, { preload, checkIsAvailable } from '@/components/Item'
 export default async function Page({
   params: { id },
 }: {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
   // starting loading item data
   preload(id)
@@ -601,7 +625,11 @@ export default async function Page({
 ```jsx filename="app/item/[id]/page.js" switcher
 import Item, { preload, checkIsAvailable } from '@/components/Item'
 
-export default async function Page({ params: { id } }) {
+export default async function Page({
+  params: { id }
+}: {
+  params: Promise<{ id: string }>
+}) {
   // starting loading item data
   preload(id)
   // perform another asynchronous task
