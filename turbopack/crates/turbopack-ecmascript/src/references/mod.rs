@@ -1775,7 +1775,11 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     show_dynamic_warning = true;
                 }
                 if !dynamic || !ignore_dynamic_requests {
-                    analysis.add_reference(FileSourceReference::new(source, Pattern::new(pat)));
+                    analysis.add_reference(
+                        FileSourceReference::new(source, Pattern::new(pat))
+                            .to_resolved()
+                            .await?,
+                    )
                 }
                 if show_dynamic_warning {
                     let (args, hints) = explain_args(&args);
@@ -1816,12 +1820,16 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                         return Ok(());
                     }
                 }
-                analysis.add_reference(CjsAssetReference::new(
-                    origin,
-                    Request::parse(Value::new(pat)),
-                    issue_source(source, span),
-                    in_try,
-                ));
+                analysis.add_reference(
+                    CjsAssetReference::new(
+                        origin,
+                        Request::parse(Value::new(pat)),
+                        issue_source(source, span),
+                        in_try,
+                    )
+                    .to_resolved()
+                    .await?,
+                );
                 return Ok(());
             }
             let (args, hints) = explain_args(&args);
