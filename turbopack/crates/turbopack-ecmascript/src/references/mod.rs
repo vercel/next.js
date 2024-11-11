@@ -2512,7 +2512,9 @@ async fn analyze_amd_define_with_deps(
                         request,
                         issue_source(source, span),
                         in_try,
-                    );
+                    )
+                    .to_resolved()
+                    .await?;
                     requests.push(AmdDefineDependencyElement::Request {
                         request,
                         request_str: dep.to_string(),
