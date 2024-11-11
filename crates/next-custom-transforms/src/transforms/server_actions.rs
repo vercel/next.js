@@ -133,7 +133,7 @@ impl<C: Comments> ServerActions<C> {
         &self,
         export_name: &str,
         is_cache: bool,
-        params: Option<&Vec<Pat>>,
+        params: Option<&Vec<Param>>,
     ) -> String {
         // Attach a checksum to the action using sha1:
         // $$id = special_byte + sha1('hash_salt' + 'file_name' + ':' + 'export_name');
@@ -183,7 +183,7 @@ impl<C: Comments> ServerActions<C> {
             // Instead, we go with the easy route and assume defined ones are
             // used. This can be improved in the future.
             for (i, param) in params.iter().enumerate() {
-                if let Pat::Rest(_) = param {
+                if let Pat::Rest(_) = param.pat {
                     // If there's a ...rest argument, we set the rest args bit
                     // to 1 and set the arg mask to 0b111111.
                     arg_mask = 0b111111;
@@ -322,10 +322,24 @@ impl<C: Comments> ServerActions<C> {
         ids_from_closure: Vec<Name>,
         arrow: &mut ArrowExpr,
     ) -> Box<Expr> {
-        let action_name = self.gen_action_ident().to_string();
+        let mut new_params: Vec<Param> = vec![];
 
+        if !ids_from_closure.is_empty() {
+            // First param is the encrypted closure variables.
+            new_params.push(Param {
+                span: DUMMY_SP,
+                decorators: vec![],
+                pat: Pat::Ident(IdentName::new("$$ACTION_CLOSURE_BOUND".into(), DUMMY_SP).into()),
+            });
+        }
+
+        for p in arrow.params.iter() {
+            new_params.push(Param::from(p.clone()));
+        }
+
+        let action_name = self.gen_action_ident().to_string();
         let action_ident = Ident::new(action_name.clone().into(), arrow.span, self.private_ctxt);
-        let action_id = self.generate_server_reference_id(&action_name, false, Some(&arrow.params));
+        let action_id = self.generate_server_reference_id(&action_name, false, Some(&new_params));
 
         self.has_action = true;
         self.export_actions
@@ -348,19 +362,10 @@ impl<C: Comments> ServerActions<C> {
             });
         }
 
-        // export const $ACTION_myAction = async () => {}
-        let mut new_params: Vec<Param> = vec![];
         let mut new_body: BlockStmtOrExpr = *arrow.body.clone();
 
         if !ids_from_closure.is_empty() {
-            // First argument is the encrypted closure variables
-            new_params.push(Param {
-                span: DUMMY_SP,
-                decorators: vec![],
-                pat: Pat::Ident(IdentName::new("$$ACTION_CLOSURE_BOUND".into(), DUMMY_SP).into()),
-            });
-
-            // Also prepend the decryption decl into the body.
+            // Prepend the decryption declaration to the body.
             // var [arg1, arg2, arg3] = await decryptActionBoundArgs(actionId,
             // $$ACTION_CLOSURE_BOUND)
             let decryption_decl = VarDecl {
@@ -405,14 +410,6 @@ impl<C: Comments> ServerActions<C> {
                     });
                 }
             }
-        }
-
-        for p in arrow.params.iter() {
-            new_params.push(Param {
-                span: DUMMY_SP,
-                decorators: vec![],
-                pat: p.clone(),
-            });
         }
 
         // Create the action export decl from the arrow function
@@ -465,14 +462,22 @@ impl<C: Comments> ServerActions<C> {
         function: &mut Box<Function>,
         fn_name: Option<Ident>,
     ) -> Box<Expr> {
-        let action_name: JsWord = self.gen_action_ident();
+        let mut new_params: Vec<Param> = vec![];
 
+        if !ids_from_closure.is_empty() {
+            // First param is the encrypted closure variables.
+            new_params.push(Param {
+                span: DUMMY_SP,
+                decorators: vec![],
+                pat: Pat::Ident(IdentName::new("$$ACTION_CLOSURE_BOUND".into(), DUMMY_SP).into()),
+            });
+        }
+
+        new_params.append(&mut function.params);
+
+        let action_name: JsWord = self.gen_action_ident();
         let action_ident = Ident::new(action_name.clone(), function.span, self.private_ctxt);
-        let action_id = self.generate_server_reference_id(
-            &action_name,
-            false,
-            Some(&function.params.iter().map(|p| p.pat.clone()).collect()),
-        );
+        let action_id = self.generate_server_reference_id(&action_name, false, Some(&new_params));
 
         self.has_action = true;
         self.export_actions
@@ -497,20 +502,10 @@ impl<C: Comments> ServerActions<C> {
             private_ctxt: self.private_ctxt,
         });
 
-        // export async function $ACTION_myAction () {}
-        let mut new_params: Vec<Param> = vec![];
         let mut new_body: Option<BlockStmt> = function.body.clone();
 
-        // add params from closure collected ids
         if !ids_from_closure.is_empty() {
-            // First argument is the encrypted closure variables
-            new_params.push(Param {
-                span: DUMMY_SP,
-                decorators: vec![],
-                pat: Pat::Ident(IdentName::new("$$ACTION_CLOSURE_BOUND".into(), DUMMY_SP).into()),
-            });
-
-            // Also prepend the decryption decl into the body.
+            // Prepend the decryption declaration to the body.
             // var [arg1, arg2, arg3] = await decryptActionBoundArgs(actionId,
             // $$ACTION_CLOSURE_BOUND)
             let decryption_decl = VarDecl {
@@ -545,10 +540,6 @@ impl<C: Comments> ServerActions<C> {
                     ..Default::default()
                 });
             }
-        }
-
-        for p in function.params.iter() {
-            new_params.push(p.clone());
         }
 
         // Create the action export decl from the function
@@ -587,25 +578,6 @@ impl<C: Comments> ServerActions<C> {
         cache_type: &str,
         arrow: &mut ArrowExpr,
     ) -> Box<Expr> {
-        let cache_name: JsWord = self.gen_cache_ident();
-        let cache_ident = private_ident!(cache_name.clone());
-        let export_name: JsWord = cache_name;
-
-        let reference_id =
-            self.generate_server_reference_id(&export_name, true, Some(&arrow.params));
-
-        self.has_cache = true;
-        self.has_action = true;
-        self.export_actions
-            .push((export_name.to_string(), reference_id.clone()));
-
-        if let BlockStmtOrExpr::BlockStmt(block) = &mut *arrow.body {
-            block.visit_mut_with(&mut ClosureReplacer {
-                used_ids: &ids_from_closure,
-                private_ctxt: self.private_ctxt,
-            });
-        }
-
         let mut new_params: Vec<Param> = vec![];
 
         // Add the collected closure variables as the first parameter to the
@@ -620,10 +592,24 @@ impl<C: Comments> ServerActions<C> {
         }
 
         for p in arrow.params.iter() {
-            new_params.push(Param {
-                span: DUMMY_SP,
-                decorators: vec![],
-                pat: p.clone(),
+            new_params.push(Param::from(p.clone()));
+        }
+
+        let cache_name: JsWord = self.gen_cache_ident();
+        let cache_ident = private_ident!(cache_name.clone());
+        let export_name: JsWord = cache_name;
+
+        let reference_id = self.generate_server_reference_id(&export_name, true, Some(&new_params));
+
+        self.has_cache = true;
+        self.has_action = true;
+        self.export_actions
+            .push((export_name.to_string(), reference_id.clone()));
+
+        if let BlockStmtOrExpr::BlockStmt(block) = &mut *arrow.body {
+            block.visit_mut_with(&mut ClosureReplacer {
+                used_ids: &ids_from_closure,
+                private_ctxt: self.private_ctxt,
             });
         }
 
@@ -727,31 +713,6 @@ impl<C: Comments> ServerActions<C> {
         cache_type: &str,
         function: &mut Box<Function>,
     ) -> Box<Expr> {
-        let cache_name: JsWord = self.gen_cache_ident();
-        let cache_ident = private_ident!(cache_name.clone());
-
-        let reference_id = self.generate_server_reference_id(
-            &cache_name,
-            true,
-            Some(&function.params.iter().map(|p| p.pat.clone()).collect()),
-        );
-
-        self.has_cache = true;
-        self.has_action = true;
-        self.export_actions
-            .push((cache_name.to_string(), reference_id.clone()));
-
-        let register_action_expr = annotate_ident_as_server_reference(
-            cache_ident.clone(),
-            reference_id.clone(),
-            function.span,
-        );
-
-        function.body.visit_mut_with(&mut ClosureReplacer {
-            used_ids: &ids_from_closure,
-            private_ctxt: self.private_ctxt,
-        });
-
         let mut new_params: Vec<Param> = vec![];
 
         // Add the collected closure variables as the first parameter to the
@@ -768,6 +729,27 @@ impl<C: Comments> ServerActions<C> {
         for p in function.params.iter() {
             new_params.push(p.clone());
         }
+
+        let cache_name: JsWord = self.gen_cache_ident();
+        let cache_ident = private_ident!(cache_name.clone());
+
+        let reference_id = self.generate_server_reference_id(&cache_name, true, Some(&new_params));
+
+        self.has_cache = true;
+        self.has_action = true;
+        self.export_actions
+            .push((cache_name.to_string(), reference_id.clone()));
+
+        let register_action_expr = annotate_ident_as_server_reference(
+            cache_ident.clone(),
+            reference_id.clone(),
+            function.span,
+        );
+
+        function.body.visit_mut_with(&mut ClosureReplacer {
+            used_ids: &ids_from_closure,
+            private_ctxt: self.private_ctxt,
+        });
 
         // export var cache_ident = async function() {}
         self.hoisted_extra_items
@@ -1403,13 +1385,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                         self.generate_server_reference_id(
                                             f.ident.sym.as_ref(),
                                             ref_id,
-                                            Some(
-                                                &f.function
-                                                    .params
-                                                    .iter()
-                                                    .map(|p| p.pat.clone())
-                                                    .collect(),
-                                            ),
+                                            Some(&f.function.params),
                                         ),
                                     ));
                                 }
@@ -1525,9 +1501,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                 let ref_id = self.generate_server_reference_id(
                                     "default",
                                     is_cache,
-                                    Some(
-                                        &f.function.params.iter().map(|p| p.pat.clone()).collect(),
-                                    ),
+                                    Some(&f.function.params),
                                 );
 
                                 if let Some(ident) = &f.ident {
@@ -1611,7 +1585,13 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                         self.generate_server_reference_id(
                                             "default",
                                             is_cache,
-                                            Some(&arrow.params),
+                                            Some(
+                                                &arrow
+                                                    .params
+                                                    .iter()
+                                                    .map(|p| Param::from(p.clone()))
+                                                    .collect(),
+                                            ),
                                         ),
                                     ));
 
