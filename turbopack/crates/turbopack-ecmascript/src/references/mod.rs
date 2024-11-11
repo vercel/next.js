@@ -506,14 +506,18 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     let text = &comment.text;
                     if let Some(m) = REFERENCE_PATH.captures(text) {
                         let path = &m[1];
-                        analysis
-                            .add_reference(TsReferencePathAssetReference::new(origin, path.into()));
+                        analysis.add_reference(
+                            TsReferencePathAssetReference::new(*origin, path.into())
+                                .to_resolved()
+                                .await?,
+                        );
                     } else if let Some(m) = REFERENCE_TYPES.captures(text) {
                         let types = &m[1];
-                        analysis.add_reference(TsReferenceTypeAssetReference::new(
-                            origin,
-                            types.into(),
-                        ));
+                        analysis.add_reference(
+                            TsReferenceTypeAssetReference::new(*origin, types.into())
+                                .to_resolved()
+                                .await?,
+                        );
                     }
                 }
             }
@@ -888,9 +892,11 @@ pub(crate) async fn analyse_ecmascript_module_internal(
 
         match effect {
             Effect::Unreachable { start_ast_path } => {
-                analysis.add_code_gen(Unreachable::new(
-                    AstPathRange::StartAfter(start_ast_path.to_vec()).cell(),
-                ));
+                analysis.add_code_gen(
+                    Unreachable::new(AstPathRange::StartAfter(start_ast_path.to_vec()).cell())
+                        .to_resolved()
+                        .await?,
+                );
             }
             Effect::Conditional {
                 condition,
@@ -910,10 +916,14 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 }
                 macro_rules! condition {
                     ($expr:expr) => {
-                        analysis.add_code_gen(ConstantCondition::new(
-                            Value::new($expr),
-                            Vc::cell(condition_ast_path.to_vec()),
-                        ));
+                        analysis.add_code_gen(
+                            ConstantCondition::new(
+                                Value::new($expr),
+                                Vc::cell(condition_ast_path.to_vec()),
+                            )
+                            .to_resolved()
+                            .await?,
+                        );
                     };
                 }
                 macro_rules! active {
