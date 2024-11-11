@@ -35,7 +35,7 @@ pub fn get_next_modularize_imports_rule(
     modularize_imports_config: &FxIndexMap<String, ModularizeImportPackageConfig>,
     enable_mdx_rs: bool,
 ) -> ModuleRule {
-    let transformer = EcmascriptInputTransform::Plugin(Vc::cell(Box::new(
+    let transformer = EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(
         ModularizeImportsTransformer::new(modularize_imports_config),
     ) as _));
     ModuleRule::new(

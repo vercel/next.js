@@ -136,7 +136,7 @@ pub(crate) fn get_ecma_transform_rule(
     enable_mdx_rs: bool,
     prepend: bool,
 ) -> ModuleRule {
-    let transformer = EcmascriptInputTransform::Plugin(Vc::cell(transformer as _));
+    let transformer = EcmascriptInputTransform::Plugin(ResolvedVc::cell(transformer as _));
     let (prepend, append) = if prepend {
         (
             ResolvedVc::cell(vec![transformer]),
