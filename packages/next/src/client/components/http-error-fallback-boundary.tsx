@@ -1,36 +1,54 @@
 'use client'
 
+/**
+ * HTTPErrorFallbackBoundary is a boundary that catches errors and renders a
+ * fallback component for HTTP errors.
+ *
+ * It receives the status code, and determine if it should render fallbacks for few HTTP 4xx errors.
+ *
+ * e.g. 404
+ * 404 represents not found, and the fallback component pair contains the component and its styles.
+ *
+ * TODO: support 401 and 403 HTTP errors.
+ */
+
 import React, { useContext } from 'react'
 import { useUntrackedPathname } from './navigation-untracked'
 import { isNotFoundError } from './not-found'
 import { warnOnce } from '../../shared/lib/utils/warn-once'
 import { MissingSlotContext } from '../../shared/lib/app-router-context.shared-runtime'
 
-interface NotFoundBoundaryProps {
-  notFound?: React.ReactNode
-  notFoundStyles?: React.ReactNode
+const HTTPErrorStatus = {
+  NOT_FOUND: 404,
+  // TODO: support 401 and 403 HTTP errors.
+} as const
+
+interface HTTPErrorFallbackBoundaryProps {
+  notFound?: [React.ReactNode?, React.ReactNode?]
+  errorStatus?: number
   children: React.ReactNode
   missingSlots?: Set<string>
 }
 
-interface NotFoundErrorBoundaryProps extends NotFoundBoundaryProps {
+interface HTTPErrorFallbackErrorBoundaryProps
+  extends HTTPErrorFallbackBoundaryProps {
   pathname: string | null
   missingSlots?: Set<string>
 }
 
-interface NotFoundErrorBoundaryState {
-  notFoundTriggered: boolean
+interface HTTPErrorBoundaryState {
+  triggeredStatus: number | undefined
   previousPathname: string | null
 }
 
-class NotFoundErrorBoundary extends React.Component<
-  NotFoundErrorBoundaryProps,
-  NotFoundErrorBoundaryState
+class HTTPErrorFallbackErrorBoundary extends React.Component<
+  HTTPErrorFallbackErrorBoundaryProps,
+  HTTPErrorBoundaryState
 > {
-  constructor(props: NotFoundErrorBoundaryProps) {
+  constructor(props: HTTPErrorFallbackErrorBoundaryProps) {
     super(props)
     this.state = {
-      notFoundTriggered: false,
+      triggeredStatus: props.errorStatus,
       previousPathname: props.pathname,
     }
   }
@@ -62,7 +80,7 @@ class NotFoundErrorBoundary extends React.Component<
   static getDerivedStateFromError(error: any) {
     if (isNotFoundError(error)) {
       return {
-        notFoundTriggered: true,
+        triggeredStatus: HTTPErrorStatus.NOT_FOUND,
       }
     }
     // Re-throw if error is not for 404
@@ -70,37 +88,38 @@ class NotFoundErrorBoundary extends React.Component<
   }
 
   static getDerivedStateFromProps(
-    props: NotFoundErrorBoundaryProps,
-    state: NotFoundErrorBoundaryState
-  ): NotFoundErrorBoundaryState | null {
+    props: HTTPErrorFallbackErrorBoundaryProps,
+    state: HTTPErrorBoundaryState
+  ): HTTPErrorBoundaryState | null {
     /**
      * Handles reset of the error boundary when a navigation happens.
      * Ensures the error boundary does not stay enabled when navigating to a new page.
      * Approach of setState in render is safe as it checks the previous pathname and then overrides
      * it as outlined in https://react.dev/reference/react/useState#storing-information-from-previous-renders
      */
-    if (props.pathname !== state.previousPathname && state.notFoundTriggered) {
+    if (props.pathname !== state.previousPathname && state.triggeredStatus) {
       return {
-        notFoundTriggered: false,
+        triggeredStatus: undefined,
         previousPathname: props.pathname,
       }
     }
     return {
-      notFoundTriggered: state.notFoundTriggered,
+      triggeredStatus: state.triggeredStatus,
       previousPathname: props.pathname,
     }
   }
 
   render() {
-    if (this.state.notFoundTriggered) {
+    if (this.state.triggeredStatus === HTTPErrorStatus.NOT_FOUND) {
+      const [fallback, styles] = this.props.notFound || []
       return (
         <>
           <meta name="robots" content="noindex" />
           {process.env.NODE_ENV === 'development' && (
             <meta name="next-error" content="not-found" />
           )}
-          {this.props.notFoundStyles}
-          {this.props.notFound}
+          {styles}
+          {fallback}
         </>
       )
     }
@@ -109,11 +128,11 @@ class NotFoundErrorBoundary extends React.Component<
   }
 }
 
-export function NotFoundBoundary({
+export function HTTPErrorFallbackBoundary({
   notFound,
-  notFoundStyles,
+  errorStatus,
   children,
-}: NotFoundBoundaryProps) {
+}: HTTPErrorFallbackBoundaryProps) {
   // When we're rendering the missing params shell, this will return null. This
   // is because we won't be rendering any not found boundaries or error
   // boundaries for the missing params shell. When this runs on the client
@@ -123,14 +142,14 @@ export function NotFoundBoundary({
 
   if (notFound) {
     return (
-      <NotFoundErrorBoundary
+      <HTTPErrorFallbackErrorBoundary
         pathname={pathname}
         notFound={notFound}
-        notFoundStyles={notFoundStyles}
+        errorStatus={errorStatus}
         missingSlots={missingSlots}
       >
         {children}
-      </NotFoundErrorBoundary>
+      </HTTPErrorFallbackErrorBoundary>
     )
   }
 

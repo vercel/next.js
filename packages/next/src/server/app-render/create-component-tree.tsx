@@ -92,7 +92,7 @@ async function createComponentTreeInternal({
     renderOpts: { nextConfigOutput, experimental },
     workStore,
     componentMod: {
-      NotFoundBoundary,
+      HTTPErrorFallbackBoundary,
       LayoutRouter,
       RenderFromTemplateContext,
       OutletBoundary,
@@ -619,7 +619,7 @@ async function createComponentTreeInternal({
 
       if (isRootLayoutWithChildrenSlotAndAtLeastOneMoreSlot) {
         // TODO-APP: This is a hack to support unmatched parallel routes, which will throw `notFound()`.
-        // This ensures that a `NotFoundBoundary` is available for when that happens,
+        // This ensures that a `HTTPErrorFallbackBoundary` is available for when that happens,
         // but it's not ideal, as it needlessly invokes the `NotFound` component and renders the `RootLayout` twice.
         // We should instead look into handling the fallback behavior differently in development mode so that it doesn't
         // rely on the `NotFound` behavior.
@@ -641,25 +641,26 @@ async function createComponentTreeInternal({
           )
 
           segmentNode = (
-            <NotFoundBoundary
+            <HTTPErrorFallbackBoundary
               key={cacheNodeKey}
-              notFound={
+              notFound={[
                 <>
                   {layerAssets}
                   {notfoundClientSegment}
-                </>
-              }
+                </>,
+                null,
+              ]}
             >
               {layerAssets}
               {clientSegment}
-            </NotFoundBoundary>
+            </HTTPErrorFallbackBoundary>
           )
         } else {
           segmentNode = (
-            <NotFoundBoundary key={cacheNodeKey}>
+            <HTTPErrorFallbackBoundary key={cacheNodeKey}>
               {layerAssets}
               {clientSegment}
-            </NotFoundBoundary>
+            </HTTPErrorFallbackBoundary>
           )
         }
       } else {
@@ -682,14 +683,14 @@ async function createComponentTreeInternal({
 
       if (isRootLayoutWithChildrenSlotAndAtLeastOneMoreSlot) {
         // TODO-APP: This is a hack to support unmatched parallel routes, which will throw `notFound()`.
-        // This ensures that a `NotFoundBoundary` is available for when that happens,
+        // This ensures that a `HTTPErrorFallbackBoundary` is available for when that happens,
         // but it's not ideal, as it needlessly invokes the `NotFound` component and renders the `RootLayout` twice.
         // We should instead look into handling the fallback behavior differently in development mode so that it doesn't
         // rely on the `NotFound` behavior.
         segmentNode = (
-          <NotFoundBoundary
+          <HTTPErrorFallbackBoundary
             key={cacheNodeKey}
-            notFound={
+            notFound={[
               NotFound ? (
                 <>
                   {layerAssets}
@@ -698,12 +699,13 @@ async function createComponentTreeInternal({
                     <NotFound />
                   </SegmentComponent>
                 </>
-              ) : undefined
-            }
+              ) : undefined,
+              null,
+            ]}
           >
             {layerAssets}
             {serverSegment}
-          </NotFoundBoundary>
+          </HTTPErrorFallbackBoundary>
         )
       } else {
         segmentNode = (

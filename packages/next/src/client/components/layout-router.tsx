@@ -32,7 +32,7 @@ import { ErrorBoundary } from './error-boundary'
 import { matchSegment } from './match-segments'
 import { handleSmoothScroll } from '../../shared/lib/router/utils/handle-smooth-scroll'
 import { RedirectBoundary } from './redirect-boundary'
-import { NotFoundBoundary } from './not-found-boundary'
+import { HTTPErrorFallbackBoundary } from './http-error-fallback-boundary'
 import { getSegmentValue } from './router-reducer/reducers/get-segment-value'
 import { createRouterCacheKey } from './router-reducer/create-router-cache-key'
 import { hasInterceptionRouteInCurrentTree } from './router-reducer/reducers/has-interception-route-in-current-tree'
@@ -570,9 +570,8 @@ export default function OuterLayoutRouter({
                     loadingStyles={loading?.[1]}
                     loadingScripts={loading?.[2]}
                   >
-                    <NotFoundBoundary
-                      notFound={notFound}
-                      notFoundStyles={notFoundStyles}
+                    <HTTPErrorFallbackBoundary
+                      notFound={[notFound, notFoundStyles]}
                     >
                       <RedirectBoundary>
                         <InnerLayoutRouter
@@ -587,7 +586,7 @@ export default function OuterLayoutRouter({
                           }
                         />
                       </RedirectBoundary>
-                    </NotFoundBoundary>
+                    </HTTPErrorFallbackBoundary>
                   </LoadingBoundary>
                 </ErrorBoundary>
               </ScrollAndFocusHandler>
