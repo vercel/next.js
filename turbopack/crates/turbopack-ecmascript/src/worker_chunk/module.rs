@@ -26,7 +26,7 @@ pub struct WorkerLoaderModule {
 #[turbo_tasks::value_impl]
 impl WorkerLoaderModule {
     #[turbo_tasks::function]
-    pub fn new(module: Vc<Box<dyn ChunkableModule>>) -> Vc<Self> {
+    pub fn new(module: ResolvedVc<Box<dyn ChunkableModule>>) -> Vc<Self> {
         Self::cell(WorkerLoaderModule { inner: module })
     }
 

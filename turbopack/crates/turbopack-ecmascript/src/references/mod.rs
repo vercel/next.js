@@ -2382,10 +2382,10 @@ async fn analyze_amd_define(
                         AmdDefineDependencyElement::Exports,
                         AmdDefineDependencyElement::Module,
                     ],
-                    *origin,
+                    origin,
                     ResolvedVc::cell(ast_path.to_vec()),
                     AmdDefineFactoryType::Function,
-                    issue_source(source, span),
+                    issue_source(source, span).to_resolved().await?,
                     in_try,
                 )
                 .to_resolved()
@@ -2403,7 +2403,7 @@ async fn analyze_amd_define(
                     *origin,
                     ResolvedVc::cell(ast_path.to_vec()),
                     AmdDefineFactoryType::Unknown,
-                    issue_source(source, span),
+                    issue_source(source, span).to_resolved().await?,
                     in_try,
                 )
                 .to_resolved()
@@ -2421,7 +2421,7 @@ async fn analyze_amd_define(
                     *origin,
                     ResolvedVc::cell(ast_path.to_vec()),
                     AmdDefineFactoryType::Function,
-                    issue_source(source, span),
+                    issue_source(source, span).to_resolved().await?,
                     in_try,
                 )
                 .to_resolved()
@@ -2435,7 +2435,7 @@ async fn analyze_amd_define(
                     *origin,
                     ResolvedVc::cell(ast_path.to_vec()),
                     AmdDefineFactoryType::Value,
-                    issue_source(source, span),
+                    issue_source(source, span).to_resolved().await?,
                     in_try,
                 )
                 .to_resolved()
@@ -2453,7 +2453,7 @@ async fn analyze_amd_define(
                     *origin,
                     ResolvedVc::cell(ast_path.to_vec()),
                     AmdDefineFactoryType::Unknown,
-                    issue_source(source, span),
+                    issue_source(source, span).to_resolved().await?,
                     in_try,
                 )
                 .to_resolved()
