@@ -1914,10 +1914,14 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                         .origin_path()
                         .root()
                         .join(s.trim_start_matches("/ROOT/").into());
-                    analysis.add_reference(NodeGypBuildReference::new(
-                        current_context,
-                        compile_time_info.environment().compile_target(),
-                    ));
+                    analysis.add_reference(
+                        NodeGypBuildReference::new(
+                            current_context,
+                            compile_time_info.environment().compile_target(),
+                        )
+                        .to_resolved()
+                        .await?,
+                    );
                     return Ok(());
                 }
             }
@@ -2330,7 +2334,7 @@ async fn handle_free_var_reference(
             analysis.add_binding(EsmBinding::new(
                 esm_reference,
                 export.clone(),
-                Vc::cell(ast_path.to_vec()),
+                ResolvedVc::cell(ast_path.to_vec()),
             ));
         }
     }
