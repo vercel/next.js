@@ -640,14 +640,12 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 let import_ref = import_references[i];
                 match reexport {
                     Reexport::Star => {
-                        visitor
-                            .esm_star_exports
-                            .push(ResolvedVc::upcast(import_ref));
+                        visitor.esm_star_exports.push(Vc::upcast(import_ref));
                     }
                     Reexport::Namespace { exported: n } => {
                         visitor.esm_exports.insert(
                             n.as_str().into(),
-                            EsmExport::ImportedNamespace(ResolvedVc::upcast(import_ref)),
+                            EsmExport::ImportedNamespace(Vc::upcast(import_ref)),
                         );
                     }
                     Reexport::Named {
@@ -657,7 +655,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                         visitor.esm_exports.insert(
                             e.as_str().into(),
                             EsmExport::ImportedBinding(
-                                ResolvedVc::upcast(import_ref),
+                                Vc::upcast(import_ref),
                                 i.to_string().into(),
                                 false,
                             ),
@@ -1166,18 +1164,15 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 span: _,
                 in_try: _,
             } => {
-                if let Some(r) = import_references.get(esm_reference_index) {
+                if let Some(&r) = import_references.get(esm_reference_index) {
                     if let Some("__turbopack_module_id__") = export.as_deref() {
-                        analysis.add_reference(
-                            EsmModuleIdAssetReference::new(**r, Vc::cell(ast_path))
-                                .to_resolved()
-                                .await?,
-                        )
+                        analysis
+                            .add_reference(EsmModuleIdAssetReference::new(r, Vc::cell(ast_path)))
                     } else {
                         analysis.add_local_reference(*r);
                         analysis.add_import_reference(*r);
                         analysis.add_binding(EsmBinding::new(
-                            *r,
+                            r,
                             export,
                             ResolvedVc::cell(ast_path),
                         ));
@@ -1484,25 +1479,17 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                         ),
                     );
                     if ignore_dynamic_requests {
-                        analysis.add_code_gen(
-                            DynamicExpression::new(Vc::cell(ast_path.to_vec()))
-                                .to_resolved()
-                                .await?,
-                        );
+                        analysis.add_code_gen(DynamicExpression::new(Vc::cell(ast_path.to_vec())));
                         return Ok(());
                     }
                 }
-                analysis.add_reference(
-                    CjsRequireAssetReference::new(
-                        *origin,
-                        Request::parse(Value::new(pat)),
-                        Vc::cell(ast_path.to_vec()),
-                        issue_source(*source, span),
-                        in_try,
-                    )
-                    .to_resolved()
-                    .await?,
-                );
+                analysis.add_reference(CjsRequireAssetReference::new(
+                    *origin,
+                    Request::parse(Value::new(pat)),
+                    Vc::cell(ast_path.to_vec()),
+                    issue_source(*source, span),
+                    in_try,
+                ));
                 return Ok(());
             }
             let (args, hints) = explain_args(&args);
