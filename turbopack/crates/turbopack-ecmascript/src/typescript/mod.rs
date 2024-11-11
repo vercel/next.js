@@ -250,7 +250,10 @@ pub struct TsNodeRequireReference {
 #[turbo_tasks::value_impl]
 impl TsNodeRequireReference {
     #[turbo_tasks::function]
-    pub fn new(origin: Vc<Box<dyn ResolveOrigin>>, request: Vc<Request>) -> Vc<Self> {
+    pub fn new(
+        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+        request: ResolvedVc<Request>,
+    ) -> Vc<Self> {
         Self::cell(TsNodeRequireReference { origin, request })
     }
 }
@@ -259,7 +262,7 @@ impl TsNodeRequireReference {
 impl ModuleReference for TsNodeRequireReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        cjs_resolve(self.origin, self.request, None, false)
+        cjs_resolve(*self.origin, *self.request, None, false)
     }
 }
 
