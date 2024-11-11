@@ -1369,17 +1369,21 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                                 return Ok(());
                             }
                         }
-                        analysis.add_reference(UrlAssetReference::new(
-                            origin,
-                            Request::parse(Value::new(pat)),
-                            compile_time_info.environment().rendering(),
-                            Vc::cell(ast_path.to_vec()),
-                            issue_source(source, span),
-                            in_try,
-                            url_rewrite_behavior
-                                .unwrap_or(UrlRewriteBehavior::Relative)
-                                .cell(),
-                        ));
+                        analysis.add_reference(
+                            UrlAssetReference::new(
+                                origin,
+                                Request::parse(Value::new(pat)),
+                                compile_time_info.environment().rendering(),
+                                Vc::cell(ast_path.to_vec()),
+                                issue_source(source, span),
+                                in_try,
+                                url_rewrite_behavior
+                                    .unwrap_or(UrlRewriteBehavior::Relative)
+                                    .cell(),
+                            )
+                            .to_resolved()
+                            .await?,
+                        );
                     }
                 }
                 return Ok(());
@@ -1655,7 +1659,11 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                         return Ok(());
                     }
                 }
-                analysis.add_reference(FileSourceReference::new(source, Pattern::new(pat)));
+                analysis.add_reference(
+                    FileSourceReference::new(source, Pattern::new(pat))
+                        .to_resolved()
+                        .await?,
+                );
                 return Ok(());
             }
             let (args, hints) = explain_args(&args);
@@ -1698,7 +1706,11 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     return Ok(());
                 }
             }
-            analysis.add_reference(FileSourceReference::new(source, Pattern::new(pat)));
+            analysis.add_reference(
+                FileSourceReference::new(source, Pattern::new(pat))
+                    .to_resolved()
+                    .await?,
+            );
             return Ok(());
         }
 
@@ -1732,7 +1744,11 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     return Ok(());
                 }
             }
-            analysis.add_reference(DirAssetReference::new(source, Pattern::new(pat)));
+            analysis.add_reference(
+                DirAssetReference::new(source, Pattern::new(pat))
+                    .to_resolved()
+                    .await?,
+            );
             return Ok(());
         }
         JsValue::WellKnownFunction(WellKnownFunctionKind::ChildProcessSpawnMethod(name)) => {
