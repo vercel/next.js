@@ -1695,7 +1695,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     }
                     if !dynamic || !ignore_dynamic_requests {
                         analysis.add_reference(CjsAssetReference::new(
-                            *origin,
+                            origin,
                             Request::parse(Value::new(pat)),
                             issue_source(*source, span),
                             in_try,
