@@ -75,7 +75,7 @@ impl Module for EcmascriptModuleFacadeModule {
         let references = match &*self.ty.await? {
             ModulePart::Evaluation => {
                 let Some(module) =
-                    Vc::try_resolve_sidecast::<Box<dyn EcmascriptAnalyzable>>(self.module).await?
+                    ResolvedVc::try_sidecast::<Box<dyn EcmascriptAnalyzable>>(self.module).await?
                 else {
                     bail!(
                         "Expected EcmascriptModuleAsset for a EcmascriptModuleFacadeModule with \
