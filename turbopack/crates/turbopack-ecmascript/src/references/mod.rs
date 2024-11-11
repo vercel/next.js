@@ -279,7 +279,9 @@ impl AnalyzeEcmascriptModuleResultBuilder {
         mut self,
         track_reexport_references: bool,
     ) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
-        let bindings = EsmBindings::new(take(&mut self.bindings));
+        let bindings = EsmBindings::new(take(&mut self.bindings))
+            .to_resolved()
+            .await?;
         if !bindings.await?.bindings.is_empty() {
             self.add_code_gen(bindings);
         }
