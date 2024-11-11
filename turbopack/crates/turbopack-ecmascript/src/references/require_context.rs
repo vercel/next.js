@@ -229,10 +229,10 @@ impl RequireContextAssetReference {
         in_try: bool,
     ) -> Result<Vc<Self>> {
         let map = RequireContextMap::generate(
-            origin,
+            *origin,
             origin.origin_path().parent().join(dir.clone()),
             include_subdirs,
-            filter,
+            *filter,
             issue_source,
             in_try,
         )
