@@ -312,11 +312,11 @@ impl AnalyzeEcmascriptModuleResultBuilder {
         };
         Ok(AnalyzeEcmascriptModuleResult::cell(
             AnalyzeEcmascriptModuleResult {
-                references: Vc::cell(references),
-                local_references: Vc::cell(local_references),
-                reexport_references: Vc::cell(reexport_references),
-                evaluation_references: Vc::cell(evaluation_references),
-                code_generation: Vc::cell(self.code_gens),
+                references: ResolvedVc::cell(references),
+                local_references: ResolvedVc::cell(local_references),
+                reexport_references: ResolvedVc::cell(reexport_references),
+                evaluation_references: ResolvedVc::cell(evaluation_references),
+                code_generation: ResolvedVc::cell(self.code_gens),
                 exports: self.exports.into(),
                 async_module: self.async_module,
                 successful: self.successful,
@@ -630,7 +630,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     }
 
     for i in evaluation_references {
-        let reference = import_references[i];
+        let reference = import_references[i].to_resolved().await?;
         analysis.add_evaluation_reference(reference);
         analysis.add_import_reference(reference);
     }
@@ -642,15 +642,17 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 ModuleReferencesVisitor::new(eval_context, &import_references, &mut analysis);
 
             for (i, reexport) in eval_context.imports.reexports() {
-                let import_ref = import_references[i];
+                let import_ref = import_references[i].to_resolved().await?;
                 match reexport {
                     Reexport::Star => {
-                        visitor.esm_star_exports.push(Vc::upcast(import_ref));
+                        visitor
+                            .esm_star_exports
+                            .push(ResolvedVc::upcast(import_ref));
                     }
                     Reexport::Namespace { exported: n } => {
                         visitor.esm_exports.insert(
                             n.as_str().into(),
-                            EsmExport::ImportedNamespace(Vc::upcast(import_ref)),
+                            EsmExport::ImportedNamespace(ResolvedVc::upcast(import_ref)),
                         );
                     }
                     Reexport::Named {
@@ -660,7 +662,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                         visitor.esm_exports.insert(
                             e.as_str().into(),
                             EsmExport::ImportedBinding(
-                                Vc::upcast(import_ref),
+                                ResolvedVc::upcast(import_ref),
                                 i.to_string().into(),
                                 false,
                             ),
