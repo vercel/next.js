@@ -17,7 +17,7 @@ use crate::EcmascriptAnalyzable;
 #[turbo_tasks::value]
 pub struct StaticEcmascriptCode {
     asset_context: ResolvedVc<Box<dyn AssetContext>>,
-    asset: ResolvedVc<Box<dyn EcmascriptAnalyzable>>,
+    asset: Vc<Box<dyn EcmascriptAnalyzable>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -30,7 +30,7 @@ impl StaticEcmascriptCode {
     ) -> Result<Vc<Self>> {
         let module = asset_context
             .process(
-                Vc::upcast(FileSource::new(asset_path)),
+                Vc::upcast(FileSource::new(*asset_path)),
                 Value::new(ReferenceType::Runtime),
             )
             .module();
