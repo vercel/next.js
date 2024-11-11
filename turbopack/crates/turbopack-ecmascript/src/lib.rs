@@ -191,12 +191,12 @@ fn modifier() -> Vc<RcStr> {
 
 #[derive(Clone)]
 pub struct EcmascriptModuleAssetBuilder {
-    source: ResolvedVc<Box<dyn Source>>,
+    source: Vc<Box<dyn Source>>,
     asset_context: Vc<Box<dyn AssetContext>>,
     ty: EcmascriptModuleAssetType,
-    transforms: ResolvedVc<EcmascriptInputTransforms>,
-    options: ResolvedVc<EcmascriptOptions>,
-    compile_time_info: ResolvedVc<CompileTimeInfo>,
+    transforms: Vc<EcmascriptInputTransforms>,
+    options: Vc<EcmascriptOptions>,
+    compile_time_info: Vc<CompileTimeInfo>,
     inner_assets: Option<ResolvedVc<InnerAssets>>,
 }
 
@@ -214,22 +214,22 @@ impl EcmascriptModuleAssetBuilder {
     pub fn build(self) -> Vc<EcmascriptModuleAsset> {
         if let Some(inner_assets) = self.inner_assets {
             EcmascriptModuleAsset::new_with_inner_assets(
-                *self.source,
+                self.source,
                 self.asset_context,
                 Value::new(self.ty),
-                *self.transforms,
-                *self.options,
-                *self.compile_time_info,
+                self.transforms,
+                self.options,
+                self.compile_time_info,
                 *inner_assets,
             )
         } else {
             EcmascriptModuleAsset::new(
-                *self.source,
+                self.source,
                 self.asset_context,
                 Value::new(self.ty),
-                *self.transforms,
-                *self.options,
-                *self.compile_time_info,
+                self.transforms,
+                self.options,
+                self.compile_time_info,
             )
         }
     }
@@ -275,11 +275,11 @@ pub trait EcmascriptAnalyzable {
 
 impl EcmascriptModuleAsset {
     pub fn builder(
-        source: ResolvedVc<Box<dyn Source>>,
+        source: Vc<Box<dyn Source>>,
         asset_context: Vc<Box<dyn AssetContext>>,
-        transforms: ResolvedVc<EcmascriptInputTransforms>,
-        options: ResolvedVc<EcmascriptOptions>,
-        compile_time_info: ResolvedVc<CompileTimeInfo>,
+        transforms: Vc<EcmascriptInputTransforms>,
+        options: Vc<EcmascriptOptions>,
+        compile_time_info: Vc<CompileTimeInfo>,
     ) -> EcmascriptModuleAssetBuilder {
         EcmascriptModuleAssetBuilder {
             source,
