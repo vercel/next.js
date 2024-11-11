@@ -309,7 +309,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
         let source_map = if let Some(source_map) = self.source_map {
             source_map
         } else {
-            OptionSourceMap::none().to_resolved().await?
+            OptionSourceMap::none()
         };
         Ok(AnalyzeEcmascriptModuleResult::cell(
             AnalyzeEcmascriptModuleResult {
@@ -559,14 +559,10 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(source).await?
         {
             let source_map_origin = source.ident().path();
-            analysis.set_source_map(
-                convert_to_turbopack_source_map(
-                    generate_source_map.generate_source_map(),
-                    source_map_origin,
-                )
-                .to_resolved()
-                .await?,
-            );
+            analysis.set_source_map(convert_to_turbopack_source_map(
+                generate_source_map.generate_source_map(),
+                source_map_origin,
+            ));
         }
     }
 
