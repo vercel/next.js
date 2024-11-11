@@ -243,11 +243,7 @@ export function updateCacheNodeOnNavigation(
   }
 
   function newCacheNodeNeeded() {
-    if (needsDynamicRequest) {
-      return newCacheNode
-    } else {
-      return null
-    }
+    return needsDynamicRequest ? newCacheNode : null
   }
 
   const isNewCacheNodeNeeded = newCacheNodeNeeded()
