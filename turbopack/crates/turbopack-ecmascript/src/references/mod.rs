@@ -2090,7 +2090,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     CjsAssetReference::new(
                         *origin,
                         Request::parse(Value::new(js_value_to_pattern(&args[1]))),
-                        issue_source(source, span),
+                        issue_source(*source, span),
                         in_try,
                     )
                     .to_resolved()
@@ -2402,7 +2402,7 @@ async fn analyze_amd_define(
                         AmdDefineDependencyElement::Exports,
                         AmdDefineDependencyElement::Module,
                     ],
-                    *origin,
+                    origin,
                     ResolvedVc::cell(ast_path.to_vec()),
                     AmdDefineFactoryType::Unknown,
                     issue_source(source, span).to_resolved().await?,
@@ -2420,7 +2420,7 @@ async fn analyze_amd_define(
                         AmdDefineDependencyElement::Exports,
                         AmdDefineDependencyElement::Module,
                     ],
-                    *origin,
+                    origin,
                     ResolvedVc::cell(ast_path.to_vec()),
                     AmdDefineFactoryType::Function,
                     issue_source(source, span).to_resolved().await?,
