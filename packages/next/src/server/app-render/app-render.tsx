@@ -906,7 +906,6 @@ function App<T>({
   )
 
   const initialState = createInitialRouterState({
-    buildId: response.b,
     initialFlightData: response.f,
     initialCanonicalUrlParts: response.c,
     // location and initialParallelRoutes are not initialized in the SSR render
@@ -965,7 +964,6 @@ function AppWithoutContext<T>({
   )
 
   const initialState = createInitialRouterState({
-    buildId: response.b,
     initialFlightData: response.f,
     initialCanonicalUrlParts: response.c,
     // location and initialParallelRoutes are not initialized in the SSR render

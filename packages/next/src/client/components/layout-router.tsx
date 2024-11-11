@@ -337,7 +337,7 @@ function InnerLayoutRouter({
     throw new Error('invariant global layout router not mounted')
   }
 
-  const { buildId, changeByServerResponse, tree: fullTree } = context
+  const { changeByServerResponse, tree: fullTree } = context
 
   // Read segment path from the parallel router cache node.
   let childNode = childNodes.get(cacheKey)
@@ -409,7 +409,6 @@ function InnerLayoutRouter({
         {
           flightRouterState: refetchTree,
           nextUrl: includeNextUrl ? context.nextUrl : null,
-          buildId,
         }
       ).then((serverResponse) => {
         startTransition(() => {
