@@ -115,6 +115,12 @@ pub(crate) struct ItemData {
     /// Explicit dependencies of this item.
     ///
     /// Used to depend from import binding to side-effect-import without additional analysis.
+    ///
+    /// - Note: ImportBinding should depend on actual import statements because those imports may
+    ///   have side effects.
+    ///
+    /// See https://github.com/vercel/next.js/pull/71234#issuecomment-2409810084 for the problematic
+    /// test case.
     pub explicit_deps: Vec<ItemId>,
 }
 
@@ -276,10 +282,6 @@ impl DepGraph {
             exports.insert(Key::ModuleEvaluation, 0);
         }
 
-        // See https://github.com/vercel/next.js/pull/71234#issuecomment-2409810084
-        // ImportBinding should depend on actual import statements because those imports may have
-        // side effects.
-        let mut importer = FxHashMap::default();
         let mut declarator = FxHashMap::default();
         let mut exporter = FxHashMap::default();
 
@@ -293,17 +295,6 @@ impl DepGraph {
 
                 if let Some(export) = &item.export {
                     exporter.insert(export.clone(), ix as u32);
-                }
-
-                if let ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-                    specifiers,
-                    src,
-                    ..
-                })) = &item.content
-                {
-                    if specifiers.is_empty() {
-                        importer.insert(src.value.clone(), ix as u32);
-                    }
                 }
             }
         }
@@ -349,38 +340,6 @@ impl DepGraph {
 
                 for var in data.var_decls.iter() {
                     required_vars.swap_remove(var);
-                }
-
-                // Depend on import statements from 'ImportBinding'
-                if let ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-                    specifiers,
-                    src,
-                    ..
-                })) = &data.content
-                {
-                    if !specifiers.is_empty() {
-                        if let Some(dep) = importer.get(&src.value) {
-                            if *dep != ix as u32 {
-                                part_deps
-                                    .entry(ix as u32)
-                                    .or_default()
-                                    .push(PartId::Internal(*dep, true));
-
-                                chunk.body.push(ModuleItem::ModuleDecl(ModuleDecl::Import(
-                                    ImportDecl {
-                                        span: DUMMY_SP,
-                                        specifiers: vec![],
-                                        src: Box::new(TURBOPACK_PART_IMPORT_SOURCE.into()),
-                                        type_only: false,
-                                        with: Some(Box::new(create_turbopack_part_id_assert(
-                                            PartId::Internal(*dep, true),
-                                        ))),
-                                        phase: Default::default(),
-                                    },
-                                )));
-                            }
-                        }
-                    }
                 }
             }
 
@@ -490,7 +449,7 @@ impl DepGraph {
             }
 
             // Import variables
-            for &var in &required_vars {
+            'var: for &var in &required_vars {
                 let Some(&dep) = declarator.get(var) else {
                     continue;
                 };
@@ -504,56 +463,44 @@ impl DepGraph {
                 let dep_item_ids = groups.graph_ix.get_index(dep as usize).unwrap();
 
                 // Optimization & workaround for `ImportBinding` fragments.
-                // Instead of importing the import binding fragment, we import the original module.
-                // In this way, we can preserve the import statement so that the other code analysis
-                // can work.
-                if dep_item_ids.len() == 1 {
-                    let dep_item_id = &dep_item_ids[0];
-                    let dep_item_data = data.get(dep_item_id).unwrap();
+                // Instead of importing the variable from import binding fragment, we import the
+                // variable from the original module. In this way, we can preserve the import
+                // statement so that the other code analysis can work.
+                for dep_item_id in dep_item_ids {
+                    if let Some(dep_item_data) = data.get(dep_item_id) {
+                        if let Some((module_specifier, import_specifier)) =
+                            &dep_item_data.binding_source
+                        {
+                            // Preserve the order of the side effects by importing the import
+                            // binding fragment
 
-                    if let Some((module_specifier, import_specifier)) =
-                        &dep_item_data.binding_source
-                    {
-                        // Preserve the order of the side effects by importing the
-                        // side-effect-import fragment first.
+                            chunk.body.push(ModuleItem::ModuleDecl(ModuleDecl::Import(
+                                ImportDecl {
+                                    span: DUMMY_SP,
+                                    specifiers: vec![],
+                                    src: Box::new(TURBOPACK_PART_IMPORT_SOURCE.into()),
+                                    type_only: false,
+                                    with: Some(Box::new(create_turbopack_part_id_assert(
+                                        PartId::Internal(dep, false),
+                                    ))),
+                                    phase: Default::default(),
+                                },
+                            )));
 
-                        if let Some(import_dep) = importer.get(&module_specifier.value) {
-                            if *import_dep != ix as u32 {
-                                part_deps
-                                    .entry(ix as u32)
-                                    .or_default()
-                                    .push(PartId::Internal(*import_dep, true));
+                            let specifiers = vec![import_specifier.clone()];
 
-                                chunk.body.push(ModuleItem::ModuleDecl(ModuleDecl::Import(
-                                    ImportDecl {
-                                        span: DUMMY_SP,
-                                        specifiers: vec![],
-                                        src: Box::new(TURBOPACK_PART_IMPORT_SOURCE.into()),
-                                        type_only: false,
-                                        with: Some(Box::new(create_turbopack_part_id_assert(
-                                            PartId::Internal(*import_dep, true),
-                                        ))),
-                                        phase: Default::default(),
-                                    },
-                                )));
-                            }
+                            chunk.body.push(ModuleItem::ModuleDecl(ModuleDecl::Import(
+                                ImportDecl {
+                                    span: DUMMY_SP,
+                                    specifiers,
+                                    src: Box::new(module_specifier.clone()),
+                                    type_only: false,
+                                    with: None,
+                                    phase: Default::default(),
+                                },
+                            )));
+                            continue 'var;
                         }
-
-                        let specifiers = vec![import_specifier.clone()];
-
-                        part_deps_done.insert(dep);
-
-                        chunk
-                            .body
-                            .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-                                span: DUMMY_SP,
-                                specifiers,
-                                src: Box::new(module_specifier.clone()),
-                                type_only: false,
-                                with: None,
-                                phase: Default::default(),
-                            })));
-                        continue;
                     }
                 }
 
