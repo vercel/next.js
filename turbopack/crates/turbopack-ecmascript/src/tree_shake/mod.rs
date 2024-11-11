@@ -25,6 +25,7 @@ pub mod asset;
 pub mod chunk_item;
 mod graph;
 pub mod merge;
+mod optimizations;
 #[cfg(test)]
 mod tests;
 mod util;
