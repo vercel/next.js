@@ -2128,7 +2128,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     {
                         analysis.add_reference(
                             DirAssetReference::new(
-                                source,
+                                *source,
                                 Pattern::new(Pattern::Constant(dir.into())),
                             )
                             .to_resolved()
@@ -2198,9 +2198,9 @@ async fn handle_member(
         ) if s.as_str() == Some("cache") => {
             analysis.add_code_gen(
                 CjsRequireCacheAccess {
-                    path: Vc::cell(ast_path.to_vec()),
+                    path: ResolvedVc::cell(ast_path.to_vec()),
                 }
-                .cell(),
+                .resolved_cell(),
             );
         }
         _ => {}
