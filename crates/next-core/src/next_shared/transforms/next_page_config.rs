@@ -13,7 +13,7 @@ pub fn get_next_page_config_rule(
     enable_mdx_rs: bool,
     pages_dir: ReadRef<FileSystemPath>,
 ) -> ModuleRule {
-    let transformer = EcmascriptInputTransform::Plugin(Vc::cell(Box::new(NextPageConfig {
+    let transformer = EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(NextPageConfig {
         // [TODO]: update once turbopack build works
         is_development: true,
     }) as _));
