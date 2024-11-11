@@ -2274,10 +2274,11 @@ async fn handle_free_var_reference(
         ),
 
         FreeVarReference::Value(value) => {
-            analysis.add_code_gen(ConstantValue::new(
-                Value::new(value.clone()),
-                Vc::cell(ast_path.to_vec()),
-            ));
+            analysis.add_code_gen(
+                ConstantValue::new(Value::new(value.clone()), Vc::cell(ast_path.to_vec()))
+                    .to_resolved()
+                    .await?,
+            );
         }
         FreeVarReference::EcmaScriptModule {
             request,
