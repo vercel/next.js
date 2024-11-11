@@ -52,21 +52,19 @@ impl EcmascriptChunkItem for EcmascriptModuleLocalsChunkItem {
             parsed,
             self.module.ident(),
             module_type_result.module_type,
-            chunking_context,
+            *chunking_context,
             *analyze_result.local_references,
             *analyze_result.code_generation,
             *analyze_result.async_module,
             *analyze_result.source_map,
             exports,
             async_module_info,
-        )
-        .to_resolved()
-        .await?;
+        );
 
         Ok(EcmascriptChunkItemContent::new(
             content,
-            self.chunking_context,
-            original_module.await?.options,
+            *chunking_context,
+            *original_module.await?.options,
             async_module_options,
         ))
     }
