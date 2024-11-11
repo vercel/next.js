@@ -2324,7 +2324,7 @@ async fn handle_free_var_reference(
                 },
                 state.import_externals,
             )
-            .resolve()
+            .to_resolved()
             .await?;
             analysis.add_reference(esm_reference);
             analysis.add_binding(EsmBinding::new(
