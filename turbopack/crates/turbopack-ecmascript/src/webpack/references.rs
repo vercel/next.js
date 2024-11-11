@@ -28,7 +28,7 @@ pub async fn module_references(
     let parsed = parse(
         source,
         Value::new(EcmascriptModuleAssetType::Ecmascript),
-        transforms,
+        *transforms,
     )
     .await?;
     match &*parsed {
