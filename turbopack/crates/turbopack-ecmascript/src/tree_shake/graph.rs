@@ -111,6 +111,11 @@ pub(crate) struct ItemData {
     ///
     /// Used to optimize `ImportBinding`.
     pub binding_source: Option<(Str, ImportSpecifier)>,
+
+    /// Explicit dependencies of this item.
+    ///
+    /// Used to depend from import binding to side-effect-import without additional analysis.
+    pub explicit_deps: Vec<ItemId>,
 }
 
 impl fmt::Debug for ItemData {
@@ -143,6 +148,7 @@ impl Default for ItemData {
             pure: Default::default(),
             export: Default::default(),
             binding_source: Default::default(),
+            explicit_deps: Default::default(),
         }
     }
 }
