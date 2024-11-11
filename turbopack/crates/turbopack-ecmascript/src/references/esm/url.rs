@@ -92,10 +92,10 @@ impl ModuleReference for UrlAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
         url_resolve(
-            self.origin,
-            self.request,
+            *self.origin,
+            *self.request,
             Value::new(ReferenceType::Url(UrlReferenceSubType::EcmaScriptNewUrl)),
-            Some(self.issue_source),
+            Some(*self.issue_source),
             self.in_try,
         )
     }
