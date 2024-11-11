@@ -630,17 +630,11 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             import_externals,
         );
 
-        import_references.push(r);
-    }
-
-    for r in import_references.iter_mut() {
-        // Resolving these references here avoids many resolve wrapper tasks when
-        // passing that to other turbo tasks functions later.
-        *r = r.resolve().await?;
+        import_references.push(r.to_resolved().await?);
     }
 
     for i in evaluation_references {
-        let reference = import_references[i].to_resolved().await?;
+        let reference = import_references[i];
         analysis.add_evaluation_reference(reference);
         analysis.add_import_reference(reference);
     }
@@ -652,7 +646,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 ModuleReferencesVisitor::new(eval_context, &import_references, &mut analysis);
 
             for (i, reexport) in eval_context.imports.reexports() {
-                let import_ref = import_references[i].to_resolved().await?;
+                let import_ref = import_references[i];
                 match reexport {
                     Reexport::Star => {
                         visitor
@@ -2728,7 +2722,7 @@ struct ModuleReferencesVisitor<'a> {
 impl<'a> ModuleReferencesVisitor<'a> {
     fn new(
         eval_context: &'a EvalContext,
-        import_references: &'a [Vc<EsmAssetReference>],
+        import_references: &'a [ResolvedVc<EsmAssetReference>],
         analysis: &'a mut AnalyzeEcmascriptModuleResultBuilder,
     ) -> Self {
         Self {
