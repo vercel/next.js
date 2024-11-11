@@ -31,7 +31,7 @@ use crate::ParseResultSourceMap;
 #[turbo_tasks::function]
 pub async fn minify(path: Vc<FileSystemPath>, code: Vc<Code>) -> Result<Vc<Code>> {
     let path = path.await?;
-    let original_map = code.generate_source_map();
+    let original_map = code.generate_source_map().to_resolved().await?;
     let code = code.await?;
 
     let cm = Arc::new(SwcSourceMap::new(FilePathMapping::empty()));
