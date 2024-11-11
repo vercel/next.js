@@ -734,7 +734,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                         runtime,
                         transforms,
                     }
-                    .resolved_cell(),
+                    .cell(),
                 );
             }
         }
@@ -2416,18 +2416,14 @@ async fn analyze_amd_define_with_deps(
         );
     }
 
-    analysis.add_code_gen(
-        AmdDefineWithDependenciesCodeGen::new(
-            requests,
-            origin,
-            Vc::cell(ast_path.to_vec()),
-            AmdDefineFactoryType::Function,
-            issue_source(source, span),
-            in_try,
-        )
-        .to_resolved()
-        .await?,
-    );
+    analysis.add_code_gen(AmdDefineWithDependenciesCodeGen::new(
+        requests,
+        origin,
+        Vc::cell(ast_path.to_vec()),
+        AmdDefineFactoryType::Function,
+        issue_source(source, span),
+        in_try,
+    ));
 
     Ok(())
 }
@@ -2884,7 +2880,7 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
                                 let esm_ref = self.import_references[index];
                                 if let Some(export) = export {
                                     EsmExport::ImportedBinding(
-                                        ResolvedVc::upcast(esm_ref),
+                                        Vc::upcast(esm_ref),
                                         export,
                                         is_fake_esm,
                                     )
