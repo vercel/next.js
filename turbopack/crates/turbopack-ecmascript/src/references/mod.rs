@@ -1562,7 +1562,8 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 ast_path,
                 linked_args(args).await?,
                 in_try,
-            );
+            )
+            .await?;
         }
 
         JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve) => {
@@ -2081,12 +2082,16 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
         JsValue::WellKnownFunction(WellKnownFunctionKind::NodeResolveFrom) => {
             let args = linked_args(args).await?;
             if args.len() == 2 && args.get(1).and_then(|arg| arg.as_str()).is_some() {
-                analysis.add_reference(CjsAssetReference::new(
-                    origin,
-                    Request::parse(Value::new(js_value_to_pattern(&args[1]))),
-                    issue_source(source, span),
-                    in_try,
-                ));
+                analysis.add_reference(
+                    CjsAssetReference::new(
+                        origin,
+                        Request::parse(Value::new(js_value_to_pattern(&args[1]))),
+                        issue_source(source, span),
+                        in_try,
+                    )
+                    .to_resolved()
+                    .await?,
+                );
                 return Ok(());
             }
             let (args, hints) = explain_args(&args);
@@ -2336,7 +2341,7 @@ fn issue_source(source: Vc<Box<dyn Source>>, span: Span) -> Vc<IssueSource> {
     IssueSource::from_swc_offsets(source, span.lo.to_usize(), span.hi.to_usize())
 }
 
-fn analyze_amd_define(
+async fn analyze_amd_define(
     source: Vc<Box<dyn Source>>,
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
     origin: Vc<Box<dyn ResolveOrigin>>,
@@ -2345,7 +2350,7 @@ fn analyze_amd_define(
     ast_path: &[AstParentKind],
     args: Vec<JsValue>,
     in_try: bool,
-) {
+) -> Result<()> {
     match &args[..] {
         [JsValue::Constant(id), JsValue::Array { items: deps, .. }, _] if id.as_str().is_some() => {
             analyze_amd_define_with_deps(
@@ -2380,56 +2385,72 @@ fn analyze_amd_define(
             ));
         }
         [JsValue::Constant(id), _] if id.as_str().is_some() => {
-            analysis.add_code_gen(AmdDefineWithDependenciesCodeGen::new(
-                vec![
-                    AmdDefineDependencyElement::Require,
-                    AmdDefineDependencyElement::Exports,
-                    AmdDefineDependencyElement::Module,
-                ],
-                origin,
-                Vc::cell(ast_path.to_vec()),
-                AmdDefineFactoryType::Unknown,
-                issue_source(source, span),
-                in_try,
-            ));
+            analysis.add_code_gen(
+                AmdDefineWithDependenciesCodeGen::new(
+                    vec![
+                        AmdDefineDependencyElement::Require,
+                        AmdDefineDependencyElement::Exports,
+                        AmdDefineDependencyElement::Module,
+                    ],
+                    origin,
+                    Vc::cell(ast_path.to_vec()),
+                    AmdDefineFactoryType::Unknown,
+                    issue_source(source, span),
+                    in_try,
+                )
+                .to_resolved()
+                .await?,
+            );
         }
         [JsValue::Function(..)] => {
-            analysis.add_code_gen(AmdDefineWithDependenciesCodeGen::new(
-                vec![
-                    AmdDefineDependencyElement::Require,
-                    AmdDefineDependencyElement::Exports,
-                    AmdDefineDependencyElement::Module,
-                ],
-                origin,
-                Vc::cell(ast_path.to_vec()),
-                AmdDefineFactoryType::Function,
-                issue_source(source, span),
-                in_try,
-            ));
+            analysis.add_code_gen(
+                AmdDefineWithDependenciesCodeGen::new(
+                    vec![
+                        AmdDefineDependencyElement::Require,
+                        AmdDefineDependencyElement::Exports,
+                        AmdDefineDependencyElement::Module,
+                    ],
+                    origin,
+                    Vc::cell(ast_path.to_vec()),
+                    AmdDefineFactoryType::Function,
+                    issue_source(source, span),
+                    in_try,
+                )
+                .to_resolved()
+                .await?,
+            );
         }
         [JsValue::Object { .. }] => {
-            analysis.add_code_gen(AmdDefineWithDependenciesCodeGen::new(
-                vec![],
-                origin,
-                Vc::cell(ast_path.to_vec()),
-                AmdDefineFactoryType::Value,
-                issue_source(source, span),
-                in_try,
-            ));
+            analysis.add_code_gen(
+                AmdDefineWithDependenciesCodeGen::new(
+                    vec![],
+                    origin,
+                    Vc::cell(ast_path.to_vec()),
+                    AmdDefineFactoryType::Value,
+                    issue_source(source, span),
+                    in_try,
+                )
+                .to_resolved()
+                .await?,
+            );
         }
         [_] => {
-            analysis.add_code_gen(AmdDefineWithDependenciesCodeGen::new(
-                vec![
-                    AmdDefineDependencyElement::Require,
-                    AmdDefineDependencyElement::Exports,
-                    AmdDefineDependencyElement::Module,
-                ],
-                origin,
-                Vc::cell(ast_path.to_vec()),
-                AmdDefineFactoryType::Unknown,
-                issue_source(source, span),
-                in_try,
-            ));
+            analysis.add_code_gen(
+                AmdDefineWithDependenciesCodeGen::new(
+                    vec![
+                        AmdDefineDependencyElement::Require,
+                        AmdDefineDependencyElement::Exports,
+                        AmdDefineDependencyElement::Module,
+                    ],
+                    origin,
+                    Vc::cell(ast_path.to_vec()),
+                    AmdDefineFactoryType::Unknown,
+                    issue_source(source, span),
+                    in_try,
+                )
+                .to_resolved()
+                .await?,
+            );
         }
         _ => {
             handler.span_err_with_code(
