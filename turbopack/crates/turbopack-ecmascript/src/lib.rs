@@ -721,7 +721,7 @@ impl EcmascriptModuleContent {
         references: Vc<ModuleReferences>,
         code_generation: Vc<CodeGenerateables>,
         async_module: Vc<OptionAsyncModule>,
-        source_map: ResolvedVc<OptionSourceMap>,
+        source_map: Vc<OptionSourceMap>,
         exports: Vc<EcmascriptExports>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<Self>> {
