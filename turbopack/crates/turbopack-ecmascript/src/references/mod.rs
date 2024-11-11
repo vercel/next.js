@@ -288,22 +288,22 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             self.add_code_gen(bindings);
         }
 
-        let mut references: Vec<_> = self.references.into_iter().map(|v| *v).collect();
-        let mut local_references: Vec<_> = track_reexport_references
+        let references: Vec<_> = self.references.into_iter().map(|v| *v).collect();
+        let local_references: Vec<_> = track_reexport_references
             .then(|| self.local_references.into_iter())
             .into_iter()
             .flatten()
             .map(|v| *v)
             .collect();
 
-        let mut reexport_references: Vec<_> = track_reexport_references
+        let reexport_references: Vec<_> = track_reexport_references
             .then(|| self.reexport_references.into_iter())
             .into_iter()
             .flatten()
             .map(|v| *v)
             .collect();
 
-        let mut evaluation_references: Vec<_> = track_reexport_references
+        let evaluation_references: Vec<_> = track_reexport_references
             .then(|| self.evaluation_references.into_iter())
             .into_iter()
             .flatten()
