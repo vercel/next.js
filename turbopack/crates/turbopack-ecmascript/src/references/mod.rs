@@ -155,7 +155,7 @@ pub struct AnalyzeEcmascriptModuleResult {
     pub async_module: ResolvedVc<OptionAsyncModule>,
     /// `true` when the analysis was successful.
     pub successful: bool,
-    pub source_map: ResolvedVc<OptionSourceMap>,
+    pub source_map: Vc<OptionSourceMap>,
 }
 
 /// A temporary analysis result builder to pass around, to be turned into an
@@ -537,11 +537,10 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             let reference = SourceMapReference::new(origin_path, source_map_origin);
             analysis.add_reference(reference);
             let source_map = reference.generate_source_map();
-            analysis.set_source_map(
-                convert_to_turbopack_source_map(source_map, source_map_origin)
-                    .to_resolved()
-                    .await?,
-            );
+            analysis.set_source_map(convert_to_turbopack_source_map(
+                source_map,
+                source_map_origin,
+            ));
             source_map_from_comment = true;
         } else if path.starts_with("data:application/json;base64,") {
             let source_map_origin = origin_path;

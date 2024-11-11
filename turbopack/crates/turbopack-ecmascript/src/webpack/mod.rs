@@ -78,7 +78,7 @@ pub struct WebpackChunkAssetReference {
     #[turbo_tasks(trace_ignore)]
     pub chunk_id: Lit,
     pub runtime: Vc<WebpackRuntime>,
-    pub transforms: Vc<EcmascriptInputTransforms>,
+    pub transforms: ResolvedVc<EcmascriptInputTransforms>,
 }
 
 #[turbo_tasks::value_impl]
@@ -101,7 +101,7 @@ impl ModuleReference for WebpackChunkAssetReference {
                 let source = Vc::upcast(FileSource::new(context_path.join(filename)));
 
                 ModuleResolveResult::module(ResolvedVc::upcast(
-                    WebpackModuleAsset::new(source, self.runtime, self.transforms)
+                    WebpackModuleAsset::new(source, self.runtime, *self.transforms)
                         .to_resolved()
                         .await?,
                 ))
@@ -158,7 +158,7 @@ pub struct WebpackRuntimeAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: Vc<Request>,
     pub runtime: Vc<WebpackRuntime>,
-    pub transforms: Vc<EcmascriptInputTransforms>,
+    pub transforms: ResolvedVc<EcmascriptInputTransforms>,
 }
 
 #[turbo_tasks::value_impl]
