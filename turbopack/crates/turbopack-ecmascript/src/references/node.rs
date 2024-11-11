@@ -23,7 +23,7 @@ pub struct PackageJsonReference {
 #[turbo_tasks::value_impl]
 impl PackageJsonReference {
     #[turbo_tasks::function]
-    pub fn new(package_json: Vc<FileSystemPath>) -> Vc<Self> {
+    pub fn new(package_json: ResolvedVc<FileSystemPath>) -> Vc<Self> {
         Self::cell(PackageJsonReference { package_json })
     }
 }
@@ -33,7 +33,7 @@ impl ModuleReference for PackageJsonReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         Ok(ModuleResolveResult::module(ResolvedVc::upcast(
-            RawModule::new(Vc::upcast(FileSource::new(self.package_json)))
+            RawModule::new(Vc::upcast(FileSource::new(*self.package_json)))
                 .to_resolved()
                 .await?,
         ))
