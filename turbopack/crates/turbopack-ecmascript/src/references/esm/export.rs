@@ -206,12 +206,11 @@ pub async fn follow_reexports(
 }
 
 async fn handle_declared_export(
-    module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
     export_name: RcStr,
     export: &EsmExport,
     side_effect_free_packages: Vc<Glob>,
-) -> Result<ControlFlow<FollowExportsResult, (ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, RcStr)>>
-{
+) -> Result<ControlFlow<FollowExportsResult, (Vc<Box<dyn EcmascriptChunkPlaceable>>, RcStr)>> {
     match export {
         EsmExport::ImportedBinding(reference, name, _) => {
             if let ReferencedAsset::Some(module) =
@@ -271,7 +270,7 @@ struct AllExportNamesResult {
 
 #[turbo_tasks::function]
 async fn get_all_export_names(
-    module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
 ) -> Result<Vc<AllExportNamesResult>> {
     let exports = module.get_exports().await?;
     let EcmascriptExports::EsmExports(exports) = &*exports else {
@@ -294,7 +293,7 @@ async fn get_all_export_names(
                 if let ReferencedAsset::Some(m) =
                     *ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?
                 {
-                    Some(get_all_export_names(*m))
+                    Some(get_all_export_names(m))
                 } else {
                     None
                 },
