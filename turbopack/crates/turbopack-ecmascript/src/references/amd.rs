@@ -107,7 +107,7 @@ pub enum AmdDefineFactoryType {
 #[derive(Debug)]
 pub struct AmdDefineWithDependenciesCodeGen {
     dependencies_requests: Vec<AmdDefineDependencyElement>,
-    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    origin: Vc<Box<dyn ResolveOrigin>>,
     path: ResolvedVc<AstPath>,
     factory_type: AmdDefineFactoryType,
     issue_source: Vc<IssueSource>,

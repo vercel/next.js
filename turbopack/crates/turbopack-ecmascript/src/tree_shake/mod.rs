@@ -728,8 +728,8 @@ pub(crate) async fn part_of_module(
                 );
             }
 
-            Ok(modules[part_id as usize])
+            Ok(*modules[part_id as usize])
         }
-        SplitResult::Failed { parse_result } => Ok(*parse_result),
+        SplitResult::Failed { parse_result } => Ok(**parse_result),
     }
 }
