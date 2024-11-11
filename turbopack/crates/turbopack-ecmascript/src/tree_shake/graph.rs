@@ -4,7 +4,8 @@ use petgraph::{
     algo::{condensation, has_path_connecting},
     graphmap::GraphMap,
     prelude::DiGraphMap,
-    Graph,
+    visit::EdgeRef,
+    Direction, Graph,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
@@ -730,7 +731,7 @@ impl DepGraph {
         let graph = self.g.idx_graph.clone().into_graph::<u32>();
 
         let mut condensed = condensation(graph, true);
-        condensed = merge_single_incoming_nodes(condensed);
+        merge_single_incoming_nodes(&mut condensed);
 
         let mut new_graph = InternedGraph::default();
 
@@ -1465,9 +1466,40 @@ impl DepGraph {
 }
 
 /// Optimizes a condensed graph by merging nodes with only one incoming edge.
-fn merge_single_incoming_nodes(
-    condensed: Graph<Vec<u32>, Dependency>,
-) -> Graph<Vec<u32>, Dependency> {
+fn merge_single_incoming_nodes<N>(g: &mut Graph<N, Dependency>) {
+    let mut queue = vec![];
+    let mut removed_nodes = vec![];
+
+    for node in g.node_indices() {
+        // If the node has only one incoming edge, we enqueue it
+        if g.edges_directed(node, Direction::Incoming).count() == 1 {
+            let dependant = g
+                .edges_directed(node, Direction::Incoming)
+                .next()
+                .unwrap()
+                .source();
+
+            let dependencies = g
+                .edges_directed(node, Direction::Outgoing)
+                .map(|e| (e.target(), *e.weight()))
+                .collect::<Vec<_>>();
+
+            queue.push((node, dependant, dependencies));
+            removed_nodes.push(node);
+        }
+    }
+
+    for (_, dependant, dependencies) in queue {
+        // Move all edges from node to dependant
+        for (dependency, weight) in dependencies {
+            g.add_edge(dependant, dependency, weight);
+        }
+    }
+
+    // Remove all edges from source
+    for node in removed_nodes {
+        g.remove_node(node);
+    }
 }
 
 const ASSERT_CHUNK_KEY: &str = "__turbopack_part__";
