@@ -482,6 +482,6 @@ impl Issue for InvalidExport {
 
     #[turbo_tasks::function]
     fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(Some(self.source))
+        Vc::cell(Some(*self.source))
     }
 }
