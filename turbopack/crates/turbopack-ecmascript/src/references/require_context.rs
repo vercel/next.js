@@ -439,10 +439,10 @@ impl EcmascriptChunkItem for RequireContextChunkItem {
 
         for (key, entry) in map {
             let pm = PatternMapping::resolve_request(
-                entry.request,
-                self.origin,
-                Vc::upcast(self.chunking_context),
-                entry.result,
+                *entry.request,
+                *self.origin,
+                *ResolvedVc::upcast(self.chunking_context),
+                *entry.result,
                 Value::new(ResolveType::ChunkItem),
             )
             .await?;
