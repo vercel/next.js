@@ -235,7 +235,7 @@ async fn handle_declared_export(
                 *ReferencedAsset::from_resolve_result(reference.resolve_reference()).await?
             {
                 return Ok(ControlFlow::Break(FollowExportsResult {
-                    module: *m,
+                    module: m,
                     export_name: None,
                     ty: FoundExportType::Found,
                 }));
