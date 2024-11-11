@@ -54,7 +54,7 @@ impl WorkerLoaderChunkItem {
                     .chunk_path(module.inner.ident(), ".js".into()),
             )
             .with_modifier(worker_modifier()),
-            EvaluatableAssets::empty().with_entry(evaluatable),
+            EvaluatableAssets::empty().with_entry(*evaluatable),
             Value::new(AvailabilityInfo::Root),
         ))
     }

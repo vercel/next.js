@@ -232,7 +232,7 @@ pub async fn webpack_runtime(
 
                         return Ok(WebpackRuntime::Webpack5 {
                             chunk_request_expr: value,
-                            context_path: source.ident().path().parent().resolve().await?,
+                            context_path: source.ident().path().parent().to_resolved().await?,
                         }
                         .into());
                     }

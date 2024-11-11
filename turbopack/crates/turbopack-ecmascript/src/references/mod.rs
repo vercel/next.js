@@ -697,12 +697,8 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     let mut ignore_effect_span = None;
     // Check if it was a webpack entry
     if let Some((request, span)) = webpack_runtime {
-        let request = Request::parse(Value::new(request.into()))
-            .to_resolved()
-            .await?;
-        let runtime = resolve_as_webpack_runtime(origin, *request, *transforms)
-            .to_resolved()
-            .await?;
+        let request = Request::parse(Value::new(request.into()));
+        let runtime = resolve_as_webpack_runtime(origin, *request, *transforms);
 
         if let WebpackRuntime::Webpack5 { .. } = &*runtime.await? {
             ignore_effect_span = Some(span);
@@ -1914,7 +1910,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                                 if pkg != "html" {
                                     let pat = js_value_to_pattern(pkg_or_dir);
                                     analysis.add_reference(CjsAssetReference::new(
-                                        *origin,
+                                        origin,
                                         Request::parse(Value::new(pat)),
                                         issue_source(*source, span),
                                         in_try,
