@@ -140,7 +140,7 @@ export function HTTPErrorFallbackBoundary({
   const pathname = useUntrackedPathname()
   const missingSlots = useContext(MissingSlotContext)
 
-  if (notFound) {
+  if (notFound?.[0]) {
     return (
       <HTTPErrorFallbackErrorBoundary
         pathname={pathname}
