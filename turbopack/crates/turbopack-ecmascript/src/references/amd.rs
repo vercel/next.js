@@ -117,7 +117,7 @@ pub struct AmdDefineWithDependenciesCodeGen {
 impl AmdDefineWithDependenciesCodeGen {
     pub fn new(
         dependencies_requests: Vec<AmdDefineDependencyElement>,
-        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+        origin: Vc<Box<dyn ResolveOrigin>>,
         path: ResolvedVc<AstPath>,
         factory_type: AmdDefineFactoryType,
         issue_source: Vc<IssueSource>,
@@ -154,10 +154,10 @@ impl CodeGenerateable for AmdDefineWithDependenciesCodeGen {
                     } => ResolvedElement::PatternMapping {
                         pattern_mapping: PatternMapping::resolve_request(
                             **request,
-                            *self.origin,
+                            self.origin,
                             Vc::upcast(chunking_context),
                             cjs_resolve(
-                                *self.origin,
+                                self.origin,
                                 **request,
                                 Some(self.issue_source),
                                 self.in_try,

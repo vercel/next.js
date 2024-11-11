@@ -2333,7 +2333,7 @@ async fn analyze_amd_define(
 async fn analyze_amd_define_with_deps(
     source: Vc<Box<dyn Source>>,
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
-    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    origin: Vc<Box<dyn ResolveOrigin>>,
     handler: &Handler,
     span: Span,
     ast_path: &[AstParentKind],
