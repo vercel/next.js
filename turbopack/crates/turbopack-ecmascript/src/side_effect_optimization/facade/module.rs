@@ -35,7 +35,10 @@ pub struct EcmascriptModuleFacadeModule {
 #[turbo_tasks::value_impl]
 impl EcmascriptModuleFacadeModule {
     #[turbo_tasks::function]
-    pub fn new(module: Vc<Box<dyn EcmascriptChunkPlaceable>>, ty: Vc<ModulePart>) -> Vc<Self> {
+    pub fn new(
+        module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+        ty: ResolvedVc<ModulePart>,
+    ) -> Vc<Self> {
         EcmascriptModuleFacadeModule { module, ty }.cell()
     }
 
@@ -240,7 +243,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
                     export.await?.clone_value(),
                     EsmExport::ImportedBinding(
                         ResolvedVc::upcast(
-                            EcmascriptModulePartReference::new(self.module)
+                            EcmascriptModulePartReference::new(*self.module)
                                 .to_resolved()
                                 .await?,
                         ),
@@ -253,7 +256,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
                 exports.insert(
                     export.await?.clone_value(),
                     EsmExport::ImportedNamespace(ResolvedVc::upcast(
-                        EcmascriptModulePartReference::new(self.module)
+                        EcmascriptModulePartReference::new(*self.module)
                             .to_resolved()
                             .await?,
                     )),
