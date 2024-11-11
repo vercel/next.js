@@ -33,7 +33,7 @@ pub struct EcmascriptModuleLocalsModule {
 #[turbo_tasks::value_impl]
 impl EcmascriptModuleLocalsModule {
     #[turbo_tasks::function]
-    pub fn new(module: Vc<EcmascriptModuleAsset>) -> Vc<Self> {
+    pub fn new(module: ResolvedVc<EcmascriptModuleAsset>) -> Vc<Self> {
         EcmascriptModuleLocalsModule { module }.cell()
     }
 }
