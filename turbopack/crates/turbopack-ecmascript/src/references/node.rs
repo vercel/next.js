@@ -61,7 +61,7 @@ pub struct DirAssetReference {
 #[turbo_tasks::value_impl]
 impl DirAssetReference {
     #[turbo_tasks::function]
-    pub fn new(source: Vc<Box<dyn Source>>, path: Vc<Pattern>) -> Vc<Self> {
+    pub fn new(source: ResolvedVc<Box<dyn Source>>, path: ResolvedVc<Pattern>) -> Vc<Self> {
         Self::cell(DirAssetReference { source, path })
     }
 }
