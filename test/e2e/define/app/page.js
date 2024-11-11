@@ -1,6 +1,5 @@
+/* eslint-disable no-undef */
 import { ClientValue } from './client-component'
-
-declare const MY_MAGIC_VARIABLE: string
 
 export default function Page() {
   return (

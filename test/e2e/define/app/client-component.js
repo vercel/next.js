@@ -1,6 +1,5 @@
+/* eslint-disable no-undef */
 'use client'
-
-declare const MY_MAGIC_VARIABLE: string
 
 export function ClientValue() {
   return (
