@@ -478,9 +478,9 @@ pub(super) async fn split_module(asset: Vc<EcmascriptModuleAsset>) -> Result<Vc<
 
 #[turbo_tasks::function]
 pub(super) async fn split(
-    ident: Vc<AssetIdent>,
+    ident: ResolvedVc<AssetIdent>,
     source: Vc<Box<dyn Source>>,
-    parsed: Vc<ParseResult>,
+    parsed: ResolvedVc<ParseResult>,
 ) -> Result<Vc<SplitResult>> {
     // Do not split already split module
     if !ident.await?.parts.is_empty() {
@@ -580,7 +580,7 @@ pub(super) async fn split(
                         Some(source),
                     );
 
-                    ParseResult::cell(ParseResult::Ok {
+                    ParseResult::resolved_cell(ParseResult::Ok {
                         program,
                         globals: globals.clone(),
                         comments: comments.clone(),
