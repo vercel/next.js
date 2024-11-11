@@ -264,8 +264,8 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     }
 
     /// Sets the analysis result ES export.
-    pub fn set_async_module(&mut self, async_module: Vc<AsyncModule>) {
-        self.async_module = Vc::cell(Some(async_module));
+    pub fn set_async_module(&mut self, async_module: ResolvedVc<AsyncModule>) {
+        self.async_module = ResolvedVc::cell(Some(async_module));
     }
 
     /// Sets whether the analysis was successful.
@@ -707,7 +707,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     origin: origin.to_resolved().await?,
                     request,
                     runtime,
-                    transforms,
+                    transforms: *transforms,
                 }
                 .cell(),
             );
@@ -717,7 +717,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     WebpackEntryAssetReference {
                         source,
                         runtime,
-                        transforms,
+                        transforms: *transforms,
                     }
                     .cell(),
                 );
@@ -728,7 +728,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     WebpackChunkAssetReference {
                         chunk_id: chunk,
                         runtime,
-                        transforms,
+                        transforms: *transforms,
                     }
                     .cell(),
                 );
