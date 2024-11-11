@@ -79,7 +79,10 @@ impl EcmascriptModulePartAsset {
     /// of a pointer to the full module and the [ModulePart] pointing the part
     /// of the module.
     #[turbo_tasks::function]
-    pub fn new(module: Vc<EcmascriptModuleAsset>, part: Vc<ModulePart>) -> Vc<Self> {
+    pub fn new(
+        module: ResolvedVc<EcmascriptModuleAsset>,
+        part: ResolvedVc<ModulePart>,
+    ) -> Vc<Self> {
         EcmascriptModulePartAsset {
             full_module: module,
             part,

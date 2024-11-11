@@ -2191,7 +2191,7 @@ async fn handle_free_var_reference(
             export,
         } => {
             let esm_reference = EsmAssetReference::new(
-                lookup_path.map_or(*state.origin, |lookup_path| {
+                lookup_path.map_or(state.origin, |lookup_path| {
                     Vc::upcast(PlainResolveOrigin::new(
                         state.origin.asset_context(),
                         *lookup_path,
