@@ -547,7 +547,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         if path.ends_with(".map") {
             let source_map_origin = origin_path.parent().join(path.into());
             let reference = SourceMapReference::new(origin_path, source_map_origin);
-            analysis.add_reference(reference);
+            analysis.add_reference(reference.to_resolved().await?);
             let source_map = reference.generate_source_map();
             analysis.set_source_map(
                 convert_to_turbopack_source_map(source_map, source_map_origin)
@@ -568,7 +568,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     }
     if !source_map_from_comment {
         if let Some(generate_source_map) =
-            Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(source).await?
+            ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(source).await?
         {
             let source_map_origin = source.ident().path();
             analysis.set_source_map(
@@ -585,7 +585,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     let handler = Handler::with_emitter(
         true,
         false,
-        Box::new(IssueEmitter::new(source, source_map.clone(), None)),
+        Box::new(IssueEmitter::new(*source, source_map.clone(), None)),
     );
 
     let mut var_graph =
@@ -598,7 +598,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             origin,
             Request::parse(Value::new(RcStr::from(&*r.module_path).into())),
             r.issue_source
-                .unwrap_or_else(|| IssueSource::from_source_only(source)),
+                .unwrap_or_else(|| IssueSource::from_source_only(*source)),
             Value::new(r.annotations.clone()),
             match options.tree_shaking_mode {
                 Some(TreeShakingMode::ModuleFragments) => match &r.imported_symbol {
@@ -1178,8 +1178,11 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             } => {
                 if let Some(r) = import_references.get(esm_reference_index) {
                     if let Some("__turbopack_module_id__") = export.as_deref() {
-                        analysis
-                            .add_reference(EsmModuleIdAssetReference::new(*r, Vc::cell(ast_path)))
+                        analysis.add_reference(
+                            EsmModuleIdAssetReference::new(*r, Vc::cell(ast_path))
+                                .to_resolved()
+                                .await?,
+                        )
                     } else {
                         analysis.add_local_reference(*r);
                         analysis.add_import_reference(*r);
