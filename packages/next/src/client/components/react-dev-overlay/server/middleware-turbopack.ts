@@ -218,7 +218,13 @@ export function getSourceMapMiddleware(
         }
       }
     } catch (error) {
-      console.error('Failed to get source map:', error)
+      console.error(
+        `Failed to get source map for ${filename}. Please file a Next.js issue.`
+      )
+
+      if (process.env.__NEXT_VERBOSE_LOGGING) {
+        console.error(error)
+      }
     }
 
     noContent(res)
