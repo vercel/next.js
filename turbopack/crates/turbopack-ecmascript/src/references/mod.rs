@@ -161,10 +161,10 @@ pub struct AnalyzeEcmascriptModuleResult {
 /// A temporary analysis result builder to pass around, to be turned into an
 /// `Vc<AnalyzeEcmascriptModuleResult>` eventually.
 pub struct AnalyzeEcmascriptModuleResultBuilder {
-    references: FxIndexSet<ResolvedVc<Box<dyn ModuleReference>>>,
-    local_references: FxIndexSet<ResolvedVc<Box<dyn ModuleReference>>>,
-    reexport_references: FxIndexSet<ResolvedVc<Box<dyn ModuleReference>>>,
-    evaluation_references: FxIndexSet<ResolvedVc<Box<dyn ModuleReference>>>,
+    references: FxIndexSet<Vc<Box<dyn ModuleReference>>>,
+    local_references: FxIndexSet<Vc<Box<dyn ModuleReference>>>,
+    reexport_references: FxIndexSet<Vc<Box<dyn ModuleReference>>>,
+    evaluation_references: FxIndexSet<Vc<Box<dyn ModuleReference>>>,
     code_gens: Vec<CodeGen>,
     exports: EcmascriptExports,
     async_module: ResolvedVc<OptionAsyncModule>,
@@ -190,7 +190,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     }
 
     /// Adds an asset reference to the analysis result.
-    pub fn add_reference<R>(&mut self, reference: ResolvedVc<R>)
+    pub fn add_reference<R>(&mut self, reference: Vc<R>)
     where
         R: Upcast<Box<dyn ModuleReference>>,
     {
@@ -200,7 +200,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     }
 
     /// Adds an asset reference to the analysis result.
-    pub fn add_import_reference<R>(&mut self, reference: ResolvedVc<R>)
+    pub fn add_import_reference<R>(&mut self, reference: Vc<R>)
     where
         R: Upcast<Box<dyn ModuleReference>>,
     {
@@ -208,7 +208,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     }
 
     /// Adds an reexport reference to the analysis result.
-    pub fn add_local_reference<R>(&mut self, reference: ResolvedVc<R>)
+    pub fn add_local_reference<R>(&mut self, reference: Vc<R>)
     where
         R: Upcast<Box<dyn ModuleReference>>,
     {
@@ -216,7 +216,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     }
 
     /// Adds an reexport reference to the analysis result.
-    pub fn add_reexport_reference<R>(&mut self, reference: ResolvedVc<R>)
+    pub fn add_reexport_reference<R>(&mut self, reference: Vc<R>)
     where
         R: Upcast<Box<dyn ModuleReference>>,
     {
@@ -225,13 +225,13 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     }
 
     /// Adds an evaluation reference to the analysis result.
-    pub fn add_evaluation_reference(&mut self, reference: ResolvedVc<EsmAssetReference>) {
+    pub fn add_evaluation_reference(&mut self, reference: Vc<EsmAssetReference>) {
         self.evaluation_references
             .insert(ResolvedVc::upcast(reference));
     }
 
     /// Adds a codegen to the analysis result.
-    pub fn add_code_gen<C>(&mut self, code_gen: ResolvedVc<C>)
+    pub fn add_code_gen<C>(&mut self, code_gen: Vc<C>)
     where
         C: Upcast<Box<dyn CodeGenerateable>>,
     {
@@ -241,7 +241,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
 
     /// Adds a codegen to the analysis result.
     #[allow(dead_code)]
-    pub fn add_code_gen_with_availability_info<C>(&mut self, code_gen: ResolvedVc<C>)
+    pub fn add_code_gen_with_availability_info<C>(&mut self, code_gen: Vc<C>)
     where
         C: Upcast<Box<dyn CodeGenerateableWithAsyncModuleInfo>>,
     {
