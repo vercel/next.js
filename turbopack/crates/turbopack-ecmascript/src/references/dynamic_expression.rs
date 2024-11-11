@@ -25,7 +25,7 @@ pub struct DynamicExpression {
 #[turbo_tasks::value_impl]
 impl DynamicExpression {
     #[turbo_tasks::function]
-    pub fn new(path: Vc<AstPath>) -> Vc<Self> {
+    pub fn new(path: ResolvedVc<AstPath>) -> Vc<Self> {
         Self::cell(DynamicExpression {
             path,
             ty: DynamicExpressionType::Normal,
@@ -33,7 +33,7 @@ impl DynamicExpression {
     }
 
     #[turbo_tasks::function]
-    pub fn new_promise(path: Vc<AstPath>) -> Vc<Self> {
+    pub fn new_promise(path: ResolvedVc<AstPath>) -> Vc<Self> {
         Self::cell(DynamicExpression {
             path,
             ty: DynamicExpressionType::Promise,
