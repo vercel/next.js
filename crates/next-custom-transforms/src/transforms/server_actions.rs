@@ -230,6 +230,26 @@ impl<C: Comments> ServerActions<C> {
         id
     }
 
+    fn create_bound_action_args_array_pat(&mut self, arg_len: usize) -> Pat {
+        Pat::Array(ArrayPat {
+            span: DUMMY_SP,
+            elems: (0..arg_len)
+                .map(|i| {
+                    Some(Pat::Ident(
+                        Ident::new(
+                            format!("$$ACTION_ARG_{i}").into(),
+                            DUMMY_SP,
+                            self.private_ctxt,
+                        )
+                        .into(),
+                    ))
+                })
+                .collect(),
+            optional: false,
+            type_ann: None,
+        })
+    }
+
     // Check if the function or arrow function is an action or cache function
     fn get_body_info(&mut self, maybe_body: Option<&mut BlockStmt>) -> (bool, Option<String>) {
         let mut is_action_fn = false;
@@ -343,29 +363,13 @@ impl<C: Comments> ServerActions<C> {
             // Also prepend the decryption decl into the body.
             // var [arg1, arg2, arg3] = await decryptActionBoundArgs(actionId,
             // $$ACTION_CLOSURE_BOUND)
-            let mut pats = vec![];
-            for i in 0..ids_from_closure.len() {
-                pats.push(Some(Pat::Ident(
-                    Ident::new(
-                        format!("$$ACTION_ARG_{i}").into(),
-                        DUMMY_SP,
-                        self.private_ctxt,
-                    )
-                    .into(),
-                )));
-            }
             let decryption_decl = VarDecl {
                 span: DUMMY_SP,
                 kind: VarDeclKind::Var,
                 declare: false,
                 decls: vec![VarDeclarator {
                     span: DUMMY_SP,
-                    name: Pat::Array(ArrayPat {
-                        span: DUMMY_SP,
-                        elems: pats,
-                        optional: false,
-                        type_ann: None,
-                    }),
+                    name: self.create_bound_action_args_array_pat(ids_from_closure.len()),
                     init: Some(Box::new(Expr::Await(AwaitExpr {
                         span: DUMMY_SP,
                         arg: Box::new(Expr::Call(CallExpr {
@@ -509,28 +513,12 @@ impl<C: Comments> ServerActions<C> {
             // Also prepend the decryption decl into the body.
             // var [arg1, arg2, arg3] = await decryptActionBoundArgs(actionId,
             // $$ACTION_CLOSURE_BOUND)
-            let mut pats = vec![];
-            for i in 0..ids_from_closure.len() {
-                pats.push(Some(Pat::Ident(
-                    Ident::new(
-                        format!("$$ACTION_ARG_{i}").into(),
-                        DUMMY_SP,
-                        self.private_ctxt,
-                    )
-                    .into(),
-                )));
-            }
             let decryption_decl = VarDecl {
                 span: DUMMY_SP,
                 kind: VarDeclKind::Var,
                 decls: vec![VarDeclarator {
                     span: DUMMY_SP,
-                    name: Pat::Array(ArrayPat {
-                        span: DUMMY_SP,
-                        elems: pats,
-                        optional: false,
-                        type_ann: None,
-                    }),
+                    name: self.create_bound_action_args_array_pat(ids_from_closure.len()),
                     init: Some(Box::new(Expr::Await(AwaitExpr {
                         span: DUMMY_SP,
                         arg: Box::new(Expr::Call(CallExpr {
@@ -620,22 +608,15 @@ impl<C: Comments> ServerActions<C> {
 
         let mut new_params: Vec<Param> = vec![];
 
-        // Add the collected closure variables as the first parameters to the
+        // Add the collected closure variables as the first parameter to the
         // function. They are unencrypted and passed into this function by the
         // cache wrapper.
         if !ids_from_closure.is_empty() {
-            for i in 0..ids_from_closure.len() {
-                new_params.push(Param {
-                    span: DUMMY_SP,
-                    decorators: vec![],
-                    pat: Ident::new(
-                        format!("$$ACTION_ARG_{i}").into(),
-                        DUMMY_SP,
-                        self.private_ctxt,
-                    )
-                    .into(),
-                });
-            }
+            new_params.push(Param {
+                span: DUMMY_SP,
+                decorators: vec![],
+                pat: self.create_bound_action_args_array_pat(ids_from_closure.len()),
+            });
         }
 
         for p in arrow.params.iter() {
@@ -773,24 +754,15 @@ impl<C: Comments> ServerActions<C> {
 
         let mut new_params: Vec<Param> = vec![];
 
-        // Add the collected closure variables as the first parameters to the
+        // Add the collected closure variables as the first parameter to the
         // function. They are unencrypted and passed into this function by the
         // cache wrapper.
         if !ids_from_closure.is_empty() {
-            for i in 0..ids_from_closure.len() {
-                new_params.push(Param {
-                    span: DUMMY_SP,
-                    decorators: vec![],
-                    pat: Pat::Ident(
-                        Ident::new(
-                            format!("$$ACTION_ARG_{i}").into(),
-                            DUMMY_SP,
-                            self.private_ctxt,
-                        )
-                        .into(),
-                    ),
-                });
-            }
+            new_params.push(Param {
+                span: DUMMY_SP,
+                decorators: vec![],
+                pat: self.create_bound_action_args_array_pat(ids_from_closure.len()),
+            });
         }
 
         for p in function.params.iter() {
