@@ -1457,9 +1457,11 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                         ),
                     );
                     if ignore_dynamic_requests {
-                        analysis.add_code_gen(DynamicExpression::new_promise(Vc::cell(
-                            ast_path.to_vec(),
-                        )));
+                        analysis.add_code_gen(
+                            DynamicExpression::new_promise(Vc::cell(ast_path.to_vec()))
+                                .to_resolved()
+                                .await?,
+                        );
                         return Ok(());
                     }
                 }
