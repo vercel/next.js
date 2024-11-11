@@ -2383,13 +2383,11 @@ async fn analyze_amd_define_with_deps(
                 _ => {
                     let request = Request::parse_string(dep.into()).to_resolved().await?;
                     let reference = AmdDefineAssetReference::new(
-                        origin,
-                        request,
+                        *origin,
+                        *request,
                         issue_source(source, span),
                         in_try,
-                    )
-                    .to_resolved()
-                    .await?;
+                    );
                     requests.push(AmdDefineDependencyElement::Request {
                         request,
                         request_str: dep.to_string(),
