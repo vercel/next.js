@@ -47,8 +47,9 @@ pub fn get_next_cjs_optimizer_rule(enable_mdx_rs: bool) -> ModuleRule {
         )]),
     };
 
-    let transformer =
-        EcmascriptInputTransform::Plugin(Vc::cell(Box::new(NextCjsOptimizer { config }) as _));
+    let transformer = EcmascriptInputTransform::Plugin(ResolvedVc::cell(
+        Box::new(NextCjsOptimizer { config }) as _,
+    ));
     ModuleRule::new(
         module_rule_match_js_no_url(enable_mdx_rs),
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {

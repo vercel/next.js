@@ -14,7 +14,7 @@ pub fn get_next_optimize_server_react_rule(
     optimize_use_state: bool,
 ) -> ModuleRule {
     let transformer =
-        EcmascriptInputTransform::Plugin(Vc::cell(Box::new(NextOptimizeServerReact {
+        EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(NextOptimizeServerReact {
             optimize_use_state,
         }) as _));
     ModuleRule::new(

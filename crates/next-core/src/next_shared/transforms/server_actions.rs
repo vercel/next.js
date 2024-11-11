@@ -20,10 +20,11 @@ pub fn get_server_actions_transform_rule(
     enable_mdx_rs: bool,
     dynamic_io_enabled: bool,
 ) -> ModuleRule {
-    let transformer = EcmascriptInputTransform::Plugin(Vc::cell(Box::new(NextServerActions {
-        transform,
-        dynamic_io_enabled,
-    }) as _));
+    let transformer =
+        EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(NextServerActions {
+            transform,
+            dynamic_io_enabled,
+        }) as _));
     ModuleRule::new(
         module_rule_match_js_no_url(enable_mdx_rs),
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {

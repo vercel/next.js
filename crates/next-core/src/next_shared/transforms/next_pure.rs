@@ -9,7 +9,8 @@ use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, Transfor
 use super::module_rule_match_js_no_url;
 
 pub fn get_next_pure_rule(enable_mdx_rs: bool) -> ModuleRule {
-    let transformer = EcmascriptInputTransform::Plugin(Vc::cell(Box::new(NextPure {}) as _));
+    let transformer =
+        EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(NextPure {}) as _));
     ModuleRule::new(
         module_rule_match_js_no_url(enable_mdx_rs),
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {

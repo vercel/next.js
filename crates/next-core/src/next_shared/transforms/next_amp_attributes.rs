@@ -10,7 +10,7 @@ use super::module_rule_match_js_no_url;
 
 pub fn get_next_amp_attr_rule(enable_mdx_rs: bool) -> ModuleRule {
     let transformer =
-        EcmascriptInputTransform::Plugin(Vc::cell(Box::new(NextAmpAttributes {}) as _));
+        EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(NextAmpAttributes {}) as _));
     ModuleRule::new(
         module_rule_match_js_no_url(enable_mdx_rs),
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {

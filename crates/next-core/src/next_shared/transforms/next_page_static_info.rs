@@ -25,10 +25,11 @@ pub fn get_next_page_static_info_assert_rule(
     server_context: Option<ServerContextType>,
     client_context: Option<ClientContextType>,
 ) -> ModuleRule {
-    let transformer = EcmascriptInputTransform::Plugin(Vc::cell(Box::new(NextPageStaticInfo {
-        server_context,
-        client_context,
-    }) as _));
+    let transformer =
+        EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(NextPageStaticInfo {
+            server_context,
+            client_context,
+        }) as _));
     ModuleRule::new(
         module_rule_match_js_no_url(enable_mdx_rs),
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
@@ -100,7 +101,7 @@ impl CustomTransformer for NextPageStaticInfo {
                     messages.push("Visit https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config for more information.".to_string());
 
                     PageStaticInfoIssue {
-                        file_path: ctx.file_path,
+                        file_path: *ctx.file_path,
                         messages,
                         severity: IssueSeverity::Warning,
                     }
@@ -114,7 +115,7 @@ impl CustomTransformer for NextPageStaticInfo {
                 && is_app_page
             {
                 PageStaticInfoIssue {
-                    file_path: ctx.file_path,
+                    file_path:* ctx.file_path,
                     messages: vec![format!(r#"Page "{}" cannot use both "use client" and export function "generateStaticParams()"."#, ctx.file_path_str)],
                     severity: IssueSeverity::Error,
                 }

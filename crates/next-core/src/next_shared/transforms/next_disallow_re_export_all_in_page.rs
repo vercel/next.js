@@ -13,8 +13,9 @@ pub fn get_next_disallow_export_all_in_page_rule(
     enable_mdx_rs: bool,
     pages_dir: ReadRef<FileSystemPath>,
 ) -> ModuleRule {
-    let transformer =
-        EcmascriptInputTransform::Plugin(Vc::cell(Box::new(NextDisallowReExportAllInPage) as _));
+    let transformer = EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(
+        NextDisallowReExportAllInPage,
+    ) as _));
     ModuleRule::new(
         module_rule_match_pages_page_file(enable_mdx_rs, pages_dir),
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
