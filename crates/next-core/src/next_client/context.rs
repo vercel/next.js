@@ -332,6 +332,16 @@ pub async fn get_client_module_options_context(
         ..module_options_context.clone()
     };
 
+    let internal_context = ModuleOptionsContext {
+        ecmascript: EcmascriptOptionsContext {
+            enable_typescript_transform: Some(TypescriptTransformOptions::default().cell()),
+            enable_jsx: Some(JsxTransformOptions::default().cell()),
+            ..module_options_context.ecmascript.clone()
+        },
+        enable_postcss_transform: None,
+        ..module_options_context.clone()
+    };
+
     let module_options_context = ModuleOptionsContext {
         // We don't need to resolve React Refresh for each module. Instead,
         // we try resolve it once at the root and pass down a context to all
@@ -358,20 +368,7 @@ pub async fn get_client_module_options_context(
                 foreign_code_context_condition(next_config, project_path).await?,
                 foreign_codes_options_context.cell(),
             ),
-            (
-                internal_assets_conditions(),
-                ModuleOptionsContext {
-                    ecmascript: EcmascriptOptionsContext {
-                        enable_typescript_transform: Some(
-                            TypescriptTransformOptions::default().cell(),
-                        ),
-                        enable_jsx: Some(JsxTransformOptions::default().cell()),
-                        ..module_options_context.ecmascript.clone()
-                    },
-                    ..module_options_context.clone()
-                }
-                .cell(),
-            ),
+            (internal_assets_conditions(), internal_context.cell()),
         ],
         module_rules: next_client_rules,
         ..module_options_context
