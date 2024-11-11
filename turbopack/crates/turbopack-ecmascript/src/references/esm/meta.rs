@@ -88,7 +88,7 @@ pub struct ImportMetaRef {
 #[turbo_tasks::value_impl]
 impl ImportMetaRef {
     #[turbo_tasks::function]
-    pub fn new(ast_path: Vc<AstPath>) -> Vc<Self> {
+    pub fn new(ast_path: ResolvedVc<AstPath>) -> Vc<Self> {
         ImportMetaRef { ast_path }.cell()
     }
 }
