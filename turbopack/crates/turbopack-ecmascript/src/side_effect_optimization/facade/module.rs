@@ -215,24 +215,19 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
                     exports.insert(
                         "default".into(),
                         EsmExport::ImportedBinding(
-                            ResolvedVc::upcast(
-                                EcmascriptModulePartReference::new_part(
-                                    *self.module,
-                                    ModulePart::exports(),
-                                )
-                                .to_resolved()
-                                .await?,
-                            ),
+                            Vc::upcast(EcmascriptModulePartReference::new_part(
+                                *self.module,
+                                ModulePart::exports(),
+                            )),
                             "default".into(),
                             false,
                         ),
                     );
                 }
-                star_exports.push(ResolvedVc::upcast(
-                    EcmascriptModulePartReference::new_part(*self.module, ModulePart::exports())
-                        .to_resolved()
-                        .await?,
-                ));
+                star_exports.push(Vc::upcast(EcmascriptModulePartReference::new_part(
+                    *self.module,
+                    ModulePart::exports(),
+                )));
             }
             ModulePart::RenamedExport {
                 original_export,
@@ -242,11 +237,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
                 exports.insert(
                     export.await?.clone_value(),
                     EsmExport::ImportedBinding(
-                        ResolvedVc::upcast(
-                            EcmascriptModulePartReference::new(*self.module)
-                                .to_resolved()
-                                .await?,
-                        ),
+                        ResolvedVc::upcast(EcmascriptModulePartReference::new(*self.module)),
                         original_export.clone_value(),
                         false,
                     ),
