@@ -87,7 +87,19 @@ impl Analyzer<'_> {
 
         analyzer.handle_exports(module);
 
+        analyzer.handle_explicit_deps();
+
         (g, items)
+    }
+
+    fn handle_explicit_deps(&mut self) {
+        for item_id in self.item_ids.iter() {
+            if let Some(item) = self.items.get(item_id) {
+                if !item.explicit_deps.is_empty() {
+                    self.g.add_strong_deps(item_id, item.explicit_deps.iter());
+                }
+            }
+        }
     }
 
     /// Phase 1: Hoisted Variables and Bindings
