@@ -704,7 +704,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
 #[turbo_tasks::value]
 pub struct EcmascriptModuleContent {
     pub inner_code: Rope,
-    pub source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
+    pub source_map: Option<Vc<Box<dyn GenerateSourceMap>>>,
     pub is_esm: bool,
     // pub refresh: bool,
 }
@@ -721,7 +721,7 @@ impl EcmascriptModuleContent {
         references: Vc<ModuleReferences>,
         code_generation: Vc<CodeGenerateables>,
         async_module: Vc<OptionAsyncModule>,
-        source_map: ResolvedVc<OptionSourceMap>,
+        source_map: Vc<OptionSourceMap>,
         exports: Vc<EcmascriptExports>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<Self>> {
@@ -779,7 +779,7 @@ impl EcmascriptModuleContent {
             ident,
             specified_module_type,
             &[],
-            OptionSourceMap::none().to_resolved().await?,
+            OptionSourceMap::none(),
         )
         .await
     }
@@ -790,7 +790,7 @@ async fn gen_content_with_code_gens(
     ident: Vc<AssetIdent>,
     specified_module_type: SpecifiedModuleType,
     code_gens: &[&CodeGeneration],
-    original_src_map: ResolvedVc<OptionSourceMap>,
+    original_src_map: Vc<OptionSourceMap>,
 ) -> Result<Vc<EcmascriptModuleContent>> {
     let parsed = parsed.await?;
 
