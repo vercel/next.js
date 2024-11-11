@@ -817,15 +817,15 @@ impl DepGraph {
                         _ => {}
                     },
                     ModuleDecl::ExportNamed(item) => {
-                        if let Some(src) = &item.src {
+                        let import_id = if let Some(src) = &item.src {
                             // One item for the import for re-export
-                            let id = ItemId::Item {
+                            let import_id = ItemId::Item {
                                 index,
                                 kind: ItemIdItemKind::ImportOfModule,
                             };
-                            ids.push(id.clone());
+                            ids.push(import_id.clone());
                             items.insert(
-                                id,
+                                import_id.clone(),
                                 ItemData {
                                     is_hoisted: true,
                                     side_effects: true,
@@ -839,7 +839,11 @@ impl DepGraph {
                                     ..Default::default()
                                 },
                             );
-                        }
+
+                            Some(import_id)
+                        } else {
+                            None
+                        };
 
                         for (si, s) in item.specifiers.iter().enumerate() {
                             let (orig, mut local, exported) = match s {
@@ -916,6 +920,7 @@ impl DepGraph {
                                                 phase: Default::default(),
                                             },
                                         )),
+                                        explicit_deps: vec![import_id.clone().unwrap()],
                                         ..Default::default()
                                     },
                                 );
@@ -1083,15 +1088,15 @@ impl DepGraph {
                 ModuleItem::ModuleDecl(ModuleDecl::Import(item)) => {
                     // We create multiple items for each import.
 
+                    // One item for the import itself
+                    let import_id = ItemId::Item {
+                        index,
+                        kind: ItemIdItemKind::ImportOfModule,
+                    };
                     {
-                        // One item for the import itself
-                        let id = ItemId::Item {
-                            index,
-                            kind: ItemIdItemKind::ImportOfModule,
-                        };
-                        ids.push(id.clone());
+                        ids.push(import_id.clone());
                         items.insert(
-                            id,
+                            import_id.clone(),
                             ItemData {
                                 is_hoisted: true,
                                 side_effects: true,
@@ -1128,6 +1133,7 @@ impl DepGraph {
                                 } else {
                                     None
                                 },
+                                explicit_deps: vec![import_id.clone()],
                                 ..Default::default()
                             },
                         );

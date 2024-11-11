@@ -79,6 +79,8 @@ impl Analyzer<'_> {
             vars: Default::default(),
         };
 
+        analyzer.handle_explicit_deps();
+
         let eventual_ids = analyzer.hoist_vars_and_bindings();
 
         analyzer.evaluate_immediate(module, &eventual_ids);
@@ -88,6 +90,16 @@ impl Analyzer<'_> {
         analyzer.handle_exports(module);
 
         (g, items)
+    }
+
+    fn handle_explicit_deps(&mut self) {
+        for item_id in self.item_ids.iter() {
+            if let Some(item) = self.items.get(item_id) {
+                if !item.explicit_deps.is_empty() {
+                    self.g.add_strong_deps(item_id, item.explicit_deps.iter());
+                }
+            }
+        }
     }
 
     /// Phase 1: Hoisted Variables and Bindings
