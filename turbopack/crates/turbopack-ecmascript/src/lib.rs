@@ -779,7 +779,7 @@ impl EcmascriptModuleContent {
             ident,
             specified_module_type,
             &[],
-            OptionSourceMap::none(),
+            OptionSourceMap::none().to_resolved().await?,
         )
         .await
     }
