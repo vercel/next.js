@@ -83,14 +83,14 @@ impl Module for EcmascriptModuleFacadeModule {
                 let references = result.evaluation_references;
                 let mut references = references.await?.clone_value();
                 references.push(Vc::upcast(EcmascriptModulePartReference::new_part(
-                    self.module,
+                    *self.module,
                     ModulePart::locals(),
                 )));
                 references
             }
             ModulePart::Exports => {
                 let Some(module) =
-                    Vc::try_resolve_sidecast::<Box<dyn EcmascriptAnalyzable>>(self.module).await?
+                    ResolvedVc::try_sidecast::<Box<dyn EcmascriptAnalyzable>>(self.module).await?
                 else {
                     bail!(
                         "Expected EcmascriptModuleAsset for a EcmascriptModuleFacadeModule with \
