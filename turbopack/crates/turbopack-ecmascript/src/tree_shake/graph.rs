@@ -4,6 +4,7 @@ use petgraph::{
     algo::{condensation, has_path_connecting},
     graphmap::GraphMap,
     prelude::DiGraphMap,
+    Graph,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
@@ -728,7 +729,8 @@ impl DepGraph {
     ) -> InternedGraph<Vec<ItemId>> {
         let graph = self.g.idx_graph.clone().into_graph::<u32>();
 
-        let condensed = condensation(graph, true);
+        let mut condensed = condensation(graph, true);
+        condensed = merge_single_incoming_nodes(condensed);
 
         let mut new_graph = InternedGraph::default();
 
@@ -1460,6 +1462,12 @@ impl DepGraph {
 
         has_path_connecting(&self.g.idx_graph, from, to, None)
     }
+}
+
+/// Optimizes a condensed graph by merging nodes with only one incoming edge.
+fn merge_single_incoming_nodes(
+    condensed: Graph<Vec<u32>, Dependency>,
+) -> Graph<Vec<u32>, Dependency> {
 }
 
 const ASSERT_CHUNK_KEY: &str = "__turbopack_part__";
