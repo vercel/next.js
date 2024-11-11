@@ -140,7 +140,7 @@ pub async fn make_chunk_group(
         .await?;
     let async_loader_external_module_references = async_loader_references
         .iter()
-        .flat_map(|references| references.iter().copied())
+        .flat_map(|references| references.iter().map(|&reference| *reference))
         .collect();
 
     // Pass chunk items to chunking algorithm
