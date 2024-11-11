@@ -43,9 +43,9 @@ pub enum EsmExport {
     /// An imported binding that is exported (export { a as b } from "...")
     ///
     /// The last bool is true if the binding is a mutable binding
-    ImportedBinding(ResolvedVc<Box<dyn ModuleReference>>, RcStr, bool),
+    ImportedBinding(Vc<Box<dyn ModuleReference>>, RcStr, bool),
     /// An imported namespace that is exported (export * from "...")
-    ImportedNamespace(ResolvedVc<Box<dyn ModuleReference>>),
+    ImportedNamespace(Vc<Box<dyn ModuleReference>>),
     /// An error occurred while resolving the export
     Error,
 }
