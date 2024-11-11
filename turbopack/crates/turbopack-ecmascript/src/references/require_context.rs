@@ -122,7 +122,7 @@ impl DirList {
             for (k, entry) in &*dir {
                 match entry {
                     DirListEntry::File(path) => {
-                        list.insert(k.clone(), **path);
+                        list.insert(k.clone(), *path);
                     }
                     DirListEntry::Dir(d) => {
                         queue.push_back(d.await?);
