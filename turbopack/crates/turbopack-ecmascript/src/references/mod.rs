@@ -2999,12 +2999,12 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
                                 let esm_ref = self.import_references[index];
                                 if let Some(export) = export {
                                     EsmExport::ImportedBinding(
-                                        Vc::upcast(esm_ref),
+                                        ResolvedVc::upcast(esm_ref),
                                         export,
                                         is_fake_esm,
                                     )
                                 } else {
-                                    EsmExport::ImportedNamespace(Vc::upcast(esm_ref))
+                                    EsmExport::ImportedNamespace(ResolvedVc::upcast(esm_ref))
                                 }
                             } else {
                                 EsmExport::LocalBinding(binding_name, is_fake_esm)
