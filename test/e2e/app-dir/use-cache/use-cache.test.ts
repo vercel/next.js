@@ -162,7 +162,7 @@ describe('use-cache', () => {
 
     await retry(async () => {
       threeRandomValues = await browser.elementByCss('p').text()
-      expect(threeRandomValues).toMatch(/\d\.\d+ \d\.\d+/)
+      expect(threeRandomValues).toMatch(/100\.\d+ 100\.\d+ 100\.\d+/)
     })
 
     await browser.elementById('reset-button').click()

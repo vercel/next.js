@@ -16578,6 +16578,8 @@
     "test/production/standalone-mode/required-server-files/required-server-files-app.test.ts": {
       "passed": [],
       "failed": [
+        "required server files app router should send the right cache headers for an app route",
+        "required server files app router should send the right cache headers for an app page",
         "required server files app router should not fail caching",
         "required server files app router should not send cache tags in minimal mode for SSR",
         "required server files app router should not send invalid soft tags to cache handler",

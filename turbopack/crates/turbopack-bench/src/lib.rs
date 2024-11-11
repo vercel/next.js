@@ -256,10 +256,10 @@ fn bench_hmr_internal(
                                             hmr_warmup_dropped += 1;
 
                                             if hmr_warmup_dropped >= hmr_warmup {
-                                                return Err(anyhow!(
+                                                anyhow::bail!(
                                                     "failed to make warmup change {} times",
                                                     hmr_warmup_dropped
-                                                ));
+                                                )
                                             }
                                         }
                                         Ok(_) => {
