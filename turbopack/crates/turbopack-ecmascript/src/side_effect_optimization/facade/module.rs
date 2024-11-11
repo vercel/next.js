@@ -101,7 +101,7 @@ impl Module for EcmascriptModuleFacadeModule {
                 let references = result.reexport_references;
                 let mut references = references.await?.clone_value();
                 references.push(Vc::upcast(EcmascriptModulePartReference::new_part(
-                    self.module,
+                    *self.module,
                     ModulePart::locals(),
                 )));
                 references
@@ -109,11 +109,11 @@ impl Module for EcmascriptModuleFacadeModule {
             ModulePart::Facade => {
                 vec![
                     Vc::upcast(EcmascriptModulePartReference::new_part(
-                        self.module,
+                        *self.module,
                         ModulePart::evaluation(),
                     )),
                     Vc::upcast(EcmascriptModulePartReference::new_part(
-                        self.module,
+                        *self.module,
                         ModulePart::exports(),
                     )),
                 ]
