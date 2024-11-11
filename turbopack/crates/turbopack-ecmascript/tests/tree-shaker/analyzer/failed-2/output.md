@@ -725,9 +725,6 @@ import 'react';
 ```
 ## Part 10
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
-};
 import React from 'react';
 export { React as i } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -744,9 +741,6 @@ import '../../client/components/hooks-server-context';
 ```
 ## Part 12
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 11
-};
 import { DynamicServerError } from '../../client/components/hooks-server-context';
 export { DynamicServerError as j } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -763,9 +757,6 @@ import '../../client/components/static-generation-bailout';
 ```
 ## Part 14
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout';
 export { StaticGenBailoutError as k } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -782,9 +773,6 @@ import '../../lib/url';
 ```
 ## Part 16
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 15
-};
 import { getPathname } from '../../lib/url';
 export { getPathname as l } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -794,7 +782,7 @@ export { getPathname as l } from "__TURBOPACK_VAR__" assert {
 ## Part 17
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
+    __turbopack_part__: -10
 };
 import React from 'react';
 import "__TURBOPACK_PART__" assert {
@@ -851,15 +839,15 @@ export { createPrerenderState as c } from "__TURBOPACK_VAR__" assert {
 ## Part 19
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 11
+    __turbopack_part__: -12
 };
 import { DynamicServerError } from '../../client/components/hooks-server-context';
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 15
+    __turbopack_part__: -16
 };
 import { getPathname } from '../../lib/url';
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
+    __turbopack_part__: -14
 };
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout';
 import { n as postponeWithTracking } from "__TURBOPACK_PART__" assert {
@@ -891,15 +879,15 @@ export { markCurrentScopeAsDynamic as e } from "__TURBOPACK_VAR__" assert {
 ## Part 20
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 11
+    __turbopack_part__: -12
 };
 import { DynamicServerError } from '../../client/components/hooks-server-context';
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 15
+    __turbopack_part__: -16
 };
 import { getPathname } from '../../lib/url';
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
+    __turbopack_part__: -14
 };
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout';
 import { n as postponeWithTracking } from "__TURBOPACK_PART__" assert {
@@ -992,7 +980,7 @@ export { formatDynamicAPIAccesses as d } from "__TURBOPACK_VAR__" assert {
 ## Part 25
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
+    __turbopack_part__: -10
 };
 import React from 'react';
 import { o as assertPostpone } from "__TURBOPACK_PART__" assert {
@@ -1163,9 +1151,6 @@ import 'react';
 ```
 ## Part 10
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
-};
 import React from 'react';
 export { React as i } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -1182,9 +1167,6 @@ import '../../client/components/hooks-server-context';
 ```
 ## Part 12
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 11
-};
 import { DynamicServerError } from '../../client/components/hooks-server-context';
 export { DynamicServerError as j } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -1201,9 +1183,6 @@ import '../../client/components/static-generation-bailout';
 ```
 ## Part 14
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout';
 export { StaticGenBailoutError as k } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -1220,9 +1199,6 @@ import '../../lib/url';
 ```
 ## Part 16
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 15
-};
 import { getPathname } from '../../lib/url';
 export { getPathname as l } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -1232,7 +1208,7 @@ export { getPathname as l } from "__TURBOPACK_VAR__" assert {
 ## Part 17
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
+    __turbopack_part__: -10
 };
 import React from 'react';
 import "__TURBOPACK_PART__" assert {
@@ -1260,15 +1236,15 @@ export { createPrerenderState as c } from "__TURBOPACK_VAR__" assert {
 ## Part 19
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 11
+    __turbopack_part__: -12
 };
 import { DynamicServerError } from '../../client/components/hooks-server-context';
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 15
+    __turbopack_part__: -16
 };
 import { getPathname } from '../../lib/url';
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
+    __turbopack_part__: -14
 };
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout';
 import { n as postponeWithTracking } from "__TURBOPACK_PART__" assert {
@@ -1300,15 +1276,15 @@ export { markCurrentScopeAsDynamic as e } from "__TURBOPACK_VAR__" assert {
 ## Part 20
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 11
+    __turbopack_part__: -12
 };
 import { DynamicServerError } from '../../client/components/hooks-server-context';
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 15
+    __turbopack_part__: -16
 };
 import { getPathname } from '../../lib/url';
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
+    __turbopack_part__: -14
 };
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout';
 import { n as postponeWithTracking } from "__TURBOPACK_PART__" assert {
@@ -1367,7 +1343,7 @@ export { trackDynamicFetch as g } from "__TURBOPACK_VAR__" assert {
 ## Part 23
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
+    __turbopack_part__: -10
 };
 import React from 'react';
 import { o as assertPostpone } from "__TURBOPACK_PART__" assert {
@@ -1442,7 +1418,7 @@ export { assertPostpone as o } from "__TURBOPACK_VAR__" assert {
 ## Part 27
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
+    __turbopack_part__: -10
 };
 import React from 'react';
 import { o as assertPostpone } from "__TURBOPACK_PART__" assert {

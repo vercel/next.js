@@ -459,9 +459,6 @@ import "module";
 ```
 ## Part 6
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 5
-};
 import { upper } from "module";
 export { upper as e } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -574,7 +571,7 @@ import { d as foobar } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -7
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 5
+    __turbopack_part__: -6
 };
 import { upper } from "module";
 import "__TURBOPACK_PART__" assert {
@@ -720,9 +717,6 @@ import "module";
 ```
 ## Part 6
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 5
-};
 import { upper } from "module";
 export { upper as e } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -817,7 +811,7 @@ import { d as foobar } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -7
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 5
+    __turbopack_part__: -6
 };
 import { upper } from "module";
 import "__TURBOPACK_PART__" assert {

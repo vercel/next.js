@@ -215,9 +215,6 @@ import 'next/server';
 ```
 ## Part 3
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
 import { NextResponse } from 'next/server';
 export { NextResponse as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -234,9 +231,6 @@ import '../../ClientComponent';
 ```
 ## Part 5
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
 import { ClientComponent } from '../../ClientComponent';
 export { ClientComponent as c } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -253,9 +247,6 @@ import 'my-module/MyModuleClientComponent';
 ```
 ## Part 7
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
-};
 import { MyModuleClientComponent } from 'my-module/MyModuleClientComponent';
 export { MyModuleClientComponent as d } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -265,15 +256,15 @@ export { MyModuleClientComponent as d } from "__TURBOPACK_VAR__" assert {
 ## Part 8
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
+    __turbopack_part__: -7
 };
 import { MyModuleClientComponent } from 'my-module/MyModuleClientComponent';
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
+    __turbopack_part__: -3
 };
 import { NextResponse } from 'next/server';
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
+    __turbopack_part__: -5
 };
 import { ClientComponent } from '../../ClientComponent';
 function GET() {
@@ -339,9 +330,6 @@ import 'next/server';
 ```
 ## Part 3
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
 import { NextResponse } from 'next/server';
 export { NextResponse as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -358,9 +346,6 @@ import '../../ClientComponent';
 ```
 ## Part 5
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
 import { ClientComponent } from '../../ClientComponent';
 export { ClientComponent as c } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -377,9 +362,6 @@ import 'my-module/MyModuleClientComponent';
 ```
 ## Part 7
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
-};
 import { MyModuleClientComponent } from 'my-module/MyModuleClientComponent';
 export { MyModuleClientComponent as d } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -389,15 +371,15 @@ export { MyModuleClientComponent as d } from "__TURBOPACK_VAR__" assert {
 ## Part 8
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
+    __turbopack_part__: -7
 };
 import { MyModuleClientComponent } from 'my-module/MyModuleClientComponent';
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
+    __turbopack_part__: -3
 };
 import { NextResponse } from 'next/server';
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
+    __turbopack_part__: -5
 };
 import { ClientComponent } from '../../ClientComponent';
 function GET() {

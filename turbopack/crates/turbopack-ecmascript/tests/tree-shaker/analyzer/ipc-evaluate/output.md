@@ -267,9 +267,6 @@ import "./index";
 ```
 ## Part 3
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
 import { IPC } from "./index";
 export { IPC as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -279,7 +276,7 @@ export { IPC as b } from "__TURBOPACK_VAR__" assert {
 ## Part 4
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
+    __turbopack_part__: -3
 };
 import { IPC } from "./index";
 const ipc = IPC;
@@ -455,9 +452,6 @@ import "./index";
 ```
 ## Part 3
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
 import { IPC } from "./index";
 export { IPC as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -467,7 +461,7 @@ export { IPC as b } from "__TURBOPACK_VAR__" assert {
 ## Part 4
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
+    __turbopack_part__: -3
 };
 import { IPC } from "./index";
 const ipc = IPC;

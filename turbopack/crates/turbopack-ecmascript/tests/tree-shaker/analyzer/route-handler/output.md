@@ -176,9 +176,6 @@ import "next/server";
 ```
 ## Part 4
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
-};
 import { NextResponse } from "next/server";
 export { NextResponse as c } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -188,7 +185,7 @@ export { NextResponse as c } from "__TURBOPACK_VAR__" assert {
 ## Part 5
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
+    __turbopack_part__: -4
 };
 import { NextResponse } from "next/server";
 const GET = (req)=>{
@@ -275,9 +272,6 @@ import "next/server";
 ```
 ## Part 4
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
-};
 import { NextResponse } from "next/server";
 export { NextResponse as c } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -287,7 +281,7 @@ export { NextResponse as c } from "__TURBOPACK_VAR__" assert {
 ## Part 5
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
+    __turbopack_part__: -4
 };
 import { NextResponse } from "next/server";
 const GET = (req)=>{

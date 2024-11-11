@@ -738,9 +738,6 @@ import './constants';
 ```
 ## Part 7
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
-};
 import { LogSpanAllowList } from './constants';
 export { LogSpanAllowList as f } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -749,9 +746,6 @@ export { LogSpanAllowList as f } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 8
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
-};
 import { NextVanillaSpanAllowlist } from './constants';
 export { NextVanillaSpanAllowlist as g } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -965,7 +959,7 @@ import { s as clientTraceDataSetter } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -20
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
+    __turbopack_part__: -8
 };
 import { NextVanillaSpanAllowlist } from './constants';
 import { l as ROOT_CONTEXT } from "__TURBOPACK_PART__" assert {
@@ -981,7 +975,7 @@ import { o as rootSpanAttributesStore } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -16
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
+    __turbopack_part__: -7
 };
 import { LogSpanAllowList } from './constants';
 import { n as closeSpanWithError } from "__TURBOPACK_PART__" assert {
@@ -1264,9 +1258,6 @@ import './constants';
 ```
 ## Part 7
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
-};
 import { LogSpanAllowList } from './constants';
 export { LogSpanAllowList as f } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -1275,9 +1266,6 @@ export { LogSpanAllowList as f } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 8
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
-};
 import { NextVanillaSpanAllowlist } from './constants';
 export { NextVanillaSpanAllowlist as g } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -1482,7 +1470,7 @@ import { s as clientTraceDataSetter } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -20
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
+    __turbopack_part__: -8
 };
 import { NextVanillaSpanAllowlist } from './constants';
 import { l as ROOT_CONTEXT } from "__TURBOPACK_PART__" assert {
@@ -1498,7 +1486,7 @@ import { o as rootSpanAttributesStore } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -16
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
+    __turbopack_part__: -7
 };
 import { LogSpanAllowList } from './constants';
 import { n as closeSpanWithError } from "__TURBOPACK_PART__" assert {
