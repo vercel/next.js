@@ -1196,11 +1196,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             } => {
                 if analysis_state.first_import_meta {
                     analysis_state.first_import_meta = false;
-                    analysis.add_code_gen(
-                        ImportMetaBinding::new(source.ident().path())
-                            .to_resolved()
-                            .await?,
-                    );
+                    analysis.add_code_gen(ImportMetaBinding::new(source.ident().path()));
                 }
 
                 analysis.add_code_gen(ImportMetaRef::new(Vc::cell(ast_path)).to_resolved().await?);
@@ -1503,7 +1499,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
             analyze_amd_define(
                 *source,
                 analysis,
-                *origin,
+                origin,
                 handler,
                 span,
                 ast_path,
@@ -1996,16 +1992,12 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
         JsValue::WellKnownFunction(WellKnownFunctionKind::NodeResolveFrom) => {
             let args = linked_args(args).await?;
             if args.len() == 2 && args.get(1).and_then(|arg| arg.as_str()).is_some() {
-                analysis.add_reference(
-                    CjsAssetReference::new(
-                        *origin,
-                        Request::parse(Value::new(js_value_to_pattern(&args[1]))),
-                        issue_source(*source, span),
-                        in_try,
-                    )
-                    .to_resolved()
-                    .await?,
-                );
+                analysis.add_reference(CjsAssetReference::new(
+                    *origin,
+                    Request::parse(Value::new(js_value_to_pattern(&args[1]))),
+                    issue_source(*source, span),
+                    in_try,
+                ));
                 return Ok(());
             }
             let (args, hints) = explain_args(&args);
@@ -2114,7 +2106,7 @@ async fn handle_member(
                 CjsRequireCacheAccess {
                     path: ResolvedVc::cell(ast_path.to_vec()),
                 }
-                .resolved_cell(),
+                .cell(),
             );
         }
         _ => {}
@@ -2204,11 +2196,10 @@ async fn handle_free_var_reference(
         ),
 
         FreeVarReference::Value(value) => {
-            analysis.add_code_gen(
-                ConstantValue::new(Value::new(value.clone()), Vc::cell(ast_path.to_vec()))
-                    .to_resolved()
-                    .await?,
-            );
+            analysis.add_code_gen(ConstantValue::new(
+                Value::new(value.clone()),
+                Vc::cell(ast_path.to_vec()),
+            ));
         }
         FreeVarReference::EcmaScriptModule {
             request,
@@ -2237,9 +2228,7 @@ async fn handle_free_var_reference(
                     None => None,
                 },
                 state.import_externals,
-            )
-            .to_resolved()
-            .await?;
+            );
             analysis.add_reference(esm_reference);
             analysis.add_binding(EsmBinding::new(
                 esm_reference,
@@ -2319,54 +2308,42 @@ async fn analyze_amd_define(
             );
         }
         [JsValue::Function(..)] => {
-            analysis.add_code_gen(
-                AmdDefineWithDependenciesCodeGen::new(
-                    vec![
-                        AmdDefineDependencyElement::Require,
-                        AmdDefineDependencyElement::Exports,
-                        AmdDefineDependencyElement::Module,
-                    ],
-                    origin,
-                    ResolvedVc::cell(ast_path.to_vec()),
-                    AmdDefineFactoryType::Function,
-                    issue_source(source, span).to_resolved().await?,
-                    in_try,
-                )
-                .to_resolved()
-                .await?,
-            );
+            analysis.add_code_gen(AmdDefineWithDependenciesCodeGen::new(
+                vec![
+                    AmdDefineDependencyElement::Require,
+                    AmdDefineDependencyElement::Exports,
+                    AmdDefineDependencyElement::Module,
+                ],
+                origin,
+                ResolvedVc::cell(ast_path.to_vec()),
+                AmdDefineFactoryType::Function,
+                issue_source(source, span).to_resolved().await?,
+                in_try,
+            ));
         }
         [JsValue::Object { .. }] => {
-            analysis.add_code_gen(
-                AmdDefineWithDependenciesCodeGen::new(
-                    vec![],
-                    *origin,
-                    ResolvedVc::cell(ast_path.to_vec()),
-                    AmdDefineFactoryType::Value,
-                    issue_source(source, span).to_resolved().await?,
-                    in_try,
-                )
-                .to_resolved()
-                .await?,
-            );
+            analysis.add_code_gen(AmdDefineWithDependenciesCodeGen::new(
+                vec![],
+                *origin,
+                ResolvedVc::cell(ast_path.to_vec()),
+                AmdDefineFactoryType::Value,
+                issue_source(source, span).to_resolved().await?,
+                in_try,
+            ));
         }
         [_] => {
-            analysis.add_code_gen(
-                AmdDefineWithDependenciesCodeGen::new(
-                    vec![
-                        AmdDefineDependencyElement::Require,
-                        AmdDefineDependencyElement::Exports,
-                        AmdDefineDependencyElement::Module,
-                    ],
-                    origin,
-                    ResolvedVc::cell(ast_path.to_vec()),
-                    AmdDefineFactoryType::Unknown,
-                    issue_source(source, span).to_resolved().await?,
-                    in_try,
-                )
-                .to_resolved()
-                .await?,
-            );
+            analysis.add_code_gen(AmdDefineWithDependenciesCodeGen::new(
+                vec![
+                    AmdDefineDependencyElement::Require,
+                    AmdDefineDependencyElement::Exports,
+                    AmdDefineDependencyElement::Module,
+                ],
+                origin,
+                ResolvedVc::cell(ast_path.to_vec()),
+                AmdDefineFactoryType::Unknown,
+                issue_source(source, span).to_resolved().await?,
+                in_try,
+            ));
         }
         _ => {
             handler.span_err_with_code(
@@ -2920,7 +2897,7 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
                                         is_fake_esm,
                                     )
                                 } else {
-                                    EsmExport::ImportedNamespace(ResolvedVc::upcast(esm_ref))
+                                    EsmExport::ImportedNamespace(Vc::upcast(esm_ref))
                                 }
                             } else {
                                 EsmExport::LocalBinding(binding_name, is_fake_esm)
