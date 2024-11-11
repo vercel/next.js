@@ -95,7 +95,7 @@ impl ChunkItem for ManifestChunkItem {
 
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        Vc::upcast(self.chunking_context)
+        *ResolvedVc::upcast(self.chunking_context)
     }
 
     #[turbo_tasks::function]
@@ -107,6 +107,6 @@ impl ChunkItem for ManifestChunkItem {
 
     #[turbo_tasks::function]
     fn module(&self) -> Vc<Box<dyn Module>> {
-        Vc::upcast(self.manifest)
+        *ResolvedVc::upcast(self.manifest)
     }
 }
