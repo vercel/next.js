@@ -718,7 +718,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         let request = Request::parse(Value::new(request.into()))
             .to_resolved()
             .await?;
-        let runtime = resolve_as_webpack_runtime(origin, request, *transforms)
+        let runtime = resolve_as_webpack_runtime(origin, *request, *transforms)
             .to_resolved()
             .await?;
 
@@ -2676,7 +2676,11 @@ async fn require_context_visitor(
     );
 
     Ok(JsValue::WellKnownFunction(
-        WellKnownFunctionKind::RequireContextRequire(RequireContextValue::from_context_map(map)),
+        WellKnownFunctionKind::RequireContextRequire(
+            RequireContextValue::from_context_map(map)
+                .to_resolved()
+                .await?,
+        ),
     ))
 }
 
