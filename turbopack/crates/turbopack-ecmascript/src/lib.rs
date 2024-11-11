@@ -834,7 +834,7 @@ async fn gen_content_with_code_gens(
 
             Ok(EcmascriptModuleContent {
                 inner_code: bytes.into(),
-                source_map: Some(ResolvedVc::upcast(srcmap.to_resolved().await?)),
+                source_map: Some(Vc::upcast(srcmap)),
                 is_esm: eval_context.is_esm(specified_module_type),
             }
             .cell())

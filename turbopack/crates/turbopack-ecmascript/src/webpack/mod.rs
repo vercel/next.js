@@ -40,9 +40,9 @@ pub struct WebpackModuleAsset {
 impl WebpackModuleAsset {
     #[turbo_tasks::function]
     pub fn new(
-        source: Vc<Box<dyn Source>>,
-        runtime: Vc<WebpackRuntime>,
-        transforms: Vc<EcmascriptInputTransforms>,
+        source: ResolvedVc<Box<dyn Source>>,
+        runtime: ResolvedVc<WebpackRuntime>,
+        transforms: ResolvedVc<EcmascriptInputTransforms>,
     ) -> Vc<Self> {
         Self::cell(WebpackModuleAsset {
             source,
@@ -136,12 +136,14 @@ pub struct WebpackEntryAssetReference {
 impl ModuleReference for WebpackEntryAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        Ok(ModuleResolveResult::module(ResolvedVc::upcast(
-            WebpackModuleAsset::new(self.source, self.runtime, self.transforms)
-                .to_resolved()
-                .await?,
-        ))
-        .cell())
+        Ok(
+            ModuleResolveResult::module(ResolvedVc::upcast(WebpackModuleAsset::new(
+                *self.source,
+                *self.runtime,
+                *self.transforms,
+            )))
+            .cell(),
+        )
     }
 }
 
