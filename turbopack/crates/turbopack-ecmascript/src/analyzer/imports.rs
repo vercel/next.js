@@ -13,7 +13,7 @@ use swc_core::{
     },
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, Vc};
+use turbo_tasks::{FxIndexMap, FxIndexSet, Vc};
 use turbopack_core::{issue::IssueSource, source::Source};
 
 use super::{top_level_await::has_top_level_await, JsValue, ModuleValue};

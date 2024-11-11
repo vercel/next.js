@@ -249,11 +249,11 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         conditions,
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
             prepend: ResolvedVc::cell(vec![
-                EcmascriptInputTransform::Plugin(Vc::cell(Box::new(
+                EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(
                     EmotionTransformer::new(&EmotionTransformConfig::default())
                         .expect("Should be able to create emotion transformer"),
                 ) as _)),
-                EcmascriptInputTransform::Plugin(Vc::cell(Box::new(
+                EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(
                     StyledComponentsTransformer::new(&StyledComponentsTransformConfig::default()),
                 ) as _)),
             ]),
