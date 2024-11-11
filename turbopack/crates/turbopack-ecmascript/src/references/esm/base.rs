@@ -41,7 +41,7 @@ use crate::{
 
 #[turbo_tasks::value]
 pub enum ReferencedAsset {
-    Some(ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>),
+    Some(Vc<Box<dyn EcmascriptChunkPlaceable>>),
     External(RcStr, ExternalType),
     None,
     Unresolvable,
