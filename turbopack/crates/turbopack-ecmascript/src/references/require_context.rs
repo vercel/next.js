@@ -248,14 +248,14 @@ impl RequireContextAssetReference {
         }
         .resolved_cell();
 
-        Self::cell(RequireContextAssetReference {
+        Ok(Self::cell(RequireContextAssetReference {
             inner,
             dir,
             include_subdirs,
             path,
             issue_source,
             in_try,
-        })
+        }))
     }
 }
 
