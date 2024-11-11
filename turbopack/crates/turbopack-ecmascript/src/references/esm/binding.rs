@@ -40,14 +40,14 @@ impl EsmBindings {
 
 #[derive(Hash, Clone, Debug, TaskInput, Serialize, Deserialize, PartialEq, Eq, TraceRawVcs)]
 pub struct EsmBinding {
-    pub reference: ResolvedVc<EsmAssetReference>,
+    pub reference: Vc<EsmAssetReference>,
     pub export: Option<RcStr>,
     pub ast_path: ResolvedVc<AstPath>,
 }
 
 impl EsmBinding {
     pub fn new(
-        reference: ResolvedVc<EsmAssetReference>,
+        reference: Vc<EsmAssetReference>,
         export: Option<RcStr>,
         ast_path: ResolvedVc<AstPath>,
     ) -> Self {
