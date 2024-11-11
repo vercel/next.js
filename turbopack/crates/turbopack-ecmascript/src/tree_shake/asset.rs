@@ -194,7 +194,7 @@ impl Asset for EcmascriptModulePartAsset {
 impl EcmascriptChunkPlaceable for EcmascriptModulePartAsset {
     #[turbo_tasks::function]
     async fn get_exports(self: Vc<Self>) -> Result<Vc<EcmascriptExports>> {
-        Ok(self.analyze().await?.exports)
+        Ok(*self.analyze().await?.exports)
     }
 }
 
