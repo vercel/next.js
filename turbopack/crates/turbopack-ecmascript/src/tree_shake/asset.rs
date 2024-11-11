@@ -222,7 +222,7 @@ impl ChunkableModule for EcmascriptModulePartAsset {
 impl EcmascriptModulePartAsset {
     #[turbo_tasks::function]
     pub(super) fn analyze(&self) -> Vc<AnalyzeEcmascriptModuleResult> {
-        analyze(self.full_module, self.part)
+        analyze(*self.full_module, *self.part)
     }
 }
 
