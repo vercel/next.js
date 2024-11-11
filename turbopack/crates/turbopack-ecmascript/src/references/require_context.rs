@@ -166,7 +166,7 @@ impl RequireContextMap {
         dir: Vc<FileSystemPath>,
         recursive: bool,
         filter: Vc<Regex>,
-        issue_source: Option<Vc<IssueSource>>,
+        issue_source: Option<ResolvedVc<IssueSource>>,
         is_optional: bool,
     ) -> Result<Vc<Self>> {
         let origin_path = &*origin.origin_path().parent().await?;
@@ -232,7 +232,7 @@ impl RequireContextAssetReference {
             *origin,
             origin.origin_path().parent().join(dir.clone()),
             include_subdirs,
-            *filter,
+            filter,
             issue_source,
             in_try,
         )
