@@ -168,14 +168,10 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
                             exports.insert(
                                 name.clone(),
                                 EsmExport::ImportedBinding(
-                                    ResolvedVc::upcast(
-                                        EcmascriptModulePartReference::new_part(
-                                            *self.module,
-                                            ModulePart::locals(),
-                                        )
-                                        .to_resolved()
-                                        .await?,
-                                    ),
+                                    ResolvedVc::upcast(EcmascriptModulePartReference::new_part(
+                                        *self.module,
+                                        ModulePart::locals(),
+                                    )),
                                     name,
                                     *mutable,
                                 ),
