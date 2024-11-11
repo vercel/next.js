@@ -20,7 +20,7 @@ const { getTestFilter } = require('./test/get-test-filter')
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.0.0-rc-5c56b873-20241107";
+const nextjsReactPeerVersion = "19.0.0-rc-ed15d500-20241110";
 
 let argv = require('yargs/yargs')(process.argv.slice(2))
   .string('type')
