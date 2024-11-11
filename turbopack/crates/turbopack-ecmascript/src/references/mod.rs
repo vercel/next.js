@@ -1821,14 +1821,10 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                         .origin_path()
                         .root()
                         .join(s.trim_start_matches("/ROOT/").into());
-                    analysis.add_reference(
-                        NodeGypBuildReference::new(
-                            current_context,
-                            compile_time_info.environment().compile_target(),
-                        )
-                        .to_resolved()
-                        .await?,
-                    );
+                    analysis.add_reference(NodeGypBuildReference::new(
+                        current_context,
+                        compile_time_info.environment().compile_target(),
+                    ));
                     return Ok(());
                 }
             }

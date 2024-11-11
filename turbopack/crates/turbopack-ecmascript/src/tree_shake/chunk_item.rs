@@ -49,7 +49,7 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
             parsed,
             module.full_module.ident(),
             module_type_result.module_type,
-            self.chunking_context,
+            *self.chunking_context,
             analyze.references,
             analyze.code_generation,
             analyze.async_module,
@@ -60,7 +60,7 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
 
         Ok(EcmascriptChunkItemContent::new(
             content,
-            self.chunking_context,
+            *self.chunking_context,
             module.full_module.await?.options,
             async_module_options,
         ))
