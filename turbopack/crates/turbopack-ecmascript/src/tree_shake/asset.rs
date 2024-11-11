@@ -118,7 +118,7 @@ impl EcmascriptModulePartAsset {
 impl Module for EcmascriptModulePartAsset {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        self.full_module.ident().with_part(self.part)
+        self.full_module.ident().with_part(*self.part)
     }
 
     #[turbo_tasks::function]
@@ -134,7 +134,7 @@ impl Module for EcmascriptModulePartAsset {
 
         let part_dep = |part: Vc<ModulePart>| -> Vc<Box<dyn ModuleReference>> {
             Vc::upcast(SingleModuleReference::new(
-                Vc::upcast(EcmascriptModulePartAsset::new(self.full_module, part)),
+                Vc::upcast(EcmascriptModulePartAsset::new(*self.full_module, part)),
                 Vc::cell("ecmascript module part".into()),
             ))
         };
@@ -149,7 +149,7 @@ impl Module for EcmascriptModulePartAsset {
         }
 
         let deps = {
-            let part_id = get_part_id(&split_data, self.part)
+            let part_id = get_part_id(&split_data, *self.part)
                 .await
                 .with_context(|| format!("part {:?} is not found in the module", self.part))?;
 
