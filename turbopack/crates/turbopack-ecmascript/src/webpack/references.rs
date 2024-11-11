@@ -6,7 +6,7 @@ use swc_core::{
         visit::{Visit, VisitWith},
     },
 };
-use turbo_tasks::{ResolvedVc, Value, Vc};
+use turbo_tasks::{Value, Vc};
 use turbopack_core::{
     reference::{ModuleReference, ModuleReferences},
     source::Source,
@@ -62,9 +62,9 @@ pub async fn module_references(
 }
 
 struct ModuleReferencesVisitor<'a> {
-    runtime: ResolvedVc<WebpackRuntime>,
-    references: &'a mut Vec<ResolvedVc<Box<dyn ModuleReference>>>,
-    transforms: ResolvedVc<EcmascriptInputTransforms>,
+    runtime: Vc<WebpackRuntime>,
+    references: &'a mut Vec<Vc<Box<dyn ModuleReference>>>,
+    transforms: Vc<EcmascriptInputTransforms>,
 }
 
 impl Visit for ModuleReferencesVisitor<'_> {

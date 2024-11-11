@@ -181,9 +181,7 @@ impl ModuleReference for WebpackRuntimeAssetReference {
             .await?
             .map_module(|source| async move {
                 Ok(ModuleResolveResultItem::Module(ResolvedVc::upcast(
-                    WebpackModuleAsset::new(*source, self.runtime, self.transforms)
-                        .to_resolved()
-                        .await?,
+                    WebpackModuleAsset::new(*source, self.runtime, self.transforms),
                 )))
             })
             .await?
