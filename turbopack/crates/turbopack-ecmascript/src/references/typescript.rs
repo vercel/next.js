@@ -33,7 +33,7 @@ impl ModuleReference for TsConfigReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         Ok(ModuleResolveResult::module(ResolvedVc::upcast(
-            TsConfigModuleAsset::new(self.origin, Vc::upcast(FileSource::new(self.tsconfig)))
+            TsConfigModuleAsset::new(*self.origin, Vc::upcast(FileSource::new(*self.tsconfig)))
                 .to_resolved()
                 .await?,
         ))
