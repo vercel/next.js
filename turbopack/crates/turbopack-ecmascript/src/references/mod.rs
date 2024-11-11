@@ -196,7 +196,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     {
         let r = ResolvedVc::upcast(reference);
         self.references.insert(r);
-        self.local_references.insert(Vc::upcast(reference));
+        self.local_references.insert(ResolvedVc::upcast(reference));
     }
 
     /// Adds an asset reference to the analysis result.
@@ -288,23 +288,26 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             self.add_code_gen(bindings);
         }
 
-        let mut references: Vec<_> = self.references.into_iter().collect();
+        let mut references: Vec<_> = self.references.into_iter().map(|v| *v).collect();
         let mut local_references: Vec<_> = track_reexport_references
             .then(|| self.local_references.into_iter())
             .into_iter()
             .flatten()
+            .map(|v| *v)
             .collect();
 
         let mut reexport_references: Vec<_> = track_reexport_references
             .then(|| self.reexport_references.into_iter())
             .into_iter()
             .flatten()
+            .map(|v| *v)
             .collect();
 
         let mut evaluation_references: Vec<_> = track_reexport_references
             .then(|| self.evaluation_references.into_iter())
             .into_iter()
             .flatten()
+            .map(|v| *v)
             .collect();
 
         let source_map = if let Some(source_map) = self.source_map {
@@ -322,7 +325,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                 exports: self.exports.into(),
                 async_module: self.async_module,
                 successful: self.successful,
-                source_map: *source_map,
+                source_map,
             },
         ))
     }
