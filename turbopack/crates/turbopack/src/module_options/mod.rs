@@ -120,8 +120,8 @@ impl ModuleOptions {
             transforms.push(EcmascriptInputTransform::React {
                 development: jsx.development,
                 refresh: jsx.react_refresh,
-                import_source: Vc::cell(jsx.import_source.clone()),
-                runtime: Vc::cell(jsx.runtime.clone()),
+                import_source: ResolvedVc::cell(jsx.import_source.clone()),
+                runtime: ResolvedVc::cell(jsx.runtime.clone()),
             });
         }
 

@@ -109,7 +109,7 @@ pub trait CodeGenerateableWithAsyncModuleInfo {
 #[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat)]
 pub enum CodeGen {
     CodeGenerateable(Vc<Box<dyn CodeGenerateable>>),
-    CodeGenerateableWithAsyncModuleInfo(Vc<Box<dyn CodeGenerateableWithAsyncModuleInfo>>),
+    CodeGenerateableWithAsyncModuleInfo(ResolvedVc<Box<dyn CodeGenerateableWithAsyncModuleInfo>>),
 }
 
 #[turbo_tasks::value(transparent)]

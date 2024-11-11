@@ -239,14 +239,14 @@ impl AnalyzeEcmascriptModuleResultBuilder {
 
     /// Adds a codegen to the analysis result.
     #[allow(dead_code)]
-    pub fn add_code_gen_with_availability_info<C>(&mut self, code_gen: Vc<C>)
+    pub fn add_code_gen_with_availability_info<C>(&mut self, code_gen: ResolvedVc<C>)
     where
         C: Upcast<Box<dyn CodeGenerateableWithAsyncModuleInfo>>,
     {
         self.code_gens
-            .push(CodeGen::CodeGenerateableWithAsyncModuleInfo(Vc::upcast(
-                code_gen,
-            )));
+            .push(CodeGen::CodeGenerateableWithAsyncModuleInfo(
+                ResolvedVc::upcast(code_gen),
+            ));
     }
 
     pub fn add_binding(&mut self, binding: EsmBinding) {
@@ -264,7 +264,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     }
 
     /// Sets the analysis result ES export.
-    pub fn set_async_module(&mut self, async_module: ResolvedVc<AsyncModule>) {
+    pub fn set_async_module(&mut self, async_module: Vc<AsyncModule>) {
         self.async_module = ResolvedVc::cell(Some(async_module));
     }
 
@@ -284,27 +284,42 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             self.add_code_gen(bindings);
         }
 
-        let references: Vec<_> = self.references.into_iter().map(|v| *v).collect();
-        let local_references: Vec<_> = track_reexport_references
+        let mut references: Vec<_> = self.references.into_iter().collect();
+        for r in references.iter_mut() {
+            *r = r.resolve().await?;
+        }
+        let mut local_references: Vec<_> = track_reexport_references
             .then(|| self.local_references.into_iter())
             .into_iter()
             .flatten()
-            .map(|v| *v)
             .collect();
-
-        let reexport_references: Vec<_> = track_reexport_references
+        for r in local_references.iter_mut() {
+            *r = r.resolve().await?;
+        }
+        let mut reexport_references: Vec<_> = track_reexport_references
             .then(|| self.reexport_references.into_iter())
             .into_iter()
             .flatten()
-            .map(|v| *v)
             .collect();
-
-        let evaluation_references: Vec<_> = track_reexport_references
+        for r in reexport_references.iter_mut() {
+            *r = r.resolve().await?;
+        }
+        let mut evaluation_references: Vec<_> = track_reexport_references
             .then(|| self.evaluation_references.into_iter())
             .into_iter()
             .flatten()
-            .map(|v| *v)
             .collect();
+        for r in evaluation_references.iter_mut() {
+            *r = r.resolve().await?;
+        }
+        for c in self.code_gens.iter_mut() {
+            match c {
+                CodeGen::CodeGenerateable(c) => {
+                    *c = c.resolve().await?;
+                }
+                CodeGen::CodeGenerateableWithAsyncModuleInfo(..) => {}
+            }
+        }
 
         let source_map = if let Some(source_map) = self.source_map {
             source_map
@@ -801,7 +816,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             has_top_level_await,
             import_externals,
         }
-        .resolved_cell();
+        .cell();
         analysis.set_async_module(async_module);
     } else if let Some(span) = top_level_await_span {
         AnalyzeIssue {
