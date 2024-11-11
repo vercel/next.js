@@ -77,7 +77,7 @@ pub async fn is_export_missing(
         return Ok(Vc::cell(true));
     }
 
-    let all_export_names = get_all_export_names(module).await?;
+    let all_export_names = get_all_export_names(*module).await?;
     if all_export_names.esm_exports.contains_key(&export_name) {
         return Ok(Vc::cell(false));
     }
@@ -227,7 +227,7 @@ async fn handle_declared_export(
                         ty: FoundExportType::SideEffects,
                     }));
                 }
-                return Ok(ControlFlow::Continue((*module, name.clone())));
+                return Ok(ControlFlow::Continue((module, name.clone())));
             }
         }
         EsmExport::ImportedNamespace(reference) => {
