@@ -25,8 +25,8 @@ impl StaticEcmascriptCode {
     /// Creates a new [`Vc<StaticEcmascriptCode>`].
     #[turbo_tasks::function]
     pub async fn new(
-        asset_context: Vc<Box<dyn AssetContext>>,
-        asset_path: Vc<FileSystemPath>,
+        asset_context: ResolvedVc<Box<dyn AssetContext>>,
+        asset_path: ResolvedVc<FileSystemPath>,
     ) -> Result<Vc<Self>> {
         let module = asset_context
             .process(
