@@ -219,13 +219,13 @@ pub struct RequireContextAssetReference {
 impl RequireContextAssetReference {
     #[turbo_tasks::function]
     pub fn new(
-        source: Vc<Box<dyn Source>>,
-        origin: Vc<Box<dyn ResolveOrigin>>,
+        source: ResolvedVc<Box<dyn Source>>,
+        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         dir: RcStr,
         include_subdirs: bool,
         filter: Vc<Regex>,
-        path: Vc<AstPath>,
-        issue_source: Option<Vc<IssueSource>>,
+        path: ResolvedVc<AstPath>,
+        issue_source: Option<ResolvedVc<IssueSource>>,
         in_try: bool,
     ) -> Vc<Self> {
         let map = RequireContextMap::generate(
