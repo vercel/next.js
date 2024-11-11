@@ -25,7 +25,7 @@ pub struct TextContentFileSource {
 #[turbo_tasks::value_impl]
 impl TextContentFileSource {
     #[turbo_tasks::function]
-    pub fn new(source: Vc<Box<dyn Source>>) -> Vc<Self> {
+    pub fn new(source: ResolvedVc<Box<dyn Source>>) -> Vc<Self> {
         TextContentFileSource { source }.cell()
     }
 }
