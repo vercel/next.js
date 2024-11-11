@@ -267,7 +267,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
 
     /// Sets the analysis result ES export.
     pub fn set_async_module(&mut self, async_module: ResolvedVc<AsyncModule>) {
-        self.async_module = ResolvedVcc::cell(Some(async_module));
+        self.async_module = ResolvedVc::cell(Some(async_module));
     }
 
     /// Sets whether the analysis was successful.
@@ -322,7 +322,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                 reexport_references: ResolvedVc::cell(reexport_references),
                 evaluation_references: ResolvedVc::cell(evaluation_references),
                 code_generation: ResolvedVc::cell(self.code_gens),
-                exports: self.exports.into(),
+                exports: self.exports.resolved_cell(),
                 async_module: self.async_module,
                 successful: self.successful,
                 source_map,
@@ -779,7 +779,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         match detect_dynamic_export(program) {
             DetectedDynamicExportType::CommonJs => {
                 SpecifiedModuleTypeIssue {
-                    path: source.ident().path(),
+                    path: source.ident().path().to_resolved().await?,
                     specified_type,
                 }
                 .cell()
