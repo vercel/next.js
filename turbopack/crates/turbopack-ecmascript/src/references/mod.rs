@@ -190,7 +190,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     }
 
     /// Adds an asset reference to the analysis result.
-    pub fn add_reference<R>(&mut self, reference: Vc<R>)
+    pub fn add_reference<R>(&mut self, reference: ResolvedVc<R>)
     where
         R: Upcast<Box<dyn ModuleReference>>,
     {
@@ -200,7 +200,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     }
 
     /// Adds an asset reference to the analysis result.
-    pub fn add_import_reference<R>(&mut self, reference: Vc<R>)
+    pub fn add_import_reference<R>(&mut self, reference: ResolvedVc<R>)
     where
         R: Upcast<Box<dyn ModuleReference>>,
     {
@@ -208,7 +208,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     }
 
     /// Adds an reexport reference to the analysis result.
-    pub fn add_local_reference<R>(&mut self, reference: Vc<R>)
+    pub fn add_local_reference<R>(&mut self, reference: ResolvedVc<R>)
     where
         R: Upcast<Box<dyn ModuleReference>>,
     {
@@ -216,7 +216,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     }
 
     /// Adds an reexport reference to the analysis result.
-    pub fn add_reexport_reference<R>(&mut self, reference: Vc<R>)
+    pub fn add_reexport_reference<R>(&mut self, reference: ResolvedVc<R>)
     where
         R: Upcast<Box<dyn ModuleReference>>,
     {
@@ -224,12 +224,12 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     }
 
     /// Adds an evaluation reference to the analysis result.
-    pub fn add_evaluation_reference(&mut self, reference: Vc<EsmAssetReference>) {
+    pub fn add_evaluation_reference(&mut self, reference: ResolvedVc<EsmAssetReference>) {
         self.evaluation_references.insert(Vc::upcast(reference));
     }
 
     /// Adds a codegen to the analysis result.
-    pub fn add_code_gen<C>(&mut self, code_gen: Vc<C>)
+    pub fn add_code_gen<C>(&mut self, code_gen: ResolvedVc<C>)
     where
         C: Upcast<Box<dyn CodeGenerateable>>,
     {
@@ -264,8 +264,8 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     }
 
     /// Sets the analysis result ES export.
-    pub fn set_async_module(&mut self, async_module: Vc<AsyncModule>) {
-        self.async_module = Vc::cell(Some(async_module));
+    pub fn set_async_module(&mut self, async_module: ResolvedVc<AsyncModule>) {
+        self.async_module = ResolvedVcc::cell(Some(async_module));
     }
 
     /// Sets whether the analysis was successful.
