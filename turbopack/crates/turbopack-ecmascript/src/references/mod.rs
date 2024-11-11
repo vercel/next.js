@@ -507,14 +507,14 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     if let Some(m) = REFERENCE_PATH.captures(text) {
                         let path = &m[1];
                         analysis.add_reference(
-                            TsReferencePathAssetReference::new(*origin, path.into())
+                            TsReferencePathAssetReference::new(origin, path.into())
                                 .to_resolved()
                                 .await?,
                         );
                     } else if let Some(m) = REFERENCE_TYPES.captures(text) {
                         let types = &m[1];
                         analysis.add_reference(
-                            TsReferenceTypeAssetReference::new(*origin, types.into())
+                            TsReferenceTypeAssetReference::new(origin, types.into())
                                 .to_resolved()
                                 .await?,
                         );
