@@ -79,8 +79,6 @@ impl Analyzer<'_> {
             vars: Default::default(),
         };
 
-        analyzer.handle_explicit_deps();
-
         let eventual_ids = analyzer.hoist_vars_and_bindings();
 
         analyzer.evaluate_immediate(module, &eventual_ids);
@@ -88,6 +86,8 @@ impl Analyzer<'_> {
         analyzer.evaluate_eventual(module);
 
         analyzer.handle_exports(module);
+
+        analyzer.handle_explicit_deps();
 
         (g, items)
     }

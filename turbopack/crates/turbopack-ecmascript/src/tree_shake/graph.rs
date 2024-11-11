@@ -136,6 +136,7 @@ impl fmt::Debug for ItemData {
             .field("eventual_write_vars", &self.eventual_write_vars)
             .field("side_effects", &self.side_effects)
             .field("export", &self.export)
+            .field("explicit_deps", &self.explicit_deps)
             .finish()
     }
 }
@@ -471,6 +472,8 @@ impl DepGraph {
                         if let Some((module_specifier, import_specifier)) =
                             &dep_item_data.binding_source
                         {
+                            debug_assert!(!dep_item_data.explicit_deps.is_empty());
+
                             // Preserve the order of the side effects by importing the import
                             // binding fragment
 
