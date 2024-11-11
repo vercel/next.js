@@ -2088,7 +2088,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
             if args.len() == 2 && args.get(1).and_then(|arg| arg.as_str()).is_some() {
                 analysis.add_reference(
                     CjsAssetReference::new(
-                        origin,
+                        *origin,
                         Request::parse(Value::new(js_value_to_pattern(&args[1]))),
                         issue_source(source, span),
                         in_try,
