@@ -17,7 +17,7 @@ pub struct FileSourceReference {
 #[turbo_tasks::value_impl]
 impl FileSourceReference {
     #[turbo_tasks::function]
-    pub fn new(source: Vc<Box<dyn Source>>, path: Vc<Pattern>) -> Vc<Self> {
+    pub fn new(source: ResolvedVc<Box<dyn Source>>, path: ResolvedVc<Pattern>) -> Vc<Self> {
         Self::cell(FileSourceReference { source, path })
     }
 }
@@ -28,7 +28,7 @@ impl ModuleReference for FileSourceReference {
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
         let context_dir = self.source.ident().path().parent();
 
-        resolve_raw(context_dir, self.path, false).as_raw_module_result()
+        resolve_raw(context_dir, *self.path, false).as_raw_module_result()
     }
 }
 
