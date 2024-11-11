@@ -1169,8 +1169,8 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                         analysis
                             .add_reference(EsmModuleIdAssetReference::new(r, Vc::cell(ast_path)))
                     } else {
-                        analysis.add_local_reference(*r);
-                        analysis.add_import_reference(*r);
+                        analysis.add_local_reference(r);
+                        analysis.add_import_reference(r);
                         analysis.add_binding(EsmBinding::new(
                             r,
                             export,
@@ -1527,25 +1527,17 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                         ),
                     );
                     if ignore_dynamic_requests {
-                        analysis.add_code_gen(
-                            DynamicExpression::new(Vc::cell(ast_path.to_vec()))
-                                .to_resolved()
-                                .await?,
-                        );
+                        analysis.add_code_gen(DynamicExpression::new(Vc::cell(ast_path.to_vec())));
                         return Ok(());
                     }
                 }
-                analysis.add_reference(
-                    CjsRequireResolveAssetReference::new(
-                        *origin,
-                        Request::parse(Value::new(pat)),
-                        Vc::cell(ast_path.to_vec()),
-                        issue_source(*source, span),
-                        in_try,
-                    )
-                    .to_resolved()
-                    .await?,
-                );
+                analysis.add_reference(CjsRequireResolveAssetReference::new(
+                    *origin,
+                    Request::parse(Value::new(pat)),
+                    Vc::cell(ast_path.to_vec()),
+                    issue_source(*source, span),
+                    in_try,
+                ));
                 return Ok(());
             }
             let (args, hints) = explain_args(&args);
@@ -1929,11 +1921,10 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                                         .await?;
                                     js_value_to_pattern(&linked_func_call)
                                 };
-                                analysis.add_reference(
-                                    DirAssetReference::new(*source, Pattern::new(abs_pattern))
-                                        .to_resolved()
-                                        .await?,
-                                );
+                                analysis.add_reference(DirAssetReference::new(
+                                    *source,
+                                    Pattern::new(abs_pattern),
+                                ));
                                 return Ok(());
                             }
                         }
@@ -1941,16 +1932,12 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                             if let Some(pkg) = pkg_or_dir.as_str() {
                                 if pkg != "html" {
                                     let pat = js_value_to_pattern(pkg_or_dir);
-                                    analysis.add_reference(
-                                        CjsAssetReference::new(
-                                            *origin,
-                                            Request::parse(Value::new(pat)),
-                                            issue_source(*source, span),
-                                            in_try,
-                                        )
-                                        .to_resolved()
-                                        .await?,
-                                    );
+                                    analysis.add_reference(CjsAssetReference::new(
+                                        *origin,
+                                        Request::parse(Value::new(pat)),
+                                        issue_source(*source, span),
+                                        in_try,
+                                    ));
                                 }
                                 return Ok(());
                             }
