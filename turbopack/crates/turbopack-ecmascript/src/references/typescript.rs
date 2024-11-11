@@ -23,7 +23,10 @@ pub struct TsConfigReference {
 #[turbo_tasks::value_impl]
 impl TsConfigReference {
     #[turbo_tasks::function]
-    pub fn new(origin: Vc<Box<dyn ResolveOrigin>>, tsconfig: Vc<FileSystemPath>) -> Vc<Self> {
+    pub fn new(
+        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+        tsconfig: ResolvedVc<FileSystemPath>,
+    ) -> Vc<Self> {
         Self::cell(TsConfigReference { tsconfig, origin })
     }
 }
