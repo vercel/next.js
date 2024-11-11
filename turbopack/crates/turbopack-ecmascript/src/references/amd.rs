@@ -159,7 +159,7 @@ impl CodeGenerateable for AmdDefineWithDependenciesCodeGen {
                             cjs_resolve(
                                 *self.origin,
                                 **request,
-                                Some(*self.issue_source),
+                                Some(self.issue_source),
                                 self.in_try,
                             ),
                             Value::new(ChunkItem),
