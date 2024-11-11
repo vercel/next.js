@@ -182,7 +182,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             evaluation_references: FxIndexSet::default(),
             code_gens: Vec::new(),
             exports: EcmascriptExports::None,
-            async_module: Vc::cell(None),
+            async_module: ResolvedVc::cell(None),
             successful: false,
             source_map: None,
             bindings: Vec::new(),
@@ -194,7 +194,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     where
         R: Upcast<Box<dyn ModuleReference>>,
     {
-        let r = Vc::upcast(reference);
+        let r = ResolvedVc::upcast(reference);
         self.references.insert(r);
         self.local_references.insert(Vc::upcast(reference));
     }
@@ -204,7 +204,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     where
         R: Upcast<Box<dyn ModuleReference>>,
     {
-        self.references.insert(Vc::upcast(reference));
+        self.references.insert(ResolvedVc::upcast(reference));
     }
 
     /// Adds an reexport reference to the analysis result.
@@ -212,7 +212,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     where
         R: Upcast<Box<dyn ModuleReference>>,
     {
-        self.local_references.insert(Vc::upcast(reference));
+        self.local_references.insert(ResolvedVc::upcast(reference));
     }
 
     /// Adds an reexport reference to the analysis result.
@@ -220,12 +220,14 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     where
         R: Upcast<Box<dyn ModuleReference>>,
     {
-        self.reexport_references.insert(Vc::upcast(reference));
+        self.reexport_references
+            .insert(ResolvedVc::upcast(reference));
     }
 
     /// Adds an evaluation reference to the analysis result.
     pub fn add_evaluation_reference(&mut self, reference: ResolvedVc<EsmAssetReference>) {
-        self.evaluation_references.insert(Vc::upcast(reference));
+        self.evaluation_references
+            .insert(ResolvedVc::upcast(reference));
     }
 
     /// Adds a codegen to the analysis result.
@@ -234,7 +236,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
         C: Upcast<Box<dyn CodeGenerateable>>,
     {
         self.code_gens
-            .push(CodeGen::CodeGenerateable(Vc::upcast(code_gen)));
+            .push(CodeGen::CodeGenerateable(ResolvedVc::upcast(code_gen)));
     }
 
     /// Adds a codegen to the analysis result.
@@ -429,7 +431,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     };
 
     let parsed = if let Some(part) = part {
-        let parsed = parse(source, ty, transforms);
+        let parsed = parse(*source, ty, *transforms);
         let split_data = split(source.ident(), source, parsed);
         part_of_module(split_data, part)
     } else {
@@ -442,13 +444,21 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     } = *module.determine_module_type().await?;
 
     if let Some(package_json) = referenced_package_json {
-        analysis.add_reference(PackageJsonReference::new(*package_json));
+        analysis.add_reference(
+            PackageJsonReference::new(*package_json)
+                .to_resolved()
+                .await?,
+        );
     }
 
     if analyze_types {
         match &*find_context_file(path.parent(), tsconfig()).await? {
             FindContextFileResult::Found(tsconfig, _) => {
-                analysis.add_reference(TsConfigReference::new(origin, **tsconfig));
+                analysis.add_reference(
+                    TsConfigReference::new(origin, **tsconfig)
+                        .to_resolved()
+                        .await?,
+                );
             }
             FindContextFileResult::NotFound(_) => {}
         };
