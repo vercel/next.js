@@ -18,7 +18,7 @@ pub struct ConstantValue {
 #[turbo_tasks::value_impl]
 impl ConstantValue {
     #[turbo_tasks::function]
-    pub fn new(value: Value<CompileTimeDefineValue>, path: Vc<AstPath>) -> Vc<Self> {
+    pub fn new(value: Value<CompileTimeDefineValue>, path: ResolvedVc<AstPath>) -> Vc<Self> {
         Self::cell(ConstantValue {
             value: value.into_value(),
             path,
