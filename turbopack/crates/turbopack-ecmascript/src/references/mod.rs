@@ -484,7 +484,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     };
 
     let compile_time_info = compile_time_info_for_module_type(
-        raw_module.compile_time_info,
+        *raw_module.compile_time_info,
         eval_context.is_esm(specified_type),
     );
 
@@ -1179,7 +1179,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 if let Some(r) = import_references.get(esm_reference_index) {
                     if let Some("__turbopack_module_id__") = export.as_deref() {
                         analysis.add_reference(
-                            EsmModuleIdAssetReference::new(*r, Vc::cell(ast_path))
+                            EsmModuleIdAssetReference::new(**r, Vc::cell(ast_path))
                                 .to_resolved()
                                 .await?,
                         )
