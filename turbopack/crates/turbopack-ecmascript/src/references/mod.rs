@@ -169,7 +169,7 @@ pub struct AnalyzeEcmascriptModuleResultBuilder {
     exports: EcmascriptExports,
     async_module: ResolvedVc<OptionAsyncModule>,
     successful: bool,
-    source_map: Option<ResolvedVc<OptionSourceMap>>,
+    source_map: Option<Vc<OptionSourceMap>>,
     bindings: Vec<EsmBinding>,
 }
 
@@ -254,7 +254,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     }
 
     /// Sets the analysis result ES export.
-    pub fn set_source_map(&mut self, source_map: ResolvedVc<OptionSourceMap>) {
+    pub fn set_source_map(&mut self, source_map: Vc<OptionSourceMap>) {
         self.source_map = Some(source_map);
     }
 
@@ -264,8 +264,8 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     }
 
     /// Sets the analysis result ES export.
-    pub fn set_async_module(&mut self, async_module: ResolvedVc<AsyncModule>) {
-        self.async_module = ResolvedVc::cell(Some(async_module));
+    pub fn set_async_module(&mut self, async_module: Vc<AsyncModule>) {
+        self.async_module = Vc::cell(Some(async_module));
     }
 
     /// Sets whether the analysis was successful.

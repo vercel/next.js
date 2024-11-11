@@ -86,7 +86,7 @@ impl ChunkableModuleReference for AmdDefineAssetReference {}
 #[derive(ValueDebugFormat, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, Clone)]
 pub enum AmdDefineDependencyElement {
     Request {
-        request: ResolvedVc<Request>,
+        request: Vc<Request>,
         request_str: String,
     },
     Exports,
