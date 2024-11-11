@@ -416,7 +416,7 @@ fn emit_star_exports_issue(source_ident: Vc<AssetIdent>, message: RcStr) {
 #[derive(Hash, Debug)]
 pub struct EsmExports {
     pub exports: BTreeMap<RcStr, EsmExport>,
-    pub star_exports: Vec<ResolvedVc<Box<dyn ModuleReference>>>,
+    pub star_exports: Vec<Vc<Box<dyn ModuleReference>>>,
 }
 
 /// The expanded version of [EsmExports], the `exports` field here includes all
@@ -429,7 +429,7 @@ pub struct EsmExports {
 pub struct ExpandedExports {
     pub exports: BTreeMap<RcStr, EsmExport>,
     /// Modules we couldn't analyse all exports of.
-    pub dynamic_exports: Vec<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
+    pub dynamic_exports: Vec<Vc<Box<dyn EcmascriptChunkPlaceable>>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -439,7 +439,7 @@ impl EsmExports {
         let mut exports: BTreeMap<RcStr, EsmExport> = self.exports.clone();
         let mut dynamic_exports = vec![];
 
-        for esm_ref in self.star_exports.iter() {
+        for &esm_ref in self.star_exports.iter() {
             // TODO(PACK-2176): we probably need to handle re-exporting from external
             // modules.
             let ReferencedAsset::Some(asset) =
@@ -454,11 +454,7 @@ impl EsmExports {
                 if !exports.contains_key(export) {
                     exports.insert(
                         export.clone(),
-                        EsmExport::ImportedBinding(
-                            ResolvedVc::upcast(*esm_ref),
-                            export.clone(),
-                            false,
-                        ),
+                        EsmExport::ImportedBinding(Vc::upcast(esm_ref), export.clone(), false),
                     );
                 }
             }
