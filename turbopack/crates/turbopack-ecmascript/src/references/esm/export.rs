@@ -125,7 +125,7 @@ pub struct FollowExportsResult {
 
 #[turbo_tasks::function]
 pub async fn follow_reexports(
-    module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
     export_name: RcStr,
     side_effect_free_packages: Vc<Glob>,
 ) -> Result<Vc<FollowExportsResult>> {
@@ -170,7 +170,7 @@ pub async fn follow_reexports(
 
         // Try to find the export in the star exports
         if !exports_ref.star_exports.is_empty() && &*export_name != "default" {
-            let result = get_all_export_names(*module).await?;
+            let result = get_all_export_names(module).await?;
             if let Some(m) = result.esm_exports.get(&export_name) {
                 module = *m;
                 continue;
@@ -344,8 +344,8 @@ pub async fn expand_star_exports(
                     if let ReferencedAsset::Some(asset) =
                         &*ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?
                     {
-                        if checked_modules.insert(**asset) {
-                            queue.push((**asset, asset.get_exports()));
+                        if checked_modules.insert(*asset) {
+                            queue.push((*asset, asset.get_exports()));
                         }
                     }
                 }
@@ -447,7 +447,7 @@ impl EsmExports {
                 continue;
             };
 
-            let export_info = expand_star_exports(**asset).await?;
+            let export_info = expand_star_exports(*asset).await?;
 
             for export in &export_info.star_exports {
                 if !exports.contains_key(export) {
