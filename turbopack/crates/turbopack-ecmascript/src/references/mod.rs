@@ -698,7 +698,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     // Check if it was a webpack entry
     if let Some((request, span)) = webpack_runtime {
         let request = Request::parse(Value::new(request.into()));
-        let runtime = resolve_as_webpack_runtime(origin, *request, *transforms);
+        let runtime = resolve_as_webpack_runtime(origin, request, *transforms);
 
         if let WebpackRuntime::Webpack5 { .. } = &*runtime.await? {
             ignore_effect_span = Some(span);
@@ -2362,10 +2362,10 @@ async fn analyze_amd_define_with_deps(
                     requests.push(AmdDefineDependencyElement::Module);
                 }
                 _ => {
-                    let request = Request::parse_string(dep.into()).to_resolved().await?;
+                    let request = Request::parse_string(dep.into());
                     let reference = AmdDefineAssetReference::new(
-                        *origin,
-                        *request,
+                        origin,
+                        request,
                         issue_source(source, span),
                         in_try,
                     );
