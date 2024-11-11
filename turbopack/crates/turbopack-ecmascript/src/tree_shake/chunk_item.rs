@@ -37,8 +37,8 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let module = self.module.await?;
 
-        let split_data = split_module(module.full_module);
-        let parsed = part_of_module(split_data, module.part);
+        let split_data = split_module(*module.full_module);
+        let parsed = part_of_module(split_data, *module.part);
 
         let analyze = self.module.analyze().await?;
         let async_module_options = analyze.async_module.module_options(async_module_info);
@@ -50,25 +50,25 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
             module.full_module.ident(),
             module_type_result.module_type,
             *self.chunking_context,
-            analyze.references,
-            analyze.code_generation,
-            analyze.async_module,
-            analyze.source_map,
-            analyze.exports,
+            *analyze.references,
+            *analyze.code_generation,
+            *analyze.async_module,
+            *analyze.source_map,
+            *analyze.exports,
             async_module_info,
         );
 
         Ok(EcmascriptChunkItemContent::new(
             content,
             *self.chunking_context,
-            module.full_module.await?.options,
+            *module.full_module.await?.options,
             async_module_options,
         ))
     }
 
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        self.chunking_context
+        *self.chunking_context
     }
 }
 
