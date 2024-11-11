@@ -708,7 +708,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             ignore_effect_span = Some(span);
             analysis.add_reference(
                 WebpackRuntimeAssetReference {
-                    origin,
+                    origin: origin.to_resolved().await?,
                     request,
                     runtime,
                     transforms,
@@ -1966,11 +1966,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                         .await?;
                     js_value_to_pattern(&linked_func_call)
                 };
-                analysis.add_reference(
-                    DirAssetReference::new(*source, Pattern::new(abs_pattern))
-                        .to_resolved()
-                        .await?,
-                );
+                analysis.add_reference(DirAssetReference::new(*source, Pattern::new(abs_pattern)));
                 return Ok(());
             }
             let (args, hints) = explain_args(&args);
@@ -2028,14 +2024,10 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                             })
                             .flatten()
                     {
-                        analysis.add_reference(
-                            DirAssetReference::new(
-                                *source,
-                                Pattern::new(Pattern::Constant(dir.into())),
-                            )
-                            .to_resolved()
-                            .await?,
-                        );
+                        analysis.add_reference(DirAssetReference::new(
+                            *source,
+                            Pattern::new(Pattern::Constant(dir.into())),
+                        ));
                     }
                     return Ok(());
                 }
