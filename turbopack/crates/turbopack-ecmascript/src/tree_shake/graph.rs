@@ -1466,7 +1466,10 @@ impl DepGraph {
 }
 
 /// Optimizes a condensed graph by merging nodes with only one incoming edge.
-fn merge_single_incoming_nodes<N>(g: &mut Graph<N, Dependency>) {
+fn merge_single_incoming_nodes<N>(g: &mut Graph<Vec<N>, Dependency>)
+where
+    N: Clone,
+{
     let mut queue = vec![];
     let mut removed_nodes = vec![];
 
@@ -1489,16 +1492,20 @@ fn merge_single_incoming_nodes<N>(g: &mut Graph<N, Dependency>) {
         }
     }
 
-    for (_, dependant, dependencies) in queue {
+    for (original, dependant, dependencies) in queue {
         // Move all edges from node to dependant
         for (dependency, weight) in dependencies {
             g.add_edge(dependant, dependency, weight);
         }
+
+        // Move items from original to dependant
+        let items = g.node_weight(original).expect("Node should exist").clone();
+        g.node_weight_mut(dependant).unwrap().extend(items);
     }
 
     // Remove all edges from source
     for node in removed_nodes.into_iter().rev() {
-        g.remove_node(node);
+        g.remove_node(node).expect("Node should exist");
     }
 }
 
