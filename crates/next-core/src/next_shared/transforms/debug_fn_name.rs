@@ -9,8 +9,9 @@ use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, Transfor
 use super::module_rule_match_js_no_url;
 
 pub fn get_debug_fn_name_rule(enable_mdx_rs: bool) -> ModuleRule {
-    let debug_fn_name_transform =
-        EcmascriptInputTransform::Plugin(Vc::cell(Box::new(DebugFnNameTransformer {}) as _));
+    let debug_fn_name_transform = EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(
+        DebugFnNameTransformer {},
+    ) as _));
 
     ModuleRule::new(
         module_rule_match_js_no_url(enable_mdx_rs),
