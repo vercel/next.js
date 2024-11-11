@@ -219,7 +219,7 @@ impl ChunkItem for CachedExternalModuleChunkItem {
 impl EcmascriptChunkItem for CachedExternalModuleChunkItem {
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        self.chunking_context
+        *self.chunking_context
     }
 
     #[turbo_tasks::function]
@@ -259,7 +259,7 @@ pub struct IncludeIdentModule {
 #[turbo_tasks::value_impl]
 impl IncludeIdentModule {
     #[turbo_tasks::function]
-    pub fn new(ident: Vc<AssetIdent>) -> Vc<Self> {
+    pub fn new(ident: ResolvedVc<AssetIdent>) -> Vc<Self> {
         Self { ident }.cell()
     }
 }
@@ -274,6 +274,6 @@ impl Asset for IncludeIdentModule {
 impl Module for IncludeIdentModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        self.ident
+        *self.ident
     }
 }
