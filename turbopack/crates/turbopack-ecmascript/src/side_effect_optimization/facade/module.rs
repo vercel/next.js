@@ -64,7 +64,7 @@ impl Module for EcmascriptModuleFacadeModule {
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         let inner = self.module.ident();
 
-        Ok(inner.with_part(self.ty))
+        Ok(inner.with_part(*self.ty))
     }
 
     #[turbo_tasks::function]
@@ -119,10 +119,10 @@ impl Module for EcmascriptModuleFacadeModule {
                 ]
             }
             ModulePart::RenamedNamespace { .. } => {
-                vec![Vc::upcast(EcmascriptModulePartReference::new(self.module))]
+                vec![Vc::upcast(EcmascriptModulePartReference::new(*self.module))]
             }
             ModulePart::RenamedExport { .. } => {
-                vec![Vc::upcast(EcmascriptModulePartReference::new(self.module))]
+                vec![Vc::upcast(EcmascriptModulePartReference::new(*self.module))]
             }
             _ => {
                 bail!("Unexpected ModulePart for EcmascriptModuleFacadeModule");
