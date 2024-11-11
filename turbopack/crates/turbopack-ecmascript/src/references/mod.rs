@@ -1592,7 +1592,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                         origin,
                         Request::parse(Value::new(pat)),
                         Vc::cell(ast_path.to_vec()),
-                        issue_source(source, span),
+                        issue_source(*source, span),
                         in_try,
                     )
                     .to_resolved()
