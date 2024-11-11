@@ -1198,7 +1198,11 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     } else {
                         analysis.add_local_reference(*r);
                         analysis.add_import_reference(*r);
-                        analysis.add_binding(EsmBinding::new(*r, export, Vc::cell(ast_path)));
+                        analysis.add_binding(EsmBinding::new(
+                            *r,
+                            export,
+                            ResolvedVc::cell(ast_path),
+                        ));
                     }
                 }
             }
