@@ -1664,7 +1664,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     }
                 }
                 analysis.add_reference(
-                    FileSourceReference::new(source, Pattern::new(pat))
+                    FileSourceReference::new(*source, Pattern::new(pat))
                         .to_resolved()
                         .await?,
                 );
@@ -1711,7 +1711,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 }
             }
             analysis.add_reference(
-                FileSourceReference::new(source, Pattern::new(pat))
+                FileSourceReference::new(*source, Pattern::new(pat))
                     .to_resolved()
                     .await?,
             );
@@ -2297,14 +2297,18 @@ async fn handle_free_var_reference(
             export,
         } => {
             let esm_reference = EsmAssetReference::new(
-                lookup_path.map_or(state.origin, |lookup_path| {
+                lookup_path.map_or(*state.origin, |lookup_path| {
                     Vc::upcast(PlainResolveOrigin::new(
                         state.origin.asset_context(),
                         *lookup_path,
                     ))
                 }),
                 Request::parse(Value::new(request.clone().into())),
-                IssueSource::from_swc_offsets(state.source, span.lo.to_usize(), span.hi.to_usize()),
+                IssueSource::from_swc_offsets(
+                    *state.source,
+                    span.lo.to_usize(),
+                    span.hi.to_usize(),
+                ),
                 Default::default(),
                 match state.tree_shaking_mode {
                     Some(TreeShakingMode::ModuleFragments)
