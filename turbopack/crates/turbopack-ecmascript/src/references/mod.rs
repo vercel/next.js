@@ -1575,17 +1575,25 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                         ),
                     );
                     if ignore_dynamic_requests {
-                        analysis.add_code_gen(DynamicExpression::new(Vc::cell(ast_path.to_vec())));
+                        analysis.add_code_gen(
+                            DynamicExpression::new(Vc::cell(ast_path.to_vec()))
+                                .to_resolved()
+                                .await?,
+                        );
                         return Ok(());
                     }
                 }
-                analysis.add_reference(CjsRequireResolveAssetReference::new(
-                    origin,
-                    Request::parse(Value::new(pat)),
-                    Vc::cell(ast_path.to_vec()),
-                    issue_source(source, span),
-                    in_try,
-                ));
+                analysis.add_reference(
+                    CjsRequireResolveAssetReference::new(
+                        origin,
+                        Request::parse(Value::new(pat)),
+                        Vc::cell(ast_path.to_vec()),
+                        issue_source(source, span),
+                        in_try,
+                    )
+                    .to_resolved()
+                    .await?,
+                );
                 return Ok(());
             }
             let (args, hints) = explain_args(&args);
@@ -2078,10 +2086,14 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                             })
                             .flatten()
                     {
-                        analysis.add_reference(DirAssetReference::new(
-                            source,
-                            Pattern::new(Pattern::Constant(dir.into())),
-                        ));
+                        analysis.add_reference(
+                            DirAssetReference::new(
+                                source,
+                                Pattern::new(Pattern::Constant(dir.into())),
+                            )
+                            .to_resolved()
+                            .await?,
+                        );
                     }
                     return Ok(());
                 }
