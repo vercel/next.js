@@ -1630,16 +1630,20 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 }
             };
 
-            analysis.add_reference(RequireContextAssetReference::new(
-                source,
-                origin,
-                options.dir,
-                options.include_subdirs,
-                Vc::cell(options.filter),
-                Vc::cell(ast_path.to_vec()),
-                Some(issue_source(source, span)),
-                in_try,
-            ));
+            analysis.add_reference(
+                RequireContextAssetReference::new(
+                    source,
+                    origin,
+                    options.dir,
+                    options.include_subdirs,
+                    Vc::cell(options.filter),
+                    Vc::cell(ast_path.to_vec()),
+                    Some(issue_source(source, span)),
+                    in_try,
+                )
+                .to_resolved()
+                .await?,
+            );
         }
 
         JsValue::WellKnownFunction(WellKnownFunctionKind::FsReadMethod(name)) => {
@@ -1745,7 +1749,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 }
             }
             analysis.add_reference(
-                DirAssetReference::new(source, Pattern::new(pat))
+                DirAssetReference::new(*source, Pattern::new(pat))
                     .to_resolved()
                     .await?,
             );
@@ -1778,7 +1782,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                             CjsAssetReference::new(
                                 *origin,
                                 Request::parse(Value::new(pat)),
-                                issue_source(source, span),
+                                issue_source(*source, span),
                                 in_try,
                             )
                             .to_resolved()
