@@ -26,8 +26,6 @@ export interface ServerReferenceInfo {
 export function extractInfoFromServerReferenceId(
   id: string
 ): ServerReferenceInfo {
-  // Bit positions: [7]      [6] [5] [4] [3] [2] [1]  [0]
-  // Bits:          typeBit  argMask                  restArgs
   const infoByte = parseInt(id.slice(0, 2), 16)
   const typeBit = (infoByte >> 7) & 0x1
   const argMask = (infoByte >> 1) & 0x3f
