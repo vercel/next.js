@@ -12,9 +12,14 @@ pub async fn maybe_add_sass_loader(
     webpack_rules: Option<Vc<WebpackRules>>,
 ) -> Result<Vc<OptionWebpackRules>> {
     let sass_options = sass_options.await?;
-    let Some(sass_options) = sass_options.as_object() else {
+    let Some(mut sass_options) = sass_options.as_object().cloned() else {
         bail!("sass_options must be an object");
     };
+    // TODO: Remove this once we upgrade to sass-loader 16
+    sass_options.insert(
+        "silenceDeprecations".into(),
+        serde_json::json!(["legacy-js-api"]),
+    );
     let mut rules = if let Some(webpack_rules) = webpack_rules {
         webpack_rules.await?.clone_value()
     } else {
