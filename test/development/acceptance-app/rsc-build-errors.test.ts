@@ -342,7 +342,7 @@ describe('Error overlay - RSC build errors', () => {
             | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
         app/server-with-errors/error-file/error.js must be a Client Component. Add the "use client" directive the top of the file to resolve this issue.
-        Learn more: https://nextjs.org/docs/app/building-your-application/rendering/client-components"
+        Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client"
       `)
     } else {
       await check(() => session.getRedboxSource(), /Add the "use client"/)
@@ -353,7 +353,7 @@ describe('Error overlay - RSC build errors', () => {
       //   "./app/server-with-errors/error-file/error.js
       //   Error:   x TEST_DIR/app/server-with-errors/error-file/error.js must be a Client
       //     | Component. Add the "use client" directive the top of the file to resolve this issue.
-      //     | Learn more: https://nextjs.org/docs/app/building-your-application/rendering/client-components
+      //     | Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
       //     |
       //     |
       //      ,----
