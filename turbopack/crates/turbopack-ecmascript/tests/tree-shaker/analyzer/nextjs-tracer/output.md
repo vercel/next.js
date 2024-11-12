@@ -653,6 +653,8 @@ graph TD
     N2 --> N11;
     N14 --> N13;
     N0 --> N22;
+    N7 --> N6;
+    N8 --> N6;
 ```
 # Entrypoints
 
@@ -741,6 +743,9 @@ import './constants';
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
 };
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
+};
 import { LogSpanAllowList } from './constants';
 export { LogSpanAllowList as f } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -749,6 +754,9 @@ export { LogSpanAllowList as f } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 8
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
+};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
 };
@@ -1267,6 +1275,9 @@ import './constants';
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
 };
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
+};
 import { LogSpanAllowList } from './constants';
 export { LogSpanAllowList as f } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -1275,6 +1286,9 @@ export { LogSpanAllowList as f } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 8
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
+};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
 };
