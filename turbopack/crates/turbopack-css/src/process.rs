@@ -3,10 +3,9 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
 use lightningcss::{
-    css_modules::{CssModuleExport, CssModuleExports, CssModuleReference, Pattern, Segment},
-    dependencies::{Dependency, ImportDependency, Location, SourceRange},
+    css_modules::{CssModuleExport, CssModuleExports, Pattern, Segment},
     stylesheet::{ParserOptions, PrinterOptions, StyleSheet, ToCssResult},
     targets::{Features, Targets},
     values::url::Url,
@@ -17,9 +16,8 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use smallvec::smallvec;
 use swc_core::{
-    atoms::Atom,
     base::sourcemap::SourceMapBuilder,
-    common::{BytePos, FileName, LineCol, Span},
+    common::{BytePos, LineCol, Span},
 };
 use tracing::Instrument;
 use turbo_tasks::{FxIndexMap, RcStr, ValueToString, Vc};
@@ -163,9 +161,6 @@ pub enum CssWithPlaceholderResult {
     Ok {
         parse_result: Vc<ParseCssResult>,
 
-        #[turbo_tasks(debug_ignore, trace_ignore)]
-        cm: Arc<swc_core::common::SourceMap>,
-
         references: Vc<ModuleReferences>,
 
         url_references: Vc<UnresolvedUrlReferences>,
@@ -234,7 +229,6 @@ pub async fn process_css_with_placeholder(
 
             Ok(CssWithPlaceholderResult::Ok {
                 parse_result,
-                cm: cm.clone(),
                 exports,
                 references: *references,
                 url_references: *url_references,
@@ -551,110 +545,6 @@ const CSS_MODULE_ERROR: &str =
     "Selector is not pure (pure selectors must contain at least one local class or id)";
 
 /// We only visit top-level selectors.
-impl swc_core::css::visit::Visit for CssValidator {
-    fn visit_complex_selector(&mut self, n: &ComplexSelector) {
-        fn is_complex_not_pure(sel: &ComplexSelector) -> bool {
-            sel.children.iter().all(|sel| match sel {
-                ComplexSelectorChildren::CompoundSelector(sel) => is_compound_not_pure(sel),
-                ComplexSelectorChildren::Combinator(_) => true,
-            })
-        }
-
-        fn is_forgiving_selector_not_pure(sel: &ForgivingComplexSelector) -> bool {
-            match sel {
-                ForgivingComplexSelector::ComplexSelector(sel) => is_complex_not_pure(sel),
-                ForgivingComplexSelector::ListOfComponentValues(_) => false,
-            }
-        }
-
-        fn is_forgiving_relative_selector_not_pure(sel: &ForgivingRelativeSelector) -> bool {
-            match sel {
-                ForgivingRelativeSelector::RelativeSelector(sel) => {
-                    is_relative_selector_not_pure(sel)
-                }
-                ForgivingRelativeSelector::ListOfComponentValues(_) => false,
-            }
-        }
-
-        fn is_relative_selector_not_pure(sel: &RelativeSelector) -> bool {
-            is_complex_not_pure(&sel.selector)
-        }
-
-        fn is_compound_not_pure(sel: &CompoundSelector) -> bool {
-            sel.subclass_selectors.iter().all(|sel| match sel {
-                SubclassSelector::Attribute { .. } => true,
-                SubclassSelector::PseudoClass(cls) => {
-                    cls.name.value == "not"
-                        || cls.name.value == "has"
-                        || if let Some(c) = &cls.children {
-                            c.iter().all(|c| match c {
-                                PseudoClassSelectorChildren::ComplexSelector(sel) => {
-                                    is_complex_not_pure(sel)
-                                }
-
-                                PseudoClassSelectorChildren::CompoundSelector(sel) => {
-                                    is_compound_not_pure(sel)
-                                }
-
-                                PseudoClassSelectorChildren::SelectorList(sels) => {
-                                    sels.children.iter().all(is_complex_not_pure)
-                                }
-                                PseudoClassSelectorChildren::ForgivingSelectorList(sels) => {
-                                    sels.children.iter().all(is_forgiving_selector_not_pure)
-                                }
-                                PseudoClassSelectorChildren::CompoundSelectorList(sels) => {
-                                    sels.children.iter().all(is_compound_not_pure)
-                                }
-                                PseudoClassSelectorChildren::RelativeSelectorList(sels) => {
-                                    sels.children.iter().all(is_relative_selector_not_pure)
-                                }
-                                PseudoClassSelectorChildren::ForgivingRelativeSelectorList(
-                                    sels,
-                                ) => sels
-                                    .children
-                                    .iter()
-                                    .all(is_forgiving_relative_selector_not_pure),
-
-                                PseudoClassSelectorChildren::Ident(_)
-                                | PseudoClassSelectorChildren::Str(_)
-                                | PseudoClassSelectorChildren::Delimiter(_)
-                                | PseudoClassSelectorChildren::PreservedToken(_)
-                                | PseudoClassSelectorChildren::AnPlusB(_) => false,
-                            })
-                        } else {
-                            true
-                        }
-                }
-                SubclassSelector::PseudoElement(el) => match &el.children {
-                    Some(c) => c.iter().all(|c| match c {
-                        PseudoElementSelectorChildren::CompoundSelector(sel) => {
-                            is_compound_not_pure(sel)
-                        }
-
-                        _ => false,
-                    }),
-                    None => true,
-                },
-                _ => false,
-            }) && match &sel.type_selector.as_deref() {
-                Some(TypeSelector::TagName(tag)) => {
-                    !matches!(&*tag.name.value.value, "html" | "body")
-                }
-                Some(TypeSelector::Universal(..)) => true,
-                None => true,
-            }
-        }
-
-        if is_complex_not_pure(n) {
-            self.errors
-                .push(CssError::SwcSelectorInModuleNotPure { span: n.span });
-        }
-    }
-
-    fn visit_simple_block(&mut self, _: &swc_core::css::ast::SimpleBlock) {}
-}
-
-/// We only visit top-level selectors.
 impl lightningcss::visitor::Visitor<'_> for CssValidator {
     type Error = ();
 
@@ -795,67 +685,6 @@ impl GenerateSourceMap for ParseCssResultSourceMap {
     }
 }
 
-struct SwcDepCollector<'a> {
-    deps: &'a mut Vec<Dependency>,
-    remove_imports: bool,
-}
-
-impl VisitMut for SwcDepCollector<'_> {
-    fn visit_mut_rules(&mut self, n: &mut Vec<swc_core::css::ast::Rule>) {
-        n.visit_mut_children_with(self);
-
-        if self.remove_imports {
-            n.retain(|v| match v {
-                swc_core::css::ast::Rule::AtRule(v) => match &v.name {
-                    swc_core::css::ast::AtRuleName::DashedIdent(_) => true,
-                    swc_core::css::ast::AtRuleName::Ident(name) => name.value != "import",
-                },
-                _ => true,
-            });
-        }
-    }
-
-    fn visit_mut_at_rule_prelude(&mut self, node: &mut swc_core::css::ast::AtRulePrelude) {
-        match node {
-            swc_core::css::ast::AtRulePrelude::ImportPrelude(i) => {
-                let src = match &*i.href {
-                    swc_core::css::ast::ImportHref::Url(v) => match v.value.as_deref().unwrap() {
-                        UrlValue::Str(v) => v.value.clone(),
-                        UrlValue::Raw(v) => v.value.clone(),
-                    },
-                    swc_core::css::ast::ImportHref::Str(v) => v.value.clone(),
-                };
-
-                self.deps.push(Dependency::Import(ImportDependency {
-                    url: src.to_string(),
-                    placeholder: Default::default(),
-                    supports: None,
-                    media: None,
-                    loc: SourceRange {
-                        file_path: String::new(),
-                        start: Location { line: 0, column: 0 },
-                        end: Location { line: 0, column: 0 },
-                    },
-                }));
-            }
-
-            _ => {
-                node.visit_mut_children_with(self);
-            }
-        }
-    }
-}
-
-struct ModuleTransformConfig {
-    suffix: String,
-}
-
-impl TransformConfig for ModuleTransformConfig {
-    fn new_name_for(&self, local: &Atom) -> Atom {
-        format!("{}{}", *local, self.suffix).into()
-    }
-}
-
 #[turbo_tasks::value]
 struct ParsingIssue {
     msg: Vc<RcStr>,
@@ -900,10 +729,6 @@ mod tests {
         stylesheet::{ParserOptions, StyleSheet},
         visitor::Visit,
     };
-    use swc_core::{
-        common::{FileName, FilePathMapping},
-        css::{ast::Stylesheet, parser::parser::ParserConfig, visit::VisitWith},
-    };
 
     use super::{CssError, CssValidator};
 
@@ -928,41 +753,14 @@ mod tests {
         validator.errors
     }
 
-    fn lint_swc(code: &str) -> Vec<CssError> {
-        let cm = swc_core::common::SourceMap::new(FilePathMapping::empty());
-
-        let fm = cm.new_source_file(
-            FileName::Custom("test.css".to_string()).into(),
-            code.to_string(),
-        );
-
-        let ss: Stylesheet = swc_core::css::parser::parse_file(
-            &fm,
-            None,
-            ParserConfig {
-                css_modules: true,
-                ..Default::default()
-            },
-            &mut vec![],
-        )
-        .unwrap();
-
-        let mut validator = CssValidator { errors: Vec::new() };
-        ss.visit_with(&mut validator);
-
-        validator.errors
-    }
-
     #[track_caller]
     fn assert_lint_success(code: &str) {
         assert_eq!(lint_lightningcss(code), vec![], "lightningcss: {code}");
-        assert_eq!(lint_swc(code), vec![], "swc: {code}");
     }
 
     #[track_caller]
     fn assert_lint_failure(code: &str) {
         assert_ne!(lint_lightningcss(code), vec![], "lightningcss: {code}");
-        assert_ne!(lint_swc(code), vec![], "swc: {code}");
     }
 
     #[test]

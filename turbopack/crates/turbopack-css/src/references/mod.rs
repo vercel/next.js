@@ -7,10 +7,6 @@ use lightningcss::{
     values::url::Url,
     visitor::{Visit, Visitor},
 };
-use swc_core::css::{
-    ast::UrlValue,
-    visit::{VisitMut, VisitMutWith},
-};
 use turbo_tasks::{RcStr, Value, Vc};
 use turbopack_core::{
     issue::IssueSource,
