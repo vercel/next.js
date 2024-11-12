@@ -168,6 +168,8 @@ impl EcmascriptDevEvaluateChunk {
             let filename = chunk_path.file_name();
             write!(
                 code,
+                // findSourceMapURL assumes this co-located sourceMappingURL,
+                // and needs to be adjusted in case this is ever changed.
                 "\n\n//# sourceMappingURL={}.map",
                 urlencoding::encode(filename)
             )?;

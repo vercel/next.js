@@ -68,8 +68,20 @@ function Home() {
 }
 ```
 
+4. You can use a [custom image loader](/docs/pages/building-your-application/optimizing/images#loaders) to optimize images. Set [loaderFile](/docs/pages/api-reference/components/image#loaderfile) to the path of your custom loader.
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    loader: 'custom',
+    loaderFile: './my/image/loader.js',
+  },
+}
+```
+
 ## Useful Links
 
 - [Image Component and Image Optimization](/docs/pages/building-your-application/optimizing/images)
 - [next/image API Reference](/docs/pages/api-reference/components/image)
 - [Largest Contentful Paint (LCP)](/learn/seo/web-performance/lcp)
+- [Next.js config loaderFile option](/docs/pages/api-reference/components/image#loaderfile)

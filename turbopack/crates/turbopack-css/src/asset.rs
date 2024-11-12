@@ -25,12 +25,8 @@ use crate::{
 };
 
 #[turbo_tasks::function]
-fn modifier(use_swc_css: bool) -> Vc<RcStr> {
-    if use_swc_css {
-        Vc::cell("swc css".into())
-    } else {
-        Vc::cell("css".into())
-    }
+fn modifier() -> Vc<RcStr> {
+    Vc::cell("css".into())
 }
 
 #[turbo_tasks::value]
@@ -41,7 +37,6 @@ pub struct CssModuleAsset {
     import_context: Option<Vc<ImportContext>>,
     ty: CssModuleAssetType,
     minify_type: MinifyType,
-    use_swc_css: bool,
 }
 
 #[turbo_tasks::value_impl]
@@ -53,7 +48,6 @@ impl CssModuleAsset {
         asset_context: Vc<Box<dyn AssetContext>>,
         ty: CssModuleAssetType,
         minify_type: MinifyType,
-        use_swc_css: bool,
         import_context: Option<Vc<ImportContext>>,
     ) -> Vc<Self> {
         Self::cell(CssModuleAsset {
@@ -62,7 +56,6 @@ impl CssModuleAsset {
             import_context,
             ty,
             minify_type,
-            use_swc_css,
         })
     }
 
@@ -85,7 +78,6 @@ impl ParseCss for CssModuleAsset {
             this.import_context
                 .unwrap_or_else(|| ImportContext::new(vec![], vec![], vec![])),
             this.ty,
-            this.use_swc_css,
         ))
     }
 }
@@ -118,7 +110,7 @@ impl Module for CssModuleAsset {
         let mut ident = self
             .source
             .ident()
-            .with_modifier(modifier(self.use_swc_css))
+            .with_modifier(modifier())
             .with_layer(self.asset_context.layer());
         if let Some(import_context) = self.import_context {
             ident = ident.with_modifier(import_context.modifier())
