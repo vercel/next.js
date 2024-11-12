@@ -1317,12 +1317,7 @@ impl DepGraph {
                     //
                     // should be marked as side effect because it should be evaluated
 
-                    let side_effects = used_ids.found_unresolved
-                        || assign.right.may_have_side_effects(&ExprCtx {
-                            unresolved_ctxt,
-                            is_unresolved_ref_safe: false,
-                            in_strict: false,
-                        });
+                    let side_effects = used_ids.found_unresolved;
 
                     let data = ItemData {
                         read_vars: used_ids.read,
