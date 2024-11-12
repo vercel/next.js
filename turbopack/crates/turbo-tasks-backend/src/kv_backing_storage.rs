@@ -3,6 +3,7 @@ use std::{
     cmp::max,
     collections::hash_map::Entry,
     sync::Arc,
+    time::Instant,
 };
 
 use anyhow::{anyhow, Context, Result};
@@ -17,7 +18,9 @@ use crate::{
     data::{CachedDataItem, CachedDataItemKey, CachedDataItemValue, CachedDataUpdate},
     database::{
         key_value_database::{KeySpace, KeyValueDatabase},
-        write_batch::{BaseWriteBatch, ConcurrentWriteBatch, SerialWriteBatch, WriteBatch},
+        write_batch::{
+            BaseWriteBatch, ConcurrentWriteBatch, SerialWriteBatch, WriteBatch, WriteBatchRef,
+        },
     },
     utils::chunked_vec::ChunkedVec,
 };
@@ -124,54 +127,50 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
         meta_updates: Vec<ChunkedVec<CachedDataUpdate>>,
         data_updates: Vec<ChunkedVec<CachedDataUpdate>>,
     ) -> Result<()> {
-        let span = tracing::trace_span!("save snapshot", session_id = ?session_id, operations = operations.len(), db_operation_count = tracing::field::Empty);
-        let mut op_count = 0;
+        let _span = tracing::trace_span!("save snapshot", session_id = ?session_id, operations = operations.len());
+        let start = Instant::now();
         let mut batch = self.database.write_batch()?;
         let mut task_meta_items_result = Ok(Vec::new());
         let mut task_data_items_result = Ok(Vec::new());
 
-        turbo_tasks::scope(|s| {
-            // Start organizing the updates in parallel
-            s.spawn(|_| {
-                task_meta_items_result =
-                    process_task_data(&self.database, KeySpace::TaskMeta, meta_updates);
-            });
-            s.spawn(|_| {
-                task_data_items_result =
-                    process_task_data(&self.database, KeySpace::TaskData, data_updates);
-            });
+        // Start organizing the updates in parallel
+        match &mut batch {
+            WriteBatch::Concurrent(ref batch, _) => {
+                turbo_tasks::scope(|s| {
+                    s.spawn(|_| {
+                        let _span = tracing::trace_span!("update task meta").entered();
+                        task_meta_items_result = process_task_data(
+                            &self.database,
+                            KeySpace::TaskMeta,
+                            meta_updates,
+                            Some(batch),
+                        );
+                    });
+                    s.spawn(|_| {
+                        let _span = tracing::trace_span!("update task data").entered();
+                        task_data_items_result = process_task_data(
+                            &self.database,
+                            KeySpace::TaskData,
+                            data_updates,
+                            Some(batch),
+                        );
+                    });
 
-            {
-                let _span =
-                    tracing::trace_span!("update session id", session_id = ?session_id).entered();
-                batch
-                    .put(
-                        KeySpace::Infra,
-                        Cow::Borrowed(IntKey::new(META_KEY_SESSION_ID).as_ref()),
-                        Cow::Borrowed(&session_id.to_le_bytes()),
-                    )
-                    .with_context(|| anyhow!("Unable to write next session id"))?;
-            }
+                    let mut next_task_id =
+                        get_next_free_task_id::<
+                            T::SerialWriteBatch<'_>,
+                            T::ConcurrentWriteBatch<'_>,
+                        >(&mut WriteBatchRef::concurrent(batch))?;
 
-            let mut next_task_id = match batch.get(
-                KeySpace::Infra,
-                IntKey::new(META_KEY_NEXT_FREE_TASK_ID).as_ref(),
-            )? {
-                Some(bytes) => u32::from_le_bytes(Borrow::<[u8]>::borrow(&bytes).try_into()?),
-                None => 1,
-            };
-            {
-                let _span = tracing::trace_span!(
-                    "update task cache",
-                    items = task_cache_updates.iter().map(|m| m.len()).sum::<usize>()
-                )
-                .entered();
-                match &mut batch {
-                    WriteBatch::Concurrent(batch, _) => {
+                    {
+                        let _span = tracing::trace_span!(
+                            "update task cache",
+                            items = task_cache_updates.iter().map(|m| m.len()).sum::<usize>()
+                        )
+                        .entered();
                         let result = task_cache_updates
                             .into_par_iter()
                             .map(|updates| {
-                                let mut op_count = 0;
                                 let mut max_task_id = 0;
 
                                 let mut task_type_bytes = Vec::new();
@@ -203,24 +202,65 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
                                                  {task_type:?}"
                                             )
                                         })?;
-                                    op_count += 2;
                                     max_task_id = max_task_id.max(task_id + 1);
                                 }
 
-                                Ok((op_count, max_task_id))
+                                Ok(max_task_id)
                             })
                             .reduce(
-                                || Ok((0, 0)),
+                                || Ok(0),
                                 |a, b| -> anyhow::Result<_> {
-                                    let (a_count, a_max) = a?;
-                                    let (b_count, b_max) = b?;
-                                    Ok((a_count + b_count, max(a_max, b_max)))
+                                    let a_max = a?;
+                                    let b_max = b?;
+                                    Ok(max(a_max, b_max))
                                 },
                             )?;
-                        op_count += result.0;
-                        next_task_id = next_task_id.max(result.1);
+                        next_task_id = next_task_id.max(result);
                     }
-                    WriteBatch::Serial(batch) => {
+
+                    save_infra::<T::SerialWriteBatch<'_>, T::ConcurrentWriteBatch<'_>>(
+                        &mut WriteBatchRef::concurrent(batch),
+                        next_task_id,
+                        session_id,
+                        operations,
+                    )?;
+                    anyhow::Ok(())
+                })?;
+
+                task_meta_items_result?;
+                task_data_items_result?;
+            }
+            WriteBatch::Serial(batch) => {
+                turbo_tasks::scope(|s| {
+                    s.spawn(|_| {
+                        task_meta_items_result = process_task_data(
+                            &self.database,
+                            KeySpace::TaskMeta,
+                            meta_updates,
+                            None::<&T::ConcurrentWriteBatch<'_>>,
+                        );
+                    });
+                    s.spawn(|_| {
+                        task_data_items_result = process_task_data(
+                            &self.database,
+                            KeySpace::TaskData,
+                            data_updates,
+                            None::<&T::ConcurrentWriteBatch<'_>>,
+                        );
+                    });
+
+                    let mut next_task_id =
+                        get_next_free_task_id::<
+                            T::SerialWriteBatch<'_>,
+                            T::ConcurrentWriteBatch<'_>,
+                        >(&mut WriteBatchRef::serial(batch))?;
+
+                    {
+                        let _span = tracing::trace_span!(
+                            "update task cache",
+                            items = task_cache_updates.iter().map(|m| m.len()).sum::<usize>()
+                        )
+                        .entered();
                         let mut task_type_bytes = Vec::new();
                         for (task_type, task_id) in task_cache_updates.into_iter().flatten() {
                             let task_id = *task_id;
@@ -244,56 +284,31 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
                                 .with_context(|| {
                                     anyhow!("Unable to write task cache {task_id} => {task_type:?}")
                                 })?;
-                            op_count += 2;
                             next_task_id = next_task_id.max(task_id + 1);
                         }
                     }
-                }
-                batch
-                    .put(
-                        KeySpace::Infra,
-                        Cow::Borrowed(IntKey::new(META_KEY_NEXT_FREE_TASK_ID).as_ref()),
-                        Cow::Borrowed(&next_task_id.to_le_bytes()),
-                    )
-                    .with_context(|| anyhow!("Unable to write next free task id"))?;
-            }
-            {
-                let _span =
-                    tracing::trace_span!("update operations", operations = operations.len())
-                        .entered();
-                let operations = pot::to_vec(&operations)
-                    .with_context(|| anyhow!("Unable to serialize operations"))?;
-                batch
-                    .put(
-                        KeySpace::Infra,
-                        Cow::Borrowed(IntKey::new(META_KEY_OPERATIONS).as_ref()),
-                        operations.into(),
-                    )
-                    .with_context(|| anyhow!("Unable to write operations"))?;
-                op_count += 2;
-            }
 
-            anyhow::Ok(())
-        })?;
+                    save_infra::<T::SerialWriteBatch<'_>, T::ConcurrentWriteBatch<'_>>(
+                        &mut WriteBatchRef::serial(batch),
+                        next_task_id,
+                        session_id,
+                        operations,
+                    )?;
+                    anyhow::Ok(())
+                })?;
 
-        let jobs = [
-            (
-                KeySpace::TaskMeta,
-                tracing::trace_span!("update task meta"),
-                task_meta_items_result?,
-            ),
-            (
-                KeySpace::TaskData,
-                tracing::trace_span!("update task data"),
-                task_data_items_result?,
-            ),
-        ];
-        // It will do an operation per item, so we add that to the op_count
-        for (_, _, list) in &jobs {
-            op_count += list.iter().map(|l| l.len()).sum::<usize>();
-        }
-        match &mut batch {
-            WriteBatch::Serial(batch) => {
+                let jobs = [
+                    (
+                        KeySpace::TaskMeta,
+                        tracing::trace_span!("update task meta"),
+                        task_meta_items_result?,
+                    ),
+                    (
+                        KeySpace::TaskData,
+                        tracing::trace_span!("update task data"),
+                        task_data_items_result?,
+                    ),
+                ];
                 for (key_space, span, task_items) in jobs {
                     let _span = span.entered();
                     for (task_id, value) in task_items.into_iter().flatten() {
@@ -307,28 +322,9 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
                     }
                 }
             }
-            WriteBatch::Concurrent(batch, _) => {
-                jobs.into_par_iter()
-                    .try_for_each(|(key_space, span, task_items)| {
-                        let _span = span.clone().entered();
-                        task_items.into_par_iter().try_for_each(|task_items| {
-                            let _span = span.clone().entered();
-                            for (task_id, value) in task_items {
-                                batch
-                                    .put(
-                                        key_space,
-                                        Cow::Borrowed(IntKey::new(*task_id).as_ref()),
-                                        value.into(),
-                                    )
-                                    .with_context(|| {
-                                        anyhow!("Unable to write data items for {task_id}")
-                                    })?;
-                            }
-                            anyhow::Ok(())
-                        })
-                    })?;
-            }
         }
+
+        println!("Preparing data took {:?}", start.elapsed());
 
         {
             let _span = tracing::trace_span!("commit").entered();
@@ -336,7 +332,6 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
                 .commit()
                 .with_context(|| anyhow!("Unable to commit operations"))?;
         }
-        span.record("db_operation_count", op_count);
         Ok(())
     }
 
@@ -429,6 +424,69 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
     }
 }
 
+fn get_next_free_task_id<'a, S, C>(
+    batch: &mut WriteBatchRef<'_, 'a, S, C>,
+) -> Result<u32, anyhow::Error>
+where
+    S: SerialWriteBatch<'a>,
+    C: ConcurrentWriteBatch<'a>,
+{
+    Ok(
+        match batch.get(
+            KeySpace::Infra,
+            IntKey::new(META_KEY_NEXT_FREE_TASK_ID).as_ref(),
+        )? {
+            Some(bytes) => u32::from_le_bytes(Borrow::<[u8]>::borrow(&bytes).try_into()?),
+            None => 1,
+        },
+    )
+}
+
+fn save_infra<'a, S, C>(
+    batch: &mut WriteBatchRef<'_, 'a, S, C>,
+    next_task_id: u32,
+    session_id: SessionId,
+    operations: Vec<Arc<AnyOperation>>,
+) -> Result<(), anyhow::Error>
+where
+    S: SerialWriteBatch<'a>,
+    C: ConcurrentWriteBatch<'a>,
+{
+    {
+        batch
+            .put(
+                KeySpace::Infra,
+                Cow::Borrowed(IntKey::new(META_KEY_NEXT_FREE_TASK_ID).as_ref()),
+                Cow::Borrowed(&next_task_id.to_le_bytes()),
+            )
+            .with_context(|| anyhow!("Unable to write next free task id"))?;
+    }
+    {
+        let _span = tracing::trace_span!("update session id", session_id = ?session_id).entered();
+        batch
+            .put(
+                KeySpace::Infra,
+                Cow::Borrowed(IntKey::new(META_KEY_SESSION_ID).as_ref()),
+                Cow::Borrowed(&session_id.to_le_bytes()),
+            )
+            .with_context(|| anyhow!("Unable to write next session id"))?;
+    }
+    {
+        let _span =
+            tracing::trace_span!("update operations", operations = operations.len()).entered();
+        let operations =
+            pot::to_vec(&operations).with_context(|| anyhow!("Unable to serialize operations"))?;
+        batch
+            .put(
+                KeySpace::Infra,
+                Cow::Borrowed(IntKey::new(META_KEY_OPERATIONS).as_ref()),
+                operations.into(),
+            )
+            .with_context(|| anyhow!("Unable to write operations"))?;
+    }
+    Ok(())
+}
+
 fn serialize_task_type(
     task_type: &Arc<CachedTaskType>,
     task_type_bytes: &mut Vec<u8>,
@@ -451,10 +509,11 @@ fn serialize_task_type(
 
 type SerializedTasks = Vec<Vec<(TaskId, Vec<u8>)>>;
 
-fn process_task_data(
+fn process_task_data<'a, B: ConcurrentWriteBatch<'a> + Send + Sync>(
     database: &(impl KeyValueDatabase + Sync),
     key_space: KeySpace,
     updates: Vec<ChunkedVec<CachedDataUpdate>>,
+    batch: Option<&B>,
 ) -> Result<SerializedTasks> {
     let span = Span::current();
     let turbo_tasks = turbo_tasks::turbo_tasks();
@@ -575,8 +634,16 @@ fn process_task_data(
                     // Serialize new data
                     let value = serialize(task, data)?;
 
-                    // Store the new task data
-                    tasks.push((task, value));
+                    if let Some(batch) = batch {
+                        batch.put(
+                            key_space,
+                            Cow::Borrowed(IntKey::new(*task).as_ref()),
+                            Cow::Owned(value),
+                        )?;
+                    } else {
+                        // Store the new task data
+                        tasks.push((task, value));
+                    }
                 }
 
                 span.record("restored_tasks", restored_tasks);

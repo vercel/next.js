@@ -117,6 +117,78 @@ where
     }
 }
 
+pub enum WriteBatchRef<'r, 'a, S, C>
+where
+    S: SerialWriteBatch<'a>,
+    C: ConcurrentWriteBatch<'a>,
+{
+    Serial(&'r mut S),
+    Concurrent(&'r C, PhantomData<&'a ()>),
+}
+
+impl<'r, 'a, S, C> WriteBatchRef<'r, 'a, S, C>
+where
+    S: SerialWriteBatch<'a>,
+    C: ConcurrentWriteBatch<'a>,
+{
+    pub fn serial(s: &'r mut S) -> Self {
+        WriteBatchRef::Serial(s)
+    }
+
+    pub fn concurrent(c: &'r C) -> Self {
+        WriteBatchRef::Concurrent(c, PhantomData)
+    }
+}
+
+impl<'r, 'a, S, C> BaseWriteBatch<'a> for WriteBatchRef<'r, 'a, S, C>
+where
+    S: SerialWriteBatch<'a>,
+    C: ConcurrentWriteBatch<'a>,
+{
+    type ValueBuffer<'l>
+        = WriteBatchValueBuffer<S::ValueBuffer<'l>, C::ValueBuffer<'l>>
+    where
+        Self: 'l,
+        'a: 'l;
+
+    fn get<'l>(&'l self, key_space: KeySpace, key: &[u8]) -> Result<Option<Self::ValueBuffer<'l>>>
+    where
+        'a: 'l,
+    {
+        Ok(match self {
+            WriteBatchRef::Serial(s) => s.get(key_space, key)?.map(WriteBatchValueBuffer::Serial),
+            WriteBatchRef::Concurrent(c, _) => c
+                .get(key_space, key)?
+                .map(WriteBatchValueBuffer::Concurrent),
+        })
+    }
+
+    fn commit(self) -> Result<()> {
+        // TODO change the traits to make this a type level constraint
+        panic!("WriteBatchRef::commit is not usable");
+    }
+}
+
+impl<'r, 'a, S, C> SerialWriteBatch<'a> for WriteBatchRef<'r, 'a, S, C>
+where
+    S: SerialWriteBatch<'a>,
+    C: ConcurrentWriteBatch<'a>,
+{
+    fn put(&mut self, key_space: KeySpace, key: Cow<[u8]>, value: Cow<[u8]>) -> Result<()> {
+        match self {
+            WriteBatchRef::Serial(s) => s.put(key_space, key, value),
+            WriteBatchRef::Concurrent(c, _) => c.put(key_space, key, value),
+        }
+    }
+
+    fn delete(&mut self, key_space: KeySpace, key: Cow<[u8]>) -> Result<()> {
+        match self {
+            WriteBatchRef::Serial(s) => s.delete(key_space, key),
+            WriteBatchRef::Concurrent(c, _) => c.delete(key_space, key),
+        }
+    }
+}
+
 pub struct UnimplementedWriteBatch;
 
 impl<'a> BaseWriteBatch<'a> for UnimplementedWriteBatch {
