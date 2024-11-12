@@ -3292,7 +3292,10 @@ export default abstract class Server<
 
       // If cache control is already set on the response we don't
       // override it to allow users to customize it via next.config
-      if (cacheEntry.revalidate && !res.getHeader('Cache-Control')) {
+      if (
+        typeof cacheEntry.revalidate !== 'undefined' &&
+        !res.getHeader('Cache-Control')
+      ) {
         res.setHeader(
           'Cache-Control',
           formatRevalidate({
@@ -3315,7 +3318,10 @@ export default abstract class Server<
     } else if (cachedData.kind === CachedRouteKind.REDIRECT) {
       // If cache control is already set on the response we don't
       // override it to allow users to customize it via next.config
-      if (cacheEntry.revalidate && !res.getHeader('Cache-Control')) {
+      if (
+        typeof cacheEntry.revalidate !== 'undefined' &&
+        !res.getHeader('Cache-Control')
+      ) {
         res.setHeader(
           'Cache-Control',
           formatRevalidate({
@@ -3339,17 +3345,33 @@ export default abstract class Server<
         return null
       }
     } else if (cachedData.kind === CachedRouteKind.APP_ROUTE) {
-      const headers = { ...cachedData.headers }
+      const headers = fromNodeOutgoingHttpHeaders(cachedData.headers)
 
       if (!(this.minimalMode && isSSG)) {
-        delete headers[NEXT_CACHE_TAGS_HEADER]
+        headers.delete(NEXT_CACHE_TAGS_HEADER)
+      }
+
+      // If cache control is already set on the response we don't
+      // override it to allow users to customize it via next.config
+      if (
+        typeof cacheEntry.revalidate !== 'undefined' &&
+        !res.getHeader('Cache-Control') &&
+        !headers.get('Cache-Control')
+      ) {
+        headers.set(
+          'Cache-Control',
+          formatRevalidate({
+            revalidate: cacheEntry.revalidate,
+            expireTime: this.nextConfig.expireTime,
+          })
+        )
       }
 
       await sendResponse(
         req,
         res,
         new Response(cachedData.body, {
-          headers: fromNodeOutgoingHttpHeaders(headers),
+          headers,
           status: cachedData.status || 200,
         })
       )

@@ -530,8 +530,7 @@ function Router({
     }
   }, [dispatch])
 
-  const { cache, tree, nextUrl, focusAndScrollRef, buildId } =
-    useUnwrapState(state)
+  const { cache, tree, nextUrl, focusAndScrollRef } = useUnwrapState(state)
 
   const matchingHead = useMemo(() => {
     return findHeadInCache(cache, tree[1])
@@ -555,13 +554,12 @@ function Router({
 
   const globalLayoutRouterContext = useMemo(() => {
     return {
-      buildId,
       changeByServerResponse,
       tree,
       focusAndScrollRef,
       nextUrl,
     }
-  }, [buildId, changeByServerResponse, tree, focusAndScrollRef, nextUrl])
+  }, [changeByServerResponse, tree, focusAndScrollRef, nextUrl])
 
   let head
   if (matchingHead !== null) {

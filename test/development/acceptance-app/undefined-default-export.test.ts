@@ -5,6 +5,7 @@ import { sandbox } from 'development-sandbox'
 describe('Undefined default export', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
+    patchFileDelay: 250,
   })
 
   it('should error if page component does not have default export', async () => {

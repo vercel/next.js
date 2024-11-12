@@ -233,7 +233,7 @@ async function run(): Promise<void> {
       importAlias: '@/*',
       customizeImportAlias: false,
       empty: false,
-      turbopack: false,
+      turbopack: true,
       disableGit: false,
     }
     const getPrefOrDefault = (field: string) =>

@@ -34,11 +34,11 @@ import {
   normalizeFlightData,
   type NormalizedFlightData,
 } from '../../flight-data-helpers'
+import { getAppBuildId } from '../../app-build-id'
 
 export interface FetchServerResponseOptions {
   readonly flightRouterState: FlightRouterState
   readonly nextUrl: string | null
-  readonly buildId: string
   readonly prefetchKind?: PrefetchKind
   readonly isHmrRefresh?: boolean
 }
@@ -88,7 +88,7 @@ export async function fetchServerResponse(
   url: URL,
   options: FetchServerResponseOptions
 ): Promise<FetchServerResponseResult> {
-  const { flightRouterState, nextUrl, buildId, prefetchKind } = options
+  const { flightRouterState, nextUrl, prefetchKind } = options
 
   const headers: {
     [RSC_HEADER]: '1'
@@ -221,7 +221,7 @@ export async function fetchServerResponse(
       { callServer, findSourceMapURL }
     )
 
-    if (buildId !== response.b) {
+    if (getAppBuildId() !== response.b) {
       return doMpaNavigation(res.url)
     }
 

@@ -524,7 +524,7 @@ export function cache(
           )
         }
 
-        args.unshift(...boundArgs)
+        args.unshift(boundArgs)
       }
 
       const temporaryReferences = createClientTemporaryReferenceSet()
