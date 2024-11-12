@@ -12,12 +12,10 @@ use lightningcss::{
     visit_types,
     visitor::Visit,
 };
-use once_cell::sync::Lazy;
-use regex::Regex;
 use smallvec::smallvec;
 use swc_core::{
     base::sourcemap::SourceMapBuilder,
-    common::{BytePos, LineCol, Span},
+    common::{BytePos, LineCol},
 };
 use tracing::Instrument;
 use turbo_tasks::{FxIndexMap, RcStr, ValueToString, Vc};
@@ -48,9 +46,6 @@ use crate::{
     CssModuleAssetType,
 };
 
-// Capture up until the first "."
-static BASENAME_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[^.]*").unwrap());
-
 #[derive(Debug)]
 pub enum StyleSheetLike<'i, 'o> {
     LightningCss(StyleSheet<'i, 'o>),
@@ -73,13 +68,6 @@ impl StyleSheetLike<'_, '_> {
             StyleSheetLike::LightningCss(ss) => {
                 StyleSheetLike::LightningCss(stylesheet_into_static(ss, options))
             }
-            StyleSheetLike::Swc {
-                stylesheet,
-                css_modules,
-            } => StyleSheetLike::Swc {
-                stylesheet: stylesheet.clone(),
-                css_modules: css_modules.clone(),
-            },
         }
     }
 
@@ -88,7 +76,6 @@ impl StyleSheetLike<'_, '_> {
         code: &str,
         minify_type: MinifyType,
         enable_srcmap: bool,
-        remove_imports: bool,
         handle_nesting: bool,
     ) -> Result<CssOutput> {
         match self {
@@ -215,8 +202,7 @@ pub async fn process_css_with_placeholder(
                 _ => bail!("this case should be filtered out while parsing"),
             };
 
-            let (result, _) =
-                stylesheet.to_css(&code, MinifyType::NoMinify, false, false, false)?;
+            let (result, _) = stylesheet.to_css(&code, MinifyType::NoMinify, false, false)?;
 
             let exports = result.exports.map(|exports| {
                 let mut exports = exports.into_iter().collect::<FxIndexMap<_, _>>();
@@ -282,7 +268,7 @@ pub async fn finalize_css(
                 FileContent::Content(v) => v.content().to_str()?,
                 _ => bail!("this case should be filtered out while parsing"),
             };
-            let (result, srcmap) = stylesheet.to_css(&code, minify_type, true, true, true)?;
+            let (result, srcmap) = stylesheet.to_css(&code, minify_type, true, true)?;
 
             Ok(FinalCssResult::Ok {
                 output_code: result.code,
@@ -400,8 +386,6 @@ async fn process_content(
         ..Default::default()
     };
 
-    let cm: Arc<swc_core::common::SourceMap> = Default::default();
-
     let stylesheet = StyleSheetLike::LightningCss({
         let warnings: Arc<RwLock<_>> = Default::default();
 
@@ -418,7 +402,7 @@ async fn process_content(
                     ss.visit(&mut validator).unwrap();
 
                     for err in validator.errors {
-                        err.report(source, fs_path_vc);
+                        err.report(fs_path_vc);
                     }
                 }
 
@@ -504,26 +488,12 @@ struct CssValidator {
 
 #[derive(Debug, PartialEq, Eq)]
 enum CssError {
-    SwcSelectorInModuleNotPure { span: Span },
     LightningCssSelectorInModuleNotPure { selector: String },
 }
 
 impl CssError {
-    fn report(self, source: Vc<Box<dyn Source>>, file: Vc<FileSystemPath>) {
+    fn report(self, file: Vc<FileSystemPath>) {
         match self {
-            CssError::SwcSelectorInModuleNotPure { span } => {
-                ParsingIssue {
-                    file,
-                    msg: Vc::cell(CSS_MODULE_ERROR.into()),
-                    source: Some(IssueSource::from_swc_offsets(
-                        source,
-                        span.lo.0 as _,
-                        span.hi.0 as _,
-                    )),
-                }
-                .cell()
-                .emit();
-            }
             CssError::LightningCssSelectorInModuleNotPure { selector } => {
                 ParsingIssue {
                     file,

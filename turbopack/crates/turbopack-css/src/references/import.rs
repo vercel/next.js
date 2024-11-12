@@ -4,7 +4,6 @@ use lightningcss::{
     rules::{import::ImportRule, layer::LayerName, supports::SupportsCondition},
     traits::ToCss,
 };
-use swc_core::common::{Spanned, DUMMY_SP};
 use turbo_tasks::{RcStr, Value, ValueToString, Vc};
 use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext},

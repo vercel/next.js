@@ -6,10 +6,6 @@ use lightningcss::{
     visit_types,
     visitor::{Visit, Visitor},
 };
-use swc_core::css::{
-    ast::UrlValue,
-    visit::{VisitMut, VisitMutWith},
-};
 use turbo_tasks::{debug::ValueDebug, RcStr, ResolvedVc, Value, ValueToString, Vc};
 use turbopack_core::{
     chunk::{
@@ -154,35 +150,11 @@ pub fn replace_url_references(
         StyleSheetLike::LightningCss(ss) => {
             ss.visit(&mut replacer).unwrap();
         }
-        StyleSheetLike::Swc { stylesheet, .. } => {
-            stylesheet.visit_mut_with(&mut replacer);
-        }
     }
 }
 
 struct AssetReferenceReplacer<'a> {
     urls: &'a HashMap<RcStr, RcStr>,
-}
-
-impl VisitMut for AssetReferenceReplacer<'_> {
-    fn visit_mut_url_value(&mut self, u: &mut UrlValue) {
-        u.visit_mut_children_with(self);
-
-        match u {
-            UrlValue::Str(v) => {
-                if let Some(new) = self.urls.get(&*v.value) {
-                    v.value = (&**new).into();
-                    v.raw = None;
-                }
-            }
-            UrlValue::Raw(v) => {
-                if let Some(new) = self.urls.get(&*v.value) {
-                    v.value = (&**new).into();
-                    v.raw = None;
-                }
-            }
-        }
-    }
 }
 
 impl Visitor<'_> for AssetReferenceReplacer<'_> {

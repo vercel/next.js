@@ -51,9 +51,6 @@ pub fn analyze_references(
         StyleSheetLike::LightningCss(ss) => {
             ss.visit(&mut visitor).unwrap();
         }
-        StyleSheetLike::Swc { stylesheet, .. } => {
-            stylesheet.visit_mut_with(&mut visitor);
-        }
     }
 
     Ok((references, urls))
