@@ -1,7 +1,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, Completion, FxIndexMap, RcStr, Vc, VcOperation,
+    debug::ValueDebugFormat, trace::TraceRawVcs, Completion, FxIndexMap, OperationVc, RcStr, Vc,
 };
 use turbopack_core::module::Modules;
 
@@ -76,7 +76,7 @@ impl Route {
 pub trait Endpoint {
     fn write_to_disk(
         self: Vc<Self>,
-        self_op: VcOperation<Box<dyn Endpoint>>,
+        self_op: OperationVc<Box<dyn Endpoint>>,
     ) -> Vc<WrittenEndpoint>;
     fn server_changed(self: Vc<Self>) -> Vc<Completion>;
     fn client_changed(self: Vc<Self>) -> Vc<Completion>;

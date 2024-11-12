@@ -7,8 +7,8 @@ use std::{
 
 use anyhow::{bail, Context, Result};
 use turbo_tasks::{
-    RcStr, ReadConsistency, ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasks, Value, Vc,
-    VcOperation,
+    OperationVc, RcStr, ReadConsistency, ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasks,
+    Value, Vc,
 };
 use turbo_tasks_fs::FileSystem;
 use turbo_tasks_memory::MemoryBackend;
@@ -140,7 +140,7 @@ impl TurbopackBuildBuilder {
                 })));
 
             handle_issues(
-                VcOperation::new(build_result),
+                OperationVc::new(build_result),
                 issue_reporter,
                 IssueSeverity::Error.into(),
                 None,

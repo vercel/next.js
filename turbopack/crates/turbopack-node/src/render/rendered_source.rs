@@ -1,6 +1,6 @@
 use anyhow::Result;
 use serde_json::Value as JsonValue;
-use turbo_tasks::{FxIndexSet, RcStr, ResolvedVc, Value, Vc, VcOperation};
+use turbo_tasks::{FxIndexSet, OperationVc, RcStr, ResolvedVc, Value, Vc};
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -186,7 +186,7 @@ impl GetContentSourceContent for NodeRenderContentSource {
         };
         let entry = (*self.entry).entry(data.clone()).await?;
         // TODO entry should be included in the operation too
-        let render_static = VcOperation::new(render_static(
+        let render_static = OperationVc::new(render_static(
             *self.cwd,
             *self.env,
             self.server_root.join(path.clone()),
@@ -237,7 +237,7 @@ impl GetContentSourceContent for NodeRenderContentSource {
                     body: body.clone(),
                 }
                 .resolved_cell();
-                ContentSourceContent::HttpProxy(VcOperation::new(proxy_result_operation(
+                ContentSourceContent::HttpProxy(OperationVc::new(proxy_result_operation(
                     render_static,
                     *proxy_result,
                 )))
@@ -250,7 +250,7 @@ impl GetContentSourceContent for NodeRenderContentSource {
 
 #[turbo_tasks::function]
 fn proxy_result_operation(
-    render_static: VcOperation<StaticResult>,
+    render_static: OperationVc<StaticResult>,
     proxy_result: Vc<ProxyResult>,
 ) -> Vc<ProxyResult> {
     let _ = render_static.connect();

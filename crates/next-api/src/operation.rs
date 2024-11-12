@@ -1,32 +1,32 @@
 use anyhow::Result;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, RcStr, Vc, VcOperation};
+use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, OperationVc, RcStr, Vc};
 
 use crate::{
     entrypoints::Entrypoints,
     route::{Endpoint, Route},
 };
 
-/// A derived type of Entrypoints, but with VcOperation<Endpoint> for every endpoint.
+/// A derived type of Entrypoints, but with OperationVc<Endpoint> for every endpoint.
 ///
-/// This is needed to call `write_to_disk` which expects an `VcOperation<Endpoint>`.
-/// This is important as VcOperations can be stored in the VersionedContentMap and can be exposed to
+/// This is needed to call `write_to_disk` which expects an `OperationVc<Endpoint>`.
+/// This is important as OperationVcs can be stored in the VersionedContentMap and can be exposed to
 /// JS via napi.
 #[turbo_tasks::value(shared)]
 pub struct EntrypointsOperation {
     pub routes: IndexMap<RcStr, RouteOperation>,
     pub middleware: Option<MiddlewareOperation>,
     pub instrumentation: Option<InstrumentationOperation>,
-    pub pages_document_endpoint: VcOperation<Box<dyn Endpoint>>,
-    pub pages_app_endpoint: VcOperation<Box<dyn Endpoint>>,
-    pub pages_error_endpoint: VcOperation<Box<dyn Endpoint>>,
+    pub pages_document_endpoint: OperationVc<Box<dyn Endpoint>>,
+    pub pages_app_endpoint: OperationVc<Box<dyn Endpoint>>,
+    pub pages_error_endpoint: OperationVc<Box<dyn Endpoint>>,
 }
 
 #[turbo_tasks::value_impl]
 impl EntrypointsOperation {
     #[turbo_tasks::function]
-    pub async fn new(entrypoints: VcOperation<Entrypoints>) -> Result<Vc<Self>> {
+    pub async fn new(entrypoints: OperationVc<Entrypoints>) -> Result<Vc<Self>> {
         let e = entrypoints.connect().await?;
         Ok(Self {
             routes: e
@@ -52,7 +52,7 @@ impl EntrypointsOperation {
     }
 }
 
-fn wrap_route(route: &Route, entrypoints: VcOperation<Entrypoints>) -> RouteOperation {
+fn wrap_route(route: &Route, entrypoints: OperationVc<Entrypoints>) -> RouteOperation {
     match route {
         Route::Page {
             html_endpoint,
@@ -88,7 +88,7 @@ fn wrap_route(route: &Route, entrypoints: VcOperation<Entrypoints>) -> RouteOper
 #[turbo_tasks::function]
 fn wrap_endpoint(
     endpoint: Vc<Box<dyn Endpoint>>,
-    op: VcOperation<Entrypoints>,
+    op: OperationVc<Entrypoints>,
 ) -> Vc<Box<dyn Endpoint>> {
     let _ = op.connect();
     endpoint
@@ -96,36 +96,36 @@ fn wrap_endpoint(
 
 fn wrap(
     endpoint: Vc<Box<dyn Endpoint>>,
-    op: VcOperation<Entrypoints>,
-) -> VcOperation<Box<dyn Endpoint>> {
-    VcOperation::new(wrap_endpoint(endpoint, op))
+    op: OperationVc<Entrypoints>,
+) -> OperationVc<Box<dyn Endpoint>> {
+    OperationVc::new(wrap_endpoint(endpoint, op))
 }
 
 #[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, ValueDebugFormat)]
 pub struct InstrumentationOperation {
-    pub node_js: VcOperation<Box<dyn Endpoint>>,
-    pub edge: VcOperation<Box<dyn Endpoint>>,
+    pub node_js: OperationVc<Box<dyn Endpoint>>,
+    pub edge: OperationVc<Box<dyn Endpoint>>,
 }
 
 #[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, ValueDebugFormat)]
 pub struct MiddlewareOperation {
-    pub endpoint: VcOperation<Box<dyn Endpoint>>,
+    pub endpoint: OperationVc<Box<dyn Endpoint>>,
 }
 
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
 pub enum RouteOperation {
     Page {
-        html_endpoint: VcOperation<Box<dyn Endpoint>>,
-        data_endpoint: VcOperation<Box<dyn Endpoint>>,
+        html_endpoint: OperationVc<Box<dyn Endpoint>>,
+        data_endpoint: OperationVc<Box<dyn Endpoint>>,
     },
     PageApi {
-        endpoint: VcOperation<Box<dyn Endpoint>>,
+        endpoint: OperationVc<Box<dyn Endpoint>>,
     },
     AppPage(Vec<AppPageRouteOperation>),
     AppRoute {
         original_name: String,
-        endpoint: VcOperation<Box<dyn Endpoint>>,
+        endpoint: OperationVc<Box<dyn Endpoint>>,
     },
     Conflict,
 }
@@ -133,6 +133,6 @@ pub enum RouteOperation {
 #[derive(TraceRawVcs, Serialize, Deserialize, PartialEq, Eq, ValueDebugFormat, Clone, Debug)]
 pub struct AppPageRouteOperation {
     pub original_name: String,
-    pub html_endpoint: VcOperation<Box<dyn Endpoint>>,
-    pub rsc_endpoint: VcOperation<Box<dyn Endpoint>>,
+    pub html_endpoint: OperationVc<Box<dyn Endpoint>>,
+    pub rsc_endpoint: OperationVc<Box<dyn Endpoint>>,
 }

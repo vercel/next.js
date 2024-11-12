@@ -5,7 +5,7 @@ use futures::prelude::*;
 use tokio::sync::mpsc::Sender;
 use tokio_stream::wrappers::ReceiverStream;
 use tracing::Instrument;
-use turbo_tasks::{IntoTraitRef, RcStr, ReadRef, TransientInstance, Vc, VcOperation};
+use turbo_tasks::{IntoTraitRef, OperationVc, RcStr, ReadRef, TransientInstance, Vc};
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack_core::{
     error::PrettyPrintError,
@@ -24,7 +24,7 @@ use crate::source::{resolve::ResolveSourceRequestResult, ProxyResult};
 
 type GetContentFn = Box<dyn Fn() -> Vc<ResolveSourceRequestResult> + Send + Sync>;
 
-async fn peek_issues<T: Send>(source: VcOperation<T>) -> Result<Vec<ReadRef<PlainIssue>>> {
+async fn peek_issues<T: Send>(source: OperationVc<T>) -> Result<Vec<ReadRef<PlainIssue>>> {
     let captured = source.peek_issues_with_path().await?;
 
     captured.get_plain_issues().await
@@ -48,7 +48,7 @@ async fn get_update_stream_item(
 ) -> Result<Vc<UpdateStreamItem>> {
     let content = get_content();
     let _ = content.resolve_strongly_consistent().await?;
-    let mut plain_issues = peek_issues(VcOperation::new(content)).await?;
+    let mut plain_issues = peek_issues(OperationVc::new(content)).await?;
 
     let content_value = match content.await {
         Ok(content) => content,
@@ -95,7 +95,7 @@ async fn get_update_stream_item(
                 &mut plain_issues,
                 peek_issues(
                     // TODO resolved_content operation should be part of the operation too
-                    VcOperation::new(update),
+                    OperationVc::new(update),
                 )
                 .await?,
             );

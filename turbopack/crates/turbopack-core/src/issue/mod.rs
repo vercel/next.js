@@ -13,8 +13,8 @@ use async_trait::async_trait;
 use auto_hash_map::AutoSet;
 use serde::Serialize;
 use turbo_tasks::{
-    emit, CollectiblesSource, RawVc, RcStr, ReadRef, ResolvedVc, TransientInstance, TransientValue,
-    TryJoinIterExt, Upcast, ValueToString, Vc, VcOperation,
+    emit, CollectiblesSource, OperationVc, RawVc, RcStr, ReadRef, ResolvedVc, TransientInstance,
+    TransientValue, TryJoinIterExt, Upcast, ValueToString, Vc,
 };
 use turbo_tasks_fs::{FileContent, FileLine, FileLinesContent, FileSystemPath};
 use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher};
@@ -1005,7 +1005,7 @@ where
 }
 
 pub async fn handle_issues<T: Send>(
-    source: VcOperation<T>,
+    source: OperationVc<T>,
     issue_reporter: Vc<Box<dyn IssueReporter>>,
     min_failing_severity: Vc<IssueSeverity>,
     path: Option<&str>,
@@ -1016,7 +1016,7 @@ pub async fn handle_issues<T: Send>(
 
     let has_fatal = issue_reporter.report_issues(
         TransientInstance::new(issues),
-        TransientValue::new(VcOperation::into_raw(source)),
+        TransientValue::new(OperationVc::into_raw(source)),
         min_failing_severity,
     );
 

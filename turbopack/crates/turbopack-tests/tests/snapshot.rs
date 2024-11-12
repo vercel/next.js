@@ -14,8 +14,8 @@ use dunce::canonicalize;
 use serde::Deserialize;
 use serde_json::json;
 use turbo_tasks::{
-    RcStr, ReadConsistency, ReadRef, ResolvedVc, TryJoinIterExt, TurboTasks, Value, ValueToString,
-    Vc, VcOperation,
+    OperationVc, RcStr, ReadConsistency, ReadRef, ResolvedVc, TryJoinIterExt, TurboTasks, Value,
+    ValueToString, Vc,
 };
 use turbo_tasks_env::DotenvProcessEnv;
 use turbo_tasks_fs::{
@@ -157,7 +157,7 @@ async fn run(resource: PathBuf) -> Result<()> {
     let tt = TurboTasks::new(MemoryBackend::default());
     let task = tt.spawn_once_task(async move {
         let out = run_test(resource.to_str().unwrap().into());
-        let out_op = VcOperation::new(out);
+        let out_op = OperationVc::new(out);
         let _ = out.resolve_strongly_consistent().await?;
         let captured_issues = out_op.peek_issues_with_path().await?;
 

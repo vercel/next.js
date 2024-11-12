@@ -3,7 +3,7 @@ use std::collections::{HashSet, VecDeque};
 use anyhow::Result;
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
-    FxIndexSet, RcStr, ResolvedVc, TryJoinIterExt, ValueToString, Vc, VcOperation,
+    FxIndexSet, OperationVc, RcStr, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
 };
 
 use crate::{
@@ -200,7 +200,7 @@ pub async fn all_modules_and_affecting_sources(
     let mut queue = VecDeque::with_capacity(32);
     queue.push_back((
         asset,
-        VcOperation::new(referenced_modules_and_affecting_sources(*asset)),
+        OperationVc::new(referenced_modules_and_affecting_sources(*asset)),
     ));
     let mut assets = HashSet::new();
     assets.insert(asset);
@@ -212,7 +212,7 @@ pub async fn all_modules_and_affecting_sources(
             if assets.insert(*asset) {
                 queue.push_back((
                     *asset,
-                    VcOperation::new(referenced_modules_and_affecting_sources(**asset)),
+                    OperationVc::new(referenced_modules_and_affecting_sources(**asset)),
                 ));
             }
         }

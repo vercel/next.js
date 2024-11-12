@@ -26,7 +26,7 @@ use std::{future::Future, marker::PhantomData, pin::Pin};
 use anyhow::Result;
 
 use super::{TaskInput, TaskOutput};
-use crate::{magic_any::MagicAny, RawVc, Vc, VcOperation, VcRead, VcValueType};
+use crate::{magic_any::MagicAny, OperationVc, RawVc, Vc, VcRead, VcValueType};
 
 pub type NativeTaskFuture = Pin<Box<dyn Future<Output = Result<RawVc>> + Send>>;
 
@@ -283,13 +283,13 @@ macro_rules! task_fn_impl {
         where
             Recv: Sync + Send + 'static,
             $($arg: TaskInput + 'static,)*
-            F: Fn(VcOperation<Recv>, $($arg,)*) -> Output + Send + Sync + Clone + 'static,
+            F: Fn(OperationVc<Recv>, $($arg,)*) -> Output + Send + Sync + Clone + 'static,
             Output: TaskOutput + 'static,
         {
             #[allow(non_snake_case)]
             fn functor(&self, this: RawVc, arg: &dyn MagicAny) -> Result<NativeTaskFuture> {
                 let task_fn = self.clone();
-                let recv = VcOperation::<Recv>::from(this);
+                let recv = OperationVc::<Recv>::from(this);
 
                 let ($($arg,)*) = get_args::<($($arg,)*)>(arg)?;
                 $(
@@ -367,12 +367,12 @@ macro_rules! task_fn_impl {
         where
             Recv: Sync + Send + 'static,
             $($arg: TaskInput + 'static,)*
-            F: $async_fn_trait<VcOperation<Recv>, $($arg,)*> + Clone + Send + Sync + 'static,
+            F: $async_fn_trait<OperationVc<Recv>, $($arg,)*> + Clone + Send + Sync + 'static,
         {
             #[allow(non_snake_case)]
             fn functor(&self, this: RawVc, arg: &dyn MagicAny) -> Result<NativeTaskFuture> {
                 let task_fn = self.clone();
-                let recv = VcOperation::<Recv>::from(this);
+                let recv = OperationVc::<Recv>::from(this);
 
                 let ($($arg,)*) = get_args::<($($arg,)*)>(arg)?;
                 $(
@@ -380,7 +380,7 @@ macro_rules! task_fn_impl {
                 )*
 
                 Ok(Box::pin(async move {
-                    <F as $async_fn_trait<VcOperation<Recv>, $($arg,)*>>::Output::try_into_raw_vc((task_fn)(recv, $($arg,)*).await)
+                    <F as $async_fn_trait<OperationVc<Recv>, $($arg,)*>>::Output::try_into_raw_vc((task_fn)(recv, $($arg,)*).await)
                 }))
             }
         }

@@ -7,7 +7,7 @@ use next_api::{
     route::{Endpoint, WrittenEndpoint},
 };
 use tracing::Instrument;
-use turbo_tasks::{Completion, ReadRef, Vc, VcOperation, VcValueType};
+use turbo_tasks::{Completion, OperationVc, ReadRef, Vc, VcValueType};
 use turbopack_core::{
     diagnostics::PlainDiagnostic,
     error::PrettyPrintError,
@@ -99,7 +99,7 @@ impl Deref for ExternalEndpoint {
 // Await the source and return fatal issues if there are any, otherwise
 // propagate any actual error results.
 async fn strongly_consistent_catch_collectables<R: VcValueType + Send>(
-    source: VcOperation<R>,
+    source: OperationVc<R>,
 ) -> Result<(
     Option<ReadRef<R>>,
     Arc<Vec<ReadRef<PlainIssue>>>,
@@ -127,10 +127,10 @@ struct WrittenEndpointWithIssues {
 
 #[turbo_tasks::function]
 async fn get_written_endpoint_with_issues(
-    endpoint: VcOperation<Box<dyn Endpoint>>,
+    endpoint: OperationVc<Box<dyn Endpoint>>,
 ) -> Result<Vc<WrittenEndpointWithIssues>> {
     let write_to_disk = endpoint.connect().write_to_disk(endpoint);
-    let write_to_disk_operation = VcOperation::new(write_to_disk);
+    let write_to_disk_operation = OperationVc::new(write_to_disk);
     let (written, issues, diagnostics) =
         strongly_consistent_catch_collectables(write_to_disk_operation).await?;
     Ok(WrittenEndpointWithIssues {
@@ -228,11 +228,11 @@ impl Eq for EndpointIssuesAndDiags {}
 
 #[turbo_tasks::function]
 async fn subscribe_issues_and_diags(
-    endpoint: VcOperation<Box<dyn Endpoint>>,
+    endpoint: OperationVc<Box<dyn Endpoint>>,
     should_include_issues: bool,
 ) -> Result<Vc<EndpointIssuesAndDiags>> {
     let changed = endpoint.connect().server_changed();
-    let changed_operation = VcOperation::new(changed);
+    let changed_operation = OperationVc::new(changed);
 
     if should_include_issues {
         let (changed_value, issues, diagnostics) =

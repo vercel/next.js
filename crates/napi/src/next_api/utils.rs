@@ -10,7 +10,7 @@ use napi::{
 };
 use serde::Serialize;
 use turbo_tasks::{
-    trace::TraceRawVcs, ReadRef, TaskId, TryJoinIterExt, TurboTasks, UpdateInfo, Vc, VcOperation,
+    trace::TraceRawVcs, OperationVc, ReadRef, TaskId, TryJoinIterExt, TurboTasks, UpdateInfo, Vc,
 };
 use turbo_tasks_backend::{default_backing_storage, DefaultBackingStorage};
 use turbo_tasks_fs::FileContent;
@@ -150,16 +150,16 @@ where
     T: Send,
 {
     turbo_tasks: NextTurboTasks,
-    // TODO: this should be a VcOperation
+    // TODO: this should be a OperationVc
     /// The Vc.
-    vc: VcOperation<T>,
+    vc: OperationVc<T>,
 }
 
 impl<T> VcArc<T>
 where
     T: Send,
 {
-    pub fn new(turbo_tasks: NextTurboTasks, vc: VcOperation<T>) -> Self {
+    pub fn new(turbo_tasks: NextTurboTasks, vc: OperationVc<T>) -> Self {
         Self { turbo_tasks, vc }
     }
 
@@ -172,7 +172,7 @@ impl<T> Deref for VcArc<T>
 where
     T: Send,
 {
-    type Target = VcOperation<T>;
+    type Target = OperationVc<T>;
 
     fn deref(&self) -> &Self::Target {
         &self.vc
@@ -210,7 +210,7 @@ pub fn root_task_dispose(
     Ok(())
 }
 
-pub async fn get_issues<T: Send>(source: VcOperation<T>) -> Result<Arc<Vec<ReadRef<PlainIssue>>>> {
+pub async fn get_issues<T: Send>(source: OperationVc<T>) -> Result<Arc<Vec<ReadRef<PlainIssue>>>> {
     let issues = source.peek_issues_with_path().await?;
     Ok(Arc::new(issues.get_plain_issues().await?))
 }
@@ -220,7 +220,7 @@ pub async fn get_issues<T: Send>(source: VcOperation<T>) -> Result<Arc<Vec<ReadR
 /// [turbopack_core::diagnostics::PlainDiagnostic]. It does
 /// not consume any Diagnostics held by the source.
 pub async fn get_diagnostics<T: Send>(
-    source: VcOperation<T>,
+    source: OperationVc<T>,
 ) -> Result<Arc<Vec<ReadRef<PlainDiagnostic>>>> {
     let captured_diags = source.peek_diagnostics().await?;
     let mut diags = captured_diags

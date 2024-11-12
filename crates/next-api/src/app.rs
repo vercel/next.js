@@ -38,8 +38,8 @@ use next_core::{
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_tasks::{
-    fxindexset, trace::TraceRawVcs, Completion, FxIndexMap, FxIndexSet, RcStr, ResolvedVc,
-    TryJoinIterExt, Value, ValueToString, Vc, VcOperation,
+    fxindexset, trace::TraceRawVcs, Completion, FxIndexMap, FxIndexSet, OperationVc, RcStr,
+    ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc,
 };
 use turbo_tasks_env::{CustomProcessEnv, ProcessEnv};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
@@ -823,9 +823,9 @@ impl AppEndpoint {
         Ok(app_entry)
     }
 
-    /// This is used to wrap output assets of an endpoint into a single operation (VcOperation)
+    /// This is used to wrap output assets of an endpoint into a single operation (OperationVc)
     #[turbo_tasks::function]
-    fn output_assets(self: Vc<Self>, endpoint: VcOperation<Box<dyn Endpoint>>) -> Vc<OutputAssets> {
+    fn output_assets(self: Vc<Self>, endpoint: OperationVc<Box<dyn Endpoint>>) -> Vc<OutputAssets> {
         let _ = endpoint.connect();
         self.output().output_assets()
     }
@@ -1566,7 +1566,7 @@ impl Endpoint for AppEndpoint {
     #[turbo_tasks::function]
     async fn write_to_disk(
         self: Vc<Self>,
-        self_op: VcOperation<Box<dyn Endpoint>>,
+        self_op: OperationVc<Box<dyn Endpoint>>,
     ) -> Result<Vc<WrittenEndpoint>> {
         let this = self.await?;
         let page_name = this.page.to_string();
@@ -1600,7 +1600,7 @@ impl Endpoint for AppEndpoint {
 
             this.app_project
                 .project()
-                .emit_all_output_assets(VcOperation::new(output_assets))
+                .emit_all_output_assets(OperationVc::new(output_assets))
                 .await?;
 
             let node_root = this.app_project.project().node_root();

@@ -1,6 +1,6 @@
 use anyhow::Result;
 use serde_json::Value as JsonValue;
-use turbo_tasks::{FxIndexSet, RcStr, ResolvedVc, Value, Vc, VcOperation};
+use turbo_tasks::{FxIndexSet, OperationVc, RcStr, ResolvedVc, Value, Vc};
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::introspect::{
@@ -127,7 +127,7 @@ impl GetContentSourceContent for NodeApiContentSource {
             anyhow::bail!("Missing request data")
         };
         let entry = (*self.entry).entry(data.clone()).await?;
-        let render_proxy = VcOperation::new(render_proxy(
+        let render_proxy = OperationVc::new(render_proxy(
             *self.cwd,
             *self.env,
             self.server_root.join(path.clone()),

@@ -25,7 +25,7 @@ use rand::Rng;
 use tokio::{io::AsyncWriteExt, time::Instant};
 use tracing::Instrument;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
-use turbo_tasks::{Completion, RcStr, ReadRef, TransientInstance, UpdateInfo, Vc, VcOperation};
+use turbo_tasks::{Completion, OperationVc, RcStr, ReadRef, TransientInstance, UpdateInfo, Vc};
 use turbo_tasks_fs::{
     util::uri_from_file, DiskFileSystem, FileContent, FileSystem, FileSystemPath,
 };
@@ -515,7 +515,7 @@ struct NapiRoute {
 
 impl NapiRoute {
     fn from_route(pathname: String, value: RouteOperation, turbo_tasks: &NextTurboTasks) -> Self {
-        let convert_endpoint = |endpoint: VcOperation<Box<dyn Endpoint>>| {
+        let convert_endpoint = |endpoint: OperationVc<Box<dyn Endpoint>>| {
             Some(External::new(ExternalEndpoint(VcArc::new(
                 turbo_tasks.clone(),
                 endpoint,
@@ -634,7 +634,7 @@ async fn get_entrypoints_with_issues(
     container: Vc<ProjectContainer>,
 ) -> Result<Vc<EntrypointsWithIssues>> {
     let entrypoints = container.entrypoints_operation();
-    let entrypoints_operation = VcOperation::new(entrypoints);
+    let entrypoints_operation = OperationVc::new(entrypoints);
     let entrypoints = entrypoints.strongly_consistent().await?;
     let issues = get_issues(entrypoints_operation).await?;
     let diagnostics = get_diagnostics(entrypoints_operation).await?;
@@ -732,7 +732,7 @@ async fn hmr_update(
     state: Vc<VersionState>,
 ) -> Result<Vc<HmrUpdateWithIssues>> {
     let update = project.hmr_update(identifier, state);
-    let update_operation = VcOperation::new(update);
+    let update_operation = OperationVc::new(update);
     let update = update.strongly_consistent().await?;
     let issues = get_issues(update_operation).await?;
     let diagnostics = get_diagnostics(update_operation).await?;
@@ -845,7 +845,7 @@ async fn get_hmr_identifiers_with_issues(
     container: Vc<ProjectContainer>,
 ) -> Result<Vc<HmrIdentifiersWithIssues>> {
     let hmr_identifiers = container.hmr_identifiers();
-    let hmr_identifiers_operation = VcOperation::new(hmr_identifiers);
+    let hmr_identifiers_operation = OperationVc::new(hmr_identifiers);
     let hmr_identifiers = hmr_identifiers.strongly_consistent().await?;
     let issues = get_issues(hmr_identifiers_operation).await?;
     let diagnostics = get_diagnostics(hmr_identifiers_operation).await?;

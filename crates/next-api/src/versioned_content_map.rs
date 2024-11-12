@@ -4,8 +4,8 @@ use anyhow::{bail, Result};
 use next_core::emit_assets;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, Completion, FxIndexSet, RcStr, ResolvedVc, State,
-    TryFlatJoinIterExt, TryJoinIterExt, ValueDefault, ValueToString, Vc, VcOperation,
+    debug::ValueDebugFormat, trace::TraceRawVcs, Completion, FxIndexSet, OperationVc, RcStr,
+    ResolvedVc, State, TryFlatJoinIterExt, TryJoinIterExt, ValueDefault, ValueToString, Vc,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -17,8 +17,8 @@ use turbopack_core::{
 
 #[derive(Clone, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Serialize, Deserialize, Debug)]
 struct MapEntry {
-    assets_operation: VcOperation<OutputAssets>,
-    side_effects_operation: VcOperation<Completion>,
+    assets_operation: OperationVc<OutputAssets>,
+    side_effects_operation: OperationVc<Completion>,
     /// Precomputed map for quick access to output asset by filepath
     path_to_asset: HashMap<ResolvedVc<FileSystemPath>, Vc<Box<dyn OutputAsset>>>,
 }
@@ -27,9 +27,9 @@ struct MapEntry {
 struct OptionMapEntry(Option<MapEntry>);
 
 type PathToOutputOperation =
-    HashMap<ResolvedVc<FileSystemPath>, FxIndexSet<VcOperation<OutputAssets>>>;
+    HashMap<ResolvedVc<FileSystemPath>, FxIndexSet<OperationVc<OutputAssets>>>;
 // A precomputed map for quick access to output asset by filepath
-type OutputOperationToComputeEntry = HashMap<Vc<OutputAssets>, VcOperation<OptionMapEntry>>;
+type OutputOperationToComputeEntry = HashMap<Vc<OutputAssets>, OperationVc<OptionMapEntry>>;
 
 #[turbo_tasks::value]
 pub struct VersionedContentMap {
@@ -64,7 +64,7 @@ impl VersionedContentMap {
     pub async fn insert_output_assets(
         self: Vc<Self>,
         // Output assets to emit
-        assets_operation: VcOperation<OutputAssets>,
+        assets_operation: OperationVc<OutputAssets>,
         node_root: Vc<FileSystemPath>,
         client_relative_path: Vc<FileSystemPath>,
         client_output_path: Vc<FileSystemPath>,
@@ -77,7 +77,7 @@ impl VersionedContentMap {
             client_output_path,
         );
         let assets = assets_operation.connect();
-        let compute_entry_operation = VcOperation::new(compute_entry);
+        let compute_entry_operation = OperationVc::new(compute_entry);
         this.map_op_to_compute_entry.update_conditionally(|map| {
             map.insert(assets, compute_entry_operation) != Some(compute_entry_operation)
         });
@@ -92,7 +92,7 @@ impl VersionedContentMap {
     #[turbo_tasks::function]
     async fn compute_entry(
         &self,
-        assets_operation: VcOperation<OutputAssets>,
+        assets_operation: OperationVc<OutputAssets>,
         node_root: Vc<FileSystemPath>,
         client_relative_path: Vc<FileSystemPath>,
         client_output_path: Vc<FileSystemPath>,
@@ -139,7 +139,7 @@ impl VersionedContentMap {
         });
 
         // Make sure all written client assets are up-to-date
-        let side_effects_operation = VcOperation::new(emit_assets(
+        let side_effects_operation = OperationVc::new(emit_assets(
             assets,
             node_root,
             client_relative_path,
