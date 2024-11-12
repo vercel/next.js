@@ -347,11 +347,7 @@ export async function generateStaticParams() {
   }))
 }
 
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ id: string }>
-}) {
+export async function generateMetadata({ params }) {
   let post = await getPost(params.id)
 
   return {
@@ -359,11 +355,7 @@ export async function generateMetadata({
   }
 }
 
-export default async function Page({
-  params,
-}: {
-  params: Promise<{ id: string }>
-}) {
+export default async function Page({ params }) {
   let post = await getPost(params.id)
 
   return (
@@ -455,11 +447,7 @@ async function Playlists({ artistID }: { artistID: string }) {
 ```
 
 ```jsx filename="app/artist/[username]/page.js" switcher
-export default async function Page({
-  params: { username },
-}: {
-  params: Promise<{ username: string }>
-}) {
+export default async function Page({ params: { username } }) {
   // Get artist information
   const artist = await getArtist(username)
 
@@ -475,7 +463,7 @@ export default async function Page({
   )
 }
 
-async function Playlists({ artistID }: { artistID: string }) {
+async function Playlists({ artistID }) {
   // Use the artist ID to fetch playlists
   const playlists = await getArtistPlaylists(artistID)
 
@@ -539,21 +527,17 @@ export default async function Page({
 ```jsx filename="app/artist/[username]/page.js" switcher
 import Albums from './albums'
 
-async function getArtist(username: string) {
+async function getArtist(username) {
   const res = await fetch(`https://api.example.com/artist/${username}`)
   return res.json()
 }
 
-async function getAlbums(username: string) {
+async function getAlbums(username) {
   const res = await fetch(`https://api.example.com/artist/${username}/albums`)
   return res.json()
 }
 
-export default async function Page({
-  params: { username }
-}: {
-  params: Promise<{ username: string }>
-}) {
+export default async function Page({ params: { username } }) {
   const artistData = getArtist(username)
   const albumsData = getAlbums(username)
 
@@ -625,11 +609,7 @@ export default async function Page({
 ```jsx filename="app/item/[id]/page.js" switcher
 import Item, { preload, checkIsAvailable } from '@/components/Item'
 
-export default async function Page({
-  params: { id }
-}: {
-  params: Promise<{ id: string }>
-}) {
+export default async function Page({ params: { id } }) {
   // starting loading item data
   preload(id)
   // perform another asynchronous task
