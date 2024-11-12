@@ -239,13 +239,14 @@ export async function startServer(
 
       const networkHostname =
         hostname ?? getNetworkHost(isIPv6(actualHostname) ? 'IPv6' : 'IPv4')
+
+      const protocol = selfSignedCertificate ? 'https' : 'http'
+
       const networkUrl = networkHostname
-        ? `${selfSignedCertificate ? 'https' : 'http'}://${formatHostname(networkHostname)}:${port}`
+        ? `${protocol}://${formatHostname(networkHostname)}:${port}`
         : null
 
-      const appUrl = `${
-        selfSignedCertificate ? 'https' : 'http'
-      }://${formattedHostname}:${port}`
+      const appUrl = `${protocol}://${formattedHostname}:${port}`
 
       if (nodeDebugType) {
         const formattedDebugAddress = getFormattedDebugAddress()
