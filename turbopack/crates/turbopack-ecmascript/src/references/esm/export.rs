@@ -428,7 +428,7 @@ pub struct EsmExports {
 pub struct ExpandedExports {
     pub exports: BTreeMap<RcStr, EsmExport>,
     /// Modules we couldn't analyse all exports of.
-    pub dynamic_exports: Vec<Vc<Box<dyn EcmascriptChunkPlaceable>>>,
+    pub dynamic_exports: Vec<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
 }
 
 #[turbo_tasks::value_impl]
