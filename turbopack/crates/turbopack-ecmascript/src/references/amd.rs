@@ -42,18 +42,18 @@ pub struct AmdDefineAssetReference {
 #[turbo_tasks::value_impl]
 impl AmdDefineAssetReference {
     #[turbo_tasks::function]
-    pub async fn new(
-        origin: Vc<Box<dyn ResolveOrigin>>,
-        request: Vc<Request>,
-        issue_source: Vc<IssueSource>,
+    pub fn new(
+        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+        request: ResolvedVc<Request>,
+        issue_source: ResolvedVc<IssueSource>,
         in_try: bool,
-    ) -> Result<Vc<Self>> {
-        Ok(Self::cell(AmdDefineAssetReference {
-            origin: origin.to_resolved().await?,
-            request: request.to_resolved().await?,
-            issue_source: issue_source.to_resolved().await?,
+    ) -> Vc<Self> {
+        Self::cell(AmdDefineAssetReference {
+            origin,
+            request,
+            issue_source,
             in_try,
-        }))
+        })
     }
 }
 
