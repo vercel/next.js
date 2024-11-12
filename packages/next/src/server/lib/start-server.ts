@@ -1,6 +1,9 @@
-if (performance.getEntriesByName('next-start').length === 0) {
-  performance.mark('next-start')
+if(performance.getEntriesByName !== undefined) {
+  if (performance.getEntriesByName('next-start').length === 0) {
+    performance.mark('next-start')
+  }
 }
+
 import '../next'
 import '../require-hook'
 
