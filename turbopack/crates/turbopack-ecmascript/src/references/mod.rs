@@ -900,6 +900,12 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 span: _,
                 in_try: _,
             } => {
+                if condition.has_side_effects() {
+                    // Don't replace condition with it's truthy value, if it has side effects (e.g.
+                    // function calls)
+                    continue;
+                }
+
                 let condition = analysis_state
                     .link_value(condition, ImportAttributes::empty_ref())
                     .await?;
