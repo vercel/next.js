@@ -47,9 +47,7 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub enum StyleSheetLike<'i, 'o> {
-    LightningCss(StyleSheet<'i, 'o>),
-}
+pub struct StyleSheetLike<'i, 'o>(pub(crate) StyleSheet<'i, 'o>);
 
 impl PartialEq for StyleSheetLike<'_, '_> {
     fn eq(&self, _: &Self) -> bool {
@@ -64,11 +62,7 @@ impl StyleSheetLike<'_, '_> {
         &self,
         options: ParserOptions<'static, 'static>,
     ) -> StyleSheetLike<'static, 'static> {
-        match self {
-            StyleSheetLike::LightningCss(ss) => {
-                StyleSheetLike::LightningCss(stylesheet_into_static(ss, options))
-            }
-        }
+        StyleSheetLike(stylesheet_into_static(&self.0, options))
     }
 
     pub fn to_css(
@@ -78,44 +72,41 @@ impl StyleSheetLike<'_, '_> {
         enable_srcmap: bool,
         handle_nesting: bool,
     ) -> Result<CssOutput> {
-        match self {
-            StyleSheetLike::LightningCss(ss) => {
-                let mut srcmap = if enable_srcmap {
-                    Some(parcel_sourcemap::SourceMap::new(""))
-                } else {
-                    None
-                };
+        let ss = &self.0;
+        let mut srcmap = if enable_srcmap {
+            Some(parcel_sourcemap::SourceMap::new(""))
+        } else {
+            None
+        };
 
-                let targets = if handle_nesting {
-                    Targets {
-                        include: Features::Nesting,
-                        ..Default::default()
-                    }
-                } else {
-                    Default::default()
-                };
-
-                let result = ss.to_css(PrinterOptions {
-                    minify: matches!(minify_type, MinifyType::Minify),
-                    source_map: srcmap.as_mut(),
-                    targets,
-                    analyze_dependencies: None,
-                    ..Default::default()
-                })?;
-
-                if let Some(srcmap) = &mut srcmap {
-                    debug_assert_eq!(ss.sources.len(), 1);
-
-                    srcmap.add_sources(ss.sources.clone());
-                    srcmap.set_source_content(0, code)?;
-                }
-
-                Ok((
-                    result,
-                    srcmap.map(ParseCssResultSourceMap::new_lightningcss),
-                ))
+        let targets = if handle_nesting {
+            Targets {
+                include: Features::Nesting,
+                ..Default::default()
             }
+        } else {
+            Default::default()
+        };
+
+        let result = ss.to_css(PrinterOptions {
+            minify: matches!(minify_type, MinifyType::Minify),
+            source_map: srcmap.as_mut(),
+            targets,
+            analyze_dependencies: None,
+            ..Default::default()
+        })?;
+
+        if let Some(srcmap) = &mut srcmap {
+            debug_assert_eq!(ss.sources.len(), 1);
+
+            srcmap.add_sources(ss.sources.clone());
+            srcmap.set_source_content(0, code)?;
         }
+
+        Ok((
+            result,
+            srcmap.map(ParseCssResultSourceMap::new_lightningcss),
+        ))
     }
 }
 
@@ -386,7 +377,7 @@ async fn process_content(
         ..Default::default()
     };
 
-    let stylesheet = StyleSheetLike::LightningCss({
+    let stylesheet = StyleSheetLike({
         let warnings: Arc<RwLock<_>> = Default::default();
 
         match StyleSheet::parse(

@@ -146,11 +146,7 @@ pub fn replace_url_references(
     urls: &HashMap<RcStr, RcStr>,
 ) {
     let mut replacer = AssetReferenceReplacer { urls };
-    match ss {
-        StyleSheetLike::LightningCss(ss) => {
-            ss.visit(&mut replacer).unwrap();
-        }
-    }
+    ss.0.visit(&mut replacer).unwrap();
 }
 
 struct AssetReferenceReplacer<'a> {
