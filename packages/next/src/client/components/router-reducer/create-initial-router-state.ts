@@ -10,7 +10,6 @@ import { addRefreshMarkerToActiveParallelSegments } from './refetch-inactive-par
 import { getFlightDataPartsFromPath } from '../../flight-data-helpers'
 
 export interface InitialRouterStateParameters {
-  buildId: string
   initialCanonicalUrlParts: string[]
   initialParallelRoutes: CacheNode['parallelRoutes']
   initialFlightData: FlightDataPath[]
@@ -21,7 +20,6 @@ export interface InitialRouterStateParameters {
 }
 
 export function createInitialRouterState({
-  buildId,
   initialFlightData,
   initialCanonicalUrlParts,
   initialParallelRoutes,
@@ -81,7 +79,6 @@ export function createInitialRouterState({
   }
 
   const initialState = {
-    buildId,
     tree: initialTree,
     cache,
     prefetchCache,

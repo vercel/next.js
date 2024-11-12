@@ -103,7 +103,6 @@ pub enum ModuleType {
     CssModule,
     Css {
         ty: CssModuleAssetType,
-        use_swc_css: bool,
     },
     Static,
     WebAssembly {

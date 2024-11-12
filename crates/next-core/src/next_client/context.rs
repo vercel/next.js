@@ -265,7 +265,6 @@ pub async fn get_client_module_options_context(
     let tree_shaking_mode_for_foreign_code = *next_config
         .tree_shaking_mode_for_foreign_code(next_mode.is_development())
         .await?;
-    let use_swc_css = *next_config.use_swc_css().await?;
     let target_browsers = env.runtime_versions();
 
     let mut next_client_rules =
@@ -332,6 +331,16 @@ pub async fn get_client_module_options_context(
         ..module_options_context.clone()
     };
 
+    let internal_context = ModuleOptionsContext {
+        ecmascript: EcmascriptOptionsContext {
+            enable_typescript_transform: Some(TypescriptTransformOptions::default().cell()),
+            enable_jsx: Some(JsxTransformOptions::default().cell()),
+            ..module_options_context.ecmascript.clone()
+        },
+        enable_postcss_transform: None,
+        ..module_options_context.clone()
+    };
+
     let module_options_context = ModuleOptionsContext {
         // We don't need to resolve React Refresh for each module. Instead,
         // we try resolve it once at the root and pass down a context to all
@@ -345,7 +354,6 @@ pub async fn get_client_module_options_context(
         enable_webpack_loaders,
         enable_mdx_rs,
         css: CssOptionsContext {
-            use_swc_css,
             minify_type: if *next_config.turbo_minify(mode).await? {
                 MinifyType::Minify
             } else {
@@ -358,20 +366,7 @@ pub async fn get_client_module_options_context(
                 foreign_code_context_condition(next_config, project_path).await?,
                 foreign_codes_options_context.cell(),
             ),
-            (
-                internal_assets_conditions(),
-                ModuleOptionsContext {
-                    ecmascript: EcmascriptOptionsContext {
-                        enable_typescript_transform: Some(
-                            TypescriptTransformOptions::default().cell(),
-                        ),
-                        enable_jsx: Some(JsxTransformOptions::default().cell()),
-                        ..module_options_context.ecmascript.clone()
-                    },
-                    ..module_options_context.clone()
-                }
-                .cell(),
-            ),
+            (internal_assets_conditions(), internal_context.cell()),
         ],
         module_rules: next_client_rules,
         ..module_options_context

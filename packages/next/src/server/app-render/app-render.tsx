@@ -906,7 +906,6 @@ function App<T>({
   )
 
   const initialState = createInitialRouterState({
-    buildId: response.b,
     initialFlightData: response.f,
     initialCanonicalUrlParts: response.c,
     // location and initialParallelRoutes are not initialized in the SSR render
@@ -965,7 +964,6 @@ function AppWithoutContext<T>({
   )
 
   const initialState = createInitialRouterState({
-    buildId: response.b,
     initialFlightData: response.f,
     initialCanonicalUrlParts: response.c,
     // location and initialParallelRoutes are not initialized in the SSR render
@@ -1303,7 +1301,8 @@ async function renderToHTMLOrFlightImpl(
       // The type check here ensures that `req` is correctly typed, and the
       // environment variable check provides dead code elimination.
       process.env.NEXT_RUNTIME !== 'edge' &&
-      isNodeNextRequest(req)
+      isNodeNextRequest(req) &&
+      !isDevWarmupRequest
     ) {
       const setAppIsrStatus = renderOpts.setAppIsrStatus
       req.originalRequest.on('end', () => {

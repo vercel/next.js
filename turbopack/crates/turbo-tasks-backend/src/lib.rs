@@ -11,7 +11,10 @@ use std::path::Path;
 
 use anyhow::Result;
 
-pub use self::{backend::TurboTasksBackend, kv_backing_storage::KeyValueDatabaseBackingStorage};
+pub use self::{
+    backend::{BackendOptions, StorageMode, TurboTasksBackend},
+    kv_backing_storage::KeyValueDatabaseBackingStorage,
+};
 use crate::database::{
     handle_db_versioning, is_fresh, lmdb::LmbdKeyValueDatabase, FreshDbOptimization, NoopKvDb,
     ReadTransactionCache, StartupCacheLayer,

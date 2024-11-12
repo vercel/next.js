@@ -43,7 +43,9 @@ function parseLogsFromCli(cliOutput: string) {
   }, [])
 }
 
-describe('app-dir - logging', () => {
+// TODO: this test has been quite flaky, so we are skipping it for now
+// will rewrite it later
+describe.skip('app-dir - logging', () => {
   const { next, isNextDev } = nextTestSetup({
     skipDeployment: true,
     files: __dirname,

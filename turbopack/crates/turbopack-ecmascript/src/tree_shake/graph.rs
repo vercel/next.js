@@ -715,7 +715,7 @@ impl DepGraph {
     ) -> InternedGraph<Vec<ItemId>> {
         let graph = self.g.idx_graph.clone().into_graph::<u32>();
 
-        let condensed = condensation(graph, false);
+        let condensed = condensation(graph, true);
 
         let mut new_graph = InternedGraph::default();
 

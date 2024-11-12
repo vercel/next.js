@@ -24,7 +24,8 @@ import type { NextBuildOptions } from '../cli/next-build.js'
 if (
   !semver.satisfies(
     process.versions.node,
-    process.env.__NEXT_REQUIRED_NODE_VERSION_RANGE!
+    process.env.__NEXT_REQUIRED_NODE_VERSION_RANGE!,
+    { includePrerelease: true }
   )
 ) {
   console.error(
