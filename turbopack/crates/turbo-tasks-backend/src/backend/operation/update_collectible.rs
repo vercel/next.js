@@ -43,18 +43,12 @@ impl UpdateCollectibleOperation {
                 // Not reduced from outdated
             }
         }
-        if count != 0 && update_count!(task, Collectible { collectible }, count) {
-            if count > 0 {
-                queue.extend(AggregationUpdateJob::data_update(
-                    &mut task,
-                    AggregatedDataUpdate::new().collectibles_update(vec![(collectible, 1)]),
-                ));
-            } else {
-                queue.extend(AggregationUpdateJob::data_update(
-                    &mut task,
-                    AggregatedDataUpdate::new().collectibles_update(vec![(collectible, -1)]),
-                ));
-            }
+        if count != 0 {
+            update_count!(task, Collectible { collectible }, count);
+            queue.extend(AggregationUpdateJob::data_update(
+                &mut task,
+                AggregatedDataUpdate::new().collectibles_update(vec![(collectible, count)]),
+            ));
         }
 
         drop(task);

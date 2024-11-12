@@ -109,23 +109,14 @@ impl Operation for CleanupOldEdgesOperation {
                                 });
                                 let mut task = ctx.task(task_id, TaskDataCategory::All);
                                 for (collectible, count) in collectibles.iter_mut() {
-                                    if update_count!(
+                                    update_count!(
                                         task,
                                         Collectible {
                                             collectible: *collectible
                                         },
                                         *count
-                                    ) {
-                                        if *count > 0 {
-                                            *count = 1;
-                                        } else {
-                                            *count = -1;
-                                        }
-                                    } else {
-                                        *count = 0;
-                                    }
+                                    );
                                 }
-                                collectibles.retain(|(_, count)| *count != 0);
                                 queue.extend(AggregationUpdateJob::data_update(
                                     &mut task,
                                     AggregatedDataUpdate::new().collectibles_update(collectibles),
