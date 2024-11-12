@@ -37,7 +37,6 @@ use turbopack_core::{
     source_pos::SourcePos,
     SOURCE_MAP_PREFIX,
 };
-use turbopack_swc_utils::emitter::IssueEmitter;
 
 use crate::{
     lifetime_util::stylesheet_into_static,
@@ -250,7 +249,6 @@ pub async fn finalize_css(
     let result = result.await?;
     match &*result {
         CssWithPlaceholderResult::Ok {
-            cm,
             parse_result,
             url_references,
             ..
@@ -284,8 +282,7 @@ pub async fn finalize_css(
                 FileContent::Content(v) => v.content().to_str()?,
                 _ => bail!("this case should be filtered out while parsing"),
             };
-            let (result, srcmap) =
-                stylesheet.to_css(cm.clone(), &code, minify_type, true, true, true)?;
+            let (result, srcmap) = stylesheet.to_css(&code, minify_type, true, true, true)?;
 
             Ok(FinalCssResult::Ok {
                 output_code: result.code,
@@ -484,7 +481,6 @@ async fn process_content(
         analyze_references(&mut stylesheet, source, origin, import_context)?;
 
     Ok(ParseCssResult::Ok {
-        cm,
         code: content_vc,
         stylesheet,
         references: Vc::cell(references),

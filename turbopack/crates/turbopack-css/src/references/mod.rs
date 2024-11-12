@@ -85,68 +85,6 @@ impl<'a> ModuleReferencesVisitor<'a> {
     }
 }
 
-impl VisitMut for ModuleReferencesVisitor<'_> {
-    fn visit_mut_import_prelude(&mut self, i: &mut swc_core::css::ast::ImportPrelude) {
-        let src = match &*i.href {
-            swc_core::css::ast::ImportHref::Url(v) => match v.value.as_deref().unwrap() {
-                UrlValue::Str(v) => v.value.clone(),
-                UrlValue::Raw(v) => v.value.clone(),
-            },
-            swc_core::css::ast::ImportHref::Str(v) => v.value.clone(),
-        };
-
-        let issue_span = i.span;
-
-        self.references.push(Vc::upcast(ImportAssetReference::new(
-            self.origin,
-            Request::parse(Value::new(RcStr::from(src.as_str()).into())),
-            ImportAttributes::new_from_swc(&i.clone()).into(),
-            self.import_context,
-            IssueSource::from_swc_offsets(
-                Vc::upcast(self.source),
-                issue_span.lo.0 as _,
-                issue_span.hi.0 as _,
-            ),
-        )));
-
-        // let res = i.visit_children(self);
-        // res
-    }
-
-    /// Noop. Urls in `@supports` are not used.
-    ///
-    /// See https://github.com/vercel/next.js/issues/63102
-    fn visit_mut_supports_condition(&mut self, _: &mut swc_core::css::ast::SupportsCondition) {}
-
-    fn visit_mut_url(&mut self, u: &mut swc_core::css::ast::Url) {
-        u.visit_mut_children_with(self);
-
-        let src = match u.value.as_deref().unwrap() {
-            UrlValue::Str(v) => v.value.clone(),
-            UrlValue::Raw(v) => v.value.clone(),
-        };
-
-        // ignore internal urls like `url(#noiseFilter)`
-        // ignore server-relative urls like `url(/foo)`
-        if !matches!(src.bytes().next(), Some(b'#') | Some(b'/')) {
-            let issue_span = u.span;
-
-            let vc = UrlAssetReference::new(
-                self.origin,
-                Request::parse(Value::new(RcStr::from(src.as_str()).into())),
-                IssueSource::from_swc_offsets(
-                    Vc::upcast(self.source),
-                    issue_span.lo.0 as _,
-                    issue_span.hi.0 as _,
-                ),
-            );
-
-            self.references.push(Vc::upcast(vc));
-            self.urls.push((src.to_string(), vc));
-        }
-    }
-}
-
 impl Visitor<'_> for ModuleReferencesVisitor<'_> {
     type Error = Infallible;
 
