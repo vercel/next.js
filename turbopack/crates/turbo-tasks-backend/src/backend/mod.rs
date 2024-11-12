@@ -1770,12 +1770,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 // We will finish the task, but it would be removed after the task is done
                 root_state.ty = ActiveType::CachedActiveUntilClean;
             };
-        } else {
-            if let Some(root_state) = remove!(task, AggregateRoot) {
-                // Technically nobody should be listening to this event, but just in case
-                // we notify it anyway
-                root_state.all_clean_event.notify(usize::MAX);
-            }
+        } else if let Some(root_state) = remove!(task, AggregateRoot) {
+            // Technically nobody should be listening to this event, but just in case
+            // we notify it anyway
+            root_state.all_clean_event.notify(usize::MAX);
         }
     }
 }
