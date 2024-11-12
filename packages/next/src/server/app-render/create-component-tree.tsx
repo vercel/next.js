@@ -403,6 +403,10 @@ async function createComponentTreeInternal({
   // Resolve the segment param
   const actualSegment = segmentParam ? segmentParam.treeSegment : segment
 
+  if (rootLayoutAtThisLevel) {
+    workStore.rootParams = currentParams
+  }
+
   //
   // TODO: Combine this `map` traversal with the loop below that turns the array
   // into an object.
