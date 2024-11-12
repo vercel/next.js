@@ -373,4 +373,24 @@ describe('use-cache', () => {
 
     expect(await browser.elementByCss('#random').text()).toBe(initialValue)
   })
+
+  it('works with useActionState if previousState parameter is not used in "use cache" function', async () => {
+    const browser = await next.browser('/use-action-state')
+
+    let value = await browser.elementByCss('p').text()
+    expect(value).toBe('-1')
+
+    await browser.elementByCss('button').click()
+
+    await retry(async () => {
+      value = await browser.elementByCss('p').text()
+      expect(value).toMatch(/\d\.\d+/)
+    })
+
+    await browser.elementByCss('button').click()
+
+    await retry(async () => {
+      expect(await browser.elementByCss('p').text()).toBe(value)
+    })
+  })
 })
