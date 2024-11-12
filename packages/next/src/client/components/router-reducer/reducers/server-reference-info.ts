@@ -19,7 +19,8 @@ export interface ServerReferenceInfo {
  * The `argMask` encodes whether the function uses the argument at the
  * respective position.
  *
- * The `restArgs` bit indicates whether the function uses a rest parameter.
+ * The `restArgs` bit indicates whether the function uses a rest parameter. It's
+ * also set to 1 if the function has more than 6 args.
  *
  * @param id hex-encoded server reference ID
  */
@@ -65,6 +66,8 @@ export function omitUnusedArgs(
   for (let index = 0; index < args.length; index++) {
     if (
       (index < 6 && info.usedArgs[index]) ||
+      // This assumes that the server reference info byte has the restArgs bit
+      // set to 1 if there are more than 6 args.
       (index >= 6 && info.hasRestArgs)
     ) {
       filteredArgs[index] = args[index]
