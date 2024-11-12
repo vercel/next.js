@@ -19,7 +19,7 @@ use thread_local::ThreadLocal;
 
 use crate::database::{
     key_value_database::{KeySpace, KeyValueDatabase},
-    write_batch::{BaseWriteBatch, ConcurrentWriteBatch, WriteBatch},
+    write_batch::{BaseWriteBatch, ConcurrentWriteBatch, SerialWriteBatch, WriteBatch},
 };
 
 macro_rules! make_names {
@@ -34,7 +34,11 @@ macro_rules! make_names {
 }
 
 // Atomic flush doesn't support parallel flushing of the column families so we can't use it
+/// Use atomic flush instead of WAL
 const USE_ATOMIC_FLUSH: bool = false;
+
+/// Use a concurrent write batch and a separate thread to create the write batch
+const USE_WRITE_BATCH_THREAD: bool = true;
 
 const SHARD_BITS: usize = 4;
 const SHARDS: usize = 1 << SHARD_BITS;
@@ -148,15 +152,24 @@ impl KeyValueDatabase for RocksDbKeyValueDatabase {
         Ok(self.db.get_cf(cf, key)?)
     }
 
+    type SerialWriteBatch<'l>
+        = SerialRocksDbWriteBatch<'l>
+    where
+        Self: 'l;
+
     type ConcurrentWriteBatch<'l>
-        = RocksDbWriteBatch<'l>
+        = ConcurrentRocksDbWriteBatch<'l>
     where
         Self: 'l;
 
     fn write_batch<'l>(
         &'l self,
     ) -> Result<WriteBatch<'l, Self::SerialWriteBatch<'l>, Self::ConcurrentWriteBatch<'l>>> {
-        Ok(WriteBatch::concurrent(RocksDbWriteBatch::new(self)))
+        Ok(if USE_WRITE_BATCH_THREAD {
+            WriteBatch::concurrent(ConcurrentRocksDbWriteBatch::new(self))
+        } else {
+            WriteBatch::serial(SerialRocksDbWriteBatch::new(self))
+        })
     }
 }
 
@@ -166,14 +179,14 @@ struct JobEntry {
     value: Option<Vec<u8>>,
 }
 
-pub struct RocksDbWriteBatch<'a> {
+pub struct ConcurrentRocksDbWriteBatch<'a> {
     sender: SyncSender<Vec<JobEntry>>,
     thread_local: ThreadLocal<UnsafeCell<Vec<JobEntry>>>,
     thread: JoinHandle<Result<rocksdb::WriteBatch>>,
     this: &'a RocksDbKeyValueDatabase,
 }
 
-impl<'a> RocksDbWriteBatch<'a> {
+impl<'a> ConcurrentRocksDbWriteBatch<'a> {
     fn new(this: &'a RocksDbKeyValueDatabase) -> Self {
         let (sender, receiver) = sync_channel(1024);
         let db = this.db.clone();
@@ -181,7 +194,6 @@ impl<'a> RocksDbWriteBatch<'a> {
             sender,
             thread_local: ThreadLocal::new(),
             thread: spawn(move || {
-                println!("thread started");
                 let mut batch = rocksdb::WriteBatch::default();
                 for JobEntry {
                     cf_name,
@@ -198,7 +210,6 @@ impl<'a> RocksDbWriteBatch<'a> {
                         batch.delete_cf(cf, key);
                     }
                 }
-                println!("thread ended");
                 anyhow::Ok(batch)
             }),
             this,
@@ -206,7 +217,7 @@ impl<'a> RocksDbWriteBatch<'a> {
     }
 }
 
-impl<'a> BaseWriteBatch<'a> for RocksDbWriteBatch<'a> {
+impl<'a> BaseWriteBatch<'a> for ConcurrentRocksDbWriteBatch<'a> {
     type ValueBuffer<'l>
         = Vec<u8>
     where
@@ -232,44 +243,11 @@ impl<'a> BaseWriteBatch<'a> for RocksDbWriteBatch<'a> {
         drop(self.sender);
         let batch = self.thread.join().unwrap()?;
         println!("Finishing batch took {:?}", start.elapsed());
-        let start = Instant::now();
-        let mut write_options = WriteOptions::default();
-        if USE_ATOMIC_FLUSH {
-            write_options.disable_wal(true);
-        }
-        self.this.db.write_opt(batch, &write_options)?;
-        println!("Write took {:?}", start.elapsed());
-        let start = Instant::now();
-        if !USE_ATOMIC_FLUSH {
-            scope(|s| {
-                let threads = RocksDbKeyValueDatabase::all_cf_names()
-                    .map(|name| {
-                        s.spawn(move || {
-                            let cf = self
-                                .this
-                                .db
-                                .cf_handle(name)
-                                .context("Failed to get column family")?;
-                            self.this.db.flush_cf(cf)?;
-                            anyhow::Ok(())
-                        })
-                    })
-                    .collect::<Vec<_>>();
-                for thread in threads {
-                    thread.join().unwrap()?;
-                }
-                anyhow::Ok(())
-            })?;
-        }
-        let mut wait_for_compact_options = rocksdb::WaitForCompactOptions::default();
-        wait_for_compact_options.set_flush(USE_ATOMIC_FLUSH);
-        self.this.db.wait_for_compact(&wait_for_compact_options)?;
-        println!("Flush took {:?}", start.elapsed());
-        Ok(())
+        write_and_flush(&self.this.db, batch)
     }
 }
 
-impl<'a> RocksDbWriteBatch<'a> {
+impl<'a> ConcurrentRocksDbWriteBatch<'a> {
     fn push_job(&self, job: JobEntry) -> Result<()> {
         let cell = self
             .thread_local
@@ -284,7 +262,7 @@ impl<'a> RocksDbWriteBatch<'a> {
     }
 }
 
-impl<'a> ConcurrentWriteBatch<'a> for RocksDbWriteBatch<'a> {
+impl<'a> ConcurrentWriteBatch<'a> for ConcurrentRocksDbWriteBatch<'a> {
     fn put(
         &self,
         key_space: KeySpace,
@@ -309,6 +287,93 @@ impl<'a> ConcurrentWriteBatch<'a> for RocksDbWriteBatch<'a> {
         })?;
         Ok(())
     }
+}
+
+pub struct SerialRocksDbWriteBatch<'a> {
+    batch: rocksdb::WriteBatch,
+    this: &'a RocksDbKeyValueDatabase,
+}
+
+impl<'a> SerialRocksDbWriteBatch<'a> {
+    fn new(this: &'a RocksDbKeyValueDatabase) -> Self {
+        Self {
+            batch: rocksdb::WriteBatch::default(),
+            this,
+        }
+    }
+}
+
+impl<'a> BaseWriteBatch<'a> for SerialRocksDbWriteBatch<'a> {
+    type ValueBuffer<'l>
+        = Vec<u8>
+    where
+        Self: 'l,
+        'a: 'l;
+
+    fn get<'l>(&'l self, key_space: KeySpace, key: &[u8]) -> Result<Option<Self::ValueBuffer<'l>>>
+    where
+        'a: 'l,
+    {
+        self.this.get(&(), key_space, key)
+    }
+
+    fn commit(self) -> Result<()> {
+        println!("commit started");
+        let batch = self.batch;
+        write_and_flush(&self.this.db, batch)
+    }
+}
+
+impl<'a> SerialWriteBatch<'a> for SerialRocksDbWriteBatch<'a> {
+    fn put(
+        &mut self,
+        key_space: KeySpace,
+        key: std::borrow::Cow<[u8]>,
+        value: std::borrow::Cow<[u8]>,
+    ) -> Result<()> {
+        let cf = self.this.cf_handle(key_space, &key)?;
+        self.batch.put_cf(cf, key, value);
+        Ok(())
+    }
+
+    fn delete(&mut self, key_space: KeySpace, key: std::borrow::Cow<[u8]>) -> Result<()> {
+        let cf = self.this.cf_handle(key_space, &key)?;
+        self.batch.delete_cf(cf, key);
+        Ok(())
+    }
+}
+
+fn write_and_flush(db: &DB, batch: rocksdb::WriteBatch) -> Result<()> {
+    let start = Instant::now();
+    let mut write_options = WriteOptions::default();
+    if USE_ATOMIC_FLUSH {
+        write_options.disable_wal(true);
+    }
+    db.write_opt(batch, &write_options)?;
+    println!("Write took {:?}", start.elapsed());
+    let start = Instant::now();
+    if !USE_ATOMIC_FLUSH {
+        scope(|s| {
+            let threads = RocksDbKeyValueDatabase::all_cf_names()
+                .map(|name| {
+                    s.spawn(move || {
+                        let cf = db.cf_handle(name).context("Failed to get column family")?;
+                        db.flush_cf(cf)?;
+                        anyhow::Ok(())
+                    })
+                })
+                .collect::<Vec<_>>();
+            for thread in threads {
+                thread.join().unwrap()?;
+            }
+            anyhow::Ok(())
+        })?;
+    }
+    let mut wait_for_compact_options = rocksdb::WaitForCompactOptions::default();
+    wait_for_compact_options.set_flush(USE_ATOMIC_FLUSH);
+    db.wait_for_compact(&wait_for_compact_options)?;
+    println!("Flush took {:?}", start.elapsed());
+    Ok(())
 }
 
 fn key_to_shard(key: &[u8]) -> usize {
