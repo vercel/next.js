@@ -37,6 +37,7 @@ export interface NextInstanceOpts {
   turbo?: boolean
   forcedPort?: string
   serverReadyPattern?: RegExp
+  patchFileDelay?: number
 }
 
 /**
@@ -74,7 +75,7 @@ export class NextInstance {
   public forcedPort?: string
   public dirSuffix: string = ''
   public serverReadyPattern?: RegExp = / ✓ Ready in /
-  public serverCompiledPattern?: RegExp = / ✓ Compiled /
+  patchFileDelay: number = 0
 
   constructor(opts: NextInstanceOpts) {
     this.env = {}
@@ -510,7 +511,10 @@ export class NextInstance {
 
     await fs.writeFile(
       outputPath,
-      typeof content === 'function' ? content(previousContent) : content
+      typeof content === 'function' ? content(previousContent) : content,
+      {
+        flush: true,
+      }
     )
 
     if (runWithTempContent) {
@@ -520,17 +524,14 @@ export class NextInstance {
         if (previousContent === undefined) {
           await fs.rm(outputPath)
         } else {
-          await fs.writeFile(outputPath, previousContent)
+          await fs.writeFile(outputPath, previousContent, {
+            flush: true,
+          })
         }
       }
     }
 
     return { newFile }
-  }
-
-  public async patchFileFast(filename: string, content: string) {
-    const outputPath = path.join(this.testDir, filename)
-    await fs.writeFile(outputPath, content)
   }
 
   public async renameFile(filename: string, newFilename: string) {
