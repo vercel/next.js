@@ -34,7 +34,7 @@ function formatRSCErrorMessage(
     } else {
       formattedMessage = message.replace(
         NEXT_RSC_ERR_REACT_API,
-        `\n\nYou're importing a component that needs $1. This React hook only works in a client component. To fix, mark the file (or its parent) with the \`"use client"\` directive. \n\nLearn more: https://nextjs.org/docs/app/building-your-application/rendering/client-components\n\n`
+        `\n\nYou're importing a component that needs $1. This React hook only works in a client component. To fix, mark the file (or its parent) with the \`"use client"\` directive. \n\nLearn more: https://nextjs.org/docs/app/api-reference/directives/use-client\n\n`
       )
     }
     formattedVerboseMessage =
@@ -85,7 +85,7 @@ function formatRSCErrorMessage(
   } else if (NEXT_RSC_ERR_CLIENT_DIRECTIVE_PAREN.test(message)) {
     formattedMessage = message.replace(
       NEXT_RSC_ERR_CLIENT_DIRECTIVE_PAREN,
-      `\n\n"use client" must be a directive, and placed before other expressions. Remove the parentheses and move it to the top of the file to resolve this issue.\nLearn more: https://nextjs.org/docs/app/building-your-application/rendering/client-components#using-client-components-in-nextjs\n\n`
+      `\n\n"use client" must be a directive, and placed before other expressions. Remove the parentheses and move it to the top of the file to resolve this issue.\nLearn more: https://nextjs.org/docs/app/api-reference/directives/use-client\n\n`
     )
     formattedVerboseMessage = '\n\nImport path:\n'
   } else if (NEXT_RSC_ERR_INVALID_API.test(message)) {
@@ -97,13 +97,13 @@ function formatRSCErrorMessage(
   } else if (NEXT_RSC_ERR_ERROR_FILE_SERVER_COMPONENT.test(message)) {
     formattedMessage = message.replace(
       NEXT_RSC_ERR_ERROR_FILE_SERVER_COMPONENT,
-      `\n\n${fileName} must be a Client Component. Add the "use client" directive the top of the file to resolve this issue.\nLearn more: https://nextjs.org/docs/app/building-your-application/rendering/client-components\n\n`
+      `\n\n${fileName} must be a Client Component. Add the "use client" directive the top of the file to resolve this issue.\nLearn more: https://nextjs.org/docs/app/api-reference/directives/use-client\n\n`
     )
     formattedVerboseMessage = '\n\nImport path:\n'
   } else if (NEXT_RSC_ERR_CLIENT_METADATA_EXPORT.test(message)) {
     formattedMessage = message.replace(
       NEXT_RSC_ERR_CLIENT_METADATA_EXPORT,
-      `\n\nYou are attempting to export "$1" from a component marked with "use client", which is disallowed. Either remove the export, or the "use client" directive. Read more: https://nextjs.org/docs/app/building-your-application/rendering/client-components#using-client-components-in-nextjs\n\n`
+      `\n\nYou are attempting to export "$1" from a component marked with "use client", which is disallowed. Either remove the export, or the "use client" directive. Read more: https://nextjs.org/docs/app/api-reference/directives/use-client\n\n`
     )
 
     formattedVerboseMessage = '\n\nFile path:\n'
