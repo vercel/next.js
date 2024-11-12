@@ -56,7 +56,7 @@ export function extractInfoFromServerReferenceId(
  * Creates a sparse array containing only the used arguments based on the
  * provided action info.
  */
-export function filterArgs(
+export function omitUnusedArgs(
   args: unknown[],
   info: ServerReferenceInfo
 ): unknown[] {

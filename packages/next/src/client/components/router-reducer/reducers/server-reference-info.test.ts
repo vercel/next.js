@@ -1,7 +1,7 @@
 import {
   type ServerReferenceInfo,
   extractInfoFromServerReferenceId,
-  filterArgs,
+  omitUnusedArgs,
 } from './server-reference-info'
 
 describe('extractInfoFromServerReferenceId', () => {
@@ -54,7 +54,7 @@ describe('extractInfoFromServerReferenceId', () => {
   })
 })
 
-describe('filterArgs', () => {
+describe('omitUnusedArgs', () => {
   test('should return empty array when no args are used and no restArgs', () => {
     const args = ['arg1', 'arg2', 'arg3']
 
@@ -64,7 +64,7 @@ describe('filterArgs', () => {
       hasRestArgs: false,
     }
 
-    expect(filterArgs(args, info)).toEqual([])
+    expect(omitUnusedArgs(args, info)).toEqual([])
   })
 
   test('should return all args when all args are used and has restArgs', () => {
@@ -85,7 +85,7 @@ describe('filterArgs', () => {
       hasRestArgs: true,
     }
 
-    expect(filterArgs(args, info)).toEqual(args)
+    expect(omitUnusedArgs(args, info)).toEqual(args)
   })
 
   test('should filter args when some args are used and no restArgs', () => {
@@ -97,7 +97,7 @@ describe('filterArgs', () => {
       hasRestArgs: false,
     }
 
-    expect(filterArgs(args, info)).toEqual([
+    expect(omitUnusedArgs(args, info)).toEqual([
       'arg1',
       undefined,
       'arg3',
@@ -125,7 +125,7 @@ describe('filterArgs', () => {
       hasRestArgs: true,
     }
 
-    expect(filterArgs(args, info)).toEqual([
+    expect(omitUnusedArgs(args, info)).toEqual([
       undefined,
       undefined,
       undefined,
@@ -155,7 +155,7 @@ describe('filterArgs', () => {
       hasRestArgs: false,
     }
 
-    expect(filterArgs(args, info)).toEqual([
+    expect(omitUnusedArgs(args, info)).toEqual([
       'arg1',
       'arg2',
       'arg3',
@@ -176,7 +176,7 @@ describe('filterArgs', () => {
       hasRestArgs: false,
     }
 
-    expect(filterArgs(args, info)).toEqual(['arg1', undefined, 'arg3'])
+    expect(omitUnusedArgs(args, info)).toEqual(['arg1', undefined, 'arg3'])
   })
 
   test('should handle empty args array', () => {
@@ -188,6 +188,6 @@ describe('filterArgs', () => {
       hasRestArgs: false,
     }
 
-    expect(filterArgs(args, info)).toEqual(args)
+    expect(omitUnusedArgs(args, info)).toEqual(args)
   })
 })

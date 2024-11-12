@@ -53,7 +53,7 @@ import { removeBasePath } from '../../../remove-base-path'
 import { hasBasePath } from '../../../has-base-path'
 import {
   extractInfoFromServerReferenceId,
-  filterArgs,
+  omitUnusedArgs,
 } from './server-reference-info'
 
 type FetchServerActionResult = {
@@ -76,8 +76,8 @@ async function fetchServerAction(
 ): Promise<FetchServerActionResult> {
   const temporaryReferences = createTemporaryReferenceSet()
   const info = extractInfoFromServerReferenceId(actionId)
-  const filteredArgs = filterArgs(actionArgs, info)
-  const body = await encodeReply(filteredArgs, { temporaryReferences })
+  const usedArgs = omitUnusedArgs(actionArgs, info)
+  const body = await encodeReply(usedArgs, { temporaryReferences })
 
   const res = await fetch('', {
     method: 'POST',
