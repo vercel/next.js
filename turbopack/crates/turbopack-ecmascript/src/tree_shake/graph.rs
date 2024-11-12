@@ -1311,11 +1311,6 @@ impl DepGraph {
                         used_ids.read.extend(ids_used_by_left.read);
                         used_ids.write.extend(ids_used_by_left.write);
                     }
-                    // Code like
-                    //
-                    // Parser.prototype.parseByte = function(b, offset) {}
-                    //
-                    // should be marked as side effect because it should be evaluated
 
                     let side_effects = used_ids.found_unresolved;
 
