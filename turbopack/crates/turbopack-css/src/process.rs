@@ -142,9 +142,6 @@ pub struct UnresolvedUrlReferences(pub Vec<(String, Vc<UrlAssetReference>)>);
 #[turbo_tasks::value(shared, serialization = "none", eq = "manual", cell = "new")]
 pub enum ParseCssResult {
     Ok {
-        #[turbo_tasks(debug_ignore, trace_ignore)]
-        cm: Arc<swc_core::common::SourceMap>,
-
         code: Vc<FileContent>,
 
         #[turbo_tasks(trace_ignore)]
@@ -212,7 +209,6 @@ pub async fn process_css_with_placeholder(
 
     match &*result {
         ParseCssResult::Ok {
-            cm,
             stylesheet,
             references,
             url_references,
@@ -226,7 +222,7 @@ pub async fn process_css_with_placeholder(
             };
 
             let (result, _) =
-                stylesheet.to_css(cm.clone(), &code, MinifyType::NoMinify, false, false, false)?;
+                stylesheet.to_css(&code, MinifyType::NoMinify, false, false, false)?;
 
             let exports = result.exports.map(|exports| {
                 let mut exports = exports.into_iter().collect::<FxIndexMap<_, _>>();
@@ -415,152 +411,77 @@ async fn process_content(
 
     let cm: Arc<swc_core::common::SourceMap> = Default::default();
 
-    let stylesheet = if true {
-        StyleSheetLike::LightningCss({
-            let warnings: Arc<RwLock<_>> = Default::default();
+    let stylesheet = StyleSheetLike::LightningCss({
+        let warnings: Arc<RwLock<_>> = Default::default();
 
-            match StyleSheet::parse(
-                &code,
-                ParserOptions {
-                    warnings: Some(warnings.clone()),
-                    ..config.clone()
-                },
-            ) {
-                Ok(mut ss) => {
-                    if matches!(ty, CssModuleAssetType::Module) {
-                        let mut validator = CssValidator { errors: Vec::new() };
-                        ss.visit(&mut validator).unwrap();
-
-                        for err in validator.errors {
-                            err.report(source, fs_path_vc);
-                        }
-                    }
-
-                    for err in warnings.read().unwrap().iter() {
-                        match err.kind {
-                            lightningcss::error::ParserError::UnexpectedToken(_)
-                            | lightningcss::error::ParserError::UnexpectedImportRule
-                            | lightningcss::error::ParserError::SelectorError(..)
-                            | lightningcss::error::ParserError::EndOfInput => {
-                                let source = err.loc.as_ref().map(|loc| {
-                                    let pos = SourcePos {
-                                        line: loc.line as _,
-                                        column: loc.column as _,
-                                    };
-                                    IssueSource::from_line_col(source, pos, pos)
-                                });
-
-                                ParsingIssue {
-                                    file: fs_path_vc,
-                                    msg: Vc::cell(err.to_string().into()),
-                                    source,
-                                }
-                                .cell()
-                                .emit();
-                                return Ok(ParseCssResult::Unparseable.cell());
-                            }
-
-                            _ => {
-                                // Ignore
-                            }
-                        }
-                    }
-
-                    stylesheet_into_static(&ss, without_warnings(config.clone()))
-                }
-                Err(e) => {
-                    let source = e.loc.as_ref().map(|loc| {
-                        let pos = SourcePos {
-                            line: loc.line as _,
-                            column: loc.column as _,
-                        };
-                        IssueSource::from_line_col(source, pos, pos)
-                    });
-                    ParsingIssue {
-                        file: fs_path_vc,
-                        msg: Vc::cell(e.to_string().into()),
-                        source,
-                    }
-                    .cell()
-                    .emit();
-                    return Ok(ParseCssResult::Unparseable.cell());
-                }
-            }
-        })
-    } else {
-        let fs_path = &*fs_path_vc.await?;
-
-        let handler = swc_core::common::errors::Handler::with_emitter(
-            true,
-            false,
-            Box::new(IssueEmitter::new(
-                source,
-                cm.clone(),
-                Some("Parsing css source code failed".into()),
-            )),
-        );
-
-        let fm = cm.new_source_file(FileName::Custom(filename.to_string()).into(), code.clone());
-        let mut errors = vec![];
-
-        let ss = swc_core::css::parser::parse_file(
-            &fm,
-            Default::default(),
-            swc_core::css::parser::parser::ParserConfig {
-                css_modules: true,
-                legacy_ie: true,
-                legacy_nesting: true,
-                ..Default::default()
+        match StyleSheet::parse(
+            &code,
+            ParserOptions {
+                warnings: Some(warnings.clone()),
+                ..config.clone()
             },
-            &mut errors,
-        );
+        ) {
+            Ok(mut ss) => {
+                if matches!(ty, CssModuleAssetType::Module) {
+                    let mut validator = CssValidator { errors: Vec::new() };
+                    ss.visit(&mut validator).unwrap();
 
-        for err in errors {
-            err.to_diagnostics(&handler).emit();
-        }
+                    for err in validator.errors {
+                        err.report(source, fs_path_vc);
+                    }
+                }
 
-        let ss: swc_core::css::ast::Stylesheet = match ss {
-            Ok(v) => v,
-            Err(err) => {
-                err.to_diagnostics(&handler).emit();
+                for err in warnings.read().unwrap().iter() {
+                    match err.kind {
+                        lightningcss::error::ParserError::UnexpectedToken(_)
+                        | lightningcss::error::ParserError::UnexpectedImportRule
+                        | lightningcss::error::ParserError::SelectorError(..)
+                        | lightningcss::error::ParserError::EndOfInput => {
+                            let source = err.loc.as_ref().map(|loc| {
+                                let pos = SourcePos {
+                                    line: loc.line as _,
+                                    column: loc.column as _,
+                                };
+                                IssueSource::from_line_col(source, pos, pos)
+                            });
+
+                            ParsingIssue {
+                                file: fs_path_vc,
+                                msg: Vc::cell(err.to_string().into()),
+                                source,
+                            }
+                            .cell()
+                            .emit();
+                            return Ok(ParseCssResult::Unparseable.cell());
+                        }
+
+                        _ => {
+                            // Ignore
+                        }
+                    }
+                }
+
+                stylesheet_into_static(&ss, without_warnings(config.clone()))
+            }
+            Err(e) => {
+                let source = e.loc.as_ref().map(|loc| {
+                    let pos = SourcePos {
+                        line: loc.line as _,
+                        column: loc.column as _,
+                    };
+                    IssueSource::from_line_col(source, pos, pos)
+                });
+                ParsingIssue {
+                    file: fs_path_vc,
+                    msg: Vc::cell(e.to_string().into()),
+                    source,
+                }
+                .cell()
+                .emit();
                 return Ok(ParseCssResult::Unparseable.cell());
             }
-        };
-
-        if handler.has_errors() {
-            return Ok(ParseCssResult::Unparseable.cell());
         }
-
-        if matches!(ty, CssModuleAssetType::Module) {
-            let mut validator = CssValidator { errors: vec![] };
-            ss.visit_with(&mut validator);
-
-            for err in validator.errors {
-                err.report(source, fs_path_vc);
-            }
-        }
-
-        StyleSheetLike::Swc {
-            stylesheet: ss,
-            css_modules: if matches!(ty, CssModuleAssetType::Module) {
-                let basename = BASENAME_RE
-                    .captures(fs_path.file_name())
-                    .context("Must include basename preceding .")?
-                    .get(0)
-                    .context("Must include basename preceding .")?
-                    .as_str();
-                // Truncate this as u32 so it's formatted as 8-character hex in the suffix below
-                let path_hash = turbo_tasks_hash::hash_xxh3_hash64(filename) as u32;
-
-                Some(SwcCssModuleMode {
-                    basename: basename.to_string(),
-                    path_hash,
-                })
-            } else {
-                None
-            },
-        }
-    };
+    });
 
     let config = without_warnings(config);
     let mut stylesheet = stylesheet.to_static(config.clone());
