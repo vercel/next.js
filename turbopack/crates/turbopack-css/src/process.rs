@@ -59,12 +59,6 @@ pub enum StyleSheetLike<'i, 'o> {
     LightningCss(StyleSheet<'i, 'o>),
 }
 
-#[derive(Debug, Clone)]
-pub struct SwcCssModuleMode {
-    basename: String,
-    path_hash: u32,
-}
-
 impl PartialEq for StyleSheetLike<'_, '_> {
     fn eq(&self, _: &Self) -> bool {
         false
@@ -94,7 +88,6 @@ impl StyleSheetLike<'_, '_> {
 
     pub fn to_css(
         &self,
-        cm: Arc<swc_core::common::SourceMap>,
         code: &str,
         minify_type: MinifyType,
         enable_srcmap: bool,
@@ -136,135 +129,6 @@ impl StyleSheetLike<'_, '_> {
                 Ok((
                     result,
                     srcmap.map(ParseCssResultSourceMap::new_lightningcss),
-                ))
-            }
-            StyleSheetLike::Swc {
-                stylesheet,
-                css_modules,
-            } => {
-                let mut stylesheet = stylesheet.clone();
-                // We always analyze dependencies, but remove them only if remove_imports is
-                // true
-                let mut deps = vec![];
-                stylesheet.visit_mut_with(&mut SwcDepCollector {
-                    deps: &mut deps,
-                    remove_imports,
-                });
-
-                // lightningcss specifies css module mode in the parser options.
-                let mut css_module_exports = None;
-                if let Some(SwcCssModuleMode {
-                    basename,
-                    path_hash,
-                }) = css_modules
-                {
-                    let output = swc_core::css::modules::compile(
-                        &mut stylesheet,
-                        ModuleTransformConfig {
-                            suffix: format!("__{}__{:x}", basename, path_hash),
-                        },
-                    );
-
-                    let mut map = CssModuleExports::default();
-
-                    for (class_name, export_class_names) in output.renamed {
-                        for export_class_name in export_class_names {
-                            // If the class name is already in the map, the first
-                            // one is the reference to itself and the current one is
-                            // the reference to the other class.
-                            match export_class_name {
-                                CssClassName::Local { name } => {
-                                    map.entry(class_name.to_string())
-                                        .and_modify(|e| {
-                                            e.composes.push(CssModuleReference::Local {
-                                                name: name.value.to_string(),
-                                            })
-                                        })
-                                        .or_insert_with(|| CssModuleExport {
-                                            name: name.value.to_string(),
-                                            composes: Vec::new(),
-                                            is_referenced: true,
-                                        });
-                                }
-                                CssClassName::Global { name } => {
-                                    map.entry(class_name.to_string())
-                                        .and_modify(|e| {
-                                            e.composes.push(CssModuleReference::Global {
-                                                name: name.value.to_string(),
-                                            })
-                                        })
-                                        .or_insert_with(|| CssModuleExport {
-                                            name: name.value.to_string(),
-                                            composes: Vec::new(),
-                                            is_referenced: true,
-                                        });
-                                }
-                                CssClassName::Import { name, from } => {
-                                    let e =
-                                        map.entry(class_name.to_string()).or_insert_with(|| {
-                                            CssModuleExport {
-                                                name: name.value.to_string(),
-                                                composes: Vec::new(),
-                                                is_referenced: true,
-                                            }
-                                        });
-
-                                    e.composes.push(CssModuleReference::Dependency {
-                                        name: name.value.to_string(),
-                                        specifier: from.to_string(),
-                                    });
-                                }
-                            }
-                        }
-                    }
-
-                    css_module_exports = Some(map);
-                }
-
-                if handle_nesting {
-                    stylesheet.visit_mut_with(&mut swc_core::css::compat::compiler::Compiler::new(
-                        swc_core::css::compat::compiler::Config {
-                            process: swc_core::css::compat::feature::Features::NESTING,
-                        },
-                    ));
-                }
-
-                use swc_core::css::codegen::Emit;
-
-                let mut code_string = String::new();
-                let mut srcmap = if enable_srcmap { Some(vec![]) } else { None };
-
-                let mut code_gen = CodeGenerator::new(
-                    BasicCssWriter::new(
-                        &mut code_string,
-                        srcmap.as_mut(),
-                        if matches!(minify_type, MinifyType::Minify) {
-                            BasicCssWriterConfig {
-                                indent_width: 0,
-                                ..Default::default()
-                            }
-                        } else {
-                            Default::default()
-                        },
-                    ),
-                    swc_core::css::codegen::CodegenConfig {
-                        minify: matches!(minify_type, MinifyType::Minify),
-                    },
-                );
-
-                code_gen.emit(&stylesheet)?;
-
-                let srcmap =
-                    srcmap.map(|srcmap| ParseCssResultSourceMap::new_swc(cm.clone(), srcmap));
-
-                Ok((
-                    ToCssResult {
-                        code: code_string,
-                        dependencies: Some(deps),
-                        exports: css_module_exports,
-                        references: None,
-                    },
-                    srcmap,
                 ))
             }
         }
