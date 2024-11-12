@@ -401,7 +401,6 @@ pub struct ExperimentalTurboConfig {
     pub rules: Option<FxIndexMap<RcStr, RuleConfigItemOrShortcut>>,
     pub resolve_alias: Option<FxIndexMap<RcStr, JsonValue>>,
     pub resolve_extensions: Option<Vec<RcStr>>,
-    pub use_swc_css: Option<bool>,
     pub tree_shaking: Option<bool>,
     pub module_id_strategy: Option<ModuleIdStrategy>,
     pub minify: Option<bool>,
@@ -1154,17 +1153,6 @@ impl NextConfig {
         Ok(Vc::cell(
             self.await?.experimental.react_owner_stack.unwrap_or(false),
         ))
-    }
-
-    #[turbo_tasks::function]
-    pub fn use_swc_css(&self) -> Vc<bool> {
-        Vc::cell(
-            self.experimental
-                .turbo
-                .as_ref()
-                .and_then(|turbo| turbo.use_swc_css)
-                .unwrap_or(false),
-        )
     }
 
     #[turbo_tasks::function]

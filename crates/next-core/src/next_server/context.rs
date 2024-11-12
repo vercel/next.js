@@ -472,7 +472,6 @@ pub async fn get_server_module_options_context(
     let tree_shaking_mode_for_foreign_code = *next_config
         .tree_shaking_mode_for_foreign_code(next_mode.is_development())
         .await?;
-    let use_swc_css = *next_config.use_swc_css().await?;
     let versions = RuntimeVersions(Default::default()).cell();
 
     // ModuleOptionsContext related options
@@ -519,7 +518,6 @@ pub async fn get_server_module_options_context(
         },
         execution_context: Some(execution_context),
         css: CssOptionsContext {
-            use_swc_css,
             ..Default::default()
         },
         tree_shaking_mode: tree_shaking_mode_for_user_code,

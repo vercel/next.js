@@ -80,12 +80,7 @@ impl ModuleOptions {
                 },
             enable_mdx,
             enable_mdx_rs,
-            css:
-                CssOptionsContext {
-                    enable_raw_css,
-                    use_swc_css,
-                    ..
-                },
+            css: CssOptionsContext { enable_raw_css, .. },
             ref enable_postcss_transform,
             ref enable_webpack_loaders,
             preset_env_versions,
@@ -390,7 +385,6 @@ impl ModuleOptions {
                     )]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Default,
-                        use_swc_css,
                     })],
                 ),
                 ModuleRule::new(
@@ -399,7 +393,6 @@ impl ModuleOptions {
                     )]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Module,
-                        use_swc_css,
                     })],
                 ),
             ]);
@@ -466,7 +459,6 @@ impl ModuleOptions {
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Default,
-                        use_swc_css,
                     })],
                 ),
                 ModuleRule::new(
@@ -479,21 +471,18 @@ impl ModuleOptions {
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Module,
-                        use_swc_css,
                     })],
                 ),
                 ModuleRule::new_internal(
                     RuleCondition::ResourcePathEndsWith(".css".to_string()),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Default,
-                        use_swc_css,
                     })],
                 ),
                 ModuleRule::new_internal(
                     RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Module,
-                        use_swc_css,
                     })],
                 ),
             ]);

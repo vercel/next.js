@@ -232,7 +232,7 @@ async fn apply_module_type(
                 .to_resolved()
                 .await?,
         ),
-        ModuleType::Css { ty, use_swc_css } => ResolvedVc::upcast(
+        ModuleType::Css { ty } => ResolvedVc::upcast(
             CssModuleAsset::new(
                 source,
                 Vc::upcast(module_asset_context),
@@ -242,7 +242,6 @@ async fn apply_module_type(
                     .await?
                     .css
                     .minify_type,
-                *use_swc_css,
                 if let ReferenceType::Css(CssReferenceSubType::AtImport(import)) =
                     reference_type.into_value()
                 {

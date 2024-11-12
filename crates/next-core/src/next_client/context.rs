@@ -265,7 +265,6 @@ pub async fn get_client_module_options_context(
     let tree_shaking_mode_for_foreign_code = *next_config
         .tree_shaking_mode_for_foreign_code(next_mode.is_development())
         .await?;
-    let use_swc_css = *next_config.use_swc_css().await?;
     let target_browsers = env.runtime_versions();
 
     let mut next_client_rules =
@@ -355,7 +354,6 @@ pub async fn get_client_module_options_context(
         enable_webpack_loaders,
         enable_mdx_rs,
         css: CssOptionsContext {
-            use_swc_css,
             minify_type: if *next_config.turbo_minify(mode).await? {
                 MinifyType::Minify
             } else {
