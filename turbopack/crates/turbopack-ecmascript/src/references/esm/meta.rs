@@ -30,11 +30,8 @@ pub struct ImportMetaBinding {
 #[turbo_tasks::value_impl]
 impl ImportMetaBinding {
     #[turbo_tasks::function]
-    pub async fn new(path: Vc<FileSystemPath>) -> Result<Vc<Self>> {
-        Ok(ImportMetaBinding {
-            path: path.to_resolved().await?,
-        }
-        .cell())
+    pub fn new(path: ResolvedVc<FileSystemPath>) -> Vc<Self> {
+        ImportMetaBinding { path }.cell()
     }
 }
 
