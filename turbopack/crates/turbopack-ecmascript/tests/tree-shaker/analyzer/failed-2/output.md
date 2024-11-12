@@ -385,11 +385,11 @@ graph TD
     Item4 --> Item3;
     Item9 --> Item5;
     Item9 --> Item4;
-    Item9 -.-> Item8;
-    Item9 -.-> Item7;
-    Item9 -.-> Item15;
-    Item9 -.-> Item6;
-    Item9 -.-> Item18;
+    Item9 --> Item8;
+    Item9 --> Item7;
+    Item9 --> Item15;
+    Item9 --> Item6;
+    Item9 --> Item18;
     Item21 --> Item10;
     Item22 --> Item11;
     Item23 --> Item12;
@@ -444,11 +444,11 @@ graph TD
     Item4 --> Item3;
     Item9 --> Item5;
     Item9 --> Item4;
-    Item9 -.-> Item8;
-    Item9 -.-> Item7;
-    Item9 -.-> Item15;
-    Item9 -.-> Item6;
-    Item9 -.-> Item18;
+    Item9 --> Item8;
+    Item9 --> Item7;
+    Item9 --> Item15;
+    Item9 --> Item6;
+    Item9 --> Item18;
     Item21 --> Item10;
     Item22 --> Item11;
     Item23 --> Item12;
@@ -520,11 +520,11 @@ graph TD
     Item4 --> Item3;
     Item9 --> Item5;
     Item9 --> Item4;
-    Item9 -.-> Item8;
-    Item9 -.-> Item7;
-    Item9 -.-> Item15;
-    Item9 -.-> Item6;
-    Item9 -.-> Item18;
+    Item9 --> Item8;
+    Item9 --> Item7;
+    Item9 --> Item15;
+    Item9 --> Item6;
+    Item9 --> Item18;
     Item21 --> Item10;
     Item22 --> Item11;
     Item23 --> Item12;
@@ -556,14 +556,14 @@ graph TD
 ```mermaid
 graph TD
     N0["Items: [ItemId(ModuleEvaluation)]"];
-    N1["Items: [ItemId(Export((&quot;Postpone&quot;, #2), &quot;Postpone&quot;))]"];
-    N2["Items: [ItemId(Export((&quot;createPostponedAbortSignal&quot;, #2), &quot;createPostponedAbortSignal&quot;))]"];
-    N3["Items: [ItemId(Export((&quot;createPrerenderState&quot;, #2), &quot;createPrerenderState&quot;))]"];
-    N4["Items: [ItemId(Export((&quot;formatDynamicAPIAccesses&quot;, #2), &quot;formatDynamicAPIAccesses&quot;))]"];
-    N5["Items: [ItemId(Export((&quot;markCurrentScopeAsDynamic&quot;, #2), &quot;markCurrentScopeAsDynamic&quot;))]"];
-    N6["Items: [ItemId(Export((&quot;trackDynamicDataAccessed&quot;, #2), &quot;trackDynamicDataAccessed&quot;))]"];
-    N7["Items: [ItemId(Export((&quot;trackDynamicFetch&quot;, #2), &quot;trackDynamicFetch&quot;))]"];
-    N8["Items: [ItemId(Export((&quot;usedDynamicAPIs&quot;, #2), &quot;usedDynamicAPIs&quot;))]"];
+    N1["Items: [ItemId(Export((&quot;Postpone&quot;, #2), &quot;Postpone&quot;)), ItemId(8, Normal)]"];
+    N2["Items: [ItemId(Export((&quot;createPostponedAbortSignal&quot;, #2), &quot;createPostponedAbortSignal&quot;)), ItemId(14, Normal)]"];
+    N3["Items: [ItemId(Export((&quot;createPrerenderState&quot;, #2), &quot;createPrerenderState&quot;)), ItemId(5, Normal)]"];
+    N4["Items: [ItemId(Export((&quot;formatDynamicAPIAccesses&quot;, #2), &quot;formatDynamicAPIAccesses&quot;)), ItemId(12, Normal)]"];
+    N5["Items: [ItemId(Export((&quot;markCurrentScopeAsDynamic&quot;, #2), &quot;markCurrentScopeAsDynamic&quot;)), ItemId(6, Normal)]"];
+    N6["Items: [ItemId(Export((&quot;trackDynamicDataAccessed&quot;, #2), &quot;trackDynamicDataAccessed&quot;)), ItemId(7, Normal)]"];
+    N7["Items: [ItemId(Export((&quot;trackDynamicFetch&quot;, #2), &quot;trackDynamicFetch&quot;)), ItemId(9, Normal)]"];
+    N8["Items: [ItemId(Export((&quot;usedDynamicAPIs&quot;, #2), &quot;usedDynamicAPIs&quot;)), ItemId(11, Normal)]"];
     N9["Items: [ItemId(0, ImportOfModule)]"];
     N10["Items: [ItemId(0, ImportBinding(0))]"];
     N11["Items: [ItemId(1, ImportOfModule)]"];
@@ -573,47 +573,31 @@ graph TD
     N15["Items: [ItemId(3, ImportOfModule)]"];
     N16["Items: [ItemId(3, ImportBinding(0))]"];
     N17["Items: [ItemId(4, VarDeclarator(0)), ItemId(10, Normal), ItemId(13, Normal)]"];
-    N18["Items: [ItemId(5, Normal)]"];
-    N19["Items: [ItemId(6, Normal)]"];
-    N20["Items: [ItemId(7, Normal)]"];
-    N21["Items: [ItemId(8, Normal)]"];
-    N22["Items: [ItemId(9, Normal)]"];
-    N23["Items: [ItemId(11, Normal)]"];
-    N24["Items: [ItemId(12, Normal)]"];
-    N25["Items: [ItemId(14, Normal)]"];
     N11 --> N9;
     N13 --> N11;
     N15 --> N13;
     N17 --> N10;
     N17 --> N15;
-    N17 -.-> N16;
-    N17 -.-> N14;
-    N17 -.-> N12;
-    N3 --> N18;
-    N5 --> N19;
-    N6 --> N20;
-    N1 --> N21;
-    N7 --> N22;
-    N8 --> N23;
-    N4 --> N24;
-    N2 --> N25;
-    N19 --> N16;
-    N19 --> N14;
-    N19 --> N17;
-    N19 --> N12;
-    N20 --> N16;
-    N20 --> N14;
-    N20 --> N17;
-    N20 --> N12;
-    N21 --> N17;
-    N22 --> N17;
-    N25 --> N17;
-    N25 --> N10;
-    N0 --> N17;
-    N10 --> N9;
+    N17 --> N16;
+    N17 --> N14;
+    N17 --> N12;
     N12 --> N11;
+    N6 --> N16;
+    N7 --> N17;
+    N2 --> N10;
     N14 --> N13;
+    N10 --> N9;
     N16 --> N15;
+    N0 --> N17;
+    N5 --> N12;
+    N5 --> N17;
+    N5 --> N14;
+    N5 --> N16;
+    N1 --> N17;
+    N6 --> N12;
+    N6 --> N17;
+    N6 --> N14;
+    N2 --> N17;
 ```
 # Entrypoints
 
@@ -644,7 +628,7 @@ graph TD
     Export(
         "formatDynamicAPIAccesses",
     ): 4,
-    Exports: 26,
+    Exports: 18,
 }
 ```
 
@@ -660,66 +644,188 @@ import "__TURBOPACK_PART__" assert {
 ```
 ## Part 1
 ```js
-import { a as Postpone } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -21
+import { a as postponeWithTracking } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -17
 };
 export { Postpone };
+function Postpone({ reason, prerenderState, pathname }) {
+    postponeWithTracking(prerenderState, reason, pathname);
+}
+export { Postpone as b } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 
 ```
 ## Part 2
 ```js
-import { b as createPostponedAbortSignal } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -25
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 9
+};
+import React from 'react';
+import { c as assertPostpone } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -17
 };
 export { createPostponedAbortSignal };
+function createPostponedAbortSignal(reason) {
+    assertPostpone();
+    const controller = new AbortController();
+    try {
+        React.unstable_postpone(reason);
+    } catch (x) {
+        controller.abort(x);
+    }
+    return controller.signal;
+}
+export { createPostponedAbortSignal as d } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 
 ```
 ## Part 3
 ```js
-import { c as createPrerenderState } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -18
-};
 export { createPrerenderState };
+function createPrerenderState(isDebugSkeleton) {
+    return {
+        isDebugSkeleton,
+        dynamicAccesses: []
+    };
+}
+export { createPrerenderState as e } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 
 ```
 ## Part 4
 ```js
-import { d as formatDynamicAPIAccesses } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -24
-};
 export { formatDynamicAPIAccesses };
+function formatDynamicAPIAccesses(prerenderState) {
+    return prerenderState.dynamicAccesses.filter((access)=>typeof access.stack === 'string' && access.stack.length > 0).map(({ expression, stack })=>{
+        stack = stack.split('\n').slice(4).filter((line)=>{
+            if (line.includes('node_modules/next/')) {
+                return false;
+            }
+            if (line.includes(' (<anonymous>)')) {
+                return false;
+            }
+            if (line.includes(' (node:')) {
+                return false;
+            }
+            return true;
+        }).join('\n');
+        return `Dynamic API Usage Debug - ${expression}:\n${stack}`;
+    });
+}
+export { formatDynamicAPIAccesses as f } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 
 ```
 ## Part 5
 ```js
-import { e as markCurrentScopeAsDynamic } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -19
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 11
+};
+import { DynamicServerError } from '../../client/components/hooks-server-context';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 15
+};
+import { getPathname } from '../../lib/url';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 13
+};
+import { StaticGenBailoutError } from '../../client/components/static-generation-bailout';
+import { a as postponeWithTracking } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -17
 };
 export { markCurrentScopeAsDynamic };
+function markCurrentScopeAsDynamic(store, expression) {
+    const pathname = getPathname(store.urlPathname);
+    if (store.isUnstableCacheCallback) {
+        return;
+    } else if (store.dynamicShouldError) {
+        throw new StaticGenBailoutError(`Route ${pathname} with \`dynamic = "error"\` couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`);
+    } else if (store.prerenderState) {
+        postponeWithTracking(store.prerenderState, expression, pathname);
+    } else {
+        store.revalidate = 0;
+        if (store.isStaticGeneration) {
+            const err = new DynamicServerError(`Route ${pathname} couldn't be rendered statically because it used ${expression}. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`);
+            store.dynamicUsageDescription = expression;
+            store.dynamicUsageStack = err.stack;
+            throw err;
+        }
+    }
+}
+export { markCurrentScopeAsDynamic as g } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 
 ```
 ## Part 6
 ```js
-import { f as trackDynamicDataAccessed } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -20
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 11
+};
+import { DynamicServerError } from '../../client/components/hooks-server-context';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 15
+};
+import { getPathname } from '../../lib/url';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 13
+};
+import { StaticGenBailoutError } from '../../client/components/static-generation-bailout';
+import { a as postponeWithTracking } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -17
 };
 export { trackDynamicDataAccessed };
+function trackDynamicDataAccessed(store, expression) {
+    const pathname = getPathname(store.urlPathname);
+    if (store.isUnstableCacheCallback) {
+        throw new Error(`Route ${pathname} used "${expression}" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "${expression}" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`);
+    } else if (store.dynamicShouldError) {
+        throw new StaticGenBailoutError(`Route ${pathname} with \`dynamic = "error"\` couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`);
+    } else if (store.prerenderState) {
+        postponeWithTracking(store.prerenderState, expression, pathname);
+    } else {
+        store.revalidate = 0;
+        if (store.isStaticGeneration) {
+            const err = new DynamicServerError(`Route ${pathname} couldn't be rendered statically because it used ${expression}. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`);
+            store.dynamicUsageDescription = expression;
+            store.dynamicUsageStack = err.stack;
+            throw err;
+        }
+    }
+}
+export { trackDynamicDataAccessed as h } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 
 ```
 ## Part 7
 ```js
-import { g as trackDynamicFetch } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -22
+import { a as postponeWithTracking } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -17
 };
 export { trackDynamicFetch };
+function trackDynamicFetch(store, expression) {
+    if (!store.prerenderState || store.isUnstableCacheCallback) return;
+    postponeWithTracking(store.prerenderState, expression, store.urlPathname);
+}
+export { trackDynamicFetch as i } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 
 ```
 ## Part 8
 ```js
-import { h as usedDynamicAPIs } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -23
-};
 export { usedDynamicAPIs };
+function usedDynamicAPIs(prerenderState) {
+    return prerenderState.dynamicAccesses.length > 0;
+}
+export { usedDynamicAPIs as j } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 
 ```
 ## Part 9
@@ -736,7 +842,7 @@ import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 9
 };
 import React from 'react';
-export { React as i } from "__TURBOPACK_VAR__" assert {
+export { React as k } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -758,7 +864,7 @@ import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 11
 };
 import { DynamicServerError } from '../../client/components/hooks-server-context';
-export { DynamicServerError as j } from "__TURBOPACK_VAR__" assert {
+export { DynamicServerError as l } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -780,7 +886,7 @@ import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 13
 };
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout';
-export { StaticGenBailoutError as k } from "__TURBOPACK_VAR__" assert {
+export { StaticGenBailoutError as m } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -802,7 +908,7 @@ import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 15
 };
 import { getPathname } from '../../lib/url';
-export { getPathname as l } from "__TURBOPACK_VAR__" assert {
+export { getPathname as n } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -840,196 +946,18 @@ function assertPostpone() {
         throw new Error(`Invariant: React.unstable_postpone is not defined. This suggests the wrong version of React was loaded. This is a bug in Next.js`);
     }
 }
-export { hasPostpone as m } from "__TURBOPACK_VAR__" assert {
+export { hasPostpone as o } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
-export { postponeWithTracking as n } from "__TURBOPACK_VAR__" assert {
+export { postponeWithTracking as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
-export { assertPostpone as o } from "__TURBOPACK_VAR__" assert {
+export { assertPostpone as c } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
 ## Part 18
-```js
-function createPrerenderState(isDebugSkeleton) {
-    return {
-        isDebugSkeleton,
-        dynamicAccesses: []
-    };
-}
-export { createPrerenderState as c } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 19
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 11
-};
-import { DynamicServerError } from '../../client/components/hooks-server-context';
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 15
-};
-import { getPathname } from '../../lib/url';
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
-import { StaticGenBailoutError } from '../../client/components/static-generation-bailout';
-import { n as postponeWithTracking } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -17
-};
-function markCurrentScopeAsDynamic(store, expression) {
-    const pathname = getPathname(store.urlPathname);
-    if (store.isUnstableCacheCallback) {
-        return;
-    } else if (store.dynamicShouldError) {
-        throw new StaticGenBailoutError(`Route ${pathname} with \`dynamic = "error"\` couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`);
-    } else if (store.prerenderState) {
-        postponeWithTracking(store.prerenderState, expression, pathname);
-    } else {
-        store.revalidate = 0;
-        if (store.isStaticGeneration) {
-            const err = new DynamicServerError(`Route ${pathname} couldn't be rendered statically because it used ${expression}. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`);
-            store.dynamicUsageDescription = expression;
-            store.dynamicUsageStack = err.stack;
-            throw err;
-        }
-    }
-}
-export { markCurrentScopeAsDynamic as e } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 20
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 11
-};
-import { DynamicServerError } from '../../client/components/hooks-server-context';
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 15
-};
-import { getPathname } from '../../lib/url';
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
-import { StaticGenBailoutError } from '../../client/components/static-generation-bailout';
-import { n as postponeWithTracking } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -17
-};
-function trackDynamicDataAccessed(store, expression) {
-    const pathname = getPathname(store.urlPathname);
-    if (store.isUnstableCacheCallback) {
-        throw new Error(`Route ${pathname} used "${expression}" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "${expression}" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`);
-    } else if (store.dynamicShouldError) {
-        throw new StaticGenBailoutError(`Route ${pathname} with \`dynamic = "error"\` couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`);
-    } else if (store.prerenderState) {
-        postponeWithTracking(store.prerenderState, expression, pathname);
-    } else {
-        store.revalidate = 0;
-        if (store.isStaticGeneration) {
-            const err = new DynamicServerError(`Route ${pathname} couldn't be rendered statically because it used ${expression}. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`);
-            store.dynamicUsageDescription = expression;
-            store.dynamicUsageStack = err.stack;
-            throw err;
-        }
-    }
-}
-export { trackDynamicDataAccessed as f } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 21
-```js
-import { n as postponeWithTracking } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -17
-};
-function Postpone({ reason, prerenderState, pathname }) {
-    postponeWithTracking(prerenderState, reason, pathname);
-}
-export { Postpone as a } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 22
-```js
-import { n as postponeWithTracking } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -17
-};
-function trackDynamicFetch(store, expression) {
-    if (!store.prerenderState || store.isUnstableCacheCallback) return;
-    postponeWithTracking(store.prerenderState, expression, store.urlPathname);
-}
-export { trackDynamicFetch as g } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 23
-```js
-function usedDynamicAPIs(prerenderState) {
-    return prerenderState.dynamicAccesses.length > 0;
-}
-export { usedDynamicAPIs as h } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 24
-```js
-function formatDynamicAPIAccesses(prerenderState) {
-    return prerenderState.dynamicAccesses.filter((access)=>typeof access.stack === 'string' && access.stack.length > 0).map(({ expression, stack })=>{
-        stack = stack.split('\n').slice(4).filter((line)=>{
-            if (line.includes('node_modules/next/')) {
-                return false;
-            }
-            if (line.includes(' (<anonymous>)')) {
-                return false;
-            }
-            if (line.includes(' (node:')) {
-                return false;
-            }
-            return true;
-        }).join('\n');
-        return `Dynamic API Usage Debug - ${expression}:\n${stack}`;
-    });
-}
-export { formatDynamicAPIAccesses as d } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 25
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
-};
-import React from 'react';
-import { o as assertPostpone } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -17
-};
-function createPostponedAbortSignal(reason) {
-    assertPostpone();
-    const controller = new AbortController();
-    try {
-        React.unstable_postpone(reason);
-    } catch (x) {
-        controller.abort(x);
-    }
-    return controller.signal;
-}
-export { createPostponedAbortSignal as b } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 26
 ```js
 export { Postpone } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export Postpone"
@@ -1094,7 +1022,7 @@ import "__TURBOPACK_PART__" assert {
     Export(
         "formatDynamicAPIAccesses",
     ): 4,
-    Exports: 28,
+    Exports: 18,
 }
 ```
 
@@ -1110,66 +1038,188 @@ import "__TURBOPACK_PART__" assert {
 ```
 ## Part 1
 ```js
-import { a as Postpone } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -21
+import { a as postponeWithTracking } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -17
 };
 export { Postpone };
+function Postpone({ reason, prerenderState, pathname }) {
+    postponeWithTracking(prerenderState, reason, pathname);
+}
+export { Postpone as b } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 
 ```
 ## Part 2
 ```js
-import { b as createPostponedAbortSignal } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -27
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 9
+};
+import React from 'react';
+import { c as assertPostpone } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -17
 };
 export { createPostponedAbortSignal };
+function createPostponedAbortSignal(reason) {
+    assertPostpone();
+    const controller = new AbortController();
+    try {
+        React.unstable_postpone(reason);
+    } catch (x) {
+        controller.abort(x);
+    }
+    return controller.signal;
+}
+export { createPostponedAbortSignal as d } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 
 ```
 ## Part 3
 ```js
-import { c as createPrerenderState } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -18
-};
 export { createPrerenderState };
+function createPrerenderState(isDebugSkeleton) {
+    return {
+        isDebugSkeleton,
+        dynamicAccesses: []
+    };
+}
+export { createPrerenderState as e } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 
 ```
 ## Part 4
 ```js
-import { d as formatDynamicAPIAccesses } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -25
-};
 export { formatDynamicAPIAccesses };
+function formatDynamicAPIAccesses(prerenderState) {
+    return prerenderState.dynamicAccesses.filter((access)=>typeof access.stack === 'string' && access.stack.length > 0).map(({ expression, stack })=>{
+        stack = stack.split('\n').slice(4).filter((line)=>{
+            if (line.includes('node_modules/next/')) {
+                return false;
+            }
+            if (line.includes(' (<anonymous>)')) {
+                return false;
+            }
+            if (line.includes(' (node:')) {
+                return false;
+            }
+            return true;
+        }).join('\n');
+        return `Dynamic API Usage Debug - ${expression}:\n${stack}`;
+    });
+}
+export { formatDynamicAPIAccesses as f } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 
 ```
 ## Part 5
 ```js
-import { e as markCurrentScopeAsDynamic } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -19
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 11
+};
+import { DynamicServerError } from '../../client/components/hooks-server-context';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 15
+};
+import { getPathname } from '../../lib/url';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 13
+};
+import { StaticGenBailoutError } from '../../client/components/static-generation-bailout';
+import { a as postponeWithTracking } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -17
 };
 export { markCurrentScopeAsDynamic };
+function markCurrentScopeAsDynamic(store, expression) {
+    const pathname = getPathname(store.urlPathname);
+    if (store.isUnstableCacheCallback) {
+        return;
+    } else if (store.dynamicShouldError) {
+        throw new StaticGenBailoutError(`Route ${pathname} with \`dynamic = "error"\` couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`);
+    } else if (store.prerenderState) {
+        postponeWithTracking(store.prerenderState, expression, pathname);
+    } else {
+        store.revalidate = 0;
+        if (store.isStaticGeneration) {
+            const err = new DynamicServerError(`Route ${pathname} couldn't be rendered statically because it used ${expression}. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`);
+            store.dynamicUsageDescription = expression;
+            store.dynamicUsageStack = err.stack;
+            throw err;
+        }
+    }
+}
+export { markCurrentScopeAsDynamic as g } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 
 ```
 ## Part 6
 ```js
-import { f as trackDynamicDataAccessed } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -20
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 11
+};
+import { DynamicServerError } from '../../client/components/hooks-server-context';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 15
+};
+import { getPathname } from '../../lib/url';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 13
+};
+import { StaticGenBailoutError } from '../../client/components/static-generation-bailout';
+import { a as postponeWithTracking } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -17
 };
 export { trackDynamicDataAccessed };
+function trackDynamicDataAccessed(store, expression) {
+    const pathname = getPathname(store.urlPathname);
+    if (store.isUnstableCacheCallback) {
+        throw new Error(`Route ${pathname} used "${expression}" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "${expression}" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`);
+    } else if (store.dynamicShouldError) {
+        throw new StaticGenBailoutError(`Route ${pathname} with \`dynamic = "error"\` couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`);
+    } else if (store.prerenderState) {
+        postponeWithTracking(store.prerenderState, expression, pathname);
+    } else {
+        store.revalidate = 0;
+        if (store.isStaticGeneration) {
+            const err = new DynamicServerError(`Route ${pathname} couldn't be rendered statically because it used ${expression}. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`);
+            store.dynamicUsageDescription = expression;
+            store.dynamicUsageStack = err.stack;
+            throw err;
+        }
+    }
+}
+export { trackDynamicDataAccessed as h } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 
 ```
 ## Part 7
 ```js
-import { g as trackDynamicFetch } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -22
+import { a as postponeWithTracking } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -17
 };
 export { trackDynamicFetch };
+function trackDynamicFetch(store, expression) {
+    if (!store.prerenderState || store.isUnstableCacheCallback) return;
+    postponeWithTracking(store.prerenderState, expression, store.urlPathname);
+}
+export { trackDynamicFetch as i } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 
 ```
 ## Part 8
 ```js
-import { h as usedDynamicAPIs } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -24
-};
 export { usedDynamicAPIs };
+function usedDynamicAPIs(prerenderState) {
+    return prerenderState.dynamicAccesses.length > 0;
+}
+export { usedDynamicAPIs as j } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 
 ```
 ## Part 9
@@ -1186,7 +1236,7 @@ import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 9
 };
 import React from 'react';
-export { React as i } from "__TURBOPACK_VAR__" assert {
+export { React as k } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -1208,7 +1258,7 @@ import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 11
 };
 import { DynamicServerError } from '../../client/components/hooks-server-context';
-export { DynamicServerError as j } from "__TURBOPACK_VAR__" assert {
+export { DynamicServerError as l } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -1230,7 +1280,7 @@ import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 13
 };
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout';
-export { StaticGenBailoutError as k } from "__TURBOPACK_VAR__" assert {
+export { StaticGenBailoutError as m } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -1252,7 +1302,7 @@ import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 15
 };
 import { getPathname } from '../../lib/url';
-export { getPathname as l } from "__TURBOPACK_VAR__" assert {
+export { getPathname as n } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -1266,144 +1316,16 @@ import React from 'react';
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 15
 };
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 16
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 14
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 12
+};
 const hasPostpone = typeof React.unstable_postpone === 'function';
-export { hasPostpone as m } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 18
-```js
-function createPrerenderState(isDebugSkeleton) {
-    return {
-        isDebugSkeleton,
-        dynamicAccesses: []
-    };
-}
-export { createPrerenderState as c } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 19
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 11
-};
-import { DynamicServerError } from '../../client/components/hooks-server-context';
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 15
-};
-import { getPathname } from '../../lib/url';
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
-import { StaticGenBailoutError } from '../../client/components/static-generation-bailout';
-import { n as postponeWithTracking } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -23
-};
-function markCurrentScopeAsDynamic(store, expression) {
-    const pathname = getPathname(store.urlPathname);
-    if (store.isUnstableCacheCallback) {
-        return;
-    } else if (store.dynamicShouldError) {
-        throw new StaticGenBailoutError(`Route ${pathname} with \`dynamic = "error"\` couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`);
-    } else if (store.prerenderState) {
-        postponeWithTracking(store.prerenderState, expression, pathname);
-    } else {
-        store.revalidate = 0;
-        if (store.isStaticGeneration) {
-            const err = new DynamicServerError(`Route ${pathname} couldn't be rendered statically because it used ${expression}. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`);
-            store.dynamicUsageDescription = expression;
-            store.dynamicUsageStack = err.stack;
-            throw err;
-        }
-    }
-}
-export { markCurrentScopeAsDynamic as e } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 20
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 11
-};
-import { DynamicServerError } from '../../client/components/hooks-server-context';
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 15
-};
-import { getPathname } from '../../lib/url';
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
-import { StaticGenBailoutError } from '../../client/components/static-generation-bailout';
-import { n as postponeWithTracking } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -23
-};
-function trackDynamicDataAccessed(store, expression) {
-    const pathname = getPathname(store.urlPathname);
-    if (store.isUnstableCacheCallback) {
-        throw new Error(`Route ${pathname} used "${expression}" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "${expression}" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`);
-    } else if (store.dynamicShouldError) {
-        throw new StaticGenBailoutError(`Route ${pathname} with \`dynamic = "error"\` couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`);
-    } else if (store.prerenderState) {
-        postponeWithTracking(store.prerenderState, expression, pathname);
-    } else {
-        store.revalidate = 0;
-        if (store.isStaticGeneration) {
-            const err = new DynamicServerError(`Route ${pathname} couldn't be rendered statically because it used ${expression}. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`);
-            store.dynamicUsageDescription = expression;
-            store.dynamicUsageStack = err.stack;
-            throw err;
-        }
-    }
-}
-export { trackDynamicDataAccessed as f } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 21
-```js
-import { n as postponeWithTracking } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -23
-};
-function Postpone({ reason, prerenderState, pathname }) {
-    postponeWithTracking(prerenderState, reason, pathname);
-}
-export { Postpone as a } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 22
-```js
-import { n as postponeWithTracking } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -23
-};
-function trackDynamicFetch(store, expression) {
-    if (!store.prerenderState || store.isUnstableCacheCallback) return;
-    postponeWithTracking(store.prerenderState, expression, store.urlPathname);
-}
-export { trackDynamicFetch as g } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 23
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
-};
-import React from 'react';
-import { o as assertPostpone } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -26
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 17
-};
 function postponeWithTracking(prerenderState, expression, pathname) {
     assertPostpone();
     const reason = `Route ${pathname} needs to bail out of prerendering at this point because it used ${expression}. ` + `React throws this special object to indicate where. It should not be caught by ` + `your own try/catch. Learn more: https://nextjs.org/docs/messages/ppr-caught-error`;
@@ -1413,88 +1335,23 @@ function postponeWithTracking(prerenderState, expression, pathname) {
     });
     React.unstable_postpone(reason);
 }
-export { postponeWithTracking as n } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 24
-```js
-function usedDynamicAPIs(prerenderState) {
-    return prerenderState.dynamicAccesses.length > 0;
-}
-export { usedDynamicAPIs as h } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 25
-```js
-function formatDynamicAPIAccesses(prerenderState) {
-    return prerenderState.dynamicAccesses.filter((access)=>typeof access.stack === 'string' && access.stack.length > 0).map(({ expression, stack })=>{
-        stack = stack.split('\n').slice(4).filter((line)=>{
-            if (line.includes('node_modules/next/')) {
-                return false;
-            }
-            if (line.includes(' (<anonymous>)')) {
-                return false;
-            }
-            if (line.includes(' (node:')) {
-                return false;
-            }
-            return true;
-        }).join('\n');
-        return `Dynamic API Usage Debug - ${expression}:\n${stack}`;
-    });
-}
-export { formatDynamicAPIAccesses as d } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 26
-```js
-import { m as hasPostpone } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -17
-};
 function assertPostpone() {
     if (!hasPostpone) {
         throw new Error(`Invariant: React.unstable_postpone is not defined. This suggests the wrong version of React was loaded. This is a bug in Next.js`);
     }
 }
-export { assertPostpone as o } from "__TURBOPACK_VAR__" assert {
+export { hasPostpone as o } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { postponeWithTracking as a } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { assertPostpone as c } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
-## Part 27
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
-};
-import React from 'react';
-import { o as assertPostpone } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -26
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 17
-};
-function createPostponedAbortSignal(reason) {
-    assertPostpone();
-    const controller = new AbortController();
-    try {
-        React.unstable_postpone(reason);
-    } catch (x) {
-        controller.abort(x);
-    }
-    return controller.signal;
-}
-export { createPostponedAbortSignal as b } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 28
+## Part 18
 ```js
 export { Postpone } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export Postpone"
