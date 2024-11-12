@@ -289,27 +289,26 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     }
 
     pub(crate) fn start_operation(&self) -> OperationGuard<'_, B> {
-        if self.should_persist() {
-            let fetch_add = self.in_progress_operations.fetch_add(1, Ordering::AcqRel);
-            if (fetch_add & SNAPSHOT_REQUESTED_BIT) != 0 {
-                let mut snapshot_request = self.snapshot_request.lock();
-                if snapshot_request.snapshot_requested {
-                    let value = self.in_progress_operations.fetch_sub(1, Ordering::AcqRel) - 1;
-                    if value == SNAPSHOT_REQUESTED_BIT {
-                        self.operations_suspended.notify_all();
-                    }
-                    self.snapshot_completed
-                        .wait_while(&mut snapshot_request, |snapshot_request| {
-                            snapshot_request.snapshot_requested
-                        });
-                    self.in_progress_operations.fetch_add(1, Ordering::AcqRel);
+        if !self.should_persist() {
+            return OperationGuard { backend: None };
+        }
+        let fetch_add = self.in_progress_operations.fetch_add(1, Ordering::AcqRel);
+        if (fetch_add & SNAPSHOT_REQUESTED_BIT) != 0 {
+            let mut snapshot_request = self.snapshot_request.lock();
+            if snapshot_request.snapshot_requested {
+                let value = self.in_progress_operations.fetch_sub(1, Ordering::AcqRel) - 1;
+                if value == SNAPSHOT_REQUESTED_BIT {
+                    self.operations_suspended.notify_all();
                 }
+                self.snapshot_completed
+                    .wait_while(&mut snapshot_request, |snapshot_request| {
+                        snapshot_request.snapshot_requested
+                    });
+                self.in_progress_operations.fetch_add(1, Ordering::AcqRel);
             }
-            OperationGuard {
-                backend: Some(self),
-            }
-        } else {
-            OperationGuard { backend: None }
+        }
+        OperationGuard {
+            backend: Some(self),
         }
     }
 
