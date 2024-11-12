@@ -88,7 +88,7 @@ impl ReferencedAsset {
                         ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkPlaceable>>(module)
                             .await?
                     {
-                        return Ok(ReferencedAsset::Some(*placeable).cell());
+                        return Ok(ReferencedAsset::Some(**placeable).cell());
                     }
                 }
                 // TODO ignore should probably be handled differently
