@@ -1281,6 +1281,15 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         _ => None,
                     },
                 ));
+                old_edges.extend(task.iter(CachedDataItemIndex::Collectibles).filter_map(
+                    |(key, value)| match (key, value) {
+                        (
+                            CachedDataItemKey::OutdatedCollectible { collectible },
+                            CachedDataItemValue::OutdatedCollectible { value },
+                        ) => Some(OutdatedEdge::Collectible(*collectible, *value)),
+                        _ => None,
+                    },
+                ));
             }
             if self.should_track_dependencies() {
                 old_edges.extend(task.iter(CachedDataItemIndex::Dependencies).filter_map(

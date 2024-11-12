@@ -146,7 +146,7 @@ impl AggregatedDataUpdate {
         let aggregation = get_aggregation_number(task);
         let mut dirty_container_count = Default::default();
         let mut collectibles_update: Vec<_> =
-            get_many!(task, Collectible { collectible } => (*collectible, 1));
+            get_many!(task, Collectible { collectible } count if *count > 0 => (*collectible, 1));
         if is_aggregating_node(aggregation) {
             dirty_container_count = get!(task, AggregatedDirtyContainerCount)
                 .cloned()

@@ -20,7 +20,7 @@ impl UpdateCollectibleOperation {
     pub fn run(
         task_id: TaskId,
         collectible: CollectibleRef,
-        count: i32,
+        mut count: i32,
         mut ctx: impl ExecuteContext,
     ) {
         if !ctx.should_track_children() {
@@ -32,26 +32,30 @@ impl UpdateCollectibleOperation {
         let outdated = get!(task, OutdatedCollectible { collectible }).copied();
         if let Some(outdated) = outdated {
             if count > 0 && outdated > 0 {
-                update_count!(
-                    task,
-                    OutdatedCollectible { collectible },
-                    -min(count, outdated)
-                );
+                let shared = min(count, outdated);
+                update_count!(task, OutdatedCollectible { collectible }, -shared);
+                count -= shared;
             } else if count < 0 && outdated < 0 {
-                update_count!(
-                    task,
-                    OutdatedCollectible { collectible },
-                    min(-count, -outdated)
-                );
+                let shared = min(-count, -outdated);
+                update_count!(task, OutdatedCollectible { collectible }, shared);
+                count += shared;
             } else {
                 // Not reduced from outdated
             }
         }
-        update_count!(task, Collectible { collectible }, count);
-        queue.extend(AggregationUpdateJob::data_update(
-            &mut task,
-            AggregatedDataUpdate::new().collectibles_update(vec![(collectible, count)]),
-        ));
+        if count != 0 && update_count!(task, Collectible { collectible }, count) {
+            if count > 0 {
+                queue.extend(AggregationUpdateJob::data_update(
+                    &mut task,
+                    AggregatedDataUpdate::new().collectibles_update(vec![(collectible, 1)]),
+                ));
+            } else {
+                queue.extend(AggregationUpdateJob::data_update(
+                    &mut task,
+                    AggregatedDataUpdate::new().collectibles_update(vec![(collectible, -1)]),
+                ));
+            }
+        }
 
         drop(task);
 
