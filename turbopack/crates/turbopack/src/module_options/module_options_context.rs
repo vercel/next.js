@@ -173,7 +173,6 @@ pub struct CssOptionsContext {
     /// This is useful for node-file-trace, which tries to emit all assets in
     /// the module graph, but neither asset types can be emitted directly.
     pub enable_raw_css: bool,
-    pub use_swc_css: bool,
 
     pub minify_type: MinifyType,
 

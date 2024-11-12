@@ -146,11 +146,6 @@ export interface ExperimentalTurboOptions {
   rules?: Record<string, TurboRuleConfigItemOrShortcut>
 
   /**
-   * Use swc_css instead of lightningcss for Turbopack
-   */
-  useSwcCss?: boolean
-
-  /**
    * A target memory limit for turbo, in bytes.
    */
   memoryLimit?: number

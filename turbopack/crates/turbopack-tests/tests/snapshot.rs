@@ -93,8 +93,6 @@ struct SnapshotOptions {
     #[serde(default)]
     environment: SnapshotEnvironment,
     #[serde(default)]
-    use_swc_css: bool,
-    #[serde(default)]
     tree_shaking_mode: Option<TreeShakingMode>,
 }
 
@@ -121,7 +119,6 @@ impl Default for SnapshotOptions {
             runtime: Default::default(),
             runtime_type: default_runtime_type(),
             environment: Default::default(),
-            use_swc_css: Default::default(),
             tree_shaking_mode: Default::default(),
         }
     }
@@ -276,7 +273,6 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 ..Default::default()
             },
             css: CssOptionsContext {
-                use_swc_css: options.use_swc_css,
                 ..Default::default()
             },
             preset_env_versions: Some(env.to_resolved().await?),
@@ -284,7 +280,6 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 ContextCondition::InDirectory("node_modules".into()),
                 ModuleOptionsContext {
                     css: CssOptionsContext {
-                        use_swc_css: options.use_swc_css,
                         ..Default::default()
                     },
                     ..Default::default()
