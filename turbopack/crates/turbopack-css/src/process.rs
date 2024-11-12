@@ -20,19 +20,6 @@ use swc_core::{
     atoms::Atom,
     base::sourcemap::SourceMapBuilder,
     common::{BytePos, FileName, LineCol, Span},
-    css::{
-        ast::{
-            ComplexSelector, ComplexSelectorChildren, CompoundSelector, ForgivingComplexSelector,
-            ForgivingRelativeSelector, PseudoClassSelectorChildren, PseudoElementSelectorChildren,
-            RelativeSelector, SubclassSelector, TypeSelector, UrlValue,
-        },
-        codegen::{
-            writer::basic::{BasicCssWriter, BasicCssWriterConfig},
-            CodeGenerator,
-        },
-        modules::{CssClassName, TransformConfig},
-        visit::{VisitMut, VisitMutWith, VisitWith},
-    },
 };
 use tracing::Instrument;
 use turbo_tasks::{FxIndexMap, RcStr, ValueToString, Vc};
@@ -70,10 +57,6 @@ static BASENAME_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[^.]*").unwrap());
 #[derive(Debug)]
 pub enum StyleSheetLike<'i, 'o> {
     LightningCss(StyleSheet<'i, 'o>),
-    Swc {
-        stylesheet: swc_core::css::ast::Stylesheet,
-        css_modules: Option<SwcCssModuleMode>,
-    },
 }
 
 #[derive(Debug, Clone)]
