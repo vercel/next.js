@@ -112,6 +112,8 @@ export function createWorkStore({
 
     isDraftMode: renderOpts.isDraftMode,
 
+    rootParams: {},
+
     requestEndedState,
     isPrefetchRequest,
     buildId: renderOpts.buildId,
