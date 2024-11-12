@@ -240,7 +240,7 @@ export async function startServer(
       const networkHostname =
         hostname ?? getNetworkHost(isIPv6(actualHostname) ? 'IPv6' : 'IPv4')
       const networkUrl = networkHostname
-        ? `http://${formatHostname(networkHostname)}:${port}`
+        ? `${selfSignedCertificate ? 'https' : 'http'}://${formatHostname(networkHostname)}:${port}`
         : null
 
       const appUrl = `${
