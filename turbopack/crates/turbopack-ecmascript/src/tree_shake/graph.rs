@@ -14,8 +14,7 @@ use swc_core::{
             ExportNamedSpecifier, ExportSpecifier, Expr, ExprStmt, FnDecl, Id, Ident, IdentName,
             ImportDecl, ImportNamedSpecifier, ImportSpecifier, ImportStarAsSpecifier, KeyValueProp,
             Lit, Module, ModuleDecl, ModuleExportName, ModuleItem, NamedExport, ObjectLit, Prop,
-            PropName, PropOrSpread, SimpleAssignTarget, Stmt, Str, VarDecl, VarDeclKind,
-            VarDeclarator,
+            PropName, PropOrSpread, Stmt, Str, VarDecl, VarDeclKind, VarDeclarator,
         },
         atoms::JsWord,
         utils::{find_pat_ids, private_ident, quote_ident, ExprCtx, ExprExt},
@@ -1319,12 +1318,6 @@ impl DepGraph {
                     // should be marked as side effect because it should be evaluated
 
                     let side_effects = used_ids.found_unresolved
-                        || !matches!(
-                            assign.left,
-                            swc_core::ecma::ast::AssignTarget::Simple(SimpleAssignTarget::Ident(
-                                ..
-                            ))
-                        )
                         || assign.right.may_have_side_effects(&ExprCtx {
                             unresolved_ctxt,
                             is_unresolved_ref_safe: false,
