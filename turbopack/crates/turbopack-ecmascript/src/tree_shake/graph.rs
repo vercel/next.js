@@ -1312,7 +1312,12 @@ impl DepGraph {
                         used_ids.write.extend(ids_used_by_left.write);
                     }
 
-                    let side_effects = used_ids.found_unresolved;
+                    let side_effects = used_ids.found_unresolved
+                        || assign.right.may_have_side_effects(&ExprCtx {
+                            unresolved_ctxt,
+                            is_unresolved_ref_safe: false,
+                            in_strict: false,
+                        });
 
                     let data = ItemData {
                         read_vars: used_ids.read,
