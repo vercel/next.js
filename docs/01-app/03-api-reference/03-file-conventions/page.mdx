@@ -158,7 +158,7 @@ To use `searchParams` and `params` in a Client Component (which cannot be `async
 
 import { use } from 'react'
 
-export async function Page({
+export default async function Page({
   params,
   searchParams,
 }: {
@@ -175,7 +175,7 @@ export async function Page({
 
 import { use } from 'react'
 
-export async function Page({ params, searchParams }) {
+export default async function Page({ params, searchParams }) {
   const { slug } = use(params)
   const { query } = use(searchParams)
 }
