@@ -562,7 +562,8 @@ async function generateDynamicFlightRenderResult(
       ctx,
       false,
       ctx.clientReferenceManifest,
-      ctx.workStore.route
+      ctx.workStore.route,
+      requestStore
     )
   }
 
@@ -1654,7 +1655,8 @@ async function renderToStream(
         ctx,
         res.statusCode === 404,
         clientReferenceManifest,
-        workStore.route
+        workStore.route,
+        requestStore
       )
 
       reactServerResult = new ReactServerResult(reactServerStream)
@@ -1980,7 +1982,8 @@ async function spawnDynamicValidationInDev(
   ctx: AppRenderContext,
   isNotFound: boolean,
   clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>,
-  route: string
+  route: string,
+  requestStore: RequestStore
 ): Promise<void> {
   const { componentMod: ComponentMod } = ctx
 
@@ -2235,6 +2238,9 @@ async function spawnDynamicValidationInDev(
                 isPrerenderInterruptedError(err) ||
                 finalClientController.signal.aborted
               ) {
+                console.log('got prerender abort')
+                requestStore.usedDynamic = true
+
                 const componentStack: string | undefined = (errorInfo as any)
                   .componentStack
                 if (typeof componentStack === 'string') {
