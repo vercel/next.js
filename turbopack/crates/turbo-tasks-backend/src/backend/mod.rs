@@ -1358,7 +1358,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let InProgressState::InProgress {
             done_event,
             once_task: _,
-            stale: _,
+            stale,
             session_dependent,
         } = in_progress
         else {
