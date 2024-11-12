@@ -233,7 +233,7 @@ impl Analyzer<'_> {
                     for id in eventual_ids.iter() {
                         let state = self.vars.entry(id.clone()).or_default();
 
-                        self.g.add_weak_deps(item_id, state.last_writes.iter());
+                        self.g.add_strong_deps(item_id, state.last_writes.iter());
                         self.g.add_weak_deps(item_id, state.last_reads.iter());
                     }
                 }
