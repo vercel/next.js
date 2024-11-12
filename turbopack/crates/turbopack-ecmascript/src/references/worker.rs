@@ -65,7 +65,7 @@ impl WorkerAssetReference {
         );
 
         let Some(module) = *module.first_module().await? else {
-            bail!("Expected worker to resolve to a module");
+            return Ok(None);
         };
         let Some(chunkable) = ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(module).await?
         else {
