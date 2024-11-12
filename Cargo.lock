@@ -6487,12 +6487,6 @@ dependencies = [
  "swc_bundler",
  "swc_cached",
  "swc_common",
- "swc_css_ast",
- "swc_css_codegen",
- "swc_css_compat",
- "swc_css_modules",
- "swc_css_parser",
- "swc_css_visit",
  "swc_ecma_ast",
  "swc_ecma_codegen",
  "swc_ecma_lints",
@@ -6586,22 +6580,6 @@ dependencies = [
  "swc_common",
  "swc_css_ast",
  "swc_css_utils",
- "swc_css_visit",
-]
-
-[[package]]
-name = "swc_css_modules"
-version = "4.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "924f169c80ac00d9e710c222e1d7e01bb20ad63fcc1213c095ce539bba59cf12"
-dependencies = [
- "rustc-hash 1.1.0",
- "serde",
- "swc_atoms",
- "swc_common",
- "swc_css_ast",
- "swc_css_codegen",
- "swc_css_parser",
  "swc_css_visit",
 ]
 
