@@ -822,7 +822,7 @@ importers:
         specifier: ^6.10.0
         version: 6.10.0(eslint@9.12.0)
       eslint-plugin-react:
-        specifier: ^7.35.0
+        specifier: ^7.37.0
         version: 7.37.1(eslint@9.12.0)
       eslint-plugin-react-hooks:
         specifier: ^5.0.0
@@ -7682,10 +7682,6 @@ packages:
     resolution: {integrity: sha512-3MqfYKj2lLzdMSf8ZIZE/V+Zuy+BgD6f164e8K2w7dgnpKArBDerGYpM46IYYcjnkdPNMjPk9A6VFB8+3SKlXQ==}
     engines: {node: '>= 0.4'}
 
-  define-properties@1.1.4:
-    resolution: {integrity: sha512-uckOqKcfaVvtBdsVkdPv3XjveQJsNQqmhXgRi8uhvWWuPYZCNlzT8qAyblUgNoXdHdjMTzAqeGjAoli8f+bzPA==}
-    engines: {node: '>= 0.4'}
-
   define-properties@1.2.1:
     resolution: {integrity: sha512-8QmQKqEASLd5nx0U1B1okLElbUuuttJ/AnYmRXbbbGDWh6uS208EjD4Xqq/I9wK7u0v6O08XhTWnt5XtEbR6Dg==}
     engines: {node: '>= 0.4'}
@@ -8768,9 +8764,6 @@ packages:
     engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
     os: [darwin]
 
-  function-bind@1.1.1:
-    resolution: {integrity: sha512-yIovAzMX49sF8Yl58fSCWJ5svSLuaibPxXQJFLmBObTuCr0Mf1KiPopGM9NiFjiYBCbfaa2Fh6breQ6ANVTI0A==}
-
   function-bind@1.1.2:
     resolution: {integrity: sha512-7XHNxH7qX9xG5mIwxkhumTox/MIRNcOgDrxWsMt2pAr23WHp6MrRlN7FBSFpCpr+oVO0F744iUgR82nJMfG2SA==}
 
@@ -9081,9 +9074,6 @@ packages:
   has-own-prop@2.0.0:
     resolution: {integrity: sha512-Pq0h+hvsVm6dDEa8x82GnLSYHOzNDt7f0ddFa3FqcQlgzEiptPqL+XrOJNavjOzSYiYWIrgeVYYgGlLmnxwilQ==}
     engines: {node: '>=8'}
-
-  has-property-descriptors@1.0.0:
-    resolution: {integrity: sha512-62DVLZGoiEBDHQyqG4w9xCuZ7eJEwNmJRWw2VY84Oedb7WFcA27fiEVe8oUQx9hAUJ4ekurquucTGwsyO1XGdQ==}
 
   has-property-descriptors@1.0.2:
     resolution: {integrity: sha512-55JNKuIW+vq4Ke1BjOTjM2YctQIvCT7GFzHwmfZPGo5wnrgkid0YQtnAleFSqumZm4az3n2BS+erby5ipJdgrg==}
@@ -11438,9 +11428,6 @@ packages:
   object-hash@3.0.0:
     resolution: {integrity: sha512-RSn9F68PjH9HqtltsSnqYC1XXoWe9Bju5+213R98cNGttag9q9yAOTzdbsqvIa7aNm5WffBZFpWYr2aWrklWAw==}
     engines: {node: '>= 6'}
-
-  object-inspect@1.12.2:
-    resolution: {integrity: sha512-z+cPxW0QGUp0mcqcsgQyLVRDoXFQbXOwBaqyF7VIgI4TWNQsDHrBpUQslRmIfAoYWdYzs6UlKJtB2XJpTaNSpQ==}
 
   object-inspect@1.13.2:
     resolution: {integrity: sha512-IRZSRuzJiynemAXPYtPe5BoI/RESNYR7TYm50MC5Mqbd3Jmw5y790sErYw3V6SryFJD64b74qQQs9wn5Bg/k3g==}
@@ -22915,11 +22902,6 @@ snapshots:
     dependencies:
       object-keys: 1.1.1
 
-  define-properties@1.1.4:
-    dependencies:
-      has-property-descriptors: 1.0.0
-      object-keys: 1.1.1
-
   define-properties@1.2.1:
     dependencies:
       define-data-property: 1.1.4
@@ -23290,7 +23272,7 @@ snapshots:
       get-intrinsic: 1.2.4
       get-symbol-description: 1.0.0
       has: 1.0.3
-      has-property-descriptors: 1.0.0
+      has-property-descriptors: 1.0.2
       has-symbols: 1.0.3
       internal-slot: 1.0.7
       is-callable: 1.2.4
@@ -23299,7 +23281,7 @@ snapshots:
       is-shared-array-buffer: 1.0.2
       is-string: 1.0.7
       is-weakref: 1.0.2
-      object-inspect: 1.12.2
+      object-inspect: 1.13.2
       object-keys: 1.1.1
       object.assign: 4.1.4
       regexp.prototype.flags: 1.5.3
@@ -24501,8 +24483,6 @@ snapshots:
   fsevents@2.3.3:
     optional: true
 
-  function-bind@1.1.1: {}
-
   function-bind@1.1.2: {}
 
   function.prototype.name@1.1.5:
@@ -24902,10 +24882,6 @@ snapshots:
   has-flag@4.0.0: {}
 
   has-own-prop@2.0.0: {}
-
-  has-property-descriptors@1.0.0:
-    dependencies:
-      get-intrinsic: 1.2.4
 
   has-property-descriptors@1.0.2:
     dependencies:
@@ -28076,8 +28052,6 @@ snapshots:
 
   object-hash@3.0.0: {}
 
-  object-inspect@1.12.2: {}
-
   object-inspect@1.13.2: {}
 
   object-is@1.0.2: {}
@@ -30924,7 +30898,7 @@ snapshots:
 
   string.prototype.padend@3.1.0:
     dependencies:
-      define-properties: 1.1.4
+      define-properties: 1.2.1
       es-abstract: 1.20.2
 
   string.prototype.repeat@1.0.0:
@@ -32324,7 +32298,7 @@ snapshots:
       call-bind: 1.0.2
       es-abstract: 1.20.2
       foreach: 2.0.5
-      function-bind: 1.1.1
+      function-bind: 1.1.2
       has-symbols: 1.0.2
       is-typed-array: 1.1.5
 
