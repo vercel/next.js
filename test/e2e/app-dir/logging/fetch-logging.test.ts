@@ -79,7 +79,7 @@ describe('app-dir - fetch logging', () => {
     })
 
   // TODO: remove when there is a test for isNextDev === false
-  it('placeholder to satisfy at lesat one test when isNextDev is false', async () => {
+  it('placeholder to satisfy at least one test when isNextDev is false', async () => {
     expect(true).toBe(true)
   })
 })
