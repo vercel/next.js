@@ -25,7 +25,6 @@ const HTTPErrorStatus = {
 
 interface HTTPErrorFallbackBoundaryProps {
   notFound?: React.ReactNode
-  errorStatus?: number
   children: React.ReactNode
   missingSlots?: Set<string>
 }
@@ -48,7 +47,7 @@ class HTTPErrorFallbackErrorBoundary extends React.Component<
   constructor(props: HTTPErrorFallbackErrorBoundaryProps) {
     super(props)
     this.state = {
-      triggeredStatus: props.errorStatus,
+      triggeredStatus: undefined,
       previousPathname: props.pathname,
     }
   }
@@ -129,7 +128,6 @@ class HTTPErrorFallbackErrorBoundary extends React.Component<
 
 export function HTTPErrorFallbackBoundary({
   notFound,
-  errorStatus,
   children,
 }: HTTPErrorFallbackBoundaryProps) {
   // When we're rendering the missing params shell, this will return null. This
@@ -144,7 +142,6 @@ export function HTTPErrorFallbackBoundary({
       <HTTPErrorFallbackErrorBoundary
         pathname={pathname}
         notFound={notFound}
-        errorStatus={errorStatus}
         missingSlots={missingSlots}
       >
         {children}
