@@ -865,7 +865,7 @@ where
     Map(std::collections::hash_map::ExtractIf<'l, K, V, F>),
 }
 
-impl<'l, K, V, const I: usize, F> Iterator for ExtractIfIter<'l, K, V, I, F>
+impl<K, V, const I: usize, F> Iterator for ExtractIfIter<'_, K, V, I, F>
 where
     F: for<'a, 'b> FnMut(&'a K, &'b mut V) -> bool,
 {
