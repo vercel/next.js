@@ -52,6 +52,7 @@ describe('server-actions-relative-redirect', () => {
 
   it('should work with multi-level relative redirect from subdir', async () => {
     const browser = await next.browser('/subdir')
+    await browser.eval('window.notReloaded = true')
     await browser.waitForElementByCss('#multi-relative-subdir-redirect').click()
 
     await retry(async () => {
@@ -59,5 +60,7 @@ describe('server-actions-relative-redirect', () => {
         'hello nested page'
       )
     })
+
+    expect(await browser.eval('window.notReloaded')).toBe(true)
   })
 })
