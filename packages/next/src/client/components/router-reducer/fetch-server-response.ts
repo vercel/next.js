@@ -2,8 +2,8 @@
 
 // @ts-ignore
 // eslint-disable-next-line import/no-extraneous-dependencies
-// import { createFromFetch } from 'react-server-dom-webpack/client'
-const { createFromFetch } = (
+// import { createFromReadableStream } from 'react-server-dom-webpack/client'
+const { createFromReadableStream } = (
   !!process.env.NEXT_RUNTIME
     ? // eslint-disable-next-line import/no-extraneous-dependencies
       require('react-server-dom-webpack/client.edge')
@@ -34,11 +34,11 @@ import {
   normalizeFlightData,
   type NormalizedFlightData,
 } from '../../flight-data-helpers'
+import { getAppBuildId } from '../../app-build-id'
 
 export interface FetchServerResponseOptions {
   readonly flightRouterState: FlightRouterState
   readonly nextUrl: string | null
-  readonly buildId: string
   readonly prefetchKind?: PrefetchKind
   readonly isHmrRefresh?: boolean
 }
@@ -88,7 +88,7 @@ export async function fetchServerResponse(
   url: URL,
   options: FetchServerResponseOptions
 ): Promise<FetchServerResponseResult> {
-  const { flightRouterState, nextUrl, buildId, prefetchKind } = options
+  const { flightRouterState, nextUrl, prefetchKind } = options
 
   const headers: {
     [RSC_HEADER]: '1'
@@ -195,7 +195,7 @@ export async function fetchServerResponse(
 
     // If fetch returns something different than flight response handle it like a mpa navigation
     // If the fetch was not 200, we also handle it like a mpa navigation
-    if (!isFlightResponse || !res.ok) {
+    if (!isFlightResponse || !res.ok || !res.body) {
       // in case the original URL came with a hash, preserve it before redirecting to the new URL
       if (url.hash) {
         responseUrl.hash = url.hash
@@ -213,12 +213,15 @@ export async function fetchServerResponse(
     }
 
     // Handle the `fetch` readable stream that can be unwrapped by `React.use`.
-    const response: NavigationFlightResponse = await createFromFetch(
-      Promise.resolve(res),
+    const flightStream = postponed
+      ? createUnclosingPrefetchStream(res.body)
+      : res.body
+    const response: NavigationFlightResponse = await createFromReadableStream(
+      flightStream,
       { callServer, findSourceMapURL }
     )
 
-    if (buildId !== response.b) {
+    if (getAppBuildId() !== response.b) {
       return doMpaNavigation(res.url)
     }
 
@@ -247,4 +250,37 @@ export async function fetchServerResponse(
       staleTime: -1,
     }
   }
+}
+
+function createUnclosingPrefetchStream(
+  originalFlightStream: ReadableStream<Uint8Array>
+): ReadableStream<Uint8Array> {
+  // When PPR is enabled, prefetch streams may contain references that never
+  // resolve, because that's how we encode dynamic data access. In the decoded
+  // object returned by the Flight client, these are reified into hanging
+  // promises that suspend during render, which is effectively what we want.
+  // The UI resolves when it switches to the dynamic data stream
+  // (via useDeferredValue(dynamic, static)).
+  //
+  // However, the Flight implementation currently errors if the server closes
+  // the response before all the references are resolved. As a cheat to work
+  // around this, we wrap the original stream in a new stream that never closes,
+  // and therefore doesn't error.
+  const reader = originalFlightStream.getReader()
+  return new ReadableStream({
+    async pull(controller) {
+      while (true) {
+        const { done, value } = await reader.read()
+        if (!done) {
+          // Pass to the target stream and keep consuming the Flight response
+          // from the server.
+          controller.enqueue(value)
+          continue
+        }
+        // The server stream has closed. Exit, but intentionally do not close
+        // the target stream.
+        return
+      }
+    },
+  })
 }

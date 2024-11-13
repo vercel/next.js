@@ -1,5 +1,6 @@
 import { constants as FS, promises as fs } from 'fs'
 import path from 'path'
+import url from 'url'
 import { SourceMapConsumer } from 'next/dist/compiled/source-map08'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import { getSourceMapFromFile } from '../internal/helpers/get-source-map-from-file'
@@ -203,17 +204,16 @@ export async function getSourceMapFromCompilation(
 export async function getSource(
   filename: string,
   options: {
-    distDirectory: string
     getCompilations: () => webpack.Compilation[]
   }
 ): Promise<Source | undefined> {
-  const { distDirectory, getCompilations } = options
+  const { getCompilations } = options
 
-  if (filename.startsWith('/_next/static')) {
-    filename = path.join(distDirectory, filename.replace(/^\/_next\//, ''))
+  if (path.isAbsolute(filename)) {
+    filename = url.pathToFileURL(filename).href
   }
 
-  if (filename.startsWith('file:') || filename.startsWith(path.sep)) {
+  if (filename.startsWith('file:')) {
     const sourceMap = await getSourceMapFromFile(filename)
 
     return sourceMap
@@ -251,19 +251,12 @@ export async function getSource(
 }
 
 export function getOverlayMiddleware(options: {
-  distDirectory: string
   rootDirectory: string
   clientStats: () => webpack.Stats | null
   serverStats: () => webpack.Stats | null
   edgeServerStats: () => webpack.Stats | null
 }) {
-  const {
-    distDirectory,
-    rootDirectory,
-    clientStats,
-    serverStats,
-    edgeServerStats,
-  } = options
+  const { rootDirectory, clientStats, serverStats, edgeServerStats } = options
 
   return async function (
     req: IncomingMessage,
@@ -304,7 +297,6 @@ export function getOverlayMiddleware(options: {
 
       try {
         source = await getSource(frame.file, {
-          distDirectory,
           getCompilations: () => {
             const compilations: webpack.Compilation[] = []
 
@@ -405,12 +397,11 @@ export function getOverlayMiddleware(options: {
 }
 
 export function getSourceMapMiddleware(options: {
-  distDirectory: string
   clientStats: () => webpack.Stats | null
   serverStats: () => webpack.Stats | null
   edgeServerStats: () => webpack.Stats | null
 }) {
-  const { distDirectory, clientStats, serverStats, edgeServerStats } = options
+  const { clientStats, serverStats, edgeServerStats } = options
 
   return async function (
     req: IncomingMessage,
@@ -433,7 +424,6 @@ export function getSourceMapMiddleware(options: {
 
     try {
       source = await getSource(filename, {
-        distDirectory,
         getCompilations: () => {
           const compilations: webpack.Compilation[] = []
 

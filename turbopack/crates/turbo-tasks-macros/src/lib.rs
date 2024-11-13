@@ -22,6 +22,11 @@ pub fn derive_trace_raw_vcs_attr(input: TokenStream) -> TokenStream {
     derive::derive_trace_raw_vcs(input)
 }
 
+#[proc_macro_derive(ShrinkToFit, attributes(turbo_tasks))]
+pub fn derive_shrink_to_fit(input: TokenStream) -> TokenStream {
+    derive::derive_shrink_to_fit(input)
+}
+
 #[proc_macro_derive(ResolvedValue, attributes(turbo_tasks))]
 pub fn derive_resolved_value_attr(input: TokenStream) -> TokenStream {
     derive::derive_resolved_value(input)

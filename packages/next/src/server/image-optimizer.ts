@@ -519,6 +519,7 @@ export async function optimizeImage({
   height,
   concurrency,
   limitInputPixels,
+  sequentialRead,
   timeoutInSeconds,
 }: {
   buffer: Buffer
@@ -528,11 +529,13 @@ export async function optimizeImage({
   height?: number
   concurrency?: number | null
   limitInputPixels?: number
+  sequentialRead?: boolean | null
   timeoutInSeconds?: number
 }): Promise<Buffer> {
   const sharp = getSharp(concurrency)
   const transformer = sharp(buffer, {
     limitInputPixels,
+    sequentialRead: sequentialRead ?? undefined,
   })
     .timeout({
       seconds: timeoutInSeconds ?? 7,
@@ -650,7 +653,10 @@ export async function imageOptimizer(
   nextConfig: {
     experimental: Pick<
       NextConfigComplete['experimental'],
-      'imgOptConcurrency' | 'imgOptMaxInputPixels' | 'imgOptTimeoutInSeconds'
+      | 'imgOptConcurrency'
+      | 'imgOptMaxInputPixels'
+      | 'imgOptSequentialRead'
+      | 'imgOptTimeoutInSeconds'
     >
     images: Pick<
       NextConfigComplete['images'],
@@ -758,6 +764,7 @@ export async function imageOptimizer(
       width,
       concurrency: nextConfig.experimental.imgOptConcurrency,
       limitInputPixels: nextConfig.experimental.imgOptMaxInputPixels,
+      sequentialRead: nextConfig.experimental.imgOptSequentialRead,
       timeoutInSeconds: nextConfig.experimental.imgOptTimeoutInSeconds,
     })
     if (optimizedBuffer) {

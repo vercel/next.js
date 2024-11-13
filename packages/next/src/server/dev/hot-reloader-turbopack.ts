@@ -569,7 +569,7 @@ export async function createHotReloaderTurbopack(
 
   const middlewares = [
     getOverlayMiddleware(project),
-    getSourceMapMiddleware(project, distDir),
+    getSourceMapMiddleware(project),
   ]
 
   const versionInfoPromise = getVersionInfo(

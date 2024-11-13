@@ -18,7 +18,7 @@ use swc_core::{
         ast::*,
         atoms::JsWord,
         utils::{private_ident, quote_ident, ExprFactory},
-        visit::{as_folder, noop_visit_mut_type, Fold, VisitMut, VisitMutWith},
+        visit::{noop_visit_mut_type, visit_mut_pass, VisitMut, VisitMutWith},
     },
 };
 
@@ -35,12 +35,8 @@ pub struct Config {
 pub type ActionsMap = BTreeMap<String, String>;
 
 #[tracing::instrument(level = tracing::Level::TRACE, skip_all)]
-pub fn server_actions<C: Comments>(
-    file_name: &FileName,
-    config: Config,
-    comments: C,
-) -> impl VisitMut + Fold {
-    as_folder(ServerActions {
+pub fn server_actions<C: Comments>(file_name: &FileName, config: Config, comments: C) -> impl Pass {
+    visit_mut_pass(ServerActions {
         config,
         comments,
         file_name: file_name.to_string(),
@@ -137,7 +133,7 @@ impl<C: Comments> ServerActions<C> {
         &self,
         export_name: &str,
         is_cache: bool,
-        params: Option<&Vec<Pat>>,
+        params: Option<&Vec<Param>>,
     ) -> String {
         // Attach a checksum to the action using sha1:
         // $$id = special_byte + sha1('hash_salt' + 'file_name' + ':' + 'export_name');
@@ -187,7 +183,7 @@ impl<C: Comments> ServerActions<C> {
             // Instead, we go with the easy route and assume defined ones are
             // used. This can be improved in the future.
             for (i, param) in params.iter().enumerate() {
-                if let Pat::Rest(_) = param {
+                if let Pat::Rest(_) = param.pat {
                     // If there's a ...rest argument, we set the rest args bit
                     // to 1 and set the arg mask to 0b111111.
                     arg_mask = 0b111111;
@@ -232,6 +228,26 @@ impl<C: Comments> ServerActions<C> {
         let id: JsWord = format!("$$RSC_SERVER_REF_{0}", self.reference_index).into();
         self.reference_index += 1;
         id
+    }
+
+    fn create_bound_action_args_array_pat(&mut self, arg_len: usize) -> Pat {
+        Pat::Array(ArrayPat {
+            span: DUMMY_SP,
+            elems: (0..arg_len)
+                .map(|i| {
+                    Some(Pat::Ident(
+                        Ident::new(
+                            format!("$$ACTION_ARG_{i}").into(),
+                            DUMMY_SP,
+                            self.private_ctxt,
+                        )
+                        .into(),
+                    ))
+                })
+                .collect(),
+            optional: false,
+            type_ann: None,
+        })
     }
 
     // Check if the function or arrow function is an action or cache function
@@ -306,10 +322,24 @@ impl<C: Comments> ServerActions<C> {
         ids_from_closure: Vec<Name>,
         arrow: &mut ArrowExpr,
     ) -> Box<Expr> {
-        let action_name = self.gen_action_ident().to_string();
+        let mut new_params: Vec<Param> = vec![];
 
+        if !ids_from_closure.is_empty() {
+            // First param is the encrypted closure variables.
+            new_params.push(Param {
+                span: DUMMY_SP,
+                decorators: vec![],
+                pat: Pat::Ident(IdentName::new("$$ACTION_CLOSURE_BOUND".into(), DUMMY_SP).into()),
+            });
+        }
+
+        for p in arrow.params.iter() {
+            new_params.push(Param::from(p.clone()));
+        }
+
+        let action_name = self.gen_action_ident().to_string();
         let action_ident = Ident::new(action_name.clone().into(), arrow.span, self.private_ctxt);
-        let action_id = self.generate_server_reference_id(&action_name, false, Some(&arrow.params));
+        let action_id = self.generate_server_reference_id(&action_name, false, Some(&new_params));
 
         self.has_action = true;
         self.export_actions
@@ -332,44 +362,19 @@ impl<C: Comments> ServerActions<C> {
             });
         }
 
-        // export const $ACTION_myAction = async () => {}
-        let mut new_params: Vec<Param> = vec![];
         let mut new_body: BlockStmtOrExpr = *arrow.body.clone();
 
         if !ids_from_closure.is_empty() {
-            // First argument is the encrypted closure variables
-            new_params.push(Param {
-                span: DUMMY_SP,
-                decorators: vec![],
-                pat: Pat::Ident(IdentName::new("$$ACTION_CLOSURE_BOUND".into(), DUMMY_SP).into()),
-            });
-
-            // Also prepend the decryption decl into the body.
+            // Prepend the decryption declaration to the body.
             // var [arg1, arg2, arg3] = await decryptActionBoundArgs(actionId,
             // $$ACTION_CLOSURE_BOUND)
-            let mut pats = vec![];
-            for i in 0..ids_from_closure.len() {
-                pats.push(Some(Pat::Ident(
-                    Ident::new(
-                        format!("$$ACTION_ARG_{i}").into(),
-                        DUMMY_SP,
-                        self.private_ctxt,
-                    )
-                    .into(),
-                )));
-            }
             let decryption_decl = VarDecl {
                 span: DUMMY_SP,
                 kind: VarDeclKind::Var,
                 declare: false,
                 decls: vec![VarDeclarator {
                     span: DUMMY_SP,
-                    name: Pat::Array(ArrayPat {
-                        span: DUMMY_SP,
-                        elems: pats,
-                        optional: false,
-                        type_ann: None,
-                    }),
+                    name: self.create_bound_action_args_array_pat(ids_from_closure.len()),
                     init: Some(Box::new(Expr::Await(AwaitExpr {
                         span: DUMMY_SP,
                         arg: Box::new(Expr::Call(CallExpr {
@@ -405,14 +410,6 @@ impl<C: Comments> ServerActions<C> {
                     });
                 }
             }
-        }
-
-        for p in arrow.params.iter() {
-            new_params.push(Param {
-                span: DUMMY_SP,
-                decorators: vec![],
-                pat: p.clone(),
-            });
         }
 
         // Create the action export decl from the arrow function
@@ -465,14 +462,22 @@ impl<C: Comments> ServerActions<C> {
         function: &mut Box<Function>,
         fn_name: Option<Ident>,
     ) -> Box<Expr> {
-        let action_name: JsWord = self.gen_action_ident();
+        let mut new_params: Vec<Param> = vec![];
 
+        if !ids_from_closure.is_empty() {
+            // First param is the encrypted closure variables.
+            new_params.push(Param {
+                span: DUMMY_SP,
+                decorators: vec![],
+                pat: Pat::Ident(IdentName::new("$$ACTION_CLOSURE_BOUND".into(), DUMMY_SP).into()),
+            });
+        }
+
+        new_params.append(&mut function.params);
+
+        let action_name: JsWord = self.gen_action_ident();
         let action_ident = Ident::new(action_name.clone(), function.span, self.private_ctxt);
-        let action_id = self.generate_server_reference_id(
-            &action_name,
-            false,
-            Some(&function.params.iter().map(|p| p.pat.clone()).collect()),
-        );
+        let action_id = self.generate_server_reference_id(&action_name, false, Some(&new_params));
 
         self.has_action = true;
         self.export_actions
@@ -497,44 +502,18 @@ impl<C: Comments> ServerActions<C> {
             private_ctxt: self.private_ctxt,
         });
 
-        // export async function $ACTION_myAction () {}
-        let mut new_params: Vec<Param> = vec![];
         let mut new_body: Option<BlockStmt> = function.body.clone();
 
-        // add params from closure collected ids
         if !ids_from_closure.is_empty() {
-            // First argument is the encrypted closure variables
-            new_params.push(Param {
-                span: DUMMY_SP,
-                decorators: vec![],
-                pat: Pat::Ident(IdentName::new("$$ACTION_CLOSURE_BOUND".into(), DUMMY_SP).into()),
-            });
-
-            // Also prepend the decryption decl into the body.
+            // Prepend the decryption declaration to the body.
             // var [arg1, arg2, arg3] = await decryptActionBoundArgs(actionId,
             // $$ACTION_CLOSURE_BOUND)
-            let mut pats = vec![];
-            for i in 0..ids_from_closure.len() {
-                pats.push(Some(Pat::Ident(
-                    Ident::new(
-                        format!("$$ACTION_ARG_{i}").into(),
-                        DUMMY_SP,
-                        self.private_ctxt,
-                    )
-                    .into(),
-                )));
-            }
             let decryption_decl = VarDecl {
                 span: DUMMY_SP,
                 kind: VarDeclKind::Var,
                 decls: vec![VarDeclarator {
                     span: DUMMY_SP,
-                    name: Pat::Array(ArrayPat {
-                        span: DUMMY_SP,
-                        elems: pats,
-                        optional: false,
-                        type_ann: None,
-                    }),
+                    name: self.create_bound_action_args_array_pat(ids_from_closure.len()),
                     init: Some(Box::new(Expr::Await(AwaitExpr {
                         span: DUMMY_SP,
                         arg: Box::new(Expr::Call(CallExpr {
@@ -561,10 +540,6 @@ impl<C: Comments> ServerActions<C> {
                     ..Default::default()
                 });
             }
-        }
-
-        for p in function.params.iter() {
-            new_params.push(p.clone());
         }
 
         // Create the action export decl from the function
@@ -603,12 +578,28 @@ impl<C: Comments> ServerActions<C> {
         cache_type: &str,
         arrow: &mut ArrowExpr,
     ) -> Box<Expr> {
+        let mut new_params: Vec<Param> = vec![];
+
+        // Add the collected closure variables as the first parameter to the
+        // function. They are unencrypted and passed into this function by the
+        // cache wrapper.
+        if !ids_from_closure.is_empty() {
+            new_params.push(Param {
+                span: DUMMY_SP,
+                decorators: vec![],
+                pat: self.create_bound_action_args_array_pat(ids_from_closure.len()),
+            });
+        }
+
+        for p in arrow.params.iter() {
+            new_params.push(Param::from(p.clone()));
+        }
+
         let cache_name: JsWord = self.gen_cache_ident();
         let cache_ident = private_ident!(cache_name.clone());
         let export_name: JsWord = cache_name;
 
-        let reference_id =
-            self.generate_server_reference_id(&export_name, true, Some(&arrow.params));
+        let reference_id = self.generate_server_reference_id(&export_name, true, Some(&new_params));
 
         self.has_cache = true;
         self.has_action = true;
@@ -619,89 +610,6 @@ impl<C: Comments> ServerActions<C> {
             block.visit_mut_with(&mut ClosureReplacer {
                 used_ids: &ids_from_closure,
                 private_ctxt: self.private_ctxt,
-            });
-        }
-
-        // export const $ACTION_myAction = async () => {}
-        let mut new_params: Vec<Param> = vec![];
-        let mut new_body: BlockStmtOrExpr = *arrow.body.take();
-
-        if !ids_from_closure.is_empty() {
-            // First argument is the encrypted closure variables
-            new_params.push(Param {
-                span: DUMMY_SP,
-                decorators: vec![],
-                pat: Pat::Ident(IdentName::new("$$ACTION_CLOSURE_BOUND".into(), DUMMY_SP).into()),
-            });
-
-            // Also prepend the decryption decl into the body.
-            // var [arg1, arg2, arg3] = await decryptActionBoundArgs(actionId,
-            // $$ACTION_CLOSURE_BOUND)
-            let mut pats = vec![];
-            for i in 0..ids_from_closure.len() {
-                pats.push(Some(Pat::Ident(
-                    Ident::new(
-                        format!("$$ACTION_ARG_{i}").into(),
-                        DUMMY_SP,
-                        self.private_ctxt,
-                    )
-                    .into(),
-                )));
-            }
-            let decryption_decl = VarDecl {
-                span: DUMMY_SP,
-                kind: VarDeclKind::Var,
-                declare: false,
-                decls: vec![VarDeclarator {
-                    span: DUMMY_SP,
-                    name: Pat::Array(ArrayPat {
-                        span: DUMMY_SP,
-                        elems: pats,
-                        optional: false,
-                        type_ann: None,
-                    }),
-                    init: Some(Box::new(Expr::Await(AwaitExpr {
-                        span: DUMMY_SP,
-                        arg: Box::new(Expr::Call(CallExpr {
-                            span: DUMMY_SP,
-                            callee: quote_ident!("decryptActionBoundArgs").as_callee(),
-                            args: vec![
-                                reference_id.clone().as_arg(),
-                                quote_ident!("$$ACTION_CLOSURE_BOUND").as_arg(),
-                            ],
-                            ..Default::default()
-                        })),
-                    }))),
-                    definite: Default::default(),
-                }],
-                ..Default::default()
-            };
-
-            match &mut new_body {
-                BlockStmtOrExpr::BlockStmt(body) => {
-                    body.stmts.insert(0, decryption_decl.into());
-                }
-                BlockStmtOrExpr::Expr(body_expr) => {
-                    new_body = BlockStmtOrExpr::BlockStmt(BlockStmt {
-                        span: DUMMY_SP,
-                        stmts: vec![
-                            decryption_decl.into(),
-                            Stmt::Return(ReturnStmt {
-                                span: DUMMY_SP,
-                                arg: Some(body_expr.take()),
-                            }),
-                        ],
-                        ..Default::default()
-                    });
-                }
-            }
-        }
-
-        for p in arrow.params.iter() {
-            new_params.push(Param {
-                span: DUMMY_SP,
-                decorators: vec![],
-                pat: p.clone(),
             });
         }
 
@@ -721,7 +629,7 @@ impl<C: Comments> ServerActions<C> {
                                 ident: None,
                                 function: Box::new(Function {
                                     params: new_params,
-                                    body: match new_body {
+                                    body: match *arrow.body.take() {
                                         BlockStmtOrExpr::BlockStmt(body) => Some(body),
                                         BlockStmtOrExpr::Expr(expr) => Some(BlockStmt {
                                             span: DUMMY_SP,
@@ -741,6 +649,7 @@ impl<C: Comments> ServerActions<C> {
                             })),
                             cache_type,
                             &reference_id,
+                            ids_from_closure.len(),
                         )),
                         definite: false,
                     }],
@@ -804,14 +713,27 @@ impl<C: Comments> ServerActions<C> {
         cache_type: &str,
         function: &mut Box<Function>,
     ) -> Box<Expr> {
+        let mut new_params: Vec<Param> = vec![];
+
+        // Add the collected closure variables as the first parameter to the
+        // function. They are unencrypted and passed into this function by the
+        // cache wrapper.
+        if !ids_from_closure.is_empty() {
+            new_params.push(Param {
+                span: DUMMY_SP,
+                decorators: vec![],
+                pat: self.create_bound_action_args_array_pat(ids_from_closure.len()),
+            });
+        }
+
+        for p in function.params.iter() {
+            new_params.push(p.clone());
+        }
+
         let cache_name: JsWord = self.gen_cache_ident();
         let cache_ident = private_ident!(cache_name.clone());
 
-        let reference_id = self.generate_server_reference_id(
-            &cache_name,
-            true,
-            Some(&function.params.iter().map(|p| p.pat.clone()).collect()),
-        );
+        let reference_id = self.generate_server_reference_id(&cache_name, true, Some(&new_params));
 
         self.has_cache = true;
         self.has_action = true;
@@ -829,77 +751,6 @@ impl<C: Comments> ServerActions<C> {
             private_ctxt: self.private_ctxt,
         });
 
-        // export async function $ACTION_myAction () {}
-        let mut new_params: Vec<Param> = vec![];
-        let mut new_body: Option<BlockStmt> = function.body.clone();
-
-        // add params from closure collected ids
-        if !ids_from_closure.is_empty() {
-            // First argument is the encrypted closure variables
-            new_params.push(Param {
-                span: DUMMY_SP,
-                decorators: vec![],
-                pat: Pat::Ident(IdentName::new("$$ACTION_CLOSURE_BOUND".into(), DUMMY_SP).into()),
-            });
-
-            // Also prepend the decryption decl into the body.
-            // var [arg1, arg2, arg3] = await decryptActionBoundArgs(actionId,
-            // $$ACTION_CLOSURE_BOUND)
-            let mut pats = vec![];
-            for i in 0..ids_from_closure.len() {
-                pats.push(Some(Pat::Ident(
-                    Ident::new(
-                        // $$ACTION_ARG_0
-                        format!("$$ACTION_ARG_{i}").into(),
-                        DUMMY_SP,
-                        self.private_ctxt,
-                    )
-                    .into(),
-                )));
-            }
-            let decryption_decl = VarDecl {
-                span: DUMMY_SP,
-                kind: VarDeclKind::Var,
-                decls: vec![VarDeclarator {
-                    span: DUMMY_SP,
-                    name: Pat::Array(ArrayPat {
-                        span: DUMMY_SP,
-                        elems: pats,
-                        optional: false,
-                        type_ann: None,
-                    }),
-                    init: Some(Box::new(Expr::Await(AwaitExpr {
-                        span: DUMMY_SP,
-                        arg: Box::new(Expr::Call(CallExpr {
-                            span: DUMMY_SP,
-                            callee: quote_ident!("decryptActionBoundArgs").as_callee(),
-                            args: vec![
-                                reference_id.clone().as_arg(),
-                                quote_ident!("$$ACTION_CLOSURE_BOUND").as_arg(),
-                            ],
-                            ..Default::default()
-                        })),
-                    }))),
-                    definite: Default::default(),
-                }],
-                ..Default::default()
-            };
-
-            if let Some(body) = &mut new_body {
-                body.stmts.insert(0, decryption_decl.into());
-            } else {
-                new_body = Some(BlockStmt {
-                    span: DUMMY_SP,
-                    stmts: vec![decryption_decl.into()],
-                    ..Default::default()
-                });
-            }
-        }
-
-        for p in function.params.iter() {
-            new_params.push(p.clone());
-        }
-
         // export var cache_ident = async function() {}
         self.hoisted_extra_items
             .push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
@@ -915,12 +766,12 @@ impl<C: Comments> ServerActions<C> {
                                 ident: fn_name.clone(),
                                 function: Box::new(Function {
                                     params: new_params,
-                                    body: new_body,
                                     ..*function.take()
                                 }),
                             })),
                             cache_type,
                             &reference_id,
+                            ids_from_closure.len(),
                         )),
                         definite: false,
                     }],
@@ -1534,13 +1385,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                         self.generate_server_reference_id(
                                             f.ident.sym.as_ref(),
                                             ref_id,
-                                            Some(
-                                                &f.function
-                                                    .params
-                                                    .iter()
-                                                    .map(|p| p.pat.clone())
-                                                    .collect(),
-                                            ),
+                                            Some(&f.function.params),
                                         ),
                                     ));
                                 }
@@ -1656,9 +1501,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                 let ref_id = self.generate_server_reference_id(
                                     "default",
                                     is_cache,
-                                    Some(
-                                        &f.function.params.iter().map(|p| p.pat.clone()).collect(),
-                                    ),
+                                    Some(&f.function.params),
                                 );
 
                                 if let Some(ident) = &f.ident {
@@ -1742,7 +1585,13 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                         self.generate_server_reference_id(
                                             "default",
                                             is_cache,
-                                            Some(&arrow.params),
+                                            Some(
+                                                &arrow
+                                                    .params
+                                                    .iter()
+                                                    .map(|p| Param::from(p.clone()))
+                                                    .collect(),
+                                            ),
                                         ),
                                     ));
 
@@ -2274,8 +2123,8 @@ fn retain_names_from_declared_idents(
     *child_names = retained_names;
 }
 
-fn wrap_cache_expr(expr: Box<Expr>, name: &str, id: &str) -> Box<Expr> {
-    // expr -> $$cache__("name", "id", expr)
+fn wrap_cache_expr(expr: Box<Expr>, name: &str, id: &str, bound_args_len: usize) -> Box<Expr> {
+    // expr -> $$cache__("name", "id", 0, expr)
     Box::new(Expr::Call(CallExpr {
         span: DUMMY_SP,
         callee: quote_ident!("$$cache__").as_callee(),
@@ -2288,6 +2137,7 @@ fn wrap_cache_expr(expr: Box<Expr>, name: &str, id: &str) -> Box<Expr> {
                 spread: None,
                 expr: Box::new(id.into()),
             },
+            Number::from(bound_args_len).as_arg(),
             expr.as_arg(),
         ],
         ..Default::default()

@@ -104,7 +104,7 @@ impl ChunkItem for ManifestLoaderChunkItem {
             .iter()
             .map(|&chunk| {
                 Vc::upcast(SingleOutputAssetReference::new(
-                    chunk,
+                    *chunk,
                     manifest_loader_chunk_reference_description(),
                 ))
             })
@@ -113,7 +113,7 @@ impl ChunkItem for ManifestLoaderChunkItem {
         for chunk_data in &*self.chunks_data().await? {
             references.extend(chunk_data.references().await?.iter().map(|&output_asset| {
                 Vc::upcast(SingleOutputAssetReference::new(
-                    output_asset,
+                    *output_asset,
                     chunk_data_reference_description(),
                 ))
             }));

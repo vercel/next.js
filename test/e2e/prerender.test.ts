@@ -51,6 +51,7 @@ describe('Prerender', () => {
           ]
         },
       },
+      patchFileDelay: 500,
     })
   })
   afterAll(() => next.destroy())
@@ -1133,13 +1134,8 @@ describe('Prerender', () => {
 
         await next.patchFile(
           'pages/index.js',
-          (content) =>
-            content
-              .replace('// throw new', 'throw new')
-              .replace('{/* <div', '<div')
-              .replace('</div> */}', '</div>'),
+          (content) => content.replace('// throw new', 'throw new'),
           async () => {
-            await browser.waitForElementByCss('#after-change')
             // we need to reload the page to trigger getStaticProps
             await browser.refresh()
 

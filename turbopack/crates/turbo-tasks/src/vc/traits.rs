@@ -1,5 +1,5 @@
 use super::{cell_mode::VcCellMode, read::VcRead};
-use crate::{TraitTypeId, ValueTypeId};
+use crate::{ShrinkToFit, TraitTypeId, ValueTypeId};
 
 /// A trait implemented on all values types that can be put into a Value Cell
 /// ([`Vc<T>`][crate::Vc]).
@@ -11,7 +11,7 @@ use crate::{TraitTypeId, ValueTypeId};
 /// generate invalid reads, for instance by using
 /// [`VcTransparentRead`][crate::VcTransparentRead] for a value type that is not
 /// `#[repr(transparent)]`.
-pub unsafe trait VcValueType: Sized + Send + Sync + 'static {
+pub unsafe trait VcValueType: ShrinkToFit + Sized + Send + Sync + 'static {
     /// How to read the value.
     type Read: VcRead<Self>;
 

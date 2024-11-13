@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use anyhow::Result;
-use turbo_tasks::{fxindexmap, RcStr, TryJoinIterExt, Value, ValueToString, Vc};
+use turbo_tasks::{fxindexmap, RcStr, ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc};
 use turbo_tasks_fs::{self, rope::RopeBuilder, File, FileSystemPath};
 use turbopack::ModuleAssetContext;
 use turbopack_core::{
@@ -130,7 +130,7 @@ pub async fn get_app_page_entry(
     Ok(AppEntry {
         pathname,
         original_name,
-        rsc_entry,
+        rsc_entry: rsc_entry.to_resolved().await?,
         config,
     }
     .cell())
@@ -140,7 +140,7 @@ pub async fn get_app_page_entry(
 async fn wrap_edge_page(
     asset_context: Vc<Box<dyn AssetContext>>,
     project_root: Vc<FileSystemPath>,
-    entry: Vc<Box<dyn Module>>,
+    entry: ResolvedVc<Box<dyn Module>>,
     page: AppPage,
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<Box<dyn Module>>> {

@@ -370,15 +370,6 @@ export interface NapiRewrite {
   has?: Array<NapiRouteHas>
   missing?: Array<NapiRouteHas>
 }
-export function createTurboTasks(
-  outputPath: string,
-  persistentCaching: boolean,
-  memoryLimit?: number | undefined | null
-): ExternalObject<NextTurboTasks>
-export function runTurboTracing(
-  options: Buffer,
-  turboTasks: ExternalObject<NextTurboTasks>
-): Promise<Array<string>>
 export function getTargetTriple(): string
 export function initHeapProfiler(): ExternalObject<RefCell>
 export function teardownHeapProfiler(

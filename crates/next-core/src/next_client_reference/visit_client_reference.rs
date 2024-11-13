@@ -186,7 +186,9 @@ pub async fn client_reference_graph(
                         client_references_by_server_component
                             .entry(client_reference.server_component)
                             .or_insert_with(Vec::new)
-                            .push(Vc::upcast::<Box<dyn Module>>(entry.await?.ssr_module));
+                            .push(*ResolvedVc::upcast::<Box<dyn Module>>(
+                                entry.await?.ssr_module,
+                            ));
                     }
                 }
                 VisitClientReferenceNodeType::ServerUtilEntry(server_util, _) => {

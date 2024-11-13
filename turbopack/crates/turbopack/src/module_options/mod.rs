@@ -10,7 +10,7 @@ pub use custom_module_type::CustomModuleType;
 pub use module_options_context::*;
 pub use module_rule::*;
 pub use rule_condition::*;
-use turbo_tasks::{RcStr, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, Vc};
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 use turbopack_core::{
     reference_type::{CssReferenceSubType, ReferenceType, UrlReferenceSubType},
@@ -29,7 +29,7 @@ use crate::{
 #[turbo_tasks::function]
 async fn package_import_map_from_import_mapping(
     package_name: RcStr,
-    package_mapping: Vc<ImportMapping>,
+    package_mapping: ResolvedVc<ImportMapping>,
 ) -> Vc<ImportMap> {
     let mut import_map = ImportMap::default();
     import_map.insert_exact_alias(
@@ -42,12 +42,12 @@ async fn package_import_map_from_import_mapping(
 #[turbo_tasks::function]
 async fn package_import_map_from_context(
     package_name: RcStr,
-    context_path: Vc<FileSystemPath>,
+    context_path: ResolvedVc<FileSystemPath>,
 ) -> Vc<ImportMap> {
     let mut import_map = ImportMap::default();
     import_map.insert_exact_alias(
         format!("@vercel/turbopack/{}", package_name),
-        ImportMapping::PrimaryAlternative(package_name, Some(context_path)).cell(),
+        ImportMapping::PrimaryAlternative(package_name, Some(context_path)).resolved_cell(),
     );
     import_map.cell()
 }
@@ -80,12 +80,7 @@ impl ModuleOptions {
                 },
             enable_mdx,
             enable_mdx_rs,
-            css:
-                CssOptionsContext {
-                    enable_raw_css,
-                    use_swc_css,
-                    ..
-                },
+            css: CssOptionsContext { enable_raw_css, .. },
             ref enable_postcss_transform,
             ref enable_webpack_loaders,
             preset_env_versions,
@@ -390,7 +385,6 @@ impl ModuleOptions {
                     )]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Default,
-                        use_swc_css,
                     })],
                 ),
                 ModuleRule::new(
@@ -399,7 +393,6 @@ impl ModuleOptions {
                     )]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Module,
-                        use_swc_css,
                     })],
                 ),
             ]);
@@ -410,7 +403,7 @@ impl ModuleOptions {
                     .context("execution_context is required for the postcss_transform")?;
 
                 let import_map = if let Some(postcss_package) = options.postcss_package {
-                    package_import_map_from_import_mapping("postcss".into(), postcss_package)
+                    package_import_map_from_import_mapping("postcss".into(), *postcss_package)
                 } else {
                     package_import_map_from_context("postcss".into(), path)
                 };
@@ -466,7 +459,6 @@ impl ModuleOptions {
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Default,
-                        use_swc_css,
                     })],
                 ),
                 ModuleRule::new(
@@ -479,21 +471,18 @@ impl ModuleOptions {
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Module,
-                        use_swc_css,
                     })],
                 ),
                 ModuleRule::new_internal(
                     RuleCondition::ResourcePathEndsWith(".css".to_string()),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Default,
-                        use_swc_css,
                     })],
                 ),
                 ModuleRule::new_internal(
                     RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Module,
-                        use_swc_css,
                     })],
                 ),
             ]);
