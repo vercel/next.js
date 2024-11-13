@@ -43,7 +43,6 @@ impl CustomTransformer for NextServerActions {
             &FileName::Real(ctx.file_path_str.into()),
             Config {
                 is_react_server_layer: matches!(self.transform, ActionsTransform::Server),
-                enabled: true,
                 hash_salt: "".into(),
             },
             ctx.comments.clone(),

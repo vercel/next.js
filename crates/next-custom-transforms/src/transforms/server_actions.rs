@@ -26,7 +26,6 @@ use swc_core::{
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Config {
     pub is_react_server_layer: bool,
-    pub enabled: bool,
     pub hash_salt: String,
 }
 
@@ -266,7 +265,6 @@ impl<C: Comments> ServerActions<C> {
                 &mut is_action_fn,
                 &mut cache_type,
                 &mut span,
-                self.config.enabled,
             );
 
             if !self.config.is_react_server_layer {
@@ -1303,7 +1301,6 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             &mut self.in_cache_file,
             &mut self.has_action,
             &mut self.has_cache,
-            self.config.enabled,
         );
 
         // If we're in a "use cache" file, collect all original IDs from export
@@ -2358,7 +2355,6 @@ fn remove_server_directive_index_in_module(
     in_cache_file: &mut Option<String>,
     has_action: &mut bool,
     has_cache: &mut bool,
-    enabled: bool,
 ) {
     let mut is_directive = true;
 
@@ -2372,16 +2368,6 @@ fn remove_server_directive_index_in_module(
                     if is_directive {
                         *in_action_file = true;
                         *has_action = true;
-                        if !enabled {
-                            HANDLER.with(|handler| {
-                                handler
-                                    .struct_span_err(
-                                        *span,
-                                        "To use Server Actions, please enable the feature flag in your Next.js config. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching/forms-and-mutations#convention",
-                                    )
-                                    .emit()
-                            });
-                        }
                         return false;
                     } else {
                         HANDLER.with(|handler| {
@@ -2397,16 +2383,12 @@ fn remove_server_directive_index_in_module(
                 // `use cache` or `use cache: foo`
                 if value == "use cache" || value.starts_with("use cache: ") {
                     if is_directive {
-                        *in_cache_file = Some(
-                            if value == "use cache" {
-                                "default".into()
-                            } else {
-                                // Slice the value after "use cache: "
-                                value.split_at(
-                                    "use cache: ".len(),
-                                ).1.into()
-                            }
-                        );
+                        *in_cache_file = Some(if value == "use cache" {
+                            "default".into()
+                        } else {
+                            // Slice the value after "use cache: "
+                            value.split_at("use cache: ".len()).1.into()
+                        });
                         *has_cache = true;
                         return false;
                     } else {
@@ -2427,8 +2409,8 @@ fn remove_server_directive_index_in_module(
                                 .struct_span_err(
                                     *span,
                                     format!(
-                                        "Did you mean \"use cache\"? \"{value}\" is not a supported \
-                                         directive name."
+                                        "Did you mean \"use cache\"? \"{value}\" is not a \
+                                         supported directive name."
                                     )
                                     .as_str(),
                                 )
@@ -2475,8 +2457,7 @@ fn remove_server_directive_index_in_module(
                             handler
                                 .struct_span_err(
                                     *span,
-                                    "The \"use cache\" directive cannot be wrapped in \
-                                     parentheses.",
+                                    "The \"use cache\" directive cannot be wrapped in parentheses.",
                                 )
                                 .emit();
                         })
@@ -2537,7 +2518,6 @@ fn remove_server_directive_index_in_fn(
     is_action_fn: &mut bool,
     cache_type: &mut Option<String>,
     action_span: &mut Option<Span>,
-    enabled: bool,
 ) {
     let mut is_directive = true;
 
@@ -2552,16 +2532,6 @@ fn remove_server_directive_index_in_fn(
 
                 if is_directive {
                     *is_action_fn = true;
-                    if !enabled {
-                        HANDLER.with(|handler| {
-                            handler
-                                .struct_span_err(
-                                    *span,
-                                    "To use Server Actions, please enable the feature flag in your Next.js config. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching/forms-and-mutations#convention",
-                                )
-                                .emit()
-                        });
-                    }
                     return false;
                 } else {
                     HANDLER.with(|handler| {
@@ -2575,31 +2545,27 @@ fn remove_server_directive_index_in_fn(
                     });
                 }
             } else if detect_similar_strings(value, "use server") {
-                    // Detect typo of "use server"
-                    HANDLER.with(|handler| {
-                        handler
-                            .struct_span_err(
-                                *span,
-                                format!(
-                                    "Did you mean \"use server\"? \"{value}\" is not a supported \
-                                     directive name."
-                                )
-                                .as_str(),
+                // Detect typo of "use server"
+                HANDLER.with(|handler| {
+                    handler
+                        .struct_span_err(
+                            *span,
+                            format!(
+                                "Did you mean \"use server\"? \"{value}\" is not a supported \
+                                 directive name."
                             )
-                            .emit();
-                    });
+                            .as_str(),
+                        )
+                        .emit();
+                });
             } else if value == "use cache" || value.starts_with("use cache: ") {
                 if is_directive {
-                    *cache_type = Some(
-                        if value == "use cache" {
-                            "default".into()
-                        } else {
-                            // Slice the value after "use cache: "
-                            value.split_at(
-                                "use cache: ".len(),
-                            ).1.into()
-                        },
-                    );
+                    *cache_type = Some(if value == "use cache" {
+                        "default".into()
+                    } else {
+                        // Slice the value after "use cache: "
+                        value.split_at("use cache: ".len()).1.into()
+                    });
                     return false;
                 } else {
                     HANDLER.with(|handler| {

@@ -50,9 +50,13 @@ describe('Undefined default export', () => {
   })
 
   it('should error when page component export is not valid', async () => {
-    const { session, cleanup } = await sandbox(next, undefined, '/')
+    const { session, browser, cleanup } = await sandbox(next, undefined, '/')
 
     await next.patchFile('app/page.js', 'const a = 123')
+
+    // The page will fail build and navigate to /_error route of pages router.
+    // Wait for the DOM node #__next to be present
+    await browser.waitForElementByCss('#__next')
 
     await session.assertHasRedbox()
     expect(await session.getRedboxDescription()).toInclude(

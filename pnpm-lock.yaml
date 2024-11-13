@@ -213,8 +213,8 @@ importers:
         specifier: 9.1.0
         version: 9.1.0
       amphtml-validator:
-        specifier: 1.0.35
-        version: 1.0.35
+        specifier: 1.0.38
+        version: 1.0.38
       async-sema:
         specifier: 3.0.1
         version: 3.0.1
@@ -822,7 +822,7 @@ importers:
         specifier: ^6.10.0
         version: 6.10.0(eslint@9.12.0)
       eslint-plugin-react:
-        specifier: ^7.35.0
+        specifier: ^7.37.0
         version: 7.37.1(eslint@9.12.0)
       eslint-plugin-react-hooks:
         specifier: ^5.0.0
@@ -853,8 +853,8 @@ importers:
         specifier: 2.0.2
         version: 2.0.2
       typescript:
-        specifier: 5.5.3
-        version: 5.5.3
+        specifier: 5.6.3
+        version: 5.6.3
 
   packages/next:
     dependencies:
@@ -960,8 +960,8 @@ importers:
         specifier: 7.22.5
         version: 7.22.5
       '@capsizecss/metrics':
-        specifier: 3.2.0
-        version: 3.2.0
+        specifier: 3.4.0
+        version: 3.4.0
       '@edge-runtime/cookies':
         specifier: 5.0.0
         version: 5.0.0
@@ -1134,8 +1134,8 @@ importers:
         specifier: 8.14.0
         version: 8.14.0
       amphtml-validator:
-        specifier: 1.0.35
-        version: 1.0.35
+        specifier: 1.0.38
+        version: 1.0.38
       anser:
         specifier: 1.4.9
         version: 1.4.9
@@ -1555,8 +1555,8 @@ importers:
         specifier: 7.3.1
         version: 7.3.1
       typescript:
-        specifier: 5.5.3
-        version: 5.5.3
+        specifier: 5.6.3
+        version: 5.6.3
 
   packages/next-env:
     devDependencies:
@@ -1642,8 +1642,8 @@ importers:
         specifier: 2.5.1
         version: 2.5.1
       typescript:
-        specifier: 5.5.3
-        version: 5.5.3
+        specifier: 5.6.3
+        version: 5.6.3
 
   turbopack/crates/turbopack-cli/js:
     dependencies:
@@ -3306,8 +3306,8 @@ packages:
   '@bundled-es-modules/statuses@1.0.1':
     resolution: {integrity: sha512-yn7BklA5acgcBr+7w064fGV+SGIFySjCKpqjcWgBAIfrAkY+4GQTJJHQMeT3V/sgz23VTEVV8TtOmkvJAhFVfg==}
 
-  '@capsizecss/metrics@3.2.0':
-    resolution: {integrity: sha512-EVWRXJaakH6NTq+7cZawgFiqA+UyESMszN/c1oDHbC/b0SAzQJ/QLS0xpaa3Y+YMfXOkEEjkuChYIV5pSkgmcg==}
+  '@capsizecss/metrics@3.4.0':
+    resolution: {integrity: sha512-hIn8MAHxLvwyUh6ZvLQHDt2GPShBz6+gxBs1JTD9GleBkht1AZvtCFo0adr7bQvYYuQzUJeKi69zqlAwgKMHNA==}
 
   '@csstools/postcss-color-function@1.1.0':
     resolution: {integrity: sha512-5D5ND/mZWcQoSfYnSPsXtuiFxhzmhxt6pcjrFLJyldj+p0ZN2vvRpYNX+lahFTtMhAYOa2WmkdGINr0yP0CvGA==}
@@ -5947,8 +5947,8 @@ packages:
   alphanum-sort@1.0.2:
     resolution: {integrity: sha512-0FcBfdcmaumGPQ0qPn7Q5qTgz/ooXgIyp1rf8ik5bGX8mpE2YHjC0P/eyQvxu1GURYQgq9ozf2mteQ5ZD9YiyQ==}
 
-  amphtml-validator@1.0.35:
-    resolution: {integrity: sha512-C67JzC5EI6pE2C0sAo/zuCp8ARDl1Vtt6/s0nr+3NuXDNOdkjclZUkaNAd/ZnsEvvYodkXZ6T/uww890IQh9dQ==}
+  amphtml-validator@1.0.38:
+    resolution: {integrity: sha512-TqGeHVRUEsMiJoaRvMhzZBv8oljLhhJgzkaPX/zT2eJFG5FLeaMehd6riNwsuMmi9e/5xsI0pocbTgN/u2sonQ==}
     hasBin: true
 
   anser@1.4.9:
@@ -6892,6 +6892,10 @@ packages:
     resolution: {integrity: sha512-yPVavfyCcRhmorC7rWlkHn15b4wDVgVmBA7kV4QVBsF7kv/9TKJAbAXVTxvTnwP8HHKjRCJDClKbciiYS7p0DQ==}
     engines: {node: '>=16'}
 
+  commander@12.0.0:
+    resolution: {integrity: sha512-MwVNWlYjDTtOjX5PiD7o5pK0UrFU/OYgcJfjjK4RaHZETNtjJqrZa9Y9ds88+A+f+d5lv+561eZ+yCKoS3gbAA==}
+    engines: {node: '>=18'}
+
   commander@12.1.0:
     resolution: {integrity: sha512-Vw8qHK3bZM9y/P10u3Vib8o/DdkvA2OtPtZvD871QKjy74Wj1WSKFILMPRPSdUSx5RFK1arlJzEtA4PkFgnbuA==}
     engines: {node: '>=18'}
@@ -7680,10 +7684,6 @@ packages:
 
   define-properties@1.1.3:
     resolution: {integrity: sha512-3MqfYKj2lLzdMSf8ZIZE/V+Zuy+BgD6f164e8K2w7dgnpKArBDerGYpM46IYYcjnkdPNMjPk9A6VFB8+3SKlXQ==}
-    engines: {node: '>= 0.4'}
-
-  define-properties@1.1.4:
-    resolution: {integrity: sha512-uckOqKcfaVvtBdsVkdPv3XjveQJsNQqmhXgRi8uhvWWuPYZCNlzT8qAyblUgNoXdHdjMTzAqeGjAoli8f+bzPA==}
     engines: {node: '>= 0.4'}
 
   define-properties@1.2.1:
@@ -8768,9 +8768,6 @@ packages:
     engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
     os: [darwin]
 
-  function-bind@1.1.1:
-    resolution: {integrity: sha512-yIovAzMX49sF8Yl58fSCWJ5svSLuaibPxXQJFLmBObTuCr0Mf1KiPopGM9NiFjiYBCbfaa2Fh6breQ6ANVTI0A==}
-
   function-bind@1.1.2:
     resolution: {integrity: sha512-7XHNxH7qX9xG5mIwxkhumTox/MIRNcOgDrxWsMt2pAr23WHp6MrRlN7FBSFpCpr+oVO0F744iUgR82nJMfG2SA==}
 
@@ -9081,9 +9078,6 @@ packages:
   has-own-prop@2.0.0:
     resolution: {integrity: sha512-Pq0h+hvsVm6dDEa8x82GnLSYHOzNDt7f0ddFa3FqcQlgzEiptPqL+XrOJNavjOzSYiYWIrgeVYYgGlLmnxwilQ==}
     engines: {node: '>=8'}
-
-  has-property-descriptors@1.0.0:
-    resolution: {integrity: sha512-62DVLZGoiEBDHQyqG4w9xCuZ7eJEwNmJRWw2VY84Oedb7WFcA27fiEVe8oUQx9hAUJ4ekurquucTGwsyO1XGdQ==}
 
   has-property-descriptors@1.0.2:
     resolution: {integrity: sha512-55JNKuIW+vq4Ke1BjOTjM2YctQIvCT7GFzHwmfZPGo5wnrgkid0YQtnAleFSqumZm4az3n2BS+erby5ipJdgrg==}
@@ -11439,9 +11433,6 @@ packages:
     resolution: {integrity: sha512-RSn9F68PjH9HqtltsSnqYC1XXoWe9Bju5+213R98cNGttag9q9yAOTzdbsqvIa7aNm5WffBZFpWYr2aWrklWAw==}
     engines: {node: '>= 6'}
 
-  object-inspect@1.12.2:
-    resolution: {integrity: sha512-z+cPxW0QGUp0mcqcsgQyLVRDoXFQbXOwBaqyF7VIgI4TWNQsDHrBpUQslRmIfAoYWdYzs6UlKJtB2XJpTaNSpQ==}
-
   object-inspect@1.13.2:
     resolution: {integrity: sha512-IRZSRuzJiynemAXPYtPe5BoI/RESNYR7TYm50MC5Mqbd3Jmw5y790sErYw3V6SryFJD64b74qQQs9wn5Bg/k3g==}
     engines: {node: '>= 0.4'}
@@ -12741,8 +12732,8 @@ packages:
   promise@7.3.1:
     resolution: {integrity: sha512-nolQXZ/4L+bP/UGlkfaIujX9BKxGwmQ9OT4mOt5yvy8iK1h3wqTEJCijzGANTCCl9nWjY41juyAn2K3Q1hLLTg==}
 
-  promise@8.1.0:
-    resolution: {integrity: sha512-W04AqnILOL/sPRXziNicCjSNRruLAuIHEOVBazepu0545DDNGYHz7ar9ZgZ1fMU8/MA4mVxp5rkBWRi6OXIy3Q==}
+  promise@8.3.0:
+    resolution: {integrity: sha512-rZPNPKTOYVNEEKFaq1HqTgOwZD+4/YHS5ukLzQCypkj+OkYx7iv0mA91lJlpPPZ8vMau3IIGj5Qlwrx+8iiSmg==}
 
   prompts@2.4.2:
     resolution: {integrity: sha512-NxNv/kLguCA7p3jE8oL2aEBsrJWgAakBpgmgK6lpPWV+WuOmY6r2/zbAVnP+T8bQlA0nzHXSJSJW0Hq7ylaD2Q==}
@@ -14666,11 +14657,6 @@ packages:
   typescript@4.9.5:
     resolution: {integrity: sha512-1FXk9E2Hm+QzZQ7z+McJiHL4NW1F2EzMu9Nq9i3zAaGqibafqYwCVU6WyWAuyQRRzOlxou8xZSyXLEN8oKj24g==}
     engines: {node: '>=4.2.0'}
-    hasBin: true
-
-  typescript@5.5.3:
-    resolution: {integrity: sha512-/hreyEujaB0w76zKo6717l3L0o/qEUtRgdvUBvlkhoWeOVMjMuHNHk0BRBzikzuGDqNmPQbg5ifMEqsHLiIUcQ==}
-    engines: {node: '>=14.17'}
     hasBin: true
 
   typescript@5.6.3:
@@ -17471,7 +17457,7 @@ snapshots:
     dependencies:
       statuses: 2.0.1
 
-  '@capsizecss/metrics@3.2.0': {}
+  '@capsizecss/metrics@3.4.0': {}
 
   '@csstools/postcss-color-function@1.1.0(postcss@8.4.31)':
     dependencies:
@@ -20893,11 +20879,11 @@ snapshots:
 
   alphanum-sort@1.0.2: {}
 
-  amphtml-validator@1.0.35:
+  amphtml-validator@1.0.38:
     dependencies:
       colors: 1.4.0
-      commander: 7.2.0
-      promise: 8.1.0
+      commander: 12.0.0
+      promise: 8.3.0
 
   anser@1.4.9: {}
 
@@ -21945,6 +21931,8 @@ snapshots:
 
   commander@11.1.0: {}
 
+  commander@12.0.0: {}
+
   commander@12.1.0: {}
 
   commander@2.20.0: {}
@@ -22920,11 +22908,6 @@ snapshots:
     dependencies:
       object-keys: 1.1.1
 
-  define-properties@1.1.4:
-    dependencies:
-      has-property-descriptors: 1.0.0
-      object-keys: 1.1.1
-
   define-properties@1.2.1:
     dependencies:
       define-data-property: 1.1.4
@@ -23295,7 +23278,7 @@ snapshots:
       get-intrinsic: 1.2.4
       get-symbol-description: 1.0.0
       has: 1.0.3
-      has-property-descriptors: 1.0.0
+      has-property-descriptors: 1.0.2
       has-symbols: 1.0.3
       internal-slot: 1.0.7
       is-callable: 1.2.4
@@ -23304,7 +23287,7 @@ snapshots:
       is-shared-array-buffer: 1.0.2
       is-string: 1.0.7
       is-weakref: 1.0.2
-      object-inspect: 1.12.2
+      object-inspect: 1.13.2
       object-keys: 1.1.1
       object.assign: 4.1.4
       regexp.prototype.flags: 1.5.3
@@ -24506,8 +24489,6 @@ snapshots:
   fsevents@2.3.3:
     optional: true
 
-  function-bind@1.1.1: {}
-
   function-bind@1.1.2: {}
 
   function.prototype.name@1.1.5:
@@ -24907,10 +24888,6 @@ snapshots:
   has-flag@4.0.0: {}
 
   has-own-prop@2.0.0: {}
-
-  has-property-descriptors@1.0.0:
-    dependencies:
-      get-intrinsic: 1.2.4
 
   has-property-descriptors@1.0.2:
     dependencies:
@@ -28081,8 +28058,6 @@ snapshots:
 
   object-hash@3.0.0: {}
 
-  object-inspect@1.12.2: {}
-
   object-inspect@1.13.2: {}
 
   object-is@1.0.2: {}
@@ -29414,7 +29389,7 @@ snapshots:
     dependencies:
       asap: 2.0.6
 
-  promise@8.1.0:
+  promise@8.3.0:
     dependencies:
       asap: 2.0.6
 
@@ -30929,7 +30904,7 @@ snapshots:
 
   string.prototype.padend@3.1.0:
     dependencies:
-      define-properties: 1.1.4
+      define-properties: 1.2.1
       es-abstract: 1.20.2
 
   string.prototype.repeat@1.0.0:
@@ -31633,8 +31608,6 @@ snapshots:
 
   typescript@4.9.5: {}
 
-  typescript@5.5.3: {}
-
   typescript@5.6.3: {}
 
   ua-parser-js@0.7.31: {}
@@ -32331,7 +32304,7 @@ snapshots:
       call-bind: 1.0.2
       es-abstract: 1.20.2
       foreach: 2.0.5
-      function-bind: 1.1.1
+      function-bind: 1.1.2
       has-symbols: 1.0.2
       is-typed-array: 1.1.5
 
