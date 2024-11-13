@@ -77,7 +77,9 @@ module.exports = {
     'jsx-a11y/role-has-required-aria-props': 'warn',
     'jsx-a11y/role-supports-aria-props': 'warn',
     'react/jsx-no-target-blank': 'off',
-    'react/no-unescaped-entities': 'off',
+    // Do not error on using quotes or apostrophes.
+    // https://github.com/jsx-eslint/eslint-plugin-react/blob/master/docs/rules/no-unescaped-entities.md#forbid
+    'react/no-unescaped-entities': ['error', { forbid: ['>', '}'] }],
   },
   parser: './parser.js',
   parserOptions: {
