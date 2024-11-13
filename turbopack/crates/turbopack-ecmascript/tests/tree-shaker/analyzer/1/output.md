@@ -385,6 +385,7 @@ graph TD
     N17 -.-> N4;
     N17 --> N7;
     N0 --> N13;
+    N6 --> N5;
 ```
 # Entrypoints
 
@@ -459,6 +460,9 @@ import "module";
 ```
 ## Part 6
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 5
+};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 5
 };
@@ -720,6 +724,9 @@ import "module";
 ```
 ## Part 6
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 5
+};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 5
 };

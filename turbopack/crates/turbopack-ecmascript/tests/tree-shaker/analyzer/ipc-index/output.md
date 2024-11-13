@@ -1124,6 +1124,9 @@ graph TD
     N10 --> N4;
     N10 --> N9;
     N0 --> N30;
+    N4 --> N3;
+    N6 --> N5;
+    N8 --> N7;
 ```
 # Entrypoints
 
@@ -1179,6 +1182,9 @@ import "node:net";
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 3
 };
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 3
+};
 import { createConnection } from "node:net";
 export { createConnection as c } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -1198,6 +1204,9 @@ import "../compiled/stacktrace-parser";
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 5
 };
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 5
+};
 import { parse as parseStackTrace } from "../compiled/stacktrace-parser";
 export { parseStackTrace as d } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -1214,6 +1223,9 @@ import "./error";
 ```
 ## Part 8
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 7
+};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 7
 };
@@ -1930,6 +1942,9 @@ import "node:net";
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 3
 };
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 3
+};
 import { createConnection } from "node:net";
 export { createConnection as c } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -1949,6 +1964,9 @@ import "../compiled/stacktrace-parser";
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 5
 };
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 5
+};
 import { parse as parseStackTrace } from "../compiled/stacktrace-parser";
 export { parseStackTrace as d } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -1965,6 +1983,9 @@ import "./error";
 ```
 ## Part 8
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 7
+};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 7
 };

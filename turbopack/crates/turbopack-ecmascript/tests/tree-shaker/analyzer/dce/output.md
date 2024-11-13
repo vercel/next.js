@@ -87,6 +87,7 @@ graph TD
     N3 --> N2;
     N3 --> N1;
     N0 --> N3;
+    N2 --> N1;
 ```
 # Entrypoints
 
@@ -114,6 +115,9 @@ import './module';
 ```
 ## Part 2
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 1
+};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 1
 };
@@ -175,6 +179,9 @@ import './module';
 ```
 ## Part 2
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 1
+};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 1
 };

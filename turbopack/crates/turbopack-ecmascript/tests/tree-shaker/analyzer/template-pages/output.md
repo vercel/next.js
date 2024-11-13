@@ -766,6 +766,12 @@ graph TD
     N9 --> N35;
     N7 --> N36;
     N0 --> N36;
+    N14 --> N13;
+    N16 --> N15;
+    N18 --> N17;
+    N20 --> N19;
+    N22 --> N21;
+    N24 --> N23;
 ```
 # Entrypoints
 
@@ -928,6 +934,9 @@ import '../../server/future/route-modules/pages/module.compiled';
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 13
 };
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 13
+};
 import { PagesRouteModule } from '../../server/future/route-modules/pages/module.compiled';
 export { PagesRouteModule as m } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -944,6 +953,9 @@ import '../../server/future/route-kind';
 ```
 ## Part 16
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 15
+};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 15
 };
@@ -966,6 +978,9 @@ import './helpers';
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 17
 };
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 17
+};
 import { hoist } from './helpers';
 export { hoist as o } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -982,6 +997,9 @@ import 'VAR_MODULE_DOCUMENT';
 ```
 ## Part 20
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 19
+};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 19
 };
@@ -1004,6 +1022,9 @@ import 'VAR_MODULE_APP';
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 21
 };
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 21
+};
 import App from 'VAR_MODULE_APP';
 export { App as q } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -1020,6 +1041,9 @@ import 'VAR_USERLAND';
 ```
 ## Part 24
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 23
+};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 23
 };
@@ -1491,6 +1515,9 @@ import '../../server/future/route-modules/pages/module.compiled';
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 13
 };
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 13
+};
 import { PagesRouteModule } from '../../server/future/route-modules/pages/module.compiled';
 export { PagesRouteModule as m } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -1507,6 +1534,9 @@ import '../../server/future/route-kind';
 ```
 ## Part 16
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 15
+};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 15
 };
@@ -1529,6 +1559,9 @@ import './helpers';
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 17
 };
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 17
+};
 import { hoist } from './helpers';
 export { hoist as o } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -1545,6 +1578,9 @@ import 'VAR_MODULE_DOCUMENT';
 ```
 ## Part 20
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 19
+};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 19
 };
@@ -1567,6 +1603,9 @@ import 'VAR_MODULE_APP';
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 21
 };
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 21
+};
 import App from 'VAR_MODULE_APP';
 export { App as q } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -1583,6 +1622,9 @@ import 'VAR_USERLAND';
 ```
 ## Part 24
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 23
+};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 23
 };
