@@ -647,13 +647,12 @@ async function createComponentTreeInternal({
           segmentNode = (
             <HTTPAccessFallbackBoundary
               key={cacheNodeKey}
-              notFound={[
+              notFound={
                 <>
                   {layerAssets}
                   {notfoundClientSegment}
-                </>,
-                null,
-              ]}
+                </>
+              }
             >
               {layerAssets}
               {clientSegment}
