@@ -114,7 +114,7 @@ async function createComponentTreeInternal({
   const { page, layoutOrPagePath, segment, modules, parallelRoutes } =
     parseLoaderTree(tree)
 
-  const { layout, template, error, loading, 'not-found': notFound } = modules
+  const { layout, template, error, loading, 'not-found': notFound, forbidden } = modules
 
   const injectedCSSWithCurrentLayout = new Set(injectedCSS)
   const injectedJSWithCurrentLayout = new Set(injectedJS)
@@ -190,6 +190,16 @@ async function createComponentTreeInternal({
         ctx,
         filePath: notFound[1],
         getComponent: notFound[0],
+        injectedCSS: injectedCSSWithCurrentLayout,
+        injectedJS: injectedJSWithCurrentLayout,
+      })
+    : []
+  
+  const [Forbidden, forbiddenStyles] = forbidden
+    ? await createComponentStylesAndScripts({
+        ctx,
+        filePath: forbidden[1],
+        getComponent: forbidden[0],
         injectedCSS: injectedCSSWithCurrentLayout,
         injectedJS: injectedJSWithCurrentLayout,
       })
@@ -353,6 +363,14 @@ async function createComponentTreeInternal({
               <NotFound />
             </>
           ) : undefined
+        
+        const forbiddenComponent = 
+          Forbidden && isChildrenRouteKey ? (
+            <>
+              {forbiddenStyles}
+              <Forbidden />
+            </>
+          ) : undefined
 
         // if we're prefetching and that there's a Loading component, we bail out
         // otherwise we keep rendering for the prefetch.
@@ -449,6 +467,7 @@ async function createComponentTreeInternal({
             templateStyles={templateStyles}
             templateScripts={templateScripts}
             notFound={notFoundComponent}
+            forbidden={forbiddenComponent}
           />,
           childCacheNodeSeedData,
         ]
@@ -640,6 +659,20 @@ async function createComponentTreeInternal({
             <ClientSegmentRoot
               Component={SegmentComponent}
               slots={notFoundParallelRouteProps}
+              params={currentParams}
+            />
+          )
+          const forbiddenClientSegment = (
+            <ClientSegmentRoot
+              Component={SegmentComponent}
+              slots={{
+                children: (
+                  <>
+                    {forbiddenStyles}
+                    <Forbidden />
+                  </>
+                ),
+              }}
               params={currentParams}
             />
           )
