@@ -10,7 +10,7 @@ use napi::{
 };
 use serde::Serialize;
 use turbo_tasks::{
-    trace::TraceRawVcs, OperationVc, ReadRef, TaskId, TryJoinIterExt, TurboTasks, UpdateInfo, Vc,
+    trace::TraceRawVcs, ReadRef, TaskId, TryJoinIterExt, TurboTasks, UpdateInfo, Vc,
 };
 use turbo_tasks_backend::{default_backing_storage, DefaultBackingStorage};
 use turbo_tasks_fs::FileContent;
@@ -142,24 +142,17 @@ pub fn create_turbo_tasks(
 }
 
 /// A helper type to hold both a Vc operation and the TurboTasks root process.
-/// Without this, we'd need to pass both individually all over the place.
-/// Make sure to Vc::connect the `vc` when using it.
+/// Without this, we'd need to pass both individually all over the place
 #[derive(Clone)]
-pub struct VcArc<T>
-where
-    T: Send,
-{
+pub struct VcArc<T> {
     turbo_tasks: NextTurboTasks,
-    // TODO: this should be a OperationVc
-    /// The Vc.
-    vc: OperationVc<T>,
+    /// The Vc. Must be resolved, otherwise you are referencing an inactive
+    /// operation.
+    vc: T,
 }
 
-impl<T> VcArc<T>
-where
-    T: Send,
-{
-    pub fn new(turbo_tasks: NextTurboTasks, vc: OperationVc<T>) -> Self {
+impl<T> VcArc<T> {
+    pub fn new(turbo_tasks: NextTurboTasks, vc: T) -> Self {
         Self { turbo_tasks, vc }
     }
 
@@ -168,11 +161,8 @@ where
     }
 }
 
-impl<T> Deref for VcArc<T>
-where
-    T: Send,
-{
-    type Target = OperationVc<T>;
+impl<T> Deref for VcArc<T> {
+    type Target = T;
 
     fn deref(&self) -> &Self::Target {
         &self.vc
@@ -210,7 +200,7 @@ pub fn root_task_dispose(
     Ok(())
 }
 
-pub async fn get_issues<T: Send>(source: OperationVc<T>) -> Result<Arc<Vec<ReadRef<PlainIssue>>>> {
+pub async fn get_issues<T: Send>(source: Vc<T>) -> Result<Arc<Vec<ReadRef<PlainIssue>>>> {
     let issues = source.peek_issues_with_path().await?;
     Ok(Arc::new(issues.get_plain_issues().await?))
 }
@@ -219,9 +209,7 @@ pub async fn get_issues<T: Send>(source: OperationVc<T>) -> Result<Arc<Vec<ReadR
 /// by the given source and returns it as a
 /// [turbopack_core::diagnostics::PlainDiagnostic]. It does
 /// not consume any Diagnostics held by the source.
-pub async fn get_diagnostics<T: Send>(
-    source: OperationVc<T>,
-) -> Result<Arc<Vec<ReadRef<PlainDiagnostic>>>> {
+pub async fn get_diagnostics<T: Send>(source: Vc<T>) -> Result<Arc<Vec<ReadRef<PlainDiagnostic>>>> {
     let captured_diags = source.peek_diagnostics().await?;
     let mut diags = captured_diags
         .diagnostics

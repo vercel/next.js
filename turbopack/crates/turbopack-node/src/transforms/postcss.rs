@@ -2,8 +2,8 @@ use anyhow::{bail, Context, Result};
 use indoc::formatdoc;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    fxindexmap, trace::TraceRawVcs, Completion, Completions, OperationVc, RcStr, ResolvedVc,
-    TaskInput, TryFlatJoinIterExt, Value, Vc,
+    fxindexmap, trace::TraceRawVcs, Completion, Completions, RcStr, ResolvedVc, TaskInput,
+    TryFlatJoinIterExt, Value, Vc,
 };
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_fs::{
@@ -152,10 +152,10 @@ impl Asset for PostCssTransformedAsset {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
         let this = self.await?;
-        Ok(*OperationVc::new(self.process())
+        Ok(*self
+            .process()
             .issue_file_path(this.source.ident().path(), "PostCSS processing")
             .await?
-            .connect()
             .await?
             .content)
     }

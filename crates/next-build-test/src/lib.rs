@@ -8,9 +8,8 @@ use std::{str::FromStr, time::Instant};
 use anyhow::{Context, Result};
 use futures_util::{StreamExt, TryStreamExt};
 use next_api::{
-    operation::RouteOperation,
     project::{ProjectContainer, ProjectOptions},
-    route::Endpoint,
+    route::{Endpoint, Route},
 };
 use turbo_tasks::{RcStr, ReadConsistency, TransientInstance, TurboTasks, Vc};
 use turbo_tasks_malloc::TurboMalloc;
@@ -50,7 +49,7 @@ pub async fn main_inner(
 
     tracing::info!("collecting endpoints");
     let entrypoints = tt
-        .run_once(async move { project.entrypoints_operation().await })
+        .run_once(async move { project.entrypoints().await })
         .await?;
 
     let mut routes = if let Some(files) = files {
@@ -159,7 +158,7 @@ pub fn shuffle<'a, T: 'a>(items: impl Iterator<Item = T>) -> impl Iterator<Item 
 
 pub async fn render_routes(
     tt: &TurboTasks<MemoryBackend>,
-    routes: impl Iterator<Item = (RcStr, RouteOperation)>,
+    routes: impl Iterator<Item = (RcStr, Route)>,
     strategy: Strategy,
     factor: usize,
     limit: usize,
@@ -181,31 +180,27 @@ pub async fn render_routes(
                 let name = name.clone();
                 async move {
                     match route {
-                        RouteOperation::Page {
+                        Route::Page {
                             html_endpoint,
                             data_endpoint: _,
                         } => {
-                            html_endpoint.connect().write_to_disk(html_endpoint).await?;
+                            html_endpoint.write_to_disk().await?;
                         }
-                        RouteOperation::PageApi { endpoint } => {
-                            endpoint.connect().write_to_disk(endpoint).await?;
+                        Route::PageApi { endpoint } => {
+                            endpoint.write_to_disk().await?;
                         }
-                        RouteOperation::AppPage(routes) => {
+                        Route::AppPage(routes) => {
                             for route in routes {
-                                route
-                                    .html_endpoint
-                                    .connect()
-                                    .write_to_disk(route.html_endpoint)
-                                    .await?;
+                                route.html_endpoint.write_to_disk().await?;
                             }
                         }
-                        RouteOperation::AppRoute {
+                        Route::AppRoute {
                             original_name: _,
                             endpoint,
                         } => {
-                            endpoint.connect().write_to_disk(endpoint).await?;
+                            endpoint.write_to_disk().await?;
                         }
-                        RouteOperation::Conflict => {
+                        Route::Conflict => {
                             tracing::info!("WARN: conflict {}", name);
                         }
                     }

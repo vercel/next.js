@@ -28,8 +28,8 @@ use next_core::{
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_tasks::{
-    trace::TraceRawVcs, Completion, FxIndexMap, OperationVc, RcStr, ResolvedVc, TaskInput,
-    TryJoinIterExt, Value, Vc,
+    trace::TraceRawVcs, Completion, FxIndexMap, RcStr, ResolvedVc, TaskInput, TryJoinIterExt,
+    Value, Vc,
 };
 use turbo_tasks_fs::{
     self, File, FileContent, FileSystem, FileSystemPath, FileSystemPathOption, VirtualFileSystem,
@@ -1050,13 +1050,8 @@ impl PageEndpoint {
         )))
     }
 
-    /// This is used to wrap output assets of an endpoint into a single operation (OperationVc)
     #[turbo_tasks::function]
-    fn output_assets_operation(
-        self: Vc<Self>,
-        endpoint: OperationVc<Box<dyn Endpoint>>,
-    ) -> Vc<OutputAssets> {
-        let _ = endpoint.connect();
+    fn output_assets(self: Vc<Self>) -> Vc<OutputAssets> {
         self.output().output_assets()
     }
 
@@ -1258,10 +1253,7 @@ pub struct InternalSsrChunkModule {
 #[turbo_tasks::value_impl]
 impl Endpoint for PageEndpoint {
     #[turbo_tasks::function]
-    async fn write_to_disk(
-        self: Vc<Self>,
-        self_op: OperationVc<Box<dyn Endpoint>>,
-    ) -> Result<Vc<WrittenEndpoint>> {
+    async fn write_to_disk(self: Vc<Self>) -> Result<Vc<WrittenEndpoint>> {
         let this = self.await?;
         let original_name = this.original_name.await?;
         let span = {
@@ -1282,12 +1274,13 @@ impl Endpoint for PageEndpoint {
         };
         async move {
             let output = self.output().await?;
-
-            let output_assets = self.output_assets_operation(self_op);
+            // Must use self.output_assets() instead of output.output_assets() to make it a
+            // single operation
+            let output_assets = self.output_assets();
 
             this.pages_project
                 .project()
-                .emit_all_output_assets(OperationVc::new(output_assets))
+                .emit_all_output_assets(Vc::cell(output_assets))
                 .await?;
 
             let node_root = this.pages_project.project().node_root();

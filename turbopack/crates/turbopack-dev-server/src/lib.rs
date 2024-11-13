@@ -33,7 +33,7 @@ use socket2::{Domain, Protocol, Socket, Type};
 use tokio::task::JoinHandle;
 use tracing::{event, info_span, Instrument, Level, Span};
 use turbo_tasks::{
-    run_once_with_reason, trace::TraceRawVcs, util::FormatDuration, OperationVc, TurboTasksApi, Vc,
+    run_once_with_reason, trace::TraceRawVcs, util::FormatDuration, TurboTasksApi, Vc,
 };
 use turbopack_core::{
     error::PrettyPrintError,
@@ -209,10 +209,8 @@ impl DevServerBuilder {
 
                             let uri = request.uri();
                             let path = uri.path().to_string();
-                            // TODO source_provider should be included in the operation too
-                            let source = OperationVc::new(source_provider.get_source());
-                            let resolved_source =
-                                source.connect().resolve_strongly_consistent().await?;
+                            let source = source_provider.get_source();
+                            let resolved_source = source.resolve_strongly_consistent().await?;
                             handle_issues(
                                 source,
                                 issue_reporter,

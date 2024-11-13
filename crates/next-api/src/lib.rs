@@ -13,7 +13,6 @@ mod instrumentation;
 mod loadable_manifest;
 mod middleware;
 mod nft_json;
-pub mod operation;
 mod pages;
 pub mod paths;
 pub mod project;

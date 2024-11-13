@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{OperationVc, RcStr, Value, Vc};
+use turbo_tasks::{RcStr, Value, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     introspect::{Introspectable, IntrospectableChildren},
@@ -51,11 +51,11 @@ impl ContentSource for IssueFilePathContentSource {
     #[turbo_tasks::function]
     async fn get_routes(self: Vc<Self>) -> Result<Vc<RouteTree>> {
         let this = self.await?;
-        // TODO this.source should be included in the operation too
-        let routes = OperationVc::new(this.source.get_routes())
+        let routes = this
+            .source
+            .get_routes()
             .issue_file_path(this.file_path, &*this.description)
-            .await?
-            .connect();
+            .await?;
         Ok(routes.map_routes(Vc::upcast(
             IssueContextContentSourceMapper { source: self }.cell(),
         )))
@@ -91,7 +91,6 @@ impl MapGetContentSourceContent for IssueContextContentSourceMapper {
 
 #[turbo_tasks::value]
 struct IssueContextGetContentSourceContent {
-    // TODO this should be a OperationVc
     get_content: Vc<Box<dyn GetContentSourceContent>>,
     source: Vc<IssueFilePathContentSource>,
 }
@@ -101,11 +100,11 @@ impl GetContentSourceContent for IssueContextGetContentSourceContent {
     #[turbo_tasks::function]
     async fn vary(&self) -> Result<Vc<ContentSourceDataVary>> {
         let source = self.source.await?;
-        // TODO the operation should cover the get_content operation too
-        let result = OperationVc::new(self.get_content.vary())
+        let result = self
+            .get_content
+            .vary()
             .issue_file_path(source.file_path, &*source.description)
-            .await?
-            .connect();
+            .await?;
         Ok(result)
     }
 
@@ -116,11 +115,11 @@ impl GetContentSourceContent for IssueContextGetContentSourceContent {
         data: Value<ContentSourceData>,
     ) -> Result<Vc<ContentSourceContent>> {
         let source = self.source.await?;
-        // TODO the operation should cover the get_content operation too
-        let result = OperationVc::new(self.get_content.get(path, data))
+        let result = self
+            .get_content
+            .get(path, data)
             .issue_file_path(source.file_path, &*source.description)
-            .await?
-            .connect();
+            .await?;
         Ok(result)
     }
 }

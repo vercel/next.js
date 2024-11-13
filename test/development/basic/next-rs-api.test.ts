@@ -510,7 +510,7 @@ describe('next.rs api', () => {
             expect(normalizeIssues(result.value.issues)).toEqual([])
             expect(result.value).toHaveProperty(
               'diagnostics',
-              expect.toBeArray()
+              expect.toBeEmpty()
             )
           })
         )
@@ -630,7 +630,7 @@ describe('next.rs api', () => {
         expect(result.done).toBe(false)
         expect(result.value).toHaveProperty('resource', expect.toBeObject())
         expect(result.value).toHaveProperty('type', 'issues')
-        expect(result.value).toHaveProperty('diagnostics', expect.toBeArray())
+        expect(result.value).toHaveProperty('diagnostics', expect.toBeEmpty())
       })
     )
     const merged = raceIterators(subscriptions)

@@ -1,5 +1,5 @@
 use anyhow::{bail, Result};
-use turbo_tasks::{Completion, OperationVc, Vc};
+use turbo_tasks::{Completion, Vc};
 use turbopack_core::module::Modules;
 
 use crate::route::{Endpoint, WrittenEndpoint};
@@ -18,10 +18,7 @@ impl EmptyEndpoint {
 #[turbo_tasks::value_impl]
 impl Endpoint for EmptyEndpoint {
     #[turbo_tasks::function]
-    fn write_to_disk(
-        self: Vc<Self>,
-        _self_op: OperationVc<Box<dyn Endpoint>>,
-    ) -> Result<Vc<WrittenEndpoint>> {
+    fn write_to_disk(self: Vc<Self>) -> Result<Vc<WrittenEndpoint>> {
         bail!("Empty endpoint can't be written to disk")
     }
 
