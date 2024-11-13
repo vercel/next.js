@@ -853,8 +853,8 @@ importers:
         specifier: 2.0.2
         version: 2.0.2
       typescript:
-        specifier: 5.5.3
-        version: 5.5.3
+        specifier: 5.6.3
+        version: 5.6.3
 
   packages/next:
     dependencies:
@@ -1555,8 +1555,8 @@ importers:
         specifier: 7.3.1
         version: 7.3.1
       typescript:
-        specifier: 5.5.3
-        version: 5.5.3
+        specifier: 5.6.3
+        version: 5.6.3
 
   packages/next-env:
     devDependencies:
@@ -1642,8 +1642,8 @@ importers:
         specifier: 2.5.1
         version: 2.5.1
       typescript:
-        specifier: 5.5.3
-        version: 5.5.3
+        specifier: 5.6.3
+        version: 5.6.3
 
   turbopack/crates/turbopack-cli/js:
     dependencies:
@@ -14666,11 +14666,6 @@ packages:
   typescript@4.9.5:
     resolution: {integrity: sha512-1FXk9E2Hm+QzZQ7z+McJiHL4NW1F2EzMu9Nq9i3zAaGqibafqYwCVU6WyWAuyQRRzOlxou8xZSyXLEN8oKj24g==}
     engines: {node: '>=4.2.0'}
-    hasBin: true
-
-  typescript@5.5.3:
-    resolution: {integrity: sha512-/hreyEujaB0w76zKo6717l3L0o/qEUtRgdvUBvlkhoWeOVMjMuHNHk0BRBzikzuGDqNmPQbg5ifMEqsHLiIUcQ==}
-    engines: {node: '>=14.17'}
     hasBin: true
 
   typescript@5.6.3:
@@ -31632,8 +31627,6 @@ snapshots:
       csstype: 3.1.2
 
   typescript@4.9.5: {}
-
-  typescript@5.5.3: {}
 
   typescript@5.6.3: {}
 
