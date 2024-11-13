@@ -14,7 +14,7 @@ import {
 import {
   getAccessFallbackHTTPStatus,
   isHTTPAccessFallbackError,
-} from '../../client/components/http-access-fallback'
+} from '../../client/components/http-access-fallback/http-access-fallback'
 import {
   getRedirectTypeFromError,
   getURLFromRedirectError,

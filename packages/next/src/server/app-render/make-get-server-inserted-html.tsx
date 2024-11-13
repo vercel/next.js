@@ -1,5 +1,5 @@
 import React, { type JSX } from 'react'
-import { isHTTPAccessFallbackError } from '../../client/components/http-access-fallback'
+import { isHTTPAccessFallbackError } from '../../client/components/http-access-fallback/http-access-fallback'
 import {
   getURLFromRedirectError,
   isRedirectError,

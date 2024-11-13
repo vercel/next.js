@@ -30,7 +30,7 @@ import type {
   ResolvedMetadata,
   ResolvedViewport,
 } from './types/metadata-interface'
-import { isHTTPAccessFallbackError } from '../../client/components/http-access-fallback'
+import { isHTTPAccessFallbackError } from '../../client/components/http-access-fallback/http-access-fallback'
 import type { MetadataContext } from './types/resolvers'
 import type { WorkStore } from '../../server/app-render/work-async-storage.external'
 import {
