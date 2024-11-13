@@ -29,8 +29,20 @@ describe('dynamic-io', () => {
       return staticIndicatorPresent
     }
 
-    it('should not have static indicator on dynamic route', async () => {
+    it('should not have static indicator on dynamic method route', async () => {
       const browser = await next.browser('/cases/dynamic_api_cookies')
+
+      await retry(async () => {
+        expect(await browser.eval('!!window.next.router ? "yes": "no"')).toBe(
+          'yes'
+        )
+      })
+
+      expect(await hasStaticIndicator(browser)).toBe(false)
+    })
+
+    it('should not have static indicator on dynamic IO route', async () => {
+      const browser = await next.browser('/cases/fetch_mixed')
 
       await retry(async () => {
         expect(await browser.eval('!!window.next.router ? "yes": "no"')).toBe(
