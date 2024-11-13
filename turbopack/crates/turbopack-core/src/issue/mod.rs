@@ -720,6 +720,7 @@ impl Ord for PlainIssue {
         cmp!(self.description, other.description);
         cmp!(self.detail, other.detail);
         cmp!(self.documentation_link, other.documentation_link);
+        cmp!(self.source, other.source);
         Ordering::Equal
     }
 }
@@ -791,7 +792,7 @@ impl PlainIssue {
 }
 
 #[turbo_tasks::value(serialization = "none")]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialOrd, Ord)]
 pub struct PlainIssueSource {
     pub asset: ReadRef<PlainSource>,
     pub range: Option<(SourcePos, SourcePos)>,
@@ -848,6 +849,18 @@ impl PlainSource {
             content,
         }
         .cell())
+    }
+}
+
+impl Ord for PlainSource {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.ident.cmp(&other.ident)
+    }
+}
+
+impl PartialOrd for PlainSource {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
     }
 }
 
