@@ -24,7 +24,7 @@ const HTTPErrorStatus = {
 } as const
 
 interface HTTPErrorFallbackBoundaryProps {
-  notFound?: [React.ReactNode?, React.ReactNode?]
+  notFound?: React.ReactNode
   errorStatus?: number
   children: React.ReactNode
   missingSlots?: Set<string>
@@ -110,16 +110,15 @@ class HTTPErrorFallbackErrorBoundary extends React.Component<
   }
 
   render() {
+    const { notFound } = this.props
     if (this.state.triggeredStatus === HTTPErrorStatus.NOT_FOUND) {
-      const [fallback, styles] = this.props.notFound || []
       return (
         <>
           <meta name="robots" content="noindex" />
           {process.env.NODE_ENV === 'development' && (
             <meta name="next-error" content="not-found" />
           )}
-          {styles}
-          {fallback}
+          {notFound}
         </>
       )
     }
@@ -140,7 +139,7 @@ export function HTTPErrorFallbackBoundary({
   const pathname = useUntrackedPathname()
   const missingSlots = useContext(MissingSlotContext)
 
-  if (notFound?.[0]) {
+  if (notFound) {
     return (
       <HTTPErrorFallbackErrorBoundary
         pathname={pathname}

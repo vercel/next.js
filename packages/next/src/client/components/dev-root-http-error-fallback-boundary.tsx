@@ -18,9 +18,7 @@ export function DevRootHTTPErrorFallbackBoundary({
   children: React.ReactNode
 }) {
   return (
-    <HTTPErrorFallbackBoundary
-      notFound={[<NotAllowedRootHTTPFallbackError />, null]}
-    >
+    <HTTPErrorFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError />}>
       {children}
     </HTTPErrorFallbackBoundary>
   )

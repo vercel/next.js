@@ -347,7 +347,12 @@ async function createComponentTreeInternal({
         const parallelRoute = parallelRoutes[parallelRouteKey]
 
         const notFoundComponent =
-          NotFound && isChildrenRouteKey ? <NotFound /> : undefined
+          NotFound && isChildrenRouteKey ? (
+            <>
+              {notFoundStyles}
+              <NotFound />
+            </>
+          ) : undefined
 
         // if we're prefetching and that there's a Loading component, we bail out
         // otherwise we keep rendering for the prefetch.
@@ -444,7 +449,6 @@ async function createComponentTreeInternal({
             templateStyles={templateStyles}
             templateScripts={templateScripts}
             notFound={notFoundComponent}
-            notFoundStyles={notFoundStyles}
           />,
           childCacheNodeSeedData,
         ]
@@ -657,10 +661,10 @@ async function createComponentTreeInternal({
           )
         } else {
           segmentNode = (
-            <HTTPErrorFallbackBoundary key={cacheNodeKey}>
+            <React.Fragment key={cacheNodeKey}>
               {layerAssets}
               {clientSegment}
-            </HTTPErrorFallbackBoundary>
+            </React.Fragment>
           )
         }
       } else {
@@ -690,7 +694,7 @@ async function createComponentTreeInternal({
         segmentNode = (
           <HTTPErrorFallbackBoundary
             key={cacheNodeKey}
-            notFound={[
+            notFound={
               NotFound ? (
                 <>
                   {layerAssets}
@@ -699,9 +703,8 @@ async function createComponentTreeInternal({
                     <NotFound />
                   </SegmentComponent>
                 </>
-              ) : undefined,
-              null,
-            ]}
+              ) : undefined
+            }
           >
             {layerAssets}
             {serverSegment}
