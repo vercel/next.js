@@ -2238,7 +2238,6 @@ async function spawnDynamicValidationInDev(
                 isPrerenderInterruptedError(err) ||
                 finalClientController.signal.aborted
               ) {
-                console.log('got prerender abort')
                 requestStore.usedDynamic = true
 
                 const componentStack: string | undefined = (errorInfo as any)
