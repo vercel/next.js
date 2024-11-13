@@ -13,10 +13,10 @@
  */
 
 import React, { useContext } from 'react'
-import { useUntrackedPathname } from './navigation-untracked'
+import { useUntrackedPathname } from '../navigation-untracked'
 import { isHTTPAccessFallbackError } from './http-access-fallback'
-import { warnOnce } from '../../shared/lib/utils/warn-once'
-import { MissingSlotContext } from '../../shared/lib/app-router-context.shared-runtime'
+import { warnOnce } from '../../../shared/lib/utils/warn-once'
+import { MissingSlotContext } from '../../../shared/lib/app-router-context.shared-runtime'
 
 const HTTPErrorStatus = {
   NOT_FOUND: 404,

@@ -1,7 +1,7 @@
 import {
   isHTTPAccessFallbackError,
   type HTTPAccessFallbackError,
-} from './http-access-fallback'
+} from './http-access-fallback/http-access-fallback'
 import { isRedirectError, type RedirectError } from './redirect'
 
 /**

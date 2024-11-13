@@ -77,7 +77,7 @@ import {
 import {
   getAccessFallbackHTTPStatus,
   isHTTPAccessFallbackError,
-} from '../../../client/components/http-access-fallback'
+} from '../../../client/components/http-access-fallback/http-access-fallback'
 import { RedirectStatusCode } from '../../../client/components/redirect-status-code'
 import { INFINITE_CACHE } from '../../../lib/constants'
 

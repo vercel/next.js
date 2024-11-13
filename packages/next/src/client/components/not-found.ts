@@ -1,7 +1,7 @@
 import {
   HTTP_ERROR_FALLBACK_ERROR_CODE,
   type HTTPAccessFallbackError,
-} from './http-access-fallback'
+} from './http-access-fallback/http-access-fallback'
 
 /**
  * This function allows you to render the [not-found.js file](https://nextjs.org/docs/app/api-reference/file-conventions/not-found)

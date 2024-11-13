@@ -62,7 +62,7 @@ import { createWorkStore } from '../async-storage/work-store'
 import {
   getAccessFallbackHTTPStatus,
   isHTTPAccessFallbackError,
-} from '../../client/components/http-access-fallback'
+} from '../../client/components/http-access-fallback/http-access-fallback'
 import {
   getURLFromRedirectError,
   isRedirectError,
