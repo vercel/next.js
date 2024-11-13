@@ -3,7 +3,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import { createProxyServer } from 'next/experimental/testmode/proxy'
 import { outdent } from 'outdent'
-import { sandbox } from '../../../lib/development-sandbox'
+import { createSandbox } from '../../../lib/development-sandbox'
 import * as Log from './utils/log'
 
 const runtimes = ['nodejs', 'edge']
@@ -270,10 +270,10 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
   })
 
   describe('uses waitUntil from request context if available', () => {
-    let sanboxed: Awaited<ReturnType<typeof sandbox>>
+    let sanboxed: Awaited<ReturnType<typeof createSandbox>>
     beforeAll(async () => {
       resetLogIsolation() // sandbox resets `next.cliOutput` to empty
-      sanboxed = await sandbox(
+      sanboxed = await createSandbox(
         next,
         new Map([
           [
@@ -298,7 +298,7 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
       )
     })
     afterAll(async () => {
-      await sanboxed.cleanup()
+      await sanboxed[Symbol.asyncDispose]()
     })
 
     it.each([

@@ -32,7 +32,7 @@ export function waitForHydration(browser: BrowserInterface): Promise<void> {
   })
 }
 
-export async function sandbox(
+export async function createSandbox(
   next: NextInstance,
   initialFiles?: Map<string, string | ((contents: string) => string)>,
   initialUrl: string = '/',
@@ -154,7 +154,7 @@ export async function sandbox(
         return getVersionCheckerText(browser)
       },
     },
-    async cleanup() {
+    [Symbol.asyncDispose]: async () => {
       await browser.close()
       await next.stop()
       await next.clean()
