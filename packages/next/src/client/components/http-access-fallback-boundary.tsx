@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * HTTPErrorFallbackBoundary is a boundary that catches errors and renders a
+ * HTTPAccessFallbackBoundary is a boundary that catches errors and renders a
  * fallback component for HTTP errors.
  *
  * It receives the status code, and determine if it should render fallbacks for few HTTP 4xx errors.
@@ -23,28 +23,28 @@ const HTTPErrorStatus = {
   // TODO: support 401 and 403 HTTP errors.
 } as const
 
-interface HTTPErrorFallbackBoundaryProps {
+interface HTTPAccessFallbackBoundaryProps {
   notFound?: React.ReactNode
   children: React.ReactNode
   missingSlots?: Set<string>
 }
 
-interface HTTPErrorFallbackErrorBoundaryProps
-  extends HTTPErrorFallbackBoundaryProps {
+interface HTTPAccessFallbackErrorBoundaryProps
+  extends HTTPAccessFallbackBoundaryProps {
   pathname: string | null
   missingSlots?: Set<string>
 }
 
-interface HTTPErrorBoundaryState {
+interface HTTPAccessBoundaryState {
   triggeredStatus: number | undefined
   previousPathname: string | null
 }
 
-class HTTPErrorFallbackErrorBoundary extends React.Component<
-  HTTPErrorFallbackErrorBoundaryProps,
-  HTTPErrorBoundaryState
+class HTTPAccessFallbackErrorBoundary extends React.Component<
+  HTTPAccessFallbackErrorBoundaryProps,
+  HTTPAccessBoundaryState
 > {
-  constructor(props: HTTPErrorFallbackErrorBoundaryProps) {
+  constructor(props: HTTPAccessFallbackErrorBoundaryProps) {
     super(props)
     this.state = {
       triggeredStatus: undefined,
@@ -87,9 +87,9 @@ class HTTPErrorFallbackErrorBoundary extends React.Component<
   }
 
   static getDerivedStateFromProps(
-    props: HTTPErrorFallbackErrorBoundaryProps,
-    state: HTTPErrorBoundaryState
-  ): HTTPErrorBoundaryState | null {
+    props: HTTPAccessFallbackErrorBoundaryProps,
+    state: HTTPAccessBoundaryState
+  ): HTTPAccessBoundaryState | null {
     /**
      * Handles reset of the error boundary when a navigation happens.
      * Ensures the error boundary does not stay enabled when navigating to a new page.
@@ -126,10 +126,10 @@ class HTTPErrorFallbackErrorBoundary extends React.Component<
   }
 }
 
-export function HTTPErrorFallbackBoundary({
+export function HTTPAccessFallbackBoundary({
   notFound,
   children,
-}: HTTPErrorFallbackBoundaryProps) {
+}: HTTPAccessFallbackBoundaryProps) {
   // When we're rendering the missing params shell, this will return null. This
   // is because we won't be rendering any not found boundaries or error
   // boundaries for the missing params shell. When this runs on the client
@@ -139,13 +139,13 @@ export function HTTPErrorFallbackBoundary({
 
   if (notFound) {
     return (
-      <HTTPErrorFallbackErrorBoundary
+      <HTTPAccessFallbackErrorBoundary
         pathname={pathname}
         notFound={notFound}
         missingSlots={missingSlots}
       >
         {children}
-      </HTTPErrorFallbackErrorBoundary>
+      </HTTPAccessFallbackErrorBoundary>
     )
   }
 

@@ -1960,7 +1960,7 @@ async function renderToStream(
     } catch (finalErr: any) {
       if (process.env.NODE_ENV === 'development' && isNotFoundError(finalErr)) {
         const { bailOnRootNotFound } =
-          require('../../client/components/dev-root-http-error-fallback-boundary') as typeof import('../../client/components/dev-root-http-error-fallback-boundary')
+          require('../../client/components/dev-root-http-access-fallback-boundary') as typeof import('../../client/components/dev-root-http-access-fallback-boundary')
         bailOnRootNotFound()
       }
       throw finalErr
@@ -3762,7 +3762,7 @@ async function prerenderToStream(
     } catch (finalErr: any) {
       if (process.env.NODE_ENV === 'development' && isNotFoundError(finalErr)) {
         const { bailOnRootNotFound } =
-          require('../../client/components/dev-root-http-error-fallback-boundary') as typeof import('../../client/components/dev-root-http-error-fallback-boundary')
+          require('../../client/components/dev-root-http-access-fallback-boundary') as typeof import('../../client/components/dev-root-http-access-fallback-boundary')
         bailOnRootNotFound()
       }
       throw finalErr

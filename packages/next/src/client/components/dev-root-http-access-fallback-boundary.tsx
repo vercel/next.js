@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { HTTPErrorFallbackBoundary } from './http-error-fallback-boundary'
+import { HTTPAccessFallbackBoundary } from './http-access-fallback-boundary'
 
 export function bailOnRootNotFound() {
   throw new Error('notFound() is not allowed to use in root layout')
@@ -12,14 +12,14 @@ function NotAllowedRootHTTPFallbackError() {
   return null
 }
 
-export function DevRootHTTPErrorFallbackBoundary({
+export function DevRootHTTPAccessFallbackBoundary({
   children,
 }: {
   children: React.ReactNode
 }) {
   return (
-    <HTTPErrorFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError />}>
+    <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError />}>
       {children}
-    </HTTPErrorFallbackBoundary>
+    </HTTPAccessFallbackBoundary>
   )
 }

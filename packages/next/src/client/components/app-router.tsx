@@ -585,12 +585,12 @@ function Router({
 
   if (process.env.NODE_ENV !== 'production') {
     if (typeof window !== 'undefined') {
-      const { DevRootHTTPErrorFallbackBoundary } =
-        require('./dev-root-http-error-fallback-boundary') as typeof import('./dev-root-http-error-fallback-boundary')
+      const { DevRootHTTPAccessFallbackBoundary } =
+        require('./dev-root-http-access-fallback-boundary') as typeof import('./dev-root-http-access-fallback-boundary')
       content = (
-        <DevRootHTTPErrorFallbackBoundary>
+        <DevRootHTTPAccessFallbackBoundary>
           {content}
-        </DevRootHTTPErrorFallbackBoundary>
+        </DevRootHTTPAccessFallbackBoundary>
       )
     }
     const HotReloader: typeof import('./react-dev-overlay/app/hot-reloader-client').default =

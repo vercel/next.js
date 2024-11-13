@@ -92,7 +92,7 @@ async function createComponentTreeInternal({
     renderOpts: { nextConfigOutput, experimental },
     workStore,
     componentMod: {
-      HTTPErrorFallbackBoundary,
+      HTTPAccessFallbackBoundary,
       LayoutRouter,
       RenderFromTemplateContext,
       OutletBoundary,
@@ -623,7 +623,7 @@ async function createComponentTreeInternal({
 
       if (isRootLayoutWithChildrenSlotAndAtLeastOneMoreSlot) {
         // TODO-APP: This is a hack to support unmatched parallel routes, which will throw `notFound()`.
-        // This ensures that a `HTTPErrorFallbackBoundary` is available for when that happens,
+        // This ensures that a `HTTPAccessFallbackBoundary` is available for when that happens,
         // but it's not ideal, as it needlessly invokes the `NotFound` component and renders the `RootLayout` twice.
         // We should instead look into handling the fallback behavior differently in development mode so that it doesn't
         // rely on the `NotFound` behavior.
@@ -645,7 +645,7 @@ async function createComponentTreeInternal({
           )
 
           segmentNode = (
-            <HTTPErrorFallbackBoundary
+            <HTTPAccessFallbackBoundary
               key={cacheNodeKey}
               notFound={[
                 <>
@@ -657,7 +657,7 @@ async function createComponentTreeInternal({
             >
               {layerAssets}
               {clientSegment}
-            </HTTPErrorFallbackBoundary>
+            </HTTPAccessFallbackBoundary>
           )
         } else {
           segmentNode = (
@@ -687,12 +687,12 @@ async function createComponentTreeInternal({
 
       if (isRootLayoutWithChildrenSlotAndAtLeastOneMoreSlot) {
         // TODO-APP: This is a hack to support unmatched parallel routes, which will throw `notFound()`.
-        // This ensures that a `HTTPErrorFallbackBoundary` is available for when that happens,
+        // This ensures that a `HTTPAccessFallbackBoundary` is available for when that happens,
         // but it's not ideal, as it needlessly invokes the `NotFound` component and renders the `RootLayout` twice.
         // We should instead look into handling the fallback behavior differently in development mode so that it doesn't
         // rely on the `NotFound` behavior.
         segmentNode = (
-          <HTTPErrorFallbackBoundary
+          <HTTPAccessFallbackBoundary
             key={cacheNodeKey}
             notFound={
               NotFound ? (
@@ -708,7 +708,7 @@ async function createComponentTreeInternal({
           >
             {layerAssets}
             {serverSegment}
-          </HTTPErrorFallbackBoundary>
+          </HTTPAccessFallbackBoundary>
         )
       } else {
         segmentNode = (
