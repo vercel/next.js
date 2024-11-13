@@ -59,7 +59,10 @@ import {
 } from '../../lib/metadata/metadata-context'
 import { createRequestStoreForRender } from '../async-storage/request-store'
 import { createWorkStore } from '../async-storage/work-store'
-import { isNotFoundError } from '../../client/components/not-found'
+import {
+  getAccessFallbackHTTPStatus,
+  isHTTPAccessFallbackError,
+} from '../../client/components/http-access-fallback'
 import {
   getURLFromRedirectError,
   isRedirectError,
@@ -1841,9 +1844,9 @@ async function renderToStream(
 
     let errorType: 'not-found' | 'redirect' | undefined
 
-    if (isNotFoundError(err)) {
+    if (isHTTPAccessFallbackError(err)) {
+      res.statusCode = getAccessFallbackHTTPStatus(err)
       errorType = 'not-found'
-      res.statusCode = 404
     } else if (isRedirectError(err)) {
       errorType = 'redirect'
       res.statusCode = getRedirectStatusCodeFromError(err)
@@ -1958,7 +1961,10 @@ async function renderToStream(
         validateRootLayout,
       })
     } catch (finalErr: any) {
-      if (process.env.NODE_ENV === 'development' && isNotFoundError(finalErr)) {
+      if (
+        process.env.NODE_ENV === 'development' &&
+        isHTTPAccessFallbackError(finalErr)
+      ) {
         const { bailOnRootNotFound } =
           require('../../client/components/dev-root-http-access-fallback-boundary') as typeof import('../../client/components/dev-root-http-access-fallback-boundary')
         bailOnRootNotFound()
@@ -3638,9 +3644,9 @@ async function prerenderToStream(
 
     let errorType: 'not-found' | 'redirect' | undefined
 
-    if (isNotFoundError(err)) {
+    if (isHTTPAccessFallbackError(err)) {
+      res.statusCode = getAccessFallbackHTTPStatus(err)
       errorType = 'not-found'
-      res.statusCode = 404
     } else if (isRedirectError(err)) {
       errorType = 'redirect'
       res.statusCode = getRedirectStatusCodeFromError(err)
@@ -3760,7 +3766,10 @@ async function prerenderToStream(
         collectedTags: prerenderStore !== null ? prerenderStore.tags : null,
       }
     } catch (finalErr: any) {
-      if (process.env.NODE_ENV === 'development' && isNotFoundError(finalErr)) {
+      if (
+        process.env.NODE_ENV === 'development' &&
+        isHTTPAccessFallbackError(finalErr)
+      ) {
         const { bailOnRootNotFound } =
           require('../../client/components/dev-root-http-access-fallback-boundary') as typeof import('../../client/components/dev-root-http-access-fallback-boundary')
         bailOnRootNotFound()

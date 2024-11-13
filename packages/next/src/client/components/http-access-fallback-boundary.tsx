@@ -14,7 +14,7 @@
 
 import React, { useContext } from 'react'
 import { useUntrackedPathname } from './navigation-untracked'
-import { isNotFoundError } from './not-found'
+import { isHTTPAccessFallbackError } from './http-access-fallback'
 import { warnOnce } from '../../shared/lib/utils/warn-once'
 import { MissingSlotContext } from '../../shared/lib/app-router-context.shared-runtime'
 
@@ -77,7 +77,7 @@ class HTTPAccessFallbackErrorBoundary extends React.Component<
   }
 
   static getDerivedStateFromError(error: any) {
-    if (isNotFoundError(error)) {
+    if (isHTTPAccessFallbackError(error)) {
       return {
         triggeredStatus: HTTPErrorStatus.NOT_FOUND,
       }

@@ -30,7 +30,7 @@ import type {
   ResolvedMetadata,
   ResolvedViewport,
 } from './types/metadata-interface'
-import { isNotFoundError } from '../../client/components/not-found'
+import { isHTTPAccessFallbackError } from '../../client/components/http-access-fallback'
 import type { MetadataContext } from './types/resolvers'
 import type { WorkStore } from '../../server/app-render/work-async-storage.external'
 import {
@@ -96,7 +96,7 @@ export function createMetadataComponents({
     try {
       return await viewport()
     } catch (error) {
-      if (!errorType && isNotFoundError(error)) {
+      if (!errorType && isHTTPAccessFallbackError(error)) {
         try {
           return await getNotFoundViewport(
             tree,
@@ -132,7 +132,7 @@ export function createMetadataComponents({
     try {
       return await metadata()
     } catch (error) {
-      if (!errorType && isNotFoundError(error)) {
+      if (!errorType && isHTTPAccessFallbackError(error)) {
         try {
           return await getNotFoundMetadata(
             tree,
