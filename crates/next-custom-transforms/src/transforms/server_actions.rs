@@ -26,6 +26,7 @@ use swc_core::{
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Config {
     pub is_react_server_layer: bool,
+    pub dynamic_io_enabled: bool,
     pub hash_salt: String,
 }
 
@@ -265,6 +266,7 @@ impl<C: Comments> ServerActions<C> {
                 &mut is_action_fn,
                 &mut cache_type,
                 &mut span,
+                self.config.dynamic_io_enabled,
             );
 
             if !self.config.is_react_server_layer {
@@ -1301,6 +1303,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             &mut self.in_cache_file,
             &mut self.has_action,
             &mut self.has_cache,
+            self.config.dynamic_io_enabled,
         );
 
         // If we're in a "use cache" file, collect all original IDs from export
@@ -2355,6 +2358,7 @@ fn remove_server_directive_index_in_module(
     in_cache_file: &mut Option<String>,
     has_action: &mut bool,
     has_cache: &mut bool,
+    dynamic_io_enabled: bool,
 ) {
     let mut is_directive = true;
 
@@ -2383,6 +2387,21 @@ fn remove_server_directive_index_in_module(
                 // `use cache` or `use cache: foo`
                 if value == "use cache" || value.starts_with("use cache: ") {
                     if is_directive {
+                        if !dynamic_io_enabled {
+                            HANDLER.with(|handler| {
+                                handler
+                                    .struct_span_err(
+                                        *span,
+                                        format!(
+                                            "To use \"{value}\", please enable the experimental feature flag \"dynamicIO\" in your Next.js config.\n\n\
+                                            Read more: https://nextjs.org/docs/canary/app/api-reference/directives/use-cache#usage\n"
+                                        )
+                                        .as_str(),
+                                    )
+                                    .emit();
+                            })
+                        }
+
                         *in_cache_file = Some(if value == "use cache" {
                             "default".into()
                         } else {
@@ -2518,6 +2537,7 @@ fn remove_server_directive_index_in_fn(
     is_action_fn: &mut bool,
     cache_type: &mut Option<String>,
     action_span: &mut Option<Span>,
+    dynamic_io_enabled: bool,
 ) {
     let mut is_directive = true;
 
@@ -2560,6 +2580,21 @@ fn remove_server_directive_index_in_fn(
                 });
             } else if value == "use cache" || value.starts_with("use cache: ") {
                 if is_directive {
+                    if !dynamic_io_enabled {
+                        HANDLER.with(|handler| {
+                            handler
+                                .struct_span_err(
+                                    *span,
+                                    format!(
+                                        "To use \"{value}\", please enable the experimental feature flag \"dynamicIO\" in your Next.js config.\n\n\
+                                        Read more: https://nextjs.org/docs/canary/app/api-reference/directives/use-cache#usage\n"
+                                    )
+                                    .as_str(),
+                                )
+                                .emit();
+                        })
+                    }
+
                     *cache_type = Some(if value == "use cache" {
                         "default".into()
                     } else {

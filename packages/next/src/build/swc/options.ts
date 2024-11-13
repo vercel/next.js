@@ -209,6 +209,7 @@ function getBaseSWCOptions({
       isAppRouterPagesLayer && !jest
         ? {
             isReactServerLayer,
+            dynamicIoEnabled: isDynamicIo,
             hashSalt: serverReferenceHashSalt,
           }
         : undefined,

@@ -18,9 +18,12 @@ pub enum ActionsTransform {
 pub fn get_server_actions_transform_rule(
     transform: ActionsTransform,
     enable_mdx_rs: bool,
+    dynamic_io_enabled: bool,
 ) -> ModuleRule {
-    let transformer =
-        EcmascriptInputTransform::Plugin(Vc::cell(Box::new(NextServerActions { transform }) as _));
+    let transformer = EcmascriptInputTransform::Plugin(Vc::cell(Box::new(NextServerActions {
+        transform,
+        dynamic_io_enabled,
+    }) as _));
     ModuleRule::new(
         module_rule_match_js_no_url(enable_mdx_rs),
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
@@ -33,6 +36,7 @@ pub fn get_server_actions_transform_rule(
 #[derive(Debug)]
 struct NextServerActions {
     transform: ActionsTransform,
+    dynamic_io_enabled: bool,
 }
 
 #[async_trait]
@@ -43,6 +47,7 @@ impl CustomTransformer for NextServerActions {
             &FileName::Real(ctx.file_path_str.into()),
             Config {
                 is_react_server_layer: matches!(self.transform, ActionsTransform::Server),
+                dynamic_io_enabled: self.dynamic_io_enabled,
                 hash_salt: "".into(),
             },
             ctx.comments.clone(),
