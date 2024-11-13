@@ -208,9 +208,6 @@ function getBaseSWCOptions({
     serverActions:
       isAppRouterPagesLayer && !jest
         ? {
-            // always enable server actions
-            // TODO: remove this option
-            enabled: true,
             isReactServerLayer,
             hashSalt: serverReferenceHashSalt,
           }

@@ -303,6 +303,14 @@ graph TD
     N13 --> N6;
     N1 --> N13;
     N0 --> N13;
+    N3 --> N2;
+    N4 --> N2;
+    N5 --> N2;
+    N7 --> N6;
+    N8 --> N6;
+    N9 --> N6;
+    N10 --> N6;
+    N11 --> N6;
 ```
 # Entrypoints
 
@@ -344,6 +352,9 @@ import "react/jsx-runtime";
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
+};
 import { jsx as _jsx } from "react/jsx-runtime";
 export { _jsx as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -355,6 +366,9 @@ export { _jsx as b } from "__TURBOPACK_VAR__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
+};
 import { jsxs as _jsxs } from "react/jsx-runtime";
 export { _jsxs as c } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -363,6 +377,9 @@ export { _jsxs as c } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 5
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
+};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
@@ -385,6 +402,9 @@ import 'next/document';
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
 };
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
+};
 import Document from 'next/document';
 export { Document as e } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -393,6 +413,9 @@ export { Document as e } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 8
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
+};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
 };
@@ -407,6 +430,9 @@ export { Html as f } from "__TURBOPACK_VAR__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
 };
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
+};
 import { Head } from 'next/document';
 export { Head as g } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -418,6 +444,9 @@ export { Head as g } from "__TURBOPACK_VAR__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
 };
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
+};
 import { Main } from 'next/document';
 export { Main as h } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -426,6 +455,9 @@ export { Main as h } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 11
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
+};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
 };
@@ -574,6 +606,9 @@ import "react/jsx-runtime";
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
+};
 import { jsx as _jsx } from "react/jsx-runtime";
 export { _jsx as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -585,6 +620,9 @@ export { _jsx as b } from "__TURBOPACK_VAR__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
+};
 import { jsxs as _jsxs } from "react/jsx-runtime";
 export { _jsxs as c } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -593,6 +631,9 @@ export { _jsxs as c } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 5
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
+};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
@@ -615,6 +656,9 @@ import 'next/document';
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
 };
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
+};
 import Document from 'next/document';
 export { Document as e } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -623,6 +667,9 @@ export { Document as e } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 8
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
+};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
 };
@@ -637,6 +684,9 @@ export { Html as f } from "__TURBOPACK_VAR__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
 };
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
+};
 import { Head } from 'next/document';
 export { Head as g } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -648,6 +698,9 @@ export { Head as g } from "__TURBOPACK_VAR__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
 };
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
+};
 import { Main } from 'next/document';
 export { Main as h } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -656,6 +709,9 @@ export { Main as h } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 11
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
+};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
 };
