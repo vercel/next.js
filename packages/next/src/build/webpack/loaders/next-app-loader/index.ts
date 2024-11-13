@@ -60,6 +60,8 @@ const FILE_TYPES = {
   error: 'error',
   loading: 'loading',
   'not-found': 'not-found',
+  forbidden: 'forbidden',
+  unauthorized: 'unauthorized',
   'global-error': 'global-error',
 } as const
 
