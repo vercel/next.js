@@ -2,6 +2,15 @@ const webpack = require('webpack')
 const path = require('path')
 const TerserPlugin = require('terser-webpack-plugin')
 const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer')
+const EvalSourceMapDevToolPlugin = require('./webpack-plugins/eval-source-map-dev-tool-plugin')
+const DevToolsIgnoreListPlugin = require('./webpack-plugins/devtools-ignore-list-plugin')
+
+function shouldIgnorePath(modulePath) {
+  // For consumers, everything will be considered 3rd party dependency if they use
+  // the bundles we produce here.
+  // In other words, this is all library code and should therefore be ignored.
+  return true
+}
 
 const pagesExternals = [
   'react',
@@ -156,7 +165,8 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
       libraryTarget: 'commonjs2',
     },
     devtool: process.env.NEXT_SERVER_EVAL_SOURCE_MAPS
-      ? 'eval-source-map'
+      ? // We'll use a fork in plugins
+        false
       : 'source-map',
     optimization: {
       moduleIds: 'named',
@@ -181,6 +191,9 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
       ],
     },
     plugins: [
+      process.env.NEXT_SERVER_EVAL_SOURCE_MAPS
+        ? new EvalSourceMapDevToolPlugin({ shouldIgnorePath })
+        : new DevToolsIgnoreListPlugin({ shouldIgnorePath }),
       new webpack.DefinePlugin({
         'typeof window': JSON.stringify('undefined'),
         'process.env.NEXT_MINIMAL': JSON.stringify('true'),

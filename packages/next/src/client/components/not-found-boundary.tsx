@@ -9,7 +9,6 @@ import { MissingSlotContext } from '../../shared/lib/app-router-context.shared-r
 interface NotFoundBoundaryProps {
   notFound?: React.ReactNode
   notFoundStyles?: React.ReactNode
-  asNotFound?: boolean
   children: React.ReactNode
   missingSlots?: Set<string>
 }
@@ -31,7 +30,7 @@ class NotFoundErrorBoundary extends React.Component<
   constructor(props: NotFoundErrorBoundaryProps) {
     super(props)
     this.state = {
-      notFoundTriggered: !!props.asNotFound,
+      notFoundTriggered: false,
       previousPathname: props.pathname,
     }
   }
@@ -113,7 +112,6 @@ class NotFoundErrorBoundary extends React.Component<
 export function NotFoundBoundary({
   notFound,
   notFoundStyles,
-  asNotFound,
   children,
 }: NotFoundBoundaryProps) {
   // When we're rendering the missing params shell, this will return null. This
@@ -129,7 +127,6 @@ export function NotFoundBoundary({
         pathname={pathname}
         notFound={notFound}
         notFoundStyles={notFoundStyles}
-        asNotFound={asNotFound}
         missingSlots={missingSlots}
       >
         {children}

@@ -128,7 +128,7 @@
     "@vercel/og": "0.6.3",
     "abort-controller": "3.0.0",
     "alex": "9.1.0",
-    "amphtml-validator": "1.0.35",
+    "amphtml-validator": "1.0.38",
     "async-sema": "3.0.1",
     "babel-plugin-react-compiler": "0.0.0-experimental-c23de8d-20240515",
     "browserslist": "4.22.2",
