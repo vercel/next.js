@@ -960,8 +960,8 @@ importers:
         specifier: 7.22.5
         version: 7.22.5
       '@capsizecss/metrics':
-        specifier: 3.2.0
-        version: 3.2.0
+        specifier: 3.4.0
+        version: 3.4.0
       '@edge-runtime/cookies':
         specifier: 5.0.0
         version: 5.0.0
@@ -3306,8 +3306,8 @@ packages:
   '@bundled-es-modules/statuses@1.0.1':
     resolution: {integrity: sha512-yn7BklA5acgcBr+7w064fGV+SGIFySjCKpqjcWgBAIfrAkY+4GQTJJHQMeT3V/sgz23VTEVV8TtOmkvJAhFVfg==}
 
-  '@capsizecss/metrics@3.2.0':
-    resolution: {integrity: sha512-EVWRXJaakH6NTq+7cZawgFiqA+UyESMszN/c1oDHbC/b0SAzQJ/QLS0xpaa3Y+YMfXOkEEjkuChYIV5pSkgmcg==}
+  '@capsizecss/metrics@3.4.0':
+    resolution: {integrity: sha512-hIn8MAHxLvwyUh6ZvLQHDt2GPShBz6+gxBs1JTD9GleBkht1AZvtCFo0adr7bQvYYuQzUJeKi69zqlAwgKMHNA==}
 
   '@csstools/postcss-color-function@1.1.0':
     resolution: {integrity: sha512-5D5ND/mZWcQoSfYnSPsXtuiFxhzmhxt6pcjrFLJyldj+p0ZN2vvRpYNX+lahFTtMhAYOa2WmkdGINr0yP0CvGA==}
@@ -17466,7 +17466,7 @@ snapshots:
     dependencies:
       statuses: 2.0.1
 
-  '@capsizecss/metrics@3.2.0': {}
+  '@capsizecss/metrics@3.4.0': {}
 
   '@csstools/postcss-color-function@1.1.0(postcss@8.4.31)':
     dependencies:
