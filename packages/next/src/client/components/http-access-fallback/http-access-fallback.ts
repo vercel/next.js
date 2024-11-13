@@ -1,4 +1,10 @@
-const ALLOWED_CODES = new Set([404])
+export const HTTPAccessErrorStatus = {
+  NOT_FOUND: 404,
+  FORBIDDEN: 403,
+  UNAUTHORIZED: 401,
+}
+
+const ALLOWED_CODES = new Set(Object.values(HTTPAccessErrorStatus))
 
 export const HTTP_ERROR_FALLBACK_ERROR_CODE = 'NEXT_HTTP_ERROR_FALLBACK'
 

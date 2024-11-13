@@ -9,25 +9,22 @@
  * e.g. 404
  * 404 represents not found, and the fallback component pair contains the component and its styles.
  *
- * TODO: support 401 and 403 HTTP errors.
  */
 
 import React, { useContext } from 'react'
 import { useUntrackedPathname } from '../navigation-untracked'
-import {
-  getAccessFallbackHTTPStatus,
-  isHTTPAccessFallbackError,
+import { 
+  HTTPAccessErrorStatus, 
+  getAccessFallbackHTTPStatus, 
+  isHTTPAccessFallbackError
 } from './http-access-fallback'
 import { warnOnce } from '../../../shared/lib/utils/warn-once'
 import { MissingSlotContext } from '../../../shared/lib/app-router-context.shared-runtime'
 
-const HTTPErrorStatus = {
-  NOT_FOUND: 404,
-  // TODO: support 401 and 403 HTTP errors.
-} as const
-
 interface HTTPAccessFallbackBoundaryProps {
   notFound?: React.ReactNode
+  forbidden?: React.ReactNode
+  unauthorized?: React.ReactNode
   children: React.ReactNode
   missingSlots?: Set<string>
 }
@@ -81,8 +78,10 @@ class HTTPAccessFallbackErrorBoundary extends React.Component<
 
   static getDerivedStateFromError(error: any) {
     if (isHTTPAccessFallbackError(error)) {
+      const httpStatus = getAccessFallbackHTTPStatus(error)
+      console.log('get httpStatus', httpStatus)
       return {
-        triggeredStatus: getAccessFallbackHTTPStatus(error),
+        triggeredStatus: httpStatus,
       }
     }
     // Re-throw if error is not for 404
@@ -112,15 +111,19 @@ class HTTPAccessFallbackErrorBoundary extends React.Component<
   }
 
   render() {
-    const { notFound } = this.props
-    if (this.state.triggeredStatus === HTTPErrorStatus.NOT_FOUND) {
+    const { notFound, forbidden, unauthorized } = this.props
+    const { triggeredStatus } = this.state
+    console.log('render triggeredStatus', triggeredStatus, this.props)
+    if (triggeredStatus) {
       return (
         <>
           <meta name="robots" content="noindex" />
           {process.env.NODE_ENV === 'development' && (
             <meta name="next-error" content="not-found" />
           )}
-          {notFound}
+          {(triggeredStatus === HTTPAccessErrorStatus.NOT_FOUND && notFound) ? notFound : null}
+          {(triggeredStatus === HTTPAccessErrorStatus.FORBIDDEN && forbidden) ? forbidden : null}
+          {(triggeredStatus === HTTPAccessErrorStatus.UNAUTHORIZED && unauthorized) ? unauthorized : null}
         </>
       )
     }
@@ -131,6 +134,8 @@ class HTTPAccessFallbackErrorBoundary extends React.Component<
 
 export function HTTPAccessFallbackBoundary({
   notFound,
+  forbidden,
+  unauthorized,
   children,
 }: HTTPAccessFallbackBoundaryProps) {
   // When we're rendering the missing params shell, this will return null. This
@@ -139,12 +144,15 @@ export function HTTPAccessFallbackBoundary({
   // (where these error can occur), we will get the correct pathname.
   const pathname = useUntrackedPathname()
   const missingSlots = useContext(MissingSlotContext)
+  const hasErrorFallback = !!(notFound || forbidden || unauthorized)
 
-  if (notFound) {
+  if (hasErrorFallback) {
     return (
       <HTTPAccessFallbackErrorBoundary
         pathname={pathname}
         notFound={notFound}
+        forbidden={forbidden}
+        unauthorized={unauthorized}
         missingSlots={missingSlots}
       >
         {children}

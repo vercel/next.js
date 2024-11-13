@@ -1,4 +1,4 @@
-import { HTTPAccessErrorFallback } from './error-fallback'
+import { HTTPAccessErrorFallback } from './http-access-fallback/error-fallback'
 
 export default function NotFound() {
   return (
