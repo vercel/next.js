@@ -552,6 +552,7 @@ impl AggregationUpdateQueue {
     }
 
     pub fn run(job: AggregationUpdateJob, ctx: &mut impl ExecuteContext) {
+        debug_assert!(ctx.should_track_children());
         let mut queue = Self::new();
         queue.push(job);
         queue.execute(ctx);

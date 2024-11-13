@@ -23,6 +23,10 @@ impl UpdateCollectibleOperation {
         count: i32,
         mut ctx: impl ExecuteContext,
     ) {
+        if !ctx.should_track_children() {
+            // Collectibles are not supported without children tracking
+            return;
+        }
         let mut queue = AggregationUpdateQueue::new();
         let mut task = ctx.task(task_id, TaskDataCategory::All);
         let outdated = get!(task, OutdatedCollectible { collectible }).copied();
