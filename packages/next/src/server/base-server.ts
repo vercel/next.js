@@ -1733,9 +1733,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     if (pathname === UNDERSCORE_NOT_FOUND_ROUTE) {
       pathname = '/404'
     }
-    const is404Page = pathname === '/404'
-
-    const is500Page = pathname === '/500'
+    const isErrorPathname = pathname === '/_error'
+    const is404Page =
+      pathname === '/404' || (isErrorPathname && res.statusCode === 404)
+    const is500Page =
+      pathname === '/500' || (isErrorPathname && res.statusCode === 500)
     const isAppPath = components.isAppPath === true
 
     const hasServerProps = !!components.getServerSideProps
@@ -2671,6 +2673,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         const notFoundRevalidate = getRequestMeta(req, 'notFoundRevalidate')
         revalidate =
           typeof notFoundRevalidate === 'undefined' ? 0 : notFoundRevalidate
+      } else if (is500Page) {
+        revalidate = 0
       }
 
       // If the cache entry has a revalidate value that's a number, use it.

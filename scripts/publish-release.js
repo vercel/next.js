@@ -53,7 +53,7 @@ const cwd = process.cwd()
           '--access',
           'public',
           '--ignore-scripts',
-          ...(isCanary ? ['--tag', 'canary'] : []),
+          ...(isCanary ? ['--tag', 'canary'] : ['--tag', 'next-14']),
         ],
         { stdio: 'pipe' }
       )
