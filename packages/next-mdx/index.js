@@ -2,6 +2,7 @@ module.exports =
   (pluginOptions = {}) =>
   (nextConfig = {}) => {
     const extension = pluginOptions.extension || /\.mdx$/
+    const userProvidedMdxOptions = pluginOptions.options
 
     const mdxRsOptions = nextConfig?.experimental?.mdxRs
     const loader = mdxRsOptions
@@ -9,16 +10,16 @@ module.exports =
           loader: require.resolve('./mdx-rs-loader'),
           options: {
             providerImportSource: 'next-mdx-import-source-file',
-            ...pluginOptions.options,
+            ...userProvidedMdxOptions,
             // mdxRsOptions is a union of boolean and object type of MdxTransformOptions
             ...(mdxRsOptions === true ? {} : mdxRsOptions),
           },
         }
       : {
-          loader: require.resolve('@mdx-js/loader'),
+          loader: require.resolve('./mdx-js-loader.mjs'),
           options: {
             providerImportSource: 'next-mdx-import-source-file',
-            ...pluginOptions.options,
+            ...userProvidedMdxOptions,
           },
         }
 

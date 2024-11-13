@@ -8,6 +8,7 @@ for (const type of ['with-mdx-rs', 'without-mdx-rs']) {
         '@next/mdx': 'canary',
         '@mdx-js/loader': '^2.2.1',
         '@mdx-js/react': '^2.2.1',
+        'rehype-katex': '7.0.1',
       },
       env: {
         WITH_MDX_RS: type === 'with-mdx-rs' ? 'true' : 'false',
