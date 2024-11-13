@@ -1,7 +1,10 @@
 'use client'
 
 import React, { useContext } from 'react'
-import { useUntrackedPathname } from './navigation-untracked'
+import {
+  useUntrackedPathname,
+  useUntrackedSearchParams,
+} from './navigation-untracked'
 import { isNotFoundError } from './not-found'
 import { warnOnce } from '../../shared/lib/utils/warn-once'
 import { MissingSlotContext } from '../../shared/lib/app-router-context.shared-runtime'
@@ -15,12 +18,14 @@ interface NotFoundBoundaryProps {
 
 interface NotFoundErrorBoundaryProps extends NotFoundBoundaryProps {
   pathname: string | null
+  searchParams: URLSearchParams | null
   missingSlots?: Set<string>
 }
 
 interface NotFoundErrorBoundaryState {
   notFoundTriggered: boolean
   previousPathname: string | null
+  previousSearchParams: URLSearchParams | null
 }
 
 class NotFoundErrorBoundary extends React.Component<
@@ -32,6 +37,7 @@ class NotFoundErrorBoundary extends React.Component<
     this.state = {
       notFoundTriggered: false,
       previousPathname: props.pathname,
+      previousSearchParams: props.searchParams,
     }
   }
 
@@ -75,19 +81,25 @@ class NotFoundErrorBoundary extends React.Component<
   ): NotFoundErrorBoundaryState | null {
     /**
      * Handles reset of the error boundary when a navigation happens.
-     * Ensures the error boundary does not stay enabled when navigating to a new page.
+     * Ensures the error boundary does not stay enabled when navigating to a new page or when search params change.
      * Approach of setState in render is safe as it checks the previous pathname and then overrides
      * it as outlined in https://react.dev/reference/react/useState#storing-information-from-previous-renders
      */
-    if (props.pathname !== state.previousPathname && state.notFoundTriggered) {
+    if (
+      (props.pathname !== state.previousPathname ||
+        props.searchParams !== state.previousSearchParams) &&
+      state.notFoundTriggered
+    ) {
       return {
         notFoundTriggered: false,
         previousPathname: props.pathname,
+        previousSearchParams: props.searchParams,
       }
     }
     return {
       notFoundTriggered: state.notFoundTriggered,
       previousPathname: props.pathname,
+      previousSearchParams: props.searchParams,
     }
   }
 
@@ -119,6 +131,7 @@ export function NotFoundBoundary({
   // boundaries for the missing params shell. When this runs on the client
   // (where these error can occur), we will get the correct pathname.
   const pathname = useUntrackedPathname()
+  const searchParams = useUntrackedSearchParams()
   const missingSlots = useContext(MissingSlotContext)
 
   if (notFound) {
@@ -128,6 +141,7 @@ export function NotFoundBoundary({
         notFound={notFound}
         notFoundStyles={notFoundStyles}
         missingSlots={missingSlots}
+        searchParams={searchParams}
       >
         {children}
       </NotFoundErrorBoundary>
