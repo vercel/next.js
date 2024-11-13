@@ -9,7 +9,6 @@ describe('app dir - navigation', () => {
 
   describe('query string', () => {
     it('should set query correctly', async () => {
-      console.log('trigger change to validate test')
       const browser = await next.browser('/')
       expect(await browser.elementById('query').text()).toMatchInlineSnapshot(
         `""`
