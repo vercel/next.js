@@ -179,7 +179,7 @@ exports[`Next Build production mode first time setup - ESLint v8 1`] = `
       2,
     ],
     "react/no-unescaped-entities": [
-      2,
+      "off",
     ],
     "react/no-unknown-property": [
       "off",
@@ -379,7 +379,7 @@ exports[`Next Build production mode first time setup - ESLint v9 1`] = `
       2,
     ],
     "react/no-unescaped-entities": [
-      2,
+      "off",
     ],
     "react/no-unknown-property": [
       "off",
@@ -715,7 +715,7 @@ exports[`Next Build production mode first time setup with TypeScript - ESLint v8
       2,
     ],
     "react/no-unescaped-entities": [
-      2,
+      "off",
     ],
     "react/no-unknown-property": [
       "off",
@@ -1051,7 +1051,7 @@ exports[`Next Build production mode first time setup with TypeScript - ESLint v9
       2,
     ],
     "react/no-unescaped-entities": [
-      2,
+      "off",
     ],
     "react/no-unknown-property": [
       "off",
