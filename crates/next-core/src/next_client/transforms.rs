@@ -47,6 +47,12 @@ pub async fn get_next_client_transforms_rules(
         rules.push(get_debug_fn_name_rule(enable_mdx_rs));
     }
 
+    let dynamic_io_enabled = next_config
+        .experimental()
+        .await?
+        .dynamic_io
+        .unwrap_or(false);
+
     let mut is_app_dir = false;
 
     match context_ty {
@@ -72,6 +78,7 @@ pub async fn get_next_client_transforms_rules(
             rules.push(get_server_actions_transform_rule(
                 ActionsTransform::Client,
                 enable_mdx_rs,
+                dynamic_io_enabled,
             ));
         }
         ClientContextType::Fallback | ClientContextType::Other => {}
