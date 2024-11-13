@@ -888,7 +888,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
         operation::InvalidateOperation::run(
             smallvec![task_id],
-            TaskDirtyCause::Unknown,
+            TaskDirtyCause::Invalidator,
             self.execute_context(turbo_tasks),
         );
     }
