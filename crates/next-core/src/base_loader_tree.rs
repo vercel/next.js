@@ -28,6 +28,8 @@ pub enum AppDirModuleType {
     Loading,
     Template,
     NotFound,
+    Forbidden,
+    Unauthorized,
     GlobalError,
 }
 
@@ -41,6 +43,8 @@ impl AppDirModuleType {
             AppDirModuleType::Loading => "loading",
             AppDirModuleType::Template => "template",
             AppDirModuleType::NotFound => "not-found",
+            AppDirModuleType::Forbidden => "forbidden",
+            AppDirModuleType::Unauthorized => "unauthorized",
             AppDirModuleType::GlobalError => "global-error",
         }
     }
