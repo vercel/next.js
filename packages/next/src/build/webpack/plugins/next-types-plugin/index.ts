@@ -504,7 +504,7 @@ declare module 'next/navigation' {
     prefetch<RouteType>(href: __next_route_internal_types__.RouteImpl<RouteType>): void
   }
 
-  export declare function useRouter(): AppRouterInstance;
+  export function useRouter(): AppRouterInstance;
 }
 
 declare module 'next/form' {
@@ -689,6 +689,8 @@ declare module 'next/cache' {
   export {
     revalidateTag,
     revalidatePath,
+    expireTag,
+    expirePath,
   } from 'next/dist/server/web/spec-extension/revalidate'
   export { unstable_noStore } from 'next/dist/server/web/spec-extension/unstable-no-store'
 

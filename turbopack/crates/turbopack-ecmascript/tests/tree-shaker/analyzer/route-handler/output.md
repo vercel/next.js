@@ -127,6 +127,7 @@ graph TD
     N1 --> N5;
     N2 --> N6;
     N0 --> N3;
+    N4 --> N3;
 ```
 # Entrypoints
 
@@ -179,6 +180,9 @@ import "next/server";
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 3
 };
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 3
+};
 import { NextResponse } from "next/server";
 export { NextResponse as c } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -187,10 +191,10 @@ export { NextResponse as c } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 5
 ```js
-import { c as NextResponse } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -4,
-    __turbopack_original__: "next/server"
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 3
 };
+import { NextResponse } from "next/server";
 const GET = (req)=>{
     return NextResponse.json({
         pathname: req.nextUrl.pathname
@@ -278,6 +282,9 @@ import "next/server";
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 3
 };
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 3
+};
 import { NextResponse } from "next/server";
 export { NextResponse as c } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -286,10 +293,10 @@ export { NextResponse as c } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 5
 ```js
-import { c as NextResponse } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -4,
-    __turbopack_original__: "next/server"
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 3
 };
+import { NextResponse } from "next/server";
 const GET = (req)=>{
     return NextResponse.json({
         pathname: req.nextUrl.pathname

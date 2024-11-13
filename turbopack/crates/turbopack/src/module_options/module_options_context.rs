@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{trace::TraceRawVcs, FxIndexMap, RcStr, ResolvedVc, ValueDefault, Vc};
+use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::MinifyType, condition::ContextCondition, environment::Environment,
     resolve::options::ImportMapping,
@@ -124,6 +125,13 @@ pub struct ModuleOptionsContext {
     pub side_effect_free_packages: Vec<RcStr>,
     pub tree_shaking_mode: Option<TreeShakingMode>,
 
+    /// Generate (non-emitted) output assets for static assets and externals, to facilitate
+    /// generating a list of all non-bundled files that will be required at runtime.
+    ///
+    /// The filepath is the directory from which the bundled files will require the externals at
+    /// runtime.
+    pub enable_externals_tracing: Option<Vc<FileSystemPath>>,
+
     /// Custom rules to be applied after all default rules.
     pub module_rules: Vec<ModuleRule>,
     /// A list of rules to use a different module option context for certain
@@ -165,7 +173,6 @@ pub struct CssOptionsContext {
     /// This is useful for node-file-trace, which tries to emit all assets in
     /// the module graph, but neither asset types can be emitted directly.
     pub enable_raw_css: bool,
-    pub use_swc_css: bool,
 
     pub minify_type: MinifyType,
 

@@ -3,7 +3,7 @@ use std::io::Write;
 use anyhow::{bail, Result};
 use indoc::writedoc;
 use serde::Serialize;
-use turbo_tasks::{RcStr, ReadRef, TryJoinIterExt, Value, ValueToString, Vc};
+use turbo_tasks::{RcStr, ReadRef, ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc};
 use turbo_tasks_fs::File;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -168,6 +168,8 @@ impl EcmascriptDevEvaluateChunk {
             let filename = chunk_path.file_name();
             write!(
                 code,
+                // findSourceMapURL assumes this co-located sourceMappingURL,
+                // and needs to be adjusted in case this is ever changed.
                 "\n\n//# sourceMappingURL={}.map",
                 urlencoding::encode(filename)
             )?;
@@ -234,7 +236,9 @@ impl OutputAsset for EcmascriptDevEvaluateChunk {
             .await?;
 
         if include_source_map {
-            references.push(Vc::upcast(SourceMapAsset::new(Vc::upcast(self))));
+            references.push(ResolvedVc::upcast(
+                SourceMapAsset::new(Vc::upcast(self)).to_resolved().await?,
+            ));
         }
 
         for chunk_data in &*self.chunks_data().await? {

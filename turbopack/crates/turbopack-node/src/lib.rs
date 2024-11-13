@@ -57,8 +57,8 @@ async fn emit(
 #[derive(Debug)]
 #[turbo_tasks::value]
 struct SeparatedAssets {
-    internal_assets: Vc<OutputAssetsSet>,
-    external_asset_entrypoints: Vc<OutputAssetsSet>,
+    internal_assets: ResolvedVc<OutputAssetsSet>,
+    external_asset_entrypoints: ResolvedVc<OutputAssetsSet>,
 }
 
 /// Extracts the subgraph of "internal" assets (assets within the passes
@@ -70,7 +70,7 @@ async fn internal_assets(
     intermediate_output_path: Vc<FileSystemPath>,
 ) -> Result<Vc<OutputAssetsSet>> {
     Ok(
-        separate_assets(intermediate_asset, intermediate_output_path)
+        *separate_assets(intermediate_asset, intermediate_output_path)
             .strongly_consistent()
             .await?
             .internal_assets,
@@ -78,7 +78,7 @@ async fn internal_assets(
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct AssetsForSourceMapping(HashMap<String, Vc<Box<dyn GenerateSourceMap>>>);
+pub struct AssetsForSourceMapping(HashMap<String, ResolvedVc<Box<dyn GenerateSourceMap>>>);
 
 /// Extracts a map of "internal" assets ([`internal_assets`]) which implement
 /// the [GenerateSourceMap] trait.
@@ -92,7 +92,7 @@ async fn internal_assets_for_source_mapping(
     let mut internal_assets_for_source_mapping = HashMap::new();
     for asset in internal_assets.iter() {
         if let Some(generate_source_map) =
-            Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(*asset).await?
+            ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(*asset).await?
         {
             if let Some(path) = intermediate_output_path.get_path_to(&*asset.ident().path().await?)
             {
@@ -112,7 +112,7 @@ pub async fn external_asset_entrypoints(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     intermediate_output_path: Vc<FileSystemPath>,
 ) -> Result<Vc<OutputAssetsSet>> {
-    Ok(separate_assets(
+    Ok(*separate_assets(
         get_intermediate_asset(chunking_context, module, runtime_entries)
             .resolve()
             .await?,
@@ -177,17 +177,17 @@ async fn separate_assets(
     for item in graph.into_reverse_topological() {
         match item {
             Type::Internal(asset) => {
-                internal_assets.insert(*asset);
+                internal_assets.insert(asset);
             }
             Type::External(asset) => {
-                external_asset_entrypoints.insert(*asset);
+                external_asset_entrypoints.insert(asset);
             }
         }
     }
 
     Ok(SeparatedAssets {
-        internal_assets: Vc::cell(internal_assets),
-        external_asset_entrypoints: Vc::cell(external_asset_entrypoints),
+        internal_assets: ResolvedVc::cell(internal_assets),
+        external_asset_entrypoints: ResolvedVc::cell(external_asset_entrypoints),
     }
     .cell())
 }
@@ -212,15 +212,15 @@ pub async fn get_renderer_pool(
     env: Vc<Box<dyn ProcessEnv>>,
     intermediate_asset: Vc<Box<dyn OutputAsset>>,
     intermediate_output_path: Vc<FileSystemPath>,
-    output_root: Vc<FileSystemPath>,
-    project_dir: Vc<FileSystemPath>,
+    output_root: ResolvedVc<FileSystemPath>,
+    project_dir: ResolvedVc<FileSystemPath>,
     debug: bool,
 ) -> Result<Vc<NodeJsPool>> {
     emit_package_json(intermediate_output_path).await?;
 
-    let emit = emit(intermediate_asset, output_root);
+    let emit = emit(intermediate_asset, *output_root);
     let assets_for_source_mapping =
-        internal_assets_for_source_mapping(intermediate_asset, output_root);
+        internal_assets_for_source_mapping(intermediate_asset, *output_root);
 
     let entrypoint = intermediate_asset.ident().path();
 
@@ -246,7 +246,7 @@ pub async fn get_renderer_pool(
             .iter()
             .map(|(k, v)| (k.clone(), v.clone()))
             .collect(),
-        assets_for_source_mapping,
+        assets_for_source_mapping.to_resolved().await?,
         output_root,
         project_dir,
         available_parallelism().map_or(1, |v| v.get()),

@@ -229,6 +229,7 @@ graph TD
     N6 --> N2;
     N1 --> N6;
     N0 --> N6;
+    N3 --> N2;
 ```
 # Entrypoints
 
@@ -270,6 +271,9 @@ import "./index";
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
+};
 import { IPC } from "./index";
 export { IPC as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -278,10 +282,10 @@ export { IPC as b } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 4
 ```js
-import { b as IPC } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -3,
-    __turbopack_original__: "./index"
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
 };
+import { IPC } from "./index";
 const ipc = IPC;
 export { ipc as c } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -458,6 +462,9 @@ import "./index";
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
+};
 import { IPC } from "./index";
 export { IPC as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -466,10 +473,10 @@ export { IPC as b } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 4
 ```js
-import { b as IPC } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -3,
-    __turbopack_original__: "./index"
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
 };
+import { IPC } from "./index";
 const ipc = IPC;
 export { ipc as c } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true

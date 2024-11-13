@@ -143,13 +143,13 @@ impl EcmascriptChunkItem for IncludeModulesChunkItem {
 /// [`IncludeModulesModule`].
 #[turbo_tasks::value]
 pub struct IncludedModuleReference {
-    pub module: Vc<Box<dyn Module>>,
+    pub module: ResolvedVc<Box<dyn Module>>,
 }
 
 #[turbo_tasks::value_impl]
 impl IncludedModuleReference {
     #[turbo_tasks::function]
-    pub fn new(module: Vc<Box<dyn Module>>) -> Vc<Self> {
+    pub fn new(module: ResolvedVc<Box<dyn Module>>) -> Vc<Self> {
         IncludedModuleReference { module }.cell()
     }
 }

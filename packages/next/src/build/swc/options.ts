@@ -208,9 +208,6 @@ function getBaseSWCOptions({
     serverActions:
       isAppRouterPagesLayer && !jest
         ? {
-            // always enable server actions
-            // TODO: remove this option
-            enabled: true,
             isReactServerLayer,
             hashSalt: serverReferenceHashSalt,
           }
@@ -219,6 +216,7 @@ function getBaseSWCOptions({
     // On server side of pages router we prefer CJS.
     preferEsm: esm,
     lintCodemodComments: true,
+    debugFunctionName: development,
   }
 }
 

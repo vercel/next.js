@@ -45,6 +45,7 @@ import { isNodeNextRequest, isWebNextRequest } from '../base-http/helpers'
 import { RedirectStatusCode } from '../../client/components/redirect-status-code'
 import { synchronizeMutableCookies } from '../async-storage/request-store'
 import type { TemporaryReferenceSet } from 'react-server-dom-webpack/server.edge'
+import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 
 function formDataFromSearchQueryString(query: string) {
   const searchParams = new URLSearchParams(query)
@@ -255,7 +256,7 @@ function getAppRelativeRedirectUrl(
   host: Host,
   redirectUrl: string
 ): URL | null {
-  if (redirectUrl.startsWith('/') || redirectUrl.startsWith('./')) {
+  if (redirectUrl.startsWith('/') || redirectUrl.startsWith('.')) {
     // Make sure we are appending the basePath to relative URLS
     return new URL(`${basePath}${redirectUrl}`, 'http://n')
   }
@@ -468,6 +469,7 @@ export async function handleAction({
     // We want the render to see any cookie writes that we performed during the action,
     // so we need to update the immutable cookies to reflect the changes.
     synchronizeMutableCookies(requestStore)
+    requestStore.phase = 'render'
     return generateFlight(...args)
   }
 
@@ -560,7 +562,7 @@ export async function handleAction({
 
         return {
           type: 'done',
-          result: await finalizeAndGenerateFlight(req, ctx, {
+          result: await finalizeAndGenerateFlight(req, ctx, requestStore, {
             actionResult: promise,
             // if the page was not revalidated, we can skip the rendering the flight tree
             skipFlight: !workStore.pathWasRevalidated,
@@ -877,7 +879,9 @@ export async function handleAction({
         actionId!
       ]
 
-      const returnVal = await actionHandler.apply(null, boundActionArguments)
+      const returnVal = await workUnitAsyncStorage.run(requestStore, () =>
+        actionHandler.apply(null, boundActionArguments)
+      )
 
       // For form actions, we need to continue rendering the page.
       if (isFetchAction) {
@@ -886,7 +890,7 @@ export async function handleAction({
           requestStore,
         })
 
-        actionResult = await finalizeAndGenerateFlight(req, ctx, {
+        actionResult = await finalizeAndGenerateFlight(req, ctx, requestStore, {
           actionResult: Promise.resolve(returnVal),
           // if the page was not revalidated, or if the action was forwarded from another worker, we can skip the rendering the flight tree
           skipFlight: !workStore.pathWasRevalidated || actionWasForwarded,
@@ -962,7 +966,7 @@ export async function handleAction({
         }
         return {
           type: 'done',
-          result: await finalizeAndGenerateFlight(req, ctx, {
+          result: await finalizeAndGenerateFlight(req, ctx, requestStore, {
             skipFlight: false,
             actionResult: promise,
             temporaryReferences,
@@ -994,9 +998,10 @@ export async function handleAction({
         // swallow error, it's gonna be handled on the client
       }
 
+      requestStore.phase = 'render'
       return {
         type: 'done',
-        result: await generateFlight(req, ctx, {
+        result: await generateFlight(req, ctx, requestStore, {
           actionResult: promise,
           // if the page was not revalidated, or if the action was forwarded from another worker, we can skip the rendering the flight tree
           skipFlight: !workStore.pathWasRevalidated || actionWasForwarded,

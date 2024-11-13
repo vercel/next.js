@@ -2,7 +2,7 @@
 title: Webpack 5 Adoption
 ---
 
-#### Why This Message Occurred
+## Why This Message Occurred
 
 Next.js has adopted webpack 5 as the default for compilation. We've spent a lot of effort into ensuring the transition from webpack 4 to 5 will be as smooth as possible.
 
@@ -33,14 +33,14 @@ In the past releases we have gradually rolled out webpack 5 to Next.js applicati
 - In Next.js 11 webpack 5 was enabled by default for all applications. You could still opt-out and use webpack 4 to help with backwards compatibility using `webpack5: false` in `next.config.js`
 - In Next.js 12 webpack 4 support was removed.
 
-#### Custom webpack configuration
+## Custom webpack configuration
 
 In case you do have custom webpack configuration, either through custom plugins or your own modifications you'll have to take a few steps to ensure your applications works with webpack 5.
 
 - When using `next-transpile-modules` make sure you use the latest version which includes [this patch](https://github.com/martpie/next-transpile-modules/pull/179)
 - When using `@zeit/next-css` / `@zeit/next-sass` make sure you use the [built-in CSS/Sass support](/docs/pages/building-your-application/styling) instead
 - When using `@zeit/next-preact` use [this example](https://github.com/vercel/next.js/tree/canary/examples/using-preact) instead
-- When using `@zeit/next-source-maps` use the [built-in production Source Map support](/docs/pages/api-reference/next-config-js/productionBrowserSourceMaps)
+- When using `@zeit/next-source-maps` use the [built-in production Source Map support](/docs/pages/api-reference/config/next-config-js/productionBrowserSourceMaps)
 - When using webpack plugins make sure they're upgraded to the latest version, in most cases the latest version will include webpack 5 support. In some cases these upgraded webpack plugins will only support webpack 5.
 
 ## Useful Links

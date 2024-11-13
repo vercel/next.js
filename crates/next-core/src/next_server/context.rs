@@ -13,7 +13,7 @@ use turbopack::{
     transition::Transition,
 };
 use turbopack_core::{
-    chunk::module_id_strategies::ModuleIdStrategy,
+    chunk::{module_id_strategies::ModuleIdStrategy, MinifyType},
     compile_time_info::{
         CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefineableNameSegment,
         FreeVarReferences,
@@ -72,36 +72,36 @@ use crate::{
     },
 };
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
+#[turbo_tasks::value(shared, serialization = "auto_for_input")]
 #[derive(Debug, Copy, Clone, Hash)]
 pub enum ServerContextType {
     Pages {
-        pages_dir: Vc<FileSystemPath>,
+        pages_dir: ResolvedVc<FileSystemPath>,
     },
     PagesApi {
-        pages_dir: Vc<FileSystemPath>,
+        pages_dir: ResolvedVc<FileSystemPath>,
     },
     PagesData {
-        pages_dir: Vc<FileSystemPath>,
+        pages_dir: ResolvedVc<FileSystemPath>,
     },
     AppSSR {
-        app_dir: Vc<FileSystemPath>,
+        app_dir: ResolvedVc<FileSystemPath>,
     },
     AppRSC {
-        app_dir: Vc<FileSystemPath>,
+        app_dir: ResolvedVc<FileSystemPath>,
         ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
         client_transition: Option<Vc<Box<dyn Transition>>>,
     },
     AppRoute {
-        app_dir: Vc<FileSystemPath>,
+        app_dir: ResolvedVc<FileSystemPath>,
         ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
     },
     Middleware {
-        app_dir: Option<Vc<FileSystemPath>>,
+        app_dir: Option<ResolvedVc<FileSystemPath>>,
         ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
     },
     Instrumentation {
-        app_dir: Option<Vc<FileSystemPath>>,
+        app_dir: Option<ResolvedVc<FileSystemPath>>,
         ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
     },
 }
@@ -128,14 +128,22 @@ pub async fn get_server_resolve_options_context(
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<ResolveOptionsContext>> {
     let next_server_import_map =
-        get_next_server_import_map(project_path, ty, next_config, execution_context);
+        get_next_server_import_map(project_path, ty, next_config, execution_context)
+            .to_resolved()
+            .await?;
     let foreign_code_context_condition =
         foreign_code_context_condition(next_config, project_path).await?;
-    let root_dir = project_path.root().resolve().await?;
-    let module_feature_report_resolve_plugin = ModuleFeatureReportResolvePlugin::new(project_path);
-    let invalid_client_only_resolve_plugin = get_invalid_client_only_resolve_plugin(project_path);
+    let root_dir = project_path.root().to_resolved().await?;
+    let module_feature_report_resolve_plugin = ModuleFeatureReportResolvePlugin::new(project_path)
+        .to_resolved()
+        .await?;
+    let invalid_client_only_resolve_plugin = get_invalid_client_only_resolve_plugin(project_path)
+        .to_resolved()
+        .await?;
     let invalid_styled_jsx_client_only_resolve_plugin =
-        get_invalid_styled_jsx_resolve_plugin(project_path);
+        get_invalid_styled_jsx_resolve_plugin(project_path)
+            .to_resolved()
+            .await?;
 
     // Always load these predefined packages as external.
     let mut external_packages: Vec<RcStr> = load_next_js_templateon(
@@ -181,7 +189,9 @@ pub async fn get_server_resolve_options_context(
         project_path.root(),
         ExternalPredicate::Only(ResolvedVc::cell(external_packages)).cell(),
         *next_config.import_externals().await?,
-    );
+    )
+    .to_resolved()
+    .await?;
 
     let mut custom_conditions = vec![mode.await?.condition().to_string().into()];
     custom_conditions.extend(
@@ -205,19 +215,29 @@ pub async fn get_server_resolve_options_context(
             ExternalPredicate::AllExcept(ResolvedVc::cell(transpiled_packages)).cell(),
             *next_config.import_externals().await?,
         )
+        .to_resolved()
+        .await?
     };
 
-    let next_external_plugin = NextExternalResolvePlugin::new(project_path);
+    let next_external_plugin = NextExternalResolvePlugin::new(project_path)
+        .to_resolved()
+        .await?;
     let next_node_shared_runtime_plugin =
-        NextNodeSharedRuntimeResolvePlugin::new(project_path, Value::new(ty));
+        NextNodeSharedRuntimeResolvePlugin::new(project_path, Value::new(ty))
+            .to_resolved()
+            .await?;
 
     let mut before_resolve_plugins = match ty {
         ServerContextType::Pages { .. }
         | ServerContextType::AppSSR { .. }
         | ServerContextType::AppRSC { .. } => {
             vec![
-                Vc::upcast(NextFontLocalResolvePlugin::new(project_path)),
-                Vc::upcast(module_feature_report_resolve_plugin),
+                ResolvedVc::upcast(
+                    NextFontLocalResolvePlugin::new(project_path)
+                        .to_resolved()
+                        .await?,
+                ),
+                ResolvedVc::upcast(module_feature_report_resolve_plugin),
             ]
         }
         ServerContextType::PagesData { .. }
@@ -225,7 +245,7 @@ pub async fn get_server_resolve_options_context(
         | ServerContextType::AppRoute { .. }
         | ServerContextType::Middleware { .. }
         | ServerContextType::Instrumentation { .. } => {
-            vec![Vc::upcast(module_feature_report_resolve_plugin)]
+            vec![ResolvedVc::upcast(module_feature_report_resolve_plugin)]
         }
     };
 
@@ -234,28 +254,28 @@ pub async fn get_server_resolve_options_context(
         | ServerContextType::PagesApi { .. }
         | ServerContextType::PagesData { .. } => {
             vec![
-                Vc::upcast(next_node_shared_runtime_plugin),
-                Vc::upcast(external_cjs_modules_plugin),
-                Vc::upcast(next_external_plugin),
+                ResolvedVc::upcast(next_node_shared_runtime_plugin),
+                ResolvedVc::upcast(external_cjs_modules_plugin),
+                ResolvedVc::upcast(next_external_plugin),
             ]
         }
         ServerContextType::AppSSR { .. }
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. } => {
             vec![
-                Vc::upcast(next_node_shared_runtime_plugin),
-                Vc::upcast(server_external_packages_plugin),
-                Vc::upcast(next_external_plugin),
+                ResolvedVc::upcast(next_node_shared_runtime_plugin),
+                ResolvedVc::upcast(server_external_packages_plugin),
+                ResolvedVc::upcast(next_external_plugin),
             ]
         }
         ServerContextType::Middleware { .. } => {
-            vec![Vc::upcast(next_node_shared_runtime_plugin)]
+            vec![ResolvedVc::upcast(next_node_shared_runtime_plugin)]
         }
         ServerContextType::Instrumentation { .. } => {
             vec![
-                Vc::upcast(next_node_shared_runtime_plugin),
-                Vc::upcast(server_external_packages_plugin),
-                Vc::upcast(next_external_plugin),
+                ResolvedVc::upcast(next_node_shared_runtime_plugin),
+                ResolvedVc::upcast(server_external_packages_plugin),
+                ResolvedVc::upcast(next_external_plugin),
             ]
         }
     };
@@ -276,8 +296,10 @@ pub async fn get_server_resolve_options_context(
         | ServerContextType::AppRoute { .. }
         | ServerContextType::Middleware { .. }
         | ServerContextType::Instrumentation { .. } => {
-            before_resolve_plugins.push(Vc::upcast(invalid_client_only_resolve_plugin));
-            before_resolve_plugins.push(Vc::upcast(invalid_styled_jsx_client_only_resolve_plugin));
+            before_resolve_plugins.push(ResolvedVc::upcast(invalid_client_only_resolve_plugin));
+            before_resolve_plugins.push(ResolvedVc::upcast(
+                invalid_styled_jsx_client_only_resolve_plugin,
+            ));
         }
         ServerContextType::AppSSR { .. } => {
             //[TODO] Build error in this context makes rsc-build-error.ts fail which expects runtime error code
@@ -304,7 +326,7 @@ pub async fn get_server_resolve_options_context(
         custom_extensions: next_config.resolve_extension().await?.clone_value(),
         rules: vec![(
             foreign_code_context_condition,
-            resolve_options_context.clone().cell(),
+            resolve_options_context.clone().resolved_cell(),
         )],
         ..resolve_options_context
     }
@@ -397,7 +419,11 @@ pub async fn get_server_module_options_context(
     let foreign_code_context_condition =
         foreign_code_context_condition(next_config, project_path).await?;
     let postcss_transform_options = PostCssTransformOptions {
-        postcss_package: Some(get_postcss_package_mapping(project_path)),
+        postcss_package: Some(
+            get_postcss_package_mapping(project_path)
+                .to_resolved()
+                .await?,
+        ),
         config_location: PostCssConfigLocation::ProjectPathOrLocalPath,
         ..Default::default()
     };
@@ -446,7 +472,6 @@ pub async fn get_server_module_options_context(
     let tree_shaking_mode_for_foreign_code = *next_config
         .tree_shaking_mode_for_foreign_code(next_mode.is_development())
         .await?;
-    let use_swc_css = *next_config.use_swc_css().await?;
     let versions = RuntimeVersions(Default::default()).cell();
 
     // ModuleOptionsContext related options
@@ -493,11 +518,15 @@ pub async fn get_server_module_options_context(
         },
         execution_context: Some(execution_context),
         css: CssOptionsContext {
-            use_swc_css,
             ..Default::default()
         },
         tree_shaking_mode: tree_shaking_mode_for_user_code,
         side_effect_free_packages: next_config.optimize_package_imports().await?.clone_value(),
+        enable_externals_tracing: if next_mode.is_production() {
+            Some(project_path)
+        } else {
+            None
+        },
         ..Default::default()
     };
 
@@ -600,7 +629,7 @@ pub async fn get_server_module_options_context(
             foreign_next_server_rules.extend(internal_custom_rules);
 
             custom_source_transform_rules.push(
-                get_next_react_server_components_transform_rule(next_config, false, Some(app_dir))
+                get_next_react_server_components_transform_rule(next_config, false, Some(*app_dir))
                     .await?,
             );
 
@@ -679,7 +708,7 @@ pub async fn get_server_module_options_context(
             foreign_next_server_rules.extend(internal_custom_rules);
 
             custom_source_transform_rules.push(
-                get_next_react_server_components_transform_rule(next_config, true, Some(app_dir))
+                get_next_react_server_components_transform_rule(next_config, true, Some(*app_dir))
                     .await?,
             );
 
@@ -733,7 +762,7 @@ pub async fn get_server_module_options_context(
             next_server_rules.extend(source_transform_rules);
 
             let mut common_next_server_rules = vec![
-                get_next_react_server_components_transform_rule(next_config, true, Some(app_dir))
+                get_next_react_server_components_transform_rule(next_config, true, Some(*app_dir))
                     .await?,
             ];
 
@@ -834,7 +863,12 @@ pub async fn get_server_module_options_context(
             }
 
             custom_source_transform_rules.push(
-                get_next_react_server_components_transform_rule(next_config, true, app_dir).await?,
+                get_next_react_server_components_transform_rule(
+                    next_config,
+                    true,
+                    app_dir.as_deref().copied(),
+                )
+                .await?,
             );
 
             internal_custom_rules.extend(custom_source_transform_rules.iter().cloned());
@@ -913,12 +947,13 @@ pub async fn get_server_chunking_context_with_client_assets(
     asset_prefix: Vc<Option<RcStr>>,
     environment: Vc<Environment>,
     module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
+    turbo_minify: Vc<bool>,
 ) -> Result<Vc<NodeJsChunkingContext>> {
     let next_mode = mode.await?;
     // TODO(alexkirsz) This should return a trait that can be implemented by the
     // different server chunking contexts. OR the build chunking context should
     // support both production and development modes.
-    Ok(NodeJsChunkingContext::builder(
+    let mut builder = NodeJsChunkingContext::builder(
         project_path,
         node_root,
         client_root,
@@ -928,9 +963,18 @@ pub async fn get_server_chunking_context_with_client_assets(
         next_mode.runtime_type(),
     )
     .asset_prefix(asset_prefix)
-    .minify_type(next_mode.minify_type())
+    .minify_type(if *turbo_minify.await? {
+        MinifyType::Minify
+    } else {
+        MinifyType::NoMinify
+    })
     .module_id_strategy(module_id_strategy)
-    .build())
+    .file_tracing(next_mode.is_production());
+
+    if next_mode.is_development() {
+        builder = builder.use_file_source_map_uris();
+    }
+    Ok(builder.build())
 }
 
 #[turbo_tasks::function]
@@ -940,12 +984,13 @@ pub async fn get_server_chunking_context(
     node_root: Vc<FileSystemPath>,
     environment: Vc<Environment>,
     module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
+    turbo_minify: Vc<bool>,
 ) -> Result<Vc<NodeJsChunkingContext>> {
     let next_mode = mode.await?;
     // TODO(alexkirsz) This should return a trait that can be implemented by the
     // different server chunking contexts. OR the build chunking context should
     // support both production and development modes.
-    Ok(NodeJsChunkingContext::builder(
+    let mut builder = NodeJsChunkingContext::builder(
         project_path,
         node_root,
         node_root,
@@ -954,7 +999,17 @@ pub async fn get_server_chunking_context(
         environment,
         next_mode.runtime_type(),
     )
-    .minify_type(next_mode.minify_type())
+    .minify_type(if *turbo_minify.await? {
+        MinifyType::Minify
+    } else {
+        MinifyType::NoMinify
+    })
     .module_id_strategy(module_id_strategy)
-    .build())
+    .file_tracing(next_mode.is_production());
+
+    if next_mode.is_development() {
+        builder = builder.use_file_source_map_uris()
+    }
+
+    Ok(builder.build())
 }

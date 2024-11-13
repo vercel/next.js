@@ -75,6 +75,7 @@ graph TD
     N3["Items: [ItemId(0, ImportBinding(0))]"];
     N1 --> N3;
     N0 --> N2;
+    N3 --> N2;
 ```
 # Entrypoints
 
@@ -113,6 +114,9 @@ import "./lib";
 ```
 ## Part 3
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
+};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
@@ -174,6 +178,9 @@ import "./lib";
 ```
 ## Part 3
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
+};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };

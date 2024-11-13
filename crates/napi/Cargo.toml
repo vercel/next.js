@@ -111,7 +111,6 @@ next-api = { workspace = true }
 next-build = { workspace = true }
 next-core = { workspace = true }
 
-node-file-trace = { workspace = true, features = ["node-api"] }
 mdxjs = { workspace = true, features = ["serializable"] }
 
 turbo-tasks-malloc = { workspace = true, default-features = false, features = [

@@ -87,6 +87,7 @@ graph TD
     N3 --> N2;
     N3 --> N1;
     N0 --> N3;
+    N2 --> N1;
 ```
 # Entrypoints
 
@@ -117,6 +118,9 @@ import './module';
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 1
 };
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 1
+};
 import { baz } from './module';
 export { baz as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -125,10 +129,10 @@ export { baz as a } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 3
 ```js
-import { a as baz } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -2,
-    __turbopack_original__: './module'
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 1
 };
+import { baz } from './module';
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 1
 };
@@ -178,6 +182,9 @@ import './module';
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 1
 };
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 1
+};
 import { baz } from './module';
 export { baz as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -186,10 +193,10 @@ export { baz as a } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 3
 ```js
-import { a as baz } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -2,
-    __turbopack_original__: './module'
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 1
 };
+import { baz } from './module';
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 1
 };

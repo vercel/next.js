@@ -1,6 +1,6 @@
 use anyhow::{bail, Context, Result};
 use tracing::Instrument;
-use turbo_tasks::{RcStr, Value, ValueToString, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::{
@@ -45,6 +45,11 @@ impl BrowserChunkingContextBuilder {
 
     pub fn use_file_source_map_uris(mut self) -> Self {
         self.chunking_context.should_use_file_source_map_uris = true;
+        self
+    }
+
+    pub fn tracing(mut self, enable_tracing: bool) -> Self {
+        self.chunking_context.enable_tracing = enable_tracing;
         self
     }
 
@@ -128,6 +133,8 @@ pub struct BrowserChunkingContext {
     asset_base_path: Vc<Option<RcStr>>,
     /// Enable HMR for this chunking
     enable_hot_module_replacement: bool,
+    /// Enable tracing for this chunking
+    enable_tracing: bool,
     /// The environment chunks will be evaluated in.
     environment: Vc<Environment>,
     /// The kind of runtime to include in the output.
@@ -164,6 +171,7 @@ impl BrowserChunkingContext {
                 chunk_base_path: Default::default(),
                 asset_base_path: Default::default(),
                 enable_hot_module_replacement: false,
+                enable_tracing: false,
                 environment,
                 runtime_type,
                 minify_type: MinifyType::NoMinify,
@@ -364,6 +372,11 @@ impl ChunkingContext for BrowserChunkingContext {
     }
 
     #[turbo_tasks::function]
+    fn is_tracing_enabled(&self) -> Vc<bool> {
+        Vc::cell(self.enable_tracing)
+    }
+
+    #[turbo_tasks::function]
     async fn chunk_group(
         self: Vc<Self>,
         ident: Vc<AssetIdent>,
@@ -384,10 +397,11 @@ impl ChunkingContext for BrowserChunkingContext {
             )
             .await?;
 
-            let mut assets: Vec<Vc<Box<dyn OutputAsset>>> = chunks
+            let mut assets = chunks
                 .iter()
-                .map(|chunk| self.generate_chunk(**chunk))
-                .collect();
+                .map(|chunk| self.generate_chunk(**chunk).to_resolved())
+                .try_join()
+                .await?;
 
             if this.enable_hot_module_replacement {
                 let mut ident = ident;
@@ -404,17 +418,16 @@ impl ChunkingContext for BrowserChunkingContext {
                         ));
                     }
                 }
-                assets.push(self.generate_chunk_list_register_chunk(
-                    ident,
-                    EvaluatableAssets::empty(),
-                    Vc::cell(assets.clone()),
-                    Value::new(EcmascriptDevChunkListSource::Dynamic),
-                ));
-            }
-
-            // Resolve assets
-            for asset in assets.iter_mut() {
-                *asset = asset.resolve().await?;
+                assets.push(
+                    self.generate_chunk_list_register_chunk(
+                        ident,
+                        EvaluatableAssets::empty(),
+                        Vc::cell(assets.clone()),
+                        Value::new(EcmascriptDevChunkListSource::Dynamic),
+                    )
+                    .to_resolved()
+                    .await?,
+                );
             }
 
             Ok(ChunkGroupResult {
@@ -453,28 +466,32 @@ impl ChunkingContext for BrowserChunkingContext {
                 availability_info,
             } = make_chunk_group(Vc::upcast(self), entries, availability_info).await?;
 
-            let mut assets: Vec<Vc<Box<dyn OutputAsset>>> = chunks
+            let mut assets: Vec<ResolvedVc<Box<dyn OutputAsset>>> = chunks
                 .iter()
-                .map(|chunk| self.generate_chunk(**chunk))
-                .collect();
+                .map(|chunk| self.generate_chunk(**chunk).to_resolved())
+                .try_join()
+                .await?;
 
             let other_assets = Vc::cell(assets.clone());
 
             if this.enable_hot_module_replacement {
-                assets.push(self.generate_chunk_list_register_chunk(
-                    ident,
-                    evaluatable_assets,
-                    other_assets,
-                    Value::new(EcmascriptDevChunkListSource::Entry),
-                ));
+                assets.push(
+                    self.generate_chunk_list_register_chunk(
+                        ident,
+                        evaluatable_assets,
+                        other_assets,
+                        Value::new(EcmascriptDevChunkListSource::Entry),
+                    )
+                    .to_resolved()
+                    .await?,
+                );
             }
 
-            assets.push(self.generate_evaluate_chunk(ident, other_assets, evaluatable_assets));
-
-            // Resolve assets
-            for asset in assets.iter_mut() {
-                *asset = asset.resolve().await?;
-            }
+            assets.push(
+                self.generate_evaluate_chunk(ident, other_assets, evaluatable_assets)
+                    .to_resolved()
+                    .await?,
+            );
 
             Ok(ChunkGroupResult {
                 assets: Vc::cell(assets),

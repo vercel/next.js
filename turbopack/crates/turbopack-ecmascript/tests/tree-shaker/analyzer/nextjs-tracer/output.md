@@ -653,6 +653,8 @@ graph TD
     N2 --> N11;
     N14 --> N13;
     N0 --> N22;
+    N7 --> N6;
+    N8 --> N6;
 ```
 # Entrypoints
 
@@ -741,6 +743,9 @@ import './constants';
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
 };
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
+};
 import { LogSpanAllowList } from './constants';
 export { LogSpanAllowList as f } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -749,6 +754,9 @@ export { LogSpanAllowList as f } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 8
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
+};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
 };
@@ -964,10 +972,10 @@ import { j as propagation } from "__TURBOPACK_PART__" assert {
 import { s as clientTraceDataSetter } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -20
 };
-import { g as NextVanillaSpanAllowlist } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -8,
-    __turbopack_original__: './constants'
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
 };
+import { NextVanillaSpanAllowlist } from './constants';
 import { l as ROOT_CONTEXT } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -11
 };
@@ -980,10 +988,10 @@ import { p as rootSpanIdKey } from "__TURBOPACK_PART__" assert {
 import { o as rootSpanAttributesStore } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -16
 };
-import { f as LogSpanAllowList } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -7,
-    __turbopack_original__: './constants'
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
 };
+import { LogSpanAllowList } from './constants';
 import { n as closeSpanWithError } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -15
 };
@@ -1267,6 +1275,9 @@ import './constants';
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
 };
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
+};
 import { LogSpanAllowList } from './constants';
 export { LogSpanAllowList as f } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -1275,6 +1286,9 @@ export { LogSpanAllowList as f } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 8
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
+};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
 };
@@ -1481,10 +1495,10 @@ import { j as propagation } from "__TURBOPACK_PART__" assert {
 import { s as clientTraceDataSetter } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -20
 };
-import { g as NextVanillaSpanAllowlist } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -8,
-    __turbopack_original__: './constants'
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
 };
+import { NextVanillaSpanAllowlist } from './constants';
 import { l as ROOT_CONTEXT } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -11
 };
@@ -1497,10 +1511,10 @@ import { p as rootSpanIdKey } from "__TURBOPACK_PART__" assert {
 import { o as rootSpanAttributesStore } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -16
 };
-import { f as LogSpanAllowList } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -7,
-    __turbopack_original__: './constants'
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
 };
+import { LogSpanAllowList } from './constants';
 import { n as closeSpanWithError } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -15
 };

@@ -66,7 +66,9 @@ export async function prospectiveRenderAppPage(
         waitUntil: afterRunner.context.waitUntil,
         onClose: afterRunner.context.onClose,
         onAfterTaskError: afterRunner.context.onTaskError,
-      }
+      },
+      undefined,
+      false
     )
 
     // TODO(after): if we abort a prerender because of an error in an after-callback
@@ -126,7 +128,9 @@ export async function exportAppPage(
       pathname,
       query,
       fallbackRouteParams,
-      renderOpts
+      renderOpts,
+      undefined,
+      false
     )
 
     const html = result.toUnchunkedString()

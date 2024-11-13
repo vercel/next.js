@@ -51,6 +51,10 @@ import { getRedirectError, RedirectType } from '../../redirect'
 import { createSeededPrefetchCacheEntry } from '../prefetch-cache-utils'
 import { removeBasePath } from '../../../remove-base-path'
 import { hasBasePath } from '../../../has-base-path'
+import {
+  extractInfoFromServerReferenceId,
+  omitUnusedArgs,
+} from './server-reference-info'
 
 type FetchServerActionResult = {
   redirectLocation: URL | undefined
@@ -71,7 +75,15 @@ async function fetchServerAction(
   { actionId, actionArgs }: ServerActionAction
 ): Promise<FetchServerActionResult> {
   const temporaryReferences = createTemporaryReferenceSet()
-  const body = await encodeReply(actionArgs, { temporaryReferences })
+  const info = extractInfoFromServerReferenceId(actionId)
+
+  // TODO: Currently, we're only omitting unused args for the experimental "use
+  // cache" functions. Once the server reference info byte feature is stable, we
+  // should apply this to server actions as well.
+  const usedArgs =
+    info.type === 'use-cache' ? omitUnusedArgs(actionArgs, info) : actionArgs
+
+  const body = await encodeReply(usedArgs, { temporaryReferences })
 
   const res = await fetch('', {
     method: 'POST',

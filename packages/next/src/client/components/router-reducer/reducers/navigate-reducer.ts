@@ -128,7 +128,6 @@ export function navigateReducer(
     url,
     nextUrl: state.nextUrl,
     tree: state.tree,
-    buildId: state.buildId,
     prefetchCache: state.prefetchCache,
     allowAliasing,
   })
@@ -283,7 +282,6 @@ export function navigateReducer(
                 const dynamicRequest = fetchServerResponse(url, {
                   flightRouterState: currentTree,
                   nextUrl: state.nextUrl,
-                  buildId: state.buildId,
                 })
 
                 listenForDynamicRequest(task, dynamicRequest)

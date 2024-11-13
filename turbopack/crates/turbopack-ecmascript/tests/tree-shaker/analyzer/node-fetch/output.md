@@ -141,6 +141,7 @@ graph TD
     N6 --> N4;
     N1 --> N6;
     N0 --> N6;
+    N3 --> N2;
 ```
 # Entrypoints
 
@@ -182,6 +183,9 @@ import 'node:stream';
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
+};
 import Stream from 'node:stream';
 export { Stream as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -190,10 +194,10 @@ export { Stream as b } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 4
 ```js
-import { b as Stream } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -3,
-    __turbopack_original__: 'node:stream'
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
 };
+import Stream from 'node:stream';
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
@@ -280,6 +284,9 @@ import 'node:stream';
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
+};
 import Stream from 'node:stream';
 export { Stream as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -288,10 +295,10 @@ export { Stream as b } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 4
 ```js
-import { b as Stream } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -3,
-    __turbopack_original__: 'node:stream'
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
 };
+import Stream from 'node:stream';
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{RcStr, ValueToString, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
     chunk::ChunkableModuleReference, module::Module, reference::ModuleReference,
     resolve::ModuleResolveResult,
@@ -9,14 +9,14 @@ use turbopack_core::{
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct InternalCssAssetReference {
-    module: Vc<Box<dyn Module>>,
+    module: ResolvedVc<Box<dyn Module>>,
 }
 
 #[turbo_tasks::value_impl]
 impl InternalCssAssetReference {
     /// Creates a new [`Vc<InternalCssAssetReference>`].
     #[turbo_tasks::function]
-    pub fn new(module: Vc<Box<dyn Module>>) -> Vc<Self> {
+    pub fn new(module: ResolvedVc<Box<dyn Module>>) -> Vc<Self> {
         Self::cell(InternalCssAssetReference { module })
     }
 }

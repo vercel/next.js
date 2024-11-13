@@ -1131,7 +1131,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     }
 
     this.multiCompiler.hooks.done.tap('NextjsHotReloader', () => {
-      inputFileSystem.purge!()
+      inputFileSystem?.purge?.()
     })
     watchCompilers(
       this.multiCompiler.compilers[0],
@@ -1509,14 +1509,12 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
 
     this.middlewares = [
       getOverlayMiddleware({
-        distDirectory: this.distDir,
         rootDirectory: this.dir,
         clientStats: () => this.clientStats,
         serverStats: () => this.serverStats,
         edgeServerStats: () => this.edgeServerStats,
       }),
       getSourceMapMiddleware({
-        distDirectory: this.distDir,
         clientStats: () => this.clientStats,
         serverStats: () => this.serverStats,
         edgeServerStats: () => this.edgeServerStats,

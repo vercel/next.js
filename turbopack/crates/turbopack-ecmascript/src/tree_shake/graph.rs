@@ -109,8 +109,19 @@ pub(crate) struct ItemData {
     /// This value denotes the module specifier of the [ImportDecl] that declares this
     /// [ItemId].
     ///
-    /// Used to specify the original import source of an `ImportBinding`.
-    pub binding_source: Option<Str>,
+    /// Used to optimize `ImportBinding`.
+    pub binding_source: Option<(Str, ImportSpecifier)>,
+
+    /// Explicit dependencies of this item.
+    ///
+    /// Used to depend from import binding to side-effect-import without additional analysis.
+    ///
+    /// - Note: ImportBinding should depend on actual import statements because those imports may
+    ///   have side effects.
+    ///
+    /// See https://github.com/vercel/next.js/pull/71234#issuecomment-2409810084 for the problematic
+    /// test case.
+    pub explicit_deps: Vec<ItemId>,
 }
 
 impl fmt::Debug for ItemData {
@@ -125,6 +136,7 @@ impl fmt::Debug for ItemData {
             .field("eventual_write_vars", &self.eventual_write_vars)
             .field("side_effects", &self.side_effects)
             .field("export", &self.export)
+            .field("explicit_deps", &self.explicit_deps)
             .finish()
     }
 }
@@ -143,6 +155,7 @@ impl Default for ItemData {
             pure: Default::default(),
             export: Default::default(),
             binding_source: Default::default(),
+            explicit_deps: Default::default(),
         }
     }
 }
@@ -342,7 +355,7 @@ impl DepGraph {
                 let data = data.get(id).unwrap();
 
                 for var in data.var_decls.iter() {
-                    required_vars.remove(var);
+                    required_vars.swap_remove(var);
                 }
 
                 // Depend on import statements from 'ImportBinding'
@@ -462,7 +475,7 @@ impl DepGraph {
                                 is_type_only: false,
                             });
 
-                            required_vars.remove(export);
+                            required_vars.swap_remove(export);
 
                             deps.push(PartId::Export(export.0.as_str().into()));
 
@@ -501,14 +514,55 @@ impl DepGraph {
                 // Instead of importing the import binding fragment, we import the original module.
                 // In this way, we can preserve the import statement so that the other code analysis
                 // can work.
-                let original_import_source = if dep_item_ids.len() == 1 {
+                if dep_item_ids.len() == 1 {
                     let dep_item_id = &dep_item_ids[0];
                     let dep_item_data = data.get(dep_item_id).unwrap();
 
-                    dep_item_data.binding_source.clone()
-                } else {
-                    None
-                };
+                    if let Some((module_specifier, import_specifier)) =
+                        &dep_item_data.binding_source
+                    {
+                        // Preserve the order of the side effects by importing the
+                        // side-effect-import fragment first.
+
+                        if let Some(import_dep) = importer.get(&module_specifier.value) {
+                            if *import_dep != ix as u32 {
+                                part_deps
+                                    .entry(ix as u32)
+                                    .or_default()
+                                    .push(PartId::Internal(*import_dep, true));
+
+                                chunk.body.push(ModuleItem::ModuleDecl(ModuleDecl::Import(
+                                    ImportDecl {
+                                        span: DUMMY_SP,
+                                        specifiers: vec![],
+                                        src: Box::new(TURBOPACK_PART_IMPORT_SOURCE.into()),
+                                        type_only: false,
+                                        with: Some(Box::new(create_turbopack_part_id_assert(
+                                            PartId::Internal(*import_dep, true),
+                                        ))),
+                                        phase: Default::default(),
+                                    },
+                                )));
+                            }
+                        }
+
+                        let specifiers = vec![import_specifier.clone()];
+
+                        part_deps_done.insert(dep);
+
+                        chunk
+                            .body
+                            .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                                span: DUMMY_SP,
+                                specifiers,
+                                src: Box::new(module_specifier.clone()),
+                                type_only: false,
+                                with: None,
+                                phase: Default::default(),
+                            })));
+                        continue;
+                    }
+                }
 
                 let specifiers = vec![ImportSpecifier::Named(ImportNamedSpecifier {
                     span: DUMMY_SP,
@@ -532,10 +586,9 @@ impl DepGraph {
                         specifiers,
                         src: Box::new(TURBOPACK_PART_IMPORT_SOURCE.into()),
                         type_only: false,
-                        with: Some(Box::new(add_original_import_source(
-                            create_turbopack_part_id_assert(PartId::Internal(dep, false)),
-                            original_import_source,
-                        ))),
+                        with: Some(Box::new(create_turbopack_part_id_assert(PartId::Internal(
+                            dep, false,
+                        )))),
                         phase: Default::default(),
                     })));
             }
@@ -582,6 +635,22 @@ impl DepGraph {
                     if s.value.starts_with("use ") {
                         continue;
                     }
+                }
+
+                // Do not store export * in internal part fragments.
+                if let ModuleItem::ModuleDecl(ModuleDecl::ExportAll(export)) = &data[g].content {
+                    // Preserve side effects of import caused by export *
+                    chunk
+                        .body
+                        .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                            span: export.span,
+                            specifiers: Default::default(),
+                            src: export.src.clone(),
+                            type_only: false,
+                            with: export.with.clone(),
+                            phase: Default::default(),
+                        })));
+                    continue;
                 }
 
                 chunk.body.push(data[g].content.clone());
@@ -659,7 +728,7 @@ impl DepGraph {
     ) -> InternedGraph<Vec<ItemId>> {
         let graph = self.g.idx_graph.clone().into_graph::<u32>();
 
-        let condensed = condensation(graph, false);
+        let condensed = condensation(graph, true);
 
         let mut new_graph = InternedGraph::default();
 
@@ -755,15 +824,15 @@ impl DepGraph {
                         _ => {}
                     },
                     ModuleDecl::ExportNamed(item) => {
-                        if let Some(src) = &item.src {
+                        let import_id = if let Some(src) = &item.src {
                             // One item for the import for re-export
-                            let id = ItemId::Item {
+                            let import_id = ItemId::Item {
                                 index,
                                 kind: ItemIdItemKind::ImportOfModule,
                             };
-                            ids.push(id.clone());
+                            ids.push(import_id.clone());
                             items.insert(
-                                id,
+                                import_id.clone(),
                                 ItemData {
                                     is_hoisted: true,
                                     side_effects: true,
@@ -777,7 +846,11 @@ impl DepGraph {
                                     ..Default::default()
                                 },
                             );
-                        }
+
+                            Some(import_id)
+                        } else {
+                            None
+                        };
 
                         for (si, s) in item.specifiers.iter().enumerate() {
                             let (orig, mut local, exported) = match s {
@@ -854,6 +927,7 @@ impl DepGraph {
                                                 phase: Default::default(),
                                             },
                                         )),
+                                        explicit_deps: vec![import_id.clone().unwrap()],
                                         ..Default::default()
                                     },
                                 );
@@ -888,7 +962,7 @@ impl DepGraph {
                                     &top_level_vars,
                                 )
                             };
-                            used_ids.read.remove(&default_var.to_id());
+                            used_ids.read.swap_remove(&default_var.to_id());
                             used_ids.write.insert(default_var.to_id());
                             let mut captured_ids = if export.decl.is_fn_expr() {
                                 ids_captured_by(
@@ -900,7 +974,7 @@ impl DepGraph {
                             } else {
                                 Vars::default()
                             };
-                            captured_ids.read.remove(&default_var.to_id());
+                            captured_ids.read.swap_remove(&default_var.to_id());
 
                             let data = ItemData {
                                 read_vars: used_ids.read,
@@ -1021,26 +1095,24 @@ impl DepGraph {
                 ModuleItem::ModuleDecl(ModuleDecl::Import(item)) => {
                     // We create multiple items for each import.
 
-                    {
-                        // One item for the import itself
-                        let id = ItemId::Item {
-                            index,
-                            kind: ItemIdItemKind::ImportOfModule,
-                        };
-                        ids.push(id.clone());
-                        items.insert(
-                            id,
-                            ItemData {
-                                is_hoisted: true,
-                                side_effects: true,
-                                content: ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-                                    specifiers: Default::default(),
-                                    ..item.clone()
-                                })),
-                                ..Default::default()
-                            },
-                        );
-                    }
+                    // One item for the import itself
+                    let import_id = ItemId::Item {
+                        index,
+                        kind: ItemIdItemKind::ImportOfModule,
+                    };
+                    ids.push(import_id.clone());
+                    items.insert(
+                        import_id.clone(),
+                        ItemData {
+                            is_hoisted: true,
+                            side_effects: true,
+                            content: ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                                specifiers: Default::default(),
+                                ..item.clone()
+                            })),
+                            ..Default::default()
+                        },
+                    );
 
                     // One per binding
                     for (si, s) in item.specifiers.iter().enumerate() {
@@ -1060,7 +1132,13 @@ impl DepGraph {
                                     specifiers: vec![s.clone()],
                                     ..item.clone()
                                 })),
-                                binding_source: Some(*item.src.clone()),
+                                binding_source: if item.with.is_none() {
+                                    // Optimize by directly binding to the source
+                                    Some((*item.src.clone(), s.clone()))
+                                } else {
+                                    None
+                                },
+                                explicit_deps: vec![import_id.clone()],
                                 ..Default::default()
                             },
                         );
@@ -1172,6 +1250,7 @@ impl DepGraph {
                                     e.may_have_side_effects(&ExprCtx {
                                         unresolved_ctxt,
                                         is_unresolved_ref_safe: false,
+                                        in_strict: false,
                                     })
                                 }));
 
@@ -1384,7 +1463,6 @@ impl DepGraph {
 }
 
 const ASSERT_CHUNK_KEY: &str = "__turbopack_part__";
-const ASSERT_ORIGINAL_IMPORT_SOURCE_KEY: &str = "__turbopack_original__";
 
 #[derive(Debug, Clone)]
 pub(crate) enum PartId {
@@ -1393,21 +1471,6 @@ pub(crate) enum PartId {
     Export(RcStr),
     /// `(part_id, is_for_eval)`
     Internal(u32, bool),
-}
-
-pub(crate) fn add_original_import_source(mut item: ObjectLit, source: Option<Str>) -> ObjectLit {
-    if let Some(source) = source {
-        item.props
-            .push(PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-                key: PropName::Ident(IdentName::new(
-                    ASSERT_ORIGINAL_IMPORT_SOURCE_KEY.into(),
-                    DUMMY_SP,
-                )),
-                value: Box::new(Expr::Lit(Lit::Str(source))),
-            }))));
-    }
-
-    item
 }
 
 pub(crate) fn create_turbopack_part_id_assert(dep: PartId) -> ObjectLit {

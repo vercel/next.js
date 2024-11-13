@@ -195,6 +195,7 @@ async fn references_to_output_assets(
         .flatten()
         .copied()
         .filter(|&asset| set.insert(asset))
+        .map(|asset| *asset)
         .collect::<Vec<_>>();
     Ok(OutputAssets::new(output_assets))
 }

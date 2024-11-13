@@ -37,8 +37,7 @@ use turbopack_core::{
     asset::Asset,
     compile_time_info::CompileTimeInfo,
     context::{AssetContext, ProcessResult},
-    ident::AssetIdent,
-    issue::{Issue, IssueExt, IssueStage, OptionStyledString, StyledString},
+    issue::{module::ModuleIssue, IssueExt, StyledString},
     module::Module,
     output::OutputAsset,
     raw_module::RawModule,
@@ -68,36 +67,6 @@ use self::{
     module_options::CustomModuleType,
     transition::{Transition, TransitionOptions},
 };
-
-#[turbo_tasks::value]
-struct ModuleIssue {
-    ident: Vc<AssetIdent>,
-    title: Vc<StyledString>,
-    description: Vc<StyledString>,
-}
-
-#[turbo_tasks::value_impl]
-impl Issue for ModuleIssue {
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::ProcessModule.cell()
-    }
-
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.ident.path()
-    }
-
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        self.title
-    }
-
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(self.description))
-    }
-}
 
 #[turbo_tasks::function]
 async fn apply_module_type(
@@ -164,7 +133,7 @@ async fn apply_module_type(
             }
 
             if runtime_code {
-                Vc::upcast(builder.build())
+                ResolvedVc::upcast(builder.build().to_resolved().await?)
             } else {
                 let module = builder.build();
                 let part_ref = if let Some(part) = part {
@@ -173,7 +142,7 @@ async fn apply_module_type(
                     None
                 };
                 if let Some((part, _)) = part_ref {
-                    if let ModulePart::Evaluation = &*part {
+                    if let ModulePart::Evaluation | ModulePart::InternalEvaluation(..) = &*part {
                         // Skip the evaluation part if the module is marked as side effect free.
                         let side_effect_free_packages =
                             module_asset_context.side_effect_free_packages();
@@ -246,47 +215,63 @@ async fn apply_module_type(
                     }
                     None => Vc::upcast(module),
                 }
+                .to_resolved()
+                .await?
             }
         }
-        ModuleType::Json => Vc::upcast(JsonModuleAsset::new(source)),
-        ModuleType::Raw => Vc::upcast(RawModule::new(source)),
+        ModuleType::Json => ResolvedVc::upcast(JsonModuleAsset::new(source).to_resolved().await?),
+        ModuleType::Raw => ResolvedVc::upcast(RawModule::new(source).to_resolved().await?),
         ModuleType::CssGlobal => {
             return Ok(module_asset_context.process(
                 source,
                 Value::new(ReferenceType::Css(CssReferenceSubType::Internal)),
             ))
         }
-        ModuleType::CssModule => Vc::upcast(ModuleCssAsset::new(
-            source,
-            Vc::upcast(module_asset_context),
-        )),
-        ModuleType::Css { ty, use_swc_css } => Vc::upcast(CssModuleAsset::new(
-            source,
-            Vc::upcast(module_asset_context),
-            *ty,
-            module_asset_context
-                .module_options_context()
+        ModuleType::CssModule => ResolvedVc::upcast(
+            ModuleCssAsset::new(source, Vc::upcast(module_asset_context))
+                .to_resolved()
+                .await?,
+        ),
+        ModuleType::Css { ty } => ResolvedVc::upcast(
+            CssModuleAsset::new(
+                source,
+                Vc::upcast(module_asset_context),
+                *ty,
+                module_asset_context
+                    .module_options_context()
+                    .await?
+                    .css
+                    .minify_type,
+                if let ReferenceType::Css(CssReferenceSubType::AtImport(import)) =
+                    reference_type.into_value()
+                {
+                    import
+                } else {
+                    None
+                },
+            )
+            .to_resolved()
+            .await?,
+        ),
+        ModuleType::Static => ResolvedVc::upcast(
+            StaticModuleAsset::new(source, Vc::upcast(module_asset_context))
+                .to_resolved()
+                .await?,
+        ),
+        ModuleType::WebAssembly { source_ty } => ResolvedVc::upcast(
+            WebAssemblyModuleAsset::new(
+                WebAssemblySource::new(source, *source_ty),
+                Vc::upcast(module_asset_context),
+            )
+            .to_resolved()
+            .await?,
+        ),
+        ModuleType::Custom(custom) => {
+            custom
+                .create_module(source, module_asset_context, part)
+                .to_resolved()
                 .await?
-                .css
-                .minify_type,
-            *use_swc_css,
-            if let ReferenceType::Css(CssReferenceSubType::AtImport(import)) =
-                reference_type.into_value()
-            {
-                import
-            } else {
-                None
-            },
-        )),
-        ModuleType::Static => Vc::upcast(StaticModuleAsset::new(
-            source,
-            Vc::upcast(module_asset_context),
-        )),
-        ModuleType::WebAssembly { source_ty } => Vc::upcast(WebAssemblyModuleAsset::new(
-            WebAssemblySource::new(source, *source_ty),
-            Vc::upcast(module_asset_context),
-        )),
-        ModuleType::Custom(custom) => custom.create_module(source, module_asset_context, part),
+        }
     })
     .cell())
 }
@@ -333,6 +318,9 @@ pub struct ModuleAssetContext {
     pub resolve_options_context: Vc<ResolveOptionsContext>,
     pub layer: Vc<RcStr>,
     transition: Option<ResolvedVc<Box<dyn Transition>>>,
+    /// Whether to replace external resolutions with CachedExternalModules. Used with
+    /// ModuleOptionsContext.enable_externals_tracing to handle transitive external dependencies.
+    replace_externals: bool,
 }
 
 #[turbo_tasks::value_impl]
@@ -352,6 +340,7 @@ impl ModuleAssetContext {
             resolve_options_context,
             transition: None,
             layer,
+            replace_externals: true,
         })
     }
 
@@ -371,6 +360,26 @@ impl ModuleAssetContext {
             resolve_options_context,
             layer,
             transition: Some(transition),
+            replace_externals: true,
+        })
+    }
+
+    #[turbo_tasks::function]
+    fn new_without_replace_externals(
+        transitions: Vc<TransitionOptions>,
+        compile_time_info: Vc<CompileTimeInfo>,
+        module_options_context: Vc<ModuleOptionsContext>,
+        resolve_options_context: Vc<ResolveOptionsContext>,
+        layer: Vc<RcStr>,
+    ) -> Vc<Self> {
+        Self::cell(ModuleAssetContext {
+            transitions,
+            compile_time_info,
+            module_options_context,
+            resolve_options_context,
+            transition: None,
+            layer,
+            replace_externals: false,
         })
     }
 
@@ -605,30 +614,14 @@ async fn process_default_internal(
         }
     }
 
-    let module_type = match current_module_type {
-        Some(module_type) => module_type,
-        None => {
-            ModuleIssue {
-                ident,
-                title: StyledString::Text("Unknown module type".into()).cell(),
-                description: StyledString::Text(
-                    r"This module doesn't have an associated type. Use a known file extension, or register a loader for it.
-
-Read more: https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders".into(),
-                )
-                .cell(),
-            }
-            .cell()
-            .emit();
-
-            return Ok(ProcessResult::Ignore.cell());
-        }
-    }.cell();
+    let Some(module_type) = current_module_type else {
+        return Ok(ProcessResult::Unknown(current_source).cell());
+    };
 
     Ok(apply_module_type(
         current_source,
         module_asset_context,
-        module_type,
+        module_type.cell(),
         Value::new(reference_type.clone()),
         part,
         inner_assets,
@@ -683,6 +676,7 @@ impl AssetContext for ModuleAssetContext {
             request,
             resolve_options,
         );
+
         let mut result = self.process_resolve_result(result.resolve().await?, reference_type);
 
         if *self.is_types_resolving_enabled().await? {
@@ -704,20 +698,18 @@ impl AssetContext for ModuleAssetContext {
         reference_type: Value<ReferenceType>,
     ) -> Result<Vc<ModuleResolveResult>> {
         let this = self.await?;
-        let transition = this.transition;
 
         let result = result
             .await?
             .map_module(|source| {
                 let reference_type = reference_type.clone();
                 async move {
-                    let process_result = if let Some(transition) = transition {
-                        transition.process(source, self, reference_type)
-                    } else {
-                        self.process_with_transition_rules(source, reference_type)
-                    };
+                    let process_result = self.process(*source, reference_type);
                     Ok(match *process_result.await? {
-                        ProcessResult::Module(m) => ModuleResolveResultItem::Module(Vc::upcast(m)),
+                        ProcessResult::Module(m) => {
+                            ModuleResolveResultItem::Module(ResolvedVc::upcast(m))
+                        }
+                        ProcessResult::Unknown(source) => ModuleResolveResultItem::Unknown(source),
                         ProcessResult::Ignore => ModuleResolveResultItem::Ignore,
                     })
                 }
@@ -937,10 +929,10 @@ pub async fn replace_externals(
         };
 
         let module = CachedExternalModule::new(request.clone(), external_type)
-            .resolve()
+            .to_resolved()
             .await?;
 
-        *item = ModuleResolveResultItem::Module(Vc::upcast(module));
+        *item = ModuleResolveResultItem::Module(ResolvedVc::upcast(module));
     }
 
     Ok(result)

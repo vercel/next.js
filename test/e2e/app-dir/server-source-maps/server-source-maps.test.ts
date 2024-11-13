@@ -4,39 +4,8 @@ import { nextTestSetup } from 'e2e-utils'
 import stripAnsi from 'strip-ansi'
 import { retry } from 'next-test-utils'
 
-/**
- * TODO: Remove this function once we log the file name on disk by adjusting `moduleFileNameTemplate`.
- * in: webpack:///app/ssr-error-log-ignore-listed/page.js?1234:5:16
- * out: webpack:///app/ssr-error-log-ignore-listed/page.js?[search]:5:16
- */
-function normalizeWebpackLocation(frame: string) {
-  const webpackQueryStringtMatch = frame.match(/\?\w+:(\d+):(\d+)\)$/)
-  if (webpackQueryStringtMatch === null) {
-    return frame
-  }
-
-  return frame.replace(
-    webpackQueryStringtMatch[0],
-    `?[search]:${webpackQueryStringtMatch[1]}:${webpackQueryStringtMatch[2]})`
-  )
-}
-
 function normalizeCliOutput(output: string) {
   return stripAnsi(output)
-    .split('\n')
-    .map((line) => {
-      return (
-        normalizeWebpackLocation(line)
-          .replaceAll(
-            path.join(__dirname, 'fixtures/default'),
-            '[fixture-root]'
-          )
-          //  in: webpack://[fixture-root]/node_modules/.pnpm/internal-pkg@file+internal-pkg/node_modules/internal-pkg/index.js?[search]:2:0
-          // out: webpack://[fixture-root]/node_modules/[pnpm]/internal-pkg/index.js?[search]:2:0
-          .replace(/\/.pnpm\/[^/]+\/node_modules/g, '/[pnpm]')
-      )
-    })
-    .join('\n')
 }
 
 describe('app-dir - server source maps', () => {
@@ -57,88 +26,67 @@ describe('app-dir - server source maps', () => {
   if (skipped) return
 
   it('logged errors have a sourcemapped stack with a codeframe', async () => {
+    const outputIndex = next.cliOutput.length
     await next.render('/rsc-error-log')
 
     if (isNextDev) {
       await retry(() => {
-        expect(normalizeCliOutput(next.cliOutput)).toContain(
-          isTurbopack
-            ? '\nError: Boom' +
-                '\n    at logError (turbopack://[project]/app/rsc-error-log/page.js:2:16)' +
-                '\n    at Page (turbopack://[project]/app/rsc-error-log/page.js:7:2)' +
-                '\n  1 | function logError() {' +
-                "\n> 2 |   const error = new Error('Boom')" +
-                '\n    |                ^' +
-                '\n  3 |   console.error(error)' +
-                '\n  4 | }' +
-                '\n  5 |' +
-                '\n'
-            : '\nError: Boom' +
-                '\n    at logError (webpack:///app/rsc-error-log/page.js?[search]:2:16)' +
-                // FIXME: Method name should be "Page"
-                '\n    at logError (webpack:///app/rsc-error-log/page.js?[search]:7:2)' +
-                '\n  1 | function logError() {' +
-                "\n> 2 |   const error = new Error('Boom')" +
-                '\n    |                ^' +
-                '\n  3 |   console.error(error)' +
-                '\n  4 | }' +
-                '\n  5 |' +
-                '\n'
-        )
+        expect(next.cliOutput.slice(outputIndex)).toContain('Error: Boom')
       })
+      expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
+        '\nError: Boom' +
+          '\n    at logError (app/rsc-error-log/page.js:4:16)' +
+          (isTurbopack
+            ? '\n    at Page (app/rsc-error-log/page.js:11:2)'
+            : // TODO(veil): Method name should be "Page"
+              '\n    at logError (app/rsc-error-log/page.js:11:2)') +
+          '\n  2 |' +
+          '\n  3 | function logError() {' +
+          "\n> 4 |   const error = new Error('Boom')" +
+          '\n    |                ^' +
+          '\n  5 |   console.error(error)' +
+          '\n  6 | }' +
+          '\n  7 |' +
+          '\n'
+      )
     } else {
       // TODO: Test `next build` with `--enable-source-maps`.
     }
   })
 
   it('logged errors have a sourcemapped `cause`', async () => {
+    const outputIndex = next.cliOutput.length
     await next.render('/rsc-error-log-cause')
 
     if (isNextDev) {
       await retry(() => {
-        expect(normalizeCliOutput(next.cliOutput)).toContain(
-          isTurbopack
-            ? '\nError: Boom' +
-                '\n    at logError (turbopack://[project]/app/rsc-error-log-cause/page.js:2:16)' +
-                '\n    at Page (turbopack://[project]/app/rsc-error-log-cause/page.js:8:2)' +
-                '\n  1 | function logError(cause) {' +
-                "\n> 2 |   const error = new Error('Boom', { cause })" +
-                '\n    |                ^' +
-                '\n  3 |   console.error(error)' +
-                '\n  4 | }' +
-                '\n  5 | {' +
-                '\n  [cause]: Error: Boom' +
-                '\n      at Page (turbopack://[project]/app/rsc-error-log-cause/page.js:7:16)' +
-                '\n     5 |' +
-                '\n     6 | export default function Page() {' +
-                "\n  >  7 |   const error = new Error('Boom')" +
-                '\n       |                ^' +
-                '\n     8 |   logError(error)' +
-                '\n     9 |   return null' +
-                '\n    10 | }' +
-                '\n'
-            : '\nError: Boom' +
-                '\n    at logError (webpack:///app/rsc-error-log-cause/page.js?[search]:2:16)' +
-                // FIXME: Method name should be "Page"
-                '\n    at logError (webpack:///app/rsc-error-log-cause/page.js?[search]:8:2)' +
-                '\n  1 | function logError(cause) {' +
-                "\n> 2 |   const error = new Error('Boom', { cause })" +
-                '\n    |                ^' +
-                '\n  3 |   console.error(error)' +
-                '\n  4 | }' +
-                '\n  5 | {' +
-                '\n  [cause]: Error: Boom' +
-                '\n      at Page (webpack:///app/rsc-error-log-cause/page.js?[search]:7:16)' +
-                '\n     5 |' +
-                '\n     6 | export default function Page() {' +
-                "\n  >  7 |   const error = new Error('Boom')" +
-                '\n       |                ^' +
-                '\n     8 |   logError(error)' +
-                '\n     9 |   return null' +
-                '\n    10 | }' +
-                '\n'
-        )
+        expect(next.cliOutput.slice(outputIndex)).toContain('Error: Boom')
       })
+      expect(normalizeCliOutput(next.cliOutput)).toContain(
+        '\nError: Boom' +
+          '\n    at logError (app/rsc-error-log-cause/page.js:4:16)' +
+          (isTurbopack
+            ? '\n    at Page (app/rsc-error-log-cause/page.js:12:2)'
+            : // FIXME: Method name should be "Page"
+              '\n    at logError (app/rsc-error-log-cause/page.js:12:2)') +
+          '\n  2 |' +
+          '\n  3 | function logError(cause) {' +
+          "\n> 4 |   const error = new Error('Boom', { cause })" +
+          '\n    |                ^' +
+          '\n  5 |   console.error(error)' +
+          '\n  6 | }' +
+          '\n  7 | {' +
+          '\n  [cause]: Error: Boom' +
+          '\n      at Page (app/rsc-error-log-cause/page.js:11:16)' +
+          '\n     9 |   await connection()' +
+          '\n    10 |' +
+          "\n  > 11 |   const error = new Error('Boom')" +
+          '\n       |                ^' +
+          '\n    12 |   logError(error)' +
+          '\n    13 |   return null' +
+          '\n    14 | }' +
+          '\n'
+      )
     } else {
       // TODO: Test `next build` with `--enable-source-maps`.
     }
@@ -149,22 +97,24 @@ describe('app-dir - server source maps', () => {
   ;(isTurbopack ? it.skip : it)(
     'stack frames are ignore-listed in ssr',
     async () => {
+      const outputIndex = next.cliOutput.length
       await next.render('/ssr-error-log-ignore-listed')
 
       if (isNextDev) {
         await retry(() => {
-          expect(normalizeCliOutput(next.cliOutput)).toContain(
-            isTurbopack
-              ? // FIXME: Turbopack resolver bug
-                "Module not found: Can't resolve 'internal-pkg'"
-              : '\nError: Boom' +
-                  '\n    at logError (webpack:///app/ssr-error-log-ignore-listed/page.js?[search]:5:16)' +
-                  // FIXME: Method name should be "Page"
-                  '\n    at logError (webpack:///app/ssr-error-log-ignore-listed/page.js?[search]:10:12)' +
-                  '\n    at Page (webpack:///app/ssr-error-log-ignore-listed/page.js?[search]:10:6)' +
-                  '\n  3 |'
-          )
+          expect(next.cliOutput.slice(outputIndex)).toContain('Error: Boom')
         })
+        expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
+          isTurbopack
+            ? // FIXME: Turbopack resolver bug
+              "Module not found: Can't resolve 'internal-pkg'"
+            : '\nError: Boom' +
+                '\n    at logError (app/ssr-error-log-ignore-listed/page.js:5:16)' +
+                // FIXME: Method name should be "Page"
+                '\n    at logError (app/ssr-error-log-ignore-listed/page.js:10:12)' +
+                '\n    at Page (app/ssr-error-log-ignore-listed/page.js:10:6)' +
+                '\n  3 |'
+        )
       } else {
         // TODO: Test `next build` with `--enable-source-maps`.
       }
@@ -176,36 +126,71 @@ describe('app-dir - server source maps', () => {
   ;(isTurbopack ? it.skip : it)(
     'stack frames are ignore-listed in rsc',
     async () => {
+      const outputIndex = next.cliOutput.length
       await next.render('/rsc-error-log-ignore-listed')
 
       if (isNextDev) {
         await retry(() => {
-          expect(normalizeCliOutput(next.cliOutput)).toContain(
-            isTurbopack
-              ? // FIXME: Turbopack resolver bug
-                "Module not found: Can't resolve 'internal-pkg'"
-              : '\nError: Boom' +
-                  '\n    at logError (webpack:///app/rsc-error-log-ignore-listed/page.js?[search]:4:16)' +
-                  // FIXME: Method name should be "Page"
-                  '\n    at logError (webpack:///app/rsc-error-log-ignore-listed/page.js?[search]:9:12)' +
-                  '\n    at Page (webpack:///app/rsc-error-log-ignore-listed/page.js?[search]:9:6)' +
-                  '\n  2 |'
-          )
+          expect(
+            normalizeCliOutput(next.cliOutput.slice(outputIndex))
+          ).toContain('Error: Boom')
         })
+        expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
+          isTurbopack
+            ? // FIXME: Turbopack resolver bug
+              "Module not found: Can't resolve 'internal-pkg'"
+            : '\nError: Boom' +
+                '\n    at logError (app/rsc-error-log-ignore-listed/page.js:5:16)' +
+                // FIXME: Method name should be "Page"
+                '\n    at logError (app/rsc-error-log-ignore-listed/page.js:12:12)' +
+                '\n    at Page (app/rsc-error-log-ignore-listed/page.js:12:6)' +
+                '\n  3 |'
+        )
       } else {
         // TODO: Test `next build` with `--enable-source-maps`.
       }
     }
   )
 
+  it('thrown SSR errors', async () => {
+    const outputIndex = next.cliOutput.length
+    await next.render('/ssr-throw')
+
+    if (isNextDev) {
+      await retry(() => {
+        expect(next.cliOutput.slice(outputIndex)).toContain('Error: Boom')
+      })
+
+      const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
+      expect(cliOutput).toContain(
+        isTurbopack
+          ? '\n ⨯ Error: Boom' +
+              '\n    at throwError (./app/ssr-throw/Thrower.js:4:9)' +
+              '\n    at Thrower (./app/ssr-throw/Thrower.js:8:3)' +
+              '\ndigest: "'
+          : '\n ⨯ Error: Boom' +
+              '\n    at throwError (./app/ssr-throw/Thrower.js:6:11)' +
+              '\n    at Thrower (./app/ssr-throw/Thrower.js:9:5)' +
+              '\ndigest: "'
+      )
+      expect(cliOutput).toMatch(/digest: "\d+"/)
+    } else {
+      // TODO: Test `next build` with `--enable-source-maps`.
+    }
+  })
+
   it('logged errors preserve their name', async () => {
+    const outputIndex = next.cliOutput.length
     await next.render('/rsc-error-log-custom-name')
 
-    expect(next.cliOutput).toContain(
-      // TODO: isNextDev ? 'UnnamedError: Foo' : '[Error]: Foo'
-      isNextDev ? 'Error: Foo' : 'Error: Foo'
-    )
-    expect(next.cliOutput).toContain(
+    await retry(() => {
+      expect(next.cliOutput.slice(outputIndex)).toContain(
+        // TODO: isNextDev ? 'UnnamedError: Foo' : '[Error]: Foo'
+        isNextDev ? 'Error: Foo' : 'Error: Foo'
+      )
+    })
+
+    expect(next.cliOutput.slice(outputIndex)).toContain(
       // TODO: isNextDev ? 'NamedError [MyError]: Bar' : '[MyError]: Bar'
       isNextDev ? 'Error [MyError]: Bar' : 'Error [MyError]: Bar'
     )
