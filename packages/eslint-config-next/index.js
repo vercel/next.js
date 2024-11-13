@@ -77,6 +77,7 @@ module.exports = {
     'jsx-a11y/role-has-required-aria-props': 'warn',
     'jsx-a11y/role-supports-aria-props': 'warn',
     'react/jsx-no-target-blank': 'off',
+    'react/no-unescaped-entities': 'off',
   },
   parser: './parser.js',
   parserOptions: {
