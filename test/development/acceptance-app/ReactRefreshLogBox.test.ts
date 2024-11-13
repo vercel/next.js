@@ -14,6 +14,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     skipStart: true,
+    patchFileDelay: 1000,
   })
 
   test('should strip whitespace correctly with newline', async () => {
