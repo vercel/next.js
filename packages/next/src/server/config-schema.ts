@@ -614,11 +614,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     // sassOptions properties are unknown besides implementation, use z.any() here
     sassOptions: z
       .object({
-        experimental: z
-          .object({
-            useUpgradedLoader: z.boolean().optional(),
-          })
-          .optional(),
         implementation: z.string().optional(),
       })
       .catchall(z.any())
