@@ -4,41 +4,55 @@ function interopDefault(mod) {
   return mod.default || mod
 }
 
-module.exports = async function nextMdxLoader(...args) {
+async function importPlugin(plugin) {
+  if (Array.isArray(plugin) && typeof plugin[0] === 'string') {
+    plugin[0] = interopDefault(await import(plugin[0]))
+  }
+  return plugin
+}
+
+async function getOptions(options) {
+  const {
+    recmaPlugins = [],
+    rehypePlugins = [],
+    remarkPlugins = [],
+    ...rest
+  } = options
+
+  const [updatedRecma, updatedRehype, updatedRemark] = await Promise.all([
+    Promise.all(recmaPlugins.map(importPlugin)),
+    Promise.all(rehypePlugins.map(importPlugin)),
+    Promise.all(remarkPlugins.map(importPlugin)),
+  ])
+
+  return {
+    ...rest,
+    recmaPlugins: updatedRecma,
+    rehypePlugins: updatedRehype,
+    remarkPlugins: updatedRemark,
+  }
+}
+
+module.exports = function nextMdxLoader(...args) {
   const options = this.getOptions()
-  const userProvidedMdxOptions = { ...options }
+  const callback = this.async().bind(this)
+  const loaderContext = this
 
-  for (const recmaPlugin of userProvidedMdxOptions.recmaPlugins ?? []) {
-    if (Array.isArray(recmaPlugin) && typeof recmaPlugin[0] === 'string') {
-      recmaPlugin[0] = interopDefault(await import(recmaPlugin[0]))
-    }
-  }
+  getOptions(options).then((userProvidedMdxOptions) => {
+    const proxy = new Proxy(loaderContext, {
+      get(target, prop, receiver) {
+        if (prop === 'getOptions') {
+          return () => userProvidedMdxOptions
+        }
 
-  for (const rehypePlugin of userProvidedMdxOptions.rehypePlugins ?? []) {
-    if (Array.isArray(rehypePlugin) && typeof rehypePlugin[0] === 'string') {
-      rehypePlugin[0] = interopDefault(await import(rehypePlugin[0]))
-    }
-  }
+        if (prop === 'async') {
+          return () => callback
+        }
 
-  for (const remarkPlugin of userProvidedMdxOptions.remarkPlugins ?? []) {
-    if (Array.isArray(remarkPlugin) && typeof remarkPlugin[0] === 'string') {
-      remarkPlugin[0] = interopDefault(await import(remarkPlugin[0]))
-    }
-  }
+        return Reflect.get(target, prop, receiver)
+      },
+    })
 
-  const proxy = new Proxy(this, {
-    get(target, prop, receiver) {
-      if (prop === 'getOptions') {
-        return () => userProvidedMdxOptions
-      }
-
-      if (prop === 'async') {
-        return () => target.async().bind(target)
-      }
-
-      return Reflect.get(target, prop, receiver)
-    },
+    mdxLoader.call(proxy, ...args)
   })
-
-  mdxLoader.call(proxy, ...args)
 }

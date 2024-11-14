@@ -1,5 +1,4 @@
 import nextMDX from '@next/mdx'
-// import rehypeKatex from 'rehype-katex'
 const withMDX = nextMDX({
   extension: /\.mdx?$/,
   options: {

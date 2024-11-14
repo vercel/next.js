@@ -60,6 +60,14 @@ for (const type of ['with-mdx-rs', 'without-mdx-rs']) {
           '/_next/image?url=%2Ftest.jpg&w=384&q=75'
         )
       })
+
+      if (type === 'without-mdx-rs') {
+        it('should run plugins', async () => {
+          const html = await next.render('/rehype-plugin')
+          expect(html.includes('<mi>C</mi>')).toBe(true)
+          expect(html.includes('<mi>L</mi>')).toBe(true)
+        })
+      }
     })
 
     describe('pages directory', () => {
