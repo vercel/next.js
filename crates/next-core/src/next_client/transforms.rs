@@ -47,12 +47,7 @@ pub async fn get_next_client_transforms_rules(
         rules.push(get_debug_fn_name_rule(enable_mdx_rs));
     }
 
-    let dynamic_io_enabled = next_config
-        .experimental()
-        .await?
-        .dynamic_io
-        .unwrap_or(false);
-
+    let dynamic_io_enabled = *next_config.enable_dynamic_io().await?;
     let mut is_app_dir = false;
 
     match context_ty {
