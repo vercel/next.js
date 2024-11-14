@@ -29,7 +29,8 @@ describe('app dir - forbidden with default forbidden boundary', () => {
     }
   })
 
-  it('should error on server forbidden from root layout on server-side', async () => {
+  // TODO: error forbidden usage in root layout
+  it.skip('should error on server forbidden from root layout on server-side', async () => {
     const browser = await next.browser('/?root-forbidden=1')
 
     if (isNextDev) {

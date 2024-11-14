@@ -322,22 +322,21 @@ async function createTreeCodeFromPath(
         const accessFallbackTypes = Object.keys(
           defaultHTTPAccessFallbackPaths
         ) as (keyof typeof defaultHTTPAccessFallbackPaths)[]
-        for (const fallbackType of accessFallbackTypes) {
-          const hasRootFallback = await resolver(
-            `${appDirPrefix}/${FILE_TYPES[fallbackType]}`
+        for (const type of accessFallbackTypes) {
+          const hasRootFallbackFile = await resolver(
+            `${appDirPrefix}/${FILE_TYPES[type]}`
           )
-          const hasFallbackFile = existedConventionNames.has(fallbackType)
+          const hasLayerFallbackFile = existedConventionNames.has(type)
 
           // If you already have a root access error fallback, don't insert default access error boundary to group routes root
           if (
             // Is treated as root layout and without boundary
-            !(hasRootFallback && isFirstLayerGroupRoute) &&
+            !(hasRootFallbackFile && isFirstLayerGroupRoute) &&
             // Does not have a fallback boundary file
-            !hasFallbackFile
+            !hasLayerFallbackFile
           ) {
-            const defaultFallbackPath =
-              defaultHTTPAccessFallbackPaths[fallbackType]
-            definedFilePaths.push([fallbackType, defaultFallbackPath])
+            const defaultFallbackPath = defaultHTTPAccessFallbackPaths[type]
+            definedFilePaths.push([type, defaultFallbackPath])
           }
         }
       }
