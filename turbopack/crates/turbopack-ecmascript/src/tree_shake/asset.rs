@@ -162,7 +162,7 @@ impl EcmascriptModulePartAsset {
                 SideEffectsModule {
                     module,
                     part,
-                    binding: final_module,
+                    resolved_as: final_module,
                     side_effects: Vc::cell(side_effects),
                 }
                 .cell(),
@@ -191,7 +191,9 @@ pub(super) struct SideEffectsModule {
     module: Vc<EcmascriptModuleAsset>,
     /// The part of the original module that is the binding
     part: ResolvedVc<ModulePart>,
-    pub binding: Vc<Box<dyn EcmascriptChunkPlaceable>>,
+    /// The module that is the binding
+    pub resolved_as: Vc<Box<dyn EcmascriptChunkPlaceable>>,
+    /// Side effects from the original module to the binding.
     pub side_effects: Vc<SideEffects>,
 }
 
@@ -204,7 +206,7 @@ impl Module for SideEffectsModule {
 
         ident.add_asset(
             ResolvedVc::cell(RcStr::from("resolved")),
-            self.binding.ident().to_resolved().await?,
+            self.resolved_as.ident().to_resolved().await?,
         );
 
         ident.add_modifier(Vc::cell(RcStr::from("side effects")));
@@ -231,7 +233,7 @@ impl Module for SideEffectsModule {
         }
 
         references.push(Vc::upcast(SingleModuleReference::new(
-            Vc::upcast(self.binding),
+            Vc::upcast(self.resolved_as),
             Vc::cell(RcStr::from("target binding")),
         )));
 
@@ -251,7 +253,7 @@ impl Asset for SideEffectsModule {
 impl EcmascriptChunkPlaceable for SideEffectsModule {
     #[turbo_tasks::function]
     async fn get_exports(&self) -> Vc<EcmascriptExports> {
-        self.binding.get_exports()
+        self.resolved_as.get_exports()
     }
 
     #[turbo_tasks::function]
