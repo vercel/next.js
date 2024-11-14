@@ -180,7 +180,7 @@ impl ModuleOptions {
             } else {
                 vec![transform.clone()]
             };
-            Vc::cell(
+            ResolvedVc::cell(
                 base_transforms
                     .iter()
                     .cloned()
@@ -188,7 +188,7 @@ impl ModuleOptions {
                     .collect(),
             )
         } else {
-            Vc::cell(transforms.clone())
+            ResolvedVc::cell(transforms.clone())
         };
 
         // Apply decorators transform for the ModuleType::Ecmascript as well after
@@ -199,7 +199,7 @@ impl ModuleOptions {
         // Since typescript transform (`ts_app_transforms`) needs to apply decorators
         // _before_ stripping types, we create ts_app_transforms first in a
         // specific order with typescript, then apply decorators to app_transforms.
-        let app_transforms = Vc::cell(
+        let app_transforms = ResolvedVc::cell(
             if let Some(decorators_transform) = &decorators_transform {
                 vec![decorators_transform.clone()]
             } else {
@@ -234,7 +234,7 @@ impl ModuleOptions {
                         specified_module_type: SpecifiedModuleType::EcmaScript,
                         ..ecmascript_options
                     }
-                    .into(),
+                    .resolved_cell(),
                 })],
             ),
             ModuleRule::new_all(
