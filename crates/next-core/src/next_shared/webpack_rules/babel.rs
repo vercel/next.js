@@ -27,7 +27,7 @@ const BABEL_CONFIG_FILES: &[&str] = &[
 #[turbo_tasks::function]
 pub async fn maybe_add_babel_loader(
     project_root: Vc<FileSystemPath>,
-    webpack_rules: Option<Vc<WebpackRules>>,
+    webpack_rules: Option<ResolvedVc<WebpackRules>>,
 ) -> Result<Vc<OptionWebpackRules>> {
     let has_babel_config = {
         let mut has_babel_config = false;
