@@ -33,25 +33,13 @@ export default function transformer(file: FileInfo, _api: API) {
     .find(j.CallExpression, {
       callee: {
         type: 'Identifier',
-        name: 'revalidateTag',
+        name: (n) => n === 'revalidateTag' || n === 'revalidatePath',
       },
     })
     .forEach((path) => {
       if (path.node.callee.type === 'Identifier') {
-        path.node.callee.name = 'expireTag'
-      }
-    })
-
-  root
-    .find(j.CallExpression, {
-      callee: {
-        type: 'Identifier',
-        name: 'revalidatePath',
-      },
-    })
-    .forEach((path) => {
-      if (path.node.callee.type === 'Identifier') {
-        path.node.callee.name = 'expirePath'
+        path.node.callee.name =
+          path.node.callee.name === 'revalidateTag' ? 'expireTag' : 'expirePath'
       }
     })
 
