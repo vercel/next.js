@@ -1,5 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertHasRedbox, check, getRedboxDescription } from 'next-test-utils'
+import {
+  assertHasRedbox,
+  assertNoRedbox,
+  getRedboxDescription,
+} from 'next-test-utils'
 
 describe('app dir - forbidden with default forbidden boundary', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
@@ -18,13 +22,10 @@ describe('app dir - forbidden with default forbidden boundary', () => {
     await browser.elementByCss('#trigger-forbidden').click()
 
     if (isNextDev) {
-      await check(async () => {
-        await assertHasRedbox(browser)
-        expect(await getRedboxDescription(browser)).toMatch(
-          /forbidden\(\) is not allowed to use in root layout/
-        )
-        return 'success'
-      }, /success/)
+      await assertHasRedbox(browser)
+      expect(await getRedboxDescription(browser)).toMatch(
+        /forbidden\(\) is not allowed to use in root layout/
+      )
     }
   })
 
@@ -70,9 +71,8 @@ describe('app dir - forbidden with default forbidden boundary', () => {
     )
 
     await browser.loadPage(next.url + '/group-dynamic/403')
+    await assertNoRedbox(browser)
+    await browser.waitForElementByCss('.group-root-layout')
     expect(await browser.elementByCss('.next-error-h1').text()).toBe('403')
-    expect(await browser.elementByCss('html').getAttribute('class')).toBe(
-      'group-root-layout'
-    )
   })
 })
