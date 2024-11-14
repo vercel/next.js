@@ -65,6 +65,7 @@ function getBaseSWCOptions({
   serverReferenceHashSalt,
   bundleLayer,
   isDynamicIo,
+  cacheHandlers,
 }: {
   filename: string
   jest?: boolean
@@ -82,6 +83,7 @@ function getBaseSWCOptions({
   serverReferenceHashSalt: string
   bundleLayer?: WebpackLayerName
   isDynamicIo?: boolean
+  cacheHandlers?: ExperimentalConfig['cacheHandlers']
 }) {
   const isReactServerLayer = isWebpackServerOnlyLayer(bundleLayer)
   const isAppRouterPagesLayer = isWebpackAppPagesLayer(bundleLayer)
@@ -211,6 +213,7 @@ function getBaseSWCOptions({
             isReactServerLayer,
             dynamicIoEnabled: isDynamicIo,
             hashSalt: serverReferenceHashSalt,
+            cacheKinds: cacheHandlers ? Object.keys(cacheHandlers) : [],
           }
         : undefined,
     // For app router we prefer to bundle ESM,
@@ -355,6 +358,7 @@ export function getLoaderSWCOptions({
   serverReferenceHashSalt,
   bundleLayer,
   esm,
+  cacheHandlers,
 }: {
   filename: string
   development: boolean
@@ -379,6 +383,7 @@ export function getLoaderSWCOptions({
   serverComponents?: boolean
   serverReferenceHashSalt: string
   bundleLayer?: WebpackLayerName
+  cacheHandlers: ExperimentalConfig['cacheHandlers']
 }) {
   let baseOptions: any = getBaseSWCOptions({
     filename,
@@ -396,6 +401,7 @@ export function getLoaderSWCOptions({
     serverReferenceHashSalt,
     esm: !!esm,
     isDynamicIo,
+    cacheHandlers,
   })
   baseOptions.fontLoaders = {
     fontLoaders: ['next/font/local', 'next/font/google'],
