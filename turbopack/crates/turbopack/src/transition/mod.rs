@@ -67,14 +67,14 @@ pub trait Transition {
     ) -> Result<Vc<ModuleAssetContext>> {
         let module_asset_context = module_asset_context.await?;
         let compile_time_info =
-            self.process_compile_time_info(module_asset_context.compile_time_info);
+            self.process_compile_time_info(*module_asset_context.compile_time_info);
         let module_options_context =
-            self.process_module_options_context(module_asset_context.module_options_context);
+            self.process_module_options_context(*module_asset_context.module_options_context);
         let resolve_options_context =
-            self.process_resolve_options_context(module_asset_context.resolve_options_context);
-        let layer = self.process_layer(module_asset_context.layer);
+            self.process_resolve_options_context(*module_asset_context.resolve_options_context);
+        let layer = self.process_layer(*module_asset_context.layer);
         let module_asset_context = ModuleAssetContext::new(
-            module_asset_context.transitions,
+            *module_asset_context.transitions,
             compile_time_info,
             module_options_context,
             resolve_options_context,
@@ -125,7 +125,7 @@ impl ValueDefault for TransitionOptions {
 }
 
 impl TransitionOptions {
-    pub fn get_named(&self, name: RcStr) -> Option<Vc<Box<dyn Transition>>> {
+    pub fn get_named(&self, name: RcStr) -> Option<ResolvedVc<Box<dyn Transition>>> {
         self.named_transitions.get(&name).copied()
     }
 

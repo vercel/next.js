@@ -750,7 +750,7 @@ impl AssetContext for ModuleAssetContext {
                     *self.module_options_context,
                     *self.resolve_options_context,
                     *self.layer,
-                    transition,
+                    *transition,
                 ))
             } else {
                 // TODO report issue
