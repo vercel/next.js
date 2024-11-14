@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{RcStr, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::WebpackLoadersOptions;
 use turbopack_core::resolve::options::ImportMapping;
@@ -11,7 +11,7 @@ pub(crate) mod babel;
 pub(crate) mod sass;
 
 pub async fn webpack_loader_options(
-    project_path: Vc<FileSystemPath>,
+    project_path: ResolvedVc<FileSystemPath>,
     next_config: Vc<NextConfig>,
     foreign: bool,
     conditions: Vec<RcStr>,
@@ -21,7 +21,7 @@ pub async fn webpack_loader_options(
     let rules = if foreign {
         rules
     } else {
-        *maybe_add_babel_loader(project_path, rules).await?
+        *maybe_add_babel_loader(*project_path, rules).await?
     };
     Ok(rules.map(|rules| {
         WebpackLoadersOptions {

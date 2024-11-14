@@ -143,7 +143,7 @@ async fn get_client_module_options_context(
     let module_rules = ModuleRule::new(
         conditions,
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
-            prepend: Vc::cell(vec![
+            prepend: ResolvedVc::cell(vec![
                 EcmascriptInputTransform::Plugin(Vc::cell(Box::new(
                     EmotionTransformer::new(&EmotionTransformConfig::default())
                         .expect("Should be able to create emotion transformer"),

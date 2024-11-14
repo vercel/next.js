@@ -216,7 +216,7 @@ fn internal_assets_conditions() -> ContextCondition {
 
 #[turbo_tasks::function]
 pub async fn get_client_module_options_context(
-    project_path: Vc<FileSystemPath>,
+    project_path: ResolvedVc<FileSystemPath>,
     execution_context: ResolvedVc<ExecutionContext>,
     env: ResolvedVc<Environment>,
     ty: Value<ClientContextType>,
@@ -227,11 +227,11 @@ pub async fn get_client_module_options_context(
     let resolve_options_context =
         get_client_resolve_options_context(project_path, ty, mode, next_config, *execution_context);
 
-    let tsconfig = get_typescript_transform_options(project_path);
-    let decorators_options = get_decorators_transform_options(project_path);
+    let tsconfig = get_typescript_transform_options(*project_path);
+    let decorators_options = get_decorators_transform_options(*project_path);
     let enable_mdx_rs = *next_config.mdx_rs().await?;
     let jsx_runtime_options = get_jsx_transform_options(
-        project_path,
+        *project_path,
         mode,
         Some(resolve_options_context),
         false,
@@ -243,7 +243,7 @@ pub async fn get_client_module_options_context(
     // node_modules that requires webpack loaders, which next-dev implicitly
     // does by default.
     let conditions = vec!["browser".into(), mode.await?.condition().into()];
-    let foreign_enable_webpack_loaders = webpack_loader_options(
+    let foreign_enable_webpack_loaders = if let Some(vc) = webpack_loader_options(
         project_path,
         next_config,
         true,
@@ -253,7 +253,12 @@ pub async fn get_client_module_options_context(
             .chain(once("foreign".into()))
             .collect(),
     )
-    .await?;
+    .await?
+    {
+        Some(vc.to_resolved().await?)
+    } else {
+        None
+    };
 
     // Now creates a webpack rules that applies to all codes.
     let enable_webpack_loaders =
@@ -301,8 +306,8 @@ pub async fn get_client_module_options_context(
         config_location: PostCssConfigLocation::ProjectPath,
         ..postcss_transform_options.clone()
     };
-    let enable_postcss_transform = Some(postcss_transform_options.cell());
-    let enable_foreign_postcss_transform = Some(postcss_foreign_transform_options.cell());
+    let enable_postcss_transform = Some(postcss_transform_options.resolved_cell());
+    let enable_foreign_postcss_transform = Some(postcss_foreign_transform_options.resolved_cell());
 
     let module_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
@@ -333,8 +338,10 @@ pub async fn get_client_module_options_context(
 
     let internal_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
-            enable_typescript_transform: Some(TypescriptTransformOptions::default().cell()),
-            enable_jsx: Some(JsxTransformOptions::default().cell()),
+            enable_typescript_transform: Some(
+                TypescriptTransformOptions::default().resolved_cell(),
+            ),
+            enable_jsx: Some(JsxTransformOptions::default().resolved_cell()),
             ..module_options_context.ecmascript.clone()
         },
         enable_postcss_transform: None,
