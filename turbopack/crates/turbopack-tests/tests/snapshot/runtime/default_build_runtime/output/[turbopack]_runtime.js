@@ -442,7 +442,6 @@ function stringifySourceInfo(source) {
 }
 const url = require("url");
 const fs = require("fs/promises");
-const vm = require("vm");
 const moduleFactories = Object.create(null);
 const moduleCache = Object.create(null);
 /**
@@ -511,7 +510,9 @@ async function loadChunkAsync(source, chunkData) {
         const module1 = {
             exports: {}
         };
-        vm.runInThisContext("(function(module, exports, require, __dirname, __filename) {" + contents + "\n})", resolved)(module1, module1.exports, localRequire, path.dirname(resolved), resolved);
+        // TODO: Use vm.runInThisContext once our minimal supported Node.js version includes https://github.com/nodejs/node/pull/52153
+        // eslint-disable-next-line no-eval -- Can't use vm.runInThisContext due to https://github.com/nodejs/node/issues/52102
+        (0, eval)("(function(module, exports, require, __dirname, __filename) {" + contents + "\n})" + "\n//# sourceURL=" + url.pathToFileURL(resolved))(module1, module1.exports, localRequire, path.dirname(resolved), resolved);
         const chunkModules = module1.exports;
         for (const [moduleId, moduleFactory] of Object.entries(chunkModules)){
             if (!moduleFactories[moduleId]) {
