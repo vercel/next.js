@@ -87,7 +87,7 @@ pub fn server_actions<C: Comments>(file_name: &FileName, config: Config, comment
         file_name: file_name.to_string(),
         start_pos: BytePos(0),
         in_action_file: false,
-        file_cache_type: None,
+        file_cache_kind: None,
         in_exported_expr: false,
         in_default_export_decl: false,
         in_callee: false,
@@ -137,7 +137,7 @@ struct ServerActions<C: Comments> {
 
     start_pos: BytePos,
     in_action_file: bool,
-    file_cache_type: Option<String>,
+    file_cache_kind: Option<String>,
     in_exported_expr: bool,
     in_default_export_decl: bool,
     in_callee: bool,
@@ -298,7 +298,7 @@ impl<C: Comments> ServerActions<C> {
     // Check if the function or arrow function is an action or cache function
     fn get_body_info(&mut self, maybe_body: Option<&mut BlockStmt>) -> (bool, Option<String>) {
         let mut is_action_fn = false;
-        let mut cache_type = None;
+        let mut cache_kind = None;
 
         // Even if it's a file-level action or cache module, the function body
         // might still have directives that override the module-level annotations.
@@ -309,7 +309,7 @@ impl<C: Comments> ServerActions<C> {
             remove_server_directive_index_in_fn(
                 &mut body.stmts,
                 &mut is_action_fn,
-                &mut cache_type,
+                &mut cache_kind,
                 &mut span,
                 self.config.dynamic_io_enabled,
             );
@@ -321,7 +321,7 @@ impl<C: Comments> ServerActions<C> {
                     })
                 }
 
-                if cache_type.is_some() && self.file_cache_type.is_none() && !self.in_action_file {
+                if cache_kind.is_some() && self.file_cache_kind.is_none() && !self.in_action_file {
                     emit_error(ServerActionsErrorKind::InlineUseCacheInClientComponent {
                         span: span.unwrap_or(body.span),
                     });
@@ -330,17 +330,17 @@ impl<C: Comments> ServerActions<C> {
         }
 
         // Self-annotations take precedence over module-level annotations.
-        if self.in_exported_expr && !is_action_fn && cache_type.is_none() {
+        if self.in_exported_expr && !is_action_fn && cache_kind.is_none() {
             if self.in_action_file {
                 // All export functions in a server file are actions
                 is_action_fn = true;
-            } else if let Some(cache_file_type) = &self.file_cache_type {
+            } else if let Some(cache_file_type) = &self.file_cache_kind {
                 // All export functions in a cache file are cache functions
-                cache_type = Some(cache_file_type.clone());
+                cache_kind = Some(cache_file_type.clone());
             }
         }
 
-        (is_action_fn, cache_type)
+        (is_action_fn, cache_kind)
     }
 
     fn maybe_hoist_and_create_proxy_for_server_action_arrow_expr(
@@ -601,7 +601,7 @@ impl<C: Comments> ServerActions<C> {
     fn maybe_hoist_and_create_proxy_for_cache_arrow_expr(
         &mut self,
         ids_from_closure: Vec<Name>,
-        cache_type: &str,
+        cache_kind: &str,
         arrow: &mut ArrowExpr,
     ) -> Box<Expr> {
         let mut new_params: Vec<Param> = vec![];
@@ -673,7 +673,7 @@ impl<C: Comments> ServerActions<C> {
                                     ..Default::default()
                                 }),
                             })),
-                            cache_type,
+                            cache_kind,
                             &reference_id,
                             ids_from_closure.len(),
                         )),
@@ -736,7 +736,7 @@ impl<C: Comments> ServerActions<C> {
         &mut self,
         ids_from_closure: Vec<Name>,
         fn_name: Option<Ident>,
-        cache_type: &str,
+        cache_kind: &str,
         function: &mut Box<Function>,
     ) -> Box<Expr> {
         let mut new_params: Vec<Param> = vec![];
@@ -795,7 +795,7 @@ impl<C: Comments> ServerActions<C> {
                                     ..*function.take()
                                 }),
                             })),
-                            cache_type,
+                            cache_kind,
                             &reference_id,
                             ids_from_closure.len(),
                         )),
@@ -881,7 +881,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     }
 
     fn visit_mut_fn_expr(&mut self, f: &mut FnExpr) {
-        let (is_action_fn, cache_type) = self.get_body_info(f.function.body.as_mut());
+        let (is_action_fn, cache_kind) = self.get_body_info(f.function.body.as_mut());
 
         let declared_idents_until = self.declared_idents.len();
         let current_names = take(&mut self.names);
@@ -894,7 +894,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             let old_in_default_export_decl = self.in_default_export_decl;
             self.in_module_level = false;
             self.should_track_names =
-                is_action_fn || cache_type.is_some() || self.should_track_names;
+                is_action_fn || cache_kind.is_some() || self.should_track_names;
             self.in_exported_expr = false;
             self.in_default_export_decl = false;
             f.visit_mut_children_with(self);
@@ -913,7 +913,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             take(&mut self.names)
         };
 
-        if (is_action_fn || cache_type.is_some()) && !f.function.is_async {
+        if (is_action_fn || cache_kind.is_some()) && !f.function.is_async {
             emit_error(ServerActionsErrorKind::InlineSyncFunction {
                 span: f.function.span,
                 is_action_fn,
@@ -922,11 +922,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             return;
         }
 
-        if !is_action_fn && cache_type.is_none() || !self.config.is_react_server_layer {
+        if !is_action_fn && cache_kind.is_none() || !self.config.is_react_server_layer {
             return;
         }
 
-        if let Some(cache_type_str) = cache_type {
+        if let Some(cache_kind_str) = cache_kind {
             // Collect all the identifiers defined inside the closure and used
             // in the cache function. With deduplication.
             retain_names_from_declared_idents(
@@ -937,7 +937,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             let new_expr = self.maybe_hoist_and_create_proxy_for_cache_function(
                 child_names.clone(),
                 f.ident.clone().or(self.arrow_or_fn_expr_ident.clone()),
-                cache_type_str.as_str(),
+                cache_kind_str.as_str(),
                 &mut f.function,
             );
 
@@ -996,7 +996,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             self.in_exported_expr = true
         }
 
-        let (is_action_fn, cache_type) = self.get_body_info(f.function.body.as_mut());
+        let (is_action_fn, cache_kind) = self.get_body_info(f.function.body.as_mut());
 
         let declared_idents_until = self.declared_idents.len();
         let current_names = take(&mut self.names);
@@ -1009,7 +1009,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             let old_in_default_export_decl = self.in_default_export_decl;
             self.in_module_level = false;
             self.should_track_names =
-                is_action_fn || cache_type.is_some() || self.should_track_names;
+                is_action_fn || cache_kind.is_some() || self.should_track_names;
             self.in_exported_expr = false;
             self.in_default_export_decl = false;
             f.visit_mut_children_with(self);
@@ -1019,7 +1019,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             self.in_default_export_decl = old_in_default_export_decl;
         }
 
-        if !is_action_fn && cache_type.is_none() || !self.config.is_react_server_layer {
+        if !is_action_fn && cache_kind.is_none() || !self.config.is_react_server_layer {
             self.in_exported_expr = old_in_exported_expr;
 
             return;
@@ -1034,7 +1034,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             take(&mut self.names)
         };
 
-        if let Some(cache_type_str) = cache_type {
+        if let Some(cache_kind_str) = cache_kind {
             if !f.function.is_async {
                 emit_error(ServerActionsErrorKind::InlineSyncFunction {
                     span: f.ident.span,
@@ -1056,7 +1056,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             let new_expr = self.maybe_hoist_and_create_proxy_for_cache_function(
                 child_names,
                 Some(f.ident.clone()),
-                cache_type_str.as_str(),
+                cache_kind_str.as_str(),
                 &mut f.function,
             );
 
@@ -1136,7 +1136,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     fn visit_mut_arrow_expr(&mut self, a: &mut ArrowExpr) {
         // Arrow expressions need to be visited in prepass to determine if it's
         // an action function or not.
-        let (is_action_fn, cache_type) =
+        let (is_action_fn, cache_kind) =
             self.get_body_info(if let BlockStmtOrExpr::BlockStmt(block) = &mut *a.body {
                 Some(block)
             } else {
@@ -1154,7 +1154,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             let old_in_default_export_decl = self.in_default_export_decl;
             self.in_module_level = false;
             self.should_track_names =
-                is_action_fn || cache_type.is_some() || self.should_track_names;
+                is_action_fn || cache_kind.is_some() || self.should_track_names;
             self.in_exported_expr = false;
             self.in_default_export_decl = false;
             {
@@ -1178,7 +1178,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             take(&mut self.names)
         };
 
-        if !a.is_async && (is_action_fn || cache_type.is_some()) {
+        if !a.is_async && (is_action_fn || cache_kind.is_some()) {
             emit_error(ServerActionsErrorKind::InlineSyncFunction {
                 span: a.span,
                 is_action_fn,
@@ -1187,7 +1187,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             return;
         }
 
-        if !is_action_fn && cache_type.is_none() || !self.config.is_react_server_layer {
+        if !is_action_fn && cache_kind.is_none() || !self.config.is_react_server_layer {
             return;
         }
 
@@ -1201,10 +1201,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         let maybe_new_expr = if is_action_fn && !self.in_action_file {
             Some(self.maybe_hoist_and_create_proxy_for_server_action_arrow_expr(child_names, a))
         } else {
-            cache_type.map(|cache_type_str| {
+            cache_kind.map(|cache_kind_str| {
                 self.maybe_hoist_and_create_proxy_for_cache_arrow_expr(
                     child_names,
-                    cache_type_str.as_str(),
+                    cache_kind_str.as_str(),
                     a,
                 )
             })
@@ -1304,7 +1304,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         remove_server_directive_index_in_module(
             stmts,
             &mut self.in_action_file,
-            &mut self.file_cache_type,
+            &mut self.file_cache_kind,
             &mut self.has_action,
             &mut self.has_cache,
             self.config.dynamic_io_enabled,
@@ -1320,7 +1320,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         // export { foo }
         // export default Bar
         // ```
-        if self.file_cache_type.is_some() {
+        if self.file_cache_kind.is_some() {
             for stmt in stmts.iter() {
                 match stmt {
                     ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(export_default_expr)) => {
@@ -1347,7 +1347,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         }
 
         // Only track exported identifiers in action files or cache files.
-        let is_cache_file = self.file_cache_type.is_some();
+        let is_cache_file = self.file_cache_kind.is_some();
         let should_track_exports = self.in_action_file || is_cache_file;
 
         let old_annotations = self.annotations.take();
@@ -1682,7 +1682,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             }
 
             if self.config.is_react_server_layer
-                || (!self.in_action_file && self.file_cache_type.is_none())
+                || (!self.in_action_file && self.file_cache_kind.is_none())
             {
                 new.append(&mut self.hoisted_extra_items);
                 new.push(new_stmt);
@@ -1802,7 +1802,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             }));
                         new.push(export_expr);
                     }
-                } else if self.file_cache_type.is_none() {
+                } else if self.file_cache_kind.is_none() {
                     self.annotations.push(Stmt::Expr(ExprStmt {
                         span: DUMMY_SP,
                         expr: Box::new(annotate_ident_as_server_reference(
@@ -1825,7 +1825,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 new.append(&mut self.extra_items);
 
                 // For "use cache" files, there's no need to do extra annotations.
-                if self.file_cache_type.is_none() && !self.exported_idents.is_empty() {
+                if self.file_cache_kind.is_none() && !self.exported_idents.is_empty() {
                     let ensure_ident = private_ident!("ensureServerEntryExports");
                     new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                         span: DUMMY_SP,
@@ -1880,7 +1880,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
             // All exported values are considered as actions if the file is an action file.
             if self.in_action_file
-                || self.file_cache_type.is_some() && !self.config.is_react_server_layer
+                || self.file_cache_kind.is_some() && !self.config.is_react_server_layer
             {
                 actions.extend(
                     self.exported_idents
@@ -2346,7 +2346,7 @@ fn detect_similar_strings(a: &str, b: &str) -> bool {
 fn remove_server_directive_index_in_module(
     stmts: &mut Vec<ModuleItem>,
     in_action_file: &mut bool,
-    file_cache_type: &mut Option<String>,
+    file_cache_kind: &mut Option<String>,
     has_action: &mut bool,
     has_cache: &mut bool,
     dynamic_io_enabled: bool,
@@ -2382,7 +2382,7 @@ fn remove_server_directive_index_in_module(
                             });
                         }
 
-                        *file_cache_type = Some(if value == "use cache" {
+                        *file_cache_kind = Some(if value == "use cache" {
                             "default".into()
                         } else {
                             // Slice the value after "use cache: "
@@ -2486,7 +2486,7 @@ fn has_body_directive(maybe_body: &Option<BlockStmt>) -> (bool, bool) {
 fn remove_server_directive_index_in_fn(
     stmts: &mut Vec<Stmt>,
     is_action_fn: &mut bool,
-    cache_type: &mut Option<String>,
+    cache_kind: &mut Option<String>,
     action_span: &mut Option<Span>,
     dynamic_io_enabled: bool,
 ) {
@@ -2527,7 +2527,7 @@ fn remove_server_directive_index_in_fn(
                         });
                     }
 
-                    *cache_type = Some(if value == "use cache" {
+                    *cache_kind = Some(if value == "use cache" {
                         "default".into()
                     } else {
                         // Slice the value after "use cache: "
