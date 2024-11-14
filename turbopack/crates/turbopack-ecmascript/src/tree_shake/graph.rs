@@ -10,11 +10,12 @@ use swc_core::{
     common::{comments::Comments, util::take::Take, Spanned, SyntaxContext, DUMMY_SP},
     ecma::{
         ast::{
-            op, ClassDecl, Decl, DefaultDecl, EsReserved, ExportAll, ExportDecl,
+            op, AssignTarget, ClassDecl, Decl, DefaultDecl, EsReserved, ExportAll, ExportDecl,
             ExportNamedSpecifier, ExportSpecifier, Expr, ExprStmt, FnDecl, Id, Ident, IdentName,
             ImportDecl, ImportNamedSpecifier, ImportSpecifier, ImportStarAsSpecifier, KeyValueProp,
             Lit, Module, ModuleDecl, ModuleExportName, ModuleItem, NamedExport, ObjectLit, Prop,
-            PropName, PropOrSpread, Stmt, Str, VarDecl, VarDeclKind, VarDeclarator,
+            PropName, PropOrSpread, SimpleAssignTarget, Stmt, Str, VarDecl, VarDeclKind,
+            VarDeclarator,
         },
         atoms::JsWord,
         utils::{find_pat_ids, private_ident, quote_ident, ExprCtx, ExprExt},
@@ -1316,7 +1317,11 @@ impl DepGraph {
                         used_ids.write.extend(ids_used_by_left.write);
                     }
 
-                    let side_effects = used_ids.found_unresolved;
+                    let side_effects = used_ids.found_unresolved
+                        || !matches!(
+                            assign.left,
+                            AssignTarget::Simple(SimpleAssignTarget::Ident(..))
+                        );
 
                     let data = ItemData {
                         read_vars: used_ids.read,
