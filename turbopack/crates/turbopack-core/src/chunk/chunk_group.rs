@@ -49,7 +49,7 @@ pub async fn make_chunk_group(
         .keys()
         .copied()
         .chain(self_async_children.into_iter())
-        .map(|chunk_item| (chunk_item, AutoSet::<Vc<Box<dyn ChunkItem>>>::new()))
+        .map(|chunk_item| (chunk_item, AutoSet::<ResolvedVc<Box<dyn ChunkItem>>>::new()))
         .collect::<FxIndexMap<_, _>>();
 
     // Propagate async inheritance
@@ -92,6 +92,7 @@ pub async fn make_chunk_group(
                     .iter()
                     .copied()
                     .filter(|item| referenced_async_modules.contains(item))
+                    .map(|v| *v)
                     .collect()
             } else {
                 Default::default()
@@ -182,7 +183,7 @@ pub async fn make_chunk_group(
 }
 
 async fn references_to_output_assets(
-    references: FxIndexSet<Vc<Box<dyn ModuleReference>>>,
+    references: FxIndexSet<ResolvedVc<Box<dyn ModuleReference>>>,
 ) -> Result<Vc<OutputAssets>> {
     let output_assets = references
         .into_iter()

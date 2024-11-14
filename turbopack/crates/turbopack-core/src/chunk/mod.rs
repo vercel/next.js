@@ -186,7 +186,7 @@ pub trait ChunkableModuleReference: ModuleReference + ValueToString {
     }
 }
 
-type AsyncInfo = FxIndexMap<Vc<Box<dyn ChunkItem>>, Vec<Vc<Box<dyn ChunkItem>>>>;
+type AsyncInfo = FxIndexMap<ResolvedVc<Box<dyn ChunkItem>>, Vec<ResolvedVc<Box<dyn ChunkItem>>>>;
 
 pub struct ChunkContentResult {
     pub chunk_items: FxIndexSet<ResolvedVc<Box<dyn ChunkItem>>>,
