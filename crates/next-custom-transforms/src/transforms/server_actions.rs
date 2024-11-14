@@ -87,7 +87,7 @@ pub fn server_actions<C: Comments>(file_name: &FileName, config: Config, comment
         file_name: file_name.to_string(),
         start_pos: BytePos(0),
         in_action_file: false,
-        in_cache_file: None,
+        file_cache_type: None,
         in_exported_expr: false,
         in_default_export_decl: false,
         in_callee: false,
@@ -137,7 +137,7 @@ struct ServerActions<C: Comments> {
 
     start_pos: BytePos,
     in_action_file: bool,
-    in_cache_file: Option<String>,
+    file_cache_type: Option<String>,
     in_exported_expr: bool,
     in_default_export_decl: bool,
     in_callee: bool,
@@ -321,7 +321,7 @@ impl<C: Comments> ServerActions<C> {
                     })
                 }
 
-                if cache_type.is_some() && self.in_cache_file.is_none() && !self.in_action_file {
+                if cache_type.is_some() && self.file_cache_type.is_none() && !self.in_action_file {
                     emit_error(ServerActionsErrorKind::InlineUseCacheInClientComponent {
                         span: span.unwrap_or(body.span),
                     });
@@ -334,7 +334,7 @@ impl<C: Comments> ServerActions<C> {
             if self.in_action_file {
                 // All export functions in a server file are actions
                 is_action_fn = true;
-            } else if let Some(cache_file_type) = &self.in_cache_file {
+            } else if let Some(cache_file_type) = &self.file_cache_type {
                 // All export functions in a cache file are cache functions
                 cache_type = Some(cache_file_type.clone());
             }
@@ -1304,7 +1304,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         remove_server_directive_index_in_module(
             stmts,
             &mut self.in_action_file,
-            &mut self.in_cache_file,
+            &mut self.file_cache_type,
             &mut self.has_action,
             &mut self.has_cache,
             self.config.dynamic_io_enabled,
@@ -1320,7 +1320,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         // export { foo }
         // export default Bar
         // ```
-        if self.in_cache_file.is_some() {
+        if self.file_cache_type.is_some() {
             for stmt in stmts.iter() {
                 match stmt {
                     ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(export_default_expr)) => {
@@ -1347,7 +1347,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         }
 
         // Only track exported identifiers in action files or cache files.
-        let is_cache_file = self.in_cache_file.is_some();
+        let is_cache_file = self.file_cache_type.is_some();
         let should_track_exports = self.in_action_file || is_cache_file;
 
         let old_annotations = self.annotations.take();
@@ -1682,7 +1682,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             }
 
             if self.config.is_react_server_layer
-                || (!self.in_action_file && self.in_cache_file.is_none())
+                || (!self.in_action_file && self.file_cache_type.is_none())
             {
                 new.append(&mut self.hoisted_extra_items);
                 new.push(new_stmt);
@@ -1802,7 +1802,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             }));
                         new.push(export_expr);
                     }
-                } else if self.in_cache_file.is_none() {
+                } else if self.file_cache_type.is_none() {
                     self.annotations.push(Stmt::Expr(ExprStmt {
                         span: DUMMY_SP,
                         expr: Box::new(annotate_ident_as_server_reference(
@@ -1825,7 +1825,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 new.append(&mut self.extra_items);
 
                 // For "use cache" files, there's no need to do extra annotations.
-                if self.in_cache_file.is_none() && !self.exported_idents.is_empty() {
+                if self.file_cache_type.is_none() && !self.exported_idents.is_empty() {
                     let ensure_ident = private_ident!("ensureServerEntryExports");
                     new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                         span: DUMMY_SP,
@@ -1880,7 +1880,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
             // All exported values are considered as actions if the file is an action file.
             if self.in_action_file
-                || self.in_cache_file.is_some() && !self.config.is_react_server_layer
+                || self.file_cache_type.is_some() && !self.config.is_react_server_layer
             {
                 actions.extend(
                     self.exported_idents
@@ -2346,7 +2346,7 @@ fn detect_similar_strings(a: &str, b: &str) -> bool {
 fn remove_server_directive_index_in_module(
     stmts: &mut Vec<ModuleItem>,
     in_action_file: &mut bool,
-    in_cache_file: &mut Option<String>,
+    file_cache_type: &mut Option<String>,
     has_action: &mut bool,
     has_cache: &mut bool,
     dynamic_io_enabled: bool,
@@ -2382,7 +2382,7 @@ fn remove_server_directive_index_in_module(
                             });
                         }
 
-                        *in_cache_file = Some(if value == "use cache" {
+                        *file_cache_type = Some(if value == "use cache" {
                             "default".into()
                         } else {
                             // Slice the value after "use cache: "
