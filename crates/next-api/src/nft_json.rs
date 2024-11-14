@@ -3,7 +3,7 @@ use std::collections::BTreeSet;
 use anyhow::{bail, Result};
 use serde_json::json;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileSystem, FileSystemPath, VirtualFileSystem};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -145,7 +145,11 @@ impl NftJsonAsset {
             }
         }
 
-        Ok(Vc::cell(None))
+        // Make this an error for now, this should effectively be unreachable
+        bail!(
+            "NftJsonAsset: cannot handle filepath {}",
+            path.to_string().await?
+        );
     }
 }
 
