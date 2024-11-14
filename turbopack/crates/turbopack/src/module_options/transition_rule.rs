@@ -1,6 +1,6 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, ResolvedVc, Vc};
+use turbo_tasks::{trace::TraceRawVcs, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{reference_type::ReferenceType, source::Source};
 
@@ -10,7 +10,7 @@ use crate::transition::Transition;
 #[derive(Debug, Clone, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq)]
 pub struct TransitionRule {
     condition: RuleCondition,
-    transition: ResolvedVc<Box<dyn Transition>>,
+    transition: Vc<Box<dyn Transition>>,
     match_mode: MatchMode,
 }
 
