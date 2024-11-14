@@ -4,7 +4,7 @@ use anyhow::{bail, Result};
 use serde_json::json;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
-use turbo_tasks_fs::{File, FileSystem, FileSystemPath, VirtualFileSystem};
+use turbo_tasks_fs::{File, FileSystem, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     ident::AssetIdent,
@@ -129,20 +129,6 @@ impl NftJsonAsset {
                     .replace("/_next/", "/.next/")
                     .into(),
             )));
-        }
-
-        // items that are on the externals file system
-        if let Some(path_fs) = Vc::try_resolve_downcast_type::<VirtualFileSystem>(*path_fs).await? {
-            if path_fs.await?.name == "traced" {
-                return Ok(Vc::cell(Some(
-                    self.ident_in_project_fs()
-                        .await?
-                        .get_relative_path_to(
-                            &*this.project_root.root().join(path_ref.path.clone()).await?,
-                        )
-                        .unwrap(),
-                )));
-            }
         }
 
         // Make this an error for now, this should effectively be unreachable
