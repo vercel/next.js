@@ -188,7 +188,7 @@ pub(crate) fn get_invalid_styled_jsx_resolve_plugin(
     root: ResolvedVc<FileSystemPath>,
 ) -> Vc<InvalidImportResolvePlugin> {
     InvalidImportResolvePlugin::new(
-        root,
+        *root,
         "styled-jsx".into(),
         vec![
             "'client-only' cannot be imported from a Server Component module. It should only be \
