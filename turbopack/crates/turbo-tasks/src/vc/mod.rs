@@ -203,19 +203,6 @@ where
 
 impl<T> Copy for Vc<T> where T: ?Sized {}
 
-// SAFETY: `Vc<T>` doesn't auto-implement these for all `T` because we use `PhantomData<T>`, and `T`
-// isn't `Send + Sync` on the struct. `Vc<T>` is really just a few indexes, which are always `Send +
-// Sync`.
-//
-// The bounds are checked during construction before writing to the global cells. It's impossible to
-// construct or cast to a `Vc` that doesn't contain a `T: Send` as all constructors require
-// `T: VcValueType` or `T: VcValueTrait`, both of which are subtraits of `Send + Sync`.
-//
-// These unsafe implementations are provided for convenience, so that callsites don't need to
-// enforce `T: Send + Sync` themselves.
-unsafe impl<T> Send for Vc<T> where T: ?Sized {}
-unsafe impl<T> Sync for Vc<T> where T: ?Sized {}
-
 impl<T> Clone for Vc<T>
 where
     T: ?Sized,
@@ -523,7 +510,7 @@ where
 
 impl<T> ValueDebugFormat for Vc<T>
 where
-    T: Upcast<Box<dyn ValueDebug>> + ?Sized,
+    T: Upcast<Box<dyn ValueDebug>> + Send + Sync + ?Sized,
 {
     fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString {
         ValueDebugFormatString::Async(Box::pin(async move {

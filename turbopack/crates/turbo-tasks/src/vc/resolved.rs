@@ -226,8 +226,7 @@ where
 
 impl<T> ValueDebugFormat for ResolvedVc<T>
 where
-    T: ?Sized,
-    T: Upcast<Box<dyn ValueDebug>>,
+    T: Upcast<Box<dyn ValueDebug>> + Send + Sync + ?Sized,
 {
     fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString {
         self.node.value_debug_format(depth)

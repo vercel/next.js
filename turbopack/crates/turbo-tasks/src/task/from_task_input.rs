@@ -19,7 +19,7 @@ mod private {
 
 impl<T> FromTaskInput for ResolvedVc<T>
 where
-    T: ?Sized,
+    T: Send + Sync + ?Sized,
 {
     type TaskInput = Vc<T>;
     fn from_task_input(from: Vc<T>) -> ResolvedVc<T> {
