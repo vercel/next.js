@@ -93,7 +93,7 @@ pub async fn get_next_client_transforms_rules(
             get_next_dynamic_transform_rule(false, false, is_app_dir, mode, enable_mdx_rs).await?,
         );
 
-        rules.push(get_next_image_rule());
+        rules.push(get_next_image_rule().await?);
         rules.push(get_next_page_static_info_assert_rule(
             enable_mdx_rs,
             None,

@@ -24,6 +24,7 @@ pub(crate) mod styled_components;
 pub(crate) mod styled_jsx;
 pub(crate) mod swc_ecma_transform_plugins;
 
+use anyhow::Result;
 pub use modularize_imports::{get_next_modularize_imports_rule, ModularizeImportPackageConfig};
 pub use next_dynamic::get_next_dynamic_transform_rule;
 pub use next_font::get_next_font_transform_rule;
@@ -38,8 +39,8 @@ use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform};
 
 use crate::next_image::{module::BlurPlaceholderMode, StructuredImageModuleType};
 
-pub fn get_next_image_rule() -> ModuleRule {
-    ModuleRule::new(
+pub async fn get_next_image_rule() -> Result<ModuleRule> {
+    Ok(ModuleRule::new(
         RuleCondition::All(vec![
             // avoid urlAssetReference to be affected by this rule, since urlAssetReference
             // requires raw module to have its paths in the export
@@ -63,11 +64,13 @@ pub fn get_next_image_rule() -> ModuleRule {
             ]),
         ]),
         vec![ModuleRuleEffect::ModuleType(ModuleType::Custom(
-            Vc::upcast(StructuredImageModuleType::new(Value::new(
-                BlurPlaceholderMode::DataUrl,
-            ))),
+            ResolvedVc::upcast(
+                StructuredImageModuleType::new(Value::new(BlurPlaceholderMode::DataUrl))
+                    .to_resolved()
+                    .await?,
+            ),
         ))],
-    )
+    ))
 }
 
 fn match_js_extension(enable_mdx_rs: bool) -> Vec<RuleCondition> {
