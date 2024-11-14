@@ -46,7 +46,7 @@ pub async fn make_chunks(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     chunk_items: Vc<ChunkItemsWithAsyncModuleInfo>,
     key_prefix: RcStr,
-    mut referenced_output_assets: Vc<OutputAssets>,
+    mut referenced_output_assets: ResolvedVc<OutputAssets>,
 ) -> Result<Vc<Chunks>> {
     let chunk_items = chunk_items
         .await?

@@ -147,7 +147,7 @@ pub async fn make_chunk_group(
     // Pass chunk items to chunking algorithm
     let mut chunks = make_chunks(
         chunking_context,
-        Vc::cell(chunk_items.into_iter().collect()),
+        Vc::cell(chunk_items.into_iter().map(|(k, v)| (*k, v)).collect()),
         "".into(),
         references_to_output_assets(external_module_references).await?,
     )
