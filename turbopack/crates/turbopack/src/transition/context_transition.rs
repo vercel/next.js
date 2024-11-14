@@ -39,12 +39,12 @@ impl Transition for ContextTransition {
         &self,
         _compile_time_info: Vc<CompileTimeInfo>,
     ) -> Vc<CompileTimeInfo> {
-        self.compile_time_info
+        *self.compile_time_info
     }
 
     #[turbo_tasks::function]
     fn process_layer(&self, _layer: Vc<RcStr>) -> Vc<RcStr> {
-        self.layer
+        *self.layer
     }
 
     #[turbo_tasks::function]
@@ -52,7 +52,7 @@ impl Transition for ContextTransition {
         &self,
         _context: Vc<ModuleOptionsContext>,
     ) -> Vc<ModuleOptionsContext> {
-        self.module_options_context
+        *self.module_options_context
     }
 
     #[turbo_tasks::function]
@@ -60,6 +60,6 @@ impl Transition for ContextTransition {
         &self,
         _context: Vc<ResolveOptionsContext>,
     ) -> Vc<ResolveOptionsContext> {
-        self.resolve_options_context
+        *self.resolve_options_context
     }
 }

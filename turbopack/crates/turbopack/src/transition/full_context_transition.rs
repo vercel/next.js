@@ -11,7 +11,7 @@ pub struct FullContextTransition {
 #[turbo_tasks::value_impl]
 impl FullContextTransition {
     #[turbo_tasks::function]
-    pub fn new(module_context: Vc<ModuleAssetContext>) -> Vc<FullContextTransition> {
+    pub fn new(module_context: ResolvedVc<ModuleAssetContext>) -> Vc<FullContextTransition> {
         FullContextTransition { module_context }.cell()
     }
 }
@@ -23,6 +23,6 @@ impl Transition for FullContextTransition {
         &self,
         _module_asset_context: Vc<ModuleAssetContext>,
     ) -> Vc<ModuleAssetContext> {
-        self.module_context
+        *self.module_context
     }
 }
