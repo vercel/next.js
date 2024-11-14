@@ -1,6 +1,6 @@
 import { HTTPAccessErrorFallback } from './http-access-fallback/error-fallback'
 
-export default function NotFound() {
+export default function Forbidden() {
   return (
     <HTTPAccessErrorFallback
       status={403}

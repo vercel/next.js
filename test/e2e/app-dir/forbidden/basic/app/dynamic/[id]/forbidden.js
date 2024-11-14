@@ -1,3 +1,3 @@
-export default function NotFound() {
+export default function Forbidden() {
   return <div id="forbidden">{`dynamic/[id] forbidden`}</div>
 }

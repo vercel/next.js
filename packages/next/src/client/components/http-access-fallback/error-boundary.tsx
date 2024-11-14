@@ -13,10 +13,10 @@
 
 import React, { useContext } from 'react'
 import { useUntrackedPathname } from '../navigation-untracked'
-import { 
-  HTTPAccessErrorStatus, 
-  getAccessFallbackHTTPStatus, 
-  isHTTPAccessFallbackError
+import {
+  HTTPAccessErrorStatus,
+  getAccessFallbackHTTPStatus,
+  isHTTPAccessFallbackError,
 } from './http-access-fallback'
 import { warnOnce } from '../../../shared/lib/utils/warn-once'
 import { MissingSlotContext } from '../../../shared/lib/app-router-context.shared-runtime'
@@ -79,7 +79,6 @@ class HTTPAccessFallbackErrorBoundary extends React.Component<
   static getDerivedStateFromError(error: any) {
     if (isHTTPAccessFallbackError(error)) {
       const httpStatus = getAccessFallbackHTTPStatus(error)
-      console.log('get httpStatus', httpStatus)
       return {
         triggeredStatus: httpStatus,
       }
@@ -113,7 +112,6 @@ class HTTPAccessFallbackErrorBoundary extends React.Component<
   render() {
     const { notFound, forbidden, unauthorized } = this.props
     const { triggeredStatus } = this.state
-    console.log('render triggeredStatus', triggeredStatus, this.props)
     if (triggeredStatus) {
       return (
         <>
@@ -121,9 +119,16 @@ class HTTPAccessFallbackErrorBoundary extends React.Component<
           {process.env.NODE_ENV === 'development' && (
             <meta name="next-error" content="not-found" />
           )}
-          {(triggeredStatus === HTTPAccessErrorStatus.NOT_FOUND && notFound) ? notFound : null}
-          {(triggeredStatus === HTTPAccessErrorStatus.FORBIDDEN && forbidden) ? forbidden : null}
-          {(triggeredStatus === HTTPAccessErrorStatus.UNAUTHORIZED && unauthorized) ? unauthorized : null}
+          {triggeredStatus === HTTPAccessErrorStatus.NOT_FOUND && notFound
+            ? notFound
+            : null}
+          {triggeredStatus === HTTPAccessErrorStatus.FORBIDDEN && forbidden
+            ? forbidden
+            : null}
+          {triggeredStatus === HTTPAccessErrorStatus.UNAUTHORIZED &&
+          unauthorized
+            ? unauthorized
+            : null}
         </>
       )
     }

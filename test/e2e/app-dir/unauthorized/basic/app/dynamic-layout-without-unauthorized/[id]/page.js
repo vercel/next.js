@@ -9,5 +9,5 @@ export default async function Page(props) {
     unauthorized()
   }
 
-  return <p id="page">{`dynamic [id]`}</p>
+  return <p id="page">{`dynamic-layout-without-unauthorized [id]`}</p>
 }

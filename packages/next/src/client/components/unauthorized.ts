@@ -25,7 +25,9 @@ export function unauthorized(): never {
     !process.env.__NEXT_TEST_MODE &&
     !process.env.NEXT_PRIVATE_SKIP_CANARY_CHECK
   ) {
-    throw new Error(`\`unauthorized()\` is experimental and not allowed allowed to used in canary builds.`)
+    throw new Error(
+      `\`unauthorized()\` is experimental and only allowed to be used in canary builds.`
+    )
   }
 
   // eslint-disable-next-line no-throw-literal
