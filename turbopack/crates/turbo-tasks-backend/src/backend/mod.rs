@@ -1752,6 +1752,30 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
         task_id
     }
+
+    fn dispose_root_task(
+        &self,
+        task_id: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
+    ) {
+        let mut ctx = self.execute_context(turbo_tasks);
+        let mut task = ctx.task(task_id, TaskDataCategory::All);
+        let is_dirty = get!(task, Dirty).map_or(false, |dirty| dirty.get(self.session_id));
+        let has_dirty_containers = get!(task, AggregatedDirtyContainerCount)
+            .map_or(false, |dirty_containers| {
+                dirty_containers.get(self.session_id) > 0
+            });
+        if is_dirty || has_dirty_containers {
+            if let Some(root_state) = get_mut!(task, AggregateRoot) {
+                // We will finish the task, but it would be removed after the task is done
+                root_state.ty = ActiveType::CachedActiveUntilClean;
+            };
+        } else if let Some(root_state) = remove!(task, AggregateRoot) {
+            // Technically nobody should be listening to this event, but just in case
+            // we notify it anyway
+            root_state.all_clean_event.notify(usize::MAX);
+        }
+    }
 }
 
 impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
@@ -1990,8 +2014,8 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         self.0.create_transient_task(task_type)
     }
 
-    fn dispose_root_task(&self, _: TaskId, _: &dyn TurboTasksBackendApi<Self>) {
-        // TODO implement
+    fn dispose_root_task(&self, task_id: TaskId, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
+        self.0.dispose_root_task(task_id, turbo_tasks);
     }
 }
 
