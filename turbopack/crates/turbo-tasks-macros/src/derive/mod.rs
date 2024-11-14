@@ -1,5 +1,6 @@
 mod deterministic_hash_macro;
 mod key_value_pair_macro;
+mod operation_value_macro;
 mod resolved_value_macro;
 mod shrink_to_fit_macro;
 mod task_input_macro;
@@ -9,6 +10,7 @@ mod value_debug_macro;
 
 pub use deterministic_hash_macro::derive_deterministic_hash;
 pub use key_value_pair_macro::derive_key_value_pair;
+pub use operation_value_macro::derive_operation_value;
 pub use resolved_value_macro::derive_resolved_value;
 pub use shrink_to_fit_macro::derive_shrink_to_fit;
 use syn::{spanned::Spanned, Attribute, Meta, MetaList, NestedMeta};

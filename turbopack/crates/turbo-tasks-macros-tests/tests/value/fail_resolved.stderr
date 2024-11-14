@@ -14,9 +14,9 @@ error[E0277]: the trait bound `Vc<i32>: ResolvedValue` is not satisfied
             (D, C, B, A, Z, Y, X, W, V, U, T)
             (E, D, C, B, A, Z, Y, X, W, V, U, T)
           and $N others
-note: required by a bound in `DeriveResolvedValueAssertion::assert_impl_resolved_value`
+note: required by a bound in `DeriveResolvedValueAssertion::assert_impl_ResolvedValue`
  --> tests/value/fail_resolved.rs:6:22
   |
 6 | #[turbo_tasks::value(resolved)]
-  |                      ^^^^^^^^ required by this bound in `DeriveResolvedValueAssertion::assert_impl_resolved_value`
+  |                      ^^^^^^^^ required by this bound in `DeriveResolvedValueAssertion::assert_impl_ResolvedValue`
   = note: this error originates in the derive macro `turbo_tasks::ResolvedValue` (in Nightly builds, run with -Z macro-backtrace for more info)

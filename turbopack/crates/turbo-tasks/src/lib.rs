@@ -55,6 +55,7 @@ mod key_value_pair;
 pub mod macro_helpers;
 mod magic_any;
 mod manager;
+mod marker_trait;
 mod native_function;
 mod no_move_vec;
 mod once_map;
@@ -120,9 +121,9 @@ pub use turbo_tasks_macros::{function, value_impl, value_trait, KeyValuePair, Ta
 pub use value::{TransientInstance, TransientValue, Value};
 pub use value_type::{TraitMethod, TraitType, ValueType};
 pub use vc::{
-    Dynamic, OperationVc, ResolvedValue, ResolvedVc, TypedForInput, Upcast, ValueDefault, Vc,
-    VcCast, VcCellNewMode, VcCellSharedMode, VcDefaultRead, VcRead, VcTransparentRead,
-    VcValueTrait, VcValueTraitCast, VcValueType, VcValueTypeCast,
+    Dynamic, OperationValue, OperationVc, ResolvedValue, ResolvedVc, TypedForInput, Upcast,
+    ValueDefault, Vc, VcCast, VcCellNewMode, VcCellSharedMode, VcDefaultRead, VcRead,
+    VcTransparentRead, VcValueTrait, VcValueTraitCast, VcValueType, VcValueTypeCast,
 };
 
 pub type FxIndexSet<T> = indexmap::IndexSet<T, BuildHasherDefault<FxHasher>>;

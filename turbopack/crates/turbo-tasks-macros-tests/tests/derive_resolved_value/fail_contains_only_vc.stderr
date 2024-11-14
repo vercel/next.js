@@ -14,9 +14,9 @@ error[E0277]: the trait bound `Vc<i32>: ResolvedValue` is not satisfied
             (D, C, B, A, Z, Y, X, W, V, U, T)
             (E, D, C, B, A, Z, Y, X, W, V, U, T)
           and $N others
-note: required by a bound in `DeriveResolvedValueAssertion::assert_impl_resolved_value`
+note: required by a bound in `DeriveResolvedValueAssertion::assert_impl_ResolvedValue`
  --> tests/derive_resolved_value/fail_contains_only_vc.rs:5:10
   |
 5 | #[derive(ResolvedValue)]
-  |          ^^^^^^^^^^^^^ required by this bound in `DeriveResolvedValueAssertion::assert_impl_resolved_value`
+  |          ^^^^^^^^^^^^^ required by this bound in `DeriveResolvedValueAssertion::assert_impl_ResolvedValue`
   = note: this error originates in the derive macro `ResolvedValue` (in Nightly builds, run with -Z macro-backtrace for more info)
