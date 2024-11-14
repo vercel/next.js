@@ -1486,6 +1486,10 @@ impl DepGraph {
                     continue;
                 };
 
+                if declarator == node {
+                    continue;
+                }
+
                 // We depend on the export node to preserve the export
                 queue.push((declarator, node, dependencies));
             }
