@@ -1,5 +1,6 @@
 use anyhow::{bail, Result};
 use swc_core::{
+    common::util::take::Take,
     ecma::ast::{Expr, ExprOrSpread, Lit, NewExpr},
     quote_expr,
 };
@@ -133,13 +134,23 @@ impl CodeGenerateable for WorkerAssetReference {
         let visitor = create_visitor!(path, visit_mut_expr(expr: &mut Expr) {
             let message = if let Expr::New(NewExpr { args, ..}) = expr {
                 if let Some(args) = args {
-                    match args.iter_mut().next() {
+                    match args.first_mut() {
                         Some(ExprOrSpread { spread: None, expr }) => {
                             let item_id = Expr::Lit(Lit::Str(item_id.to_string().into()));
                             *expr = quote_expr!(
                                 "__turbopack_require__($item_id)",
                                 item_id: Expr = item_id
                             );
+
+                            if let Some(opts) = args.get_mut(1) {
+                                if opts.spread.is_none(){
+                                    *opts.expr = *quote_expr!(
+                                        "{...$opts, type: undefined}",
+                                        opts: Expr = (*opts.expr).take()
+                                    );
+                                }
+
+                            }
                             return;
                         }
                         // These are SWC bugs: https://github.com/swc-project/swc/issues/5394
