@@ -1,4 +1,4 @@
-use turbo_tasks::{RcStr, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, Vc};
 use turbopack_core::compile_time_info::CompileTimeInfo;
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
