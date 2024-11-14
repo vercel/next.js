@@ -1,8 +1,8 @@
-use core::panic;
 use std::{
     hash::{BuildHasherDefault, Hash},
     mem::take,
     ops::{Deref, DerefMut},
+    panic,
     thread::available_parallelism,
 };
 

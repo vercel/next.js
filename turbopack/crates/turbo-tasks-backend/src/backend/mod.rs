@@ -1276,9 +1276,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             removed_data.extend(task.extract_if(CachedDataItemIndex::CellData, |key, _| {
                 matches!(key, &CachedDataItemKey::CellData { cell } if cell_counters
                         .get(&cell.type_id)
-                        .map_or(true, |start_index| cell.index >= *start_index) && {
-                    true
-                })
+                        .map_or(true, |start_index| cell.index >= *start_index))
             }));
             if self.should_track_children() {
                 old_edges.extend(task.iter(CachedDataItemIndex::Children).filter_map(
