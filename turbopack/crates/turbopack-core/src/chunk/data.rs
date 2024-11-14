@@ -58,7 +58,7 @@ impl ChunkData {
                     module_chunks: Vec::new(),
                     references: OutputAssets::empty(),
                 }
-                .cell(),
+                .resolved_cell(),
             )));
         };
 
@@ -113,7 +113,7 @@ impl ChunkData {
                 module_chunks,
                 references: Vc::cell(module_chunks_references),
             }
-            .cell(),
+            .resolved_cell(),
         )))
     }
 

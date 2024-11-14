@@ -342,7 +342,7 @@ async fn graph_node_to_referenced_nodes(
         .map(|reference| async {
             let reference = *reference;
             let Some(chunkable_module_reference) =
-                Vc::try_resolve_downcast::<Box<dyn ChunkableModuleReference>>(reference).await?
+                ResolvedVc::try_downcast::<Box<dyn ChunkableModuleReference>>(reference).await?
             else {
                 return Ok(vec![ChunkGraphEdge {
                     key: None,
@@ -527,7 +527,7 @@ impl Visit<ChunkContentGraphNode, ()> for ChunkContentVisit {
             }
         };
 
-        if !self.processed_modules.insert(*module) {
+        if !self.processed_modules.insert(module) {
             return VisitControlFlow::Skip(node);
         }
 

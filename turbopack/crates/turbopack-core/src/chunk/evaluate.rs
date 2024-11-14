@@ -67,19 +67,19 @@ impl EvaluatableAssets {
     }
 
     #[turbo_tasks::function]
-    pub fn one(entry: Vc<Box<dyn EvaluatableAsset>>) -> Vc<EvaluatableAssets> {
+    pub fn one(entry: ResolvedVc<Box<dyn EvaluatableAsset>>) -> Vc<EvaluatableAssets> {
         EvaluatableAssets(vec![entry]).cell()
     }
 
     #[turbo_tasks::function]
-    pub fn many(assets: Vec<Vc<Box<dyn EvaluatableAsset>>>) -> Vc<EvaluatableAssets> {
+    pub fn many(assets: Vec<ResolvedVc<Box<dyn EvaluatableAsset>>>) -> Vc<EvaluatableAssets> {
         EvaluatableAssets(assets).cell()
     }
 
     #[turbo_tasks::function]
     pub async fn with_entry(
         self: Vc<Self>,
-        entry: Vc<Box<dyn EvaluatableAsset>>,
+        entry: ResolvedVc<Box<dyn EvaluatableAsset>>,
     ) -> Result<Vc<EvaluatableAssets>> {
         let mut entries = self.await?.clone_value();
         entries.push(entry);
