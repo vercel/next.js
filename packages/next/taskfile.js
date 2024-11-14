@@ -1882,7 +1882,6 @@ externals['sass-loader'] = 'next/dist/compiled/sass-loader'
 // eslint-disable-next-line camelcase
 export async function ncc_sass_loader(task, opts) {
   const sassLoaderPath = require.resolve('sass-loader')
-  console.log({ sassLoaderPath })
   const utilsPath = join(dirname(sassLoaderPath), 'utils.js')
   const originalContent = await fs.readFile(utilsPath, 'utf8')
 
