@@ -100,7 +100,7 @@ where
 
 impl<T> TraitRef<T>
 where
-    T: VcValueTrait + ?Sized + Send,
+    T: VcValueTrait + ?Sized,
 {
     /// Returns a new cell that points to a value that implements the value
     /// trait `T`.
@@ -130,7 +130,7 @@ pub trait IntoTraitRef {
 
 impl<T> IntoTraitRef for Vc<T>
 where
-    T: VcValueTrait + ?Sized + Send,
+    T: VcValueTrait + ?Sized,
 {
     type ValueTrait = T;
 
