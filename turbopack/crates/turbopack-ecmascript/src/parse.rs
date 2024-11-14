@@ -213,7 +213,7 @@ async fn parse_internal(
                         fs_path,
                         ident,
                         file_path_hash,
-                        *source,
+                        source,
                         ty,
                         transforms,
                     )
@@ -253,7 +253,7 @@ async fn parse_file_content(
     fs_path: &FileSystemPath,
     ident: &str,
     file_path_hash: u128,
-    source: Vc<Box<dyn Source>>,
+    source: ResolvedVc<Box<dyn Source>>,
     ty: EcmascriptModuleAssetType,
     transforms: &[EcmascriptInputTransform],
 ) -> Result<Vc<ParseResult>> {
@@ -262,14 +262,14 @@ async fn parse_file_content(
         true,
         false,
         Box::new(IssueEmitter::new(
-            source,
+            *source,
             source_map.clone(),
             Some("Ecmascript file had an error".into()),
         )),
     );
 
     let emitter = Box::new(IssueEmitter::new(
-        source,
+        *source,
         source_map.clone(),
         Some("Parsing ecmascript source code failed".into()),
     ));
@@ -435,7 +435,7 @@ async fn parse_file_content(
                 unresolved_mark,
                 top_level_mark,
                 Some(&comments),
-                Some(source),
+                Some(*source),
             );
 
             Ok::<ParseResult, anyhow::Error>(ParseResult::Ok {

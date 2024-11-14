@@ -143,16 +143,16 @@ impl Asset for ManifestAsyncModule {
 impl ChunkableModule for ManifestAsyncModule {
     #[turbo_tasks::function]
     async fn as_chunk_item(
-        self: Vc<Self>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
-        Ok(Vc::upcast(
+        self: ResolvedVc<Self>,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
+        Vc::upcast(
             ManifestChunkItem {
-                chunking_context: chunking_context.to_resolved().await?,
-                manifest: self.to_resolved().await?,
+                chunking_context,
+                manifest: self,
             }
             .cell(),
-        ))
+        )
     }
 }
 
