@@ -7,6 +7,7 @@ import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import { parseStack } from '../client/components/react-dev-overlay/server/middleware'
 import { getOriginalCodeFrame } from '../client/components/react-dev-overlay/server/shared'
 import { workUnitAsyncStorage } from './app-render/work-unit-async-storage.external'
+import { dim } from '../lib/picocolors'
 
 interface ModernRawSourceMap extends SourceMapPayload {
   ignoreList?: number[]
@@ -151,6 +152,8 @@ function getSourcemappedFrameIfPossible(
 }
 
 function parseAndSourceMap(error: Error): string {
+  // TODO(veil): Expose as CLI arg or config option. Useful for local debugging.
+  const showIgnoreListed = false
   // We overwrote Error.prepareStackTrace earlier so error.stack is not sourcemapped.
   let unparsedStack = String(error.stack)
   // We could just read it from `error.stack`.
@@ -162,7 +165,7 @@ function parseAndSourceMap(error: Error): string {
   if (idx !== -1) {
     idx = unparsedStack.lastIndexOf('\n', idx)
   }
-  if (idx !== -1) {
+  if (idx !== -1 && !showIgnoreListed) {
     // Cut off everything after the bottom frame since it'll be React internals.
     unparsedStack = unparsedStack.slice(0, idx)
   }
@@ -196,8 +199,13 @@ function parseAndSourceMap(error: Error): string {
         if (!sourcemappedFrame.stack.ignored) {
           // TODO: Consider what happens if every frame is ignore listed.
           sourceMappedStack += '\n' + frameToString(sourcemappedFrame.stack)
+        } else if (showIgnoreListed) {
+          sourceMappedStack +=
+            '\n' + dim(frameToString(sourcemappedFrame.stack))
         }
       }
+    } else if (showIgnoreListed) {
+      sourceMappedStack += '\n' + dim(frameToString(frame))
     }
   }
 
