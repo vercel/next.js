@@ -1,5 +1,6 @@
 import curry from 'next/dist/compiled/lodash.curry'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import { lt as semverLessThan } from 'next/dist/compiled/semver'
 import { loader, plugin } from '../../helpers'
 import { pipe } from '../../utils'
 import type { ConfigurationContext, ConfigurationFn } from '../../utils'
@@ -151,7 +152,6 @@ export const css = curry(async function css(
     prependData: sassPrependData,
     additionalData: sassAdditionalData,
     implementation: sassImplementation,
-    experimental: { useUpgradedLoader: sassUseUpgradedLoader } = {},
     ...sassOptions
   } = ctx.sassOptions
 
@@ -163,15 +163,23 @@ export const css = curry(async function css(
       ctx.experimental.useLightningcss
     )
 
+  // Since sass is an optional peer dependency, it may be missing.
+  let sassVersion = ''
+  try {
+    sassVersion = require.resolve('sass')
+  } catch {}
+
+  // The modern Sass API with breaking changes was added in sass@1.45.0.
+  // https://sass-lang.com/documentation/breaking-changes/legacy-js-api
+  // Since sass-loader and our peer dependency sass version is ^1.3.0,
+  // we need to use the legacy Sass API for versions less than 1.45.0.
+  const shouldUseLegacySassAPI = semverLessThan(sassVersion, '1.45.0')
+
   const sassPreprocessors: webpack.RuleSetUseItem[] = [
     // First, process files with `sass-loader`: this inlines content, and
     // compiles away the proprietary syntax.
     {
-      loader: require.resolve(
-        sassUseUpgradedLoader
-          ? 'next/dist/compiled/sass-loader-16'
-          : 'next/dist/compiled/sass-loader'
-      ),
+      loader: require.resolve('next/dist/compiled/sass-loader'),
       options: {
         implementation: sassImplementation,
         // Source maps are required so that `resolve-url-loader` can locate
@@ -186,8 +194,8 @@ export const css = curry(async function css(
           // Since it's optional and not required, we'll disable it by default
           // to avoid the confusion.
           fibers: false,
-          // TODO: Remove this once we upgrade to sass-loader 16
-          silenceDeprecations: ['legacy-js-api'],
+          // TODO(jiwon): Once the peer dependency for sass is upgraded to >= 1.45.0, we can remove this.
+          api: shouldUseLegacySassAPI ? 'legacy' : 'modern',
           ...sassOptions,
         },
         additionalData: sassPrependData || sassAdditionalData,
