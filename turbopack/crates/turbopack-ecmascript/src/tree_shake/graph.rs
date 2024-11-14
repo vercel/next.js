@@ -28,7 +28,7 @@ use super::{
     },
     Key, TURBOPACK_PART_IMPORT_SOURCE,
 };
-use crate::magic_identifier;
+use crate::{magic_identifier, tree_shake::optimizations::GraphOptimizer};
 
 /// The id of an item
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -728,7 +728,15 @@ impl DepGraph {
     ) -> InternedGraph<Vec<ItemId>> {
         let graph = self.g.idx_graph.clone().into_graph::<u32>();
 
-        let condensed = condensation(graph, true);
+        let mut condensed = condensation(graph, true);
+        let optimizer = GraphOptimizer {
+            graph_ix: &self.g.graph_ix,
+        };
+        loop {
+            if !optimizer.merge_single_incoming_nodes(&mut condensed) {
+                break;
+            }
+        }
 
         let mut new_graph = InternedGraph::default();
 

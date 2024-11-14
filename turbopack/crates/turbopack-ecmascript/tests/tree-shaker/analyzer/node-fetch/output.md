@@ -132,16 +132,12 @@ graph TD
     N1["Items: [ItemId(Export((&quot;__TURBOPACK__default__export__&quot;, #4), &quot;default&quot;))]"];
     N2["Items: [ItemId(0, ImportOfModule)]"];
     N3["Items: [ItemId(0, ImportBinding(0))]"];
-    N4["Items: [ItemId(1, VarDeclarator(0))]"];
-    N5["Items: [ItemId(2, Normal)]"];
-    N6["Items: [ItemId(3, Normal)]"];
-    N4 --> N3;
+    N4["Items: [ItemId(1, VarDeclarator(0)), ItemId(2, Normal), ItemId(3, Normal)]"];
     N4 --> N2;
-    N6 --> N5;
-    N6 --> N4;
-    N1 --> N6;
-    N0 --> N6;
+    N4 --> N3;
+    N0 --> N4;
     N3 --> N2;
+    N1 --> N4;
 ```
 # Entrypoints
 
@@ -151,7 +147,7 @@ graph TD
     Export(
         "default",
     ): 1,
-    Exports: 7,
+    Exports: 5,
 }
 ```
 
@@ -160,7 +156,7 @@ graph TD
 ## Part 0
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
+    __turbopack_part__: 4
 };
 "module evaluation";
 
@@ -168,7 +164,7 @@ import "__TURBOPACK_PART__" assert {
 ## Part 1
 ```js
 import { a as __TURBOPACK__default__export__ } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -6
+    __turbopack_part__: -4
 };
 export { __TURBOPACK__default__export__ as default };
 
@@ -202,34 +198,20 @@ import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
 const streamDestructionSupported = 'destroy' in Stream.Readable.prototype;
+function fetch() {}
+const __TURBOPACK__default__export__ = fetch;
 export { streamDestructionSupported as c } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
-
-```
-## Part 5
-```js
-function fetch() {}
 export { fetch as d } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
-
-```
-## Part 6
-```js
-import { d as fetch } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -5
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-const __TURBOPACK__default__export__ = fetch;
 export { __TURBOPACK__default__export__ as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
-## Part 7
+## Part 5
 ```js
 export { default } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export default"
@@ -239,7 +221,7 @@ export { default } from "__TURBOPACK_PART__" assert {
 ## Merged (module eval)
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
+    __turbopack_part__: 4
 };
 "module evaluation";
 
@@ -252,7 +234,7 @@ import "__TURBOPACK_PART__" assert {
     Export(
         "default",
     ): 1,
-    Exports: 7,
+    Exports: 5,
 }
 ```
 
@@ -261,7 +243,7 @@ import "__TURBOPACK_PART__" assert {
 ## Part 0
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
+    __turbopack_part__: 4
 };
 "module evaluation";
 
@@ -269,7 +251,7 @@ import "__TURBOPACK_PART__" assert {
 ## Part 1
 ```js
 import { a as __TURBOPACK__default__export__ } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -6
+    __turbopack_part__: -4
 };
 export { __TURBOPACK__default__export__ as default };
 
@@ -303,34 +285,20 @@ import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
 const streamDestructionSupported = 'destroy' in Stream.Readable.prototype;
+function fetch() {}
+const __TURBOPACK__default__export__ = fetch;
 export { streamDestructionSupported as c } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
-
-```
-## Part 5
-```js
-function fetch() {}
 export { fetch as d } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
-
-```
-## Part 6
-```js
-import { d as fetch } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -5
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-const __TURBOPACK__default__export__ = fetch;
 export { __TURBOPACK__default__export__ as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
-## Part 7
+## Part 5
 ```js
 export { default } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export default"
@@ -340,7 +308,7 @@ export { default } from "__TURBOPACK_PART__" assert {
 ## Merged (module eval)
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
+    __turbopack_part__: 4
 };
 "module evaluation";
 
