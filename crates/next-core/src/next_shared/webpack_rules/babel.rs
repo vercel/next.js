@@ -104,7 +104,7 @@ pub async fn maybe_add_babel_loader(
         }
 
         if has_changed {
-            return Ok(Vc::cell(Some(Vc::cell(rules))));
+            return Ok(Vc::cell(Some(ResolvedVc::cell(rules))));
         }
     }
     Ok(Vc::cell(webpack_rules))
