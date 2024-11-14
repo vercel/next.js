@@ -861,7 +861,7 @@ pub fn virtual_next_js_template_path(
 }
 
 pub async fn load_next_js_templateon<T: DeserializeOwned>(
-    project_path: Vc<FileSystemPath>,
+    project_path: ResolvedVc<FileSystemPath>,
     path: RcStr,
 ) -> Result<T> {
     let file_path = get_next_package(project_path).join(path.clone());

@@ -153,7 +153,7 @@ impl BeforeResolvePlugin for InvalidImportResolvePlugin {
 /// Only the contexts that alises `client-only` to
 /// `next/dist/compiled/client-only/error` should use this.
 pub(crate) fn get_invalid_client_only_resolve_plugin(
-    root: Vc<FileSystemPath>,
+    root: ResolvedVc<FileSystemPath>,
 ) -> Vc<InvalidImportResolvePlugin> {
     InvalidImportResolvePlugin::new(
         root,
@@ -173,7 +173,7 @@ pub(crate) fn get_invalid_server_only_resolve_plugin(
     root: ResolvedVc<FileSystemPath>,
 ) -> Vc<InvalidImportResolvePlugin> {
     InvalidImportResolvePlugin::new(
-        root,
+        *root,
         "server-only".into(),
         vec![
             "'server-only' cannot be imported from a Client Component module. It should only be \

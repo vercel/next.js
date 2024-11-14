@@ -134,7 +134,7 @@ pub async fn get_server_resolve_options_context(
     let foreign_code_context_condition =
         foreign_code_context_condition(next_config, project_path).await?;
     let root_dir = project_path.root().to_resolved().await?;
-    let module_feature_report_resolve_plugin = ModuleFeatureReportResolvePlugin::new(project_path)
+    let module_feature_report_resolve_plugin = ModuleFeatureReportResolvePlugin::new(*project_path)
         .to_resolved()
         .await?;
     let invalid_client_only_resolve_plugin = get_invalid_client_only_resolve_plugin(project_path)
