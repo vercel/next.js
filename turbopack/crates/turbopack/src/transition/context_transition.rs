@@ -17,10 +17,10 @@ pub struct ContextTransition {
 impl ContextTransition {
     #[turbo_tasks::function]
     pub fn new(
-        compile_time_info: Vc<CompileTimeInfo>,
-        module_options_context: Vc<ModuleOptionsContext>,
-        resolve_options_context: Vc<ResolveOptionsContext>,
-        layer: Vc<RcStr>,
+        compile_time_info: ResolvedVc<CompileTimeInfo>,
+        module_options_context: ResolvedVc<ModuleOptionsContext>,
+        resolve_options_context: ResolvedVc<ResolveOptionsContext>,
+        layer: ResolvedVc<RcStr>,
     ) -> Vc<ContextTransition> {
         ContextTransition {
             module_options_context,
