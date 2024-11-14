@@ -125,7 +125,7 @@ graph TD
     Item3 --> Item1;
     Item4 --> Item3;
     Item5 --> Item4;
-    Item5 --> Item3;
+    Item5 -.-> Item3;
     Item6 --> Item3;
     Item6 --> Item1;
     Item6 --> Item5;
@@ -157,7 +157,7 @@ graph TD
     Item3 --> Item1;
     Item4 --> Item3;
     Item5 --> Item4;
-    Item5 --> Item3;
+    Item5 -.-> Item3;
     Item6 --> Item3;
     Item6 --> Item1;
     Item6 --> Item5;
@@ -192,7 +192,7 @@ graph TD
     Item3 --> Item1;
     Item4 --> Item3;
     Item5 --> Item4;
-    Item5 --> Item3;
+    Item5 -.-> Item3;
     Item6 --> Item3;
     Item6 --> Item1;
     Item6 --> Item5;
@@ -218,14 +218,14 @@ graph TD
     N5["Items: [ItemId(3, VarDeclarator(0)), ItemId(4, VarDeclarator(0)), ItemId(5, VarDeclarator(0))]"];
     N6["Items: [ItemId(6, Normal)]"];
     N4 --> N3;
-    N5 --> N4;
-    N1 --> N3;
-    N1 --> N6;
-    N5 --> N3;
+    N0 --> N6;
     N2 --> N5;
+    N1 --> N3;
+    N5 --> N4;
+    N5 --> N3;
+    N1 --> N6;
     N6 --> N5;
     N6 --> N3;
-    N0 --> N6;
 ```
 # Entrypoints
 

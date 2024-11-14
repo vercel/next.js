@@ -378,10 +378,10 @@ graph TD
     N11 --> N10;
     N11 --> N5;
     N11 --> N9;
-    N2 --> N5;
-    N2 --> N10;
     N2 -.-> N11;
     N4 --> N12;
+    N2 --> N5;
+    N2 --> N10;
     N3 --> N12;
     N1 --> N12;
     N3 --> N10;
@@ -433,10 +433,10 @@ import { b as dog } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -5
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 10
+    __turbopack_part__: 11
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 11
+    __turbopack_part__: 10
 };
 export { dogRef };
 function getDog() {

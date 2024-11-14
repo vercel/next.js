@@ -221,6 +221,7 @@ graph TD
     N8["Items: [ItemId(5, VarDeclarator(0))]"];
     N5 --> N4;
     N0 --> N7;
+    N1 --> N8;
     N6 --> N5;
     N6 --> N4;
     N7 --> N6;
@@ -230,7 +231,6 @@ graph TD
     N2 --> N8;
     N3 --> N7;
     N3 --> N4;
-    N1 --> N8;
 ```
 # Entrypoints
 

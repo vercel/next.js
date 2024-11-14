@@ -329,9 +329,9 @@ graph TD
     N7["Items: [ItemId(7, Normal), ItemId(8, Normal), ItemId(9, Normal)]"];
     N8["Items: [ItemId(10, Normal)]"];
     N9["Items: [ItemId(11, VarDeclarator(0)), ItemId(12, Normal), ItemId(13, Normal)]"];
-    N7 -.-> N5;
+    N8 --> N7;
     N2 --> N1;
-    N8 --> N2;
+    N7 --> N1;
     N3 -.-> N2;
     N3 --> N1;
     N4 -.-> N2;
@@ -340,13 +340,13 @@ graph TD
     N5 --> N1;
     N6 --> N4;
     N6 --> N1;
-    N9 --> N1;
-    N9 --> N7;
-    N9 -.-> N8;
-    N7 --> N1;
+    N8 --> N2;
     N0 --> N8;
     N7 -.-> N6;
-    N8 --> N7;
+    N9 -.-> N8;
+    N9 --> N1;
+    N9 --> N7;
+    N7 -.-> N5;
     N8 --> N1;
 ```
 # Entrypoints
@@ -457,10 +457,10 @@ import { a as x } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -1
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
+    __turbopack_part__: 7
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 7
+    __turbopack_part__: 2
 };
 console.log(x);
 
@@ -471,10 +471,10 @@ import { a as x } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -1
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 7
+    __turbopack_part__: 8
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 8
+    __turbopack_part__: 7
 };
 let a = x;
 x = x + a + 5;

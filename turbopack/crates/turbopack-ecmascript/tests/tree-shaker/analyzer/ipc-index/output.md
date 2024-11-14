@@ -982,14 +982,17 @@ graph TD
     N12["Items: [ItemId(8, VarDeclarator(0))]"];
     N5 --> N3;
     N7 --> N5;
-    N2 --> N9;
-    N10 --> N9;
-    N10 -.-> N4;
-    N10 -.-> N8;
-    N10 --> N7;
+    N0 -.-> N4;
     N0 -.-> N6;
+    N2 --> N9;
+    N1 --> N10;
     N9 --> N8;
+    N0 --> N12;
+    N0 -.-> N9;
+    N10 -.-> N8;
     N10 -.-> N6;
+    N10 --> N4;
+    N10 --> N9;
     N11 --> N10;
     N11 -.-> N8;
     N11 -.-> N6;
@@ -1000,16 +1003,13 @@ graph TD
     N12 -.-> N6;
     N12 -.-> N4;
     N12 -.-> N9;
-    N4 --> N3;
     N9 --> N6;
-    N0 -.-> N8;
-    N1 --> N11;
-    N1 --> N10;
     N6 --> N5;
     N8 --> N7;
-    N0 --> N12;
-    N0 -.-> N9;
-    N0 -.-> N4;
+    N10 --> N7;
+    N1 --> N11;
+    N4 --> N3;
+    N0 -.-> N8;
 ```
 # Entrypoints
 
@@ -1034,16 +1034,16 @@ import { a as improveConsole } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -12
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
+    __turbopack_part__: 4
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 8
+    __turbopack_part__: 6
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 9
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
+    __turbopack_part__: 8
 };
 "module evaluation";
 improveConsole("error", "stderr", true);
@@ -1182,10 +1182,10 @@ import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 8
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 7
+    __turbopack_part__: 6
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
+    __turbopack_part__: 7
 };
 function createIpc(port) {
     const socket = createConnection(port, "127.0.0.1");
@@ -1400,16 +1400,16 @@ import { a as improveConsole } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -12
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
+    __turbopack_part__: 4
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 8
+    __turbopack_part__: 6
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 9
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
+    __turbopack_part__: 8
 };
 "module evaluation";
 improveConsole("error", "stderr", true);

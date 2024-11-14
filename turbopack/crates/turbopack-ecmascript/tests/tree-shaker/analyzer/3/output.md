@@ -333,12 +333,12 @@ graph TD
     N7 --> N4;
     N7 --> N5;
     N8 --> N6;
+    N0 -.-> N6;
     N0 -.-> N5;
     N0 -.-> N4;
     N0 -.-> N7;
     N1 --> N7;
     N0 -.-> N8;
-    N0 -.-> N6;
 ```
 # Entrypoints
 
@@ -369,13 +369,13 @@ import { b as c2_2 } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -8
 };
 import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
+};
+import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 5
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 4
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
 };
 "module evaluation";
 c1_3();
@@ -505,13 +505,13 @@ import { b as c2_2 } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -8
 };
 import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
+};
+import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 5
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 4
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
 };
 "module evaluation";
 c1_3();

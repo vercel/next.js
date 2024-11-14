@@ -272,14 +272,14 @@ graph TD
     N6["Items: [ItemId(4, Normal)]"];
     N7["Items: [ItemId(5, Normal), ItemId(6, Normal), ItemId(7, Normal), ItemId(8, Normal), ItemId(9, Normal)]"];
     N4 --> N3;
-    N1 --> N7;
+    N2 --> N7;
+    N7 --> N3;
     N5 --> N3;
     N6 -.-> N5;
     N6 --> N3;
-    N7 --> N3;
+    N1 --> N7;
     N1 --> N3;
     N2 --> N3;
-    N2 --> N7;
     N0 --> N5;
 ```
 # Entrypoints
