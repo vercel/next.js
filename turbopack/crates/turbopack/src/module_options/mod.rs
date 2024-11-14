@@ -180,7 +180,7 @@ impl ModuleOptions {
             } else {
                 vec![transform.clone()]
             };
-            ResolvedVc::cell(
+            Vc::cell(
                 base_transforms
                     .iter()
                     .cloned()
@@ -188,7 +188,7 @@ impl ModuleOptions {
                     .collect(),
             )
         } else {
-            ResolvedVc::cell(transforms.clone())
+            Vc::cell(transforms.clone())
         };
 
         // Apply decorators transform for the ModuleType::Ecmascript as well after
@@ -199,7 +199,7 @@ impl ModuleOptions {
         // Since typescript transform (`ts_app_transforms`) needs to apply decorators
         // _before_ stripping types, we create ts_app_transforms first in a
         // specific order with typescript, then apply decorators to app_transforms.
-        let app_transforms = ResolvedVc::cell(
+        let app_transforms = Vc::cell(
             if let Some(decorators_transform) = &decorators_transform {
                 vec![decorators_transform.clone()]
             } else {
@@ -245,7 +245,7 @@ impl ModuleOptions {
                         specified_module_type: SpecifiedModuleType::CommonJs,
                         ..ecmascript_options
                     }
-                    .into(),
+                    .resolved_cell(),
                 })],
             ),
             ModuleRule::new_all(
@@ -276,7 +276,7 @@ impl ModuleOptions {
                         specified_module_type: SpecifiedModuleType::EcmaScript,
                         ..ecmascript_options
                     }
-                    .into(),
+                    .resolved_cell(),
                 })],
             ),
             ModuleRule::new_all(
@@ -289,7 +289,7 @@ impl ModuleOptions {
                         specified_module_type: SpecifiedModuleType::EcmaScript,
                         ..ecmascript_options
                     }
-                    .into(),
+                    .resolved_cell(),
                 })],
             ),
             ModuleRule::new_all(
@@ -302,7 +302,7 @@ impl ModuleOptions {
                         specified_module_type: SpecifiedModuleType::CommonJs,
                         ..ecmascript_options
                     }
-                    .into(),
+                    .resolved_cell(),
                 })],
             ),
             ModuleRule::new_all(
@@ -315,7 +315,7 @@ impl ModuleOptions {
                         specified_module_type: SpecifiedModuleType::CommonJs,
                         ..ecmascript_options
                     }
-                    .into(),
+                    .resolved_cell(),
                 })],
             ),
             ModuleRule::new(
@@ -410,7 +410,7 @@ impl ModuleOptions {
 
                 rules.push(ModuleRule::new(
                     RuleCondition::ResourcePathEndsWith(".css".to_string()),
-                    vec![ModuleRuleEffect::SourceTransforms(Vc::cell(vec![
+                    vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
                         Vc::upcast(PostCssTransform::new(
                             node_evaluate_asset_context(
                                 *execution_context,
@@ -519,7 +519,7 @@ impl ModuleOptions {
                     RuleCondition::ResourcePathEndsWith(".md".to_string()),
                     RuleCondition::ResourcePathEndsWith(".mdx".to_string()),
                 ]),
-                vec![ModuleRuleEffect::SourceTransforms(Vc::cell(vec![
+                vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
                     Vc::upcast(MdxTransform::new(mdx_transform_options)),
                 ]))],
             ));
@@ -552,7 +552,7 @@ impl ModuleOptions {
                         },
                         RuleCondition::not(RuleCondition::ResourceIsVirtualSource),
                     ]),
-                    vec![ModuleRuleEffect::SourceTransforms(Vc::cell(vec![
+                    vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
                         Vc::upcast(WebpackLoaders::new(
                             node_evaluate_asset_context(
                                 *execution_context,

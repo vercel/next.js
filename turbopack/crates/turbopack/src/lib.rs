@@ -104,7 +104,7 @@ async fn apply_module_type(
             let mut builder = EcmascriptModuleAsset::builder(
                 source,
                 Vc::upcast(context_for_module),
-                **transforms,
+                *transforms,
                 **options,
                 module_asset_context.compile_time_info(),
             );
@@ -561,7 +561,7 @@ async fn process_default_internal(
                                 transforms,
                                 options,
                             }) => Some(ModuleType::Ecmascript {
-                                transforms: prepend.extend(transforms).extend(*append),
+                                transforms: prepend.extend(transforms).extend(**append),
                                 options,
                             }),
                             Some(ModuleType::Typescript {
@@ -570,7 +570,7 @@ async fn process_default_internal(
                                 analyze_types,
                                 options,
                             }) => Some(ModuleType::Typescript {
-                                transforms: prepend.extend(transforms).extend(*append),
+                                transforms: prepend.extend(transforms).extend(**append),
                                 tsx,
                                 analyze_types,
                                 options,
