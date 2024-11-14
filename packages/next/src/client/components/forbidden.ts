@@ -3,7 +3,6 @@ import {
   type HTTPAccessFallbackError,
 } from './http-access-fallback/http-access-fallback'
 
-
 // TODO: Add `forbidden` docs
 /**
  * @experimental
@@ -26,7 +25,9 @@ export function forbidden(): never {
     !process.env.__NEXT_TEST_MODE &&
     !process.env.NEXT_PRIVATE_SKIP_CANARY_CHECK
   ) {
-    throw new Error(`\`forbidden()\` is experimental and not allowed allowed to used in canary builds.`)
+    throw new Error(
+      `\`forbidden()\` is experimental and only allowed to be used in canary builds.`
+    )
   }
 
   // eslint-disable-next-line no-throw-literal

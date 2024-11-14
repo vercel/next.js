@@ -1,7 +1,7 @@
 export default function Forbidden() {
   return (
     <>
-      <h1>Root Forbidden</h1>
+      <h1>Root Unauthorized</h1>
 
       <div id="timestamp">{Date.now()}</div>
     </>

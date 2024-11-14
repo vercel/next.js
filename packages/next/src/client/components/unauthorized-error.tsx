@@ -1,10 +1,10 @@
 import { HTTPAccessErrorFallback } from './http-access-fallback/error-fallback'
 
-export default function NotFound() {
+export default function Unauthorized() {
   return (
     <HTTPAccessErrorFallback
       status={401}
-      message="This page is not authorized"
+      message="You're not authorized to access this page"
     />
   )
 }

@@ -514,6 +514,7 @@ export default function OuterLayoutRouter({
   template,
   notFound,
   forbidden,
+  unauthorized,
 }: {
   parallelRouterKey: string
   segmentPath: FlightSegmentPath
@@ -525,6 +526,7 @@ export default function OuterLayoutRouter({
   template: React.ReactNode
   notFound: React.ReactNode | undefined
   forbidden: React.ReactNode | undefined
+  unauthorized: React.ReactNode | undefined
 }) {
   const context = useContext(LayoutRouterContext)
   if (!context) {
@@ -581,7 +583,11 @@ export default function OuterLayoutRouter({
                   errorScripts={errorScripts}
                 >
                   <LoadingBoundary loading={loading}>
-                    <HTTPAccessFallbackBoundary notFound={notFound} forbidden={forbidden}>
+                    <HTTPAccessFallbackBoundary
+                      notFound={notFound}
+                      forbidden={forbidden}
+                      unauthorized={unauthorized}
+                    >
                       <RedirectBoundary>
                         <InnerLayoutRouter
                           parallelRouterKey={parallelRouterKey}

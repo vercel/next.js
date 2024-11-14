@@ -865,7 +865,7 @@ fn directory_tree_to_loader_tree_internal(
     // the path).
     let is_root_layout = app_path.is_root() && modules.layout.is_some();
 
-    if (is_root_directory || is_root_layout) {
+    if is_root_directory || is_root_layout {
         if modules.not_found.is_none() {
             modules.not_found = Some(
                 get_next_package(app_dir).join("dist/client/components/not-found-error.js".into()),
