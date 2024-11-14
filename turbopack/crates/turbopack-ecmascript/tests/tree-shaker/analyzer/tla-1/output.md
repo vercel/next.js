@@ -103,9 +103,14 @@ graph TD
 ```mermaid
 graph TD
     N0["Items: [ItemId(ModuleEvaluation), ItemId(0, Normal)]"];
-    N1["Items: [ItemId(Export((&quot;effect&quot;, #2), &quot;effect&quot;)), ItemId(Export((&quot;effects&quot;, #2), &quot;effects&quot;)), ItemId(2, Normal)]"];
-    N2["Items: [ItemId(1, VarDeclarator(0))]"];
-    N1 --> N2;
+    N1["Items: [ItemId(Export((&quot;effect&quot;, #2), &quot;effect&quot;))]"];
+    N2["Items: [ItemId(Export((&quot;effects&quot;, #2), &quot;effects&quot;))]"];
+    N3["Items: [ItemId(1, VarDeclarator(0))]"];
+    N4["Items: [ItemId(2, Normal)]"];
+    N2 --> N3;
+    N1 --> N4;
+    N4 --> N3;
+    N4 -.-> N2;
 ```
 # Entrypoints
 
@@ -115,10 +120,10 @@ graph TD
     Export(
         "effect",
     ): 1,
-    Exports: 3,
+    Exports: 5,
     Export(
         "effects",
-    ): 1,
+    ): 2,
 }
 ```
 
@@ -132,28 +137,45 @@ await Promise.resolve();
 ```
 ## Part 1
 ```js
-import { a as effects } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -2
+import { a as effect } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -4
 };
 export { effect };
-export { effects };
-function effect(name) {
-    effects.push(name);
-}
-export { effect as b } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
 
 ```
 ## Part 2
 ```js
+import { b as effects } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -3
+};
+export { effects };
+
+```
+## Part 3
+```js
 const effects = [];
-export { effects as a } from "__TURBOPACK_VAR__" assert {
+export { effects as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
-## Part 3
+## Part 4
+```js
+import { b as effects } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -3
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
+};
+function effect(name) {
+    effects.push(name);
+}
+export { effect as a } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+
+```
+## Part 5
 ```js
 export { effect } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export effect"
@@ -177,7 +199,7 @@ await Promise.resolve();
     Export(
         "effect",
     ): 1,
-    Exports: 4,
+    Exports: 5,
     Export(
         "effects",
     ): 2,
@@ -194,21 +216,15 @@ await Promise.resolve();
 ```
 ## Part 1
 ```js
-import { a as effects } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -3
+import { a as effect } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -4
 };
 export { effect };
-function effect(name) {
-    effects.push(name);
-}
-export { effect as b } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
 
 ```
 ## Part 2
 ```js
-import { a as effects } from "__TURBOPACK_PART__" assert {
+import { b as effects } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -3
 };
 export { effects };
@@ -217,12 +233,25 @@ export { effects };
 ## Part 3
 ```js
 const effects = [];
-export { effects as a } from "__TURBOPACK_VAR__" assert {
+export { effects as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
 ## Part 4
+```js
+import { b as effects } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -3
+};
+function effect(name) {
+    effects.push(name);
+}
+export { effect as a } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+
+```
+## Part 5
 ```js
 export { effect } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export effect"

@@ -79,16 +79,20 @@ graph TD
 # Final
 ```mermaid
 graph TD
-    N0["Items: [ItemId(Export((&quot;a&quot;, #2), &quot;a&quot;)), ItemId(0, VarDeclarator(0))]"];
-    N1["Items: [ItemId(Export((&quot;b&quot;, #2), &quot;b&quot;)), ItemId(1, VarDeclarator(0))]"];
-    N2["Items: [ItemId(ModuleEvaluation)]"];
+    N0["Items: [ItemId(Export((&quot;a&quot;, #2), &quot;a&quot;))]"];
+    N1["Items: [ItemId(Export((&quot;b&quot;, #2), &quot;b&quot;))]"];
+    N2["Items: [ItemId(0, VarDeclarator(0))]"];
+    N3["Items: [ItemId(1, VarDeclarator(0))]"];
+    N4["Items: [ItemId(ModuleEvaluation)]"];
+    N0 --> N2;
+    N1 --> N3;
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 2,
-    Exports: 3,
+    ModuleEvaluation: 4,
+    Exports: 5,
     Export(
         "b",
     ): 1,
@@ -102,28 +106,42 @@ graph TD
 # Modules (dev)
 ## Part 0
 ```js
+import { a as a } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -2
+};
 export { a };
+
+```
+## Part 1
+```js
+import { b as b } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -3
+};
+export { b };
+
+```
+## Part 2
+```js
 const a = "a";
 export { a as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
-## Part 1
+## Part 3
 ```js
-export { b };
 const b = "b";
 export { b as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
-## Part 2
+## Part 4
 ```js
 "module evaluation";
 
 ```
-## Part 3
+## Part 5
 ```js
 export { a } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export a"
@@ -142,8 +160,8 @@ export { b } from "__TURBOPACK_PART__" assert {
 
 ```
 {
-    ModuleEvaluation: 2,
-    Exports: 3,
+    ModuleEvaluation: 4,
+    Exports: 5,
     Export(
         "b",
     ): 1,
@@ -157,28 +175,42 @@ export { b } from "__TURBOPACK_PART__" assert {
 # Modules (prod)
 ## Part 0
 ```js
+import { a as a } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -2
+};
 export { a };
+
+```
+## Part 1
+```js
+import { b as b } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -3
+};
+export { b };
+
+```
+## Part 2
+```js
 const a = "a";
 export { a as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
-## Part 1
+## Part 3
 ```js
-export { b };
 const b = "b";
 export { b as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
-## Part 2
+## Part 4
 ```js
 "module evaluation";
 
 ```
-## Part 3
+## Part 5
 ```js
 export { a } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export a"
