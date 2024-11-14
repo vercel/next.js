@@ -232,16 +232,24 @@ pub async fn get_client_module_options_context(
         *execution_context,
     );
 
-    let tsconfig = get_typescript_transform_options(*project_path);
+    let tsconfig = get_typescript_transform_options(*project_path)
+        .to_resolved()
+        .await?;
     let decorators_options = get_decorators_transform_options(*project_path);
-    let enable_mdx_rs = *next_config.mdx_rs().await?;
+    let enable_mdx_rs = if let Some(mdx_rs) = *next_config.mdx_rs().await? {
+        Some(mdx_rs.to_resolved().await?)
+    } else {
+        None
+    };
     let jsx_runtime_options = get_jsx_transform_options(
         *project_path,
         mode,
         Some(resolve_options_context),
         false,
         next_config,
-    );
+    )
+    .to_resolved()
+    .await?;
 
     // A separate webpack rules will be applied to codes matching
     // foreign_code_context_condition. This allows to import codes from
@@ -298,7 +306,7 @@ pub async fn get_client_module_options_context(
 
     let postcss_transform_options = PostCssTransformOptions {
         postcss_package: Some(
-            get_postcss_package_mapping(project_path)
+            get_postcss_package_mapping(*project_path)
                 .to_resolved()
                 .await?,
         ),

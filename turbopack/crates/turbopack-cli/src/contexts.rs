@@ -128,7 +128,7 @@ async fn get_client_module_options_context(
             react_refresh: enable_react_refresh,
             ..Default::default()
         }
-        .cell(),
+        .resolved_cell(),
     );
 
     let versions = *env.runtime_versions().await?;
