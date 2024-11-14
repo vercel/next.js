@@ -261,6 +261,8 @@ impl DepGraph {
         directives: &[ModuleItem],
         data: &FxHashMap<ItemId, ItemData>,
     ) -> SplitModuleResult {
+        self.workarounds_server_action(data);
+
         let groups = self.finalize(data);
         let mut outputs = FxHashMap::default();
         let mut part_deps = FxHashMap::<_, Vec<PartId>>::default();
@@ -320,13 +322,10 @@ impl DepGraph {
                 .clone()
         };
 
-        let mut ix_to_export = FxHashMap::default();
-
         for (ix, group) in groups.graph_ix.iter().enumerate() {
             for item in group {
                 match item {
                     ItemId::Group(ItemIdGroupKind::Export(_, export)) => {
-                        ix_to_export.insert(ix as u32, export.clone());
                         exports.insert(Key::Export(export.as_str().into()), ix as u32);
                     }
                     ItemId::Group(ItemIdGroupKind::ModuleEvaluation) => {
@@ -504,20 +503,36 @@ impl DepGraph {
                     }
                 }
 
+                let export_name = dep_item_ids.iter().find_map(|item| {
+                    if let ItemId::Group(ItemIdGroupKind::Export(id, export)) = item {
+                        if id == var {
+                            Some(export.clone())
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                });
+
+                let (dep_part_id, imported) = export_name
+                    .map(|e| (PartId::Export(e.as_str().into()), None))
+                    .unwrap_or_else(|| {
+                        (
+                            PartId::Internal(dep, false),
+                            Some(ModuleExportName::Ident(Ident::new_no_ctxt(
+                                mangle(var),
+                                DUMMY_SP,
+                            ))),
+                        )
+                    });
+
                 let specifiers = vec![ImportSpecifier::Named(ImportNamedSpecifier {
                     span: DUMMY_SP,
                     local: var.clone().into(),
-                    imported: Some(ModuleExportName::Ident(Ident::new_no_ctxt(
-                        mangle(var),
-                        DUMMY_SP,
-                    ))),
+                    imported,
                     is_type_only: false,
                 })];
-
-                let dep_part_id = ix_to_export
-                    .get(&dep)
-                    .map(|e| PartId::Export(e.as_str().into()))
-                    .unwrap_or(PartId::Internal(dep, false));
 
                 part_deps
                     .entry(ix as u32)
@@ -666,11 +681,9 @@ impl DepGraph {
     /// Note that [ModuleItem] and [Module] are represented as [ItemId] for
     /// performance.
     pub(super) fn finalize(
-        &mut self,
+        &self,
         data: &FxHashMap<ItemId, ItemData>,
     ) -> InternedGraph<Vec<ItemId>> {
-        self.workarounds_server_action(data);
-
         let graph = self.g.idx_graph.clone().into_graph::<u32>();
 
         let mut condensed = condensation(graph, true);
@@ -1432,11 +1445,11 @@ impl DepGraph {
                 continue;
             };
 
-            let ItemId::Group(ItemIdGroupKind::Export(export, _)) = export_node else {
+            let ItemId::Group(ItemIdGroupKind::Export(exported_var, _)) = export_node else {
                 continue;
             };
 
-            if !export.0.starts_with("$$RSC_SERVER_") {
+            if !exported_var.0.starts_with("$$RSC_SERVER_") {
                 continue;
             }
 
@@ -1444,7 +1457,7 @@ impl DepGraph {
 
             let declarator = 'declarator: {
                 for (id, data) in data {
-                    if data.var_decls.contains(export) {
+                    if data.var_decls.contains(exported_var) {
                         break 'declarator Some(id);
                     }
                 }
@@ -1473,19 +1486,7 @@ impl DepGraph {
                 .collect::<Vec<_>>()
             {
                 self.g.idx_graph.add_edge(ix.0, to, ix.2);
-                self.g.idx_graph.remove_edge(ix.0, from);
-            }
-
-            // MOve outgoing edges to the declarator
-            for ix in self
-                .g
-                .idx_graph
-                .edges_directed(from, Direction::Outgoing)
-                .map(|(a, b, c)| (a, b, *c))
-                .collect::<Vec<_>>()
-            {
-                self.g.idx_graph.add_edge(to, ix.1, ix.2);
-                self.g.idx_graph.remove_edge(from, ix.1);
+                self.g.idx_graph.remove_edge(ix.0, ix.1);
             }
         }
     }
