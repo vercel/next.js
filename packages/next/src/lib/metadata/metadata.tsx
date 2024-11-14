@@ -24,6 +24,7 @@ import {
   resolveMetadataItems,
   accumulateMetadata,
   accumulateViewport,
+  type MetadataErrorType,
 } from './resolve-metadata'
 import { MetaFilter } from './generate/meta'
 import type {
@@ -61,7 +62,7 @@ export function createMetadataComponents({
   metadataContext: MetadataContext
   getDynamicParamFromSegment: GetDynamicParamFromSegment
   appUsingSizeAdjustment: boolean
-  errorType?: 'not-found' | 'redirect'
+  errorType?: MetadataErrorType | 'redirect'
   createServerParamsForMetadata: CreateServerParamsForMetadata
   workStore: WorkStore
   MetadataBoundary: (props: { children: React.ReactNode }) => React.ReactNode
@@ -232,7 +233,7 @@ async function getResolvedViewportImpl(
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
   createServerParamsForMetadata: CreateServerParamsForMetadata,
   workStore: WorkStore,
-  errorType?: 'not-found' | 'redirect'
+  errorType?: MetadataErrorType | 'redirect'
 ): Promise<React.ReactNode> {
   const errorConvention = errorType === 'redirect' ? undefined : errorType
 
