@@ -28,16 +28,16 @@ pub struct AsyncLoaderModule {
 #[turbo_tasks::value_impl]
 impl AsyncLoaderModule {
     #[turbo_tasks::function]
-    pub async fn new(
-        module: Vc<Box<dyn ChunkableModule>>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
+    pub fn new(
+        module: ResolvedVc<Box<dyn ChunkableModule>>,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
         availability_info: Value<AvailabilityInfo>,
-    ) -> Result<Vc<Self>> {
-        Ok(Self::cell(AsyncLoaderModule {
-            inner: module.to_resolved().await?,
-            chunking_context: chunking_context.to_resolved().await?,
+    ) -> Vc<Self> {
+        Self::cell(AsyncLoaderModule {
+            inner: module,
+            chunking_context,
             availability_info: availability_info.into_value(),
-        }))
+        })
     }
 
     #[turbo_tasks::function]
@@ -79,15 +79,15 @@ impl Asset for AsyncLoaderModule {
 impl ChunkableModule for AsyncLoaderModule {
     #[turbo_tasks::function]
     async fn as_chunk_item(
-        self: Vc<Self>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
-        Ok(Vc::upcast(
+        self: ResolvedVc<Self>,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
+        Vc::upcast(
             AsyncLoaderChunkItem {
-                chunking_context: chunking_context.to_resolved().await?,
-                module: self.to_resolved().await?,
+                chunking_context,
+                module: self,
             }
             .cell(),
-        ))
+        )
     }
 }

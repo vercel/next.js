@@ -43,15 +43,15 @@ pub struct EcmascriptChunk {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunk {
     #[turbo_tasks::function]
-    pub async fn new(
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-        content: Vc<EcmascriptChunkContent>,
-    ) -> Result<Vc<Self>> {
-        Ok(EcmascriptChunk {
-            chunking_context: chunking_context.to_resolved().await?,
-            content: content.to_resolved().await?,
+    pub fn new(
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+        content: ResolvedVc<EcmascriptChunkContent>,
+    ) -> Vc<Self> {
+        EcmascriptChunk {
+            chunking_context,
+            content,
         }
-        .cell())
+        .cell()
     }
 
     #[turbo_tasks::function]
