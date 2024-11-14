@@ -1149,10 +1149,8 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn enable_react_owner_stack(self: Vc<Self>) -> Result<Vc<bool>> {
-        Ok(Vc::cell(
-            self.await?.experimental.react_owner_stack.unwrap_or(false),
-        ))
+    pub fn enable_react_owner_stack(&self) -> Vc<bool> {
+        Vc::cell(self.experimental.react_owner_stack.unwrap_or(false))
     }
 
     #[turbo_tasks::function]
