@@ -174,8 +174,7 @@ where
     /// See also: [`Vc::try_resolve_downcast`].
     pub async fn try_downcast<K>(this: Self) -> Result<Option<ResolvedVc<K>>, ResolveTypeError>
     where
-        K: Upcast<T>,
-        K: VcValueTrait + ?Sized,
+        K: Upcast<T> + VcValueTrait + ?Sized,
     {
         Ok(Vc::try_resolve_downcast(this.node)
             .await?
@@ -189,8 +188,7 @@ where
     /// See also: [`Vc::try_resolve_downcast_type`].
     pub async fn try_downcast_type<K>(this: Self) -> Result<Option<ResolvedVc<K>>, ResolveTypeError>
     where
-        K: Upcast<T>,
-        K: VcValueType,
+        K: Upcast<T> + VcValueType,
     {
         Ok(Vc::try_resolve_downcast_type(this.node)
             .await?
