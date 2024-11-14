@@ -100,7 +100,7 @@ impl EcmascriptModulePartAsset {
     #[turbo_tasks::function]
     pub async fn select_part(
         module: Vc<EcmascriptModuleAsset>,
-        part: Vc<ModulePart>,
+        part: ResolvedVc<ModulePart>,
     ) -> Result<Vc<Box<dyn Module>>> {
         let SplitResult::Ok { entrypoints, .. } = &*split_module(module).await? else {
             return Ok(Vc::upcast(module));
@@ -113,7 +113,7 @@ impl EcmascriptModulePartAsset {
             // If a local binding or reexport with the same name exists, we stop here.
             // Side effects of the barrel file are preserved.
             if entrypoints.contains_key(&Key::Export(export_name.clone())) {
-                return Ok(Vc::upcast(EcmascriptModulePartAsset::new(module, part)));
+                return Ok(Vc::upcast(EcmascriptModulePartAsset::new(module, *part)));
             }
 
             let side_effect_free_packages = module.asset_context().side_effect_free_packages();
@@ -160,6 +160,8 @@ impl EcmascriptModulePartAsset {
 
             return Ok(Vc::upcast(
                 SideEffectsModule {
+                    module,
+                    part,
                     binding: final_module,
                     side_effects: Vc::cell(side_effects),
                 }
@@ -167,7 +169,7 @@ impl EcmascriptModulePartAsset {
             ));
         }
 
-        Ok(Vc::upcast(EcmascriptModulePartAsset::new(module, part)))
+        Ok(Vc::upcast(EcmascriptModulePartAsset::new(module, *part)))
     }
 
     #[turbo_tasks::function]
@@ -185,6 +187,10 @@ impl EcmascriptModulePartAsset {
 
 #[turbo_tasks::value]
 pub(super) struct SideEffectsModule {
+    /// Original module
+    module: Vc<EcmascriptModuleAsset>,
+    /// The part of the original module that is the binding
+    part: ResolvedVc<ModulePart>,
     pub binding: Vc<Box<dyn EcmascriptChunkPlaceable>>,
     pub side_effects: Vc<SideEffects>,
 }
@@ -193,11 +199,11 @@ pub(super) struct SideEffectsModule {
 impl Module for SideEffectsModule {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        let path = self.binding.ident().path();
-        let mut ident = AssetIdent::from_path(path).await?.clone_value();
+        let mut ident = self.module.ident().await?.clone_value();
+        ident.parts.push(self.part);
 
         ident.add_asset(
-            ResolvedVc::cell(RcStr::from("binding")),
+            ResolvedVc::cell(RcStr::from("resolved")),
             self.binding.ident().to_resolved().await?,
         );
 
