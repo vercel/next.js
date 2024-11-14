@@ -10,7 +10,7 @@ use crate::transition::Transition;
 #[derive(Debug, Clone, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq)]
 pub struct TransitionRule {
     condition: RuleCondition,
-    transition: Vc<Box<dyn Transition>>,
+    transition: ResolvedVc<Box<dyn Transition>>,
     match_mode: MatchMode,
 }
 

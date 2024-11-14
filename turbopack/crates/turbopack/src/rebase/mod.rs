@@ -16,9 +16,9 @@ use turbopack_core::{
 #[turbo_tasks::value]
 #[derive(Hash)]
 pub struct RebasedAsset {
-    source: Vc<Box<dyn Module>>,
-    input_dir: Vc<FileSystemPath>,
-    output_dir: Vc<FileSystemPath>,
+    source: ResolvedVc<Box<dyn Module>>,
+    input_dir: ResolvedVc<FileSystemPath>,
+    output_dir: ResolvedVc<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]

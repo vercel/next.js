@@ -312,11 +312,11 @@ async fn apply_reexport_tree_shaking(
 #[turbo_tasks::value]
 #[derive(Debug)]
 pub struct ModuleAssetContext {
-    pub transitions: Vc<TransitionOptions>,
-    pub compile_time_info: Vc<CompileTimeInfo>,
-    pub module_options_context: Vc<ModuleOptionsContext>,
-    pub resolve_options_context: Vc<ResolveOptionsContext>,
-    pub layer: Vc<RcStr>,
+    pub transitions: ResolvedVc<TransitionOptions>,
+    pub compile_time_info: ResolvedVc<CompileTimeInfo>,
+    pub module_options_context: ResolvedVc<ModuleOptionsContext>,
+    pub resolve_options_context: ResolvedVc<ResolveOptionsContext>,
+    pub layer: ResolvedVc<RcStr>,
     transition: Option<ResolvedVc<Box<dyn Transition>>>,
     /// Whether to replace external resolutions with CachedExternalModules. Used with
     /// ModuleOptionsContext.enable_externals_tracing to handle transitive external dependencies.

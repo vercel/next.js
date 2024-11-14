@@ -69,33 +69,33 @@ pub enum ModuleRuleEffect {
     /// transforms. First argument will prepend the existing transforms, and
     /// the second argument will append the new transforms.
     ExtendEcmascriptTransforms {
-        prepend: Vc<EcmascriptInputTransforms>,
-        append: Vc<EcmascriptInputTransforms>,
+        prepend: ResolvedVc<EcmascriptInputTransforms>,
+        append: ResolvedVc<EcmascriptInputTransforms>,
     },
-    SourceTransforms(Vc<SourceTransforms>),
+    SourceTransforms(ResolvedVc<SourceTransforms>),
 }
 
 #[turbo_tasks::value(serialization = "auto_for_input", shared)]
 #[derive(Hash, Debug, Copy, Clone)]
 pub enum ModuleType {
     Ecmascript {
-        transforms: Vc<EcmascriptInputTransforms>,
+        transforms: ResolvedVc<EcmascriptInputTransforms>,
         #[turbo_tasks(trace_ignore)]
-        options: Vc<EcmascriptOptions>,
+        options: ResolvedVc<EcmascriptOptions>,
     },
     Typescript {
-        transforms: Vc<EcmascriptInputTransforms>,
+        transforms: ResolvedVc<EcmascriptInputTransforms>,
         // parse JSX syntax.
         tsx: bool,
         // follow references to imported types.
         analyze_types: bool,
         #[turbo_tasks(trace_ignore)]
-        options: Vc<EcmascriptOptions>,
+        options: ResolvedVc<EcmascriptOptions>,
     },
     TypescriptDeclaration {
-        transforms: Vc<EcmascriptInputTransforms>,
+        transforms: ResolvedVc<EcmascriptInputTransforms>,
         #[turbo_tasks(trace_ignore)]
-        options: Vc<EcmascriptOptions>,
+        options: ResolvedVc<EcmascriptOptions>,
     },
     Json,
     Raw,
@@ -108,5 +108,5 @@ pub enum ModuleType {
     WebAssembly {
         source_ty: WebAssemblySourceType,
     },
-    Custom(Vc<Box<dyn CustomModuleType>>),
+    Custom(ResolvedVc<Box<dyn CustomModuleType>>),
 }

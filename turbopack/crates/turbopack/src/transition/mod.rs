@@ -111,7 +111,7 @@ pub trait Transition {
 #[turbo_tasks::value(shared)]
 #[derive(Default)]
 pub struct TransitionOptions {
-    pub named_transitions: HashMap<RcStr, Vc<Box<dyn Transition>>>,
+    pub named_transitions: HashMap<RcStr, ResolvedVc<Box<dyn Transition>>>,
     pub transition_rules: Vec<TransitionRule>,
     pub placeholder_for_future_extensions: (),
 }

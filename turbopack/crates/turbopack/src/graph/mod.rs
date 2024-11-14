@@ -9,8 +9,8 @@ pub enum AggregatedGraph {
     Leaf(ResolvedVc<Box<dyn OutputAsset>>),
     Node {
         depth: usize,
-        content: HashSet<Vc<AggregatedGraph>>,
-        references: HashSet<Vc<AggregatedGraph>>,
+        content: HashSet<ResolvedVc<AggregatedGraph>>,
+        references: HashSet<ResolvedVc<AggregatedGraph>>,
     },
 }
 
@@ -187,8 +187,8 @@ struct AggregatedGraphsSet {
 
 #[turbo_tasks::value(shared)]
 pub enum AggregatedGraphNodeContent {
-    Asset(Vc<Box<dyn OutputAsset>>),
-    Children(HashSet<Vc<AggregatedGraph>>),
+    Asset(ResolvedVc<Box<dyn OutputAsset>>),
+    Children(HashSet<ResolvedVc<AggregatedGraph>>),
 }
 
 #[turbo_tasks::value(shared)]

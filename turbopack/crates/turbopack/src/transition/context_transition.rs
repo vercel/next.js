@@ -7,10 +7,10 @@ use crate::{module_options::ModuleOptionsContext, transition::Transition};
 /// A transition that only affects the asset context.
 #[turbo_tasks::value(shared)]
 pub struct ContextTransition {
-    compile_time_info: Vc<CompileTimeInfo>,
-    module_options_context: Vc<ModuleOptionsContext>,
-    resolve_options_context: Vc<ResolveOptionsContext>,
-    layer: Vc<RcStr>,
+    compile_time_info: ResolvedVc<CompileTimeInfo>,
+    module_options_context: ResolvedVc<ModuleOptionsContext>,
+    resolve_options_context: ResolvedVc<ResolveOptionsContext>,
+    layer: ResolvedVc<RcStr>,
 }
 
 #[turbo_tasks::value_impl]
