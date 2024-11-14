@@ -1383,11 +1383,8 @@ importers:
         specifier: 0.13.4
         version: 0.13.4
       sass-loader:
-        specifier: 15.0.0
-        version: 15.0.0(sass@1.77.8)(webpack@5.96.1(@swc/core@1.7.0-nightly-20240714.1(@swc/helpers@0.5.13)))
-      sass-loader-16:
-        specifier: npm:sass-loader@16.0.3
-        version: sass-loader@16.0.3(sass@1.77.8)(webpack@5.96.1(@swc/core@1.7.0-nightly-20240714.1(@swc/helpers@0.5.13)))
+        specifier: 16.0.0
+        version: 16.0.0(sass@1.77.8)(webpack@5.96.1(@swc/core@1.7.0-nightly-20240714.1(@swc/helpers@0.5.13)))
       schema-utils2:
         specifier: npm:schema-utils@2.7.1
         version: schema-utils@2.7.1
@@ -13514,29 +13511,8 @@ packages:
   safer-buffer@2.1.2:
     resolution: {integrity: sha512-YZo3K82SD7Riyi0E1EQPojLz7kpepnSQI9IyPbHHg1XXXevb5dJI7tpyN2ADxGcQbHG7vcyRHk0cbwqcQriUtg==}
 
-  sass-loader@15.0.0:
-    resolution: {integrity: sha512-mbXAL7sI/fgt3skXR6xHxtKkaGyxRrGf7zrU4hLLWxBDJEcAe0QsoNy92qKttCb3zfMniTkU2kD9yakUKtW7vQ==}
-    engines: {node: '>= 18.12.0'}
-    peerDependencies:
-      '@rspack/core': 0.x || 1.x
-      node-sass: ^4.0.0 || ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0 || ^9.0.0
-      sass: ^1.3.0
-      sass-embedded: '*'
-      webpack: 5.96.1
-    peerDependenciesMeta:
-      '@rspack/core':
-        optional: true
-      node-sass:
-        optional: true
-      sass:
-        optional: true
-      sass-embedded:
-        optional: true
-      webpack:
-        optional: true
-
-  sass-loader@16.0.3:
-    resolution: {integrity: sha512-gosNorT1RCkuCMyihv6FBRR7BMV06oKRAs+l4UMp1mlcVg9rWN6KMmUj3igjQwmYys4mDP3etEYJgiHRbgHCHA==}
+  sass-loader@16.0.0:
+    resolution: {integrity: sha512-n13Z+3rU9A177dk4888czcVFiC8CL9dii4qpXWUg3YIIgZEvi9TCFKjOQcbK0kJM7DJu9VucrZFddvNfYCPwtw==}
     engines: {node: '>= 18.12.0'}
     peerDependencies:
       '@rspack/core': 0.x || 1.x
@@ -30399,14 +30375,7 @@ snapshots:
 
   safer-buffer@2.1.2: {}
 
-  sass-loader@15.0.0(sass@1.77.8)(webpack@5.96.1(@swc/core@1.7.0-nightly-20240714.1(@swc/helpers@0.5.13))):
-    dependencies:
-      neo-async: 2.6.2
-    optionalDependencies:
-      sass: 1.77.8
-      webpack: 5.96.1(@swc/core@1.7.0-nightly-20240714.1(@swc/helpers@0.5.13))
-
-  sass-loader@16.0.3(sass@1.77.8)(webpack@5.96.1(@swc/core@1.7.0-nightly-20240714.1(@swc/helpers@0.5.13))):
+  sass-loader@16.0.0(sass@1.77.8)(webpack@5.96.1(@swc/core@1.7.0-nightly-20240714.1(@swc/helpers@0.5.13))):
     dependencies:
       neo-async: 2.6.2
     optionalDependencies:
