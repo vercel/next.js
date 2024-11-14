@@ -64,6 +64,7 @@ use turbopack_static::StaticModuleAsset;
 use turbopack_wasm::{module_asset::WebAssemblyModuleAsset, source::WebAssemblySource};
 
 use self::transition::{Transition, TransitionOptions};
+use crate::module_options::CustomModuleType;
 
 #[turbo_tasks::function]
 async fn apply_module_type(
@@ -103,8 +104,8 @@ async fn apply_module_type(
             let mut builder = EcmascriptModuleAsset::builder(
                 source,
                 Vc::upcast(context_for_module),
-                *transforms,
-                *options,
+                **transforms,
+                **options,
                 module_asset_context.compile_time_info(),
             );
             match module_type {
