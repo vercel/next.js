@@ -132,7 +132,7 @@ impl ModuleOptions {
             refresh,
             ..Default::default()
         };
-        let ecmascript_options_vc = ecmascript_options.cell();
+        let ecmascript_options_vc = ecmascript_options.resolved_cell();
 
         if let Some(env) = preset_env_versions {
             transforms.push(EcmascriptInputTransform::PresetEnv(
