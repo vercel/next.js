@@ -921,7 +921,9 @@ pub async fn get_server_module_options_context(
             };
             let internal_module_options_context = ModuleOptionsContext {
                 ecmascript: EcmascriptOptionsContext {
-                    enable_typescript_transform: Some(TypescriptTransformOptions::default().cell()),
+                    enable_typescript_transform: Some(
+                        TypescriptTransformOptions::default().resolved_cell(),
+                    ),
                     ..module_options_context.ecmascript.clone()
                 },
                 module_rules: internal_custom_rules,
@@ -940,11 +942,11 @@ pub async fn get_server_module_options_context(
                 rules: vec![
                     (
                         foreign_code_context_condition,
-                        foreign_code_module_options_context.cell(),
+                        foreign_code_module_options_context.resolved_cell(),
                     ),
                     (
                         internal_assets_conditions(),
-                        internal_module_options_context.cell(),
+                        internal_module_options_context.resolved_cell(),
                     ),
                 ],
                 module_rules: next_server_rules,
