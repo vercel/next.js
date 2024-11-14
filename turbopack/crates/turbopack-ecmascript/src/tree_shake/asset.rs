@@ -193,7 +193,13 @@ pub(super) struct SideEffectsModule {
 impl Module for SideEffectsModule {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        let mut ident = self.binding.ident().await?.clone_value();
+        let path = self.binding.ident().path();
+        let mut ident = AssetIdent::from_path(path).await?.clone_value();
+
+        ident.add_asset(
+            ResolvedVc::cell(RcStr::from("binding")),
+            self.binding.ident().to_resolved().await?,
+        );
 
         ident.add_modifier(Vc::cell(RcStr::from("side effects")));
 
