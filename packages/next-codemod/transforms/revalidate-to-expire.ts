@@ -6,10 +6,10 @@ export default function transformer(file: FileInfo, _api: API) {
   const root = j(file.source)
 
   if (!root.length) {
-    return file.source
+    return
   }
 
-  root
+  const imports = root
     .find(j.ImportDeclaration, {
       source: {
         value: 'next/cache',
@@ -28,6 +28,10 @@ export default function transformer(file: FileInfo, _api: API) {
         }
       })
     })
+
+  if (!imports.length) {
+    return
+  }
 
   root
     .find(j.CallExpression, {
