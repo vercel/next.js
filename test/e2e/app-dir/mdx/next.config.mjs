@@ -1,11 +1,10 @@
-import rehypeKatex from 'rehype-katex'
 import nextMDX from '@next/mdx'
-
+// import rehypeKatex from 'rehype-katex'
 const withMDX = nextMDX({
   extension: /\.mdx?$/,
   options: {
     remarkPlugins: [],
-    rehypePlugins: [[rehypeKatex, { strict: true, throwOnError: true }]],
+    rehypePlugins: [['rehype-katex', { strict: true, throwOnError: true }]],
   },
 })
 

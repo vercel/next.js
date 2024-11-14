@@ -16,7 +16,7 @@ module.exports =
           },
         }
       : {
-          loader: require.resolve('./mdx-js-loader.mjs'),
+          loader: require.resolve('./mdx-js-loader'),
           options: {
             providerImportSource: 'next-mdx-import-source-file',
             ...userProvidedMdxOptions,
