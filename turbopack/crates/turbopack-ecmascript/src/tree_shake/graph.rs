@@ -686,6 +686,8 @@ impl DepGraph {
         let graph = self.g.idx_graph.clone().into_graph::<u32>();
 
         let mut condensed = condensation(graph, true);
+        self.workarounds_server_action(&mut condensed, data);
+
         let optimizer = GraphOptimizer {
             graph_ix: &self.g.graph_ix,
         };
@@ -694,7 +696,6 @@ impl DepGraph {
                 break;
             }
         }
-        self.workarounds_server_action(&mut condensed, data);
 
         let mut new_graph = InternedGraph::default();
 
