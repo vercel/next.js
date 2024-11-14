@@ -82,7 +82,19 @@ impl GraphOptimizer<'_> {
         for (original, dependant, dependencies) in queue {
             // Move all edges from node to dependant
             for (dependency, weight) in dependencies {
-                g.add_edge(dependant, dependency, weight);
+                let edge = g
+                    .find_edge(dependant, dependency)
+                    .and_then(|e| g.edge_weight_mut(e));
+                match edge {
+                    Some(v) => {
+                        if matches!(v, Dependency::Weak) {
+                            *v = weight;
+                        }
+                    }
+                    None => {
+                        g.add_edge(dependant, dependency, weight);
+                    }
+                }
             }
 
             // Move items from original to dependant
