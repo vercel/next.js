@@ -450,7 +450,7 @@ pub async fn get_server_module_options_context(
     // foreign_code_context_condition. This allows to import codes from
     // node_modules that requires webpack loaders, which next-dev implicitly
     // does by default.
-    let foreign_enable_webpack_loaders = if let Some(vc) = webpack_loader_options(
+    let foreign_enable_webpack_loaders = webpack_loader_options(
         project_path,
         next_config,
         true,
@@ -460,21 +460,11 @@ pub async fn get_server_module_options_context(
             .chain(once("foreign".into()))
             .collect(),
     )
-    .await?
-    {
-        Some(vc.to_resolved().await?)
-    } else {
-        None
-    };
+    .await?;
 
     // Now creates a webpack rules that applies to all codes.
-    let enable_webpack_loaders = if let Some(vc) =
-        webpack_loader_options(project_path, next_config, false, conditions).await?
-    {
-        Some(vc.to_resolved().await?)
-    } else {
-        None
-    };
+    let enable_webpack_loaders =
+        webpack_loader_options(project_path, next_config, false, conditions).await?;
 
     let tree_shaking_mode_for_user_code = *next_config
         .tree_shaking_mode_for_user_code(next_mode.is_development())
@@ -489,11 +479,7 @@ pub async fn get_server_module_options_context(
         .to_resolved()
         .await?;
     let decorators_options = get_decorators_transform_options(*project_path);
-    let enable_mdx_rs = if let Some(mdx_rs) = *next_config.mdx_rs().await? {
-        Some(mdx_rs.to_resolved().await?)
-    } else {
-        None
-    };
+    let enable_mdx_rs = *next_config.mdx_rs().await?;
 
     // Get the jsx transform options for the `client` side.
     // This matches to the behavior of existing webpack config, if issuer layer is

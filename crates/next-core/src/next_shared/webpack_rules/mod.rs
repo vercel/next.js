@@ -15,7 +15,7 @@ pub async fn webpack_loader_options(
     next_config: Vc<NextConfig>,
     foreign: bool,
     conditions: Vec<RcStr>,
-) -> Result<Option<Vc<WebpackLoadersOptions>>> {
+) -> Result<Option<ResolvedVc<WebpackLoadersOptions>>> {
     let rules = *next_config.webpack_rules(conditions).await?;
     let rules = *maybe_add_sass_loader(next_config.sass_config(), rules.map(|v| *v)).await?;
     let rules = if foreign {
@@ -29,7 +29,7 @@ pub async fn webpack_loader_options(
                 rules,
                 loader_runner_package: Some(loader_runner_package_mapping().to_resolved().await?),
             }
-            .cell(),
+            .resolved_cell(),
         )
     } else {
         None

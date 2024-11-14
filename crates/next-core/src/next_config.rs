@@ -829,7 +829,7 @@ impl RemoveConsoleConfig {
 pub struct ResolveExtensions(Option<Vec<RcStr>>);
 
 #[turbo_tasks::value(transparent)]
-pub struct OptionalMdxTransformOptions(Option<Vc<MdxTransformOptions>>);
+pub struct OptionalMdxTransformOptions(Option<ResolvedVc<MdxTransformOptions>>);
 
 #[turbo_tasks::value_impl]
 impl NextConfig {
@@ -1039,7 +1039,7 @@ impl NextConfig {
                     provider_import_source: Some(mdx_import_source_file()),
                     ..Default::default()
                 }
-                .cell(),
+                .resolved_cell(),
             )),
             Some(MdxRsOptions::Option(options)) => OptionalMdxTransformOptions(Some(
                 MdxTransformOptions {
@@ -1051,7 +1051,7 @@ impl NextConfig {
                     ),
                     ..options.clone()
                 }
-                .cell(),
+                .resolved_cell(),
             )),
             _ => OptionalMdxTransformOptions(None),
         };
