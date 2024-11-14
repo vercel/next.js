@@ -42,7 +42,9 @@ impl GraphOptimizer<'_> {
     }
 
     /// Optimizes a condensed graph by merging nodes with only one incoming edge.
-    pub(super) fn merge_single_incoming_nodes<N>(&self, g: &mut Graph<Vec<N>, Dependency>)
+    ///
+    /// Returns true if any nodes were merged.
+    pub(super) fn merge_single_incoming_nodes<N>(&self, g: &mut Graph<Vec<N>, Dependency>) -> bool
     where
         N: Copy,
         Self: Index<N, Output = ItemId>,
@@ -102,9 +104,14 @@ impl GraphOptimizer<'_> {
             g.node_weight_mut(dependant).unwrap().extend(items);
         }
 
+        let mut did_work = false;
         // Remove all edges from source
         for node in removed_nodes.into_iter().rev() {
             g.remove_node(node).expect("Node should exist");
+
+            did_work = true;
         }
+
+        did_work
     }
 }
