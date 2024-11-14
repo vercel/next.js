@@ -4,6 +4,7 @@ use petgraph::{
     algo::{condensation, has_path_connecting},
     graphmap::GraphMap,
     prelude::DiGraphMap,
+    Graph,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
@@ -380,8 +381,6 @@ impl DepGraph {
                 }
             }
 
-            let mut use_export_instead_of_declarator = false;
-
             for item in group {
                 match item {
                     ItemId::Group(ItemIdGroupKind::Export(..)) => {
@@ -420,16 +419,6 @@ impl DepGraph {
                 }
             }
 
-            // Workaround for implcit export issue of server actions.
-            //
-            // Inline server actions require the generated `$$RSC_SERVER_0` to be **exported**.
-            //
-            // But tree shaking works by removing unused code, and the **export** of $$RSC_SERVER_0
-            // is cleary not used from the external module as it does not exist at all
-            // in the user code.
-            //
-            // So we need to add an import for $$RSC_SERVER_0 to the module, so that the export is
-            // preserved.
             if use_export_instead_of_declarator {
                 for (other_ix, other_group) in groups.graph_ix.iter().enumerate() {
                     if other_ix == ix {
@@ -715,7 +704,9 @@ impl DepGraph {
         &self,
         data: &FxHashMap<ItemId, ItemData>,
     ) -> InternedGraph<Vec<ItemId>> {
-        let graph = self.g.idx_graph.clone().into_graph::<u32>();
+        let mut graph = self.g.idx_graph.clone().into_graph::<u32>();
+
+        self.workarounds_server_action(&mut graph);
 
         let mut condensed = condensation(graph, true);
         let optimizer = GraphOptimizer {
@@ -1457,6 +1448,18 @@ impl DepGraph {
 
         has_path_connecting(&self.g.idx_graph, from, to, None)
     }
+
+    /// Workaround for implcit export issue of server actions.
+    ///
+    /// Inline server actions require the generated `$$RSC_SERVER_0` to be **exported**.
+    ///
+    /// But tree shaking works by removing unused code, and the **export** of $$RSC_SERVER_0
+    /// is cleary not used from the external module as it does not exist at all
+    /// in the user code.
+    ///
+    /// So we need to add an import for $$RSC_SERVER_0 to the module, so that the export is
+    /// preserved.
+    fn workarounds_server_action(&self, g: &mut Graph<u32, Dependency>) {}
 }
 
 const ASSERT_CHUNK_KEY: &str = "__turbopack_part__";
