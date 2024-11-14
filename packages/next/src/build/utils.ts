@@ -1214,6 +1214,7 @@ export async function buildAppStaticPaths({
   page,
   distDir,
   dynamicIO,
+  navigationDeniedApi,
   configFileName,
   segments,
   isrFlushToDisk,
@@ -1230,6 +1231,7 @@ export async function buildAppStaticPaths({
   dir: string
   page: string
   dynamicIO: boolean
+  navigationDeniedApi: boolean
   configFileName: string
   segments: AppSegment[]
   distDir: string
@@ -1312,6 +1314,7 @@ export async function buildAppStaticPaths({
       experimental: {
         after: false,
         dynamicIO,
+        navigationDeniedApi,
       },
       buildId,
     },
@@ -1487,6 +1490,7 @@ export async function isPageStatic({
   edgeInfo,
   pageType,
   dynamicIO,
+  navigationDeniedApi,
   originalAppPath,
   isrFlushToDisk,
   maxMemoryCacheSize,
@@ -1501,6 +1505,7 @@ export async function isPageStatic({
   page: string
   distDir: string
   dynamicIO: boolean
+  navigationDeniedApi: boolean
   configFileName: string
   runtimeEnvConfig: any
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
@@ -1642,6 +1647,7 @@ export async function isPageStatic({
               dir,
               page,
               dynamicIO,
+              navigationDeniedApi,
               configFileName,
               segments,
               distDir,

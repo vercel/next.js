@@ -110,30 +110,35 @@ class HTTPAccessFallbackErrorBoundary extends React.Component<
   }
 
   render() {
-    const { notFound, forbidden, unauthorized } = this.props
+    const { notFound, forbidden, unauthorized, children } = this.props
     const { triggeredStatus } = this.state
     if (triggeredStatus) {
+      const isNotFound =
+        triggeredStatus === HTTPAccessErrorStatus.NOT_FOUND && notFound
+      const isForbidden =
+        triggeredStatus === HTTPAccessErrorStatus.FORBIDDEN && forbidden
+      const isUnauthorized =
+        triggeredStatus === HTTPAccessErrorStatus.UNAUTHORIZED && unauthorized
+
+      // If there's no matched boundary in this layer, keep throwing the error by rendering the children
+      if (!(isNotFound || isForbidden || isUnauthorized)) {
+        return children
+      }
+
       return (
         <>
           <meta name="robots" content="noindex" />
           {process.env.NODE_ENV === 'development' && (
             <meta name="next-error" content="not-found" />
           )}
-          {triggeredStatus === HTTPAccessErrorStatus.NOT_FOUND && notFound
-            ? notFound
-            : null}
-          {triggeredStatus === HTTPAccessErrorStatus.FORBIDDEN && forbidden
-            ? forbidden
-            : null}
-          {triggeredStatus === HTTPAccessErrorStatus.UNAUTHORIZED &&
-          unauthorized
-            ? unauthorized
-            : null}
+          {isNotFound ? notFound : null}
+          {isForbidden ? forbidden : null}
+          {isUnauthorized ? unauthorized : null}
         </>
       )
     }
 
-    return this.props.children
+    return children
   }
 }
 

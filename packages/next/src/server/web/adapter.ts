@@ -271,6 +271,9 @@ export async function adapter(
                   after: isAfterEnabled,
                   isRoutePPREnabled: false,
                   dynamicIO: false,
+                  navigationDeniedApi:
+                    !!params.request.nextConfig?.experimental
+                      ?.navigationDeniedApi,
                 },
                 buildId: buildId ?? '',
                 supportsDynamicResponse: true,

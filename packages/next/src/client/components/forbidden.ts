@@ -20,13 +20,9 @@ import {
  * Read more: [Next.js Docs: `forbidden`](https://nextjs.org/docs/app/api-reference/functions/not-found)
  */
 export function forbidden(): never {
-  if (
-    !process.env.__NEXT_VERSION?.includes('canary') &&
-    !process.env.__NEXT_TEST_MODE &&
-    !process.env.NEXT_PRIVATE_SKIP_CANARY_CHECK
-  ) {
+  if (!process.env.__NEXT_EXPERIMENTAL_NAVIGATION_API) {
     throw new Error(
-      `\`forbidden()\` is experimental and only allowed to be used in canary builds.`
+      `\`forbidden()\` is experimental and only allowed to be enabled when \`experimental.navigationDeniedApi\` is enabled.`
     )
   }
 

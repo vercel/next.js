@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 
-describe('app dir - forbidden - basic', () => {
+describe('app dir - forbidden with customized boundary', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })

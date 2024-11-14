@@ -118,6 +118,7 @@ export class EdgeRouteModuleWrapper {
         experimental: {
           after: isAfterEnabled,
           dynamicIO: !!process.env.__NEXT_DYNAMIC_IO,
+          navigationDeniedApi: !!process.env.__NEXT_EXPERIMENTAL_NAVIGATION_API,
         },
         buildId: '', // TODO: Populate this properly.
         cacheLifeProfiles: this.nextConfig.experimental.cacheLife,

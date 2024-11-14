@@ -760,6 +760,7 @@ async function getRSCPayload(
     getMetadataReady,
     missingSlots,
     preloadCallbacks,
+    navigationDeniedApi: ctx.renderOpts.experimental.navigationDeniedApi,
   })
 
   // When the `vary` response header is present with `Next-URL`, that means there's a chance

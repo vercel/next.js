@@ -47,9 +47,12 @@ export function getAccessFallbackHTTPStatus(
 
 export function getAccessFallbackErrorTypeByStatus(
   status: number
-): 'not-found' | undefined {
-  // TODO: support 403 and 401
+): 'not-found' | 'forbidden' | 'unauthorized' | undefined {
   switch (status) {
+    case 401:
+      return 'unauthorized'
+    case 403:
+      return 'forbidden'
     case 404:
       return 'not-found'
     default:

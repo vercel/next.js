@@ -4,7 +4,7 @@ export default function Forbidden() {
   return (
     <HTTPAccessErrorFallback
       status={403}
-      message="This page could not be accessed"
+      message="This page could not be accessed."
     />
   )
 }

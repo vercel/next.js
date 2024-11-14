@@ -49,6 +49,7 @@ export async function loadStaticPaths({
   cacheLifeProfiles,
   nextConfigOutput,
   buildId,
+  navigationDeniedApi,
 }: {
   dir: string
   distDir: string
@@ -69,6 +70,7 @@ export async function loadStaticPaths({
   }
   nextConfigOutput: 'standalone' | 'export' | undefined
   buildId: string
+  navigationDeniedApi: boolean
 }): Promise<PartialStaticPathsResult> {
   // update work memory runtime-config
   require('../../shared/lib/runtime-config.external').setConfig(config)
@@ -107,6 +109,7 @@ export async function loadStaticPaths({
       nextConfigOutput,
       isRoutePPREnabled,
       buildId,
+      navigationDeniedApi,
     })
   } else if (!components.getStaticPaths) {
     // We shouldn't get to this point since the worker should only be called for
