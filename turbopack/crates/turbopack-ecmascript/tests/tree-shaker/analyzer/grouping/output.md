@@ -265,31 +265,29 @@ graph TD
 graph TD
     N0["Items: [ItemId(ModuleEvaluation)]"];
     N1["Items: [ItemId(Export((&quot;x&quot;, #2), &quot;x&quot;))]"];
-    N2["Items: [ItemId(Export((&quot;y&quot;, #2), &quot;y&quot;))]"];
+    N2["Items: [ItemId(Export((&quot;y&quot;, #2), &quot;y&quot;)), ItemId(11, VarDeclarator(0))]"];
     N3["Items: [ItemId(0, VarDeclarator(0))]"];
     N4["Items: [ItemId(1, Normal)]"];
     N5["Items: [ItemId(2, Normal), ItemId(3, Normal)]"];
     N6["Items: [ItemId(4, Normal)]"];
     N7["Items: [ItemId(5, Normal), ItemId(6, Normal), ItemId(7, Normal), ItemId(8, Normal), ItemId(9, Normal)]"];
-    N8["Items: [ItemId(11, VarDeclarator(0))]"];
     N4 --> N3;
-    N1 --> N3;
-    N1 --> N7;
+    N2 --> N7;
+    N7 --> N3;
     N5 --> N3;
     N6 -.-> N5;
     N6 --> N3;
+    N1 --> N7;
+    N1 --> N3;
+    N2 --> N3;
     N0 --> N5;
-    N8 --> N3;
-    N2 --> N8;
-    N7 --> N3;
-    N8 --> N7;
 ```
 # Entrypoints
 
 ```
 {
     ModuleEvaluation: 0,
-    Exports: 9,
+    Exports: 8,
     Export(
         "y",
     ): 2,
@@ -322,10 +320,17 @@ export { x };
 ```
 ## Part 2
 ```js
-import { b as y } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -8
+import { a as x } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -3
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 7
 };
 export { y };
+const y = x;
+export { y as b } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 
 ```
 ## Part 3
@@ -378,20 +383,6 @@ x += 9;
 ```
 ## Part 8
 ```js
-import { a as x } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -3
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 7
-};
-const y = x;
-export { y as b } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 9
-```js
 export { x } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export x"
 };
@@ -413,7 +404,7 @@ import "__TURBOPACK_PART__" assert {
 ```
 {
     ModuleEvaluation: 0,
-    Exports: 8,
+    Exports: 7,
     Export(
         "y",
     ): 2,
@@ -448,10 +439,17 @@ export { x };
 ```
 ## Part 2
 ```js
-import { b as y } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -7
+import { a as x } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -3
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
 };
 export { y };
+const y = x;
+export { y as b } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 
 ```
 ## Part 3
@@ -491,20 +489,6 @@ x += 9;
 
 ```
 ## Part 7
-```js
-import { a as x } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -3
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
-};
-const y = x;
-export { y as b } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 8
 ```js
 export { x } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export x"
