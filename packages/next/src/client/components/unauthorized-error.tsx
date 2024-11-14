@@ -4,7 +4,7 @@ export default function Unauthorized() {
   return (
     <HTTPAccessErrorFallback
       status={401}
-      message="You're not authorized to access this page"
+      message="You're not authorized to access this page."
     />
   )
 }

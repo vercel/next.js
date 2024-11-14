@@ -667,8 +667,10 @@ async function createComponentTreeInternal({
         )
       }
 
-      // TODO: support forbidden and unauthorized in parallel routes
       if (isRootLayoutWithChildrenSlotAndAtLeastOneMoreSlot) {
+        let notfoundClientSegment: React.ReactNode
+        let forbiddenClientSegment: React.ReactNode
+        let unauthorizedClientSegment: React.ReactNode
         // TODO-APP: This is a hack to support unmatched parallel routes, which will throw `notFound()`.
         // This ensures that a `HTTPAccessFallbackBoundary` is available for when that happens,
         // but it's not ideal, as it needlessly invokes the `NotFound` component and renders the `RootLayout` twice.
@@ -683,23 +685,68 @@ async function createComponentTreeInternal({
               </>
             ),
           }
-          const notfoundClientSegment = (
-            <ClientSegmentRoot
-              Component={SegmentComponent}
-              slots={notFoundParallelRouteProps}
-              params={currentParams}
-            />
+          notfoundClientSegment = (
+            <>
+              {layerAssets}
+              <ClientSegmentRoot
+                Component={SegmentComponent}
+                slots={notFoundParallelRouteProps}
+                params={currentParams}
+              />
+            </>
           )
-
+        }
+        if (Forbidden) {
+          const forbiddenParallelRouteProps = {
+            children: (
+              <>
+                {forbiddenStyles}
+                <Forbidden />
+              </>
+            ),
+          }
+          forbiddenClientSegment = (
+            <>
+              {layerAssets}
+              <ClientSegmentRoot
+                Component={SegmentComponent}
+                slots={forbiddenParallelRouteProps}
+                params={currentParams}
+              />
+            </>
+          )
+        }
+        if (Unauthorized) {
+          const unauthorizedParallelRouteProps = {
+            children: (
+              <>
+                {unauthorizedStyles}
+                <Unauthorized />
+              </>
+            ),
+          }
+          unauthorizedClientSegment = (
+            <>
+              {layerAssets}
+              <ClientSegmentRoot
+                Component={SegmentComponent}
+                slots={unauthorizedParallelRouteProps}
+                params={currentParams}
+              />
+            </>
+          )
+        }
+        if (
+          notfoundClientSegment ||
+          forbiddenClientSegment ||
+          unauthorizedClientSegment
+        ) {
           segmentNode = (
             <HTTPAccessFallbackBoundary
               key={cacheNodeKey}
-              notFound={
-                <>
-                  {layerAssets}
-                  {notfoundClientSegment}
-                </>
-              }
+              notFound={notfoundClientSegment}
+              forbidden={forbiddenClientSegment}
+              unauthorized={unauthorizedClientSegment}
             >
               {layerAssets}
               {clientSegment}
@@ -731,7 +778,6 @@ async function createComponentTreeInternal({
         <SegmentComponent {...parallelRouteProps} params={params} />
       )
 
-      // TODO: support forbidden and unauthorized in parallel routes
       if (isRootLayoutWithChildrenSlotAndAtLeastOneMoreSlot) {
         // TODO-APP: This is a hack to support unmatched parallel routes, which will throw `notFound()`.
         // This ensures that a `HTTPAccessFallbackBoundary` is available for when that happens,
@@ -748,6 +794,28 @@ async function createComponentTreeInternal({
                   <SegmentComponent params={params}>
                     {notFoundStyles}
                     <NotFound />
+                  </SegmentComponent>
+                </>
+              ) : undefined
+            }
+            forbidden={
+              Forbidden ? (
+                <>
+                  {layerAssets}
+                  <SegmentComponent params={params}>
+                    {forbiddenStyles}
+                    <Forbidden />
+                  </SegmentComponent>
+                </>
+              ) : undefined
+            }
+            unauthorized={
+              Unauthorized ? (
+                <>
+                  {layerAssets}
+                  <SegmentComponent params={params}>
+                    {unauthorizedStyles}
+                    <Unauthorized />
                   </SegmentComponent>
                 </>
               ) : undefined
