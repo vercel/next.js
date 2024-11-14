@@ -274,8 +274,13 @@ pub async fn get_client_module_options_context(
     };
 
     // Now creates a webpack rules that applies to all codes.
-    let enable_webpack_loaders =
-        webpack_loader_options(project_path, next_config, false, conditions).await?;
+    let enable_webpack_loaders = if let Some(vc) =
+        webpack_loader_options(project_path, next_config, false, conditions).await?
+    {
+        Some(vc.to_resolved().await?)
+    } else {
+        None
+    };
 
     let tree_shaking_mode_for_user_code = *next_config
         .tree_shaking_mode_for_user_code(next_mode.is_development())
