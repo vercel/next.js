@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{vdbg, ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -105,8 +105,6 @@ impl EcmascriptModulePartAsset {
         let SplitResult::Ok { entrypoints, .. } = &*split_module(module).await? else {
             return Ok(Vc::upcast(module));
         };
-
-        vdbg!(module.ident().to_string(), part);
 
         // We follow reexports here
         if let ModulePart::Export(export) = &*part.await? {
@@ -417,8 +415,6 @@ impl EcmascriptChunkPlaceable for EcmascriptModulePartAsset {
         side_effect_free_packages: Vc<Glob>,
     ) -> Result<Vc<bool>> {
         let this = self.await?;
-
-        vdbg!(self.ident().to_string());
 
         match *this.part.await? {
             ModulePart::Exports | ModulePart::Export(..) => Ok(Vc::cell(true)),
