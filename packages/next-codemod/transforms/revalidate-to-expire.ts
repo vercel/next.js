@@ -15,7 +15,7 @@ export default function transformer(file: FileInfo, _api: API) {
         value: 'next/cache',
       },
     })
-    .forEach((path) => {
+    .map((path) => {
       path.node.specifiers.forEach((specifier) => {
         if (specifier.type !== 'ImportSpecifier') {
           return
@@ -27,6 +27,7 @@ export default function transformer(file: FileInfo, _api: API) {
           specifier.imported.name = 'expirePath'
         }
       })
+      return path
     })
 
   if (!imports.length) {
