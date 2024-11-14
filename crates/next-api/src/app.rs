@@ -309,24 +309,32 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    fn rsc_module_context(self: Vc<Self>) -> Vc<ModuleAssetContext> {
+    async fn rsc_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
         let transitions = [
             (
                 ECMASCRIPT_CLIENT_TRANSITION_NAME.into(),
-                self.client_reference_transition(),
+                self.client_reference_transition().to_resolved().await?,
             ),
             (
                 "next-dynamic".into(),
-                Vc::upcast(NextDynamicTransition::new(Vc::upcast(
-                    self.client_transition(),
-                ))),
+                ResolvedVc::upcast(
+                    NextDynamicTransition::new(Vc::upcast(self.client_transition()))
+                        .to_resolved()
+                        .await?,
+                ),
             ),
-            ("next-ssr".into(), Vc::upcast(self.ssr_transition())),
-            ("next-shared".into(), Vc::upcast(self.shared_transition())),
+            (
+                "next-ssr".into(),
+                ResolvedVc::upcast(self.ssr_transition().to_resolved().await?),
+            ),
+            (
+                "next-shared".into(),
+                ResolvedVc::upcast(self.shared_transition().to_resolved().await?),
+            ),
         ]
         .into_iter()
         .collect();
-        ModuleAssetContext::new(
+        Ok(ModuleAssetContext::new(
             TransitionOptions {
                 named_transitions: transitions,
                 transition_rules: vec![TransitionRule::new(
@@ -340,31 +348,38 @@ impl AppProject {
             self.rsc_module_options_context(),
             self.rsc_resolve_options_context(),
             Vc::cell("app-rsc".into()),
-        )
+        ))
     }
 
     #[turbo_tasks::function]
-    fn edge_rsc_module_context(self: Vc<Self>) -> Vc<ModuleAssetContext> {
+    async fn edge_rsc_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
         let transitions = [
             (
                 ECMASCRIPT_CLIENT_TRANSITION_NAME.into(),
-                self.edge_client_reference_transition(),
+                self.edge_client_reference_transition()
+                    .to_resolved()
+                    .await?,
             ),
             (
                 "next-dynamic".into(),
-                Vc::upcast(NextDynamicTransition::new(Vc::upcast(
-                    self.client_transition(),
-                ))),
+                ResolvedVc::upcast(
+                    NextDynamicTransition::new(Vc::upcast(self.client_transition()))
+                        .to_resolved()
+                        .await?,
+                ),
             ),
-            ("next-ssr".into(), Vc::upcast(self.edge_ssr_transition())),
+            (
+                "next-ssr".into(),
+                ResolvedVc::upcast(self.edge_ssr_transition().to_resolved().await?),
+            ),
             (
                 "next-shared".into(),
-                Vc::upcast(self.edge_shared_transition()),
+                ResolvedVc::upcast(self.edge_shared_transition().to_resolved().await?),
             ),
         ]
         .into_iter()
         .collect();
-        ModuleAssetContext::new(
+        Ok(ModuleAssetContext::new(
             TransitionOptions {
                 named_transitions: transitions,
                 transition_rules: vec![TransitionRule::new(
@@ -378,29 +393,37 @@ impl AppProject {
             self.edge_rsc_module_options_context(),
             self.edge_rsc_resolve_options_context(),
             Vc::cell("app-edge-rsc".into()),
-        )
+        ))
     }
 
     #[turbo_tasks::function]
-    fn route_module_context(self: Vc<Self>) -> Vc<ModuleAssetContext> {
+    async fn route_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
         let transitions = [
             (
                 ECMASCRIPT_CLIENT_TRANSITION_NAME.into(),
-                self.client_reference_transition(),
+                self.client_reference_transition().to_resolved().await?,
             ),
             (
                 "next-dynamic".into(),
-                Vc::upcast(NextDynamicTransition::new(Vc::upcast(
-                    self.client_transition(),
-                ))),
+                ResolvedVc::upcast(
+                    NextDynamicTransition::new(Vc::upcast(self.client_transition()))
+                        .to_resolved()
+                        .await?,
+                ),
             ),
-            ("next-ssr".into(), Vc::upcast(self.ssr_transition())),
-            ("next-shared".into(), Vc::upcast(self.shared_transition())),
+            (
+                "next-ssr".into(),
+                ResolvedVc::upcast(self.ssr_transition().to_resolved().await?),
+            ),
+            (
+                "next-shared".into(),
+                ResolvedVc::upcast(self.shared_transition().to_resolved().await?),
+            ),
         ]
         .into_iter()
         .collect();
 
-        ModuleAssetContext::new(
+        Ok(ModuleAssetContext::new(
             TransitionOptions {
                 named_transitions: transitions,
                 ..Default::default()
@@ -410,31 +433,38 @@ impl AppProject {
             self.route_module_options_context(),
             self.route_resolve_options_context(),
             Vc::cell("app-route".into()),
-        )
+        ))
     }
 
     #[turbo_tasks::function]
-    fn edge_route_module_context(self: Vc<Self>) -> Vc<ModuleAssetContext> {
+    async fn edge_route_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
         let transitions = [
             (
                 ECMASCRIPT_CLIENT_TRANSITION_NAME.into(),
-                self.edge_client_reference_transition(),
+                self.edge_client_reference_transition()
+                    .to_resolved()
+                    .await?,
             ),
             (
                 "next-dynamic".into(),
-                Vc::upcast(NextDynamicTransition::new(Vc::upcast(
-                    self.client_transition(),
-                ))),
+                ResolvedVc::upcast(
+                    NextDynamicTransition::new(Vc::upcast(self.client_transition()))
+                        .to_resolved()
+                        .await?,
+                ),
             ),
-            ("next-ssr".into(), Vc::upcast(self.ssr_transition())),
+            (
+                "next-ssr".into(),
+                ResolvedVc::upcast(self.edge_ssr_transition().to_resolved().await?),
+            ),
             (
                 "next-shared".into(),
-                Vc::upcast(self.edge_shared_transition()),
+                ResolvedVc::upcast(self.edge_shared_transition().to_resolved().await?),
             ),
         ]
         .into_iter()
         .collect();
-        ModuleAssetContext::new(
+        Ok(ModuleAssetContext::new(
             TransitionOptions {
                 named_transitions: transitions,
                 ..Default::default()
@@ -444,7 +474,7 @@ impl AppProject {
             self.edge_route_module_options_context(),
             self.edge_route_resolve_options_context(),
             Vc::cell("app-edge-route".into()),
-        )
+        ))
     }
 
     #[turbo_tasks::function]
