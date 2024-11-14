@@ -152,7 +152,7 @@ pub async fn get_server_resolve_options_context(
     )
     .await?;
 
-    let mut transpiled_packages = get_transpiled_packages(next_config, project_path)
+    let mut transpiled_packages = get_transpiled_packages(next_config, *project_path)
         .await?
         .clone_value();
 
@@ -210,7 +210,7 @@ pub async fn get_server_resolve_options_context(
         server_external_packages_plugin
     } else {
         ExternalCjsModulesResolvePlugin::new(
-            project_path,
+            *project_path,
             project_path.root(),
             ExternalPredicate::AllExcept(ResolvedVc::cell(transpiled_packages)).cell(),
             *next_config.import_externals().await?,
@@ -219,11 +219,11 @@ pub async fn get_server_resolve_options_context(
         .await?
     };
 
-    let next_external_plugin = NextExternalResolvePlugin::new(project_path)
+    let next_external_plugin = NextExternalResolvePlugin::new(*project_path)
         .to_resolved()
         .await?;
     let next_node_shared_runtime_plugin =
-        NextNodeSharedRuntimeResolvePlugin::new(project_path, Value::new(ty))
+        NextNodeSharedRuntimeResolvePlugin::new(*project_path, Value::new(ty))
             .to_resolved()
             .await?;
 
@@ -233,7 +233,7 @@ pub async fn get_server_resolve_options_context(
         | ServerContextType::AppRSC { .. } => {
             vec![
                 ResolvedVc::upcast(
-                    NextFontLocalResolvePlugin::new(project_path)
+                    NextFontLocalResolvePlugin::new(*project_path)
                         .to_resolved()
                         .await?,
                 ),
@@ -629,11 +629,11 @@ pub async fn get_server_module_options_context(
                 rules: vec![
                     (
                         foreign_code_context_condition,
-                        foreign_code_module_options_context.cell(),
+                        foreign_code_module_options_context.resolved_cell(),
                     ),
                     (
                         internal_assets_conditions(),
-                        internal_module_options_context.cell(),
+                        internal_module_options_context.resolved_cell(),
                     ),
                 ],
                 module_rules: next_server_rules,
@@ -672,7 +672,9 @@ pub async fn get_server_module_options_context(
             };
             let internal_module_options_context = ModuleOptionsContext {
                 ecmascript: EcmascriptOptionsContext {
-                    enable_typescript_transform: Some(TypescriptTransformOptions::default().cell()),
+                    enable_typescript_transform: Some(
+                        TypescriptTransformOptions::default().resolved_cell(),
+                    ),
                     ..module_options_context.ecmascript.clone()
                 },
                 module_rules: foreign_next_server_rules,
@@ -692,11 +694,11 @@ pub async fn get_server_module_options_context(
                 rules: vec![
                     (
                         foreign_code_context_condition,
-                        foreign_code_module_options_context.cell(),
+                        foreign_code_module_options_context.resolved_cell(),
                     ),
                     (
                         internal_assets_conditions(),
-                        internal_module_options_context.cell(),
+                        internal_module_options_context.resolved_cell(),
                     ),
                 ],
                 module_rules: next_server_rules,
@@ -747,7 +749,9 @@ pub async fn get_server_module_options_context(
             };
             let internal_module_options_context = ModuleOptionsContext {
                 ecmascript: EcmascriptOptionsContext {
-                    enable_typescript_transform: Some(TypescriptTransformOptions::default().cell()),
+                    enable_typescript_transform: Some(
+                        TypescriptTransformOptions::default().resolved_cell(),
+                    ),
                     ..module_options_context.ecmascript.clone()
                 },
                 module_rules: foreign_next_server_rules,
@@ -766,11 +770,11 @@ pub async fn get_server_module_options_context(
                 rules: vec![
                     (
                         foreign_code_context_condition,
-                        foreign_code_module_options_context.cell(),
+                        foreign_code_module_options_context.resolved_cell(),
                     ),
                     (
                         internal_assets_conditions(),
-                        internal_module_options_context.cell(),
+                        internal_module_options_context.resolved_cell(),
                     ),
                 ],
                 module_rules: next_server_rules,
@@ -820,7 +824,9 @@ pub async fn get_server_module_options_context(
             };
             let internal_module_options_context = ModuleOptionsContext {
                 ecmascript: EcmascriptOptionsContext {
-                    enable_typescript_transform: Some(TypescriptTransformOptions::default().cell()),
+                    enable_typescript_transform: Some(
+                        TypescriptTransformOptions::default().resolved_cell(),
+                    ),
                     ..module_options_context.ecmascript.clone()
                 },
                 module_rules: internal_custom_rules,
@@ -839,11 +845,11 @@ pub async fn get_server_module_options_context(
                 rules: vec![
                     (
                         foreign_code_context_condition,
-                        foreign_code_module_options_context.cell(),
+                        foreign_code_module_options_context.resolved_cell(),
                     ),
                     (
                         internal_assets_conditions(),
-                        internal_module_options_context.cell(),
+                        internal_module_options_context.resolved_cell(),
                     ),
                 ],
                 module_rules: next_server_rules,

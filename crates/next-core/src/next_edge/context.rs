@@ -129,7 +129,7 @@ pub async fn get_edge_resolve_options_context(
             | ServerContextType::Instrumentation { .. }
     ) {
         before_resolve_plugins.push(ResolvedVc::upcast(
-            get_invalid_client_only_resolve_plugin(*project_path)
+            get_invalid_client_only_resolve_plugin(project_path)
                 .to_resolved()
                 .await?,
         ));
