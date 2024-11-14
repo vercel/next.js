@@ -63,10 +63,7 @@ use turbopack_resolve::{resolve_options_context::ResolveOptionsContext, typescri
 use turbopack_static::StaticModuleAsset;
 use turbopack_wasm::{module_asset::WebAssemblyModuleAsset, source::WebAssemblySource};
 
-use self::{
-    module_options::CustomModuleType,
-    transition::{Transition, TransitionOptions},
-};
+use self::transition::{Transition, TransitionOptions};
 
 #[turbo_tasks::function]
 async fn apply_module_type(
@@ -366,11 +363,11 @@ impl ModuleAssetContext {
 
     #[turbo_tasks::function]
     fn new_without_replace_externals(
-        transitions: Vc<TransitionOptions>,
-        compile_time_info: Vc<CompileTimeInfo>,
-        module_options_context: Vc<ModuleOptionsContext>,
-        resolve_options_context: Vc<ResolveOptionsContext>,
-        layer: Vc<RcStr>,
+        transitions: ResolvedVc<TransitionOptions>,
+        compile_time_info: ResolvedVc<CompileTimeInfo>,
+        module_options_context: ResolvedVc<ModuleOptionsContext>,
+        resolve_options_context: ResolvedVc<ResolveOptionsContext>,
+        layer: ResolvedVc<RcStr>,
     ) -> Vc<Self> {
         Self::cell(ModuleAssetContext {
             transitions,
@@ -385,12 +382,12 @@ impl ModuleAssetContext {
 
     #[turbo_tasks::function]
     pub fn module_options_context(&self) -> Vc<ModuleOptionsContext> {
-        self.module_options_context
+        *self.module_options_context
     }
 
     #[turbo_tasks::function]
     pub fn resolve_options_context(&self) -> Vc<ResolveOptionsContext> {
-        self.resolve_options_context
+        *self.resolve_options_context
     }
 
     #[turbo_tasks::function]
@@ -414,11 +411,11 @@ impl ModuleAssetContext {
             .await?;
 
         Ok(ModuleAssetContext::new(
-            this.transitions,
-            this.compile_time_info,
-            this.module_options_context,
+            *this.transitions,
+            *this.compile_time_info,
+            *this.module_options_context,
             resolve_options_context,
-            this.layer,
+            *this.layer,
         ))
     }
 
@@ -633,12 +630,12 @@ async fn process_default_internal(
 impl AssetContext for ModuleAssetContext {
     #[turbo_tasks::function]
     fn compile_time_info(&self) -> Vc<CompileTimeInfo> {
-        self.compile_time_info
+        *self.compile_time_info
     }
 
     #[turbo_tasks::function]
     fn layer(&self) -> Vc<RcStr> {
-        self.layer
+        *self.layer
     }
 
     #[turbo_tasks::function]
@@ -656,7 +653,7 @@ impl AssetContext for ModuleAssetContext {
         // TODO move `apply_commonjs/esm_resolve_options` etc. to here
         Ok(resolve_options(
             origin_path.parent().resolve().await?,
-            module_asset_context.await?.resolve_options_context,
+            *module_asset_context.await?.resolve_options_context,
         ))
     }
 
@@ -747,21 +744,21 @@ impl AssetContext for ModuleAssetContext {
         Ok(
             if let Some(transition) = self.transitions.await?.get_named(transition) {
                 Vc::upcast(ModuleAssetContext::new_transition(
-                    self.transitions,
-                    self.compile_time_info,
-                    self.module_options_context,
-                    self.resolve_options_context,
-                    self.layer,
+                    *self.transitions,
+                    *self.compile_time_info,
+                    *self.module_options_context,
+                    *self.resolve_options_context,
+                    *self.layer,
                     transition,
                 ))
             } else {
                 // TODO report issue
                 Vc::upcast(ModuleAssetContext::new(
-                    self.transitions,
-                    self.compile_time_info,
-                    self.module_options_context,
-                    self.resolve_options_context,
-                    self.layer,
+                    *self.transitions,
+                    *self.compile_time_info,
+                    *self.module_options_context,
+                    *self.resolve_options_context,
+                    *self.layer,
                 ))
             },
         )
@@ -804,10 +801,10 @@ async fn emit_aggregated_assets(
     output_dir: Vc<FileSystemPath>,
 ) -> Result<Vc<Completion>> {
     Ok(match &*aggregated.content().await? {
-        AggregatedGraphNodeContent::Asset(asset) => emit_asset_into_dir(*asset, output_dir),
+        AggregatedGraphNodeContent::Asset(asset) => emit_asset_into_dir(**asset, output_dir),
         AggregatedGraphNodeContent::Children(children) => {
             for aggregated in children {
-                emit_aggregated_assets(*aggregated, output_dir).await?;
+                emit_aggregated_assets(**aggregated, output_dir).await?;
             }
             Completion::new()
         }
@@ -840,15 +837,14 @@ struct ReferencesList {
 }
 
 #[turbo_tasks::function]
-async fn compute_back_references(aggregated: Vc<AggregatedGraph>) -> Result<Vc<ReferencesList>> {
+async fn compute_back_references(
+    aggregated: ResolvedVc<AggregatedGraph>,
+) -> Result<Vc<ReferencesList>> {
     Ok(match &*aggregated.content().await? {
         &AggregatedGraphNodeContent::Asset(asset) => {
             let mut referenced_by = HashMap::new();
-            for reference in asset.references().await?.iter() {
-                referenced_by.insert(
-                    reference.to_resolved().await?,
-                    [asset].into_iter().collect(),
-                );
+            for &reference in asset.references().await?.iter() {
+                referenced_by.insert(reference, [*asset].into_iter().collect());
             }
             ReferencesList { referenced_by }.into()
         }
@@ -857,7 +853,7 @@ async fn compute_back_references(aggregated: Vc<AggregatedGraph>) -> Result<Vc<R
                 HashMap::<ResolvedVc<Box<dyn OutputAsset>>, OutputAssetSet>::new();
             let lists = children
                 .iter()
-                .map(|child| compute_back_references(*child))
+                .map(|child| compute_back_references(**child))
                 .collect::<Vec<_>>();
             for list in lists {
                 for (key, values) in list.await?.referenced_by.iter() {
