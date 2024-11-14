@@ -211,7 +211,7 @@ graph TD
     Item9 --> Item7;
     Item9 --> Item1;
     Item9 -.-> Item2;
-    Item9 -.-> Item8;
+    Item9 --> Item8;
     Item9 -.-> Item11;
     Item10 --> Item7;
     Item10 -.-> Item9;
@@ -259,7 +259,7 @@ graph TD
     Item9 --> Item7;
     Item9 --> Item1;
     Item9 -.-> Item2;
-    Item9 -.-> Item8;
+    Item9 --> Item8;
     Item9 -.-> Item11;
     Item10 --> Item7;
     Item10 -.-> Item9;
@@ -315,7 +315,7 @@ graph TD
     Item9 --> Item7;
     Item9 --> Item1;
     Item9 -.-> Item2;
-    Item9 -.-> Item8;
+    Item9 --> Item8;
     Item9 -.-> Item11;
     Item10 --> Item7;
     Item10 -.-> Item9;
@@ -363,7 +363,7 @@ graph TD
     N11 --> N9;
     N11 --> N4;
     N11 -.-> N5;
-    N11 -.-> N10;
+    N11 --> N10;
     N11 -.-> N13;
     N12 --> N9;
     N12 -.-> N11;
@@ -636,6 +636,9 @@ import { a as foobarCopy } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -9
 };
 import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 10
+};
+import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 5
 };
 "module evaluation";
@@ -798,6 +801,9 @@ export { foobar } from "__TURBOPACK_PART__" assert {
 ```js
 import { a as foobarCopy } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -9
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 10
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 5
