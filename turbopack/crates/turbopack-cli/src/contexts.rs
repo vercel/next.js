@@ -7,7 +7,7 @@ use turbopack::{
     ecmascript::{EcmascriptInputTransform, TreeShakingMode},
     module_options::{
         EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext, ModuleRule,
-        ModuleRuleEffect, RuleCondition,
+        ModuleRuleEffect, RuleCondition, TypescriptTransformOptions,
     },
     ModuleAssetContext,
 };
@@ -155,20 +155,22 @@ async fn get_client_module_options_context(
                     versions,
                 )) as _)),
             ]),
-            append: Vc::cell(vec![]),
+            append: ResolvedVc::cell(vec![]),
         }],
     );
 
     let module_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
             enable_jsx,
-            enable_typescript_transform: Some(Default::default()),
+            enable_typescript_transform: Some(
+                TypescriptTransformOptions::default().resolved_cell(),
+            ),
             ..Default::default()
         },
-        enable_postcss_transform: Some(PostCssTransformOptions::default().cell()),
+        enable_postcss_transform: Some(PostCssTransformOptions::default().resolved_cell()),
         rules: vec![(
             foreign_code_context_condition().await?,
-            module_options_context.clone().cell(),
+            module_options_context.clone().resolved_cell(),
         )],
         module_rules: vec![module_rules],
         ..module_options_context

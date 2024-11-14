@@ -224,8 +224,13 @@ pub async fn get_client_module_options_context(
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let next_mode = mode.await?;
-    let resolve_options_context =
-        get_client_resolve_options_context(project_path, ty, mode, next_config, *execution_context);
+    let resolve_options_context = get_client_resolve_options_context(
+        *project_path,
+        ty,
+        mode,
+        next_config,
+        *execution_context,
+    );
 
     let tsconfig = get_typescript_transform_options(*project_path);
     let decorators_options = get_decorators_transform_options(*project_path);
