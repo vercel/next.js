@@ -98,7 +98,7 @@ impl ModuleOptions {
                 if condition.matches(&path_value).await? {
                     return Ok(ModuleOptions::new(
                         path,
-                        *new_context,
+                        **new_context,
                         resolve_options_context,
                     ));
                 }
@@ -501,7 +501,9 @@ impl ModuleOptions {
                 (None, None, false)
             };
 
-            let mdx_options = &*enable_mdx_rs.unwrap_or(Default::default()).await?;
+            let mdx_options = &*enable_mdx_rs
+                .unwrap_or_else(|| MdxTransformOptions::default().resolved_cell())
+                .await?;
 
             let mdx_transform_options = (MdxTransformOptions {
                 development: Some(development),
@@ -532,7 +534,7 @@ impl ModuleOptions {
             {
                 package_import_map_from_import_mapping(
                     "loader-runner".into(),
-                    loader_runner_package,
+                    *loader_runner_package,
                 )
             } else {
                 package_import_map_from_context("loader-runner".into(), path)
@@ -560,7 +562,7 @@ impl ModuleOptions {
                                 false,
                             ),
                             *execution_context,
-                            rule.loaders,
+                            *rule.loaders,
                             rule.rename_as.clone(),
                             resolve_options_context,
                         )),
