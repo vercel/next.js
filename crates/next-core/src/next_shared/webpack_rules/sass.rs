@@ -1,9 +1,14 @@
 use std::mem::take;
 
 use anyhow::{bail, Result};
+use semver::Version;
 use serde_json::Value as JsonValue;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack::module_options::{LoaderRuleItem, OptionWebpackRules, WebpackRules};
+use turbopack_core::{
+    reference_type::ReferenceType,
+    resolve::{node::node_cjs_resolve_options, parse::Request::Module, resolve},
+};
 use turbopack_node::transforms::webpack::WebpackLoaderItem;
 
 #[turbo_tasks::function]
@@ -15,10 +20,24 @@ pub async fn maybe_add_sass_loader(
     let Some(mut sass_options) = sass_options.as_object().cloned() else {
         bail!("sass_options must be an object");
     };
-    // TODO: Remove this once we upgrade to sass-loader 16
+
+    // Since sass is an optional peer dependency, it may be missing.
+    let sass_version =
+        Version::parse(&resolve_from::resolve_from(".", "sass").unwrap_or_default())?;
+    // The modern Sass API with breaking changes was added in sass@1.45.0.
+    // https://sass-lang.com/documentation/breaking-changes/legacy-js-api
+    // Since sass-loader and our peer dependency sass version is ^1.3.0,
+    // we need to use the legacy Sass API for versions less than 1.45.0.
+    let should_use_legacy_sass_api = sass_version < Version::parse("1.45.0")?;
+
+    // TODO(jiwon): Once the peer dependency for sass is upgraded to >= 1.45.0, we can remove this.
     sass_options.insert(
-        "silenceDeprecations".into(),
-        serde_json::json!(["legacy-js-api"]),
+        "api".into(),
+        serde_json::json!(if should_use_legacy_sass_api {
+            "legacy"
+        } else {
+            "modern"
+        }),
     );
     let mut rules = if let Some(webpack_rules) = webpack_rules {
         webpack_rules.await?.clone_value()

@@ -4,8 +4,7 @@ import { colorToRgb } from 'next-test-utils'
 describe('Legacy sass-loader', () => {
   const { next: nextWithLegacyLoader } = nextTestSetup({
     files: __dirname,
-    dependencies: { sass: '1.54.0' },
-    nextConfig: undefined,
+    dependencies: { sass: '1.80.7' },
   })
 
   it('should render the module for the legacy sass-loader', async () => {
@@ -14,21 +13,17 @@ describe('Legacy sass-loader', () => {
       await browser.elementByCss('#verify-red').getComputedCss('color')
     ).toBe(colorToRgb('red'))
   })
-
-  it('should show deprecation warning', async () => {
-    expect(nextWithLegacyLoader.cliOutput).toContain(
-      'Deprecation: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0'
-    )
-  })
 })
 
 describe('Upgraded sass-loader', () => {
   const { next: nextWithUpgradedLoader } = nextTestSetup({
     files: __dirname,
-    dependencies: { sass: '1.54.0' },
+    dependencies: { sass: '1.80.7' },
     nextConfig: {
-      experimental: {
-        useUpgradedLoader: true,
+      sassOptions: {
+        experimental: {
+          useUpgradedLoader: true,
+        },
       },
     },
   })
@@ -38,11 +33,5 @@ describe('Upgraded sass-loader', () => {
     expect(
       await browser.elementByCss('#verify-red').getComputedCss('color')
     ).toBe(colorToRgb('red'))
-  })
-
-  it('should not show deprecation warning', async () => {
-    expect(nextWithUpgradedLoader.cliOutput).not.toContain(
-      'Deprecation: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0'
-    )
   })
 })
