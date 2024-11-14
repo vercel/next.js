@@ -3,7 +3,7 @@ use std::ops::Index;
 use petgraph::{visit::EdgeRef, Direction, Graph};
 use turbo_tasks::FxIndexSet;
 
-use crate::tree_shake::graph::{Dependency, ItemId, ItemIdItemKind};
+use crate::tree_shake::graph::{Dependency, ItemId, ItemIdGroupKind, ItemIdItemKind};
 
 pub(super) struct GraphOptimizer<'a> {
     pub graph_ix: &'a FxIndexSet<ItemId>,
@@ -33,12 +33,23 @@ impl GraphOptimizer<'_> {
             }
         )
     }
-    pub(super) fn should_not_merge_iter<N>(&self, items: &[N]) -> bool
+
+    fn should_not_merge_iter<N>(&self, items: &[N]) -> bool
     where
         N: Copy,
         Self: Index<N, Output = ItemId>,
     {
         items.iter().any(|item| self.should_not_merge(item))
+    }
+
+    fn has_export_in_iter<N>(&self, items: &[N]) -> bool
+    where
+        N: Copy,
+        Self: Index<N, Output = ItemId>,
+    {
+        items
+            .iter()
+            .any(|item| matches!(self[*item], ItemId::Group(ItemIdGroupKind::Export(..))))
     }
 
     /// Optimizes a condensed graph by merging nodes with only one incoming edge.
@@ -67,7 +78,11 @@ impl GraphOptimizer<'_> {
                     .unwrap()
                     .source();
 
-                if self.should_not_merge_iter(&g[dependant]) {
+                // Currently we don't merge nodes that have exports
+                if self.should_not_merge_iter(&g[dependant])
+                    || (self.has_export_in_iter(&g[dependant])
+                        && self.has_export_in_iter(node_data))
+                {
                     continue;
                 }
 
