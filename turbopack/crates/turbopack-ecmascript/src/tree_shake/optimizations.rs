@@ -25,12 +25,18 @@ impl GraphOptimizer<'_> {
     {
         let item_id = &self[*item];
 
+        // Currently we don't merge import bindings or exports because of workarounds we are using.
+        //
+        // See graph.rs for actual workarounds. ImportBinding workaround is about using direct
+        // imports for import bindings so the static code analysis pass can detect imports like
+        // 'next/dynamic', and the export workaround is about adding an import for $$RSC_SERVER for
+        // server actions.
         matches!(
             item_id,
             ItemId::Item {
                 kind: ItemIdItemKind::ImportBinding(..),
                 ..
-            }
+            } | ItemId::Group(ItemIdGroupKind::Export(..))
         )
     }
 
@@ -40,16 +46,6 @@ impl GraphOptimizer<'_> {
         Self: Index<N, Output = ItemId>,
     {
         items.iter().any(|item| self.should_not_merge(item))
-    }
-
-    fn has_export_in_iter<N>(&self, items: &[N]) -> bool
-    where
-        N: Copy,
-        Self: Index<N, Output = ItemId>,
-    {
-        items
-            .iter()
-            .any(|item| matches!(self[*item], ItemId::Group(ItemIdGroupKind::Export(..))))
     }
 
     /// Optimizes a condensed graph by merging nodes with only one incoming edge.
@@ -78,11 +74,7 @@ impl GraphOptimizer<'_> {
                     .unwrap()
                     .source();
 
-                // Currently we don't merge nodes that have exports
-                if self.should_not_merge_iter(&g[dependant])
-                    || (self.has_export_in_iter(&g[dependant])
-                        && self.has_export_in_iter(node_data))
-                {
+                if self.should_not_merge_iter(&g[dependant]) {
                     continue;
                 }
 
