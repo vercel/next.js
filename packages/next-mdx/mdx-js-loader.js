@@ -4,14 +4,16 @@ function interopDefault(mod) {
   return mod.default || mod
 }
 
-async function importPlugin(plugin) {
+async function importPlugin(plugin, projectRoot) {
   if (Array.isArray(plugin) && typeof plugin[0] === 'string') {
-    plugin[0] = interopDefault(await import(plugin[0]))
+    plugin[0] = interopDefault(
+      await import(require.resolve(plugin[0], { paths: [projectRoot] }))
+    )
   }
   return plugin
 }
 
-async function getOptions(options) {
+async function getOptions(options, projectRoot) {
   const {
     recmaPlugins = [],
     rehypePlugins = [],
@@ -20,9 +22,15 @@ async function getOptions(options) {
   } = options
 
   const [updatedRecma, updatedRehype, updatedRemark] = await Promise.all([
-    Promise.all(recmaPlugins.map(importPlugin)),
-    Promise.all(rehypePlugins.map(importPlugin)),
-    Promise.all(remarkPlugins.map(importPlugin)),
+    Promise.all(
+      recmaPlugins.map((plugin) => importPlugin(plugin, projectRoot))
+    ),
+    Promise.all(
+      rehypePlugins.map((plugin) => importPlugin(plugin, projectRoot))
+    ),
+    Promise.all(
+      remarkPlugins.map((plugin) => importPlugin(plugin, projectRoot))
+    ),
   ])
 
   return {
@@ -38,7 +46,7 @@ module.exports = function nextMdxLoader(...args) {
   const callback = this.async().bind(this)
   const loaderContext = this
 
-  getOptions(options).then((userProvidedMdxOptions) => {
+  getOptions(options, this.context).then((userProvidedMdxOptions) => {
     const proxy = new Proxy(loaderContext, {
       get(target, prop, receiver) {
         if (prop === 'getOptions') {
