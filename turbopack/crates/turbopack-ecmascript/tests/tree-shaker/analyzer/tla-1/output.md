@@ -103,9 +103,7 @@ graph TD
 ```mermaid
 graph TD
     N0["Items: [ItemId(ModuleEvaluation), ItemId(0, Normal)]"];
-    N1["Items: [ItemId(Export((&quot;effect&quot;, #2), &quot;effect&quot;)), ItemId(Export((&quot;effects&quot;, #2), &quot;effects&quot;)), ItemId(2, Normal)]"];
-    N2["Items: [ItemId(1, VarDeclarator(0))]"];
-    N1 --> N2;
+    N1["Items: [ItemId(Export((&quot;effect&quot;, #2), &quot;effect&quot;)), ItemId(Export((&quot;effects&quot;, #2), &quot;effects&quot;)), ItemId(1, VarDeclarator(0)), ItemId(2, Normal)]"];
 ```
 # Entrypoints
 
@@ -115,7 +113,7 @@ graph TD
     Export(
         "effect",
     ): 1,
-    Exports: 3,
+    Exports: 2,
     Export(
         "effects",
     ): 1,
@@ -132,28 +130,21 @@ await Promise.resolve();
 ```
 ## Part 1
 ```js
-import { a as effects } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -2
-};
 export { effect };
 export { effects };
+const effects = [];
 function effect(name) {
     effects.push(name);
 }
+export { effects as a } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 export { effect as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
 ## Part 2
-```js
-const effects = [];
-export { effects as a } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 3
 ```js
 export { effect } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export effect"

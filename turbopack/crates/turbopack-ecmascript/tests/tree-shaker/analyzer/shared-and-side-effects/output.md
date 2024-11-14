@@ -391,7 +391,7 @@ import "__TURBOPACK_PART__" assert {
 ```
 {
     ModuleEvaluation: 0,
-    Exports: 7,
+    Exports: 5,
     Export(
         "b",
     ): 2,
@@ -406,7 +406,7 @@ import "__TURBOPACK_PART__" assert {
 ## Part 0
 ```js
 import { a as shared } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -5
+    __turbopack_part__: -3
 };
 "module evaluation";
 externalObject.propertyWithSetter = 42;
@@ -416,7 +416,7 @@ console.log(shared);
 ## Part 1
 ```js
 import { b as a } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -6
+    __turbopack_part__: -4
 };
 export { a };
 
@@ -424,10 +424,10 @@ export { a };
 ## Part 2
 ```js
 import { a as shared } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -5
+    __turbopack_part__: -3
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
+    __turbopack_part__: 4
 };
 export { b };
 const b = {
@@ -443,35 +443,18 @@ export { b as c } from "__TURBOPACK_VAR__" assert {
 ```js
 console.log("Hello");
 const value = externalFunction();
-export { value as d } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 4
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
-};
 const value2 = externalObject.propertyWithGetter;
-export { value2 as e } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 5
-```js
-import { d as value } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -3
-};
-import { e as value2 } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -4
-};
 const value3 = externalFunction();
 const shared = {
     value,
     value2,
     value3
+};
+export { value as d } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { value2 as e } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
 };
 export { value3 as f } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -481,10 +464,10 @@ export { shared as a } from "__TURBOPACK_VAR__" assert {
 };
 
 ```
-## Part 6
+## Part 4
 ```js
 import { a as shared } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -5
+    __turbopack_part__: -3
 };
 const a = {
     shared,
@@ -495,7 +478,7 @@ export { a as b } from "__TURBOPACK_VAR__" assert {
 };
 
 ```
-## Part 7
+## Part 5
 ```js
 export { a } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export a"
@@ -508,7 +491,7 @@ export { b } from "__TURBOPACK_PART__" assert {
 ## Merged (module eval)
 ```js
 import { a as shared } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -5
+    __turbopack_part__: -3
 };
 "module evaluation";
 externalObject.propertyWithSetter = 42;

@@ -214,18 +214,15 @@ graph TD
     N1["Items: [ItemId(Export((&quot;func&quot;, #2), &quot;func&quot;)), ItemId(Export((&quot;order&quot;, #2), &quot;order&quot;)), ItemId(1, Normal)]"];
     N2["Items: [ItemId(Export((&quot;shared&quot;, #2), &quot;shared&quot;))]"];
     N3["Items: [ItemId(0, VarDeclarator(0))]"];
-    N4["Items: [ItemId(2, Normal)]"];
-    N5["Items: [ItemId(3, VarDeclarator(0)), ItemId(4, VarDeclarator(0)), ItemId(5, VarDeclarator(0))]"];
-    N6["Items: [ItemId(6, Normal)]"];
-    N4 --> N3;
-    N0 --> N6;
-    N2 --> N5;
+    N4["Items: [ItemId(2, Normal), ItemId(3, VarDeclarator(0)), ItemId(4, VarDeclarator(0)), ItemId(5, VarDeclarator(0))]"];
+    N5["Items: [ItemId(6, Normal)]"];
+    N5 --> N3;
+    N0 --> N5;
+    N2 --> N4;
     N1 --> N3;
     N5 --> N4;
-    N5 --> N3;
-    N1 --> N6;
-    N6 --> N5;
-    N6 --> N3;
+    N4 --> N3;
+    N1 --> N5;
 ```
 # Entrypoints
 
@@ -235,7 +232,7 @@ graph TD
     Export(
         "order",
     ): 1,
-    Exports: 7,
+    Exports: 6,
     Export(
         "func",
     ): 1,
@@ -250,7 +247,7 @@ graph TD
 ## Part 0
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
+    __turbopack_part__: 5
 };
 "module evaluation";
 
@@ -261,7 +258,7 @@ import { a as order } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -3
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
+    __turbopack_part__: 5
 };
 export { func };
 export { order };
@@ -276,7 +273,7 @@ export { func as b } from "__TURBOPACK_VAR__" assert {
 ## Part 2
 ```js
 import { c as shared } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -5
+    __turbopack_part__: -4
 };
 export { shared };
 
@@ -295,16 +292,6 @@ import { a as order } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -3
 };
 order.push("a");
-
-```
-## Part 5
-```js
-import { a as order } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -3
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
 const x1 = externalFunction();
 const x2 = externalFunction();
 const shared = {
@@ -321,18 +308,18 @@ export { shared as c } from "__TURBOPACK_VAR__" assert {
 };
 
 ```
-## Part 6
+## Part 5
 ```js
 import { a as order } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -3
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 5
+    __turbopack_part__: 4
 };
 order.push("c");
 
 ```
-## Part 7
+## Part 6
 ```js
 export { func } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export func"
@@ -348,7 +335,7 @@ export { shared } from "__TURBOPACK_PART__" assert {
 ## Merged (module eval)
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
+    __turbopack_part__: 5
 };
 "module evaluation";
 
@@ -361,7 +348,7 @@ import "__TURBOPACK_PART__" assert {
     Export(
         "order",
     ): 2,
-    Exports: 8,
+    Exports: 7,
     Export(
         "func",
     ): 1,
@@ -376,7 +363,7 @@ import "__TURBOPACK_PART__" assert {
 ## Part 0
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 7
+    __turbopack_part__: 6
 };
 "module evaluation";
 
@@ -387,7 +374,7 @@ import { a as order } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -4
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 7
+    __turbopack_part__: 6
 };
 export { func };
 function func() {
@@ -404,7 +391,7 @@ import { a as order } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -4
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 7
+    __turbopack_part__: 6
 };
 export { order };
 
@@ -412,7 +399,7 @@ export { order };
 ## Part 3
 ```js
 import { c as shared } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -6
+    __turbopack_part__: -5
 };
 export { shared };
 
@@ -431,16 +418,6 @@ import { a as order } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -4
 };
 order.push("a");
-
-```
-## Part 6
-```js
-import { a as order } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -4
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 5
-};
 const x1 = externalFunction();
 const x2 = externalFunction();
 const shared = {
@@ -457,18 +434,18 @@ export { shared as c } from "__TURBOPACK_VAR__" assert {
 };
 
 ```
-## Part 7
+## Part 6
 ```js
 import { a as order } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -4
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
+    __turbopack_part__: 5
 };
 order.push("c");
 
 ```
-## Part 8
+## Part 7
 ```js
 export { func } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export func"
@@ -484,7 +461,7 @@ export { shared } from "__TURBOPACK_PART__" assert {
 ## Merged (module eval)
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 7
+    __turbopack_part__: 6
 };
 "module evaluation";
 
