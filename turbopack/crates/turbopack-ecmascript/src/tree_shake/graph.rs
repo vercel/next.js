@@ -37,8 +37,8 @@ use crate::{magic_identifier, tree_shake::optimizations::GraphOptimizer};
 /// The id of an item
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(crate) enum ItemId {
-    Group(ItemIdGroupKind),
     Item { index: usize, kind: ItemIdItemKind },
+    Group(ItemIdGroupKind),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]

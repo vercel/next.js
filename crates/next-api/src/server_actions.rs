@@ -12,7 +12,7 @@ use swc_core::{
     atoms::Atom,
     common::comments::Comments,
     ecma::{
-        ast::{Decl, ExportSpecifier, Id, ModuleDecl, ModuleItem, Program},
+        ast::{Decl, ExportSpecifier, Id, ModuleDecl, ModuleItem, Program, PropOrSpread::Prop},
         utils::find_pat_ids,
     },
 };
@@ -310,11 +310,7 @@ async fn parse_actions(module: Vc<Box<dyn Module>>) -> Result<Vc<OptionActionMap
     {
         if matches!(
             &*module.await?.part.await?,
-            ModulePart::Evaluation
-                | ModulePart::Exports
-                | ModulePart::Facade
-                | ModulePart::Internal(..)
-                | ModulePart::InternalEvaluation(..)
+            ModulePart::Evaluation | ModulePart::Facade
         ) {
             return Ok(OptionActionMap::none());
         }
@@ -381,6 +377,25 @@ fn all_export_names(program: &Program) -> Vec<Atom> {
                         _ => {}
                     },
                     ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(decl)) => {
+                        if let Some(true) = decl.with.as_deref().and_then(|v| {
+                            v.props.iter().find_map(|p| match p {
+                                Prop(prop) => match &**prop {
+                                    swc_core::ecma::ast::Prop::KeyValue(key_value_prop) => {
+                                        if key_value_prop.key.as_str()?.value == "__turbopack_var__"
+                                        {
+                                            Some(key_value_prop.value.as_lit()?.as_bool()?.value)
+                                        } else {
+                                            None
+                                        }
+                                    }
+                                    _ => None,
+                                },
+                                _ => None,
+                            })
+                        }) {
+                            continue;
+                        }
+
                         for s in decl.specifiers.iter() {
                             match s {
                                 ExportSpecifier::Named(named) => {

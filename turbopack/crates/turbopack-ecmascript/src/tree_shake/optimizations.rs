@@ -3,7 +3,7 @@ use std::ops::Index;
 use petgraph::{visit::EdgeRef, Direction, Graph};
 use turbo_tasks::FxIndexSet;
 
-use crate::tree_shake::graph::{Dependency, ItemId, ItemIdGroupKind, ItemIdItemKind};
+use crate::tree_shake::graph::{Dependency, ItemId, ItemIdItemKind};
 
 pub(super) struct GraphOptimizer<'a> {
     pub graph_ix: &'a FxIndexSet<ItemId>,
@@ -25,18 +25,17 @@ impl GraphOptimizer<'_> {
     {
         let item_id = &self[*item];
 
-        // Currently we don't merge import bindings or exports because of workarounds we are using.
+        // Currently we don't merge import bindings because of workarounds we are using.
         //
         // See graph.rs for actual workarounds. ImportBinding workaround is about using direct
         // imports for import bindings so the static code analysis pass can detect imports like
-        // 'next/dynamic', and the export workaround is about adding an import for $$RSC_SERVER for
-        // server actions.
+        // 'next/dynamic'.
         matches!(
             item_id,
             ItemId::Item {
                 kind: ItemIdItemKind::ImportBinding(..),
                 ..
-            } | ItemId::Group(ItemIdGroupKind::Export(..))
+            }
         )
     }
 
