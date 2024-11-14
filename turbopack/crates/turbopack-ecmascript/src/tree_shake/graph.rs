@@ -1,9 +1,10 @@
-use std::{fmt, hash::Hash, iter::once};
+use std::{fmt, hash::Hash};
 
 use petgraph::{
     algo::{condensation, has_path_connecting},
     graphmap::GraphMap,
     prelude::DiGraphMap,
+    Direction,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
@@ -319,6 +320,24 @@ impl DepGraph {
                 .clone()
         };
 
+        let mut ix_to_export = FxHashMap::default();
+
+        for (ix, group) in groups.graph_ix.iter().enumerate() {
+            for item in group {
+                match item {
+                    ItemId::Group(ItemIdGroupKind::Export(_, export)) => {
+                        ix_to_export.insert(ix as u32, export.clone());
+                        exports.insert(Key::Export(export.as_str().into()), ix as u32);
+                    }
+                    ItemId::Group(ItemIdGroupKind::ModuleEvaluation) => {
+                        exports.insert(Key::ModuleEvaluation, ix as u32);
+                    }
+
+                    _ => {}
+                }
+            }
+        }
+
         for (ix, group) in groups.graph_ix.iter().enumerate() {
             let mut chunk = Module {
                 span: DUMMY_SP,
@@ -384,7 +403,6 @@ impl DepGraph {
                 match item {
                     ItemId::Group(ItemIdGroupKind::Export(..)) => {
                         if let Some(export) = &data[item].export {
-                            use_export_instead_of_declarator = true;
                             outputs.insert(Key::Export(export.as_str().into()), ix as u32);
 
                             let s = ExportSpecifier::Named(ExportNamedSpecifier {
@@ -496,10 +514,15 @@ impl DepGraph {
                     is_type_only: false,
                 })];
 
+                let dep_part_id = ix_to_export
+                    .get(&dep)
+                    .map(|e| PartId::Export(e.as_str().into()))
+                    .unwrap_or(PartId::Internal(dep, false));
+
                 part_deps
                     .entry(ix as u32)
                     .or_default()
-                    .push(PartId::Internal(dep, false));
+                    .push(dep_part_id.clone());
 
                 chunk
                     .body
@@ -508,9 +531,7 @@ impl DepGraph {
                         specifiers,
                         src: Box::new(TURBOPACK_PART_IMPORT_SOURCE.into()),
                         type_only: false,
-                        with: Some(Box::new(create_turbopack_part_id_assert(PartId::Internal(
-                            dep, false,
-                        )))),
+                        with: Some(Box::new(create_turbopack_part_id_assert(dep_part_id))),
                         phase: Default::default(),
                     })));
             }
@@ -1415,7 +1436,7 @@ impl DepGraph {
                 continue;
             };
 
-            if !export.0.as_str().starts_with("$$RSC_SERVER_") {
+            if !export.0.starts_with("$$RSC_SERVER_") {
                 continue;
             }
 
@@ -1440,7 +1461,32 @@ impl DepGraph {
         }
 
         while let Some((from, to)) = queue.pop() {
-            self.add_strong_deps(&from, once(&to));
+            let from = self.g.node(&from);
+            let to = self.g.node(&to);
+
+            // Move incoming edges to the export node
+            for ix in self
+                .g
+                .idx_graph
+                .edges_directed(from, Direction::Incoming)
+                .map(|(a, b, c)| (a, b, *c))
+                .collect::<Vec<_>>()
+            {
+                self.g.idx_graph.add_edge(ix.0, to, ix.2);
+                self.g.idx_graph.remove_edge(ix.0, from);
+            }
+
+            // MOve outgoing edges to the declarator
+            for ix in self
+                .g
+                .idx_graph
+                .edges_directed(from, Direction::Outgoing)
+                .map(|(a, b, c)| (a, b, *c))
+                .collect::<Vec<_>>()
+            {
+                self.g.idx_graph.add_edge(to, ix.1, ix.2);
+                self.g.idx_graph.remove_edge(from, ix.1);
+            }
         }
     }
 }
