@@ -170,7 +170,7 @@ pub(crate) fn get_invalid_client_only_resolve_plugin(
 /// Only the contexts that alises `server-only` to
 /// `next/dist/compiled/server-only/index` should use this.
 pub(crate) fn get_invalid_server_only_resolve_plugin(
-    root: Vc<FileSystemPath>,
+    root: ResolvedVc<FileSystemPath>,
 ) -> Vc<InvalidImportResolvePlugin> {
     InvalidImportResolvePlugin::new(
         root,
@@ -185,7 +185,7 @@ pub(crate) fn get_invalid_server_only_resolve_plugin(
 
 /// Returns a resolve plugin if context have imports to `styled-jsx`.
 pub(crate) fn get_invalid_styled_jsx_resolve_plugin(
-    root: Vc<FileSystemPath>,
+    root: ResolvedVc<FileSystemPath>,
 ) -> Vc<InvalidImportResolvePlugin> {
     InvalidImportResolvePlugin::new(
         root,

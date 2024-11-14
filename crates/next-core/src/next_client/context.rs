@@ -142,21 +142,21 @@ pub enum ClientContextType {
 
 #[turbo_tasks::function]
 pub async fn get_client_resolve_options_context(
-    project_path: Vc<FileSystemPath>,
+    project_path: ResolvedVc<FileSystemPath>,
     ty: Value<ClientContextType>,
     mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<ResolveOptionsContext>> {
     let next_client_import_map =
-        get_next_client_import_map(project_path, ty, next_config, execution_context)
+        get_next_client_import_map(*project_path, ty, next_config, execution_context)
             .to_resolved()
             .await?;
     let next_client_fallback_import_map = get_next_client_fallback_import_map(ty)
         .to_resolved()
         .await?;
     let next_client_resolved_map =
-        get_next_client_resolved_map(project_path, project_path, *mode.await?)
+        get_next_client_resolved_map(*project_path, project_path, *mode.await?)
             .to_resolved()
             .await?;
     let custom_conditions = vec![mode.await?.condition().into()];
@@ -175,18 +175,18 @@ pub async fn get_client_resolve_options_context(
                     .await?,
             ),
             ResolvedVc::upcast(
-                ModuleFeatureReportResolvePlugin::new(project_path)
+                ModuleFeatureReportResolvePlugin::new(*project_path)
                     .to_resolved()
                     .await?,
             ),
             ResolvedVc::upcast(
-                NextFontLocalResolvePlugin::new(project_path)
+                NextFontLocalResolvePlugin::new(*project_path)
                     .to_resolved()
                     .await?,
             ),
         ],
         after_resolve_plugins: vec![ResolvedVc::upcast(
-            NextSharedRuntimeResolvePlugin::new(project_path)
+            NextSharedRuntimeResolvePlugin::new(*project_path)
                 .to_resolved()
                 .await?,
         )],

@@ -121,7 +121,7 @@ impl ServerContextType {
 
 #[turbo_tasks::function]
 pub async fn get_server_resolve_options_context(
-    project_path: Vc<FileSystemPath>,
+    project_path: ResolvedVc<FileSystemPath>,
     ty: Value<ServerContextType>,
     mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
@@ -417,7 +417,7 @@ pub async fn get_server_module_options_context(
     .await?;
 
     let foreign_code_context_condition =
-        foreign_code_context_condition(next_config, *project_path).await?;
+        foreign_code_context_condition(next_config, project_path).await?;
     let postcss_transform_options = PostCssTransformOptions {
         postcss_package: Some(
             get_postcss_package_mapping(*project_path)
@@ -451,7 +451,7 @@ pub async fn get_server_module_options_context(
     // node_modules that requires webpack loaders, which next-dev implicitly
     // does by default.
     let foreign_enable_webpack_loaders = if let Some(vc) = webpack_loader_options(
-        *project_path,
+        project_path,
         next_config,
         true,
         conditions
@@ -469,7 +469,7 @@ pub async fn get_server_module_options_context(
 
     // Now creates a webpack rules that applies to all codes.
     let enable_webpack_loaders = if let Some(vc) =
-        webpack_loader_options(*project_path, next_config, false, conditions).await?
+        webpack_loader_options(project_path, next_config, false, conditions).await?
     {
         Some(vc.to_resolved().await?)
     } else {
@@ -485,9 +485,15 @@ pub async fn get_server_module_options_context(
     let versions = RuntimeVersions(Default::default()).cell();
 
     // ModuleOptionsContext related options
-    let tsconfig = get_typescript_transform_options(*project_path);
+    let tsconfig = get_typescript_transform_options(*project_path)
+        .to_resolved()
+        .await?;
     let decorators_options = get_decorators_transform_options(*project_path);
-    let enable_mdx_rs = *next_config.mdx_rs().await?;
+    let enable_mdx_rs = if let Some(mdx_rs) = *next_config.mdx_rs().await? {
+        Some(mdx_rs.to_resolved().await?)
+    } else {
+        None
+    };
 
     // Get the jsx transform options for the `client` side.
     // This matches to the behavior of existing webpack config, if issuer layer is
@@ -497,14 +503,18 @@ pub async fn get_server_module_options_context(
     // This enables correct emotion transform and other hydration between server and
     // client bundles. ref: https://github.com/vercel/next.js/blob/4bbf9b6c70d2aa4237defe2bebfa790cdb7e334e/packages/next/src/build/webpack-config.ts#L1421-L1426
     let jsx_runtime_options =
-        get_jsx_transform_options(*project_path, mode, None, false, next_config);
+        get_jsx_transform_options(*project_path, mode, None, false, next_config)
+            .to_resolved()
+            .await?;
     let rsc_jsx_runtime_options =
-        get_jsx_transform_options(*project_path, mode, None, true, next_config);
+        get_jsx_transform_options(*project_path, mode, None, true, next_config)
+            .to_resolved()
+            .await?;
 
     // A set of custom ecma transform rules being applied to server context.
     let source_transform_rules: Vec<ModuleRule> = vec![
-        get_swc_ecma_transform_plugin_rule(next_config, *project_path).await?,
-        get_relay_transform_rule(next_config, *project_path).await?,
+        get_swc_ecma_transform_plugin_rule(next_config, project_path).await?,
+        get_relay_transform_rule(next_config, project_path).await?,
         get_emotion_transform_rule(next_config).await?,
         get_react_remove_properties_transform_rule(next_config).await?,
         get_remove_console_transform_rule(next_config).await?,
