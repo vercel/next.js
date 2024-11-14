@@ -1,5 +1,5 @@
 use anyhow::{bail, Result};
-use turbo_tasks::{Upcast, Value, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, Upcast, Value, ValueToString, Vc};
 
 use super::ChunkableModule;
 use crate::{
@@ -57,7 +57,7 @@ async fn to_evaluatable(
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct EvaluatableAssets(Vec<Vc<Box<dyn EvaluatableAsset>>>);
+pub struct EvaluatableAssets(Vec<ResolvedVc<Box<dyn EvaluatableAsset>>>);
 
 #[turbo_tasks::value_impl]
 impl EvaluatableAssets {

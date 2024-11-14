@@ -33,7 +33,7 @@ pub trait ModuleReference: ValueToString {
 
 /// Multiple [ModuleReference]s
 #[turbo_tasks::value(transparent)]
-pub struct ModuleReferences(Vec<Vc<Box<dyn ModuleReference>>>);
+pub struct ModuleReferences(Vec<ResolvedVc<Box<dyn ModuleReference>>>);
 
 #[turbo_tasks::value_impl]
 impl ModuleReferences {

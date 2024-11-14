@@ -1299,8 +1299,8 @@ impl ValueToString for Pattern {
 
 #[derive(Debug, PartialEq, Eq, Clone, TraceRawVcs, Serialize, Deserialize)]
 pub enum PatternMatch {
-    File(RcStr, Vc<FileSystemPath>),
-    Directory(RcStr, Vc<FileSystemPath>),
+    File(RcStr, ResolvedVc<FileSystemPath>),
+    Directory(RcStr, ResolvedVc<FileSystemPath>),
 }
 
 impl PatternMatch {

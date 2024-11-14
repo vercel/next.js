@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{RcStr, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
 use super::{
@@ -15,7 +15,7 @@ pub struct AnalyzeIssue {
     pub title: Vc<RcStr>,
     pub message: Vc<StyledString>,
     pub code: Option<RcStr>,
-    pub source: Option<Vc<IssueSource>>,
+    pub source: Option<ResolvedVc<IssueSource>>,
 }
 
 #[turbo_tasks::value_impl]

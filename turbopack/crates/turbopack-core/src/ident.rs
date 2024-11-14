@@ -19,7 +19,7 @@ pub struct AssetIdent {
     /// The assets that are nested in this asset
     pub assets: Vec<(ResolvedVc<RcStr>, ResolvedVc<AssetIdent>)>,
     /// The modifiers of this asset (e.g. `client chunks`)
-    pub modifiers: Vec<Vc<RcStr>>,
+    pub modifiers: Vec<ResolvedVc<RcStr>>,
     /// The parts of the asset that are (ECMAScript) modules
     pub parts: Vec<ResolvedVc<ModulePart>>,
     /// The asset layer the asset was created from.

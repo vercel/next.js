@@ -1,4 +1,4 @@
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 
 use crate::source::Source;
 
@@ -8,7 +8,7 @@ pub trait SourceTransform {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct SourceTransforms(Vec<Vc<Box<dyn SourceTransform>>>);
+pub struct SourceTransforms(Vec<ResolvedVc<Box<dyn SourceTransform>>>);
 
 #[turbo_tasks::value_impl]
 impl SourceTransforms {

@@ -69,7 +69,7 @@ pub enum ModuleResolveResultItem {
     OutputAsset(ResolvedVc<Box<dyn OutputAsset>>),
     External(RcStr, ExternalType),
     /// A module could not be created (according to the rules, e.g. no module type as assigned)
-    Unknown(Vc<Box<dyn Source>>),
+    Unknown(ResolvedVc<Box<dyn Source>>),
     Ignore,
     Error(ResolvedVc<RcStr>),
     Empty,
@@ -387,7 +387,7 @@ pub enum ResolveResultItem {
     Source(ResolvedVc<Box<dyn Source>>),
     External(RcStr, ExternalType),
     Ignore,
-    Error(Vc<RcStr>),
+    Error(ResolvedVc<RcStr>),
     Empty,
     Custom(u8),
 }
@@ -961,7 +961,7 @@ impl ResolveResult {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct ResolveResultOption(Option<Vc<ResolveResult>>);
+pub struct ResolveResultOption(Option<ResolvedVc<ResolveResult>>);
 
 #[turbo_tasks::value_impl]
 impl ResolveResultOption {

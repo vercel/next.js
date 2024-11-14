@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use turbo_tasks::{emit, CollectiblesSource, FxIndexMap, RcStr, Upcast, Vc};
+use turbo_tasks::{emit, CollectiblesSource, FxIndexMap, RcStr, ResolvedVc, Upcast, Vc};
 
 #[turbo_tasks::value(serialization = "none")]
 #[derive(Clone, Debug)]
@@ -110,5 +110,5 @@ where
 #[derive(Debug)]
 #[turbo_tasks::value]
 pub struct CapturedDiagnostics {
-    pub diagnostics: auto_hash_map::AutoSet<Vc<Box<dyn Diagnostic>>>,
+    pub diagnostics: auto_hash_map::AutoSet<ResolvedVc<Box<dyn Diagnostic>>>,
 }

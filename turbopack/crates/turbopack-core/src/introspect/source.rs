@@ -1,11 +1,11 @@
 use anyhow::Result;
-use turbo_tasks::{RcStr, ValueToString, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, ValueToString, Vc};
 
 use super::{utils::content_to_details, Introspectable};
 use crate::{asset::Asset, source::Source};
 
 #[turbo_tasks::value]
-pub struct IntrospectableSource(Vc<Box<dyn Source>>);
+pub struct IntrospectableSource(ResolvedVc<Box<dyn Source>>);
 
 #[turbo_tasks::value_impl]
 impl IntrospectableSource {

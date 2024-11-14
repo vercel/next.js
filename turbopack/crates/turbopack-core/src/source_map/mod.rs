@@ -7,7 +7,7 @@ use ref_cast::RefCast;
 use regex::Regex;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use sourcemap::{DecodedMap, SourceMap as RegularMap, SourceMapBuilder, SourceMapIndex};
-use turbo_tasks::{RcStr, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::{
     rope::{Rope, RopeBuilder},
     File, FileContent, FileSystem, FileSystemPath, VirtualFileSystem,
@@ -57,7 +57,7 @@ pub enum SourceMap {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct OptionSourceMap(Option<Vc<SourceMap>>);
+pub struct OptionSourceMap(Option<ResolvedVc<SourceMap>>);
 
 #[turbo_tasks::value_impl]
 impl OptionSourceMap {
@@ -87,7 +87,7 @@ pub enum Token {
 #[derive(Clone, Debug)]
 pub struct TokenWithSource {
     pub token: Vc<Token>,
-    pub source_content: Option<Vc<Box<dyn Source>>>,
+    pub source_content: Option<ResolvedVc<Box<dyn Source>>>,
 }
 
 /// A SyntheticToken represents a region of the generated file that was created

@@ -55,10 +55,10 @@ impl Environment {
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Debug, Hash, Clone, Copy)]
 pub enum ExecutionEnvironment {
-    NodeJsBuildTime(Vc<NodeJsEnvironment>),
-    NodeJsLambda(Vc<NodeJsEnvironment>),
-    EdgeWorker(Vc<EdgeWorkerEnvironment>),
-    Browser(Vc<BrowserEnvironment>),
+    NodeJsBuildTime(ResolvedVc<NodeJsEnvironment>),
+    NodeJsLambda(ResolvedVc<NodeJsEnvironment>),
+    EdgeWorker(ResolvedVc<EdgeWorkerEnvironment>),
+    Browser(ResolvedVc<BrowserEnvironment>),
     // TODO allow custom trait here
     Custom(u8),
 }

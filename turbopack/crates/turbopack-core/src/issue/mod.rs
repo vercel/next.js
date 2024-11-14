@@ -202,7 +202,7 @@ trait IssueProcessingPath {
 
 #[turbo_tasks::value]
 pub struct IssueProcessingPathItem {
-    pub file_path: Option<Vc<FileSystemPath>>,
+    pub file_path: Option<ResolvedVc<FileSystemPath>>,
     pub description: Vc<RcStr>,
 }
 
@@ -238,7 +238,7 @@ impl IssueProcessingPathItem {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct OptionIssueProcessingPathItems(Option<Vec<Vc<IssueProcessingPathItem>>>);
+pub struct OptionIssueProcessingPathItems(Option<Vec<ResolvedVc<IssueProcessingPathItem>>>);
 
 #[turbo_tasks::value_impl]
 impl OptionIssueProcessingPathItems {
@@ -264,7 +264,7 @@ impl OptionIssueProcessingPathItems {
 }
 
 #[turbo_tasks::value]
-struct RootIssueProcessingPath(Vc<Box<dyn Issue>>);
+struct RootIssueProcessingPath(ResolvedVc<Box<dyn Issue>>);
 
 #[turbo_tasks::value_impl]
 impl IssueProcessingPath for RootIssueProcessingPath {
@@ -280,8 +280,8 @@ impl IssueProcessingPath for RootIssueProcessingPath {
 
 #[turbo_tasks::value]
 struct ItemIssueProcessingPath(
-    Option<Vc<IssueProcessingPathItem>>,
-    AutoSet<Vc<Box<dyn IssueProcessingPath>>>,
+    Option<ResolvedVc<IssueProcessingPathItem>>,
+    AutoSet<ResolvedVc<Box<dyn IssueProcessingPath>>>,
 );
 
 #[turbo_tasks::value_impl]
@@ -361,7 +361,7 @@ pub struct Issues(Vec<ResolvedVc<Box<dyn Issue>>>);
 #[turbo_tasks::value(shared)]
 #[derive(Debug)]
 pub struct CapturedIssues {
-    issues: AutoSet<Vc<Box<dyn Issue>>>,
+    issues: AutoSet<ResolvedVc<Box<dyn Issue>>>,
     #[cfg(feature = "issue_path")]
     processing_path: Vc<ItemIssueProcessingPath>,
 }
@@ -637,10 +637,10 @@ async fn source_pos(
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct OptionIssueSource(Option<Vc<IssueSource>>);
+pub struct OptionIssueSource(Option<ResolvedVc<IssueSource>>);
 
 #[turbo_tasks::value(transparent)]
-pub struct OptionStyledString(Option<Vc<StyledString>>);
+pub struct OptionStyledString(Option<ResolvedVc<StyledString>>);
 
 #[turbo_tasks::value(shared, serialization = "none")]
 #[derive(Clone, Debug, PartialOrd, Ord, DeterministicHash, Serialize)]

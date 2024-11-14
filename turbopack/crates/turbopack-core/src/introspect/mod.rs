@@ -3,12 +3,12 @@ pub mod output_asset;
 pub mod source;
 pub mod utils;
 
-use turbo_tasks::{FxIndexSet, RcStr, Vc};
+use turbo_tasks::{FxIndexSet, RcStr, ResolvedVc, Vc};
 
 type VcDynIntrospectable = Vc<Box<dyn Introspectable>>;
 
 #[turbo_tasks::value(transparent)]
-pub struct IntrospectableChildren(FxIndexSet<(Vc<RcStr>, VcDynIntrospectable)>);
+pub struct IntrospectableChildren(FxIndexSet<(ResolvedVc<RcStr>, VcDynIntrospectable)>);
 
 #[turbo_tasks::value_trait]
 pub trait Introspectable {

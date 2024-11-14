@@ -7,7 +7,7 @@ use anyhow::Result;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use tracing::Level;
-use turbo_tasks::{FxIndexMap, RcStr, ReadRef, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{FxIndexMap, RcStr, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 
 use super::{
     AsyncModuleInfo, Chunk, ChunkItem, ChunkItemsWithAsyncModuleInfo, ChunkType, ChunkingContext,
@@ -126,8 +126,8 @@ type ChunkItemWithInfo = (
 struct SplitContext<'a> {
     ty: Vc<Box<dyn ChunkType>>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-    chunks: &'a mut Vec<Vc<Box<dyn Chunk>>>,
-    referenced_output_assets: &'a mut Vc<OutputAssets>,
+    chunks: &'a mut Vec<ResolvedVc<Box<dyn Chunk>>>,
+    referenced_output_assets: &'a mut ResolvedVc<OutputAssets>,
     empty_referenced_output_assets: Vc<OutputAssets>,
 }
 

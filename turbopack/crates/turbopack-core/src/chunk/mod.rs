@@ -84,7 +84,7 @@ impl ModuleId {
 
 /// A list of module ids.
 #[turbo_tasks::value(transparent, shared)]
-pub struct ModuleIds(Vec<Vc<ModuleId>>);
+pub struct ModuleIds(Vec<ResolvedVc<ModuleId>>);
 
 /// A [Module] that can be converted into a [Chunk].
 #[turbo_tasks::value_trait]
@@ -189,9 +189,9 @@ pub trait ChunkableModuleReference: ModuleReference + ValueToString {
 type AsyncInfo = FxIndexMap<Vc<Box<dyn ChunkItem>>, Vec<Vc<Box<dyn ChunkItem>>>>;
 
 pub struct ChunkContentResult {
-    pub chunk_items: FxIndexSet<Vc<Box<dyn ChunkItem>>>,
+    pub chunk_items: FxIndexSet<ResolvedVc<Box<dyn ChunkItem>>>,
     pub async_modules: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
-    pub external_module_references: FxIndexSet<Vc<Box<dyn ModuleReference>>>,
+    pub external_module_references: FxIndexSet<ResolvedVc<Box<dyn ModuleReference>>>,
     /// A map from local module to all children from which the async module
     /// status is inherited
     pub forward_edges_inherit_async: AsyncInfo,
@@ -503,8 +503,8 @@ async fn graph_node_to_referenced_nodes(
 
 struct ChunkContentVisit {
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-    available_chunk_items: Option<Vc<AvailableChunkItems>>,
-    processed_modules: HashSet<Vc<Box<dyn Module>>>,
+    available_chunk_items: Option<ResolvedVc<AvailableChunkItems>>,
+    processed_modules: HashSet<ResolvedVc<Box<dyn Module>>>,
 }
 
 type ChunkItemToGraphNodesEdges = impl Iterator<Item = ChunkGraphEdge>;
@@ -729,7 +729,7 @@ pub fn round_chunk_item_size(size: usize) -> usize {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct ChunkItems(pub Vec<Vc<Box<dyn ChunkItem>>>);
+pub struct ChunkItems(pub Vec<ResolvedVc<Box<dyn ChunkItem>>>);
 
 #[turbo_tasks::value]
 pub struct AsyncModuleInfo {
