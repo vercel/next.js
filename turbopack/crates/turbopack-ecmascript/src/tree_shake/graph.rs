@@ -1440,11 +1440,7 @@ impl DepGraph {
     fn workarounds_server_action(&mut self, data: &FxHashMap<ItemId, ItemData>) {
         let mut queue = vec![];
 
-        for ix in self.g.idx_graph.nodes() {
-            let Some(export_node) = self.g.graph_ix.get_index(ix as _) else {
-                continue;
-            };
-
+        for export_node in self.g.graph_ix.iter() {
             let ItemId::Group(ItemIdGroupKind::Export(exported_var, _)) = export_node else {
                 continue;
             };
@@ -1481,12 +1477,11 @@ impl DepGraph {
             for ix in self
                 .g
                 .idx_graph
-                .edges_directed(from, Direction::Incoming)
-                .map(|(a, b, c)| (a, b, *c))
+                .neighbors_directed(from, Direction::Incoming)
                 .collect::<Vec<_>>()
             {
-                self.g.idx_graph.add_edge(ix.0, to, ix.2);
-                self.g.idx_graph.remove_edge(ix.0, ix.1);
+                self.g.idx_graph.add_edge(ix, to, Dependency::Strong);
+                self.g.idx_graph.remove_edge(ix, from).unwrap();
             }
         }
     }
