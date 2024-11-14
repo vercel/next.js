@@ -4025,6 +4025,7 @@ dependencies = [
  "regex",
  "remove_console",
  "rustc-hash 1.1.0",
+ "semver 1.0.23",
  "serde",
  "serde_json",
  "swc_core",
