@@ -520,7 +520,7 @@ pub struct ExperimentalConfig {
     pub sri: Option<SubResourceIntegrity>,
     react_compiler: Option<ReactCompilerOptionsOrBoolean>,
     #[serde(rename = "dynamicIO")]
-    pub dynamic_io: Option<bool>,
+    dynamic_io: Option<bool>,
     // ---
     // UNSUPPORTED
     // ---
@@ -1152,6 +1152,11 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn enable_react_owner_stack(&self) -> Vc<bool> {
         Vc::cell(self.experimental.react_owner_stack.unwrap_or(false))
+    }
+
+    #[turbo_tasks::function]
+    pub fn enable_dynamic_io(&self) -> Vc<bool> {
+        Vc::cell(self.experimental.dynamic_io.unwrap_or(false))
     }
 
     #[turbo_tasks::function]

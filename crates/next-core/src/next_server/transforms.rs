@@ -54,12 +54,7 @@ pub async fn get_next_server_transforms_rules(
         ));
     }
 
-    let dynamic_io_enabled = next_config
-        .experimental()
-        .await?
-        .dynamic_io
-        .unwrap_or(false);
-
+    let dynamic_io_enabled = *next_config.enable_dynamic_io().await?;
     let mut is_app_dir = false;
 
     let is_server_components = match context_ty {
