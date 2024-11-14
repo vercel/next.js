@@ -1490,20 +1490,25 @@ impl DepGraph {
                     continue;
                 }
 
+                let dependants = g
+                    .edges_directed(declarator, Direction::Incoming)
+                    .map(|e| (e.source(), *e.weight()))
+                    .collect::<Vec<_>>();
+
                 // We depend on the export node to preserve the export
-                queue.push((declarator, node, dependencies));
+                queue.push((node, declarator, dependants));
             }
         }
 
-        for (original, dependant, dependencies) in queue {
+        for (node, declarator, dependants) in queue {
             // Move all edges from node to dependant
-            for dependency in dependencies {
-                g.add_edge(dependant, dependency, Dependency::Strong);
-            }
+            for (dependant, weight) in dependants {
+                g.add_edge(dependant, node, weight);
 
-            // Move items from original to dependant
-            let items = g.node_weight(original).expect("Node should exist").clone();
-            g.node_weight_mut(dependant).unwrap().extend(items);
+                if let Some(edge) = g.edges_connecting(dependant, declarator).next() {
+                    g.remove_edge(edge.id());
+                }
+            }
         }
     }
 }
