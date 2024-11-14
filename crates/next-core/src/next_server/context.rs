@@ -434,8 +434,8 @@ pub async fn get_server_module_options_context(
         config_location: PostCssConfigLocation::ProjectPath,
         ..postcss_transform_options.clone()
     };
-    let enable_postcss_transform = Some(postcss_transform_options.cell());
-    let enable_foreign_postcss_transform = Some(postcss_foreign_transform_options.cell());
+    let enable_postcss_transform = Some(postcss_transform_options.resolved_cell());
+    let enable_foreign_postcss_transform = Some(postcss_foreign_transform_options.resolved_cell());
 
     let mut conditions = vec![mode.await?.condition().into()];
     conditions.extend(
