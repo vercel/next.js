@@ -45,9 +45,7 @@ export function HTTPAccessErrorFallback({
   return (
     <>
       {/* <head> */}
-      <title>
-        {status}: {message}
-      </title>
+      <title>{`${status}: ${message}`}</title>
       {/* </head> */}
       <div style={styles.error}>
         <div>
