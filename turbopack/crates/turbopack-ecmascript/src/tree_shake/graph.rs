@@ -4,7 +4,8 @@ use petgraph::{
     algo::{condensation, has_path_connecting},
     graphmap::GraphMap,
     prelude::DiGraphMap,
-    Direction,
+    visit::EdgeRef,
+    Direction, Graph,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
@@ -261,8 +262,6 @@ impl DepGraph {
         directives: &[ModuleItem],
         data: &FxHashMap<ItemId, ItemData>,
     ) -> SplitModuleResult {
-        self.workarounds_server_action(data);
-
         let groups = self.finalize(data);
         let mut outputs = FxHashMap::default();
         let mut part_deps = FxHashMap::<_, Vec<PartId>>::default();
@@ -681,7 +680,7 @@ impl DepGraph {
     /// Note that [ModuleItem] and [Module] are represented as [ItemId] for
     /// performance.
     pub(super) fn finalize(
-        &self,
+        &mut self,
         data: &FxHashMap<ItemId, ItemData>,
     ) -> InternedGraph<Vec<ItemId>> {
         let graph = self.g.idx_graph.clone().into_graph::<u32>();
@@ -695,6 +694,7 @@ impl DepGraph {
                 break;
             }
         }
+        self.workarounds_server_action(&mut condensed, data);
 
         let mut new_graph = InternedGraph::default();
 
@@ -1437,52 +1437,69 @@ impl DepGraph {
     ///
     /// So we need to add an import for $$RSC_SERVER_0 to the module, so that the export is
     /// preserved.
-    fn workarounds_server_action(&mut self, data: &FxHashMap<ItemId, ItemData>) {
+    fn workarounds_server_action(
+        &mut self,
+        g: &mut Graph<Vec<u32>, Dependency>,
+        data: &FxHashMap<ItemId, ItemData>,
+    ) {
         let mut queue = vec![];
 
-        for export_node in self.g.graph_ix.iter() {
-            let ItemId::Group(ItemIdGroupKind::Export(exported_var, _)) = export_node else {
+        for node in g.node_indices() {
+            let Some(ix_vec) = g.node_weight(node) else {
                 continue;
             };
 
-            if !exported_var.0.starts_with("$$RSC_SERVER_") {
-                continue;
-            }
+            for ix in ix_vec.iter() {
+                let item_id = self.g.graph_ix.get_index(*ix as _).unwrap();
 
-            // Find the item that declares the export
+                let ItemId::Group(ItemIdGroupKind::Export(exported_var, _)) = item_id else {
+                    continue;
+                };
 
-            let declarator = 'declarator: {
-                for (id, data) in data {
-                    if data.var_decls.contains(exported_var) {
-                        break 'declarator Some(id);
-                    }
+                if !exported_var.0.starts_with("$$RSC_SERVER_") {
+                    continue;
                 }
 
-                None
-            };
+                let dependencies = g
+                    .edges_directed(node, Direction::Outgoing)
+                    .map(|e| e.target())
+                    .collect::<Vec<_>>();
 
-            let Some(declarator) = declarator else {
-                continue;
-            };
+                // Find the item that declares the export
 
-            // We depend on the export node to preserve the export
-            queue.push((declarator.clone(), export_node.clone()));
+                let declarator = 'declarator: {
+                    for &dependency in dependencies.iter() {
+                        let dependency_nodes = &g[dependency];
+
+                        for dep_ix in dependency_nodes.iter() {
+                            let dep_item_id = self.g.graph_ix.get_index(*dep_ix as _).unwrap();
+                            if data[dep_item_id].var_decls.contains(exported_var) {
+                                break 'declarator Some(dependency);
+                            }
+                        }
+                    }
+
+                    None
+                };
+
+                let Some(declarator) = declarator else {
+                    continue;
+                };
+
+                // We depend on the export node to preserve the export
+                queue.push((declarator, node, dependencies));
+            }
         }
 
-        while let Some((from, to)) = queue.pop() {
-            let from = self.g.node(&from);
-            let to = self.g.node(&to);
-
-            // Move incoming edges to the export node
-            for ix in self
-                .g
-                .idx_graph
-                .neighbors_directed(from, Direction::Incoming)
-                .collect::<Vec<_>>()
-            {
-                self.g.idx_graph.add_edge(ix, to, Dependency::Strong);
-                self.g.idx_graph.remove_edge(ix, from).unwrap();
+        for (original, dependant, dependencies) in queue {
+            // Move all edges from node to dependant
+            for dependency in dependencies {
+                g.add_edge(dependant, dependency, Dependency::Strong);
             }
+
+            // Move items from original to dependant
+            let items = g.node_weight(original).expect("Node should exist").clone();
+            g.node_weight_mut(dependant).unwrap().extend(items);
         }
     }
 }
