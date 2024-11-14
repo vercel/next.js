@@ -384,9 +384,12 @@ pub async fn get_client_module_options_context(
         rules: vec![
             (
                 foreign_code_context_condition(next_config, project_path).await?,
-                foreign_codes_options_context.cell(),
+                foreign_codes_options_context.resolved_cell(),
             ),
-            (internal_assets_conditions(), internal_context.cell()),
+            (
+                internal_assets_conditions(),
+                internal_context.resolved_cell(),
+            ),
         ],
         module_rules: next_client_rules,
         ..module_options_context
