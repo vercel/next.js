@@ -129,7 +129,7 @@ pub async fn aggregate(asset: Vc<Box<dyn OutputAsset>>) -> Result<Vc<AggregatedG
 struct AggregationCost(usize);
 
 #[turbo_tasks::function]
-async fn aggregate_more(node: Vc<AggregatedGraph>) -> Result<Vc<AggregatedGraph>> {
+async fn aggregate_more(node: ResolvedVc<AggregatedGraph>) -> Result<Vc<AggregatedGraph>> {
     let node_data = node.await?;
     let depth = node_data.depth();
     let mut in_progress = HashSet::new();
@@ -152,20 +152,20 @@ async fn aggregate_more(node: Vc<AggregatedGraph>) -> Result<Vc<AggregatedGraph>
         for valued_refs in valued_refs {
             let valued_refs = valued_refs.await?;
             for &reference in valued_refs.inner.iter() {
-                content.insert(*reference);
+                content.insert(reference);
             }
             for &reference in valued_refs.references.iter() {
                 if content.contains(&reference) {
                     continue;
                 }
-                references.insert(*reference);
+                references.insert(reference);
             }
             for &reference in valued_refs.outer.iter() {
                 if content.contains(&reference) {
                     continue;
                 }
                 references.remove(&reference);
-                in_progress.insert(*reference);
+                in_progress.insert(reference);
             }
         }
     }
