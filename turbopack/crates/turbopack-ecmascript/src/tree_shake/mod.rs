@@ -228,8 +228,13 @@ impl Analyzer<'_> {
                     self.g
                         .add_strong_deps(item_id, self.last_side_effects.last());
 
-                    // Create weak dependencies to all LAST_WRITES and
-                    // LAST_READS.
+                    // Create weak dependencies to all LAST_WRITES and strong
+                    // dependencies to LAST_READS.
+                    //
+                    // We need to create strong dependencies to LAST_READS because
+                    // prototype-based methods definitions should be executed before
+                    // any usage of those methods, and the usage of those methods are
+                    // flagged as a side effect.
                     for id in eventual_ids.iter() {
                         let state = self.vars.entry(id.clone()).or_default();
 
