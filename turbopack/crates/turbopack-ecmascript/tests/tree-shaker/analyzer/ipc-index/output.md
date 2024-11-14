@@ -967,7 +967,7 @@ graph TD
 # Final
 ```mermaid
 graph TD
-    N0["Items: [ItemId(ModuleEvaluation), ItemId(8, VarDeclarator(0)), ItemId(9, Normal), ItemId(10, Normal), ItemId(11, Normal), ItemId(12, Normal), ItemId(13, Normal), ItemId(14, Normal), ItemId(15, Normal), ItemId(16, Normal), ItemId(17, Normal), ItemId(18, Normal), ItemId(19, Normal), ItemId(20, Normal), ItemId(21, Normal), ItemId(22, Normal), ItemId(23, Normal), ItemId(24, Normal)]"];
+    N0["Items: [ItemId(ModuleEvaluation), ItemId(9, Normal), ItemId(10, Normal), ItemId(11, Normal), ItemId(12, Normal), ItemId(13, Normal), ItemId(14, Normal), ItemId(15, Normal), ItemId(16, Normal), ItemId(17, Normal), ItemId(18, Normal), ItemId(19, Normal), ItemId(20, Normal), ItemId(21, Normal), ItemId(22, Normal), ItemId(23, Normal), ItemId(24, Normal)]"];
     N1["Items: [ItemId(Export((&quot;IPC&quot;, #2), &quot;IPC&quot;))]"];
     N2["Items: [ItemId(Export((&quot;structuredError&quot;, #2), &quot;structuredError&quot;))]"];
     N3["Items: [ItemId(0, ImportOfModule)]"];
@@ -979,6 +979,7 @@ graph TD
     N9["Items: [ItemId(3, Normal)]"];
     N10["Items: [ItemId(4, Normal), ItemId(5, VarDeclarator(0)), ItemId(6, VarDeclarator(0))]"];
     N11["Items: [ItemId(7, Normal)]"];
+    N12["Items: [ItemId(8, VarDeclarator(0))]"];
     N5 --> N3;
     N7 --> N5;
     N0 -.-> N4;
@@ -986,7 +987,7 @@ graph TD
     N2 --> N9;
     N1 --> N10;
     N9 --> N8;
-    N8 --> N7;
+    N0 --> N12;
     N0 -.-> N9;
     N10 -.-> N8;
     N10 -.-> N6;
@@ -997,13 +998,18 @@ graph TD
     N11 -.-> N6;
     N11 -.-> N4;
     N11 -.-> N9;
+    N12 --> N11;
+    N12 -.-> N8;
+    N12 -.-> N6;
+    N12 -.-> N4;
+    N12 -.-> N9;
+    N9 --> N6;
+    N6 --> N5;
+    N8 --> N7;
     N10 --> N7;
     N1 --> N11;
     N4 --> N3;
     N0 -.-> N8;
-    N0 --> N11;
-    N9 --> N6;
-    N6 --> N5;
 ```
 # Entrypoints
 
@@ -1013,7 +1019,7 @@ graph TD
     Export(
         "IPC",
     ): 1,
-    Exports: 12,
+    Exports: 13,
     Export(
         "structuredError",
     ): 2,
@@ -1024,6 +1030,9 @@ graph TD
 # Modules (dev)
 ## Part 0
 ```js
+import { a as improveConsole } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -12
+};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 4
 };
@@ -1036,24 +1045,7 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 8
 };
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 11
-};
 "module evaluation";
-const improveConsole = (name, stream, addStack)=>{
-    const original = console[name];
-    const stdio = process[stream];
-    console[name] = (...args)=>{
-        stdio.write(`TURBOPACK_OUTPUT_B\n`);
-        original(...args);
-        if (addStack) {
-            const stack = new Error().stack?.replace(/^.+\n.+\n/, "") + "\n";
-            stdio.write("TURBOPACK_OUTPUT_S\n");
-            stdio.write(stack);
-        }
-        stdio.write("TURBOPACK_OUTPUT_E\n");
-    };
-};
 improveConsole("error", "stderr", true);
 improveConsole("warn", "stderr", true);
 improveConsole("count", "stdout", true);
@@ -1070,9 +1062,6 @@ improveConsole("timeEnd", "stdout", true);
 improveConsole("timeLog", "stdout", true);
 improveConsole("timeStamp", "stdout", true);
 improveConsole("assert", "stderr", true);
-export { improveConsole as a } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
 
 ```
 ## Part 1
@@ -1361,32 +1350,21 @@ process.on("uncaughtException", (err)=>{
 ```
 ## Part 12
 ```js
-export { IPC } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export IPC"
-};
-export { structuredError } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export structuredError"
-};
-
-```
-## Merged (module eval)
-```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
+    __turbopack_part__: 11
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 8
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 11
+    __turbopack_part__: 6
 };
-"module evaluation";
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 4
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 9
+};
 const improveConsole = (name, stream, addStack)=>{
     const original = console[name];
     const stdio = process[stream];
@@ -1401,6 +1379,39 @@ const improveConsole = (name, stream, addStack)=>{
         stdio.write("TURBOPACK_OUTPUT_E\n");
     };
 };
+export { improveConsole as a } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+
+```
+## Part 13
+```js
+export { IPC } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export IPC"
+};
+export { structuredError } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export structuredError"
+};
+
+```
+## Merged (module eval)
+```js
+import { a as improveConsole } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -12
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 4
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 9
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 8
+};
+"module evaluation";
 improveConsole("error", "stderr", true);
 improveConsole("warn", "stderr", true);
 improveConsole("count", "stdout", true);
@@ -1417,9 +1428,6 @@ improveConsole("timeEnd", "stdout", true);
 improveConsole("timeLog", "stdout", true);
 improveConsole("timeStamp", "stdout", true);
 improveConsole("assert", "stderr", true);
-export { improveConsole as a } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
 
 ```
 # Entrypoints
@@ -1430,7 +1438,7 @@ export { improveConsole as a } from "__TURBOPACK_VAR__" assert {
     Export(
         "IPC",
     ): 1,
-    Exports: 12,
+    Exports: 13,
     Export(
         "structuredError",
     ): 2,
@@ -1441,24 +1449,10 @@ export { improveConsole as a } from "__TURBOPACK_VAR__" assert {
 # Modules (prod)
 ## Part 0
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 11
+import { a as improveConsole } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -12
 };
 "module evaluation";
-const improveConsole = (name, stream, addStack)=>{
-    const original = console[name];
-    const stdio = process[stream];
-    console[name] = (...args)=>{
-        stdio.write(`TURBOPACK_OUTPUT_B\n`);
-        original(...args);
-        if (addStack) {
-            const stack = new Error().stack?.replace(/^.+\n.+\n/, "") + "\n";
-            stdio.write("TURBOPACK_OUTPUT_S\n");
-            stdio.write(stack);
-        }
-        stdio.write("TURBOPACK_OUTPUT_E\n");
-    };
-};
 improveConsole("error", "stderr", true);
 improveConsole("warn", "stderr", true);
 improveConsole("count", "stdout", true);
@@ -1475,9 +1469,6 @@ improveConsole("timeEnd", "stdout", true);
 improveConsole("timeLog", "stdout", true);
 improveConsole("timeStamp", "stdout", true);
 improveConsole("assert", "stderr", true);
-export { improveConsole as a } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
 
 ```
 ## Part 1
@@ -1748,20 +1739,9 @@ process.on("uncaughtException", (err)=>{
 ```
 ## Part 12
 ```js
-export { IPC } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export IPC"
-};
-export { structuredError } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export structuredError"
-};
-
-```
-## Merged (module eval)
-```js
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 11
 };
-"module evaluation";
 const improveConsole = (name, stream, addStack)=>{
     const original = console[name];
     const stdio = process[stream];
@@ -1776,6 +1756,27 @@ const improveConsole = (name, stream, addStack)=>{
         stdio.write("TURBOPACK_OUTPUT_E\n");
     };
 };
+export { improveConsole as a } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+
+```
+## Part 13
+```js
+export { IPC } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export IPC"
+};
+export { structuredError } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export structuredError"
+};
+
+```
+## Merged (module eval)
+```js
+import { a as improveConsole } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -12
+};
+"module evaluation";
 improveConsole("error", "stderr", true);
 improveConsole("warn", "stderr", true);
 improveConsole("count", "stdout", true);
@@ -1792,8 +1793,5 @@ improveConsole("timeEnd", "stdout", true);
 improveConsole("timeLog", "stdout", true);
 improveConsole("timeStamp", "stdout", true);
 improveConsole("assert", "stderr", true);
-export { improveConsole as a } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
 
 ```

@@ -619,7 +619,7 @@ import "__TURBOPACK_PART__" assert {
     Export(
         "initialCat",
     ): 4,
-    Exports: 8,
+    Exports: 10,
     Export(
         "cat",
     ): 1,
@@ -637,7 +637,7 @@ import { a as dog } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -5
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
+    __turbopack_part__: 8
 };
 "module evaluation";
 console.log(dog);
@@ -648,7 +648,7 @@ console.log(dog);
 ## Part 1
 ```js
 import { b as cat } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -7
+    __turbopack_part__: -9
 };
 export { cat };
 
@@ -659,7 +659,7 @@ import { a as dog } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -5
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
+    __turbopack_part__: 8
 };
 export { dogRef };
 function getDog() {
@@ -690,10 +690,10 @@ import { a as dog } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -5
 };
 import { b as cat } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -7
+    __turbopack_part__: -9
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
+    __turbopack_part__: 8
 };
 export { getChimera };
 function getChimera() {
@@ -707,7 +707,7 @@ export { getChimera as f } from "__TURBOPACK_VAR__" assert {
 ## Part 4
 ```js
 import { b as cat } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -7
+    __turbopack_part__: -9
 };
 export { initialCat };
 const initialCat = cat;
@@ -730,11 +730,31 @@ import { a as dog } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -5
 };
 dog += "!";
-dog += "!";
-dog += "!";
 
 ```
 ## Part 7
+```js
+import { a as dog } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -5
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
+};
+dog += "!";
+
+```
+## Part 8
+```js
+import { a as dog } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -5
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 7
+};
+dog += "!";
+
+```
+## Part 9
 ```js
 let cat = "cat";
 export { cat as b } from "__TURBOPACK_VAR__" assert {
@@ -742,7 +762,7 @@ export { cat as b } from "__TURBOPACK_VAR__" assert {
 };
 
 ```
-## Part 8
+## Part 10
 ```js
 export { cat } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export cat"
@@ -764,7 +784,7 @@ import { a as dog } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -5
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
+    __turbopack_part__: 8
 };
 "module evaluation";
 console.log(dog);
