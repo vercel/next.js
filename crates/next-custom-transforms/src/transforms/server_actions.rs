@@ -6,6 +6,7 @@ use std::{
 
 use hex::encode as hex_encode;
 use indoc::formatdoc;
+use rustc_hash::FxHashSet;
 use serde::Deserialize;
 use sha1::{Digest, Sha1};
 use swc_core::{
@@ -29,6 +30,7 @@ pub struct Config {
     pub is_react_server_layer: bool,
     pub dynamic_io_enabled: bool,
     pub hash_salt: String,
+    pub cache_kinds: FxHashSet<String>,
 }
 
 enum DirectiveLocation {
@@ -64,6 +66,10 @@ enum ServerActionsErrorKind {
         span: Span,
         directive: String,
         expected_directive: String,
+    },
+    UnknownCacheKind {
+        span: Span,
+        cache_kind: String,
     },
     UseCacheWithoutDynamicIO {
         span: Span,
@@ -311,7 +317,7 @@ impl<C: Comments> ServerActions<C> {
                 &mut is_action_fn,
                 &mut cache_kind,
                 &mut span,
-                self.config.dynamic_io_enabled,
+                &self.config,
             );
 
             if !self.config.is_react_server_layer {
@@ -1307,7 +1313,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             &mut self.file_cache_kind,
             &mut self.has_action,
             &mut self.has_cache,
-            self.config.dynamic_io_enabled,
+            &self.config,
         );
 
         // If we're in a "use cache" file, collect all original IDs from export
@@ -2349,7 +2355,7 @@ fn remove_server_directive_index_in_module(
     file_cache_kind: &mut Option<String>,
     has_action: &mut bool,
     has_cache: &mut bool,
-    dynamic_io_enabled: bool,
+    config: &Config,
 ) {
     let mut is_directive = true;
 
@@ -2375,19 +2381,30 @@ fn remove_server_directive_index_in_module(
                 // `use cache` or `use cache: foo`
                 if value == "use cache" || value.starts_with("use cache: ") {
                     if is_directive {
-                        if !dynamic_io_enabled {
+                        if !config.dynamic_io_enabled {
                             emit_error(ServerActionsErrorKind::UseCacheWithoutDynamicIO {
                                 span: *span,
                                 directive: value.to_string(),
                             });
                         }
 
-                        *file_cache_kind = Some(if value == "use cache" {
-                            "default".into()
+                        if value == "use cache" {
+                            *file_cache_kind = Some("default".into());
                         } else {
                             // Slice the value after "use cache: "
-                            value.split_at("use cache: ".len()).1.into()
-                        });
+                            let cache_kind_str: String =
+                                value.split_at("use cache: ".len()).1.into();
+
+                            if !config.cache_kinds.contains(&cache_kind_str) {
+                                emit_error(ServerActionsErrorKind::UnknownCacheKind {
+                                    span: *span,
+                                    cache_kind: cache_kind_str.clone(),
+                                });
+                            }
+
+                            *file_cache_kind = Some(cache_kind_str)
+                        }
+
                         *has_cache = true;
                         return false;
                     } else {
@@ -2488,7 +2505,7 @@ fn remove_server_directive_index_in_fn(
     is_action_fn: &mut bool,
     cache_kind: &mut Option<String>,
     action_span: &mut Option<Span>,
-    dynamic_io_enabled: bool,
+    config: &Config,
 ) {
     let mut is_directive = true;
 
@@ -2520,19 +2537,28 @@ fn remove_server_directive_index_in_fn(
                 });
             } else if value == "use cache" || value.starts_with("use cache: ") {
                 if is_directive {
-                    if !dynamic_io_enabled {
+                    if !config.dynamic_io_enabled {
                         emit_error(ServerActionsErrorKind::UseCacheWithoutDynamicIO {
                             span: *span,
                             directive: value.to_string(),
                         });
                     }
 
-                    *cache_kind = Some(if value == "use cache" {
-                        "default".into()
+                    if value == "use cache" {
+                        *cache_kind = Some("default".into());
                     } else {
                         // Slice the value after "use cache: "
-                        value.split_at("use cache: ".len()).1.into()
-                    });
+                        let cache_kind_str: String = value.split_at("use cache: ".len()).1.into();
+
+                        if !config.cache_kinds.contains(&cache_kind_str) {
+                            emit_error(ServerActionsErrorKind::UnknownCacheKind {
+                                span: *span,
+                                cache_kind: cache_kind_str.clone(),
+                            });
+                        }
+
+                        *cache_kind = Some(cache_kind_str);
+                    };
                     return false;
                 } else {
                     emit_error(ServerActionsErrorKind::MisplacedDirective {
@@ -2888,6 +2914,14 @@ fn emit_error(error_kind: ServerActionsErrorKind) {
             formatdoc! {
                 r#"
                     Did you mean "{expected_directive}"? "{directive}" is not a supported directive name."
+                "#
+            },
+        ),
+        ServerActionsErrorKind::UnknownCacheKind { span, cache_kind } => (
+            span,
+            formatdoc! {
+                r#"
+                    Unknown cache kind "{cache_kind}". Please configure a cache handler for this kind in the experimental "cacheHandlers" object in your Next.js config.
                 "#
             },
         ),

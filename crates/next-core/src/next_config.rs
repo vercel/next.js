@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use anyhow::{bail, Context, Result};
+use rustc_hash::FxHashSet;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value as JsonValue;
 use turbo_tasks::{trace::TraceRawVcs, FxIndexMap, RcStr, ResolvedVc, TaskInput, Vc};
@@ -38,6 +39,9 @@ struct CustomRoutes {
 
 #[turbo_tasks::value(transparent)]
 pub struct ModularizeImports(FxIndexMap<String, ModularizeImportPackageConfig>);
+
+#[turbo_tasks::value(transparent)]
+pub struct CacheKinds(FxHashSet<String>);
 
 #[turbo_tasks::value(serialization = "custom", eq = "manual")]
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
@@ -528,6 +532,7 @@ pub struct ExperimentalConfig {
     after: Option<bool>,
     amp: Option<serde_json::Value>,
     app_document_preloading: Option<bool>,
+    cache_handlers: Option<FxIndexMap<String, String>>,
     cache_life: Option<FxIndexMap<String, CacheLifeProfile>>,
     case_sensitive_routes: Option<bool>,
     cpus: Option<f64>,
@@ -1156,6 +1161,19 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn enable_dynamic_io(&self) -> Vc<bool> {
         Vc::cell(self.experimental.dynamic_io.unwrap_or(false))
+    }
+
+    #[turbo_tasks::function]
+    pub fn cache_kinds(&self) -> Vc<CacheKinds> {
+        Vc::cell(
+            self.experimental
+                .cache_handlers
+                .clone()
+                .unwrap_or_default()
+                .keys()
+                .cloned()
+                .collect(),
+        )
     }
 
     #[turbo_tasks::function]

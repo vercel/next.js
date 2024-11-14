@@ -48,6 +48,7 @@ pub async fn get_next_client_transforms_rules(
     }
 
     let dynamic_io_enabled = *next_config.enable_dynamic_io().await?;
+    let cache_kinds = next_config.cache_kinds();
     let mut is_app_dir = false;
 
     match context_ty {
@@ -74,6 +75,7 @@ pub async fn get_next_client_transforms_rules(
                 ActionsTransform::Client,
                 enable_mdx_rs,
                 dynamic_io_enabled,
+                cache_kinds,
             ));
         }
         ClientContextType::Fallback | ClientContextType::Other => {}
