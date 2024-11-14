@@ -60,6 +60,7 @@ import {
 import { createRequestStoreForRender } from '../async-storage/request-store'
 import { createWorkStore } from '../async-storage/work-store'
 import {
+  getAccessFallbackErrorTypeByStatus,
   getAccessFallbackHTTPStatus,
   isHTTPAccessFallbackError,
 } from '../../client/components/http-access-fallback/http-access-fallback'
@@ -178,6 +179,7 @@ import {
   createPrerenderResumeDataCache,
   createRenderResumeDataCache,
 } from '../resume-data-cache/resume-data-cache'
+import type { MetadataErrorType } from '../../lib/metadata/resolve-metadata'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -807,7 +809,7 @@ function Preloads({ preloadCallbacks }: { preloadCallbacks: Function[] }) {
 async function getErrorRSCPayload(
   tree: LoaderTree,
   ctx: AppRenderContext,
-  errorType: 'not-found' | 'redirect' | undefined
+  errorType: MetadataErrorType | 'redirect' | undefined
 ) {
   const {
     getDynamicParamFromSegment,
@@ -3642,11 +3644,11 @@ async function prerenderToStream(
       throw err
     }
 
-    let errorType: 'not-found' | 'redirect' | undefined
+    let errorType: MetadataErrorType | 'redirect' | undefined
 
     if (isHTTPAccessFallbackError(err)) {
       res.statusCode = getAccessFallbackHTTPStatus(err)
-      errorType = 'not-found'
+      errorType = getAccessFallbackErrorTypeByStatus(res.statusCode)
     } else if (isRedirectError(err)) {
       errorType = 'redirect'
       res.statusCode = getRedirectStatusCodeFromError(err)

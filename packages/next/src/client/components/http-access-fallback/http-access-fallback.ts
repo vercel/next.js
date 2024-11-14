@@ -44,3 +44,18 @@ export function getAccessFallbackHTTPStatus(
   const httpStatus = error.digest.split(';')[1]
   return Number(httpStatus)
 }
+
+export function getAccessFallbackErrorTypeByStatus(
+  status: number
+): 'not-found' | 'forbidden' | 'unauthorized' | undefined {
+  switch (status) {
+    case 401:
+      return 'unauthorized'
+    case 403:
+      return 'forbidden'
+    case 404:
+      return 'not-found'
+    default:
+      return
+  }
+}
