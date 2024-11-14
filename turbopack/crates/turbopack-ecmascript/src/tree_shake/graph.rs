@@ -1,10 +1,9 @@
-use std::{fmt, hash::Hash};
+use std::{fmt, hash::Hash, iter::once};
 
 use petgraph::{
     algo::{condensation, has_path_connecting},
     graphmap::GraphMap,
     prelude::DiGraphMap,
-    Graph,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
@@ -257,7 +256,7 @@ impl DepGraph {
     ///
     /// Note: ESM imports are immutable, but we do not handle it.
     pub(super) fn split_module(
-        &self,
+        &mut self,
         directives: &[ModuleItem],
         data: &FxHashMap<ItemId, ItemData>,
     ) -> SplitModuleResult {
@@ -416,61 +415,6 @@ impl DepGraph {
                     }
 
                     _ => {}
-                }
-            }
-
-            if use_export_instead_of_declarator {
-                for (other_ix, other_group) in groups.graph_ix.iter().enumerate() {
-                    if other_ix == ix {
-                        continue;
-                    }
-
-                    let deps = part_deps.entry(ix as u32).or_default();
-
-                    for other_item in other_group {
-                        if let ItemId::Group(ItemIdGroupKind::Export(export, _)) = other_item {
-                            if !export.0.as_str().starts_with("$$RSC_SERVER_") {
-                                continue;
-                            }
-
-                            let Some(&declarator) = declarator.get(export) else {
-                                continue;
-                            };
-
-                            if declarator == ix as u32 {
-                                continue;
-                            }
-
-                            if !has_path_connecting(&groups.idx_graph, ix as u32, declarator, None)
-                            {
-                                continue;
-                            }
-
-                            let s = ImportSpecifier::Named(ImportNamedSpecifier {
-                                span: DUMMY_SP,
-                                local: export.clone().into(),
-                                imported: None,
-                                is_type_only: false,
-                            });
-
-                            required_vars.swap_remove(export);
-
-                            deps.push(PartId::Export(export.0.as_str().into()));
-
-                            chunk.body.push(ModuleItem::ModuleDecl(ModuleDecl::Import(
-                                ImportDecl {
-                                    span: DUMMY_SP,
-                                    specifiers: vec![s],
-                                    src: Box::new(TURBOPACK_PART_IMPORT_SOURCE.into()),
-                                    type_only: false,
-                                    with: Some(Box::new(create_turbopack_part_id_assert(
-                                        PartId::Export(export.0.as_str().into()),
-                                    ))),
-                                    phase: Default::default(),
-                                },
-                            )));
-                        }
-                    }
                 }
             }
 
@@ -701,12 +645,12 @@ impl DepGraph {
     /// Note that [ModuleItem] and [Module] are represented as [ItemId] for
     /// performance.
     pub(super) fn finalize(
-        &self,
+        &mut self,
         data: &FxHashMap<ItemId, ItemData>,
     ) -> InternedGraph<Vec<ItemId>> {
-        let mut graph = self.g.idx_graph.clone().into_graph::<u32>();
+        self.workarounds_server_action(data);
 
-        self.workarounds_server_action(&mut graph);
+        let graph = self.g.idx_graph.clone().into_graph::<u32>();
 
         let mut condensed = condensation(graph, true);
         let optimizer = GraphOptimizer {
@@ -1459,7 +1403,46 @@ impl DepGraph {
     ///
     /// So we need to add an import for $$RSC_SERVER_0 to the module, so that the export is
     /// preserved.
-    fn workarounds_server_action(&self, g: &mut Graph<u32, Dependency>) {}
+    fn workarounds_server_action(&mut self, data: &FxHashMap<ItemId, ItemData>) {
+        let mut queue = vec![];
+
+        for ix in self.g.idx_graph.nodes() {
+            let Some(export_node) = self.g.graph_ix.get_index(ix as _) else {
+                continue;
+            };
+
+            let ItemId::Group(ItemIdGroupKind::Export(export, _)) = export_node else {
+                continue;
+            };
+
+            if !export.0.as_str().starts_with("$$RSC_SERVER_") {
+                continue;
+            }
+
+            // Find the item that declares the export
+
+            let declarator = 'declarator: {
+                for (id, data) in data {
+                    if data.var_decls.contains(export) {
+                        break 'declarator Some(id);
+                    }
+                }
+
+                None
+            };
+
+            let Some(declarator) = declarator else {
+                continue;
+            };
+
+            // We depend on the export node to preserve the export
+            queue.push((declarator.clone(), export_node.clone()));
+        }
+
+        while let Some((from, to)) = queue.pop() {
+            self.add_strong_deps(&from, once(&to));
+        }
+    }
 }
 
 const ASSERT_CHUNK_KEY: &str = "__turbopack_part__";
