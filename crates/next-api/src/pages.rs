@@ -256,19 +256,21 @@ impl PagesProject {
     }
 
     #[turbo_tasks::function]
-    fn transitions(self: Vc<Self>) -> Vc<TransitionOptions> {
-        TransitionOptions {
+    async fn transitions(self: Vc<Self>) -> Result<Vc<TransitionOptions>> {
+        Ok(TransitionOptions {
             named_transitions: [(
                 "next-dynamic".into(),
-                Vc::upcast(NextDynamicTransition::new(Vc::upcast(
-                    self.client_transition(),
-                ))),
+                ResolvedVc::upcast(
+                    NextDynamicTransition::new(Vc::upcast(self.client_transition()))
+                        .to_resolved()
+                        .await?,
+                ),
             )]
             .into_iter()
             .collect(),
             ..Default::default()
         }
-        .cell()
+        .cell())
     }
 
     #[turbo_tasks::function]

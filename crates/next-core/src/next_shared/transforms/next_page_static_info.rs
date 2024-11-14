@@ -5,7 +5,7 @@ use next_custom_transforms::transforms::page_static_info::{
 };
 use serde_json::Value;
 use swc_core::ecma::ast::Program;
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
 use turbopack_core::issue::{
@@ -32,8 +32,8 @@ pub fn get_next_page_static_info_assert_rule(
     ModuleRule::new(
         module_rule_match_js_no_url(enable_mdx_rs),
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
-            prepend: Vc::cell(vec![transformer]),
-            append: Vc::cell(vec![]),
+            prepend: ResolvedVc::cell(vec![transformer]),
+            append: ResolvedVc::cell(vec![]),
         }],
     )
 }

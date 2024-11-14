@@ -398,7 +398,7 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
 }
 
 #[turbo_tasks::function]
-async fn load_font_data(project_root: Vc<FileSystemPath>) -> Result<Vc<FontData>> {
+async fn load_font_data(project_root: ResolvedVc<FileSystemPath>) -> Result<Vc<FontData>> {
     let data: FontData = load_next_js_templateon(
         project_root,
         "dist/compiled/@next/font/dist/google/font-data.json".into(),
