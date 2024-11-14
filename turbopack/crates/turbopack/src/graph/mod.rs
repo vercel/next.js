@@ -36,7 +36,7 @@ impl AggregatedGraph {
     #[turbo_tasks::function]
     pub async fn content(self: Vc<Self>) -> Result<Vc<AggregatedGraphNodeContent>> {
         Ok(match *self.await? {
-            AggregatedGraph::Leaf(asset) => AggregatedGraphNodeContent::Asset(*asset).into(),
+            AggregatedGraph::Leaf(asset) => AggregatedGraphNodeContent::Asset(asset).into(),
             AggregatedGraph::Node { ref content, .. } => {
                 AggregatedGraphNodeContent::Children(content.clone()).into()
             }
@@ -60,7 +60,7 @@ impl AggregatedGraph {
                 let mut set = HashSet::new();
                 for item in references
                     .iter()
-                    .map(|&reference| aggregate_more(reference))
+                    .map(|&reference| aggregate_more(*reference))
                     .collect::<Vec<_>>()
                     .into_iter()
                 {

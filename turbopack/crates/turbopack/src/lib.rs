@@ -327,11 +327,11 @@ pub struct ModuleAssetContext {
 impl ModuleAssetContext {
     #[turbo_tasks::function]
     pub fn new(
-        transitions: Vc<TransitionOptions>,
-        compile_time_info: Vc<CompileTimeInfo>,
-        module_options_context: Vc<ModuleOptionsContext>,
-        resolve_options_context: Vc<ResolveOptionsContext>,
-        layer: Vc<RcStr>,
+        transitions: ResolvedVc<TransitionOptions>,
+        compile_time_info: ResolvedVc<CompileTimeInfo>,
+        module_options_context: ResolvedVc<ModuleOptionsContext>,
+        resolve_options_context: ResolvedVc<ResolveOptionsContext>,
+        layer: ResolvedVc<RcStr>,
     ) -> Vc<Self> {
         Self::cell(ModuleAssetContext {
             transitions,
@@ -346,11 +346,11 @@ impl ModuleAssetContext {
 
     #[turbo_tasks::function]
     pub fn new_transition(
-        transitions: Vc<TransitionOptions>,
-        compile_time_info: Vc<CompileTimeInfo>,
-        module_options_context: Vc<ModuleOptionsContext>,
-        resolve_options_context: Vc<ResolveOptionsContext>,
-        layer: Vc<RcStr>,
+        transitions: ResolvedVc<TransitionOptions>,
+        compile_time_info: ResolvedVc<CompileTimeInfo>,
+        module_options_context: ResolvedVc<ModuleOptionsContext>,
+        resolve_options_context: ResolvedVc<ResolveOptionsContext>,
+        layer: ResolvedVc<RcStr>,
         transition: ResolvedVc<Box<dyn Transition>>,
     ) -> Vc<Self> {
         Self::cell(ModuleAssetContext {
