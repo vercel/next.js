@@ -103,7 +103,6 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbo
 ;
 ;
 ;
-;
 }}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/export-named/input/module.js [test] (ecmascript) <export fakeCat>": ((__turbopack_context__) => {
 "use strict";

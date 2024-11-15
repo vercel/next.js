@@ -461,9 +461,6 @@ import "module";
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 5
 };
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 5
-};
 import { upper } from "module";
 export { upper as e } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -722,9 +719,6 @@ import "module";
 ```
 ## Part 6
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 5
-};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 5
 };

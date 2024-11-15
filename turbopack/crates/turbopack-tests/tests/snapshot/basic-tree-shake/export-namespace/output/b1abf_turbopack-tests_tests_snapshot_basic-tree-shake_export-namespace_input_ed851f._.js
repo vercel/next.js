@@ -232,7 +232,6 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbo
 ;
 ;
 ;
-;
 }}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/export-namespace/input/module.js [test] (ecmascript) <export lib>": ((__turbopack_context__) => {
 "use strict";
