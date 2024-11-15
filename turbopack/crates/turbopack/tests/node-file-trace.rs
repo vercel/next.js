@@ -661,10 +661,12 @@ fn clean_stderr(str: &str) -> String {
     lazy_static! {
         static ref EXPERIMENTAL_WARNING: Regex =
             Regex::new(r"\(node:\d+\) ExperimentalWarning:").unwrap();
+        static ref DEPRECATION_WARNING: Regex =
+            Regex::new(r"\(node:\d+\) \[DEP\d+] DeprecationWarning:").unwrap();
     }
-    EXPERIMENTAL_WARNING
-        .replace_all(str, "(node:XXXX) ExperimentalWarning:")
-        .to_string()
+    let str = EXPERIMENTAL_WARNING.replace_all(str, "(node:XXXX) ExperimentalWarning:");
+    let str = DEPRECATION_WARNING.replace_all(&str, "(node:XXXX) [DEPXXXX] DeprecationWarning:");
+    str.to_string()
 }
 
 fn diff(expected: &str, actual: &str) -> String {
