@@ -672,7 +672,7 @@ impl DepGraph {
         let graph = self.g.idx_graph.clone().into_graph::<u32>();
 
         let mut condensed = condensation(graph, true);
-        self.workarounds_server_action(&mut condensed, data);
+        self.workaround_server_actions(&mut condensed, data);
 
         let optimizer = GraphOptimizer {
             graph_ix: &self.g.graph_ix,
@@ -1424,7 +1424,7 @@ impl DepGraph {
     ///
     /// So we need to add an import for $$RSC_SERVER_0 to the module, so that the export is
     /// preserved.
-    fn workarounds_server_action(
+    fn workaround_server_actions(
         &mut self,
         g: &mut Graph<Vec<u32>, Dependency>,
         data: &FxHashMap<ItemId, ItemData>,
@@ -1437,17 +1437,21 @@ impl DepGraph {
             let direct_deps = g
                 .edges_directed(node, Direction::Outgoing)
                 .map(|e| e.target())
-                .filter(|index| !done.contains(index))
                 .collect::<Vec<_>>();
 
-            if direct_deps.is_empty() {
-                return Default::default();
+            if direct_deps.iter().all(|dep| done.contains(dep)) {
+                return direct_deps;
             }
-            done.extend(direct_deps.iter().cloned());
 
             direct_deps
                 .into_iter()
-                .flat_map(|dep| collect_deps(g, done, dep))
+                .flat_map(|dep| {
+                    if !done.insert(dep) {
+                        return vec![dep];
+                    }
+
+                    collect_deps(g, done, dep)
+                })
                 .collect()
         }
 
@@ -1462,9 +1466,9 @@ impl DepGraph {
             for &ix in ix_vec.iter() {
                 let item_id = self.g.graph_ix.get_index(ix as _).unwrap();
 
-                if let ItemId::Group(ItemIdGroupKind::Export(_, name)) = item_id {
+                if let ItemId::Group(ItemIdGroupKind::Export(v, name)) = item_id {
                     if name.starts_with("$$RSC_SERVER_") {
-                        server_action_exports.insert(item_id.clone(), node);
+                        server_action_exports.insert(v.0.clone(), node);
                     }
                 }
 
@@ -1472,10 +1476,14 @@ impl DepGraph {
 
                 for v in item_data.var_decls.iter() {
                     if v.0.starts_with("$$RSC_SERVER_") {
-                        server_action_decls.insert(node, item_id.clone());
+                        server_action_decls.insert(node, v.0.clone());
                     }
                 }
             }
+        }
+
+        if server_action_decls.is_empty() || server_action_exports.is_empty() {
+            return;
         }
 
         let mut queue = vec![];
@@ -1485,33 +1493,34 @@ impl DepGraph {
                 continue;
             };
 
-            let mut done = FxHashSet::default();
-
-            for ix in ix_vec.iter() {
+            let has_export_item = ix_vec.iter().any(|ix| {
                 let item_id = self.g.graph_ix.get_index(*ix as _).unwrap();
+                matches!(item_id, ItemId::Group(ItemIdGroupKind::Export(..)))
+            });
 
-                // If an export uses $$RSC_SERVER_0, depend on "export $$RSC_SERVER_0"
-                let ItemId::Group(ItemIdGroupKind::Export(..)) = item_id else {
+            if !has_export_item {
+                continue;
+            }
+
+            // If an export uses $$RSC_SERVER_0, depend on "export $$RSC_SERVER_0"
+
+            let mut done = FxHashSet::default();
+            let dependencies = collect_deps(g, &mut done, node);
+
+            for &dependency in dependencies.iter() {
+                if dependency == node {
+                    continue;
+                }
+
+                let Some(action_item_id) = server_action_decls.get(&dependency) else {
                     continue;
                 };
 
-                let dependencies = collect_deps(g, &mut done, node);
+                let Some(action_export_node) = server_action_exports.get(action_item_id) else {
+                    continue;
+                };
 
-                for &dependency in dependencies.iter() {
-                    if dependency == node {
-                        continue;
-                    }
-
-                    let Some(action_item_id) = server_action_decls.get(&dependency) else {
-                        continue;
-                    };
-
-                    let Some(action_export_node) = server_action_exports.get(action_item_id) else {
-                        continue;
-                    };
-
-                    queue.push((node, *action_export_node));
-                }
+                queue.push((node, *action_export_node));
             }
         }
 
