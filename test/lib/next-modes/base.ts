@@ -28,6 +28,7 @@ export interface NextInstanceOpts {
   dependencies?: { [name: string]: string }
   resolutions?: { [name: string]: string }
   packageJson?: PackageJson
+  tsconfig?: Record<string, unknown>
   nextConfig?: NextConfig
   installCommand?: InstallCommand
   buildCommand?: string
@@ -70,6 +71,7 @@ export class NextInstance {
   protected _url: string
   protected _parsedUrl: URL
   protected packageJson?: PackageJson = {}
+  protected tsconfig?: Record<string, unknown> = {}
   protected basePath?: string
   public env: Record<string, string>
   public forcedPort?: string
@@ -283,6 +285,13 @@ export class NextInstance {
               ).replace(/"__func_[\d]{1,}"/g, function (str) {
                 return functions.shift()
               })
+          )
+        }
+
+        if (this.tsconfig) {
+          await fs.writeFile(
+            path.join(this.testDir, 'tsconfig.json'),
+            JSON.stringify(this.tsconfig, null, 2)
           )
         }
 
