@@ -12,6 +12,8 @@ use turbopack_core::{
     reference::all_assets_from_entries,
 };
 
+use crate::project::Project;
+
 /// A json file that produces references to all files that are needed by the given module
 /// at runtime. This will include, for example, node native modules, unanalyzable packages,
 /// client side chunks, etc.
@@ -20,11 +22,9 @@ use turbopack_core::{
 /// their bundle.
 #[turbo_tasks::value(shared)]
 pub struct NftJsonAsset {
+    project: ResolvedVc<Project>,
     /// The chunk for which the asset is being generated
-    chunk: Vc<Box<dyn OutputAsset>>,
-    output_root: ResolvedVc<FileSystemPath>,
-    project_root: ResolvedVc<FileSystemPath>,
-    client_root: ResolvedVc<FileSystemPath>,
+    chunk: ResolvedVc<Box<dyn OutputAsset>>,
     /// Additional assets to include in the nft json. This can be used to manually collect assets
     /// that are known to be required but are not in the graph yet, for whatever reason.
     ///
@@ -37,20 +37,31 @@ pub struct NftJsonAsset {
 impl NftJsonAsset {
     #[turbo_tasks::function]
     pub fn new(
-        chunk: Vc<Box<dyn OutputAsset>>,
-        output_root: ResolvedVc<FileSystemPath>,
-        project_root: ResolvedVc<FileSystemPath>,
-        client_root: ResolvedVc<FileSystemPath>,
+        project: ResolvedVc<Project>,
+        chunk: ResolvedVc<Box<dyn OutputAsset>>,
         additional_assets: Vec<ResolvedVc<Box<dyn OutputAsset>>>,
     ) -> Vc<Self> {
         NftJsonAsset {
             chunk,
-            output_root,
-            project_root,
-            client_root,
+            project,
             additional_assets,
         }
         .cell()
+    }
+
+    #[turbo_tasks::function]
+    fn output_root(&self) -> Vc<FileSystemPath> {
+        self.project.output_fs().root()
+    }
+
+    #[turbo_tasks::function]
+    fn project_root(&self) -> Vc<FileSystemPath> {
+        self.project.project_fs().root()
+    }
+
+    #[turbo_tasks::function]
+    fn client_root(&self) -> Vc<FileSystemPath> {
+        self.project.client_fs().root()
     }
 }
 
@@ -60,35 +71,29 @@ pub struct OutputSpecifier(Option<RcStr>);
 #[turbo_tasks::value_impl]
 impl NftJsonAsset {
     #[turbo_tasks::function]
-    async fn ident_in_project_fs(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
-        let this = self.await?;
-        let project_root = this.project_root.await?;
-        let output_root = this.output_root.await?;
-        let nft_folder = self.ident().path().parent().await?;
-
-        if let Some(subdir) = output_root.path.strip_prefix(&*project_root.path) {
-            Ok(this
-                .project_root
-                .root()
-                .join(subdir.into())
-                .join(nft_folder.path.clone()))
-        } else {
-            // TODO: what are the implications of this?
-            bail!("output fs not inside project fs");
-        }
+    async fn output_root_in_project_fs(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
+        Ok(self
+            .project_root()
+            .join(self.await?.project.project_path().await?.path.clone()))
     }
 
     #[turbo_tasks::function]
-    async fn nft_folder(self: Vc<Self>) -> Vc<FileSystemPath> {
+    async fn ident_folder(self: Vc<Self>) -> Vc<FileSystemPath> {
         self.ident().path().parent()
     }
 
     #[turbo_tasks::function]
-    async fn ident_in_client_fs(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
+    async fn ident_folder_in_project_fs(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         Ok(self
-            .await?
-            .client_root
-            .join(self.ident().path().parent().await?.path.clone()))
+            .output_root_in_project_fs()
+            .join(self.ident_folder().await?.path.clone()))
+    }
+
+    #[turbo_tasks::function]
+    async fn ident_folder_in_client_fs(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
+        Ok(self
+            .client_root()
+            .join(self.ident_folder().await?.path.clone()))
     }
 
     #[turbo_tasks::function]
@@ -96,21 +101,22 @@ impl NftJsonAsset {
         self: Vc<Self>,
         path: Vc<FileSystemPath>,
     ) -> Result<Vc<OutputSpecifier>> {
-        let this = self.await?;
         let path_ref = path.await?;
-        let nft_folder = self.ident().path().parent().await?;
 
         // include assets in the outputs such as referenced chunks
-        if path_ref.is_inside_ref(&*(this.output_root.await?)) {
+        if path_ref.is_inside_ref(&*(self.output_root().await?)) {
             return Ok(Vc::cell(Some(
-                nft_folder.get_relative_path_to(&path_ref).unwrap(),
+                self.ident_folder()
+                    .await?
+                    .get_relative_path_to(&path_ref)
+                    .unwrap(),
             )));
         }
 
-        // include assets in the project root such as images
-        if path_ref.is_inside_ref(&*(this.project_root.await?)) {
+        // include assets in the project root such as images and traced references (externals)
+        if path_ref.is_inside_ref(&*(self.project_root().await?)) {
             return Ok(Vc::cell(Some(
-                self.ident_in_project_fs()
+                self.ident_folder_in_project_fs()
                     .await?
                     .get_relative_path_to(&path_ref)
                     .unwrap(),
@@ -118,9 +124,9 @@ impl NftJsonAsset {
         }
 
         // assets that are needed on the client side such as fonts and icons
-        if path_ref.is_inside_ref(&*(this.client_root.await?)) {
+        if path_ref.is_inside_ref(&*(self.client_root().await?)) {
             return Ok(Vc::cell(Some(
-                self.ident_in_client_fs()
+                self.ident_folder_in_client_fs()
                     .await?
                     .get_relative_path_to(&path_ref)
                     .unwrap()
@@ -165,6 +171,10 @@ impl Asset for NftJsonAsset {
             .chain(std::iter::once(chunk))
             .collect();
         for referenced_chunk in all_assets_from_entries(Vc::cell(entries)).await? {
+            if referenced_chunk.ident().path().await?.extension_ref() == Some("map") {
+                continue;
+            }
+
             if chunk == referenced_chunk.to_resolved().await? {
                 continue;
             }

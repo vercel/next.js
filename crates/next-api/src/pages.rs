@@ -890,15 +890,9 @@ impl PageEndpoint {
                     .is_production()
                 {
                     ResolvedVc::cell(Some(ResolvedVc::upcast(
-                        NftJsonAsset::new(
-                            *ssr_entry_chunk,
-                            this.pages_project.project().output_fs().root(),
-                            this.pages_project.project().project_fs().root(),
-                            this.pages_project.project().client_fs().root(),
-                            vec![],
-                        )
-                        .to_resolved()
-                        .await?,
+                        NftJsonAsset::new(this.pages_project.project(), *ssr_entry_chunk, vec![])
+                            .to_resolved()
+                            .await?,
                     )))
                 } else {
                     ResolvedVc::cell(None)
