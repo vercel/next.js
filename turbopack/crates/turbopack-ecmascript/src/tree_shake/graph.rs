@@ -424,7 +424,7 @@ impl DepGraph {
                 .idx_graph
                 .neighbors_directed(ix as u32, Direction::Outgoing)
             {
-                if dep == ix as u32 || part_deps_done.contains(&dep) {
+                if dep == ix as u32 {
                     continue;
                 }
 
@@ -438,6 +438,8 @@ impl DepGraph {
                     if !export.starts_with("$$RSC_SERVER_") {
                         continue;
                     }
+
+                    required_vars.swap_remove(var);
 
                     let dep_part_id = PartId::Export(export.as_str().into());
                     let specifiers = vec![ImportSpecifier::Named(ImportNamedSpecifier {
@@ -475,9 +477,7 @@ impl DepGraph {
                     continue;
                 }
 
-                if part_deps_done.contains(&dep) {
-                    continue;
-                }
+                part_deps_done.insert(dep);
 
                 let dep_item_ids = groups.graph_ix.get_index(dep as usize).unwrap();
 
@@ -535,10 +535,6 @@ impl DepGraph {
                     }
                 }
 
-                part_deps_done.insert(dep);
-
-                let dep_part_id = PartId::Internal(dep, false);
-
                 let specifiers = vec![ImportSpecifier::Named(ImportNamedSpecifier {
                     span: DUMMY_SP,
                     local: var.clone().into(),
@@ -552,7 +548,7 @@ impl DepGraph {
                 part_deps
                     .entry(ix as u32)
                     .or_default()
-                    .push(dep_part_id.clone());
+                    .push(PartId::Internal(dep, false));
 
                 chunk
                     .body
@@ -561,7 +557,9 @@ impl DepGraph {
                         specifiers,
                         src: Box::new(TURBOPACK_PART_IMPORT_SOURCE.into()),
                         type_only: false,
-                        with: Some(Box::new(create_turbopack_part_id_assert(dep_part_id))),
+                        with: Some(Box::new(create_turbopack_part_id_assert(PartId::Internal(
+                            dep, false,
+                        )))),
                         phase: Default::default(),
                     })));
             }
