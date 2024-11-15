@@ -166,7 +166,7 @@ export const css = curry(async function css(
   // Since sass is an optional peer dependency, it may be missing.
   let sassVersion = ''
   try {
-    sassVersion = require.resolve('sass')
+    sassVersion = require(require.resolve('sass/package.json')).version
   } catch {}
 
   // The modern Sass API with breaking changes was added in sass@1.45.0.
