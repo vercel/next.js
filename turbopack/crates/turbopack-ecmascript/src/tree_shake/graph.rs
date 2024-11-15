@@ -2,6 +2,7 @@ use std::{fmt, hash::Hash};
 
 use petgraph::{
     algo::{condensation, has_path_connecting},
+    graph::NodeIndex,
     graphmap::GraphMap,
     prelude::DiGraphMap,
     visit::EdgeRef,
@@ -1428,6 +1429,55 @@ impl DepGraph {
         g: &mut Graph<Vec<u32>, Dependency>,
         data: &FxHashMap<ItemId, ItemData>,
     ) {
+        fn collect_deps(
+            g: &Graph<Vec<u32>, Dependency>,
+            done: &mut FxHashSet<NodeIndex>,
+            node: NodeIndex,
+        ) -> Vec<NodeIndex> {
+            let direct_deps = g
+                .edges_directed(node, Direction::Outgoing)
+                .map(|e| e.target())
+                .filter(|index| !done.contains(index))
+                .collect::<Vec<_>>();
+
+            if direct_deps.is_empty() {
+                return Default::default();
+            }
+            done.extend(direct_deps.iter().cloned());
+
+            direct_deps
+                .into_iter()
+                .flat_map(|dep| collect_deps(g, done, dep))
+                .collect()
+        }
+
+        let mut server_action_decls = FxHashMap::default();
+        let mut server_action_exports = FxHashMap::default();
+
+        for node in g.node_indices() {
+            let Some(ix_vec) = g.node_weight(node) else {
+                continue;
+            };
+
+            for &ix in ix_vec.iter() {
+                let item_id = self.g.graph_ix.get_index(ix as _).unwrap();
+
+                if let ItemId::Group(ItemIdGroupKind::Export(_, name)) = item_id {
+                    if name.starts_with("$$RSC_SERVER_") {
+                        server_action_exports.insert(item_id.clone(), node);
+                    }
+                }
+
+                let item_data = &data[item_id];
+
+                for v in item_data.var_decls.iter() {
+                    if v.0.starts_with("$$RSC_SERVER_") {
+                        server_action_decls.insert(node, item_id.clone());
+                    }
+                }
+            }
+        }
+
         let mut queue = vec![];
 
         for node in g.node_indices() {
@@ -1435,53 +1485,38 @@ impl DepGraph {
                 continue;
             };
 
+            let mut done = FxHashSet::default();
+
             for ix in ix_vec.iter() {
                 let item_id = self.g.graph_ix.get_index(*ix as _).unwrap();
 
-                let ItemId::Group(ItemIdGroupKind::Export(exported_var, _)) = item_id else {
+                // If an export uses $$RSC_SERVER_0, depend on "export $$RSC_SERVER_0"
+                let ItemId::Group(ItemIdGroupKind::Export(..)) = item_id else {
                     continue;
                 };
 
-                if !exported_var.0.starts_with("$$RSC_SERVER_") {
-                    continue;
-                }
+                let dependencies = collect_deps(g, &mut done, node);
 
-                let dependencies = g
-                    .edges_directed(node, Direction::Outgoing)
-                    .map(|e| e.target())
-                    .collect::<Vec<_>>();
-
-                // Find the item that declares the export
-
-                let declarator = 'declarator: {
-                    for &dependency in dependencies.iter() {
-                        let dependency_nodes = &g[dependency];
-
-                        for dep_ix in dependency_nodes.iter() {
-                            let dep_item_id = self.g.graph_ix.get_index(*dep_ix as _).unwrap();
-                            if data[dep_item_id].var_decls.contains(exported_var) {
-                                break 'declarator Some(dependency);
-                            }
-                        }
+                for &dependency in dependencies.iter() {
+                    if dependency == node {
+                        continue;
                     }
 
-                    None
-                };
+                    let Some(action_item_id) = server_action_decls.get(&dependency) else {
+                        continue;
+                    };
 
-                let Some(declarator) = declarator else {
-                    continue;
-                };
+                    let Some(action_export_node) = server_action_exports.get(action_item_id) else {
+                        continue;
+                    };
 
-                if declarator == node {
-                    continue;
+                    queue.push((node, *action_export_node));
                 }
-
-                queue.push((node, declarator));
             }
         }
 
-        for (export_node, declarator) in queue {
-            g.add_edge(declarator, export_node, Dependency::Strong);
+        for (export_node, dep) in queue {
+            g.add_edge(export_node, dep, Dependency::Strong);
         }
     }
 }
