@@ -1,5 +1,5 @@
-import { unstable_cacheTag as cacheTag } from 'next/cache'
+import { unstable_cacheTag as cacheTag } from 'next/cache';
 
 export async function GET() {
-  cacheTag('next')
+  cacheTag('next');
 }

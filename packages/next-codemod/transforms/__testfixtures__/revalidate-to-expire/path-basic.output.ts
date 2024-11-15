@@ -1,5 +1,5 @@
-import { expirePath } from 'next/cache'
+import { expirePath } from 'next/cache';
 
 export async function GET() {
-  expirePath('next')
+  expirePath('next');
 }
