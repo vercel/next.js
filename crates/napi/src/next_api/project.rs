@@ -23,7 +23,8 @@ use rand::Rng;
 use tokio::{io::AsyncWriteExt, time::Instant};
 use tracing::Instrument;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
-use turbo_tasks::{Completion, RcStr, ReadRef, TransientInstance, UpdateInfo, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{Completion, ReadRef, TransientInstance, UpdateInfo, Vc};
 use turbo_tasks_fs::{
     util::uri_from_file, DiskFileSystem, FileContent, FileSystem, FileSystemPath,
 };

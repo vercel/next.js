@@ -1,6 +1,7 @@
 use anyhow::{bail, Result};
 use auto_hash_map::AutoMap;
-use turbo_tasks::{Completion, RcStr, ResolvedVc, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{Completion, ResolvedVc, ValueToString, Vc};
 
 use crate::{
     DirectoryContent, DirectoryEntry, FileContent, FileMeta, FileSystem, FileSystemPath,

@@ -18,7 +18,8 @@ use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 use tracing::instrument;
-use turbo_tasks::{spawn_thread, Invalidator, RcStr};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{spawn_thread, Invalidator};
 
 use crate::{
     format_absolute_fs_path,

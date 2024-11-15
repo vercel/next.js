@@ -4,9 +4,10 @@ use swc_core::{
     common::GLOBALS,
     ecma::ast::{Expr, Lit, Program},
 };
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, FxIndexMap, FxIndexSet, RcStr, ResolvedVc, TaskInput, ValueDefault,
-    ValueToString, Vc,
+    trace::TraceRawVcs, FxIndexMap, FxIndexSet, ResolvedVc, TaskInput, ValueDefault, ValueToString,
+    Vc,
 };
 use turbo_tasks_fs::{
     self, json::parse_json_rope_with_source_context, rope::Rope, util::join_path, File,

@@ -2,7 +2,8 @@ use std::collections::HashMap;
 
 use anyhow::Result;
 use lazy_static::lazy_static;
-use turbo_tasks::{RcStr, ResolvedVc, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 use turbopack_core::{
     diagnostics::DiagnosticExt,

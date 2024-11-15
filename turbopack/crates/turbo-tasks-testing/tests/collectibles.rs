@@ -7,7 +7,8 @@ use std::{collections::HashSet, time::Duration};
 use anyhow::Result;
 use auto_hash_map::AutoSet;
 use tokio::time::sleep;
-use turbo_tasks::{emit, CollectiblesSource, RcStr, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{emit, CollectiblesSource, ValueToString, Vc};
 use turbo_tasks_testing::{register, run, Registration};
 
 static REGISTRATION: Registration = register!();

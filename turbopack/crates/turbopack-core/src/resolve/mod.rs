@@ -9,9 +9,10 @@ use std::{
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 use tracing::{Instrument, Level};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    fxindexmap, trace::TraceRawVcs, FxIndexMap, FxIndexSet, RcStr, ResolvedVc, TaskInput,
-    TryJoinIterExt, Value, ValueToString, Vc,
+    fxindexmap, trace::TraceRawVcs, FxIndexMap, FxIndexSet, ResolvedVc, TaskInput, TryJoinIterExt,
+    Value, ValueToString, Vc,
 };
 use turbo_tasks_fs::{
     util::normalize_request, FileSystemEntryType, FileSystemPath, RealPathResult,

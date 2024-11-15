@@ -1,5 +1,6 @@
 use anyhow::Result;
-use turbo_tasks::{FxIndexMap, RcStr, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexMap, ValueToString, Vc};
 use turbo_tasks_hash::hash_xxh3_hash64;
 
 use super::ModuleId;

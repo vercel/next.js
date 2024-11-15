@@ -14,8 +14,9 @@ use swc_core::{
     },
     quote, quote_expr,
 };
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, FxIndexMap, RcStr, ResolvedVc, TryFlatJoinIterExt, ValueToString, Vc,
+    trace::TraceRawVcs, FxIndexMap, ResolvedVc, TryFlatJoinIterExt, ValueToString, Vc,
 };
 use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{

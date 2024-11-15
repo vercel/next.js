@@ -5,7 +5,8 @@ use std::{
 
 use anyhow::{anyhow, Context, Result};
 use swc_core::ecma::preset_env::{Version, Versions};
-use turbo_tasks::{RcStr, ResolvedVc, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbo_tasks_env::ProcessEnv;
 
 use crate::target::CompileTarget;

@@ -2,7 +2,8 @@ pub use ::include_dir::{
     include_dir, {self},
 };
 use anyhow::Result;
-use turbo_tasks::{RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::Vc;
 
 use crate::{embed::EmbeddedFileSystem, DiskFileSystem, FileSystem};
 

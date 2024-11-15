@@ -2,9 +2,10 @@ use std::{any::Any, fmt::Debug, future::Future, hash::Hash, time::Duration};
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use turbo_rcstr::RcStr;
 
 use crate::{
-    MagicAny, RcStr, ResolvedVc, TaskId, TransientInstance, TransientValue, Value, ValueTypeId, Vc,
+    MagicAny, ResolvedVc, TaskId, TransientInstance, TransientValue, Value, ValueTypeId, Vc,
 };
 
 /// Trait to implement in order for a type to be accepted as a

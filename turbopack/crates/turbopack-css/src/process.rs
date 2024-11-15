@@ -18,7 +18,8 @@ use swc_core::{
     common::{BytePos, LineCol},
 };
 use tracing::Instrument;
-use turbo_tasks::{FxIndexMap, RcStr, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexMap, ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},

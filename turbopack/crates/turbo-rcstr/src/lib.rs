@@ -27,7 +27,7 @@ use crate::debug::{ValueDebugFormat, ValueDebugFormatString};
 /// `RcStr::from(...)`:
 ///
 /// ```
-/// # use turbo_tasks::RcStr;
+/// # use turbo_rcstr::RcStr;
 /// #
 /// let s = "foo";
 /// let rc_s1: RcStr = s.into();
