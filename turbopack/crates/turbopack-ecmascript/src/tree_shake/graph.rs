@@ -439,10 +439,6 @@ impl DepGraph {
                         continue;
                     }
 
-                    if !part_deps_done.insert(dep) {
-                        continue;
-                    }
-
                     let dep_part_id = PartId::Export(export.as_str().into());
                     let specifiers = vec![ImportSpecifier::Named(ImportNamedSpecifier {
                         span: DUMMY_SP,
