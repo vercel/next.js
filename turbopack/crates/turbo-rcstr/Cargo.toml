@@ -7,6 +7,7 @@ license = "MIT"
 [dependencies]
 triomphe = { workspace = true }
 turbo-tasks-hash = { workspace = true }
+serde = { workspace = true }
 
 [lints]
 workspace = true
