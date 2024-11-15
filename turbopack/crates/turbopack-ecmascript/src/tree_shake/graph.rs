@@ -420,6 +420,55 @@ impl DepGraph {
                 }
             }
 
+            for dep in groups
+                .idx_graph
+                .neighbors_directed(ix as u32, Direction::Outgoing)
+            {
+                if dep == ix as u32 || part_deps_done.contains(&dep) {
+                    continue;
+                }
+
+                let dep_item_ids = groups.graph_ix.get_index(dep as usize).unwrap();
+
+                for dep_item_id in dep_item_ids {
+                    let ItemId::Group(ItemIdGroupKind::Export(var, export)) = dep_item_id else {
+                        continue;
+                    };
+
+                    if !export.starts_with("$$RSC_SERVER_") {
+                        continue;
+                    }
+
+                    if !part_deps_done.insert(dep) {
+                        continue;
+                    }
+
+                    let dep_part_id = PartId::Export(export.as_str().into());
+                    let specifiers = vec![ImportSpecifier::Named(ImportNamedSpecifier {
+                        span: DUMMY_SP,
+                        local: var.clone().into(),
+                        imported: None,
+                        is_type_only: false,
+                    })];
+
+                    part_deps
+                        .entry(ix as u32)
+                        .or_default()
+                        .push(dep_part_id.clone());
+
+                    chunk
+                        .body
+                        .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                            span: DUMMY_SP,
+                            specifiers,
+                            src: Box::new(TURBOPACK_PART_IMPORT_SOURCE.into()),
+                            type_only: false,
+                            with: Some(Box::new(create_turbopack_part_id_assert(dep_part_id))),
+                            phase: Default::default(),
+                        })));
+                }
+            }
+
             // Import variables
             for &var in &required_vars {
                 let Some(&dep) = declarator.get(var) else {
@@ -430,7 +479,9 @@ impl DepGraph {
                     continue;
                 }
 
-                part_deps_done.insert(dep);
+                if part_deps_done.contains(&dep) {
+                    continue;
+                }
 
                 let dep_item_ids = groups.graph_ix.get_index(dep as usize).unwrap();
 
@@ -488,34 +539,17 @@ impl DepGraph {
                     }
                 }
 
-                let export_name = dep_item_ids.iter().find_map(|item| {
-                    if let ItemId::Group(ItemIdGroupKind::Export(id, export)) = item {
-                        if id == var {
-                            Some(export.clone())
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    }
-                });
+                part_deps_done.insert(dep);
 
-                let (dep_part_id, imported) = export_name
-                    .map(|e| (PartId::Export(e.as_str().into()), None))
-                    .unwrap_or_else(|| {
-                        (
-                            PartId::Internal(dep, false),
-                            Some(ModuleExportName::Ident(Ident::new_no_ctxt(
-                                mangle(var),
-                                DUMMY_SP,
-                            ))),
-                        )
-                    });
+                let dep_part_id = PartId::Internal(dep, false);
 
                 let specifiers = vec![ImportSpecifier::Named(ImportNamedSpecifier {
                     span: DUMMY_SP,
                     local: var.clone().into(),
-                    imported,
+                    imported: Some(ModuleExportName::Ident(Ident::new_no_ctxt(
+                        mangle(var),
+                        DUMMY_SP,
+                    ))),
                     is_type_only: false,
                 })];
 
@@ -672,7 +706,7 @@ impl DepGraph {
         let graph = self.g.idx_graph.clone().into_graph::<u32>();
 
         let mut condensed = condensation(graph, true);
-        self.workaround_server_actions(&mut condensed, data);
+        self.workarounds_server_action(&mut condensed, data);
 
         let optimizer = GraphOptimizer {
             graph_ix: &self.g.graph_ix,
@@ -1424,7 +1458,7 @@ impl DepGraph {
     ///
     /// So we need to add an import for $$RSC_SERVER_0 to the module, so that the export is
     /// preserved.
-    fn workaround_server_actions(
+    fn workarounds_server_action(
         &mut self,
         g: &mut Graph<Vec<u32>, Dependency>,
         data: &FxHashMap<ItemId, ItemData>,
