@@ -1476,22 +1476,22 @@ impl DepGraph {
                     continue;
                 }
 
-                let dependants = g
+                let sources = g
                     .edges_directed(declarator, Direction::Incoming)
                     .map(|e| (e.source(), *e.weight()))
                     .collect::<Vec<_>>();
 
                 // We depend on the export node to preserve the export
-                queue.push((node, declarator, dependants));
+                queue.push((node, declarator, sources));
             }
         }
 
-        for (node, declarator, dependants) in queue {
+        for (export_node, declarator, sources) in queue {
             // Move all edges from node to dependant
-            for (dependant, weight) in dependants {
-                g.add_edge(dependant, node, weight);
+            for (source, weight) in sources {
+                g.add_edge(source, export_node, weight);
 
-                if let Some(edge) = g.edges_connecting(dependant, declarator).next() {
+                if let Some(edge) = g.edges_connecting(source, declarator).next() {
                     g.remove_edge(edge.id());
                 }
             }
