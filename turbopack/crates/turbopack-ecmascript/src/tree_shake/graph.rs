@@ -28,7 +28,7 @@ use super::{
     },
     Key, TURBOPACK_PART_IMPORT_SOURCE,
 };
-use crate::magic_identifier;
+use crate::{magic_identifier, tree_shake::optimizations::GraphOptimizer};
 
 /// The id of an item
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -111,6 +111,17 @@ pub(crate) struct ItemData {
     ///
     /// Used to optimize `ImportBinding`.
     pub binding_source: Option<(Str, ImportSpecifier)>,
+
+    /// Explicit dependencies of this item.
+    ///
+    /// Used to depend from import binding to side-effect-import without additional analysis.
+    ///
+    /// - Note: ImportBinding should depend on actual import statements because those imports may
+    ///   have side effects.
+    ///
+    /// See https://github.com/vercel/next.js/pull/71234#issuecomment-2409810084 for the problematic
+    /// test case.
+    pub explicit_deps: Vec<ItemId>,
 }
 
 impl fmt::Debug for ItemData {
@@ -125,6 +136,7 @@ impl fmt::Debug for ItemData {
             .field("eventual_write_vars", &self.eventual_write_vars)
             .field("side_effects", &self.side_effects)
             .field("export", &self.export)
+            .field("explicit_deps", &self.explicit_deps)
             .finish()
     }
 }
@@ -143,6 +155,7 @@ impl Default for ItemData {
             pure: Default::default(),
             export: Default::default(),
             binding_source: Default::default(),
+            explicit_deps: Default::default(),
         }
     }
 }
@@ -715,7 +728,15 @@ impl DepGraph {
     ) -> InternedGraph<Vec<ItemId>> {
         let graph = self.g.idx_graph.clone().into_graph::<u32>();
 
-        let condensed = condensation(graph, false);
+        let mut condensed = condensation(graph, true);
+        let optimizer = GraphOptimizer {
+            graph_ix: &self.g.graph_ix,
+        };
+        loop {
+            if !optimizer.merge_single_incoming_nodes(&mut condensed) {
+                break;
+            }
+        }
 
         let mut new_graph = InternedGraph::default();
 
@@ -811,15 +832,15 @@ impl DepGraph {
                         _ => {}
                     },
                     ModuleDecl::ExportNamed(item) => {
-                        if let Some(src) = &item.src {
+                        let import_id = if let Some(src) = &item.src {
                             // One item for the import for re-export
-                            let id = ItemId::Item {
+                            let import_id = ItemId::Item {
                                 index,
                                 kind: ItemIdItemKind::ImportOfModule,
                             };
-                            ids.push(id.clone());
+                            ids.push(import_id.clone());
                             items.insert(
-                                id,
+                                import_id.clone(),
                                 ItemData {
                                     is_hoisted: true,
                                     side_effects: true,
@@ -833,7 +854,11 @@ impl DepGraph {
                                     ..Default::default()
                                 },
                             );
-                        }
+
+                            Some(import_id)
+                        } else {
+                            None
+                        };
 
                         for (si, s) in item.specifiers.iter().enumerate() {
                             let (orig, mut local, exported) = match s {
@@ -910,6 +935,7 @@ impl DepGraph {
                                                 phase: Default::default(),
                                             },
                                         )),
+                                        explicit_deps: vec![import_id.clone().unwrap()],
                                         ..Default::default()
                                     },
                                 );
@@ -1077,26 +1103,24 @@ impl DepGraph {
                 ModuleItem::ModuleDecl(ModuleDecl::Import(item)) => {
                     // We create multiple items for each import.
 
-                    {
-                        // One item for the import itself
-                        let id = ItemId::Item {
-                            index,
-                            kind: ItemIdItemKind::ImportOfModule,
-                        };
-                        ids.push(id.clone());
-                        items.insert(
-                            id,
-                            ItemData {
-                                is_hoisted: true,
-                                side_effects: true,
-                                content: ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-                                    specifiers: Default::default(),
-                                    ..item.clone()
-                                })),
-                                ..Default::default()
-                            },
-                        );
-                    }
+                    // One item for the import itself
+                    let import_id = ItemId::Item {
+                        index,
+                        kind: ItemIdItemKind::ImportOfModule,
+                    };
+                    ids.push(import_id.clone());
+                    items.insert(
+                        import_id.clone(),
+                        ItemData {
+                            is_hoisted: true,
+                            side_effects: true,
+                            content: ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                                specifiers: Default::default(),
+                                ..item.clone()
+                            })),
+                            ..Default::default()
+                        },
+                    );
 
                     // One per binding
                     for (si, s) in item.specifiers.iter().enumerate() {
@@ -1122,6 +1146,7 @@ impl DepGraph {
                                 } else {
                                     None
                                 },
+                                explicit_deps: vec![import_id.clone()],
                                 ..Default::default()
                             },
                         );

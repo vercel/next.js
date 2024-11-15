@@ -299,7 +299,11 @@ export async function generateStaticParams() {
   }))
 }
 
-export async function generateMetadata({ params }: { params: { id: string } }) {
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
   let post = await getPost(params.id)
 
   return {
@@ -307,7 +311,11 @@ export async function generateMetadata({ params }: { params: { id: string } }) {
   }
 }
 
-export default async function Page({ params }: { params: { id: string } }) {
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
   let post = await getPost(params.id)
 
   return (
@@ -407,7 +415,7 @@ There may be cases where you want this pattern because one fetch depends on the 
 export default async function Page({
   params: { username },
 }: {
-  params: { username: string }
+  params: Promise<{ username: string }>
 }) {
   // Get artist information
   const artist = await getArtist(username)
@@ -499,7 +507,7 @@ async function getAlbums(username: string) {
 export default async function Page({
   params: { username },
 }: {
-  params: { username: string }
+  params: Promise<{ username: string }>
 }) {
   const artistData = getArtist(username)
   const albumsData = getAlbums(username)
@@ -587,7 +595,7 @@ import Item, { preload, checkIsAvailable } from '@/components/Item'
 export default async function Page({
   params: { id },
 }: {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
   // starting loading item data
   preload(id)

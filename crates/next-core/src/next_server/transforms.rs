@@ -54,6 +54,12 @@ pub async fn get_next_server_transforms_rules(
         ));
     }
 
+    let dynamic_io_enabled = next_config
+        .experimental()
+        .await?
+        .dynamic_io
+        .unwrap_or(false);
+
     let mut is_app_dir = false;
 
     let is_server_components = match context_ty {
@@ -89,6 +95,7 @@ pub async fn get_next_server_transforms_rules(
             rules.push(get_server_actions_transform_rule(
                 ActionsTransform::Client,
                 mdx_rs,
+                dynamic_io_enabled,
             ));
 
             is_app_dir = true;
@@ -99,6 +106,7 @@ pub async fn get_next_server_transforms_rules(
             rules.push(get_server_actions_transform_rule(
                 ActionsTransform::Server,
                 mdx_rs,
+                dynamic_io_enabled,
             ));
 
             is_app_dir = true;
@@ -109,6 +117,7 @@ pub async fn get_next_server_transforms_rules(
             rules.push(get_server_actions_transform_rule(
                 ActionsTransform::Server,
                 mdx_rs,
+                dynamic_io_enabled,
             ));
 
             is_app_dir = true;
@@ -133,7 +142,7 @@ pub async fn get_next_server_transforms_rules(
         // rules.push(get_next_optimize_server_react_rule(enable_mdx_rs,
         // optimize_use_state))
 
-        rules.push(get_next_image_rule());
+        rules.push(get_next_image_rule().await?);
     }
 
     if let NextRuntime::Edge = next_runtime {

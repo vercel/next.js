@@ -47,7 +47,14 @@ turbo-tasks-hash = { workspace = true }
 turbo-tasks-malloc = { workspace = true, default-features = false }
 turbo-tasks-testing = { workspace = true }
 
+[dev-dependencies]
+criterion = { workspace = true, features = ["async_tokio"] }
+
 [build-dependencies]
 anyhow = { workspace = true }
 turbo-tasks-build = { workspace = true }
 vergen-gitcl = { version = "1.0.1" }
+
+[[bench]]
+name = "mod"
+harness = false

@@ -7,6 +7,7 @@ const envFile = '.env.development.local'
 describe(`app-dir-hmr`, () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
+    patchFileDelay: 1000,
   })
 
   describe('filesystem changes', () => {

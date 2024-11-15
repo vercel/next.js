@@ -1507,20 +1507,14 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       }),
     })
 
-    const assetPrefix = this.config.assetPrefix.replace(/\/$/, '')
-
     this.middlewares = [
       getOverlayMiddleware({
-        assetPrefix,
-        distDirectory: this.distDir,
         rootDirectory: this.dir,
         clientStats: () => this.clientStats,
         serverStats: () => this.serverStats,
         edgeServerStats: () => this.edgeServerStats,
       }),
       getSourceMapMiddleware({
-        assetPrefix,
-        distDirectory: this.distDir,
         clientStats: () => this.clientStats,
         serverStats: () => this.serverStats,
         edgeServerStats: () => this.edgeServerStats,

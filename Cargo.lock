@@ -6249,9 +6249,9 @@ checksum = "81cdd64d312baedb58e21336b31bc043b77e01cc99033ce76ef539f78e965ebc"
 
 [[package]]
 name = "swc"
-version = "5.0.0"
+version = "5.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dcd4ffeb97b143a491a45efb9a3e3eb2a440d816a6eb27741e9aeeb51c1e53a9"
+checksum = "39ce6c59d68f3ce3cbb01ea2329060180025933a0a937fcc4217bf7ef887572d"
 dependencies = [
  "anyhow",
  "base64 0.21.4",
@@ -6476,9 +6476,9 @@ dependencies = [
 
 [[package]]
 name = "swc_core"
-version = "5.0.1"
+version = "5.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e62a43e56e8a0915d14eb229c15bdc251bd9140458bd988ecacd85ca4e96c5bf"
+checksum = "92086975747587872715a20f78fc51e7047bac58f3a6a17d4ed5a9643f3fd0a2"
 dependencies = [
  "binding_macros",
  "swc",
@@ -6487,12 +6487,6 @@ dependencies = [
  "swc_bundler",
  "swc_cached",
  "swc_common",
- "swc_css_ast",
- "swc_css_codegen",
- "swc_css_compat",
- "swc_css_modules",
- "swc_css_parser",
- "swc_css_visit",
  "swc_ecma_ast",
  "swc_ecma_codegen",
  "swc_ecma_lints",
@@ -6590,22 +6584,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "swc_css_modules"
-version = "4.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "924f169c80ac00d9e710c222e1d7e01bb20ad63fcc1213c095ce539bba59cf12"
-dependencies = [
- "rustc-hash 1.1.0",
- "serde",
- "swc_atoms",
- "swc_common",
- "swc_css_ast",
- "swc_css_codegen",
- "swc_css_parser",
- "swc_css_visit",
-]
-
-[[package]]
 name = "swc_css_parser"
 version = "4.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6686,9 +6664,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_codegen"
-version = "4.0.1"
+version = "4.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "360f3a4ec392b6d395497d1f3649c70f8369db01707c756f5f0b8423474b40c4"
+checksum = "e474f6c2671524dbb179b44a36425cb1a58928f0f7211c45043f0951a1842c5d"
 dependencies = [
  "memchr",
  "num-bigint",
@@ -7102,9 +7080,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms_base"
-version = "5.0.0"
+version = "5.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f0a2438f61a45819b5adf0c338c92c07d83306d630fb2e6dc261c60fb75653d7"
+checksum = "0eb4000822f02b54af0be4f668649fa1e5555f1e3392479d17a277eb81a841f0"
 dependencies = [
  "better_scoped_tls",
  "bitflags 2.5.0",
@@ -8397,6 +8375,7 @@ dependencies = [
  "async-trait",
  "auto-hash-map",
  "byteorder",
+ "criterion",
  "dashmap 6.1.0",
  "either",
  "hashbrown 0.14.5",

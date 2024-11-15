@@ -161,6 +161,8 @@ fn run(input: PathBuf) {
         writeln!(s, "# Phase 4").unwrap();
         writeln!(s, "```mermaid\n{}```", render_graph(&item_ids, analyzer.g)).unwrap();
 
+        analyzer.handle_explicit_deps();
+
         let mut condensed = analyzer.g.finalize(analyzer.items);
 
         writeln!(s, "# Final").unwrap();

@@ -28,7 +28,6 @@ export function prefetchReducer(
     prefetchCache: state.prefetchCache,
     kind: action.kind,
     tree: state.tree,
-    buildId: state.buildId,
     allowAliasing: true,
   })
 
