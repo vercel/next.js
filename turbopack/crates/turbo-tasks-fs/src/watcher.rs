@@ -134,7 +134,7 @@ impl DiskWatcher {
     /// - Doesn't emit duplicate create events
     /// - Doesn't emit Modify events after a Create event
     pub(crate) fn start_watching(
-        self: Arc<Self>,
+        &self,
         inner: Arc<DiskFileSystemInner>,
         report_invalidation_reason: bool,
         poll_interval: Option<Duration>,
@@ -213,7 +213,12 @@ impl DiskWatcher {
         watcher_guard.replace(watcher);
         drop(watcher_guard);
 
-        spawn_thread(move || self.watch_thread(rx, inner, report_invalidation_reason));
+        spawn_thread(move || {
+            inner
+                .clone()
+                .watcher
+                .watch_thread(rx, inner, report_invalidation_reason)
+        });
 
         Ok(())
     }
@@ -396,7 +401,7 @@ impl DiskWatcher {
             #[cfg(not(any(target_os = "macos", target_os = "windows")))]
             {
                 for path in batched_new_paths.drain() {
-                    let _ = self.restore_if_watching(&path, &root_path);
+                    let _ = self.restore_if_watching(&path, &inner.root_path());
                 }
             }
 

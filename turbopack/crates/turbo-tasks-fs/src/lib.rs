@@ -206,6 +206,9 @@ struct DiskFileSystemInner {
     #[turbo_tasks(debug_ignore, trace_ignore)]
     #[serde(skip)]
     invalidation_lock: RwLock<()>,
+
+    #[turbo_tasks(debug_ignore, trace_ignore)]
+    watcher: DiskWatcher,
 }
 
 impl DiskFileSystemInner {
@@ -316,13 +319,35 @@ impl DiskFileSystemInner {
             }
         }
     }
+
+    #[tracing::instrument(level = "info", name = "start filesystem watching", skip_all, fields(path = %self.root))]
+    async fn start_watching_internal(
+        self: &Arc<Self>,
+        report_invalidation_reason: bool,
+        poll_interval: Option<Duration>,
+    ) -> Result<()> {
+        let root_path = self.root_path().to_path_buf();
+
+        // create the directory for the filesystem on disk, if it doesn't exist
+        retry_future(|| {
+            let path = root_path.as_path();
+            fs::create_dir_all(&root_path).instrument(tracing::info_span!(
+                "create root directory",
+                path = display(path.display())
+            ))
+        })
+        .await?;
+
+        self.watcher
+            .start_watching(self.clone(), report_invalidation_reason, poll_interval)?;
+
+        Ok(())
+    }
 }
 
 #[turbo_tasks::value(cell = "new", eq = "manual")]
 pub struct DiskFileSystem {
     inner: Arc<DiskFileSystemInner>,
-    #[turbo_tasks(debug_ignore, trace_ignore)]
-    watcher: Arc<DiskWatcher>,
 }
 
 impl DiskFileSystem {
@@ -343,44 +368,22 @@ impl DiskFileSystem {
     }
 
     pub async fn start_watching(&self, poll_interval: Option<Duration>) -> Result<()> {
-        self.start_watching_internal(false, poll_interval).await
+        self.inner
+            .start_watching_internal(false, poll_interval)
+            .await
     }
 
     pub async fn start_watching_with_invalidation_reason(
         &self,
         poll_interval: Option<Duration>,
     ) -> Result<()> {
-        self.start_watching_internal(true, poll_interval).await
-    }
-
-    #[tracing::instrument(level = "info", name = "start filesystem watching", skip_all, fields(path = %self.inner.root))]
-    async fn start_watching_internal(
-        &self,
-        report_invalidation_reason: bool,
-        poll_interval: Option<Duration>,
-    ) -> Result<()> {
-        let inner = self.inner.clone();
-        let root_path = self.inner.root_path().to_path_buf();
-
-        // create the directory for the filesystem on disk, if it doesn't exist
-        retry_future(|| {
-            let path = root_path.as_path();
-            fs::create_dir_all(&root_path).instrument(tracing::info_span!(
-                "create root directory",
-                path = display(path.display())
-            ))
-        })
-        .await?;
-
-        self.watcher
-            .clone()
-            .start_watching(inner, report_invalidation_reason, poll_interval)?;
-
-        Ok(())
+        self.inner
+            .start_watching_internal(true, poll_interval)
+            .await
     }
 
     pub fn stop_watching(&self) {
-        self.watcher.stop_watching();
+        self.inner.watcher.stop_watching();
     }
 
     pub async fn to_sys_path(&self, fs_path: Vc<FileSystemPath>) -> Result<PathBuf> {
@@ -442,10 +445,10 @@ impl DiskFileSystem {
                 invalidation_lock: Default::default(),
                 invalidator_map: InvalidatorMap::new(),
                 dir_invalidator_map: InvalidatorMap::new(),
+                watcher: DiskWatcher::new(
+                    ignored_subpaths.into_iter().map(PathBuf::from).collect(),
+                ),
             }),
-            watcher: Arc::new(DiskWatcher::new(
-                ignored_subpaths.into_iter().map(PathBuf::from).collect(),
-            )),
         };
 
         Ok(Self::cell(instance))
