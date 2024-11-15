@@ -26,7 +26,7 @@ mod watcher;
 
 use std::{
     borrow::Cow,
-    cmp::min,
+    cmp::{min, Ordering},
     collections::HashSet,
     fmt::{self, Debug, Display, Formatter, Write as _},
     fs::FileType,
@@ -735,7 +735,7 @@ impl FileSystem for DiskFileSystem {
                         f.set_permissions(file.meta.permissions.into()).await?;
                         #[cfg(feature = "write_version")]
                         {
-                            let mut full_path = full_path;
+                            let mut full_path = full_path.into_owned();
                             let hash = hash_xxh3_hash64(file);
                             let ext = full_path.extension();
                             let ext = if let Some(ext) = ext {
@@ -1518,7 +1518,7 @@ impl RealPathResult {
     }
 }
 
-#[derive(Clone, Copy, Debug, DeterministicHash)]
+#[derive(Clone, Copy, Debug, DeterministicHash, PartialOrd, Ord)]
 #[turbo_tasks::value(shared)]
 pub enum Permissions {
     Readable,
@@ -1571,7 +1571,7 @@ impl From<std::fs::Permissions> for Permissions {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Clone, Debug, DeterministicHash)]
+#[derive(Clone, Debug, DeterministicHash, PartialOrd, Ord)]
 pub enum FileContent {
     Content(File),
     NotFound,
@@ -1676,11 +1676,11 @@ pub enum LinkContent {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Clone, DeterministicHash)]
+#[derive(Clone, DeterministicHash, PartialOrd, Ord)]
 pub struct File {
-    meta: FileMeta,
     #[turbo_tasks(debug_ignore)]
     content: Rope,
+    meta: FileMeta,
 }
 
 impl File {
@@ -1864,6 +1864,20 @@ pub struct FileMeta {
     #[serde(with = "mime_option_serde")]
     #[turbo_tasks(trace_ignore)]
     content_type: Option<Mime>,
+}
+
+impl Ord for FileMeta {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.permissions
+            .cmp(&other.permissions)
+            .then_with(|| self.content_type.as_ref().cmp(&other.content_type.as_ref()))
+    }
+}
+
+impl PartialOrd for FileMeta {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
 }
 
 impl From<std::fs::Metadata> for FileMeta {

@@ -5,6 +5,7 @@ use std::{
 };
 
 use hex::encode as hex_encode;
+use indoc::formatdoc;
 use serde::Deserialize;
 use sha1::{Digest, Sha1};
 use swc_core::{
@@ -26,8 +27,52 @@ use swc_core::{
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Config {
     pub is_react_server_layer: bool,
-    pub enabled: bool,
+    pub dynamic_io_enabled: bool,
     pub hash_salt: String,
+}
+
+enum DirectiveLocation {
+    Module,
+    FunctionBody,
+}
+
+enum ServerActionsErrorKind {
+    ExportedSyncFunction {
+        span: Span,
+        in_action_file: bool,
+    },
+    InlineSyncFunction {
+        span: Span,
+        is_action_fn: bool,
+    },
+    InlineUseCacheInClientComponent {
+        span: Span,
+    },
+    InlineUseServerInClientComponent {
+        span: Span,
+    },
+    MisplacedDirective {
+        span: Span,
+        directive: String,
+        location: DirectiveLocation,
+    },
+    MisplacedWrappedDirective {
+        span: Span,
+        directive: String,
+    },
+    MisspelledDirective {
+        span: Span,
+        directive: String,
+        expected_directive: String,
+    },
+    UseCacheWithoutDynamicIO {
+        span: Span,
+        directive: String,
+    },
+    WrappedDirective {
+        span: Span,
+        directive: String,
+    },
 }
 
 /// A mapping of hashed action id to the action's exported function name.
@@ -133,7 +178,7 @@ impl<C: Comments> ServerActions<C> {
         &self,
         export_name: &str,
         is_cache: bool,
-        params: Option<&Vec<Pat>>,
+        params: Option<&Vec<Param>>,
     ) -> String {
         // Attach a checksum to the action using sha1:
         // $$id = special_byte + sha1('hash_salt' + 'file_name' + ':' + 'export_name');
@@ -183,7 +228,7 @@ impl<C: Comments> ServerActions<C> {
             // Instead, we go with the easy route and assume defined ones are
             // used. This can be improved in the future.
             for (i, param) in params.iter().enumerate() {
-                if let Pat::Rest(_) = param {
+                if let Pat::Rest(_) = param.pat {
                     // If there's a ...rest argument, we set the rest args bit
                     // to 1 and set the arg mask to 0b111111.
                     arg_mask = 0b111111;
@@ -230,6 +275,26 @@ impl<C: Comments> ServerActions<C> {
         id
     }
 
+    fn create_bound_action_args_array_pat(&mut self, arg_len: usize) -> Pat {
+        Pat::Array(ArrayPat {
+            span: DUMMY_SP,
+            elems: (0..arg_len)
+                .map(|i| {
+                    Some(Pat::Ident(
+                        Ident::new(
+                            format!("$$ACTION_ARG_{i}").into(),
+                            DUMMY_SP,
+                            self.private_ctxt,
+                        )
+                        .into(),
+                    ))
+                })
+                .collect(),
+            optional: false,
+            type_ann: None,
+        })
+    }
+
     // Check if the function or arrow function is an action or cache function
     fn get_body_info(&mut self, maybe_body: Option<&mut BlockStmt>) -> (bool, Option<String>) {
         let mut is_action_fn = false;
@@ -246,38 +311,19 @@ impl<C: Comments> ServerActions<C> {
                 &mut is_action_fn,
                 &mut cache_type,
                 &mut span,
-                self.config.enabled,
+                self.config.dynamic_io_enabled,
             );
 
             if !self.config.is_react_server_layer {
                 if is_action_fn && !self.in_action_file {
-                    HANDLER.with(|handler| {
-                        handler
-                            .struct_span_err(
-                                span.unwrap_or(body.span),
-                                "It is not allowed to define inline \"use server\" annotated \
-                                 Server Actions in Client Components.\nTo use Server Actions in a \
-                                 Client Component, you can either export them from a separate \
-                                 file with \"use server\" at the top, or pass them down through \
-                                 props from a Server Component.\n\n\
-                                 Read more: https://nextjs.org/docs/app/api-reference/functions/server-actions#with-client-components\n",
-                            )
-                            .emit()
-                    });
+                    emit_error(ServerActionsErrorKind::InlineUseServerInClientComponent {
+                        span: span.unwrap_or(body.span),
+                    })
                 }
 
                 if cache_type.is_some() && self.in_cache_file.is_none() && !self.in_action_file {
-                    HANDLER.with(|handler| {
-                        handler
-                            .struct_span_err(
-                                span.unwrap_or(body.span),
-                                "It is not allowed to define inline \"use cache\" annotated \
-                                 functions in Client Components.\nTo use \"use cache\" functions \
-                                 in a Client Component, you can either export them from a \
-                                 separate file with \"use cache\" or \"use server\" at the top, \
-                                 or pass them down through props from a Server Component.\n",
-                            )
-                            .emit()
+                    emit_error(ServerActionsErrorKind::InlineUseCacheInClientComponent {
+                        span: span.unwrap_or(body.span),
                     });
                 }
             }
@@ -302,10 +348,24 @@ impl<C: Comments> ServerActions<C> {
         ids_from_closure: Vec<Name>,
         arrow: &mut ArrowExpr,
     ) -> Box<Expr> {
-        let action_name = self.gen_action_ident().to_string();
+        let mut new_params: Vec<Param> = vec![];
 
+        if !ids_from_closure.is_empty() {
+            // First param is the encrypted closure variables.
+            new_params.push(Param {
+                span: DUMMY_SP,
+                decorators: vec![],
+                pat: Pat::Ident(IdentName::new("$$ACTION_CLOSURE_BOUND".into(), DUMMY_SP).into()),
+            });
+        }
+
+        for p in arrow.params.iter() {
+            new_params.push(Param::from(p.clone()));
+        }
+
+        let action_name = self.gen_action_ident().to_string();
         let action_ident = Ident::new(action_name.clone().into(), arrow.span, self.private_ctxt);
-        let action_id = self.generate_server_reference_id(&action_name, false, Some(&arrow.params));
+        let action_id = self.generate_server_reference_id(&action_name, false, Some(&new_params));
 
         self.has_action = true;
         self.export_actions
@@ -328,44 +388,19 @@ impl<C: Comments> ServerActions<C> {
             });
         }
 
-        // export const $ACTION_myAction = async () => {}
-        let mut new_params: Vec<Param> = vec![];
         let mut new_body: BlockStmtOrExpr = *arrow.body.clone();
 
         if !ids_from_closure.is_empty() {
-            // First argument is the encrypted closure variables
-            new_params.push(Param {
-                span: DUMMY_SP,
-                decorators: vec![],
-                pat: Pat::Ident(IdentName::new("$$ACTION_CLOSURE_BOUND".into(), DUMMY_SP).into()),
-            });
-
-            // Also prepend the decryption decl into the body.
+            // Prepend the decryption declaration to the body.
             // var [arg1, arg2, arg3] = await decryptActionBoundArgs(actionId,
             // $$ACTION_CLOSURE_BOUND)
-            let mut pats = vec![];
-            for i in 0..ids_from_closure.len() {
-                pats.push(Some(Pat::Ident(
-                    Ident::new(
-                        format!("$$ACTION_ARG_{i}").into(),
-                        DUMMY_SP,
-                        self.private_ctxt,
-                    )
-                    .into(),
-                )));
-            }
             let decryption_decl = VarDecl {
                 span: DUMMY_SP,
                 kind: VarDeclKind::Var,
                 declare: false,
                 decls: vec![VarDeclarator {
                     span: DUMMY_SP,
-                    name: Pat::Array(ArrayPat {
-                        span: DUMMY_SP,
-                        elems: pats,
-                        optional: false,
-                        type_ann: None,
-                    }),
+                    name: self.create_bound_action_args_array_pat(ids_from_closure.len()),
                     init: Some(Box::new(Expr::Await(AwaitExpr {
                         span: DUMMY_SP,
                         arg: Box::new(Expr::Call(CallExpr {
@@ -401,14 +436,6 @@ impl<C: Comments> ServerActions<C> {
                     });
                 }
             }
-        }
-
-        for p in arrow.params.iter() {
-            new_params.push(Param {
-                span: DUMMY_SP,
-                decorators: vec![],
-                pat: p.clone(),
-            });
         }
 
         // Create the action export decl from the arrow function
@@ -461,14 +488,22 @@ impl<C: Comments> ServerActions<C> {
         function: &mut Box<Function>,
         fn_name: Option<Ident>,
     ) -> Box<Expr> {
-        let action_name: JsWord = self.gen_action_ident();
+        let mut new_params: Vec<Param> = vec![];
 
+        if !ids_from_closure.is_empty() {
+            // First param is the encrypted closure variables.
+            new_params.push(Param {
+                span: DUMMY_SP,
+                decorators: vec![],
+                pat: Pat::Ident(IdentName::new("$$ACTION_CLOSURE_BOUND".into(), DUMMY_SP).into()),
+            });
+        }
+
+        new_params.append(&mut function.params);
+
+        let action_name: JsWord = self.gen_action_ident();
         let action_ident = Ident::new(action_name.clone(), function.span, self.private_ctxt);
-        let action_id = self.generate_server_reference_id(
-            &action_name,
-            false,
-            Some(&function.params.iter().map(|p| p.pat.clone()).collect()),
-        );
+        let action_id = self.generate_server_reference_id(&action_name, false, Some(&new_params));
 
         self.has_action = true;
         self.export_actions
@@ -493,44 +528,18 @@ impl<C: Comments> ServerActions<C> {
             private_ctxt: self.private_ctxt,
         });
 
-        // export async function $ACTION_myAction () {}
-        let mut new_params: Vec<Param> = vec![];
         let mut new_body: Option<BlockStmt> = function.body.clone();
 
-        // add params from closure collected ids
         if !ids_from_closure.is_empty() {
-            // First argument is the encrypted closure variables
-            new_params.push(Param {
-                span: DUMMY_SP,
-                decorators: vec![],
-                pat: Pat::Ident(IdentName::new("$$ACTION_CLOSURE_BOUND".into(), DUMMY_SP).into()),
-            });
-
-            // Also prepend the decryption decl into the body.
+            // Prepend the decryption declaration to the body.
             // var [arg1, arg2, arg3] = await decryptActionBoundArgs(actionId,
             // $$ACTION_CLOSURE_BOUND)
-            let mut pats = vec![];
-            for i in 0..ids_from_closure.len() {
-                pats.push(Some(Pat::Ident(
-                    Ident::new(
-                        format!("$$ACTION_ARG_{i}").into(),
-                        DUMMY_SP,
-                        self.private_ctxt,
-                    )
-                    .into(),
-                )));
-            }
             let decryption_decl = VarDecl {
                 span: DUMMY_SP,
                 kind: VarDeclKind::Var,
                 decls: vec![VarDeclarator {
                     span: DUMMY_SP,
-                    name: Pat::Array(ArrayPat {
-                        span: DUMMY_SP,
-                        elems: pats,
-                        optional: false,
-                        type_ann: None,
-                    }),
+                    name: self.create_bound_action_args_array_pat(ids_from_closure.len()),
                     init: Some(Box::new(Expr::Await(AwaitExpr {
                         span: DUMMY_SP,
                         arg: Box::new(Expr::Call(CallExpr {
@@ -557,10 +566,6 @@ impl<C: Comments> ServerActions<C> {
                     ..Default::default()
                 });
             }
-        }
-
-        for p in function.params.iter() {
-            new_params.push(p.clone());
         }
 
         // Create the action export decl from the function
@@ -599,12 +604,28 @@ impl<C: Comments> ServerActions<C> {
         cache_type: &str,
         arrow: &mut ArrowExpr,
     ) -> Box<Expr> {
+        let mut new_params: Vec<Param> = vec![];
+
+        // Add the collected closure variables as the first parameter to the
+        // function. They are unencrypted and passed into this function by the
+        // cache wrapper.
+        if !ids_from_closure.is_empty() {
+            new_params.push(Param {
+                span: DUMMY_SP,
+                decorators: vec![],
+                pat: self.create_bound_action_args_array_pat(ids_from_closure.len()),
+            });
+        }
+
+        for p in arrow.params.iter() {
+            new_params.push(Param::from(p.clone()));
+        }
+
         let cache_name: JsWord = self.gen_cache_ident();
         let cache_ident = private_ident!(cache_name.clone());
         let export_name: JsWord = cache_name;
 
-        let reference_id =
-            self.generate_server_reference_id(&export_name, true, Some(&arrow.params));
+        let reference_id = self.generate_server_reference_id(&export_name, true, Some(&new_params));
 
         self.has_cache = true;
         self.has_action = true;
@@ -615,34 +636,6 @@ impl<C: Comments> ServerActions<C> {
             block.visit_mut_with(&mut ClosureReplacer {
                 used_ids: &ids_from_closure,
                 private_ctxt: self.private_ctxt,
-            });
-        }
-
-        let mut new_params: Vec<Param> = vec![];
-
-        // Add the collected closure variables as the first parameters to the
-        // function. They are unencrypted and passed into this function by the
-        // cache wrapper.
-        if !ids_from_closure.is_empty() {
-            for i in 0..ids_from_closure.len() {
-                new_params.push(Param {
-                    span: DUMMY_SP,
-                    decorators: vec![],
-                    pat: Ident::new(
-                        format!("$$ACTION_ARG_{i}").into(),
-                        DUMMY_SP,
-                        self.private_ctxt,
-                    )
-                    .into(),
-                });
-            }
-        }
-
-        for p in arrow.params.iter() {
-            new_params.push(Param {
-                span: DUMMY_SP,
-                decorators: vec![],
-                pat: p.clone(),
             });
         }
 
@@ -746,14 +739,27 @@ impl<C: Comments> ServerActions<C> {
         cache_type: &str,
         function: &mut Box<Function>,
     ) -> Box<Expr> {
+        let mut new_params: Vec<Param> = vec![];
+
+        // Add the collected closure variables as the first parameter to the
+        // function. They are unencrypted and passed into this function by the
+        // cache wrapper.
+        if !ids_from_closure.is_empty() {
+            new_params.push(Param {
+                span: DUMMY_SP,
+                decorators: vec![],
+                pat: self.create_bound_action_args_array_pat(ids_from_closure.len()),
+            });
+        }
+
+        for p in function.params.iter() {
+            new_params.push(p.clone());
+        }
+
         let cache_name: JsWord = self.gen_cache_ident();
         let cache_ident = private_ident!(cache_name.clone());
 
-        let reference_id = self.generate_server_reference_id(
-            &cache_name,
-            true,
-            Some(&function.params.iter().map(|p| p.pat.clone()).collect()),
-        );
+        let reference_id = self.generate_server_reference_id(&cache_name, true, Some(&new_params));
 
         self.has_cache = true;
         self.has_action = true;
@@ -770,32 +776,6 @@ impl<C: Comments> ServerActions<C> {
             used_ids: &ids_from_closure,
             private_ctxt: self.private_ctxt,
         });
-
-        let mut new_params: Vec<Param> = vec![];
-
-        // Add the collected closure variables as the first parameters to the
-        // function. They are unencrypted and passed into this function by the
-        // cache wrapper.
-        if !ids_from_closure.is_empty() {
-            for i in 0..ids_from_closure.len() {
-                new_params.push(Param {
-                    span: DUMMY_SP,
-                    decorators: vec![],
-                    pat: Pat::Ident(
-                        Ident::new(
-                            format!("$$ACTION_ARG_{i}").into(),
-                            DUMMY_SP,
-                            self.private_ctxt,
-                        )
-                        .into(),
-                    ),
-                });
-            }
-        }
-
-        for p in function.params.iter() {
-            new_params.push(p.clone());
-        }
 
         // export var cache_ident = async function() {}
         self.hoisted_extra_items
@@ -934,19 +914,9 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         };
 
         if (is_action_fn || cache_type.is_some()) && !f.function.is_async {
-            HANDLER.with(|handler| {
-                let subject = if is_action_fn {
-                    "Server Actions"
-                } else {
-                    "\"use cache\" functions"
-                };
-
-                handler
-                    .struct_span_err(
-                        f.function.span,
-                        &format!("{subject} must be async functions."),
-                    )
-                    .emit();
+            emit_error(ServerActionsErrorKind::InlineSyncFunction {
+                span: f.function.span,
+                is_action_fn,
             });
 
             return;
@@ -1066,13 +1036,9 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
         if let Some(cache_type_str) = cache_type {
             if !f.function.is_async {
-                HANDLER.with(|handler| {
-                    handler
-                        .struct_span_err(
-                            f.ident.span,
-                            "\"use cache\" functions must be async functions.",
-                        )
-                        .emit();
+                emit_error(ServerActionsErrorKind::InlineSyncFunction {
+                    span: f.ident.span,
+                    is_action_fn: false,
                 });
 
                 self.in_exported_expr = old_in_exported_expr;
@@ -1108,10 +1074,9 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             });
         } else if is_action_fn {
             if !f.function.is_async {
-                HANDLER.with(|handler| {
-                    handler
-                        .struct_span_err(f.ident.span, "Server Actions must be async functions")
-                        .emit();
+                emit_error(ServerActionsErrorKind::InlineSyncFunction {
+                    span: f.ident.span,
+                    is_action_fn: true,
                 });
             }
 
@@ -1214,16 +1179,9 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         };
 
         if !a.is_async && (is_action_fn || cache_type.is_some()) {
-            HANDLER.with(|handler| {
-                let subject = if is_action_fn {
-                    "Server Actions"
-                } else {
-                    "\"use cache\" functions"
-                };
-
-                handler
-                    .struct_span_err(a.span, &format!("{subject} must be async functions."))
-                    .emit();
+            emit_error(ServerActionsErrorKind::InlineSyncFunction {
+                span: a.span,
+                is_action_fn,
             });
 
             return;
@@ -1349,7 +1307,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             &mut self.in_cache_file,
             &mut self.has_action,
             &mut self.has_cache,
-            self.config.enabled,
+            self.config.dynamic_io_enabled,
         );
 
         // If we're in a "use cache" file, collect all original IDs from export
@@ -1431,13 +1389,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                         self.generate_server_reference_id(
                                             f.ident.sym.as_ref(),
                                             ref_id,
-                                            Some(
-                                                &f.function
-                                                    .params
-                                                    .iter()
-                                                    .map(|p| p.pat.clone())
-                                                    .collect(),
-                                            ),
+                                            Some(&f.function.params),
                                         ),
                                     ));
                                 }
@@ -1553,9 +1505,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                 let ref_id = self.generate_server_reference_id(
                                     "default",
                                     is_cache,
-                                    Some(
-                                        &f.function.params.iter().map(|p| p.pat.clone()).collect(),
-                                    ),
+                                    Some(&f.function.params),
                                 );
 
                                 if let Some(ident) = &f.ident {
@@ -1639,7 +1589,13 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                         self.generate_server_reference_id(
                                             "default",
                                             is_cache,
-                                            Some(&arrow.params),
+                                            Some(
+                                                &arrow
+                                                    .params
+                                                    .iter()
+                                                    .map(|p| Param::from(p.clone()))
+                                                    .collect(),
+                                            ),
                                         ),
                                     ));
 
@@ -1702,22 +1658,9 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 }
 
                 if disallowed_export_span != DUMMY_SP {
-                    HANDLER.with(|handler| {
-                        let directive = if self.in_action_file {
-                            "\"use server\""
-                        } else {
-                            "\"use cache\""
-                        };
-
-                        handler
-                            .struct_span_err(
-                                disallowed_export_span,
-                                &format!(
-                                    "Only async functions are allowed to be exported in a \
-                                     {directive} file."
-                                ),
-                            )
-                            .emit();
+                    emit_error(ServerActionsErrorKind::ExportedSyncFunction {
+                        span: disallowed_export_span,
+                        in_action_file: self.in_action_file,
                     });
 
                     return;
@@ -2406,7 +2349,7 @@ fn remove_server_directive_index_in_module(
     in_cache_file: &mut Option<String>,
     has_action: &mut bool,
     has_cache: &mut bool,
-    enabled: bool,
+    dynamic_io_enabled: bool,
 ) {
     let mut is_directive = true;
 
@@ -2420,67 +2363,47 @@ fn remove_server_directive_index_in_module(
                     if is_directive {
                         *in_action_file = true;
                         *has_action = true;
-                        if !enabled {
-                            HANDLER.with(|handler| {
-                                handler
-                                    .struct_span_err(
-                                        *span,
-                                        "To use Server Actions, please enable the feature flag in your Next.js config. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching/forms-and-mutations#convention",
-                                    )
-                                    .emit()
-                            });
-                        }
                         return false;
                     } else {
-                        HANDLER.with(|handler| {
-                            handler
-                                .struct_span_err(
-                                    *span,
-                                    "The \"use server\" directive must be at the top of the file.",
-                                )
-                                .emit();
+                        emit_error(ServerActionsErrorKind::MisplacedDirective {
+                            span: *span,
+                            directive: value.to_string(),
+                            location: DirectiveLocation::Module,
                         });
                     }
                 } else
                 // `use cache` or `use cache: foo`
                 if value == "use cache" || value.starts_with("use cache: ") {
                     if is_directive {
-                        *in_cache_file = Some(
-                            if value == "use cache" {
-                                "default".into()
-                            } else {
-                                // Slice the value after "use cache: "
-                                value.split_at(
-                                    "use cache: ".len(),
-                                ).1.into()
-                            }
-                        );
+                        if !dynamic_io_enabled {
+                            emit_error(ServerActionsErrorKind::UseCacheWithoutDynamicIO {
+                                span: *span,
+                                directive: value.to_string(),
+                            });
+                        }
+
+                        *in_cache_file = Some(if value == "use cache" {
+                            "default".into()
+                        } else {
+                            // Slice the value after "use cache: "
+                            value.split_at("use cache: ".len()).1.into()
+                        });
                         *has_cache = true;
                         return false;
                     } else {
-                        HANDLER.with(|handler| {
-                            handler
-                                .struct_span_err(
-                                    *span,
-                                    "The \"use cache\" directive must be at the top of the file.",
-                                )
-                                .emit();
+                        emit_error(ServerActionsErrorKind::MisplacedDirective {
+                            span: *span,
+                            directive: value.to_string(),
+                            location: DirectiveLocation::Module,
                         });
                     }
                 } else {
                     // Detect typo of "use cache"
                     if detect_similar_strings(value, "use cache") {
-                        HANDLER.with(|handler| {
-                            handler
-                                .struct_span_err(
-                                    *span,
-                                    format!(
-                                        "Did you mean \"use cache\"? \"{value}\" is not a supported \
-                                         directive name."
-                                    )
-                                    .as_str(),
-                                )
-                                .emit();
+                        emit_error(ServerActionsErrorKind::MisspelledDirective {
+                            span: *span,
+                            directive: value.to_string(),
+                            expected_directive: "use cache".to_string(),
                         });
                     }
                 }
@@ -2497,47 +2420,27 @@ fn remove_server_directive_index_in_module(
                 // Match `("use server")`.
                 if value == "use server" || detect_similar_strings(value, "use server") {
                     if is_directive {
-                        HANDLER.with(|handler| {
-                            handler
-                                .struct_span_err(
-                                    *span,
-                                    "The \"use server\" directive cannot be wrapped in \
-                                     parentheses.",
-                                )
-                                .emit();
-                        })
+                        emit_error(ServerActionsErrorKind::WrappedDirective {
+                            span: *span,
+                            directive: "use server".to_string(),
+                        });
                     } else {
-                        HANDLER.with(|handler| {
-                            handler
-                                .struct_span_err(
-                                    *span,
-                                    "The \"use server\" directive must be at the top of the file, \
-                                     and cannot be wrapped in parentheses.",
-                                )
-                                .emit();
-                        })
+                        emit_error(ServerActionsErrorKind::MisplacedWrappedDirective {
+                            span: *span,
+                            directive: "use server".to_string(),
+                        });
                     }
                 } else if value == "use cache" || detect_similar_strings(value, "use cache") {
                     if is_directive {
-                        HANDLER.with(|handler| {
-                            handler
-                                .struct_span_err(
-                                    *span,
-                                    "The \"use cache\" directive cannot be wrapped in \
-                                     parentheses.",
-                                )
-                                .emit();
-                        })
+                        emit_error(ServerActionsErrorKind::WrappedDirective {
+                            span: *span,
+                            directive: "use cache".to_string(),
+                        });
                     } else {
-                        HANDLER.with(|handler| {
-                            handler
-                                .struct_span_err(
-                                    *span,
-                                    "The \"use cache\" directive must be at the top of the file, \
-                                     and cannot be wrapped in parentheses.",
-                                )
-                                .emit();
-                        })
+                        emit_error(ServerActionsErrorKind::MisplacedWrappedDirective {
+                            span: *span,
+                            directive: "use cache".to_string(),
+                        });
                     }
                 }
             }
@@ -2585,7 +2488,7 @@ fn remove_server_directive_index_in_fn(
     is_action_fn: &mut bool,
     cache_type: &mut Option<String>,
     action_span: &mut Option<Span>,
-    enabled: bool,
+    dynamic_io_enabled: bool,
 ) {
     let mut is_directive = true;
 
@@ -2600,79 +2503,50 @@ fn remove_server_directive_index_in_fn(
 
                 if is_directive {
                     *is_action_fn = true;
-                    if !enabled {
-                        HANDLER.with(|handler| {
-                            handler
-                                .struct_span_err(
-                                    *span,
-                                    "To use Server Actions, please enable the feature flag in your Next.js config. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching/forms-and-mutations#convention",
-                                )
-                                .emit()
-                        });
-                    }
                     return false;
                 } else {
-                    HANDLER.with(|handler| {
-                        handler
-                            .struct_span_err(
-                                *span,
-                                "The \"use server\" directive must be at the top of the function \
-                                 body.",
-                            )
-                            .emit();
+                    emit_error(ServerActionsErrorKind::MisplacedDirective {
+                        span: *span,
+                        directive: value.to_string(),
+                        location: DirectiveLocation::FunctionBody,
                     });
                 }
             } else if detect_similar_strings(value, "use server") {
-                    // Detect typo of "use server"
-                    HANDLER.with(|handler| {
-                        handler
-                            .struct_span_err(
-                                *span,
-                                format!(
-                                    "Did you mean \"use server\"? \"{value}\" is not a supported \
-                                     directive name."
-                                )
-                                .as_str(),
-                            )
-                            .emit();
-                    });
+                // Detect typo of "use server"
+                emit_error(ServerActionsErrorKind::MisspelledDirective {
+                    span: *span,
+                    directive: value.to_string(),
+                    expected_directive: "use server".to_string(),
+                });
             } else if value == "use cache" || value.starts_with("use cache: ") {
                 if is_directive {
-                    *cache_type = Some(
-                        if value == "use cache" {
-                            "default".into()
-                        } else {
-                            // Slice the value after "use cache: "
-                            value.split_at(
-                                "use cache: ".len(),
-                            ).1.into()
-                        },
-                    );
+                    if !dynamic_io_enabled {
+                        emit_error(ServerActionsErrorKind::UseCacheWithoutDynamicIO {
+                            span: *span,
+                            directive: value.to_string(),
+                        });
+                    }
+
+                    *cache_type = Some(if value == "use cache" {
+                        "default".into()
+                    } else {
+                        // Slice the value after "use cache: "
+                        value.split_at("use cache: ".len()).1.into()
+                    });
                     return false;
                 } else {
-                    HANDLER.with(|handler| {
-                        handler
-                            .struct_span_err(
-                                *span,
-                                "The \"use cache\" directive must be at the top of the function \
-                                 body.",
-                            )
-                            .emit();
+                    emit_error(ServerActionsErrorKind::MisplacedDirective {
+                        span: *span,
+                        directive: value.to_string(),
+                        location: DirectiveLocation::FunctionBody,
                     });
                 }
             } else if detect_similar_strings(value, "use cache") {
                 // Detect typo of "use cache"
-                HANDLER.with(|handler| {
-                    handler
-                        .struct_span_err(
-                            *span,
-                            format!(
-                                "Did you mean \"use cache\"? \"{value}\" is not a supported \
-                                 directive name."
-                            )
-                            .as_str(),
-                        )
-                        .emit();
+                emit_error(ServerActionsErrorKind::MisspelledDirective {
+                    span: *span,
+                    directive: value.to_string(),
+                    expected_directive: "use cache".to_string(),
                 });
             }
         } else {
@@ -2928,4 +2802,114 @@ impl From<Name> for Box<Expr> {
 
         expr
     }
+}
+
+fn emit_error(error_kind: ServerActionsErrorKind) {
+    let (span, msg) = match error_kind {
+        ServerActionsErrorKind::ExportedSyncFunction {
+            span,
+            in_action_file,
+        } => (
+            span,
+            formatdoc! {
+                r#"
+                    Only async functions are allowed to be exported in a {directive} file.
+                "#,
+                directive = if in_action_file {
+                    "\"use server\""
+                } else {
+                    "\"use cache\""
+                }
+            },
+        ),
+        ServerActionsErrorKind::InlineUseCacheInClientComponent { span } => (
+            span,
+            formatdoc! {
+                r#"
+                    It is not allowed to define inline "use cache" annotated functions in Client Components.
+                    To use "use cache" functions in a Client Component, you can either export them from a separate file with "use cache" or "use server" at the top, or pass them down through props from a Server Component.
+                "#
+            },
+        ),
+        ServerActionsErrorKind::InlineUseServerInClientComponent { span } => (
+            span,
+            formatdoc! {
+                r#"
+                    It is not allowed to define inline "use server" annotated Server Actions in Client Components.
+                    To use Server Actions in a Client Component, you can either export them from a separate file with "use server" at the top, or pass them down through props from a Server Component.
+
+                    Read more: https://nextjs.org/docs/app/api-reference/functions/server-actions#with-client-components
+                "#
+            },
+        ),
+        ServerActionsErrorKind::InlineSyncFunction { span, is_action_fn } => (
+            span,
+            formatdoc! {
+                r#"
+                    {subject} must be async functions.
+                "#,
+                subject = if is_action_fn {
+                    "Server Actions"
+                } else {
+                    "\"use cache\" functions"
+                }
+            },
+        ),
+        ServerActionsErrorKind::MisplacedDirective {
+            span,
+            directive,
+            location,
+        } => (
+            span,
+            formatdoc! {
+                r#"
+                    The "{directive}" directive must be at the top of the {location}.
+                "#,
+                location = match location {
+                    DirectiveLocation::Module => "file",
+                    DirectiveLocation::FunctionBody => "function body",
+                }
+            },
+        ),
+        ServerActionsErrorKind::MisplacedWrappedDirective { span, directive } => (
+            span,
+            formatdoc! {
+                r#"
+                    The "{directive}" directive must be at the top of the file, and cannot be wrapped in parentheses.
+                "#
+            },
+        ),
+        ServerActionsErrorKind::MisspelledDirective {
+            span,
+            directive,
+            expected_directive,
+        } => (
+            span,
+            formatdoc! {
+                r#"
+                    Did you mean "{expected_directive}"? "{directive}" is not a supported directive name."
+                "#
+            },
+        ),
+        ServerActionsErrorKind::UseCacheWithoutDynamicIO { span, directive } => (
+            span,
+            formatdoc! {
+                r#"
+                    To use "{directive}", please enable the experimental feature flag "dynamicIO" in your Next.js config.
+
+                    Read more: https://nextjs.org/docs/canary/app/api-reference/directives/use-cache#usage
+                "#
+            },
+        ),
+        ServerActionsErrorKind::WrappedDirective { span, directive } => (
+            span,
+            formatdoc! {
+                r#"
+                    The "{directive}" directive cannot be wrapped in parentheses.
+                "#
+            },
+        ),
+    };
+
+    HANDLER.with(|handler| handler.struct_span_err(span, &msg).emit());
 }

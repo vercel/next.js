@@ -5,7 +5,8 @@ use swc_core::{
     ecma::ast::{Expr, Lit, Program},
 };
 use turbo_tasks::{
-    trace::TraceRawVcs, FxIndexMap, FxIndexSet, RcStr, TaskInput, ValueDefault, ValueToString, Vc,
+    trace::TraceRawVcs, FxIndexMap, FxIndexSet, RcStr, ResolvedVc, TaskInput, ValueDefault,
+    ValueToString, Vc,
 };
 use turbo_tasks_fs::{
     self, json::parse_json_rope_with_source_context, rope::Rope, util::join_path, File,
@@ -91,7 +92,7 @@ pub fn get_asset_path_from_pathname(pathname: &str, ext: &str) -> String {
 #[turbo_tasks::function]
 pub async fn get_transpiled_packages(
     next_config: Vc<NextConfig>,
-    project_path: Vc<FileSystemPath>,
+    project_path: ResolvedVc<FileSystemPath>,
 ) -> Result<Vc<Vec<RcStr>>> {
     let mut transpile_packages: Vec<RcStr> = next_config.transpile_packages().await?.clone_value();
 
@@ -108,16 +109,16 @@ pub async fn get_transpiled_packages(
 
 pub async fn foreign_code_context_condition(
     next_config: Vc<NextConfig>,
-    project_path: Vc<FileSystemPath>,
+    project_path: ResolvedVc<FileSystemPath>,
 ) -> Result<ContextCondition> {
-    let transpiled_packages = get_transpiled_packages(next_config, project_path).await?;
+    let transpiled_packages = get_transpiled_packages(next_config, *project_path).await?;
 
     // The next template files are allowed to import the user's code via import
     // mapping, and imports must use the project-level [ResolveOptions] instead
     // of the `node_modules` specific resolve options (the template files are
     // technically node module files).
     let not_next_template_dir = ContextCondition::not(ContextCondition::InPath(
-        get_next_package(project_path).join(NEXT_TEMPLATE_PATH.into()),
+        get_next_package(*project_path).join(NEXT_TEMPLATE_PATH.into()),
     ));
 
     let result = ContextCondition::all(vec![
@@ -860,10 +861,10 @@ pub fn virtual_next_js_template_path(
 }
 
 pub async fn load_next_js_templateon<T: DeserializeOwned>(
-    project_path: Vc<FileSystemPath>,
+    project_path: ResolvedVc<FileSystemPath>,
     path: RcStr,
 ) -> Result<T> {
-    let file_path = get_next_package(project_path).join(path.clone());
+    let file_path = get_next_package(*project_path).join(path.clone());
 
     let content = &*file_path.read().await?;
 

@@ -641,7 +641,7 @@ describe('next.rs api', () => {
 
     const count = process.env.CI ? 300 : 1000
     for (let i = 0; i < count; i++) {
-      await next.patchFileFast(file, nextContent)
+      await next.patchFile(file, nextContent)
       const content = currentContent
       currentContent = nextContent
       nextContent = content

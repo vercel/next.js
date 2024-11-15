@@ -5,7 +5,7 @@ import { rules } from '@next/eslint-plugin-next'
 const NextESLintRule = rules['no-img-element']
 
 const message =
-  'Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element'
+  'Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element'
 
 const tests = {
   valid: [
