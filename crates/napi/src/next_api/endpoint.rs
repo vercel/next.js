@@ -7,7 +7,7 @@ use next_api::{
     route::{Endpoint, WrittenEndpoint},
 };
 use tracing::Instrument;
-use turbo_tasks::{Completion, ReadRef, Vc, VcValueType};
+use turbo_tasks::{apply_effects, Completion, ReadRef, Vc, VcValueType};
 use turbopack_core::{
     diagnostics::PlainDiagnostic,
     error::PrettyPrintError,
@@ -106,6 +106,7 @@ async fn strongly_consistent_catch_collectables<R: VcValueType + Send>(
     Arc<Vec<ReadRef<PlainDiagnostic>>>,
 )> {
     let result = source.strongly_consistent().await;
+    apply_effects(source).await?;
     let issues = get_issues(source).await?;
     let diagnostics = get_diagnostics(source).await?;
 

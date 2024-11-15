@@ -8,16 +8,10 @@
 #![feature(arbitrary_self_types_pointers)]
 
 pub mod evaluate_context;
-mod graph;
 pub mod module_options;
 pub mod rebase;
 pub mod transition;
 pub(crate) mod unsupported_sass;
-
-use std::{
-    collections::{HashMap, HashSet},
-    mem::swap,
-};
 
 use anyhow::{bail, Result};
 use css::{CssModuleAsset, ModuleCssAsset};
@@ -27,11 +21,10 @@ use ecmascript::{
     side_effect_optimization::facade::module::EcmascriptModuleFacadeModule,
     EcmascriptModuleAsset, EcmascriptModuleAssetType, TreeShakingMode,
 };
-use graph::{aggregate, AggregatedGraph, AggregatedGraphNodeContent};
 use module_options::{ModuleOptions, ModuleOptionsContext, ModuleRuleEffect, ModuleType};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{Completion, ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 pub use turbopack_core::condition;
 use turbopack_core::{
@@ -781,124 +774,32 @@ impl AssetContext for ModuleAssetContext {
 }
 
 #[turbo_tasks::function]
-pub fn emit_with_completion(
+pub async fn emit_with_completion(
     asset: Vc<Box<dyn OutputAsset>>,
     output_dir: Vc<FileSystemPath>,
-) -> Vc<Completion> {
-    emit_assets_aggregated(asset, output_dir)
+) -> Result<()> {
+    let _ = emit_asset_into_dir(asset, output_dir);
+    for asset in asset.references().await? {
+        let _ = emit_with_completion(**asset, output_dir);
+    }
+    Ok(())
 }
 
 #[turbo_tasks::function]
-fn emit_assets_aggregated(
-    asset: Vc<Box<dyn OutputAsset>>,
-    output_dir: Vc<FileSystemPath>,
-) -> Vc<Completion> {
-    let aggregated = aggregate(asset);
-    emit_aggregated_assets(aggregated, output_dir)
-}
-
-#[turbo_tasks::function]
-async fn emit_aggregated_assets(
-    aggregated: Vc<AggregatedGraph>,
-    output_dir: Vc<FileSystemPath>,
-) -> Result<Vc<Completion>> {
-    Ok(match &*aggregated.content().await? {
-        AggregatedGraphNodeContent::Asset(asset) => emit_asset_into_dir(**asset, output_dir),
-        AggregatedGraphNodeContent::Children(children) => {
-            for aggregated in children {
-                emit_aggregated_assets(**aggregated, output_dir).await?;
-            }
-            Completion::new()
-        }
-    })
-}
-
-#[turbo_tasks::function]
-pub fn emit_asset(asset: Vc<Box<dyn OutputAsset>>) -> Vc<Completion> {
-    asset.content().write(asset.ident().path())
+pub fn emit_asset(asset: Vc<Box<dyn OutputAsset>>) {
+    let _ = asset.content().write(asset.ident().path());
 }
 
 #[turbo_tasks::function]
 pub async fn emit_asset_into_dir(
     asset: Vc<Box<dyn OutputAsset>>,
     output_dir: Vc<FileSystemPath>,
-) -> Result<Vc<Completion>> {
+) -> Result<()> {
     let dir = &*output_dir.await?;
-    Ok(if asset.ident().path().await?.is_inside_ref(dir) {
-        emit_asset(asset)
-    } else {
-        Completion::new()
-    })
-}
-
-type OutputAssetSet = HashSet<Vc<Box<dyn OutputAsset>>>;
-
-#[turbo_tasks::value(shared)]
-struct ReferencesList {
-    referenced_by: HashMap<ResolvedVc<Box<dyn OutputAsset>>, OutputAssetSet>,
-}
-
-#[turbo_tasks::function]
-async fn compute_back_references(
-    aggregated: ResolvedVc<AggregatedGraph>,
-) -> Result<Vc<ReferencesList>> {
-    Ok(match &*aggregated.content().await? {
-        &AggregatedGraphNodeContent::Asset(asset) => {
-            let mut referenced_by = HashMap::new();
-            for &reference in asset.references().await?.iter() {
-                referenced_by.insert(reference, [*asset].into_iter().collect());
-            }
-            ReferencesList { referenced_by }.into()
-        }
-        AggregatedGraphNodeContent::Children(children) => {
-            let mut referenced_by =
-                HashMap::<ResolvedVc<Box<dyn OutputAsset>>, OutputAssetSet>::new();
-            let lists = children
-                .iter()
-                .map(|child| compute_back_references(**child))
-                .collect::<Vec<_>>();
-            for list in lists {
-                for (key, values) in list.await?.referenced_by.iter() {
-                    if let Some(set) = referenced_by.get_mut(key) {
-                        for value in values {
-                            set.insert(*value);
-                        }
-                    } else {
-                        referenced_by.insert(*key, values.clone());
-                    }
-                }
-            }
-            ReferencesList { referenced_by }.into()
-        }
-    })
-}
-
-#[turbo_tasks::function]
-async fn top_references(list: Vc<ReferencesList>) -> Result<Vc<ReferencesList>> {
-    let list = list.await?;
-    const N: usize = 5;
-    let mut top = Vec::<(
-        &ResolvedVc<Box<dyn OutputAsset>>,
-        &HashSet<Vc<Box<dyn OutputAsset>>>,
-    )>::new();
-    for tuple in list.referenced_by.iter() {
-        let mut current = tuple;
-        for item in &mut top {
-            if item.1.len() < tuple.1.len() {
-                swap(item, &mut current);
-            }
-        }
-        if top.len() < N {
-            top.push(current);
-        }
+    if asset.ident().path().await?.is_inside_ref(dir) {
+        let _ = emit_asset(asset);
     }
-    Ok(ReferencesList {
-        referenced_by: top
-            .into_iter()
-            .map(|(asset, set)| (*asset, set.clone()))
-            .collect(),
-    }
-    .into())
+    Ok(())
 }
 
 /// Replaces the externals in the result with `ExternalModuleAsset` instances.

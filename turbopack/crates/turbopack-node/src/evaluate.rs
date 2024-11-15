@@ -12,8 +12,8 @@ use parking_lot::Mutex;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use turbo_tasks::{
-    duration_span, fxindexmap, mark_finished, prevent_gc, util::SharedError, Completion, RawVc,
-    ResolvedVc, TaskInput, TryJoinIterExt, Value, Vc,
+    apply_effects, duration_span, fxindexmap, mark_finished, prevent_gc, util::SharedError,
+    Completion, RawVc, ResolvedVc, TaskInput, TryJoinIterExt, Value, Vc,
 };
 use turbo_tasks_bytes::{Bytes, Stream};
 use turbo_tasks_env::ProcessEnv;
@@ -322,12 +322,14 @@ pub async fn compute(
     };
 
     let stream = generator! {
-        let pool = evaluate_context.pool();
+        let pool_operation = evaluate_context.pool();
         let mut state = Default::default();
 
         // Read this strongly consistent, since we don't want to run inconsistent
         // node.js code.
-        let pool = pool.strongly_consistent().await?;
+        let pool = pool_operation.strongly_consistent().await?;
+        // Run all side effects of the pool creation
+        apply_effects(pool_operation).await?;
 
         let args = evaluate_context.args().iter().try_join().await?;
         // Assume this is a one-off operation, so we can kill the process
