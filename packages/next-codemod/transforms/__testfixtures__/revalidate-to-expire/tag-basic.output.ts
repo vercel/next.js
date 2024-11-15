@@ -1,5 +1,5 @@
-import { expireTag } from 'next/cache';
+import { expireTag } from "next/cache";
 
 export async function GET() {
-  expireTag('next');
+  expireTag("next");
 }
