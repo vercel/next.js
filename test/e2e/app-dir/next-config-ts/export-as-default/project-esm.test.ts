@@ -1,11 +1,14 @@
 import { nextTestSetup } from 'e2e-utils'
 
-describe('next-config-ts - config as async function (project CJS)', () => {
+describe('next-config-ts - export as default (project ESM)', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    packageJson: {
+      type: 'module',
+    },
   })
 
-  it('should support config as async function', async () => {
+  it('should support export as default (project ESM)', async () => {
     const $ = await next.render$('/')
     expect($('p').text()).toBe('foo')
   })
