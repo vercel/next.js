@@ -17,7 +17,7 @@ pub async fn webpack_loader_options(
     conditions: Vec<RcStr>,
 ) -> Result<Option<ResolvedVc<WebpackLoadersOptions>>> {
     let rules = *next_config.webpack_rules(conditions).await?;
-    let rules = *maybe_add_sass_loader(next_config.sass_config(), rules.map(|v| *v)).await?;
+    let rules = *maybe_add_sass_loader(next_config.sass_config(), rules.map(|v| *v), project_path).await?;
     let rules = if foreign {
         rules
     } else {
