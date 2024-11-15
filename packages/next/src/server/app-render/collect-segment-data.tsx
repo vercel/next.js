@@ -21,13 +21,14 @@ import type { LoadingModuleData } from '../../shared/lib/app-router-context.shar
 
 // Contains metadata about the route tree. The client must fetch this before
 // it can fetch any actual segment data.
-type RootTreePrefetch = {
+export type RootTreePrefetch = {
+  buildId: string
   tree: TreePrefetch
   head: React.ReactNode | null
   staleTime: number
 }
 
-type TreePrefetch = {
+export type TreePrefetch = {
   // Access token. Required to fetch the segment data. In the future this will
   // not be provided during a prefetch if the parent segment did not include it
   // in its prerender; the client will have to perform a dynamic navigation in
@@ -54,7 +55,8 @@ type TreePrefetch = {
   extra: [segment: Segment, isRootLayout: boolean]
 }
 
-type SegmentPrefetch = {
+export type SegmentPrefetch = {
+  buildId: string
   rsc: React.ReactNode | null
   loading: LoadingModuleData
 }
@@ -161,6 +163,7 @@ async function PrefetchTreeData({
     }
   )
 
+  const buildId = initialRSCPayload.b
   // FlightDataPath is an unsound type, hence the additional checks.
   const flightDataPaths = initialRSCPayload.f
   if (flightDataPaths.length !== 1 && flightDataPaths[0].length !== 3) {
@@ -179,6 +182,7 @@ async function PrefetchTreeData({
   // each segment.
   const tree = await collectSegmentDataImpl(
     flightRouterState,
+    buildId,
     seedData,
     fullPageDataBuffer,
     clientModules,
@@ -195,6 +199,7 @@ async function PrefetchTreeData({
 
   // Render the route tree to a special `/_tree` segment.
   const treePrefetch: RootTreePrefetch = {
+    buildId,
     tree,
     head,
     staleTime,
@@ -204,6 +209,7 @@ async function PrefetchTreeData({
 
 async function collectSegmentDataImpl(
   route: FlightRouterState,
+  buildId: string,
   seedData: CacheNodeSeedData,
   fullPageDataBuffer: Buffer,
   clientModules: ManifestNode,
@@ -238,6 +244,7 @@ async function collectSegmentDataImpl(
     )
     const childTree = await collectSegmentDataImpl(
       childRoute,
+      buildId,
       seedData,
       fullPageDataBuffer,
       clientModules,
@@ -258,6 +265,7 @@ async function collectSegmentDataImpl(
     // current task to escape the current rendering context.
     waitAtLeastOneReactRenderTask().then(() =>
       renderSegmentPrefetch(
+        buildId,
         seedData,
         segmentPathStr,
         accessToken,
@@ -279,6 +287,7 @@ async function collectSegmentDataImpl(
 }
 
 async function renderSegmentPrefetch(
+  buildId: string,
   seedData: CacheNodeSeedData,
   segmentPathStr: string,
   accessToken: string,
@@ -290,6 +299,7 @@ async function renderSegmentPrefetch(
   const rsc = seedData[1]
   const loading = seedData[3]
   const segmentPrefetch: SegmentPrefetch = {
+    buildId,
     rsc,
     loading,
   }
