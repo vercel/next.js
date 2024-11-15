@@ -283,21 +283,6 @@ impl DepGraph {
             outputs.insert(Key::ModuleEvaluation, 0);
         }
 
-        for (ix, group) in groups.graph_ix.iter().enumerate() {
-            for id in group {
-                match id {
-                    ItemId::Group(ItemIdGroupKind::Export(_, export)) => {
-                        outputs.insert(Key::Export(export.as_str().into()), ix as u32);
-                    }
-                    ItemId::Group(ItemIdGroupKind::ModuleEvaluation) => {
-                        outputs.insert(Key::ModuleEvaluation, ix as u32);
-                    }
-
-                    _ => {}
-                }
-            }
-        }
-
         // See https://github.com/vercel/next.js/pull/71234#issuecomment-2409810084
         // ImportBinding should depend on actual import statements because those imports may have
         // side effects.
@@ -398,24 +383,24 @@ impl DepGraph {
             let mut use_export_instead_of_declarator = false;
 
             for item in group {
-                if let ItemId::Group(ItemIdGroupKind::Export(..)) = item {
-                    if let Some(export) = &data[item].export {
-                        use_export_instead_of_declarator = true;
+                match item {
+                    ItemId::Group(ItemIdGroupKind::Export(..)) => {
+                        if let Some(export) = &data[item].export {
+                            use_export_instead_of_declarator = true;
+                            outputs.insert(Key::Export(export.as_str().into()), ix as u32);
 
-                        let s = ExportSpecifier::Named(ExportNamedSpecifier {
-                            span: DUMMY_SP,
-                            orig: ModuleExportName::Ident(Ident::new(
-                                export.clone(),
-                                DUMMY_SP,
-                                Default::default(),
-                            )),
-                            exported: None,
-                            is_type_only: false,
-                        });
-                        exports_module
-                            .body
-                            .push(ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(
-                                NamedExport {
+                            let s = ExportSpecifier::Named(ExportNamedSpecifier {
+                                span: DUMMY_SP,
+                                orig: ModuleExportName::Ident(Ident::new(
+                                    export.clone(),
+                                    DUMMY_SP,
+                                    Default::default(),
+                                )),
+                                exported: None,
+                                is_type_only: false,
+                            });
+                            exports_module.body.push(ModuleItem::ModuleDecl(
+                                ModuleDecl::ExportNamed(NamedExport {
                                     span: DUMMY_SP,
                                     specifiers: vec![s],
                                     src: Some(Box::new(TURBOPACK_PART_IMPORT_SOURCE.into())),
@@ -423,9 +408,15 @@ impl DepGraph {
                                     with: Some(Box::new(create_turbopack_part_id_assert(
                                         PartId::Export(export.as_str().into()),
                                     ))),
-                                },
-                            )));
+                                }),
+                            ));
+                        }
                     }
+                    ItemId::Group(ItemIdGroupKind::ModuleEvaluation) => {
+                        outputs.insert(Key::ModuleEvaluation, ix as u32);
+                    }
+
+                    _ => {}
                 }
             }
 
