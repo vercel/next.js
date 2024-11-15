@@ -261,7 +261,7 @@ impl DepGraph {
         data: &FxHashMap<ItemId, ItemData>,
     ) -> SplitModuleResult {
         let groups = self.finalize(data);
-        let mut exports = FxHashMap::default();
+        let mut outputs = FxHashMap::default();
         let mut part_deps = FxHashMap::<_, Vec<PartId>>::default();
 
         let star_reexports: Vec<_> = data
@@ -280,7 +280,22 @@ impl DepGraph {
                 body: data.values().map(|v| v.content.clone()).collect(),
                 shebang: None,
             });
-            exports.insert(Key::ModuleEvaluation, 0);
+            outputs.insert(Key::ModuleEvaluation, 0);
+        }
+
+        for (ix, group) in groups.graph_ix.iter().enumerate() {
+            for id in group {
+                match id {
+                    ItemId::Group(ItemIdGroupKind::Export(_, export)) => {
+                        outputs.insert(Key::Export(export.as_str().into()), ix as u32);
+                    }
+                    ItemId::Group(ItemIdGroupKind::ModuleEvaluation) => {
+                        outputs.insert(Key::ModuleEvaluation, ix as u32);
+                    }
+
+                    _ => {}
+                }
+            }
         }
 
         // See https://github.com/vercel/next.js/pull/71234#issuecomment-2409810084
@@ -288,7 +303,6 @@ impl DepGraph {
         // side effects.
         let mut importer = FxHashMap::default();
         let mut declarator = FxHashMap::default();
-        let mut exporter = FxHashMap::default();
 
         for (ix, group) in groups.graph_ix.iter().enumerate() {
             for id in group {
@@ -296,10 +310,6 @@ impl DepGraph {
 
                 for var in item.var_decls.iter() {
                     declarator.entry(var.clone()).or_insert_with(|| ix as u32);
-                }
-
-                if let Some(export) = &item.export {
-                    exporter.insert(export.clone(), ix as u32);
                 }
 
                 if let ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
@@ -345,12 +355,6 @@ impl DepGraph {
                 })
                 .collect::<FxIndexSet<_>>();
 
-            for item in group {
-                if let ItemId::Group(ItemIdGroupKind::Export(id, _)) = item {
-                    required_vars.insert(id);
-                }
-            }
-
             for id in group {
                 let data = data.get(id).unwrap();
 
@@ -367,7 +371,7 @@ impl DepGraph {
                 {
                     if !specifiers.is_empty() {
                         if let Some(dep) = importer.get(&src.value) {
-                            if *dep != ix as u32 {
+                            if *dep != ix as u32 && part_deps_done.insert(*dep) {
                                 part_deps
                                     .entry(ix as u32)
                                     .or_default()
@@ -699,7 +703,7 @@ impl DepGraph {
             modules.push(chunk);
         }
 
-        exports.insert(Key::Exports, modules.len() as u32);
+        outputs.insert(Key::Exports, modules.len() as u32);
 
         for star in &star_reexports {
             exports_module
@@ -710,7 +714,7 @@ impl DepGraph {
         modules.push(exports_module);
 
         SplitModuleResult {
-            entrypoints: exports,
+            entrypoints: outputs,
             part_deps,
             modules,
             star_reexports,
