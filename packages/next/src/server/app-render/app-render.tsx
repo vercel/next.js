@@ -1844,11 +1844,11 @@ async function renderToStream(
       throw err
     }
 
-    let errorType: 'not-found' | 'redirect' | undefined
+    let errorType: MetadataErrorType | 'redirect' | undefined
 
     if (isHTTPAccessFallbackError(err)) {
       res.statusCode = getAccessFallbackHTTPStatus(err)
-      errorType = 'not-found'
+      errorType = getAccessFallbackErrorTypeByStatus(res.statusCode)
     } else if (isRedirectError(err)) {
       errorType = 'redirect'
       res.statusCode = getRedirectStatusCodeFromError(err)
