@@ -9,5 +9,6 @@ describe('with contentDispositionType inline', () => {
     nextConfigImages: { contentDispositionType: 'inline' },
     appDir,
     imagesDir,
+    isrFlushToDisk: false,
   })
 })
