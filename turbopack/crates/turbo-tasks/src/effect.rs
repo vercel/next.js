@@ -38,8 +38,7 @@ impl EffectInstance {
         let future = self.inner.lock().take();
         future.map(|EffectInner { future, span }| {
             tokio::spawn(
-                turbo_tasks_future_scope(turbo_tasks::turbo_tasks(), async move { future.await })
-                    .instrument(span),
+                turbo_tasks_future_scope(turbo_tasks::turbo_tasks(), future).instrument(span),
             )
         })
     }
