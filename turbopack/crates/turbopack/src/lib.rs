@@ -8,10 +8,16 @@
 #![feature(arbitrary_self_types_pointers)]
 
 pub mod evaluate_context;
+mod graph;
 pub mod module_options;
 pub mod rebase;
 pub mod transition;
 pub(crate) mod unsupported_sass;
+
+use std::{
+    collections::{HashMap, HashSet},
+    mem::swap,
+};
 
 use anyhow::{bail, Result};
 use css::{CssModuleAsset, ModuleCssAsset};
@@ -21,6 +27,7 @@ use ecmascript::{
     side_effect_optimization::facade::module::EcmascriptModuleFacadeModule,
     EcmascriptModuleAsset, EcmascriptModuleAssetType, TreeShakingMode,
 };
+use graph::{aggregate, AggregatedGraph, AggregatedGraphNodeContent};
 use module_options::{ModuleOptions, ModuleOptionsContext, ModuleRuleEffect, ModuleType};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
@@ -774,13 +781,30 @@ impl AssetContext for ModuleAssetContext {
 }
 
 #[turbo_tasks::function]
-pub async fn emit_with_completion(
-    asset: Vc<Box<dyn OutputAsset>>,
+pub fn emit_with_completion(asset: Vc<Box<dyn OutputAsset>>, output_dir: Vc<FileSystemPath>) {
+    let _ = emit_assets_aggregated(asset, output_dir);
+}
+
+#[turbo_tasks::function]
+fn emit_assets_aggregated(asset: Vc<Box<dyn OutputAsset>>, output_dir: Vc<FileSystemPath>) {
+    let aggregated = aggregate(asset);
+    let _ = emit_aggregated_assets(aggregated, output_dir);
+}
+
+#[turbo_tasks::function]
+async fn emit_aggregated_assets(
+    aggregated: Vc<AggregatedGraph>,
     output_dir: Vc<FileSystemPath>,
 ) -> Result<()> {
-    let _ = emit_asset_into_dir(asset, output_dir);
-    for asset in asset.references().await? {
-        let _ = emit_with_completion(**asset, output_dir);
+    match &*aggregated.content().await? {
+        AggregatedGraphNodeContent::Asset(asset) => {
+            let _ = emit_asset_into_dir(**asset, output_dir);
+        }
+        AggregatedGraphNodeContent::Children(children) => {
+            for aggregated in children {
+                let _ = emit_aggregated_assets(**aggregated, output_dir);
+            }
+        }
     }
     Ok(())
 }
@@ -800,6 +824,76 @@ pub async fn emit_asset_into_dir(
         let _ = emit_asset(asset);
     }
     Ok(())
+}
+
+type OutputAssetSet = HashSet<Vc<Box<dyn OutputAsset>>>;
+
+#[turbo_tasks::value(shared)]
+struct ReferencesList {
+    referenced_by: HashMap<ResolvedVc<Box<dyn OutputAsset>>, OutputAssetSet>,
+}
+
+#[turbo_tasks::function]
+async fn compute_back_references(
+    aggregated: ResolvedVc<AggregatedGraph>,
+) -> Result<Vc<ReferencesList>> {
+    Ok(match &*aggregated.content().await? {
+        &AggregatedGraphNodeContent::Asset(asset) => {
+            let mut referenced_by = HashMap::new();
+            for &reference in asset.references().await?.iter() {
+                referenced_by.insert(reference, [*asset].into_iter().collect());
+            }
+            ReferencesList { referenced_by }.into()
+        }
+        AggregatedGraphNodeContent::Children(children) => {
+            let mut referenced_by =
+                HashMap::<ResolvedVc<Box<dyn OutputAsset>>, OutputAssetSet>::new();
+            let lists = children
+                .iter()
+                .map(|child| compute_back_references(**child))
+                .collect::<Vec<_>>();
+            for list in lists {
+                for (key, values) in list.await?.referenced_by.iter() {
+                    if let Some(set) = referenced_by.get_mut(key) {
+                        for value in values {
+                            set.insert(*value);
+                        }
+                    } else {
+                        referenced_by.insert(*key, values.clone());
+                    }
+                }
+            }
+            ReferencesList { referenced_by }.into()
+        }
+    })
+}
+
+#[turbo_tasks::function]
+async fn top_references(list: Vc<ReferencesList>) -> Result<Vc<ReferencesList>> {
+    let list = list.await?;
+    const N: usize = 5;
+    let mut top = Vec::<(
+        &ResolvedVc<Box<dyn OutputAsset>>,
+        &HashSet<Vc<Box<dyn OutputAsset>>>,
+    )>::new();
+    for tuple in list.referenced_by.iter() {
+        let mut current = tuple;
+        for item in &mut top {
+            if item.1.len() < tuple.1.len() {
+                swap(item, &mut current);
+            }
+        }
+        if top.len() < N {
+            top.push(current);
+        }
+    }
+    Ok(ReferencesList {
+        referenced_by: top
+            .into_iter()
+            .map(|(asset, set)| (*asset, set.clone()))
+            .collect(),
+    }
+    .into())
 }
 
 /// Replaces the externals in the result with `ExternalModuleAsset` instances.

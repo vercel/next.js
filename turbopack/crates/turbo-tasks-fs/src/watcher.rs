@@ -401,7 +401,7 @@ impl DiskWatcher {
             #[cfg(not(any(target_os = "macos", target_os = "windows")))]
             {
                 for path in batched_new_paths.drain() {
-                    let _ = self.restore_if_watching(&path, &inner.root_path());
+                    let _ = self.restore_if_watching(&path, inner.root_path());
                 }
             }
 
