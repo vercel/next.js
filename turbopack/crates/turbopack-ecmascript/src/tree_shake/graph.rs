@@ -702,7 +702,7 @@ impl DepGraph {
         let graph = self.g.idx_graph.clone().into_graph::<u32>();
 
         let mut condensed = condensation(graph, true);
-        self.workarounds_server_action(&mut condensed, data);
+        self.workaround_server_action(&mut condensed, data);
 
         let optimizer = GraphOptimizer {
             graph_ix: &self.g.graph_ix,
@@ -1454,7 +1454,7 @@ impl DepGraph {
     ///
     /// So we need to add an import for $$RSC_SERVER_0 to the module, so that the export is
     /// preserved.
-    fn workarounds_server_action(
+    fn workaround_server_action(
         &mut self,
         g: &mut Graph<Vec<u32>, Dependency>,
         data: &FxHashMap<ItemId, ItemData>,
