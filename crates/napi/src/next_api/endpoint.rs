@@ -106,7 +106,6 @@ async fn strongly_consistent_catch_collectables<R: VcValueType + Send>(
     Arc<Vec<ReadRef<PlainDiagnostic>>>,
 )> {
     let result = source.strongly_consistent().await;
-    apply_effects(source).await?;
     let issues = get_issues(source).await?;
     let diagnostics = get_diagnostics(source).await?;
 
@@ -150,13 +149,14 @@ pub async fn endpoint_write_to_disk(
     let endpoint = ***endpoint;
     let (written, issues, diags) = turbo_tasks
         .run_once(async move {
+            let operation = get_written_endpoint_with_issues(endpoint);
             let WrittenEndpointWithIssues {
                 written,
                 issues,
                 diagnostics,
-            } = &*get_written_endpoint_with_issues(endpoint)
-                .strongly_consistent()
-                .await?;
+            } = &*operation.strongly_consistent().await?;
+            apply_effects(operation).await?;
+
             Ok((written.clone(), issues.clone(), diagnostics.clone()))
         })
         .await
@@ -181,9 +181,10 @@ pub fn endpoint_server_changed_subscribe(
         func,
         move || {
             async move {
-                subscribe_issues_and_diags(endpoint, issues)
-                    .strongly_consistent()
-                    .await
+                let operation = subscribe_issues_and_diags(endpoint, issues);
+                let result = operation.strongly_consistent().await?;
+                apply_effects(operation).await?;
+                Ok(result)
             }
             .instrument(tracing::info_span!("server changes subscription"))
         },

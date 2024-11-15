@@ -631,7 +631,6 @@ async fn get_entrypoints_with_issues(
 ) -> Result<Vc<EntrypointsWithIssues>> {
     let entrypoints_operation = container.entrypoints();
     let entrypoints = entrypoints_operation.strongly_consistent().await?;
-    apply_effects(entrypoints_operation).await?;
     let issues = get_issues(entrypoints_operation).await?;
     let diagnostics = get_diagnostics(entrypoints_operation).await?;
     Ok(EntrypointsWithIssues {
@@ -654,13 +653,13 @@ pub fn project_entrypoints_subscribe(
         func,
         move || {
             async move {
+                let operation = get_entrypoints_with_issues(container);
                 let EntrypointsWithIssues {
                     entrypoints,
                     issues,
                     diagnostics,
-                } = &*get_entrypoints_with_issues(container)
-                    .strongly_consistent()
-                    .await?;
+                } = &*operation.strongly_consistent().await?;
+                apply_effects(operation).await?;
                 Ok((entrypoints.clone(), issues.clone(), diagnostics.clone()))
             }
             .instrument(tracing::info_span!("entrypoints subscription"))
@@ -729,7 +728,6 @@ async fn hmr_update(
 ) -> Result<Vc<HmrUpdateWithIssues>> {
     let update_operation = project.hmr_update(identifier, state);
     let update = update_operation.strongly_consistent().await?;
-    apply_effects(update_operation).await?;
     let issues = get_issues(update_operation).await?;
     let diagnostics = get_diagnostics(update_operation).await?;
     Ok(HmrUpdateWithIssues {
@@ -762,9 +760,9 @@ pub fn project_hmr_events(
                     let project = project.project().resolve().await?;
                     let state = project.hmr_version_state(identifier.clone(), session);
 
-                    let update = hmr_update(project, identifier.clone(), state)
-                        .strongly_consistent()
-                        .await?;
+                    let operation = hmr_update(project, identifier.clone(), state);
+                    let update = operation.strongly_consistent().await?;
+                    apply_effects(operation).await?;
                     let HmrUpdateWithIssues {
                         update,
                         issues,
@@ -842,7 +840,6 @@ async fn get_hmr_identifiers_with_issues(
 ) -> Result<Vc<HmrIdentifiersWithIssues>> {
     let hmr_identifiers_operation = container.hmr_identifiers();
     let hmr_identifiers = hmr_identifiers_operation.strongly_consistent().await?;
-    apply_effects(hmr_identifiers_operation).await?;
     let issues = get_issues(hmr_identifiers_operation).await?;
     let diagnostics = get_diagnostics(hmr_identifiers_operation).await?;
     Ok(HmrIdentifiersWithIssues {
@@ -864,13 +861,13 @@ pub fn project_hmr_identifiers_subscribe(
         turbo_tasks.clone(),
         func,
         move || async move {
+            let operation = get_hmr_identifiers_with_issues(container);
             let HmrIdentifiersWithIssues {
                 identifiers,
                 issues,
                 diagnostics,
-            } = &*get_hmr_identifiers_with_issues(container)
-                .strongly_consistent()
-                .await?;
+            } = &*operation.strongly_consistent().await?;
+            apply_effects(operation).await?;
 
             Ok((identifiers.clone(), issues.clone(), diagnostics.clone()))
         },
