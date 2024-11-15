@@ -20,6 +20,8 @@ export default function transformer(file: FileInfo, _api: API) {
   }
 
   let nextCacheNamespace = ''
+  let revalidatePathName = 'revalidatePath'
+  let revalidateTagName = 'revalidateTag'
   let expirePathName = 'expirePath'
   let expireTagName = 'expireTag'
 
@@ -48,9 +50,11 @@ export default function transformer(file: FileInfo, _api: API) {
         return true
       }
       if (hasExpireTag && specifier.imported.name === 'revalidateTag') {
+        revalidateTagName = specifier.local?.name ?? 'revalidateTag'
         return false
       }
       if (hasExpirePath && specifier.imported.name === 'revalidatePath') {
+        revalidatePathName = specifier.local?.name ?? 'revalidatePath'
         return false
       }
       return true
@@ -83,10 +87,10 @@ export default function transformer(file: FileInfo, _api: API) {
     // ```
     if (
       callee.type === 'Identifier' &&
-      (callee.name === 'revalidateTag' || callee.name === 'revalidatePath')
+      (callee.name === revalidateTagName || callee.name === revalidatePathName)
     ) {
       callee.name =
-        callee.name === 'revalidateTag' ? expireTagName : expirePathName
+        callee.name === revalidateTagName ? expireTagName : expirePathName
     }
 
     // Handle namespace calls:
