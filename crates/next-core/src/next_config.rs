@@ -533,7 +533,7 @@ pub struct ExperimentalConfig {
     after: Option<bool>,
     amp: Option<serde_json::Value>,
     app_document_preloading: Option<bool>,
-    cache_handlers: Option<FxIndexMap<String, String>>,
+    cache_handlers: Option<FxIndexMap<RcStr, RcStr>>,
     cache_life: Option<FxIndexMap<String, CacheLifeProfile>>,
     case_sensitive_routes: Option<bool>,
     cpus: Option<f64>,
@@ -1170,7 +1170,7 @@ impl NextConfig {
             self.experimental
                 .cache_handlers
                 .as_ref()
-                .map(|handlers| handlers.keys().map(|kind| RcStr::from(&**kind)).collect())
+                .map(|handlers| handlers.keys().cloned().collect())
                 .unwrap_or_default(),
         )
     }
