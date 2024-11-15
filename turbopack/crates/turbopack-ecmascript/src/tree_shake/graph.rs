@@ -398,24 +398,24 @@ impl DepGraph {
             let mut use_export_instead_of_declarator = false;
 
             for item in group {
-                match item {
-                    ItemId::Group(ItemIdGroupKind::Export(..)) => {
-                        if let Some(export) = &data[item].export {
-                            use_export_instead_of_declarator = true;
-                            exports.insert(Key::Export(export.as_str().into()), ix as u32);
+                if let ItemId::Group(ItemIdGroupKind::Export(..)) = item {
+                    if let Some(export) = &data[item].export {
+                        use_export_instead_of_declarator = true;
 
-                            let s = ExportSpecifier::Named(ExportNamedSpecifier {
-                                span: DUMMY_SP,
-                                orig: ModuleExportName::Ident(Ident::new(
-                                    export.clone(),
-                                    DUMMY_SP,
-                                    Default::default(),
-                                )),
-                                exported: None,
-                                is_type_only: false,
-                            });
-                            exports_module.body.push(ModuleItem::ModuleDecl(
-                                ModuleDecl::ExportNamed(NamedExport {
+                        let s = ExportSpecifier::Named(ExportNamedSpecifier {
+                            span: DUMMY_SP,
+                            orig: ModuleExportName::Ident(Ident::new(
+                                export.clone(),
+                                DUMMY_SP,
+                                Default::default(),
+                            )),
+                            exported: None,
+                            is_type_only: false,
+                        });
+                        exports_module
+                            .body
+                            .push(ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(
+                                NamedExport {
                                     span: DUMMY_SP,
                                     specifiers: vec![s],
                                     src: Some(Box::new(TURBOPACK_PART_IMPORT_SOURCE.into())),
@@ -423,15 +423,9 @@ impl DepGraph {
                                     with: Some(Box::new(create_turbopack_part_id_assert(
                                         PartId::Export(export.as_str().into()),
                                     ))),
-                                }),
-                            ));
-                        }
+                                },
+                            )));
                     }
-                    ItemId::Group(ItemIdGroupKind::ModuleEvaluation) => {
-                        exports.insert(Key::ModuleEvaluation, ix as u32);
-                    }
-
-                    _ => {}
                 }
             }
 
