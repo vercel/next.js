@@ -2,7 +2,8 @@ use std::cmp::Ordering;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use turbo_tasks::{emit, CollectiblesSource, FxIndexMap, RcStr, Upcast, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{emit, CollectiblesSource, FxIndexMap, Upcast, Vc};
 
 #[turbo_tasks::value(serialization = "none")]
 #[derive(Clone, Debug)]

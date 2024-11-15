@@ -12,7 +12,8 @@ use swc_core::{
         codegen::to_code,
     },
 };
-use turbo_tasks::{FxIndexSet, RcStr, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexSet, ValueToString, Vc};
 use turbopack_core::{ident::AssetIdent, resolve::ModulePart, source::Source};
 
 pub(crate) use self::graph::{

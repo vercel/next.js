@@ -1,7 +1,8 @@
 use std::iter::once;
 
 use anyhow::{bail, Result};
-use turbo_tasks::{FxIndexMap, RcStr, ResolvedVc, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexMap, ResolvedVc, Value, Vc};
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack::{

@@ -20,7 +20,8 @@ use swc_core::{
         utils::{find_pat_ids, private_ident, quote_ident, ExprCtx, ExprExt},
     },
 };
-use turbo_tasks::{FxIndexSet, RcStr};
+use turbo_rcstr::RcStr;
+use turbo_tasks::FxIndexSet;
 
 use super::{
     util::{

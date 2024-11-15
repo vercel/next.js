@@ -6,7 +6,8 @@ use std::collections::HashMap;
 use anyhow::Result;
 pub use context_transition::ContextTransition;
 pub use full_context_transition::FullContextTransition;
-use turbo_tasks::{RcStr, ResolvedVc, Value, ValueDefault, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Value, ValueDefault, Vc};
 use turbopack_core::{
     compile_time_info::CompileTimeInfo, context::ProcessResult, module::Module,
     reference_type::ReferenceType, source::Source,

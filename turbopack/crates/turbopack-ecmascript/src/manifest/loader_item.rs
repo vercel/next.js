@@ -2,7 +2,8 @@ use std::io::Write as _;
 
 use anyhow::{anyhow, Result};
 use indoc::writedoc;
-use turbo_tasks::{RcStr, TryJoinIterExt, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{TryJoinIterExt, Vc};
 use turbopack_core::{
     chunk::{
         ChunkData, ChunkItem, ChunkItemExt, ChunkType, ChunkableModule, ChunkingContext, ChunksData,
