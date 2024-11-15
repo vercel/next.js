@@ -1403,7 +1403,7 @@ impl AppEndpoint {
                             *rsc_chunk,
                             this.app_project.project().output_fs().root(),
                             this.app_project.project().project_fs().root(),
-                            this.app_project.project().client_fs(),
+                            this.app_project.project().client_fs().root(),
                             client_reference_manifest.iter().map(|m| **m).collect(),
                         )
                         .to_resolved()

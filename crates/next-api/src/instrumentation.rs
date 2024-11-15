@@ -229,7 +229,7 @@ impl InstrumentationEndpoint {
                         *chunk,
                         this.project.output_fs().root(),
                         this.project.project_fs().root(),
-                        this.project.client_fs(),
+                        this.project.client_fs().root(),
                         vec![],
                     )
                     .to_resolved()

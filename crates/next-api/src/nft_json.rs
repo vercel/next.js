@@ -24,7 +24,7 @@ pub struct NftJsonAsset {
     chunk: Vc<Box<dyn OutputAsset>>,
     output_root: ResolvedVc<FileSystemPath>,
     project_root: ResolvedVc<FileSystemPath>,
-    client_fs: Vc<Box<dyn FileSystem>>,
+    client_root: ResolvedVc<FileSystemPath>,
     /// Additional assets to include in the nft json. This can be used to manually collect assets
     /// that are known to be required but are not in the graph yet, for whatever reason.
     ///
@@ -40,14 +40,14 @@ impl NftJsonAsset {
         chunk: Vc<Box<dyn OutputAsset>>,
         output_root: ResolvedVc<FileSystemPath>,
         project_root: ResolvedVc<FileSystemPath>,
-        client_fs: Vc<Box<dyn FileSystem>>,
+        client_root: ResolvedVc<FileSystemPath>,
         additional_assets: Vec<ResolvedVc<Box<dyn OutputAsset>>>,
     ) -> Vc<Self> {
         NftJsonAsset {
             chunk,
             output_root,
             project_root,
-            client_fs,
+            client_root,
             additional_assets,
         }
         .cell()
@@ -87,8 +87,7 @@ impl NftJsonAsset {
     async fn ident_in_client_fs(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         Ok(self
             .await?
-            .client_fs
-            .root()
+            .client_root
             .join(self.ident().path().parent().await?.path.clone()))
     }
 
@@ -99,7 +98,6 @@ impl NftJsonAsset {
     ) -> Result<Vc<OutputSpecifier>> {
         let this = self.await?;
         let path_ref = path.await?;
-        let path_fs = path_ref.fs;
         let nft_folder = self.ident().path().parent().await?;
 
         // include assets in the outputs such as referenced chunks
@@ -120,7 +118,7 @@ impl NftJsonAsset {
         }
 
         // assets that are needed on the client side such as fonts and icons
-        if path_fs == this.client_fs.to_resolved().await? {
+        if path_ref.is_inside_ref(&*(this.client_root.await?)) {
             return Ok(Vc::cell(Some(
                 self.ident_in_client_fs()
                     .await?

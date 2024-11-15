@@ -894,7 +894,7 @@ impl PageEndpoint {
                             *ssr_entry_chunk,
                             this.pages_project.project().output_fs().root(),
                             this.pages_project.project().project_fs().root(),
-                            this.pages_project.project().client_fs(),
+                            this.pages_project.project().client_fs().root(),
                             vec![],
                         )
                         .to_resolved()
