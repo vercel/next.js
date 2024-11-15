@@ -3,6 +3,7 @@ use std::{future::Future, panic, pin::Pin};
 use anyhow::Result;
 use auto_hash_map::AutoSet;
 use parking_lot::Mutex;
+use tracing::Instrument;
 
 use crate::{self as turbo_tasks, emit, CollectiblesSource, Vc};
 
@@ -43,13 +44,31 @@ pub async fn apply_effects(source: impl CollectiblesSource) -> Result<()> {
     if effects.is_empty() {
         return Ok(());
     }
-    let _span =
-        tracing::span!(tracing::Level::INFO, "apply effects", count = effects.len()).entered();
-    for effect in effects {
-        let Some(effect) = Vc::try_resolve_downcast_type::<EffectInstance>(effect).await? else {
-            panic!("Effect must only be implemented by EffectInstance");
-        };
-        effect.await?.apply().await?;
+    let span = tracing::span!(tracing::Level::INFO, "apply effects", count = effects.len());
+    async move {
+        for effect in effects {
+            let Some(effect) = Vc::try_resolve_downcast_type::<EffectInstance>(effect).await?
+            else {
+                panic!("Effect must only be implemented by EffectInstance");
+            };
+            effect.await?.apply().await?;
+        }
+        Ok(())
     }
-    Ok(())
+    .instrument(span)
+    .await
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{apply_effects, CollectiblesSource};
+
+    #[test]
+    #[allow(dead_code)]
+    fn apply_effects_is_sync_and_send() {
+        fn assert_sync<T: Sync + Send>(_: T) {}
+        fn check<T: CollectiblesSource + Send + Sync>(t: T) {
+            assert_sync(apply_effects(t));
+        }
+    }
 }
