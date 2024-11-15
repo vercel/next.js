@@ -8,7 +8,9 @@ use turbopack_core::{
     context::AssetContext,
     ident::AssetIdent,
     module::Module,
-    reference::{ModuleReference, ModuleReferences, SingleModuleReference},
+    reference::{
+        ModuleReference, ModuleReferences, SingleChunkableModuleReference, SingleModuleReference,
+    },
     resolve::{origin::ResolveOrigin, ModulePart},
 };
 
@@ -226,15 +228,15 @@ impl Module for SideEffectsModule {
         let mut references = vec![];
 
         for &side_effect in self.side_effects.await?.iter() {
-            references.push(Vc::upcast(SingleModuleReference::new(
+            references.push(Vc::upcast(SingleChunkableModuleReference::new(
                 Vc::upcast(side_effect),
                 Vc::cell(RcStr::from("side effect")),
             )));
         }
 
-        references.push(Vc::upcast(SingleModuleReference::new(
+        references.push(Vc::upcast(SingleChunkableModuleReference::new(
             Vc::upcast(self.resolved_as),
-            Vc::cell(RcStr::from("target binding")),
+            Vc::cell(RcStr::from("resolved as")),
         )));
 
         Ok(Vc::cell(references))
