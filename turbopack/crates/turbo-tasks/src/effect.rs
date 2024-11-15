@@ -10,10 +10,12 @@ use crate::{self as turbo_tasks, emit, CollectiblesSource, Vc};
 #[turbo_tasks::value_trait]
 trait Effect {}
 
+type EffectFuture = Pin<Box<dyn Future<Output = Result<()>> + Send + Sync + 'static>>;
+
 #[turbo_tasks::value(serialization = "none", cell = "new", eq = "manual")]
 struct EffectInstance {
     #[turbo_tasks(trace_ignore, debug_ignore)]
-    future: Mutex<Option<Pin<Box<dyn Future<Output = Result<()>> + Send + Sync + 'static>>>>,
+    future: Mutex<Option<EffectFuture>>,
 }
 
 impl EffectInstance {
