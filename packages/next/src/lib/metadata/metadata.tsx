@@ -171,7 +171,7 @@ async function getResolvedMetadataImpl(
   metadataContext: MetadataContext,
   createServerParamsForMetadata: CreateServerParamsForMetadata,
   workStore: WorkStore,
-  errorType?: 'not-found' | 'forbidden' | 'unauthorized' | 'redirect'
+  errorType?: MetadataErrorType | 'redirect'
 ): Promise<React.ReactNode> {
   const errorConvention = errorType === 'redirect' ? undefined : errorType
 
