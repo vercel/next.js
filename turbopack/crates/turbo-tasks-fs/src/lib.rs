@@ -232,8 +232,11 @@ impl DiskFileSystemInner {
     /// registers the path as an invalidator for the current task,
     /// has to be called within a turbo-tasks function. It removes and returns
     /// the current list of invalidators.
-    fn register_sole_invalidator(&self, path: &Path) -> Result<HashSet<Invalidator>> {
-        let invalidator = turbo_tasks::get_invalidator();
+    fn register_sole_invalidator(
+        &self,
+        path: &Path,
+        invalidator: Invalidator,
+    ) -> Result<HashSet<Invalidator>> {
         let mut invalidator_map = self.invalidator_map.lock().unwrap();
         let old_invalidators = invalidator_map.insert(path_to_key(path), [invalidator].into());
         drop(invalidator_map);
@@ -681,6 +684,7 @@ impl FileSystem for DiskFileSystem {
         let full_path = self.to_sys_path(fs_path).await?;
         let content = content.await?;
         let inner = self.inner.clone();
+        let invalidator = turbo_tasks::get_invalidator();
 
         effect(async move {
             let full_path = validate_path_length(&full_path)?;
@@ -688,7 +692,7 @@ impl FileSystem for DiskFileSystem {
             let _lock = inner.lock_path(&full_path).await;
 
             // Track the file, so that we will rewrite it if it ever changes.
-            let old_invalidators = inner.register_sole_invalidator(&full_path)?;
+            let old_invalidators = inner.register_sole_invalidator(&full_path, invalidator)?;
 
             // We perform an untracked comparison here, so that this write is not dependent
             // on a read's Vc<FileContent> (and the memory it holds). Our untracked read can
@@ -798,13 +802,14 @@ impl FileSystem for DiskFileSystem {
         let full_path = self.to_sys_path(fs_path).await?;
         let content = target.await?;
         let inner = self.inner.clone();
+        let invalidator = turbo_tasks::get_invalidator();
 
         effect(async move {
             let full_path = validate_path_length(&full_path)?;
 
             let _lock = inner.lock_path(&full_path).await;
 
-            let old_invalidators = inner.register_sole_invalidator(&full_path)?;
+            let old_invalidators = inner.register_sole_invalidator(&full_path, invalidator)?;
 
             // TODO(sokra) preform a untracked read here, register an invalidator and get
             // all existing invalidators
