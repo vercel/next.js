@@ -20,8 +20,42 @@ export default function transformer(file: FileInfo, _api: API) {
   }
 
   let nextCacheNamespace = ''
+  let expirePathName = 'expirePath'
+  let expireTagName = 'expireTag'
 
   nextCacheImports.forEach((path) => {
+    let hasExpirePath = false
+    let hasExpireTag = false
+
+    // Set the alias name for callee if exists.
+    path.node.specifiers.forEach((specifier) => {
+      if (specifier.type === 'ImportSpecifier') {
+        if (specifier.imported.name === 'expirePath') {
+          expirePathName = specifier.local?.name ?? 'expirePath'
+          hasExpirePath = true
+        }
+        if (specifier.imported.name === 'expireTag') {
+          expireTagName = specifier.local?.name ?? 'expireTag'
+          hasExpireTag = true
+        }
+      }
+    })
+
+    // Remove the revalidate functions from the import specifiers if
+    // expire functions are also imported.
+    path.node.specifiers = path.node.specifiers.filter((specifier) => {
+      if (specifier.type !== 'ImportSpecifier') {
+        return true
+      }
+      if (hasExpireTag && specifier.imported.name === 'revalidateTag') {
+        return false
+      }
+      if (hasExpirePath && specifier.imported.name === 'revalidatePath') {
+        return false
+      }
+      return true
+    })
+
     path.node.specifiers.forEach((specifier) => {
       if (specifier.type === 'ImportSpecifier') {
         if (specifier.imported.name === 'revalidateTag') {
@@ -51,7 +85,8 @@ export default function transformer(file: FileInfo, _api: API) {
       callee.type === 'Identifier' &&
       (callee.name === 'revalidateTag' || callee.name === 'revalidatePath')
     ) {
-      callee.name = callee.name === 'revalidateTag' ? 'expireTag' : 'expirePath'
+      callee.name =
+        callee.name === 'revalidateTag' ? expireTagName : expirePathName
     }
 
     // Handle namespace calls:
@@ -69,7 +104,9 @@ export default function transformer(file: FileInfo, _api: API) {
         callee.property.name === 'revalidatePath')
     ) {
       callee.property.name =
-        callee.property.name === 'revalidateTag' ? 'expireTag' : 'expirePath'
+        callee.property.name === 'revalidateTag'
+          ? expireTagName
+          : expirePathName
     }
   })
 
