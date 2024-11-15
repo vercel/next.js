@@ -117,13 +117,11 @@ export default function transformer(file: FileInfo, _api: API) {
       // cache['revalidatePath']('/next')
       if (
         callee.property.type === 'StringLiteral' &&
-        (callee.property.value === revalidateTagName ||
-          callee.property.value === revalidatePathName)
+        (callee.property.value === 'revalidateTag' ||
+          callee.property.value === 'revalidatePath')
       ) {
         callee.property.value =
-          callee.property.value === revalidateTagName
-            ? 'expireTag'
-            : 'expirePath'
+          callee.property.value === 'revalidateTag' ? 'expireTag' : 'expirePath'
       }
     }
   })
