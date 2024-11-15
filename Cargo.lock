@@ -4063,6 +4063,7 @@ dependencies = [
  "either",
  "fxhash",
  "hex",
+ "indoc",
  "lazy_static",
  "modularize_imports",
  "once_cell",
