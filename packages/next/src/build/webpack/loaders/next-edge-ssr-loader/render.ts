@@ -16,7 +16,6 @@ import { SERVER_RUNTIME } from '../../../../lib/constants'
 import type { ManifestRewriteRoute } from '../../..'
 import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
 import type { SizeLimit } from '../../../../types'
-import { internal_getCurrentFunctionWaitUntil } from '../../../../server/web/internal-edge-wait-until'
 import type { PAGE_TYPES } from '../../../../lib/page-types'
 import type { NextRequestHint } from '../../../../server/web/adapter'
 
@@ -151,7 +150,7 @@ export function getRender({
 
   return async function render(
     request: NextRequestHint,
-    event?: NextFetchEvent
+    _event?: NextFetchEvent
   ) {
     const extendedReq = new WebNextRequest(request)
     const extendedRes = new WebNextResponse(
@@ -163,16 +162,6 @@ export function getRender({
     handler(extendedReq, extendedRes)
     const result = await extendedRes.toResponse()
     request.fetchMetrics = extendedReq.fetchMetrics
-
-    if (event?.waitUntil) {
-      // TODO(after):
-      // remove `internal_runWithWaitUntil` and the `internal-edge-wait-until` module
-      // when consumers switch to `unstable_after`.
-      const waitUntilPromise = internal_getCurrentFunctionWaitUntil()
-      if (waitUntilPromise) {
-        event.waitUntil(waitUntilPromise)
-      }
-    }
 
     return result
   }

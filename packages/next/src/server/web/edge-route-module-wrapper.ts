@@ -10,7 +10,6 @@ import { adapter, type AdapterOptions } from './adapter'
 import { IncrementalCache } from '../lib/incremental-cache'
 import { RouteMatcher } from '../route-matchers/route-matcher'
 import type { NextFetchEvent } from './spec-extension/fetch-event'
-import { internal_getCurrentFunctionWaitUntil } from './internal-edge-wait-until'
 import { getUtils } from '../server-utils'
 import { searchParamsToUrlQuery } from '../../shared/lib/router/utils/querystring'
 import type { RequestLifecycleOpts } from '../base-server'
@@ -127,11 +126,9 @@ export class EdgeRouteModuleWrapper {
     // Get the response from the handler.
     let res = await this.routeModule.handle(request, context)
 
-    const waitUntilPromises = [internal_getCurrentFunctionWaitUntil()]
     if (context.renderOpts.pendingWaitUntil) {
-      waitUntilPromises.push(context.renderOpts.pendingWaitUntil)
+      evt.waitUntil(context.renderOpts.pendingWaitUntil)
     }
-    evt.waitUntil(Promise.all(waitUntilPromises))
 
     if (closeController) {
       const _closeController = closeController // TS annoyance - "possibly undefined" in callbacks
