@@ -699,10 +699,11 @@ impl DepGraph {
         &mut self,
         data: &FxHashMap<ItemId, ItemData>,
     ) -> InternedGraph<Vec<ItemId>> {
-        let graph = self.g.idx_graph.clone().into_graph::<u32>();
+        let mut graph = self.g.idx_graph.clone().into_graph::<u32>();
+
+        self.workaround_server_action(&mut graph, data);
 
         let mut condensed = condensation(graph, true);
-        self.workaround_server_action(&mut condensed, data);
 
         let optimizer = GraphOptimizer {
             graph_ix: &self.g.graph_ix,
@@ -1456,11 +1457,11 @@ impl DepGraph {
     /// preserved.
     fn workaround_server_action(
         &mut self,
-        g: &mut Graph<Vec<u32>, Dependency>,
+        g: &mut Graph<u32, Dependency>,
         data: &FxHashMap<ItemId, ItemData>,
     ) {
         fn collect_deps(
-            g: &Graph<Vec<u32>, Dependency>,
+            g: &Graph<u32, Dependency>,
             done: &mut FxHashSet<NodeIndex>,
             node: NodeIndex,
         ) -> Vec<NodeIndex> {
@@ -1476,11 +1477,14 @@ impl DepGraph {
             direct_deps
                 .into_iter()
                 .flat_map(|dep| {
-                    if !done.insert(dep) {
-                        return vec![dep];
-                    }
+                    let mut v = if !done.insert(dep) {
+                        vec![]
+                    } else {
+                        collect_deps(g, done, dep)
+                    };
 
-                    collect_deps(g, done, dep)
+                    v.push(dep);
+                    v
                 })
                 .collect()
         }
@@ -1489,25 +1493,23 @@ impl DepGraph {
         let mut server_action_exports = FxHashMap::default();
 
         for node in g.node_indices() {
-            let Some(ix_vec) = g.node_weight(node) else {
+            let Some(ix) = g.node_weight(node) else {
                 continue;
             };
 
-            for &ix in ix_vec.iter() {
-                let item_id = self.g.graph_ix.get_index(ix as _).unwrap();
+            let item_id = self.g.graph_ix.get_index(*ix as _).unwrap();
 
-                if let ItemId::Group(ItemIdGroupKind::Export(v, name)) = item_id {
-                    if name.starts_with("$$RSC_SERVER_") {
-                        server_action_exports.insert(v.0.clone(), node);
-                    }
+            if let ItemId::Group(ItemIdGroupKind::Export(v, name)) = item_id {
+                if name.starts_with("$$RSC_SERVER_") {
+                    server_action_exports.insert(v.0.clone(), node);
                 }
+            }
 
-                let item_data = &data[item_id];
+            let item_data = &data[item_id];
 
-                for v in item_data.var_decls.iter() {
-                    if v.0.starts_with("$$RSC_SERVER_") {
-                        server_action_decls.insert(node, v.0.clone());
-                    }
+            for v in item_data.var_decls.iter() {
+                if v.0.starts_with("$$RSC_SERVER_") {
+                    server_action_decls.insert(node, v.0.clone());
                 }
             }
         }
@@ -1519,16 +1521,16 @@ impl DepGraph {
         let mut queue = vec![];
 
         for node in g.node_indices() {
-            let Some(ix_vec) = g.node_weight(node) else {
+            let Some(ix) = g.node_weight(node) else {
                 continue;
             };
 
-            let has_export_item = ix_vec.iter().any(|ix| {
+            let is_export_node = {
                 let item_id = self.g.graph_ix.get_index(*ix as _).unwrap();
                 matches!(item_id, ItemId::Group(ItemIdGroupKind::Export(..)))
-            });
+            };
 
-            if !has_export_item {
+            if !is_export_node {
                 continue;
             }
 
