@@ -28,11 +28,7 @@ impl EffectInstance {
 
     pub fn apply(&self) -> Option<JoinHandle<Result<()>>> {
         let future = self.future.lock().take();
-        if let Some(future) = future {
-            Some(tokio::spawn(future))
-        } else {
-            None
-        }
+        future.map(tokio::spawn)
     }
 }
 
