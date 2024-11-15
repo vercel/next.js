@@ -4,31 +4,44 @@ use anyhow::{anyhow, Result};
 use auto_hash_map::AutoSet;
 use parking_lot::Mutex;
 use tokio::task::JoinHandle;
-use tracing::Instrument;
+use tracing::{Instrument, Span};
 
-use crate::{self as turbo_tasks, emit, CollectiblesSource, Vc};
+use crate::{self as turbo_tasks, emit, manager::turbo_tasks_future_scope, CollectiblesSource, Vc};
 
 #[turbo_tasks::value_trait]
 trait Effect {}
 
 type EffectFuture = Pin<Box<dyn Future<Output = Result<()>> + Send + Sync + 'static>>;
 
+struct EffectInner {
+    future: EffectFuture,
+    span: Span,
+}
+
 #[turbo_tasks::value(serialization = "none", cell = "new", eq = "manual")]
 struct EffectInstance {
     #[turbo_tasks(trace_ignore, debug_ignore)]
-    future: Mutex<Option<EffectFuture>>,
+    inner: Mutex<Option<EffectInner>>,
 }
 
 impl EffectInstance {
     fn new(future: impl Future<Output = Result<()>> + Send + Sync + 'static) -> Self {
         Self {
-            future: Mutex::new(Some(Box::pin(future))),
+            inner: Mutex::new(Some(EffectInner {
+                future: Box::pin(future),
+                span: Span::current(),
+            })),
         }
     }
 
     pub fn apply(&self) -> Option<JoinHandle<Result<()>>> {
-        let future = self.future.lock().take();
-        future.map(tokio::spawn)
+        let future = self.inner.lock().take();
+        future.map(|EffectInner { future, span }| {
+            tokio::spawn(
+                turbo_tasks_future_scope(turbo_tasks::turbo_tasks(), async move { future.await })
+                    .instrument(span),
+            )
+        })
     }
 }
 
