@@ -61,7 +61,6 @@ mod output;
 pub mod persisted_graph;
 pub mod primitives;
 mod raw_vc;
-mod rcstr;
 mod read_ref;
 pub mod registry;
 mod scope;
@@ -107,7 +106,6 @@ pub use manager::{
 pub use native_function::{FunctionMeta, NativeFunction};
 pub use output::OutputContent;
 pub use raw_vc::{CellId, RawVc, ReadRawVcFuture, ResolveTypeError};
-pub use rcstr::RcStr;
 pub use read_ref::ReadRef;
 use rustc_hash::FxHasher;
 pub use scope::scope;

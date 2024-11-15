@@ -1,7 +1,7 @@
 use std::fmt::{Debug, Display};
 
 use auto_hash_map::{AutoMap, AutoSet};
-use turbo_tasks::{FxIndexMap, FxIndexSet, Vc};
+use turbo_tasks::{FxIndexMap, FxIndexSet, RcStr, Vc};
 pub use turbo_tasks_macros::ValueDebugFormat;
 
 use crate::{self as turbo_tasks};
@@ -71,6 +71,12 @@ pub trait ValueDebugFormat {
 impl ValueDebugFormat for String {
     fn value_debug_format(&self, _depth: usize) -> ValueDebugFormatString {
         ValueDebugFormatString::Sync(format!("{:#?}", self))
+    }
+}
+
+impl ValueDebugFormat for RcStr {
+    fn value_debug_format(&self, _: usize) -> ValueDebugFormatString {
+        ValueDebugFormatString::Sync(self.to_string())
     }
 }
 

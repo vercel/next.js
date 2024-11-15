@@ -8312,6 +8312,14 @@ name = "turbo-prehash"
 version = "0.1.0"
 
 [[package]]
+name = "turbo-rcstr"
+version = "0.1.0"
+dependencies = [
+ "triomphe 0.1.12",
+ "turbo-tasks-hash",
+]
+
+[[package]]
 name = "turbo-static"
 version = "0.1.0"
 dependencies = [
