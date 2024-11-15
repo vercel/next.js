@@ -31,9 +31,9 @@
     {"offset": {"line": 205, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":""}},
     {"offset": {"line": 219, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
     {"offset": {"line": 225, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":""}},
-    {"offset": {"line": 235, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
-    {"offset": {"line": 241, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":""}},
-    {"offset": {"line": 247, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
-    {"offset": {"line": 253, "column": 0}, "map": {"version":3,"sources":["turbopack://[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/export-namespace/input/index.js"],"sourcesContent":["import {lib} from './module'\n\nconsole.log(lib.cat)\n"],"names":[],"mappings":";AAAA;AAAA;;AAEA,QAAQ,GAAG,CAAC,iPAAA,CAAA,MAAG,CAAC,GAAG"}},
-    {"offset": {"line": 258, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+    {"offset": {"line": 234, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 240, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":""}},
+    {"offset": {"line": 246, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 252, "column": 0}, "map": {"version":3,"sources":["turbopack://[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/export-namespace/input/index.js"],"sourcesContent":["import {lib} from './module'\n\nconsole.log(lib.cat)\n"],"names":[],"mappings":";AAAA;AAAA;;AAEA,QAAQ,GAAG,CAAC,iPAAA,CAAA,MAAG,CAAC,GAAG"}},
+    {"offset": {"line": 257, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
 }

@@ -247,9 +247,6 @@ import '../../utils/environment';
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 3
 };
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
-};
 import { DEFAULT_ENVIRONMENT } from '../../utils/environment';
 export { DEFAULT_ENVIRONMENT as c } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -258,9 +255,6 @@ export { DEFAULT_ENVIRONMENT as c } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 5
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
-};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 3
 };
@@ -280,9 +274,6 @@ import './globalThis';
 ```
 ## Part 7
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
-};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
 };
@@ -402,9 +393,6 @@ import '../../utils/environment';
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 3
 };
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
-};
 import { DEFAULT_ENVIRONMENT } from '../../utils/environment';
 export { DEFAULT_ENVIRONMENT as c } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -413,9 +401,6 @@ export { DEFAULT_ENVIRONMENT as c } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 5
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
-};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 3
 };
@@ -435,9 +420,6 @@ import './globalThis';
 ```
 ## Part 7
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
-};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
 };

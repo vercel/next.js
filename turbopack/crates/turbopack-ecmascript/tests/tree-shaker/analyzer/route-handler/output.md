@@ -180,9 +180,6 @@ import "next/server";
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 3
 };
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
-};
 import { NextResponse } from "next/server";
 export { NextResponse as c } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -279,9 +276,6 @@ import "next/server";
 ```
 ## Part 4
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
-};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 3
 };

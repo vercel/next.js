@@ -463,9 +463,6 @@ import '../../server/future/route-modules/app-route/module.compiled';
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 7
 };
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 7
-};
 import { AppRouteRouteModule } from '../../server/future/route-modules/app-route/module.compiled';
 export { AppRouteRouteModule as g } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -482,9 +479,6 @@ import '../../server/future/route-kind';
 ```
 ## Part 10
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
-};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 9
 };
@@ -507,9 +501,6 @@ import '../../server/lib/patch-fetch';
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 11
 };
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 11
-};
 import { patchFetch as _patchFetch } from '../../server/lib/patch-fetch';
 export { _patchFetch as i } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -526,9 +517,6 @@ import 'VAR_USERLAND';
 ```
 ## Part 14
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 13
 };
@@ -754,9 +742,6 @@ import '../../server/future/route-modules/app-route/module.compiled';
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 7
 };
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 7
-};
 import { AppRouteRouteModule } from '../../server/future/route-modules/app-route/module.compiled';
 export { AppRouteRouteModule as g } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -773,9 +758,6 @@ import '../../server/future/route-kind';
 ```
 ## Part 10
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
-};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 9
 };
@@ -798,9 +780,6 @@ import '../../server/lib/patch-fetch';
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 11
 };
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 11
-};
 import { patchFetch as _patchFetch } from '../../server/lib/patch-fetch';
 export { _patchFetch as i } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -817,9 +796,6 @@ import 'VAR_USERLAND';
 ```
 ## Part 14
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 13
 };

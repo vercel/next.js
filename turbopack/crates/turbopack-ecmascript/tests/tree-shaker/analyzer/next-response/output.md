@@ -489,9 +489,6 @@ import '../../web/spec-extension/cookies';
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
 import { stringifyCookie } from '../../web/spec-extension/cookies';
 export { stringifyCookie as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -508,9 +505,6 @@ import '../next-url';
 ```
 ## Part 5
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 4
 };
@@ -533,9 +527,6 @@ import '../utils';
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
 };
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
-};
 import { toNodeOutgoingHttpHeaders } from '../utils';
 export { toNodeOutgoingHttpHeaders as d } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -544,9 +535,6 @@ export { toNodeOutgoingHttpHeaders as d } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 8
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
-};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
 };
@@ -569,9 +557,6 @@ import './adapters/reflect';
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 9
 };
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
-};
 import { ReflectAdapter } from './adapters/reflect';
 export { ReflectAdapter as f } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -588,9 +573,6 @@ import './cookies';
 ```
 ## Part 12
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 11
-};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 11
 };
@@ -825,9 +807,6 @@ import '../../web/spec-extension/cookies';
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
 import { stringifyCookie } from '../../web/spec-extension/cookies';
 export { stringifyCookie as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -844,9 +823,6 @@ import '../next-url';
 ```
 ## Part 5
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 4
 };
@@ -869,9 +845,6 @@ import '../utils';
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
 };
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
-};
 import { toNodeOutgoingHttpHeaders } from '../utils';
 export { toNodeOutgoingHttpHeaders as d } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -880,9 +853,6 @@ export { toNodeOutgoingHttpHeaders as d } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 8
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
-};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
 };
@@ -905,9 +875,6 @@ import './adapters/reflect';
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 9
 };
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
-};
 import { ReflectAdapter } from './adapters/reflect';
 export { ReflectAdapter as f } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -924,9 +891,6 @@ import './cookies';
 ```
 ## Part 12
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 11
-};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 11
 };
