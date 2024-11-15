@@ -4,7 +4,7 @@ use anyhow::Result;
 use mime::APPLICATION_JSON;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use turbo_tasks::{RcStr, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, Vc};
 use turbo_tasks_fs::File;
 use turbopack_core::{
     asset::AssetContent,
@@ -67,7 +67,7 @@ impl<'a> StackFrame<'a> {
     }
 }
 
-impl<'a> Display for StackFrame<'a> {
+impl Display for StackFrame<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.get_pos() {
             Some((l, c)) => match &self.name.as_deref() {
@@ -85,7 +85,7 @@ impl<'a> Display for StackFrame<'a> {
 #[turbo_tasks::value(shared)]
 #[derive(Debug)]
 pub struct SourceMapTrace {
-    map: Vc<SourceMap>,
+    map: ResolvedVc<SourceMap>,
     line: usize,
     column: usize,
     name: Option<RcStr>,
@@ -102,7 +102,12 @@ pub enum TraceResult {
 #[turbo_tasks::value_impl]
 impl SourceMapTrace {
     #[turbo_tasks::function]
-    pub fn new(map: Vc<SourceMap>, line: usize, column: usize, name: Option<RcStr>) -> Vc<Self> {
+    pub fn new(
+        map: ResolvedVc<SourceMap>,
+        line: usize,
+        column: usize,
+        name: Option<RcStr>,
+    ) -> Vc<Self> {
         SourceMapTrace {
             map,
             line,

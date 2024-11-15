@@ -101,6 +101,32 @@ describe('required server files app router', () => {
     if (server) await killApp(server)
   })
 
+  it('should send the right cache headers for an app route', async () => {
+    const res = await fetchViaHTTP(appPort, '/api/test/123', undefined, {
+      headers: {
+        'x-matched-path': '/api/test/[slug]',
+        'x-now-route-matches': '1=123&nxtPslug=123',
+      },
+    })
+    expect(res.status).toBe(200)
+    expect(res.headers.get('cache-control')).toBe(
+      's-maxage=31536000, stale-while-revalidate'
+    )
+  })
+
+  it('should send the right cache headers for an app page', async () => {
+    const res = await fetchViaHTTP(appPort, '/test/123', undefined, {
+      headers: {
+        'x-matched-path': '/test/[slug]',
+        'x-now-route-matches': '1=123&nxtPslug=123',
+      },
+    })
+    expect(res.status).toBe(200)
+    expect(res.headers.get('cache-control')).toBe(
+      's-maxage=3600, stale-while-revalidate'
+    )
+  })
+
   it('should not fail caching', async () => {
     expect(next.cliOutput).not.toContain('ERR_INVALID_URL')
   })
@@ -163,19 +189,19 @@ describe('required server files app router', () => {
     for (const [path, tags] of [
       [
         '/isr/first',
-        'isr-page,_N_T_/layout,_N_T_/isr/layout,_N_T_/isr/[slug]/layout,_N_T_/isr/[slug]/page,_N_T_/isr/first',
+        '_N_T_/layout,_N_T_/isr/layout,_N_T_/isr/[slug]/layout,_N_T_/isr/[slug]/page,_N_T_/isr/first,isr-page',
       ],
       [
         '/isr/second',
-        'isr-page,_N_T_/layout,_N_T_/isr/layout,_N_T_/isr/[slug]/layout,_N_T_/isr/[slug]/page,_N_T_/isr/second',
+        '_N_T_/layout,_N_T_/isr/layout,_N_T_/isr/[slug]/layout,_N_T_/isr/[slug]/page,_N_T_/isr/second,isr-page',
       ],
       [
         '/api/isr/first',
-        'isr-page,_N_T_/layout,_N_T_/api/layout,_N_T_/api/isr/layout,_N_T_/api/isr/[slug]/layout,_N_T_/api/isr/[slug]/route,_N_T_/api/isr/first',
+        '_N_T_/layout,_N_T_/api/layout,_N_T_/api/isr/layout,_N_T_/api/isr/[slug]/layout,_N_T_/api/isr/[slug]/route,_N_T_/api/isr/first,isr-page',
       ],
       [
         '/api/isr/second',
-        'isr-page,_N_T_/layout,_N_T_/api/layout,_N_T_/api/isr/layout,_N_T_/api/isr/[slug]/layout,_N_T_/api/isr/[slug]/route,_N_T_/api/isr/second',
+        '_N_T_/layout,_N_T_/api/layout,_N_T_/api/isr/layout,_N_T_/api/isr/[slug]/layout,_N_T_/api/isr/[slug]/route,_N_T_/api/isr/second,isr-page',
       ],
     ]) {
       require('console').error('checking', { path, tags })

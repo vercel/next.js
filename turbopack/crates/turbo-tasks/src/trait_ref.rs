@@ -11,7 +11,9 @@ use crate::{
 };
 
 /// Similar to a [`ReadRef<T>`][crate::ReadRef], but contains a value trait
-/// object instead. The only way to interact with a `TraitRef<T>` is by passing
+/// object instead.
+///
+/// The only way to interact with a `TraitRef<T>` is by passing
 /// it around or turning it back into a value trait vc by calling
 /// [`ReadRef::cell`][crate::ReadRef::cell].
 ///
@@ -98,7 +100,7 @@ where
 
 impl<T> TraitRef<T>
 where
-    T: VcValueTrait + ?Sized + Send,
+    T: VcValueTrait + ?Sized,
 {
     /// Returns a new cell that points to a value that implements the value
     /// trait `T`.
@@ -128,7 +130,7 @@ pub trait IntoTraitRef {
 
 impl<T> IntoTraitRef for Vc<T>
 where
-    T: VcValueTrait + ?Sized + Send,
+    T: VcValueTrait + ?Sized,
 {
     type ValueTrait = T;
 

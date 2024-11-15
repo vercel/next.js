@@ -2,7 +2,7 @@ use std::io::Write;
 
 use anyhow::{bail, Result};
 use indoc::writedoc;
-use turbo_tasks::{RcStr, ValueToString, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileSystem};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -119,7 +119,9 @@ impl OutputAsset for EcmascriptBuildNodeRuntimeChunk {
             .reference_chunk_source_maps(Vc::upcast(self))
             .await?
         {
-            references.push(Vc::upcast(SourceMapAsset::new(Vc::upcast(self))))
+            references.push(ResolvedVc::upcast(
+                SourceMapAsset::new(Vc::upcast(self)).to_resolved().await?,
+            ))
         }
 
         Ok(Vc::cell(references))

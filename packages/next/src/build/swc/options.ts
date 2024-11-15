@@ -6,7 +6,7 @@ import type {
   StyledComponentsConfig,
 } from '../../server/config-shared'
 import type { ResolvedBaseUrl } from '../load-jsconfig'
-import { isWebpackServerOnlyLayer } from '../utils'
+import { isWebpackServerOnlyLayer, isWebpackAppPagesLayer } from '../utils'
 
 const nextDistPath =
   /(next[\\/]dist[\\/]shared[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
@@ -64,6 +64,7 @@ function getBaseSWCOptions({
   serverComponents,
   serverReferenceHashSalt,
   bundleLayer,
+  isDynamicIo,
 }: {
   filename: string
   jest?: boolean
@@ -80,8 +81,10 @@ function getBaseSWCOptions({
   serverComponents?: boolean
   serverReferenceHashSalt: string
   bundleLayer?: WebpackLayerName
+  isDynamicIo?: boolean
 }) {
   const isReactServerLayer = isWebpackServerOnlyLayer(bundleLayer)
+  const isAppRouterPagesLayer = isWebpackAppPagesLayer(bundleLayer)
   const parserConfig = getParserOptions({ filename, jsConfig })
   const paths = jsConfig?.compilerOptions?.paths
   const enableDecorators = Boolean(
@@ -199,21 +202,22 @@ function getBaseSWCOptions({
       serverComponents && !jest
         ? {
             isReactServerLayer,
+            dynamicIoEnabled: isDynamicIo,
           }
         : undefined,
     serverActions:
-      serverComponents && !jest
+      isAppRouterPagesLayer && !jest
         ? {
-            // always enable server actions
-            // TODO: remove this option
-            enabled: true,
             isReactServerLayer,
+            dynamicIoEnabled: isDynamicIo,
             hashSalt: serverReferenceHashSalt,
           }
         : undefined,
     // For app router we prefer to bundle ESM,
     // On server side of pages router we prefer CJS.
     preferEsm: esm,
+    lintCodemodComments: true,
+    debugFunctionName: development,
   }
 }
 
@@ -336,6 +340,7 @@ export function getLoaderSWCOptions({
   pagesDir,
   appDir,
   isPageFile,
+  isDynamicIo,
   hasReactRefresh,
   modularizeImports,
   optimizeServerReact,
@@ -360,6 +365,7 @@ export function getLoaderSWCOptions({
   hasReactRefresh: boolean
   optimizeServerReact?: boolean
   modularizeImports: NextConfig['modularizeImports']
+  isDynamicIo?: boolean
   optimizePackageImports?: NonNullable<
     NextConfig['experimental']
   >['optimizePackageImports']
@@ -389,6 +395,7 @@ export function getLoaderSWCOptions({
     serverComponents,
     serverReferenceHashSalt,
     esm: !!esm,
+    isDynamicIo,
   })
   baseOptions.fontLoaders = {
     fontLoaders: ['next/font/local', 'next/font/google'],

@@ -1,0 +1,130 @@
+---
+title: devIndicators
+description: Optimized pages include an indicator to let you know if it's being statically optimized. You can opt-out of it here.
+---
+
+{/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
+
+<AppOnly>
+
+`devIndicators` allows you to configure the on-screen indicators that give context about the current route you're viewing during development.
+
+```ts filename="Types"
+  devIndicators: {
+    appIsrStatus?: boolean, // defaults to true
+    buildActivity?: boolean, // defaults to true
+    buildActivityPosition?: 'bottom-right'
+    | 'bottom-left'
+    | 'top-right'
+    | 'top-left', // defaults to 'bottom-right'
+  },
+```
+
+## `appIsrStatus` (Static Indicator)
+
+Next.js displays a static indicator in the bottom corner of the screen that signals if a route will be prerendered at build time. This makes it easier to understand whether a route is static or dynamic, and for you to identify if a route [opts out of static rendering](#static-route-not-showing-the-indicator).
+
+<Image
+  alt="App Folder Structure"
+  srcLight="/docs/light/static-indicator.png"
+  srcDark="/docs/dark/static-indicator.png"
+  width="1600"
+  height="208"
+/>
+
+You can temporarily hide the indicator by clicking the close indicator which will remember your preference in `localStorage` for 1 hour. To permanently disable it, you can use the config option in `next.config.js`:
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  devIndicators: {
+    appIsrStatus: false,
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  devIndicators: {
+    appIsrStatus: false,
+  },
+}
+
+module.exports = nextConfig
+```
+
+## `buildActivity` (Compilation Indicator)
+
+When you edit your code, and Next.js is compiling the application, a compilation indicator appears in the bottom right corner of the page.
+
+> **Good to know**: This indicator is only present in development mode and will not appear when building and running the app in production mode.
+
+In some cases this indicator can be misplaced on your page, for example, when conflicting with a chat launcher. To change its position, open `next.config.js` and set the `buildActivityPosition` in the `devIndicators` object to `bottom-right` (default), `bottom-left`, `top-right` or `top-left`:
+
+```js filename="next.config.js"
+module.exports = {
+  devIndicators: {
+    buildActivityPosition: 'bottom-right',
+  },
+}
+```
+
+In some cases, this indicator might not be useful for you. To remove it, open `next.config.js` and disable the `buildActivity` config in `devIndicators` object:
+
+```js filename="next.config.js"
+module.exports = {
+  devIndicators: {
+    buildActivity: false,
+  },
+}
+```
+
+## Troubleshooting
+
+### Static route not showing the indicator
+
+If you expect a route to be static and the indicator is enabled but not showing, it's likely the route has opted out of static rendering.
+
+You can confirm if a route is [static](/docs/app/building-your-application/rendering/server-components#static-rendering-default) or [dynamic](/docs/app/building-your-application/rendering/server-components#dynamic-rendering) by building your application using `next build --debug`, and checking the output in your terminal. Static (or prerendered) routes will display a `○` symbol, whereas dynamic routes will display a `ƒ` symbol. For example:
+
+```bash filename="Build Output"
+Route (app)                              Size     First Load JS
+┌ ○ /_not-found                          0 B               0 kB
+└ ƒ /products/[id]                       0 B               0 kB
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+```
+
+There are two reasons a route might opt out of static rendering:
+
+- The presence of [Dynamic APIs](/docs/app/building-your-application/rendering/server-components#dynamic-apis) which rely on runtime information.
+- An [uncached data request](/docs/app/building-your-application/data-fetching/fetching), like a call to an ORM or database driver.
+
+Check your route for any of these conditions, and if you are not able to statically render the route, then consider using [`loading.js`](/docs/app/api-reference/file-conventions/loading) or [`<Suspense />`](https://react.dev/reference/react/Suspense) to leverage [streaming](/docs/app/building-your-application/routing/loading-ui-and-streaming#what-is-streaming).
+
+</AppOnly>
+
+<PagesOnly>
+
+> **Good to know**: This indicator was removed in Next.js version 10.0.1. We recommend upgrading to the latest version of Next.js.
+
+When a page qualifies for [Automatic Static Optimization](/docs/pages/building-your-application/rendering/automatic-static-optimization) we show an indicator to let you know.
+
+This is helpful since automatic static optimization can be very beneficial and knowing immediately in development if the page qualifies can be useful.
+
+In some cases this indicator might not be useful, like when working on electron applications. To remove it open `next.config.js` and disable the `autoPrerender` config in `devIndicators`:
+
+```js filename="next.config.js"
+module.exports = {
+  devIndicators: {
+    autoPrerender: false,
+  },
+}
+```
+
+</PagesOnly>

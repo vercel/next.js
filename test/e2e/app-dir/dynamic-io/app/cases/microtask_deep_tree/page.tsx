@@ -35,7 +35,7 @@ async function Foo({ children }) {
 }
 
 async function Bar({ children }) {
-  let length = (Math.random() * 10) | 0
+  let length = 7
   for (let i = 0; i < length; i++) {
     await 1
   }

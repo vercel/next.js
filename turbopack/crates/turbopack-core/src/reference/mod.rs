@@ -1,10 +1,9 @@
 use std::collections::{HashSet, VecDeque};
 
 use anyhow::Result;
-use indexmap::IndexSet;
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
-    RcStr, TryJoinIterExt, ValueToString, Vc,
+    FxIndexSet, RcStr, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
 };
 
 use crate::{
@@ -48,15 +47,8 @@ impl ModuleReferences {
 /// A reference that always resolves to a single module.
 #[turbo_tasks::value]
 pub struct SingleModuleReference {
-    asset: Vc<Box<dyn Module>>,
+    asset: ResolvedVc<Box<dyn Module>>,
     description: Vc<RcStr>,
-}
-
-impl SingleModuleReference {
-    /// Returns the asset that this reference resolves to.
-    pub fn asset_ref(&self) -> Vc<Box<dyn Module>> {
-        self.asset
-    }
 }
 
 #[turbo_tasks::value_impl]
@@ -80,29 +72,22 @@ impl SingleModuleReference {
     /// Create a new [Vc<SingleModuleReference>] that resolves to the given
     /// asset.
     #[turbo_tasks::function]
-    pub fn new(asset: Vc<Box<dyn Module>>, description: Vc<RcStr>) -> Vc<Self> {
+    pub fn new(asset: ResolvedVc<Box<dyn Module>>, description: Vc<RcStr>) -> Vc<Self> {
         Self::cell(SingleModuleReference { asset, description })
     }
 
     /// The [Vc<Box<dyn Asset>>] that this reference resolves to.
     #[turbo_tasks::function]
     pub fn asset(&self) -> Vc<Box<dyn Module>> {
-        self.asset
+        *self.asset
     }
 }
 
 /// A reference that always resolves to a single module.
 #[turbo_tasks::value]
 pub struct SingleOutputAssetReference {
-    asset: Vc<Box<dyn OutputAsset>>,
+    asset: ResolvedVc<Box<dyn OutputAsset>>,
     description: Vc<RcStr>,
-}
-
-impl SingleOutputAssetReference {
-    /// Returns the asset that this reference resolves to.
-    pub fn asset_ref(&self) -> Vc<Box<dyn OutputAsset>> {
-        self.asset
-    }
 }
 
 #[turbo_tasks::value_impl]
@@ -126,14 +111,14 @@ impl SingleOutputAssetReference {
     /// Create a new [Vc<SingleOutputAssetReference>] that resolves to the given
     /// asset.
     #[turbo_tasks::function]
-    pub fn new(asset: Vc<Box<dyn OutputAsset>>, description: Vc<RcStr>) -> Vc<Self> {
+    pub fn new(asset: ResolvedVc<Box<dyn OutputAsset>>, description: Vc<RcStr>) -> Vc<Self> {
         Self::cell(SingleOutputAssetReference { asset, description })
     }
 
     /// The [Vc<Box<dyn Asset>>] that this reference resolves to.
     #[turbo_tasks::function]
     pub fn asset(&self) -> Vc<Box<dyn OutputAsset>> {
-        self.asset
+        *self.asset
     }
 }
 
@@ -147,23 +132,29 @@ pub async fn referenced_modules_and_affecting_sources(
     module: Vc<Box<dyn Module>>,
 ) -> Result<Vc<Modules>> {
     let references_set = module.references().await?;
-    let mut modules = IndexSet::new();
+    let mut modules = FxIndexSet::default();
     let resolve_results = references_set
         .iter()
         .map(|r| r.resolve_reference())
         .try_join()
         .await?;
     for resolve_result in resolve_results {
-        modules.extend(resolve_result.primary_modules_iter());
+        modules.extend(resolve_result.primary_modules_raw_iter());
         modules.extend(
             resolve_result
                 .affecting_sources_iter()
-                .map(|source| Vc::upcast(RawModule::new(source))),
+                .map(|source| async move {
+                    Ok(ResolvedVc::upcast(
+                        RawModule::new(*source).to_resolved().await?,
+                    ))
+                })
+                .try_join()
+                .await?,
         );
     }
-    let mut resolved_modules = IndexSet::new();
+    let mut resolved_modules = FxIndexSet::default();
     for module in modules {
-        resolved_modules.insert(module.resolve().await?);
+        resolved_modules.insert(module.to_resolved().await?);
     }
     Ok(Vc::cell(resolved_modules.into_iter().collect()))
 }
@@ -202,10 +193,12 @@ pub async fn primary_referenced_modules(module: Vc<Box<dyn Module>>) -> Result<V
 /// referenced [Module]s. This basically gives all [Module]s in a subgraph
 /// starting from the passed [Module].
 #[turbo_tasks::function]
-pub async fn all_modules_and_affecting_sources(asset: Vc<Box<dyn Module>>) -> Result<Vc<Modules>> {
+pub async fn all_modules_and_affecting_sources(
+    asset: ResolvedVc<Box<dyn Module>>,
+) -> Result<Vc<Modules>> {
     // TODO need to track import path here
     let mut queue = VecDeque::with_capacity(32);
-    queue.push_back((asset, referenced_modules_and_affecting_sources(asset)));
+    queue.push_back((asset, referenced_modules_and_affecting_sources(*asset)));
     let mut assets = HashSet::new();
     assets.insert(asset);
     while let Some((parent, references)) = queue.pop_front() {
@@ -214,7 +207,7 @@ pub async fn all_modules_and_affecting_sources(asset: Vc<Box<dyn Module>>) -> Re
             .await?;
         for asset in references.await?.iter() {
             if assets.insert(*asset) {
-                queue.push_back((*asset, referenced_modules_and_affecting_sources(*asset)));
+                queue.push_back((*asset, referenced_modules_and_affecting_sources(**asset)));
             }
         }
     }
@@ -229,7 +222,7 @@ pub async fn all_assets_from_entries(entries: Vc<OutputAssets>) -> Result<Vc<Out
         AdjacencyMap::new()
             .skip_duplicates()
             .visit(
-                entries.await?.iter().copied().map(Vc::upcast),
+                entries.await?.iter().copied().map(ResolvedVc::upcast),
                 get_referenced_assets,
             )
             .await
@@ -242,8 +235,8 @@ pub async fn all_assets_from_entries(entries: Vc<OutputAssets>) -> Result<Vc<Out
 
 /// Computes the list of all chunk children of a given chunk.
 pub async fn get_referenced_assets(
-    asset: Vc<Box<dyn OutputAsset>>,
-) -> Result<impl Iterator<Item = Vc<Box<dyn OutputAsset>>> + Send> {
+    asset: ResolvedVc<Box<dyn OutputAsset>>,
+) -> Result<impl Iterator<Item = ResolvedVc<Box<dyn OutputAsset>>> + Send> {
     Ok(asset
         .references()
         .await?

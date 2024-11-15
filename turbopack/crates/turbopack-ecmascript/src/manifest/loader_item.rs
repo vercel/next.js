@@ -27,11 +27,13 @@ fn modifier() -> Vc<RcStr> {
 }
 
 /// The manifest loader item is shipped in the same chunk that uses the dynamic
-/// `import()` expression. Its responsibility is to load the manifest chunk from
-/// the server. The dynamic import has been rewritten to import this manifest
-/// loader item, which will load the manifest chunk from the server, which
-/// will load all the chunks needed by the dynamic import. Finally, we'll be
-/// able to import the module we're trying to dynamically import.
+/// `import()` expression.
+///
+/// Its responsibility is to load the manifest chunk from the server. The
+/// dynamic import has been rewritten to import this manifest loader item,
+/// which will load the manifest chunk from the server, which will load all
+/// the chunks needed by the dynamic import. Finally, we'll be able to import
+/// the module we're trying to dynamically import.
 ///
 /// Splitting the dynamic import into a quickly generate-able manifest loader
 /// item and a slow-to-generate manifest chunk allows for faster incremental
@@ -102,7 +104,7 @@ impl ChunkItem for ManifestLoaderChunkItem {
             .iter()
             .map(|&chunk| {
                 Vc::upcast(SingleOutputAssetReference::new(
-                    chunk,
+                    *chunk,
                     manifest_loader_chunk_reference_description(),
                 ))
             })
@@ -111,7 +113,7 @@ impl ChunkItem for ManifestLoaderChunkItem {
         for chunk_data in &*self.chunks_data().await? {
             references.extend(chunk_data.references().await?.iter().map(|&output_asset| {
                 Vc::upcast(SingleOutputAssetReference::new(
-                    output_asset,
+                    *output_asset,
                     chunk_data_reference_description(),
                 ))
             }));

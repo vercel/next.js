@@ -190,6 +190,12 @@ describe('next.rs api', () => {
     console.log(next.testDir)
     const nextConfig = await loadConfig(PHASE_DEVELOPMENT_SERVER, next.testDir)
     const bindings = await loadBindings()
+    const distDir = path.join(
+      process.env.NEXT_SKIP_ISOLATE
+        ? path.resolve(__dirname, '../../..')
+        : next.testDir,
+      '.next'
+    )
     project = await bindings.turbo.createProject({
       env: {},
       jsConfig: {
@@ -197,22 +203,20 @@ describe('next.rs api', () => {
       },
       nextConfig: nextConfig,
       projectPath: next.testDir,
+      distDir,
       rootPath: process.env.NEXT_SKIP_ISOLATE
         ? path.resolve(__dirname, '../../..')
         : next.testDir,
-      watch: true,
+      watch: {
+        enable: true,
+      },
       dev: true,
       defineEnv: createDefineEnv({
         isTurbopack: true,
         clientRouterFilters: undefined,
         config: nextConfig,
         dev: true,
-        distDir: path.join(
-          process.env.NEXT_SKIP_ISOLATE
-            ? path.resolve(__dirname, '../../..')
-            : next.testDir,
-          '.next'
-        ),
+        distDir: distDir,
         fetchCacheKeyPrefix: undefined,
         hasRewrites: false,
         middlewareMatchers: undefined,
@@ -637,7 +641,7 @@ describe('next.rs api', () => {
 
     const count = process.env.CI ? 300 : 1000
     for (let i = 0; i < count; i++) {
-      await next.patchFileFast(file, nextContent)
+      await next.patchFile(file, nextContent)
       const content = currentContent
       currentContent = nextContent
       nextContent = content

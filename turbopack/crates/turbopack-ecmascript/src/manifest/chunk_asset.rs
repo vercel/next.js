@@ -20,9 +20,10 @@ fn modifier() -> Vc<RcStr> {
 }
 
 /// The manifest module is deferred until requested by the manifest loader
-/// item when the dynamic `import()` expression is reached. Its responsibility
-/// is to generate a Promise that will resolve only after all the necessary
-/// chunks needed by the dynamic import are loaded by the client.
+/// item when the dynamic `import()` expression is reached.
+///
+/// Its responsibility is to generate a Promise that will resolve only after
+/// all the necessary chunks needed by the dynamic import are loaded by the client.
 ///
 /// Splitting the dynamic import into a quickly generate-able manifest loader
 /// item and a slow-to-generate manifest chunk allows for faster incremental
@@ -118,7 +119,7 @@ impl Module for ManifestAsyncModule {
                 .copied()
                 .map(|chunk| {
                     Vc::upcast(SingleOutputAssetReference::new(
-                        chunk,
+                        *chunk,
                         manifest_chunk_reference_description(),
                     ))
                 })

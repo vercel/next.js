@@ -23,7 +23,7 @@ pub async fn content_from_relative_path(
         root_path.to_string_lossy().into(),
         vec![],
     );
-    disk_fs.await?.start_watching()?;
+    disk_fs.await?.start_watching(None).await?;
 
     let fs_path = disk_fs.root().join(path.into());
     Ok(fs_path.read())
@@ -45,8 +45,8 @@ macro_rules! embed_file {
         let _ = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/", $path));
 
         turbo_tasks_fs::embed::content_from_relative_path(
-            env!("CARGO_MANIFEST_DIR").to_string(),
-            $path.to_string(),
+            env!("CARGO_MANIFEST_DIR").into(),
+            $path.into(),
         )
     }};
 }

@@ -1,11 +1,12 @@
 use std::{
     borrow::Borrow,
-    collections::{hash_map::RandomState, HashMap},
+    collections::HashMap,
     fmt::{Debug, Formatter},
-    hash::{BuildHasher, Hash},
+    hash::{BuildHasher, BuildHasherDefault, Hash},
     marker::PhantomData,
 };
 
+use rustc_hash::FxHasher;
 use serde::{
     de::{MapAccess, Visitor},
     ser::SerializeMap,
@@ -16,7 +17,7 @@ use smallvec::SmallVec;
 use crate::{MAX_LIST_SIZE, MIN_HASH_SIZE};
 
 #[derive(Clone)]
-pub enum AutoMap<K, V, H = RandomState, const I: usize = 0> {
+pub enum AutoMap<K, V, H = BuildHasherDefault<FxHasher>, const I: usize = 0> {
     List(SmallVec<[(K, V); I]>),
     Map(Box<HashMap<K, V, H>>),
 }
@@ -33,7 +34,7 @@ impl<K: Debug, V: Debug, H, const I: usize> Debug for AutoMap<K, V, H, I> {
     }
 }
 
-impl<K, V> AutoMap<K, V, RandomState, 0> {
+impl<K, V> AutoMap<K, V, BuildHasherDefault<FxHasher>, 0> {
     /// see [HashMap::new](https://doc.rust-lang.org/std/collections/struct.HashMap.html#method.new)
     pub const fn new() -> Self {
         AutoMap::List(SmallVec::new_const())
@@ -234,6 +235,16 @@ impl<K: Eq + Hash, V, H: BuildHasher + Default, const I: usize> AutoMap<K, V, H,
         }
     }
 
+    pub fn extract_if<'l, F>(&'l mut self, f: F) -> ExtractIfIter<'l, K, V, I, F>
+    where
+        F: for<'a, 'b> FnMut(&'a K, &'b mut V) -> bool,
+    {
+        match self {
+            AutoMap::List(list) => ExtractIfIter::List { list, index: 0, f },
+            AutoMap::Map(map) => ExtractIfIter::Map(map.extract_if(f)),
+        }
+    }
+
     /// see [HashMap::shrink_to_fit](https://doc.rust-lang.org/std/collections/struct.HashMap.html#method.shrink_to_fit)
     pub fn shrink_to_fit(&mut self) {
         match self {
@@ -409,7 +420,7 @@ impl<'a, K, V> Iterator for Iter<'a, K, V> {
     }
 }
 
-impl<'a, K, V> Clone for Iter<'a, K, V> {
+impl<K, V> Clone for Iter<'_, K, V> {
     fn clone(&self) -> Self {
         match self {
             Iter::List(iter) => Iter::List(iter.clone()),
@@ -546,6 +557,14 @@ impl<'a, K: Eq + Hash, V, H: BuildHasher + Default + 'a, const I: usize> Entry<'
             Entry::Vacant(entry) => entry.insert(default()),
         }
     }
+
+    /// see [HashMap::Entry::or_insert](https://doc.rust-lang.org/std/collections/hash_map/enum.Entry.html#method.or_insert)
+    pub fn or_insert(self, default: V) -> &'a mut V {
+        match self {
+            Entry::Occupied(entry) => entry.into_mut(),
+            Entry::Vacant(entry) => entry.insert(default),
+        }
+    }
 }
 
 impl<'a, K: Eq + Hash, V: Default, H: BuildHasher + Default + 'a, const I: usize>
@@ -589,7 +608,7 @@ impl<'a, K: Eq + Hash, V, H: BuildHasher, const I: usize> OccupiedEntry<'a, K, V
     }
 }
 
-impl<'a, K: Eq + Hash, V, H: BuildHasher + Default, const I: usize> OccupiedEntry<'a, K, V, H, I> {
+impl<K: Eq + Hash, V, H: BuildHasher + Default, const I: usize> OccupiedEntry<'_, K, V, H, I> {
     /// see [HashMap::OccupiedEntry::remove](https://doc.rust-lang.org/std/collections/hash_map/enum.OccupiedEntry.html#method.remove)
     pub fn remove(self) -> V {
         match self {
@@ -662,9 +681,7 @@ impl<'a, K: Eq + Hash, V, H: BuildHasher, const I: usize> OccupiedRawEntry<'a, K
     }
 }
 
-impl<'a, K: Eq + Hash, V, H: BuildHasher + Default, const I: usize>
-    OccupiedRawEntry<'a, K, V, H, I>
-{
+impl<K: Eq + Hash, V, H: BuildHasher + Default, const I: usize> OccupiedRawEntry<'_, K, V, H, I> {
     /// see [HashMap::OccupiedEntry::remove](https://doc.rust-lang.org/std/collections/hash_map/enum.OccupiedEntry.html#method.remove)
     pub fn remove(self) -> V {
         match self {
@@ -836,6 +853,43 @@ where
     }
 }
 
+pub enum ExtractIfIter<'l, K, V, const I: usize, F>
+where
+    F: for<'a, 'b> FnMut(&'a K, &'b mut V) -> bool,
+{
+    List {
+        list: &'l mut SmallVec<[(K, V); I]>,
+        index: usize,
+        f: F,
+    },
+    Map(std::collections::hash_map::ExtractIf<'l, K, V, F>),
+}
+
+impl<K, V, const I: usize, F> Iterator for ExtractIfIter<'_, K, V, I, F>
+where
+    F: for<'a, 'b> FnMut(&'a K, &'b mut V) -> bool,
+{
+    type Item = (K, V);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            ExtractIfIter::List { list, index, f } => {
+                while *index < list.len() {
+                    let (key, value) = &mut list[*index];
+                    if f(key, value) {
+                        let item = list.swap_remove(*index);
+                        return Some(item);
+                    } else {
+                        *index += 1;
+                    }
+                }
+                None
+            }
+            ExtractIfIter::Map(extract_if) => extract_if.next(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -855,5 +909,38 @@ mod tests {
             assert_eq!(map.remove(&i), Some(i));
         }
         assert_eq!(map.remove(&(MAX_LIST_SIZE * 2)), None);
+    }
+
+    #[test]
+    fn test_extract_if_map() {
+        let mut map = AutoMap::new();
+        for i in 0..MAX_LIST_SIZE * 2 {
+            map.insert(i, i);
+        }
+        let iter = map.extract_if(|_, v| *v % 2 == 0);
+        assert_eq!(iter.count(), MAX_LIST_SIZE);
+        assert_eq!(map.len(), MAX_LIST_SIZE);
+    }
+
+    #[test]
+    fn test_extract_if_list() {
+        let mut map = AutoMap::new();
+        for i in 0..MIN_HASH_SIZE {
+            map.insert(i, i);
+        }
+        let iter = map.extract_if(|_, v| *v % 2 == 0);
+        assert_eq!(iter.count(), MIN_HASH_SIZE / 2);
+        assert_eq!(map.len(), MIN_HASH_SIZE / 2);
+    }
+
+    #[test]
+    fn test_extract_if_list2() {
+        let mut map = AutoMap::new();
+        for i in 0..MIN_HASH_SIZE {
+            map.insert(i, i);
+        }
+        let iter = map.extract_if(|_, v| *v < 5);
+        assert_eq!(iter.count(), 5);
+        assert_eq!(map.len(), MIN_HASH_SIZE - 5);
     }
 }

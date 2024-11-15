@@ -1,3 +1,4 @@
+#![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 #![cfg(test)]
 
 use turbo_tasks::Vc;

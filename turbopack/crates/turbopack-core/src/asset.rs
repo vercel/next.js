@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{Completion, RcStr, Vc};
+use turbo_tasks::{Completion, RcStr, ResolvedVc, Vc};
 use turbo_tasks_fs::{
     FileContent, FileJsonContent, FileLinesContent, FileSystemPath, LinkContent, LinkType,
 };
@@ -21,7 +21,7 @@ pub trait Asset {
 #[turbo_tasks::value(shared)]
 #[derive(Clone)]
 pub enum AssetContent {
-    File(Vc<FileContent>),
+    File(ResolvedVc<FileContent>),
     // for the relative link, the target is raw value read from the link
     // for the absolute link, the target is stripped of the root path while reading
     // See [LinkContent::Link] for more details.
@@ -31,8 +31,8 @@ pub enum AssetContent {
 #[turbo_tasks::value_impl]
 impl AssetContent {
     #[turbo_tasks::function]
-    pub fn file(file: Vc<FileContent>) -> Vc<Self> {
-        AssetContent::File(file).cell()
+    pub async fn file(file: ResolvedVc<FileContent>) -> Result<Vc<Self>> {
+        Ok(AssetContent::File(file).cell())
     }
 
     #[turbo_tasks::function]
@@ -50,7 +50,7 @@ impl AssetContent {
     pub async fn file_content(self: Vc<Self>) -> Result<Vc<FileContent>> {
         let this = self.await?;
         match &*this {
-            AssetContent::File(content) => Ok(*content),
+            AssetContent::File(content) => Ok(**content),
             AssetContent::Redirect { .. } => Ok(FileContent::NotFound.cell()),
         }
     }
@@ -61,6 +61,15 @@ impl AssetContent {
         match &*this {
             AssetContent::File(content) => Ok(content.lines()),
             AssetContent::Redirect { .. } => Ok(FileLinesContent::Unparseable.cell()),
+        }
+    }
+
+    #[turbo_tasks::function]
+    pub async fn len(self: Vc<Self>) -> Result<Vc<Option<u64>>> {
+        let this = self.await?;
+        match &*this {
+            AssetContent::File(content) => Ok(content.len()),
+            AssetContent::Redirect { .. } => Ok(Vc::cell(None)),
         }
     }
 
@@ -79,7 +88,7 @@ impl AssetContent {
     pub async fn write(self: Vc<Self>, path: Vc<FileSystemPath>) -> Result<Vc<Completion>> {
         let this = self.await?;
         Ok(match &*this {
-            AssetContent::File(file) => path.write(*file),
+            AssetContent::File(file) => path.write(**file),
             AssetContent::Redirect { target, link_type } => path.write_link(
                 LinkContent::Link {
                     target: target.clone(),

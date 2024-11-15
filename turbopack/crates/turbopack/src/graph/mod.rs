@@ -1,23 +1,23 @@
 use std::collections::HashSet;
 
 use anyhow::Result;
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::output::OutputAsset;
 
 #[turbo_tasks::value(shared)]
 pub enum AggregatedGraph {
-    Leaf(Vc<Box<dyn OutputAsset>>),
+    Leaf(ResolvedVc<Box<dyn OutputAsset>>),
     Node {
         depth: usize,
-        content: HashSet<Vc<AggregatedGraph>>,
-        references: HashSet<Vc<AggregatedGraph>>,
+        content: HashSet<ResolvedVc<AggregatedGraph>>,
+        references: HashSet<ResolvedVc<AggregatedGraph>>,
     },
 }
 
 #[turbo_tasks::value_impl]
 impl AggregatedGraph {
     #[turbo_tasks::function]
-    fn leaf(asset: Vc<Box<dyn OutputAsset>>) -> Vc<Self> {
+    fn leaf(asset: ResolvedVc<Box<dyn OutputAsset>>) -> Vc<Self> {
         Self::cell(AggregatedGraph::Leaf(asset))
     }
 }
@@ -50,8 +50,8 @@ impl AggregatedGraph {
                 let mut refs = HashSet::new();
                 for reference in asset.references().await?.iter() {
                     let reference = reference.resolve().await?;
-                    if asset != reference {
-                        refs.insert(AggregatedGraph::leaf(reference));
+                    if asset != reference.to_resolved().await? {
+                        refs.insert(AggregatedGraph::leaf(reference).to_resolved().await?);
                     }
                 }
                 AggregatedGraphsSet { set: refs }.into()
@@ -60,11 +60,11 @@ impl AggregatedGraph {
                 let mut set = HashSet::new();
                 for item in references
                     .iter()
-                    .map(|&reference| aggregate_more(reference))
+                    .map(|&reference| aggregate_more(*reference))
                     .collect::<Vec<_>>()
                     .into_iter()
                 {
-                    set.insert(item.resolve().await?);
+                    set.insert(item.to_resolved().await?);
                 }
                 AggregatedGraphsSet { set }.into()
             }
@@ -129,7 +129,7 @@ pub async fn aggregate(asset: Vc<Box<dyn OutputAsset>>) -> Result<Vc<AggregatedG
 struct AggregationCost(usize);
 
 #[turbo_tasks::function]
-async fn aggregate_more(node: Vc<AggregatedGraph>) -> Result<Vc<AggregatedGraph>> {
+async fn aggregate_more(node: ResolvedVc<AggregatedGraph>) -> Result<Vc<AggregatedGraph>> {
     let node_data = node.await?;
     let depth = node_data.depth();
     let mut in_progress = HashSet::new();
@@ -182,18 +182,18 @@ async fn aggregate_more(node: Vc<AggregatedGraph>) -> Result<Vc<AggregatedGraph>
 
 #[turbo_tasks::value(shared)]
 struct AggregatedGraphsSet {
-    pub set: HashSet<Vc<AggregatedGraph>>,
+    pub set: HashSet<ResolvedVc<AggregatedGraph>>,
 }
 
 #[turbo_tasks::value(shared)]
 pub enum AggregatedGraphNodeContent {
-    Asset(Vc<Box<dyn OutputAsset>>),
-    Children(HashSet<Vc<AggregatedGraph>>),
+    Asset(ResolvedVc<Box<dyn OutputAsset>>),
+    Children(HashSet<ResolvedVc<AggregatedGraph>>),
 }
 
 #[turbo_tasks::value(shared)]
 struct AggregatedGraphsValuedReferences {
-    pub inner: HashSet<Vc<AggregatedGraph>>,
-    pub outer: HashSet<Vc<AggregatedGraph>>,
-    pub references: HashSet<Vc<AggregatedGraph>>,
+    pub inner: HashSet<ResolvedVc<AggregatedGraph>>,
+    pub outer: HashSet<ResolvedVc<AggregatedGraph>>,
+    pub references: HashSet<ResolvedVc<AggregatedGraph>>,
 }

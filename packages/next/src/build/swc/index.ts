@@ -23,10 +23,8 @@ import {
 import { getReactCompilerLoader } from '../get-babel-loader-config'
 import { TurbopackInternalError } from '../../server/dev/turbopack-utils'
 import type {
-  ExternalObject,
   NapiPartialProjectOptions,
   NapiProjectOptions,
-  TurboTasks,
 } from './generated-native'
 import type {
   Binding,
@@ -757,6 +755,10 @@ function bindingToApi(
       return binding.projectGetSourceForAsset(this._nativeProject, filePath)
     }
 
+    getSourceMap(filePath: string): Promise<string | null> {
+      return binding.projectGetSourceMap(this._nativeProject, filePath)
+    }
+
     updateInfoSubscribe(aggregationMs: number) {
       return subscribe<TurbopackResult<UpdateMessage>>(true, async (callback) =>
         binding.projectUpdateInfoSubscribe(
@@ -1050,16 +1052,6 @@ async function loadWasm(importPath = '') {
           return undefined
         },
         turbo: {
-          startTrace() {
-            Log.error('Wasm binding does not support trace yet')
-          },
-          createTurboTasks: function (
-            _memoryLimit?: number | undefined
-          ): ExternalObject<TurboTasks> {
-            throw new Error(
-              '`turbo.createTurboTasks` is not supported by the wasm bindings.'
-            )
-          },
           createProject: function (
             _options: ProjectOptions,
             _turboEngineOptions?: TurboEngineOptions | undefined
@@ -1227,16 +1219,6 @@ function loadNative(importPath?: string) {
       initHeapProfiler: bindings.initHeapProfiler,
       teardownHeapProfiler: bindings.teardownHeapProfiler,
       turbo: {
-        startTrace(options = {}, turboTasks: ExternalObject<TurboTasks>) {
-          initHeapProfiler()
-          return (customBindings ?? bindings).runTurboTracing(
-            toBuffer({ exact: true, ...options }),
-            turboTasks
-          )
-        },
-        createTurboTasks(memoryLimit?: number): ExternalObject<TurboTasks> {
-          return bindings.createTurboTasks(memoryLimit)
-        },
         createProject: bindingToApi(customBindings ?? bindings, false),
         startTurbopackTraceServer(traceFilePath) {
           Log.warn(

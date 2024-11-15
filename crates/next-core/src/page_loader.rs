@@ -1,8 +1,7 @@
 use std::io::Write;
 
 use anyhow::{bail, Result};
-use indexmap::indexmap;
-use turbo_tasks::{RcStr, TryJoinIterExt, Value, Vc};
+use turbo_tasks::{fxindexmap, RcStr, TryJoinIterExt, Value, Vc};
 use turbo_tasks_fs::{
     self, rope::RopeBuilder, File, FileContent, FileSystemPath, FileSystemPathOption,
 };
@@ -55,12 +54,14 @@ pub async fn create_page_loader_entry_module(
             entry_asset,
             Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)),
         )
-        .module();
+        .module()
+        .to_resolved()
+        .await?;
 
     let module = client_context
         .process(
             virtual_source,
-            Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
+            Value::new(ReferenceType::Internal(Vc::cell(fxindexmap! {
                 "PAGE".into() => module,
             }))),
         )
@@ -108,13 +109,15 @@ impl PageLoaderAsset {
             let rebased = chunks
                 .await?
                 .iter()
-                .map(|chunk| {
-                    Vc::upcast(ProxiedAsset::new(
+                .map(|&chunk| {
+                    Vc::upcast::<Box<dyn OutputAsset>>(ProxiedAsset::new(
                         *chunk,
-                        FileSystemPath::rebase(chunk.ident().path(), *rebase_path, root_path),
+                        FileSystemPath::rebase(chunk.ident().path(), **rebase_path, root_path),
                     ))
+                    .to_resolved()
                 })
-                .collect();
+                .try_join()
+                .await?;
             chunks = Vc::cell(rebased);
         };
 
@@ -131,7 +134,10 @@ fn page_loader_chunk_reference_description() -> Vc<RcStr> {
 impl OutputAsset for PageLoaderAsset {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        let root = self.rebase_prefix_path.await?.unwrap_or(self.server_root);
+        let root = self
+            .rebase_prefix_path
+            .await?
+            .map_or(self.server_root, |path| *path);
         Ok(AssetIdent::from_path(
             root.join(
                 format!(

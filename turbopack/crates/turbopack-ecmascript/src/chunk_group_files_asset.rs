@@ -1,6 +1,5 @@
 use anyhow::Result;
-use indexmap::IndexSet;
-use turbo_tasks::{RcStr, TryJoinIterExt, Value, ValueToString, Vc};
+use turbo_tasks::{FxIndexSet, RcStr, ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -40,7 +39,7 @@ pub struct ChunkGroupFilesAsset {
     pub module: Vc<Box<dyn ChunkableModule>>,
     pub client_root: Vc<FileSystemPath>,
     pub chunking_context: Vc<Box<dyn ChunkingContext>>,
-    pub runtime_entries: Option<Vc<EvaluatableAssets>>,
+    pub runtime_entries: Option<ResolvedVc<EvaluatableAssets>>,
 }
 
 #[turbo_tasks::function]
@@ -133,6 +132,8 @@ impl ChunkGroupFilesChunkItem {
                 inner.module.ident(),
                 inner
                     .runtime_entries
+                    .as_deref()
+                    .copied()
                     .unwrap_or_else(EvaluatableAssets::empty)
                     .with_entry(ecma),
                 Value::new(AvailabilityInfo::Root),
@@ -204,7 +205,7 @@ impl ChunkItem for ChunkGroupFilesChunkItem {
                 .copied()
                 .map(|chunk| {
                     SingleOutputAssetReference::new(
-                        chunk,
+                        *chunk,
                         chunk_group_chunk_reference_description(),
                     )
                 })
@@ -250,7 +251,7 @@ impl Introspectable for ChunkGroupFilesAsset {
 
     #[turbo_tasks::function]
     fn children(&self) -> Vc<IntrospectableChildren> {
-        let mut children = IndexSet::new();
+        let mut children = FxIndexSet::default();
         children.insert((
             Vc::cell("inner asset".into()),
             IntrospectableModule::new(Vc::upcast(self.module)),

@@ -148,8 +148,8 @@ export function loadEnvConfig(
     try {
       const stats = fs.statSync(dotEnvPath)
 
-      // make sure to only attempt to read files
-      if (!stats.isFile()) {
+      // make sure to only attempt to read files or named pipes
+      if (!stats.isFile() && !stats.isFIFO()) {
         continue
       }
 

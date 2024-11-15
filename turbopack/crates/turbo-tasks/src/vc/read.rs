@@ -48,6 +48,9 @@ where
     /// Convert a reference to a target type to a reference to a value.
     fn target_to_value_ref(target: &Self::Target) -> &T;
 
+    /// Convert a mutable reference to a target type to a reference to a value.
+    fn target_to_value_mut_ref(target: &mut Self::Target) -> &mut T;
+
     /// Convert the target type to the repr.
     fn target_to_repr(target: Self::Target) -> Self::Repr;
 
@@ -81,6 +84,10 @@ where
     }
 
     fn target_to_value_ref(target: &Self::Target) -> &T {
+        target
+    }
+
+    fn target_to_value_mut_ref(target: &mut Self::Target) -> &mut T {
         target
     }
 
@@ -120,28 +127,37 @@ where
     }
 
     fn value_to_repr(value: T) -> Self::Repr {
-        // Safety: see `Self::value_to_target` above.
+        // Safety: see `Self::value_to_target_ref` above.
         unsafe {
             std::mem::transmute_copy::<ManuallyDrop<T>, Self::Repr>(&ManuallyDrop::new(value))
         }
     }
 
     fn target_to_value(target: Self::Target) -> T {
-        // Safety: see `Self::value_to_target` above.
+        // Safety: see `Self::value_to_target_ref` above.
         unsafe {
             std::mem::transmute_copy::<ManuallyDrop<Self::Target>, T>(&ManuallyDrop::new(target))
         }
     }
 
     fn target_to_value_ref(target: &Self::Target) -> &T {
-        // Safety: see `Self::value_to_target` above.
+        // Safety: see `Self::value_to_target_ref` above.
         unsafe {
             std::mem::transmute_copy::<ManuallyDrop<&Self::Target>, &T>(&ManuallyDrop::new(target))
         }
     }
 
+    fn target_to_value_mut_ref(target: &mut Self::Target) -> &mut T {
+        // Safety: see `Self::value_to_target_ref` above.
+        unsafe {
+            std::mem::transmute_copy::<ManuallyDrop<&mut Self::Target>, &mut T>(&ManuallyDrop::new(
+                target,
+            ))
+        }
+    }
+
     fn target_to_repr(target: Self::Target) -> Self::Repr {
-        // Safety: see `Self::value_to_target` above.
+        // Safety: see `Self::value_to_target_ref` above.
         unsafe {
             std::mem::transmute_copy::<ManuallyDrop<Self::Target>, Self::Repr>(&ManuallyDrop::new(
                 target,
@@ -150,7 +166,7 @@ where
     }
 
     fn repr_to_value_ref(repr: &Self::Repr) -> &T {
-        // Safety: see `Self::value_to_target` above.
+        // Safety: see `Self::value_to_target_ref` above.
         unsafe {
             std::mem::transmute_copy::<ManuallyDrop<&Self::Repr>, &T>(&ManuallyDrop::new(repr))
         }

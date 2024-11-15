@@ -1,10 +1,8 @@
-import Server, { connection } from 'next/server'
-
-console.log('Server', Server)
+import { connection } from 'next/server'
 
 export const dynamic = 'error'
 
-export default async function Page({ searchParams }) {
+export default async function Page(props) {
   await connection()
   return (
     <div>

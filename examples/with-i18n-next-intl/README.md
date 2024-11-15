@@ -21,11 +21,15 @@ Deploy the example using [Vercel](https://vercel.com) or preview live with [Stac
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-i18n-next-intl
-# or
-yarn create next-app --example with-i18n-next-intl
-# or
-pnpm create next-app --example with-i18n-next-intl
+npx create-next-app --example with-i18n-next-intl with-i18n-next-intl-app
+```
+
+```bash
+yarn create next-app --example with-i18n-next-intl with-i18n-next-intl-app
+```
+
+```bash
+pnpm create next-app --example with-i18n-next-intl with-i18n-next-intl-app
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

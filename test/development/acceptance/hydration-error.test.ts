@@ -1,9 +1,9 @@
 /* eslint-env jest */
-import { sandbox } from 'development-sandbox'
+import { createSandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
 import { outdent } from 'outdent'
-import { getRedboxTotalErrorCount } from 'next-test-utils'
+import { getRedboxTotalErrorCount, retry } from 'next-test-utils'
 
 const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 // https://github.com/facebook/react/blob/main/packages/react-dom/src/__tests__/ReactDOMHydrationDiff-test.js used as a reference
@@ -15,7 +15,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
   })
 
   it('includes a React docs link when hydration error does occur', async () => {
-    const { browser } = await sandbox(
+    await using sandbox = await createSandbox(
       next,
       new Map([
         [
@@ -35,7 +35,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
       '/',
       { pushErrorAsConsoleLog: true }
     )
-
+    const { browser } = sandbox
     const logs = await browser.log()
     expect(logs).toEqual(
       expect.arrayContaining([
@@ -54,7 +54,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
   })
 
   it('should show correct hydration error when client and server render different text', async () => {
-    const { cleanup, session, browser } = await sandbox(
+    await using sandbox = await createSandbox(
       next,
       new Map([
         [
@@ -72,6 +72,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
         ],
       ])
     )
+    const { session, browser } = sandbox
 
     await session.assertHasRedbox()
     expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 2 : 1)
@@ -81,10 +82,9 @@ describe('Error overlay for hydration errors in Pages router', () => {
         `"Text content did not match. Server: "server" Client: "client""`
       )
     } else {
-      expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
-        "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used
-        See more info here: https://nextjs.org/docs/messages/react-hydration-error"
-      `)
+      expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
+        `"Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used"`
+      )
     }
 
     if (isReact18) {
@@ -103,6 +103,9 @@ describe('Error overlay for hydration errors in Pages router', () => {
           It can also happen if the client has a browser extension installed which messes with the HTML before React loaded."
         `)
     }
+    expect(await session.getRedboxErrorLink()).toMatchInlineSnapshot(
+      `"See more info here: https://nextjs.org/docs/messages/react-hydration-error"`
+    )
 
     const pseudoHtml = await session.getRedboxComponentStack()
 
@@ -125,7 +128,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
             <AppContainer>
               <Container fn={function fn}>
                 <ReactDevOverlay>
-                  <ErrorBoundary globalOverlay={undefined} isMounted={false} onError={function}>
+                  <ErrorBoundary globalOverlay={undefined} isMounted={false} ...>
                     <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
                       <App pageProps={{}} Component={function Mismatch} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                         <Mismatch>
@@ -172,12 +175,10 @@ describe('Error overlay for hydration errors in Pages router', () => {
     await session.assertNoRedbox()
 
     expect(await browser.elementByCss('.child').text()).toBe('Value')
-
-    await cleanup()
   })
 
   it('should show correct hydration error when client renders an extra element', async () => {
-    const { browser, cleanup, session } = await sandbox(
+    await using sandbox = await createSandbox(
       next,
       new Map([
         [
@@ -195,9 +196,13 @@ describe('Error overlay for hydration errors in Pages router', () => {
         ],
       ])
     )
-
+    const { session, browser } = sandbox
     await session.assertHasRedbox()
-    expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 3 : 1)
+    await retry(async () => {
+      await expect(await getRedboxTotalErrorCount(browser)).toBe(
+        isReact18 ? 3 : 1
+      )
+    })
 
     const pseudoHtml = await session.getRedboxComponentStack()
     if (isTurbopack) {
@@ -216,7 +221,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
             <AppContainer>
               <Container fn={function fn}>
                 <ReactDevOverlay>
-                  <ErrorBoundary globalOverlay={undefined} isMounted={false} onError={function}>
+                  <ErrorBoundary globalOverlay={undefined} isMounted={false} ...>
                     <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
                       <App pageProps={{}} Component={function Mismatch} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                         <Mismatch>
@@ -249,17 +254,14 @@ describe('Error overlay for hydration errors in Pages router', () => {
         `"Expected server HTML to contain a matching <main> in <div>."`
       )
     } else {
-      expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
-        "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used
-        See more info here: https://nextjs.org/docs/messages/react-hydration-error"
-      `)
+      expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
+        `"Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used"`
+      )
     }
-
-    await cleanup()
   })
 
   it('should show correct hydration error when client renders an extra text node', async () => {
-    const { browser, cleanup, session } = await sandbox(
+    await using sandbox = await createSandbox(
       next,
       new Map([
         [
@@ -279,9 +281,13 @@ describe('Error overlay for hydration errors in Pages router', () => {
         ],
       ])
     )
-
+    const { session, browser } = sandbox
     await session.assertHasRedbox()
-    expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 3 : 1)
+    await retry(async () => {
+      await expect(await getRedboxTotalErrorCount(browser)).toBe(
+        isReact18 ? 3 : 1
+      )
+    })
 
     const pseudoHtml = await session.getRedboxComponentStack()
     if (isTurbopack) {
@@ -303,7 +309,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
             <AppContainer>
               <Container fn={function fn}>
                 <ReactDevOverlay>
-                  <ErrorBoundary globalOverlay={undefined} isMounted={false} onError={function}>
+                  <ErrorBoundary globalOverlay={undefined} isMounted={false} ...>
                     <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
                       <App pageProps={{}} Component={function Mismatch} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                         <Mismatch>
@@ -335,17 +341,14 @@ describe('Error overlay for hydration errors in Pages router', () => {
         `"Expected server HTML to contain a matching text node for "second" in <div>."`
       )
     } else {
-      expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
-        "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used
-        See more info here: https://nextjs.org/docs/messages/react-hydration-error"
-      `)
+      expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
+        `"Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used"`
+      )
     }
-
-    await cleanup()
   })
 
   it('should show correct hydration error when server renders an extra element', async () => {
-    const { browser, cleanup, session } = await sandbox(
+    await using sandbox = await createSandbox(
       next,
       new Map([
         [
@@ -363,7 +366,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
         ],
       ])
     )
-
+    const { session, browser } = sandbox
     await session.assertHasRedbox()
     expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 2 : 1)
 
@@ -380,7 +383,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
             <AppContainer>
               <Container fn={function fn}>
                 <ReactDevOverlay>
-                  <ErrorBoundary globalOverlay={undefined} isMounted={false} onError={function}>
+                  <ErrorBoundary globalOverlay={undefined} isMounted={false} ...>
                     <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
                       <App pageProps={{}} Component={function Mismatch} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                         <Mismatch>
@@ -408,17 +411,14 @@ describe('Error overlay for hydration errors in Pages router', () => {
         `"Did not expect server HTML to contain a <main> in <div>."`
       )
     } else {
-      expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
-        "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used
-        See more info here: https://nextjs.org/docs/messages/react-hydration-error"
-      `)
+      expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
+        `"Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used"`
+      )
     }
-
-    await cleanup()
   })
 
   it('should show correct hydration error when server renders an extra text node', async () => {
-    const { browser, cleanup, session } = await sandbox(
+    await using sandbox = await createSandbox(
       next,
       new Map([
         [
@@ -432,7 +432,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
         ],
       ])
     )
-
+    const { session, browser } = sandbox
     await session.assertHasRedbox()
     expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 2 : 1)
 
@@ -441,10 +441,9 @@ describe('Error overlay for hydration errors in Pages router', () => {
         `"Did not expect server HTML to contain the text node "only" in <div>."`
       )
     } else {
-      expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
-        "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used
-        See more info here: https://nextjs.org/docs/messages/react-hydration-error"
-      `)
+      expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
+        `"Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used"`
+      )
     }
 
     const pseudoHtml = await session.getRedboxComponentStack()
@@ -468,7 +467,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
             <AppContainer>
               <Container fn={function fn}>
                 <ReactDevOverlay>
-                  <ErrorBoundary globalOverlay={undefined} isMounted={false} onError={function}>
+                  <ErrorBoundary globalOverlay={undefined} isMounted={false} ...>
                     <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
                       <App pageProps={{}} Component={function Mismatch} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                         <Mismatch>
@@ -492,12 +491,10 @@ describe('Error overlay for hydration errors in Pages router', () => {
         `)
       }
     }
-
-    await cleanup()
   })
 
   it('should show correct hydration error when server renders an extra text node in an invalid place', async () => {
-    const { browser, cleanup, session } = await sandbox(
+    await using sandbox = await createSandbox(
       next,
       new Map([
         [
@@ -516,15 +513,17 @@ describe('Error overlay for hydration errors in Pages router', () => {
         ],
       ])
     )
-
+    const { session, browser } = sandbox
     await session.assertHasRedbox()
 
-    expect(await getRedboxTotalErrorCount(browser)).toBe(
-      isReact18
-        ? 3
-        : // FIXME: Should be 2
-          1
-    )
+    await retry(async () => {
+      await expect(await getRedboxTotalErrorCount(browser)).toBe(
+        isReact18
+          ? 3
+          : // FIXME: Should be 2
+            1
+      )
+    })
 
     // FIXME: Should also have "text nodes cannot be a child of tr"
     if (isReact18) {
@@ -532,10 +531,9 @@ describe('Error overlay for hydration errors in Pages router', () => {
         `"Expected server HTML to contain a matching <table> in <div>."`
       )
     } else {
-      expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
-        "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used
-        See more info here: https://nextjs.org/docs/messages/react-hydration-error"
-      `)
+      expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
+        `"Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used"`
+      )
     }
 
     const pseudoHtml = await session.getRedboxComponentStack()
@@ -554,7 +552,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
             <AppContainer>
               <Container fn={function fn}>
                 <ReactDevOverlay>
-                  <ErrorBoundary globalOverlay={undefined} isMounted={false} onError={function}>
+                  <ErrorBoundary globalOverlay={undefined} isMounted={false} ...>
                     <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
                       <App pageProps={{}} Component={function Page} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                         <Page>
@@ -579,12 +577,10 @@ describe('Error overlay for hydration errors in Pages router', () => {
         `)
       }
     }
-
-    await cleanup()
   })
 
   it('should show correct hydration error when server renders an extra whitespace in an invalid place', async () => {
-    const { cleanup, session } = await sandbox(
+    await using sandbox = await createSandbox(
       next,
       new Map([
         [
@@ -602,7 +598,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
         ],
       ])
     )
-
+    const { session } = sandbox
     // FIXME: Should have getRedboxDescription() "text nodes cannot be a child of tr"
     await expect(session.hasErrorToast()).resolves.toBe(false)
 
@@ -619,12 +615,10 @@ describe('Error overlay for hydration errors in Pages router', () => {
     // expect(pseudoHtml).toEqual(outdent`
     //   Something
     // `)
-
-    await cleanup()
   })
 
   it('should show correct hydration error when client renders an extra node inside Suspense content', async () => {
-    const { cleanup, session } = await sandbox(
+    await using sandbox = await createSandbox(
       next,
       new Map([
         [
@@ -647,7 +641,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
         ],
       ])
     )
-
+    const { session } = sandbox
     const pseudoHtml = await session.getRedboxComponentStack()
     if (isTurbopack) {
       if (isReact18) {
@@ -696,17 +690,14 @@ describe('Error overlay for hydration errors in Pages router', () => {
         `"Expected server HTML to contain a matching <main> in <div>."`
       )
     } else {
-      expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
-        "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used
-        See more info here: https://nextjs.org/docs/messages/react-hydration-error"
-      `)
+      expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
+        `"Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used"`
+      )
     }
-
-    await cleanup()
   })
 
   it('should not show a hydration error when using `useId` in a client component', async () => {
-    const { cleanup, browser } = await sandbox(
+    await using sandbox = await createSandbox(
       next,
       new Map([
         [
@@ -728,7 +719,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
         ],
       ])
     )
-
+    const { browser } = sandbox
     const logs = await browser.log()
     const errors = logs
       .filter((x) => x.source === 'error')
@@ -738,12 +729,10 @@ describe('Error overlay for hydration errors in Pages router', () => {
     expect(errors).not.toInclude(
       'Warning: Prop `%s` did not match. Server: %s Client: %s'
     )
-
-    await cleanup()
   })
 
   it('should only show one hydration error when bad nesting happened - p under p', async () => {
-    const { cleanup, session, browser } = await sandbox(
+    await using sandbox = await createSandbox(
       next,
       new Map([
         [
@@ -762,9 +751,11 @@ describe('Error overlay for hydration errors in Pages router', () => {
         ],
       ])
     )
-
+    const { session, browser } = sandbox
     await session.assertHasRedbox()
-    expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 3 : 1)
+    await retry(async () => {
+      expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 3 : 1)
+    })
 
     const description = await session.getRedboxDescription()
     if (isReact18) {
@@ -820,12 +811,10 @@ describe('Error overlay for hydration errors in Pages router', () => {
         `)
       }
     }
-
-    await cleanup()
   })
 
   it('should only show one hydration error when bad nesting happened - div under p', async () => {
-    const { cleanup, session, browser } = await sandbox(
+    await using sandbox = await createSandbox(
       next,
       new Map([
         [
@@ -848,9 +837,11 @@ describe('Error overlay for hydration errors in Pages router', () => {
         ],
       ])
     )
-
+    const { session, browser } = sandbox
     await session.assertHasRedbox()
-    expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 3 : 1)
+    await retry(async () => {
+      expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 3 : 1)
+    })
 
     const description = await session.getRedboxDescription()
     if (isReact18) {
@@ -885,12 +876,10 @@ describe('Error overlay for hydration errors in Pages router', () => {
               ^^^^^"
       `)
     }
-
-    await cleanup()
   })
 
   it('should only show one hydration error when bad nesting happened - div > tr', async () => {
-    const { cleanup, session, browser } = await sandbox(
+    await using sandbox = await createSandbox(
       next,
       new Map([
         [
@@ -903,9 +892,11 @@ describe('Error overlay for hydration errors in Pages router', () => {
         ],
       ])
     )
-
+    const { session, browser } = sandbox
     await session.assertHasRedbox()
-    expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 3 : 1)
+    await retry(async () => {
+      expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 3 : 1)
+    })
 
     const description = await session.getRedboxDescription()
     if (isReact18) {
@@ -961,12 +952,10 @@ describe('Error overlay for hydration errors in Pages router', () => {
         `)
       }
     }
-
-    await cleanup()
   })
 
   it('should show the highlighted bad nesting html snippet when bad nesting happened', async () => {
-    const { browser, cleanup, session } = await sandbox(
+    await using sandbox = await createSandbox(
       next,
       new Map([
         [
@@ -983,9 +972,11 @@ describe('Error overlay for hydration errors in Pages router', () => {
         ],
       ])
     )
-
+    const { session, browser } = sandbox
     await session.assertHasRedbox()
-    expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 3 : 1)
+    await retry(async () => {
+      expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 3 : 1)
+    })
 
     const description = await session.getRedboxDescription()
     if (isReact18) {
@@ -1048,12 +1039,10 @@ describe('Error overlay for hydration errors in Pages router', () => {
         `)
       }
     }
-
-    await cleanup()
   })
 
   it('should show error if script is directly placed under html instead of body', async () => {
-    const { session } = await sandbox(
+    await using sandbox = await createSandbox(
       next,
       new Map([
         [
@@ -1089,13 +1078,13 @@ describe('Error overlay for hydration errors in Pages router', () => {
         ],
       ])
     )
-
+    const { session } = sandbox
     // FIXME: Should have a redbox just like with App router
     await session.assertNoRedbox()
   })
 
   it('should collapse and uncollapse properly when there are many frames', async () => {
-    const { browser, cleanup, session } = await sandbox(
+    await using sandbox = await createSandbox(
       next,
       new Map([
         [
@@ -1133,9 +1122,14 @@ describe('Error overlay for hydration errors in Pages router', () => {
         ],
       ])
     )
-
+    const { session, browser } = sandbox
     await session.assertHasRedbox()
-    expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 2 : 1)
+    await retry(async () => {
+      await expect(await getRedboxTotalErrorCount(browser)).toBe(
+        // This case only hit 2 errors in React 18
+        isReact18 ? 2 : 1
+      )
+    })
 
     const pseudoHtml = await session.getRedboxComponentStack()
     if (isTurbopack) {
@@ -1258,12 +1252,11 @@ describe('Error overlay for hydration errors in Pages router', () => {
                           <Mismatch>
                             <p>
                               <span>
+                                ...
           +                      client
           -                      server"
         `)
       }
     }
-
-    await cleanup()
   })
 })

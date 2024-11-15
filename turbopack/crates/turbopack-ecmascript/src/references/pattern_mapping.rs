@@ -1,7 +1,6 @@
 use std::{borrow::Cow, collections::HashSet};
 
 use anyhow::Result;
-use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use swc_core::{
     common::DUMMY_SP,
@@ -11,10 +10,16 @@ use swc_core::{
     },
     quote, quote_expr,
 };
-use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, RcStr, TryJoinIterExt, Value, Vc};
+use turbo_tasks::{
+    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, RcStr, ResolvedVc, TryJoinIterExt,
+    Value, Vc,
+};
 use turbopack_core::{
     chunk::{ChunkItemExt, ChunkableModule, ChunkingContext, ModuleId},
-    issue::{code_gen::CodeGenerationIssue, IssueExt, IssueSeverity, StyledString},
+    issue::{
+        code_gen::CodeGenerationIssue, module::emit_unknown_module_type_error, IssueExt,
+        IssueSeverity, StyledString,
+    },
     resolve::{
         origin::ResolveOrigin, parse::Request, ExternalType, ModuleResolveResult,
         ModuleResolveResultItem,
@@ -28,8 +33,8 @@ use crate::{references::util::throw_module_not_found_error_expr, utils::module_i
 pub(crate) enum SinglePatternMapping {
     /// Invalid request.
     Invalid,
-    /// Unresolveable request.
-    Unresolveable(String),
+    /// Unresolvable request.
+    Unresolvable(String),
     /// Ignored request.
     Ignored,
     /// Constant request that always maps to the same module.
@@ -70,7 +75,7 @@ pub(crate) enum PatternMapping {
     /// ```js
     /// require(`./images/${name}.png`)
     /// ```
-    Map(IndexMap<String, SinglePatternMapping>),
+    Map(FxIndexMap<String, SinglePatternMapping>),
 }
 
 #[derive(Hash, Debug, Copy, Clone)]
@@ -89,7 +94,7 @@ impl SinglePatternMapping {
                     arg: Expr = key_expr.into_owned()
                 )
             }
-            Self::Unresolveable(request) => throw_module_not_found_expr(request),
+            Self::Unresolvable(request) => throw_module_not_found_expr(request),
             Self::Ignored => {
                 quote!("undefined" as Expr)
             }
@@ -101,7 +106,7 @@ impl SinglePatternMapping {
     pub fn create_require(&self, key_expr: Cow<'_, Expr>) -> Expr {
         match self {
             Self::Invalid => self.create_id(key_expr),
-            Self::Unresolveable(request) => throw_module_not_found_expr(request),
+            Self::Unresolvable(request) => throw_module_not_found_expr(request),
             Self::Ignored => {
                 quote!("{}" as Expr)
             }
@@ -147,7 +152,7 @@ impl SinglePatternMapping {
                     ..Default::default()
                 })
             }
-            Self::Unresolveable(_) => self.create_id(key_expr),
+            Self::Unresolvable(_) => self.create_id(key_expr),
             Self::External(_, ExternalType::EcmaScriptModule) => {
                 if import_externals {
                     Expr::Call(CallExpr {
@@ -231,7 +236,7 @@ enum ImportMode {
 }
 
 fn create_context_map(
-    map: &IndexMap<String, SinglePatternMapping>,
+    map: &FxIndexMap<String, SinglePatternMapping>,
     key_expr: &Expr,
     import_mode: ImportMode,
 ) -> Expr {
@@ -315,7 +320,18 @@ async fn to_single_pattern_mapping(
             return Ok(SinglePatternMapping::External(s.clone(), *ty));
         }
         ModuleResolveResultItem::Ignore => return Ok(SinglePatternMapping::Ignored),
-        _ => {
+        ModuleResolveResultItem::Unknown(source) => {
+            emit_unknown_module_type_error(*source).await?;
+            return Ok(SinglePatternMapping::Unresolvable(
+                "unknown module type".to_string(),
+            ));
+        }
+        ModuleResolveResultItem::Error(str) => {
+            return Ok(SinglePatternMapping::Unresolvable(str.await?.to_string()))
+        }
+        ModuleResolveResultItem::OutputAsset(_)
+        | ModuleResolveResultItem::Empty
+        | ModuleResolveResultItem::Custom(_) => {
             // TODO implement mapping
             CodeGenerationIssue {
                 severity: IssueSeverity::Bug.into(),
@@ -339,10 +355,10 @@ async fn to_single_pattern_mapping(
             return Ok(SinglePatternMapping::Invalid);
         }
     };
-    if let Some(chunkable) = Vc::try_resolve_downcast::<Box<dyn ChunkableModule>>(module).await? {
+    if let Some(chunkable) = ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(module).await? {
         match resolve_type {
             ResolveType::AsyncChunkLoader => {
-                let loader_id = chunking_context.async_loader_chunk_item_id(chunkable);
+                let loader_id = chunking_context.async_loader_chunk_item_id(*chunkable);
                 return Ok(SinglePatternMapping::ModuleLoader(
                     loader_id.await?.clone_value(),
                 ));
@@ -385,7 +401,7 @@ impl PatternMapping {
         let resolve_type = resolve_type.into_value();
         let result = resolve_result.await?;
         match result.primary.len() {
-            0 => Ok(PatternMapping::Single(SinglePatternMapping::Unresolveable(
+            0 => Ok(PatternMapping::Single(SinglePatternMapping::Unresolvable(
                 request_to_string(request).await?.to_string(),
             ))
             .cell()),

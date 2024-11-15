@@ -8,13 +8,12 @@ use futures::{
     pin_mut, SinkExt, StreamExt,
 };
 use futures_retry::{FutureRetry, RetryPolicy};
-use indexmap::indexmap;
 use parking_lot::Mutex;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use turbo_tasks::{
-    duration_span, mark_finished, prevent_gc, util::SharedError, Completion, RawVc, TaskInput,
-    TryJoinIterExt, Value, Vc,
+    duration_span, fxindexmap, mark_finished, prevent_gc, util::SharedError, Completion, RawVc,
+    ResolvedVc, TaskInput, TryJoinIterExt, Value, Vc,
 };
 use turbo_tasks_bytes::{Bytes, Stream};
 use turbo_tasks_env::ProcessEnv;
@@ -82,7 +81,7 @@ pub struct JavaScriptEvaluation(#[turbo_tasks(trace_ignore)] JavaScriptStream);
 /// Pass the file you cared as `runtime_entries` to invalidate and reload the
 /// evaluated result automatically.
 pub async fn get_evaluate_pool(
-    module_asset: Vc<Box<dyn Module>>,
+    module_asset: ResolvedVc<Box<dyn Module>>,
     cwd: Vc<FileSystemPath>,
     env: Vc<Box<dyn ProcessEnv>>,
     asset_context: Vc<Box<dyn AssetContext>>,
@@ -96,7 +95,9 @@ pub async fn get_evaluate_pool(
             Vc::upcast(FileSource::new(embed_file_path("ipc/evaluate.ts".into()))),
             Value::new(ReferenceType::Internal(InnerAssets::empty())),
         )
-        .module();
+        .module()
+        .to_resolved()
+        .await?;
 
     let module_path = module_asset.ident().path().await?;
     let file_name = module_path.file_name();
@@ -116,7 +117,7 @@ pub async fn get_evaluate_pool(
                     File::from("import { run } from 'RUNTIME'; run(() => import('INNER'))").into(),
                 ),
             )),
-            Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
+            Value::new(ReferenceType::Internal(Vc::cell(fxindexmap! {
                 "INNER".into() => module_asset,
                 "RUNTIME".into() => runtime_asset
             }))),
@@ -158,12 +159,14 @@ pub async fn get_evaluate_pool(
         runtime_entries,
     );
 
-    let output_root: Vc<FileSystemPath> = chunking_context.output_root();
-    let _ = emit_package_json(output_root);
+    let output_root = chunking_context.output_root().to_resolved().await?;
+    let _ = emit_package_json(*output_root);
     // Invalidate pool when code content changes
     content_changed(Vc::upcast(bootstrap)).await?;
-    let _ = emit(bootstrap, output_root);
-    let assets_for_source_mapping = internal_assets_for_source_mapping(bootstrap, output_root);
+    let _ = emit(bootstrap, *output_root);
+    let assets_for_source_mapping = internal_assets_for_source_mapping(bootstrap, *output_root)
+        .to_resolved()
+        .await?;
     let pool = NodeJsPool::new(
         cwd,
         entrypoint,
@@ -174,7 +177,7 @@ pub async fn get_evaluate_pool(
             .collect(),
         assets_for_source_mapping,
         output_root,
-        chunking_context.context_path().root(),
+        chunking_context.context_path().root().to_resolved().await?,
         available_parallelism().map_or(1, |v| v.get()),
         debug,
     );
@@ -283,15 +286,15 @@ pub fn custom_evaluate(evaluate_context: impl EvaluateContext) -> Vc<JavaScriptE
 /// evaluated result automatically.
 #[turbo_tasks::function]
 pub fn evaluate(
-    module_asset: Vc<Box<dyn Module>>,
-    cwd: Vc<FileSystemPath>,
-    env: Vc<Box<dyn ProcessEnv>>,
-    context_ident_for_issue: Vc<AssetIdent>,
-    asset_context: Vc<Box<dyn AssetContext>>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
-    runtime_entries: Option<Vc<EvaluatableAssets>>,
+    module_asset: ResolvedVc<Box<dyn Module>>,
+    cwd: ResolvedVc<FileSystemPath>,
+    env: ResolvedVc<Box<dyn ProcessEnv>>,
+    context_ident_for_issue: ResolvedVc<AssetIdent>,
+    asset_context: ResolvedVc<Box<dyn AssetContext>>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    runtime_entries: Option<ResolvedVc<EvaluatableAssets>>,
     args: Vec<Vc<JsonValue>>,
-    additional_invalidation: Vc<Completion>,
+    additional_invalidation: ResolvedVc<Completion>,
     debug: bool,
 ) -> Vc<JavaScriptEvaluation> {
     custom_evaluate(BasicEvaluateContext {
@@ -464,15 +467,15 @@ async fn basic_compute(
 
 #[derive(Clone, PartialEq, Eq, Hash, TaskInput, Debug, Serialize, Deserialize)]
 struct BasicEvaluateContext {
-    module_asset: Vc<Box<dyn Module>>,
-    cwd: Vc<FileSystemPath>,
-    env: Vc<Box<dyn ProcessEnv>>,
-    context_ident_for_issue: Vc<AssetIdent>,
-    asset_context: Vc<Box<dyn AssetContext>>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
-    runtime_entries: Option<Vc<EvaluatableAssets>>,
+    module_asset: ResolvedVc<Box<dyn Module>>,
+    cwd: ResolvedVc<FileSystemPath>,
+    env: ResolvedVc<Box<dyn ProcessEnv>>,
+    context_ident_for_issue: ResolvedVc<AssetIdent>,
+    asset_context: ResolvedVc<Box<dyn AssetContext>>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    runtime_entries: Option<ResolvedVc<EvaluatableAssets>>,
     args: Vec<Vc<JsonValue>>,
-    additional_invalidation: Vc<Completion>,
+    additional_invalidation: ResolvedVc<Completion>,
     debug: bool,
 }
 
@@ -489,13 +492,13 @@ impl EvaluateContext for BasicEvaluateContext {
 
     fn pool(&self) -> Vc<crate::pool::NodeJsPool> {
         get_evaluate_pool(
-            self.module_asset,
-            self.cwd,
-            self.env,
-            self.asset_context,
-            self.chunking_context,
-            self.runtime_entries,
-            self.additional_invalidation,
+            *self.module_asset,
+            *self.cwd,
+            *self.env,
+            *self.asset_context,
+            *self.chunking_context,
+            self.runtime_entries.map(|r| *r),
+            *self.additional_invalidation,
             self.debug,
         )
     }
@@ -505,7 +508,7 @@ impl EvaluateContext for BasicEvaluateContext {
     }
 
     fn cwd(&self) -> Vc<turbo_tasks_fs::FileSystemPath> {
-        self.cwd
+        *self.cwd
     }
 
     fn keep_alive(&self) -> bool {
@@ -518,7 +521,12 @@ impl EvaluateContext for BasicEvaluateContext {
             context_ident: self.context_ident_for_issue,
             assets_for_source_mapping: pool.assets_for_source_mapping,
             assets_root: pool.assets_root,
-            project_dir: self.chunking_context.context_path().root(),
+            project_dir: self
+                .chunking_context
+                .context_path()
+                .root()
+                .to_resolved()
+                .await?,
         }
         .cell()
         .emit();
@@ -555,8 +563,8 @@ async fn print_error(
 ) -> Result<String> {
     error
         .print(
-            pool.assets_for_source_mapping,
-            pool.assets_root,
+            *pool.assets_for_source_mapping,
+            *pool.assets_root,
             evaluate_context.cwd(),
             FormattingMode::Plain,
         )
@@ -565,11 +573,11 @@ async fn print_error(
 /// An issue that occurred while evaluating node code.
 #[turbo_tasks::value(shared)]
 pub struct EvaluationIssue {
-    pub context_ident: Vc<AssetIdent>,
+    pub context_ident: ResolvedVc<AssetIdent>,
     pub error: StructuredError,
-    pub assets_for_source_mapping: Vc<AssetsForSourceMapping>,
-    pub assets_root: Vc<FileSystemPath>,
-    pub project_dir: Vc<FileSystemPath>,
+    pub assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
+    pub assets_root: ResolvedVc<FileSystemPath>,
+    pub project_dir: ResolvedVc<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
@@ -595,9 +603,9 @@ impl Issue for EvaluationIssue {
             StyledString::Text(
                 self.error
                     .print(
-                        self.assets_for_source_mapping,
-                        self.assets_root,
-                        self.project_dir,
+                        *self.assets_for_source_mapping,
+                        *self.assets_root,
+                        *self.project_dir,
                         FormattingMode::Plain,
                     )
                     .await?

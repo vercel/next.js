@@ -1,9 +1,11 @@
 use std::{collections::BTreeMap, io::Write, iter::once};
 
 use anyhow::{bail, Context, Result};
-use indexmap::{map::Entry, IndexMap};
+use indexmap::map::Entry;
 use next_core::{
-    next_manifests::{ActionLayer, ActionManifestWorkerEntry, ServerReferenceManifest},
+    next_manifests::{
+        ActionLayer, ActionManifestModuleId, ActionManifestWorkerEntry, ServerReferenceManifest,
+    },
     util::NextRuntime,
 };
 use swc_core::{
@@ -17,15 +19,15 @@ use swc_core::{
 use tracing::Instrument;
 use turbo_tasks::{
     graph::{GraphTraversal, NonDeterministic},
-    RcStr, TryFlatJoinIterExt, Value, ValueToString, Vc,
+    FxIndexMap, RcStr, ResolvedVc, TryFlatJoinIterExt, Value, ValueToString, Vc,
 };
 use turbo_tasks_fs::{self, rope::RopeBuilder, File, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
-    chunk::{ChunkItemExt, ChunkableModule, ChunkingContext, EvaluatableAsset},
+    chunk::{ChunkItem, ChunkItemExt, ChunkableModule, ChunkingContext, EvaluatableAsset},
     context::AssetContext,
     file_source::FileSource,
-    module::Module,
+    module::{Module, Modules},
     output::OutputAsset,
     reference::primary_referenced_modules,
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
@@ -38,6 +40,12 @@ use turbopack_ecmascript::{
     tree_shake::asset::EcmascriptModulePartAsset, EcmascriptParsable,
 };
 
+#[turbo_tasks::value]
+pub(crate) struct ServerActionsManifest {
+    pub loader: Vc<Box<dyn EvaluatableAsset>>,
+    pub manifest: ResolvedVc<Box<dyn OutputAsset>>,
+}
+
 /// Scans the RSC entry point's full module graph looking for exported Server
 /// Actions (identifiable by a magic comment in the transformed module's
 /// output), and constructs a evaluatable "action loader" entry point and
@@ -45,29 +53,31 @@ use turbopack_ecmascript::{
 ///
 /// If Server Actions are not enabled, this returns an empty manifest and a None
 /// loader.
+#[turbo_tasks::function]
 pub(crate) async fn create_server_actions_manifest(
     rsc_entry: Vc<Box<dyn Module>>,
-    server_reference_modules: Vc<Vec<Vc<Box<dyn Module>>>>,
+    server_reference_modules: Vc<Modules>,
     project_path: Vc<FileSystemPath>,
     node_root: Vc<FileSystemPath>,
-    page_name: &str,
+    page_name: RcStr,
     runtime: NextRuntime,
     asset_context: Vc<Box<dyn AssetContext>>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-) -> Result<(Vc<Box<dyn EvaluatableAsset>>, Vc<Box<dyn OutputAsset>>)> {
+) -> Result<Vc<ServerActionsManifest>> {
     let actions = get_actions(rsc_entry, server_reference_modules, asset_context);
     let loader =
-        build_server_actions_loader(project_path, page_name.into(), actions, asset_context);
+        build_server_actions_loader(project_path, page_name.clone(), actions, asset_context);
     let evaluable = Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(loader)
         .await?
         .context("loader module must be evaluatable")?;
 
-    let loader_id = loader
-        .as_chunk_item(Vc::upcast(chunking_context))
-        .id()
-        .to_string();
-    let manifest = build_manifest(node_root, page_name, runtime, actions, loader_id).await?;
-    Ok((evaluable, manifest))
+    let chunk_item = loader.as_chunk_item(Vc::upcast(chunking_context));
+    let manifest = build_manifest(node_root, page_name, runtime, actions, chunk_item).await?;
+    Ok(ServerActionsManifest {
+        loader: evaluable,
+        manifest,
+    }
+    .cell())
 }
 
 /// Builds the "action loader" entry point, which reexports every found action
@@ -85,12 +95,12 @@ async fn build_server_actions_loader(
 ) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
     let actions = actions.await?;
 
-    // Every module which exports an action (that is accessible starting from our
-    // app page entry point) will be present. We generate a single loader file
-    // which lazily imports the respective module's chunk_item id and invokes
-    // the exported action function.
-    let mut contents = RopeBuilder::from("__turbopack_export_value__({\n");
-    let mut import_map = IndexMap::new();
+    // Every module which exports an action (that is accessible starting from
+    // our app page entry point) will be present. We generate a single loader
+    // file which re-exports the respective module's action function using the
+    // hashed ID as export name.
+    let mut contents = RopeBuilder::from("");
+    let mut import_map = FxIndexMap::default();
     for (hash_id, (_layer, name, module)) in actions.iter() {
         let index = import_map.len();
         let module_name = import_map
@@ -98,11 +108,9 @@ async fn build_server_actions_loader(
             .or_insert_with(|| format!("ACTIONS_MODULE{index}").into());
         writeln!(
             contents,
-            "  '{hash_id}': (...args) => Promise.resolve(require('{module_name}')).then(mod => \
-             (0, mod['{name}'])(...args)),",
+            "export {{{name} as '{hash_id}'}} from '{module_name}'"
         )?;
     }
-    write!(contents, "}});")?;
 
     let output_path =
         project_path.join(format!(".next-internal/server/app{page_name}/actions.js").into());
@@ -129,12 +137,12 @@ async fn build_server_actions_loader(
 /// module id which exports a function using that hashed name.
 async fn build_manifest(
     node_root: Vc<FileSystemPath>,
-    page_name: &str,
+    page_name: RcStr,
     runtime: NextRuntime,
     actions: Vc<AllActions>,
-    loader_id: Vc<RcStr>,
-) -> Result<Vc<Box<dyn OutputAsset>>> {
-    let manifest_path_prefix = page_name;
+    chunk_item: Vc<Box<dyn ChunkItem>>,
+) -> Result<ResolvedVc<Box<dyn OutputAsset>>> {
+    let manifest_path_prefix = &page_name;
     let manifest_path = node_root
         .join(format!("server/app{manifest_path_prefix}/server-reference-manifest.json",).into());
     let mut manifest = ServerReferenceManifest {
@@ -144,7 +152,7 @@ async fn build_manifest(
     let key = format!("app{page_name}");
 
     let actions_value = actions.await?;
-    let loader_id_value = loader_id.await?;
+    let loader_id = chunk_item.id().to_string().await?;
     let mapping = match runtime {
         NextRuntime::Edge => &mut manifest.edge,
         NextRuntime::NodeJs => &mut manifest.node,
@@ -154,15 +162,22 @@ async fn build_manifest(
         let entry = mapping.entry(hash_id.as_str()).or_default();
         entry.workers.insert(
             &key,
-            ActionManifestWorkerEntry::String(loader_id_value.as_str()),
+            ActionManifestWorkerEntry {
+                module_id: ActionManifestModuleId::String(loader_id.as_str()),
+                is_async: *chunk_item.is_self_async().await?,
+            },
         );
         entry.layer.insert(&key, *layer);
     }
 
-    Ok(Vc::upcast(VirtualOutputAsset::new(
-        manifest_path,
-        AssetContent::file(File::from(serde_json::to_string_pretty(&manifest)?).into()),
-    )))
+    Ok(ResolvedVc::upcast(
+        VirtualOutputAsset::new(
+            manifest_path,
+            AssetContent::file(File::from(serde_json::to_string_pretty(&manifest)?).into()),
+        )
+        .to_resolved()
+        .await?,
+    ))
 }
 
 /// Traverses the entire module graph starting from [Module], looking for magic
@@ -170,8 +185,8 @@ async fn build_manifest(
 /// returned along with the module which exports that action.
 #[turbo_tasks::function]
 async fn get_actions(
-    rsc_entry: Vc<Box<dyn Module>>,
-    server_reference_modules: Vc<Vec<Vc<Box<dyn Module>>>>,
+    rsc_entry: ResolvedVc<Box<dyn Module>>,
+    server_reference_modules: Vc<Modules>,
     asset_context: Vc<Box<dyn AssetContext>>,
 ) -> Result<Vc<AllActions>> {
     async move {
@@ -197,12 +212,12 @@ async fn get_actions(
         // Actions can be imported by both Client and RSC layers, in which case we need
         // to use the RSC layer's module. We do that by merging the hashes (which match
         // in both layers) and preferring the RSC layer's action.
-        let mut all_actions: HashToLayerNameModule = IndexMap::new();
+        let mut all_actions: HashToLayerNameModule = FxIndexMap::default();
         for ((layer, module), actions_map) in actions.iter() {
             let module = if *layer == ActionLayer::Rsc {
                 *module
             } else {
-                to_rsc_context(*module, asset_context).await?
+                to_rsc_context(**module, asset_context).await?
             };
 
             for (hash_id, name) in &*actions_map.await? {
@@ -231,7 +246,7 @@ async fn get_actions(
 async fn to_rsc_context(
     module: Vc<Box<dyn Module>>,
     asset_context: Vc<Box<dyn AssetContext>>,
-) -> Result<Vc<Box<dyn Module>>> {
+) -> Result<ResolvedVc<Box<dyn Module>>> {
     let source = FileSource::new_with_query(module.ident().path(), module.ident().query());
     let module = asset_context
         .process(
@@ -240,16 +255,18 @@ async fn to_rsc_context(
                 EcmaScriptModulesReferenceSubType::Undefined,
             )),
         )
-        .module();
+        .module()
+        .to_resolved()
+        .await?;
     Ok(module)
 }
 
 /// Our graph traversal visitor, which finds the primary modules directly
 /// referenced by parent.
 async fn get_referenced_modules(
-    (layer, module): (ActionLayer, Vc<Box<dyn Module>>),
-) -> Result<impl Iterator<Item = (ActionLayer, Vc<Box<dyn Module>>)> + Send> {
-    primary_referenced_modules(module)
+    (layer, module): (ActionLayer, ResolvedVc<Box<dyn Module>>),
+) -> Result<impl Iterator<Item = (ActionLayer, ResolvedVc<Box<dyn Module>>)> + Send> {
+    primary_referenced_modules(*module)
         .await
         .map(|modules| modules.into_iter().map(move |&m| (layer, m)))
 }
@@ -296,6 +313,7 @@ async fn parse_actions(module: Vc<Box<dyn Module>>) -> Result<Vc<OptionActionMap
                 | ModulePart::Exports
                 | ModulePart::Facade
                 | ModulePart::Internal(..)
+                | ModulePart::InternalEvaluation(..)
         ) {
             return Ok(OptionActionMap::none());
         }
@@ -332,7 +350,7 @@ async fn parse_actions(module: Vc<Box<dyn Module>>) -> Result<Vc<OptionActionMap
         actions.retain(|_, name| all_exports.iter().any(|export| export == name));
     }
 
-    let mut actions = IndexMap::from_iter(actions.into_iter());
+    let mut actions = FxIndexMap::from_iter(actions.into_iter());
     actions.sort_keys();
     Ok(Vc::cell(Some(Vc::cell(actions))))
 }
@@ -396,18 +414,18 @@ fn all_export_names(program: &Program) -> Vec<Atom> {
 }
 
 /// Converts our cached [parse_actions] call into a data type suitable for
-/// collecting into a flat-mapped [IndexMap].
+/// collecting into a flat-mapped [FxIndexMap].
 async fn parse_actions_filter_map(
-    (layer, module): (ActionLayer, Vc<Box<dyn Module>>),
-) -> Result<Option<((ActionLayer, Vc<Box<dyn Module>>), Vc<ActionMap>)>> {
-    parse_actions(module).await.map(|option_action_map| {
+    (layer, module): (ActionLayer, ResolvedVc<Box<dyn Module>>),
+) -> Result<Option<((ActionLayer, ResolvedVc<Box<dyn Module>>), Vc<ActionMap>)>> {
+    parse_actions(*module).await.map(|option_action_map| {
         option_action_map
             .clone_value()
             .map(|action_map| ((layer, module), action_map))
     })
 }
 
-type HashToLayerNameModule = IndexMap<String, (ActionLayer, String, Vc<Box<dyn Module>>)>;
+type HashToLayerNameModule = FxIndexMap<String, (ActionLayer, String, ResolvedVc<Box<dyn Module>>)>;
 
 /// A mapping of every module which exports a Server Action, with the hashed id
 /// and exported name of each found action.
@@ -418,13 +436,13 @@ struct AllActions(HashToLayerNameModule);
 impl AllActions {
     #[turbo_tasks::function]
     pub fn empty() -> Vc<Self> {
-        Vc::cell(IndexMap::new())
+        Vc::cell(FxIndexMap::default())
     }
 }
 
 /// Maps the hashed action id to the action's exported function name.
 #[turbo_tasks::value(transparent)]
-struct ActionMap(IndexMap<String, String>);
+struct ActionMap(FxIndexMap<String, String>);
 
 /// An Option wrapper around [ActionMap].
 #[turbo_tasks::value(transparent)]

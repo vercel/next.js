@@ -3,7 +3,7 @@ use swc_core::{
     ecma::ast::{Expr, ExprOrSpread, Lit, NewExpr},
     quote_expr,
 };
-use turbo_tasks::{RcStr, Value, ValueToString, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, Value, ValueToString, Vc};
 use turbopack_core::{
     chunk::{ChunkableModule, ChunkableModuleReference, ChunkingContext},
     issue::{code_gen::CodeGenerationIssue, IssueExt, IssueSeverity, IssueSource, StyledString},
@@ -12,7 +12,6 @@ use turbopack_core::{
     reference_type::{ReferenceType, WorkerReferenceSubType},
     resolve::{origin::ResolveOrigin, parse::Request, url_resolve, ModuleResolveResult},
 };
-use turbopack_resolve::ecmascript::try_to_severity;
 
 use crate::{
     code_gen::{CodeGenerateable, CodeGeneration},
@@ -61,13 +60,13 @@ impl WorkerAssetReference {
             // TODO support more worker types
             Value::new(ReferenceType::Worker(WorkerReferenceSubType::WebWorker)),
             Some(self.issue_source),
-            try_to_severity(self.in_try),
+            self.in_try,
         );
 
         let Some(module) = *module.first_module().await? else {
             bail!("Expected worker to resolve to a module");
         };
-        let Some(chunkable) = Vc::try_resolve_downcast::<Box<dyn ChunkableModule>>(module).await?
+        let Some(chunkable) = ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(module).await?
         else {
             CodeGenerationIssue {
                 severity: IssueSeverity::Bug.into(),
@@ -80,7 +79,7 @@ impl WorkerAssetReference {
             return Ok(None);
         };
 
-        Ok(Some(WorkerLoaderModule::new(chunkable)))
+        Ok(Some(WorkerLoaderModule::new(*chunkable)))
     }
 }
 
@@ -89,9 +88,12 @@ impl ModuleReference for WorkerAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         if let Some(worker_loader_module) = self.worker_loader_module().await? {
-            Ok(ModuleResolveResult::module(Vc::upcast(worker_loader_module)).cell())
+            Ok(ModuleResolveResult::module(ResolvedVc::upcast(
+                worker_loader_module.to_resolved().await?,
+            ))
+            .cell())
         } else {
-            Ok(ModuleResolveResult::unresolveable().cell())
+            Ok(ModuleResolveResult::unresolvable().cell())
         }
     }
 }
@@ -158,9 +160,6 @@ impl CodeGenerateable for WorkerAssetReference {
             );
         });
 
-        Ok(CodeGeneration {
-            visitors: vec![visitor],
-        }
-        .into())
+        Ok(CodeGeneration::visitors(vec![visitor]))
     }
 }

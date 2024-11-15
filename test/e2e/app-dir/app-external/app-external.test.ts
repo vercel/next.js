@@ -264,6 +264,11 @@ describe('app dir - external dependency', () => {
     expect(html).toContain('hello')
   })
 
+  it('should support client module references with SSR-only ESM externals', async () => {
+    const html = await next.render('/esm-client-ref-external')
+    expect(html).toContain('client external-pure-esm-lib')
+  })
+
   it('should support exporting multiple star re-exports', async () => {
     const html = await next.render('/wildcard')
     expect(html).toContain('Foo')

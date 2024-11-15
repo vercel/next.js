@@ -530,8 +530,7 @@ function Router({
     }
   }, [dispatch])
 
-  const { cache, tree, nextUrl, focusAndScrollRef, buildId } =
-    useUnwrapState(state)
+  const { cache, tree, nextUrl, focusAndScrollRef } = useUnwrapState(state)
 
   const matchingHead = useMemo(() => {
     return findHeadInCache(cache, tree[1])
@@ -555,13 +554,12 @@ function Router({
 
   const globalLayoutRouterContext = useMemo(() => {
     return {
-      buildId,
       changeByServerResponse,
       tree,
       focusAndScrollRef,
       nextUrl,
     }
-  }, [buildId, changeByServerResponse, tree, focusAndScrollRef, nextUrl])
+  }, [changeByServerResponse, tree, focusAndScrollRef, nextUrl])
 
   let head
   if (matchingHead !== null) {
@@ -587,9 +585,13 @@ function Router({
 
   if (process.env.NODE_ENV !== 'production') {
     if (typeof window !== 'undefined') {
-      const DevRootNotFoundBoundary: typeof import('./dev-root-not-found-boundary').DevRootNotFoundBoundary =
-        require('./dev-root-not-found-boundary').DevRootNotFoundBoundary
-      content = <DevRootNotFoundBoundary>{content}</DevRootNotFoundBoundary>
+      const { DevRootHTTPAccessFallbackBoundary } =
+        require('./dev-root-http-access-fallback-boundary') as typeof import('./dev-root-http-access-fallback-boundary')
+      content = (
+        <DevRootHTTPAccessFallbackBoundary>
+          {content}
+        </DevRootHTTPAccessFallbackBoundary>
+      )
     }
     const HotReloader: typeof import('./react-dev-overlay/app/hot-reloader-client').default =
       require('./react-dev-overlay/app/hot-reloader-client').default
@@ -622,17 +624,20 @@ function Router({
 
 export default function AppRouter({
   actionQueue,
-  globalErrorComponent,
+  globalErrorComponentAndStyles: [globalErrorComponent, globalErrorStyles],
   assetPrefix,
 }: {
   actionQueue: AppRouterActionQueue
-  globalErrorComponent: ErrorComponent
+  globalErrorComponentAndStyles: [ErrorComponent, React.ReactNode | undefined]
   assetPrefix: string
 }) {
   useNavFailureHandler()
 
   return (
-    <ErrorBoundary errorComponent={globalErrorComponent}>
+    <ErrorBoundary
+      errorComponent={globalErrorComponent}
+      errorStyles={globalErrorStyles}
+    >
       <Router actionQueue={actionQueue} assetPrefix={assetPrefix} />
     </ErrorBoundary>
   )

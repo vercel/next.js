@@ -1,7 +1,7 @@
-use std::path::MAIN_SEPARATOR;
+use std::{path::MAIN_SEPARATOR, time::Duration};
 
 use anyhow::{bail, Context, Result};
-use indexmap::{indexmap, map::Entry, IndexMap};
+use indexmap::map::Entry;
 use next_core::{
     all_assets_from_entries,
     app_structure::find_app_dir,
@@ -24,10 +24,11 @@ use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_tasks::{
     debug::ValueDebugFormat,
+    fxindexmap,
     graph::{AdjacencyMap, GraphTraversal},
     trace::TraceRawVcs,
-    Completion, Completions, IntoTraitRef, RcStr, ReadRef, State, TaskInput, TransientInstance,
-    TryFlatJoinIterExt, Value, Vc,
+    Completion, Completions, FxIndexMap, IntoTraitRef, RcStr, ReadRef, ResolvedVc, State,
+    TaskInput, TransientInstance, TryFlatJoinIterExt, Value, Vc,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath, VirtualFileSystem};
@@ -78,6 +79,19 @@ pub struct DraftModeOptions {
     pub preview_mode_signing_key: RcStr,
 }
 
+#[derive(
+    Debug, Default, Serialize, Deserialize, Copy, Clone, TaskInput, PartialEq, Eq, Hash, TraceRawVcs,
+)]
+#[serde(rename_all = "camelCase")]
+pub struct WatchOptions {
+    /// Whether to watch the filesystem for file changes.
+    pub enable: bool,
+
+    /// Enable polling at a certain interval if the native file watching doesn't work (e.g.
+    /// docker).
+    pub poll_interval: Option<Duration>,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, Hash, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectOptions {
@@ -101,8 +115,8 @@ pub struct ProjectOptions {
     /// time.
     pub define_env: DefineEnv,
 
-    /// Whether to watch the filesystem for file changes.
-    pub watch: bool,
+    /// Filesystem watcher options.
+    pub watch: WatchOptions,
 
     /// The mode in which Next.js is running.
     pub dev: bool,
@@ -143,8 +157,8 @@ pub struct PartialProjectOptions {
     /// time.
     pub define_env: Option<DefineEnv>,
 
-    /// Whether to watch the filesystem for file changes.
-    pub watch: Option<bool>,
+    /// Filesystem watcher options.
+    pub watch: Option<WatchOptions>,
 
     /// The mode in which Next.js is running.
     pub dev: Option<bool>,
@@ -203,18 +217,21 @@ impl ProjectContainer {
 impl ProjectContainer {
     #[tracing::instrument(level = "info", name = "initialize project", skip_all)]
     pub async fn initialize(self: Vc<Self>, options: ProjectOptions) -> Result<()> {
+        let watch = options.watch;
+
         self.await?.options_state.set(Some(options));
+
         let project = self.project();
-        project
-            .project_fs()
-            .strongly_consistent()
-            .await?
-            .start_watching_with_invalidation_reason()?;
-        project
-            .output_fs()
-            .strongly_consistent()
-            .await?
-            .invalidate_with_reason();
+        let project_fs = project.project_fs().strongly_consistent().await?;
+        if watch.enable {
+            project_fs
+                .start_watching_with_invalidation_reason(watch.poll_interval)
+                .await?;
+        } else {
+            project_fs.invalidate_with_reason();
+        }
+        let output_fs = project.output_fs().strongly_consistent().await?;
+        output_fs.invalidate_with_reason();
         Ok(())
     }
 
@@ -277,6 +294,7 @@ impl ProjectContainer {
         }
 
         // TODO: Handle mode switch, should prevent mode being switched.
+        let watch = new_options.watch;
 
         let project = self.project();
         let prev_project_fs = project.project_fs().strongly_consistent().await?;
@@ -287,8 +305,14 @@ impl ProjectContainer {
         let output_fs = project.output_fs().strongly_consistent().await?;
 
         if !ReadRef::ptr_eq(&prev_project_fs, &project_fs) {
-            // TODO stop watching: prev_project_fs.stop_watching()?;
-            project_fs.start_watching_with_invalidation_reason()?;
+            if watch.enable {
+                // TODO stop watching: prev_project_fs.stop_watching()?;
+                project_fs
+                    .start_watching_with_invalidation_reason(watch.poll_interval)
+                    .await?;
+            } else {
+                project_fs.invalidate_with_reason();
+            }
         }
         if !ReadRef::ptr_eq(&prev_output_fs, &output_fs) {
             prev_output_fs.invalidate_with_reason();
@@ -407,8 +431,8 @@ pub struct Project {
     /// A path inside the root_path which contains the app/pages directories.
     pub project_path: RcStr,
 
-    /// Whether to watch the filesystem for file changes.
-    watch: bool,
+    /// Filesystem watcher options.
+    watch: WatchOptions,
 
     /// Next config.
     next_config: Vc<NextConfig>,
@@ -505,7 +529,7 @@ impl Project {
         let app_dir = find_app_dir(self.project_path()).await?;
 
         Ok(Vc::cell(
-            app_dir.map(|app_dir| AppProject::new(self, app_dir)),
+            app_dir.map(|app_dir| AppProject::new(self, *app_dir)),
         ))
     }
 
@@ -515,20 +539,16 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    async fn project_fs(&self) -> Result<Vc<DiskFileSystem>> {
-        let disk_fs = DiskFileSystem::new(
+    pub fn project_fs(&self) -> Vc<DiskFileSystem> {
+        DiskFileSystem::new(
             PROJECT_FILESYSTEM_NAME.into(),
             self.root_path.clone(),
             vec![],
-        );
-        if self.watch {
-            disk_fs.await?.start_watching_with_invalidation_reason()?;
-        }
-        Ok(disk_fs)
+        )
     }
 
     #[turbo_tasks::function]
-    fn client_fs(self: Vc<Self>) -> Vc<Box<dyn FileSystem>> {
+    pub fn client_fs(self: Vc<Self>) -> Vc<Box<dyn FileSystem>> {
         let virtual_fs = VirtualFileSystem::new();
         Vc::upcast(virtual_fs)
     }
@@ -604,6 +624,13 @@ impl Project {
     }
 
     #[turbo_tasks::function]
+    pub(super) async fn should_create_webpack_stats(&self) -> Result<Vc<bool>> {
+        Ok(Vc::cell(
+            self.env.read("TURBOPACK_STATS".into()).await?.is_some(),
+        ))
+    }
+
+    #[turbo_tasks::function]
     pub(super) async fn execution_context(self: Vc<Self>) -> Result<Vc<ExecutionContext>> {
         let node_root = self.node_root();
         let next_mode = self.next_mode().await?;
@@ -653,7 +680,7 @@ impl Project {
 
     #[turbo_tasks::function]
     pub(super) fn edge_env(&self) -> Vc<EnvMap> {
-        let edge_env = indexmap! {
+        let edge_env = fxindexmap! {
             "__NEXT_BUILD_ID".into() => self.build_id.clone(),
             "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY".into() => self.encryption_key.clone(),
             "__NEXT_PREVIEW_MODE_ID".into() => self.preview_props.preview_mode_id.clone(),
@@ -672,6 +699,7 @@ impl Project {
             self.client_compile_time_info().environment(),
             self.next_mode(),
             self.module_id_strategy(),
+            self.next_config().turbo_minify(self.next_mode()),
         )
     }
 
@@ -689,6 +717,7 @@ impl Project {
                 self.next_config().computed_asset_prefix(),
                 self.server_compile_time_info().environment(),
                 self.module_id_strategy(),
+                self.next_config().turbo_minify(self.next_mode()),
             )
         } else {
             get_server_chunking_context(
@@ -697,6 +726,7 @@ impl Project {
                 self.node_root(),
                 self.server_compile_time_info().environment(),
                 self.module_id_strategy(),
+                self.next_config().turbo_minify(self.next_mode()),
             )
         }
     }
@@ -715,6 +745,7 @@ impl Project {
                 self.next_config().computed_asset_prefix(),
                 self.edge_compile_time_info().environment(),
                 self.module_id_strategy(),
+                self.next_config().turbo_minify(self.next_mode()),
             )
         } else {
             get_edge_chunking_context(
@@ -723,7 +754,20 @@ impl Project {
                 self.node_root(),
                 self.edge_compile_time_info().environment(),
                 self.module_id_strategy(),
+                self.next_config().turbo_minify(self.next_mode()),
             )
+        }
+    }
+
+    #[turbo_tasks::function]
+    pub(super) fn runtime_chunking_context(
+        self: Vc<Self>,
+        client_assets: bool,
+        runtime: NextRuntime,
+    ) -> Vc<Box<dyn ChunkingContext>> {
+        match runtime {
+            NextRuntime::Edge => self.edge_chunking_context(client_assets),
+            NextRuntime::NodeJs => Vc::upcast(self.server_chunking_context(client_assets)),
         }
     }
 
@@ -776,7 +820,7 @@ impl Project {
 
         emit_event("modularizeImports", config.modularize_imports.is_some());
         emit_event("transpilePackages", config.transpile_packages.is_some());
-        emit_event("turbotrace", config.experimental.turbotrace.is_some());
+        emit_event("turbotrace", false);
 
         // compiler options
         let compiler_options = config.compiler.as_ref();
@@ -809,7 +853,7 @@ impl Project {
     pub async fn entrypoints(self: Vc<Self>) -> Result<Vc<Entrypoints>> {
         self.collect_project_feature_telemetry().await?;
 
-        let mut routes = IndexMap::new();
+        let mut routes = FxIndexMap::default();
         let app_project = self.app_project();
         let pages_project = self.pages_project();
 
@@ -900,7 +944,10 @@ impl Project {
         if let Some(app_project) = app_project {
             transitions.push((
                 ECMASCRIPT_CLIENT_TRANSITION_NAME.into(),
-                app_project.edge_client_reference_transition(),
+                app_project
+                    .edge_client_reference_transition()
+                    .to_resolved()
+                    .await?,
             ));
         }
 
@@ -950,7 +997,7 @@ impl Project {
         let FindContextFileResult::Found(fs_path, _) = *middleware.await? else {
             return Ok(Vc::upcast(EmptyEndpoint::new()));
         };
-        let source = Vc::upcast(FileSource::new(fs_path));
+        let source = Vc::upcast(FileSource::new(*fs_path));
         let app_dir = *find_app_dir(self.project_path()).await?;
         let ecmascript_client_reference_transition_name = (*self.app_project().await?)
             .as_ref()
@@ -962,7 +1009,7 @@ impl Project {
             self,
             middleware_asset_context,
             source,
-            app_dir,
+            app_dir.as_deref().copied(),
             ecmascript_client_reference_transition_name,
         )))
     }
@@ -981,7 +1028,10 @@ impl Project {
         if let Some(app_project) = app_project {
             transitions.push((
                 ECMASCRIPT_CLIENT_TRANSITION_NAME.into(),
-                app_project.client_reference_transition(),
+                app_project
+                    .client_reference_transition()
+                    .to_resolved()
+                    .await?,
             ));
         }
 
@@ -1031,7 +1081,10 @@ impl Project {
         if let Some(app_project) = app_project {
             transitions.push((
                 ECMASCRIPT_CLIENT_TRANSITION_NAME.into(),
-                app_project.edge_client_reference_transition(),
+                app_project
+                    .edge_client_reference_transition()
+                    .to_resolved()
+                    .await?,
             ));
         }
 
@@ -1084,7 +1137,7 @@ impl Project {
         let FindContextFileResult::Found(fs_path, _) = *instrumentation.await? else {
             return Ok(Vc::upcast(EmptyEndpoint::new()));
         };
-        let source = Vc::upcast(FileSource::new(fs_path));
+        let source = Vc::upcast(FileSource::new(*fs_path));
         let app_dir = *find_app_dir(self.project_path()).await?;
         let ecmascript_client_reference_transition_name = (*self.app_project().await?)
             .as_ref()
@@ -1101,7 +1154,7 @@ impl Project {
             instrumentation_asset_context,
             source,
             is_edge,
-            app_dir,
+            app_dir.as_deref().copied(),
             ecmascript_client_reference_transition_name,
         )))
     }
@@ -1239,10 +1292,10 @@ impl Project {
     #[turbo_tasks::function]
     pub async fn client_main_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
         let pages_project = self.pages_project();
-        let mut modules = vec![pages_project.client_main_module()];
+        let mut modules = vec![pages_project.client_main_module().to_resolved().await?];
 
         if let Some(app_project) = *self.app_project().await? {
-            modules.push(app_project.client_main_module());
+            modules.push(app_project.client_main_module().to_resolved().await?);
         }
 
         Ok(Vc::cell(modules))
@@ -1259,7 +1312,7 @@ impl Project {
             }
             None => match *self.next_mode().await? {
                 NextMode::Development => Ok(Vc::upcast(DevModuleIdStrategy::new())),
-                NextMode::Build => Ok(Vc::upcast(GlobalModuleIdStrategyBuilder::build(self))),
+                NextMode::Build => Ok(Vc::upcast(DevModuleIdStrategy::new())),
             },
         }
     }
@@ -1285,7 +1338,7 @@ async fn any_output_changed(
                 && (!server || !asset_path.path.ends_with(".css"))
                 && asset_path.is_inside_ref(path)
             {
-                Ok(Some(content_changed(Vc::upcast(m))))
+                Ok(Some(content_changed(*ResolvedVc::upcast(m))))
             } else {
                 Ok(None)
             }
@@ -1297,8 +1350,8 @@ async fn any_output_changed(
 }
 
 async fn get_referenced_output_assets(
-    parent: Vc<Box<dyn OutputAsset>>,
-) -> Result<impl Iterator<Item = Vc<Box<dyn OutputAsset>>> + Send> {
+    parent: ResolvedVc<Box<dyn OutputAsset>>,
+) -> Result<impl Iterator<Item = ResolvedVc<Box<dyn OutputAsset>>> + Send> {
     Ok(parent.references().await?.clone_value().into_iter())
 }
 

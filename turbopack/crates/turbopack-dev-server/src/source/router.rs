@@ -11,8 +11,9 @@ use super::{
 };
 use crate::source::{route_tree::MapGetContentSourceContent, ContentSources};
 
-/// Binds different ContentSources to different subpaths. The request path must
-/// begin with the prefix, which will be stripped (along with the subpath)
+/// Binds different ContentSources to different subpaths.
+///
+/// The request path must begin with the prefix, which will be stripped (along with the subpath)
 /// before querying the ContentSource. A fallback ContentSource will serve all
 /// other subpaths, including if the request path does not include the prefix.
 #[turbo_tasks::value(shared)]

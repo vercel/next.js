@@ -29,6 +29,7 @@ DEALINGS IN THE SOFTWARE.
 #![recursion_limit = "2048"]
 //#![deny(clippy::all)]
 #![feature(arbitrary_self_types)]
+#![feature(arbitrary_self_types_pointers)]
 
 #[macro_use]
 extern crate napi_derive;
@@ -59,8 +60,6 @@ pub mod transform;
 pub mod turbo_trace_server;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod turbopack;
-#[cfg(not(target_arch = "wasm32"))]
-pub mod turbotrace;
 pub mod util;
 
 // Declare build-time information variables generated in build.rs

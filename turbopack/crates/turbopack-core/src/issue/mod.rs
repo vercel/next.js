@@ -1,5 +1,6 @@
 pub mod analyze;
 pub mod code_gen;
+pub mod module;
 pub mod resolve;
 
 use std::{
@@ -12,7 +13,7 @@ use async_trait::async_trait;
 use auto_hash_map::AutoSet;
 use serde::Serialize;
 use turbo_tasks::{
-    emit, CollectiblesSource, RawVc, RcStr, ReadRef, TransientInstance, TransientValue,
+    emit, CollectiblesSource, RawVc, RcStr, ReadRef, ResolvedVc, TransientInstance, TransientValue,
     TryJoinIterExt, Upcast, ValueToString, Vc,
 };
 use turbo_tasks_fs::{FileContent, FileLine, FileLinesContent, FileSystemPath};
@@ -353,7 +354,7 @@ where
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct Issues(Vec<Vc<Box<dyn Issue>>>);
+pub struct Issues(Vec<ResolvedVc<Box<dyn Issue>>>);
 
 /// A list of issues captured with [`Issue::peek_issues_with_path`] and
 /// [`Issue::take_issues_with_path`].
@@ -429,7 +430,7 @@ impl CapturedIssues {
 #[derive(Clone, Debug)]
 pub struct IssueSource {
     source: Vc<Box<dyn Source>>,
-    range: Option<Vc<SourceRange>>,
+    range: Option<ResolvedVc<SourceRange>>,
 }
 
 /// The end position is the first character after the range
@@ -460,7 +461,7 @@ impl IssueSource {
     ) -> Vc<Self> {
         Self::cell(IssueSource {
             source,
-            range: Some(SourceRange::LineColumn(start, end).cell()),
+            range: Some(SourceRange::LineColumn(start, end).resolved_cell()),
         })
     }
 
@@ -492,7 +493,7 @@ impl IssueSource {
             if let Some((source, start, end)) = mapped {
                 return Ok(Self::cell(IssueSource {
                     source,
-                    range: Some(SourceRange::LineColumn(start, end).cell()),
+                    range: Some(SourceRange::LineColumn(start, end).resolved_cell()),
                 }));
             }
         }
@@ -514,9 +515,11 @@ impl IssueSource {
             source,
             range: match (start == 0, end == 0) {
                 (true, true) => None,
-                (false, false) => Some(SourceRange::ByteOffset(start - 1, end - 1).cell()),
-                (false, true) => Some(SourceRange::ByteOffset(start - 1, start - 1).cell()),
-                (true, false) => Some(SourceRange::ByteOffset(end - 1, end - 1).cell()),
+                (false, false) => Some(SourceRange::ByteOffset(start - 1, end - 1).resolved_cell()),
+                (false, true) => {
+                    Some(SourceRange::ByteOffset(start - 1, start - 1).resolved_cell())
+                }
+                (true, false) => Some(SourceRange::ByteOffset(end - 1, end - 1).resolved_cell()),
             },
         })
     }
@@ -541,7 +544,7 @@ impl IssueSource {
             range: if let FileLinesContent::Lines(lines) = &*source.content().lines().await? {
                 let start = find_line_and_column(lines.as_ref(), start);
                 let end = find_line_and_column(lines.as_ref(), end);
-                Some(SourceRange::LineColumn(start, end).cell())
+                Some(SourceRange::LineColumn(start, end).resolved_cell())
             } else {
                 None
             },
@@ -552,6 +555,27 @@ impl IssueSource {
     #[turbo_tasks::function]
     pub fn file_path(&self) -> Vc<FileSystemPath> {
         self.source.ident().path()
+    }
+}
+
+impl IssueSource {
+    /// Returns bytes offsets corresponding the source range in the format used by swc's Spans.
+    pub async fn to_swc_offsets(&self) -> Result<Option<(usize, usize)>> {
+        Ok(match self.range {
+            Some(range) => match &*range.await? {
+                SourceRange::ByteOffset(start, end) => Some((*start + 1, *end + 1)),
+                SourceRange::LineColumn(start, end) => {
+                    if let FileLinesContent::Lines(lines) = &*self.source.content().lines().await? {
+                        let start = find_offset(lines.as_ref(), *start) + 1;
+                        let end = find_offset(lines.as_ref(), *end) + 1;
+                        Some((start, end))
+                    } else {
+                        None
+                    }
+                }
+            },
+            _ => None,
+        })
     }
 }
 
@@ -661,14 +685,14 @@ impl Display for IssueStage {
 }
 
 #[turbo_tasks::value(serialization = "none")]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialOrd, Ord)]
 pub struct PlainIssue {
     pub severity: IssueSeverity,
-    pub file_path: RcStr,
-
     pub stage: IssueStage,
 
     pub title: StyledString,
+    pub file_path: RcStr,
+
     pub description: Option<StyledString>,
     pub detail: Option<StyledString>,
     pub documentation_link: RcStr,
@@ -676,34 +700,6 @@ pub struct PlainIssue {
     pub source: Option<ReadRef<PlainIssueSource>>,
     pub sub_issues: Vec<ReadRef<PlainIssue>>,
     pub processing_path: ReadRef<PlainIssueProcessingPath>,
-}
-
-impl Ord for PlainIssue {
-    fn cmp(&self, other: &Self) -> Ordering {
-        macro_rules! cmp {
-            ($a:expr, $b:expr) => {
-                match $a.cmp(&$b) {
-                    Ordering::Equal => {}
-                    other => return other,
-                }
-            };
-        }
-
-        cmp!(self.severity, other.severity);
-        cmp!(self.stage, other.stage);
-        cmp!(self.title, other.title);
-        cmp!(self.file_path, other.file_path);
-        cmp!(self.description, other.description);
-        cmp!(self.detail, other.detail);
-        cmp!(self.documentation_link, other.documentation_link);
-        Ordering::Equal
-    }
-}
-
-impl PartialOrd for PlainIssue {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
 }
 
 fn hash_plain_issue(issue: &PlainIssue, hasher: &mut Xxh3Hash64Hasher, full: bool) {
@@ -767,7 +763,7 @@ impl PlainIssue {
 }
 
 #[turbo_tasks::value(serialization = "none")]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialOrd, Ord)]
 pub struct PlainIssueSource {
     pub asset: ReadRef<PlainSource>,
     pub range: Option<(SourcePos, SourcePos)>,
@@ -802,7 +798,7 @@ impl IssueSource {
 }
 
 #[turbo_tasks::value(serialization = "none")]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialOrd, Ord)]
 pub struct PlainSource {
     pub ident: ReadRef<RcStr>,
     #[turbo_tasks(debug_ignore)]
@@ -828,11 +824,11 @@ impl PlainSource {
 }
 
 #[turbo_tasks::value(transparent, serialization = "none")]
-#[derive(Clone, Debug, DeterministicHash)]
+#[derive(Clone, Debug, DeterministicHash, PartialOrd, Ord)]
 pub struct PlainIssueProcessingPath(Option<Vec<ReadRef<PlainIssueProcessingPathItem>>>);
 
 #[turbo_tasks::value(serialization = "none")]
-#[derive(Clone, Debug, DeterministicHash)]
+#[derive(Clone, Debug, DeterministicHash, PartialOrd, Ord)]
 pub struct PlainIssueProcessingPathItem {
     pub file_path: Option<ReadRef<RcStr>>,
     pub description: ReadRef<RcStr>,
@@ -1029,4 +1025,9 @@ fn find_line_and_column(lines: &[FileLine], offset: usize) -> SourcePos {
             }
         }
     }
+}
+
+fn find_offset(lines: &[FileLine], pos: SourcePos) -> usize {
+    let line = &lines[pos.line];
+    line.bytes_offset + pos.column
 }

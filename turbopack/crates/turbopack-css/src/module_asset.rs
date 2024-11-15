@@ -1,11 +1,10 @@
 use std::{fmt::Write, sync::Arc};
 
 use anyhow::{bail, Context, Result};
-use indexmap::IndexMap;
 use indoc::formatdoc;
 use lightningcss::css_modules::CssModuleReference;
 use swc_core::common::{BytePos, FileName, LineCol, SourceMap};
-use turbo_tasks::{RcStr, Value, ValueToString, Vc};
+use turbo_tasks::{FxIndexMap, RcStr, ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -82,12 +81,12 @@ impl Module for ModuleCssAsset {
             .await?
             .iter()
             .copied()
-            .chain(match *self.inner().await? {
-                ProcessResult::Module(inner) => {
-                    Some(Vc::upcast(InternalCssAssetReference::new(inner)))
-                }
-                ProcessResult::Ignore => None,
-            })
+            .chain(
+                self.inner()
+                    .try_into_module()
+                    .await?
+                    .map(|inner| Vc::upcast(InternalCssAssetReference::new(*inner))),
+            )
             .collect();
 
         Ok(Vc::cell(references))
@@ -144,7 +143,7 @@ enum ModuleCssClass {
 /// 3. class3: [Local("exported_class3), Import("class4", "./other.module.css")]
 #[turbo_tasks::value(transparent)]
 #[derive(Debug, Clone)]
-struct ModuleCssClasses(IndexMap<String, Vec<ModuleCssClass>>);
+struct ModuleCssClasses(FxIndexMap<String, Vec<ModuleCssClass>>);
 
 #[turbo_tasks::value_impl]
 impl ModuleCssAsset {
@@ -165,7 +164,7 @@ impl ModuleCssAsset {
             .context("inner asset should be CSS processable")?;
 
         let result = inner.get_css_with_placeholder().await?;
-        let mut classes = IndexMap::default();
+        let mut classes = FxIndexMap::default();
 
         // TODO(alexkirsz) Should we report an error on parse error here?
         if let CssWithPlaceholderResult::Ok {
@@ -340,7 +339,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                         };
 
                         let Some(css_module) =
-                            Vc::try_resolve_downcast_type::<ModuleCssAsset>(*resolved_module)
+                            ResolvedVc::try_downcast_type::<ModuleCssAsset>(*resolved_module)
                                 .await?
                         else {
                             CssModuleComposesIssue {
@@ -359,8 +358,8 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                         // TODO(alexkirsz) We should also warn if `original_name` can't be found in
                         // the target module.
 
-                        let placeable: Vc<Box<dyn EcmascriptChunkPlaceable>> =
-                            Vc::upcast(css_module);
+                        let placeable: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>> =
+                            ResolvedVc::upcast(css_module);
 
                         let module_id = placeable
                             .as_chunk_item(Vc::upcast(self.chunking_context))

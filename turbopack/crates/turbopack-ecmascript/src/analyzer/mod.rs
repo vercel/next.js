@@ -5,7 +5,7 @@ use std::{
     cmp::Ordering,
     fmt::{Display, Formatter, Write},
     future::Future,
-    hash::{Hash, Hasher},
+    hash::{BuildHasherDefault, Hash, Hasher},
     mem::take,
     pin::Pin,
     sync::Arc,
@@ -13,11 +13,11 @@ use std::{
 
 use anyhow::{bail, Context, Result};
 use graph::VarGraph;
-use indexmap::{IndexMap, IndexSet};
 use num_bigint::BigInt;
 use num_traits::identities::Zero;
 use once_cell::sync::Lazy;
 use regex::Regex;
+use rustc_hash::FxHasher;
 use swc_core::{
     common::Mark,
     ecma::{
@@ -25,7 +25,7 @@ use swc_core::{
         atoms::{Atom, JsWord},
     },
 };
-use turbo_tasks::{RcStr, Vc};
+use turbo_tasks::{FxIndexMap, FxIndexSet, RcStr, Vc};
 use turbopack_core::compile_time_info::{
     CompileTimeDefineValue, DefineableNameSegment, FreeVarReference,
 };
@@ -999,6 +999,23 @@ impl JsValue {
             has_side_effects: side_effects,
         }
     }
+
+    pub fn unknown_if(
+        is_unknown: bool,
+        value: JsValue,
+        side_effects: bool,
+        reason: impl Into<Cow<'static, str>>,
+    ) -> Self {
+        if is_unknown {
+            Self::Unknown {
+                original_value: Some(value.into()),
+                reason: reason.into(),
+                has_side_effects: side_effects,
+            }
+        } else {
+            value
+        }
+    }
 }
 
 // Methods regarding node count
@@ -1770,7 +1787,7 @@ impl JsValue {
                       "load/loadSync".to_string(),
                       "require('@grpc/proto-loader').load(filepath, { includeDirs: [root] }) https://github.com/grpc/grpc-node"
                     ),
-                    WellKnownFunctionKind::WorkerConstructor => (
+                    WellKnownFunctionKind::WorkerConstructor { .. } => (
                       "Worker".to_string(),
                       "The standard Worker constructor: https://developer.mozilla.org/en-US/docs/Web/API/Worker/Worker"
                     ),
@@ -1903,12 +1920,12 @@ impl JsValue {
     ///
     /// Optionally also prefixes `self` with `prefix`, e.g. to be able to match `typeof foo` if
     /// `self` is just `foo`.
-    pub fn match_free_var_reference<'a>(
+    pub fn match_free_var_reference<'a, T>(
         &self,
         var_graph: Option<&VarGraph>,
-        free_var_references: &'a IndexMap<Vec<DefineableNameSegment>, FreeVarReference>,
+        free_var_references: &'a FxIndexMap<Vec<DefineableNameSegment>, T>,
         prefix_self: &Option<DefineableNameSegment>,
-    ) -> Option<&'a FreeVarReference> {
+    ) -> Option<&'a T> {
         if let Some(def_name_len) = self.get_defineable_name_len() {
             for (name, value) in free_var_references.iter() {
                 if name.len() != def_name_len + (prefix_self.is_some() as usize) {
@@ -1946,10 +1963,10 @@ impl JsValue {
 
     /// Returns any matching defined replacement that matches this value. Optionally also prefixes
     /// `self` with `prefix`, e.g. to be able to match `typeof foo` if `self` is just `foo`.
-    pub fn match_define<'a>(
+    pub fn match_define<'a, T>(
         &self,
-        defines: &'a IndexMap<Vec<DefineableNameSegment>, CompileTimeDefineValue>,
-    ) -> Option<&'a CompileTimeDefineValue> {
+        defines: &'a FxIndexMap<Vec<DefineableNameSegment>, T>,
+    ) -> Option<&'a T> {
         if let Some(def_name_len) = self.get_defineable_name_len() {
             for (name, value) in defines.iter() {
                 if name.len() != def_name_len {
@@ -2691,7 +2708,7 @@ impl JsValue {
         fn visit_async_until_settled_box<'a, F, R, E>(
             value: JsValue,
             visitor: &'a mut F,
-        ) -> PinnedAsyncUntilSettledBox<E>
+        ) -> PinnedAsyncUntilSettledBox<'a, E>
         where
             R: 'a + Future<Output = Result<(JsValue, bool), E>> + Send,
             F: 'a + FnMut(JsValue) -> R + Send,
@@ -2727,7 +2744,7 @@ impl JsValue {
         R: 'a + Future<Output = Result<(Self, bool), E>>,
         F: 'a + FnMut(JsValue) -> R,
     {
-        fn visit_async_box<'a, F, R, E>(value: JsValue, visitor: &'a mut F) -> PinnedAsyncBox<E>
+        fn visit_async_box<'a, F, R, E>(value: JsValue, visitor: &'a mut F) -> PinnedAsyncBox<'a, E>
         where
             R: 'a + Future<Output = Result<(JsValue, bool), E>>,
             F: 'a + FnMut(JsValue) -> R,
@@ -3203,7 +3220,10 @@ impl JsValue {
                 if values.len() == 1 {
                     *self = take(&mut values[0]);
                 } else {
-                    let mut set = IndexSet::with_capacity(values.len());
+                    let mut set = FxIndexSet::with_capacity_and_hasher(
+                        values.len(),
+                        BuildHasherDefault::<FxHasher>::default(),
+                    );
                     for v in take(values) {
                         match v {
                             JsValue::Alternatives {
@@ -3729,13 +3749,13 @@ pub fn parse_require_context(args: &[JsValue]) -> Result<RequireContextOptions> 
 
 #[turbo_tasks::value(transparent)]
 #[derive(Debug, Clone)]
-pub struct RequireContextValue(IndexMap<RcStr, RcStr>);
+pub struct RequireContextValue(FxIndexMap<RcStr, RcStr>);
 
 #[turbo_tasks::value_impl]
 impl RequireContextValue {
     #[turbo_tasks::function]
     pub async fn from_context_map(map: Vc<RequireContextMap>) -> Result<Vc<Self>> {
-        let mut context_map = IndexMap::new();
+        let mut context_map = FxIndexMap::default();
 
         for (key, entry) in map.await?.iter() {
             context_map.insert(key.clone(), entry.origin_relative.clone());
@@ -3764,14 +3784,8 @@ pub enum WellKnownFunctionKind {
     PathDirname,
     /// `0` is the current working directory.
     PathResolve(Box<JsValue>),
-    /// Import and Require can be ignored at compile time using the `turbopackIgnore` directive.
-    /// This is functionality that was introduced in webpack, so we also support `webpackIgnore`.
-    Import {
-        ignore: bool,
-    },
-    Require {
-        ignore: bool,
-    },
+    Import,
+    Require,
     RequireResolve,
     RequireContext,
     RequireContextRequire(Vc<RequireContextValue>),
@@ -3823,8 +3837,7 @@ fn is_unresolved_id(i: &Id, unresolved_mark: Mark) -> bool {
 #[doc(hidden)]
 pub mod test_utils {
     use anyhow::Result;
-    use indexmap::IndexMap;
-    use turbo_tasks::Vc;
+    use turbo_tasks::{FxIndexMap, Vc};
     use turbopack_core::{compile_time_info::CompileTimeInfo, error::PrettyPrintError};
 
     use super::{
@@ -3832,7 +3845,11 @@ pub mod test_utils {
         JsValueUrlKind, ModuleValue, WellKnownFunctionKind, WellKnownObjectKind,
     };
     use crate::{
-        analyzer::{builtin::replace_builtin, imports::ImportAnnotations, parse_require_context},
+        analyzer::{
+            builtin::replace_builtin,
+            imports::{ImportAnnotations, ImportAttributes},
+            parse_require_context,
+        },
         utils::module_value_to_well_known_object,
     };
 
@@ -3846,7 +3863,9 @@ pub mod test_utils {
     pub async fn visitor(
         v: JsValue,
         compile_time_info: Vc<CompileTimeInfo>,
+        attributes: &ImportAttributes,
     ) -> Result<(JsValue, bool)> {
+        let ImportAttributes { ignore, .. } = *attributes;
         let mut new_value = match v {
             JsValue::Call(
                 _,
@@ -3873,7 +3892,7 @@ pub mod test_utils {
                 ref args,
             ) => match parse_require_context(args) {
                 Ok(options) => {
-                    let mut map = IndexMap::new();
+                    let mut map = FxIndexMap::default();
 
                     map.insert("./a".into(), format!("[context: {}]/a", options.dir).into());
                     map.insert("./b".into(), format!("[context: {}]/b", options.dir).into());
@@ -3910,15 +3929,26 @@ pub mod test_utils {
                 "__dirname" => "__dirname".into(),
                 "__filename" => "__filename".into(),
 
-                "require" => {
-                    JsValue::WellKnownFunction(WellKnownFunctionKind::Require { ignore: false })
-                }
-                "import" => {
-                    JsValue::WellKnownFunction(WellKnownFunctionKind::Import { ignore: false })
-                }
+                "require" => JsValue::unknown_if(
+                    ignore,
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::Require),
+                    true,
+                    "ignored require",
+                ),
+                "import" => JsValue::unknown_if(
+                    ignore,
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::Import),
+                    true,
+                    "ignored import",
+                ),
+                "Worker" => JsValue::unknown_if(
+                    ignore,
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::WorkerConstructor),
+                    true,
+                    "ignored Worker constructor",
+                ),
                 "define" => JsValue::WellKnownFunction(WellKnownFunctionKind::Define),
                 "URL" => JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor),
-                "Worker" => JsValue::WellKnownFunction(WellKnownFunctionKind::WorkerConstructor),
                 "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess),
                 "Object" => JsValue::WellKnownObject(WellKnownObjectKind::GlobalObject),
                 "Buffer" => JsValue::WellKnownObject(WellKnownObjectKind::NodeBuffer),
@@ -3967,6 +3997,7 @@ mod tests {
         linker::link,
         JsValue,
     };
+    use crate::analyzer::imports::ImportAttributes;
 
     #[fixture("tests/analyzer/graph/**/input.js")]
     fn fixture(input: PathBuf) {
@@ -4055,10 +4086,11 @@ mod tests {
 
                     let start = Instant::now();
                     let mut resolved = Vec::new();
-                    for (id, val) in named_values.iter() {
-                        let val = val.clone();
+                    for (id, val) in named_values.iter().cloned() {
                         let start = Instant::now();
-                        let res = resolve(&var_graph, val).await;
+                        // Ideally this would use eval_context.imports.get_attributes(span), but the
+                        // span isn't available here
+                        let res = resolve(&var_graph, val, ImportAttributes::empty_ref()).await;
                         let time = start.elapsed();
                         if time.as_millis() > 1 {
                             println!(
@@ -4068,7 +4100,7 @@ mod tests {
                             );
                         }
 
-                        resolved.push((id.clone(), res));
+                        resolved.push((id, res));
                     }
                     let time = start.elapsed();
                     if time.as_millis() > 1 {
@@ -4115,10 +4147,16 @@ mod tests {
                             for arg in args {
                                 match arg {
                                     EffectArg::Value(v) => {
-                                        new_args.push(resolve(var_graph, v).await);
+                                        new_args.push(
+                                            resolve(var_graph, v, ImportAttributes::empty_ref())
+                                                .await,
+                                        );
                                     }
                                     EffectArg::Closure(v, effects) => {
-                                        new_args.push(resolve(var_graph, v).await);
+                                        new_args.push(
+                                            resolve(var_graph, v, ImportAttributes::empty_ref())
+                                                .await,
+                                        );
                                         queue.extend(
                                             effects.effects.into_iter().rev().map(|e| (i, e)),
                                         );
@@ -4134,7 +4172,9 @@ mod tests {
                             Effect::Conditional {
                                 condition, kind, ..
                             } => {
-                                let condition = resolve(&var_graph, condition).await;
+                                let condition =
+                                    resolve(&var_graph, condition, ImportAttributes::empty_ref())
+                                        .await;
                                 resolved.push((format!("{parent} -> {i} conditional"), condition));
                                 match *kind {
                                     ConditionalKind::If { then } => {
@@ -4175,9 +4215,18 @@ mod tests {
                                 };
                             }
                             Effect::Call {
-                                func, args, new, ..
+                                func,
+                                args,
+                                new,
+                                span,
+                                ..
                             } => {
-                                let func = resolve(&var_graph, func).await;
+                                let func = resolve(
+                                    &var_graph,
+                                    func,
+                                    eval_context.imports.get_attributes(span),
+                                )
+                                .await;
                                 let new_args = handle_args(args, &mut queue, &var_graph, i).await;
                                 resolved.push((
                                     format!("{parent} -> {i} call"),
@@ -4192,7 +4241,8 @@ mod tests {
                                 resolved.push((format!("{parent} -> {i} free var"), var));
                             }
                             Effect::TypeOf { arg, .. } => {
-                                let arg = resolve(&var_graph, arg).await;
+                                let arg =
+                                    resolve(&var_graph, arg, ImportAttributes::empty_ref()).await;
                                 resolved.push((
                                     format!("{parent} -> {i} typeof"),
                                     JsValue::type_of(Box::new(arg)),
@@ -4201,8 +4251,10 @@ mod tests {
                             Effect::MemberCall {
                                 obj, prop, args, ..
                             } => {
-                                let obj = resolve(&var_graph, obj).await;
-                                let prop = resolve(&var_graph, prop).await;
+                                let obj =
+                                    resolve(&var_graph, obj, ImportAttributes::empty_ref()).await;
+                                let prop =
+                                    resolve(&var_graph, prop, ImportAttributes::empty_ref()).await;
                                 let new_args = handle_args(args, &mut queue, &var_graph, i).await;
                                 resolved.push((
                                     format!("{parent} -> {i} member call"),
@@ -4259,7 +4311,7 @@ mod tests {
         .unwrap();
     }
 
-    async fn resolve(var_graph: &VarGraph, val: JsValue) -> JsValue {
+    async fn resolve(var_graph: &VarGraph, val: JsValue, attributes: &ImportAttributes) -> JsValue {
         turbo_tasks_testing::VcStorage::with(async {
             let compile_time_info = CompileTimeInfo::builder(Environment::new(Value::new(
                 ExecutionEnvironment::NodeJsLambda(
@@ -4281,7 +4333,13 @@ mod tests {
                 var_graph,
                 val,
                 &super::test_utils::early_visitor,
-                &(|val| Box::pin(super::test_utils::visitor(val, compile_time_info))),
+                &(|val| {
+                    Box::pin(super::test_utils::visitor(
+                        val,
+                        compile_time_info,
+                        attributes,
+                    ))
+                }),
                 Default::default(),
             )
             .await

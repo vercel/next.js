@@ -10,23 +10,23 @@ import { addRefreshMarkerToActiveParallelSegments } from './refetch-inactive-par
 import { getFlightDataPartsFromPath } from '../../flight-data-helpers'
 
 export interface InitialRouterStateParameters {
-  buildId: string
   initialCanonicalUrlParts: string[]
   initialParallelRoutes: CacheNode['parallelRoutes']
   initialFlightData: FlightDataPath[]
   location: Location | null
   couldBeIntercepted: boolean
   postponed: boolean
+  prerendered: boolean
 }
 
 export function createInitialRouterState({
-  buildId,
   initialFlightData,
   initialCanonicalUrlParts,
   initialParallelRoutes,
   location,
   couldBeIntercepted,
   postponed,
+  prerendered,
 }: InitialRouterStateParameters) {
   // When initialized on the server, the canonical URL is provided as an array of parts.
   // This is to ensure that when the RSC payload streamed to the client, crawlers don't interpret it
@@ -79,7 +79,6 @@ export function createInitialRouterState({
   }
 
   const initialState = {
-    buildId,
     tree: initialTree,
     cache,
     prefetchCache,
@@ -103,10 +102,13 @@ export function createInitialRouterState({
       null,
   }
 
-  if (location) {
+  if (process.env.NODE_ENV !== 'development' && location) {
     // Seed the prefetch cache with this page's data.
     // This is to prevent needlessly re-prefetching a page that is already reusable,
     // and will avoid triggering a loading state/data fetch stall when navigating back to the page.
+    // We don't currently do this in development because links aren't prefetched in development
+    // so having a mismatch between prefetch/no prefetch provides inconsistent behavior based on which page
+    // was loaded first.
     const url = new URL(
       `${location.pathname}${location.search}`,
       location.origin
@@ -118,14 +120,20 @@ export function createInitialRouterState({
         flightData: [normalizedFlightData],
         canonicalUrl: undefined,
         couldBeIntercepted: !!couldBeIntercepted,
-        // TODO: the server should probably send a value for this. Default to false for now.
-        isPrerender: false,
+        prerendered,
         postponed,
+        // TODO: The initial RSC payload includes both static and dynamic data
+        // in the same response, even if PPR is enabled. So if there's any
+        // dynamic data at all, we can't set a stale time. In the future we may
+        // add a way to split a single Flight stream into static and dynamic
+        // parts. But in the meantime we should at least make this work for
+        // fully static pages.
+        staleTime: -1,
       },
       tree: initialState.tree,
       prefetchCache: initialState.prefetchCache,
       nextUrl: initialState.nextUrl,
-      kind: PrefetchKind.AUTO,
+      kind: prerendered ? PrefetchKind.FULL : PrefetchKind.AUTO,
     })
   }
 

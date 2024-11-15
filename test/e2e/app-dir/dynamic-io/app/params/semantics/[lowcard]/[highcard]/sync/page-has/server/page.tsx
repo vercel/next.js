@@ -7,6 +7,7 @@ export default async function Page({
 }: {
   params: Promise<{ lowcard: string; highcard: string }>
 }) {
+  await new Promise((r) => process.nextTick(r))
   const syncParams = params as unknown as UnsafeUnwrappedParams<typeof params>
   return (
     <section>

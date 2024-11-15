@@ -8,6 +8,7 @@ use tokio::runtime::Handle;
 
 use crate::{manager::with_turbo_tasks, trace::TraceRawVcs, TaskId, TurboTasksApi};
 
+#[derive(Clone)]
 pub struct SerializationInvalidator {
     task: TaskId,
     turbo_tasks: Weak<dyn TurboTasksApi>,
