@@ -322,21 +322,6 @@ impl DepGraph {
         };
 
         for (ix, group) in groups.graph_ix.iter().enumerate() {
-            for item in group {
-                match item {
-                    ItemId::Group(ItemIdGroupKind::Export(_, export)) => {
-                        exports.insert(Key::Export(export.as_str().into()), ix as u32);
-                    }
-                    ItemId::Group(ItemIdGroupKind::ModuleEvaluation) => {
-                        exports.insert(Key::ModuleEvaluation, ix as u32);
-                    }
-
-                    _ => {}
-                }
-            }
-        }
-
-        for (ix, group) in groups.graph_ix.iter().enumerate() {
             let mut chunk = Module {
                 span: DUMMY_SP,
                 body: directives.to_vec(),
