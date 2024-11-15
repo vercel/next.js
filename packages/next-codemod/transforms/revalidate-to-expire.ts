@@ -96,21 +96,35 @@ export default function transformer(file: FileInfo, _api: API) {
     // Handle namespace calls:
     // ```ts
     // import * as cache from 'next/cache'
-    // cache.revalidateTag('next')
-    // cache.revalidatePath('/next')
     // ```
     if (
       callee.type === 'MemberExpression' &&
       callee.object.type === 'Identifier' &&
-      callee.object.name === nextCacheNamespace &&
-      callee.property.type === 'Identifier' &&
-      (callee.property.name === 'revalidateTag' ||
-        callee.property.name === 'revalidatePath')
+      callee.object.name === nextCacheNamespace
     ) {
-      callee.property.name =
-        callee.property.name === 'revalidateTag'
-          ? expireTagName
-          : expirePathName
+      // cache.revalidateTag('next')
+      // cache.revalidatePath('/next')
+      if (
+        callee.property.type === 'Identifier' &&
+        (callee.property.name === 'revalidateTag' ||
+          callee.property.name === 'revalidatePath')
+      ) {
+        callee.property.name =
+          callee.property.name === 'revalidateTag' ? 'expireTag' : 'expirePath'
+      }
+
+      // cache['revalidateTag']('next')
+      // cache['revalidatePath']('/next')
+      if (
+        callee.property.type === 'StringLiteral' &&
+        (callee.property.value === revalidateTagName ||
+          callee.property.value === revalidatePathName)
+      ) {
+        callee.property.value =
+          callee.property.value === revalidateTagName
+            ? 'expireTag'
+            : 'expirePath'
+      }
     }
   })
 
