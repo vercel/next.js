@@ -16,7 +16,7 @@ use turbopack_node::transforms::webpack::WebpackLoaderItem;
 pub async fn maybe_add_sass_loader(
     sass_options: Vc<JsonValue>,
     webpack_rules: Option<Vc<WebpackRules>>,
-    package_dir: Vc<FileSystemPath>,
+    package_dir: ResolvedVc<FileSystemPath>,
 ) -> Result<Vc<OptionWebpackRules>> {
     let sass_options = sass_options.await?;
     let Some(mut sass_options) = sass_options.as_object().cloned() else {
@@ -24,7 +24,7 @@ pub async fn maybe_add_sass_loader(
     };
 
     let sass_package_json_path = resolve_raw(
-        package_dir,
+        *package_dir,
         Pattern::Constant("sass/package.json".into()).cell(),
         false,
     )
