@@ -126,7 +126,7 @@ describe('server-side dev errors', () => {
           ' ⨯ ReferenceError: missingVar is not defined' +
             '\n    at getServerSideProps (./test/integration/server-side-dev-errors/pages/gssp.js:6:3)' +
             // TODO(veil): Should be sourcemapped
-            '\n    a'
+            '\n    at'
         )
       } else {
         expect(stderrOutput).toStartWith(

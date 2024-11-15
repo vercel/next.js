@@ -562,7 +562,8 @@ async function generateDynamicFlightRenderResult(
       ctx,
       false,
       ctx.clientReferenceManifest,
-      ctx.workStore.route
+      ctx.workStore.route,
+      requestStore
     )
   }
 
@@ -1654,7 +1655,8 @@ async function renderToStream(
         ctx,
         res.statusCode === 404,
         clientReferenceManifest,
-        workStore.route
+        workStore.route,
+        requestStore
       )
 
       reactServerResult = new ReactServerResult(reactServerStream)
@@ -1957,9 +1959,9 @@ async function renderToStream(
       })
     } catch (finalErr: any) {
       if (process.env.NODE_ENV === 'development' && isNotFoundError(finalErr)) {
-        const bailOnNotFound: typeof import('../../client/components/dev-root-not-found-boundary').bailOnNotFound =
-          require('../../client/components/dev-root-not-found-boundary').bailOnNotFound
-        bailOnNotFound()
+        const { bailOnRootNotFound } =
+          require('../../client/components/dev-root-http-access-fallback-boundary') as typeof import('../../client/components/dev-root-http-access-fallback-boundary')
+        bailOnRootNotFound()
       }
       throw finalErr
     }
@@ -1980,7 +1982,8 @@ async function spawnDynamicValidationInDev(
   ctx: AppRenderContext,
   isNotFound: boolean,
   clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>,
-  route: string
+  route: string,
+  requestStore: RequestStore
 ): Promise<void> {
   const { componentMod: ComponentMod } = ctx
 
@@ -2235,6 +2238,8 @@ async function spawnDynamicValidationInDev(
                 isPrerenderInterruptedError(err) ||
                 finalClientController.signal.aborted
               ) {
+                requestStore.usedDynamic = true
+
                 const componentStack: string | undefined = (errorInfo as any)
                   .componentStack
                 if (typeof componentStack === 'string') {
@@ -3756,9 +3761,9 @@ async function prerenderToStream(
       }
     } catch (finalErr: any) {
       if (process.env.NODE_ENV === 'development' && isNotFoundError(finalErr)) {
-        const bailOnNotFound: typeof import('../../client/components/dev-root-not-found-boundary').bailOnNotFound =
-          require('../../client/components/dev-root-not-found-boundary').bailOnNotFound
-        bailOnNotFound()
+        const { bailOnRootNotFound } =
+          require('../../client/components/dev-root-http-access-fallback-boundary') as typeof import('../../client/components/dev-root-http-access-fallback-boundary')
+        bailOnRootNotFound()
       }
       throw finalErr
     }

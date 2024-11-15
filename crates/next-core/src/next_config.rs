@@ -829,7 +829,7 @@ impl RemoveConsoleConfig {
 pub struct ResolveExtensions(Option<Vec<RcStr>>);
 
 #[turbo_tasks::value(transparent)]
-pub struct OptionalMdxTransformOptions(Option<Vc<MdxTransformOptions>>);
+pub struct OptionalMdxTransformOptions(Option<ResolvedVc<MdxTransformOptions>>);
 
 #[turbo_tasks::value_impl]
 impl NextConfig {
@@ -921,8 +921,8 @@ impl NextConfig {
         let active_conditions = active_conditions.into_iter().collect::<HashSet<_>>();
         let mut rules = FxIndexMap::default();
         for (ext, rule) in turbo_rules.iter() {
-            fn transform_loaders(loaders: &[LoaderItem]) -> Vc<WebpackLoaderItems> {
-                Vc::cell(
+            fn transform_loaders(loaders: &[LoaderItem]) -> ResolvedVc<WebpackLoaderItems> {
+                ResolvedVc::cell(
                     loaders
                         .iter()
                         .map(|item| match item {
@@ -990,7 +990,7 @@ impl NextConfig {
                 }
             }
         }
-        Vc::cell(Some(Vc::cell(rules)))
+        Vc::cell(Some(ResolvedVc::cell(rules)))
     }
 
     #[turbo_tasks::function]
@@ -1039,7 +1039,7 @@ impl NextConfig {
                     provider_import_source: Some(mdx_import_source_file()),
                     ..Default::default()
                 }
-                .cell(),
+                .resolved_cell(),
             )),
             Some(MdxRsOptions::Option(options)) => OptionalMdxTransformOptions(Some(
                 MdxTransformOptions {
@@ -1051,7 +1051,7 @@ impl NextConfig {
                     ),
                     ..options.clone()
                 }
-                .cell(),
+                .resolved_cell(),
             )),
             _ => OptionalMdxTransformOptions(None),
         };

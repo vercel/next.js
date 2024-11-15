@@ -516,7 +516,7 @@ async fn insert_unsupported_node_internal_aliases(
 
 pub fn get_next_client_resolved_map(
     _context: Vc<FileSystemPath>,
-    _root: Vc<FileSystemPath>,
+    _root: ResolvedVc<FileSystemPath>,
     _mode: NextMode,
 ) -> Vc<ResolvedMap> {
     let glob_mappings = vec![];

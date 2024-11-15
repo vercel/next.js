@@ -11,6 +11,7 @@ use std::{
     mem::{take, transmute},
 };
 
+use either::Either;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{KeyValuePair, SessionId, TaskId, TurboTasksBackendApi};
 
@@ -370,6 +371,16 @@ pub trait TaskGuard: Debug {
         index: CachedDataItemIndex,
     ) -> impl Iterator<Item = (&CachedDataItemKey, &CachedDataItemValue)>;
     fn iter_all(&self) -> impl Iterator<Item = (&CachedDataItemKey, &CachedDataItemValue)>;
+    fn extract_if<'l, F>(
+        &'l mut self,
+        index: CachedDataItemIndex,
+        f: F,
+    ) -> impl Iterator<Item = CachedDataItem>
+    where
+        F: for<'a, 'b> FnMut(&'a CachedDataItemKey, &'b CachedDataItemValue) -> bool + 'l;
+    fn extract_if_all<'l, F>(&'l mut self, f: F) -> impl Iterator<Item = CachedDataItem>
+    where
+        F: for<'a, 'b> FnMut(&'a CachedDataItemKey, &'b CachedDataItemValue) -> bool + 'l;
     fn invalidate_serialization(&mut self);
 }
 
@@ -584,6 +595,60 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
 
     fn iter_all(&self) -> impl Iterator<Item = (&CachedDataItemKey, &CachedDataItemValue)> {
         self.task.iter_all()
+    }
+
+    fn extract_if<'l, F>(
+        &'l mut self,
+        index: CachedDataItemIndex,
+        f: F,
+    ) -> impl Iterator<Item = CachedDataItem>
+    where
+        F: for<'a, 'b> FnMut(&'a CachedDataItemKey, &'b CachedDataItemValue) -> bool + 'l,
+    {
+        if !self.backend.should_persist() || self.task_id.is_transient() {
+            return Either::Left(self.task.extract_if(Some(index), f));
+        }
+        Either::Right(self.task.extract_if(Some(index), f).inspect(|item| {
+            if item.is_persistent() {
+                let key = item.key();
+                let value = item.value();
+                self.backend
+                    .persisted_storage_log(key.category())
+                    .unwrap()
+                    .lock(self.task_id)
+                    .push(CachedDataUpdate {
+                        key,
+                        task: self.task_id,
+                        value: None,
+                        old_value: Some(value),
+                    });
+            }
+        }))
+    }
+
+    fn extract_if_all<'l, F>(&'l mut self, f: F) -> impl Iterator<Item = CachedDataItem>
+    where
+        F: for<'a, 'b> FnMut(&'a CachedDataItemKey, &'b CachedDataItemValue) -> bool + 'l,
+    {
+        if !self.backend.should_persist() || self.task_id.is_transient() {
+            return Either::Left(self.task.extract_if_all(f));
+        }
+        Either::Right(self.task.extract_if_all(f).inspect(|item| {
+            if item.is_persistent() {
+                let key = item.key();
+                let value = item.value();
+                self.backend
+                    .persisted_storage_log(key.category())
+                    .unwrap()
+                    .lock(self.task_id)
+                    .push(CachedDataUpdate {
+                        key,
+                        task: self.task_id,
+                        value: None,
+                        old_value: Some(value),
+                    });
+            }
+        }))
     }
 
     fn invalidate_serialization(&mut self) {

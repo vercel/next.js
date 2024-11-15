@@ -256,7 +256,7 @@ function getAppRelativeRedirectUrl(
   host: Host,
   redirectUrl: string
 ): URL | null {
-  if (redirectUrl.startsWith('/') || redirectUrl.startsWith('./')) {
+  if (redirectUrl.startsWith('/') || redirectUrl.startsWith('.')) {
     // Make sure we are appending the basePath to relative URLS
     return new URL(`${basePath}${redirectUrl}`, 'http://n')
   }

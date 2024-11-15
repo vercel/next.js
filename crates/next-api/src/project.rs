@@ -944,7 +944,10 @@ impl Project {
         if let Some(app_project) = app_project {
             transitions.push((
                 ECMASCRIPT_CLIENT_TRANSITION_NAME.into(),
-                app_project.edge_client_reference_transition(),
+                app_project
+                    .edge_client_reference_transition()
+                    .to_resolved()
+                    .await?,
             ));
         }
 
@@ -1025,7 +1028,10 @@ impl Project {
         if let Some(app_project) = app_project {
             transitions.push((
                 ECMASCRIPT_CLIENT_TRANSITION_NAME.into(),
-                app_project.client_reference_transition(),
+                app_project
+                    .client_reference_transition()
+                    .to_resolved()
+                    .await?,
             ));
         }
 
@@ -1075,7 +1081,10 @@ impl Project {
         if let Some(app_project) = app_project {
             transitions.push((
                 ECMASCRIPT_CLIENT_TRANSITION_NAME.into(),
-                app_project.edge_client_reference_transition(),
+                app_project
+                    .edge_client_reference_transition()
+                    .to_resolved()
+                    .await?,
             ));
         }
 

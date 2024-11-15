@@ -176,7 +176,7 @@ fn react_server_actions_server_errors(input: PathBuf) {
                     FileName::Real(PathBuf::from("/app/item.js")).into(),
                     Config::WithOptions(Options {
                         is_react_server_layer: true,
-                        dynamic_io_enabled: false,
+                        dynamic_io_enabled: true,
                     }),
                     tr.comments.as_ref().clone(),
                     None,
@@ -185,7 +185,7 @@ fn react_server_actions_server_errors(input: PathBuf) {
                     &FileName::Real("/app/item.js".into()),
                     server_actions::Config {
                         is_react_server_layer: true,
-                        enabled: true,
+                        dynamic_io_enabled: true,
                         hash_salt: "".into(),
                     },
                     tr.comments.as_ref().clone(),
@@ -215,7 +215,7 @@ fn react_server_actions_client_errors(input: PathBuf) {
                     FileName::Real(PathBuf::from("/app/item.js")).into(),
                     Config::WithOptions(Options {
                         is_react_server_layer: false,
-                        dynamic_io_enabled: false,
+                        dynamic_io_enabled: true,
                     }),
                     tr.comments.as_ref().clone(),
                     None,
@@ -224,7 +224,7 @@ fn react_server_actions_client_errors(input: PathBuf) {
                     &FileName::Real("/app/item.js".into()),
                     server_actions::Config {
                         is_react_server_layer: false,
-                        enabled: true,
+                        dynamic_io_enabled: true,
                         hash_salt: "".into(),
                     },
                     tr.comments.as_ref().clone(),
@@ -248,6 +248,45 @@ fn next_transform_strip_page_exports_errors(input: PathBuf) {
         syntax(),
         &|_tr| {
             next_transform_strip_page_exports(ExportFilter::StripDataExports, Default::default())
+        },
+        &input,
+        &output,
+        FixtureTestConfig {
+            allow_error: true,
+            module: Some(true),
+            ..Default::default()
+        },
+    );
+}
+
+#[fixture("tests/errors/use-cache-not-allowed/**/input.js")]
+fn use_cache_not_allowed(input: PathBuf) {
+    use next_custom_transforms::transforms::react_server_components::{Config, Options};
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|tr| {
+            (
+                resolver(Mark::new(), Mark::new(), false),
+                server_components(
+                    FileName::Real(PathBuf::from("/app/item.js")).into(),
+                    Config::WithOptions(Options {
+                        is_react_server_layer: true,
+                        dynamic_io_enabled: false,
+                    }),
+                    tr.comments.as_ref().clone(),
+                    None,
+                ),
+                server_actions(
+                    &FileName::Real("/app/item.js".into()),
+                    server_actions::Config {
+                        is_react_server_layer: true,
+                        dynamic_io_enabled: false,
+                        hash_salt: "".into(),
+                    },
+                    tr.comments.as_ref().clone(),
+                ),
+            )
         },
         &input,
         &output,
