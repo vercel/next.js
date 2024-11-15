@@ -336,14 +336,13 @@ export function listenForDynamicRequest(
 ) {
   responsePromise.then(
     ({ flightData }: FetchServerResponseResult) => {
+      if (typeof flightData === 'string') {
+        // Happens when navigating to page in `pages` from `app`. We shouldn't
+        // get here because should have already handled this during
+        // the prefetch.
+        return
+      }
       for (const normalizedFlightData of flightData) {
-        if (typeof normalizedFlightData === 'string') {
-          // Happens when navigating to page in `pages` from `app`. We shouldn't
-          // get here because should have already handled this during
-          // the prefetch.
-          continue
-        }
-
         const {
           segmentPath,
           tree: serverRouterState,
