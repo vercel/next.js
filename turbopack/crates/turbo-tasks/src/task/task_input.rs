@@ -95,7 +95,7 @@ where
 
 impl<T> TaskInput for Vc<T>
 where
-    T: Send,
+    T: Send + Sync + ?Sized,
 {
     fn is_resolved(&self) -> bool {
         Vc::is_resolved(*self)
@@ -114,7 +114,7 @@ where
 // `Vc`, but it is useful for structs that contain `ResolvedVc` and want to derive `TaskInput`.
 impl<T> TaskInput for ResolvedVc<T>
 where
-    T: Send,
+    T: Send + Sync + ?Sized,
 {
     fn is_resolved(&self) -> bool {
         true

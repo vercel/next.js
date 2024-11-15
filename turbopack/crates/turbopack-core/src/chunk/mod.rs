@@ -758,7 +758,7 @@ pub type ChunkItemWithAsyncModuleInfo = (Vc<Box<dyn ChunkItem>>, Option<Vc<Async
 #[turbo_tasks::value(transparent)]
 pub struct ChunkItemsWithAsyncModuleInfo(Vec<ChunkItemWithAsyncModuleInfo>);
 
-pub trait ChunkItemExt: Send {
+pub trait ChunkItemExt {
     /// Returns the module id of this chunk item.
     fn id(self: Vc<Self>) -> Vc<ModuleId>;
 }

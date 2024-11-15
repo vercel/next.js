@@ -227,7 +227,7 @@ pub trait EcmascriptChunkItem: ChunkItem {
     }
 }
 
-pub trait EcmascriptChunkItemExt: Send {
+pub trait EcmascriptChunkItemExt {
     /// Generates the module factory for this chunk item.
     fn code(self: Vc<Self>, async_module_info: Option<Vc<AsyncModuleInfo>>) -> Vc<Code>;
 }
