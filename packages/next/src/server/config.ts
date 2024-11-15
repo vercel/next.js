@@ -1086,7 +1086,8 @@ export default async function loadConfig(
     // and transpile the config with SWC. The data will be directly "required" from
     // the compiled string.
     const shouldRegisterRequireHook =
-      extname(configFileName) === '.ts' || extname(configFileName) === '.cts'
+      extname(configFileName) === '.cts' ||
+      (extname(configFileName) === '.ts' && packageJson.type !== 'module')
 
     // To resolve "next.config.(ts|mts)" ("ts" when package.json "type" is "module")
     // and it's imports, register the loader hook and transpile the config with SWC.
