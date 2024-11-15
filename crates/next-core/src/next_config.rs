@@ -41,7 +41,7 @@ struct CustomRoutes {
 pub struct ModularizeImports(FxIndexMap<String, ModularizeImportPackageConfig>);
 
 #[turbo_tasks::value(transparent)]
-pub struct CacheKinds(FxHashSet<String>);
+pub struct CacheKinds(FxHashSet<RcStr>);
 
 #[turbo_tasks::value(serialization = "custom", eq = "manual")]
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
@@ -1168,11 +1168,9 @@ impl NextConfig {
         Vc::cell(
             self.experimental
                 .cache_handlers
-                .clone()
-                .unwrap_or_default()
-                .keys()
-                .cloned()
-                .collect(),
+                .as_ref()
+                .map(|handlers| handlers.keys().map(|kind| RcStr::from(&**kind)).collect())
+                .unwrap_or_default(),
         )
     }
 

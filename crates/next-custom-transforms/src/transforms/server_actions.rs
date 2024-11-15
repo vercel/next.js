@@ -23,6 +23,7 @@ use swc_core::{
         visit::{noop_visit_mut_type, visit_mut_pass, VisitMut, VisitMutWith},
     },
 };
+use turbo_tasks::RcStr;
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
@@ -30,7 +31,7 @@ pub struct Config {
     pub is_react_server_layer: bool,
     pub dynamic_io_enabled: bool,
     pub hash_salt: String,
-    pub cache_kinds: FxHashSet<String>,
+    pub cache_kinds: FxHashSet<RcStr>,
 }
 
 enum DirectiveLocation {
@@ -69,7 +70,7 @@ enum ServerActionsErrorKind {
     },
     UnknownCacheKind {
         span: Span,
-        cache_kind: String,
+        cache_kind: RcStr,
     },
     UseCacheWithoutDynamicIO {
         span: Span,
@@ -84,6 +85,12 @@ enum ServerActionsErrorKind {
 /// A mapping of hashed action id to the action's exported function name.
 // Using BTreeMap to ensure the order of the actions is deterministic.
 pub type ActionsMap = BTreeMap<String, String>;
+
+// Directive-level information about a function body
+struct BodyInfo {
+    is_action_fn: bool,
+    cache_kind: Option<RcStr>,
+}
 
 #[tracing::instrument(level = tracing::Level::TRACE, skip_all)]
 pub fn server_actions<C: Comments>(file_name: &FileName, config: Config, comments: C) -> impl Pass {
@@ -143,7 +150,7 @@ struct ServerActions<C: Comments> {
 
     start_pos: BytePos,
     in_action_file: bool,
-    file_cache_kind: Option<String>,
+    file_cache_kind: Option<RcStr>,
     in_exported_expr: bool,
     in_default_export_decl: bool,
     in_callee: bool,
@@ -302,7 +309,7 @@ impl<C: Comments> ServerActions<C> {
     }
 
     // Check if the function or arrow function is an action or cache function
-    fn get_body_info(&mut self, maybe_body: Option<&mut BlockStmt>) -> (bool, Option<String>) {
+    fn get_body_info(&mut self, maybe_body: Option<&mut BlockStmt>) -> BodyInfo {
         let mut is_action_fn = false;
         let mut cache_kind = None;
 
@@ -346,7 +353,10 @@ impl<C: Comments> ServerActions<C> {
             }
         }
 
-        (is_action_fn, cache_kind)
+        BodyInfo {
+            is_action_fn,
+            cache_kind,
+        }
     }
 
     fn maybe_hoist_and_create_proxy_for_server_action_arrow_expr(
@@ -887,7 +897,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     }
 
     fn visit_mut_fn_expr(&mut self, f: &mut FnExpr) {
-        let (is_action_fn, cache_kind) = self.get_body_info(f.function.body.as_mut());
+        let BodyInfo {
+            is_action_fn,
+            cache_kind,
+        } = self.get_body_info(f.function.body.as_mut());
 
         let declared_idents_until = self.declared_idents.len();
         let current_names = take(&mut self.names);
@@ -1002,7 +1015,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             self.in_exported_expr = true
         }
 
-        let (is_action_fn, cache_kind) = self.get_body_info(f.function.body.as_mut());
+        let BodyInfo {
+            is_action_fn,
+            cache_kind,
+        } = self.get_body_info(f.function.body.as_mut());
 
         let declared_idents_until = self.declared_idents.len();
         let current_names = take(&mut self.names);
@@ -1142,12 +1158,14 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     fn visit_mut_arrow_expr(&mut self, a: &mut ArrowExpr) {
         // Arrow expressions need to be visited in prepass to determine if it's
         // an action function or not.
-        let (is_action_fn, cache_kind) =
-            self.get_body_info(if let BlockStmtOrExpr::BlockStmt(block) = &mut *a.body {
-                Some(block)
-            } else {
-                None
-            });
+        let BodyInfo {
+            is_action_fn,
+            cache_kind,
+        } = self.get_body_info(if let BlockStmtOrExpr::BlockStmt(block) = &mut *a.body {
+            Some(block)
+        } else {
+            None
+        });
 
         let declared_idents_until = self.declared_idents.len();
         let current_names = take(&mut self.names);
@@ -2352,7 +2370,7 @@ fn detect_similar_strings(a: &str, b: &str) -> bool {
 fn remove_server_directive_index_in_module(
     stmts: &mut Vec<ModuleItem>,
     in_action_file: &mut bool,
-    file_cache_kind: &mut Option<String>,
+    file_cache_kind: &mut Option<RcStr>,
     has_action: &mut bool,
     has_cache: &mut bool,
     config: &Config,
@@ -2392,8 +2410,7 @@ fn remove_server_directive_index_in_module(
                             *file_cache_kind = Some("default".into());
                         } else {
                             // Slice the value after "use cache: "
-                            let cache_kind_str: String =
-                                value.split_at("use cache: ".len()).1.into();
+                            let cache_kind_str = RcStr::from(value.split_at("use cache: ".len()).1);
 
                             if !config.cache_kinds.contains(&cache_kind_str) {
                                 emit_error(ServerActionsErrorKind::UnknownCacheKind {
@@ -2503,7 +2520,7 @@ fn has_body_directive(maybe_body: &Option<BlockStmt>) -> (bool, bool) {
 fn remove_server_directive_index_in_fn(
     stmts: &mut Vec<Stmt>,
     is_action_fn: &mut bool,
-    cache_kind: &mut Option<String>,
+    cache_kind: &mut Option<RcStr>,
     action_span: &mut Option<Span>,
     config: &Config,
 ) {
@@ -2548,7 +2565,7 @@ fn remove_server_directive_index_in_fn(
                         *cache_kind = Some("default".into());
                     } else {
                         // Slice the value after "use cache: "
-                        let cache_kind_str: String = value.split_at("use cache: ".len()).1.into();
+                        let cache_kind_str = RcStr::from(value.split_at("use cache: ".len()).1);
 
                         if !config.cache_kinds.contains(&cache_kind_str) {
                             emit_error(ServerActionsErrorKind::UnknownCacheKind {
