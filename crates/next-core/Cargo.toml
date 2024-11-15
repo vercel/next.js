@@ -33,6 +33,7 @@ tracing = { workspace = true }
 rustc-hash = { workspace = true }
 react_remove_properties = "0.24.25"
 remove_console = "0.25.25"
+semver = { workspace = true }
 
 auto-hash-map = { workspace = true }
 
@@ -76,7 +77,7 @@ turbopack-nodejs = { workspace = true }
 turbopack-static = { workspace = true }
 turbopack-trace-server = { workspace = true }
 turbopack-trace-utils = { workspace = true }
-semver.workspace = true
+turbopack-resolve = { workspace = true }
 
 [build-dependencies]
 turbo-tasks-build = { workspace = true }

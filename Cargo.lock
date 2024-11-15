@@ -4049,6 +4049,7 @@ dependencies = [
  "turbopack-image",
  "turbopack-node",
  "turbopack-nodejs",
+ "turbopack-resolve",
  "turbopack-static",
  "turbopack-trace-server",
  "turbopack-trace-utils",
