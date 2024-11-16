@@ -6,7 +6,7 @@ use tokio::sync::mpsc::Sender;
 use tokio_stream::wrappers::ReceiverStream;
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{IntoTraitRef, ReadRef, ResolvedVc, TransientInstance, Vc};
+use turbo_tasks::{IntoTraitRef, OperationVc, ReadRef, ResolvedVc, TransientInstance, Vc};
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack_core::{
     error::PrettyPrintError,
@@ -23,7 +23,7 @@ use turbopack_core::{
 
 use crate::source::{resolve::ResolveSourceRequestResult, ProxyResult};
 
-type GetContentFn = Box<dyn Fn() -> Vc<ResolveSourceRequestResult> + Send + Sync>;
+type GetContentFn = Box<dyn Fn() -> OperationVc<ResolveSourceRequestResult> + Send + Sync>;
 
 async fn peek_issues<T: Send>(source: Vc<T>) -> Result<Vec<ReadRef<PlainIssue>>> {
     let captured = source.peek_issues_with_path().await?;
@@ -47,11 +47,11 @@ async fn get_update_stream_item(
     from: Vc<VersionState>,
     get_content: TransientInstance<GetContentFn>,
 ) -> Result<Vc<UpdateStreamItem>> {
-    let content = get_content();
-    let _ = content.resolve_strongly_consistent().await?;
-    let mut plain_issues = peek_issues(content).await?;
+    let content_vc = get_content().connect();
+    let content_result = content_vc.strongly_consistent().await;
+    let mut plain_issues = peek_issues(content_vc).await?;
 
-    let content_value = match content.await {
+    let content_value = match content_result {
         Ok(content) => content,
         Err(e) => {
             plain_issues.push(
@@ -191,7 +191,7 @@ impl UpdateStream {
         let content = get_content();
         // We can ignore issues reported in content here since [compute_update_stream]
         // will handle them
-        let version = match *content.await? {
+        let version = match *content.connect().await? {
             ResolveSourceRequestResult::Static(static_content, _) => {
                 static_content.await?.content.version()
             }

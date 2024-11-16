@@ -28,8 +28,8 @@ use turbo_tasks::{
     fxindexmap,
     graph::{AdjacencyMap, GraphTraversal},
     trace::TraceRawVcs,
-    Completion, Completions, FxIndexMap, IntoTraitRef, NonLocalValue, OperationValue, ReadRef,
-    ResolvedVc, State, TaskInput, TransientInstance, TryFlatJoinIterExt, Value, Vc,
+    Completion, Completions, FxIndexMap, IntoTraitRef, NonLocalValue, OperationValue, OperationVc,
+    ReadRef, ResolvedVc, State, TaskInput, TransientInstance, TryFlatJoinIterExt, Value, Vc,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath, VirtualFileSystem};
@@ -69,7 +69,7 @@ use crate::{
     middleware::MiddlewareEndpoint,
     pages::PagesProject,
     route::{AppPageRoute, Endpoint, Route},
-    versioned_content_map::{OutputAssetsOperation, VersionedContentMap},
+    versioned_content_map::VersionedContentMap,
 };
 
 #[derive(
@@ -259,7 +259,7 @@ impl ProjectContainer {
             // we only need to enable versioning in dev mode, since build
             // is assumed to be operating over a static snapshot
             versioned_content_map: if dev {
-                Some(VersionedContentMap::new().to_resolved().await?)
+                Some(VersionedContentMap::new())
             } else {
                 None
             },
@@ -1300,7 +1300,7 @@ impl Project {
     #[turbo_tasks::function]
     pub async fn emit_all_output_assets(
         self: Vc<Self>,
-        output_assets: Vc<OutputAssetsOperation>,
+        output_assets: OperationVc<OutputAssets>,
     ) -> Result<()> {
         let span = tracing::info_span!("emitting");
         async move {
@@ -1323,7 +1323,7 @@ impl Project {
                 Ok(())
             } else {
                 let _ = emit_assets(
-                    *all_output_assets.await?,
+                    all_output_assets.connect(),
                     node_root,
                     client_relative_path,
                     node_root,
@@ -1500,19 +1500,12 @@ async fn get_referenced_output_assets(
     Ok(parent.references().await?.clone_value().into_iter())
 }
 
-#[turbo_tasks::function]
-async fn all_assets_from_entries_operation_inner(
-    operation: Vc<OutputAssetsOperation>,
+#[turbo_tasks::function(operation)]
+async fn all_assets_from_entries_operation(
+    operation: OperationVc<OutputAssets>,
 ) -> Result<Vc<OutputAssets>> {
-    let assets = *operation.await?;
-    Vc::connect(assets);
+    let assets = operation.connect();
     Ok(all_assets_from_entries(assets))
-}
-
-fn all_assets_from_entries_operation(
-    operation: Vc<OutputAssetsOperation>,
-) -> Vc<OutputAssetsOperation> {
-    Vc::cell(all_assets_from_entries_operation_inner(operation))
 }
 
 #[turbo_tasks::function]
