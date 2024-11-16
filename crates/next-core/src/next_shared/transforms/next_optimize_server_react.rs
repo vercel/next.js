@@ -2,7 +2,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use next_custom_transforms::transforms::optimize_server_react::{optimize_server_react, Config};
 use swc_core::ecma::ast::*;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::ResolvedVc;
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
 use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext};
 

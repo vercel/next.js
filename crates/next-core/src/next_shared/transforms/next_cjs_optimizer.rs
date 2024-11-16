@@ -6,7 +6,7 @@ use swc_core::{
     common::SyntaxContext,
     ecma::{ast::*, visit::VisitMutWith},
 };
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::ResolvedVc;
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
 use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext};
 

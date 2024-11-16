@@ -2,7 +2,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use next_custom_transforms::transforms::page_config::page_config;
 use swc_core::ecma::ast::*;
-use turbo_tasks::{ReadRef, ResolvedVc, Vc};
+use turbo_tasks::{ReadRef, ResolvedVc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
 use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext};

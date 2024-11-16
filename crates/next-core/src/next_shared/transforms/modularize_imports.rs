@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use modularize_imports::{modularize_imports, PackageConfig};
 use serde::{Deserialize, Serialize};
 use swc_core::ecma::ast::Program;
-use turbo_tasks::{trace::TraceRawVcs, FxIndexMap, ResolvedVc, Vc};
+use turbo_tasks::{trace::TraceRawVcs, FxIndexMap, ResolvedVc};
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
 use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext};
 

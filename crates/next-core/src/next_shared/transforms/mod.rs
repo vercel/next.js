@@ -31,7 +31,7 @@ pub use next_font::get_next_font_transform_rule;
 pub use next_lint::get_next_lint_transform_rule;
 pub use next_strip_page_exports::get_next_pages_transforms_rule;
 pub use server_actions::get_server_actions_transform_rule;
-use turbo_tasks::{ReadRef, ResolvedVc, Value, Vc};
+use turbo_tasks::{ReadRef, ResolvedVc, Value};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect, ModuleType, RuleCondition};
 use turbopack_core::reference_type::{ReferenceType, UrlReferenceSubType};
