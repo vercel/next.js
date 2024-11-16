@@ -399,7 +399,7 @@ where
 /// Analyse a provided [EcmascriptModuleAsset] and return a [AnalyzeEcmascriptModuleResult].
 #[turbo_tasks::function]
 pub(crate) async fn analyse_ecmascript_module(
-    module: Vc<EcmascriptModuleAsset>,
+    module: ResolvedVc<EcmascriptModuleAsset>,
     part: Option<Vc<ModulePart>>,
 ) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
     let span = {
@@ -420,7 +420,7 @@ pub(crate) async fn analyse_ecmascript_module(
 }
 
 pub(crate) async fn analyse_ecmascript_module_internal(
-    module: Vc<EcmascriptModuleAsset>,
+    module: ResolvedVc<EcmascriptModuleAsset>,
     part: Option<Vc<ModulePart>>,
 ) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
     let raw_module = module.await?;
@@ -432,7 +432,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     let options = options.await?;
     let import_externals = options.import_externals;
 
-    let origin = Vc::upcast::<Box<dyn ResolveOrigin>>(module);
+    let origin = ResolvedVc::upcast::<Box<dyn ResolveOrigin>>(module);
 
     let mut analysis = AnalyzeEcmascriptModuleResultBuilder::new();
     let path = origin.origin_path();
@@ -464,7 +464,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     if analyze_types {
         match &*find_context_file(path.parent(), tsconfig()).await? {
             FindContextFileResult::Found(tsconfig, _) => {
-                analysis.add_reference(TsConfigReference::new(origin, **tsconfig));
+                analysis.add_reference(TsConfigReference::new(*origin, **tsconfig));
             }
             FindContextFileResult::NotFound(_) => {}
         };
@@ -509,12 +509,14 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     let text = &comment.text;
                     if let Some(m) = REFERENCE_PATH.captures(text) {
                         let path = &m[1];
-                        analysis
-                            .add_reference(TsReferencePathAssetReference::new(origin, path.into()));
+                        analysis.add_reference(TsReferencePathAssetReference::new(
+                            *origin,
+                            path.into(),
+                        ));
                     } else if let Some(m) = REFERENCE_TYPES.captures(text) {
                         let types = &m[1];
                         analysis.add_reference(TsReferenceTypeAssetReference::new(
-                            origin,
+                            *origin,
                             types.into(),
                         ));
                     }
@@ -592,7 +594,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
 
     for (i, r) in eval_context.imports.references().enumerate() {
         let r = EsmAssetReference::new(
-            origin,
+            *origin,
             Request::parse(Value::new(RcStr::from(&*r.module_path).into())),
             r.issue_source
                 .unwrap_or_else(|| IssueSource::from_source_only(*source)),
@@ -631,6 +633,12 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         );
 
         import_references.push(r);
+    }
+
+    for r in import_references.iter_mut() {
+        // Resolving these references here avoids many resolve wrapper tasks when
+        // passing that to other turbo tasks functions later.
+        *r = r.resolve().await?;
     }
 
     for i in evaluation_references {
@@ -707,13 +715,13 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     // Check if it was a webpack entry
     if let Some((request, span)) = webpack_runtime {
         let request = Request::parse(Value::new(request.into()));
-        let runtime = resolve_as_webpack_runtime(origin, request, *transforms);
+        let runtime = resolve_as_webpack_runtime(*origin, request, *transforms);
 
         if let WebpackRuntime::Webpack5 { .. } = &*runtime.await? {
             ignore_effect_span = Some(span);
             analysis.add_reference(
                 WebpackRuntimeAssetReference {
-                    origin: origin.to_resolved().await?,
+                    origin,
                     request,
                     runtime,
                     transforms,
@@ -839,7 +847,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     let mut analysis_state = AnalysisState {
         handler: &handler,
         source,
-        origin,
+        origin: *origin,
         compile_time_info,
         var_graph: &var_graph,
         fun_args_values: Mutex::new(HashMap::<u32, Vec<JsValue>>::new()),

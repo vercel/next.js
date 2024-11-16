@@ -1,7 +1,7 @@
 use std::mem::take;
 
 use anyhow::Result;
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::compile_time_info::CompileTimeInfo;
 use url::Url;
 
@@ -64,13 +64,13 @@ pub async fn well_known_function_call(
         ),
         WellKnownFunctionKind::Require => require(args),
         WellKnownFunctionKind::RequireContextRequire(value) => {
-            require_context_require(*value, args).await?
+            require_context_require(value, args).await?
         }
         WellKnownFunctionKind::RequireContextRequireKeys(value) => {
-            require_context_require_keys(*value, args).await?
+            require_context_require_keys(value, args).await?
         }
         WellKnownFunctionKind::RequireContextRequireResolve(value) => {
-            require_context_require_resolve(*value, args).await?
+            require_context_require_resolve(value, args).await?
         }
         WellKnownFunctionKind::PathToFileUrl => path_to_file_url(args),
         WellKnownFunctionKind::OsArch => compile_time_info
@@ -354,15 +354,15 @@ pub fn require(args: Vec<JsValue>) -> JsValue {
 }
 
 /// (try to) statically evaluate `require.context(...)()`
-pub async fn require_context_require(
-    val: Vc<RequireContextValue>,
+async fn require_context_require(
+    val: ResolvedVc<RequireContextValue>,
     args: Vec<JsValue>,
 ) -> Result<JsValue> {
     if args.is_empty() {
         return Ok(JsValue::unknown(
             JsValue::call(
                 Box::new(JsValue::WellKnownFunction(
-                    WellKnownFunctionKind::RequireContextRequire(val.to_resolved().await?),
+                    WellKnownFunctionKind::RequireContextRequire(val),
                 )),
                 args,
             ),
@@ -375,7 +375,7 @@ pub async fn require_context_require(
         return Ok(JsValue::unknown(
             JsValue::call(
                 Box::new(JsValue::WellKnownFunction(
-                    WellKnownFunctionKind::RequireContextRequire(val.to_resolved().await?),
+                    WellKnownFunctionKind::RequireContextRequire(val),
                 )),
                 args,
             ),
@@ -389,7 +389,7 @@ pub async fn require_context_require(
         return Ok(JsValue::unknown(
             JsValue::call(
                 Box::new(JsValue::WellKnownFunction(
-                    WellKnownFunctionKind::RequireContextRequire(val.to_resolved().await?),
+                    WellKnownFunctionKind::RequireContextRequire(val),
                 )),
                 args,
             ),
@@ -406,8 +406,8 @@ pub async fn require_context_require(
 }
 
 /// (try to) statically evaluate `require.context(...).keys()`
-pub async fn require_context_require_keys(
-    val: Vc<RequireContextValue>,
+async fn require_context_require_keys(
+    val: ResolvedVc<RequireContextValue>,
     args: Vec<JsValue>,
 ) -> Result<JsValue> {
     Ok(if args.is_empty() {
@@ -417,7 +417,7 @@ pub async fn require_context_require_keys(
         JsValue::unknown(
             JsValue::call(
                 Box::new(JsValue::WellKnownFunction(
-                    WellKnownFunctionKind::RequireContextRequireKeys(val.to_resolved().await?),
+                    WellKnownFunctionKind::RequireContextRequireKeys(val),
                 )),
                 args,
             ),
@@ -428,15 +428,15 @@ pub async fn require_context_require_keys(
 }
 
 /// (try to) statically evaluate `require.context(...).resolve()`
-pub async fn require_context_require_resolve(
-    val: Vc<RequireContextValue>,
+async fn require_context_require_resolve(
+    val: ResolvedVc<RequireContextValue>,
     args: Vec<JsValue>,
 ) -> Result<JsValue> {
     if args.len() != 1 {
         return Ok(JsValue::unknown(
             JsValue::call(
                 Box::new(JsValue::WellKnownFunction(
-                    WellKnownFunctionKind::RequireContextRequireResolve(val.to_resolved().await?),
+                    WellKnownFunctionKind::RequireContextRequireResolve(val),
                 )),
                 args,
             ),
@@ -449,7 +449,7 @@ pub async fn require_context_require_resolve(
         return Ok(JsValue::unknown(
             JsValue::call(
                 Box::new(JsValue::WellKnownFunction(
-                    WellKnownFunctionKind::RequireContextRequireResolve(val.to_resolved().await?),
+                    WellKnownFunctionKind::RequireContextRequireResolve(val),
                 )),
                 args,
             ),
@@ -463,7 +463,7 @@ pub async fn require_context_require_resolve(
         return Ok(JsValue::unknown(
             JsValue::call(
                 Box::new(JsValue::WellKnownFunction(
-                    WellKnownFunctionKind::RequireContextRequireResolve(val.to_resolved().await?),
+                    WellKnownFunctionKind::RequireContextRequireResolve(val),
                 )),
                 args,
             ),

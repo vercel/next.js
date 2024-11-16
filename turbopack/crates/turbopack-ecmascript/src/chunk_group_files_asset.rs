@@ -91,15 +91,15 @@ impl Asset for ChunkGroupFilesAsset {
 impl ChunkableModule for ChunkGroupFilesAsset {
     #[turbo_tasks::function]
     async fn as_chunk_item(
-        self: Vc<Self>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        self: ResolvedVc<Self>,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
         let this = self.await?;
         Ok(Vc::upcast(
             ChunkGroupFilesChunkItem {
-                chunking_context: chunking_context.to_resolved().await?,
+                chunking_context,
                 client_root: this.client_root,
-                inner: self.to_resolved().await?,
+                inner: self,
             }
             .cell(),
         ))
