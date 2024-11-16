@@ -56,8 +56,10 @@ impl EffectInstance {
 impl Effect for EffectInstance {}
 
 /// Schedules an effect to be applied. The passed future is executed once `apply_effects` is called.
+///
 /// The effect will only executed once. The passed future is executed outside of the current task
 /// and can't read any Vcs. These need to be read before. ReadRefs can be passed into the future.
+///
 /// Effects are executed in parallel, so they might need to use async locking to avoid problems.
 /// Order of execution of multiple effects is not defined. You must not use mutliple conflicting
 /// effects to avoid non-deterministic behavior.
@@ -65,9 +67,10 @@ pub fn effect(future: impl Future<Output = Result<()>> + Send + Sync + 'static) 
     emit::<Box<dyn Effect>>(Vc::upcast(EffectInstance::new(future).cell()));
 }
 
-/// Applies all effects that have been emitted by an operations. Usually it's important that effects
-/// are strongly consistent, so one want to use `apply_effects` only on operations that have been
-/// strongly consistently read before.
+/// Applies all effects that have been emitted by an operations.
+///
+/// Usually it's important that effects are strongly consistent, so one want to use `apply_effects`
+/// only on operations that have been strongly consistently read before.
 ///
 /// The order of execution is not defined and effects are executed in parallel.
 ///
