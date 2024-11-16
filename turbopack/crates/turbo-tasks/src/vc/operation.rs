@@ -54,19 +54,15 @@ where
 }
 
 impl<T: ?Sized> OperationVc<T> {
-    /// Creates a new `OperationVc` from a `Vc`.
+    /// Called by the `#[turbo_tasks::function]` macro.
     ///
-    /// The caller must ensure that the `Vc` is not a local task and it points to a a single
-    /// operation.
-    ///
-    /// **This API is a placeholder and will likely be removed soon** in favor of a future API that
-    /// uses macros and static (compile-time) assertions in place of runtime assertions.
-    pub fn new(node: Vc<T>) -> Self {
-        // TODO to avoid this runtime check, we should mark functions with `(operation)` and return
-        // a OperationVc directly
-        assert!(
+    /// The macro ensures that the `Vc` is not a local task and it points to a single operation.
+    #[doc(hidden)]
+    pub unsafe fn cell_private(node: Vc<T>) -> Self {
+        debug_assert!(
             matches!(node.node, RawVc::TaskOutput(..)),
-            "OperationVc::new must be called on the immediate return value of a task function"
+            "OperationVc::cell_private must be called on the immediate return value of a task \
+             function"
         );
         Self { node }
     }
