@@ -24,10 +24,10 @@ use crate::{
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct WorkerAssetReference {
-    pub origin: Vc<Box<dyn ResolveOrigin>>,
-    pub request: Vc<Request>,
-    pub path: Vc<AstPath>,
-    pub issue_source: Vc<IssueSource>,
+    pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    pub request: ResolvedVc<Request>,
+    pub path: ResolvedVc<AstPath>,
+    pub issue_source: ResolvedVc<IssueSource>,
     pub in_try: bool,
 }
 
@@ -35,10 +35,10 @@ pub struct WorkerAssetReference {
 impl WorkerAssetReference {
     #[turbo_tasks::function]
     pub fn new(
-        origin: Vc<Box<dyn ResolveOrigin>>,
-        request: Vc<Request>,
-        path: Vc<AstPath>,
-        issue_source: Vc<IssueSource>,
+        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+        request: ResolvedVc<Request>,
+        path: ResolvedVc<AstPath>,
+        issue_source: ResolvedVc<IssueSource>,
         in_try: bool,
     ) -> Vc<Self> {
         Self::cell(WorkerAssetReference {
@@ -56,11 +56,11 @@ impl WorkerAssetReference {
         self: &WorkerAssetReference,
     ) -> Result<Option<Vc<WorkerLoaderModule>>> {
         let module = url_resolve(
-            self.origin,
-            self.request,
+            *self.origin,
+            *self.request,
             // TODO support more worker types
             Value::new(ReferenceType::Worker(WorkerReferenceSubType::WebWorker)),
-            Some(self.issue_source),
+            Some(*self.issue_source),
             self.in_try,
         );
 

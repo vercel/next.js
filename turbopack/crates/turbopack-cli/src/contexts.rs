@@ -145,16 +145,16 @@ async fn get_client_module_options_context(
         conditions,
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
             prepend: ResolvedVc::cell(vec![
-                EcmascriptInputTransform::Plugin(Vc::cell(Box::new(
+                EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(
                     EmotionTransformer::new(&EmotionTransformConfig::default())
                         .expect("Should be able to create emotion transformer"),
                 ) as _)),
-                EcmascriptInputTransform::Plugin(Vc::cell(Box::new(
+                EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(
                     StyledComponentsTransformer::new(&StyledComponentsTransformConfig::default()),
                 ) as _)),
-                EcmascriptInputTransform::Plugin(Vc::cell(Box::new(StyledJsxTransformer::new(
-                    versions,
-                )) as _)),
+                EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(
+                    StyledJsxTransformer::new(versions),
+                ) as _)),
             ]),
             append: ResolvedVc::cell(vec![]),
         }],
