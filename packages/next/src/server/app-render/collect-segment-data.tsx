@@ -210,7 +210,7 @@ async function PrefetchTreeData({
 async function collectSegmentDataImpl(
   route: FlightRouterState,
   buildId: string,
-  seedData: CacheNodeSeedData,
+  seedData: CacheNodeSeedData | null,
   fullPageDataBuffer: Buffer,
   clientModules: ManifestNode,
   serverConsumerManifest: any,
@@ -223,15 +223,12 @@ async function collectSegmentDataImpl(
   let slotMetadata: { [parallelRouteKey: string]: TreePrefetch } | null = null
 
   const children = route[1]
-  const seedDataChildren = seedData[2]
+  const seedDataChildren = seedData !== null ? seedData[2] : null
   for (const parallelRouteKey in children) {
     const childRoute = children[parallelRouteKey]
     const childSegment = childRoute[0]
-    const childSeedData = seedDataChildren[parallelRouteKey]
-    if (!childSeedData) {
-      // No corresponding seed data for this segment.
-      continue
-    }
+    const childSeedData =
+      seedDataChildren !== null ? seedDataChildren[parallelRouteKey] : null
     const childSegmentPathStr =
       segmentPathStr +
       '/' +
@@ -245,7 +242,7 @@ async function collectSegmentDataImpl(
     const childTree = await collectSegmentDataImpl(
       childRoute,
       buildId,
-      seedData,
+      childSeedData,
       fullPageDataBuffer,
       clientModules,
       serverConsumerManifest,
@@ -259,6 +256,7 @@ async function collectSegmentDataImpl(
     slotMetadata[parallelRouteKey] = childTree
   }
 
+  if (seedData !== null) {
   // Spawn a task to write the segment data to a new Flight stream.
   segmentTasks.push(
     // Since we're already in the middle of a render, wait until after the
@@ -273,6 +271,13 @@ async function collectSegmentDataImpl(
       )
     )
   )
+  } else {
+    // This segment does not have any seed data. Skip generating a prefetch
+    // response for it. We'll still include it in the route tree, though.
+    // TODO: We should encode in the route tree whether a segment is missing
+    // so we don't attempt to fetch it for no reason. As of now this shouldn't
+    // ever happen in practice, though.
+  }
 
   // Metadata about the segment. Sent to the client as part of the
   // tree prefetch.
