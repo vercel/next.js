@@ -17,9 +17,9 @@ use std::collections::BTreeSet;
 use anyhow::Result;
 use futures::{stream::Stream as StreamTrait, TryStreamExt};
 use serde::{Deserialize, Serialize};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, util::SharedError, Completion, RcStr, ResolvedVc, Upcast, Value,
-    ValueDefault, Vc,
+    trace::TraceRawVcs, util::SharedError, Completion, ResolvedVc, Upcast, Value, ValueDefault, Vc,
 };
 use turbo_tasks_bytes::{Bytes, Stream, StreamRead};
 use turbo_tasks_fs::FileSystemPath;

@@ -5,9 +5,10 @@ use indexmap::map::{Entry, OccupiedEntry};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs, FxIndexMap, RcStr, ResolvedVc,
-    TaskInput, TryJoinIterExt, ValueDefault, ValueToString, Vc,
+    debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs, FxIndexMap, ResolvedVc, TaskInput,
+    TryJoinIterExt, ValueDefault, ValueToString, Vc,
 };
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath};
 use turbopack_core::issue::{

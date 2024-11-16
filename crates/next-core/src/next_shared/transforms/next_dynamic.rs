@@ -17,12 +17,13 @@ pub async fn get_next_dynamic_transform_rule(
     mode: Vc<NextMode>,
     enable_mdx_rs: bool,
 ) -> Result<ModuleRule> {
-    let dynamic_transform = EcmascriptInputTransform::Plugin(Vc::cell(Box::new(NextJsDynamic {
-        is_server_compiler,
-        is_react_server_layer,
-        is_app_dir,
-        mode: *mode.await?,
-    }) as _));
+    let dynamic_transform =
+        EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(NextJsDynamic {
+            is_server_compiler,
+            is_react_server_layer,
+            is_app_dir,
+            mode: *mode.await?,
+        }) as _));
     Ok(ModuleRule::new(
         module_rule_match_js_no_url(enable_mdx_rs),
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {

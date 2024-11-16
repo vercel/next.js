@@ -13,9 +13,9 @@ use anyhow::{bail, Context, Result};
 use dunce::canonicalize;
 use serde::Deserialize;
 use serde_json::json;
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    RcStr, ReadConsistency, ReadRef, ResolvedVc, TryJoinIterExt, TurboTasks, Value, ValueToString,
-    Vc,
+    ReadConsistency, ReadRef, ResolvedVc, TryJoinIterExt, TurboTasks, Value, ValueToString, Vc,
 };
 use turbo_tasks_env::DotenvProcessEnv;
 use turbo_tasks_fs::{
@@ -249,11 +249,11 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         conditions,
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
             prepend: ResolvedVc::cell(vec![
-                EcmascriptInputTransform::Plugin(Vc::cell(Box::new(
+                EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(
                     EmotionTransformer::new(&EmotionTransformConfig::default())
                         .expect("Should be able to create emotion transformer"),
                 ) as _)),
-                EcmascriptInputTransform::Plugin(Vc::cell(Box::new(
+                EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(
                     StyledComponentsTransformer::new(&StyledComponentsTransformConfig::default()),
                 ) as _)),
             ]),

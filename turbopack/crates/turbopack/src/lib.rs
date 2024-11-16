@@ -30,7 +30,8 @@ use ecmascript::{
 use graph::{aggregate, AggregatedGraph, AggregatedGraphNodeContent};
 use module_options::{ModuleOptions, ModuleOptionsContext, ModuleRuleEffect, ModuleType};
 use tracing::Instrument;
-use turbo_tasks::{Completion, RcStr, ResolvedVc, Value, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{Completion, ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 pub use turbopack_core::condition;
 use turbopack_core::{

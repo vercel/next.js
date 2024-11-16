@@ -57,9 +57,10 @@ use tokio::{
     sync::{RwLock, RwLockReadGuard},
 };
 use tracing::Instrument;
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    mark_session_dependent, mark_stateful, trace::TraceRawVcs, Completion, Invalidator, RcStr,
-    ReadRef, ResolvedVc, ValueToString, Vc,
+    mark_session_dependent, mark_stateful, trace::TraceRawVcs, Completion, Invalidator, ReadRef,
+    ResolvedVc, ValueToString, Vc,
 };
 use turbo_tasks_hash::{
     hash_xxh3_hash128, hash_xxh3_hash64, DeterministicHash, DeterministicHasher,
@@ -735,7 +736,7 @@ impl FileSystem for DiskFileSystem {
                         f.set_permissions(file.meta.permissions.into()).await?;
                         #[cfg(feature = "write_version")]
                         {
-                            let mut full_path = full_path;
+                            let mut full_path = full_path.into_owned();
                             let hash = hash_xxh3_hash64(file);
                             let ext = full_path.extension();
                             let ext = if let Some(ext) = ext {

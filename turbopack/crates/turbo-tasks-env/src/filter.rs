@@ -1,5 +1,6 @@
 use anyhow::Result;
-use turbo_tasks::{FxIndexMap, RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexMap, Vc};
 
 use crate::{EnvMap, ProcessEnv};
 

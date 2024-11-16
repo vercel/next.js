@@ -8,9 +8,10 @@ use std::{collections::HashMap, iter::once, thread::available_parallelism};
 
 use anyhow::{bail, Result};
 pub use node_entry::{NodeEntry, NodeRenderingEntries, NodeRenderingEntry};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
-    Completion, Completions, FxIndexSet, RcStr, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
+    Completion, Completions, FxIndexSet, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
 };
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::{to_sys_path, File, FileSystemPath};

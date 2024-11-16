@@ -7,7 +7,8 @@ use swc_core::{
     common::{source_map::SmallPos, Span, Spanned, GLOBALS},
     ecma::ast::{Decl, Expr, FnExpr, Ident, Program},
 };
-use turbo_tasks::{trace::TraceRawVcs, RcStr, TryJoinIterExt, ValueDefault, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{trace::TraceRawVcs, TryJoinIterExt, ValueDefault, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     file_source::FileSource,

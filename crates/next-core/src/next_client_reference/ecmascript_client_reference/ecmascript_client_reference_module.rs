@@ -1,6 +1,7 @@
 #![allow(rustdoc::private_intra_doc_links)]
 use anyhow::{bail, Result};
-use turbo_tasks::{RcStr, ResolvedVc, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     ident::AssetIdent,

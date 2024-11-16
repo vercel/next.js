@@ -10,7 +10,8 @@ pub use custom_module_type::CustomModuleType;
 pub use module_options_context::*;
 pub use module_rule::*;
 pub use rule_condition::*;
-use turbo_tasks::{RcStr, ResolvedVc, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 use turbopack_core::{
     reference_type::{CssReferenceSubType, ReferenceType, UrlReferenceSubType},
@@ -119,8 +120,8 @@ impl ModuleOptions {
             transforms.push(EcmascriptInputTransform::React {
                 development: jsx.development,
                 refresh: jsx.react_refresh,
-                import_source: Vc::cell(jsx.import_source.clone()),
-                runtime: Vc::cell(jsx.runtime.clone()),
+                import_source: ResolvedVc::cell(jsx.import_source.clone()),
+                runtime: ResolvedVc::cell(jsx.runtime.clone()),
             });
         }
 

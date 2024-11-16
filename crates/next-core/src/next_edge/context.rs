@@ -1,5 +1,6 @@
 use anyhow::Result;
-use turbo_tasks::{FxIndexMap, RcStr, ResolvedVc, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexMap, ResolvedVc, Value, Vc};
 use turbo_tasks_env::EnvMap;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::resolve_options_context::ResolveOptionsContext;
