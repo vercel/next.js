@@ -8,16 +8,24 @@ use tracing::{Instrument, Span};
 
 use crate::{self as turbo_tasks, emit, manager::turbo_tasks_future_scope, CollectiblesSource, Vc};
 
+/// A trait to emit a task effect as collectible. This trait only has one
+/// implementation, `EffectInstance` and no other implementation is allowed.
+/// The trait is private to this module so that no other implementation can be
+/// added.
 #[turbo_tasks::value_trait]
 trait Effect {}
 
+/// A future that represents the effect of a task. The future is executed when
+/// the effect is applied.
 type EffectFuture = Pin<Box<dyn Future<Output = Result<()>> + Send + Sync + 'static>>;
 
+/// The inner state of an effect instance if it has not been applied yet.
 struct EffectInner {
     future: EffectFuture,
     span: Span,
 }
 
+/// The Effect instance collectible that is emitted for effects.
 #[turbo_tasks::value(serialization = "none", cell = "new", eq = "manual")]
 struct EffectInstance {
     #[turbo_tasks(trace_ignore, debug_ignore)]
@@ -34,7 +42,7 @@ impl EffectInstance {
         }
     }
 
-    pub fn apply(&self) -> Option<JoinHandle<Result<()>>> {
+    fn apply(&self) -> Option<JoinHandle<Result<()>>> {
         let future = self.inner.lock().take();
         future.map(|EffectInner { future, span }| {
             tokio::spawn(
@@ -47,10 +55,29 @@ impl EffectInstance {
 #[turbo_tasks::value_impl]
 impl Effect for EffectInstance {}
 
+/// Schedules an effect to be applied. The passed future is executed once `apply_effects` is called.
+/// The effect will only executed once. The passed future is executed outside of the current task
+/// and can't read any Vcs. These need to be read before. ReadRefs can be passed into the future.
+/// Effects are executed in parallel, so they might need to use async locking to avoid problems.
+/// Order of execution of multiple effects is not defined. You must not use mutliple conflicting
+/// effects to avoid non-deterministic behavior.
 pub fn effect(future: impl Future<Output = Result<()>> + Send + Sync + 'static) {
     emit::<Box<dyn Effect>>(Vc::upcast(EffectInstance::new(future).cell()));
 }
 
+/// Applies all effects that have been emitted by an operations. Usually it's important that effects
+/// are strongly consistent, so one want to use `apply_effects` only on operations that have been
+/// strongly consistently read before.
+///
+/// The order of execution is not defined and effects are executed in parallel.
+///
+/// # Example
+///
+/// ```rust
+/// let operation = some_turbo_tasks_function(args);
+/// let result = operation.strongly_consistent().await?;
+/// apply_effects(operation).await?;
+/// ```
 pub async fn apply_effects(source: impl CollectiblesSource) -> Result<()> {
     let effects: AutoSet<Vc<Box<dyn Effect>>> = source.take_collectibles();
     if effects.is_empty() {

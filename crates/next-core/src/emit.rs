@@ -49,7 +49,7 @@ pub async fn emit_assets(
         .map(|asset| async move {
             let asset = asset.resolve().await?;
             let path = asset.ident().path();
-            let span = tracing::info_span!("emit asset", name = path.to_string().await?.as_str());
+            let span = tracing::info_span!("emit asset", name = %path.to_string().await?);
             async move {
                 let path = path.await?;
                 Ok(if path.is_inside_ref(&*node_root.await?) {
