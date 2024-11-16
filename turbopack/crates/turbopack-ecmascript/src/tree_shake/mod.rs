@@ -12,7 +12,8 @@ use swc_core::{
         codegen::to_code,
     },
 };
-use turbo_tasks::{FxIndexSet, RcStr, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexSet, ValueToString, Vc};
 use turbopack_core::{ident::AssetIdent, resolve::ModulePart, source::Source};
 
 pub(crate) use self::graph::{
@@ -25,6 +26,7 @@ pub mod asset;
 pub mod chunk_item;
 mod graph;
 pub mod merge;
+mod optimizations;
 #[cfg(test)]
 mod tests;
 mod util;
@@ -87,7 +89,19 @@ impl Analyzer<'_> {
 
         analyzer.handle_exports(module);
 
+        analyzer.handle_explicit_deps();
+
         (g, items)
+    }
+
+    fn handle_explicit_deps(&mut self) {
+        for item_id in self.item_ids.iter() {
+            if let Some(item) = self.items.get(item_id) {
+                if !item.explicit_deps.is_empty() {
+                    self.g.add_strong_deps(item_id, item.explicit_deps.iter());
+                }
+            }
+        }
     }
 
     /// Phase 1: Hoisted Variables and Bindings
@@ -215,13 +229,18 @@ impl Analyzer<'_> {
                     self.g
                         .add_strong_deps(item_id, self.last_side_effects.last());
 
-                    // Create weak dependencies to all LAST_WRITES and
-                    // LAST_READS.
+                    // Create weak dependencies to all LAST_WRITES and strong
+                    // dependencies to LAST_READS.
+                    //
+                    // We need to create strong dependencies to LAST_READS because
+                    // prototype-based methods definitions should be executed before
+                    // any usage of those methods, and the usage of those methods are
+                    // flagged as a side effect.
                     for id in eventual_ids.iter() {
                         let state = self.vars.entry(id.clone()).or_default();
 
                         self.g.add_weak_deps(item_id, state.last_writes.iter());
-                        self.g.add_weak_deps(item_id, state.last_reads.iter());
+                        self.g.add_strong_deps(item_id, state.last_reads.iter());
                     }
                 }
 

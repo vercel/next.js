@@ -8,9 +8,8 @@ use std::{
 
 use anyhow::Result;
 use tokio::{spawn, time::sleep};
-use turbo_tasks::{
-    util::FormatDuration, RcStr, ReadConsistency, TurboTasks, UpdateInfo, Value, Vc,
-};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{util::FormatDuration, ReadConsistency, TurboTasks, UpdateInfo, Value, Vc};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem};
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{emit_with_completion, rebase::RebasedAsset, register};

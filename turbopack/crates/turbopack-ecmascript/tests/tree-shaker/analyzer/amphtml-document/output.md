@@ -288,21 +288,27 @@ graph TD
     N9["Items: [ItemId(1, ImportBinding(2))]"];
     N10["Items: [ItemId(1, ImportBinding(3))]"];
     N11["Items: [ItemId(1, ImportBinding(4))]"];
-    N12["Items: [ItemId(2, Normal)]"];
-    N13["Items: [ItemId(3, Normal)]"];
+    N12["Items: [ItemId(2, Normal), ItemId(3, Normal)]"];
     N6 --> N2;
-    N12 --> N7;
-    N12 --> N4;
-    N12 --> N5;
-    N12 --> N3;
-    N12 --> N8;
-    N12 --> N9;
-    N12 --> N10;
     N12 --> N11;
-    N13 --> N12;
-    N13 --> N6;
-    N1 --> N13;
-    N0 --> N13;
+    N12 --> N10;
+    N12 --> N9;
+    N12 --> N8;
+    N12 --> N3;
+    N12 --> N5;
+    N12 --> N4;
+    N12 --> N7;
+    N11 --> N6;
+    N12 --> N6;
+    N1 --> N12;
+    N0 --> N12;
+    N3 --> N2;
+    N4 --> N2;
+    N5 --> N2;
+    N7 --> N6;
+    N8 --> N6;
+    N9 --> N6;
+    N10 --> N6;
 ```
 # Entrypoints
 
@@ -312,7 +318,7 @@ graph TD
     Export(
         "default",
     ): 1,
-    Exports: 14,
+    Exports: 13,
 }
 ```
 
@@ -321,7 +327,7 @@ graph TD
 ## Part 0
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
+    __turbopack_part__: 12
 };
 "module evaluation";
 
@@ -329,7 +335,7 @@ import "__TURBOPACK_PART__" assert {
 ## Part 1
 ```js
 import { a as __TURBOPACK__default__export__ } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -13
+    __turbopack_part__: -12
 };
 export { __TURBOPACK__default__export__ as default };
 
@@ -469,6 +475,9 @@ import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
 };
 import { NextScript } from 'next/document';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
+};
 class MyDocument extends Document {
     static async getInitialProps(ctx) {
         const initialProps = await Document.getInitialProps(ctx);
@@ -500,26 +509,16 @@ class MyDocument extends Document {
         });
     }
 }
+const __TURBOPACK__default__export__ = MyDocument;
 export { MyDocument as j } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
-
-```
-## Part 13
-```js
-import { j as MyDocument } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -12
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
-};
-const __TURBOPACK__default__export__ = MyDocument;
 export { __TURBOPACK__default__export__ as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
-## Part 14
+## Part 13
 ```js
 export { default } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export default"
@@ -529,7 +528,7 @@ export { default } from "__TURBOPACK_PART__" assert {
 ## Merged (module eval)
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
+    __turbopack_part__: 12
 };
 "module evaluation";
 
@@ -542,7 +541,7 @@ import "__TURBOPACK_PART__" assert {
     Export(
         "default",
     ): 1,
-    Exports: 14,
+    Exports: 13,
 }
 ```
 
@@ -551,7 +550,7 @@ import "__TURBOPACK_PART__" assert {
 ## Part 0
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
+    __turbopack_part__: 12
 };
 "module evaluation";
 
@@ -559,7 +558,7 @@ import "__TURBOPACK_PART__" assert {
 ## Part 1
 ```js
 import { a as __TURBOPACK__default__export__ } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -13
+    __turbopack_part__: -12
 };
 export { __TURBOPACK__default__export__ as default };
 
@@ -699,6 +698,9 @@ import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
 };
 import { NextScript } from 'next/document';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
+};
 class MyDocument extends Document {
     static async getInitialProps(ctx) {
         const initialProps = await Document.getInitialProps(ctx);
@@ -730,26 +732,16 @@ class MyDocument extends Document {
         });
     }
 }
+const __TURBOPACK__default__export__ = MyDocument;
 export { MyDocument as j } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
-
-```
-## Part 13
-```js
-import { j as MyDocument } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -12
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
-};
-const __TURBOPACK__default__export__ = MyDocument;
 export { __TURBOPACK__default__export__ as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
-## Part 14
+## Part 13
 ```js
 export { default } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export default"
@@ -759,7 +751,7 @@ export { default } from "__TURBOPACK_PART__" assert {
 ## Merged (module eval)
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
+    __turbopack_part__: 12
 };
 "module evaluation";
 

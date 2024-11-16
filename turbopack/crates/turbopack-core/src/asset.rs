@@ -1,5 +1,6 @@
 use anyhow::Result;
-use turbo_tasks::{Completion, RcStr, ResolvedVc, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{Completion, ResolvedVc, Vc};
 use turbo_tasks_fs::{
     FileContent, FileJsonContent, FileLinesContent, FileSystemPath, LinkContent, LinkType,
 };

@@ -46,7 +46,7 @@ describe('app-fetch-deduping', () => {
       afterAll(() => externalServer.close())
 
       it('dedupes requests amongst static workers', async () => {
-        await next.patchFileFast(
+        await next.patchFile(
           'next.config.js',
           `module.exports = {
             env: { TEST_SERVER_PORT: "${externalServerPort}" },
@@ -58,7 +58,7 @@ describe('app-fetch-deduping', () => {
     })
   } else if (isNextDev) {
     describe('during next dev', () => {
-      const { next } = nextTestSetup({ files: __dirname })
+      const { next } = nextTestSetup({ files: __dirname, patchFileDelay: 500 })
       function invocation(cliOutput: string): number {
         return cliOutput.match(/Route Handler invoked/g).length
       }

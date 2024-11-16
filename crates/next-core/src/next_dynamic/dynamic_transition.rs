@@ -1,5 +1,6 @@
 use anyhow::Result;
-use turbo_tasks::{RcStr, ResolvedVc, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbopack::{transition::Transition, ModuleAssetContext};
 use turbopack_core::{context::ProcessResult, reference_type::ReferenceType, source::Source};
 

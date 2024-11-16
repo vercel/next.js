@@ -1,6 +1,7 @@
 use anyhow::Result;
 use serde_json::Value as JsonValue;
-use turbo_tasks::{RcStr, ResolvedVc, Value, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::DirectoryContent;
 use turbopack_core::{
     asset::{Asset, AssetContent},

@@ -32,6 +32,18 @@ pub enum ConnectChildOperation {
 
 impl ConnectChildOperation {
     pub fn run(parent_task_id: TaskId, child_task_id: TaskId, mut ctx: impl ExecuteContext) {
+        if !ctx.should_track_children() {
+            let mut task = ctx.task(child_task_id, TaskDataCategory::Data);
+            if !task.has_key(&CachedDataItemKey::Output {}) {
+                let description = ctx.get_task_desc_fn(child_task_id);
+                let should_schedule = task.add(CachedDataItem::new_scheduled(description));
+                drop(task);
+                if should_schedule {
+                    ctx.schedule(child_task_id);
+                }
+            }
+            return;
+        }
         let mut parent_task = ctx.task(parent_task_id, TaskDataCategory::All);
         // Quick skip if the child was already connected before
         if parent_task

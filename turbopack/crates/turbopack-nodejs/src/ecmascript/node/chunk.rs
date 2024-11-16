@@ -1,5 +1,6 @@
 use anyhow::Result;
-use turbo_tasks::{FxIndexSet, RcStr, ResolvedVc, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexSet, ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{Chunk, ChunkingContext},

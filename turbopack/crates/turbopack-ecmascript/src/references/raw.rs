@@ -1,5 +1,6 @@
 use anyhow::Result;
-use turbo_tasks::{RcStr, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ValueToString, Vc};
 use turbopack_core::{
     reference::ModuleReference,
     resolve::{pattern::Pattern, resolve_raw, ModuleResolveResult},

@@ -3,7 +3,8 @@ use std::collections::HashSet;
 use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value as JsonValue;
-use turbo_tasks::{trace::TraceRawVcs, FxIndexMap, RcStr, ResolvedVc, TaskInput, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{trace::TraceRawVcs, FxIndexMap, ResolvedVc, TaskInput, Vc};
 use turbo_tasks_env::EnvMap;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{
@@ -401,7 +402,6 @@ pub struct ExperimentalTurboConfig {
     pub rules: Option<FxIndexMap<RcStr, RuleConfigItemOrShortcut>>,
     pub resolve_alias: Option<FxIndexMap<RcStr, JsonValue>>,
     pub resolve_extensions: Option<Vec<RcStr>>,
-    pub use_swc_css: Option<bool>,
     pub tree_shaking: Option<bool>,
     pub module_id_strategy: Option<ModuleIdStrategy>,
     pub minify: Option<bool>,
@@ -830,7 +830,7 @@ impl RemoveConsoleConfig {
 pub struct ResolveExtensions(Option<Vec<RcStr>>);
 
 #[turbo_tasks::value(transparent)]
-pub struct OptionalMdxTransformOptions(Option<Vc<MdxTransformOptions>>);
+pub struct OptionalMdxTransformOptions(Option<ResolvedVc<MdxTransformOptions>>);
 
 #[turbo_tasks::value_impl]
 impl NextConfig {
@@ -922,8 +922,8 @@ impl NextConfig {
         let active_conditions = active_conditions.into_iter().collect::<HashSet<_>>();
         let mut rules = FxIndexMap::default();
         for (ext, rule) in turbo_rules.iter() {
-            fn transform_loaders(loaders: &[LoaderItem]) -> Vc<WebpackLoaderItems> {
-                Vc::cell(
+            fn transform_loaders(loaders: &[LoaderItem]) -> ResolvedVc<WebpackLoaderItems> {
+                ResolvedVc::cell(
                     loaders
                         .iter()
                         .map(|item| match item {
@@ -991,7 +991,7 @@ impl NextConfig {
                 }
             }
         }
-        Vc::cell(Some(Vc::cell(rules)))
+        Vc::cell(Some(ResolvedVc::cell(rules)))
     }
 
     #[turbo_tasks::function]
@@ -1040,7 +1040,7 @@ impl NextConfig {
                     provider_import_source: Some(mdx_import_source_file()),
                     ..Default::default()
                 }
-                .cell(),
+                .resolved_cell(),
             )),
             Some(MdxRsOptions::Option(options)) => OptionalMdxTransformOptions(Some(
                 MdxTransformOptions {
@@ -1052,7 +1052,7 @@ impl NextConfig {
                     ),
                     ..options.clone()
                 }
-                .cell(),
+                .resolved_cell(),
             )),
             _ => OptionalMdxTransformOptions(None),
         };
@@ -1154,17 +1154,6 @@ impl NextConfig {
         Ok(Vc::cell(
             self.await?.experimental.react_owner_stack.unwrap_or(false),
         ))
-    }
-
-    #[turbo_tasks::function]
-    pub fn use_swc_css(&self) -> Vc<bool> {
-        Vc::cell(
-            self.experimental
-                .turbo
-                .as_ref()
-                .and_then(|turbo| turbo.use_swc_css)
-                .unwrap_or(false),
-        )
     }
 
     #[turbo_tasks::function]

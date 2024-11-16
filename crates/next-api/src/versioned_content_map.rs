@@ -3,8 +3,9 @@ use std::collections::{HashMap, HashSet};
 use anyhow::{bail, Result};
 use next_core::emit_assets;
 use serde::{Deserialize, Serialize};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, Completion, FxIndexSet, RcStr, ResolvedVc, State,
+    debug::ValueDebugFormat, trace::TraceRawVcs, Completion, FxIndexSet, ResolvedVc, State,
     TryFlatJoinIterExt, TryJoinIterExt, ValueDefault, ValueToString, Vc,
 };
 use turbo_tasks_fs::FileSystemPath;

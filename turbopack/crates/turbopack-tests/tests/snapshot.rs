@@ -13,9 +13,9 @@ use anyhow::{bail, Context, Result};
 use dunce::canonicalize;
 use serde::Deserialize;
 use serde_json::json;
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    RcStr, ReadConsistency, ReadRef, ResolvedVc, TryJoinIterExt, TurboTasks, Value, ValueToString,
-    Vc,
+    ReadConsistency, ReadRef, ResolvedVc, TryJoinIterExt, TurboTasks, Value, ValueToString, Vc,
 };
 use turbo_tasks_env::DotenvProcessEnv;
 use turbo_tasks_fs::{
@@ -93,8 +93,6 @@ struct SnapshotOptions {
     #[serde(default)]
     environment: SnapshotEnvironment,
     #[serde(default)]
-    use_swc_css: bool,
-    #[serde(default)]
     tree_shaking_mode: Option<TreeShakingMode>,
 }
 
@@ -121,7 +119,6 @@ impl Default for SnapshotOptions {
             runtime: Default::default(),
             runtime_type: default_runtime_type(),
             environment: Default::default(),
-            use_swc_css: Default::default(),
             tree_shaking_mode: Default::default(),
         }
     }
@@ -251,7 +248,7 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
     let module_rules = ModuleRule::new(
         conditions,
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
-            prepend: Vc::cell(vec![
+            prepend: ResolvedVc::cell(vec![
                 EcmascriptInputTransform::Plugin(Vc::cell(Box::new(
                     EmotionTransformer::new(&EmotionTransformConfig::default())
                         .expect("Should be able to create emotion transformer"),
@@ -260,7 +257,7 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                     StyledComponentsTransformer::new(&StyledComponentsTransformConfig::default()),
                 ) as _)),
             ]),
-            append: Vc::cell(vec![]),
+            append: ResolvedVc::cell(vec![]),
         }],
     );
     let asset_context: Vc<Box<dyn AssetContext>> = Vc::upcast(ModuleAssetContext::new(
@@ -268,7 +265,7 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         compile_time_info,
         ModuleOptionsContext {
             ecmascript: EcmascriptOptionsContext {
-                enable_jsx: Some(JsxTransformOptions::cell(JsxTransformOptions {
+                enable_jsx: Some(JsxTransformOptions::resolved_cell(JsxTransformOptions {
                     development: true,
                     ..Default::default()
                 })),
@@ -276,7 +273,6 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 ..Default::default()
             },
             css: CssOptionsContext {
-                use_swc_css: options.use_swc_css,
                 ..Default::default()
             },
             preset_env_versions: Some(env.to_resolved().await?),
@@ -284,12 +280,11 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 ContextCondition::InDirectory("node_modules".into()),
                 ModuleOptionsContext {
                     css: CssOptionsContext {
-                        use_swc_css: options.use_swc_css,
                         ..Default::default()
                     },
                     ..Default::default()
                 }
-                .cell(),
+                .resolved_cell(),
             )],
             module_rules: vec![module_rules],
             tree_shaking_mode: options.tree_shaking_mode,

@@ -1,5 +1,6 @@
 use anyhow::Result;
-use turbo_tasks::{FxIndexSet, RcStr, ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexSet, ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},

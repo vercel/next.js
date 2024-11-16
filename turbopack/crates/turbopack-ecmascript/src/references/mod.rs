@@ -50,9 +50,8 @@ use swc_core::{
     },
 };
 use tracing::Instrument;
-use turbo_tasks::{
-    FxIndexSet, RcStr, ResolvedVc, TryJoinIterExt, Upcast, Value, ValueToString, Vc,
-};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexSet, ResolvedVc, TryJoinIterExt, Upcast, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     compile_time_info::{

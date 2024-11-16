@@ -2,7 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 describe('server-components-hmr-cache', () => {
-  const { next } = nextTestSetup({ files: __dirname })
+  const { next } = nextTestSetup({ files: __dirname, patchFileDelay: 1000 })
   const loggedAfterValueRegexp = /After: (\d\.\d+)/
   let cliOutputLength: number
 
@@ -78,7 +78,7 @@ describe('server-components-hmr-cache', () => {
 
       it('should not use cached fetch calls for intentional refresh requests', async () => {
         const browser = await next.browser(`/${runtime}`)
-        const valueBeforeRefresh = getLoggedAfterValue()
+        const valueBeforeRefresh = await retry(() => getLoggedAfterValue())
         cliOutputLength = next.cliOutput.length
 
         await browser.elementByCss(`button`).click().waitForIdleNetwork()

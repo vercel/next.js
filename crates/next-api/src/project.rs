@@ -22,13 +22,14 @@ use next_core::{
 };
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
     debug::ValueDebugFormat,
     fxindexmap,
     graph::{AdjacencyMap, GraphTraversal},
     trace::TraceRawVcs,
-    Completion, Completions, FxIndexMap, IntoTraitRef, RcStr, ReadRef, ResolvedVc, State,
-    TaskInput, TransientInstance, TryFlatJoinIterExt, Value, Vc,
+    Completion, Completions, FxIndexMap, IntoTraitRef, ReadRef, ResolvedVc, State, TaskInput,
+    TransientInstance, TryFlatJoinIterExt, Value, Vc,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath, VirtualFileSystem};
@@ -944,7 +945,10 @@ impl Project {
         if let Some(app_project) = app_project {
             transitions.push((
                 ECMASCRIPT_CLIENT_TRANSITION_NAME.into(),
-                app_project.edge_client_reference_transition(),
+                app_project
+                    .edge_client_reference_transition()
+                    .to_resolved()
+                    .await?,
             ));
         }
 
@@ -1025,7 +1029,10 @@ impl Project {
         if let Some(app_project) = app_project {
             transitions.push((
                 ECMASCRIPT_CLIENT_TRANSITION_NAME.into(),
-                app_project.client_reference_transition(),
+                app_project
+                    .client_reference_transition()
+                    .to_resolved()
+                    .await?,
             ));
         }
 
@@ -1075,7 +1082,10 @@ impl Project {
         if let Some(app_project) = app_project {
             transitions.push((
                 ECMASCRIPT_CLIENT_TRANSITION_NAME.into(),
-                app_project.edge_client_reference_transition(),
+                app_project
+                    .edge_client_reference_transition()
+                    .to_resolved()
+                    .await?,
             ));
         }
 
