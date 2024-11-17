@@ -1,5 +1,6 @@
 use anyhow::Result;
-use turbo_tasks::{RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileContent;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -18,13 +19,13 @@ fn modifier() -> Vc<RcStr> {
 /// export of a JS module.
 #[turbo_tasks::value]
 pub struct TextContentFileSource {
-    pub source: Vc<Box<dyn Source>>,
+    pub source: ResolvedVc<Box<dyn Source>>,
 }
 
 #[turbo_tasks::value_impl]
 impl TextContentFileSource {
     #[turbo_tasks::function]
-    pub fn new(source: Vc<Box<dyn Source>>) -> Vc<Self> {
+    pub fn new(source: ResolvedVc<Box<dyn Source>>) -> Vc<Self> {
         TextContentFileSource { source }.cell()
     }
 }

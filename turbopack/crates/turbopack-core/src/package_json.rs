@@ -2,7 +2,8 @@ use std::{fmt::Write, ops::Deref};
 
 use anyhow::Result;
 use serde_json::Value as JsonValue;
-use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, RcStr, ReadRef, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, ReadRef, Vc};
 use turbo_tasks_fs::{FileContent, FileJsonContent, FileSystemPath};
 
 use super::issue::Issue;

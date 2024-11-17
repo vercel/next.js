@@ -31,6 +31,10 @@ import {
 } from '../prefetch-cache-utils'
 import { clearCacheNodeDataForSegmentPath } from '../clear-cache-node-data-for-segment-path'
 import { handleAliasedPrefetchEntry } from '../aliased-prefetch-navigations'
+import {
+  navigate as navigateUsingSegmentCache,
+  NavigationResultTag,
+} from '../../segment-cache/navigation'
 
 export function handleExternalUrl(
   state: ReadonlyReducerState,
@@ -122,6 +126,61 @@ export function navigateReducer(
   // which will trigger an MPA navigation.
   if (document.getElementById('__next-page-redirect')) {
     return handleExternalUrl(state, mutable, href, pendingPush)
+  }
+
+  if (process.env.__NEXT_PPR && process.env.__NEXT_CLIENT_SEGMENT_CACHE) {
+    // (Very Early Experimental Feature) Segment Cache
+    //
+    // Bypass the normal prefetch cache and use the new per-segment cache
+    // implementation instead. This is only supported if PPR is enabled, too.
+    //
+    // Temporary glue code between the router reducer and the new navigation
+    // implementation. Eventually we'll rewrite the router reducer to a
+    // state machine.
+    // TODO: Currently this always returns an async result, but in the future
+    // it will return a sync result if the navigation was prefetched. Hence
+    // a result type that's more complicated than you might expect.
+    const asyncResult = navigateUsingSegmentCache(
+      url,
+      state.cache,
+      state.tree,
+      state.nextUrl
+    )
+    return asyncResult.data.then(
+      (result) => {
+        switch (result.tag) {
+          case NavigationResultTag.MPA: {
+            // Perform an MPA navigation.
+            const newUrl = result.data
+            return handleExternalUrl(state, mutable, newUrl, pendingPush)
+          }
+          case NavigationResultTag.NoOp:
+            // The server responded with no change to the current page.
+            return handleMutable(state, mutable)
+          case NavigationResultTag.Success: {
+            // Received a new result.
+            mutable.cache = result.data.cacheNode
+            mutable.patchedTree = result.data.flightRouterState
+            mutable.canonicalUrl = result.data.canonicalUrl
+
+            // TODO: Not yet implemented
+            // mutable.scrollableSegments = scrollableSegments
+            // mutable.hashFragment = hash
+            // mutable.shouldScroll = shouldScroll
+            return handleMutable(state, mutable)
+          }
+          default:
+            const _exhaustiveCheck: never = result
+            return state
+        }
+      },
+      // If the navigation failed, return the current state.
+      // TODO: This matches the current behavior but we need to do something
+      // better here if the network fails.
+      () => {
+        return state
+      }
+    )
   }
 
   const prefetchValues = getOrCreatePrefetchCacheEntry({

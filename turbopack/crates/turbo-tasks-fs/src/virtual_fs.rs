@@ -1,5 +1,6 @@
 use anyhow::{bail, Result};
-use turbo_tasks::{Completion, RcStr, ValueDefault, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{Completion, ValueDefault, ValueToString, Vc};
 
 use super::{DirectoryContent, FileContent, FileMeta, FileSystem, FileSystemPath, LinkContent};
 

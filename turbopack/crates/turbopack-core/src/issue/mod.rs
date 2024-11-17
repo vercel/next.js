@@ -12,8 +12,9 @@ use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use auto_hash_map::AutoSet;
 use serde::Serialize;
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    emit, CollectiblesSource, RawVc, RcStr, ReadRef, ResolvedVc, TransientInstance, TransientValue,
+    emit, CollectiblesSource, RawVc, ReadRef, ResolvedVc, TransientInstance, TransientValue,
     TryJoinIterExt, Upcast, ValueToString, Vc,
 };
 use turbo_tasks_fs::{FileContent, FileLine, FileLinesContent, FileSystemPath};
@@ -685,14 +686,14 @@ impl Display for IssueStage {
 }
 
 #[turbo_tasks::value(serialization = "none")]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialOrd, Ord)]
 pub struct PlainIssue {
     pub severity: IssueSeverity,
-    pub file_path: RcStr,
-
     pub stage: IssueStage,
 
     pub title: StyledString,
+    pub file_path: RcStr,
+
     pub description: Option<StyledString>,
     pub detail: Option<StyledString>,
     pub documentation_link: RcStr,
@@ -700,34 +701,6 @@ pub struct PlainIssue {
     pub source: Option<ReadRef<PlainIssueSource>>,
     pub sub_issues: Vec<ReadRef<PlainIssue>>,
     pub processing_path: ReadRef<PlainIssueProcessingPath>,
-}
-
-impl Ord for PlainIssue {
-    fn cmp(&self, other: &Self) -> Ordering {
-        macro_rules! cmp {
-            ($a:expr, $b:expr) => {
-                match $a.cmp(&$b) {
-                    Ordering::Equal => {}
-                    other => return other,
-                }
-            };
-        }
-
-        cmp!(self.severity, other.severity);
-        cmp!(self.stage, other.stage);
-        cmp!(self.title, other.title);
-        cmp!(self.file_path, other.file_path);
-        cmp!(self.description, other.description);
-        cmp!(self.detail, other.detail);
-        cmp!(self.documentation_link, other.documentation_link);
-        Ordering::Equal
-    }
-}
-
-impl PartialOrd for PlainIssue {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
 }
 
 fn hash_plain_issue(issue: &PlainIssue, hasher: &mut Xxh3Hash64Hasher, full: bool) {
@@ -791,7 +764,7 @@ impl PlainIssue {
 }
 
 #[turbo_tasks::value(serialization = "none")]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialOrd, Ord)]
 pub struct PlainIssueSource {
     pub asset: ReadRef<PlainSource>,
     pub range: Option<(SourcePos, SourcePos)>,
@@ -826,7 +799,7 @@ impl IssueSource {
 }
 
 #[turbo_tasks::value(serialization = "none")]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialOrd, Ord)]
 pub struct PlainSource {
     pub ident: ReadRef<RcStr>,
     #[turbo_tasks(debug_ignore)]
@@ -852,11 +825,11 @@ impl PlainSource {
 }
 
 #[turbo_tasks::value(transparent, serialization = "none")]
-#[derive(Clone, Debug, DeterministicHash)]
+#[derive(Clone, Debug, DeterministicHash, PartialOrd, Ord)]
 pub struct PlainIssueProcessingPath(Option<Vec<ReadRef<PlainIssueProcessingPathItem>>>);
 
 #[turbo_tasks::value(serialization = "none")]
-#[derive(Clone, Debug, DeterministicHash)]
+#[derive(Clone, Debug, DeterministicHash, PartialOrd, Ord)]
 pub struct PlainIssueProcessingPathItem {
     pub file_path: Option<ReadRef<RcStr>>,
     pub description: ReadRef<RcStr>,

@@ -1,7 +1,8 @@
 use anyhow::{bail, Result};
 use auto_hash_map::AutoMap;
 use include_dir::{Dir, DirEntry};
-use turbo_tasks::{Completion, RcStr, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{Completion, ValueToString, Vc};
 
 use crate::{
     DirectoryContent, DirectoryEntry, File, FileContent, FileMeta, FileSystem, FileSystemPath,

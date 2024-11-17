@@ -32,7 +32,7 @@ import { ErrorBoundary } from './error-boundary'
 import { matchSegment } from './match-segments'
 import { handleSmoothScroll } from '../../shared/lib/router/utils/handle-smooth-scroll'
 import { RedirectBoundary } from './redirect-boundary'
-import { NotFoundBoundary } from './not-found-boundary'
+import { HTTPAccessFallbackBoundary } from './http-access-fallback-boundary'
 import { getSegmentValue } from './router-reducer/reducers/get-segment-value'
 import { createRouterCacheKey } from './router-reducer/create-router-cache-key'
 import { hasInterceptionRouteInCurrentTree } from './router-reducer/reducers/has-interception-route-in-current-tree'
@@ -497,7 +497,6 @@ export default function OuterLayoutRouter({
   templateScripts,
   template,
   notFound,
-  notFoundStyles,
 }: {
   parallelRouterKey: string
   segmentPath: FlightSegmentPath
@@ -508,7 +507,6 @@ export default function OuterLayoutRouter({
   templateScripts: React.ReactNode | undefined
   template: React.ReactNode
   notFound: React.ReactNode | undefined
-  notFoundStyles: React.ReactNode | undefined
 }) {
   const context = useContext(LayoutRouterContext)
   if (!context) {
@@ -570,10 +568,7 @@ export default function OuterLayoutRouter({
                     loadingStyles={loading?.[1]}
                     loadingScripts={loading?.[2]}
                   >
-                    <NotFoundBoundary
-                      notFound={notFound}
-                      notFoundStyles={notFoundStyles}
-                    >
+                    <HTTPAccessFallbackBoundary notFound={notFound}>
                       <RedirectBoundary>
                         <InnerLayoutRouter
                           parallelRouterKey={parallelRouterKey}
@@ -587,7 +582,7 @@ export default function OuterLayoutRouter({
                           }
                         />
                       </RedirectBoundary>
-                    </NotFoundBoundary>
+                    </HTTPAccessFallbackBoundary>
                   </LoadingBoundary>
                 </ErrorBoundary>
               </ScrollAndFocusHandler>

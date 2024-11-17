@@ -1,7 +1,8 @@
 use std::{env, sync::MutexGuard};
 
 use anyhow::{anyhow, Context, Result};
-use turbo_tasks::{FxIndexMap, RcStr, ResolvedVc, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexMap, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 
 use crate::{sorted_env_vars, EnvMap, ProcessEnv, GLOBAL_ENV_LOCK};

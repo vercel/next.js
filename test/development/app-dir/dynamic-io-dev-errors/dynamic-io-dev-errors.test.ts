@@ -9,7 +9,7 @@ import {
   waitForAndOpenRuntimeError,
   getRedboxSource,
 } from 'next-test-utils'
-import { sandbox } from 'development-sandbox'
+import { createSandbox } from 'development-sandbox'
 import { outdent } from 'outdent'
 
 describe('Dynamic IO Dev Errors', () => {
@@ -73,7 +73,7 @@ describe('Dynamic IO Dev Errors', () => {
   })
 
   it('should clear segment errors after correcting them', async () => {
-    const { cleanup, session, browser } = await sandbox(
+    await using sandbox = await createSandbox(
       next,
       new Map([
         [
@@ -89,7 +89,7 @@ describe('Dynamic IO Dev Errors', () => {
         ],
       ])
     )
-
+    const { browser, session } = sandbox
     await assertHasRedbox(browser)
     const redbox = {
       description: await getRedboxDescription(browser),
@@ -115,7 +115,5 @@ describe('Dynamic IO Dev Errors', () => {
     await retry(async () => {
       assertNoRedbox(browser)
     })
-
-    await cleanup()
   })
 })
