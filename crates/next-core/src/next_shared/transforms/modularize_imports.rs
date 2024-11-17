@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use modularize_imports::{modularize_imports, PackageConfig};
 use serde::{Deserialize, Serialize};
 use swc_core::ecma::ast::Program;
-use turbo_tasks::{trace::TraceRawVcs, FxIndexMap, Vc};
+use turbo_tasks::{trace::TraceRawVcs, FxIndexMap, ResolvedVc};
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
 use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext};
 
@@ -35,14 +35,14 @@ pub fn get_next_modularize_imports_rule(
     modularize_imports_config: &FxIndexMap<String, ModularizeImportPackageConfig>,
     enable_mdx_rs: bool,
 ) -> ModuleRule {
-    let transformer = EcmascriptInputTransform::Plugin(Vc::cell(Box::new(
+    let transformer = EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(
         ModularizeImportsTransformer::new(modularize_imports_config),
     ) as _));
     ModuleRule::new(
         module_rule_match_js_no_url(enable_mdx_rs),
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
-            prepend: Vc::cell(vec![]),
-            append: Vc::cell(vec![transformer]),
+            prepend: ResolvedVc::cell(vec![]),
+            append: ResolvedVc::cell(vec![transformer]),
         }],
     )
 }

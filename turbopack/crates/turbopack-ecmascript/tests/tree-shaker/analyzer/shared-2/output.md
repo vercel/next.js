@@ -215,27 +215,21 @@ graph TD
     N2["Items: [ItemId(Export((&quot;b&quot;, #2), &quot;b&quot;))]"];
     N3["Items: [ItemId(Export((&quot;order&quot;, #2), &quot;order&quot;))]"];
     N4["Items: [ItemId(0, VarDeclarator(0))]"];
-    N5["Items: [ItemId(1, Normal)]"];
-    N6["Items: [ItemId(2, VarDeclarator(0))]"];
-    N7["Items: [ItemId(3, VarDeclarator(0))]"];
-    N8["Items: [ItemId(4, Normal)]"];
-    N9["Items: [ItemId(5, VarDeclarator(0))]"];
-    N10["Items: [ItemId(6, VarDeclarator(0))]"];
+    N5["Items: [ItemId(1, Normal), ItemId(2, VarDeclarator(0)), ItemId(3, VarDeclarator(0))]"];
+    N6["Items: [ItemId(4, Normal)]"];
+    N7["Items: [ItemId(5, VarDeclarator(0))]"];
+    N8["Items: [ItemId(6, VarDeclarator(0))]"];
+    N1 --> N7;
+    N0 --> N6;
+    N2 --> N8;
+    N3 --> N4;
     N5 --> N4;
     N6 --> N5;
-    N7 --> N6;
+    N6 --> N4;
     N7 --> N5;
-    N7 --> N4;
     N8 --> N7;
-    N8 --> N4;
-    N9 --> N7;
-    N10 --> N9;
-    N10 --> N7;
-    N3 --> N8;
-    N3 --> N4;
-    N1 --> N9;
-    N2 --> N10;
-    N0 --> N8;
+    N8 --> N5;
+    N3 --> N6;
 ```
 # Entrypoints
 
@@ -245,7 +239,7 @@ graph TD
     Export(
         "order",
     ): 3,
-    Exports: 11,
+    Exports: 9,
     Export(
         "b",
     ): 2,
@@ -260,7 +254,7 @@ graph TD
 ## Part 0
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 8
+    __turbopack_part__: 6
 };
 "module evaluation";
 
@@ -268,7 +262,7 @@ import "__TURBOPACK_PART__" assert {
 ## Part 1
 ```js
 import { a as a } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -9
+    __turbopack_part__: -7
 };
 export { a };
 
@@ -276,7 +270,7 @@ export { a };
 ## Part 2
 ```js
 import { b as b } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -10
+    __turbopack_part__: -8
 };
 export { b };
 
@@ -287,7 +281,7 @@ import { c as order } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -4
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 8
+    __turbopack_part__: 6
 };
 export { order };
 
@@ -306,54 +300,34 @@ import { c as order } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -4
 };
 order.push("a");
-
-```
-## Part 6
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 5
-};
 const random = Math.random();
-export { random as d } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 7
-```js
-import { d as random } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -6
-};
-import { c as order } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -4
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 5
-};
 const shared = {
     random,
     effect: order.push("b")
+};
+export { random as d } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
 };
 export { shared as e } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
-## Part 8
+## Part 6
 ```js
 import { c as order } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -4
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 7
+    __turbopack_part__: 5
 };
 order.push("c");
 
 ```
-## Part 9
+## Part 7
 ```js
 import { e as shared } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -7
+    __turbopack_part__: -5
 };
 const a = {
     shared,
@@ -364,13 +338,13 @@ export { a as a } from "__TURBOPACK_VAR__" assert {
 };
 
 ```
-## Part 10
+## Part 8
 ```js
 import { e as shared } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -7
+    __turbopack_part__: -5
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
+    __turbopack_part__: 7
 };
 const b = {
     shared,
@@ -381,7 +355,7 @@ export { b as b } from "__TURBOPACK_VAR__" assert {
 };
 
 ```
-## Part 11
+## Part 9
 ```js
 export { a } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export a"
@@ -397,7 +371,7 @@ export { order } from "__TURBOPACK_PART__" assert {
 ## Merged (module eval)
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 8
+    __turbopack_part__: 6
 };
 "module evaluation";
 
@@ -410,7 +384,7 @@ import "__TURBOPACK_PART__" assert {
     Export(
         "order",
     ): 3,
-    Exports: 11,
+    Exports: 9,
     Export(
         "b",
     ): 2,
@@ -425,7 +399,7 @@ import "__TURBOPACK_PART__" assert {
 ## Part 0
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 8
+    __turbopack_part__: 6
 };
 "module evaluation";
 
@@ -433,7 +407,7 @@ import "__TURBOPACK_PART__" assert {
 ## Part 1
 ```js
 import { a as a } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -9
+    __turbopack_part__: -7
 };
 export { a };
 
@@ -441,7 +415,7 @@ export { a };
 ## Part 2
 ```js
 import { b as b } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -10
+    __turbopack_part__: -8
 };
 export { b };
 
@@ -452,7 +426,7 @@ import { c as order } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -4
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 8
+    __turbopack_part__: 6
 };
 export { order };
 
@@ -471,54 +445,34 @@ import { c as order } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -4
 };
 order.push("a");
-
-```
-## Part 6
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 5
-};
 const random = Math.random();
-export { random as d } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 7
-```js
-import { d as random } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -6
-};
-import { c as order } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -4
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 5
-};
 const shared = {
     random,
     effect: order.push("b")
+};
+export { random as d } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
 };
 export { shared as e } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
-## Part 8
+## Part 6
 ```js
 import { c as order } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -4
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 7
+    __turbopack_part__: 5
 };
 order.push("c");
 
 ```
-## Part 9
+## Part 7
 ```js
 import { e as shared } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -7
+    __turbopack_part__: -5
 };
 const a = {
     shared,
@@ -529,13 +483,13 @@ export { a as a } from "__TURBOPACK_VAR__" assert {
 };
 
 ```
-## Part 10
+## Part 8
 ```js
 import { e as shared } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -7
+    __turbopack_part__: -5
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
+    __turbopack_part__: 7
 };
 const b = {
     shared,
@@ -546,7 +500,7 @@ export { b as b } from "__TURBOPACK_VAR__" assert {
 };
 
 ```
-## Part 11
+## Part 9
 ```js
 export { a } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export a"
@@ -562,7 +516,7 @@ export { order } from "__TURBOPACK_PART__" assert {
 ## Merged (module eval)
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 8
+    __turbopack_part__: 6
 };
 "module evaluation";
 

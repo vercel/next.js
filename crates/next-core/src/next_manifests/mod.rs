@@ -5,7 +5,8 @@ pub(crate) mod client_reference_manifest;
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, FxIndexMap, FxIndexSet, RcStr, TaskInput};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{trace::TraceRawVcs, FxIndexMap, FxIndexSet, TaskInput};
 
 use crate::next_config::{CrossOriginConfig, Rewrites, RouteHas};
 

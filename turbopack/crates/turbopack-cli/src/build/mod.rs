@@ -6,8 +6,9 @@ use std::{
 };
 
 use anyhow::{bail, Context, Result};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    RcStr, ReadConsistency, ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasks, Value, Vc,
+    ReadConsistency, ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasks, Value, Vc,
 };
 use turbo_tasks_fs::FileSystem;
 use turbo_tasks_memory::MemoryBackend;

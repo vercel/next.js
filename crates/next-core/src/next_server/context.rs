@@ -1,7 +1,8 @@
 use std::iter::once;
 
 use anyhow::{bail, Result};
-use turbo_tasks::{FxIndexMap, RcStr, ResolvedVc, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexMap, ResolvedVc, Value, Vc};
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack::{
@@ -121,20 +122,20 @@ impl ServerContextType {
 
 #[turbo_tasks::function]
 pub async fn get_server_resolve_options_context(
-    project_path: Vc<FileSystemPath>,
+    project_path: ResolvedVc<FileSystemPath>,
     ty: Value<ServerContextType>,
     mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<ResolveOptionsContext>> {
     let next_server_import_map =
-        get_next_server_import_map(project_path, ty, next_config, execution_context)
+        get_next_server_import_map(*project_path, ty, next_config, execution_context)
             .to_resolved()
             .await?;
     let foreign_code_context_condition =
         foreign_code_context_condition(next_config, project_path).await?;
     let root_dir = project_path.root().to_resolved().await?;
-    let module_feature_report_resolve_plugin = ModuleFeatureReportResolvePlugin::new(project_path)
+    let module_feature_report_resolve_plugin = ModuleFeatureReportResolvePlugin::new(*project_path)
         .to_resolved()
         .await?;
     let invalid_client_only_resolve_plugin = get_invalid_client_only_resolve_plugin(project_path)
@@ -152,7 +153,7 @@ pub async fn get_server_resolve_options_context(
     )
     .await?;
 
-    let mut transpiled_packages = get_transpiled_packages(next_config, project_path)
+    let mut transpiled_packages = get_transpiled_packages(next_config, *project_path)
         .await?
         .clone_value();
 
@@ -185,7 +186,7 @@ pub async fn get_server_resolve_options_context(
     let ty = ty.into_value();
 
     let server_external_packages_plugin = ExternalCjsModulesResolvePlugin::new(
-        project_path,
+        *project_path,
         project_path.root(),
         ExternalPredicate::Only(ResolvedVc::cell(external_packages)).cell(),
         *next_config.import_externals().await?,
@@ -210,7 +211,7 @@ pub async fn get_server_resolve_options_context(
         server_external_packages_plugin
     } else {
         ExternalCjsModulesResolvePlugin::new(
-            project_path,
+            *project_path,
             project_path.root(),
             ExternalPredicate::AllExcept(ResolvedVc::cell(transpiled_packages)).cell(),
             *next_config.import_externals().await?,
@@ -219,11 +220,11 @@ pub async fn get_server_resolve_options_context(
         .await?
     };
 
-    let next_external_plugin = NextExternalResolvePlugin::new(project_path)
+    let next_external_plugin = NextExternalResolvePlugin::new(*project_path)
         .to_resolved()
         .await?;
     let next_node_shared_runtime_plugin =
-        NextNodeSharedRuntimeResolvePlugin::new(project_path, Value::new(ty))
+        NextNodeSharedRuntimeResolvePlugin::new(*project_path, Value::new(ty))
             .to_resolved()
             .await?;
 
@@ -233,7 +234,7 @@ pub async fn get_server_resolve_options_context(
         | ServerContextType::AppRSC { .. } => {
             vec![
                 ResolvedVc::upcast(
-                    NextFontLocalResolvePlugin::new(project_path)
+                    NextFontLocalResolvePlugin::new(*project_path)
                         .to_resolved()
                         .await?,
                 ),
@@ -396,7 +397,7 @@ fn internal_assets_conditions() -> ContextCondition {
 
 #[turbo_tasks::function]
 pub async fn get_server_module_options_context(
-    project_path: Vc<FileSystemPath>,
+    project_path: ResolvedVc<FileSystemPath>,
     execution_context: ResolvedVc<ExecutionContext>,
     ty: Value<ServerContextType>,
     mode: Vc<NextMode>,
@@ -420,7 +421,7 @@ pub async fn get_server_module_options_context(
         foreign_code_context_condition(next_config, project_path).await?;
     let postcss_transform_options = PostCssTransformOptions {
         postcss_package: Some(
-            get_postcss_package_mapping(project_path)
+            get_postcss_package_mapping(*project_path)
                 .to_resolved()
                 .await?,
         ),
@@ -434,8 +435,8 @@ pub async fn get_server_module_options_context(
         config_location: PostCssConfigLocation::ProjectPath,
         ..postcss_transform_options.clone()
     };
-    let enable_postcss_transform = Some(postcss_transform_options.cell());
-    let enable_foreign_postcss_transform = Some(postcss_foreign_transform_options.cell());
+    let enable_postcss_transform = Some(postcss_transform_options.resolved_cell());
+    let enable_foreign_postcss_transform = Some(postcss_foreign_transform_options.resolved_cell());
 
     let mut conditions = vec![mode.await?.condition().into()];
     conditions.extend(
@@ -475,8 +476,10 @@ pub async fn get_server_module_options_context(
     let versions = RuntimeVersions(Default::default()).cell();
 
     // ModuleOptionsContext related options
-    let tsconfig = get_typescript_transform_options(project_path);
-    let decorators_options = get_decorators_transform_options(project_path);
+    let tsconfig = get_typescript_transform_options(*project_path)
+        .to_resolved()
+        .await?;
+    let decorators_options = get_decorators_transform_options(*project_path);
     let enable_mdx_rs = *next_config.mdx_rs().await?;
 
     // Get the jsx transform options for the `client` side.
@@ -487,9 +490,13 @@ pub async fn get_server_module_options_context(
     // This enables correct emotion transform and other hydration between server and
     // client bundles. ref: https://github.com/vercel/next.js/blob/4bbf9b6c70d2aa4237defe2bebfa790cdb7e334e/packages/next/src/build/webpack-config.ts#L1421-L1426
     let jsx_runtime_options =
-        get_jsx_transform_options(project_path, mode, None, false, next_config);
+        get_jsx_transform_options(*project_path, mode, None, false, next_config)
+            .to_resolved()
+            .await?;
     let rsc_jsx_runtime_options =
-        get_jsx_transform_options(project_path, mode, None, true, next_config);
+        get_jsx_transform_options(*project_path, mode, None, true, next_config)
+            .to_resolved()
+            .await?;
 
     // A set of custom ecma transform rules being applied to server context.
     let source_transform_rules: Vec<ModuleRule> = vec![
@@ -586,8 +593,10 @@ pub async fn get_server_module_options_context(
 
             let internal_module_options_context = ModuleOptionsContext {
                 ecmascript: EcmascriptOptionsContext {
-                    enable_typescript_transform: Some(TypescriptTransformOptions::default().cell()),
-                    enable_jsx: Some(JsxTransformOptions::default().cell()),
+                    enable_typescript_transform: Some(
+                        TypescriptTransformOptions::default().resolved_cell(),
+                    ),
+                    enable_jsx: Some(JsxTransformOptions::default().resolved_cell()),
                     ..module_options_context.ecmascript.clone()
                 },
                 module_rules: foreign_next_server_rules,
@@ -607,11 +616,11 @@ pub async fn get_server_module_options_context(
                 rules: vec![
                     (
                         foreign_code_context_condition,
-                        foreign_code_module_options_context.cell(),
+                        foreign_code_module_options_context.resolved_cell(),
                     ),
                     (
                         internal_assets_conditions(),
-                        internal_module_options_context.cell(),
+                        internal_module_options_context.resolved_cell(),
                     ),
                 ],
                 module_rules: next_server_rules,
@@ -650,7 +659,9 @@ pub async fn get_server_module_options_context(
             };
             let internal_module_options_context = ModuleOptionsContext {
                 ecmascript: EcmascriptOptionsContext {
-                    enable_typescript_transform: Some(TypescriptTransformOptions::default().cell()),
+                    enable_typescript_transform: Some(
+                        TypescriptTransformOptions::default().resolved_cell(),
+                    ),
                     ..module_options_context.ecmascript.clone()
                 },
                 module_rules: foreign_next_server_rules,
@@ -670,11 +681,11 @@ pub async fn get_server_module_options_context(
                 rules: vec![
                     (
                         foreign_code_context_condition,
-                        foreign_code_module_options_context.cell(),
+                        foreign_code_module_options_context.resolved_cell(),
                     ),
                     (
                         internal_assets_conditions(),
-                        internal_module_options_context.cell(),
+                        internal_module_options_context.resolved_cell(),
                     ),
                 ],
                 module_rules: next_server_rules,
@@ -725,7 +736,9 @@ pub async fn get_server_module_options_context(
             };
             let internal_module_options_context = ModuleOptionsContext {
                 ecmascript: EcmascriptOptionsContext {
-                    enable_typescript_transform: Some(TypescriptTransformOptions::default().cell()),
+                    enable_typescript_transform: Some(
+                        TypescriptTransformOptions::default().resolved_cell(),
+                    ),
                     ..module_options_context.ecmascript.clone()
                 },
                 module_rules: foreign_next_server_rules,
@@ -744,11 +757,11 @@ pub async fn get_server_module_options_context(
                 rules: vec![
                     (
                         foreign_code_context_condition,
-                        foreign_code_module_options_context.cell(),
+                        foreign_code_module_options_context.resolved_cell(),
                     ),
                     (
                         internal_assets_conditions(),
-                        internal_module_options_context.cell(),
+                        internal_module_options_context.resolved_cell(),
                     ),
                 ],
                 module_rules: next_server_rules,
@@ -798,7 +811,9 @@ pub async fn get_server_module_options_context(
             };
             let internal_module_options_context = ModuleOptionsContext {
                 ecmascript: EcmascriptOptionsContext {
-                    enable_typescript_transform: Some(TypescriptTransformOptions::default().cell()),
+                    enable_typescript_transform: Some(
+                        TypescriptTransformOptions::default().resolved_cell(),
+                    ),
                     ..module_options_context.ecmascript.clone()
                 },
                 module_rules: internal_custom_rules,
@@ -817,11 +832,11 @@ pub async fn get_server_module_options_context(
                 rules: vec![
                     (
                         foreign_code_context_condition,
-                        foreign_code_module_options_context.cell(),
+                        foreign_code_module_options_context.resolved_cell(),
                     ),
                     (
                         internal_assets_conditions(),
-                        internal_module_options_context.cell(),
+                        internal_module_options_context.resolved_cell(),
                     ),
                 ],
                 module_rules: next_server_rules,
@@ -893,7 +908,9 @@ pub async fn get_server_module_options_context(
             };
             let internal_module_options_context = ModuleOptionsContext {
                 ecmascript: EcmascriptOptionsContext {
-                    enable_typescript_transform: Some(TypescriptTransformOptions::default().cell()),
+                    enable_typescript_transform: Some(
+                        TypescriptTransformOptions::default().resolved_cell(),
+                    ),
                     ..module_options_context.ecmascript.clone()
                 },
                 module_rules: internal_custom_rules,
@@ -912,11 +929,11 @@ pub async fn get_server_module_options_context(
                 rules: vec![
                     (
                         foreign_code_context_condition,
-                        foreign_code_module_options_context.cell(),
+                        foreign_code_module_options_context.resolved_cell(),
                     ),
                     (
                         internal_assets_conditions(),
-                        internal_module_options_context.cell(),
+                        internal_module_options_context.resolved_cell(),
                     ),
                 ],
                 module_rules: next_server_rules,

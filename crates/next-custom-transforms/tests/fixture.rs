@@ -414,7 +414,7 @@ fn server_actions_server_fixture(input: PathBuf) {
                     &FileName::Real("/app/item.js".into()),
                     server_actions::Config {
                         is_react_server_layer: true,
-                        enabled: true,
+                        dynamic_io_enabled: true,
                         hash_salt: "".into(),
                     },
                     _tr.comments.as_ref().clone(),
@@ -446,7 +446,7 @@ fn next_font_with_directive_fixture(input: PathBuf) {
                     &FileName::Real("/app/test.tsx".into()),
                     server_actions::Config {
                         is_react_server_layer: true,
-                        enabled: true,
+                        dynamic_io_enabled: true,
                         hash_salt: "".into(),
                     },
                     _tr.comments.as_ref().clone(),
@@ -471,7 +471,7 @@ fn server_actions_client_fixture(input: PathBuf) {
                     &FileName::Real("/app/item.js".into()),
                     server_actions::Config {
                         is_react_server_layer: false,
-                        enabled: true,
+                        dynamic_io_enabled: true,
                         hash_salt: "".into(),
                     },
                     _tr.comments.as_ref().clone(),

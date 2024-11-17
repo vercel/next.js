@@ -29,9 +29,8 @@ use rstest_reuse::{
 };
 use serde::{Deserialize, Serialize};
 use tokio::{process::Command, time::timeout};
-use turbo_tasks::{
-    backend::Backend, RcStr, ReadRef, ResolvedVc, TurboTasks, Value, ValueToString, Vc,
-};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{backend::Backend, ReadRef, ResolvedVc, TurboTasks, Value, ValueToString, Vc};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath};
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{

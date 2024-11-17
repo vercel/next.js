@@ -2,7 +2,8 @@ pub use ::include_dir::{
     include_dir, {self},
 };
 use anyhow::Result;
-use turbo_tasks::{RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::Vc;
 
 use crate::{embed::EmbeddedFileSystem, DiskFileSystem, FileSystem};
 
@@ -56,7 +57,7 @@ macro_rules! embed_directory_internal {
 
         let path = $path.replace("$CARGO_MANIFEST_DIR", env!("CARGO_MANIFEST_DIR"));
 
-        turbo_tasks_fs::embed::directory_from_relative_path($name.to_string(), path)
+        turbo_tasks_fs::embed::directory_from_relative_path($name.into(), path.into())
     }};
 }
 

@@ -7,6 +7,7 @@ import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import { parseStack } from '../client/components/react-dev-overlay/server/middleware'
 import { getOriginalCodeFrame } from '../client/components/react-dev-overlay/server/shared'
 import { workUnitAsyncStorage } from './app-render/work-unit-async-storage.external'
+import { dim } from '../lib/picocolors'
 
 interface ModernRawSourceMap extends SourceMapPayload {
   ignoreList?: number[]
@@ -30,20 +31,26 @@ function frameToString(frame: StackFrame): string {
     sourceLocation += `:${frame.column}`
   }
 
-  const filePath =
+  let fileLocation: string | null
+  if (
     frame.file !== null &&
     frame.file.startsWith('file://') &&
     URL.canParse(frame.file)
-      ? // If not relative to CWD, the path is ambiguous to IDEs and clicking will prompt to select the file first.
-        // In a multi-app repo, this leads to potentially larger file names but will make clicking snappy.
-        // There's no tradeoff for the cases where `dir` in `next dev [dir]` is omitted
-        // since relative to cwd is both the shortest and snappiest.
-        path.relative(process.cwd(), url.fileURLToPath(frame.file))
-      : frame.file
+  ) {
+    // If not relative to CWD, the path is ambiguous to IDEs and clicking will prompt to select the file first.
+    // In a multi-app repo, this leads to potentially larger file names but will make clicking snappy.
+    // There's no tradeoff for the cases where `dir` in `next dev [dir]` is omitted
+    // since relative to cwd is both the shortest and snappiest.
+    fileLocation = path.relative(process.cwd(), url.fileURLToPath(frame.file))
+  } else if (frame.file !== null && frame.file.startsWith('/')) {
+    fileLocation = path.relative(process.cwd(), frame.file)
+  } else {
+    fileLocation = frame.file
+  }
 
   return frame.methodName
-    ? `    at ${frame.methodName} (${filePath}${sourceLocation})`
-    : `    at ${filePath}${frame.lineNumber}:${frame.column}`
+    ? `    at ${frame.methodName} (${fileLocation}${sourceLocation})`
+    : `    at ${fileLocation}${sourceLocation}`
 }
 
 function computeErrorName(error: Error): string {
@@ -151,6 +158,8 @@ function getSourcemappedFrameIfPossible(
 }
 
 function parseAndSourceMap(error: Error): string {
+  // TODO(veil): Expose as CLI arg or config option. Useful for local debugging.
+  const showIgnoreListed = false
   // We overwrote Error.prepareStackTrace earlier so error.stack is not sourcemapped.
   let unparsedStack = String(error.stack)
   // We could just read it from `error.stack`.
@@ -162,7 +171,7 @@ function parseAndSourceMap(error: Error): string {
   if (idx !== -1) {
     idx = unparsedStack.lastIndexOf('\n', idx)
   }
-  if (idx !== -1) {
+  if (idx !== -1 && !showIgnoreListed) {
     // Cut off everything after the bottom frame since it'll be React internals.
     unparsedStack = unparsedStack.slice(0, idx)
   }
@@ -196,8 +205,13 @@ function parseAndSourceMap(error: Error): string {
         if (!sourcemappedFrame.stack.ignored) {
           // TODO: Consider what happens if every frame is ignore listed.
           sourceMappedStack += '\n' + frameToString(sourcemappedFrame.stack)
+        } else if (showIgnoreListed) {
+          sourceMappedStack +=
+            '\n' + dim(frameToString(sourcemappedFrame.stack))
         }
       }
+    } else if (showIgnoreListed) {
+      sourceMappedStack += '\n' + dim(frameToString(frame))
     }
   }
 

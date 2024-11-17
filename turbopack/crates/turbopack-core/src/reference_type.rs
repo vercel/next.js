@@ -1,7 +1,8 @@
 use std::fmt::Display;
 
 use anyhow::Result;
-use turbo_tasks::{FxIndexMap, RcStr, ResolvedVc, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexMap, ResolvedVc, Vc};
 
 use crate::{module::Module, resolve::ModulePart};
 

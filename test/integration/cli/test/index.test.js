@@ -476,6 +476,10 @@ describe('CLI Usage', () => {
       )
       try {
         await check(() => output, new RegExp(`http://localhost:${port}`))
+        await check(
+          () => output,
+          /Network:\s*http:\/\/[\d]{1,}\.[\d]{1,}\.[\d]{1,}/
+        )
       } finally {
         await killApp(app)
       }
@@ -495,6 +499,10 @@ describe('CLI Usage', () => {
       )
       try {
         await check(() => output, new RegExp(`http://localhost:${port}`))
+        await check(
+          () => output,
+          /Network:\s*http:\/\/[\d]{1,}\.[\d]{1,}\.[\d]{1,}/
+        )
       } finally {
         await killApp(app)
       }
