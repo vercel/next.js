@@ -1,13 +1,14 @@
 import Header from "../../../_components/header";
 
 type Props = {
-  params: {
+  params: Promise<{
     id: string;
     comment: string;
-  };
+  }>;
 };
 
-export default function CommentPage({ params }: Props) {
+export default async function CommentPage(props: Props) {
+  const params = await props.params;
   return (
     <>
       <Header />

@@ -2,12 +2,13 @@ import Link from "next/link";
 import Header from "../../_components/header";
 
 type Props = {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 };
 
-export default function PostPage({ params }: Props) {
+export default async function PostPage(props: Props) {
+  const params = await props.params;
   return (
     <>
       <Header />
