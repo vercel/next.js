@@ -128,6 +128,13 @@ const runTests = (mode = 'dev', didReload = false) => {
     expect(data.ENV_FILE_PRODUCTION_LOCAL_OVERRIDEOVERRIDE_TEST).toEqual(
       isDev ? 'env' : 'localproduction'
     )
+    expect(data.NEXT_PUBLIC_EMPTY_ENV_VAR).toEqual('')
+
+    const browser = await webdriver(appPort, '/')
+    // Verify that after hydration, the empty env var is not replaced by undefined
+    expect(
+      await browser.waitForElementByCss('#nextPublicEmptyEnvVar').text()
+    ).toBe('')
   })
 }
 

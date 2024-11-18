@@ -1,6 +1,7 @@
 import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
 import type { FlightSegmentPath } from '../../../server/app-render/types'
 import { createRouterCacheKey } from './create-router-cache-key'
+import { getNextFlightSegmentPath } from '../../flight-data-helpers'
 
 /**
  * Fill cache up to the end of the flightSegmentPath, invalidating anything below it.
@@ -53,7 +54,6 @@ export function invalidateCacheBelowFlightSegmentPath(
       head: childCacheNode.head,
       prefetchHead: childCacheNode.prefetchHead,
       parallelRoutes: new Map(childCacheNode.parallelRoutes),
-      lazyDataResolved: childCacheNode.lazyDataResolved,
     } as CacheNode
     childSegmentMap.set(cacheKey, childCacheNode)
   }
@@ -61,6 +61,6 @@ export function invalidateCacheBelowFlightSegmentPath(
   invalidateCacheBelowFlightSegmentPath(
     childCacheNode,
     existingChildCacheNode,
-    flightSegmentPath.slice(2)
+    getNextFlightSegmentPath(flightSegmentPath)
   )
 }

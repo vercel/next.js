@@ -11,7 +11,7 @@ import { InvariantError } from '../../shared/lib/invariant-error'
 export class WebNextRequest extends BaseNextRequest<ReadableStream | null> {
   public request: Request
   public headers: IncomingHttpHeaders
-  public fetchMetrics?: FetchMetrics
+  public fetchMetrics: FetchMetrics | undefined
 
   constructor(request: NextRequestHint) {
     const url = new URL(request.url)
@@ -137,9 +137,9 @@ export class WebNextResponse extends BaseNextResponse<WritableStream> {
         'Cannot call onClose on a WebNextResponse initialized with `trackOnClose = false`'
       )
     }
-    if (this.sent) {
+    if (this.closeController.isClosed) {
       throw new InvariantError(
-        'Cannot call onClose on a response that is already sent'
+        'Cannot call onClose on a WebNextResponse that is already closed'
       )
     }
     return this.closeController.onClose(callback)

@@ -1,3 +1,5 @@
+import { getNetworkHost } from '../../lib/get-network-host'
+
 if (performance.getEntriesByName('next-start').length === 0) {
   performance.mark('next-start')
 }
@@ -29,6 +31,7 @@ import { getStartServerInfo, logStartInfo } from './app-info-log'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
 import { type Span, trace, flushAllTraces } from '../../trace'
 import { isPostpone } from './router-utils/is-postpone'
+import { isIPv6 } from './is-ipv6'
 
 const debug = setupDebug('next:start-server')
 let startServerSpan: Span | undefined
@@ -50,10 +53,10 @@ export async function getRequestHandlers({
   dir,
   port,
   isDev,
+  onCleanup,
   server,
   hostname,
   minimalMode,
-  isNodeDebugging,
   keepAliveTimeout,
   experimentalHttpsServer,
   quiet,
@@ -61,10 +64,10 @@ export async function getRequestHandlers({
   dir: string
   port: number
   isDev: boolean
+  onCleanup: (listener: () => Promise<void>) => void
   server?: import('http').Server
   hostname?: string
   minimalMode?: boolean
-  isNodeDebugging?: boolean
   keepAliveTimeout?: number
   experimentalHttpsServer?: boolean
   quiet?: boolean
@@ -73,10 +76,10 @@ export async function getRequestHandlers({
     dir,
     port,
     hostname,
+    onCleanup,
     dev: isDev,
     minimalMode,
     server,
-    isNodeDebugging: isNodeDebugging || false,
     keepAliveTimeout,
     experimentalHttpsServer,
     startServerSpan,
@@ -234,10 +237,16 @@ export async function startServer(
 
       port = typeof addr === 'object' ? addr?.port || port : port
 
-      const networkUrl = hostname ? `http://${actualHostname}:${port}` : null
-      const appUrl = `${
-        selfSignedCertificate ? 'https' : 'http'
-      }://${formattedHostname}:${port}`
+      const networkHostname =
+        hostname ?? getNetworkHost(isIPv6(actualHostname) ? 'IPv6' : 'IPv4')
+
+      const protocol = selfSignedCertificate ? 'https' : 'http'
+
+      const networkUrl = networkHostname
+        ? `${protocol}://${formatHostname(networkHostname)}:${port}`
+        : null
+
+      const appUrl = `${protocol}://${formattedHostname}:${port}`
 
       if (nodeDebugType) {
         const formattedDebugAddress = getFormattedDebugAddress()
@@ -246,8 +255,11 @@ export async function startServer(
         )
       }
 
-      // expose the main port to render workers
+      // Store the selected port to:
+      // - expose it to render workers
+      // - re-use it for automatic dev server restarts with a randomly selected port
       process.env.PORT = port + ''
+
       process.env.__NEXT_PRIVATE_ORIGIN = appUrl
 
       // Only load env and config in dev to for logging purposes
@@ -269,9 +281,23 @@ export async function startServer(
       Log.event(`Starting...`)
 
       try {
+        const cleanupListeners = [() => new Promise((res) => server.close(res))]
+        let cleanupStarted = false
         const cleanup = () => {
-          debug('start-server process cleanup')
-          server.close(() => process.exit(0))
+          if (cleanupStarted) {
+            // We can get duplicate signals, e.g. when `ctrl+c` is used in an
+            // interactive shell (i.e. bash, zsh), the shell will recursively
+            // send SIGINT to children. The parent `next-dev` process will also
+            // send us SIGINT.
+            return
+          }
+          cleanupStarted = true
+          ;(async () => {
+            debug('start-server process cleanup')
+            await Promise.all(cleanupListeners.map((f) => f()))
+            debug('start-server process cleanup finished')
+            process.exit(0)
+          })()
         }
         const exception = (err: Error) => {
           if (isPostpone(err)) {
@@ -301,10 +327,10 @@ export async function startServer(
           dir,
           port,
           isDev,
+          onCleanup: (listener) => cleanupListeners.push(listener),
           server,
           hostname,
           minimalMode,
-          isNodeDebugging: Boolean(nodeDebugType),
           keepAliveTimeout,
           experimentalHttpsServer: !!selfSignedCertificate,
         })
@@ -397,7 +423,7 @@ if (process.env.NEXT_PRIVATE_WORKER && process.send) {
         'memory.heapUsed',
         String(memoryUsage.heapUsed)
       )
-      process.send({ nextServerReady: true })
+      process.send({ nextServerReady: true, port: process.env.PORT })
     }
   })
   process.send({ nextWorkerReady: true })

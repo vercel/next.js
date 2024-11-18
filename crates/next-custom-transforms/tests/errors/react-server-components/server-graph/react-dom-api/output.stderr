@@ -1,0 +1,48 @@
+  x You're importing a component that needs `flushSync`. This React hook only works in a client component. To fix, mark the file (or its parent) with the `"use client"` directive.
+  | 
+  |  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+  | 
+  | 
+   ,-[input.js:1:1]
+ 1 | import { flushSync, unstable_batchedUpdates } from 'react-dom'
+   :          ^^^^^^^^^
+   `----
+  x You're importing a component that needs `unstable_batchedUpdates`. This React hook only works in a client component. To fix, mark the file (or its parent) with the `"use client"` directive.
+  | 
+  |  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+  | 
+  | 
+   ,-[input.js:1:1]
+ 1 | import { flushSync, unstable_batchedUpdates } from 'react-dom'
+   :                     ^^^^^^^^^^^^^^^^^^^^^^^
+   `----
+  x You're importing a component that needs `useActionState`. This React hook only works in a client component. To fix, mark the file (or its parent) with the `"use client"` directive.
+  | 
+  |  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+  | 
+  | 
+   ,-[input.js:3:1]
+ 2 | 
+ 3 | import { useActionState } from 'react'
+   :          ^^^^^^^^^^^^^^
+   `----
+  x You're importing a component that needs `useFormStatus`. This React hook only works in a client component. To fix, mark the file (or its parent) with the `"use client"` directive.
+  | 
+  |  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+  | 
+  | 
+   ,-[input.js:5:1]
+ 4 | 
+ 5 | import { useFormStatus, useFormState } from 'react-dom'
+   :          ^^^^^^^^^^^^^
+   `----
+  x You're importing a component that needs `useFormState`. This React hook only works in a client component. To fix, mark the file (or its parent) with the `"use client"` directive.
+  | 
+  |  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+  | 
+  | 
+   ,-[input.js:5:1]
+ 4 | 
+ 5 | import { useFormStatus, useFormState } from 'react-dom'
+   :                         ^^^^^^^^^^^^
+   `----

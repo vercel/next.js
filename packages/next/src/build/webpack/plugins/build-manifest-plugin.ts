@@ -1,3 +1,4 @@
+import type { BloomFilter } from '../../../shared/lib/bloom-filter'
 import type { Rewrite, CustomRoutes } from '../../../lib/load-custom-routes'
 import devalue from 'next/dist/compiled/devalue'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
@@ -17,6 +18,7 @@ import getRouteFromEntrypoint from '../../../server/get-route-from-entrypoint'
 import { ampFirstEntryNamesMap } from './next-drop-client-page-plugin'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import { spans } from './profiling-plugin'
+import { Span } from '../../../trace'
 
 type DeepMutable<T> = { -readonly [P in keyof T]: DeepMutable<T[P]> }
 
@@ -77,21 +79,36 @@ export function normalizeRewritesForBuildManifest(
   rewrites: CustomRoutes['rewrites']
 ): CustomRoutes['rewrites'] {
   return {
-    afterFiles: rewrites.afterFiles?.map((item) => normalizeRewrite(item)),
-    beforeFiles: rewrites.beforeFiles?.map((item) => normalizeRewrite(item)),
-    fallback: rewrites.fallback?.map((item) => normalizeRewrite(item)),
+    afterFiles: rewrites.afterFiles
+      ?.map(processRoute)
+      ?.map((item) => normalizeRewrite(item)),
+    beforeFiles: rewrites.beforeFiles
+      ?.map(processRoute)
+      ?.map((item) => normalizeRewrite(item)),
+    fallback: rewrites.fallback
+      ?.map(processRoute)
+      ?.map((item) => normalizeRewrite(item)),
   }
 }
 
 // This function takes the asset map generated in BuildManifestPlugin and creates a
 // reduced version to send to the client.
-function generateClientManifest(
-  compiler: any,
-  compilation: any,
+export function generateClientManifest(
   assetMap: BuildManifest,
-  rewrites: CustomRoutes['rewrites']
+  rewrites: CustomRoutes['rewrites'],
+  clientRouterFilters?: {
+    staticFilter: ReturnType<BloomFilter['export']>
+    dynamicFilter: ReturnType<BloomFilter['export']>
+  },
+  compiler?: any,
+  compilation?: any
 ): string | undefined {
-  const compilationSpan = spans.get(compilation) || spans.get(compiler)
+  const compilationSpan = compilation
+    ? spans.get(compilation)
+    : compiler
+      ? spans.get(compiler)
+      : new Span({ name: 'client-manifest' })
+
   const genClientManifestSpan = compilationSpan?.traceChild(
     'NextJsBuildManifest-generateClientManifest'
   )
@@ -99,6 +116,8 @@ function generateClientManifest(
   return genClientManifestSpan?.traceFn(() => {
     const clientManifest: ClientBuildManifest = {
       __rewrites: normalizeRewritesForBuildManifest(rewrites) as any,
+      __routerFilterStatic: clientRouterFilters?.staticFilter as any,
+      __routerFilterDynamic: clientRouterFilters?.dynamicFilter as any,
     }
     const appDependencies = new Set(assetMap.pages['/_app'])
     const sortedPageKeys = getSortedRoutes(Object.keys(assetMap.pages))
@@ -143,7 +162,7 @@ export const processRoute = (r: Rewrite) => {
 
   // omit external rewrite destinations since these aren't
   // handled client-side
-  if (!rewrite.destination.startsWith('/')) {
+  if (!rewrite?.destination?.startsWith('/')) {
     delete (rewrite as any).destination
   }
   return rewrite
@@ -156,12 +175,14 @@ export default class BuildManifestPlugin {
   private rewrites: CustomRoutes['rewrites']
   private isDevFallback: boolean
   private appDirEnabled: boolean
+  private clientRouterFilters?: Parameters<typeof generateClientManifest>[2]
 
   constructor(options: {
     buildId: string
     rewrites: CustomRoutes['rewrites']
     isDevFallback?: boolean
     appDirEnabled: boolean
+    clientRouterFilters?: Parameters<typeof generateClientManifest>[2]
   }) {
     this.buildId = options.buildId
     this.isDevFallback = !!options.isDevFallback
@@ -171,6 +192,7 @@ export default class BuildManifestPlugin {
       fallback: [],
     }
     this.appDirEnabled = options.appDirEnabled
+    this.clientRouterFilters = options.clientRouterFilters
     this.rewrites.beforeFiles = options.rewrites.beforeFiles.map(processRoute)
     this.rewrites.afterFiles = options.rewrites.afterFiles.map(processRoute)
     this.rewrites.fallback = options.rewrites.fallback.map(processRoute)
@@ -189,6 +211,7 @@ export default class BuildManifestPlugin {
         ampDevFiles: [],
         lowPriorityFiles: [],
         rootMainFiles: [],
+        rootMainFilesTree: {},
         pages: { '/_app': [] },
         ampFirstPages: [],
       }
@@ -302,10 +325,11 @@ export default class BuildManifestPlugin {
 
         assets[clientManifestPath] = new sources.RawSource(
           `self.__BUILD_MANIFEST = ${generateClientManifest(
-            compiler,
-            compilation,
             assetMap,
-            this.rewrites
+            this.rewrites,
+            this.clientRouterFilters,
+            compiler,
+            compilation
           )};self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
         )
       }

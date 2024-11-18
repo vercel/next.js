@@ -1,0 +1,87 @@
+*arrow function 2666* = (...) => (
+  | [
+        "node",
+        [
+            path2["join"](FreeVar(__dirname), "..", "bin", "esbuild")
+        ]
+    ]
+  | [generateBinPath(), []]
+)
+
+args = esbuildCommandAndArgs()[1]
+
+binPath = (
+  | ???*0*
+  | FreeVar(require)["resolve"](`${pkg}/${subpath}`)
+  | FreeVar(downloadedBinPath)(pkg, subpath)
+)
+- *0* binPath
+  ⚠️  pattern without value
+
+binTargetPath = path["join"](esbuildLibDir, `pnpapi-${pkg}-${path["basename"](subpath)}`)
+
+command = esbuildCommandAndArgs()[0]
+
+e#10 = ???*0*
+- *0* e
+  ⚠️  pattern without value
+
+e#15 = ???*0*
+- *0* e
+  ⚠️  pattern without value
+
+esbuildCommandAndArgs = *arrow function 2666*
+
+esbuildLibDir = path["dirname"](FreeVar(require)["resolve"]("esbuild"))
+
+generateBinPath = (...) => (FreeVar(ESBUILD_BINARY_PATH) | binTargetPath | binPath)
+
+isYarnPnP = (false | true)
+
+knownUnixlikePackages = {
+    "android arm64 LE": "esbuild-android-arm64",
+    "darwin arm64 LE": "esbuild-darwin-arm64",
+    "darwin x64 LE": "esbuild-darwin-64",
+    "freebsd arm64 LE": "esbuild-freebsd-arm64",
+    "freebsd x64 LE": "esbuild-freebsd-64",
+    "linux arm LE": "esbuild-linux-arm",
+    "linux arm64 LE": "esbuild-linux-arm64",
+    "linux ia32 LE": "esbuild-linux-32",
+    "linux mips64el LE": "esbuild-linux-mips64le",
+    "linux ppc64 LE": "esbuild-linux-ppc64le",
+    "linux s390x BE": "esbuild-linux-s390x",
+    "linux x64 LE": "esbuild-linux-64",
+    "netbsd x64 LE": "esbuild-netbsd-64",
+    "openbsd x64 LE": "esbuild-openbsd-64",
+    "sunos x64 LE": "esbuild-sunos-64"
+}
+
+knownWindowsPackages = {
+    "win32 arm64 LE": "esbuild-windows-arm64",
+    "win32 ia32 LE": "esbuild-windows-32",
+    "win32 x64 LE": "esbuild-windows-64"
+}
+
+os = FreeVar(require)("os")
+
+path = FreeVar(require)("path")
+
+path2 = FreeVar(require)("path")
+
+pkg#3 = (???*0* | knownWindowsPackages[platformKey] | knownUnixlikePackages[platformKey])
+- *0* pkg
+  ⚠️  pattern without value
+
+pkg#7 = pkgAndSubpathForCurrentPlatform()["pkg"]
+
+pkgAndSubpathForCurrentPlatform = (...) => {"pkg": pkg, "subpath": subpath}
+
+platformKey = `${FreeVar(process)["platform"]} ${os["arch"]()} ${os["endianness"]()}`
+
+subpath#3 = (???*0* | "esbuild.exe" | "bin/esbuild")
+- *0* subpath
+  ⚠️  pattern without value
+
+subpath#7 = pkgAndSubpathForCurrentPlatform()["subpath"]
+
+x = args["concat"]("--service=0.14.12", "--ping")

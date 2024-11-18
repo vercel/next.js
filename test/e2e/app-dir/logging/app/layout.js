@@ -1,5 +1,7 @@
 import Link from 'next/link'
 
+export const fetchCache = 'default-cache'
+
 export default function Layout({ children }) {
   return (
     <html>
@@ -19,6 +21,10 @@ export default function Layout({ children }) {
           <br />
           <Link id="nav-cache-revalidate" href={'/cache-revalidate'}>
             /cache-revalidate
+          </Link>
+          <br />
+          <Link id="nav-many-requests" href={'/many-requests'}>
+            /many-requests
           </Link>
           <br />
         </header>

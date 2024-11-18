@@ -1,0 +1,26 @@
+---
+title: Runtimes
+description: Learn about the switchable runtimes (Edge and Node.js) in Next.js.
+related:
+  description: View the Edge Runtime API reference.
+  links:
+    - app/api-reference/edge
+---
+
+{/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
+
+Next.js has two server runtimes you can use in your application:
+
+- The **Node.js Runtime** (default), which has access to all Node.js APIs and compatible packages from the ecosystem.
+- The **Edge Runtime** which contains a more limited [set of APIs](/docs/app/api-reference/edge).
+
+## Use Cases
+
+- The Node.js Runtime is used for rendering your application.
+- The Edge Runtime is used for Middleware (routing rules like redirects, rewrites, and setting headers).
+
+## Caveats
+
+- The Edge Runtime does not support all Node.js APIs. Some packages may not work as expected. Learn more about the unsupported APIs in the [Edge Runtime](/docs/app/api-reference/edge#unsupported-apis).
+- The Edge Runtime does not support Incremental Static Regeneration (ISR).
+- Both runtimes can support [streaming](/docs/app/building-your-application/routing/loading-ui-and-streaming) depending on your deployment infrastructure.

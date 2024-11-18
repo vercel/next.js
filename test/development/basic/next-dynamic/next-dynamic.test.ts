@@ -2,7 +2,7 @@ import { join } from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 import { createNext, FileRef } from 'e2e-utils'
-import { renderViaHTTP, check, hasRedbox } from 'next-test-utils'
+import { assertNoRedbox, renderViaHTTP, check } from 'next-test-utils'
 import { NextInstance } from 'e2e-utils'
 
 const customDocumentGipContent = `\
@@ -119,7 +119,7 @@ describe('next/dynamic', () => {
           )
 
           if ((global as any).browserName === 'chrome') {
-            const logs = await browser.log('browser')
+            const logs = await browser.log()
 
             logs.forEach((logItem) => {
               expect(logItem.message).not.toMatch(
@@ -166,7 +166,7 @@ describe('next/dynamic', () => {
         try {
           browser = await webdriver(next.url, basePath + '/dynamic/no-ssr')
           await check(() => browser.elementByCss('body').text(), /navigator/)
-          expect(await hasRedbox(browser)).toBe(false)
+          await assertNoRedbox(browser)
         } finally {
           if (browser) {
             await browser.close()
@@ -179,7 +179,7 @@ describe('next/dynamic', () => {
         try {
           browser = await webdriver(next.url, basePath + '/dynamic/no-ssr-esm')
           await check(() => browser.elementByCss('body').text(), /esm.mjs/)
-          expect(await hasRedbox(browser)).toBe(false)
+          await assertNoRedbox(browser)
         } finally {
           if (browser) {
             await browser.close()

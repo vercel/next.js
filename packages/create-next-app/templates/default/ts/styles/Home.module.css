@@ -13,7 +13,7 @@
   min-height: 100svh;
   padding: 80px;
   gap: 64px;
-  font-synthesis: none;
+  font-family: var(--font-geist-sans);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -67,7 +67,6 @@
   height: 48px;
   padding: 0 20px;
   border: none;
-  font-family: var(--font-geist-sans);
   border: 1px solid transparent;
   transition:
     background 0.2s,
@@ -94,7 +93,6 @@ a.secondary {
 }
 
 .footer {
-  font-family: var(--font-geist-sans);
   grid-row-start: 3;
   display: flex;
   gap: 24px;

@@ -17,6 +17,12 @@ import { createServerModuleMap } from '../../server/app-render/action-utils'
 declare const incrementalCacheHandler: any
 // OPTIONAL_IMPORT:incrementalCacheHandler
 
+const cacheHandlers = {}
+
+if (!(globalThis as any).__nextCacheHandlers) {
+  ;(globalThis as any).__nextCacheHandlers = cacheHandlers
+}
+
 const Document: DocumentType = null!
 const appMod = null
 const errorMod = null
@@ -37,7 +43,6 @@ declare const nextConfig: NextConfigComplete
 const maybeJSONParse = (str?: string) => (str ? JSON.parse(str) : undefined)
 
 const buildManifest: BuildManifest = self.__BUILD_MANIFEST as any
-const prerenderManifest = maybeJSONParse(self.__PRERENDER_MANIFEST)
 const reactLoadableManifest = maybeJSONParse(self.__REACT_LOADABLE_MANIFEST)
 const rscManifest = self.__RSC_MANIFEST?.['VAR_PAGE']
 const rscServerManifest = maybeJSONParse(self.__RSC_SERVER_MANIFEST)
@@ -51,11 +56,11 @@ const interceptionRouteRewrites =
 
 if (rscManifest && rscServerManifest) {
   setReferenceManifestsSingleton({
+    page: 'VAR_PAGE',
     clientReferenceManifest: rscManifest,
     serverActionsManifest: rscServerManifest,
     serverModuleMap: createServerModuleMap({
       serverActionsManifest: rscServerManifest,
-      pageName: 'VAR_PAGE',
     }),
   })
 }
@@ -70,7 +75,6 @@ const render = getRender({
   error500Mod,
   Document,
   buildManifest,
-  prerenderManifest,
   renderToHTML,
   reactLoadableManifest,
   clientReferenceManifest: isServerComponent ? rscManifest : null,

@@ -1,15 +1,18 @@
-import React from 'react'
 import type { VersionInfo } from '../../../../../../server/dev/parse-version-info'
 
-export function VersionStalenessInfo(props: VersionInfo) {
-  if (!props) return null
-  const { staleness } = props
-  let { text, indicatorClass, title } = getStaleness(props)
+export function VersionStalenessInfo({
+  versionInfo,
+}: {
+  versionInfo: VersionInfo | undefined
+}) {
+  if (!versionInfo) return null
+  const { staleness } = versionInfo
+  let { text, indicatorClass, title } = getStaleness(versionInfo)
 
   if (!text) return null
 
   return (
-    <small className="nextjs-container-build-error-version-status">
+    <span className="nextjs-container-build-error-version-status">
       <span className={indicatorClass} />
       <small data-nextjs-version-checker title={title}>
         {text}
@@ -25,8 +28,8 @@ export function VersionStalenessInfo(props: VersionInfo) {
           (learn more)
         </a>
       )}
-      {process.env.TURBOPACK ? ' (turbo)' : ''}
-    </small>
+      {process.env.TURBOPACK ? ' (Turbopack)' : ''}
+    </span>
   )
 }
 

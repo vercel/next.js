@@ -1,0 +1,82 @@
+[package]
+name = "turbopack-ecmascript"
+version = "0.1.0"
+description = "TBD"
+license = "MPL-2.0"
+edition = "2021"
+autobenches = false
+
+[lib]
+bench = false
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+either = { workspace = true }
+indexmap = { workspace = true }
+indoc = { workspace = true }
+lazy_static = { workspace = true }
+num-bigint = "0.4"
+num-traits = "0.2.15"
+once_cell = { workspace = true }
+parking_lot = { workspace = true }
+petgraph = { workspace = true }
+regex = { workspace = true }
+rustc-hash = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sourcemap = { workspace = true }
+strsim = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+turbo-rcstr = { workspace = true }
+turbo-tasks = { workspace = true }
+turbo-tasks-fs = { workspace = true }
+turbo-tasks-hash = { workspace = true }
+turbopack-core = { workspace = true }
+turbopack-resolve = { workspace = true }
+turbopack-swc-utils = { workspace = true }
+url = { workspace = true }
+urlencoding = { workspace = true }
+
+swc_core = { workspace = true, features = [
+  "ecma_ast",
+  "ecma_ast_serde",
+  "common",
+  "common_concurrent",
+  "common_sourcemap",
+  "ecma_codegen",
+  "ecma_lints",
+  "ecma_minifier",
+  "ecma_minifier_concurrent",
+  "ecma_parser",
+  "ecma_preset_env",
+  "ecma_transforms",
+  "ecma_transforms_module",
+  "ecma_transforms_react",
+  "ecma_transforms_optimization",
+  "ecma_transforms_typescript",
+  "ecma_transforms_proposal",
+  "ecma_quote",
+  "ecma_visit",
+  "ecma_visit_path",
+  "ecma_utils",
+  "testing",
+  "base",
+] }
+
+[dev-dependencies]
+criterion = { workspace = true, features = ["async_tokio"] }
+#rstest = { workspace = true }
+turbo-tasks-memory = { workspace = true }
+turbo-tasks-testing = { workspace = true }
+
+[build-dependencies]
+turbo-tasks-build = { workspace = true }
+
+[[bench]]
+name = "mod"
+harness = false

@@ -1,8 +1,6 @@
 # with react-hook-form
 
-This example shows how to integrate react-hook-form in Next.js
-
-Form handling doesn't have to be painful. React Hook Form will help you write less code while achieving better performance. For more information, see [react-hook-form](https://react-hook-form.com)
+This example demonstrates how to integrate [React Hook Form](https://react-hook-form.com/) with Next.js, helping you write less code and avoid unnecessary re-renders for improved performance.
 
 ## Deploy your own
 

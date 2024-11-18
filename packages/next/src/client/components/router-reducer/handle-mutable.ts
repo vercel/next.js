@@ -32,7 +32,6 @@ export function handleMutable(
   }
 
   return {
-    buildId: state.buildId,
     // Set href.
     canonicalUrl: isNotUndefined(mutable.canonicalUrl)
       ? mutable.canonicalUrl === state.canonicalUrl
@@ -60,10 +59,7 @@ export function handleMutable(
           : state.focusAndScrollRef.apply
         : // If shouldScroll is false then we should not apply scroll and focus management.
           false,
-      onlyHashChange:
-        !!mutable.hashFragment &&
-        state.canonicalUrl.split('#', 1)[0] ===
-          mutable.canonicalUrl?.split('#', 1)[0],
+      onlyHashChange: mutable.onlyHashChange || false,
       hashFragment: shouldScroll
         ? // Empty hash should trigger default behavior of scrolling layout into view.
           // #top is handled in layout-router.

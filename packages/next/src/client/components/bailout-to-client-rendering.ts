@@ -1,11 +1,10 @@
 import { BailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
-import { staticGenerationAsyncStorage } from './static-generation-async-storage.external'
+import { workAsyncStorage } from '../../server/app-render/work-async-storage.external'
 
 export function bailoutToClientRendering(reason: string): void | never {
-  const staticGenerationStore = staticGenerationAsyncStorage.getStore()
+  const workStore = workAsyncStorage.getStore()
 
-  if (staticGenerationStore?.forceStatic) return
+  if (workStore?.forceStatic) return
 
-  if (staticGenerationStore?.isStaticGeneration)
-    throw new BailoutToCSRError(reason)
+  if (workStore?.isStaticGeneration) throw new BailoutToCSRError(reason)
 }

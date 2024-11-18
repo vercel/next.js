@@ -1,9 +1,10 @@
 /* eslint-env jest */
 
 import {
+  assertHasRedbox,
+  assertNoRedbox,
   fetchViaHTTP,
   getRedboxSource,
-  hasRedbox,
   getRedboxHeader,
   waitFor,
   check,
@@ -11,6 +12,8 @@ import {
 import webdriver from 'next-webdriver'
 import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
+
+const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 
 describe('Client Navigation', () => {
   const { next } = nextTestSetup({
@@ -55,7 +58,7 @@ describe('Client Navigation', () => {
 
     it('should have proper error when no children are provided', async () => {
       const browser = await webdriver(next.appPort, '/link-no-child')
-      expect(await hasRedbox(browser)).toBe(true)
+      await assertHasRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
         'No children were passed to <Link> with `href` of `/about` but one child is required'
       )
@@ -63,7 +66,7 @@ describe('Client Navigation', () => {
 
     it('should not throw error when one number type child is provided', async () => {
       const browser = await webdriver(next.appPort, '/link-number-child')
-      expect(await hasRedbox(browser)).toBe(false)
+      await assertNoRedbox(browser)
       if (browser) await browser.close()
     })
 
@@ -279,7 +282,7 @@ describe('Client Navigation', () => {
       try {
         browser = await webdriver(next.appPort, '/nav')
         await browser.elementByCss('#empty-props').click()
-        expect(await hasRedbox(browser)).toBe(true)
+        await assertHasRedbox(browser)
         expect(await getRedboxHeader(browser)).toMatch(
           /should resolve to an object\. But found "null" instead\./
         )
@@ -565,7 +568,7 @@ describe('Client Navigation', () => {
     describe('check hydration mis-match', () => {
       it('should not have hydration mis-match for hash link', async () => {
         const browser = await webdriver(next.appPort, '/nav/hash-changes')
-        const browserLogs = await browser.log('browser')
+        const browserLogs = await browser.log()
         let found = false
         browserLogs.forEach((log) => {
           console.log('log.message', log.message)
@@ -1377,7 +1380,7 @@ describe('Client Navigation', () => {
       let browser
       try {
         browser = await webdriver(next.appPort, '/error-inside-browser-page')
-        expect(await hasRedbox(browser)).toBe(true)
+        await assertHasRedbox(browser)
         const text = await getRedboxSource(browser)
         expect(text).toMatch(/An Expected error occurred/)
         expect(text).toMatch(/pages[\\/]error-inside-browser-page\.js \(5:13\)/)
@@ -1395,7 +1398,7 @@ describe('Client Navigation', () => {
           next.appPort,
           '/error-in-the-browser-global-scope'
         )
-        expect(await hasRedbox(browser)).toBe(true)
+        await assertHasRedbox(browser)
         const text = await getRedboxSource(browser)
         expect(text).toMatch(/An Expected error occurred/)
         expect(text).toMatch(/error-in-the-browser-global-scope\.js \(2:9\)/)
@@ -1478,7 +1481,7 @@ describe('Client Navigation', () => {
         await browser.waitForElementByCss('.nav-about')
         await browser.back()
         await waitFor(1000)
-        expect(await hasRedbox(browser)).toBe(false)
+        await assertNoRedbox(browser)
       } finally {
         if (browser) {
           await browser.close()
@@ -1498,7 +1501,7 @@ describe('Client Navigation', () => {
         await browser.waitForElementByCss('.nav-about')
         await browser.back()
         await waitFor(1000)
-        expect(await hasRedbox(browser)).toBe(false)
+        await assertNoRedbox(browser)
       } finally {
         if (browser) {
           await browser.close()
@@ -1516,7 +1519,7 @@ describe('Client Navigation', () => {
         await browser.waitForElementByCss('.nav-about')
         await browser.back()
         await waitFor(1000)
-        expect(await hasRedbox(browser)).toBe(false)
+        await assertNoRedbox(browser)
       } finally {
         if (browser) {
           await browser.close()
@@ -1668,19 +1671,19 @@ describe.each([[false], [true]])(
         expect(
           Number(await browser.eval('window.__test_async_executions'))
         ).toBe(
-          strictNextHead
+          strictNextHead || isReact18
             ? 1
             : // <meta name="next-head-count" /> is floated before <script />.
-              // head-manager thinks it needs t add these again resulting in another execution.
+              // head-manager thinks it needs to add these again resulting in another execution.
               2
         )
         expect(
           Number(await browser.eval('window.__test_defer_executions'))
         ).toBe(
-          strictNextHead
+          strictNextHead || isReact18
             ? 1
             : // <meta name="next-head-count" /> is floated before <script defer />.
-              // head-manager thinks it needs t add these again resulting in another execution.
+              // head-manager thinks it needs to add these again resulting in another execution.
               2
         )
 
@@ -1689,20 +1692,20 @@ describe.each([[false], [true]])(
 
         expect(
           Number(await browser.eval('window.__test_async_executions'))
-        ).toBe(strictNextHead ? 1 : 2)
+        ).toBe(strictNextHead || isReact18 ? 1 : 2)
         expect(
           Number(await browser.eval('window.__test_defer_executions'))
-        ).toBe(strictNextHead ? 1 : 2)
+        ).toBe(strictNextHead || isReact18 ? 1 : 2)
 
         await browser.elementByCss('#toggleScript').click()
         await waitFor(2000)
 
         expect(
           Number(await browser.eval('window.__test_async_executions'))
-        ).toBe(strictNextHead ? 1 : 2)
+        ).toBe(strictNextHead || isReact18 ? 1 : 2)
         expect(
           Number(await browser.eval('window.__test_defer_executions'))
-        ).toBe(strictNextHead ? 1 : 2)
+        ).toBe(strictNextHead || isReact18 ? 1 : 2)
       } finally {
         if (browser) {
           await browser.close()
@@ -1717,7 +1720,7 @@ describe.each([[false], [true]])(
 
         await browser.waitForElementByCss('h1')
         await waitFor(1000)
-        const browserLogs = await browser.log('browser')
+        const browserLogs = await browser.log()
         let foundStyles = false
         let foundScripts = false
         const logs = []
@@ -1750,7 +1753,7 @@ describe.each([[false], [true]])(
         browser = await webdriver(next.appPort, '/head')
         await browser.waitForElementByCss('h1')
         await waitFor(1000)
-        const browserLogs = await browser.log('browser')
+        const browserLogs = await browser.log()
         let found = false
         browserLogs.forEach((log) => {
           if (log.message.includes('Use next/script instead')) {
@@ -1771,7 +1774,7 @@ describe.each([[false], [true]])(
         browser = await webdriver(next.appPort, '/head-with-json-ld-snippet')
         await browser.waitForElementByCss('h1')
         await waitFor(1000)
-        const browserLogs = await browser.log('browser')
+        const browserLogs = await browser.log()
         let found = false
         browserLogs.forEach((log) => {
           if (log.message.includes('Use next/script instead')) {

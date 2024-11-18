@@ -1,5 +1,7 @@
 import { setAttributesFromProps } from './set-attributes-from-props'
 
+import type { JSX } from 'react'
+
 function reactElementToDOM({ type, props }: JSX.Element): HTMLElement {
   const el: HTMLElement = document.createElement(type)
   setAttributesFromProps(el, props)

@@ -40,10 +40,6 @@ describe('beforeInteractive in document Head', () => {
           }
         `,
       },
-      dependencies: {
-        react: '19.0.0-beta-04b058868c-20240508',
-        'react-dom': '19.0.0-beta-04b058868c-20240508',
-      },
     })
   })
   afterAll(() => next.destroy())
@@ -99,10 +95,6 @@ describe('beforeInteractive in document body', () => {
             )
           }
         `,
-      },
-      dependencies: {
-        react: '19.0.0-beta-04b058868c-20240508',
-        'react-dom': '19.0.0-beta-04b058868c-20240508',
       },
     })
   })
@@ -161,10 +153,6 @@ describe('empty strategy in document Head', () => {
           }
         `,
       },
-      dependencies: {
-        react: '19.0.0-beta-04b058868c-20240508',
-        'react-dom': '19.0.0-beta-04b058868c-20240508',
-      },
     })
   })
   afterAll(() => next.destroy())
@@ -220,10 +208,6 @@ describe('empty strategy in document body', () => {
           }
         `,
       },
-      dependencies: {
-        react: '19.0.0-beta-04b058868c-20240508',
-        'react-dom': '19.0.0-beta-04b058868c-20240508',
-      },
     })
   })
   afterAll(() => next.destroy())
@@ -266,11 +250,6 @@ describe('empty strategy in document body', () => {
             )
           }
         `,
-          },
-          // TODO: @housseindjirdeh: verify React 18 functionality
-          dependencies: {
-            react: '19.0.0-beta-04b058868c-20240508',
-            'react-dom': '19.0.0-beta-04b058868c-20240508',
           },
         })
       })
@@ -320,8 +299,6 @@ describe('empty strategy in document body', () => {
         `,
           },
           dependencies: {
-            react: '19.0.0-beta-04b058868c-20240508',
-            'react-dom': '19.0.0-beta-04b058868c-20240508',
             '@builder.io/partytown': '0.4.2',
           },
         })
@@ -409,8 +386,6 @@ describe('empty strategy in document body', () => {
       `,
           },
           dependencies: {
-            react: '19.0.0-beta-04b058868c-20240508',
-            'react-dom': '19.0.0-beta-04b058868c-20240508',
             '@builder.io/partytown': '0.4.2',
           },
         })
@@ -525,8 +500,6 @@ describe('empty strategy in document body', () => {
           },
           dependencies: {
             '@builder.io/partytown': '0.4.2',
-            react: '19.0.0-beta-04b058868c-20240508',
-            'react-dom': '19.0.0-beta-04b058868c-20240508',
           },
         })
       })

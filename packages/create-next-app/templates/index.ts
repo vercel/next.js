@@ -11,6 +11,10 @@ import pkg from "../package.json";
 
 import { GetTemplateFileArgs, InstallTemplateArgs } from "./types";
 
+// Do not rename or format. sync-react script relies on this line.
+// prettier-ignore
+const nextjsReactPeerVersion = "19.0.0-rc-380f5d67-20241113";
+
 /**
  * Get the file path for a given file in a template, e.g. "next.config.js".
  */
@@ -39,7 +43,7 @@ export const installTemplate = async ({
   srcDir,
   importAlias,
   skipInstall,
-  turbo,
+  turbopack,
 }: InstallTemplateArgs) => {
   console.log(bold(`Using ${packageManager}.`));
 
@@ -52,7 +56,7 @@ export const installTemplate = async ({
   if (!eslint) copySource.push("!eslintrc.json");
   if (!tailwind)
     copySource.push(
-      mode == "ts" ? "tailwind.config.ts" : "!tailwind.config.js",
+      mode == "ts" ? "tailwind.config.ts" : "!tailwind.config.mjs",
       "!postcss.config.mjs",
     );
 
@@ -99,7 +103,16 @@ export const installTemplate = async ({
       stats: false,
       // We don't want to modify compiler options in [ts/js]config.json
       // and none of the files in the .git folder
-      ignore: ["tsconfig.json", "jsconfig.json", ".git/**/*"],
+      // TODO: Refactor this to be an allowlist, rather than a denylist,
+      // to avoid corrupting files that weren't intended to be replaced
+
+      ignore: [
+        "tsconfig.json",
+        "jsconfig.json",
+        ".git/**/*",
+        "**/fonts/**",
+        "**/favicon.ico",
+      ],
     });
     const writeSema = new Sema(8, { capacity: files.length });
     await Promise.all(
@@ -154,7 +167,7 @@ export const installTemplate = async ({
     if (tailwind) {
       const tailwindConfigFile = path.join(
         root,
-        mode === "ts" ? "tailwind.config.ts" : "tailwind.config.js",
+        mode === "ts" ? "tailwind.config.ts" : "tailwind.config.mjs",
       );
       await fs.writeFile(
         tailwindConfigFile,
@@ -175,7 +188,7 @@ export const installTemplate = async ({
     version: "0.1.0",
     private: true,
     scripts: {
-      dev: `next dev${turbo ? " --turbo" : ""}`,
+      dev: `next dev${turbopack ? " --turbopack" : ""}`,
       build: "next build",
       start: "next start",
       lint: "next lint",
@@ -184,8 +197,8 @@ export const installTemplate = async ({
      * Default dependencies.
      */
     dependencies: {
-      react: "19.0.0-beta-04b058868c-20240508",
-      "react-dom": "19.0.0-beta-04b058868c-20240508",
+      react: nextjsReactPeerVersion,
+      "react-dom": nextjsReactPeerVersion,
       next: version,
     },
     devDependencies: {},
@@ -217,7 +230,7 @@ export const installTemplate = async ({
   if (eslint) {
     packageJson.devDependencies = {
       ...packageJson.devDependencies,
-      eslint: "^8",
+      eslint: "^9",
       "eslint-config-next": version,
     };
   }

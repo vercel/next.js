@@ -174,8 +174,8 @@ describe.each([
   if (!useHttps) {
     describe('HMR with custom server', () => {
       beforeAll(() => startServer())
-      afterAll(() => {
-        killApp(server)
+      afterAll(async () => {
+        await killApp(server)
         indexPg.restore()
       })
 

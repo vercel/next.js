@@ -1,5 +1,5 @@
 import type { HtmlProps } from './html-context.shared-runtime'
-import type { ComponentType } from 'react'
+import type { ComponentType, JSX } from 'react'
 import type { DomainLocale } from '../../server/config'
 import type { Env } from '@next/env'
 import type { IncomingMessage, ServerResponse } from 'http'
@@ -191,7 +191,7 @@ export type DocumentContext = NextPageContext & {
 }
 
 export type DocumentInitialProps = RenderPageResult & {
-  styles?: React.ReactElement[] | React.ReactFragment | JSX.Element
+  styles?: React.ReactElement[] | Iterable<React.ReactNode> | JSX.Element
 }
 
 export type DocumentProps = DocumentInitialProps & HtmlProps
@@ -283,7 +283,7 @@ export type NextApiResponse<Data = any> = ServerResponse & {
    * Static Regeneration.
    * The path should be an actual path, not a rewritten path. E.g. for
    * "/blog/[slug]" this should be "/blog/post-1".
-   * @link https://nextjs.org/docs/basic-features/data-fetching/incremental-static-regeneration#on-demand-revalidation
+   * @link https://nextjs.org/docs/app/building-your-application/data-fetching/incremental-static-regeneration#on-demand-revalidation-with-revalidatepath
    */
   revalidate: (
     urlPath: string,

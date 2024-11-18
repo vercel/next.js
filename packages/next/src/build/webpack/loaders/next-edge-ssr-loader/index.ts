@@ -1,11 +1,11 @@
 import type webpack from 'webpack'
 import type { SizeLimit } from '../../../../types'
-import type { PagesRouteModuleOptions } from '../../../../server/future/route-modules/pages/module'
+import type { PagesRouteModuleOptions } from '../../../../server/route-modules/pages/module'
 import type { MiddlewareConfig } from '../../../analysis/get-page-static-info'
 
 import { getModuleBuildInfo } from '../get-module-build-info'
 import { WEBPACK_RESOURCE_QUERIES } from '../../../../lib/constants'
-import { RouteKind } from '../../../../server/future/route-kind'
+import { RouteKind } from '../../../../server/route-kind'
 import { normalizePagePath } from '../../../../shared/lib/page-path/normalize-page-path'
 import { loadEntrypoint } from '../../../load-entrypoint'
 import type { PAGE_TYPES } from '../../../../lib/page-types'
@@ -24,6 +24,7 @@ export type EdgeSSRLoaderQuery = {
   pagesType: PAGE_TYPES
   sriEnabled: boolean
   cacheHandler?: string
+  cacheHandlers?: string
   preferredRegion: string | string[] | undefined
   middlewareConfig: string
   serverActions?: {
@@ -75,10 +76,13 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
       pagesType,
       sriEnabled,
       cacheHandler,
+      cacheHandlers: cacheHandlersStringified,
       preferredRegion,
       middlewareConfig: middlewareConfigBase64,
       serverActions,
     } = this.getOptions()
+
+    const cacheHandlers = JSON.parse(cacheHandlersStringified || '{}')
 
     const middlewareConfig: MiddlewareConfig = JSON.parse(
       Buffer.from(middlewareConfigBase64, 'base64').toString()
@@ -156,6 +160,9 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
         },
         {
           incrementalCacheHandler: cacheHandler ?? null,
+        },
+        {
+          cacheHandlers: cacheHandlers ?? {},
         }
       )
     } else {
@@ -184,6 +191,9 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
         {
           userland500Page: userland500Path,
           incrementalCacheHandler: cacheHandler ?? null,
+        },
+        {
+          cacheHandlers: cacheHandlers || {},
         }
       )
     }

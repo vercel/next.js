@@ -4,7 +4,7 @@ import { getSocketUrl } from './get-socket-url'
 import type { TurbopackMsgToBrowser } from '../../../../../server/dev/hot-reloader-types'
 
 export function useWebsocket(assetPrefix: string) {
-  const webSocketRef = useRef<WebSocket>()
+  const webSocketRef = useRef<WebSocket>(undefined)
 
   useEffect(() => {
     if (webSocketRef.current) {
@@ -67,7 +67,7 @@ export function useTurbopack(
 
     import(
       // @ts-expect-error requires "moduleResolution": "node16" in tsconfig.json and not .ts extension
-      '@vercel/turbopack-ecmascript-runtime/dev/client/hmr-client.ts'
+      '@vercel/turbopack-ecmascript-runtime/browser/dev/hmr-client/hmr-client.ts'
     ).then(({ connect }) => {
       const { current } = turbopackState
       connect({

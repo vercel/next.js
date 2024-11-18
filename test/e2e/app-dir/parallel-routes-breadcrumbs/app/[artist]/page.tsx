@@ -1,14 +1,15 @@
 import Link from 'next/link'
 
-export default function Page({ params }) {
+export default async function Page({ params }) {
   const albums = ['album1', 'album2', 'album3']
+  const { artist } = await params
   return (
     <div>
-      <h2>Artist: {params.artist}</h2>
+      <h2>Artist: {artist}</h2>
       <ul>
         {albums.map((album) => (
           <li key={album}>
-            <Link href={`/${params.artist}/${album}`}>{album}</Link>
+            <Link href={`/${artist}/${album}`}>{album}</Link>
           </li>
         ))}
       </ul>

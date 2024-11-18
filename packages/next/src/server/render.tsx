@@ -21,7 +21,6 @@ import {
   setLazyProp,
 } from './api-utils'
 import { getCookieParser } from './api-utils/get-cookie-parser'
-import type { FontManifest, FontConfig } from './font-utils'
 import type { LoadComponentsReturnType } from './load-components'
 import type {
   GetServerSideProps,
@@ -34,14 +33,14 @@ import type { UnwrapPromise } from '../lib/coalesced-function'
 import type { ReactReadableStream } from './stream-utils/node-web-streams-helper'
 import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
-import type { PagesModule } from './future/route-modules/pages/module'
+import type { PagesModule } from './route-modules/pages/module'
 import type { ComponentsEnhancer } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
-import type { Revalidate, SwrDelta } from './lib/revalidate'
+import type { Revalidate, ExpireTime } from './lib/revalidate'
 import type { COMPILER_NAMES } from '../shared/lib/constants'
 
-import React from 'react'
-import ReactDOMServer from 'react-dom/server.browser'
+import React, { type JSX } from 'react'
+import ReactDOMServerPages from 'next/dist/server/ReactDOMServerPages'
 import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
 import {
   GSP_NO_RETURNED_VALUE,
@@ -128,7 +127,7 @@ function noRouter() {
 }
 
 async function renderToString(element: React.ReactElement) {
-  const renderStream = await ReactDOMServer.renderToReadableStream(element)
+  const renderStream = await ReactDOMServerPages.renderToReadableStream(element)
   await renderStream.allReady
   return streamToString(renderStream)
 }
@@ -246,14 +245,12 @@ export type RenderOptsPartial = {
   ampValidator?: (html: string, pathname: string) => Promise<void>
   ampSkipValidation?: boolean
   ampOptimizerConfig?: { [key: string]: any }
-  isDataReq?: boolean
+  isNextDataRequest?: boolean
   params?: ParsedUrlQuery
   previewProps: __ApiPreviewProps | undefined
   basePath: string
   unstable_runtimeJS?: false
   unstable_JsPreload?: false
-  optimizeFonts: FontConfig
-  fontManifest?: DeepReadonly<FontManifest>
   optimizeCss: any
   nextConfigOutput?: 'standalone' | 'export'
   nextScriptWorkers: any
@@ -268,7 +265,7 @@ export type RenderOptsPartial = {
   defaultLocale?: string
   domainLocales?: DomainLocale[]
   disableOptimizedLoading?: boolean
-  supportsDynamicHTML: boolean
+  supportsDynamicResponse: boolean
   isBot?: boolean
   runtime?: ServerRuntime
   serverComponents?: boolean
@@ -287,7 +284,10 @@ export type RenderOptsPartial = {
   isServerAction?: boolean
   isExperimentalCompile?: boolean
   isPrefetch?: boolean
-  swrDelta?: SwrDelta
+  expireTime?: ExpireTime
+  experimental: {
+    clientTraceMetadata?: string[]
+  }
 }
 
 export type RenderOpts = LoadComponentsReturnType<PagesModule> &
@@ -449,14 +449,14 @@ export async function renderToHTMLImpl(
     getStaticProps,
     getStaticPaths,
     getServerSideProps,
-    isDataReq,
+    isNextDataRequest,
     params,
     previewProps,
     basePath,
     images,
     runtime: globalRuntime,
     isExperimentalCompile,
-    swrDelta,
+    expireTime,
   } = renderOpts
   const { App } = extra
 
@@ -517,7 +517,7 @@ export async function renderToHTMLImpl(
       'Cache-Control',
       formatRevalidate({
         revalidate: false,
-        swrDelta,
+        expireTime,
       })
     )
     isAutoExport = false
@@ -640,7 +640,12 @@ export async function renderToHTMLImpl(
     // Reads of this are cached on the `req` object, so this should resolve
     // instantly. There's no need to pass this data down from a previous
     // invoke.
-    previewData = tryGetPreviewData(req, res, previewProps)
+    previewData = tryGetPreviewData(
+      req,
+      res,
+      previewProps,
+      !!renderOpts.multiZoneDraftMode
+    )
     isPreview = previewData !== false
   }
 
@@ -839,9 +844,7 @@ export async function renderToHTMLImpl(
         },
         () =>
           getStaticProps({
-            ...(pageIsDynamic
-              ? { params: query as ParsedUrlQuery }
-              : undefined),
+            ...(pageIsDynamic ? { params } : undefined),
             ...(isPreview
               ? { draftMode: true, preview: true, previewData: previewData }
               : undefined),
@@ -1064,9 +1067,7 @@ export async function renderToHTMLImpl(
             res: resOrProxy,
             query,
             resolvedUrl: renderOpts.resolvedUrl as string,
-            ...(pageIsDynamic
-              ? { params: params as ParsedUrlQuery }
-              : undefined),
+            ...(pageIsDynamic ? { params } : undefined),
             ...(previewData !== false
               ? { draftMode: true, preview: true, previewData: previewData }
               : undefined),
@@ -1076,6 +1077,7 @@ export async function renderToHTMLImpl(
           })
       )
       canAccessRes = false
+      metadata.revalidate = 0
     } catch (serverSidePropsError: any) {
       // remove not found error code to prevent triggering legacy
       // 404 rendering
@@ -1170,7 +1172,7 @@ export async function renderToHTMLImpl(
 
   // Avoid rendering page un-necessarily for getServerSideProps data request
   // and getServerSideProps/getStaticProps redirects
-  if ((isDataReq && !isSSG) || metadata.isRedirect) {
+  if ((isNextDataRequest && !isSSG) || metadata.isRedirect) {
     return new RenderResult(JSON.stringify(props), {
       metadata,
     })
@@ -1320,7 +1322,7 @@ export async function renderToHTMLImpl(
     ) => {
       const content = renderContent(EnhancedApp, EnhancedComponent)
       return await renderToInitialFizzStream({
-        ReactDOMServer,
+        ReactDOMServer: ReactDOMServerPages,
         element: content,
       })
     }
@@ -1385,7 +1387,7 @@ export async function renderToHTMLImpl(
     }
   }
 
-  getTracer().getRootSpanAttributes()?.set('next.route', renderOpts.page)
+  getTracer().setRootSpanAttribute('next.route', renderOpts.page)
   const documentResult = await getTracer().trace(
     RenderSpan.renderDocument,
     {
@@ -1486,12 +1488,13 @@ export async function renderToHTMLImpl(
     styles: documentResult.styles,
     crossOrigin: renderOpts.crossOrigin,
     optimizeCss: renderOpts.optimizeCss,
-    optimizeFonts: renderOpts.optimizeFonts,
     nextConfigOutput: renderOpts.nextConfigOutput,
     nextScriptWorkers: renderOpts.nextScriptWorkers,
     runtime: globalRuntime,
     largePageDataBytes: renderOpts.largePageDataBytes,
     nextFontManifest: renderOpts.nextFontManifest,
+    experimentalClientTraceMetadata:
+      renderOpts.experimental.clientTraceMetadata,
   }
 
   const document = (

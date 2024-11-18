@@ -7,7 +7,7 @@ import { NextInstance } from 'e2e-utils'
 import { check, fetchViaHTTP, retry } from 'next-test-utils'
 import { createNext, FileRef } from 'e2e-utils'
 import escapeStringRegexp from 'escape-string-regexp'
-import { Request } from 'playwright'
+import { Request, Response } from 'playwright'
 
 describe('Middleware Rewrite', () => {
   let next: NextInstance
@@ -363,6 +363,36 @@ describe('Middleware Rewrite', () => {
     })
 
     if (!(global as any).isNextDev) {
+      it('should opt out of prefetch caching for dynamic routes', async () => {
+        const browser = await webdriver(next.url, '/')
+        await browser.eval('window.__SAME_PAGE = true')
+        await browser.waitForIdleNetwork()
+        let hasResolvedPrefetch = false
+
+        browser.on('response', async (res: Response) => {
+          const req = res.request()
+          const headers = await req.allHeaders()
+          if (
+            headers['purpose'] === 'prefetch' &&
+            req.url().includes('/dynamic-no-cache/1')
+          ) {
+            hasResolvedPrefetch = true
+          }
+        })
+
+        await browser.elementByCss("[href='/dynamic-no-cache/1']").moveTo()
+
+        await retry(async () => {
+          expect(hasResolvedPrefetch).toBe(true)
+        })
+
+        await browser.elementByCss("[href='/dynamic-no-cache/1']").click()
+
+        await browser.waitForElementByCss('#dynamic-page')
+        expect(await browser.elementById('dynamic-page').text()).toBe('Page 2')
+        expect(await browser.eval('window.__SAME_PAGE')).toBe(true)
+      })
+
       it('should not prefetch non-SSG routes', async () => {
         const browser = await webdriver(next.url, '/')
 

@@ -1,0 +1,1 @@
+../../turbo-tasks-testing/tests/detached.rs

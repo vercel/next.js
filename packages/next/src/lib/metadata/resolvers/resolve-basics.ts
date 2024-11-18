@@ -255,3 +255,11 @@ export const resolveItunes: FieldResolverExtraArgs<
       : undefined,
   }
 }
+
+export const resolveFacebook: FieldResolver<'facebook'> = (facebook) => {
+  if (!facebook) return null
+  return {
+    appId: facebook.appId,
+    admins: resolveAsArrayOrUndefined(facebook.admins),
+  }
+}

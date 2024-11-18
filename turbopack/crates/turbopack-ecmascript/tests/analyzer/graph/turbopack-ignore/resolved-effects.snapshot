@@ -1,0 +1,55 @@
+0 -> 1 call = ???*0*("w_i")
+- *0* import*1*
+  ⚠️  ignored import
+  ⚠️  This value might have side effects
+- *1* import: The dynamic import() method from the ESM specification: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#dynamic_imports
+
+0 -> 2 free var = FreeVar(require)
+
+0 -> 3 call = require*0*("w_i_f")
+- *0* require: The require method from CommonJS
+
+0 -> 4 call = ???*0*("t_i")
+- *0* import*1*
+  ⚠️  ignored import
+  ⚠️  This value might have side effects
+- *1* import: The dynamic import() method from the ESM specification: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#dynamic_imports
+
+0 -> 5 free var = FreeVar(require)
+
+0 -> 6 call = require*0*("t_i_f")
+- *0* require: The require method from CommonJS
+
+0 -> 7 free var = FreeVar(require)
+
+0 -> 8 call = ???*0*("w_r_t")
+- *0* require*1*
+  ⚠️  ignored require
+  ⚠️  This value might have side effects
+- *1* require: The require method from CommonJS
+
+0 -> 9 free var = FreeVar(require)
+
+0 -> 10 call = require*0*("w_r_f")
+- *0* require: The require method from CommonJS
+
+0 -> 11 free var = FreeVar(require)
+
+0 -> 12 call = ???*0*("t_r_t")
+- *0* require*1*
+  ⚠️  ignored require
+  ⚠️  This value might have side effects
+- *1* require: The require method from CommonJS
+
+0 -> 13 free var = FreeVar(require)
+
+0 -> 14 call = require*0*("t_r_f")
+- *0* require: The require method from CommonJS
+
+0 -> 15 free var = FreeVar(require)
+
+0 -> 16 call = ???*0*("exported_t_r")
+- *0* require*1*
+  ⚠️  ignored require
+  ⚠️  This value might have side effects
+- *1* require: The require method from CommonJS

@@ -1,3 +1,0 @@
-{
-  "packages/next/src/server": ["e2e/app-dir/ppr-full", "e2e/app-dir/ppr-errors"]
-}

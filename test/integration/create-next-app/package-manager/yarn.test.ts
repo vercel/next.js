@@ -10,17 +10,28 @@ import {
 const lockFile = 'yarn.lock'
 const files = [...DEFAULT_FILES, lockFile]
 
-// Don't install local next build here as yarn will error with:
-// Usage Error: This project is configured to use pnpm
+describe('create-next-app with package manager yarn', () => {
+  let nextTgzFilename: string
 
-beforeEach(async () => {
-  await command('yarn', ['--version'])
-    // install yarn if not available
-    .catch(() => command('corepack', ['prepare', '--activate', 'yarn@1.22.19']))
-    .catch(() => command('npm', ['i', '-g', 'yarn']))
-})
+  beforeAll(async () => {
+    if (!process.env.NEXT_TEST_PKG_PATHS) {
+      throw new Error('This test needs to be run with `node run-tests.js`.')
+    }
 
-describe.skip('create-next-app with package manager yarn', () => {
+    const pkgPaths = new Map<string, string>(
+      JSON.parse(process.env.NEXT_TEST_PKG_PATHS)
+    )
+
+    nextTgzFilename = pkgPaths.get('next')
+
+    await command('yarn', ['--version'])
+      // install yarn if not available
+      .catch(() =>
+        command('corepack', ['prepare', '--activate', 'yarn@1.22.19'])
+      )
+      .catch(() => command('npm', ['i', '-g', 'yarn']))
+  })
+
   it('should use yarn for --use-yarn flag', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'use-yarn'
@@ -30,13 +41,13 @@ describe.skip('create-next-app with package manager yarn', () => {
           '--ts',
           '--app',
           '--use-yarn',
-          '--no-turbo',
+          '--no-turbopack',
           '--no-eslint',
           '--no-src-dir',
           '--no-tailwind',
           '--no-import-alias',
         ],
-        'canary',
+        nextTgzFilename,
         {
           cwd,
         }
@@ -59,13 +70,13 @@ describe.skip('create-next-app with package manager yarn', () => {
           projectName,
           '--ts',
           '--app',
-          '--no-turbo',
+          '--no-turbopack',
           '--no-eslint',
           '--no-src-dir',
           '--no-tailwind',
           '--no-import-alias',
         ],
-        'canary',
+        nextTgzFilename,
         {
           cwd,
           env: { npm_config_user_agent: 'yarn' },
@@ -86,7 +97,7 @@ describe.skip('create-next-app with package manager yarn', () => {
       const projectName = 'use-yarn-with-example'
       const res = await run(
         [projectName, '--use-yarn', '--example', FULL_EXAMPLE_PATH],
-        'canary',
+        nextTgzFilename,
         { cwd }
       )
 
@@ -104,7 +115,7 @@ describe.skip('create-next-app with package manager yarn', () => {
       const projectName = 'user-agent-yarn-with-example'
       const res = await run(
         [projectName, '--example', FULL_EXAMPLE_PATH],
-        'canary',
+        nextTgzFilename,
         {
           cwd,
           env: { npm_config_user_agent: 'yarn' },

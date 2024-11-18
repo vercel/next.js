@@ -4,8 +4,10 @@ import { createTestDataServer } from 'test-data-service/writer'
 import { createTestLog } from 'test-log'
 
 describe('avoid-popstate-flash', () => {
-  if ((global as any).isNextDev) {
-    test('ppr is disabled in dev', () => {})
+  if ((global as any).isNextDev || (global as any).isNextDeploy) {
+    // this is skipped in dev because PPR is not enabled in dev
+    // and in deploy we can't rely on this test data service existing
+    test('should skip dev & deploy', () => {})
     return
   }
 
