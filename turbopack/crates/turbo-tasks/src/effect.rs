@@ -160,7 +160,7 @@ impl PartialEq for Effects {
         let effect_ptrs = self
             .effects
             .iter()
-            .map(|e| ReadRef::ptr(e))
+            .map(ReadRef::ptr)
             .collect::<HashSet<_>>();
         other
             .effects
