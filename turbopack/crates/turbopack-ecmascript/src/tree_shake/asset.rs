@@ -153,12 +153,12 @@ impl EcmascriptModulePartAsset {
                 ))
             };
 
-            if side_effects.await?.is_empty() {
+            if side_effects.is_empty() {
                 return Ok(Vc::upcast(final_module));
             }
 
             let side_effects_module =
-                SideEffectsModule::new(module, part, final_module, *side_effects);
+                SideEffectsModule::new(module, *part, final_module, side_effects.to_vec());
 
             return Ok(Vc::upcast(side_effects_module));
         }
@@ -181,12 +181,9 @@ impl EcmascriptModulePartAsset {
 
 #[turbo_tasks::value]
 struct FollowExportsWithSideEffectsResult {
-    side_effects: Vc<SideEffects>,
+    side_effects: Vec<Vc<Box<dyn EcmascriptChunkPlaceable>>>,
     result: Vc<FollowExportsResult>,
 }
-
-#[turbo_tasks::value(transparent)]
-pub(super) struct SideEffects(pub Vec<Vc<Box<dyn EcmascriptChunkPlaceable>>>);
 
 #[turbo_tasks::function]
 async fn follow_reexports_with_side_effects(
@@ -231,7 +228,7 @@ async fn follow_reexports_with_side_effects(
     };
 
     Ok(FollowExportsWithSideEffectsResult {
-        side_effects: Vc::cell(side_effects),
+        side_effects,
         result,
     }
     .cell())

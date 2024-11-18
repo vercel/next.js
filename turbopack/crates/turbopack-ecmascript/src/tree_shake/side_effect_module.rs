@@ -13,7 +13,7 @@ use turbopack_core::{
 
 use crate::{
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
-    tree_shake::{asset::SideEffects, chunk_item::SideEffectsModuleChunkItem},
+    tree_shake::chunk_item::SideEffectsModuleChunkItem,
     EcmascriptModuleAsset,
 };
 
@@ -26,15 +26,17 @@ pub(super) struct SideEffectsModule {
     /// The module that is the binding
     pub resolved_as: Vc<Box<dyn EcmascriptChunkPlaceable>>,
     /// Side effects from the original module to the binding.
-    pub side_effects: Vc<SideEffects>,
+    pub side_effects: Vec<Vc<Box<dyn EcmascriptChunkPlaceable>>>,
 }
 
+#[turbo_tasks::value_impl]
 impl SideEffectsModule {
+    #[turbo_tasks::function]
     pub fn new(
         module: Vc<EcmascriptModuleAsset>,
         part: ResolvedVc<ModulePart>,
         resolved_as: Vc<Box<dyn EcmascriptChunkPlaceable>>,
-        side_effects: Vc<SideEffects>,
+        side_effects: Vec<Vc<Box<dyn EcmascriptChunkPlaceable>>>,
     ) -> Vc<Self> {
         SideEffectsModule {
             module,
@@ -60,7 +62,7 @@ impl Module for SideEffectsModule {
 
         ident.add_modifier(Vc::cell(RcStr::from("side effects")));
 
-        for (i, side_effect) in self.side_effects.await?.iter().enumerate() {
+        for (i, side_effect) in self.side_effects.iter().enumerate() {
             ident.add_asset(
                 ResolvedVc::cell(RcStr::from(format!("side effect {}", i))),
                 side_effect.ident().to_resolved().await?,
@@ -74,7 +76,7 @@ impl Module for SideEffectsModule {
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
         let mut references = vec![];
 
-        for &side_effect in self.side_effects.await?.iter() {
+        for &side_effect in self.side_effects.iter() {
             references.push(Vc::upcast(SingleChunkableModuleReference::new(
                 Vc::upcast(side_effect),
                 Vc::cell(RcStr::from("side effect")),
