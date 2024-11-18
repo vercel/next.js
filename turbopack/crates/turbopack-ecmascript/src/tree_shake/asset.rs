@@ -119,7 +119,7 @@ impl EcmascriptModulePartAsset {
             let side_effect_free_packages = module.asset_context().side_effect_free_packages();
 
             // Exclude local bindings by using exports module part.
-            let source_module = Vc::upcast(module);
+            let source_module = Vc::upcast(EcmascriptModulePartAsset::new(module, *part));
 
             let FollowExportsWithSideEffectsResult {
                 side_effects,
