@@ -3,7 +3,7 @@ use std::ops::Index;
 use petgraph::{visit::EdgeRef, Direction, Graph};
 use turbo_tasks::FxIndexSet;
 
-use crate::tree_shake::graph::{Dependency, ItemId, ItemIdItemKind};
+use crate::tree_shake::graph::{Dependency, ItemId, ItemIdGroupKind, ItemIdItemKind};
 
 pub(super) struct GraphOptimizer<'a> {
     pub graph_ix: &'a FxIndexSet<ItemId>,
@@ -18,12 +18,16 @@ impl Index<u32> for GraphOptimizer<'_> {
 }
 
 impl GraphOptimizer<'_> {
-    pub(super) fn should_not_merge<N>(&self, item: &N) -> bool
+    pub(super) fn should_not_merge<N>(&self, item: &N, is_merge_target: bool) -> bool
     where
         N: Copy,
         Self: Index<N, Output = ItemId>,
     {
         let item_id = &self[*item];
+
+        if !is_merge_target && matches!(item_id, ItemId::Group(ItemIdGroupKind::Export(..))) {
+            return true;
+        }
 
         // Currently we don't merge import bindings because of workarounds we are using.
         //
@@ -39,12 +43,14 @@ impl GraphOptimizer<'_> {
         )
     }
 
-    fn should_not_merge_iter<N>(&self, items: &[N]) -> bool
+    fn should_not_merge_iter<N>(&self, items: &[N], is_merge_target: bool) -> bool
     where
         N: Copy,
         Self: Index<N, Output = ItemId>,
     {
-        items.iter().any(|item| self.should_not_merge(item))
+        items
+            .iter()
+            .any(|item| self.should_not_merge(item, is_merge_target))
     }
 
     /// Optimizes a condensed graph by merging nodes with only one incoming edge.
@@ -61,7 +67,7 @@ impl GraphOptimizer<'_> {
         for node in g.node_indices() {
             // ImportBinding nodes should not be merged
             let node_data = g.node_weight(node).expect("Node should exist");
-            if self.should_not_merge_iter(node_data) {
+            if self.should_not_merge_iter(node_data, false) {
                 continue;
             }
 
@@ -73,7 +79,7 @@ impl GraphOptimizer<'_> {
                     .unwrap()
                     .source();
 
-                if self.should_not_merge_iter(&g[dependant]) {
+                if self.should_not_merge_iter(&g[dependant], true) {
                     continue;
                 }
 
