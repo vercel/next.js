@@ -13,7 +13,7 @@ import { GetTemplateFileArgs, InstallTemplateArgs } from "./types";
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.0.0-rc-5c56b873-20241107";
+const nextjsReactPeerVersion = "19.0.0-rc-380f5d67-20241113";
 
 /**
  * Get the file path for a given file in a template, e.g. "next.config.js".
@@ -56,7 +56,7 @@ export const installTemplate = async ({
   if (!eslint) copySource.push("!eslintrc.json");
   if (!tailwind)
     copySource.push(
-      mode == "ts" ? "tailwind.config.ts" : "!tailwind.config.js",
+      mode == "ts" ? "tailwind.config.ts" : "!tailwind.config.mjs",
       "!postcss.config.mjs",
     );
 
@@ -167,7 +167,7 @@ export const installTemplate = async ({
     if (tailwind) {
       const tailwindConfigFile = path.join(
         root,
-        mode === "ts" ? "tailwind.config.ts" : "tailwind.config.js",
+        mode === "ts" ? "tailwind.config.ts" : "tailwind.config.mjs",
       );
       await fs.writeFile(
         tailwindConfigFile,
@@ -230,7 +230,7 @@ export const installTemplate = async ({
   if (eslint) {
     packageJson.devDependencies = {
       ...packageJson.devDependencies,
-      eslint: "^8",
+      eslint: "^9",
       "eslint-config-next": version,
     };
   }

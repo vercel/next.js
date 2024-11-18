@@ -10,8 +10,9 @@ use std::path::PathBuf;
 use anyhow::{Context, Result};
 use dunce::canonicalize;
 use serde::{Deserialize, Serialize};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs, Completion, RcStr, ResolvedVc,
+    debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs, Completion, ResolvedVc,
     TryJoinIterExt, TurboTasks, Value, Vc,
 };
 use turbo_tasks_bytes::stream::SingleValue;
@@ -23,7 +24,7 @@ use turbo_tasks_fs::{
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
     ecmascript::TreeShakingMode,
-    module_options::{EcmascriptOptionsContext, ModuleOptionsContext},
+    module_options::{EcmascriptOptionsContext, ModuleOptionsContext, TypescriptTransformOptions},
     ModuleAssetContext,
 };
 use turbopack_core::{
@@ -282,7 +283,9 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
         compile_time_info,
         ModuleOptionsContext {
             ecmascript: EcmascriptOptionsContext {
-                enable_typescript_transform: Some(Default::default()),
+                enable_typescript_transform: Some(
+                    TypescriptTransformOptions::default().resolved_cell(),
+                ),
                 import_externals: true,
                 ..Default::default()
             },
@@ -294,7 +297,7 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
                     tree_shaking_mode: options.tree_shaking_mode,
                     ..Default::default()
                 }
-                .cell(),
+                .resolved_cell(),
             )],
             ..Default::default()
         }

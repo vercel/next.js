@@ -177,6 +177,9 @@ graph TD
     N8 --> N5;
     N8 --> N7;
     N0 --> N6;
+    N3 --> N2;
+    N5 --> N4;
+    N7 --> N6;
 ```
 # Entrypoints
 

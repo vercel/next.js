@@ -2,7 +2,8 @@ use std::collections::HashMap;
 
 use anyhow::Result;
 use lazy_static::lazy_static;
-use turbo_tasks::{RcStr, ResolvedVc, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 use turbopack_core::{
     diagnostics::DiagnosticExt,
@@ -153,10 +154,10 @@ impl BeforeResolvePlugin for InvalidImportResolvePlugin {
 /// Only the contexts that alises `client-only` to
 /// `next/dist/compiled/client-only/error` should use this.
 pub(crate) fn get_invalid_client_only_resolve_plugin(
-    root: Vc<FileSystemPath>,
+    root: ResolvedVc<FileSystemPath>,
 ) -> Vc<InvalidImportResolvePlugin> {
     InvalidImportResolvePlugin::new(
-        root,
+        *root,
         "client-only".into(),
         vec![
             "'client-only' cannot be imported from a Server Component module. It should only be \
@@ -170,10 +171,10 @@ pub(crate) fn get_invalid_client_only_resolve_plugin(
 /// Only the contexts that alises `server-only` to
 /// `next/dist/compiled/server-only/index` should use this.
 pub(crate) fn get_invalid_server_only_resolve_plugin(
-    root: Vc<FileSystemPath>,
+    root: ResolvedVc<FileSystemPath>,
 ) -> Vc<InvalidImportResolvePlugin> {
     InvalidImportResolvePlugin::new(
-        root,
+        *root,
         "server-only".into(),
         vec![
             "'server-only' cannot be imported from a Client Component module. It should only be \
@@ -185,10 +186,10 @@ pub(crate) fn get_invalid_server_only_resolve_plugin(
 
 /// Returns a resolve plugin if context have imports to `styled-jsx`.
 pub(crate) fn get_invalid_styled_jsx_resolve_plugin(
-    root: Vc<FileSystemPath>,
+    root: ResolvedVc<FileSystemPath>,
 ) -> Vc<InvalidImportResolvePlugin> {
     InvalidImportResolvePlugin::new(
-        root,
+        *root,
         "styled-jsx".into(),
         vec![
             "'client-only' cannot be imported from a Server Component module. It should only be \

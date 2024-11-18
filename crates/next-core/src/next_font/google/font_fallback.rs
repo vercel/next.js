@@ -4,7 +4,8 @@ use anyhow::{Context, Result};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{trace::TraceRawVcs, ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::issue::{IssueExt, IssueSeverity, StyledString};
 
@@ -44,7 +45,7 @@ struct Fallback {
 
 #[turbo_tasks::function]
 pub(super) async fn get_font_fallback(
-    lookup_path: Vc<FileSystemPath>,
+    lookup_path: ResolvedVc<FileSystemPath>,
     options_vc: Vc<NextFontGoogleOptions>,
 ) -> Result<Vc<FontFallback>> {
     let options = options_vc.await?;
@@ -74,7 +75,7 @@ pub(super) async fn get_font_fallback(
                 .cell(),
                 Err(_) => {
                     NextFontIssue {
-                        path: lookup_path,
+                        path: *lookup_path,
                         title: StyledString::Text(
                             format!(
                                 "Failed to find font override values for font `{}`",

@@ -1,17 +1,16 @@
 import Head from "next/head";
 import Image from "next/image";
-import localFont from "next/font/local";
+import { Geist, Geist_Mono } from "next/font/google";
 import styles from "@/styles/Home.module.css";
 
-const geistSans = localFont({
-  src: "./fonts/GeistVF.woff",
+const geistSans = Geist({
   variable: "--font-geist-sans",
-  weight: "100 900",
+  subsets: ["latin"],
 });
-const geistMono = localFont({
-  src: "./fonts/GeistMonoVF.woff",
+
+const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
-  weight: "100 900",
+  subsets: ["latin"],
 });
 
 export default function Home() {
