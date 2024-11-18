@@ -126,6 +126,9 @@ pub(crate) struct ItemData {
     /// See https://github.com/vercel/next.js/pull/71234#issuecomment-2409810084 for the problematic
     /// test case.
     pub explicit_deps: Vec<ItemId>,
+
+    /// Server actions breaks when we merge exports.
+    pub disable_export_merging: bool,
 }
 
 impl fmt::Debug for ItemData {
@@ -160,6 +163,7 @@ impl Default for ItemData {
             export: Default::default(),
             binding_source: Default::default(),
             explicit_deps: Default::default(),
+            disable_export_merging: Default::default(),
         }
     }
 }
@@ -706,6 +710,7 @@ impl DepGraph {
 
         let optimizer = GraphOptimizer {
             graph_ix: &self.g.graph_ix,
+            data,
         };
         loop {
             if !optimizer.merge_single_incoming_nodes(&mut condensed) {

@@ -1,12 +1,14 @@
 use std::ops::Index;
 
 use petgraph::{visit::EdgeRef, Direction, Graph};
+use rustc_hash::FxHashMap;
 use turbo_tasks::FxIndexSet;
 
-use crate::tree_shake::graph::{Dependency, ItemId, ItemIdItemKind};
+use crate::tree_shake::graph::{Dependency, ItemData, ItemId, ItemIdGroupKind, ItemIdItemKind};
 
 pub(super) struct GraphOptimizer<'a> {
     pub graph_ix: &'a FxIndexSet<ItemId>,
+    pub data: &'a FxHashMap<ItemId, ItemData>,
 }
 
 impl Index<u32> for GraphOptimizer<'_> {
@@ -30,13 +32,15 @@ impl GraphOptimizer<'_> {
         // See graph.rs for actual workarounds. ImportBinding workaround is about using direct
         // imports for import bindings so the static code analysis pass can detect imports like
         // 'next/dynamic'.
-        matches!(
+
+        (matches!(
             item_id,
             ItemId::Item {
                 kind: ItemIdItemKind::ImportBinding(..),
                 ..
             }
-        )
+        )) || (matches!(item_id, ItemId::Group(ItemIdGroupKind::Export(..)))
+            && self.data[item_id].disable_export_merging)
     }
 
     fn should_not_merge_iter<N>(&self, items: &[N]) -> bool
