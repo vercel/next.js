@@ -1,3 +1,4 @@
+import stripAnsi from 'strip-ansi'
 import { nextTestSetup } from 'e2e-utils'
 import {
   assertHasRedbox,
@@ -13,7 +14,7 @@ import { createSandbox } from 'development-sandbox'
 import { outdent } from 'outdent'
 
 describe('Dynamic IO Dev Errors', () => {
-  const { next } = nextTestSetup({
+  const { isTurbopack, next } = nextTestSetup({
     files: __dirname,
   })
 
@@ -51,6 +52,7 @@ describe('Dynamic IO Dev Errors', () => {
 
   // NOTE: when update this snapshot, use `pnpm build` in packages/next to avoid next source code get mapped to source.
   it('should display error when component accessed data without suspense boundary', async () => {
+    const outputIndex = next.cliOutput.length
     const browser = await next.browser('/no-accessed-data')
 
     await retry(async () => {
@@ -58,6 +60,20 @@ describe('Dynamic IO Dev Errors', () => {
       await waitForAndOpenRuntimeError(browser)
       await assertHasRedbox(browser)
     })
+
+    expect(stripAnsi(next.cliOutput.slice(outputIndex))).toContain(
+      `\nError: Route "/no-accessed-data": ` +
+        `A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. ` +
+        `We don't have the exact line number added to error messages yet but you can see which component in the stack below. ` +
+        `See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense` +
+        '\n    at Page [Server] (<anonymous>)' +
+        // TODO(veil): Should be ignore-listed. Feel free to adjust the component name since it's Next.js internals.
+        '\n    at InnerLayoutRouter (' +
+        (isTurbopack
+          ? 'node_modules'
+          : // TODO(veil): Why is this not pointing to n_m in Webpack?
+            '../')
+    )
 
     const description = await getRedboxDescription(browser)
     const stack = await getRedboxCallStack(browser)
