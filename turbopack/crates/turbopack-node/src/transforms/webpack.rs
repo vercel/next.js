@@ -6,9 +6,9 @@ use either::Either;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value as JsonValue};
 use serde_with::serde_as;
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, Completion, RcStr, ResolvedVc, TaskInput, TryJoinIterExt, Value,
-    ValueToString, Vc,
+    trace::TraceRawVcs, Completion, ResolvedVc, TaskInput, TryJoinIterExt, Value, ValueToString, Vc,
 };
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::ProcessEnv;

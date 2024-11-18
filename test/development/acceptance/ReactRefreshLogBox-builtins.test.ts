@@ -1,4 +1,4 @@
-import { sandbox } from 'development-sandbox'
+import { createSandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import { describeVariants as describe } from 'next-test-utils'
 import { outdent } from 'outdent'
@@ -12,7 +12,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
 
   // Module trace is only available with webpack 5
   test('Node.js builtins', async () => {
-    const { session, cleanup } = await sandbox(
+    await using sandbox = await createSandbox(
       next,
       new Map([
         [
@@ -33,7 +33,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
         ],
       ])
     )
-
+    const { session } = sandbox
     await session.patch(
       'index.js',
       outdent`
@@ -70,12 +70,11 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
         ./pages/index.js"
       `)
     }
-
-    await cleanup()
   })
 
   test('Module not found', async () => {
-    const { session, cleanup } = await sandbox(next)
+    await using sandbox = await createSandbox(next)
+    const { session } = sandbox
 
     await session.patch(
       'index.js',
@@ -123,12 +122,11 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
         ./pages/index.js"
       `)
     }
-
-    await cleanup()
   })
 
   test('Module not found (empty import trace)', async () => {
-    const { session, cleanup } = await sandbox(next)
+    await using sandbox = await createSandbox(next)
+    const { session } = sandbox
 
     await session.patch(
       'pages/index.js',
@@ -173,12 +171,10 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
         https://nextjs.org/docs/messages/module-not-found"
       `)
     }
-
-    await cleanup()
   })
 
   test('Module not found (missing global CSS)', async () => {
-    const { session, cleanup } = await sandbox(
+    await using sandbox = await createSandbox(
       next,
       new Map([
         [
@@ -201,6 +197,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
         ],
       ])
     )
+    const { session } = sandbox
     await session.assertHasRedbox()
 
     const source = await session.getRedboxSource()
@@ -242,7 +239,5 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     expect(
       await session.evaluate(() => document.documentElement.innerHTML)
     ).toContain('index page')
-
-    await cleanup()
   })
 })

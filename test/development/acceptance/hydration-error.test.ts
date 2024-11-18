@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import { sandbox } from 'development-sandbox'
+import { createSandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
 import { outdent } from 'outdent'
@@ -15,7 +15,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
   })
 
   it('includes a React docs link when hydration error does occur', async () => {
-    const { browser } = await sandbox(
+    await using sandbox = await createSandbox(
       next,
       new Map([
         [
@@ -35,7 +35,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
       '/',
       { pushErrorAsConsoleLog: true }
     )
-
+    const { browser } = sandbox
     const logs = await browser.log()
     expect(logs).toEqual(
       expect.arrayContaining([
@@ -54,7 +54,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
   })
 
   it('should show correct hydration error when client and server render different text', async () => {
-    const { cleanup, session, browser } = await sandbox(
+    await using sandbox = await createSandbox(
       next,
       new Map([
         [
@@ -72,6 +72,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
         ],
       ])
     )
+    const { session, browser } = sandbox
 
     await session.assertHasRedbox()
     expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 2 : 1)
@@ -174,12 +175,10 @@ describe('Error overlay for hydration errors in Pages router', () => {
     await session.assertNoRedbox()
 
     expect(await browser.elementByCss('.child').text()).toBe('Value')
-
-    await cleanup()
   })
 
   it('should show correct hydration error when client renders an extra element', async () => {
-    const { browser, cleanup, session } = await sandbox(
+    await using sandbox = await createSandbox(
       next,
       new Map([
         [
@@ -197,7 +196,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
         ],
       ])
     )
-
+    const { session, browser } = sandbox
     await session.assertHasRedbox()
     await retry(async () => {
       await expect(await getRedboxTotalErrorCount(browser)).toBe(
@@ -259,12 +258,10 @@ describe('Error overlay for hydration errors in Pages router', () => {
         `"Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used"`
       )
     }
-
-    await cleanup()
   })
 
   it('should show correct hydration error when client renders an extra text node', async () => {
-    const { browser, cleanup, session } = await sandbox(
+    await using sandbox = await createSandbox(
       next,
       new Map([
         [
@@ -284,7 +281,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
         ],
       ])
     )
-
+    const { session, browser } = sandbox
     await session.assertHasRedbox()
     await retry(async () => {
       await expect(await getRedboxTotalErrorCount(browser)).toBe(
@@ -348,12 +345,10 @@ describe('Error overlay for hydration errors in Pages router', () => {
         `"Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used"`
       )
     }
-
-    await cleanup()
   })
 
   it('should show correct hydration error when server renders an extra element', async () => {
-    const { browser, cleanup, session } = await sandbox(
+    await using sandbox = await createSandbox(
       next,
       new Map([
         [
@@ -371,7 +366,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
         ],
       ])
     )
-
+    const { session, browser } = sandbox
     await session.assertHasRedbox()
     expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 2 : 1)
 
@@ -420,12 +415,10 @@ describe('Error overlay for hydration errors in Pages router', () => {
         `"Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used"`
       )
     }
-
-    await cleanup()
   })
 
   it('should show correct hydration error when server renders an extra text node', async () => {
-    const { browser, cleanup, session } = await sandbox(
+    await using sandbox = await createSandbox(
       next,
       new Map([
         [
@@ -439,7 +432,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
         ],
       ])
     )
-
+    const { session, browser } = sandbox
     await session.assertHasRedbox()
     expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 2 : 1)
 
@@ -498,12 +491,10 @@ describe('Error overlay for hydration errors in Pages router', () => {
         `)
       }
     }
-
-    await cleanup()
   })
 
   it('should show correct hydration error when server renders an extra text node in an invalid place', async () => {
-    const { browser, cleanup, session } = await sandbox(
+    await using sandbox = await createSandbox(
       next,
       new Map([
         [
@@ -522,7 +513,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
         ],
       ])
     )
-
+    const { session, browser } = sandbox
     await session.assertHasRedbox()
 
     await retry(async () => {
@@ -586,12 +577,10 @@ describe('Error overlay for hydration errors in Pages router', () => {
         `)
       }
     }
-
-    await cleanup()
   })
 
   it('should show correct hydration error when server renders an extra whitespace in an invalid place', async () => {
-    const { cleanup, session } = await sandbox(
+    await using sandbox = await createSandbox(
       next,
       new Map([
         [
@@ -609,7 +598,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
         ],
       ])
     )
-
+    const { session } = sandbox
     // FIXME: Should have getRedboxDescription() "text nodes cannot be a child of tr"
     await expect(session.hasErrorToast()).resolves.toBe(false)
 
@@ -626,12 +615,10 @@ describe('Error overlay for hydration errors in Pages router', () => {
     // expect(pseudoHtml).toEqual(outdent`
     //   Something
     // `)
-
-    await cleanup()
   })
 
   it('should show correct hydration error when client renders an extra node inside Suspense content', async () => {
-    const { cleanup, session } = await sandbox(
+    await using sandbox = await createSandbox(
       next,
       new Map([
         [
@@ -654,7 +641,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
         ],
       ])
     )
-
+    const { session } = sandbox
     const pseudoHtml = await session.getRedboxComponentStack()
     if (isTurbopack) {
       if (isReact18) {
@@ -707,12 +694,10 @@ describe('Error overlay for hydration errors in Pages router', () => {
         `"Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used"`
       )
     }
-
-    await cleanup()
   })
 
   it('should not show a hydration error when using `useId` in a client component', async () => {
-    const { cleanup, browser } = await sandbox(
+    await using sandbox = await createSandbox(
       next,
       new Map([
         [
@@ -734,7 +719,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
         ],
       ])
     )
-
+    const { browser } = sandbox
     const logs = await browser.log()
     const errors = logs
       .filter((x) => x.source === 'error')
@@ -744,12 +729,10 @@ describe('Error overlay for hydration errors in Pages router', () => {
     expect(errors).not.toInclude(
       'Warning: Prop `%s` did not match. Server: %s Client: %s'
     )
-
-    await cleanup()
   })
 
   it('should only show one hydration error when bad nesting happened - p under p', async () => {
-    const { cleanup, session, browser } = await sandbox(
+    await using sandbox = await createSandbox(
       next,
       new Map([
         [
@@ -768,7 +751,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
         ],
       ])
     )
-
+    const { session, browser } = sandbox
     await session.assertHasRedbox()
     await retry(async () => {
       expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 3 : 1)
@@ -828,12 +811,10 @@ describe('Error overlay for hydration errors in Pages router', () => {
         `)
       }
     }
-
-    await cleanup()
   })
 
   it('should only show one hydration error when bad nesting happened - div under p', async () => {
-    const { cleanup, session, browser } = await sandbox(
+    await using sandbox = await createSandbox(
       next,
       new Map([
         [
@@ -856,7 +837,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
         ],
       ])
     )
-
+    const { session, browser } = sandbox
     await session.assertHasRedbox()
     await retry(async () => {
       expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 3 : 1)
@@ -895,12 +876,10 @@ describe('Error overlay for hydration errors in Pages router', () => {
               ^^^^^"
       `)
     }
-
-    await cleanup()
   })
 
   it('should only show one hydration error when bad nesting happened - div > tr', async () => {
-    const { cleanup, session, browser } = await sandbox(
+    await using sandbox = await createSandbox(
       next,
       new Map([
         [
@@ -913,7 +892,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
         ],
       ])
     )
-
+    const { session, browser } = sandbox
     await session.assertHasRedbox()
     await retry(async () => {
       expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 3 : 1)
@@ -973,12 +952,10 @@ describe('Error overlay for hydration errors in Pages router', () => {
         `)
       }
     }
-
-    await cleanup()
   })
 
   it('should show the highlighted bad nesting html snippet when bad nesting happened', async () => {
-    const { browser, cleanup, session } = await sandbox(
+    await using sandbox = await createSandbox(
       next,
       new Map([
         [
@@ -995,7 +972,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
         ],
       ])
     )
-
+    const { session, browser } = sandbox
     await session.assertHasRedbox()
     await retry(async () => {
       expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 3 : 1)
@@ -1062,12 +1039,10 @@ describe('Error overlay for hydration errors in Pages router', () => {
         `)
       }
     }
-
-    await cleanup()
   })
 
   it('should show error if script is directly placed under html instead of body', async () => {
-    const { session } = await sandbox(
+    await using sandbox = await createSandbox(
       next,
       new Map([
         [
@@ -1103,13 +1078,13 @@ describe('Error overlay for hydration errors in Pages router', () => {
         ],
       ])
     )
-
+    const { session } = sandbox
     // FIXME: Should have a redbox just like with App router
     await session.assertNoRedbox()
   })
 
   it('should collapse and uncollapse properly when there are many frames', async () => {
-    const { browser, cleanup, session } = await sandbox(
+    await using sandbox = await createSandbox(
       next,
       new Map([
         [
@@ -1147,7 +1122,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
         ],
       ])
     )
-
+    const { session, browser } = sandbox
     await session.assertHasRedbox()
     await retry(async () => {
       await expect(await getRedboxTotalErrorCount(browser)).toBe(
@@ -1283,7 +1258,5 @@ describe('Error overlay for hydration errors in Pages router', () => {
         `)
       }
     }
-
-    await cleanup()
   })
 })

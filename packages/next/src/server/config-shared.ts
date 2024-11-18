@@ -152,10 +152,8 @@ export interface ExperimentalTurboOptions {
 
   /**
    * Enable persistent caching for the turbopack dev server and build.
-   * Need to provide the expected level of stability, otherwise it will fail.
-   * Currently stability level: 1
    */
-  unstablePersistentCaching?: number | false
+  unstablePersistentCaching?: boolean
 
   /**
    * Enable tree shaking for the turbopack dev server and build.

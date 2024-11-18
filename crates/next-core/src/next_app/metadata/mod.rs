@@ -2,7 +2,8 @@ use std::{collections::HashMap, ops::Deref};
 
 use anyhow::Result;
 use once_cell::sync::Lazy;
-use turbo_tasks::{RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::next_app::{AppPage, PageSegment, PageType};

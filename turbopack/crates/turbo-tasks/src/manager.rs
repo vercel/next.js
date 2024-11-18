@@ -504,7 +504,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
     /// Creates a new root task
     pub fn spawn_root_task<T, F, Fut>(&self, functor: F) -> TaskId
     where
-        T: Send,
+        T: ?Sized,
         F: Fn() -> Fut + Send + Sync + Clone + 'static,
         Fut: Future<Output = Result<Vc<T>>> + Send,
     {
@@ -529,7 +529,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
     #[track_caller]
     pub fn spawn_once_task<T, Fut>(&self, future: Fut) -> TaskId
     where
-        T: Send,
+        T: ?Sized,
         Fut: Future<Output = Result<Vc<T>>> + Send + 'static,
     {
         let id = self.backend.create_transient_task(
@@ -1672,6 +1672,13 @@ pub fn turbo_tasks_scope<T>(tt: Arc<dyn TurboTasksApi>, f: impl FnOnce() -> T) -
     TURBO_TASKS.sync_scope(tt, f)
 }
 
+pub fn turbo_tasks_future_scope<T>(
+    tt: Arc<dyn TurboTasksApi>,
+    f: impl Future<Output = T>,
+) -> impl Future<Output = T> {
+    TURBO_TASKS.scope(tt, f)
+}
+
 pub fn with_turbo_tasks_for_testing<T>(
     tt: Arc<dyn TurboTasksApi>,
     current_task: TaskId,
@@ -1741,7 +1748,7 @@ pub fn notify_scheduled_tasks() {
     with_turbo_tasks(|tt| tt.notify_scheduled_tasks())
 }
 
-pub fn emit<T: VcValueTrait + Send>(collectible: Vc<T>) {
+pub fn emit<T: VcValueTrait + ?Sized>(collectible: Vc<T>) {
     with_turbo_tasks(|tt| tt.emit_collectible(T::get_trait_type_id(), collectible.node))
 }
 

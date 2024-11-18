@@ -49,6 +49,8 @@ pub async fn get_next_client_transforms_rules(
         rules.push(get_debug_fn_name_rule(enable_mdx_rs));
     }
 
+    let dynamic_io_enabled = *next_config.enable_dynamic_io().await?;
+    let cache_kinds = next_config.cache_kinds().to_resolved().await?;
     let mut is_app_dir = false;
 
     match context_ty {
@@ -75,6 +77,8 @@ pub async fn get_next_client_transforms_rules(
                 ActionsTransform::Client,
                 execution_context.await?.encryption_key.clone(),
                 enable_mdx_rs,
+                dynamic_io_enabled,
+                cache_kinds,
             ));
         }
         ClientContextType::Fallback | ClientContextType::Other => {}
@@ -89,7 +93,7 @@ pub async fn get_next_client_transforms_rules(
             get_next_dynamic_transform_rule(false, false, is_app_dir, mode, enable_mdx_rs).await?,
         );
 
-        rules.push(get_next_image_rule());
+        rules.push(get_next_image_rule().await?);
         rules.push(get_next_page_static_info_assert_rule(
             enable_mdx_rs,
             None,

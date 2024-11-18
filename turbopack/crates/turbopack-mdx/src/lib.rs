@@ -4,7 +4,8 @@
 
 use anyhow::Result;
 use mdxjs::{compile, MdxParseOptions, Options};
-use turbo_tasks::{RcStr, ValueDefault, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ValueDefault, Vc};
 use turbo_tasks_fs::{rope::Rope, File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},

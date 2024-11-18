@@ -17,9 +17,10 @@ use swc_core::{
     },
 };
 use tracing::Instrument;
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
     graph::{GraphTraversal, NonDeterministic},
-    FxIndexMap, RcStr, ResolvedVc, TryFlatJoinIterExt, Value, ValueToString, Vc,
+    FxIndexMap, ResolvedVc, TryFlatJoinIterExt, Value, ValueToString, Vc,
 };
 use turbo_tasks_fs::{self, rope::RopeBuilder, File, FileSystemPath};
 use turbopack_core::{

@@ -2,7 +2,8 @@ use std::{fmt::Display, io::Write};
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, RcStr, TaskInput, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{trace::TraceRawVcs, ResolvedVc, TaskInput, Vc};
 use turbo_tasks_fs::{glob::Glob, rope::RopeBuilder, FileContent, FileSystem, VirtualFileSystem};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -123,8 +124,8 @@ impl Asset for CachedExternalModule {
 impl ChunkableModule for CachedExternalModule {
     #[turbo_tasks::function]
     fn as_chunk_item(
-        self: Vc<Self>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        self: ResolvedVc<Self>,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn ChunkItem>> {
         Vc::upcast(
             CachedExternalModuleChunkItem {
@@ -175,8 +176,8 @@ impl EcmascriptChunkPlaceable for CachedExternalModule {
 
 #[turbo_tasks::value]
 pub struct CachedExternalModuleChunkItem {
-    module: Vc<CachedExternalModule>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
+    module: ResolvedVc<CachedExternalModule>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -198,12 +199,12 @@ impl ChunkItem for CachedExternalModuleChunkItem {
 
     #[turbo_tasks::function]
     fn module(&self) -> Vc<Box<dyn Module>> {
-        Vc::upcast(self.module)
+        Vc::upcast(*self.module)
     }
 
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        self.chunking_context
+        *self.chunking_context
     }
 
     #[turbo_tasks::function]
@@ -218,7 +219,7 @@ impl ChunkItem for CachedExternalModuleChunkItem {
 impl EcmascriptChunkItem for CachedExternalModuleChunkItem {
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        self.chunking_context
+        *self.chunking_context
     }
 
     #[turbo_tasks::function]
@@ -238,7 +239,7 @@ impl EcmascriptChunkItem for CachedExternalModuleChunkItem {
 
         EcmascriptChunkItemContent::new(
             self.module.content(),
-            self.chunking_context,
+            *self.chunking_context,
             EcmascriptOptions::default().cell(),
             async_module_options,
         )
@@ -252,13 +253,13 @@ impl EcmascriptChunkItem for CachedExternalModuleChunkItem {
 /// "client modules" and "client modules ssr".
 #[turbo_tasks::value]
 pub struct IncludeIdentModule {
-    ident: Vc<AssetIdent>,
+    ident: ResolvedVc<AssetIdent>,
 }
 
 #[turbo_tasks::value_impl]
 impl IncludeIdentModule {
     #[turbo_tasks::function]
-    pub fn new(ident: Vc<AssetIdent>) -> Vc<Self> {
+    pub fn new(ident: ResolvedVc<AssetIdent>) -> Vc<Self> {
         Self { ident }.cell()
     }
 }
@@ -273,6 +274,6 @@ impl Asset for IncludeIdentModule {
 impl Module for IncludeIdentModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        self.ident
+        *self.ident
     }
 }

@@ -2,9 +2,8 @@ use anyhow::Result;
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{
-    FxIndexMap, RcStr, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
-};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexMap, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::{
     glob::Glob, json::parse_json_rope_with_source_context, DirectoryEntry, FileContent,
     FileSystemEntryType, FileSystemPath,
