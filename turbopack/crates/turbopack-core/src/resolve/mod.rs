@@ -9,9 +9,10 @@ use std::{
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 use tracing::{Instrument, Level};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    fxindexmap, fxindexset, trace::TraceRawVcs, FxIndexMap, RcStr, ResolvedVc, TaskInput,
-    TryJoinIterExt, Value, ValueToString, Vc,
+    fxindexmap, trace::TraceRawVcs, FxIndexMap, FxIndexSet, ResolvedVc, TaskInput, TryJoinIterExt,
+    Value, ValueToString, Vc,
 };
 use turbo_tasks_fs::{
     util::normalize_request, FileSystemEntryType, FileSystemPath, RealPathResult,
@@ -31,7 +32,9 @@ use self::{
 use crate::{
     context::AssetContext,
     file_source::FileSource,
-    issue::{resolve::ResolvingIssue, IssueExt, IssueSource},
+    issue::{
+        module::emit_unknown_module_type_error, resolve::ResolvingIssue, IssueExt, IssueSource,
+    },
     module::{Module, Modules, OptionModule},
     output::{OutputAsset, OutputAssets},
     package_json::{read_package_json, PackageJsonIssue},
@@ -63,20 +66,39 @@ use crate::{error::PrettyPrintError, issue::IssueSeverity};
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
 pub enum ModuleResolveResultItem {
-    Module(Vc<Box<dyn Module>>),
-    OutputAsset(Vc<Box<dyn OutputAsset>>),
+    Module(ResolvedVc<Box<dyn Module>>),
+    OutputAsset(ResolvedVc<Box<dyn OutputAsset>>),
     External(RcStr, ExternalType),
+    /// A module could not be created (according to the rules, e.g. no module type as assigned)
+    Unknown(Vc<Box<dyn Source>>),
     Ignore,
     Error(ResolvedVc<RcStr>),
     Empty,
     Custom(u8),
 }
 
+impl ModuleResolveResultItem {
+    pub async fn as_module(&self) -> Result<Option<ResolvedVc<Box<dyn Module>>>> {
+        Ok(match *self {
+            ModuleResolveResultItem::Module(module) => Some(module),
+            ModuleResolveResultItem::Unknown(source) => {
+                emit_unknown_module_type_error(source).await?;
+                None
+            }
+            ModuleResolveResultItem::Error(_err) => {
+                // TODO emit error?
+                None
+            }
+            _ => None,
+        })
+    }
+}
+
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
 pub struct ModuleResolveResult {
     pub primary: FxIndexMap<RequestKey, ModuleResolveResultItem>,
-    pub affecting_sources: Vec<Vc<Box<dyn Source>>>,
+    pub affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
 }
 
 impl Default for ModuleResolveResult {
@@ -94,7 +116,7 @@ impl ModuleResolveResult {
     }
 
     pub fn unresolvable_with_affecting_sources(
-        affecting_sources: Vec<Vc<Box<dyn Source>>>,
+        affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
     ) -> ModuleResolveResult {
         ModuleResolveResult {
             primary: FxIndexMap::default(),
@@ -102,24 +124,13 @@ impl ModuleResolveResult {
         }
     }
 
-    pub fn ignored() -> ModuleResolveResult {
-        Self::ignored_with_key(RequestKey::default())
-    }
-
-    pub fn ignored_with_key(request_key: RequestKey) -> ModuleResolveResult {
-        ModuleResolveResult {
-            primary: fxindexmap! { request_key => ModuleResolveResultItem::Ignore },
-            affecting_sources: Vec::new(),
-        }
-    }
-
-    pub fn module(module: Vc<Box<dyn Module>>) -> ModuleResolveResult {
+    pub fn module(module: ResolvedVc<Box<dyn Module>>) -> ModuleResolveResult {
         Self::module_with_key(RequestKey::default(), module)
     }
 
     pub fn module_with_key(
         request_key: RequestKey,
-        module: Vc<Box<dyn Module>>,
+        module: ResolvedVc<Box<dyn Module>>,
     ) -> ModuleResolveResult {
         ModuleResolveResult {
             primary: fxindexmap! { request_key => ModuleResolveResultItem::Module(module) },
@@ -129,7 +140,7 @@ impl ModuleResolveResult {
 
     pub fn output_asset(
         request_key: RequestKey,
-        output_asset: Vc<Box<dyn OutputAsset>>,
+        output_asset: ResolvedVc<Box<dyn OutputAsset>>,
     ) -> ModuleResolveResult {
         ModuleResolveResult {
             primary: fxindexmap! { request_key => ModuleResolveResultItem::OutputAsset(output_asset) },
@@ -138,7 +149,7 @@ impl ModuleResolveResult {
     }
 
     pub fn modules(
-        modules: impl IntoIterator<Item = (RequestKey, Vc<Box<dyn Module>>)>,
+        modules: impl IntoIterator<Item = (RequestKey, ResolvedVc<Box<dyn Module>>)>,
     ) -> ModuleResolveResult {
         ModuleResolveResult {
             primary: modules
@@ -149,21 +160,9 @@ impl ModuleResolveResult {
         }
     }
 
-    pub fn output_assets(
-        output_assets: impl IntoIterator<Item = (RequestKey, Vc<Box<dyn OutputAsset>>)>,
-    ) -> ModuleResolveResult {
-        ModuleResolveResult {
-            primary: output_assets
-                .into_iter()
-                .map(|(k, v)| (k, ModuleResolveResultItem::OutputAsset(v)))
-                .collect(),
-            affecting_sources: Vec::new(),
-        }
-    }
-
     pub fn modules_with_affecting_sources(
-        modules: impl IntoIterator<Item = (RequestKey, Vc<Box<dyn Module>>)>,
-        affecting_sources: Vec<Vc<Box<dyn Source>>>,
+        modules: impl IntoIterator<Item = (RequestKey, ResolvedVc<Box<dyn Module>>)>,
+        affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
     ) -> ModuleResolveResult {
         ModuleResolveResult {
             primary: modules
@@ -174,24 +173,27 @@ impl ModuleResolveResult {
         }
     }
 
-    pub fn primary_modules_iter(&self) -> impl Iterator<Item = Vc<Box<dyn Module>>> + '_ {
-        self.primary.iter().filter_map(|(_, item)| match item {
-            &ModuleResolveResultItem::Module(a) => Some(a),
+    /// Returns all module results (but ignoring any errors).
+    pub fn primary_modules_raw_iter(
+        &self,
+    ) -> impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + '_ {
+        self.primary.iter().filter_map(|(_, item)| match *item {
+            ModuleResolveResultItem::Module(a) => Some(a),
             _ => None,
         })
     }
 
-    pub fn add_affecting_source_ref(&mut self, source: Vc<Box<dyn Source>>) {
+    pub fn add_affecting_source_ref(&mut self, source: ResolvedVc<Box<dyn Source>>) {
         self.affecting_sources.push(source);
     }
 
-    pub fn affecting_sources_iter(&self) -> impl Iterator<Item = Vc<Box<dyn Source>>> + '_ {
+    pub fn affecting_sources_iter(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Source>>> + '_ {
         self.affecting_sources.iter().copied()
     }
 
     fn clone_with_affecting_sources(
         &self,
-        affecting_sources: Vec<Vc<Box<dyn Source>>>,
+        affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
     ) -> ModuleResolveResult {
         ModuleResolveResult {
             primary: self.primary.clone(),
@@ -229,7 +231,7 @@ impl ModuleResolveResult {
     #[turbo_tasks::function]
     pub async fn with_affecting_source(
         self: Vc<Self>,
-        source: Vc<Box<dyn Source>>,
+        source: ResolvedVc<Box<dyn Source>>,
     ) -> Result<Vc<Self>> {
         let mut this = self.await?.clone_value();
         this.add_affecting_source_ref(source);
@@ -239,7 +241,7 @@ impl ModuleResolveResult {
     #[turbo_tasks::function]
     pub async fn with_affecting_sources(
         self: Vc<Self>,
-        sources: Vec<Vc<Box<dyn Source>>>,
+        sources: Vec<ResolvedVc<Box<dyn Source>>>,
     ) -> Result<Vc<Self>> {
         let mut this = self.await?.clone_value();
         for source in sources {
@@ -290,7 +292,7 @@ impl ModuleResolveResult {
     #[turbo_tasks::function]
     pub async fn alternatives_with_affecting_sources(
         results: Vec<Vc<ModuleResolveResult>>,
-        affecting_sources: Vec<Vc<Box<dyn Source>>>,
+        affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
     ) -> Result<Vc<Self>> {
         if affecting_sources.is_empty() {
             return Ok(Self::alternatives(results));
@@ -300,7 +302,7 @@ impl ModuleResolveResult {
                 .into_iter()
                 .next()
                 .unwrap()
-                .with_affecting_sources(affecting_sources));
+                .with_affecting_sources(affecting_sources.into_iter().map(|src| *src).collect()));
         }
         let mut iter = results.into_iter().try_join().await?.into_iter();
         if let Some(current) = iter.next() {
@@ -325,32 +327,24 @@ impl ModuleResolveResult {
     }
 
     #[turbo_tasks::function]
-    pub fn first_module(&self) -> Vc<OptionModule> {
-        Vc::cell(self.primary.iter().find_map(|(_, item)| match item {
-            &ModuleResolveResultItem::Module(a) => Some(a),
-            _ => None,
-        }))
+    pub async fn first_module(&self) -> Result<Vc<OptionModule>> {
+        for (_, item) in self.primary.iter() {
+            if let Some(module) = item.as_module().await? {
+                return Ok(Vc::cell(Some(module)));
+            }
+        }
+        Ok(Vc::cell(None))
     }
 
     /// Returns a set (no duplicates) of primary modules in the result. All
     /// modules are already resolved Vc.
     #[turbo_tasks::function]
     pub async fn primary_modules(&self) -> Result<Vc<Modules>> {
-        let mut iter = self.primary_modules_iter();
-        let Some(first) = iter.next() else {
-            return Ok(Vc::cell(vec![]));
-        };
-        let first = first.resolve().await?;
-
-        let Some(second) = iter.next() else {
-            return Ok(Vc::cell(vec![first]));
-        };
-        let second = second.resolve().await?;
-
-        // We have at least two items, so we need to deduplicate them
-        let mut set = fxindexset![first, second];
-        for module in self.primary_modules_iter() {
-            set.insert(module.resolve().await?);
+        let mut set = FxIndexSet::default();
+        for (_, item) in self.primary.iter() {
+            if let Some(module) = item.as_module().await? {
+                set.insert(module);
+            }
         }
         Ok(Vc::cell(set.into_iter().collect()))
     }
@@ -391,7 +385,7 @@ impl Display for ExternalType {
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
 pub enum ResolveResultItem {
-    Source(Vc<Box<dyn Source>>),
+    Source(ResolvedVc<Box<dyn Source>>),
     External(RcStr, ExternalType),
     Ignore,
     Error(Vc<RcStr>),
@@ -446,7 +440,7 @@ impl RequestKey {
 #[derive(Clone, Debug)]
 pub struct ResolveResult {
     pub primary: FxIndexMap<RequestKey, ResolveResultItem>,
-    pub affecting_sources: Vec<Vc<Box<dyn Source>>>,
+    pub affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
 }
 
 impl Default for ResolveResult {
@@ -515,7 +509,7 @@ impl ResolveResult {
     }
 
     pub fn unresolvable_with_affecting_sources(
-        affecting_sources: Vec<Vc<Box<dyn Source>>>,
+        affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
     ) -> ResolveResult {
         ResolveResult {
             primary: FxIndexMap::default(),
@@ -537,7 +531,7 @@ impl ResolveResult {
     pub fn primary_with_affecting_sources(
         request_key: RequestKey,
         result: ResolveResultItem,
-        affecting_sources: Vec<Vc<Box<dyn Source>>>,
+        affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
     ) -> ResolveResult {
         let mut primary = FxIndexMap::with_capacity_and_hasher(1, Default::default());
         primary.insert(request_key, result);
@@ -547,11 +541,14 @@ impl ResolveResult {
         }
     }
 
-    pub fn source(source: Vc<Box<dyn Source>>) -> ResolveResult {
+    pub fn source(source: ResolvedVc<Box<dyn Source>>) -> ResolveResult {
         Self::source_with_key(RequestKey::default(), source)
     }
 
-    pub fn source_with_key(request_key: RequestKey, source: Vc<Box<dyn Source>>) -> ResolveResult {
+    pub fn source_with_key(
+        request_key: RequestKey,
+        source: ResolvedVc<Box<dyn Source>>,
+    ) -> ResolveResult {
         let mut primary = FxIndexMap::with_capacity_and_hasher(1, Default::default());
         primary.insert(request_key, ResolveResultItem::Source(source));
         ResolveResult {
@@ -562,8 +559,8 @@ impl ResolveResult {
 
     pub fn source_with_affecting_sources(
         request_key: RequestKey,
-        source: Vc<Box<dyn Source>>,
-        affecting_sources: Vec<Vc<Box<dyn Source>>>,
+        source: ResolvedVc<Box<dyn Source>>,
+        affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
     ) -> ResolveResult {
         let mut primary = FxIndexMap::with_capacity_and_hasher(1, Default::default());
         primary.insert(request_key, ResolveResultItem::Source(source));
@@ -573,17 +570,17 @@ impl ResolveResult {
         }
     }
 
-    pub fn add_affecting_source_ref(&mut self, reference: Vc<Box<dyn Source>>) {
+    pub fn add_affecting_source_ref(&mut self, reference: ResolvedVc<Box<dyn Source>>) {
         self.affecting_sources.push(reference);
     }
 
-    pub fn get_affecting_sources(&self) -> impl Iterator<Item = Vc<Box<dyn Source>>> + '_ {
+    pub fn get_affecting_sources(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Source>>> + '_ {
         self.affecting_sources.iter().copied()
     }
 
     fn clone_with_affecting_sources(
         &self,
-        affecting_sources: Vec<Vc<Box<dyn Source>>>,
+        affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
     ) -> ResolveResult {
         ResolveResult {
             primary: self.primary.clone(),
@@ -617,10 +614,10 @@ impl ResolveResult {
 
     pub async fn map<A, AF, R, RF>(&self, source_fn: A, affecting_source_fn: R) -> Result<Self>
     where
-        A: Fn(Vc<Box<dyn Source>>) -> AF,
-        AF: Future<Output = Result<Vc<Box<dyn Source>>>>,
-        R: Fn(Vc<Box<dyn Source>>) -> RF,
-        RF: Future<Output = Result<Vc<Box<dyn Source>>>>,
+        A: Fn(ResolvedVc<Box<dyn Source>>) -> AF,
+        AF: Future<Output = Result<ResolvedVc<Box<dyn Source>>>>,
+        R: Fn(ResolvedVc<Box<dyn Source>>) -> RF,
+        RF: Future<Output = Result<ResolvedVc<Box<dyn Source>>>>,
     {
         Ok(Self {
             primary: self
@@ -654,7 +651,7 @@ impl ResolveResult {
 
     pub async fn map_module<A, AF>(&self, source_fn: A) -> Result<ModuleResolveResult>
     where
-        A: Fn(Vc<Box<dyn Source>>) -> AF,
+        A: Fn(ResolvedVc<Box<dyn Source>>) -> AF,
         AF: Future<Output = Result<ModuleResolveResultItem>>,
     {
         Ok(ModuleResolveResult {
@@ -734,9 +731,9 @@ impl ResolveResult {
     pub async fn as_raw_module_result(&self) -> Result<Vc<ModuleResolveResult>> {
         Ok(self
             .map_module(|asset| async move {
-                Ok(ModuleResolveResultItem::Module(Vc::upcast(RawModule::new(
-                    asset,
-                ))))
+                Ok(ModuleResolveResultItem::Module(ResolvedVc::upcast(
+                    RawModule::new(*asset).to_resolved().await?,
+                )))
             })
             .await?
             .cell())
@@ -745,7 +742,7 @@ impl ResolveResult {
     #[turbo_tasks::function]
     pub async fn with_affecting_source(
         self: Vc<Self>,
-        affecting_source: Vc<Box<dyn Source>>,
+        affecting_source: ResolvedVc<Box<dyn Source>>,
     ) -> Result<Vc<Self>> {
         let mut this = self.await?.clone_value();
         this.add_affecting_source_ref(affecting_source);
@@ -755,7 +752,7 @@ impl ResolveResult {
     #[turbo_tasks::function]
     pub async fn with_affecting_sources(
         self: Vc<Self>,
-        affecting_sources: Vec<Vc<Box<dyn Source>>>,
+        affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
     ) -> Result<Vc<Self>> {
         let mut this = self.await?.clone_value();
         for affecting_source in affecting_sources {
@@ -806,7 +803,7 @@ impl ResolveResult {
     #[turbo_tasks::function]
     pub async fn alternatives_with_affecting_sources(
         results: Vec<Vc<ResolveResult>>,
-        affecting_sources: Vec<Vc<Box<dyn Source>>>,
+        affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
     ) -> Result<Vc<Self>> {
         if affecting_sources.is_empty() {
             return Ok(Self::alternatives(results));
@@ -816,7 +813,7 @@ impl ResolveResult {
                 .into_iter()
                 .next()
                 .unwrap()
-                .with_affecting_sources(affecting_sources));
+                .with_affecting_sources(affecting_sources.into_iter().map(|src| *src).collect()));
         }
         let mut iter = results.into_iter().try_join().await?.into_iter();
         if let Some(current) = iter.next() {
@@ -982,30 +979,32 @@ impl ResolveResultOption {
 
 async fn exists(
     fs_path: Vc<FileSystemPath>,
-    refs: &mut Vec<Vc<Box<dyn Source>>>,
-) -> Result<Option<Vc<FileSystemPath>>> {
+    refs: &mut Vec<ResolvedVc<Box<dyn Source>>>,
+) -> Result<Option<ResolvedVc<FileSystemPath>>> {
     type_exists(fs_path, FileSystemEntryType::File, refs).await
 }
 
 async fn dir_exists(
     fs_path: Vc<FileSystemPath>,
-    refs: &mut Vec<Vc<Box<dyn Source>>>,
-) -> Result<Option<Vc<FileSystemPath>>> {
+    refs: &mut Vec<ResolvedVc<Box<dyn Source>>>,
+) -> Result<Option<ResolvedVc<FileSystemPath>>> {
     type_exists(fs_path, FileSystemEntryType::Directory, refs).await
 }
 
 async fn type_exists(
     fs_path: Vc<FileSystemPath>,
     ty: FileSystemEntryType,
-    refs: &mut Vec<Vc<Box<dyn Source>>>,
-) -> Result<Option<Vc<FileSystemPath>>> {
+    refs: &mut Vec<ResolvedVc<Box<dyn Source>>>,
+) -> Result<Option<ResolvedVc<FileSystemPath>>> {
     let result = fs_path.resolve().await?.realpath_with_links().await?;
     for path in result.symlinks.iter() {
-        refs.push(Vc::upcast(FileSource::new(**path)));
+        refs.push(ResolvedVc::upcast(
+            FileSource::new(**path).to_resolved().await?,
+        ));
     }
     let path = result.path;
     Ok(if *path.get_type().await? == ty {
-        Some(*path)
+        Some(path)
     } else {
         None
     })
@@ -1013,11 +1012,13 @@ async fn type_exists(
 
 async fn any_exists(
     fs_path: Vc<FileSystemPath>,
-    refs: &mut Vec<Vc<Box<dyn Source>>>,
+    refs: &mut Vec<ResolvedVc<Box<dyn Source>>>,
 ) -> Result<Option<(FileSystemEntryType, Vc<FileSystemPath>)>> {
     let result = fs_path.resolve().await?.realpath_with_links().await?;
     for path in result.symlinks.iter() {
-        refs.push(Vc::upcast(FileSource::new(**path)));
+        refs.push(ResolvedVc::upcast(
+            FileSource::new(**path).to_resolved().await?,
+        ));
     }
     let path = result.path;
     let ty = *path.get_type().await?;
@@ -1070,7 +1071,7 @@ async fn exports_field(package_json_path: Vc<FileSystemPath>) -> Result<Vc<Expor
 enum ImportsFieldResult {
     Some(
         #[turbo_tasks(debug_ignore, trace_ignore)] ImportsField,
-        Vc<FileSystemPath>,
+        ResolvedVc<FileSystemPath>,
     ),
     None,
 }
@@ -1084,7 +1085,7 @@ async fn imports_field(lookup_path: Vc<FileSystemPath>) -> Result<Vc<ImportsFiel
         return Ok(ImportsFieldResult::None.cell());
     };
 
-    let read = read_package_json(*package_json_path).await?;
+    let read = read_package_json(**package_json_path).await?;
     let package_json = match &*read {
         Some(json) => json,
         None => return Ok(ImportsFieldResult::None.cell()),
@@ -1097,7 +1098,7 @@ async fn imports_field(lookup_path: Vc<FileSystemPath>) -> Result<Vc<ImportsFiel
         Ok(imports) => Ok(ImportsFieldResult::Some(imports, *package_json_path).cell()),
         Err(err) => {
             PackageJsonIssue {
-                path: *package_json_path,
+                path: **package_json_path,
                 error_message: err.to_string().into(),
             }
             .cell()
@@ -1114,8 +1115,8 @@ pub fn package_json() -> Vc<Vec<RcStr>> {
 
 #[turbo_tasks::value(shared)]
 pub enum FindContextFileResult {
-    Found(Vc<FileSystemPath>, Vec<Vc<Box<dyn Source>>>),
-    NotFound(Vec<Vc<Box<dyn Source>>>),
+    Found(ResolvedVc<FileSystemPath>, Vec<ResolvedVc<Box<dyn Source>>>),
+    NotFound(Vec<ResolvedVc<Box<dyn Source>>>),
 }
 
 #[turbo_tasks::function]
@@ -1127,15 +1128,17 @@ pub async fn find_context_file(
     for name in &*names.await? {
         let fs_path = lookup_path.join(name.clone());
         if let Some(fs_path) = exists(fs_path, &mut refs).await? {
-            return Ok(FindContextFileResult::Found(fs_path, refs).into());
+            return Ok(FindContextFileResult::Found(fs_path.to_resolved().await?, refs).cell());
         }
     }
     if lookup_path.await?.is_root() {
-        return Ok(FindContextFileResult::NotFound(refs).into());
+        return Ok(FindContextFileResult::NotFound(refs).cell());
     }
     if refs.is_empty() {
         // Tailcall
         Ok(find_context_file(
+            // Hot codepath optimization: resolve all arguments to avoid an automatically-created
+            // intermediate task
             lookup_path.parent().resolve().await?,
             names,
         ))
@@ -1151,7 +1154,7 @@ pub async fn find_context_file(
                 FindContextFileResult::NotFound(refs)
             }
         }
-        .into())
+        .cell())
     }
 }
 
@@ -1165,16 +1168,20 @@ pub async fn find_context_file_or_package_key(
     let mut refs = Vec::new();
     let package_json_path = lookup_path.join("package.json".into());
     if let Some(package_json_path) = exists(package_json_path, &mut refs).await? {
-        if let Some(json) = &*read_package_json(package_json_path).await? {
+        if let Some(json) = &*read_package_json(*package_json_path).await? {
             if json.get(&**package_key).is_some() {
-                return Ok(FindContextFileResult::Found(package_json_path, refs).into());
+                return Ok(FindContextFileResult::Found(
+                    package_json_path.to_resolved().await?,
+                    refs,
+                )
+                .into());
             }
         }
     }
     for name in &*names.await? {
         let fs_path = lookup_path.join(name.clone());
         if let Some(fs_path) = exists(fs_path, &mut refs).await? {
-            return Ok(FindContextFileResult::Found(fs_path, refs).into());
+            return Ok(FindContextFileResult::Found(fs_path.to_resolved().await?, refs).into());
         }
     }
     if lookup_path.await?.is_root() {
@@ -1211,7 +1218,7 @@ enum FindPackageItem {
 #[turbo_tasks::value]
 struct FindPackageResult {
     packages: Vec<FindPackageItem>,
-    affecting_sources: Vec<Vc<Box<dyn Source>>>,
+    affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
 }
 
 #[turbo_tasks::function]
@@ -1306,19 +1313,22 @@ fn merge_results(results: Vec<Vc<ResolveResult>>) -> Vc<ResolveResult> {
 
 fn merge_results_with_affecting_sources(
     results: Vec<Vc<ResolveResult>>,
-    affecting_sources: Vec<Vc<Box<dyn Source>>>,
+    affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
 ) -> Vc<ResolveResult> {
     if affecting_sources.is_empty() {
         return merge_results(results);
     }
     match results.len() {
-        0 => ResolveResult::unresolvable_with_affecting_sources(affecting_sources).into(),
+        0 => ResolveResult::unresolvable_with_affecting_sources(affecting_sources).cell(),
         1 => results
             .into_iter()
             .next()
             .unwrap()
-            .with_affecting_sources(affecting_sources),
-        _ => ResolveResult::alternatives_with_affecting_sources(results, affecting_sources),
+            .with_affecting_sources(affecting_sources.into_iter().map(|src| *src).collect()),
+        _ => ResolveResult::alternatives_with_affecting_sources(
+            results,
+            affecting_sources.into_iter().map(|src| *src).collect(),
+        ),
     }
 }
 
@@ -1332,13 +1342,16 @@ pub async fn resolve_raw(
         let RealPathResult { path, symlinks } = &*path.realpath_with_links().await?;
         Ok(ResolveResult::source_with_affecting_sources(
             RequestKey::new(request.into()),
-            Vc::upcast(FileSource::new(**path)),
+            ResolvedVc::upcast(FileSource::new(**path).to_resolved().await?),
             symlinks
                 .iter()
-                .map(|symlink| **symlink)
-                .map(FileSource::new)
-                .map(Vc::upcast)
-                .collect(),
+                .map(|symlink| async move {
+                    anyhow::Ok(ResolvedVc::upcast(
+                        FileSource::new(**symlink).to_resolved().await?,
+                    ))
+                })
+                .try_join()
+                .await?,
         )
         .cell())
     }
@@ -1464,7 +1477,13 @@ pub async fn url_resolve(
             request,
             resolve_options,
         )
-        .with_affecting_sources(rel_result.await?.get_affecting_sources().collect())
+        .with_affecting_sources(
+            rel_result
+                .await?
+                .get_affecting_sources()
+                .map(|src| *src)
+                .collect(),
+        )
     } else {
         rel_result
     };
@@ -1580,16 +1599,16 @@ async fn handle_after_resolve_plugins(
 
 #[turbo_tasks::function]
 async fn resolve_internal(
-    lookup_path: Vc<FileSystemPath>,
-    request: Vc<Request>,
+    lookup_path: ResolvedVc<FileSystemPath>,
+    request: ResolvedVc<Request>,
     options: Vc<ResolveOptions>,
 ) -> Result<Vc<ResolveResult>> {
     resolve_internal_inline(lookup_path, request, options).await
 }
 
 async fn resolve_internal_inline(
-    lookup_path: Vc<FileSystemPath>,
-    request: Vc<Request>,
+    lookup_path: ResolvedVc<FileSystemPath>,
+    request: ResolvedVc<Request>,
     options: Vc<ResolveOptions>,
 ) -> Result<Vc<ResolveResult>> {
     let span = {
@@ -1610,17 +1629,17 @@ async fn resolve_internal_inline(
         if let Some(import_map) = &options_value.import_map {
             let request_parts = match &*request_value {
                 Request::Alternatives { requests } => requests.as_slice(),
-                _ => &[request],
+                _ => &[*request],
             };
             for request in request_parts {
-                let result = import_map.await?.lookup(lookup_path, *request).await?;
+                let result = import_map.await?.lookup(*lookup_path, *request).await?;
                 if !matches!(result, ImportMapResult::NoEntry) {
                     has_alias = true;
                     let resolved_result = resolve_import_map_result(
                         &result,
                         lookup_path,
                         lookup_path,
-                        *request,
+                        request.to_resolved().await?,
                         options,
                         request.query(),
                     )
@@ -1645,7 +1664,10 @@ async fn resolve_internal_inline(
             Request::Alternatives { requests } => {
                 let results = requests
                     .iter()
-                    .map(|req| Box::pin(resolve_internal_inline(lookup_path, *req, options)))
+                    .map(|req| async {
+                        resolve_internal_inline(lookup_path, req.to_resolved().await?, options)
+                            .await
+                    })
                     .try_join()
                     .await?;
 
@@ -1659,7 +1681,7 @@ async fn resolve_internal_inline(
             } => {
                 let mut results = Vec::new();
                 let matches = read_matches(
-                    lookup_path,
+                    *lookup_path,
                     "".into(),
                     *force_in_lookup_dir,
                     Pattern::new(path.clone()).resolve().await?,
@@ -1760,8 +1782,8 @@ async fn resolve_internal_inline(
                     ResolvingIssue {
                         severity: error_severity(options).await?,
                         request_type: "server relative import: not implemented yet".to_string(),
-                        request,
-                        file_path: lookup_path,
+                        request: *request,
+                        file_path: *lookup_path,
                         resolve_options: options,
                         error_message: Some(
                             "server relative imports are not implemented yet. Please try an \
@@ -1775,8 +1797,8 @@ async fn resolve_internal_inline(
                 }
 
                 Box::pin(resolve_internal_inline(
-                    lookup_path.root().resolve().await?,
-                    relative.resolve().await?,
+                    lookup_path.root().to_resolved().await?,
+                    relative.to_resolved().await?,
                     options,
                 ))
                 .await?
@@ -1790,8 +1812,8 @@ async fn resolve_internal_inline(
                     ResolvingIssue {
                         severity: error_severity(options).await?,
                         request_type: "windows import: not implemented yet".to_string(),
-                        request,
-                        file_path: lookup_path,
+                        request: *request,
+                        file_path: *lookup_path,
                         resolve_options: options,
                         error_message: Some("windows imports are not implemented yet".to_string()),
                         source: None,
@@ -1844,8 +1866,8 @@ async fn resolve_internal_inline(
                     ResolvingIssue {
                         severity: error_severity(options).await?,
                         request_type: format!("unknown import: `{}`", path),
-                        request,
-                        file_path: lookup_path,
+                        request: *request,
+                        file_path: *lookup_path,
                         resolve_options: options,
                         error_message: None,
                         source: None,
@@ -1860,7 +1882,7 @@ async fn resolve_internal_inline(
         // Apply fallback import mappings if provided
         if let Some(import_map) = &options_value.fallback_import_map {
             if *result.is_unresolvable().await? {
-                let result = import_map.await?.lookup(lookup_path, request).await?;
+                let result = import_map.await?.lookup(*lookup_path, *request).await?;
                 let resolved_result = resolve_import_map_result(
                     &result,
                     lookup_path,
@@ -1886,7 +1908,7 @@ async fn resolve_internal_inline(
 
 #[turbo_tasks::function]
 async fn resolve_into_folder(
-    package_path: Vc<FileSystemPath>,
+    package_path: ResolvedVc<FileSystemPath>,
     options: Vc<ResolveOptions>,
 ) -> Result<Vc<ResolveResult>> {
     let package_json_path = package_path.join("package.json".into());
@@ -1904,7 +1926,9 @@ async fn resolve_into_folder(
                         {
                             continue;
                         }
-                        let request = Request::parse(Value::new(normalized_request.into()));
+                        let request = Request::parse(Value::new(normalized_request.into()))
+                            .to_resolved()
+                            .await?;
 
                         // main field will always resolve not fully specified
                         let options = if options_value.fully_specified {
@@ -1919,10 +1943,10 @@ async fn resolve_into_folder(
                         // we continue to try other alternatives
                         if !result.is_unresolvable_ref() {
                             let mut result = result.with_request_ref(".".into());
-                            result.add_affecting_source_ref(Vc::upcast(FileSource::new(
-                                package_json_path,
-                            )));
-                            return Ok(result.into());
+                            result.add_affecting_source_ref(ResolvedVc::upcast(
+                                FileSource::new(package_json_path).to_resolved().await?,
+                            ));
+                            return Ok(result.cell());
                         }
                     }
                 };
@@ -1932,12 +1956,12 @@ async fn resolve_into_folder(
     }
 
     if options_value.fully_specified {
-        return Ok(ResolveResult::unresolvable().into());
+        return Ok(ResolveResult::unresolvable().cell());
     }
 
     // fall back to dir/index.[js,ts,...]
     let pattern = match &options_value.default_files[..] {
-        [] => return Ok(ResolveResult::unresolvable().into()),
+        [] => return Ok(ResolveResult::unresolvable().cell()),
         [file] => Pattern::Constant(format!("./{file}").into()),
         files => Pattern::Alternatives(
             files
@@ -1950,7 +1974,7 @@ async fn resolve_into_folder(
     let request = Request::parse(Value::new(pattern));
 
     Ok(
-        resolve_internal_inline(package_path, request.resolve().await?, options)
+        resolve_internal_inline(package_path, request.to_resolved().await?, options)
             .await?
             .with_request(".".into()),
     )
@@ -1958,8 +1982,8 @@ async fn resolve_into_folder(
 
 #[tracing::instrument(level = Level::TRACE, skip_all)]
 async fn resolve_relative_request(
-    lookup_path: Vc<FileSystemPath>,
-    request: Vc<Request>,
+    lookup_path: ResolvedVc<FileSystemPath>,
+    request: ResolvedVc<Request>,
     options: Vc<ResolveOptions>,
     options_value: &ResolveOptions,
     path_pattern: &Pattern,
@@ -1970,7 +1994,7 @@ async fn resolve_relative_request(
     // Check alias field for aliases first
     let lookup_path_ref = &*lookup_path.await?;
     if let Some(result) = apply_in_package(
-        lookup_path,
+        *lookup_path,
         options,
         options_value,
         |package_path| {
@@ -2057,7 +2081,7 @@ async fn resolve_relative_request(
 
     let mut results = Vec::new();
     let matches = read_matches(
-        lookup_path,
+        *lookup_path,
         "".into(),
         force_in_lookup_dir,
         Pattern::new(new_path).resolve().await?,
@@ -2188,7 +2212,7 @@ async fn apply_in_package(
             continue;
         };
 
-        let read = read_package_json(*package_json_path).await?;
+        let read = read_package_json(**package_json_path).await?;
         let Some(package_json) = &*read else {
             continue;
         };
@@ -2242,13 +2266,13 @@ async fn apply_in_package(
                     options,
                 )
                 .with_replaced_request_key(value.into(), Value::new(request_key))
-                .with_affecting_sources(refs),
+                .with_affecting_sources(refs.into_iter().map(|src| *src).collect()),
             ));
         }
 
         ResolvingIssue {
             severity: error_severity(options).await?,
-            file_path: *package_json_path,
+            file_path: **package_json_path,
             request_type: format!("alias field ({field})"),
             request: Request::parse(Value::new(Pattern::Constant(request))),
             resolve_options: options,
@@ -2282,7 +2306,7 @@ async fn find_self_reference(
 ) -> Result<Vc<FindSelfReferencePackageResult>> {
     let package_json_context = find_context_file(lookup_path, package_json()).await?;
     if let FindContextFileResult::Found(package_json_path, _refs) = &*package_json_context {
-        let read = read_package_json(*package_json_path).await?;
+        let read = read_package_json(**package_json_path).await?;
         if let Some(json) = &*read {
             if json.get("exports").is_some() {
                 if let Some(name) = json["name"].as_str() {
@@ -2300,8 +2324,8 @@ async fn find_self_reference(
 
 #[tracing::instrument(level = Level::TRACE, skip_all)]
 async fn resolve_module_request(
-    lookup_path: Vc<FileSystemPath>,
-    request: Vc<Request>,
+    lookup_path: ResolvedVc<FileSystemPath>,
+    request: ResolvedVc<Request>,
     options: Vc<ResolveOptions>,
     options_value: &ResolveOptions,
     module: &str,
@@ -2311,7 +2335,7 @@ async fn resolve_module_request(
 ) -> Result<Vc<ResolveResult>> {
     // Check alias field for module aliases first
     if let Some(result) = apply_in_package(
-        lookup_path,
+        *lookup_path,
         options,
         options_value,
         |_| {
@@ -2330,7 +2354,7 @@ async fn resolve_module_request(
     // module. This should match only using the exports field and no other
     // fields/fallbacks.
     if let FindSelfReferencePackageResult::Found { name, package_path } =
-        &*find_self_reference(lookup_path).await?
+        &*find_self_reference(*lookup_path).await?
     {
         if name == module {
             let result = resolve_into_package(
@@ -2347,7 +2371,7 @@ async fn resolve_module_request(
     }
 
     let result = find_package(
-        lookup_path,
+        *lookup_path,
         module.into(),
         resolve_modules_options(options).resolve().await?,
     )
@@ -2408,13 +2432,11 @@ async fn resolve_module_request(
             RcStr::from("/").into(),
             path.clone(),
         ]);
-        let relative = Request::relative(Value::new(pattern), query, fragment, true);
-        let relative_result = Box::pin(resolve_internal_inline(
-            lookup_path,
-            relative.resolve().await?,
-            options,
-        ))
-        .await?;
+        let relative = Request::relative(Value::new(pattern), query, fragment, true)
+            .to_resolved()
+            .await?;
+        let relative_result =
+            Box::pin(resolve_internal_inline(lookup_path, relative, options)).await?;
         let relative_result = relative_result
             .with_replaced_request_key(module_prefix, Value::new(RequestKey::new(module.into())));
 
@@ -2427,7 +2449,7 @@ async fn resolve_module_request(
 #[turbo_tasks::function]
 async fn resolve_into_package(
     path: Value<Pattern>,
-    package_path: Vc<FileSystemPath>,
+    package_path: ResolvedVc<FileSystemPath>,
     query: Vc<RcStr>,
     fragment: Vc<RcStr>,
     options: Vc<ResolveOptions>,
@@ -2488,7 +2510,7 @@ async fn resolve_into_package(
     // apply main field(s) or fallback to index.js if there's no subpath
     if is_root_match {
         results.push(resolve_into_folder(
-            package_path,
+            *package_path,
             options.with_fully_specified(false),
         ));
     }
@@ -2497,9 +2519,10 @@ async fn resolve_into_package(
         let mut new_pat = path.clone();
         new_pat.push_front(RcStr::from(".").into());
 
-        let relative = Request::relative(Value::new(new_pat), query, fragment, true);
-        results
-            .push(resolve_internal_inline(package_path, relative.resolve().await?, options).await?);
+        let relative = Request::relative(Value::new(new_pat), query, fragment, true)
+            .to_resolved()
+            .await?;
+        results.push(resolve_internal_inline(package_path, relative, options).await?);
     }
 
     Ok(merge_results(results))
@@ -2508,24 +2531,25 @@ async fn resolve_into_package(
 #[tracing::instrument(level = Level::TRACE, skip_all)]
 async fn resolve_import_map_result(
     result: &ImportMapResult,
-    lookup_path: Vc<FileSystemPath>,
-    original_lookup_path: Vc<FileSystemPath>,
-    original_request: Vc<Request>,
+    lookup_path: ResolvedVc<FileSystemPath>,
+    original_lookup_path: ResolvedVc<FileSystemPath>,
+    original_request: ResolvedVc<Request>,
     options: Vc<ResolveOptions>,
     query: Vc<RcStr>,
 ) -> Result<Option<Vc<ResolveResult>>> {
     Ok(match result {
-        ImportMapResult::Result(result) => Some(*result),
+        ImportMapResult::Result(result) => Some(**result),
         ImportMapResult::Alias(request, alias_lookup_path) => {
             let request = *request;
-            let lookup_path = alias_lookup_path.unwrap_or(lookup_path);
+            let lookup_path = match alias_lookup_path {
+                Some(path) => *path,
+                None => lookup_path,
+            };
             // We must avoid cycles during resolving
-            if request.resolve().await? == original_request
-                && lookup_path.resolve().await? == original_lookup_path
-            {
+            if request == original_request && lookup_path == original_lookup_path {
                 None
             } else {
-                let result = resolve_internal(lookup_path, request, options);
+                let result = resolve_internal(*lookup_path, *request, options);
                 Some(result.with_replaced_request_key_pattern(
                     request.request_pattern(),
                     original_request.request_pattern(),
@@ -2558,8 +2582,8 @@ async fn resolve_import_map_result(
 async fn resolved(
     request_key: RequestKey,
     fs_path: Vc<FileSystemPath>,
-    original_context: Vc<FileSystemPath>,
-    original_request: Vc<Request>,
+    original_context: ResolvedVc<FileSystemPath>,
+    original_request: ResolvedVc<Request>,
     options_value: &ResolveOptions,
     options: Vc<ResolveOptions>,
     query: Vc<RcStr>,
@@ -2584,12 +2608,12 @@ async fn resolved(
 
     if let Some(resolved_map) = options_value.resolved_map {
         let result = resolved_map
-            .lookup(**path, original_context, original_request)
+            .lookup(**path, *original_context, *original_request)
             .await?;
 
         let resolved_result = resolve_import_map_result(
             &result,
-            path.parent(),
+            path.parent().to_resolved().await?,
             original_context,
             original_request,
             options,
@@ -2604,19 +2628,26 @@ async fn resolved(
 
     Ok(ResolveResult::source_with_affecting_sources(
         request_key,
-        Vc::upcast(FileSource::new_with_query(**path, query)),
+        ResolvedVc::upcast(
+            FileSource::new_with_query(**path, query)
+                .to_resolved()
+                .await?,
+        ),
         symlinks
             .iter()
-            .map(|symlink| **symlink)
-            .map(FileSource::new)
-            .map(Vc::upcast)
-            .collect(),
+            .map(|symlink| async move {
+                anyhow::Ok(ResolvedVc::upcast(
+                    FileSource::new(**symlink).to_resolved().await?,
+                ))
+            })
+            .try_join()
+            .await?,
     )
-    .into())
+    .cell())
 }
 
 async fn handle_exports_imports_field(
-    package_path: Vc<FileSystemPath>,
+    package_path: ResolvedVc<FileSystemPath>,
     package_json_path: Vc<FileSystemPath>,
     options: Vc<ResolveOptions>,
     exports_imports_field: &AliasMap<SubpathValue>,
@@ -2653,7 +2684,9 @@ async fn handle_exports_imports_field(
             let request = Request::parse(Value::new(Pattern::Concatenation(vec![
                 Pattern::Constant("./".into()),
                 result_path,
-            ])));
+            ])))
+            .to_resolved()
+            .await?;
 
             let resolve_result =
                 Box::pin(resolve_internal_inline(package_path, request, options)).await?;
@@ -2670,7 +2703,9 @@ async fn handle_exports_imports_field(
     // other options do not apply anymore when an exports field exist
     Ok(merge_results_with_affecting_sources(
         resolved_results,
-        vec![Vc::upcast(FileSource::new(package_json_path))],
+        vec![ResolvedVc::upcast(
+            FileSource::new(package_json_path).to_resolved().await?,
+        )],
     ))
 }
 
@@ -2679,8 +2714,8 @@ async fn handle_exports_imports_field(
 /// static strings or conditions like `import` or `require` to handle ESM/CJS
 /// with differently compiled files.
 async fn resolve_package_internal_with_imports_field(
-    file_path: Vc<FileSystemPath>,
-    request: Vc<Request>,
+    file_path: ResolvedVc<FileSystemPath>,
+    request: ResolvedVc<Request>,
     resolve_options: Vc<ResolveOptions>,
     pattern: &Pattern,
     conditions: &BTreeMap<RcStr, ConditionValue>,
@@ -2693,9 +2728,9 @@ async fn resolve_package_internal_with_imports_field(
     if specifier == "#" || specifier.starts_with("#/") || specifier.ends_with('/') {
         ResolvingIssue {
             severity: error_severity(resolve_options).await?,
-            file_path,
+            file_path: *file_path,
             request_type: format!("package imports request: `{specifier}`"),
-            request,
+            request: *request,
             resolve_options,
             error_message: None,
             source: None,
@@ -2705,14 +2740,14 @@ async fn resolve_package_internal_with_imports_field(
         return Ok(ResolveResult::unresolvable().into());
     }
 
-    let imports_result = imports_field(file_path).await?;
+    let imports_result = imports_field(*file_path).await?;
     let (imports, package_json_path) = match &*imports_result {
-        ImportsFieldResult::Some(i, p) => (i, p),
-        ImportsFieldResult::None => return Ok(ResolveResult::unresolvable().into()),
+        ImportsFieldResult::Some(i, p) => (i, *p),
+        ImportsFieldResult::None => return Ok(ResolveResult::unresolvable().cell()),
     };
 
     handle_exports_imports_field(
-        package_json_path.parent(),
+        package_json_path.parent().to_resolved().await?,
         *package_json_path,
         resolve_options,
         imports,
@@ -2895,6 +2930,8 @@ pub enum ModulePart {
     RenamedNamespace { export: Vc<RcStr> },
     /// A pointer to a specific part.
     Internal(u32),
+    /// A pointer to a specific part, but with evaluation.
+    InternalEvaluation(u32),
     /// The local declarations of a module.
     Locals,
     /// The whole exports of a module.
@@ -2934,6 +2971,10 @@ impl ModulePart {
         ModulePart::Internal(id).cell()
     }
     #[turbo_tasks::function]
+    pub fn internal_evaluation(id: u32) -> Vc<Self> {
+        ModulePart::InternalEvaluation(id).cell()
+    }
+    #[turbo_tasks::function]
     pub fn locals() -> Vc<Self> {
         ModulePart::Locals.cell()
     }
@@ -2965,7 +3006,8 @@ impl ValueToString for ModulePart {
             ModulePart::RenamedNamespace { export } => {
                 format!("export * as {}", export.await?).into()
             }
-            ModulePart::Internal(id) => format!("internal part {}", id,).into(),
+            ModulePart::Internal(id) => format!("internal part {}", id).into(),
+            ModulePart::InternalEvaluation(id) => format!("internal part {}", id).into(),
             ModulePart::Locals => "locals".into(),
             ModulePart::Exports => "exports".into(),
             ModulePart::Facade => "facade".into(),

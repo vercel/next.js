@@ -43,6 +43,7 @@ mod completion;
 pub mod debug;
 mod display;
 pub mod duration_span;
+mod effect;
 pub mod event;
 pub mod graph;
 mod id;
@@ -61,11 +62,11 @@ mod output;
 pub mod persisted_graph;
 pub mod primitives;
 mod raw_vc;
-mod rcstr;
 mod read_ref;
 pub mod registry;
 mod scope;
 mod serialization_invalidation;
+mod shrink_to_fit;
 pub mod small_duration;
 mod state;
 pub mod task;
@@ -85,6 +86,7 @@ use auto_hash_map::AutoSet;
 pub use collectibles::CollectiblesSource;
 pub use completion::{Completion, Completions};
 pub use display::ValueToString;
+pub use effect::{apply_effects, effect, get_effects, Effects};
 pub use id::{
     ExecutionId, FunctionId, LocalTaskId, SessionId, TaskId, TraitTypeId, ValueTypeId,
     TRANSIENT_TASK_BIT,
@@ -106,11 +108,11 @@ pub use manager::{
 pub use native_function::{FunctionMeta, NativeFunction};
 pub use output::OutputContent;
 pub use raw_vc::{CellId, RawVc, ReadRawVcFuture, ResolveTypeError};
-pub use rcstr::RcStr;
 pub use read_ref::ReadRef;
 use rustc_hash::FxHasher;
 pub use scope::scope;
 pub use serialization_invalidation::SerializationInvalidator;
+pub use shrink_to_fit::ShrinkToFit;
 pub use state::{State, TransientState};
 pub use task::{task_input::TaskInput, SharedReference, TypedSharedReference};
 pub use trait_ref::{IntoTraitRef, TraitRef};

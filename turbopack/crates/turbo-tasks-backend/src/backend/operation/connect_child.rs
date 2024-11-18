@@ -12,7 +12,7 @@ use crate::{
             },
             is_root_node, ExecuteContext, Operation, TaskGuard,
         },
-        storage::{get, update},
+        storage::{get, update_ucount_and_get},
         TaskDataCategory,
     },
     data::{CachedDataItem, CachedDataItemKey},
@@ -32,6 +32,18 @@ pub enum ConnectChildOperation {
 
 impl ConnectChildOperation {
     pub fn run(parent_task_id: TaskId, child_task_id: TaskId, mut ctx: impl ExecuteContext) {
+        if !ctx.should_track_children() {
+            let mut task = ctx.task(child_task_id, TaskDataCategory::Data);
+            if !task.has_key(&CachedDataItemKey::Output {}) {
+                let description = ctx.get_task_desc_fn(child_task_id);
+                let should_schedule = task.add(CachedDataItem::new_scheduled(description));
+                drop(task);
+                if should_schedule {
+                    ctx.schedule(child_task_id);
+                }
+            }
+            return;
+        }
         let mut parent_task = ctx.task(parent_task_id, TaskDataCategory::All);
         // Quick skip if the child was already connected before
         if parent_task
@@ -46,17 +58,12 @@ impl ConnectChildOperation {
             task: child_task_id,
             value: (),
         }) {
-            // Update the children count
-            let mut children_count = 0;
-            update!(parent_task, ChildrenCount, |count: Option<u32>| {
-                children_count = count.unwrap_or_default() + 1;
-                Some(children_count)
-            });
-
-            // Update the task aggregation
             let mut queue = AggregationUpdateQueue::new();
 
-            // Compute new parent aggregation number based on the number of children
+            // Update the children count
+            let children_count = update_ucount_and_get!(parent_task, ChildrenCount, 1);
+
+            // Compute future parent aggregation number based on the number of children
             let current_parent_aggregation = get!(parent_task, AggregationNumber)
                 .copied()
                 .unwrap_or_default();
@@ -130,6 +137,8 @@ impl ConnectChildOperation {
                 }
             }
 
+            #[cfg(feature = "trace_aggregation_update")]
+            let _span = tracing::trace_span!("connect_child").entered();
             ConnectChildOperation::UpdateAggregation {
                 aggregation_update: queue,
             }

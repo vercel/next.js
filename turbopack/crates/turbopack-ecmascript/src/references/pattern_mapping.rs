@@ -10,12 +10,16 @@ use swc_core::{
     },
     quote, quote_expr,
 };
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, RcStr, TryJoinIterExt, Value, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, ResolvedVc, TryJoinIterExt, Value, Vc,
 };
 use turbopack_core::{
     chunk::{ChunkItemExt, ChunkableModule, ChunkingContext, ModuleId},
-    issue::{code_gen::CodeGenerationIssue, IssueExt, IssueSeverity, StyledString},
+    issue::{
+        code_gen::CodeGenerationIssue, module::emit_unknown_module_type_error, IssueExt,
+        IssueSeverity, StyledString,
+    },
     resolve::{
         origin::ResolveOrigin, parse::Request, ExternalType, ModuleResolveResult,
         ModuleResolveResultItem,
@@ -316,7 +320,18 @@ async fn to_single_pattern_mapping(
             return Ok(SinglePatternMapping::External(s.clone(), *ty));
         }
         ModuleResolveResultItem::Ignore => return Ok(SinglePatternMapping::Ignored),
-        _ => {
+        ModuleResolveResultItem::Unknown(source) => {
+            emit_unknown_module_type_error(*source).await?;
+            return Ok(SinglePatternMapping::Unresolvable(
+                "unknown module type".to_string(),
+            ));
+        }
+        ModuleResolveResultItem::Error(str) => {
+            return Ok(SinglePatternMapping::Unresolvable(str.await?.to_string()))
+        }
+        ModuleResolveResultItem::OutputAsset(_)
+        | ModuleResolveResultItem::Empty
+        | ModuleResolveResultItem::Custom(_) => {
             // TODO implement mapping
             CodeGenerationIssue {
                 severity: IssueSeverity::Bug.into(),
@@ -340,10 +355,10 @@ async fn to_single_pattern_mapping(
             return Ok(SinglePatternMapping::Invalid);
         }
     };
-    if let Some(chunkable) = Vc::try_resolve_downcast::<Box<dyn ChunkableModule>>(module).await? {
+    if let Some(chunkable) = ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(module).await? {
         match resolve_type {
             ResolveType::AsyncChunkLoader => {
-                let loader_id = chunking_context.async_loader_chunk_item_id(chunkable);
+                let loader_id = chunking_context.async_loader_chunk_item_id(*chunkable);
                 return Ok(SinglePatternMapping::ModuleLoader(
                     loader_id.await?.clone_value(),
                 ));

@@ -3,14 +3,8 @@ use async_trait::async_trait;
 use next_custom_transforms::transforms::strip_page_exports::{
     next_transform_strip_page_exports, ExportFilter,
 };
-use swc_core::{
-    common::util::take::Take,
-    ecma::{
-        ast::{Module, Program},
-        visit::FoldWith,
-    },
-};
-use turbo_tasks::Vc;
+use swc_core::ecma::ast::Program;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect, RuleCondition};
 use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext};
@@ -24,9 +18,10 @@ pub async fn get_next_pages_transforms_rule(
     enable_mdx_rs: bool,
 ) -> Result<ModuleRule> {
     // Apply the Next SSG transform to all pages.
-    let strip_transform = EcmascriptInputTransform::Plugin(Vc::cell(Box::new(
-        NextJsStripPageExports { export_filter },
-    ) as _));
+    let strip_transform =
+        EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(NextJsStripPageExports {
+            export_filter,
+        }) as _));
     Ok(ModuleRule::new(
         RuleCondition::all(vec![
             RuleCondition::all(vec![
@@ -49,8 +44,8 @@ pub async fn get_next_pages_transforms_rule(
             module_rule_match_js_no_url(enable_mdx_rs),
         ]),
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
-            prepend: Vc::cell(vec![]),
-            append: Vc::cell(vec![strip_transform]),
+            prepend: ResolvedVc::cell(vec![]),
+            append: ResolvedVc::cell(vec![strip_transform]),
         }],
     ))
 }
@@ -66,9 +61,7 @@ impl CustomTransformer for NextJsStripPageExports {
     async fn transform(&self, program: &mut Program, _ctx: &TransformContext<'_>) -> Result<()> {
         // TODO(alexkirsz) Connect the eliminated_packages to telemetry.
         let eliminated_packages = Default::default();
-
-        let p = std::mem::replace(program, Program::Module(Module::dummy()));
-        *program = p.fold_with(&mut next_transform_strip_page_exports(
+        program.mutate(next_transform_strip_page_exports(
             self.export_filter,
             eliminated_packages,
         ));

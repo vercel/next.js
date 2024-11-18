@@ -6,11 +6,8 @@ use lightningcss::{
     visit_types,
     visitor::{Visit, Visitor},
 };
-use swc_core::css::{
-    ast::UrlValue,
-    visit::{VisitMut, VisitMutWith},
-};
-use turbo_tasks::{debug::ValueDebug, RcStr, ResolvedVc, Value, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{debug::ValueDebug, ResolvedVc, Value, ValueToString, Vc};
 use turbopack_core::{
     chunk::{
         ChunkableModule, ChunkableModuleReference, ChunkingContext, ChunkingType,
@@ -62,7 +59,7 @@ impl UrlAssetReference {
     ) -> Result<Vc<ReferencedAsset>> {
         if let Some(module) = *self.resolve_reference().first_module().await? {
             if let Some(chunkable) =
-                Vc::try_resolve_downcast::<Box<dyn ChunkableModule>>(module).await?
+                ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(module).await?
             {
                 let chunk_item = chunkable.as_chunk_item(chunking_context);
                 if let Some(embeddable) =
@@ -150,39 +147,11 @@ pub fn replace_url_references(
     urls: &HashMap<RcStr, RcStr>,
 ) {
     let mut replacer = AssetReferenceReplacer { urls };
-    match ss {
-        StyleSheetLike::LightningCss(ss) => {
-            ss.visit(&mut replacer).unwrap();
-        }
-        StyleSheetLike::Swc { stylesheet, .. } => {
-            stylesheet.visit_mut_with(&mut replacer);
-        }
-    }
+    ss.0.visit(&mut replacer).unwrap();
 }
 
 struct AssetReferenceReplacer<'a> {
     urls: &'a HashMap<RcStr, RcStr>,
-}
-
-impl VisitMut for AssetReferenceReplacer<'_> {
-    fn visit_mut_url_value(&mut self, u: &mut UrlValue) {
-        u.visit_mut_children_with(self);
-
-        match u {
-            UrlValue::Str(v) => {
-                if let Some(new) = self.urls.get(&*v.value) {
-                    v.value = (&**new).into();
-                    v.raw = None;
-                }
-            }
-            UrlValue::Raw(v) => {
-                if let Some(new) = self.urls.get(&*v.value) {
-                    v.value = (&**new).into();
-                    v.raw = None;
-                }
-            }
-        }
-    }
 }
 
 impl Visitor<'_> for AssetReferenceReplacer<'_> {

@@ -1,5 +1,5 @@
 import React, { type JSX } from 'react'
-import { isNotFoundError } from '../../client/components/not-found'
+import { isHTTPAccessFallbackError } from '../../client/components/http-access-fallback/http-access-fallback'
 import {
   getURLFromRedirectError,
   isRedirectError,
@@ -40,7 +40,7 @@ export function makeGetServerInsertedHTML({
       const error = serverCapturedErrors[flushedErrorMetaTagsUntilIndex]
       flushedErrorMetaTagsUntilIndex++
 
-      if (isNotFoundError(error)) {
+      if (isHTTPAccessFallbackError(error)) {
         errorMetaTags.push(
           <meta name="robots" content="noindex" key={error.digest} />,
           process.env.NODE_ENV === 'development' ? (

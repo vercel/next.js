@@ -1,18 +1,19 @@
 import React from 'react'
 import isError from '../../../../../lib/is-error'
 
-const captureOwnerStack = (React as any).captureOwnerStack || (() => '')
-
 const REACT_ERROR_STACK_BOTTOM_FRAME = 'react-stack-bottom-frame'
 const REACT_ERROR_STACK_BOTTOM_FRAME_REGEX = new RegExp(
   `(at ${REACT_ERROR_STACK_BOTTOM_FRAME} )|(${REACT_ERROR_STACK_BOTTOM_FRAME}\\@)`
 )
 
+const captureOwnerStack = (React as any).captureOwnerStack
+  ? (React as any).captureOwnerStack
+  : () => ''
+
 export function getReactStitchedError<T = unknown>(err: T): Error | T {
-  if (!process.env.__NEXT_REACT_OWNER_STACK) {
+  if (typeof (React as any).captureOwnerStack !== 'function') {
     return err
   }
-
   const isErrorInstance = isError(err)
   const originStack = isErrorInstance ? err.stack || '' : ''
   const originMessage = isErrorInstance ? err.message : ''
@@ -31,12 +32,18 @@ export function getReactStitchedError<T = unknown>(err: T): Error | T {
   newError.stack = newStack
 
   // Avoid duplicate overriding stack frames
-  const ownerStack = captureOwnerStack()
-  if (ownerStack && newStack.endsWith(ownerStack) === false) {
-    newStack += ownerStack
-    // Override stack
-    newError.stack = newStack
-  }
+  appendOwnerStack(newError)
 
   return newError
+}
+
+function appendOwnerStack(error: Error) {
+  let stack = error.stack || ''
+  // Avoid duplicate overriding stack frames
+  const ownerStack = captureOwnerStack()
+  if (ownerStack && stack.endsWith(ownerStack) === false) {
+    stack += ownerStack
+    // Override stack
+    error.stack = stack
+  }
 }

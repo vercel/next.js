@@ -1,7 +1,10 @@
 import * as os from 'os'
 import prompts from 'prompts'
 import fs from 'fs'
-import compareVersions from 'semver/functions/compare'
+import {
+  satisfies as satisfiesVersionRange,
+  compare as compareVersions,
+} from 'semver'
 import { execSync } from 'child_process'
 import path from 'path'
 import pc from 'picocolors'
@@ -86,10 +89,14 @@ export async function runUpgrade(
     peerDependencies: Record<string, string>
   }
 
-  const res = await fetch(`https://registry.npmjs.org/next/${revision}`)
-  if (res.status === 200) {
-    targetNextPackageJson = await res.json()
-  }
+  try {
+    const targetNextPackage = execSync(
+      `npm --silent view "next@${revision}" --json`,
+      { encoding: 'utf-8' }
+    )
+    targetNextPackageJson = JSON.parse(targetNextPackage)
+  } catch {}
+
   const validRevision =
     targetNextPackageJson !== null &&
     typeof targetNextPackageJson === 'object' &&
@@ -177,7 +184,7 @@ export async function runUpgrade(
       )
 
   if (compareVersions(targetNextVersion, '15.0.0-canary') >= 0) {
-    await suggestTurbopack(appPackageJson)
+    await suggestTurbopack(appPackageJson, targetNextVersion)
   }
 
   const codemods = await suggestCodemods(
@@ -302,7 +309,7 @@ export async function runUpgrade(
   }
 
   console.log(
-    `Upgrading your project to ${pc.blue('Next.js ' + targetNextVersion)}...\n`
+    `Upgrading your project to ${pc.blue('Next.js ' + targetNextVersion)}...`
   )
 
   for (const [dep, version] of dependenciesToInstall) {
@@ -319,7 +326,7 @@ export async function runUpgrade(
       os.EOL
   )
 
-  runInstallation(packageManager)
+  runInstallation(packageManager, { cwd })
 
   for (const codemod of codemods) {
     await runTransform(codemod, cwd, { force: true, verbose })
@@ -349,6 +356,9 @@ export async function runUpgrade(
   if (codemods.length > 0) {
     console.log(`${pc.green('✔')} Codemods have been applied successfully.`)
   }
+
+  warnDependenciesOutOfRange(appPackageJson, versionMapping)
+
   endMessage()
 }
 
@@ -410,12 +420,21 @@ function isUsingAppDir(projectPath: string): boolean {
  * 3. Otherwise, we ask the user to manually add `--turbopack` to their dev command,
  *    showing the current dev command as the initial value.
  */
-async function suggestTurbopack(packageJson: any): Promise<void> {
+async function suggestTurbopack(
+  packageJson: any,
+  targetNextVersion: string
+): Promise<void> {
   const devScript: string = packageJson.scripts['dev']
+  // Turbopack flag was changed from `--turbo` to `--turbopack` in v15.0.1-canary.3
+  // PR: https://github.com/vercel/next.js/pull/71657
+  // Release: https://github.com/vercel/next.js/releases/tag/v15.0.1-canary.3
+  const isAfterTurbopackFlagChange =
+    compareVersions(targetNextVersion, '15.0.1-canary.3') >= 0
+  const turboPackFlag = isAfterTurbopackFlagChange ? '--turbopack' : '--turbo'
 
   if (!devScript) {
     console.log(
-      `${pc.red('⨯')} Could not find a "dev" script in your package.json.`
+      `${pc.yellow('⚠')} No "dev" script found in your package.json. Skipping Turbopack suggestion.`
     )
     return
   }
@@ -423,6 +442,15 @@ async function suggestTurbopack(packageJson: any): Promise<void> {
   if (devScript.includes('next dev')) {
     // covers "--turbopack" as well
     if (devScript.includes('--turbo')) {
+      if (isAfterTurbopackFlagChange && !devScript.includes('--turbopack')) {
+        console.log() // new line
+        console.log(
+          `${pc.green('✔')} Replaced "--turbo" with "--turbopack" in your dev script.`
+        )
+        console.log() // new line
+        packageJson.scripts['dev'] = devScript.replace('--turbo', '--turbopack')
+        return
+      }
       return
     }
 
@@ -442,7 +470,7 @@ async function suggestTurbopack(packageJson: any): Promise<void> {
 
     packageJson.scripts['dev'] = devScript.replace(
       'next dev',
-      'next dev --turbopack'
+      `next dev ${turboPackFlag}`
     )
     return
   }
@@ -455,7 +483,7 @@ async function suggestTurbopack(packageJson: any): Promise<void> {
     {
       type: 'text',
       name: 'customDevScript',
-      message: 'Please manually add "--turbopack" to your dev command.',
+      message: `Please manually add "${turboPackFlag}" to your dev command.`,
       initial: devScript,
     },
     { onCancel }
@@ -609,5 +637,98 @@ function writeOverridesField(
         packageJson.overrides[key] = value
       }
     }
+  }
+}
+
+function warnDependenciesOutOfRange(
+  appPackageJson: any,
+  versionMapping: Record<string, { version: string; required: boolean }>
+) {
+  const allDirectDependencies = {
+    ...appPackageJson.dependencies,
+    ...appPackageJson.devDependencies,
+  }
+
+  const dependenciesOutOfRange = new Map<
+    string,
+    {
+      [dependency: string]: {
+        currentVersion: string
+        expectedVersionRange: string
+      }
+    }
+  >()
+
+  const resolvedDependencyVersions = new Map<string, string>()
+  for (const dependency of Object.keys(allDirectDependencies)) {
+    let pkgJson
+
+    // TODO: Asking package manager for the installed version is most robust e.g. `pnpm why ${dependency}`
+    // require.resolve(`${dependency}/package.json`, { paths: [cwd] }) results in previously installed version being used in PNPM
+    let pkgJsonFromNodeModules
+    try {
+      pkgJsonFromNodeModules = path.join(
+        cwd,
+        'node_modules',
+        dependency,
+        'package.json'
+      )
+
+      pkgJson = JSON.parse(fs.readFileSync(pkgJsonFromNodeModules, 'utf8'))
+    } catch {
+      console.warn(
+        `${pc.yellow('⚠')} Could not find package.json for dependency "${dependency}" at "${pkgJsonFromNodeModules}". This may affect peer dependency checks.`
+      )
+      continue
+    }
+
+    resolvedDependencyVersions.set(dependency, pkgJson.version)
+
+    if ('peerDependencies' in pkgJson) {
+      const peerDeps = pkgJson.peerDependencies
+      const peerDepsNames = Object.keys(peerDeps)
+      const depsToCheck = Object.keys(versionMapping).filter(
+        (versionMappingKey) => peerDepsNames.includes(versionMappingKey)
+      )
+
+      for (const depName of depsToCheck) {
+        const expectedVersionRange = peerDeps[depName]
+        const { version: currentVersion } = versionMapping[depName]
+        if (
+          !satisfiesVersionRange(currentVersion, expectedVersionRange, {
+            includePrerelease: true,
+          })
+        ) {
+          dependenciesOutOfRange.set(dependency, {
+            ...dependenciesOutOfRange.get(dependency),
+            [depName]: {
+              currentVersion,
+              expectedVersionRange,
+            },
+          })
+        }
+      }
+    }
+  }
+
+  const size = dependenciesOutOfRange.size
+  if (size > 0) {
+    console.log(
+      `${pc.yellow('⚠')} Found ${size} ${
+        size === 1 ? 'dependency' : 'dependencies'
+      } that seem incompatible with the upgraded package versions.\n` +
+        'You may have to update these packages to their latest version or file an issue to ask for support of the upgraded libraries.'
+    )
+    dependenciesOutOfRange.forEach((deps, packageName) => {
+      console.log(
+        `${packageName} ${pc.gray(resolvedDependencyVersions.get(packageName))}`
+      )
+      Object.entries(deps).forEach(([depName, value], index, depsArray) => {
+        const prefix = index === depsArray.length - 1 ? '  └── ' : '  ├── '
+        console.log(
+          `${prefix}${pc.yellow('✕ unmet peer')} ${depName}@"${value.expectedVersionRange}": found ${value.currentVersion}`
+        )
+      })
+    })
   }
 }

@@ -1,9 +1,11 @@
 use std::collections::HashSet;
 
 use anyhow::{bail, Context, Result};
+use rustc_hash::FxHashSet;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value as JsonValue;
-use turbo_tasks::{trace::TraceRawVcs, FxIndexMap, RcStr, ResolvedVc, TaskInput, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{trace::TraceRawVcs, FxIndexMap, ResolvedVc, TaskInput, Vc};
 use turbo_tasks_env::EnvMap;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{
@@ -21,7 +23,8 @@ use turbopack_ecmascript_plugins::transform::{
 use turbopack_node::transforms::webpack::{WebpackLoaderItem, WebpackLoaderItems};
 
 use crate::{
-    next_import_map::mdx_import_source_file, next_shared::transforms::ModularizeImportPackageConfig,
+    mode::NextMode, next_import_map::mdx_import_source_file,
+    next_shared::transforms::ModularizeImportPackageConfig,
 };
 
 #[turbo_tasks::value]
@@ -37,6 +40,9 @@ struct CustomRoutes {
 
 #[turbo_tasks::value(transparent)]
 pub struct ModularizeImports(FxIndexMap<String, ModularizeImportPackageConfig>);
+
+#[turbo_tasks::value(transparent)]
+pub struct CacheKinds(FxHashSet<RcStr>);
 
 #[turbo_tasks::value(serialization = "custom", eq = "manual")]
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
@@ -400,9 +406,9 @@ pub struct ExperimentalTurboConfig {
     pub rules: Option<FxIndexMap<RcStr, RuleConfigItemOrShortcut>>,
     pub resolve_alias: Option<FxIndexMap<RcStr, JsonValue>>,
     pub resolve_extensions: Option<Vec<RcStr>>,
-    pub use_swc_css: Option<bool>,
     pub tree_shaking: Option<bool>,
     pub module_id_strategy: Option<ModuleIdStrategy>,
+    pub minify: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
@@ -501,7 +507,6 @@ pub struct ExperimentalConfig {
     pub strict_next_head: Option<bool>,
     pub swc_plugins: Option<Vec<(RcStr, serde_json::Value)>>,
     pub turbo: Option<ExperimentalTurboConfig>,
-    pub turbotrace: Option<serde_json::Value>,
     pub external_middleware_rewrites_resolve: Option<bool>,
     pub scroll_restoration: Option<bool>,
     pub use_deployment_id: Option<bool>,
@@ -518,7 +523,8 @@ pub struct ExperimentalConfig {
     pub server_actions: Option<ServerActionsOrLegacyBool>,
     pub sri: Option<SubResourceIntegrity>,
     react_compiler: Option<ReactCompilerOptionsOrBoolean>,
-
+    #[serde(rename = "dynamicIO")]
+    dynamic_io: Option<bool>,
     // ---
     // UNSUPPORTED
     // ---
@@ -527,6 +533,7 @@ pub struct ExperimentalConfig {
     after: Option<bool>,
     amp: Option<serde_json::Value>,
     app_document_preloading: Option<bool>,
+    cache_handlers: Option<FxIndexMap<RcStr, RcStr>>,
     cache_life: Option<FxIndexMap<String, CacheLifeProfile>>,
     case_sensitive_routes: Option<bool>,
     cpus: Option<f64>,
@@ -562,8 +569,6 @@ pub struct ExperimentalConfig {
     ppr: Option<ExperimentalPartialPrerendering>,
     taint: Option<bool>,
     react_owner_stack: Option<bool>,
-    #[serde(rename = "dynamicIO")]
-    dynamic_io: Option<bool>,
     proxy_timeout: Option<f64>,
     /// enables the minification of server code.
     server_minification: Option<bool>,
@@ -830,7 +835,7 @@ impl RemoveConsoleConfig {
 pub struct ResolveExtensions(Option<Vec<RcStr>>);
 
 #[turbo_tasks::value(transparent)]
-pub struct OptionalMdxTransformOptions(Option<Vc<MdxTransformOptions>>);
+pub struct OptionalMdxTransformOptions(Option<ResolvedVc<MdxTransformOptions>>);
 
 #[turbo_tasks::value_impl]
 impl NextConfig {
@@ -922,8 +927,8 @@ impl NextConfig {
         let active_conditions = active_conditions.into_iter().collect::<HashSet<_>>();
         let mut rules = FxIndexMap::default();
         for (ext, rule) in turbo_rules.iter() {
-            fn transform_loaders(loaders: &[LoaderItem]) -> Vc<WebpackLoaderItems> {
-                Vc::cell(
+            fn transform_loaders(loaders: &[LoaderItem]) -> ResolvedVc<WebpackLoaderItems> {
+                ResolvedVc::cell(
                     loaders
                         .iter()
                         .map(|item| match item {
@@ -991,7 +996,7 @@ impl NextConfig {
                 }
             }
         }
-        Vc::cell(Some(Vc::cell(rules)))
+        Vc::cell(Some(ResolvedVc::cell(rules)))
     }
 
     #[turbo_tasks::function]
@@ -1040,7 +1045,7 @@ impl NextConfig {
                     provider_import_source: Some(mdx_import_source_file()),
                     ..Default::default()
                 }
-                .cell(),
+                .resolved_cell(),
             )),
             Some(MdxRsOptions::Option(options)) => OptionalMdxTransformOptions(Some(
                 MdxTransformOptions {
@@ -1052,7 +1057,7 @@ impl NextConfig {
                     ),
                     ..options.clone()
                 }
-                .cell(),
+                .resolved_cell(),
             )),
             _ => OptionalMdxTransformOptions(None),
         };
@@ -1150,20 +1155,23 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn enable_react_owner_stack(self: Vc<Self>) -> Result<Vc<bool>> {
-        Ok(Vc::cell(
-            self.await?.experimental.react_owner_stack.unwrap_or(false),
-        ))
+    pub fn enable_react_owner_stack(&self) -> Vc<bool> {
+        Vc::cell(self.experimental.react_owner_stack.unwrap_or(false))
     }
 
     #[turbo_tasks::function]
-    pub fn use_swc_css(&self) -> Vc<bool> {
+    pub fn enable_dynamic_io(&self) -> Vc<bool> {
+        Vc::cell(self.experimental.dynamic_io.unwrap_or(false))
+    }
+
+    #[turbo_tasks::function]
+    pub fn cache_kinds(&self) -> Vc<CacheKinds> {
         Vc::cell(
             self.experimental
-                .turbo
+                .cache_handlers
                 .as_ref()
-                .and_then(|turbo| turbo.use_swc_css)
-                .unwrap_or(false),
+                .map(|handlers| handlers.keys().cloned().collect())
+                .unwrap_or_default(),
         )
     }
 
@@ -1235,6 +1243,15 @@ impl NextConfig {
             return Vc::cell(None);
         };
         Vc::cell(Some(module_id_strategy.clone()))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn turbo_minify(&self, mode: Vc<NextMode>) -> Result<Vc<bool>> {
+        let minify = self.experimental.turbo.as_ref().and_then(|t| t.minify);
+
+        Ok(Vc::cell(
+            minify.unwrap_or(matches!(*mode.await?, NextMode::Build)),
+        ))
     }
 }
 

@@ -369,6 +369,10 @@ pub enum CachedDataItem {
         task: TaskId,
         value: i32,
     },
+    PersistentUpperCount {
+        // Only counting persistent tasks
+        value: u32,
+    },
 
     // Aggregated Data
     AggregatedDirtyContainer {
@@ -453,6 +457,7 @@ impl CachedDataItem {
             CachedDataItem::AggregationNumber { .. } => true,
             CachedDataItem::Follower { task, .. } => !task.is_transient(),
             CachedDataItem::Upper { task, .. } => !task.is_transient(),
+            CachedDataItem::PersistentUpperCount { .. } => true,
             CachedDataItem::AggregatedDirtyContainer { task, .. } => !task.is_transient(),
             CachedDataItem::AggregatedCollectible { collectible, .. } => {
                 !collectible.cell.task.is_transient()
@@ -518,6 +523,7 @@ impl CachedDataItemKey {
             CachedDataItemKey::AggregationNumber { .. } => true,
             CachedDataItemKey::Follower { task, .. } => !task.is_transient(),
             CachedDataItemKey::Upper { task, .. } => !task.is_transient(),
+            CachedDataItemKey::PersistentUpperCount {} => true,
             CachedDataItemKey::AggregatedDirtyContainer { task, .. } => !task.is_transient(),
             CachedDataItemKey::AggregatedCollectible { collectible, .. } => {
                 !collectible.cell.task.is_transient()
@@ -562,6 +568,7 @@ impl CachedDataItemKey {
             | CachedDataItemKey::Dirty { .. }
             | CachedDataItemKey::Follower { .. }
             | CachedDataItemKey::Upper { .. }
+            | CachedDataItemKey::PersistentUpperCount { .. }
             | CachedDataItemKey::AggregatedDirtyContainer { .. }
             | CachedDataItemKey::AggregatedCollectible { .. }
             | CachedDataItemKey::AggregatedDirtyContainerCount { .. }
@@ -576,6 +583,7 @@ impl CachedDataItemKey {
 #[allow(non_upper_case_globals, dead_code)]
 pub mod allow_mut_access {
     pub const InProgress: () = ();
+    pub const AggregateRoot: () = ();
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -592,6 +600,7 @@ pub enum CachedDataItemIndex {
     OutputDependent,
     CollectiblesDependent,
     Dependencies,
+    InProgressCell,
 }
 
 #[allow(non_upper_case_globals, dead_code)]
@@ -623,6 +632,7 @@ pub mod indicies {
         CachedDataItemIndex::Dependencies;
     pub const OutdatedCollectibleDependency: CachedDataItemIndex =
         CachedDataItemIndex::Dependencies;
+    pub const InProgressCell: CachedDataItemIndex = CachedDataItemIndex::InProgressCell;
 }
 
 impl Indexed for CachedDataItemKey {
@@ -664,6 +674,7 @@ impl Indexed for CachedDataItemKey {
             CachedDataItemKey::OutdatedCollectiblesDependency { .. } => {
                 Some(CachedDataItemIndex::Dependencies)
             }
+            CachedDataItemKey::InProgressCell { .. } => Some(CachedDataItemIndex::InProgressCell),
             _ => None,
         }
     }

@@ -2,7 +2,8 @@ use std::{fs, path::PathBuf};
 
 use criterion::{Bencher, BenchmarkId, Criterion};
 use regex::Regex;
-use turbo_tasks::{RcStr, ReadConsistency, TurboTasks, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{apply_effects, ReadConsistency, TurboTasks, Value, Vc};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, NullFileSystem};
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
@@ -98,7 +99,9 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
                     }
                     .cell(),
                     ResolveOptionsContext {
-                        emulate_environment: Some(compile_time_info.environment().resolve().await?),
+                        emulate_environment: Some(
+                            compile_time_info.environment().to_resolved().await?,
+                        ),
                         ..Default::default()
                     }
                     .cell(),
@@ -109,7 +112,9 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
                     .module();
                 let rebased = RebasedAsset::new(Vc::upcast(module), input_dir, output_dir);
 
-                emit_with_completion(Vc::upcast(rebased), output_dir).await?;
+                let emit = emit_with_completion(Vc::upcast(rebased), output_dir);
+                emit.strongly_consistent().await?;
+                apply_effects(emit).await?;
 
                 Ok::<Vc<()>, _>(Default::default())
             });

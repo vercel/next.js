@@ -54,7 +54,6 @@ type ModuleFactory = (
 
 const url = require("url");
 const fs = require("fs/promises");
-const vm = require("vm");
 
 const moduleFactories: ModuleFactories = Object.create(null);
 const moduleCache: ModuleCache<ModuleWithDirection> = Object.create(null);
@@ -143,11 +142,13 @@ async function loadChunkAsync(
     const module = {
       exports: {},
     };
-    vm.runInThisContext(
+    // TODO: Use vm.runInThisContext once our minimal supported Node.js version includes https://github.com/nodejs/node/pull/52153
+    // eslint-disable-next-line no-eval -- Can't use vm.runInThisContext due to https://github.com/nodejs/node/issues/52102
+    (0, eval)(
       "(function(module, exports, require, __dirname, __filename) {" +
         contents +
-        "\n})",
-      resolved
+        "\n})" +
+        "\n//# sourceURL=" + url.pathToFileURL(resolved),
     )(module, module.exports, localRequire, path.dirname(resolved), resolved);
 
     const chunkModules: ModuleFactories = module.exports;

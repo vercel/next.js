@@ -31,7 +31,7 @@ import {
   type ServerActionAction,
   type ServerActionMutable,
 } from '../router-reducer-types'
-import { addBasePath } from '../../../add-base-path'
+import { assignLocation } from '../../../assign-location'
 import { createHrefFromUrl } from '../create-href-from-url'
 import { handleExternalUrl } from './navigate-reducer'
 import { applyRouterStatePatchToTree } from '../apply-router-state-patch-to-tree'
@@ -51,6 +51,10 @@ import { getRedirectError, RedirectType } from '../../redirect'
 import { createSeededPrefetchCacheEntry } from '../prefetch-cache-utils'
 import { removeBasePath } from '../../../remove-base-path'
 import { hasBasePath } from '../../../has-base-path'
+import {
+  extractInfoFromServerReferenceId,
+  omitUnusedArgs,
+} from './server-reference-info'
 
 type FetchServerActionResult = {
   redirectLocation: URL | undefined
@@ -71,7 +75,15 @@ async function fetchServerAction(
   { actionId, actionArgs }: ServerActionAction
 ): Promise<FetchServerActionResult> {
   const temporaryReferences = createTemporaryReferenceSet()
-  const body = await encodeReply(actionArgs, { temporaryReferences })
+  const info = extractInfoFromServerReferenceId(actionId)
+
+  // TODO: Currently, we're only omitting unused args for the experimental "use
+  // cache" functions. Once the server reference info byte feature is stable, we
+  // should apply this to server actions as well.
+  const usedArgs =
+    info.type === 'use-cache' ? omitUnusedArgs(actionArgs, info) : actionArgs
+
+  const body = await encodeReply(usedArgs, { temporaryReferences })
 
   const res = await fetch('', {
     method: 'POST',
@@ -129,9 +141,8 @@ async function fetchServerAction(
   }
 
   const redirectLocation = location
-    ? new URL(
-        addBasePath(location),
-        // Ensure relative redirects in Server Actions work, e.g. redirect('./somewhere-else')
+    ? assignLocation(
+        location,
         new URL(state.canonicalUrl, window.location.href)
       )
     : undefined

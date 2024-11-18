@@ -255,7 +255,9 @@ export default class NextWebServer extends BaseServer<
       Object.assign(renderOpts, {
         disableOptimizedLoading: true,
         runtime: 'experimental-edge',
-      })
+      }),
+      undefined,
+      false
     )
   }
 

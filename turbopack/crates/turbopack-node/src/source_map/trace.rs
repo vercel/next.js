@@ -4,7 +4,8 @@ use anyhow::Result;
 use mime::APPLICATION_JSON;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use turbo_tasks::{RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::File;
 use turbopack_core::{
     asset::AssetContent,
@@ -85,7 +86,7 @@ impl Display for StackFrame<'_> {
 #[turbo_tasks::value(shared)]
 #[derive(Debug)]
 pub struct SourceMapTrace {
-    map: Vc<SourceMap>,
+    map: ResolvedVc<SourceMap>,
     line: usize,
     column: usize,
     name: Option<RcStr>,
@@ -102,7 +103,12 @@ pub enum TraceResult {
 #[turbo_tasks::value_impl]
 impl SourceMapTrace {
     #[turbo_tasks::function]
-    pub fn new(map: Vc<SourceMap>, line: usize, column: usize, name: Option<RcStr>) -> Vc<Self> {
+    pub fn new(
+        map: ResolvedVc<SourceMap>,
+        line: usize,
+        column: usize,
+        name: Option<RcStr>,
+    ) -> Vc<Self> {
         SourceMapTrace {
             map,
             line,

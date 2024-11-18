@@ -1,4 +1,5 @@
-use turbo_tasks::{FxIndexMap, RcStr, ResolvedVc, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexMap, ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::environment::Environment;
@@ -168,7 +169,7 @@ pub struct CompileTimeDefines(pub FxIndexMap<Vec<DefineableNameSegment>, Compile
 #[turbo_tasks::value(transparent)]
 #[derive(Debug, Clone)]
 pub struct CompileTimeDefinesIndividual(
-    pub FxIndexMap<Vec<DefineableNameSegment>, Vc<CompileTimeDefineValue>>,
+    pub FxIndexMap<Vec<DefineableNameSegment>, ResolvedVc<CompileTimeDefineValue>>,
 );
 
 impl IntoIterator for CompileTimeDefines {
@@ -192,7 +193,7 @@ impl CompileTimeDefines {
         Vc::cell(
             self.0
                 .iter()
-                .map(|(key, value)| (key.clone(), value.clone().cell()))
+                .map(|(key, value)| (key.clone(), value.clone().resolved_cell()))
                 .collect(),
         )
     }
@@ -241,7 +242,7 @@ pub struct FreeVarReferences(pub FxIndexMap<Vec<DefineableNameSegment>, FreeVarR
 #[turbo_tasks::value(transparent)]
 #[derive(Debug, Clone)]
 pub struct FreeVarReferencesIndividual(
-    pub FxIndexMap<Vec<DefineableNameSegment>, Vc<FreeVarReference>>,
+    pub FxIndexMap<Vec<DefineableNameSegment>, ResolvedVc<FreeVarReference>>,
 );
 
 #[turbo_tasks::value_impl]
@@ -256,7 +257,7 @@ impl FreeVarReferences {
         Vc::cell(
             self.0
                 .iter()
-                .map(|(key, value)| (key.clone(), value.clone().cell()))
+                .map(|(key, value)| (key.clone(), value.clone().resolved_cell()))
                 .collect(),
         )
     }

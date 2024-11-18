@@ -1,5 +1,6 @@
 use anyhow::Result;
-use turbo_tasks::{RcStr, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -143,13 +144,13 @@ impl EcmascriptChunkItem for IncludeModulesChunkItem {
 /// [`IncludeModulesModule`].
 #[turbo_tasks::value]
 pub struct IncludedModuleReference {
-    pub module: Vc<Box<dyn Module>>,
+    pub module: ResolvedVc<Box<dyn Module>>,
 }
 
 #[turbo_tasks::value_impl]
 impl IncludedModuleReference {
     #[turbo_tasks::function]
-    pub fn new(module: Vc<Box<dyn Module>>) -> Vc<Self> {
+    pub fn new(module: ResolvedVc<Box<dyn Module>>) -> Vc<Self> {
         IncludedModuleReference { module }.cell()
     }
 }

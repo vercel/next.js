@@ -5,7 +5,8 @@ use futures::prelude::*;
 use tokio::sync::mpsc::Sender;
 use tokio_stream::wrappers::ReceiverStream;
 use tracing::Instrument;
-use turbo_tasks::{IntoTraitRef, RcStr, ReadRef, TransientInstance, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{IntoTraitRef, ReadRef, TransientInstance, Vc};
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack_core::{
     error::PrettyPrintError,

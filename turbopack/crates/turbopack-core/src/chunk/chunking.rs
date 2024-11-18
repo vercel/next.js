@@ -7,7 +7,8 @@ use anyhow::Result;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use tracing::Level;
-use turbo_tasks::{FxIndexMap, RcStr, ReadRef, TryJoinIterExt, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexMap, ReadRef, TryJoinIterExt, ValueToString, Vc};
 
 use super::{
     AsyncModuleInfo, Chunk, ChunkItem, ChunkItemsWithAsyncModuleInfo, ChunkType, ChunkingContext,
@@ -106,7 +107,14 @@ pub async fn make_chunks(
         }
     }
 
-    Ok(Vc::cell(chunks))
+    // Resolve all chunks before returning
+    let resolved_chunks = chunks
+        .into_iter()
+        .map(|chunk| chunk.to_resolved())
+        .try_join()
+        .await?;
+
+    Ok(Vc::cell(resolved_chunks))
 }
 
 type ChunkItemWithInfo = (

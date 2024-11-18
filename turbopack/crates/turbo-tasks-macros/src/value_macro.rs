@@ -349,49 +349,46 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         quote! {}
     };
 
-    let derive = match serialization_mode {
+    let mut struct_attributes = vec![quote! {
+        #[derive(turbo_tasks::ShrinkToFit, turbo_tasks::trace::TraceRawVcs)]
+    }];
+    match serialization_mode {
+        SerializationMode::Auto | SerializationMode::AutoForInput => {
+            struct_attributes.push(quote! {
+                #[derive(
+                    turbo_tasks::macro_helpers::serde::Serialize,
+                    turbo_tasks::macro_helpers::serde::Deserialize,
+                )]
+                #[serde(crate = "turbo_tasks::macro_helpers::serde")]
+            })
+        }
         SerializationMode::None | SerializationMode::Custom | SerializationMode::CustomForInput => {
-            quote! {
-                #[derive(turbo_tasks::trace::TraceRawVcs)]
-            }
         }
-        SerializationMode::Auto | SerializationMode::AutoForInput => quote! {
-            #[derive(
-                turbo_tasks::trace::TraceRawVcs,
-                turbo_tasks::macro_helpers::serde::Serialize,
-                turbo_tasks::macro_helpers::serde::Deserialize,
-            )]
-            #[serde(crate = "turbo_tasks::macro_helpers::serde")]
-        },
     };
-    let debug_derive = if inner_type.is_some() {
+    if inner_type.is_some() {
         // Transparent structs have their own manual `ValueDebug` implementation.
-        quote! {
+        struct_attributes.push(quote! {
             #[repr(transparent)]
-        }
+        });
     } else {
-        quote! {
+        struct_attributes.push(quote! {
             #[derive(
                 turbo_tasks::debug::ValueDebugFormat,
                 turbo_tasks::debug::internal::ValueDebug,
             )]
-        }
-    };
-    let eq_derive = if manual_eq {
-        quote!()
-    } else {
-        quote!(
+        });
+    }
+    if !manual_eq {
+        struct_attributes.push(quote! {
             #[derive(PartialEq, Eq)]
-        )
-    };
-    let resolved_derive = if let Some(span) = resolved {
-        quote_spanned!(
+        });
+    }
+    if let Some(span) = resolved {
+        struct_attributes.push(quote_spanned! {
             span =>
             #[derive(turbo_tasks::ResolvedValue)]
-        )
-    } else {
-        quote!()
-    };
+        });
+    }
 
     let new_value_type = match serialization_mode {
         SerializationMode::None => quote! {
@@ -449,10 +446,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
     );
 
     let expanded = quote! {
-        #derive
-        #debug_derive
-        #eq_derive
-        #resolved_derive
+        #(#struct_attributes)*
         #item
 
         impl #ident {

@@ -127,6 +127,7 @@ graph TD
     N1 --> N5;
     N2 --> N6;
     N0 --> N3;
+    N4 --> N3;
 ```
 # Entrypoints
 
@@ -187,9 +188,10 @@ export { NextResponse as c } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 5
 ```js
-import { c as NextResponse } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -4
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 3
 };
+import { NextResponse } from "next/server";
 const GET = (req)=>{
     return NextResponse.json({
         pathname: req.nextUrl.pathname
@@ -285,9 +287,10 @@ export { NextResponse as c } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 5
 ```js
-import { c as NextResponse } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -4
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 3
 };
+import { NextResponse } from "next/server";
 const GET = (req)=>{
     return NextResponse.json({
         pathname: req.nextUrl.pathname

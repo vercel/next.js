@@ -153,7 +153,6 @@ export const LayoutRouterContext = React.createContext<{
 } | null>(null)
 
 export const GlobalLayoutRouterContext = React.createContext<{
-  buildId: string
   tree: FlightRouterState
   changeByServerResponse: RouterChangeByServerResponse
   focusAndScrollRef: FocusAndScrollRef

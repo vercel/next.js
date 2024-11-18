@@ -24,10 +24,9 @@ import AppRouter from './components/app-router'
 import type { InitialRSCPayload } from '../server/app-render/types'
 import { createInitialRouterState } from './components/router-reducer/create-initial-router-state'
 import { MissingSlotContext } from '../shared/lib/app-router-context.shared-runtime'
+import { setAppBuildId } from './app-build-id'
 
 /// <reference types="react-dom/experimental" />
-
-const isReactOwnerStackEnabled = !!process.env.__NEXT_REACT_OWNER_STACK
 
 const appElement: HTMLElement | Document | null = document
 
@@ -158,10 +157,13 @@ const pendingActionQueue: Promise<AppRouterActionQueue> = new Promise(
   (resolve, reject) => {
     initialServerResponse.then(
       (initialRSCPayload) => {
+        // setAppBuildId should be called only once, during JS initialization
+        // and before any components have hydrated.
+        setAppBuildId(initialRSCPayload.b)
+
         resolve(
           createMutableActionQueue(
             createInitialRouterState({
-              buildId: initialRSCPayload.b,
               initialFlightData: initialRSCPayload.f,
               initialCanonicalUrlParts: initialRSCPayload.c,
               initialParallelRoutes: new Map(),
@@ -185,7 +187,7 @@ function ServerRoot(): React.ReactNode {
   const router = (
     <AppRouter
       actionQueue={actionQueue}
-      globalErrorComponent={initialRSCPayload.G}
+      globalErrorComponentAndStyles={initialRSCPayload.G}
       assetPrefix={initialRSCPayload.p}
     />
   )
@@ -219,6 +221,12 @@ function Root({ children }: React.PropsWithChildren<{}>) {
   return children
 }
 
+const reactRootOptions = {
+  onRecoverableError,
+  onCaughtError,
+  onUncaughtError,
+} satisfies ReactDOMClient.RootOptions
+
 export function hydrate() {
   const reactEl = (
     <StrictModeIfEnabled>
@@ -233,18 +241,6 @@ export function hydrate() {
   const rootLayoutMissingTags = window.__next_root_layout_missing_tags
   const hasMissingTags = !!rootLayoutMissingTags?.length
 
-  const errorCallbacks =
-    isReactOwnerStackEnabled && process.env.NODE_ENV !== 'production'
-      ? {
-          onCaughtError,
-          onUncaughtError,
-        }
-      : undefined
-
-  const options = {
-    onRecoverableError,
-    ...errorCallbacks,
-  } satisfies ReactDOMClient.RootOptions
   const isError =
     document.documentElement.id === '__next_error__' || hasMissingTags
 
@@ -253,14 +249,18 @@ export function hydrate() {
       const createDevOverlayElement =
         require('./components/react-dev-overlay/client-entry').createDevOverlayElement
       const errorTree = createDevOverlayElement(reactEl)
-      ReactDOMClient.createRoot(appElement as any, options).render(errorTree)
+      ReactDOMClient.createRoot(appElement as any, reactRootOptions).render(
+        errorTree
+      )
     } else {
-      ReactDOMClient.createRoot(appElement as any, options).render(reactEl)
+      ReactDOMClient.createRoot(appElement as any, reactRootOptions).render(
+        reactEl
+      )
     }
   } else {
     React.startTransition(() =>
       (ReactDOMClient as any).hydrateRoot(appElement, reactEl, {
-        ...options,
+        ...reactRootOptions,
         formState: initialFormStateData,
       })
     )

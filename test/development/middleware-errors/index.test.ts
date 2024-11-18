@@ -3,6 +3,7 @@ import {
   assertNoRedbox,
   check,
   getRedboxSource,
+  retry,
 } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 import { nextTestSetup } from 'e2e-utils'
@@ -11,6 +12,7 @@ describe('middleware - development errors', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
     env: { __NEXT_TEST_WITH_DEVTOOL: '1' },
+    patchFileDelay: 500,
   })
   beforeEach(async () => {
     await next.stop()
@@ -31,23 +33,22 @@ describe('middleware - development errors', () => {
 
     it('logs the error correctly', async () => {
       await next.fetch('/')
-      const output = stripAnsi(next.cliOutput)
-      await check(() => {
-        if (isTurbopack) {
-          expect(stripAnsi(next.cliOutput)).toMatch(
-            /middleware.js \(\d+:\d+\) @ __TURBOPACK__default__export__/
-          )
-        } else {
-          expect(stripAnsi(next.cliOutput)).toMatch(
-            /middleware.js \(\d+:\d+\) @ default/
-          )
-        }
 
-        expect(stripAnsi(next.cliOutput)).toMatch(/boom/)
-        return 'success'
-      }, 'success')
-      expect(output).not.toContain(
-        'webpack-internal:///(middleware)/./middleware.js'
+      await retry(() => {
+        expect(stripAnsi(next.cliOutput)).toContain('boom')
+      })
+      // TODO: assert on full, ignore-listed stack
+      expect(stripAnsi(next.cliOutput)).toContain(
+        isTurbopack
+          ? '\n ⨯ middleware.js (3:15) @ __TURBOPACK__default__export__' +
+              '\n ⨯ Error: boom' +
+              '\n    at __TURBOPACK__default__export__ (./middleware.js:3:15)'
+          : '\n ⨯ middleware.js (3:15) @ default' +
+              '\n ⨯ boom' +
+              '\n  1 |' +
+              '\n  2 |       export default function () {' +
+              "\n> 3 |         throw new Error('boom')" +
+              '\n    |               ^'
       )
     })
 
@@ -55,7 +56,7 @@ describe('middleware - development errors', () => {
       const browser = await next.browser('/')
       await assertHasRedbox(browser)
       await next.patchFile('middleware.js', `export default function () {}`)
-      await assertHasRedbox(browser)
+      await assertNoRedbox(browser)
     })
   })
 
@@ -79,13 +80,20 @@ describe('middleware - development errors', () => {
 
     it('logs the error correctly', async () => {
       await next.fetch('/')
-      await check(
-        () => stripAnsi(next.cliOutput),
-        new RegExp(`unhandledRejection: Error: async boom!`, 'm')
+
+      await retry(() => {
+        expect(stripAnsi(next.cliOutput)).toContain(
+          'unhandledRejection: Error: async boom!'
+        )
+      })
+      // TODO: assert on full, ignore-listed stack
+      expect(stripAnsi(next.cliOutput)).toContain(
+        isTurbopack
+          ? 'unhandledRejection: Error: async boom!\n    at throwError ('
+          : 'unhandledRejection: Error: async boom!' +
+              '\n    at throwError (webpack-internal:///(middleware)/./middleware.js:8:11)' +
+              '\n    at __WEBPACK_DEFAULT_EXPORT__ (webpack-internal:///(middleware)/./middleware.js:11:5)'
       )
-      // expect(output).not.toContain(
-      //   'webpack-internal:///(middleware)/./middleware.js'
-      // )
     })
 
     it('does not render the error', async () => {
@@ -112,25 +120,56 @@ describe('middleware - development errors', () => {
 
     it('logs the error correctly', async () => {
       await next.fetch('/')
-      // const output = stripAnsi(next.cliOutput)
-      await check(() => {
-        expect(stripAnsi(next.cliOutput)).toMatch(
-          /middleware.js \(\d+:\d+\) @ eval/
+
+      await retry(() => {
+        expect(stripAnsi(next.cliOutput)).toContain('Dynamic Code Evaluation')
+      })
+      // TODO: assert on full, ignore-listed stack
+      if (isTurbopack) {
+        // Locally, prefixes the "test is not defined".
+        // In CI, it prefixes "Dynamic Code Evaluation".
+        expect(stripAnsi(next.cliOutput)).toContain(
+          '\n ⚠ middleware.js (3:22) @ __TURBOPACK__default__export__' +
+            '\n ⨯ middleware.js (4:9) @ eval'
         )
-        expect(stripAnsi(next.cliOutput)).toMatch(/test is not defined/)
-        return 'success'
-      }, 'success')
-      // expect(output).not.toContain(
-      //   'webpack-internal:///(middleware)/./middleware.js'
-      // )
+      }
+      expect(stripAnsi(next.cliOutput)).toContain(
+        isTurbopack
+          ? '\n ⨯ Error: test is not defined' +
+              '\n    at eval (./middleware.js:4:9)' +
+              '\n    at <unknown> (./middleware.js:4:9'
+          : '\n ⨯ Error [ReferenceError]: test is not defined' +
+              // TODO: Redundant and not clickable
+              '\n    at eval (file://webpack-internal:///(middleware)/./middleware.js)' +
+              '\n    at eval (middleware.js:4:8)' +
+              // TODO: Should be ignore-listed
+              '\n    at fn (node_modules'
+      )
+      expect(stripAnsi(next.cliOutput)).toContain(
+        isTurbopack
+          ? "\n ⚠ Error: Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Edge Runtime" +
+              '\nLearn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation' +
+              '\n    at __TURBOPACK__default__export__ (./middleware.js:3:22)'
+          : '\n ⚠ middleware.js (4:9) @ eval' +
+              "\n ⚠ Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Edge Runtime" +
+              '\nLearn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation'
+      )
     })
 
     it('renders the error correctly and recovers', async () => {
       const browser = await next.browser('/')
       await assertHasRedbox(browser)
+
+      const lengthOfLogs = next.cliOutput.length
+
       expect(await getRedboxSource(browser)).toContain(`eval('test')`)
       await next.patchFile('middleware.js', `export default function () {}`)
-      await assertHasRedbox(browser)
+
+      retry(() => {
+        expect(next.cliOutput.slice(lengthOfLogs)).toContain('✓ Compiled')
+      }, 10000) // middleware rebuild takes a while in CI
+
+      await assertNoRedbox(browser)
     })
   })
 
@@ -150,22 +189,22 @@ describe('middleware - development errors', () => {
 
     it('logs the error correctly', async () => {
       await next.fetch('/')
-      const output = stripAnsi(next.cliOutput)
-      await check(() => {
-        if (isTurbopack) {
-          expect(stripAnsi(next.cliOutput)).toMatch(
-            /middleware.js \(\d+:\d+\) @ \[project\]\/middleware\.js \[middleware\] \(ecmascript\)/
-          )
-        } else {
-          expect(stripAnsi(next.cliOutput)).toMatch(
-            /middleware.js \(\d+:\d+\) @ <unknown>/
-          )
-        }
-        expect(stripAnsi(next.cliOutput)).toMatch(/booooom!/)
-        return 'success'
-      }, 'success')
-      expect(output).not.toContain(
-        'webpack-internal:///(middleware)/./middleware.js'
+
+      await retry(() => {
+        expect(stripAnsi(next.cliOutput)).toContain(`Error: booooom!`)
+      })
+      expect(stripAnsi(next.cliOutput)).toContain(
+        isTurbopack
+          ? '\n ⨯ middleware.js (3:13) @ [project]/middleware.js [middleware] (ecmascript)' +
+              '\n ⨯ Error: booooom!' +
+              '\n    at <unknown> ([project]/middleware.js [middleware] (ecmascript) (./middleware.js:3:13)'
+          : '\n ⨯ Error: booooom!' +
+              // TODO: Should be anonymous method without a method name
+              '\n    at <unknown> (middleware.js:3)' +
+              // TODO: Should be ignore-listed
+              '\n    at eval (middleware.js:3:12)' +
+              '\n    at (middleware)/./middleware.js (.next/server/middleware.js:40:1)' +
+              '\n    at __webpack_require__ '
       )
     })
 
@@ -177,7 +216,7 @@ describe('middleware - development errors', () => {
       expect(source).toContain('middleware.js')
       expect(source).not.toContain('//middleware.js')
       await next.patchFile('middleware.js', `export default function () {}`)
-      await assertHasRedbox(browser)
+      await assertNoRedbox(browser)
     })
   })
 
@@ -281,7 +320,7 @@ describe('middleware - development errors', () => {
         await browser.elementByCss('#nextjs__container_errors_desc').text()
       ).toEqual('Failed to compile')
       await next.patchFile('middleware.js', `export default function () {}`)
-      await assertHasRedbox(browser)
+      await assertNoRedbox(browser)
       expect(await browser.elementByCss('#page-title')).toBeTruthy()
     })
   })

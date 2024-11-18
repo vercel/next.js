@@ -74,7 +74,8 @@ describe('app-dir - owner-stack', () => {
 
     if (process.env.TURBOPACK) {
       expect(normalizeStackTrace(errorLog)).toMatchInlineSnapshot(`
-        "Error: browser error
+        "%o
+        %s Error: browser error
         at useThrowError 
         at useErrorHook 
         at Page 
@@ -88,12 +89,12 @@ describe('app-dir - owner-stack', () => {
         at renderRootSync 
         at performWorkOnRoot 
         at performWorkOnRootViaSchedulerTask 
-        at MessagePort.performWorkUntilDeadline 
-        The above error occurred in the <Page> component. It was handled by the <ReactDevOverlay> error boundary."
+        at MessagePort.performWorkUntilDeadline  The above error occurred in the <Page> component. It was handled by the <ReactDevOverlay> error boundary."
       `)
     } else {
       expect(normalizeStackTrace(errorLog)).toMatchInlineSnapshot(`
-        "Error: browser error
+        "%o
+        %s Error: browser error
         at useThrowError 
         at useErrorHook 
         at Page 
@@ -107,8 +108,7 @@ describe('app-dir - owner-stack', () => {
         at renderRootSync 
         at performWorkOnRoot 
         at performWorkOnRootViaSchedulerTask 
-        at MessagePort.performWorkUntilDeadline 
-        The above error occurred in the <Page> component. It was handled by the <ReactDevOverlay> error boundary."
+        at MessagePort.performWorkUntilDeadline  The above error occurred in the <Page> component. It was handled by the <ReactDevOverlay> error boundary."
       `)
     }
   })
@@ -144,7 +144,8 @@ describe('app-dir - owner-stack', () => {
     }
 
     expect(normalizeStackTrace(errorLog)).toMatchInlineSnapshot(`
-      "Error: browser error
+      "%o
+      %s Error: browser error
       at useThrowError 
       at useErrorHook 
       at Thrower 
@@ -158,8 +159,7 @@ describe('app-dir - owner-stack', () => {
       at renderRootSync 
       at performWorkOnRoot 
       at performWorkOnRootViaSchedulerTask 
-      at MessagePort.performWorkUntilDeadline 
-      The above error occurred in the <Thrower> component. It was handled by the <MyErrorBoundary> error boundary."
+      at MessagePort.performWorkUntilDeadline  The above error occurred in the <Thrower> component. It was handled by the <MyErrorBoundary> error boundary."
     `)
   })
 
@@ -187,7 +187,8 @@ describe('app-dir - owner-stack', () => {
     }).message
 
     expect(normalizeStackTrace(errorLog)).toMatchInlineSnapshot(`
-      "Error: ssr error
+      "%o
+      %s Error: ssr error
       at useThrowError 
       at useErrorHook 
       at Page 
@@ -201,8 +202,7 @@ describe('app-dir - owner-stack', () => {
       at renderRootSync 
       at performWorkOnRoot 
       at performWorkOnRootViaSchedulerTask 
-      at MessagePort.performWorkUntilDeadline 
-      The above error occurred in the <Page> component. It was handled by the <ReactDevOverlay> error boundary."
+      at MessagePort.performWorkUntilDeadline  The above error occurred in the <Page> component. It was handled by the <ReactDevOverlay> error boundary."
     `)
   })
 

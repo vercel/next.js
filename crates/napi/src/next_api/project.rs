@@ -18,12 +18,16 @@ use next_core::tracing_presets::{
     TRACING_NEXT_OVERVIEW_TARGETS, TRACING_NEXT_TARGETS, TRACING_NEXT_TURBOPACK_TARGETS,
     TRACING_NEXT_TURBO_TASKS_TARGETS,
 };
+use once_cell::sync::Lazy;
 use rand::Rng;
 use tokio::{io::AsyncWriteExt, time::Instant};
 use tracing::Instrument;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
-use turbo_tasks::{Completion, RcStr, ReadRef, TransientInstance, UpdateInfo, Vc};
-use turbo_tasks_fs::{DiskFileSystem, FileContent, FileSystem, FileSystemPath};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{get_effects, Completion, Effects, ReadRef, TransientInstance, UpdateInfo, Vc};
+use turbo_tasks_fs::{
+    util::uri_from_file, DiskFileSystem, FileContent, FileSystem, FileSystemPath,
+};
 use turbopack_core::{
     diagnostics::PlainDiagnostic,
     error::PrettyPrintError,
@@ -52,6 +56,8 @@ use crate::register;
 /// Used by [`benchmark_file_io`]. This is a noisy benchmark, so set the
 /// threshold high.
 const SLOW_FILESYSTEM_THRESHOLD: Duration = Duration::from_millis(100);
+static SOURCE_MAP_PREFIX_PROJECT: Lazy<String> =
+    Lazy::new(|| format!("{}[project]/", SOURCE_MAP_PREFIX));
 
 #[napi(object)]
 #[derive(Clone, Debug)]
@@ -617,6 +623,7 @@ struct EntrypointsWithIssues {
     entrypoints: ReadRef<Entrypoints>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
     diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
+    effects: Arc<Effects>,
 }
 
 #[turbo_tasks::function]
@@ -627,10 +634,12 @@ async fn get_entrypoints_with_issues(
     let entrypoints = entrypoints_operation.strongly_consistent().await?;
     let issues = get_issues(entrypoints_operation).await?;
     let diagnostics = get_diagnostics(entrypoints_operation).await?;
+    let effects = Arc::new(get_effects(entrypoints_operation).await?);
     Ok(EntrypointsWithIssues {
         entrypoints,
         issues,
         diagnostics,
+        effects,
     }
     .cell())
 }
@@ -647,13 +656,14 @@ pub fn project_entrypoints_subscribe(
         func,
         move || {
             async move {
+                let operation = get_entrypoints_with_issues(container);
                 let EntrypointsWithIssues {
                     entrypoints,
                     issues,
                     diagnostics,
-                } = &*get_entrypoints_with_issues(container)
-                    .strongly_consistent()
-                    .await?;
+                    effects,
+                } = &*operation.strongly_consistent().await?;
+                effects.apply().await?;
                 Ok((entrypoints.clone(), issues.clone(), diagnostics.clone()))
             }
             .instrument(tracing::info_span!("entrypoints subscription"))
@@ -712,6 +722,7 @@ struct HmrUpdateWithIssues {
     update: ReadRef<Update>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
     diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
+    effects: Arc<Effects>,
 }
 
 #[turbo_tasks::function]
@@ -724,10 +735,12 @@ async fn hmr_update(
     let update = update_operation.strongly_consistent().await?;
     let issues = get_issues(update_operation).await?;
     let diagnostics = get_diagnostics(update_operation).await?;
+    let effects = Arc::new(get_effects(update_operation).await?);
     Ok(HmrUpdateWithIssues {
         update,
         issues,
         diagnostics,
+        effects,
     }
     .cell())
 }
@@ -754,14 +767,15 @@ pub fn project_hmr_events(
                     let project = project.project().resolve().await?;
                     let state = project.hmr_version_state(identifier.clone(), session);
 
-                    let update = hmr_update(project, identifier.clone(), state)
-                        .strongly_consistent()
-                        .await?;
+                    let operation = hmr_update(project, identifier.clone(), state);
+                    let update = operation.strongly_consistent().await?;
                     let HmrUpdateWithIssues {
                         update,
                         issues,
                         diagnostics,
+                        effects,
                     } = &*update;
+                    effects.apply().await?;
                     match &**update {
                         Update::Missing | Update::None => {}
                         Update::Total(TotalUpdate { to }) => {
@@ -826,6 +840,7 @@ struct HmrIdentifiersWithIssues {
     identifiers: ReadRef<Vec<RcStr>>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
     diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
+    effects: Arc<Effects>,
 }
 
 #[turbo_tasks::function]
@@ -836,10 +851,12 @@ async fn get_hmr_identifiers_with_issues(
     let hmr_identifiers = hmr_identifiers_operation.strongly_consistent().await?;
     let issues = get_issues(hmr_identifiers_operation).await?;
     let diagnostics = get_diagnostics(hmr_identifiers_operation).await?;
+    let effects = Arc::new(get_effects(hmr_identifiers_operation).await?);
     Ok(HmrIdentifiersWithIssues {
         identifiers: hmr_identifiers,
         issues,
         diagnostics,
+        effects,
     }
     .cell())
 }
@@ -855,13 +872,14 @@ pub fn project_hmr_identifiers_subscribe(
         turbo_tasks.clone(),
         func,
         move || async move {
+            let operation = get_hmr_identifiers_with_issues(container);
             let HmrIdentifiersWithIssues {
                 identifiers,
                 issues,
                 diagnostics,
-            } = &*get_hmr_identifiers_with_issues(container)
-                .strongly_consistent()
-                .await?;
+                effects,
+            } = &*operation.strongly_consistent().await?;
+            effects.apply().await?;
 
             Ok((identifiers.clone(), issues.clone(), diagnostics.clone()))
         },
@@ -1085,7 +1103,7 @@ pub async fn project_trace_source(
 
             let (original_file, line, column, name) = match &*token {
                 Token::Original(token) => (
-                    &token.original_file,
+                    urlencoding::decode(&token.original_file)?.into_owned(),
                     // JS stack frames are 1-indexed, source map tokens are 0-indexed
                     Some(token.original_line as u32 + 1),
                     Some(token.original_column as u32 + 1),
@@ -1095,19 +1113,27 @@ pub async fn project_trace_source(
                     let Some(file) = &token.guessed_original_file else {
                         return Ok(None);
                     };
-                    (file, None, None, None)
+                    (file.to_owned(), None, None, None)
                 }
             };
 
-            let Some(source_file) = original_file.strip_prefix(SOURCE_MAP_PREFIX) else {
-                bail!("Original file ({}) outside project", original_file)
-            };
-
+            let project_path_uri =
+                uri_from_file(project.container.project().project_path(), None).await? + "/";
             let (source_file, is_internal) =
-                if let Some(source_file) = source_file.strip_prefix("[project]/") {
+                if let Some(source_file) = original_file.strip_prefix(&project_path_uri) {
+                    // Client code uses file://
                     (source_file, false)
-                } else {
+                } else if let Some(source_file) =
+                    original_file.strip_prefix(&*SOURCE_MAP_PREFIX_PROJECT)
+                {
+                    // Server code uses turbopack://[project]
+                    // TODO should this also be file://?
+                    (source_file, false)
+                } else if let Some(source_file) = original_file.strip_prefix(SOURCE_MAP_PREFIX) {
+                    // All other code like turbopack://[turbopack] is internal code
                     (source_file, true)
+                } else {
+                    bail!("Original file ({}) outside project", original_file)
                 };
 
             Ok(Some(StackFrame {

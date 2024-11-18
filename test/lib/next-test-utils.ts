@@ -942,6 +942,26 @@ export async function getRedboxSource(browser: BrowserInterface) {
   )
 }
 
+export async function getRedboxTitle(browser: BrowserInterface) {
+  return retry(
+    () =>
+      evaluate(browser, () => {
+        const portal = [].slice
+          .call(document.querySelectorAll('nextjs-portal'))
+          .find((p) =>
+            p.shadowRoot.querySelector('[data-nextjs-dialog-header]')
+          )
+        const root = portal.shadowRoot
+        return root.querySelector(
+          '[data-nextjs-dialog-header] .nextjs__container_errors__error_title'
+        ).innerText
+      }),
+    3000,
+    500,
+    'getRedboxTitle'
+  )
+}
+
 export async function getRedboxDescription(browser: BrowserInterface) {
   return retry(
     () =>
@@ -1255,7 +1275,7 @@ export async function toggleCollapseComponentStack(
 
 export async function getRedboxCallStack(
   browser: BrowserInterface
-): Promise<string> {
+): Promise<string | null> {
   await browser.waitForElementByCss('[data-nextjs-call-stack-frame]', 30000)
 
   const callStackFrameElements = await browser.elementsByCss(
@@ -1492,3 +1512,30 @@ export const checkLink = (
   rel: string,
   content: string | string[]
 ) => checkMeta(browser, rel, content, 'rel', 'link', 'href')
+
+export async function getStackFramesContent(browser) {
+  const stackFrameElements = await browser.elementsByCss(
+    '[data-nextjs-call-stack-frame]'
+  )
+  const stackFramesContent = (
+    await Promise.all(
+      stackFrameElements.map(async (frame) => {
+        const functionNameEl = await frame.$('[data-nextjs-frame-expanded]')
+        const sourceEl = await frame.$('[data-has-source]')
+        const functionName = functionNameEl
+          ? await functionNameEl.innerText()
+          : ''
+        const source = sourceEl ? await sourceEl.innerText() : ''
+
+        if (!functionName) {
+          return ''
+        }
+        return `at ${functionName} (${source})`
+      })
+    )
+  )
+    .filter(Boolean)
+    .join('\n')
+
+  return stackFramesContent
+}

@@ -127,6 +127,7 @@ async function loaderTransform(
     development:
       this.mode === 'development' ||
       !!nextConfig.experimental?.allowDevelopmentBuild,
+    isDynamicIo: nextConfig.experimental?.dynamicIO,
     hasReactRefresh,
     modularizeImports: nextConfig?.modularizeImports,
     optimizePackageImports: nextConfig?.experimental?.optimizePackageImports,
@@ -141,6 +142,7 @@ async function loaderTransform(
     serverReferenceHashSalt,
     bundleLayer,
     esm,
+    cacheHandlers: nextConfig.experimental?.cacheHandlers,
   })
 
   const programmaticOptions = {

@@ -1,6 +1,7 @@
 use anyhow::Result;
 use next_core::{all_assets_from_entries, next_manifests::NextFontManifest};
-use turbo_tasks::{RcStr, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
@@ -19,7 +20,7 @@ pub(crate) async fn create_font_manifest(
     pathname: &str,
     client_assets: Vc<OutputAssets>,
     app_dir: bool,
-) -> Result<Vc<Box<dyn OutputAsset>>> {
+) -> Result<ResolvedVc<Box<dyn OutputAsset>>> {
     let all_client_output_assets = all_assets_from_entries(client_assets).await?;
 
     // `_next` gets added again later, so we "strip" it here via
@@ -65,8 +66,14 @@ pub(crate) async fn create_font_manifest(
         }
     };
 
-    Ok(Vc::upcast(VirtualOutputAsset::new(
-        path,
-        AssetContent::file(File::from(serde_json::to_string_pretty(&next_font_manifest)?).into()),
-    )))
+    Ok(ResolvedVc::upcast(
+        VirtualOutputAsset::new(
+            path,
+            AssetContent::file(
+                File::from(serde_json::to_string_pretty(&next_font_manifest)?).into(),
+            ),
+        )
+        .to_resolved()
+        .await?,
+    ))
 }

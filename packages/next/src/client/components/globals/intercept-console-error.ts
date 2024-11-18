@@ -10,16 +10,14 @@ export function patchConsoleError() {
   if (typeof window === 'undefined') {
     return
   }
-
-  window.console.error = (...args: any[]) => {
+  window.console.error = function error(...args: any[]) {
     let maybeError: unknown
-    let isReplayed: boolean = false
-
     if (process.env.NODE_ENV !== 'production') {
       const replayedError = matchReplayedError(...args)
       if (replayedError) {
         maybeError = replayedError
-        isReplayed = true
+      } else if (isError(args[0])) {
+        maybeError = args[0]
       } else {
         // See https://github.com/facebook/react/blob/d50323eb845c5fde0d720cae888bf35dedd05506/packages/react-reconciler/src/ReactFiberErrorLogger.js#L78
         maybeError = args[1]
@@ -33,11 +31,9 @@ export function patchConsoleError() {
         handleClientError(
           // replayed errors have their own complex format string that should be used,
           // but if we pass the error directly, `handleClientError` will ignore it
-          //
-          // TODO: not passing an error here will make `handleClientError`
-          // create a new Error, so we'll lose the stack. we should make it smarter
-          isReplayed ? undefined : maybeError,
-          args
+          maybeError,
+          args,
+          true
         )
       }
 

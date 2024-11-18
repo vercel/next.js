@@ -3,24 +3,24 @@ use swc_core::{
     common::{errors::HANDLER, Span, DUMMY_SP},
     ecma::{
         ast::*,
-        visit::{Fold, FoldWith},
+        visit::{fold_pass, Fold, FoldWith},
     },
 };
 
-pub fn page_config(is_development: bool, is_page_file: bool) -> impl Fold {
-    PageConfig {
+pub fn page_config(is_development: bool, is_page_file: bool) -> impl Pass {
+    fold_pass(PageConfig {
         is_development,
         is_page_file,
         ..Default::default()
-    }
+    })
 }
 
-pub fn page_config_test() -> impl Fold {
-    PageConfig {
+pub fn page_config_test() -> impl Pass {
+    fold_pass(PageConfig {
         in_test: true,
         is_page_file: true,
         ..Default::default()
-    }
+    })
 }
 
 #[derive(Debug, Default)]
@@ -34,6 +34,7 @@ struct PageConfig {
 const STRING_LITERAL_DROP_BUNDLE: &str = "__NEXT_DROP_CLIENT_FILE__";
 const CONFIG_KEY: &str = "config";
 
+/// TODO: Implement this as a [Pass] instead of a full visitor ([Fold])
 impl Fold for PageConfig {
     fn fold_module_items(&mut self, items: Vec<ModuleItem>) -> Vec<ModuleItem> {
         let mut new_items = vec![];

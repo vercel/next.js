@@ -1,7 +1,8 @@
 use std::fmt::Write;
 
 use anyhow::Result;
-use turbo_tasks::{RcStr, ReadRef, ResolvedVc, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ReadRef, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
 use super::{Issue, IssueSource, IssueStage, OptionIssueSource, OptionStyledString, StyledString};
@@ -72,7 +73,7 @@ impl Issue for ResolvingIssue {
 
         if let Some(import_map) = &self.resolve_options.await?.import_map {
             for request in request_parts {
-                match lookup_import_map(*import_map, self.file_path, *request).await {
+                match lookup_import_map(**import_map, self.file_path, *request).await {
                     Ok(None) => {}
                     Ok(Some(str)) => writeln!(description, "Import map: {}", str)?,
                     Err(err) => {

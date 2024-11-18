@@ -177,6 +177,7 @@ async function loadComponentsImpl<N = any>({
   // to them at the top level of the page module.
   if (serverActionsManifest && clientReferenceManifest) {
     setReferenceManifestsSingleton({
+      page,
       clientReferenceManifest,
       serverActionsManifest,
       serverModuleMap: createServerModuleMap({

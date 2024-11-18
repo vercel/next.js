@@ -1276,7 +1276,7 @@ describe('app-dir action handling', () => {
       }, 5000)
     })
 
-    it('should handle revalidatePath', async () => {
+    it('should handle expirePath', async () => {
       const browser = await next.browser('/revalidate')
       const randomNumber = await browser.elementByCss('#random-number').text()
       const justPutIt = await browser.elementByCss('#justputit').text()
@@ -1299,7 +1299,7 @@ describe('app-dir action handling', () => {
       })
     })
 
-    it('should handle revalidateTag', async () => {
+    it('should handle expireTag', async () => {
       const browser = await next.browser('/revalidate')
       const randomNumber = await browser.elementByCss('#random-number').text()
       const justPutIt = await browser.elementByCss('#justputit').text()
@@ -1323,7 +1323,7 @@ describe('app-dir action handling', () => {
     })
 
     // TODO: investigate flakey behavior with revalidate
-    it.skip('should handle revalidateTag + redirect', async () => {
+    it.skip('should handle expireTag + redirect', async () => {
       const browser = await next.browser('/revalidate')
       const randomNumber = await browser.elementByCss('#random-number').text()
       const justPutIt = await browser.elementByCss('#justputit').text()
@@ -1586,6 +1586,16 @@ describe('app-dir action handling', () => {
       const html = await res.text()
       expect(html).not.toContain('qwerty123')
       expect(html).not.toContain('some-module-level-encryption-value')
+    })
+
+    it('should be able to resolve other server actions and client components', async () => {
+      const browser = await next.browser('/encryption')
+      expect(await browser.elementByCss('p').text()).toBe('initial')
+      await browser.elementByCss('button').click()
+
+      await retry(async () => {
+        expect(await browser.elementByCss('p').text()).toBe('hello from client')
+      })
     })
   })
 

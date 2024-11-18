@@ -2,7 +2,8 @@ use std::io::Write;
 
 use anyhow::{bail, Result};
 use serde::Serialize;
-use turbo_tasks::{fxindexmap, FxIndexMap, RcStr, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{fxindexmap, FxIndexMap, ResolvedVc, Value, Vc};
 use turbo_tasks_fs::{rope::RopeBuilder, File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -39,7 +40,9 @@ pub async fn create_page_ssr_entry_module(
 
     let ssr_module = ssr_module_context
         .process(source, reference_type.clone())
-        .module();
+        .module()
+        .to_resolved()
+        .await?;
 
     let reference_type = reference_type.into_value();
 
@@ -120,7 +123,9 @@ pub async fn create_page_ssr_entry_module(
                 pages_structure.document(),
                 Value::new(reference_type.clone()),
                 ssr_module_context,
-            ),
+            )
+            .to_resolved()
+            .await?,
         );
         inner_assets.insert(
             INNER_APP.into(),
@@ -128,7 +133,9 @@ pub async fn create_page_ssr_entry_module(
                 pages_structure.app(),
                 Value::new(reference_type.clone()),
                 ssr_module_context,
-            ),
+            )
+            .to_resolved()
+            .await?,
         );
     }
 
@@ -178,7 +185,7 @@ fn process_global_item(
 async fn wrap_edge_page(
     asset_context: Vc<Box<dyn AssetContext>>,
     project_root: Vc<FileSystemPath>,
-    entry: Vc<Box<dyn Module>>,
+    entry: ResolvedVc<Box<dyn Module>>,
     page: RcStr,
     pathname: RcStr,
     reference_type: Value<ReferenceType>,
@@ -233,9 +240,21 @@ async fn wrap_edge_page(
 
     let inner_assets = fxindexmap! {
         INNER.into() => entry,
-        INNER_DOCUMENT.into() => process_global_item(pages_structure.document(), reference_type.clone(), asset_context),
-        INNER_APP.into() => process_global_item(pages_structure.app(), reference_type.clone(), asset_context),
-        INNER_ERROR.into() => process_global_item(pages_structure.error(), reference_type.clone(), asset_context),
+        INNER_DOCUMENT.into() => process_global_item(
+            pages_structure.document(),
+            reference_type.clone(),
+            asset_context,
+        ).to_resolved().await?,
+        INNER_APP.into() => process_global_item(
+            pages_structure.app(),
+            reference_type.clone(),
+            asset_context,
+        ).to_resolved().await?,
+        INNER_ERROR.into() => process_global_item(
+            pages_structure.error(),
+            reference_type.clone(),
+            asset_context,
+        ).to_resolved().await?,
     };
 
     let wrapped = asset_context

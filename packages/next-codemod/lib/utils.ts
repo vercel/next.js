@@ -101,12 +101,6 @@ export const TRANSFORMER_INQUIRER_CHOICES = [
   },
   {
     title:
-      'Transform `next/dynamic` imports accessing named exports to return an object with a `default` property',
-    value: 'next-dynamic-access-named-export',
-    version: '15.0.0-canary.44',
-  },
-  {
-    title:
       'Install `@vercel/functions` to replace `geo` and `ip` properties on `NextRequest`',
     value: 'next-request-geo-ip',
     version: '15.0.0-canary.153',
@@ -121,5 +115,11 @@ export const TRANSFORMER_INQUIRER_CHOICES = [
       'Transform App Router Route Segment Config `runtime` value from `experimental-edge` to `edge`',
     value: 'app-dir-runtime-config-experimental-edge',
     version: '15.0.0-canary.179',
+  },
+  {
+    title:
+      'Transform `revalidateTag` and `revalidatePath` to `expireTag` and `expirePath`',
+    value: 'revalidate-to-expire',
+    version: '15.0.4-canary.12',
   },
 ]

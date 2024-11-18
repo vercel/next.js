@@ -374,7 +374,7 @@ pub fn run_bump(names: HashSet<String>, dry_run: bool) {
         .args([
             "commit",
             "-m",
-            "chore: release npm packages",
+            "chore: release turbopack npm packages",
             "-m",
             tags_message.as_str(),
         ])

@@ -1,7 +1,8 @@
 use std::io::Write;
 
 use anyhow::{bail, Result};
-use turbo_tasks::{fxindexmap, RcStr, TryJoinIterExt, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{fxindexmap, TryJoinIterExt, Value, Vc};
 use turbo_tasks_fs::{
     self, rope::RopeBuilder, File, FileContent, FileSystemPath, FileSystemPathOption,
 };
@@ -54,7 +55,9 @@ pub async fn create_page_loader_entry_module(
             entry_asset,
             Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)),
         )
-        .module();
+        .module()
+        .to_resolved()
+        .await?;
 
     let module = client_context
         .process(
@@ -107,13 +110,15 @@ impl PageLoaderAsset {
             let rebased = chunks
                 .await?
                 .iter()
-                .map(|chunk| {
-                    Vc::upcast(ProxiedAsset::new(
+                .map(|&chunk| {
+                    Vc::upcast::<Box<dyn OutputAsset>>(ProxiedAsset::new(
                         *chunk,
                         FileSystemPath::rebase(chunk.ident().path(), **rebase_path, root_path),
                     ))
+                    .to_resolved()
                 })
-                .collect();
+                .try_join()
+                .await?;
             chunks = Vc::cell(rebased);
         };
 

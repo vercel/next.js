@@ -1,4 +1,5 @@
-use turbo_tasks::{RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::Vc;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::ChunkingContext,
