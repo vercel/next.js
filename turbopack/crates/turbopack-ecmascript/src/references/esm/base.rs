@@ -169,11 +169,11 @@ impl ModuleReference for EsmAssetReference {
                             .await?
                             .expect("EsmAssetReference origin should be a EcmascriptModuleAsset");
 
-                    return Ok(ModuleResolveResult::module(
-                        EcmascriptModulePartAsset::select_part(*module, *part)
+                    return Ok(ModuleResolveResult::module(ResolvedVc::upcast(
+                        EcmascriptModulePartAsset::new(*module, *part)
                             .to_resolved()
                             .await?,
-                    )
+                    ))
                     .cell());
                 }
 
