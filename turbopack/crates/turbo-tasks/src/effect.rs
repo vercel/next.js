@@ -5,8 +5,12 @@ use auto_hash_map::AutoSet;
 use parking_lot::Mutex;
 use tokio::task::JoinHandle;
 use tracing::{Instrument, Span};
+use turbo_tasks_macros::{TraceRawVcs, ValueDebugFormat};
 
-use crate::{self as turbo_tasks, emit, manager::turbo_tasks_future_scope, CollectiblesSource, Vc};
+use crate::{
+    self as turbo_tasks, emit, manager::turbo_tasks_future_scope, CollectiblesSource, ReadRef,
+    TryJoinIterExt, Vc,
+};
 
 /// A trait to emit a task effect as collectible. This trait only has one
 /// implementation, `EffectInstance` and no other implementation is allowed.
@@ -74,6 +78,9 @@ pub fn effect(future: impl Future<Output = Result<()>> + Send + Sync + 'static) 
 ///
 /// The order of execution is not defined and effects are executed in parallel.
 ///
+/// `apply_effects` must only be used in a "once" task. When used in a "root" task, a
+/// combination of `get_effects` and `Effects::apply` must be used.
+///
 /// # Example
 ///
 /// ```rust
@@ -86,7 +93,7 @@ pub async fn apply_effects(source: impl CollectiblesSource) -> Result<()> {
     if effects.is_empty() {
         return Ok(());
     }
-    let span = tracing::span!(tracing::Level::INFO, "apply effects", count = effects.len());
+    let span = tracing::info_span!("apply effects", count = effects.len());
     async move {
         let mut first_error = anyhow::Ok(());
         for effect in effects {
@@ -94,29 +101,7 @@ pub async fn apply_effects(source: impl CollectiblesSource) -> Result<()> {
             else {
                 panic!("Effect must only be implemented by EffectInstance");
             };
-            if let Some(join_handle) = effect.await?.apply() {
-                match join_handle.await {
-                    Ok(Err(err)) if first_error.is_ok() => {
-                        first_error = Err(err);
-                    }
-                    Err(err) if first_error.is_ok() => {
-                        let any = err.into_panic();
-                        let panic = match any.downcast::<String>() {
-                            Ok(owned) => Some(Cow::Owned(*owned)),
-                            Err(any) => match any.downcast::<&'static str>() {
-                                Ok(str) => Some(Cow::Borrowed(*str)),
-                                Err(_) => None,
-                            },
-                        };
-                        first_error = Err(if let Some(panic) = panic {
-                            anyhow!("Task effect panicked: {panic}")
-                        } else {
-                            anyhow!("Task effect panicked")
-                        });
-                    }
-                    _ => {}
-                }
-            }
+            apply_effect(&effect.await?, &mut first_error).await;
         }
         first_error
     }
@@ -124,16 +109,117 @@ pub async fn apply_effects(source: impl CollectiblesSource) -> Result<()> {
     .await
 }
 
+/// Capture effects from an turbo-tasks operation. Since this captures collectibles it might
+/// invalidate the current task when effects are changing or even temporary change.
+///
+/// Therefore it's important to wrap this in a strongly consistent read before applying the effects
+/// with `Effects::apply`.
+///
+/// # Example
+///
+/// ```rust
+/// async fn some_turbo_tasks_function_with_effects(args: Args) -> Result<ResultWithEffects> {
+///     let operation = some_turbo_tasks_function(args);
+///     let result = operation.strongly_consistent().await?;
+///     let effects = get_effects(operation).await?;
+///     Ok(ResultWithEffects { result, effects })
+/// }
+///
+/// let result_with_effects = some_turbo_tasks_function_with_effects(args).strongly_consistent().await?;
+/// result_with_effects.effects.apply().await?;
+/// ```
+pub async fn get_effects(source: impl CollectiblesSource) -> Result<Effects> {
+    let effects: AutoSet<Vc<Box<dyn Effect>>> = source.take_collectibles();
+    let effects = effects
+        .into_iter()
+        .map(|effect| async move {
+            if let Some(effect) = Vc::try_resolve_downcast_type::<EffectInstance>(effect).await? {
+                Ok(effect.await?)
+            } else {
+                panic!("Effect must only be implemented by EffectInstance");
+            }
+        })
+        .try_join()
+        .await?;
+    Ok(Effects { effects })
+}
+
+/// Captured effects from an operation. This struct can be used to return Effects from a turbo-tasks
+/// function and apply them later.
+#[derive(TraceRawVcs, Default, ValueDebugFormat)]
+pub struct Effects {
+    #[turbo_tasks(trace_ignore, debug_ignore)]
+    effects: Vec<ReadRef<EffectInstance>>,
+}
+
+impl PartialEq for Effects {
+    fn eq(&self, other: &Self) -> bool {
+        if self.effects.len() != other.effects.len() {
+            return false;
+        }
+        self.effects
+            .iter()
+            .zip(other.effects.iter())
+            .all(|(a, b)| ReadRef::ptr_eq(a, b))
+    }
+}
+
+impl Eq for Effects {}
+
+impl Effects {
+    /// Applies all effects that have been captured by this struct.
+    pub async fn apply(&self) -> Result<()> {
+        let _span = tracing::info_span!("apply effects", count = self.effects.len());
+        let mut first_error = anyhow::Ok(());
+        for effect in self.effects.iter() {
+            apply_effect(effect, &mut first_error).await;
+        }
+        first_error
+    }
+}
+
+async fn apply_effect(
+    effect: &ReadRef<EffectInstance>,
+    first_error: &mut std::result::Result<(), anyhow::Error>,
+) {
+    if let Some(join_handle) = effect.apply() {
+        match join_handle.await {
+            Ok(Err(err)) if first_error.is_ok() => {
+                *first_error = Err(err);
+            }
+            Err(err) if first_error.is_ok() => {
+                let any = err.into_panic();
+                let panic = match any.downcast::<String>() {
+                    Ok(owned) => Some(Cow::Owned(*owned)),
+                    Err(any) => match any.downcast::<&'static str>() {
+                        Ok(str) => Some(Cow::Borrowed(*str)),
+                        Err(_) => None,
+                    },
+                };
+                *first_error = Err(if let Some(panic) = panic {
+                    anyhow!("Task effect panicked: {panic}")
+                } else {
+                    anyhow!("Task effect panicked")
+                });
+            }
+            _ => {}
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::{apply_effects, CollectiblesSource};
+    use crate::{apply_effects, get_effects, CollectiblesSource};
 
     #[test]
     #[allow(dead_code)]
-    fn apply_effects_is_sync_and_send() {
+    fn is_sync_and_send() {
         fn assert_sync<T: Sync + Send>(_: T) {}
-        fn check<T: CollectiblesSource + Send + Sync>(t: T) {
+        fn check_apply_effects<T: CollectiblesSource + Send + Sync>(t: T) {
             assert_sync(apply_effects(t));
+        }
+        fn check_get_effects<T: CollectiblesSource + Send + Sync>(t: T) {
+            assert_sync(get_effects(t));
         }
     }
 }
