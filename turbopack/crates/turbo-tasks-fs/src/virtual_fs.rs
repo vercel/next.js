@@ -66,20 +66,12 @@ impl FileSystem for VirtualFileSystem {
     }
 
     #[turbo_tasks::function]
-    fn write(
-        &self,
-        _fs_path: Vc<FileSystemPath>,
-        _content: Vc<FileContent>,
-    ) -> Result<Vc<Completion>> {
+    fn write(&self, _fs_path: Vc<FileSystemPath>, _content: Vc<FileContent>) -> Result<Vc<()>> {
         bail!("Writing is not possible on the virtual file system")
     }
 
     #[turbo_tasks::function]
-    fn write_link(
-        &self,
-        _fs_path: Vc<FileSystemPath>,
-        _target: Vc<LinkContent>,
-    ) -> Result<Vc<Completion>> {
+    fn write_link(&self, _fs_path: Vc<FileSystemPath>, _target: Vc<LinkContent>) -> Result<Vc<()>> {
         bail!("Writing is not possible on the virtual file system")
     }
 

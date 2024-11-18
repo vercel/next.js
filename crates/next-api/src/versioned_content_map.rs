@@ -5,8 +5,8 @@ use next_core::emit_assets;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, Completion, FxIndexSet, ResolvedVc, State,
-    TryFlatJoinIterExt, TryJoinIterExt, ValueDefault, ValueToString, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexSet, ResolvedVc, State, TryFlatJoinIterExt,
+    TryJoinIterExt, ValueDefault, ValueToString, Vc,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -24,8 +24,8 @@ pub struct OutputAssetsOperation(Vc<OutputAssets>);
 
 #[derive(Clone, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Serialize, Deserialize, Debug)]
 struct MapEntry {
+    // must not be resolved
     assets_operation: Vc<OutputAssets>,
-    side_effects: Vc<Completion>,
     /// Precomputed map for quick access to output asset by filepath
     path_to_asset: HashMap<ResolvedVc<FileSystemPath>, Vc<Box<dyn OutputAsset>>>,
 }
@@ -74,7 +74,7 @@ impl VersionedContentMap {
         node_root: Vc<FileSystemPath>,
         client_relative_path: Vc<FileSystemPath>,
         client_output_path: Vc<FileSystemPath>,
-    ) -> Result<Vc<Completion>> {
+    ) -> Result<()> {
         let this = self.await?;
         let compute_entry = self.compute_entry(
             assets_operation,
@@ -85,10 +85,7 @@ impl VersionedContentMap {
         let assets = *assets_operation.await?;
         this.map_op_to_compute_entry
             .update_conditionally(|map| map.insert(assets, compute_entry) != Some(compute_entry));
-        let Some(entry) = &*compute_entry.await? else {
-            unreachable!("compute_entry always returns Some(MapEntry)")
-        };
-        Ok(entry.side_effects)
+        Ok(())
     }
 
     /// Creates a [`MapEntry`] (a pre-computed map for optimized lookup) for an output assets
@@ -143,10 +140,9 @@ impl VersionedContentMap {
         });
 
         // Make sure all written client assets are up-to-date
-        let side_effects = emit_assets(assets, node_root, client_relative_path, client_output_path);
+        let _ = emit_assets(assets, node_root, client_relative_path, client_output_path);
         let map_entry = Vc::cell(Some(MapEntry {
             assets_operation: assets,
-            side_effects,
             path_to_asset: entries.into_iter().collect(),
         }));
         Ok(map_entry)
@@ -195,12 +191,9 @@ impl VersionedContentMap {
         let result = self.raw_get(*path).await?;
         if let Some(MapEntry {
             assets_operation: _,
-            side_effects,
             path_to_asset,
         }) = &*result
         {
-            side_effects.await?;
-
             if let Some(asset) = path_to_asset.get(&path) {
                 return Ok(Vc::cell(Some(asset.to_resolved().await?)));
             } else {
