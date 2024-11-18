@@ -102,17 +102,17 @@ impl ReferencedAsset {
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct EsmAssetReference {
-    pub origin: Vc<Box<dyn ResolveOrigin>>,
-    pub request: Vc<Request>,
+    pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    pub request: ResolvedVc<Request>,
     pub annotations: ImportAnnotations,
-    pub issue_source: Vc<IssueSource>,
+    pub issue_source: ResolvedVc<IssueSource>,
     pub export_name: Option<ResolvedVc<ModulePart>>,
     pub import_externals: bool,
 }
 
 impl EsmAssetReference {
     fn get_origin(&self) -> Vc<Box<dyn ResolveOrigin>> {
-        let mut origin = self.origin;
+        let mut origin = *self.origin;
         if let Some(transition) = self.annotations.transition() {
             origin = origin.with_transition(transition.into());
         }
@@ -124,9 +124,9 @@ impl EsmAssetReference {
 impl EsmAssetReference {
     #[turbo_tasks::function]
     pub fn new(
-        origin: Vc<Box<dyn ResolveOrigin>>,
-        request: Vc<Request>,
-        issue_source: Vc<IssueSource>,
+        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+        request: ResolvedVc<Request>,
+        issue_source: ResolvedVc<IssueSource>,
         annotations: Value<ImportAnnotations>,
         export_name: Option<ResolvedVc<ModulePart>>,
         import_externals: bool,
@@ -162,13 +162,13 @@ impl ModuleReference for EsmAssetReference {
         if let Request::Module { module, .. } = &*self.request.await? {
             if module == TURBOPACK_PART_IMPORT_SOURCE {
                 if let Some(part) = self.export_name {
-                    let module: Vc<crate::EcmascriptModuleAsset> =
-                        Vc::try_resolve_downcast_type(self.origin)
+                    let module: ResolvedVc<crate::EcmascriptModuleAsset> =
+                        ResolvedVc::try_downcast_type(self.origin)
                             .await?
                             .expect("EsmAssetReference origin should be a EcmascriptModuleAsset");
 
                     return Ok(ModuleResolveResult::module(
-                        EcmascriptModulePartAsset::select_part(module, *part)
+                        EcmascriptModulePartAsset::select_part(*module, *part)
                             .to_resolved()
                             .await?,
                     )
@@ -181,10 +181,10 @@ impl ModuleReference for EsmAssetReference {
 
         let result = esm_resolve(
             self.get_origin().resolve().await?,
-            self.request,
+            *self.request,
             Value::new(ty),
             false,
-            Some(self.issue_source),
+            Some(*self.issue_source),
         );
 
         if let Some(part) = self.export_name {
@@ -195,8 +195,8 @@ impl ModuleReference for EsmAssetReference {
                         let export = export_name.await?;
                         if *is_export_missing(*module, export.clone_value()).await? {
                             InvalidExport {
-                                export: *export_name,
-                                module: *module,
+                                export: export_name,
+                                module,
                                 source: self.issue_source,
                             }
                             .cell()
@@ -260,7 +260,7 @@ impl CodeGenerateable for EsmAssetReference {
             if let ReferencedAsset::Unresolvable = &*referenced_asset {
                 // Insert code that throws immediately at time of import if a request is
                 // unresolvable
-                let request = request_to_string(this.request).await?.to_string();
+                let request = request_to_string(*this.request).await?.to_string();
                 let stmt = Stmt::Expr(ExprStmt {
                     expr: Box::new(throw_module_not_found_expr(&request)),
                     span: DUMMY_SP,
@@ -392,9 +392,9 @@ fn var_decl_with_span(mut decl: Stmt, span: Span) -> Stmt {
 
 #[turbo_tasks::value(shared)]
 pub struct InvalidExport {
-    export: Vc<RcStr>,
-    module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
-    source: Vc<IssueSource>,
+    export: ResolvedVc<RcStr>,
+    module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    source: ResolvedVc<IssueSource>,
 }
 
 #[turbo_tasks::value_impl]
@@ -427,7 +427,7 @@ impl Issue for InvalidExport {
     #[turbo_tasks::function]
     async fn description(&self) -> Result<Vc<OptionStyledString>> {
         let export = self.export.await?;
-        let export_names = all_known_export_names(self.module).await?;
+        let export_names = all_known_export_names(*self.module).await?;
         let did_you_mean = export_names
             .iter()
             .map(|s| (s, jaro(export.as_str(), s.as_str())))
@@ -463,7 +463,7 @@ impl Issue for InvalidExport {
 
     #[turbo_tasks::function]
     async fn detail(&self) -> Result<Vc<OptionStyledString>> {
-        let export_names = all_known_export_names(self.module).await?;
+        let export_names = all_known_export_names(*self.module).await?;
         Ok(Vc::cell(Some(
             StyledString::Line(vec![
                 StyledString::Text("These are the exports of the module:\n".into()),
@@ -482,6 +482,6 @@ impl Issue for InvalidExport {
 
     #[turbo_tasks::function]
     fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(Some(self.source))
+        Vc::cell(Some(*self.source))
     }
 }

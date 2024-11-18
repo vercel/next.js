@@ -64,7 +64,7 @@ impl NftJsonAsset {
         let output_fs = this.output_fs.await?;
         let nft_folder = self.ident().path().parent().await?;
 
-        if let Some(subdir) = output_fs.root.strip_prefix(&*project_fs.root) {
+        if let Some(subdir) = output_fs.root().strip_prefix(&**project_fs.root()) {
             Ok(this
                 .project_fs
                 .root()

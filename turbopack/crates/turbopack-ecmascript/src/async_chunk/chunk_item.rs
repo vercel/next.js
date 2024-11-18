@@ -1,7 +1,7 @@
 use anyhow::Result;
 use indoc::formatdoc;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{TryJoinIterExt, Value, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, Vc};
 use turbopack_core::{
     chunk::{
         ChunkData, ChunkItem, ChunkItemExt, ChunkType, ChunkableModule, ChunkingContext,
@@ -24,8 +24,8 @@ use crate::{
 
 #[turbo_tasks::value(shared)]
 pub struct AsyncLoaderChunkItem {
-    pub module: Vc<AsyncLoaderModule>,
-    pub chunking_context: Vc<Box<dyn ChunkingContext>>,
+    pub module: ResolvedVc<AsyncLoaderModule>,
+    pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -38,7 +38,7 @@ impl AsyncLoaderChunkItem {
                 .get(
                     module
                         .inner
-                        .as_chunk_item(Vc::upcast(self.chunking_context))
+                        .as_chunk_item(*ResolvedVc::upcast(self.chunking_context))
                         .resolve()
                         .await?,
                 )
@@ -49,7 +49,7 @@ impl AsyncLoaderChunkItem {
             }
         }
         Ok(self.chunking_context.chunk_group_assets(
-            Vc::upcast(module.inner),
+            *ResolvedVc::upcast(module.inner),
             Value::new(module.availability_info),
         ))
     }
@@ -68,7 +68,7 @@ impl AsyncLoaderChunkItem {
 impl EcmascriptChunkItem for AsyncLoaderChunkItem {
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        self.chunking_context
+        *self.chunking_context
     }
 
     #[turbo_tasks::function]
@@ -77,11 +77,11 @@ impl EcmascriptChunkItem for AsyncLoaderChunkItem {
         let module = this.module.await?;
 
         let id = if let Some(placeable) =
-            Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkPlaceable>>(module.inner).await?
+            Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkPlaceable>>(*module.inner).await?
         {
             Some(
                 placeable
-                    .as_chunk_item(Vc::upcast(this.chunking_context))
+                    .as_chunk_item(*ResolvedVc::upcast(this.chunking_context))
                     .id()
                     .await?,
             )
@@ -198,7 +198,7 @@ impl ChunkItem for AsyncLoaderChunkItem {
 
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        Vc::upcast(self.chunking_context)
+        *ResolvedVc::upcast(self.chunking_context)
     }
 
     #[turbo_tasks::function]
@@ -210,6 +210,6 @@ impl ChunkItem for AsyncLoaderChunkItem {
 
     #[turbo_tasks::function]
     fn module(&self) -> Vc<Box<dyn Module>> {
-        Vc::upcast(self.module)
+        *ResolvedVc::upcast(self.module)
     }
 }
