@@ -3,7 +3,7 @@ use std::ops::Index;
 use petgraph::{visit::EdgeRef, Direction, Graph};
 use turbo_tasks::FxIndexSet;
 
-use crate::tree_shake::graph::{Dependency, ItemId, ItemIdGroupKind, ItemIdItemKind};
+use crate::tree_shake::graph::{Dependency, ItemId, ItemIdItemKind};
 
 pub(super) struct GraphOptimizer<'a> {
     pub graph_ix: &'a FxIndexSet<ItemId>,
