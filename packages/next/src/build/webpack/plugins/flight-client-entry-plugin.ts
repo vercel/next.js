@@ -47,6 +47,7 @@ interface Options {
   appDir: string
   isEdgeServer: boolean
   encryptionKey: string
+  includeRouteHandlers: boolean
 }
 
 const PLUGIN_NAME = 'FlightClientEntryPlugin'
@@ -166,6 +167,7 @@ export class FlightClientEntryPlugin {
   isEdgeServer: boolean
   assetPrefix: string
   webpackRuntime: string
+  includeRouteHandlers: boolean
 
   constructor(options: Options) {
     this.dev = options.dev
@@ -176,6 +178,7 @@ export class FlightClientEntryPlugin {
     this.webpackRuntime = this.isEdgeServer
       ? EDGE_RUNTIME_WEBPACK
       : DEFAULT_RUNTIME_WEBPACK
+    this.includeRouteHandlers = options.includeRouteHandlers
   }
 
   apply(compiler: webpack.Compiler) {
@@ -299,135 +302,141 @@ export class FlightClientEntryPlugin {
 
     // For each SC server compilation entry, we need to create its corresponding
     // client component entry.
-    forEachEntryModule(compilation, ({ name, entryModule }) => {
-      const internalClientComponentEntryImports: ClientComponentImports = {}
-      const actionEntryImports = new Map<string, ActionIdNamePair[]>()
-      const clientEntriesToInject = []
-      const mergedCSSimports: CssImports = {}
+    forEachEntryModule({
+      compilation,
+      includeRouteHandlers: this.includeRouteHandlers,
+      callback: ({ name, entryModule }) => {
+        const internalClientComponentEntryImports: ClientComponentImports = {}
+        const actionEntryImports = new Map<string, ActionIdNamePair[]>()
+        const clientEntriesToInject = []
+        const mergedCSSimports: CssImports = {}
 
-      for (const connection of getModuleReferencesInOrder(
-        entryModule,
-        compilation.moduleGraph
-      )) {
-        // Entry can be any user defined entry files such as layout, page, error, loading, etc.
-        const entryRequest = (
-          connection.dependency as unknown as webpack.NormalModule
-        ).request
+        for (const connection of getModuleReferencesInOrder(
+          entryModule,
+          compilation.moduleGraph
+        )) {
+          // Entry can be any user defined entry files such as layout, page, error, loading, etc.
+          const entryRequest = (
+            connection.dependency as unknown as webpack.NormalModule
+          ).request
 
-        const { clientComponentImports, actionImports, cssImports } =
-          this.collectComponentInfoFromServerEntryDependency({
-            entryRequest,
-            compilation,
-            resolvedModule: connection.resolvedModule,
-          })
+          const { clientComponentImports, actionImports, cssImports } =
+            this.collectComponentInfoFromServerEntryDependency({
+              entryRequest,
+              compilation,
+              resolvedModule: connection.resolvedModule,
+            })
 
-        actionImports.forEach(([dep, actions]) =>
-          actionEntryImports.set(dep, actions)
-        )
-
-        const isAbsoluteRequest = path.isAbsolute(entryRequest)
-
-        // Next.js internals are put into a separate entry.
-        if (!isAbsoluteRequest) {
-          Object.keys(clientComponentImports).forEach(
-            (value) => (internalClientComponentEntryImports[value] = new Set())
+          actionImports.forEach(([dep, actions]) =>
+            actionEntryImports.set(dep, actions)
           )
-          continue
-        }
 
-        // TODO-APP: Enable these lines. This ensures no entrypoint is created for layout/page when there are no client components.
-        // Currently disabled because it causes test failures in CI.
-        // if (clientImports.length === 0 && actionImports.length === 0) {
-        //   continue
-        // }
+          const isAbsoluteRequest = path.isAbsolute(entryRequest)
 
-        const relativeRequest = isAbsoluteRequest
-          ? path.relative(compilation.options.context!, entryRequest)
-          : entryRequest
+          // Next.js internals are put into a separate entry.
+          if (!isAbsoluteRequest) {
+            Object.keys(clientComponentImports).forEach(
+              (value) =>
+                (internalClientComponentEntryImports[value] = new Set())
+            )
+            continue
+          }
 
-        // Replace file suffix as `.js` will be added.
-        const bundlePath = normalizePathSep(
-          relativeRequest.replace(/\.[^.\\/]+$/, '').replace(/^src[\\/]/, '')
-        )
+          // TODO-APP: Enable these lines. This ensures no entrypoint is created for layout/page when there are no client components.
+          // Currently disabled because it causes test failures in CI.
+          // if (clientImports.length === 0 && actionImports.length === 0) {
+          //   continue
+          // }
 
-        Object.assign(mergedCSSimports, cssImports)
-        clientEntriesToInject.push({
-          compiler,
-          compilation,
-          entryName: name,
-          clientComponentImports,
-          bundlePath,
-          absolutePagePath: entryRequest,
-        })
+          const relativeRequest = isAbsoluteRequest
+            ? path.relative(compilation.options.context!, entryRequest)
+            : entryRequest
 
-        // The webpack implementation of writing the client reference manifest relies on all entrypoints writing a page.js even when there is no client components in the page.
-        // It needs the file in order to write the reference manifest for the path in the `.next/server` folder.
-        // TODO-APP: This could be better handled, however Turbopack does not have the same problem as we resolve client components in a single graph.
-        if (
-          name === `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}` &&
-          bundlePath === 'app/not-found'
-        ) {
+          // Replace file suffix as `.js` will be added.
+          const bundlePath = normalizePathSep(
+            relativeRequest.replace(/\.[^.\\/]+$/, '').replace(/^src[\\/]/, '')
+          )
+
+          Object.assign(mergedCSSimports, cssImports)
           clientEntriesToInject.push({
             compiler,
             compilation,
             entryName: name,
-            clientComponentImports: {},
-            bundlePath: `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}`,
+            clientComponentImports,
+            bundlePath,
             absolutePagePath: entryRequest,
           })
+
+          // The webpack implementation of writing the client reference manifest relies on all entrypoints writing a page.js even when there is no client components in the page.
+          // It needs the file in order to write the reference manifest for the path in the `.next/server` folder.
+          // TODO-APP: This could be better handled, however Turbopack does not have the same problem as we resolve client components in a single graph.
+          if (
+            name === `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}` &&
+            bundlePath === 'app/not-found'
+          ) {
+            clientEntriesToInject.push({
+              compiler,
+              compilation,
+              entryName: name,
+              clientComponentImports: {},
+              bundlePath: `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}`,
+              absolutePagePath: entryRequest,
+            })
+          }
         }
-      }
 
-      // Make sure CSS imports are deduplicated before injecting the client entry
-      // and SSR modules.
-      const dedupedCSSImports = deduplicateCSSImportsForEntry(mergedCSSimports)
-      for (const clientEntryToInject of clientEntriesToInject) {
-        const injected = this.injectClientEntryAndSSRModules({
-          ...clientEntryToInject,
-          clientImports: {
-            ...clientEntryToInject.clientComponentImports,
-            ...(
-              dedupedCSSImports[clientEntryToInject.absolutePagePath] || []
-            ).reduce<ClientComponentImports>((res, curr) => {
-              res[curr] = new Set()
-              return res
-            }, {}),
-          },
-        })
-
-        // Track all created SSR dependencies for each entry from the server layer.
-        if (!createdSSRDependenciesForEntry[clientEntryToInject.entryName]) {
-          createdSSRDependenciesForEntry[clientEntryToInject.entryName] = []
-        }
-        createdSSRDependenciesForEntry[clientEntryToInject.entryName].push(
-          injected[3]
-        )
-
-        addClientEntryAndSSRModulesList.push(injected)
-      }
-
-      if (!isAppRouteRoute(name)) {
-        // Create internal app
-        addClientEntryAndSSRModulesList.push(
-          this.injectClientEntryAndSSRModules({
-            compiler,
-            compilation,
-            entryName: name,
-            clientImports: { ...internalClientComponentEntryImports },
-            bundlePath: APP_CLIENT_INTERNALS,
+        // Make sure CSS imports are deduplicated before injecting the client entry
+        // and SSR modules.
+        const dedupedCSSImports =
+          deduplicateCSSImportsForEntry(mergedCSSimports)
+        for (const clientEntryToInject of clientEntriesToInject) {
+          const injected = this.injectClientEntryAndSSRModules({
+            ...clientEntryToInject,
+            clientImports: {
+              ...clientEntryToInject.clientComponentImports,
+              ...(
+                dedupedCSSImports[clientEntryToInject.absolutePagePath] || []
+              ).reduce<ClientComponentImports>((res, curr) => {
+                res[curr] = new Set()
+                return res
+              }, {}),
+            },
           })
-        )
-      }
 
-      if (actionEntryImports.size > 0) {
-        if (!actionMapsPerEntry[name]) {
-          actionMapsPerEntry[name] = new Map()
+          // Track all created SSR dependencies for each entry from the server layer.
+          if (!createdSSRDependenciesForEntry[clientEntryToInject.entryName]) {
+            createdSSRDependenciesForEntry[clientEntryToInject.entryName] = []
+          }
+          createdSSRDependenciesForEntry[clientEntryToInject.entryName].push(
+            injected[3]
+          )
+
+          addClientEntryAndSSRModulesList.push(injected)
         }
-        actionMapsPerEntry[name] = new Map([
-          ...actionMapsPerEntry[name],
-          ...actionEntryImports,
-        ])
-      }
+
+        if (!isAppRouteRoute(name)) {
+          // Create internal app
+          addClientEntryAndSSRModulesList.push(
+            this.injectClientEntryAndSSRModules({
+              compiler,
+              compilation,
+              entryName: name,
+              clientImports: { ...internalClientComponentEntryImports },
+              bundlePath: APP_CLIENT_INTERNALS,
+            })
+          )
+        }
+
+        if (actionEntryImports.size > 0) {
+          if (!actionMapsPerEntry[name]) {
+            actionMapsPerEntry[name] = new Map()
+          }
+          actionMapsPerEntry[name] = new Map([
+            ...actionMapsPerEntry[name],
+            ...actionEntryImports,
+          ])
+        }
+      },
     })
 
     for (const [name, actionEntryImports] of Object.entries(

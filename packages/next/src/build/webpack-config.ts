@@ -1901,6 +1901,7 @@ export default async function getBaseWebpackConfig(
               dev,
               isEdgeServer,
               encryptionKey,
+              includeRouteHandlers: Boolean(config.experimental.dynamicIO),
             })),
       hasAppDir &&
         !isClient &&

@@ -8,6 +8,7 @@ import type {
 } from 'webpack'
 import type { ModuleGraphConnection } from 'webpack'
 import { isMetadataRoute } from '../../lib/metadata/is-metadata-route'
+import { isAppRouteRoute } from '../../lib/is-app-route-route'
 
 export function traverseModules(
   compilation: Compilation,
@@ -42,15 +43,24 @@ export function traverseModules(
 }
 
 // Loop over all the entry modules.
-export function forEachEntryModule(
-  compilation: any,
+export function forEachEntryModule({
+  compilation,
+  includeRouteHandlers,
+  callback,
+}: {
+  compilation: any
+  includeRouteHandlers: boolean
   callback: ({ name, entryModule }: { name: string; entryModule: any }) => void
-) {
+}) {
   for (const [name, entry] of compilation.entries.entries()) {
     // Skip for entries under pages/
     if (
       name.startsWith('pages/') ||
-      // Skip for metadata route handlers
+      // Skip route handlers unless explicitly enabled.
+      (name.startsWith('app/') &&
+        isAppRouteRoute(name) &&
+        !includeRouteHandlers) ||
+      // In any case, skip metadata route handlers.
       (name.startsWith('app/') && isMetadataRoute(name))
     ) {
       continue
