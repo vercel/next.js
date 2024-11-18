@@ -56,6 +56,27 @@ export function unstable_expirePath(
 }
 
 /**
+ * This function allows you to refresh client cache from server actions.
+ * It's useful as dynamic data can be cached on the client which won't
+ * be refreshed by expireTag
+ */
+export function refresh() {
+  const workStore = workAsyncStorage.getStore()
+
+  if (!workStore || workStore.page.endsWith('/route')) {
+    throw new Error(
+      'refresh can only be called from within a Server Action. ' +
+        'See more info here: https://nextjs.org/docs/app/api-reference/functions/refresh'
+    )
+  }
+
+  if (workStore) {
+    // TODO: break this to it's own field
+    workStore.pathWasRevalidated = true
+  }
+}
+
+/**
  * This function allows you to purge [cached data](https://nextjs.org/docs/app/building-your-application/caching) on-demand for a specific cache tag.
  *
  * Read more: [Next.js Docs: `unstable_expireTag`](https://nextjs.org/docs/app/api-reference/functions/unstable_expireTag)

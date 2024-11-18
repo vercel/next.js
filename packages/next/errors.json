@@ -867,5 +867,6 @@
   "866": "Both \"%s\" and \"%s\" files are detected. Please use \"%s\" instead.",
   "867": "The %s \"%s\" must export a %s or a \\`default\\` function",
   "868": "No reference found for param: %s in reference: %s",
-  "869": "No reference found for segment: %s with reference: %s"
+  "869": "No reference found for segment: %s with reference: %s",
+  "870": "refresh can only be called from within a Server Action. See more info here: https://nextjs.org/docs/app/api-reference/functions/refresh"
 }

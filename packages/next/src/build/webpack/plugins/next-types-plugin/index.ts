@@ -534,6 +534,7 @@ declare module 'next/cache' {
     revalidatePath,
     unstable_expireTag,
     unstable_expirePath,
+    refresh,
   } from 'next/dist/server/web/spec-extension/revalidate'
   export { unstable_noStore } from 'next/dist/server/web/spec-extension/unstable-no-store'
 
