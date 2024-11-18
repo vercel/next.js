@@ -15,7 +15,7 @@ use crate::{
         EcmascriptChunkPlaceable, EcmascriptChunkType,
     },
     references::async_module::AsyncModuleOptions,
-    tree_shake::asset::SideEffectsModule,
+    tree_shake::side_effect_module::SideEffectsModule,
     utils::StringifyJs,
     EcmascriptModuleContent,
 };

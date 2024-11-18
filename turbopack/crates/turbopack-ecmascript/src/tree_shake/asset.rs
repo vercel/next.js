@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, Vc};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -8,9 +8,7 @@ use turbopack_core::{
     context::AssetContext,
     ident::AssetIdent,
     module::Module,
-    reference::{
-        ModuleReference, ModuleReferences, SingleChunkableModuleReference, SingleModuleReference,
-    },
+    reference::{ModuleReference, ModuleReferences, SingleModuleReference},
     resolve::{origin::ResolveOrigin, ModulePart},
 };
 
@@ -25,7 +23,7 @@ use crate::{
         analyse_ecmascript_module, esm::FoundExportType, follow_reexports, FollowExportsResult,
     },
     side_effect_optimization::facade::module::EcmascriptModuleFacadeModule,
-    tree_shake::{chunk_item::SideEffectsModuleChunkItem, Key},
+    tree_shake::{side_effect_module::SideEffectsModule, Key},
     AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptModuleAsset,
     EcmascriptModuleAssetType, EcmascriptModuleContent, EcmascriptParsable,
 };
@@ -155,18 +153,12 @@ impl EcmascriptModulePartAsset {
                 ))
             };
 
-            let side_effects = side_effects.await?.to_vec();
-            if side_effects.is_empty() {
+            if side_effects.await?.is_empty() {
                 return Ok(Vc::upcast(final_module));
             }
 
-            let side_effects_module = SideEffectsModule {
-                module,
-                part,
-                resolved_as: final_module,
-                side_effects: Vc::cell(side_effects),
-            }
-            .cell();
+            let side_effects_module =
+                SideEffectsModule::new(module, part, final_module, *side_effects);
 
             return Ok(Vc::upcast(side_effects_module));
         }
@@ -186,103 +178,6 @@ impl EcmascriptModulePartAsset {
         }
     }
 }
-
-#[turbo_tasks::value]
-pub(super) struct SideEffectsModule {
-    /// Original module
-    module: Vc<EcmascriptModuleAsset>,
-    /// The part of the original module that is the binding
-    part: ResolvedVc<ModulePart>,
-    /// The module that is the binding
-    pub resolved_as: Vc<Box<dyn EcmascriptChunkPlaceable>>,
-    /// Side effects from the original module to the binding.
-    pub side_effects: Vc<SideEffects>,
-}
-
-#[turbo_tasks::value_impl]
-impl Module for SideEffectsModule {
-    #[turbo_tasks::function]
-    async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        let mut ident = self.module.ident().await?.clone_value();
-        ident.parts.push(self.part);
-
-        ident.add_asset(
-            ResolvedVc::cell(RcStr::from("resolved")),
-            self.resolved_as.ident().to_resolved().await?,
-        );
-
-        ident.add_modifier(Vc::cell(RcStr::from("side effects")));
-
-        for (i, side_effect) in self.side_effects.await?.iter().enumerate() {
-            ident.add_asset(
-                ResolvedVc::cell(RcStr::from(format!("side effect {}", i))),
-                side_effect.ident().to_resolved().await?,
-            );
-        }
-
-        Ok(AssetIdent::new(Value::new(ident)))
-    }
-
-    #[turbo_tasks::function]
-    async fn references(&self) -> Result<Vc<ModuleReferences>> {
-        let mut references = vec![];
-
-        for &side_effect in self.side_effects.await?.iter() {
-            references.push(Vc::upcast(SingleChunkableModuleReference::new(
-                Vc::upcast(side_effect),
-                Vc::cell(RcStr::from("side effect")),
-            )));
-        }
-
-        references.push(Vc::upcast(SingleChunkableModuleReference::new(
-            Vc::upcast(self.resolved_as),
-            Vc::cell(RcStr::from("resolved as")),
-        )));
-
-        Ok(Vc::cell(references))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for SideEffectsModule {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        unreachable!("SideEffectsModule has no content")
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl EcmascriptChunkPlaceable for SideEffectsModule {
-    #[turbo_tasks::function]
-    async fn get_exports(&self) -> Vc<EcmascriptExports> {
-        self.resolved_as.get_exports()
-    }
-
-    #[turbo_tasks::function]
-    async fn is_marked_as_side_effect_free(self: Vc<Self>, _: Vc<Glob>) -> Vc<bool> {
-        Vc::cell(true)
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ChunkableModule for SideEffectsModule {
-    #[turbo_tasks::function]
-    async fn as_chunk_item(
-        self: Vc<Self>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
-        Ok(Vc::upcast(
-            SideEffectsModuleChunkItem {
-                module: self,
-                chunking_context,
-            }
-            .cell(),
-        ))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl EvaluatableAsset for SideEffectsModule {}
 
 #[turbo_tasks::value]
 struct FollowExportsWithSideEffectsResult {

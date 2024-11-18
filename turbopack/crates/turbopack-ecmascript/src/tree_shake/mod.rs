@@ -27,6 +27,7 @@ pub mod chunk_item;
 mod graph;
 pub mod merge;
 mod optimizations;
+mod side_effect_module;
 #[cfg(test)]
 mod tests;
 mod util;
