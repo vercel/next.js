@@ -156,13 +156,8 @@ pub async fn follow_reexports(
         // Try to find the export in the local exports
         let exports_ref = exports.await?;
         if let Some(export) = exports_ref.exports.get(&export_name) {
-            match handle_declared_export(
-                module,
-                export_name.clone(),
-                export,
-                side_effect_free_packages,
-            )
-            .await?
+            match handle_declared_export(module, export_name, export, side_effect_free_packages)
+                .await?
             {
                 ControlFlow::Continue((m, n)) => {
                     module = m;
