@@ -164,9 +164,9 @@ impl KeyValueDatabase for RocksDbKeyValueDatabase {
     where
         Self: 'l;
 
-    fn write_batch<'l>(
-        &'l self,
-    ) -> Result<WriteBatch<'l, Self::SerialWriteBatch<'l>, Self::ConcurrentWriteBatch<'l>>> {
+    fn write_batch(
+        &self,
+    ) -> Result<WriteBatch<'_, Self::SerialWriteBatch<'_>, Self::ConcurrentWriteBatch<'_>>> {
         Ok(if USE_WRITE_BATCH_THREAD {
             WriteBatch::concurrent(ConcurrentRocksDbWriteBatch::new(self))
         } else {
@@ -249,7 +249,7 @@ impl<'a> BaseWriteBatch<'a> for ConcurrentRocksDbWriteBatch<'a> {
     }
 }
 
-impl<'a> ConcurrentRocksDbWriteBatch<'a> {
+impl ConcurrentRocksDbWriteBatch<'_> {
     fn push_job(&self, job: JobEntry) -> Result<()> {
         let cell = self
             .thread_local
