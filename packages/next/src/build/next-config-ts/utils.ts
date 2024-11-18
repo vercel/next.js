@@ -5,17 +5,17 @@ import { resolve } from 'node:path'
 import { parseJsonFile } from '../load-jsconfig'
 
 export function resolveSWCOptions(cwd: string): SWCOptions {
-  const { compilerOptions } = lazilyGetTSConfig(cwd)
+  const tsConfig = lazilyGetTSConfig(cwd)
 
   return {
     jsc: {
       parser: {
         syntax: 'typescript',
       },
-      paths: compilerOptions.paths,
+      paths: tsConfig?.compilerOptions?.paths,
       // SWC requires `baseUrl` to be passed when `paths` are used.
       // Also, `baseUrl` must be absolute.
-      baseUrl: resolve(cwd, compilerOptions.baseUrl ?? ''),
+      baseUrl: resolve(cwd, tsConfig?.compilerOptions?.baseUrl ?? ''),
       experimental: {
         keepImportAttributes: true,
         emitAssertForImportAttributes: true,
@@ -33,9 +33,9 @@ export function resolveSWCOptions(cwd: string): SWCOptions {
 // we lazily look for tsconfig.json at cwd. Does not cover edge cases
 // like "extends" or even the case where tsconfig.json does not exist.
 export function lazilyGetTSConfig(cwd: string): {
-  compilerOptions: CompilerOptions
+  compilerOptions?: CompilerOptions
 } {
-  let tsConfig: { compilerOptions: CompilerOptions }
+  let tsConfig = {}
   try {
     tsConfig = parseJsonFile(resolve(cwd, 'tsconfig.json'))
   } catch (error) {
@@ -43,7 +43,6 @@ export function lazilyGetTSConfig(cwd: string): {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
       throw error
     }
-    tsConfig = { compilerOptions: {} }
   }
 
   return tsConfig

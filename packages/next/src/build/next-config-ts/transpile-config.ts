@@ -36,8 +36,8 @@ export async function transpileConfig({
 }) {
   let hasRequire = false
   try {
-    const { compilerOptions } = lazilyGetTSConfig(cwd)
-    const swcOptions = resolveSWCOptions(cwd, compilerOptions)
+    const tsConfig = lazilyGetTSConfig(cwd)
+    const swcOptions = resolveSWCOptions(cwd, tsConfig.compilerOptions ?? {})
 
     const nextConfigString = await readFile(nextConfigPath, 'utf8')
     // lazy require swc since it loads React before even setting NODE_ENV
