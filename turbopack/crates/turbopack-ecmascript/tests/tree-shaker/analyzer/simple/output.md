@@ -118,12 +118,12 @@ graph TD
 # Final
 ```mermaid
 graph TD
-    N0["Items: [ItemId(Export((&quot;CHIMERA&quot;, #2), &quot;CHIMERA&quot;)), ItemId(1, VarDeclarator(0)), ItemId(3, VarDeclarator(0))]"];
-    N1["Items: [ItemId(Export((&quot;DOG&quot;, #2), &quot;DOG&quot;)), ItemId(2, VarDeclarator(0))]"];
-    N2["Items: [ItemId(0, VarDeclarator(0))]"];
+    N0["Items: [ItemId(0, VarDeclarator(0))]"];
+    N1["Items: [ItemId(1, VarDeclarator(0)), ItemId(3, VarDeclarator(0)), ItemId(Export((&quot;CHIMERA&quot;, #2), &quot;CHIMERA&quot;))]"];
+    N2["Items: [ItemId(2, VarDeclarator(0)), ItemId(Export((&quot;DOG&quot;, #2), &quot;DOG&quot;))]"];
     N3["Items: [ItemId(ModuleEvaluation)]"];
-    N1 --> N2;
-    N0 --> N2;
+    N2 --> N0;
+    N1 --> N0;
 ```
 # Entrypoints
 
@@ -133,10 +133,10 @@ graph TD
     Exports: 4,
     Export(
         "CHIMERA",
-    ): 0,
+    ): 1,
     Export(
         "DOG",
-    ): 1,
+    ): 2,
 }
 ```
 
@@ -144,12 +144,20 @@ graph TD
 # Modules (dev)
 ## Part 0
 ```js
-import { a as dog } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -2
+const dog = "dog";
+export { dog as a } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
 };
-export { CHIMERA };
+
+```
+## Part 1
+```js
+import { a as dog } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -0
+};
 const cat = "cat";
 const CHIMERA = cat + dog;
+export { CHIMERA };
 export { cat as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
@@ -158,22 +166,14 @@ export { CHIMERA as c } from "__TURBOPACK_VAR__" assert {
 };
 
 ```
-## Part 1
-```js
-import { a as dog } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -2
-};
-export { DOG };
-const DOG = dog;
-export { DOG as d } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
 ## Part 2
 ```js
-const dog = "dog";
-export { dog as a } from "__TURBOPACK_VAR__" assert {
+import { a as dog } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -0
+};
+const DOG = dog;
+export { DOG };
+export { DOG as d } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -206,10 +206,10 @@ export { DOG } from "__TURBOPACK_PART__" assert {
     Exports: 4,
     Export(
         "CHIMERA",
-    ): 0,
+    ): 1,
     Export(
         "DOG",
-    ): 1,
+    ): 2,
 }
 ```
 
@@ -217,12 +217,20 @@ export { DOG } from "__TURBOPACK_PART__" assert {
 # Modules (prod)
 ## Part 0
 ```js
-import { a as dog } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -2
+const dog = "dog";
+export { dog as a } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
 };
-export { CHIMERA };
+
+```
+## Part 1
+```js
+import { a as dog } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -0
+};
 const cat = "cat";
 const CHIMERA = cat + dog;
+export { CHIMERA };
 export { cat as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
@@ -231,22 +239,14 @@ export { CHIMERA as c } from "__TURBOPACK_VAR__" assert {
 };
 
 ```
-## Part 1
-```js
-import { a as dog } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -2
-};
-export { DOG };
-const DOG = dog;
-export { DOG as d } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
 ## Part 2
 ```js
-const dog = "dog";
-export { dog as a } from "__TURBOPACK_VAR__" assert {
+import { a as dog } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -0
+};
+const DOG = dog;
+export { DOG };
+export { DOG as d } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
