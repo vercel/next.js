@@ -79,8 +79,8 @@ graph TD
 # Final
 ```mermaid
 graph TD
-    N0["Items: [ItemId(Export((&quot;a&quot;, #2), &quot;a&quot;)), ItemId(0, VarDeclarator(0))]"];
-    N1["Items: [ItemId(Export((&quot;b&quot;, #2), &quot;b&quot;)), ItemId(1, VarDeclarator(0))]"];
+    N0["Items: [ItemId(0, VarDeclarator(0)), ItemId(Export((&quot;a&quot;, #2), &quot;a&quot;))]"];
+    N1["Items: [ItemId(1, VarDeclarator(0)), ItemId(Export((&quot;b&quot;, #2), &quot;b&quot;))]"];
     N2["Items: [ItemId(ModuleEvaluation)]"];
 ```
 # Entrypoints
@@ -102,8 +102,8 @@ graph TD
 # Modules (dev)
 ## Part 0
 ```js
-export { a };
 const a = "a";
+export { a };
 export { a as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
@@ -111,8 +111,8 @@ export { a as a } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 1
 ```js
-export { b };
 const b = "b";
+export { b };
 export { b as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
@@ -157,8 +157,8 @@ export { b } from "__TURBOPACK_PART__" assert {
 # Modules (prod)
 ## Part 0
 ```js
-export { a };
 const a = "a";
+export { a };
 export { a as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
@@ -166,8 +166,8 @@ export { a as a } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 1
 ```js
-export { b };
 const b = "b";
+export { b };
 export { b as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
