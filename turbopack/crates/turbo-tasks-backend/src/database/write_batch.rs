@@ -140,7 +140,7 @@ where
     }
 }
 
-impl<'r, 'a, S, C> BaseWriteBatch<'a> for WriteBatchRef<'r, 'a, S, C>
+impl<'a, S, C> BaseWriteBatch<'a> for WriteBatchRef<'_, 'a, S, C>
 where
     S: SerialWriteBatch<'a>,
     C: ConcurrentWriteBatch<'a>,
@@ -169,7 +169,7 @@ where
     }
 }
 
-impl<'r, 'a, S, C> SerialWriteBatch<'a> for WriteBatchRef<'r, 'a, S, C>
+impl<'a, S, C> SerialWriteBatch<'a> for WriteBatchRef<'_, 'a, S, C>
 where
     S: SerialWriteBatch<'a>,
     C: ConcurrentWriteBatch<'a>,
@@ -209,7 +209,7 @@ impl<'a> BaseWriteBatch<'a> for UnimplementedWriteBatch {
     }
 }
 
-impl<'a> SerialWriteBatch<'a> for UnimplementedWriteBatch {
+impl SerialWriteBatch<'_> for UnimplementedWriteBatch {
     fn put(&mut self, _key_space: KeySpace, _key: Cow<[u8]>, _value: Cow<[u8]>) -> Result<()> {
         todo!()
     }
@@ -218,7 +218,7 @@ impl<'a> SerialWriteBatch<'a> for UnimplementedWriteBatch {
     }
 }
 
-impl<'a> ConcurrentWriteBatch<'a> for UnimplementedWriteBatch {
+impl ConcurrentWriteBatch<'_> for UnimplementedWriteBatch {
     fn put(&self, _key_space: KeySpace, _key: Cow<[u8]>, _value: Cow<[u8]>) -> Result<()> {
         todo!()
     }

@@ -76,9 +76,9 @@ impl<T: KeyValueDatabase> KeyValueDatabase for FreshDbOptimization<T> {
     where
         Self: 'l;
 
-    fn write_batch<'l>(
-        &'l self,
-    ) -> Result<WriteBatch<'l, Self::SerialWriteBatch<'l>, Self::ConcurrentWriteBatch<'l>>> {
+    fn write_batch(
+        &self,
+    ) -> Result<WriteBatch<'_, Self::SerialWriteBatch<'_>, Self::ConcurrentWriteBatch<'_>>> {
         Ok(match self.database.write_batch()? {
             WriteBatch::Serial(write_batch) => WriteBatch::serial(FreshDbOptimizationWriteBatch {
                 write_batch,

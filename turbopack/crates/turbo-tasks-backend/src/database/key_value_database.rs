@@ -44,7 +44,7 @@ pub trait KeyValueDatabase {
     where
         Self: 'l;
 
-    fn write_batch<'a>(
-        &'a self,
-    ) -> Result<WriteBatch<'a, Self::SerialWriteBatch<'a>, Self::ConcurrentWriteBatch<'a>>>;
+    fn write_batch(
+        &self,
+    ) -> Result<WriteBatch<'_, Self::SerialWriteBatch<'_>, Self::ConcurrentWriteBatch<'_>>>;
 }

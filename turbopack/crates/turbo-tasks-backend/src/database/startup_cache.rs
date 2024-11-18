@@ -166,9 +166,9 @@ impl<T: KeyValueDatabase> KeyValueDatabase for StartupCacheLayer<T> {
     where
         Self: 'l;
 
-    fn write_batch<'l>(
-        &'l self,
-    ) -> Result<WriteBatch<'l, Self::SerialWriteBatch<'l>, Self::ConcurrentWriteBatch<'l>>> {
+    fn write_batch(
+        &self,
+    ) -> Result<WriteBatch<'_, Self::SerialWriteBatch<'_>, Self::ConcurrentWriteBatch<'_>>> {
         Ok(match self.database.write_batch()? {
             WriteBatch::Serial(batch) => WriteBatch::serial(StartupCacheWriteBatch {
                 batch,
@@ -213,7 +213,7 @@ impl<'a, B: BaseWriteBatch<'a>> BaseWriteBatch<'a> for StartupCacheWriteBatch<'a
     fn commit(self) -> Result<()> {
         if !self.fresh_db {
             // Remove file before writing the new snapshot to database to avoid inconsistency
-            let _ = fs::remove_file(&self.path);
+            let _ = fs::remove_file(self.path);
         }
         self.batch.commit()?;
         if !self.fresh_db {
@@ -257,7 +257,7 @@ impl<'a, B: BaseWriteBatch<'a>> BaseWriteBatch<'a> for StartupCacheWriteBatch<'a
             }
 
             // move temp file to the final location
-            fs::rename(temp_path, &self.path)?;
+            fs::rename(temp_path, self.path)?;
         }
         Ok(())
     }

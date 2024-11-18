@@ -49,9 +49,9 @@ impl KeyValueDatabase for NoopKvDb {
     where
         Self: 'l;
 
-    fn write_batch<'l>(
-        &'l self,
-    ) -> Result<WriteBatch<'l, Self::SerialWriteBatch<'l>, Self::ConcurrentWriteBatch<'l>>> {
+    fn write_batch(
+        &self,
+    ) -> Result<WriteBatch<'_, Self::SerialWriteBatch<'_>, Self::ConcurrentWriteBatch<'_>>> {
         Ok(WriteBatch::concurrent(NoopWriteBatch))
     }
 }
@@ -77,7 +77,7 @@ impl<'a> BaseWriteBatch<'a> for NoopWriteBatch {
     }
 }
 
-impl<'a> SerialWriteBatch<'a> for NoopWriteBatch {
+impl SerialWriteBatch<'_> for NoopWriteBatch {
     fn put(&mut self, _key_space: KeySpace, _key: Cow<[u8]>, _value: Cow<[u8]>) -> Result<()> {
         Ok(())
     }
@@ -87,7 +87,7 @@ impl<'a> SerialWriteBatch<'a> for NoopWriteBatch {
     }
 }
 
-impl<'a> ConcurrentWriteBatch<'a> for NoopWriteBatch {
+impl ConcurrentWriteBatch<'_> for NoopWriteBatch {
     fn put(&self, _key_space: KeySpace, _key: Cow<[u8]>, _value: Cow<[u8]>) -> Result<()> {
         Ok(())
     }

@@ -94,9 +94,9 @@ impl<T: KeyValueDatabase + 'static> KeyValueDatabase for ReadTransactionCache<T>
     type ConcurrentWriteBatch<'l> =
         ReadTransactionCacheWriteBatch<'l, T, T::ConcurrentWriteBatch<'l>>;
 
-    fn write_batch<'l>(
-        &'l self,
-    ) -> Result<WriteBatch<'l, Self::SerialWriteBatch<'l>, Self::ConcurrentWriteBatch<'l>>> {
+    fn write_batch(
+        &self,
+    ) -> Result<WriteBatch<'_, Self::SerialWriteBatch<'_>, Self::ConcurrentWriteBatch<'_>>> {
         Ok(match self.database.write_batch()? {
             WriteBatch::Serial(write_batch) => WriteBatch::serial(ReadTransactionCacheWriteBatch {
                 write_batch,

@@ -119,9 +119,9 @@ impl KeyValueDatabase for LmbdKeyValueDatabase {
     where
         Self: 'l;
 
-    fn write_batch<'a>(
-        &'a self,
-    ) -> Result<WriteBatch<'a, Self::SerialWriteBatch<'a>, Self::ConcurrentWriteBatch<'a>>> {
+    fn write_batch(
+        &self,
+    ) -> Result<WriteBatch<'_, Self::SerialWriteBatch<'_>, Self::ConcurrentWriteBatch<'_>>> {
         Ok(WriteBatch::serial(LmbdWriteBatch {
             tx: self.env.begin_rw_txn()?,
             this: self,
