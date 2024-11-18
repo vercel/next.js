@@ -12,6 +12,8 @@ const cacheExports = {
   expirePath: require('next/dist/server/web/spec-extension/revalidate')
     .expirePath,
 
+  refresh: require('next/dist/server/web/spec-extension/revalidate').refresh,
+
   unstable_noStore:
     require('next/dist/server/web/spec-extension/unstable-no-store')
       .unstable_noStore,
@@ -33,3 +35,4 @@ exports.expirePath = cacheExports.expirePath
 exports.unstable_noStore = cacheExports.unstable_noStore
 exports.unstable_cacheLife = cacheExports.unstable_cacheLife
 exports.unstable_cacheTag = cacheExports.unstable_cacheTag
+exports.refresh = cacheExports.refresh

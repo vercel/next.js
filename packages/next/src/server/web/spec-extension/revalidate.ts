@@ -32,6 +32,20 @@ export function revalidatePath(originalPath: string, type?: 'layout' | 'page') {
 }
 
 /**
+ * This function allows you to refresh client cache from server actions.
+ * It's useful as dynamic data can be cached on the client which won't
+ * be refreshed by expireTag
+ */
+export function refresh() {
+  const store = workAsyncStorage.getStore()
+
+  if (store) {
+    // TODO: break this to it's own field
+    store.pathWasRevalidated = true
+  }
+}
+
+/**
  * This function allows you to purge [cached data](https://nextjs.org/docs/app/building-your-application/caching) on-demand for a specific cache tag.
  *
  * Read more: [Next.js Docs: `expireTag`](https://nextjs.org/docs/app/api-reference/functions/expireTag)
