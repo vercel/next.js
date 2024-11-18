@@ -267,10 +267,22 @@ pub async fn get_client_module_options_context(
         .await?;
     let target_browsers = env.runtime_versions();
 
-    let mut next_client_rules =
-        get_next_client_transforms_rules(next_config, ty.into_value(), mode, false).await?;
-    let foreign_next_client_rules =
-        get_next_client_transforms_rules(next_config, ty.into_value(), mode, true).await?;
+    let mut next_client_rules = get_next_client_transforms_rules(
+        next_config,
+        ty.into_value(),
+        *execution_context,
+        mode,
+        false,
+    )
+    .await?;
+    let foreign_next_client_rules = get_next_client_transforms_rules(
+        next_config,
+        ty.into_value(),
+        *execution_context,
+        mode,
+        true,
+    )
+    .await?;
     let additional_rules: Vec<ModuleRule> = vec![
         get_swc_ecma_transform_plugin_rule(next_config, project_path).await?,
         get_relay_transform_rule(next_config, project_path).await?,

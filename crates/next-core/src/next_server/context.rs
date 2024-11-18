@@ -404,12 +404,24 @@ pub async fn get_server_module_options_context(
     next_runtime: NextRuntime,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let next_mode = mode.await?;
-    let mut next_server_rules =
-        get_next_server_transforms_rules(next_config, ty.into_value(), mode, false, next_runtime)
-            .await?;
-    let mut foreign_next_server_rules =
-        get_next_server_transforms_rules(next_config, ty.into_value(), mode, true, next_runtime)
-            .await?;
+    let mut next_server_rules = get_next_server_transforms_rules(
+        next_config,
+        ty.into_value(),
+        *execution_context,
+        mode,
+        false,
+        next_runtime,
+    )
+    .await?;
+    let mut foreign_next_server_rules = get_next_server_transforms_rules(
+        next_config,
+        ty.into_value(),
+        *execution_context,
+        mode,
+        true,
+        next_runtime,
+    )
+    .await?;
     let mut internal_custom_rules = get_next_server_internal_transforms_rules(
         ty.into_value(),
         next_config.mdx_rs().await?.is_some(),

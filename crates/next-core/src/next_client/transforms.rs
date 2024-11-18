@@ -2,6 +2,7 @@ use anyhow::Result;
 use next_custom_transforms::transforms::strip_page_exports::ExportFilter;
 use turbo_tasks::Vc;
 use turbopack::module_options::ModuleRule;
+use turbopack_node::execution_context::ExecutionContext;
 
 use crate::{
     mode::NextMode,
@@ -25,6 +26,7 @@ use crate::{
 pub async fn get_next_client_transforms_rules(
     next_config: Vc<NextConfig>,
     context_ty: ClientContextType,
+    execution_context: Vc<ExecutionContext>,
     mode: Vc<NextMode>,
     foreign_code: bool,
 ) -> Result<Vec<ModuleRule>> {
@@ -71,6 +73,7 @@ pub async fn get_next_client_transforms_rules(
             is_app_dir = true;
             rules.push(get_server_actions_transform_rule(
                 ActionsTransform::Client,
+                execution_context.await?.encryption_key.clone(),
                 enable_mdx_rs,
             ));
         }

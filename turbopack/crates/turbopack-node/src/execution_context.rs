@@ -1,4 +1,4 @@
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, Vc};
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::chunk::ChunkingContext;
@@ -8,6 +8,7 @@ pub struct ExecutionContext {
     pub project_path: ResolvedVc<FileSystemPath>,
     pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     pub env: ResolvedVc<Box<dyn ProcessEnv>>,
+    pub encryption_key: RcStr,
 }
 
 #[turbo_tasks::value_impl]
@@ -17,11 +18,13 @@ impl ExecutionContext {
         project_path: ResolvedVc<FileSystemPath>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
         env: ResolvedVc<Box<dyn ProcessEnv>>,
+        encryption_key: RcStr,
     ) -> Vc<Self> {
         ExecutionContext {
             project_path,
             chunking_context,
             env,
+            encryption_key,
         }
         .cell()
     }
