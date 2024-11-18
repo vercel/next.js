@@ -900,6 +900,10 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 span: _,
                 in_try: _,
             } => {
+                // Don't replace condition with it's truth-y value, if it has side effects (e.g.
+                // function calls)
+                let condition_has_side_effects = condition.has_side_effects();
+
                 let condition = analysis_state
                     .link_value(condition, ImportAttributes::empty_ref())
                     .await?;
@@ -911,10 +915,12 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 }
                 macro_rules! condition {
                     ($expr:expr) => {
-                        analysis.add_code_gen(ConstantCondition::new(
-                            Value::new($expr),
-                            Vc::cell(condition_ast_path.to_vec()),
-                        ));
+                        if !condition_has_side_effects {
+                            analysis.add_code_gen(ConstantCondition::new(
+                                Value::new($expr),
+                                Vc::cell(condition_ast_path.to_vec()),
+                            ));
+                        }
                     };
                 }
                 macro_rules! active {
