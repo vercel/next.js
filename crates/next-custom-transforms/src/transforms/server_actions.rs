@@ -388,7 +388,12 @@ impl<C: Comments> ServerActions<C> {
             .push((action_name.to_string(), action_id.clone()));
 
         let register_action_expr = bind_args_to_ref_expr(
-            annotate_ident_as_server_reference(action_ident.clone(), action_id.clone(), arrow.span),
+            annotate_ident_as_server_reference(
+                action_ident.clone(),
+                action_id.clone(),
+                arrow.span,
+                &self.comments,
+            ),
             ids_from_closure
                 .iter()
                 .cloned()
@@ -530,6 +535,7 @@ impl<C: Comments> ServerActions<C> {
                 action_ident.clone(),
                 action_id.clone(),
                 function.span,
+                &self.comments,
             ),
             ids_from_closure
                 .iter()
@@ -714,6 +720,7 @@ impl<C: Comments> ServerActions<C> {
             cache_ident.clone(),
             reference_id.clone(),
             arrow.span,
+            &self.comments,
         );
 
         // If there're any bound args from the closure, we need to hoist the
@@ -786,6 +793,7 @@ impl<C: Comments> ServerActions<C> {
             cache_ident.clone(),
             reference_id.clone(),
             function.span,
+            &self.comments,
         );
 
         function.body.visit_mut_with(&mut ClosureReplacer {
@@ -1833,6 +1841,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             ident.clone(),
                             ref_id.to_string(),
                             ident.span,
+                            &self.comments,
                         )),
                     }));
                 }
@@ -2241,7 +2250,19 @@ fn annotate_ident_as_server_reference(
     ident: Ident,
     action_id: String,
     original_span: Span,
+    comments: &dyn Comments,
 ) -> Expr {
+    if !original_span.lo.is_dummy() {
+        comments.add_leading(
+            original_span.lo,
+            Comment {
+                kind: CommentKind::Block,
+                span: original_span,
+                text: "#__TURBOPACK_DISABLE_EXPORT_MERGING__".into(),
+            },
+        );
+    }
+
     // registerServerReference(reference, id, null)
     Expr::Call(CallExpr {
         span: original_span,
