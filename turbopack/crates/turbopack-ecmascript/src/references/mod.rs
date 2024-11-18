@@ -592,10 +592,6 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         set_handler_and_globals(&handler, globals, || create_graph(program, eval_context));
 
     let mut evaluation_references = Vec::new();
-    let side_effect_free_packages = module.asset_context().side_effect_free_packages();
-    let is_side_effect_free = *module
-        .is_marked_as_side_effect_free(side_effect_free_packages)
-        .await?;
 
     for (i, r) in eval_context.imports.references().enumerate() {
         let r = EsmAssetReference::new(
@@ -612,9 +608,6 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     }
                     ImportedSymbol::Symbol(name) => Some(ModulePart::export((&**name).into())),
                     ImportedSymbol::PartEvaluation(part_id) => {
-                        if !is_side_effect_free {
-                            evaluation_references.push(i);
-                        }
                         Some(ModulePart::internal_evaluation(*part_id))
                     }
                     ImportedSymbol::Part(part_id) => Some(ModulePart::internal(*part_id)),
