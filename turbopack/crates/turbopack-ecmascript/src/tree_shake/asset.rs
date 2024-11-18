@@ -374,12 +374,8 @@ async fn only_effects(
     module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
 ) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
     if let Some(module) = Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(module).await? {
-        let module = EcmascriptModulePartAsset::select_part(module, ModulePart::evaluation());
-        if let Some(module) =
-            Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(module).await?
-        {
-            return Ok(module);
-        }
+        let module = EcmascriptModulePartAsset::new(module, ModulePart::evaluation());
+        return Ok(Vc::upcast(module));
     }
 
     Ok(module)
