@@ -74,7 +74,10 @@ import {
   isRedirectError,
   type RedirectError,
 } from '../../../client/components/redirect'
-import { isNotFoundError } from '../../../client/components/not-found'
+import {
+  getAccessFallbackHTTPStatus,
+  isHTTPAccessFallbackError,
+} from '../../../client/components/http-access-fallback/http-access-fallback'
 import { RedirectStatusCode } from '../../../client/components/redirect-status-code'
 import { INFINITE_CACHE } from '../../../lib/constants'
 
@@ -562,8 +565,9 @@ export class AppRouteRouteModule extends RouteModule<
             : getRedirectStatusCodeFromError(err),
           headers,
         })
-      } else if (isNotFoundError(err)) {
-        return new Response(null, { status: 404 })
+      } else if (isHTTPAccessFallbackError(err)) {
+        const httpStatus = getAccessFallbackHTTPStatus(err)
+        return new Response(null, { status: httpStatus })
       }
 
       throw err
