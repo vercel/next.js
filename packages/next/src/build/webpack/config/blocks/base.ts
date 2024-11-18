@@ -4,14 +4,7 @@ import { COMPILER_NAMES } from '../../../../shared/lib/constants'
 import type { ConfigurationContext } from '../utils'
 import DevToolsIgnorePlugin from '../../plugins/devtools-ignore-list-plugin'
 import EvalSourceMapDevToolPlugin from '../../plugins/eval-source-map-dev-tool-plugin'
-
-function shouldIgnorePath(modulePath: string): boolean {
-  return (
-    modulePath.includes('node_modules') ||
-    // Only relevant for when Next.js is symlinked e.g. in the Next.js monorepo
-    modulePath.includes('next/dist')
-  )
-}
+import { shouldIgnorePath } from '../ignore-list'
 
 export const base = curry(function base(
   ctx: ConfigurationContext,
