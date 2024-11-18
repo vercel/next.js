@@ -507,28 +507,26 @@ Sending a notification will be handled by our service worker, created in step 5.
 In a production environment, you would want to store the subscription in a database for persistence across server restarts and to manage multiple users' subscriptions.
 
 ### 4. Generating VAPID Keys
+To use the Web Push API, you need to generate VAPID keys. The simplest way is to use the web-push CLI directly:
 
-To use the Web Push API, you need to generate [VAPID](https://vapidkeys.com/) keys.
+First, install web-push globally:
 
-Create a script file, e.g., `generate-vapid-keys.js`:
-
-```js filename="./generate-vapid-keys.js"
-const webpush = require('web-push')
-const vapidKeys = webpush.generateVAPIDKeys()
-
-console.log('Paste the following keys in your .env file:')
-console.log('-------------------')
-console.log('NEXT_PUBLIC_VAPID_PUBLIC_KEY=', vapidKeys.publicKey)
-console.log('VAPID_PRIVATE_KEY=', vapidKeys.privateKey)
+```bash
+npm install -g web-push
 ```
 
-Run this script with Node.js to generate your VAPID keys:
+Generate the VAPID keys by running:
 
-```bash filename="Terminal"
-node generate-vapid-keys.js
+```bash
+web-push generate-vapid-keys
 ```
 
-Copy the output and paste it into your `.env` file.
+Copy the output and paste the keys into your .env file:
+
+```.env
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=your_public_key_here
+VAPID_PRIVATE_KEY=your_private_key_here
+```
 
 ### 5. Creating a Service Worker
 
