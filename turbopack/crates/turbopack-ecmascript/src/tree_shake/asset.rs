@@ -160,15 +160,15 @@ impl EcmascriptModulePartAsset {
                 return Ok(Vc::upcast(final_module));
             }
 
-            return Ok(Vc::upcast(
-                SideEffectsModule {
-                    module,
-                    part,
-                    resolved_as: final_module,
-                    side_effects: Vc::cell(side_effects),
-                }
-                .cell(),
-            ));
+            let side_effects_module = SideEffectsModule {
+                module,
+                part,
+                resolved_as: final_module,
+                side_effects: Vc::cell(side_effects),
+            }
+            .cell();
+
+            return Ok(Vc::upcast(side_effects_module));
         }
 
         Ok(Vc::upcast(EcmascriptModulePartAsset::new(module, *part)))
@@ -260,7 +260,7 @@ impl EcmascriptChunkPlaceable for SideEffectsModule {
 
     #[turbo_tasks::function]
     async fn is_marked_as_side_effect_free(self: Vc<Self>, _: Vc<Glob>) -> Vc<bool> {
-        Vc::cell(false)
+        Vc::cell(true)
     }
 }
 
