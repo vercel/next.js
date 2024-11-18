@@ -44,7 +44,7 @@ impl GraphOptimizer<'_> {
         N: Copy,
         Self: Index<N, Output = ItemId>,
     {
-        items.iter().any(|item| self.should_not_merge(item, false))
+        items.iter().any(|item| self.should_not_merge(item))
     }
 
     /// Optimizes a condensed graph by merging nodes with only one incoming edge.
