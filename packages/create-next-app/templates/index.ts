@@ -53,7 +53,7 @@ export const installTemplate = async ({
   console.log("\nInitializing project with template:", template, "\n");
   const templatePath = path.join(__dirname, template, mode);
   const copySource = ["**"];
-  if (!eslint) copySource.push("!eslintrc.json");
+  if (!eslint) copySource.push("!eslint.config.mjs");
   if (!tailwind)
     copySource.push(
       mode == "ts" ? "tailwind.config.ts" : "!tailwind.config.mjs",
@@ -65,8 +65,7 @@ export const installTemplate = async ({
     cwd: templatePath,
     rename(name) {
       switch (name) {
-        case "gitignore":
-        case "eslintrc.json": {
+        case "gitignore": {
           return `.${name}`;
         }
         // README.md is ignored by webpack-asset-relocator-loader used by ncc:
