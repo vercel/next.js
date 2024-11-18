@@ -1,4 +1,4 @@
-use std::{borrow::Cow, future::Future, panic, pin::Pin};
+use std::{borrow::Cow, collections::HashSet, future::Future, panic, pin::Pin};
 
 use anyhow::{anyhow, Result};
 use auto_hash_map::AutoSet;
@@ -157,10 +157,15 @@ impl PartialEq for Effects {
         if self.effects.len() != other.effects.len() {
             return false;
         }
-        self.effects
+        let effect_ptrs = self
+            .effects
             .iter()
-            .zip(other.effects.iter())
-            .all(|(a, b)| ReadRef::ptr_eq(a, b))
+            .map(|e| ReadRef::ptr(e))
+            .collect::<HashSet<_>>();
+        other
+            .effects
+            .iter()
+            .all(|e| effect_ptrs.contains(&ReadRef::ptr(e)))
     }
 }
 
