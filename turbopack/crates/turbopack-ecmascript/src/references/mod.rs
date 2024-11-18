@@ -57,7 +57,6 @@ use turbopack_core::{
     compile_time_info::{
         CompileTimeInfo, DefineableNameSegment, FreeVarReference, FreeVarReferences,
     },
-    context::AssetContext,
     environment::Rendering,
     error::PrettyPrintError,
     issue::{analyze::AnalyzeIssue, IssueExt, IssueSeverity, IssueSource, StyledString},
@@ -125,7 +124,7 @@ use crate::{
         top_level_await::has_top_level_await,
         ConstantNumber, ConstantString, JsValueUrlKind, RequireContextValue,
     },
-    chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
+    chunk::EcmascriptExports,
     code_gen::{CodeGen, CodeGenerateable, CodeGenerateableWithAsyncModuleInfo, CodeGenerateables},
     magic_identifier,
     parse::parse,
@@ -608,6 +607,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     }
                     ImportedSymbol::Symbol(name) => Some(ModulePart::export((&**name).into())),
                     ImportedSymbol::PartEvaluation(part_id) => {
+                        evaluation_references.push(i);
                         Some(ModulePart::internal_evaluation(*part_id))
                     }
                     ImportedSymbol::Part(part_id) => Some(ModulePart::internal(*part_id)),
