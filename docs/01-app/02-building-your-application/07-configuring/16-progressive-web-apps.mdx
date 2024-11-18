@@ -507,7 +507,7 @@ Sending a notification will be handled by our service worker, created in step 5.
 In a production environment, you would want to store the subscription in a database for persistence across server restarts and to manage multiple users' subscriptions.
 
 ### 4. Generating VAPID Keys
-To use the Web Push API, you need to generate VAPID keys. The simplest way is to use the web-push CLI directly:
+To use the Web Push API, you need to generate [VAPID](https://vapidkeys.com/) keys. The simplest way is to use the web-push CLI directly:
 
 First, install web-push globally:
 
@@ -521,7 +521,7 @@ Generate the VAPID keys by running:
 web-push generate-vapid-keys
 ```
 
-Copy the output and paste the keys into your .env file:
+Copy the output and paste the keys into your `.env` file:
 
 ```.env
 NEXT_PUBLIC_VAPID_PUBLIC_KEY=your_public_key_here
