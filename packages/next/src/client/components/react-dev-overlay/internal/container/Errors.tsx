@@ -31,7 +31,10 @@ import {
 } from '../helpers/hydration-error-info'
 import { NodejsInspectorCopyButton } from '../components/nodejs-inspector'
 import { CopyButton } from '../components/copy-button'
-import { isUnhandledConsoleOrRejection } from '../helpers/console-error'
+import {
+  getUnhandledErrorType,
+  isUnhandledConsoleOrRejection,
+} from '../helpers/console-error'
 
 export type SupportedErrorEvent = {
   id: number
@@ -62,12 +65,19 @@ function ErrorDescription({
   hydrationWarning: string | null
 }) {
   const isUnhandledOrReplayError = isUnhandledConsoleOrRejection(error)
+  const unhandledErrorType = isUnhandledOrReplayError
+    ? getUnhandledErrorType(error)
+    : null
+  const isConsoleErrorStringMessage = unhandledErrorType === 'string'
   // If the error is:
   // - hydration warning
   // - captured console error or unhandled rejection
   // skip displaying the error name
   const title =
-    isUnhandledOrReplayError || hydrationWarning ? '' : error.name + ': '
+    (isUnhandledOrReplayError && isConsoleErrorStringMessage) ||
+    hydrationWarning
+      ? ''
+      : error.name + ': '
 
   // If it's replayed error, display the environment name
   const environmentName =

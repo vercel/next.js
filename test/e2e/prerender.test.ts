@@ -51,6 +51,7 @@ describe('Prerender', () => {
           ]
         },
       },
+      patchFileDelay: 500,
     })
   })
   afterAll(() => next.destroy())
@@ -93,6 +94,7 @@ describe('Prerender', () => {
   }
 
   const allowHeader = [
+    'host',
     'x-matched-path',
     'x-prerender-revalidate',
     'x-prerender-revalidate-if-generated',

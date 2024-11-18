@@ -11,10 +11,10 @@ use serde::{
     Deserialize, Deserializer, Serialize, Serializer,
 };
 use serde_bytes::{ByteBuf, Bytes};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
     debug::{internal::PassthroughDebug, ValueDebugFormat, ValueDebugFormatString},
     trace::{TraceRawVcs, TraceRawVcsContext},
-    RcStr,
 };
 
 use super::pattern::Pattern;

@@ -9,7 +9,8 @@ use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
-use turbo_tasks::{trace::TraceRawVcs, RcStr, ResolvedVc, Value, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{trace::TraceRawVcs, ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::{
     util::normalize_path, DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath,
     LinkContent, LinkType,
@@ -1647,7 +1648,7 @@ pub async fn read_matches(
 #[cfg(test)]
 mod tests {
     use rstest::*;
-    use turbo_tasks::RcStr;
+    use turbo_rcstr::RcStr;
 
     use super::{longest_common_prefix, longest_common_suffix, Pattern};
 

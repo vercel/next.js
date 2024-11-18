@@ -59,7 +59,11 @@ import {
 } from '../../lib/metadata/metadata-context'
 import { createRequestStoreForRender } from '../async-storage/request-store'
 import { createWorkStore } from '../async-storage/work-store'
-import { isNotFoundError } from '../../client/components/not-found'
+import {
+  getAccessFallbackErrorTypeByStatus,
+  getAccessFallbackHTTPStatus,
+  isHTTPAccessFallbackError,
+} from '../../client/components/http-access-fallback/http-access-fallback'
 import {
   getURLFromRedirectError,
   isRedirectError,
@@ -175,6 +179,7 @@ import {
   createPrerenderResumeDataCache,
   createRenderResumeDataCache,
 } from '../resume-data-cache/resume-data-cache'
+import type { MetadataErrorType } from '../../lib/metadata/resolve-metadata'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -562,7 +567,8 @@ async function generateDynamicFlightRenderResult(
       ctx,
       false,
       ctx.clientReferenceManifest,
-      ctx.workStore.route
+      ctx.workStore.route,
+      requestStore
     )
   }
 
@@ -803,7 +809,7 @@ function Preloads({ preloadCallbacks }: { preloadCallbacks: Function[] }) {
 async function getErrorRSCPayload(
   tree: LoaderTree,
   ctx: AppRenderContext,
-  errorType: 'not-found' | 'redirect' | undefined
+  errorType: MetadataErrorType | 'redirect' | undefined
 ) {
   const {
     getDynamicParamFromSegment,
@@ -906,7 +912,6 @@ function App<T>({
   )
 
   const initialState = createInitialRouterState({
-    buildId: response.b,
     initialFlightData: response.f,
     initialCanonicalUrlParts: response.c,
     // location and initialParallelRoutes are not initialized in the SSR render
@@ -965,7 +970,6 @@ function AppWithoutContext<T>({
   )
 
   const initialState = createInitialRouterState({
-    buildId: response.b,
     initialFlightData: response.f,
     initialCanonicalUrlParts: response.c,
     // location and initialParallelRoutes are not initialized in the SSR render
@@ -1303,7 +1307,8 @@ async function renderToHTMLOrFlightImpl(
       // The type check here ensures that `req` is correctly typed, and the
       // environment variable check provides dead code elimination.
       process.env.NEXT_RUNTIME !== 'edge' &&
-      isNodeNextRequest(req)
+      isNodeNextRequest(req) &&
+      !isDevWarmupRequest
     ) {
       const setAppIsrStatus = renderOpts.setAppIsrStatus
       req.originalRequest.on('end', () => {
@@ -1655,7 +1660,8 @@ async function renderToStream(
         ctx,
         res.statusCode === 404,
         clientReferenceManifest,
-        workStore.route
+        workStore.route,
+        requestStore
       )
 
       reactServerResult = new ReactServerResult(reactServerStream)
@@ -1838,11 +1844,11 @@ async function renderToStream(
       throw err
     }
 
-    let errorType: 'not-found' | 'redirect' | undefined
+    let errorType: MetadataErrorType | 'redirect' | undefined
 
-    if (isNotFoundError(err)) {
-      errorType = 'not-found'
-      res.statusCode = 404
+    if (isHTTPAccessFallbackError(err)) {
+      res.statusCode = getAccessFallbackHTTPStatus(err)
+      errorType = getAccessFallbackErrorTypeByStatus(res.statusCode)
     } else if (isRedirectError(err)) {
       errorType = 'redirect'
       res.statusCode = getRedirectStatusCodeFromError(err)
@@ -1957,10 +1963,13 @@ async function renderToStream(
         validateRootLayout,
       })
     } catch (finalErr: any) {
-      if (process.env.NODE_ENV === 'development' && isNotFoundError(finalErr)) {
-        const bailOnNotFound: typeof import('../../client/components/dev-root-not-found-boundary').bailOnNotFound =
-          require('../../client/components/dev-root-not-found-boundary').bailOnNotFound
-        bailOnNotFound()
+      if (
+        process.env.NODE_ENV === 'development' &&
+        isHTTPAccessFallbackError(finalErr)
+      ) {
+        const { bailOnRootNotFound } =
+          require('../../client/components/dev-root-http-access-fallback-boundary') as typeof import('../../client/components/dev-root-http-access-fallback-boundary')
+        bailOnRootNotFound()
       }
       throw finalErr
     }
@@ -1981,7 +1990,8 @@ async function spawnDynamicValidationInDev(
   ctx: AppRenderContext,
   isNotFound: boolean,
   clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>,
-  route: string
+  route: string,
+  requestStore: RequestStore
 ): Promise<void> {
   const { componentMod: ComponentMod } = ctx
 
@@ -2236,6 +2246,8 @@ async function spawnDynamicValidationInDev(
                 isPrerenderInterruptedError(err) ||
                 finalClientController.signal.aborted
               ) {
+                requestStore.usedDynamic = true
+
                 const componentStack: string | undefined = (errorInfo as any)
                   .componentStack
                 if (typeof componentStack === 'string') {
@@ -3632,11 +3644,11 @@ async function prerenderToStream(
       throw err
     }
 
-    let errorType: 'not-found' | 'redirect' | undefined
+    let errorType: MetadataErrorType | 'redirect' | undefined
 
-    if (isNotFoundError(err)) {
-      errorType = 'not-found'
-      res.statusCode = 404
+    if (isHTTPAccessFallbackError(err)) {
+      res.statusCode = getAccessFallbackHTTPStatus(err)
+      errorType = getAccessFallbackErrorTypeByStatus(res.statusCode)
     } else if (isRedirectError(err)) {
       errorType = 'redirect'
       res.statusCode = getRedirectStatusCodeFromError(err)
@@ -3756,10 +3768,13 @@ async function prerenderToStream(
         collectedTags: prerenderStore !== null ? prerenderStore.tags : null,
       }
     } catch (finalErr: any) {
-      if (process.env.NODE_ENV === 'development' && isNotFoundError(finalErr)) {
-        const bailOnNotFound: typeof import('../../client/components/dev-root-not-found-boundary').bailOnNotFound =
-          require('../../client/components/dev-root-not-found-boundary').bailOnNotFound
-        bailOnNotFound()
+      if (
+        process.env.NODE_ENV === 'development' &&
+        isHTTPAccessFallbackError(finalErr)
+      ) {
+        const { bailOnRootNotFound } =
+          require('../../client/components/dev-root-http-access-fallback-boundary') as typeof import('../../client/components/dev-root-http-access-fallback-boundary')
+        bailOnRootNotFound()
       }
       throw finalErr
     }

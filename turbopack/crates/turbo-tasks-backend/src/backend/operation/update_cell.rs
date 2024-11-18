@@ -28,11 +28,11 @@ impl UpdateCellOperation {
         }
 
         let recomputed = old_content.is_none() && !task.has_key(&CachedDataItemKey::Dirty {});
+        // recomputed means task wasn't invalidated, so we just recompute, so the content has not
+        // actually changed (At least we have to assume that tasks are deterministic and
+        // pure).
 
-        if recomputed {
-            // Task wasn't invalidated, so we just recompute, so the content has not actually
-            // changed (At least we have to assume that tasks are deterministic and
-            // pure).
+        if recomputed || !ctx.should_track_dependencies() {
             drop(task);
             drop(old_content);
             return;

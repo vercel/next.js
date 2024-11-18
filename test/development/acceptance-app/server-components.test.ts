@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import { sandbox } from 'development-sandbox'
+import { createSandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
 import { check } from 'next-test-utils'
@@ -13,7 +13,7 @@ describe('Error Overlay for server components', () => {
 
   describe('createContext called in Server Component', () => {
     it('should show error when React.createContext is called', async () => {
-      const { browser, cleanup } = await sandbox(
+      await using sandbox = await createSandbox(
         next,
         new Map([
           [
@@ -34,7 +34,7 @@ describe('Error Overlay for server components', () => {
           ],
         ])
       )
-
+      const { browser } = sandbox
       await check(async () => {
         expect(
           await browser
@@ -49,12 +49,10 @@ describe('Error Overlay for server components', () => {
       expect(next.cliOutput).toContain(
         'createContext only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/context-in-server-component'
       )
-
-      await cleanup()
     })
 
     it('should show error when React.createContext is called in external package', async () => {
-      const { browser, cleanup } = await sandbox(
+      await using sandbox = await createSandbox(
         next,
         new Map([
           [
@@ -90,7 +88,7 @@ describe('Error Overlay for server components', () => {
           ],
         ])
       )
-
+      const { browser } = sandbox
       await check(async () => {
         expect(
           await browser
@@ -105,12 +103,10 @@ describe('Error Overlay for server components', () => {
       expect(next.cliOutput).toContain(
         'createContext only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/context-in-server-component'
       )
-
-      await cleanup()
     })
 
     it('should show error when createContext is called in external package', async () => {
-      const { browser, cleanup } = await sandbox(
+      await using sandbox = await createSandbox(
         next,
         new Map([
           [
@@ -146,6 +142,7 @@ describe('Error Overlay for server components', () => {
           ],
         ])
       )
+      const { browser } = sandbox
       await check(async () => {
         expect(
           await browser
@@ -160,14 +157,12 @@ describe('Error Overlay for server components', () => {
       expect(next.cliOutput).toContain(
         'createContext only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/context-in-server-component'
       )
-
-      await cleanup()
     })
   })
 
   describe('React component hooks called in Server Component', () => {
     it('should show error when React.<client-hook> is called', async () => {
-      const { browser, cleanup } = await sandbox(
+      await using sandbox = await createSandbox(
         next,
         new Map([
           [
@@ -182,7 +177,7 @@ describe('Error Overlay for server components', () => {
           ],
         ])
       )
-
+      const { browser } = sandbox
       await check(async () => {
         expect(
           await browser
@@ -197,12 +192,10 @@ describe('Error Overlay for server components', () => {
       expect(next.cliOutput).toContain(
         'useRef only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component'
       )
-
-      await cleanup()
     })
 
     it('should show error when React.experiment_useOptimistic is called', async () => {
-      const { browser, cleanup } = await sandbox(
+      await using sandbox = await createSandbox(
         next,
         new Map([
           [
@@ -217,7 +210,7 @@ describe('Error Overlay for server components', () => {
           ],
         ])
       )
-
+      const { browser } = sandbox
       await check(async () => {
         expect(
           await browser
@@ -232,12 +225,10 @@ describe('Error Overlay for server components', () => {
       expect(next.cliOutput).toContain(
         'experimental_useOptimistic only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component'
       )
-
-      await cleanup()
     })
 
     it('should show error when React.experiment_useOptimistic is renamed in destructuring', async () => {
-      const { browser, cleanup } = await sandbox(
+      await using sandbox = await createSandbox(
         next,
         new Map([
           [
@@ -252,7 +243,7 @@ describe('Error Overlay for server components', () => {
           ],
         ])
       )
-
+      const { browser } = sandbox
       await check(async () => {
         const html = await browser.eval('document.documentElement.innerHTML')
         expect(html).toContain('experimental_useOptimistic')
@@ -260,12 +251,10 @@ describe('Error Overlay for server components', () => {
       }, 'success')
 
       expect(next.cliOutput).toContain('experimental_useOptimistic')
-
-      await cleanup()
     })
 
     it('should show error when React.<client-hook> is called in external package', async () => {
-      const { browser, cleanup } = await sandbox(
+      await using sandbox = await createSandbox(
         next,
         new Map([
           [
@@ -298,7 +287,7 @@ describe('Error Overlay for server components', () => {
           ],
         ])
       )
-
+      const { browser } = sandbox
       await check(async () => {
         expect(
           await browser
@@ -313,12 +302,10 @@ describe('Error Overlay for server components', () => {
       expect(next.cliOutput).toContain(
         'useState only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component'
       )
-
-      await cleanup()
     })
 
     it('should show error when React client hook is called in external package', async () => {
-      const { browser, cleanup } = await sandbox(
+      await using sandbox = await createSandbox(
         next,
         new Map([
           [
@@ -351,7 +338,7 @@ describe('Error Overlay for server components', () => {
           ],
         ])
       )
-
+      const { browser } = sandbox
       await check(async () => {
         expect(
           await browser
@@ -366,14 +353,12 @@ describe('Error Overlay for server components', () => {
       expect(next.cliOutput).toContain(
         'useEffect only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component'
       )
-
-      await cleanup()
     })
   })
 
   describe('Class component used in Server Component', () => {
     it('should show error when Class Component is used', async () => {
-      const { browser, cleanup } = await sandbox(
+      await using sandbox = await createSandbox(
         next,
         new Map([
           [
@@ -389,7 +374,7 @@ describe('Error Overlay for server components', () => {
           ],
         ])
       )
-
+      const { browser } = sandbox
       await check(async () => {
         expect(
           await browser
@@ -404,12 +389,10 @@ describe('Error Overlay for server components', () => {
       expect(next.cliOutput).toContain(
         'This might be caused by a React Class Component being rendered in a Server Component'
       )
-
-      await cleanup()
     })
 
     it('should show error when React.PureComponent is rendered in external package', async () => {
-      const { browser, cleanup } = await sandbox(
+      await using sandbox = await createSandbox(
         next,
         new Map([
           [
@@ -443,7 +426,7 @@ describe('Error Overlay for server components', () => {
           ],
         ])
       )
-
+      const { browser } = sandbox
       await check(async () => {
         expect(
           await browser
@@ -458,12 +441,10 @@ describe('Error Overlay for server components', () => {
       expect(next.cliOutput).toContain(
         'This might be caused by a React Class Component being rendered in a Server Component'
       )
-
-      await cleanup()
     })
 
     it('should show error when Component is rendered in external package', async () => {
-      const { browser, cleanup } = await sandbox(
+      await using sandbox = await createSandbox(
         next,
         new Map([
           [
@@ -497,7 +478,7 @@ describe('Error Overlay for server components', () => {
           ],
         ])
       )
-
+      const { browser } = sandbox
       await check(async () => {
         expect(
           await browser
@@ -512,8 +493,6 @@ describe('Error Overlay for server components', () => {
       expect(next.cliOutput).toContain(
         'This might be caused by a React Class Component being rendered in a Server Component'
       )
-
-      await cleanup()
     })
   })
 
@@ -526,7 +505,7 @@ describe('Error Overlay for server components', () => {
       ['useSelectedLayoutSegment'],
       ['useSelectedLayoutSegments'],
     ])('should show error when %s is called', async (hook: string) => {
-      const { session, cleanup } = await sandbox(
+      await using sandbox = await createSandbox(
         next,
         new Map([
           [
@@ -540,7 +519,7 @@ describe('Error Overlay for server components', () => {
           ],
         ])
       )
-
+      const { session } = sandbox
       await session.assertHasRedbox()
       // In webpack when the message too long it gets truncated with `  | ` with new lines.
       // So we need to check for the first part of the message.
@@ -551,8 +530,6 @@ describe('Error Overlay for server components', () => {
       expect(normalizedSource).toContain(
         `import { ${hook} } from 'next/navigation'`
       )
-
-      await cleanup()
     })
   })
 })

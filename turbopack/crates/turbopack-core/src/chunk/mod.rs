@@ -20,12 +20,13 @@ use anyhow::Result;
 use auto_hash_map::AutoSet;
 use serde::{Deserialize, Serialize};
 use tracing::{info_span, Span};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal, GraphTraversalResult, Visit, VisitControlFlow},
     trace::TraceRawVcs,
-    FxIndexMap, FxIndexSet, RcStr, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt,
-    TryJoinIterExt, Upcast, ValueToString, Vc,
+    FxIndexMap, FxIndexSet, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt, TryJoinIterExt,
+    Upcast, ValueToString, Vc,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::DeterministicHash;
@@ -758,7 +759,7 @@ pub type ChunkItemWithAsyncModuleInfo = (Vc<Box<dyn ChunkItem>>, Option<Vc<Async
 #[turbo_tasks::value(transparent)]
 pub struct ChunkItemsWithAsyncModuleInfo(Vec<ChunkItemWithAsyncModuleInfo>);
 
-pub trait ChunkItemExt: Send {
+pub trait ChunkItemExt {
     /// Returns the module id of this chunk item.
     fn id(self: Vc<Self>) -> Vc<ModuleId>;
 }

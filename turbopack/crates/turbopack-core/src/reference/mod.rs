@@ -1,9 +1,10 @@
 use std::collections::{HashSet, VecDeque};
 
 use anyhow::Result;
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
-    FxIndexSet, RcStr, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
+    FxIndexSet, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
 };
 
 use crate::{
