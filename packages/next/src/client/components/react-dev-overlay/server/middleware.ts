@@ -81,7 +81,7 @@ function getSourcePath(source: string) {
 }
 
 async function findOriginalSourcePositionAndContent(
-  sourceMap: RawSourceMap,
+  sourceMap: ModernRawSourceMap,
   position: { line: number; column: number | null }
 ): Promise<SourceAttributes | null> {
   const consumer = await new SourceMapConsumer(sourceMap)
