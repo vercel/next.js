@@ -4,7 +4,7 @@
 
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{mark_session_dependent, Vc};
+use turbo_tasks::{mark_session_dependent, ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::issue::{Issue, IssueSeverity, IssueStage, OptionStyledString, StyledString};
 
@@ -104,7 +104,7 @@ pub enum FetchErrorKind {
 
 #[turbo_tasks::value(shared)]
 pub struct FetchError {
-    pub url: Vc<RcStr>,
+    pub url: ResolvedVc<RcStr>,
     pub kind: Vc<FetchErrorKind>,
     pub detail: Vc<StyledString>,
 }
@@ -123,7 +123,7 @@ impl FetchError {
 
         FetchError {
             detail: StyledString::Text(error.to_string().into()).cell(),
-            url: Vc::cell(url.into()),
+            url: ResolvedVc::cell(url.into()),
             kind: kind.into(),
         }
     }
@@ -134,14 +134,14 @@ impl FetchError {
     #[turbo_tasks::function]
     pub async fn to_issue(
         self: Vc<Self>,
-        severity: Vc<IssueSeverity>,
-        issue_context: Vc<FileSystemPath>,
+        severity: ResolvedVc<IssueSeverity>,
+        issue_context: ResolvedVc<FileSystemPath>,
     ) -> Result<Vc<FetchIssue>> {
         let this = &*self.await?;
         Ok(FetchIssue {
             issue_context,
             severity,
-            url: this.url,
+            url: *this.url,
             kind: this.kind,
             detail: this.detail,
         }
@@ -151,8 +151,8 @@ impl FetchError {
 
 #[turbo_tasks::value(shared)]
 pub struct FetchIssue {
-    pub issue_context: Vc<FileSystemPath>,
-    pub severity: Vc<IssueSeverity>,
+    pub issue_context: ResolvedVc<FileSystemPath>,
+    pub severity: ResolvedVc<IssueSeverity>,
     pub url: Vc<RcStr>,
     pub kind: Vc<FetchErrorKind>,
     pub detail: Vc<StyledString>,
@@ -162,12 +162,12 @@ pub struct FetchIssue {
 impl Issue for FetchIssue {
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        self.issue_context
+        *self.issue_context
     }
 
     #[turbo_tasks::function]
     fn severity(&self) -> Vc<IssueSeverity> {
-        self.severity
+        *self.severity
     }
 
     #[turbo_tasks::function]

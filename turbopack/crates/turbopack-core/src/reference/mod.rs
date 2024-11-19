@@ -8,6 +8,7 @@ use turbo_tasks::{
 };
 
 use crate::{
+    chunk::{ChunkableModuleReference, ChunkingType, ChunkingTypeOption},
     issue::IssueDescriptionExt,
     module::{Module, Modules},
     output::{OutputAsset, OutputAssets},
@@ -81,6 +82,44 @@ impl SingleModuleReference {
     #[turbo_tasks::function]
     pub fn asset(&self) -> Vc<Box<dyn Module>> {
         *self.asset
+    }
+}
+
+#[turbo_tasks::value]
+pub struct SingleChunkableModuleReference {
+    asset: ResolvedVc<Box<dyn Module>>,
+    description: Vc<RcStr>,
+}
+
+#[turbo_tasks::value_impl]
+impl SingleChunkableModuleReference {
+    #[turbo_tasks::function]
+    pub fn new(asset: ResolvedVc<Box<dyn Module>>, description: Vc<RcStr>) -> Vc<Self> {
+        Self::cell(SingleChunkableModuleReference { asset, description })
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ChunkableModuleReference for SingleChunkableModuleReference {
+    #[turbo_tasks::function]
+    fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
+        Vc::cell(Some(ChunkingType::ParallelInheritAsync))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ModuleReference for SingleChunkableModuleReference {
+    #[turbo_tasks::function]
+    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
+        ModuleResolveResult::module(self.asset).cell()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ValueToString for SingleChunkableModuleReference {
+    #[turbo_tasks::function]
+    fn to_string(&self) -> Vc<RcStr> {
+        self.description
     }
 }
 
@@ -158,6 +197,45 @@ pub async fn referenced_modules_and_affecting_sources(
         resolved_modules.insert(module.to_resolved().await?);
     }
     Ok(Vc::cell(resolved_modules.into_iter().collect()))
+}
+
+#[turbo_tasks::value]
+pub struct TracedModuleReference {
+    module: ResolvedVc<Box<dyn Module>>,
+}
+
+#[turbo_tasks::value_impl]
+impl ModuleReference for TracedModuleReference {
+    #[turbo_tasks::function]
+    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
+        ModuleResolveResult::module(self.module).cell()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ValueToString for TracedModuleReference {
+    #[turbo_tasks::function]
+    async fn to_string(&self) -> Result<Vc<RcStr>> {
+        Ok(Vc::cell(
+            format!("traced {}", self.module.ident().to_string().await?).into(),
+        ))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ChunkableModuleReference for TracedModuleReference {
+    #[turbo_tasks::function]
+    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
+        Vc::cell(Some(ChunkingType::Traced))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl TracedModuleReference {
+    #[turbo_tasks::function]
+    pub fn new(module: ResolvedVc<Box<dyn Module>>) -> Vc<Self> {
+        Self::cell(TracedModuleReference { module })
+    }
 }
 
 /// Aggregates all primary [Module]s referenced by an [Module]. [AssetReference]

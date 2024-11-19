@@ -415,9 +415,9 @@ See the [`useRouter` hook](/docs/app/api-reference/functions/use-router) API ref
 
 ### `fetch`
 
-Data returned from `fetch` is automatically cached in the Data Cache.
+Data returned from `fetch` is _not_ automatically cached in the Data Cache.
 
-If you do _not_ want to cache the response from `fetch`, you can do the following:
+The default caching behavior of `fetch` (e.g., when the `cache` option is not specified) is equal to setting the `cache` option to `no-store`:
 
 ```js
 let data = await fetch('https://api.vercel.app/blog', { cache: 'no-store' })

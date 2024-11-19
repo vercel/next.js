@@ -25,6 +25,7 @@ import { getTracer } from './lib/trace/tracer'
 import { NextServerSpan } from './lib/trace/constants'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
 import type { ServerFields } from './lib/router-utils/setup-dev-bundler'
+import type { NextConfigComplete } from './config-shared'
 
 let ServerImpl: typeof Server
 
@@ -40,7 +41,9 @@ export type NextServerOptions = Omit<
   // This is assigned in this server abstraction.
   'conf'
 > &
-  Partial<Pick<ServerOptions | DevServerOptions, 'conf'>>
+  Partial<Pick<ServerOptions | DevServerOptions, 'conf'>> & {
+    preloadedConfig?: NextConfigComplete
+  }
 
 export interface RequestHandler {
   (
@@ -66,6 +69,18 @@ export class NextServer {
 
   constructor(options: NextServerOptions) {
     this.options = options
+
+    // If we're in production mode and have a config that can be preloaded (from `next build`) then it's
+    // possible the server is running in an environment similar to standalone mode where only required node
+    // modules are present. Without setting the following environment variable multiple things can happen:
+    //   - The server will crash on startup from `loadWebpackConfig` in `loadConfig` because the files
+    //     are not available
+    //   - The server will load an incorrect config because the `next.config.js` file is not available
+    if (!this.options.dev && this.options.preloadedConfig) {
+      process.env.__NEXT_PRIVATE_STANDALONE_CONFIG = JSON.stringify(
+        this.options.preloadedConfig
+      )
+    }
   }
 
   get hostname() {
@@ -386,6 +401,12 @@ function createServer(
   if (options.dev && typeof options.dev !== 'boolean') {
     console.warn(
       "Warning: 'dev' is not a boolean which could introduce unexpected behavior. https://nextjs.org/docs/messages/invalid-server-options"
+    )
+  }
+
+  if (options.dev && options.preloadedConfig) {
+    log.warn(
+      '`dev` is set to true but `preloadedConfig` is provided. `preloadedConfig` will be ignored.'
     )
   }
 
