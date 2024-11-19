@@ -1,12 +1,7 @@
 /* eslint-env jest */
 import { createSandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
-import {
-  check,
-  describeVariants as describe,
-  getRedboxCallStackCollapsed,
-  retry,
-} from 'next-test-utils'
+import { check, describeVariants as describe, retry } from 'next-test-utils'
 import path from 'path'
 import { outdent } from 'outdent'
 
@@ -1176,43 +1171,17 @@ export default function Home() {
         ],
       ])
     )
-    const { session, browser } = sandbox
+
+    const { session } = sandbox
 
     await session.assertHasRedbox()
 
-    let stack = next.normalizeTestDirContent(
-      await getRedboxCallStackCollapsed(browser)
-    )
+    const source = await session.getRedboxSource()
+
     if (isTurbopack) {
-      expect(stack).toMatchInlineSnapshot(`
-        "app/utils.ts (1:7) @ [project]/app/utils.ts [app-client] (ecmascript)
-        ---
-        Next.js
-        ---
-        [project]/app/page.js [app-client] (ecmascript)
-        app/page.js (2:1)
-        ---
-        Next.js
-        ---
-        React"
-      `)
+      expect(source).toMatchInlineSnapshot(``)
     } else {
-      expect(stack).toMatchInlineSnapshot(`
-        "app/utils.ts (1:7) @ eval
-        ---
-        ./app/utils.ts
-        file://TEST_DIR/.next/static/chunks/app/page.js (39:1)
-        ---
-        Next.js
-        ---
-        eval
-        ./app/page.js
-        ---
-        ./app/page.js
-        file://TEST_DIR/.next/static/chunks/app/page.js (28:1)
-        ---
-        Next.js"
-      `)
+      expect(source).toMatchInlineSnapshot(``)
     }
   })
 })

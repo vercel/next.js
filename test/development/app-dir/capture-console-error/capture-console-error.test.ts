@@ -6,12 +6,15 @@ import {
   getRedboxSource,
   getRedboxTotalErrorCount,
   openRedbox,
+  hasRedboxCallStack,
 } from 'next-test-utils'
 
 async function getRedboxResult(browser: any) {
   const title = await getRedboxTitle(browser)
   const description = await getRedboxDescription(browser)
-  const callStacks = await getRedboxCallStack(browser)
+  const callStacks = (await hasRedboxCallStack(browser))
+    ? await getRedboxCallStack(browser)
+    : ''
   const count = await getRedboxTotalErrorCount(browser)
   const source = await getRedboxSource(browser)
   const result = {
