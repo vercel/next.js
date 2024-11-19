@@ -66,6 +66,8 @@ struct JsResult {
     jest_result: JestRunResult,
 }
 
+#[turbo_tasks::value]
+#[derive(Copy, Clone, Debug, Hash)]
 enum IssueSnapshotMode {
     Snapshots,
     NoSnapshots,
@@ -168,18 +170,27 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
 
     let tt = TurboTasks::new(MemoryBackend::default());
     tt.run_once(async move {
-        let resource_str = resource.to_str().unwrap();
-        let prepared_test = prepare_test(resource_str.into());
-        let run_result = run_test(prepared_test);
-        if matches!(snapshot_mode, IssueSnapshotMode::Snapshots) {
-            let emit = snapshot_issues(prepared_test, run_result);
-            emit.strongly_consistent().await?;
-            apply_effects(emit).await?;
-        }
+        let emit = run_inner(resource.to_str().unwrap().into(), Value::new(snapshot_mode));
+        let result = emit.strongly_consistent().await?;
+        apply_effects(emit).await?;
 
-        Ok((*run_result.await.unwrap().js_result.await.unwrap()).clone())
+        Ok(result.clone_value())
     })
     .await
+}
+
+#[turbo_tasks::function]
+async fn run_inner(
+    resource: RcStr,
+    snapshot_mode: Value<IssueSnapshotMode>,
+) -> Result<Vc<JsResult>> {
+    let prepared_test = prepare_test(resource);
+    let run_result = run_test(prepared_test);
+    if *snapshot_mode == IssueSnapshotMode::Snapshots {
+        snapshot_issues(prepared_test, run_result).await?;
+    }
+
+    Ok(run_result.await?.js_result)
 }
 
 #[derive(PartialEq, Eq, Debug, Default, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat)]

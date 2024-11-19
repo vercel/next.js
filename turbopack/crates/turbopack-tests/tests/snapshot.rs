@@ -46,7 +46,7 @@ use turbopack_core::{
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
     free_var_references,
-    issue::{Issue, IssueDescriptionExt, PlainIssue},
+    issue::{Issue, IssueDescriptionExt},
     module::Module,
     output::{OutputAsset, OutputAssets},
     reference_type::{EntryReferenceSubType, ReferenceType},
@@ -60,7 +60,7 @@ use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_env::ProcessEnvAsset;
 use turbopack_nodejs::NodeJsChunkingContext;
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
-use turbopack_test_utils::snapshot::{self, diff, expected, matches_expected};
+use turbopack_test_utils::snapshot::{diff, expected, matches_expected, snapshot_issues};
 
 use crate::util::REPO_ROOT;
 
@@ -157,19 +157,8 @@ async fn run(resource: PathBuf) -> Result<()> {
 
     let tt = TurboTasks::new(MemoryBackend::default());
     let task = tt.spawn_once_task(async move {
-        let out = run_test(resource.to_str().unwrap().into());
-        let _ = out.resolve_strongly_consistent().await?;
-        let captured_issues = out.peek_issues_with_path().await?;
-
-        let plain_issues = captured_issues
-            .iter_with_shortest_path()
-            .map(|(issue_vc, path)| issue_vc.into_plain(path))
-            .collect();
-
-        let emit = snapshot_issues(plain_issues, out);
-        emit.strongly_consistent()
-            .await
-            .context("Unable to handle issues")?;
+        let emit = run_inner(resource.to_str().unwrap().into());
+        emit.strongly_consistent().await?;
         apply_effects(emit).await?;
 
         Ok(Vc::<()>::default())
@@ -180,18 +169,23 @@ async fn run(resource: PathBuf) -> Result<()> {
     Ok(())
 }
 
-// a wrapper to make the snapshot_issues function a turbo task
 #[turbo_tasks::function]
-async fn snapshot_issues(
-    plain_issues: Vec<Vc<PlainIssue>>,
-    test_output: Vc<FileSystemPath>,
-) -> Result<()> {
-    snapshot::snapshot_issues(
-        plain_issues.iter().try_join().await?,
-        test_output.join("issues".into()),
-        &REPO_ROOT,
-    )
-    .await
+async fn run_inner(resource: RcStr) -> Result<()> {
+    let out = run_test(resource);
+    let _ = out.resolve_strongly_consistent().await?;
+    let captured_issues = out.peek_issues_with_path().await?;
+
+    let plain_issues = captured_issues
+        .iter_with_shortest_path()
+        .map(|(issue_vc, path)| async move { issue_vc.into_plain(path).await })
+        .try_join()
+        .await?;
+
+    snapshot_issues(plain_issues, out.join("issues".into()), &REPO_ROOT)
+        .await
+        .context("Unable to handle issues")?;
+
+    Ok(())
 }
 
 #[turbo_tasks::function]
