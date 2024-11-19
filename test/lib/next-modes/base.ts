@@ -71,7 +71,7 @@ export class NextInstance {
   protected _url: string
   protected _parsedUrl: URL
   protected packageJson?: PackageJson = {}
-  protected tsconfig?: Record<string, unknown> = {}
+  protected tsconfig?: Record<string, unknown>
   protected basePath?: string
   public env: Record<string, string>
   public forcedPort?: string
