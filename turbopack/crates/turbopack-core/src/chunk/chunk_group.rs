@@ -9,8 +9,8 @@ use turbo_tasks::{
 
 use super::{
     availability_info::AvailabilityInfo, available_chunk_items::AvailableChunkItemInfo,
-    chunk_content, chunking::make_chunks, AsyncModuleInfo, Chunk, ChunkContentResult, ChunkItem,
-    ChunkingContext,
+    chunk_content, chunking_strategies::ChunkingStrategy, AsyncModuleInfo, Chunk,
+    ChunkContentResult, ChunkItem, ChunkingContext,
 };
 use crate::{
     module::Module, output::OutputAssets, rebase::RebasedAsset, reference::ModuleReference,
@@ -24,6 +24,7 @@ pub struct MakeChunkGroupResult {
 /// Creates a chunk group from a set of entries.
 pub async fn make_chunk_group(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
+    chunking_strategy: Vc<Box<dyn ChunkingStrategy>>,
     chunk_group_entries: impl IntoIterator<Item = Vc<Box<dyn Module>>>,
     availability_info: AvailabilityInfo,
 ) -> Result<MakeChunkGroupResult> {
@@ -165,26 +166,28 @@ pub async fn make_chunk_group(
     referenced_output_assets.extend(rebased_modules.into_iter().map(ResolvedVc::upcast));
 
     // Pass chunk items to chunking algorithm
-    let mut chunks = make_chunks(
-        chunking_context,
-        Vc::cell(chunk_items.into_iter().collect()),
-        "".into(),
-        Vc::cell(referenced_output_assets),
-    )
-    .await?
-    .clone_value();
+    let mut chunks = chunking_strategy
+        .make_chunks(
+            chunking_context,
+            Vc::cell(chunk_items.into_iter().collect()),
+            "".into(),
+            Vc::cell(referenced_output_assets),
+        )
+        .await?
+        .clone_value();
 
     if has_async_loaders {
         // Pass async chunk loaders to chunking algorithm
         // We want them to be separate since they are specific to this chunk group due
         // to available chunk items differing
-        let async_loader_chunks = make_chunks(
-            chunking_context,
-            Vc::cell(async_loader_chunk_items.into_iter().collect()),
-            "async-loader-".into(),
-            references_to_output_assets(async_loader_external_module_references).await?,
-        )
-        .await?;
+        let async_loader_chunks = chunking_strategy
+            .make_chunks(
+                chunking_context,
+                Vc::cell(async_loader_chunk_items.into_iter().collect()),
+                "async-loader-".into(),
+                references_to_output_assets(async_loader_external_module_references).await?,
+            )
+            .await?;
 
         // concatenate chunks
         chunks.extend(async_loader_chunks.iter().copied());

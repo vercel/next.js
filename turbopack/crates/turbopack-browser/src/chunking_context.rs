@@ -7,6 +7,7 @@ use turbopack_core::{
     chunk::{
         availability_info::AvailabilityInfo,
         chunk_group::{make_chunk_group, MakeChunkGroupResult},
+        chunking_strategies::{simple::SimpleChunkingStrategy, ChunkingStrategy},
         module_id_strategies::{DevModuleIdStrategy, ModuleIdStrategy},
         Chunk, ChunkGroupResult, ChunkItem, ChunkableModule, ChunkingContext,
         EntryChunkGroupResult, EvaluatableAssets, MinifyType, ModuleId,
@@ -94,6 +95,11 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
+    pub fn chunking_strategy(mut self, chunking_strategy: Vc<Box<dyn ChunkingStrategy>>) -> Self {
+        self.chunking_context.chunking_strategy = chunking_strategy;
+        self
+    }
+
     pub fn build(self) -> Vc<BrowserChunkingContext> {
         BrowserChunkingContext::new(Value::new(self.chunking_context))
     }
@@ -146,6 +152,8 @@ pub struct BrowserChunkingContext {
     manifest_chunks: bool,
     /// The module id strategy to use
     module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
+    /// The chunking strategy to use
+    chunking_strategy: Vc<Box<dyn ChunkingStrategy>>,
 }
 
 impl BrowserChunkingContext {
@@ -178,6 +186,7 @@ impl BrowserChunkingContext {
                 minify_type: MinifyType::NoMinify,
                 manifest_chunks: false,
                 module_id_strategy: Vc::upcast(DevModuleIdStrategy::new()),
+                chunking_strategy: Vc::upcast(SimpleChunkingStrategy::new()),
             },
         }
     }
@@ -393,6 +402,7 @@ impl ChunkingContext for BrowserChunkingContext {
                 availability_info,
             } = make_chunk_group(
                 Vc::upcast(self),
+                this.chunking_strategy,
                 [Vc::upcast(module)],
                 input_availability_info,
             )
@@ -465,7 +475,13 @@ impl ChunkingContext for BrowserChunkingContext {
             let MakeChunkGroupResult {
                 chunks,
                 availability_info,
-            } = make_chunk_group(Vc::upcast(self), entries, availability_info).await?;
+            } = make_chunk_group(
+                Vc::upcast(self),
+                this.chunking_strategy,
+                entries,
+                availability_info,
+            )
+            .await?;
 
             let mut assets: Vec<ResolvedVc<Box<dyn OutputAsset>>> = chunks
                 .iter()

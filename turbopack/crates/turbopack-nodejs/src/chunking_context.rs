@@ -9,6 +9,7 @@ use turbopack_core::{
     chunk::{
         availability_info::AvailabilityInfo,
         chunk_group::{make_chunk_group, MakeChunkGroupResult},
+        chunking_strategies::simple::SimpleChunkingStrategy,
         module_id_strategies::{DevModuleIdStrategy, ModuleIdStrategy},
         Chunk, ChunkGroupResult, ChunkItem, ChunkableModule, ChunkingContext,
         EntryChunkGroupResult, EvaluatableAssets, MinifyType, ModuleId,
@@ -297,6 +298,7 @@ impl ChunkingContext for NodeJsChunkingContext {
                 availability_info,
             } = make_chunk_group(
                 Vc::upcast(self),
+                Vc::upcast(SimpleChunkingStrategy::new()),
                 [Vc::upcast(module)],
                 availability_info.into_value(),
             )
@@ -337,6 +339,7 @@ impl ChunkingContext for NodeJsChunkingContext {
             availability_info,
         } = make_chunk_group(
             Vc::upcast(self),
+            Vc::upcast(SimpleChunkingStrategy::new()),
             once(module).chain(
                 evaluatable_assets
                     .await?

@@ -1,8 +1,8 @@
 pub mod availability_info;
 pub mod available_chunk_items;
 pub mod chunk_group;
-pub mod chunking;
 pub(crate) mod chunking_context;
+pub mod chunking_strategies;
 pub(crate) mod containment_tree;
 pub(crate) mod data;
 pub(crate) mod evaluate;
