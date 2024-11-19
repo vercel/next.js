@@ -9,6 +9,7 @@ import {
   retry,
   openRedbox,
   getRedboxSource,
+  toggleCollapseCallStackFrames,
 } from 'next-test-utils'
 import { createSandbox } from 'development-sandbox'
 import { outdent } from 'outdent'
@@ -66,6 +67,8 @@ describe('Dynamic IO Dev Errors', () => {
     const description = await getRedboxDescription(browser)
     const stack = await getRedboxCallStack(browser)
 
+    // Uncollapse the stack frames, since the first frame `Page [Server] <anonymous>` is treated as ignored.
+    await toggleCollapseCallStackFrames(browser)
     expect(description).toMatchInlineSnapshot(
       `"[ Server ] Error: Route "/no-accessed-data": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense"`
     )
