@@ -110,10 +110,13 @@ function isIgnoredSource(
   if (sourcePosition.source == null) {
     return true
   }
-  const sourceIndex = source.sourceMap.sources.indexOf(sourcePosition.source)
-  const ignored = source.sourceMap.ignoreList?.includes(sourceIndex) ?? false
+  for (const ignoreIndex of source.sourceMap.ignoreList || []) {
+    if (source.sourceMap.sources[ignoreIndex] === sourcePosition.source) {
+      return true
+    }
+  }
 
-  return ignored
+  return false
 }
 
 function createStackFrame(searchParams: URLSearchParams) {
@@ -177,17 +180,19 @@ export async function createOriginalStackFrame({
     return null
   }
 
-  const ignored = isIgnoredSource(source, sourcePosition)
+  const ignored =
+    isIgnoredSource(source, sourcePosition) ||
+    // If the source file is externals, should be excluded even it's not ignored source.
+    // e.g. webpack://next/dist/.. needs to be ignored
+    (source.type === 'file' && shouldIgnorePath(source.modulePath))
 
-  const filePath = path.resolve(
-    rootDirectory,
-    getSourcePath(
-      // When sourcePosition.source is the loader path the modulePath is generally better.
-      (sourcePosition.source!.includes('|')
-        ? source.modulePath
-        : sourcePosition.source) || source.modulePath
-    )
+  const sourcePath = getSourcePath(
+    // When sourcePosition.source is the loader path the modulePath is generally better.
+    (sourcePosition.source!.includes('|')
+      ? source.modulePath
+      : sourcePosition.source) || source.modulePath
   )
+  const filePath = path.resolve(rootDirectory, sourcePath)
 
   const resolvedFilePath = sourceContent
     ? path.relative(rootDirectory, filePath)
