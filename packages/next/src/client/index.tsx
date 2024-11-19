@@ -89,6 +89,9 @@ let headManager: {
 }
 let initialMatchesMiddleware = false
 let lastAppProps: AppProps
+let dynamicCSSFiles: string[]
+let dynamicCSSFilePaths: Set<string>
+let publicAssetPath: string
 
 let lastRenderReject: (() => void) | null
 let devClient: any
@@ -202,10 +205,16 @@ export async function initialize(opts: { devClient?: any } = {}): Promise<{
   window.__NEXT_DATA__ = initialData
 
   defaultLocale = initialData.defaultLocale
+  dynamicCSSFiles = initialData.dynamicCSSFiles || []
   const prefix: string = initialData.assetPrefix || ''
   // With dynamic assetPrefix it's no longer possible to set assetPrefix at the build time
   // So, this is how we do it in the client side at runtime
-  ;(self as any).__next_set_public_path__(`${prefix}/_next/`) //eslint-disable-line
+  publicAssetPath = prefix + '/_next/'
+  ;(self as any).__next_set_public_path__(publicAssetPath) //eslint-disable-line
+
+  dynamicCSSFilePaths = new Set(
+    dynamicCSSFiles.map((cssFile) => `${publicAssetPath}${cssFile}`)
+  )
 
   // Initialize next/config with the environment configuration
   setConfig({
@@ -757,6 +766,21 @@ function doRender(input: RenderRouteInfo): Promise<any> {
       looseToArray<HTMLLinkElement>(
         document.querySelectorAll('link[data-n-p]')
       ).forEach((el) => {
+        const href = el.getAttribute('href')
+        if (!href) {
+          return
+        }
+        // When client-navigating to a path which requires the same CSS file,
+        // `mini-css-extract-plugin` will skip injecting the stylesheet as the
+        // link tag with expected href is still in the DOM. Therefore we remove
+        // the `data-n-p` attribute and let the stylesheet remain. This is possible
+        // because we do not "unload" the dynamic stylesheets during the client
+        // navigation already. Therefore the result will be the same with removing
+        // the current stylesheet and then dynamically loading the same stylesheet.
+        if (dynamicCSSFilePaths.has(href)) {
+          el.removeAttribute('data-n-p')
+          return
+        }
         el.parentNode!.removeChild(el)
       })
     }

@@ -1416,6 +1416,17 @@ export async function renderToHTMLImpl(
     }
   }
 
+  const dynamicCSSFiles = new Set<string>()
+  Object.values(reactLoadableManifest).forEach(({ files }) => {
+    if (files) {
+      files.forEach((file) => {
+        if (file.endsWith('.css')) {
+          dynamicCSSFiles.add(file)
+        }
+      })
+    }
+  })
+
   const hybridAmp = ampState.hybrid
   const docComponentsRendered: DocumentProps['docComponentsRendered'] = {}
 
@@ -1446,6 +1457,8 @@ export async function renderToHTMLImpl(
         dynamicImportsIds.size === 0
           ? undefined
           : Array.from(dynamicImportsIds),
+      dynamicCSSFiles:
+        dynamicCSSFiles.size > 0 ? Array.from(dynamicCSSFiles) : undefined,
       err: renderOpts.err ? serializeError(dev, renderOpts.err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
       gsp: !!getStaticProps ? true : undefined, // whether the page is getStaticProps
       gssp: !!getServerSideProps ? true : undefined, // whether the page is getServerSideProps

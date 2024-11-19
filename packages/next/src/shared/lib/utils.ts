@@ -97,6 +97,7 @@ export type NEXT_DATA = {
   isFallback?: boolean
   isExperimentalCompile?: boolean
   dynamicIds?: (string | number)[]
+  dynamicCSSFiles?: string[]
   err?: Error & {
     statusCode?: number
     source?: typeof COMPILER_NAMES.server | typeof COMPILER_NAMES.edgeServer
