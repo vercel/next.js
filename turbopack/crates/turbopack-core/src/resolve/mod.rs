@@ -729,7 +729,7 @@ impl ResolveResult {
         })
     }
 
-    pub async fn map_items_module<A, AF>(&self, source_fn: A) -> Result<ModuleResolveResult>
+    pub async fn map_primary_items<A, AF>(&self, item_fn: A) -> Result<ModuleResolveResult>
     where
         A: Fn(ResolveResultItem) -> AF,
         AF: Future<Output = Result<ModuleResolveResultItem>>,
@@ -739,7 +739,7 @@ impl ResolveResult {
                 .primary
                 .iter()
                 .map(|(request, item)| {
-                    let asset_fn = &source_fn;
+                    let asset_fn = &item_fn;
                     let request = request.clone();
                     let item = item.clone();
                     async move { Ok((request, asset_fn(item).await?)) }
