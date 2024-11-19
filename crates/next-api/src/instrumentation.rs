@@ -25,6 +25,7 @@ use turbopack_core::{
 use turbopack_ecmascript::chunk::EcmascriptChunkPlaceable;
 
 use crate::{
+    nft_json::NftJsonAsset,
     paths::{
         all_server_paths, get_js_paths_from_root, get_wasm_paths_from_root, wasm_paths_to_bindings,
     },
@@ -91,6 +92,15 @@ impl InstrumentationEndpoint {
             edge_entry_module,
         }
         .cell())
+    }
+
+    #[turbo_tasks::function]
+    async fn entry_module(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
+        if self.await?.is_edge {
+            Ok(*self.core_modules().await?.edge_entry_module)
+        } else {
+            Ok(*self.core_modules().await?.userland_module)
+        }
     }
 
     #[turbo_tasks::function]
@@ -211,7 +221,22 @@ impl InstrumentationEndpoint {
 
             Ok(Vc::cell(output_assets))
         } else {
-            Ok(Vc::cell(vec![self.node_chunk().to_resolved().await?]))
+            let chunk = self.node_chunk().to_resolved().await?;
+            let mut output_assets = vec![chunk];
+            if this.project.next_mode().await?.is_production() {
+                output_assets.push(ResolvedVc::upcast(
+                    NftJsonAsset::new(
+                        *chunk,
+                        this.project.output_fs(),
+                        this.project.project_fs(),
+                        this.project.client_fs(),
+                        vec![],
+                    )
+                    .to_resolved()
+                    .await?,
+                ));
+            }
+            Ok(Vc::cell(output_assets))
         }
     }
 }

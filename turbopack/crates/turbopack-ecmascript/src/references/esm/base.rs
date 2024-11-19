@@ -359,6 +359,7 @@ impl CodeGenerateable for EsmAssetReference {
                             ),
                         ))
                     }
+                    // fallback in case we introduce a new `ExternalType`
                     #[allow(unreachable_patterns)]
                     ReferencedAsset::External(request, ty) => {
                         bail!(

@@ -129,7 +129,11 @@ function isNodeModulesIssue(issue: Issue): boolean {
 
   return (
     issue.severity === 'warning' &&
-    issue.filePath.match(/^(?:.*[\\/])?node_modules(?:[\\/].*)?$/) !== null
+    (issue.filePath.match(/^(?:.*[\\/])?node_modules(?:[\\/].*)?$/) !== null ||
+      // Ignore Next.js itself when running next directly in the monorepo where it is not inside
+      // node_modules anyway.
+      // TODO(mischnic) prevent matches when this is published to npm
+      issue.filePath.startsWith('[project]/packages/next/'))
   )
 }
 
