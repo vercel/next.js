@@ -90,6 +90,7 @@ pub fn effect(future: impl Future<Output = Result<()>> + Send + Sync + 'static) 
 /// ```
 pub async fn apply_effects(source: impl CollectiblesSource) -> Result<()> {
     let effects: AutoSet<Vc<Box<dyn Effect>>> = source.take_collectibles();
+    println!("apply_effects {:?}", effects);
     if effects.is_empty() {
         return Ok(());
     }
