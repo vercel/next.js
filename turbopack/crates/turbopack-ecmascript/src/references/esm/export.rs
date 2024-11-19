@@ -4,7 +4,7 @@ use std::{
     ops::ControlFlow,
 };
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use swc_core::{
     common::DUMMY_SP,
@@ -175,12 +175,7 @@ pub async fn follow_reexports(
 
         // Try to find the export in the star exports
         if !exports_ref.star_exports.is_empty() && &*export_name != "default" {
-            let module_name = module.ident().to_string().await?;
-            let result = find_export_from_reexports(module, export_name.clone())
-                .await
-                .with_context(|| {
-                    format!("failed to find export from reexports for {}", module_name)
-                })?;
+            let result = find_export_from_reexports(module, export_name.clone()).await?;
             if let Some(m) = result.esm_export {
                 module = *m;
                 continue;
@@ -305,11 +300,7 @@ async fn find_export_from_reexports(
         }
     }
 
-    let module_name = module.ident().to_string().await?;
-    let exports = module
-        .get_exports()
-        .await
-        .with_context(|| format!("failed to get exports for {}", module_name))?;
+    let exports = module.get_exports().await?;
     let EcmascriptExports::EsmExports(exports) = &*exports else {
         return Ok(FindExportFromReexportsResult {
             esm_export: None,
