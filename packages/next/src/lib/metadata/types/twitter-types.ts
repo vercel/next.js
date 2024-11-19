@@ -39,11 +39,13 @@ export type TwitterAppDescriptor = {
     ipad?: string | number | undefined
     googleplay?: string | undefined
   }
-  url?: {
-    iphone?: string | URL | undefined
-    ipad?: string | URL | undefined
-    googleplay?: string | URL | undefined
-  } | undefined
+  url?:
+    | {
+        iphone?: string | URL | undefined
+        ipad?: string | URL | undefined
+        googleplay?: string | URL | undefined
+      }
+    | undefined
   name?: string | undefined
 }
 

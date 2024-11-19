@@ -78,18 +78,36 @@ type OpenGraphProfile = OpenGraphMetadata & {
 type OpenGraphMusicSong = OpenGraphMetadata & {
   type: 'music.song'
   duration?: null | number | undefined
-  albums?: null | string | URL | OGAlbum | Array<string | URL | OGAlbum> | undefined
+  albums?:
+    | null
+    | string
+    | URL
+    | OGAlbum
+    | Array<string | URL | OGAlbum>
+    | undefined
   musicians?: null | string | URL | Array<string | URL> | undefined
 }
 type OpenGraphMusicAlbum = OpenGraphMetadata & {
   type: 'music.album'
-  songs?: null | string | URL | OGSong | Array<string | URL | OGSong> | undefined
+  songs?:
+    | null
+    | string
+    | URL
+    | OGSong
+    | Array<string | URL | OGSong>
+    | undefined
   musicians?: null | string | URL | Array<string | URL> | undefined
   releaseDate?: null | string | undefined // datetime
 }
 type OpenGraphMusicPlaylist = OpenGraphMetadata & {
   type: 'music.playlist'
-  songs?: null | string | URL | OGSong | Array<string | URL | OGSong> | undefined
+  songs?:
+    | null
+    | string
+    | URL
+    | OGSong
+    | Array<string | URL | OGSong>
+    | undefined
   creators?: null | string | URL | Array<string | URL> | undefined
 }
 type OpenGraphRadioStation = OpenGraphMetadata & {
@@ -98,7 +116,13 @@ type OpenGraphRadioStation = OpenGraphMetadata & {
 }
 type OpenGraphVideoMovie = OpenGraphMetadata & {
   type: 'video.movie'
-  actors?: null | string | URL | OGActor | Array<string | URL | OGActor> | undefined
+  actors?:
+    | null
+    | string
+    | URL
+    | OGActor
+    | Array<string | URL | OGActor>
+    | undefined
   directors?: null | string | URL | Array<string | URL> | undefined
   writers?: null | string | URL | Array<string | URL> | undefined
   duration?: null | number | undefined
@@ -107,7 +131,13 @@ type OpenGraphVideoMovie = OpenGraphMetadata & {
 }
 type OpenGraphVideoEpisode = OpenGraphMetadata & {
   type: 'video.episode'
-  actors?: null | string | URL | OGActor | Array<string | URL | OGActor> | undefined
+  actors?:
+    | null
+    | string
+    | URL
+    | OGActor
+    | Array<string | URL | OGActor>
+    | undefined
   directors?: null | string | URL | Array<string | URL> | undefined
   writers?: null | string | URL | Array<string | URL> | undefined
   duration?: null | number | undefined

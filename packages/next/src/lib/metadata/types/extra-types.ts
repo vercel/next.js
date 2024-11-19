@@ -61,7 +61,11 @@ export type ViewportLayout = {
   maximumScale?: number | undefined
   userScalable?: boolean | undefined
   viewportFit?: 'auto' | 'cover' | 'contain' | undefined
-  interactiveWidget?: 'resizes-visual' | 'resizes-content' | 'overlays-content' | undefined
+  interactiveWidget?:
+    | 'resizes-visual'
+    | 'resizes-content'
+    | 'overlays-content'
+    | undefined
 }
 
 // Apple Web App

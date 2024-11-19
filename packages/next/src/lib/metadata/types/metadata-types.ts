@@ -129,9 +129,11 @@ export type Verification = {
   yandex?: null | string | number | (string | number)[] | undefined
   me?: null | string | number | (string | number)[] | undefined
   // if you ad-hoc additional verification
-  other?: {
-    [name: string]: string | number | (string | number)[]
-  } | undefined
+  other?:
+    | {
+        [name: string]: string | number | (string | number)[]
+      }
+    | undefined
 }
 
 export type ResolvedVerification = {
@@ -139,9 +141,11 @@ export type ResolvedVerification = {
   yahoo?: null | (string | number)[] | undefined
   yandex?: null | (string | number)[] | undefined
   me?: null | (string | number)[] | undefined
-  other?: {
-    [name: string]: (string | number)[]
-  } | undefined
+  other?:
+    | {
+        [name: string]: (string | number)[]
+      }
+    | undefined
 }
 
 export type ResolvedIcons = {
@@ -176,10 +180,12 @@ export type Videos = {
   restriction?: Restriction | undefined
   platform?: Restriction | undefined
   requires_subscription?: 'yes' | 'no' | undefined
-  uploader?: {
-    info?: string | undefined
-    content?: string | undefined
-  } | undefined
+  uploader?:
+    | {
+        info?: string | undefined
+        content?: string | undefined
+      }
+    | undefined
   live?: 'yes' | 'no' | undefined
   tag?: string | undefined
 }

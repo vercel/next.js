@@ -151,7 +151,12 @@ interface Metadata extends DeprecatedMetadataFields {
    * <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
    * ```
    */
-  themeColor?: null | string | ThemeColorDescriptor | ThemeColorDescriptor[] | undefined
+  themeColor?:
+    | null
+    | string
+    | ThemeColorDescriptor
+    | ThemeColorDescriptor[]
+    | undefined
 
   /**
    * The color scheme for the document.
@@ -474,9 +479,11 @@ interface Metadata extends DeprecatedMetadataFields {
   /**
    * Arbitrary name/value pairs for the document.
    */
-  other?: {
-    [name: string]: string | number | Array<string | number>
-  } & DeprecatedMetadataFields | undefined
+  other?:
+    | ({
+        [name: string]: string | number | Array<string | number>
+      } & DeprecatedMetadataFields)
+    | undefined
 }
 
 interface ResolvedMetadata extends DeprecatedMetadataFields {
@@ -605,9 +612,11 @@ type SitemapFile = Array<{
     | 'never'
     | undefined
   priority?: number | undefined
-  alternates?: {
-    languages?: Languages<string> | undefined
-  } | undefined
+  alternates?:
+    | {
+        languages?: Languages<string> | undefined
+      }
+    | undefined
   images?: string[] | undefined
   videos?: Videos[] | undefined
 }>

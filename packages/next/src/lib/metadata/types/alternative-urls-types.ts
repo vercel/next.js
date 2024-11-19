@@ -437,13 +437,19 @@ export type AlternateLinkDescriptor = {
 
 export type AlternateURLs = {
   canonical?: null | string | URL | AlternateLinkDescriptor | undefined
-  languages?: Languages<null | string | URL | AlternateLinkDescriptor[]> | undefined
-  media?: {
-    [media: string]: null | string | URL | AlternateLinkDescriptor[]
-  } | undefined
-  types?: {
-    [types: string]: null | string | URL | AlternateLinkDescriptor[]
-  } | undefined
+  languages?:
+    | Languages<null | string | URL | AlternateLinkDescriptor[]>
+    | undefined
+  media?:
+    | {
+        [media: string]: null | string | URL | AlternateLinkDescriptor[]
+      }
+    | undefined
+  types?:
+    | {
+        [types: string]: null | string | URL | AlternateLinkDescriptor[]
+      }
+    | undefined
 }
 
 export type ResolvedAlternateURLs = {
