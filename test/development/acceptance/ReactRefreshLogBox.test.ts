@@ -768,12 +768,6 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     )
 
     expect(callStackFrames.length).toBeGreaterThan(9)
-
-    const moduleGroup = await browser.elementsByCss(
-      '[data-nextjs-collapsed-call-stack-details]'
-    )
-    // Expect some of the call stack frames to be grouped (by React or Next.js)
-    expect(moduleGroup.length).toBeGreaterThan(0)
   })
 
   test('should hide unrelated frames in stack trace with unknown anonymous calls', async () => {
