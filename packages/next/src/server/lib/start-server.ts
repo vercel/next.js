@@ -255,8 +255,11 @@ export async function startServer(
         )
       }
 
-      // expose the main port to render workers
+      // Store the selected port to:
+      // - expose it to render workers
+      // - re-use it for automatic dev server restarts with a randomly selected port
       process.env.PORT = port + ''
+
       process.env.__NEXT_PRIVATE_ORIGIN = appUrl
 
       // Only load env and config in dev to for logging purposes
@@ -420,7 +423,7 @@ if (process.env.NEXT_PRIVATE_WORKER && process.send) {
         'memory.heapUsed',
         String(memoryUsage.heapUsed)
       )
-      process.send({ nextServerReady: true })
+      process.send({ nextServerReady: true, port: process.env.PORT })
     }
   })
   process.send({ nextWorkerReady: true })

@@ -1,6 +1,7 @@
 use anyhow::Result;
 use indoc::formatdoc;
-use turbo_tasks::{RcStr, TryJoinIterExt, Value, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{TryJoinIterExt, Value, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,

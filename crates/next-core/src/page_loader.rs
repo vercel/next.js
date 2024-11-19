@@ -1,7 +1,8 @@
 use std::io::Write;
 
 use anyhow::{bail, Result};
-use turbo_tasks::{fxindexmap, RcStr, TryJoinIterExt, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{fxindexmap, TryJoinIterExt, Value, Vc};
 use turbo_tasks_fs::{
     self, rope::RopeBuilder, File, FileContent, FileSystemPath, FileSystemPathOption,
 };

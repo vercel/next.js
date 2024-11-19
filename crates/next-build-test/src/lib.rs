@@ -11,7 +11,8 @@ use next_api::{
     project::{ProjectContainer, ProjectOptions},
     route::{Endpoint, Route},
 };
-use turbo_tasks::{RcStr, ReadConsistency, TransientInstance, TurboTasks, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ReadConsistency, TransientInstance, TurboTasks, Vc};
 use turbo_tasks_malloc::TurboMalloc;
 use turbo_tasks_memory::MemoryBackend;
 

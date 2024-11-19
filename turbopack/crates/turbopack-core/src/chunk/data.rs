@@ -1,5 +1,6 @@
 use anyhow::Result;
-use turbo_tasks::{RcStr, ReadRef, TryJoinIterExt, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ReadRef, TryJoinIterExt, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::{

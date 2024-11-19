@@ -73,17 +73,47 @@ mysql://<USERNAME>:<PLAIN_TEXT_PASSWORD>@<ACCESS_HOST_URL>/<DATABASE_NAME>?sslac
 
 Push the database schema to your PlanetScale database using Prisma.
 
-`npx prisma db push`
+```bash
+npx prisma db push
+```
+
+```bash
+yarn prisma db push
+```
+
+```bash
+pnpm prisma
+```
 
 Run the seed script to populate your database with `Product` and `Category` data.
 
-`npm run seed`
+```bash
+npm run seed
+```
+
+```bash
+yarn seed
+```
+
+```bash
+pnpm seed
+```
 
 ## Run the App
 
 Run the app with following command:
 
-`npm run dev`
+```bash
+npm run dev
+```
+
+```bash
+yarn dev
+```
+
+```bash
+pnpm dev
+```
 
 Open your browser at [localhost:3000](localhost:3000) to see the running application.
 

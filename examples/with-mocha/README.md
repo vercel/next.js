@@ -30,6 +30,8 @@ pnpm create next-app --example with-mocha with-mocha-app
 npm run test
 # or
 yarn test
+# or
+pnpm test
 ```
 
 > A very important part of this example is the `.babelrc` file which configures the `test` environment to use `babel-preset-env` and configures it to transpile modules to `commonjs`). [Learn more](https://github.com/vercel/next.js/issues/2895).

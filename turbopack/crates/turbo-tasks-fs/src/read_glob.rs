@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 
 use anyhow::Result;
-use turbo_tasks::{RcStr, ResolvedVc, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Vc};
 
 use crate::{glob::Glob, DirectoryContent, DirectoryEntry, FileSystemPath};
 

@@ -3,7 +3,7 @@ import fs from 'fs'
 import stripAnsi from 'strip-ansi'
 import { retry } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
-import { sandbox } from 'development-sandbox'
+import { createSandbox } from 'development-sandbox'
 
 const cacheReasonRegex = /Cache (missed|skipped) reason: /
 
@@ -52,11 +52,13 @@ describe('app-dir - fetch logging', () => {
 
   isNextDev &&
     it('should not log requests for HMR refreshes', async () => {
-      const { browser, cleanup, session } = await sandbox(
+      await using sandbox = await createSandbox(
         next,
         undefined,
         '/fetch-no-store'
       )
+
+      const { browser, session } = sandbox
 
       let headline = await browser.waitForElementByCss('h1').text()
       expect(headline).toBe('Hello World!')
@@ -74,8 +76,6 @@ describe('app-dir - fetch logging', () => {
         expect(logs).not.toInclude(` │ GET `)
         // TODO: remove custom duration in case we increase the default.
       }, 5000)
-
-      await cleanup()
     })
 
   // TODO: remove when there is a test for isNextDev === false

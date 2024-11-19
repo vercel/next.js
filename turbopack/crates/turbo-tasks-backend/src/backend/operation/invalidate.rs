@@ -80,6 +80,7 @@ pub enum TaskDirtyCause {
     CellRemoved { value_type: ValueTypeId },
     OutputChange,
     CollectiblesChange { collectible_type: TraitTypeId },
+    Invalidator,
     Unknown,
 }
 
@@ -109,6 +110,7 @@ impl Display for TaskDirtyCause {
                     registry::get_trait(*collectible_type).name
                 )
             }
+            TaskDirtyCause::Invalidator => write!(f, "invalidator"),
             TaskDirtyCause::Unknown => write!(f, "unknown"),
         }
     }

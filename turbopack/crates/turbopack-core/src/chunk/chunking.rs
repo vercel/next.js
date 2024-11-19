@@ -7,7 +7,8 @@ use anyhow::Result;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use tracing::Level;
-use turbo_tasks::{FxIndexMap, RcStr, ReadRef, TryJoinIterExt, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexMap, ReadRef, TryJoinIterExt, ValueToString, Vc};
 
 use super::{
     AsyncModuleInfo, Chunk, ChunkItem, ChunkItemsWithAsyncModuleInfo, ChunkType, ChunkingContext,

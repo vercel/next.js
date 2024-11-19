@@ -316,6 +316,7 @@ export interface DynamicSsgRoute {
  * this includes both headers used by the pages and app routers.
  */
 const ALLOWED_HEADERS: string[] = [
+  'host',
   MATCHED_PATH_HEADER,
   PRERENDER_REVALIDATE_HEADER,
   PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER,

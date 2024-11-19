@@ -27,6 +27,12 @@ type RootTreePrefetch = {
 }
 
 type TreePrefetch = {
+  // Access token. Required to fetch the segment data. In the future this will
+  // not be provided during a prefetch if the parent segment did not include it
+  // in its prerender; the client will have to perform a dynamic navigation in
+  // order to get the access token.
+  token: string
+
   // The key to use when requesting the data for this segment (analogous to a
   // URL). Also used as a cache key, although the server may specify a different
   // cache key when it responds (analagous to a Vary header), like to omit
@@ -50,11 +56,6 @@ type TreePrefetch = {
 type SegmentPrefetch = {
   rsc: React.ReactNode | null
   loading: LoadingModuleData
-
-  // Access tokens for the child segments.
-  slots: null | {
-    [parallelRouteKey: string]: string
-  }
 }
 
 export async function collectSegmentData(
@@ -197,10 +198,6 @@ async function collectSegmentDataImpl(
   // there are no children.
   let slotMetadata: { [parallelRouteKey: string]: TreePrefetch } | null = null
 
-  // Access tokens for the child segments. Sent as part of layout's data. Null
-  // if there are no children.
-  let childAccessTokens: { [parallelRouteKey: string]: string } | null = null
-
   const children = route[1]
   const seedDataChildren = seedData[2]
   for (const parallelRouteKey in children) {
@@ -235,11 +232,6 @@ async function collectSegmentDataImpl(
       slotMetadata = {}
     }
     slotMetadata[parallelRouteKey] = childTree
-
-    if (childAccessTokens === null) {
-      childAccessTokens = {}
-    }
-    childAccessTokens[parallelRouteKey] = childAccessToken
   }
 
   // Spawn a task to write the segment data to a new Flight stream.
@@ -251,7 +243,6 @@ async function collectSegmentDataImpl(
         seedData,
         segmentPathStr,
         accessToken,
-        childAccessTokens,
         clientModules
       )
     )
@@ -263,6 +254,7 @@ async function collectSegmentDataImpl(
   const isRootLayout = route[4]
   return {
     key: segmentPathStr === '' ? '/' : segmentPathStr,
+    token: accessToken,
     slots: slotMetadata,
     extra: [segment, isRootLayout === true],
   }
@@ -272,7 +264,6 @@ async function renderSegmentPrefetch(
   seedData: CacheNodeSeedData,
   segmentPathStr: string,
   accessToken: string,
-  childAccessTokens: { [parallelRouteKey: string]: string } | null,
   clientModules: ManifestNode
 ): Promise<[string, Buffer]> {
   // Render the segment data to a stream.
@@ -283,7 +274,6 @@ async function renderSegmentPrefetch(
   const segmentPrefetch: SegmentPrefetch = {
     rsc,
     loading,
-    slots: childAccessTokens,
   }
   // Since all we're doing is decoding and re-encoding a cached prerender, if
   // it takes longer than a microtask, it must because of hanging promises
@@ -407,9 +397,8 @@ async function createSegmentAccessToken(
   //
   // The token is hash of the parent segment path and the parallel route key. A
   // subtle detail here is that it does *not* include the value of the segment
-  // itself — a shared layout must produce the same access tokens for its
-  // children regardless of their segment values, so that the client only has to
-  // fetch the layout once.
+  // itself — the token grants access to the parallel route slot, not the
+  // particular segment that is rendered there.
   //
   // TODO: Because this only affects prefetches, this doesn't need to be secure.
   // It's just for obfuscation. But eventually we will use this technique when

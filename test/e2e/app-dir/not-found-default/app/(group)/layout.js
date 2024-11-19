@@ -1,7 +1,3 @@
 export default function RootLayout({ children }) {
-  return (
-    <html className="group-root-layout">
-      <body>{children}</body>
-    </html>
-  )
+  return <div className="group-root-layout">{children}</div>
 }

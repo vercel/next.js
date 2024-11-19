@@ -1,7 +1,7 @@
 /* eslint-env jest */
 import { nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
-import { sandbox } from 'development-sandbox'
+import { createSandbox } from 'development-sandbox'
 import { outdent } from 'outdent'
 
 const initialFiles = new Map([
@@ -31,7 +31,8 @@ describe('Error Overlay for server components compiler errors in pages', () => {
   })
 
   test("importing 'next/headers' in pages", async () => {
-    const { session, cleanup } = await sandbox(next, initialFiles)
+    await using sandbox = await createSandbox(next, initialFiles)
+    const { session } = sandbox
 
     await session.patch(
       'components/Comp.js',
@@ -84,12 +85,11 @@ describe('Error Overlay for server components compiler errors in pages', () => {
         ./pages/index.js"
       `)
     }
-
-    await cleanup()
   })
 
   test("importing 'server-only' in pages", async () => {
-    const { session, cleanup } = await sandbox(next, initialFiles)
+    await using sandbox = await createSandbox(next, initialFiles)
+    const { session } = sandbox
 
     await next.patchFile(
       'components/Comp.js',
@@ -144,11 +144,11 @@ describe('Error Overlay for server components compiler errors in pages', () => {
         Import trace for requested module:"
         `)
     }
-    await cleanup()
   })
 
   test("importing unstable_after from 'next/server' in pages", async () => {
-    const { session, cleanup } = await sandbox(next, initialFiles)
+    await using sandbox = await createSandbox(next, initialFiles)
+    const { session } = sandbox
 
     await next.patchFile(
       'components/Comp.js',
@@ -203,7 +203,6 @@ describe('Error Overlay for server components compiler errors in pages', () => {
         Import trace for requested module:"
       `)
     }
-    await cleanup()
   })
 })
 
