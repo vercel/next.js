@@ -199,6 +199,45 @@ pub async fn referenced_modules_and_affecting_sources(
     Ok(Vc::cell(resolved_modules.into_iter().collect()))
 }
 
+#[turbo_tasks::value]
+pub struct TracedModuleReference {
+    module: ResolvedVc<Box<dyn Module>>,
+}
+
+#[turbo_tasks::value_impl]
+impl ModuleReference for TracedModuleReference {
+    #[turbo_tasks::function]
+    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
+        ModuleResolveResult::module(self.module).cell()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ValueToString for TracedModuleReference {
+    #[turbo_tasks::function]
+    async fn to_string(&self) -> Result<Vc<RcStr>> {
+        Ok(Vc::cell(
+            format!("traced {}", self.module.ident().to_string().await?).into(),
+        ))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ChunkableModuleReference for TracedModuleReference {
+    #[turbo_tasks::function]
+    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
+        Vc::cell(Some(ChunkingType::Traced))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl TracedModuleReference {
+    #[turbo_tasks::function]
+    pub fn new(module: ResolvedVc<Box<dyn Module>>) -> Vc<Self> {
+        Self::cell(TracedModuleReference { module })
+    }
+}
+
 /// Aggregates all primary [Module]s referenced by an [Module]. [AssetReference]
 /// This does not include transitively references [Module]s, only includes
 /// primary [Module]s referenced.

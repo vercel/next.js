@@ -38,7 +38,7 @@ use turbopack_core::{
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
         options::{ImportMap, ImportMapping},
-        ExternalType,
+        ExternalTraced, ExternalType,
     },
     source::Source,
 };
@@ -288,7 +288,12 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
     let mut import_map = ImportMap::empty();
     import_map.insert_wildcard_alias(
         "esm-external/",
-        ImportMapping::External(Some("*".into()), ExternalType::EcmaScriptModule).resolved_cell(),
+        ImportMapping::External(
+            Some("*".into()),
+            ExternalType::EcmaScriptModule,
+            ExternalTraced::Untraced,
+        )
+        .resolved_cell(),
     );
 
     let asset_context: Vc<Box<dyn AssetContext>> = Vc::upcast(ModuleAssetContext::new(

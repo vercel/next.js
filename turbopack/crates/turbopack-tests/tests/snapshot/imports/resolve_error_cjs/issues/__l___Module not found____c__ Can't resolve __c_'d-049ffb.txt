@@ -10,7 +10,7 @@ error - [resolve] [project]/turbopack/crates/turbopack-tests/tests/snapshot/impo
   
   
   | It was not possible to find the requested file.
-  | Parsed request as written in source code: module "does-not-exist" with subpath "/path"
+  | Parsed request as written in source code: module "does-not-exist" with subpath '/path'
   | Path where resolving has started: [project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/resolve_error_cjs/input/index.js
   | Type of request: commonjs request
   |
