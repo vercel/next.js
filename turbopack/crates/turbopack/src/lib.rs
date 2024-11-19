@@ -773,14 +773,16 @@ impl AssetContext for ModuleAssetContext {
                                         .enable_externals_tracing,
                                 ) {
                                     let externals_context = externals_tracing_module_context(ty);
-                                    let out_dir = tracing_root.join("index".into());
+                                    let root_origin = tracing_root.join("_".into());
 
                                     let external_result = externals_context
                                         .resolve_asset(
-                                            out_dir,
+                                            root_origin,
                                             Request::parse_string(name.clone()),
-                                            externals_context
-                                                .resolve_options(out_dir, reference_type.clone()),
+                                            externals_context.resolve_options(
+                                                root_origin,
+                                                reference_type.clone(),
+                                            ),
                                             reference_type,
                                         )
                                         .await?;
