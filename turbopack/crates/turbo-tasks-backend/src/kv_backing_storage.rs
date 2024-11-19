@@ -128,7 +128,6 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
         data_updates: Vec<ChunkedVec<CachedDataUpdate>>,
     ) -> Result<()> {
         let _span = tracing::trace_span!("save snapshot", session_id = ?session_id, operations = operations.len());
-        let start = Instant::now();
         let mut batch = self.database.write_batch()?;
         let mut task_meta_items_result = Ok(Vec::new());
         let mut task_data_items_result = Ok(Vec::new());
@@ -323,8 +322,6 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
                 }
             }
         }
-
-        println!("Preparing data took {:?}", start.elapsed());
 
         {
             let _span = tracing::trace_span!("commit").entered();
