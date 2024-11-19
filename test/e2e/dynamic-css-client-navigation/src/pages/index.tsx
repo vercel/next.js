@@ -8,6 +8,7 @@ export default function Home() {
       <RedButton />
       <Link href="/dynamic-import">/dynamic-import</Link>
       <Link href="/next-dynamic">/next-dynamic</Link>
+      <Link href="/next-dynamic-ssr-false">/next-dynamic-ssr-false</Link>
       <Link href="/react-lazy">/react-lazy</Link>
     </>
   )
