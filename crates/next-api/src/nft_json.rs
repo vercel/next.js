@@ -63,6 +63,11 @@ impl NftJsonAsset {
     fn client_root(&self) -> Vc<FileSystemPath> {
         self.project.client_fs().root()
     }
+
+    #[turbo_tasks::function]
+    fn project_path(&self) -> Vc<FileSystemPath> {
+        self.project.project_path()
+    }
 }
 
 #[turbo_tasks::value(transparent)]
@@ -71,13 +76,6 @@ pub struct OutputSpecifier(Option<RcStr>);
 #[turbo_tasks::value_impl]
 impl NftJsonAsset {
     #[turbo_tasks::function]
-    async fn output_root_in_project_fs(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
-        Ok(self
-            .project_root()
-            .join(self.await?.project.project_path().await?.path.clone()))
-    }
-
-    #[turbo_tasks::function]
     async fn ident_folder(self: Vc<Self>) -> Vc<FileSystemPath> {
         self.ident().path().parent()
     }
@@ -85,7 +83,7 @@ impl NftJsonAsset {
     #[turbo_tasks::function]
     async fn ident_folder_in_project_fs(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         Ok(self
-            .output_root_in_project_fs()
+            .project_path()
             .join(self.ident_folder().await?.path.clone()))
     }
 
