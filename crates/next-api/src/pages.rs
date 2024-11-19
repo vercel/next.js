@@ -27,9 +27,9 @@ use next_core::{
 };
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, Completion, FxIndexMap, RcStr, ResolvedVc, TaskInput, TryJoinIterExt,
-    Value, Vc,
+    trace::TraceRawVcs, Completion, FxIndexMap, ResolvedVc, TaskInput, TryJoinIterExt, Value, Vc,
 };
 use turbo_tasks_fs::{
     self, File, FileContent, FileSystem, FileSystemPath, FileSystemPathOption, VirtualFileSystem,
@@ -256,19 +256,21 @@ impl PagesProject {
     }
 
     #[turbo_tasks::function]
-    fn transitions(self: Vc<Self>) -> Vc<TransitionOptions> {
-        TransitionOptions {
+    async fn transitions(self: Vc<Self>) -> Result<Vc<TransitionOptions>> {
+        Ok(TransitionOptions {
             named_transitions: [(
                 "next-dynamic".into(),
-                Vc::upcast(NextDynamicTransition::new(Vc::upcast(
-                    self.client_transition(),
-                ))),
+                ResolvedVc::upcast(
+                    NextDynamicTransition::new(Vc::upcast(self.client_transition()))
+                        .to_resolved()
+                        .await?,
+                ),
             )]
             .into_iter()
             .collect(),
             ..Default::default()
         }
-        .cell()
+        .cell())
     }
 
     #[turbo_tasks::function]
@@ -986,11 +988,12 @@ impl PageEndpoint {
                 .collect(),
         };
         let manifest_path_prefix = get_asset_prefix_from_pathname(&self.pathname.await?);
-        Ok(Vc::upcast(VirtualOutputAsset::new(
+        let asset = Vc::upcast(VirtualOutputAsset::new(
             node_root
                 .join(format!("server/pages{manifest_path_prefix}/pages-manifest.json",).into()),
             AssetContent::file(File::from(serde_json::to_string_pretty(&pages_manifest)?).into()),
-        )))
+        ));
+        Ok(asset)
     }
 
     #[turbo_tasks::function]
@@ -1076,6 +1079,7 @@ impl PageEndpoint {
             PageEndpointType::Api => self.api_chunk(),
             PageEndpointType::SsrOnly => self.ssr_chunk(),
         };
+        let emit_manifests = !matches!(this.ty, PageEndpointType::Data);
 
         let pathname = this.pathname.await?;
         let original_name = &*this.original_name.await?;
@@ -1123,15 +1127,19 @@ impl PageEndpoint {
                 dynamic_import_entries,
                 nft,
             } => {
-                let pages_manifest = self.pages_manifest(*entry).to_resolved().await?;
-                server_assets.push(pages_manifest);
                 server_assets.push(entry);
                 if let Some(nft) = &*nft.await? {
                     server_assets.push(*nft);
                 }
 
-                let loadable_manifest_output = self.react_loadable_manifest(dynamic_import_entries);
-                server_assets.extend(loadable_manifest_output.await?.iter().copied());
+                if emit_manifests {
+                    let pages_manifest = self.pages_manifest(*entry).to_resolved().await?;
+                    server_assets.push(pages_manifest);
+
+                    let loadable_manifest_output =
+                        self.react_loadable_manifest(dynamic_import_entries);
+                    server_assets.extend(loadable_manifest_output.await?.iter().copied());
+                }
 
                 PageEndpointOutput::NodeJs {
                     entry_chunk: entry,
@@ -1144,79 +1152,83 @@ impl PageEndpoint {
                 dynamic_import_entries,
             } => {
                 let node_root = this.pages_project.project().node_root();
-                let files_value = files.await?;
-                if let Some(&file) = files_value.first() {
-                    let pages_manifest = self.pages_manifest(*file).to_resolved().await?;
-                    server_assets.push(pages_manifest);
+                if emit_manifests {
+                    let files_value = files.await?;
+                    if let Some(&file) = files_value.first() {
+                        let pages_manifest = self.pages_manifest(*file).to_resolved().await?;
+                        server_assets.push(pages_manifest);
+                    }
+                    server_assets.extend(files_value.iter().copied());
+
+                    // the next-edge-ssr-loader templates expect the manifests to be stored in
+                    // global variables defined in these files
+                    //
+                    // they are created in `setup-dev-bundler.ts`
+                    let mut file_paths_from_root = vec![
+                        "server/server-reference-manifest.js".into(),
+                        "server/middleware-build-manifest.js".into(),
+                        "server/middleware-react-loadable-manifest.js".into(),
+                        "server/next-font-manifest.js".into(),
+                    ];
+                    let mut wasm_paths_from_root = vec![];
+
+                    let node_root_value = node_root.await?;
+
+                    file_paths_from_root
+                        .extend(get_js_paths_from_root(&node_root_value, &files_value).await?);
+
+                    let all_output_assets = all_assets_from_entries(files).await?;
+
+                    wasm_paths_from_root.extend(
+                        get_wasm_paths_from_root(&node_root_value, &all_output_assets).await?,
+                    );
+
+                    let all_assets =
+                        get_paths_from_root(&node_root_value, &all_output_assets, |_asset| true)
+                            .await?;
+
+                    let named_regex = get_named_middleware_regex(&pathname).into();
+                    let matchers = MiddlewareMatcher {
+                        regexp: Some(named_regex),
+                        original_source: pathname.clone_value(),
+                        ..Default::default()
+                    };
+                    let original_name = this.original_name.await?;
+                    let edge_function_definition = EdgeFunctionDefinition {
+                        files: file_paths_from_root,
+                        wasm: wasm_paths_to_bindings(wasm_paths_from_root),
+                        assets: paths_to_bindings(all_assets),
+                        name: pathname.clone_value(),
+                        page: original_name.clone_value(),
+                        regions: None,
+                        matchers: vec![matchers],
+                        env: this.pages_project.project().edge_env().await?.clone_value(),
+                    };
+                    let middleware_manifest_v2 = MiddlewaresManifestV2 {
+                        sorted_middleware: vec![pathname.clone_value()],
+                        functions: [(pathname.clone_value(), edge_function_definition)]
+                            .into_iter()
+                            .collect(),
+                        ..Default::default()
+                    };
+                    let manifest_path_prefix =
+                        get_asset_prefix_from_pathname(&this.pathname.await?);
+                    let middleware_manifest_v2 = VirtualOutputAsset::new(
+                        node_root.join(
+                            format!("server/pages{manifest_path_prefix}/middleware-manifest.json")
+                                .into(),
+                        ),
+                        AssetContent::file(
+                            FileContent::Content(File::from(serde_json::to_string_pretty(
+                                &middleware_manifest_v2,
+                            )?))
+                            .cell(),
+                        ),
+                    )
+                    .to_resolved()
+                    .await?;
+                    server_assets.push(ResolvedVc::upcast(middleware_manifest_v2));
                 }
-                server_assets.extend(files_value.iter().copied());
-
-                // the next-edge-ssr-loader templates expect the manifests to be stored in
-                // global variables defined in these files
-                //
-                // they are created in `setup-dev-bundler.ts`
-                let mut file_paths_from_root = vec![
-                    "server/server-reference-manifest.js".into(),
-                    "server/middleware-build-manifest.js".into(),
-                    "server/middleware-react-loadable-manifest.js".into(),
-                    "server/next-font-manifest.js".into(),
-                ];
-                let mut wasm_paths_from_root = vec![];
-
-                let node_root_value = node_root.await?;
-
-                file_paths_from_root
-                    .extend(get_js_paths_from_root(&node_root_value, &files_value).await?);
-
-                let all_output_assets = all_assets_from_entries(files).await?;
-
-                wasm_paths_from_root
-                    .extend(get_wasm_paths_from_root(&node_root_value, &all_output_assets).await?);
-
-                let all_assets =
-                    get_paths_from_root(&node_root_value, &all_output_assets, |_asset| true)
-                        .await?;
-
-                let named_regex = get_named_middleware_regex(&pathname).into();
-                let matchers = MiddlewareMatcher {
-                    regexp: Some(named_regex),
-                    original_source: pathname.clone_value(),
-                    ..Default::default()
-                };
-                let original_name = this.original_name.await?;
-                let edge_function_definition = EdgeFunctionDefinition {
-                    files: file_paths_from_root,
-                    wasm: wasm_paths_to_bindings(wasm_paths_from_root),
-                    assets: paths_to_bindings(all_assets),
-                    name: pathname.clone_value(),
-                    page: original_name.clone_value(),
-                    regions: None,
-                    matchers: vec![matchers],
-                    env: this.pages_project.project().edge_env().await?.clone_value(),
-                };
-                let middleware_manifest_v2 = MiddlewaresManifestV2 {
-                    sorted_middleware: vec![pathname.clone_value()],
-                    functions: [(pathname.clone_value(), edge_function_definition)]
-                        .into_iter()
-                        .collect(),
-                    ..Default::default()
-                };
-                let manifest_path_prefix = get_asset_prefix_from_pathname(&this.pathname.await?);
-                let middleware_manifest_v2 = VirtualOutputAsset::new(
-                    node_root.join(
-                        format!("server/pages{manifest_path_prefix}/middleware-manifest.json")
-                            .into(),
-                    ),
-                    AssetContent::file(
-                        FileContent::Content(File::from(serde_json::to_string_pretty(
-                            &middleware_manifest_v2,
-                        )?))
-                        .cell(),
-                    ),
-                )
-                .to_resolved()
-                .await?;
-                server_assets.push(ResolvedVc::upcast(middleware_manifest_v2));
 
                 let loadable_manifest_output = self.react_loadable_manifest(dynamic_import_entries);
                 server_assets.extend(loadable_manifest_output.await?.iter().copied());
@@ -1278,10 +1290,10 @@ impl Endpoint for PageEndpoint {
             // single operation
             let output_assets = self.output_assets();
 
-            this.pages_project
+            let _ = this
+                .pages_project
                 .project()
-                .emit_all_output_assets(Vc::cell(output_assets))
-                .await?;
+                .emit_all_output_assets(Vc::cell(output_assets));
 
             let node_root = this.pages_project.project().node_root();
             let server_paths = all_server_paths(output_assets, node_root)

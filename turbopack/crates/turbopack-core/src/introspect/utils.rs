@@ -1,5 +1,6 @@
 use anyhow::Result;
-use turbo_tasks::{FxIndexSet, RcStr, ResolvedVc, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexSet, ResolvedVc, Vc};
 use turbo_tasks_fs::FileContent;
 
 use super::{
@@ -63,10 +64,10 @@ pub async fn children_from_module_references(
     let key = reference_ty();
     let mut children = FxIndexSet::default();
     let references = references.await?;
-    for reference in &*references {
+    for &reference in &*references {
         let mut key = key;
         if let Some(chunkable) =
-            Vc::try_resolve_downcast::<Box<dyn ChunkableModuleReference>>(*reference).await?
+            Vc::try_resolve_downcast::<Box<dyn ChunkableModuleReference>>(reference).await?
         {
             match &*chunkable.chunking_type().await? {
                 None => {}

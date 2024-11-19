@@ -142,6 +142,7 @@ async function loaderTransform(
     serverReferenceHashSalt,
     bundleLayer,
     esm,
+    cacheHandlers: nextConfig.experimental?.cacheHandlers,
   })
 
   const programmaticOptions = {

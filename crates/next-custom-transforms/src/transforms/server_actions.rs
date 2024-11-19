@@ -5,6 +5,8 @@ use std::{
 };
 
 use hex::encode as hex_encode;
+use indoc::formatdoc;
+use rustc_hash::FxHashSet;
 use serde::Deserialize;
 use sha1::{Digest, Sha1};
 use swc_core::{
@@ -21,17 +23,74 @@ use swc_core::{
         visit::{noop_visit_mut_type, visit_mut_pass, VisitMut, VisitMutWith},
     },
 };
+use turbo_rcstr::RcStr;
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Config {
     pub is_react_server_layer: bool,
+    pub dynamic_io_enabled: bool,
     pub hash_salt: String,
+    pub cache_kinds: FxHashSet<RcStr>,
+}
+
+enum DirectiveLocation {
+    Module,
+    FunctionBody,
+}
+
+enum ServerActionsErrorKind {
+    ExportedSyncFunction {
+        span: Span,
+        in_action_file: bool,
+    },
+    InlineSyncFunction {
+        span: Span,
+        is_action_fn: bool,
+    },
+    InlineUseCacheInClientComponent {
+        span: Span,
+    },
+    InlineUseServerInClientComponent {
+        span: Span,
+    },
+    MisplacedDirective {
+        span: Span,
+        directive: String,
+        location: DirectiveLocation,
+    },
+    MisplacedWrappedDirective {
+        span: Span,
+        directive: String,
+    },
+    MisspelledDirective {
+        span: Span,
+        directive: String,
+        expected_directive: String,
+    },
+    UnknownCacheKind {
+        span: Span,
+        cache_kind: RcStr,
+    },
+    UseCacheWithoutDynamicIO {
+        span: Span,
+        directive: String,
+    },
+    WrappedDirective {
+        span: Span,
+        directive: String,
+    },
 }
 
 /// A mapping of hashed action id to the action's exported function name.
 // Using BTreeMap to ensure the order of the actions is deterministic.
 pub type ActionsMap = BTreeMap<String, String>;
+
+// Directive-level information about a function body
+struct BodyInfo {
+    is_action_fn: bool,
+    cache_kind: Option<RcStr>,
+}
 
 #[tracing::instrument(level = tracing::Level::TRACE, skip_all)]
 pub fn server_actions<C: Comments>(file_name: &FileName, config: Config, comments: C) -> impl Pass {
@@ -41,7 +100,7 @@ pub fn server_actions<C: Comments>(file_name: &FileName, config: Config, comment
         file_name: file_name.to_string(),
         start_pos: BytePos(0),
         in_action_file: false,
-        in_cache_file: None,
+        file_cache_kind: None,
         in_exported_expr: false,
         in_default_export_decl: false,
         in_callee: false,
@@ -91,7 +150,7 @@ struct ServerActions<C: Comments> {
 
     start_pos: BytePos,
     in_action_file: bool,
-    in_cache_file: Option<String>,
+    file_cache_kind: Option<RcStr>,
     in_exported_expr: bool,
     in_default_export_decl: bool,
     in_callee: bool,
@@ -250,9 +309,9 @@ impl<C: Comments> ServerActions<C> {
     }
 
     // Check if the function or arrow function is an action or cache function
-    fn get_body_info(&mut self, maybe_body: Option<&mut BlockStmt>) -> (bool, Option<String>) {
+    fn get_body_info(&mut self, maybe_body: Option<&mut BlockStmt>) -> BodyInfo {
         let mut is_action_fn = false;
-        let mut cache_type = None;
+        let mut cache_kind = None;
 
         // Even if it's a file-level action or cache module, the function body
         // might still have directives that override the module-level annotations.
@@ -263,56 +322,41 @@ impl<C: Comments> ServerActions<C> {
             remove_server_directive_index_in_fn(
                 &mut body.stmts,
                 &mut is_action_fn,
-                &mut cache_type,
+                &mut cache_kind,
                 &mut span,
+                &self.config,
             );
 
             if !self.config.is_react_server_layer {
                 if is_action_fn && !self.in_action_file {
-                    HANDLER.with(|handler| {
-                        handler
-                            .struct_span_err(
-                                span.unwrap_or(body.span),
-                                "It is not allowed to define inline \"use server\" annotated \
-                                 Server Actions in Client Components.\nTo use Server Actions in a \
-                                 Client Component, you can either export them from a separate \
-                                 file with \"use server\" at the top, or pass them down through \
-                                 props from a Server Component.\n\n\
-                                 Read more: https://nextjs.org/docs/app/api-reference/functions/server-actions#with-client-components\n",
-                            )
-                            .emit()
-                    });
+                    emit_error(ServerActionsErrorKind::InlineUseServerInClientComponent {
+                        span: span.unwrap_or(body.span),
+                    })
                 }
 
-                if cache_type.is_some() && self.in_cache_file.is_none() && !self.in_action_file {
-                    HANDLER.with(|handler| {
-                        handler
-                            .struct_span_err(
-                                span.unwrap_or(body.span),
-                                "It is not allowed to define inline \"use cache\" annotated \
-                                 functions in Client Components.\nTo use \"use cache\" functions \
-                                 in a Client Component, you can either export them from a \
-                                 separate file with \"use cache\" or \"use server\" at the top, \
-                                 or pass them down through props from a Server Component.\n",
-                            )
-                            .emit()
+                if cache_kind.is_some() && self.file_cache_kind.is_none() && !self.in_action_file {
+                    emit_error(ServerActionsErrorKind::InlineUseCacheInClientComponent {
+                        span: span.unwrap_or(body.span),
                     });
                 }
             }
         }
 
         // Self-annotations take precedence over module-level annotations.
-        if self.in_exported_expr && !is_action_fn && cache_type.is_none() {
+        if self.in_exported_expr && !is_action_fn && cache_kind.is_none() {
             if self.in_action_file {
                 // All export functions in a server file are actions
                 is_action_fn = true;
-            } else if let Some(cache_file_type) = &self.in_cache_file {
+            } else if let Some(cache_file_type) = &self.file_cache_kind {
                 // All export functions in a cache file are cache functions
-                cache_type = Some(cache_file_type.clone());
+                cache_kind = Some(cache_file_type.clone());
             }
         }
 
-        (is_action_fn, cache_type)
+        BodyInfo {
+            is_action_fn,
+            cache_kind,
+        }
     }
 
     fn maybe_hoist_and_create_proxy_for_server_action_arrow_expr(
@@ -573,7 +617,7 @@ impl<C: Comments> ServerActions<C> {
     fn maybe_hoist_and_create_proxy_for_cache_arrow_expr(
         &mut self,
         ids_from_closure: Vec<Name>,
-        cache_type: &str,
+        cache_kind: &str,
         arrow: &mut ArrowExpr,
     ) -> Box<Expr> {
         let mut new_params: Vec<Param> = vec![];
@@ -645,7 +689,7 @@ impl<C: Comments> ServerActions<C> {
                                     ..Default::default()
                                 }),
                             })),
-                            cache_type,
+                            cache_kind,
                             &reference_id,
                             ids_from_closure.len(),
                         )),
@@ -708,7 +752,7 @@ impl<C: Comments> ServerActions<C> {
         &mut self,
         ids_from_closure: Vec<Name>,
         fn_name: Option<Ident>,
-        cache_type: &str,
+        cache_kind: &str,
         function: &mut Box<Function>,
     ) -> Box<Expr> {
         let mut new_params: Vec<Param> = vec![];
@@ -767,7 +811,7 @@ impl<C: Comments> ServerActions<C> {
                                     ..*function.take()
                                 }),
                             })),
-                            cache_type,
+                            cache_kind,
                             &reference_id,
                             ids_from_closure.len(),
                         )),
@@ -853,7 +897,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     }
 
     fn visit_mut_fn_expr(&mut self, f: &mut FnExpr) {
-        let (is_action_fn, cache_type) = self.get_body_info(f.function.body.as_mut());
+        let BodyInfo {
+            is_action_fn,
+            cache_kind,
+        } = self.get_body_info(f.function.body.as_mut());
 
         let declared_idents_until = self.declared_idents.len();
         let current_names = take(&mut self.names);
@@ -866,7 +913,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             let old_in_default_export_decl = self.in_default_export_decl;
             self.in_module_level = false;
             self.should_track_names =
-                is_action_fn || cache_type.is_some() || self.should_track_names;
+                is_action_fn || cache_kind.is_some() || self.should_track_names;
             self.in_exported_expr = false;
             self.in_default_export_decl = false;
             f.visit_mut_children_with(self);
@@ -885,30 +932,20 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             take(&mut self.names)
         };
 
-        if (is_action_fn || cache_type.is_some()) && !f.function.is_async {
-            HANDLER.with(|handler| {
-                let subject = if is_action_fn {
-                    "Server Actions"
-                } else {
-                    "\"use cache\" functions"
-                };
-
-                handler
-                    .struct_span_err(
-                        f.function.span,
-                        &format!("{subject} must be async functions."),
-                    )
-                    .emit();
+        if (is_action_fn || cache_kind.is_some()) && !f.function.is_async {
+            emit_error(ServerActionsErrorKind::InlineSyncFunction {
+                span: f.function.span,
+                is_action_fn,
             });
 
             return;
         }
 
-        if !is_action_fn && cache_type.is_none() || !self.config.is_react_server_layer {
+        if !is_action_fn && cache_kind.is_none() || !self.config.is_react_server_layer {
             return;
         }
 
-        if let Some(cache_type_str) = cache_type {
+        if let Some(cache_kind_str) = cache_kind {
             // Collect all the identifiers defined inside the closure and used
             // in the cache function. With deduplication.
             retain_names_from_declared_idents(
@@ -919,7 +956,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             let new_expr = self.maybe_hoist_and_create_proxy_for_cache_function(
                 child_names.clone(),
                 f.ident.clone().or(self.arrow_or_fn_expr_ident.clone()),
-                cache_type_str.as_str(),
+                cache_kind_str.as_str(),
                 &mut f.function,
             );
 
@@ -978,7 +1015,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             self.in_exported_expr = true
         }
 
-        let (is_action_fn, cache_type) = self.get_body_info(f.function.body.as_mut());
+        let BodyInfo {
+            is_action_fn,
+            cache_kind,
+        } = self.get_body_info(f.function.body.as_mut());
 
         let declared_idents_until = self.declared_idents.len();
         let current_names = take(&mut self.names);
@@ -991,7 +1031,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             let old_in_default_export_decl = self.in_default_export_decl;
             self.in_module_level = false;
             self.should_track_names =
-                is_action_fn || cache_type.is_some() || self.should_track_names;
+                is_action_fn || cache_kind.is_some() || self.should_track_names;
             self.in_exported_expr = false;
             self.in_default_export_decl = false;
             f.visit_mut_children_with(self);
@@ -1001,7 +1041,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             self.in_default_export_decl = old_in_default_export_decl;
         }
 
-        if !is_action_fn && cache_type.is_none() || !self.config.is_react_server_layer {
+        if !is_action_fn && cache_kind.is_none() || !self.config.is_react_server_layer {
             self.in_exported_expr = old_in_exported_expr;
 
             return;
@@ -1016,15 +1056,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             take(&mut self.names)
         };
 
-        if let Some(cache_type_str) = cache_type {
+        if let Some(cache_kind_str) = cache_kind {
             if !f.function.is_async {
-                HANDLER.with(|handler| {
-                    handler
-                        .struct_span_err(
-                            f.ident.span,
-                            "\"use cache\" functions must be async functions.",
-                        )
-                        .emit();
+                emit_error(ServerActionsErrorKind::InlineSyncFunction {
+                    span: f.ident.span,
+                    is_action_fn: false,
                 });
 
                 self.in_exported_expr = old_in_exported_expr;
@@ -1042,7 +1078,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             let new_expr = self.maybe_hoist_and_create_proxy_for_cache_function(
                 child_names,
                 Some(f.ident.clone()),
-                cache_type_str.as_str(),
+                cache_kind_str.as_str(),
                 &mut f.function,
             );
 
@@ -1060,10 +1096,9 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             });
         } else if is_action_fn {
             if !f.function.is_async {
-                HANDLER.with(|handler| {
-                    handler
-                        .struct_span_err(f.ident.span, "Server Actions must be async functions")
-                        .emit();
+                emit_error(ServerActionsErrorKind::InlineSyncFunction {
+                    span: f.ident.span,
+                    is_action_fn: true,
                 });
             }
 
@@ -1123,12 +1158,14 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     fn visit_mut_arrow_expr(&mut self, a: &mut ArrowExpr) {
         // Arrow expressions need to be visited in prepass to determine if it's
         // an action function or not.
-        let (is_action_fn, cache_type) =
-            self.get_body_info(if let BlockStmtOrExpr::BlockStmt(block) = &mut *a.body {
-                Some(block)
-            } else {
-                None
-            });
+        let BodyInfo {
+            is_action_fn,
+            cache_kind,
+        } = self.get_body_info(if let BlockStmtOrExpr::BlockStmt(block) = &mut *a.body {
+            Some(block)
+        } else {
+            None
+        });
 
         let declared_idents_until = self.declared_idents.len();
         let current_names = take(&mut self.names);
@@ -1141,7 +1178,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             let old_in_default_export_decl = self.in_default_export_decl;
             self.in_module_level = false;
             self.should_track_names =
-                is_action_fn || cache_type.is_some() || self.should_track_names;
+                is_action_fn || cache_kind.is_some() || self.should_track_names;
             self.in_exported_expr = false;
             self.in_default_export_decl = false;
             {
@@ -1165,23 +1202,16 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             take(&mut self.names)
         };
 
-        if !a.is_async && (is_action_fn || cache_type.is_some()) {
-            HANDLER.with(|handler| {
-                let subject = if is_action_fn {
-                    "Server Actions"
-                } else {
-                    "\"use cache\" functions"
-                };
-
-                handler
-                    .struct_span_err(a.span, &format!("{subject} must be async functions."))
-                    .emit();
+        if !a.is_async && (is_action_fn || cache_kind.is_some()) {
+            emit_error(ServerActionsErrorKind::InlineSyncFunction {
+                span: a.span,
+                is_action_fn,
             });
 
             return;
         }
 
-        if !is_action_fn && cache_type.is_none() || !self.config.is_react_server_layer {
+        if !is_action_fn && cache_kind.is_none() || !self.config.is_react_server_layer {
             return;
         }
 
@@ -1195,10 +1225,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         let maybe_new_expr = if is_action_fn && !self.in_action_file {
             Some(self.maybe_hoist_and_create_proxy_for_server_action_arrow_expr(child_names, a))
         } else {
-            cache_type.map(|cache_type_str| {
+            cache_kind.map(|cache_kind_str| {
                 self.maybe_hoist_and_create_proxy_for_cache_arrow_expr(
                     child_names,
-                    cache_type_str.as_str(),
+                    cache_kind_str.as_str(),
                     a,
                 )
             })
@@ -1298,9 +1328,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         remove_server_directive_index_in_module(
             stmts,
             &mut self.in_action_file,
-            &mut self.in_cache_file,
+            &mut self.file_cache_kind,
             &mut self.has_action,
             &mut self.has_cache,
+            &self.config,
         );
 
         // If we're in a "use cache" file, collect all original IDs from export
@@ -1313,7 +1344,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         // export { foo }
         // export default Bar
         // ```
-        if self.in_cache_file.is_some() {
+        if self.file_cache_kind.is_some() {
             for stmt in stmts.iter() {
                 match stmt {
                     ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(export_default_expr)) => {
@@ -1340,7 +1371,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         }
 
         // Only track exported identifiers in action files or cache files.
-        let is_cache_file = self.in_cache_file.is_some();
+        let is_cache_file = self.file_cache_kind.is_some();
         let should_track_exports = self.in_action_file || is_cache_file;
 
         let old_annotations = self.annotations.take();
@@ -1651,22 +1682,9 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 }
 
                 if disallowed_export_span != DUMMY_SP {
-                    HANDLER.with(|handler| {
-                        let directive = if self.in_action_file {
-                            "\"use server\""
-                        } else {
-                            "\"use cache\""
-                        };
-
-                        handler
-                            .struct_span_err(
-                                disallowed_export_span,
-                                &format!(
-                                    "Only async functions are allowed to be exported in a \
-                                     {directive} file."
-                                ),
-                            )
-                            .emit();
+                    emit_error(ServerActionsErrorKind::ExportedSyncFunction {
+                        span: disallowed_export_span,
+                        in_action_file: self.in_action_file,
                     });
 
                     return;
@@ -1688,7 +1706,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             }
 
             if self.config.is_react_server_layer
-                || (!self.in_action_file && self.in_cache_file.is_none())
+                || (!self.in_action_file && self.file_cache_kind.is_none())
             {
                 new.append(&mut self.hoisted_extra_items);
                 new.push(new_stmt);
@@ -1808,7 +1826,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             }));
                         new.push(export_expr);
                     }
-                } else if self.in_cache_file.is_none() {
+                } else if self.file_cache_kind.is_none() {
                     self.annotations.push(Stmt::Expr(ExprStmt {
                         span: DUMMY_SP,
                         expr: Box::new(annotate_ident_as_server_reference(
@@ -1831,7 +1849,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 new.append(&mut self.extra_items);
 
                 // For "use cache" files, there's no need to do extra annotations.
-                if self.in_cache_file.is_none() && !self.exported_idents.is_empty() {
+                if self.file_cache_kind.is_none() && !self.exported_idents.is_empty() {
                     let ensure_ident = private_ident!("ensureServerEntryExports");
                     new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                         span: DUMMY_SP,
@@ -1886,7 +1904,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
             // All exported values are considered as actions if the file is an action file.
             if self.in_action_file
-                || self.in_cache_file.is_some() && !self.config.is_react_server_layer
+                || self.file_cache_kind.is_some() && !self.config.is_react_server_layer
             {
                 actions.extend(
                     self.exported_idents
@@ -2352,9 +2370,10 @@ fn detect_similar_strings(a: &str, b: &str) -> bool {
 fn remove_server_directive_index_in_module(
     stmts: &mut Vec<ModuleItem>,
     in_action_file: &mut bool,
-    in_cache_file: &mut Option<String>,
+    file_cache_kind: &mut Option<RcStr>,
     has_action: &mut bool,
     has_cache: &mut bool,
+    config: &Config,
 ) {
     let mut is_directive = true;
 
@@ -2370,51 +2389,55 @@ fn remove_server_directive_index_in_module(
                         *has_action = true;
                         return false;
                     } else {
-                        HANDLER.with(|handler| {
-                            handler
-                                .struct_span_err(
-                                    *span,
-                                    "The \"use server\" directive must be at the top of the file.",
-                                )
-                                .emit();
+                        emit_error(ServerActionsErrorKind::MisplacedDirective {
+                            span: *span,
+                            directive: value.to_string(),
+                            location: DirectiveLocation::Module,
                         });
                     }
                 } else
                 // `use cache` or `use cache: foo`
                 if value == "use cache" || value.starts_with("use cache: ") {
                     if is_directive {
-                        *in_cache_file = Some(if value == "use cache" {
-                            "default".into()
+                        if !config.dynamic_io_enabled {
+                            emit_error(ServerActionsErrorKind::UseCacheWithoutDynamicIO {
+                                span: *span,
+                                directive: value.to_string(),
+                            });
+                        }
+
+                        if value == "use cache" {
+                            *file_cache_kind = Some("default".into());
                         } else {
                             // Slice the value after "use cache: "
-                            value.split_at("use cache: ".len()).1.into()
-                        });
+                            let cache_kind_str = RcStr::from(value.split_at("use cache: ".len()).1);
+
+                            if !config.cache_kinds.contains(&cache_kind_str) {
+                                emit_error(ServerActionsErrorKind::UnknownCacheKind {
+                                    span: *span,
+                                    cache_kind: cache_kind_str.clone(),
+                                });
+                            }
+
+                            *file_cache_kind = Some(cache_kind_str)
+                        }
+
                         *has_cache = true;
                         return false;
                     } else {
-                        HANDLER.with(|handler| {
-                            handler
-                                .struct_span_err(
-                                    *span,
-                                    "The \"use cache\" directive must be at the top of the file.",
-                                )
-                                .emit();
+                        emit_error(ServerActionsErrorKind::MisplacedDirective {
+                            span: *span,
+                            directive: value.to_string(),
+                            location: DirectiveLocation::Module,
                         });
                     }
                 } else {
                     // Detect typo of "use cache"
                     if detect_similar_strings(value, "use cache") {
-                        HANDLER.with(|handler| {
-                            handler
-                                .struct_span_err(
-                                    *span,
-                                    format!(
-                                        "Did you mean \"use cache\"? \"{value}\" is not a \
-                                         supported directive name."
-                                    )
-                                    .as_str(),
-                                )
-                                .emit();
+                        emit_error(ServerActionsErrorKind::MisspelledDirective {
+                            span: *span,
+                            directive: value.to_string(),
+                            expected_directive: "use cache".to_string(),
                         });
                     }
                 }
@@ -2431,46 +2454,27 @@ fn remove_server_directive_index_in_module(
                 // Match `("use server")`.
                 if value == "use server" || detect_similar_strings(value, "use server") {
                     if is_directive {
-                        HANDLER.with(|handler| {
-                            handler
-                                .struct_span_err(
-                                    *span,
-                                    "The \"use server\" directive cannot be wrapped in \
-                                     parentheses.",
-                                )
-                                .emit();
-                        })
+                        emit_error(ServerActionsErrorKind::WrappedDirective {
+                            span: *span,
+                            directive: "use server".to_string(),
+                        });
                     } else {
-                        HANDLER.with(|handler| {
-                            handler
-                                .struct_span_err(
-                                    *span,
-                                    "The \"use server\" directive must be at the top of the file, \
-                                     and cannot be wrapped in parentheses.",
-                                )
-                                .emit();
-                        })
+                        emit_error(ServerActionsErrorKind::MisplacedWrappedDirective {
+                            span: *span,
+                            directive: "use server".to_string(),
+                        });
                     }
                 } else if value == "use cache" || detect_similar_strings(value, "use cache") {
                     if is_directive {
-                        HANDLER.with(|handler| {
-                            handler
-                                .struct_span_err(
-                                    *span,
-                                    "The \"use cache\" directive cannot be wrapped in parentheses.",
-                                )
-                                .emit();
-                        })
+                        emit_error(ServerActionsErrorKind::WrappedDirective {
+                            span: *span,
+                            directive: "use cache".to_string(),
+                        });
                     } else {
-                        HANDLER.with(|handler| {
-                            handler
-                                .struct_span_err(
-                                    *span,
-                                    "The \"use cache\" directive must be at the top of the file, \
-                                     and cannot be wrapped in parentheses.",
-                                )
-                                .emit();
-                        })
+                        emit_error(ServerActionsErrorKind::MisplacedWrappedDirective {
+                            span: *span,
+                            directive: "use cache".to_string(),
+                        });
                     }
                 }
             }
@@ -2516,8 +2520,9 @@ fn has_body_directive(maybe_body: &Option<BlockStmt>) -> (bool, bool) {
 fn remove_server_directive_index_in_fn(
     stmts: &mut Vec<Stmt>,
     is_action_fn: &mut bool,
-    cache_type: &mut Option<String>,
+    cache_kind: &mut Option<RcStr>,
     action_span: &mut Option<Span>,
+    config: &Config,
 ) {
     let mut is_directive = true;
 
@@ -2534,63 +2539,57 @@ fn remove_server_directive_index_in_fn(
                     *is_action_fn = true;
                     return false;
                 } else {
-                    HANDLER.with(|handler| {
-                        handler
-                            .struct_span_err(
-                                *span,
-                                "The \"use server\" directive must be at the top of the function \
-                                 body.",
-                            )
-                            .emit();
+                    emit_error(ServerActionsErrorKind::MisplacedDirective {
+                        span: *span,
+                        directive: value.to_string(),
+                        location: DirectiveLocation::FunctionBody,
                     });
                 }
             } else if detect_similar_strings(value, "use server") {
                 // Detect typo of "use server"
-                HANDLER.with(|handler| {
-                    handler
-                        .struct_span_err(
-                            *span,
-                            format!(
-                                "Did you mean \"use server\"? \"{value}\" is not a supported \
-                                 directive name."
-                            )
-                            .as_str(),
-                        )
-                        .emit();
+                emit_error(ServerActionsErrorKind::MisspelledDirective {
+                    span: *span,
+                    directive: value.to_string(),
+                    expected_directive: "use server".to_string(),
                 });
             } else if value == "use cache" || value.starts_with("use cache: ") {
                 if is_directive {
-                    *cache_type = Some(if value == "use cache" {
-                        "default".into()
+                    if !config.dynamic_io_enabled {
+                        emit_error(ServerActionsErrorKind::UseCacheWithoutDynamicIO {
+                            span: *span,
+                            directive: value.to_string(),
+                        });
+                    }
+
+                    if value == "use cache" {
+                        *cache_kind = Some("default".into());
                     } else {
                         // Slice the value after "use cache: "
-                        value.split_at("use cache: ".len()).1.into()
-                    });
+                        let cache_kind_str = RcStr::from(value.split_at("use cache: ".len()).1);
+
+                        if !config.cache_kinds.contains(&cache_kind_str) {
+                            emit_error(ServerActionsErrorKind::UnknownCacheKind {
+                                span: *span,
+                                cache_kind: cache_kind_str.clone(),
+                            });
+                        }
+
+                        *cache_kind = Some(cache_kind_str);
+                    };
                     return false;
                 } else {
-                    HANDLER.with(|handler| {
-                        handler
-                            .struct_span_err(
-                                *span,
-                                "The \"use cache\" directive must be at the top of the function \
-                                 body.",
-                            )
-                            .emit();
+                    emit_error(ServerActionsErrorKind::MisplacedDirective {
+                        span: *span,
+                        directive: value.to_string(),
+                        location: DirectiveLocation::FunctionBody,
                     });
                 }
             } else if detect_similar_strings(value, "use cache") {
                 // Detect typo of "use cache"
-                HANDLER.with(|handler| {
-                    handler
-                        .struct_span_err(
-                            *span,
-                            format!(
-                                "Did you mean \"use cache\"? \"{value}\" is not a supported \
-                                 directive name."
-                            )
-                            .as_str(),
-                        )
-                        .emit();
+                emit_error(ServerActionsErrorKind::MisspelledDirective {
+                    span: *span,
+                    directive: value.to_string(),
+                    expected_directive: "use cache".to_string(),
                 });
             }
         } else {
@@ -2846,4 +2845,122 @@ impl From<Name> for Box<Expr> {
 
         expr
     }
+}
+
+fn emit_error(error_kind: ServerActionsErrorKind) {
+    let (span, msg) = match error_kind {
+        ServerActionsErrorKind::ExportedSyncFunction {
+            span,
+            in_action_file,
+        } => (
+            span,
+            formatdoc! {
+                r#"
+                    Only async functions are allowed to be exported in a {directive} file.
+                "#,
+                directive = if in_action_file {
+                    "\"use server\""
+                } else {
+                    "\"use cache\""
+                }
+            },
+        ),
+        ServerActionsErrorKind::InlineUseCacheInClientComponent { span } => (
+            span,
+            formatdoc! {
+                r#"
+                    It is not allowed to define inline "use cache" annotated functions in Client Components.
+                    To use "use cache" functions in a Client Component, you can either export them from a separate file with "use cache" or "use server" at the top, or pass them down through props from a Server Component.
+                "#
+            },
+        ),
+        ServerActionsErrorKind::InlineUseServerInClientComponent { span } => (
+            span,
+            formatdoc! {
+                r#"
+                    It is not allowed to define inline "use server" annotated Server Actions in Client Components.
+                    To use Server Actions in a Client Component, you can either export them from a separate file with "use server" at the top, or pass them down through props from a Server Component.
+
+                    Read more: https://nextjs.org/docs/app/api-reference/functions/server-actions#with-client-components
+                "#
+            },
+        ),
+        ServerActionsErrorKind::InlineSyncFunction { span, is_action_fn } => (
+            span,
+            formatdoc! {
+                r#"
+                    {subject} must be async functions.
+                "#,
+                subject = if is_action_fn {
+                    "Server Actions"
+                } else {
+                    "\"use cache\" functions"
+                }
+            },
+        ),
+        ServerActionsErrorKind::MisplacedDirective {
+            span,
+            directive,
+            location,
+        } => (
+            span,
+            formatdoc! {
+                r#"
+                    The "{directive}" directive must be at the top of the {location}.
+                "#,
+                location = match location {
+                    DirectiveLocation::Module => "file",
+                    DirectiveLocation::FunctionBody => "function body",
+                }
+            },
+        ),
+        ServerActionsErrorKind::MisplacedWrappedDirective { span, directive } => (
+            span,
+            formatdoc! {
+                r#"
+                    The "{directive}" directive must be at the top of the file, and cannot be wrapped in parentheses.
+                "#
+            },
+        ),
+        ServerActionsErrorKind::MisspelledDirective {
+            span,
+            directive,
+            expected_directive,
+        } => (
+            span,
+            formatdoc! {
+                r#"
+                    Did you mean "{expected_directive}"? "{directive}" is not a supported directive name."
+                "#
+            },
+        ),
+        ServerActionsErrorKind::UnknownCacheKind { span, cache_kind } => (
+            span,
+            formatdoc! {
+                r#"
+                    Unknown cache kind "{cache_kind}". Please configure a cache handler for this kind in the "experimental.cacheHandlers" object in your Next.js config.
+                "#
+            },
+        ),
+        ServerActionsErrorKind::UseCacheWithoutDynamicIO { span, directive } => (
+            span,
+            formatdoc! {
+                r#"
+                    To use "{directive}", please enable the experimental feature flag "dynamicIO" in your Next.js config.
+
+                    Read more: https://nextjs.org/docs/canary/app/api-reference/directives/use-cache#usage
+                "#
+            },
+        ),
+        ServerActionsErrorKind::WrappedDirective { span, directive } => (
+            span,
+            formatdoc! {
+                r#"
+                    The "{directive}" directive cannot be wrapped in parentheses.
+                "#
+            },
+        ),
+    };
+
+    HANDLER.with(|handler| handler.struct_span_err(span, &msg).emit());
 }

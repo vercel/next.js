@@ -441,11 +441,6 @@ export function cache(
   boundArgsLength: number,
   fn: any
 ) {
-  if (!process.env.__NEXT_DYNAMIC_IO) {
-    throw new Error(
-      '"use cache" is only available with the experimental.dynamicIO config.'
-    )
-  }
   for (const [key, value] of Object.entries(
     _globalThis.__nextCacheHandlers || {}
   )) {

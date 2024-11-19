@@ -1,6 +1,7 @@
 use anyhow::{bail, Result};
 use serde_json::json;
-use turbo_tasks::{RcStr, ResolvedVc, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{DiskFileSystem, File, FileSystem, FileSystemPath, VirtualFileSystem};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -63,7 +64,7 @@ impl NftJsonAsset {
         let output_fs = this.output_fs.await?;
         let nft_folder = self.ident().path().parent().await?;
 
-        if let Some(subdir) = output_fs.root.strip_prefix(&*project_fs.root) {
+        if let Some(subdir) = output_fs.root().strip_prefix(&**project_fs.root()) {
             Ok(this
                 .project_fs
                 .root()

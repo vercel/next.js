@@ -3,7 +3,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import { createProxyServer } from 'next/experimental/testmode/proxy'
 import { outdent } from 'outdent'
-import { sandbox } from '../../../lib/development-sandbox'
+import { createSandbox } from '../../../lib/development-sandbox'
 import * as Log from './utils/log'
 
 const runtimes = ['nodejs', 'edge']
@@ -270,10 +270,29 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
   })
 
   describe('uses waitUntil from request context if available', () => {
-    let sanboxed: Awaited<ReturnType<typeof sandbox>>
-    beforeAll(async () => {
+    it.each([
+      {
+        name: 'in a page',
+        path: '/provided-request-context/page',
+        expectedLog: { source: '[page] /provided-request-context/page' },
+      },
+      {
+        name: 'in a route handler',
+        path: '/provided-request-context/route',
+        expectedLog: {
+          source: '[route handler] /provided-request-context/route',
+        },
+      },
+      {
+        name: 'in middleware',
+        path: '/provided-request-context/middleware',
+        expectedLog: {
+          source: '[middleware] /provided-request-context/middleware',
+        },
+      },
+    ])('$name', async ({ path, expectedLog }) => {
       resetLogIsolation() // sandbox resets `next.cliOutput` to empty
-      sanboxed = await sandbox(
+      await using _sandbox = await createSandbox(
         next,
         new Map([
           [
@@ -296,32 +315,7 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
           ],
         ])
       )
-    })
-    afterAll(async () => {
-      await sanboxed.cleanup()
-    })
 
-    it.each([
-      {
-        name: 'in a page',
-        path: '/provided-request-context/page',
-        expectedLog: { source: '[page] /provided-request-context/page' },
-      },
-      {
-        name: 'in a route handler',
-        path: '/provided-request-context/route',
-        expectedLog: {
-          source: '[route handler] /provided-request-context/route',
-        },
-      },
-      {
-        name: 'in middleware',
-        path: '/provided-request-context/middleware',
-        expectedLog: {
-          source: '[middleware] /provided-request-context/middleware',
-        },
-      },
-    ])('$name', async ({ path, expectedLog }) => {
       await next.browser(pathPrefix + path)
       await retry(() => {
         const logs = getLogs()

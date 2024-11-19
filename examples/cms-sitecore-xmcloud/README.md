@@ -52,11 +52,11 @@ npx create-next-app --example cms-sitecore-xmcloud cms-sitecore-xmcloud-app
 ```
 
 ```bash
-yarn create-next-app --example cms-sitecore-xmcloud cms-sitecore-xmcloud-app
+yarn create next-app --example cms-sitecore-xmcloud cms-sitecore-xmcloud-app
 ```
 
 ```bash
-pnpm create-next-app --example cms-sitecore-xmcloud cms-sitecore-xmcloud-app
+pnpm create next-app --example cms-sitecore-xmcloud cms-sitecore-xmcloud-app
 ```
 
 ## Configuration

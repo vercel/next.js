@@ -1,7 +1,8 @@
 use std::iter::once;
 
 use anyhow::Result;
-use turbo_tasks::{FxIndexMap, RcStr, ResolvedVc, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexMap, ResolvedVc, Value, Vc};
 use turbo_tasks_env::EnvMap;
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack::{
@@ -142,21 +143,21 @@ pub enum ClientContextType {
 
 #[turbo_tasks::function]
 pub async fn get_client_resolve_options_context(
-    project_path: Vc<FileSystemPath>,
+    project_path: ResolvedVc<FileSystemPath>,
     ty: Value<ClientContextType>,
     mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<ResolveOptionsContext>> {
     let next_client_import_map =
-        get_next_client_import_map(project_path, ty, next_config, execution_context)
+        get_next_client_import_map(*project_path, ty, next_config, execution_context)
             .to_resolved()
             .await?;
     let next_client_fallback_import_map = get_next_client_fallback_import_map(ty)
         .to_resolved()
         .await?;
     let next_client_resolved_map =
-        get_next_client_resolved_map(project_path, project_path, *mode.await?)
+        get_next_client_resolved_map(*project_path, project_path, *mode.await?)
             .to_resolved()
             .await?;
     let custom_conditions = vec![mode.await?.condition().into()];
@@ -175,18 +176,18 @@ pub async fn get_client_resolve_options_context(
                     .await?,
             ),
             ResolvedVc::upcast(
-                ModuleFeatureReportResolvePlugin::new(project_path)
+                ModuleFeatureReportResolvePlugin::new(*project_path)
                     .to_resolved()
                     .await?,
             ),
             ResolvedVc::upcast(
-                NextFontLocalResolvePlugin::new(project_path)
+                NextFontLocalResolvePlugin::new(*project_path)
                     .to_resolved()
                     .await?,
             ),
         ],
         after_resolve_plugins: vec![ResolvedVc::upcast(
-            NextSharedRuntimeResolvePlugin::new(project_path)
+            NextSharedRuntimeResolvePlugin::new(*project_path)
                 .to_resolved()
                 .await?,
         )],
@@ -216,7 +217,7 @@ fn internal_assets_conditions() -> ContextCondition {
 
 #[turbo_tasks::function]
 pub async fn get_client_module_options_context(
-    project_path: Vc<FileSystemPath>,
+    project_path: ResolvedVc<FileSystemPath>,
     execution_context: ResolvedVc<ExecutionContext>,
     env: ResolvedVc<Environment>,
     ty: Value<ClientContextType>,
@@ -224,19 +225,28 @@ pub async fn get_client_module_options_context(
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let next_mode = mode.await?;
-    let resolve_options_context =
-        get_client_resolve_options_context(project_path, ty, mode, next_config, *execution_context);
+    let resolve_options_context = get_client_resolve_options_context(
+        *project_path,
+        ty,
+        mode,
+        next_config,
+        *execution_context,
+    );
 
-    let tsconfig = get_typescript_transform_options(project_path);
-    let decorators_options = get_decorators_transform_options(project_path);
+    let tsconfig = get_typescript_transform_options(*project_path)
+        .to_resolved()
+        .await?;
+    let decorators_options = get_decorators_transform_options(*project_path);
     let enable_mdx_rs = *next_config.mdx_rs().await?;
     let jsx_runtime_options = get_jsx_transform_options(
-        project_path,
+        *project_path,
         mode,
         Some(resolve_options_context),
         false,
         next_config,
-    );
+    )
+    .to_resolved()
+    .await?;
 
     // A separate webpack rules will be applied to codes matching
     // foreign_code_context_condition. This allows to import codes from
@@ -288,7 +298,7 @@ pub async fn get_client_module_options_context(
 
     let postcss_transform_options = PostCssTransformOptions {
         postcss_package: Some(
-            get_postcss_package_mapping(project_path)
+            get_postcss_package_mapping(*project_path)
                 .to_resolved()
                 .await?,
         ),
@@ -301,8 +311,8 @@ pub async fn get_client_module_options_context(
         config_location: PostCssConfigLocation::ProjectPath,
         ..postcss_transform_options.clone()
     };
-    let enable_postcss_transform = Some(postcss_transform_options.cell());
-    let enable_foreign_postcss_transform = Some(postcss_foreign_transform_options.cell());
+    let enable_postcss_transform = Some(postcss_transform_options.resolved_cell());
+    let enable_foreign_postcss_transform = Some(postcss_foreign_transform_options.resolved_cell());
 
     let module_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
@@ -333,8 +343,10 @@ pub async fn get_client_module_options_context(
 
     let internal_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
-            enable_typescript_transform: Some(TypescriptTransformOptions::default().cell()),
-            enable_jsx: Some(JsxTransformOptions::default().cell()),
+            enable_typescript_transform: Some(
+                TypescriptTransformOptions::default().resolved_cell(),
+            ),
+            enable_jsx: Some(JsxTransformOptions::default().resolved_cell()),
             ..module_options_context.ecmascript.clone()
         },
         enable_postcss_transform: None,
@@ -364,9 +376,12 @@ pub async fn get_client_module_options_context(
         rules: vec![
             (
                 foreign_code_context_condition(next_config, project_path).await?,
-                foreign_codes_options_context.cell(),
+                foreign_codes_options_context.resolved_cell(),
             ),
-            (internal_assets_conditions(), internal_context.cell()),
+            (
+                internal_assets_conditions(),
+                internal_context.resolved_cell(),
+            ),
         ],
         module_rules: next_client_rules,
         ..module_options_context
