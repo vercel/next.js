@@ -68,6 +68,13 @@ impl NftJsonAsset {
     fn project_path(&self) -> Vc<FileSystemPath> {
         self.project.project_path()
     }
+
+    #[turbo_tasks::function]
+    async fn dist_dir(&self) -> Result<Vc<RcStr>> {
+        Ok(Vc::cell(
+            format!("/{}/", self.project.dist_dir().await?).into(),
+        ))
+    }
 }
 
 #[turbo_tasks::value(transparent)]
@@ -128,7 +135,7 @@ impl NftJsonAsset {
                     .await?
                     .get_relative_path_to(&path_ref)
                     .unwrap()
-                    .replace("/_next/", "/.next/")
+                    .replace("/_next/", &self.dist_dir().await?)
                     .into(),
             )));
         }
