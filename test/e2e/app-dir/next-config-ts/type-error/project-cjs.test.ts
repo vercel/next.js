@@ -1,10 +1,15 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('next-config-ts - type error (project CJS)', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    skipDeployment: true,
   })
+
+  if (skipped) {
+    return
+  }
 
   it('should throw with type error on build (project CJS)', async () => {
     if (isNextDev) {

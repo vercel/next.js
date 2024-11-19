@@ -1,13 +1,18 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('next-config-ts - type error (project ESM)', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    skipDeployment: true,
     packageJson: {
       type: 'module',
     },
   })
+
+  if (skipped) {
+    return
+  }
 
   it('should throw with type error on build (project ESM)', async () => {
     if (isNextDev) {
