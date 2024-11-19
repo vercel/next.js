@@ -5,6 +5,7 @@ import type { AppRenderContext } from './app-render'
 import { getAssetQueryString } from './get-asset-query-string'
 import { encodeURIPath } from '../../shared/lib/encode-uri-path'
 import type { PreloadCallbacks } from './types'
+import type { EntryCssFile } from '../../build/webpack/plugins/flight-manifest-plugin'
 
 export function getLayerAssets({
   ctx,
@@ -15,7 +16,7 @@ export function getLayerAssets({
   preloadCallbacks,
 }: {
   layoutOrPagePath: string | undefined
-  injectedCSS: Set<string>
+  injectedCSS: Set<EntryCssFile>
   injectedJS: Set<string>
   injectedFontPreloadTags: Set<string>
   ctx: AppRenderContext
@@ -73,17 +74,7 @@ export function getLayerAssets({
   }
 
   const styles = styleTags
-    ? styleTags.map((href, index) => {
-        // In dev, Safari and Firefox will cache the resource during HMR:
-        // - https://github.com/vercel/next.js/issues/5860
-        // - https://bugs.webkit.org/show_bug.cgi?id=187726
-        // Because of this, we add a `?v=` query to bypass the cache during
-        // development. We need to also make sure that the number is always
-        // increasing.
-        const fullHref = `${ctx.assetPrefix}/_next/${encodeURIPath(
-          href
-        )}${getAssetQueryString(ctx, true)}`
-
+    ? styleTags.map((entryCssFile, index) => {
         // `Precedence` is an opt-in signal for React to handle resource
         // loading and deduplication, etc. It's also used as the key to sort
         // resources so they will be injected in the correct order.
@@ -91,7 +82,37 @@ export function getLayerAssets({
         // for different stylesheets, so their order will be kept.
         // https://github.com/facebook/react/pull/25060
         const precedence =
-          process.env.NODE_ENV === 'development' ? 'next_' + href : 'next'
+          process.env.NODE_ENV === 'development'
+            ? 'next_' + entryCssFile.path
+            : 'next'
+
+        // In dev, Safari and Firefox will cache the resource during HMR:
+        // - https://github.com/vercel/next.js/issues/5860
+        // - https://bugs.webkit.org/show_bug.cgi?id=187726
+        // Because of this, we add a `?v=` query to bypass the cache during
+        // development. We need to also make sure that the number is always
+        // increasing.
+        const fullHref = `${ctx.assetPrefix}/_next/${encodeURIPath(
+          entryCssFile.path
+        )}${getAssetQueryString(ctx, true)}`
+
+        if (
+          process.env.NEXT_RUNTIME !== 'edge' &&
+          ctx.renderOpts.experimental.inlineCss
+        ) {
+          return (
+            <style
+              key={index}
+              dangerouslySetInnerHTML={{
+                __html: entryCssFile.content,
+              }}
+              nonce={ctx.nonce}
+              // @ts-ignore
+              precedence={precedence}
+              href={fullHref}
+            />
+          )
+        }
 
         preloadCallbacks.push(() => {
           ctx.componentMod.preloadStyle(
@@ -100,6 +121,7 @@ export function getLayerAssets({
             ctx.nonce
           )
         })
+
         return (
           <link
             rel="stylesheet"
