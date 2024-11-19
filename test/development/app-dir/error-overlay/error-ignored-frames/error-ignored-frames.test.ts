@@ -14,13 +14,8 @@ describe('error-ignored-frames', () => {
     const browser = await next.browser('/')
     await assertHasRedbox(browser)
 
-    const stack = await getStackFramesContent(browser)
-
-    if (process.env.TURBOPACK) {
-      expect(stack).toMatchInlineSnapshot(`""`)
-    } else {
-      expect(stack).toMatchInlineSnapshot(`""`)
-    }
+    const defaultStack = await getStackFramesContent(browser)
+    expect(defaultStack).toMatchInlineSnapshot(`""`)
 
     await toggleCollapseCallStackFrames(browser)
 
@@ -46,12 +41,56 @@ describe('error-ignored-frames', () => {
     const browser = await next.browser('/client')
     await assertHasRedbox(browser)
 
-    const stack = await getStackFramesContent(browser)
+    const defaultStack = await getStackFramesContent(browser)
+    expect(defaultStack).toMatchInlineSnapshot(`""`)
 
+    await toggleCollapseCallStackFrames(browser)
+
+    const expendedStack = await getStackFramesContent(browser)
     if (process.env.TURBOPACK) {
-      expect(stack).toMatchInlineSnapshot(`""`)
+      expect(expendedStack).toMatchInlineSnapshot(`
+        "at react-stack-bottom-frame ()
+        at renderWithHooks ()
+        at updateFunctionComponent ()
+        at beginWork ()
+        at runWithFiberInDEV ()
+        at performUnitOfWork ()
+        at workLoopSync ()
+        at renderRootSync ()
+        at performWorkOnRoot ()
+        at performWorkOnRootViaSchedulerTask ()
+        at MessagePort.performWorkUntilDeadline ()"
+      `)
     } else {
-      expect(stack).toMatchInlineSnapshot(`""`)
+      expect(expendedStack).toMatchInlineSnapshot(`
+        "at react-stack-bottom-frame ()
+        at renderWithHooks ()
+        at updateFunctionComponent ()
+        at beginWork ()
+        at runWithFiberInDEV ()
+        at performUnitOfWork ()
+        at workLoopSync ()
+        at renderRootSync ()
+        at performWorkOnRoot ()
+        at performWorkOnRootViaSchedulerTask ()
+        at MessagePort.performWorkUntilDeadline ()"
+      `)
+    }
+  })
+
+  it('should be able to collapse ignored frames in interleaved call stack', async () => {
+    const browser = await next.browser('/interleaved')
+    await assertHasRedbox(browser)
+
+    const defaultStack = await getStackFramesContent(browser)
+    if (process.env.TURBOPACK) {
+      expect(defaultStack).toMatchInlineSnapshot(
+        `"at Page (app/interleaved/page.tsx (6:35))"`
+      )
+    } else {
+      expect(defaultStack).toMatchInlineSnapshot(
+        `"at Page (app/interleaved/page.tsx (6:37))"`
+      )
     }
 
     await toggleCollapseCallStackFrames(browser)
@@ -59,17 +98,35 @@ describe('error-ignored-frames', () => {
     const expendedStack = await getStackFramesContent(browser)
     if (process.env.TURBOPACK) {
       expect(expendedStack).toMatchInlineSnapshot(`
-        "at resolveErrorDev ()
-        at processFullStringRow ()
-        at processFullBinaryRow ()
-        at progress ()"
+        "at invokeCallback ()
+        at Page (app/interleaved/page.tsx (6:35))
+        at react-stack-bottom-frame ()
+        at renderWithHooks ()
+        at updateFunctionComponent ()
+        at beginWork ()
+        at runWithFiberInDEV ()
+        at performUnitOfWork ()
+        at workLoopSync ()
+        at renderRootSync ()
+        at performWorkOnRoot ()
+        at performWorkOnRootViaSchedulerTask ()
+        at MessagePort.performWorkUntilDeadline ()"
       `)
     } else {
       expect(expendedStack).toMatchInlineSnapshot(`
-        "at resolveErrorDev ()
-        at processFullStringRow ()
-        at processFullBinaryRow ()
-        at progress ()"
+        "at invokeCallback (node_modules/interleave/index.js (2:1))
+        at Page (app/interleaved/page.tsx (6:37))
+        at react-stack-bottom-frame ()
+        at renderWithHooks ()
+        at updateFunctionComponent ()
+        at beginWork ()
+        at runWithFiberInDEV ()
+        at performUnitOfWork ()
+        at workLoopSync ()
+        at renderRootSync ()
+        at performWorkOnRoot ()
+        at performWorkOnRootViaSchedulerTask ()
+        at MessagePort.performWorkUntilDeadline ()"
       `)
     }
   })
