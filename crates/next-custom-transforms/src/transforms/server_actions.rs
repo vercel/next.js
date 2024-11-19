@@ -1176,13 +1176,31 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     fn visit_mut_prop_or_spread(&mut self, n: &mut PropOrSpread) {
         let old_arrow_or_fn_expr_ident = self.arrow_or_fn_expr_ident.clone();
 
-        if let PropOrSpread::Prop(box Prop::KeyValue(KeyValueProp {
-            key: PropName::Ident(ident_name),
-            value: box Expr::Arrow(_) | box Expr::Fn(_),
-            ..
-        })) = n
-        {
-            self.arrow_or_fn_expr_ident = Some(ident_name.clone().into());
+        match n {
+            PropOrSpread::Prop(box Prop::KeyValue(KeyValueProp {
+                key: PropName::Ident(ident_name),
+                value: box Expr::Arrow(_) | box Expr::Fn(_),
+                ..
+            })) => {
+                self.arrow_or_fn_expr_ident = Some(ident_name.clone().into());
+            }
+            PropOrSpread::Prop(box Prop::Method(MethodProp { key, .. })) => {
+                let key = key.clone();
+                if let PropName::Ident(ident_name) = &key {
+                    self.arrow_or_fn_expr_ident = Some(ident_name.clone().into());
+                }
+                self.rewrite_expr_to_proxy_expr = None;
+                n.visit_mut_children_with(self);
+                if let Some(expr) = &self.rewrite_expr_to_proxy_expr {
+                    *n = PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+                        key,
+                        value: expr.clone(),
+                    })));
+                    self.rewrite_expr_to_proxy_expr = None;
+                }
+                return;
+            }
+            _ => {}
         }
 
         if !self.in_module_level && self.should_track_names {
