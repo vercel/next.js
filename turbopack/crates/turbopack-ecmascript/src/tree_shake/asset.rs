@@ -101,7 +101,7 @@ impl EcmascriptModulePartAsset {
     pub async fn select_part(
         module: Vc<EcmascriptModuleAsset>,
         part: ResolvedVc<ModulePart>,
-    ) -> Result<Vc<Box<dyn Module>>> {
+    ) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
         let SplitResult::Ok { entrypoints, .. } = &*split_module(module).await? else {
             return Ok(Vc::upcast(module));
         };
