@@ -732,12 +732,12 @@ pub fn app_entry_point_to_route(
 }
 
 #[turbo_tasks::function]
-fn client_shared_chunks_mod() -> Vc<RcStr> {
-    Vc::cell("client_shared_chunks".into())
+fn client_shared_chunks_modifier() -> Vc<RcStr> {
+    Vc::cell("client-shared-chunks".into())
 }
 
 #[turbo_tasks::function]
-fn server_utils_module() -> Vc<RcStr> {
+fn server_utils_modifier() -> Vc<RcStr> {
     Vc::cell("server-utils".into())
 }
 
@@ -916,7 +916,7 @@ impl AppEndpoint {
         ) = if process_client_components {
             let client_shared_chunk_group = get_app_client_shared_chunk_group(
                 AssetIdent::from_path(this.app_project.project().project_path())
-                    .with_modifier(client_shared_chunks_mod()),
+                    .with_modifier(client_shared_chunks_modifier()),
                 this.app_project.client_runtime_entries(),
                 client_chunking_context,
             )
@@ -1488,7 +1488,7 @@ impl AppEndpoint {
                         async {
                             let utils_module = IncludeModulesModule::new(
                                 AssetIdent::from_path(this.app_project.project().project_path())
-                                    .with_modifier(server_utils_module()),
+                                    .with_modifier(server_utils_modifier()),
                                 client_references.server_utils.clone(),
                             );
 
