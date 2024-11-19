@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 
 const empty = {}
 
-export const useLoadOnClientSide = (loader, fallback) => {
+const useLoadOnClientSide = (loader, fallback) => {
   const [lazyModule, setLazyModule] = useState(empty)
   const skip = lazyModule !== empty
 
@@ -23,4 +23,13 @@ export const useLoadOnClientSide = (loader, fallback) => {
   }, [skip, loader])
 
   return lazyModule === empty ? fallback : lazyModule
+}
+
+export default function DynamicImport() {
+  const DynamicImportRedButton = useLoadOnClientSide(
+    () => import('../components/red-button').then(({ RedButton }) => RedButton),
+    null
+  )
+
+  return DynamicImportRedButton && <DynamicImportRedButton />
 }
