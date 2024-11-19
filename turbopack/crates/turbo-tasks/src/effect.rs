@@ -174,12 +174,16 @@ impl Eq for Effects {}
 impl Effects {
     /// Applies all effects that have been captured by this struct.
     pub async fn apply(&self) -> Result<()> {
-        let _span = tracing::info_span!("apply effects", count = self.effects.len());
-        let mut first_error = anyhow::Ok(());
-        for effect in self.effects.iter() {
-            apply_effect(effect, &mut first_error).await;
+        let span = tracing::info_span!("apply effects", count = self.effects.len());
+        async move {
+            let mut first_error = anyhow::Ok(());
+            for effect in self.effects.iter() {
+                apply_effect(effect, &mut first_error).await;
+            }
+            first_error
         }
-        first_error
+        .instrument(span)
+        .await
     }
 }
 
