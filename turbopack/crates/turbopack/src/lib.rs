@@ -746,7 +746,7 @@ impl AssetContext for ModuleAssetContext {
         let affecting_sources = &result.affecting_sources;
 
         let result = result
-            .map_items_module(|item| {
+            .map_primary_items(|item| {
                 let reference_type = reference_type.clone();
                 async move {
                     Ok(match item {
