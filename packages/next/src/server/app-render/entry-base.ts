@@ -28,7 +28,7 @@ import {
   createPrerenderParamsForClientSegment,
 } from '../request/params'
 import * as serverHooks from '../../client/components/hooks-server-context'
-import { HTTPAccessFallbackBoundary } from '../../client/components/http-access-fallback-boundary'
+import { HTTPAccessFallbackBoundary } from '../../client/components/http-access-fallback/error-boundary'
 import { createMetadataComponents } from '../../lib/metadata/metadata'
 import { patchFetch as _patchFetch } from '../lib/patch-fetch'
 // not being used but needs to be included in the client manifest for /_not-found

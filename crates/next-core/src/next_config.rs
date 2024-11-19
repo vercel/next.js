@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use anyhow::{bail, Context, Result};
+use rustc_hash::FxHashSet;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value as JsonValue;
 use turbo_rcstr::RcStr;
@@ -39,6 +40,9 @@ struct CustomRoutes {
 
 #[turbo_tasks::value(transparent)]
 pub struct ModularizeImports(FxIndexMap<String, ModularizeImportPackageConfig>);
+
+#[turbo_tasks::value(transparent)]
+pub struct CacheKinds(FxHashSet<RcStr>);
 
 #[turbo_tasks::value(serialization = "custom", eq = "manual")]
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
@@ -520,7 +524,7 @@ pub struct ExperimentalConfig {
     pub sri: Option<SubResourceIntegrity>,
     react_compiler: Option<ReactCompilerOptionsOrBoolean>,
     #[serde(rename = "dynamicIO")]
-    pub dynamic_io: Option<bool>,
+    dynamic_io: Option<bool>,
     // ---
     // UNSUPPORTED
     // ---
@@ -529,6 +533,7 @@ pub struct ExperimentalConfig {
     after: Option<bool>,
     amp: Option<serde_json::Value>,
     app_document_preloading: Option<bool>,
+    cache_handlers: Option<FxIndexMap<RcStr, RcStr>>,
     cache_life: Option<FxIndexMap<String, CacheLifeProfile>>,
     case_sensitive_routes: Option<bool>,
     cpus: Option<f64>,
@@ -1150,10 +1155,24 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn enable_react_owner_stack(self: Vc<Self>) -> Result<Vc<bool>> {
-        Ok(Vc::cell(
-            self.await?.experimental.react_owner_stack.unwrap_or(false),
-        ))
+    pub fn enable_react_owner_stack(&self) -> Vc<bool> {
+        Vc::cell(self.experimental.react_owner_stack.unwrap_or(false))
+    }
+
+    #[turbo_tasks::function]
+    pub fn enable_dynamic_io(&self) -> Vc<bool> {
+        Vc::cell(self.experimental.dynamic_io.unwrap_or(false))
+    }
+
+    #[turbo_tasks::function]
+    pub fn cache_kinds(&self) -> Vc<CacheKinds> {
+        Vc::cell(
+            self.experimental
+                .cache_handlers
+                .as_ref()
+                .map(|handlers| handlers.keys().cloned().collect())
+                .unwrap_or_default(),
+        )
     }
 
     #[turbo_tasks::function]
