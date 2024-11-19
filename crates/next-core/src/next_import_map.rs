@@ -1139,12 +1139,12 @@ fn external_request_to_cjs_import_mapping(
     context_dir: ResolvedVc<FileSystemPath>,
     request: &str,
 ) -> ResolvedVc<ImportMapping> {
-    ImportMapping::PrimaryAlternativeExternal(
-        Some(request.into()),
-        ExternalType::CommonJs,
-        ExternalTraced::Traced,
-        context_dir,
-    )
+    ImportMapping::PrimaryAlternativeExternal {
+        name: Some(request.into()),
+        ty: ExternalType::CommonJs,
+        traced: ExternalTraced::Traced,
+        lookup_dir: context_dir,
+    }
     .resolved_cell()
 }
 
@@ -1154,11 +1154,11 @@ fn external_request_to_esm_import_mapping(
     context_dir: ResolvedVc<FileSystemPath>,
     request: &str,
 ) -> ResolvedVc<ImportMapping> {
-    ImportMapping::PrimaryAlternativeExternal(
-        Some(request.into()),
-        ExternalType::EcmaScriptModule,
-        ExternalTraced::Traced,
-        context_dir,
-    )
+    ImportMapping::PrimaryAlternativeExternal {
+        name: Some(request.into()),
+        ty: ExternalType::EcmaScriptModule,
+        traced: ExternalTraced::Traced,
+        lookup_dir: context_dir,
+    }
     .resolved_cell()
 }

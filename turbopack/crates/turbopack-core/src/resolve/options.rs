@@ -100,12 +100,12 @@ pub enum ImportMapping {
     /// directory, and fall back to resolving the original request if it fails.
     ///
     /// If specified, the optional name overrides the request, importing that external instead.
-    PrimaryAlternativeExternal(
-        Option<RcStr>,
-        ExternalType,
-        ExternalTraced,
-        ResolvedVc<FileSystemPath>,
-    ),
+    PrimaryAlternativeExternal {
+        name: Option<RcStr>,
+        ty: ExternalType,
+        traced: ExternalTraced,
+        lookup_dir: ResolvedVc<FileSystemPath>,
+    },
     /// An already resolved result that will be returned directly.
     Direct(ResolvedVc<ResolveResult>),
     /// A request alias that will be resolved first, and fall back to resolving
@@ -124,12 +124,12 @@ pub enum ImportMapping {
 #[derive(Clone)]
 pub enum ReplacedImportMapping {
     External(Option<RcStr>, ExternalType, ExternalTraced),
-    PrimaryAlternativeExternal(
-        Option<RcStr>,
-        ExternalType,
-        ExternalTraced,
-        ResolvedVc<FileSystemPath>,
-    ),
+    PrimaryAlternativeExternal {
+        name: Option<RcStr>,
+        ty: ExternalType,
+        traced: ExternalTraced,
+        lookup_dir: ResolvedVc<FileSystemPath>,
+    },
     Direct(ResolvedVc<ResolveResult>),
     PrimaryAlternative(Pattern, Option<ResolvedVc<FileSystemPath>>),
     Ignore,
@@ -180,14 +180,17 @@ impl AliasTemplate for Vc<ImportMapping> {
                 ImportMapping::External(name, ty, traced) => {
                     ReplacedImportMapping::External(name.clone(), *ty, *traced)
                 }
-                ImportMapping::PrimaryAlternativeExternal(name, ty, traced, lookup_dir) => {
-                    ReplacedImportMapping::PrimaryAlternativeExternal(
-                        name.clone(),
-                        *ty,
-                        *traced,
-                        *lookup_dir,
-                    )
-                }
+                ImportMapping::PrimaryAlternativeExternal {
+                    name,
+                    ty,
+                    traced,
+                    lookup_dir,
+                } => ReplacedImportMapping::PrimaryAlternativeExternal {
+                    name: name.clone(),
+                    ty: *ty,
+                    traced: *traced,
+                    lookup_dir: *lookup_dir,
+                },
                 ImportMapping::PrimaryAlternative(name, lookup_dir) => {
                     ReplacedImportMapping::PrimaryAlternative((*name).clone().into(), *lookup_dir)
                 }
@@ -225,21 +228,26 @@ impl AliasTemplate for Vc<ImportMapping> {
                         ReplacedImportMapping::External(None, *ty, *traced)
                     }
                 }
-                ImportMapping::PrimaryAlternativeExternal(name, ty, traced, lookup_dir) => {
+                ImportMapping::PrimaryAlternativeExternal {
+                    name,
+                    ty,
+                    traced,
+                    lookup_dir,
+                } => {
                     if let Some(name) = name {
-                        ReplacedImportMapping::PrimaryAlternativeExternal(
-                            capture.spread_into_star(name).as_string().map(|s| s.into()),
-                            *ty,
-                            *traced,
-                            *lookup_dir,
-                        )
+                        ReplacedImportMapping::PrimaryAlternativeExternal {
+                            name: capture.spread_into_star(name).as_string().map(|s| s.into()),
+                            ty: *ty,
+                            traced: *traced,
+                            lookup_dir: *lookup_dir,
+                        }
                     } else {
-                        ReplacedImportMapping::PrimaryAlternativeExternal(
-                            None,
-                            *ty,
-                            *traced,
-                            *lookup_dir,
-                        )
+                        ReplacedImportMapping::PrimaryAlternativeExternal {
+                            name: None,
+                            ty: *ty,
+                            traced: *traced,
+                            lookup_dir: *lookup_dir,
+                        }
                     }
                 }
                 ImportMapping::PrimaryAlternative(name, lookup_dir) => {
@@ -371,12 +379,12 @@ pub struct ResolvedMap {
 pub enum ImportMapResult {
     Result(ResolvedVc<ResolveResult>),
     External(RcStr, ExternalType, ExternalTraced),
-    AliasExternal(
-        RcStr,
-        ExternalType,
-        ExternalTraced,
-        ResolvedVc<FileSystemPath>,
-    ),
+    AliasExternal {
+        name: RcStr,
+        ty: ExternalType,
+        traced: ExternalTraced,
+        lookup_dir: ResolvedVc<FileSystemPath>,
+    },
     Alias(ResolvedVc<Request>, Option<ResolvedVc<FileSystemPath>>),
     Alternatives(Vec<ImportMapResult>),
     NoEntry,
@@ -400,20 +408,23 @@ async fn import_mapping_to_result(
             *ty,
             *traced,
         ),
-        ReplacedImportMapping::PrimaryAlternativeExternal(name, ty, traced, lookup_dir) => {
-            ImportMapResult::AliasExternal(
-                if let Some(name) = name {
-                    name.clone()
-                } else if let Some(request) = request.await?.request() {
-                    request
-                } else {
-                    bail!("Cannot resolve external reference without request")
-                },
-                *ty,
-                *traced,
-                *lookup_dir,
-            )
-        }
+        ReplacedImportMapping::PrimaryAlternativeExternal {
+            name,
+            ty,
+            traced,
+            lookup_dir,
+        } => ImportMapResult::AliasExternal {
+            name: if let Some(name) = name {
+                name.clone()
+            } else if let Some(request) = request.await?.request() {
+                request
+            } else {
+                bail!("Cannot resolve external reference without request")
+            },
+            ty: *ty,
+            traced: *traced,
+            lookup_dir: *lookup_dir,
+        },
         ReplacedImportMapping::Ignore => ImportMapResult::Result(
             ResolveResult::primary(ResolveResultItem::Ignore).resolved_cell(),
         ),
@@ -446,7 +457,7 @@ impl ValueToString for ImportMapResult {
         match self {
             ImportMapResult::Result(_) => Ok(Vc::cell("Resolved by import map".into())),
             ImportMapResult::External(_, _, _) => Ok(Vc::cell("TODO external".into())),
-            ImportMapResult::AliasExternal(_, _, _, _) => Ok(Vc::cell("TODO external".into())),
+            ImportMapResult::AliasExternal { .. } => Ok(Vc::cell("TODO external".into())),
             ImportMapResult::Alias(request, context) => {
                 let s = if let Some(path) = context {
                     let path = path.to_string().await?;

@@ -2630,7 +2630,12 @@ async fn resolve_import_map_result(
             })
             .cell(),
         ),
-        ImportMapResult::AliasExternal(name, ty, traced, alias_lookup_path) => {
+        ImportMapResult::AliasExternal {
+            name,
+            ty,
+            traced,
+            lookup_dir: alias_lookup_path,
+        } => {
             let request = Request::parse_string(name.clone());
 
             // We must avoid cycles during resolving
