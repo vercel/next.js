@@ -8,7 +8,8 @@ use next_core::{
     util::{parse_config_from_source, MiddlewareMatcherKind},
 };
 use tracing::Instrument;
-use turbo_tasks::{Completion, RcStr, ResolvedVc, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{Completion, ResolvedVc, Value, Vc};
 use turbo_tasks_fs::{self, File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
@@ -85,7 +86,7 @@ impl MiddlewareEndpoint {
 
         let mut evaluatable_assets = get_server_runtime_entries(
             Value::new(ServerContextType::Middleware {
-                app_dir: self.app_dir.as_deref().copied(),
+                app_dir: self.app_dir,
                 ecmascript_client_reference_transition_name: self
                     .ecmascript_client_reference_transition_name
                     .as_deref()
@@ -275,9 +276,7 @@ impl Endpoint for MiddlewareEndpoint {
             let this = self.await?;
             let output_assets = self.output_assets();
             let _ = output_assets.resolve().await?;
-            this.project
-                .emit_all_output_assets(Vc::cell(output_assets))
-                .await?;
+            let _ = this.project.emit_all_output_assets(Vc::cell(output_assets));
 
             let node_root = this.project.node_root();
             let server_paths = all_server_paths(output_assets, node_root)

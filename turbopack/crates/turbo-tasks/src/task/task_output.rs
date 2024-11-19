@@ -15,7 +15,7 @@ pub trait TaskOutput {
 
 impl<T> TaskOutput for Vc<T>
 where
-    T: ?Sized + Send,
+    T: ?Sized,
 {
     type Return = Vc<T>;
 

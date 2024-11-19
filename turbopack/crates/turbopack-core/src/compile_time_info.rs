@@ -1,4 +1,5 @@
-use turbo_tasks::{FxIndexMap, RcStr, ResolvedVc, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexMap, ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::environment::Environment;

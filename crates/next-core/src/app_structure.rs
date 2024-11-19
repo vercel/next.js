@@ -5,9 +5,10 @@ use indexmap::map::{Entry, OccupiedEntry};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs, FxIndexMap, RcStr, ResolvedVc,
-    TaskInput, TryJoinIterExt, ValueDefault, ValueToString, Vc,
+    debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs, FxIndexMap, ResolvedVc, TaskInput,
+    TryJoinIterExt, ValueDefault, ValueToString, Vc,
 };
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath};
 use turbopack_core::issue::{
@@ -230,7 +231,7 @@ impl DirectoryTree {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct OptionAppDir(Option<Vc<FileSystemPath>>);
+pub struct OptionAppDir(Option<ResolvedVc<FileSystemPath>>);
 
 /// Finds and returns the [DirectoryTree] of the app directory if existing.
 #[turbo_tasks::function]
@@ -244,7 +245,7 @@ pub async fn find_app_dir(project_path: Vc<FileSystemPath>) -> Result<Vc<OptionA
     } else {
         return Ok(Vc::cell(None));
     }
-    .resolve()
+    .to_resolved()
     .await?;
 
     Ok(Vc::cell(Some(app_dir)))

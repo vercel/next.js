@@ -1,12 +1,12 @@
 'use server'
 
-import { revalidatePath } from 'next/cache'
+import { expirePath } from 'next/cache'
 
 let x = 0
 
 export async function inc() {
   ++x
-  revalidatePath('/shared')
+  expirePath('/shared')
 }
 
 export async function get() {

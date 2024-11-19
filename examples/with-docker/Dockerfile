@@ -1,3 +1,5 @@
+# syntax=docker.io/docker/dockerfile:1
+
 FROM node:18-alpine AS base
 
 # Install dependencies only when needed
@@ -46,10 +48,6 @@ RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
 COPY --from=builder /app/public ./public
-
-# Set the correct permission for prerender cache
-RUN mkdir .next
-RUN chown nextjs:nodejs .next
 
 # Automatically leverage output traces to reduce image size
 # https://nextjs.org/docs/advanced-features/output-file-tracing

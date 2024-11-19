@@ -1,5 +1,6 @@
 use anyhow::{bail, Result};
-use turbo_tasks::{FxIndexSet, RcStr, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexSet, ValueToString, Vc};
 use turbo_tasks_fs::File;
 
 use crate::{

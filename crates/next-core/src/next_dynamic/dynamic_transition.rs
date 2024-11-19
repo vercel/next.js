@@ -1,5 +1,6 @@
 use anyhow::Result;
-use turbo_tasks::{RcStr, ResolvedVc, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbopack::{transition::Transition, ModuleAssetContext};
 use turbopack_core::{context::ProcessResult, reference_type::ReferenceType, source::Source};
 
@@ -48,14 +49,15 @@ impl Transition for NextDynamicTransition {
                 module_asset_context,
                 Value::new(ReferenceType::Undefined),
             )
+            .try_into_module()
             .await?
         {
-            ProcessResult::Module(client_module) => ProcessResult::Module(ResolvedVc::upcast(
+            Some(client_module) => ProcessResult::Module(ResolvedVc::upcast(
                 NextDynamicEntryModule::new(*client_module)
                     .to_resolved()
                     .await?,
             )),
-            ProcessResult::Ignore => ProcessResult::Ignore,
+            None => ProcessResult::Ignore,
         }
         .cell())
     }

@@ -88,13 +88,20 @@ impl UpdateOutputOperation {
             }
             Ok(Err(err)) => {
                 task.insert(CachedDataItem::Error {
-                    value: SharedError::new(err),
+                    value: SharedError::new(err.context(format!(
+                        "Execution of {} failed",
+                        ctx.get_task_description(task_id)
+                    ))),
                 });
                 OutputValue::Error
             }
             Err(panic) => {
                 task.insert(CachedDataItem::Error {
-                    value: SharedError::new(anyhow!("Panic: {:?}", panic)),
+                    value: SharedError::new(anyhow!(
+                        "Panic in {}: {:?}",
+                        ctx.get_task_description(task_id),
+                        panic
+                    )),
                 });
                 OutputValue::Panic
             }
@@ -103,8 +110,14 @@ impl UpdateOutputOperation {
             value: output_value,
         });
 
-        let dependent_tasks = get_many!(task, OutputDependent { task } => *task);
-        let children = get_many!(task, Child { task } => *task);
+        let dependent_tasks = ctx
+            .should_track_dependencies()
+            .then(|| get_many!(task, OutputDependent { task } => *task))
+            .unwrap_or_default();
+        let children = ctx
+            .should_track_children()
+            .then(|| get_many!(task, Child { task } => *task))
+            .unwrap_or_default();
 
         let mut queue = AggregationUpdateQueue::new();
 

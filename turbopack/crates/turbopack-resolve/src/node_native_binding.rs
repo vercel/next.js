@@ -2,9 +2,8 @@ use anyhow::Result;
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{
-    FxIndexMap, RcStr, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
-};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexMap, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::{
     glob::Glob, json::parse_json_rope_with_source_context, DirectoryEntry, FileContent,
     FileSystemEntryType, FileSystemPath,
@@ -209,8 +208,11 @@ pub async fn resolve_node_pre_gyp_files(
                         .await?,
                     affecting_paths
                         .into_iter()
-                        .map(|p| Vc::upcast(FileSource::new(p)))
-                        .collect(),
+                        .map(|p| async move {
+                            anyhow::Ok(ResolvedVc::upcast(FileSource::new(p).to_resolved().await?))
+                        })
+                        .try_join()
+                        .await?,
                 )
                 .cell());
             }

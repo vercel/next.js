@@ -2,7 +2,7 @@ import spawn from 'cross-spawn'
 import { Span } from 'next/dist/trace'
 import { NextInstance } from './base'
 import { getTurbopackFlag } from '../turbo'
-import { waitFor, retry } from 'next-test-utils'
+import { retry, waitFor } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
 export class NextDevInstance extends NextInstance {
@@ -152,43 +152,66 @@ export class NextDevInstance extends NextInstance {
 
   public override async patchFile(
     filename: string,
-    content: string | ((contents: string) => string),
+    content: string | ((content: string) => string),
     runWithTempContent?: (context: { newFile: boolean }) => Promise<void>
   ) {
-    const isServerRunning = this.childProcess && !this.isStopping
-    const cliOutputLength = this.cliOutput.length
+    await this.handleDevWatchDelayBeforeChange(filename)
+    try {
+      const cliOutputLengthBefore = this.cliOutput.length
+      const isServerRunning = this.childProcess && !this.isStopping
 
-    if (isServerRunning) {
-      await this.handleDevWatchDelayBeforeChange(filename)
-    }
+      const detectServerRestart = async () => {
+        await retry(async () => {
+          const isServerReady = this.serverReadyPattern.test(
+            this.cliOutput.slice(cliOutputLengthBefore)
+          )
+          if (isServerRunning && !isServerReady) {
+            throw new Error('Server has not finished restarting.')
+          }
+        }, 5000)
+      }
 
-    const waitForChanges = async ({ newFile }: { newFile: boolean }) => {
-      if (isServerRunning) {
-        if (newFile) {
-          await this.handleDevWatchDelayAfterChange(filename)
-        } else if (filename.startsWith('next.config')) {
-          await retry(async () => {
-            const cliOutput = this.cliOutput.slice(cliOutputLength)
+      const waitServerToBeReadyAfterPatchFile = async () => {
+        if (!isServerRunning) {
+          return
+        }
 
-            if (!this.serverReadyPattern.test(cliOutput)) {
-              throw new Error('Server has not finished restarting.')
-            }
-          })
+        // If the patch file is a next.config.js, we ignore the delay and wait server restart
+        if (filename.startsWith('next.config')) {
+          await detectServerRestart()
+          return
+        }
+
+        if (this.patchFileDelay > 0) {
+          console.warn(
+            `Applying patch delay of ${this.patchFileDelay}ms. Note: Introducing artificial delays is generally discouraged, as it may affect test reliability. However, this delay is configurable on a per-test basis.`
+          )
+          await waitFor(this.patchFileDelay)
+          return
         }
       }
+
+      try {
+        return await super.patchFile(
+          filename,
+          content,
+          runWithTempContent
+            ? async (...args) => {
+                await waitServerToBeReadyAfterPatchFile()
+
+                return runWithTempContent(...args)
+              }
+            : undefined
+        )
+      } finally {
+        // It's intentional: when runWithTempContent is defined, we wait twice: once for the patch,
+        // and once for the restore of the original file
+
+        await waitServerToBeReadyAfterPatchFile()
+      }
+    } finally {
+      await this.handleDevWatchDelayAfterChange(filename)
     }
-
-    if (runWithTempContent) {
-      return super.patchFile(filename, content, async ({ newFile }) => {
-        await waitForChanges({ newFile })
-        await runWithTempContent({ newFile })
-      })
-    }
-
-    const { newFile } = await super.patchFile(filename, content)
-    await retry(() => waitForChanges({ newFile }))
-
-    return { newFile }
   }
 
   public override async renameFile(filename: string, newFilename: string) {

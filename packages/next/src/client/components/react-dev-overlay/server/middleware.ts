@@ -204,15 +204,10 @@ export async function getSourceMapFromCompilation(
 export async function getSource(
   filename: string,
   options: {
-    distDirectory: string
     getCompilations: () => webpack.Compilation[]
   }
 ): Promise<Source | undefined> {
-  const { distDirectory, getCompilations } = options
-
-  if (filename.startsWith('/_next/static')) {
-    filename = path.join(distDirectory, filename.replace(/^\/_next\//, ''))
-  }
+  const { getCompilations } = options
 
   if (path.isAbsolute(filename)) {
     filename = url.pathToFileURL(filename).href
@@ -256,19 +251,12 @@ export async function getSource(
 }
 
 export function getOverlayMiddleware(options: {
-  distDirectory: string
   rootDirectory: string
   clientStats: () => webpack.Stats | null
   serverStats: () => webpack.Stats | null
   edgeServerStats: () => webpack.Stats | null
 }) {
-  const {
-    distDirectory,
-    rootDirectory,
-    clientStats,
-    serverStats,
-    edgeServerStats,
-  } = options
+  const { rootDirectory, clientStats, serverStats, edgeServerStats } = options
 
   return async function (
     req: IncomingMessage,
@@ -309,7 +297,6 @@ export function getOverlayMiddleware(options: {
 
       try {
         source = await getSource(frame.file, {
-          distDirectory,
           getCompilations: () => {
             const compilations: webpack.Compilation[] = []
 
@@ -410,12 +397,11 @@ export function getOverlayMiddleware(options: {
 }
 
 export function getSourceMapMiddleware(options: {
-  distDirectory: string
   clientStats: () => webpack.Stats | null
   serverStats: () => webpack.Stats | null
   edgeServerStats: () => webpack.Stats | null
 }) {
-  const { distDirectory, clientStats, serverStats, edgeServerStats } = options
+  const { clientStats, serverStats, edgeServerStats } = options
 
   return async function (
     req: IncomingMessage,
@@ -438,7 +424,6 @@ export function getSourceMapMiddleware(options: {
 
     try {
       source = await getSource(filename, {
-        distDirectory,
         getCompilations: () => {
           const compilations: webpack.Compilation[] = []
 

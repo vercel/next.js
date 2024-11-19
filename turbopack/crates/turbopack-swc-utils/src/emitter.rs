@@ -5,7 +5,8 @@ use swc_core::common::{
     source_map::SmallPos,
     SourceMap,
 };
-use turbo_tasks::{RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::Vc;
 use turbopack_core::{
     issue::{analyze::AnalyzeIssue, IssueExt, IssueSeverity, IssueSource, StyledString},
     source::Source,

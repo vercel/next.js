@@ -4,7 +4,8 @@ use anyhow::{bail, Context, Result};
 use indoc::formatdoc;
 use lightningcss::css_modules::CssModuleReference;
 use swc_core::common::{BytePos, FileName, LineCol, SourceMap};
-use turbo_tasks::{FxIndexMap, RcStr, ResolvedVc, Value, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexMap, ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -81,12 +82,12 @@ impl Module for ModuleCssAsset {
             .await?
             .iter()
             .copied()
-            .chain(match *self.inner().await? {
-                ProcessResult::Module(inner) => {
-                    Some(Vc::upcast(InternalCssAssetReference::new(*inner)))
-                }
-                ProcessResult::Ignore => None,
-            })
+            .chain(
+                self.inner()
+                    .try_into_module()
+                    .await?
+                    .map(|inner| Vc::upcast(InternalCssAssetReference::new(*inner))),
+            )
             .collect();
 
         Ok(Vc::cell(references))

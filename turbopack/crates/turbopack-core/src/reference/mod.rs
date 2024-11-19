@@ -1,9 +1,10 @@
 use std::collections::{HashSet, VecDeque};
 
 use anyhow::Result;
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
-    FxIndexSet, RcStr, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
+    FxIndexSet, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
 };
 
 use crate::{
@@ -139,13 +140,13 @@ pub async fn referenced_modules_and_affecting_sources(
         .try_join()
         .await?;
     for resolve_result in resolve_results {
-        modules.extend(resolve_result.primary_modules_iter());
+        modules.extend(resolve_result.primary_modules_raw_iter());
         modules.extend(
             resolve_result
                 .affecting_sources_iter()
                 .map(|source| async move {
                     Ok(ResolvedVc::upcast(
-                        RawModule::new(source).to_resolved().await?,
+                        RawModule::new(*source).to_resolved().await?,
                     ))
                 })
                 .try_join()

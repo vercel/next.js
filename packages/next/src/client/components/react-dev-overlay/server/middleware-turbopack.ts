@@ -153,7 +153,7 @@ export function getOverlayMiddleware(project: Project) {
   }
 }
 
-export function getSourceMapMiddleware(project: Project, distDir: string) {
+export function getSourceMapMiddleware(project: Project) {
   return async function (
     req: IncomingMessage,
     res: ServerResponse,
@@ -185,10 +185,6 @@ export function getSourceMapMiddleware(project: Project, distDir: string) {
     }
 
     try {
-      if (filename.startsWith('/_next/static')) {
-        filename = path.join(distDir, filename.replace(/^\/_next\//, ''))
-      }
-
       // Turbopack chunk filenames might be URL-encoded.
       filename = decodeURI(filename)
 

@@ -241,7 +241,8 @@ function assignDefaults(
 
   if (
     !process.env.__NEXT_VERSION?.includes('canary') &&
-    !process.env.__NEXT_TEST_MODE
+    !process.env.__NEXT_TEST_MODE &&
+    !process.env.NEXT_PRIVATE_SKIP_CANARY_CHECK
   ) {
     // Prevents usage of certain experimental features outside of canary
     if (result.experimental?.ppr) {
@@ -1282,5 +1283,8 @@ class CanaryOnlyError extends Error {
     super(
       `The experimental feature "${feature}" can only be enabled when using the latest canary version of Next.js.`
     )
+    // This error is meant to interrupt the server start/build process
+    // but the stack trace isn't meaningful, as it points to internal code.
+    this.stack = undefined
   }
 }

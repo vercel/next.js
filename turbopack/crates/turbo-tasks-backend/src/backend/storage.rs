@@ -2,6 +2,7 @@ use std::{
     hash::{BuildHasherDefault, Hash},
     mem::take,
     ops::{Deref, DerefMut},
+    panic,
     thread::available_parallelism,
 };
 
@@ -223,6 +224,16 @@ where
         }
     }
 
+    fn index_map_mut(
+        &mut self,
+        index: <T::Key as Indexed>::Index,
+    ) -> Option<&mut AutoMap<T::Key, T::Value>> {
+        match self {
+            InnerStorage::Plain { map, .. } => Some(map),
+            InnerStorage::Indexed { map, .. } => map.get_mut(&index),
+        }
+    }
+
     pub fn add(&mut self, item: T) -> bool {
         let (key, value) = item.into_key_and_value();
         match self.get_or_create_map_mut(&key).entry(key) {
@@ -276,6 +287,35 @@ where
             InnerStorage::Plain { map, .. } => Either::Left(map.iter()),
             InnerStorage::Indexed { map, .. } => {
                 Either::Right(map.iter().flat_map(|(_, m)| m.iter()))
+            }
+        }
+    }
+
+    pub fn extract_if<'l, F>(
+        &'l mut self,
+        index: <T::Key as Indexed>::Index,
+        mut f: F,
+    ) -> impl Iterator<Item = T> + use<'l, T, F>
+    where
+        F: for<'a, 'b> FnMut(&'a T::Key, &'b T::Value) -> bool + 'l,
+    {
+        self.index_map_mut(index)
+            .map(move |m| m.extract_if(move |k, v| f(k, v)))
+            .into_iter()
+            .flatten()
+            .map(|(key, value)| T::from_key_and_value(key, value))
+    }
+
+    pub fn extract_if_all<'l, F>(&'l mut self, mut f: F) -> impl Iterator<Item = T> + use<'l, T, F>
+    where
+        F: for<'a, 'b> FnMut(&'a T::Key, &'b T::Value) -> bool + 'l,
+    {
+        match self {
+            InnerStorage::Plain { map, .. } => map
+                .extract_if(move |k, v| f(k, v))
+                .map(|(key, value)| T::from_key_and_value(key, value)),
+            InnerStorage::Indexed { .. } => {
+                panic!("Do not use extract_if_all with indexed storage")
             }
         }
     }
@@ -359,7 +399,7 @@ where
     T: KeyValuePair,
     T::Key: Indexed,
 {
-    inner: RefMut<'a, K, InnerStorage<T>, BuildHasherDefault<FxHasher>>,
+    inner: RefMut<'a, K, InnerStorage<T>>,
 }
 
 impl<K, T> Deref for StorageWriteGuard<'_, K, T>

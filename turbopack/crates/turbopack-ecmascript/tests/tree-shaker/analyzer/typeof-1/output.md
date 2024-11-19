@@ -177,6 +177,9 @@ graph TD
     N8 --> N5;
     N8 --> N7;
     N0 --> N6;
+    N3 --> N2;
+    N5 --> N4;
+    N7 --> N6;
 ```
 # Entrypoints
 
@@ -264,18 +267,18 @@ export { MyModuleClientComponent as d } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 8
 ```js
-import { d as MyModuleClientComponent } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -7,
-    __turbopack_original__: 'my-module/MyModuleClientComponent'
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
 };
-import { b as NextResponse } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -3,
-    __turbopack_original__: 'next/server'
+import { MyModuleClientComponent } from 'my-module/MyModuleClientComponent';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
 };
-import { c as ClientComponent } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -5,
-    __turbopack_original__: '../../ClientComponent'
+import { NextResponse } from 'next/server';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 4
 };
+import { ClientComponent } from '../../ClientComponent';
 function GET() {
     return NextResponse.json({
         clientComponent: typeof ClientComponent,
@@ -388,18 +391,18 @@ export { MyModuleClientComponent as d } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 8
 ```js
-import { d as MyModuleClientComponent } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -7,
-    __turbopack_original__: 'my-module/MyModuleClientComponent'
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
 };
-import { b as NextResponse } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -3,
-    __turbopack_original__: 'next/server'
+import { MyModuleClientComponent } from 'my-module/MyModuleClientComponent';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
 };
-import { c as ClientComponent } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -5,
-    __turbopack_original__: '../../ClientComponent'
+import { NextResponse } from 'next/server';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 4
 };
+import { ClientComponent } from '../../ClientComponent';
 function GET() {
     return NextResponse.json({
         clientComponent: typeof ClientComponent,

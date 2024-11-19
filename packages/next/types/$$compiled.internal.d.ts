@@ -412,7 +412,7 @@ declare module 'next/dist/compiled/amphtml-validator' {
 }
 
 declare module 'next/dist/compiled/superstruct' {
-  import m from 'superstruct'
+  import * as m from 'superstruct'
   export = m
 }
 declare module 'next/dist/compiled/async-retry'
@@ -544,7 +544,7 @@ declare module 'next/dist/compiled/picomatch' {
   export = m
 }
 declare module 'next/dist/compiled/nanoid/index.cjs' {
-  import m from 'nanoid'
+  import * as m from 'nanoid'
   export = m
 }
 declare module 'next/dist/compiled/ora' {
@@ -590,7 +590,7 @@ declare module 'next/dist/compiled/tar' {
 }
 
 declare module 'next/dist/compiled/terser' {
-  import m from 'terser'
+  import * as m from 'terser'
   export = m
 }
 declare module 'next/dist/compiled/semver' {
@@ -619,7 +619,7 @@ declare module 'next/dist/compiled/unistore' {
   export = m
 }
 declare module 'next/dist/compiled/web-vitals' {
-  import m from 'web-vitals'
+  import * as m from 'web-vitals'
   export = m
 }
 declare module 'next/dist/compiled/web-vitals-attribution' {}

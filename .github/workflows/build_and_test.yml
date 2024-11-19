@@ -194,6 +194,18 @@ jobs:
       stepName: 'devlow-bench-${{ matrix.mode }}-${{ matrix.selector }}'
     secrets: inherit
 
+  test-devlow:
+    name: test devlow package
+    needs: ['optimize-ci', 'changes']
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    strategy:
+      fail-fast: false
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      stepName: 'test-devlow'
+      afterBuild: pnpm install && pnpm run --filter=devlow-bench test
+    secrets: inherit
+
   test-turbopack-dev:
     name: test turbopack dev
     needs: ['optimize-ci', 'changes', 'build-next', 'build-native']

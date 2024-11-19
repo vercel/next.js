@@ -1,11 +1,12 @@
 use anyhow::Result;
-use turbo_tasks::{FxIndexMap, RcStr, ResolvedVc, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexMap, ResolvedVc, Value, Vc};
 use turbo_tasks_env::EnvMap;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::resolve_options_context::ResolveOptionsContext;
 use turbopack_browser::BrowserChunkingContext;
 use turbopack_core::{
-    chunk::{module_id_strategies::ModuleIdStrategy, ChunkingContext},
+    chunk::{module_id_strategies::ModuleIdStrategy, ChunkingContext, MinifyType},
     compile_time_info::{
         CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefineableNameSegment,
         FreeVarReference, FreeVarReferences,
@@ -89,21 +90,21 @@ pub fn get_edge_compile_time_info(
 
 #[turbo_tasks::function]
 pub async fn get_edge_resolve_options_context(
-    project_path: Vc<FileSystemPath>,
+    project_path: ResolvedVc<FileSystemPath>,
     ty: Value<ServerContextType>,
     mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<ResolveOptionsContext>> {
     let next_edge_import_map =
-        get_next_edge_import_map(project_path, ty, next_config, execution_context)
+        get_next_edge_import_map(*project_path, ty, next_config, execution_context)
             .to_resolved()
             .await?;
 
     let ty: ServerContextType = ty.into_value();
 
     let mut before_resolve_plugins = vec![ResolvedVc::upcast(
-        ModuleFeatureReportResolvePlugin::new(project_path)
+        ModuleFeatureReportResolvePlugin::new(*project_path)
             .to_resolved()
             .await?,
     )];
@@ -114,7 +115,7 @@ pub async fn get_edge_resolve_options_context(
             | ServerContextType::AppRSC { .. }
     ) {
         before_resolve_plugins.push(ResolvedVc::upcast(
-            NextFontLocalResolvePlugin::new(project_path)
+            NextFontLocalResolvePlugin::new(*project_path)
                 .to_resolved()
                 .await?,
         ));
@@ -141,7 +142,7 @@ pub async fn get_edge_resolve_options_context(
     }
 
     let after_resolve_plugins = vec![ResolvedVc::upcast(
-        NextSharedRuntimeResolvePlugin::new(project_path)
+        NextSharedRuntimeResolvePlugin::new(*project_path)
             .to_resolved()
             .await?,
     )];
@@ -196,6 +197,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
     asset_prefix: Vc<Option<RcStr>>,
     environment: Vc<Environment>,
     module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
+    turbo_minify: Vc<bool>,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
     let output_root = node_root.join("server/edge".into());
     let next_mode = mode.await?;
@@ -210,7 +212,11 @@ pub async fn get_edge_chunking_context_with_client_assets(
             next_mode.runtime_type(),
         )
         .asset_base_path(asset_prefix)
-        .minify_type(next_mode.minify_type())
+        .minify_type(if *turbo_minify.await? {
+            MinifyType::Minify
+        } else {
+            MinifyType::NoMinify
+        })
         .module_id_strategy(module_id_strategy)
         .build(),
     ))
@@ -223,6 +229,7 @@ pub async fn get_edge_chunking_context(
     node_root: Vc<FileSystemPath>,
     environment: Vc<Environment>,
     module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
+    turbo_minify: Vc<bool>,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
     let output_root = node_root.join("server/edge".into());
     let next_mode = mode.await?;
@@ -241,7 +248,11 @@ pub async fn get_edge_chunking_context(
         // implementation in the edge sandbox. It will respond with the
         // asset from the output directory.
         .asset_base_path(Vc::cell(Some("blob:server/edge/".into())))
-        .minify_type(next_mode.minify_type())
+        .minify_type(if *turbo_minify.await? {
+            MinifyType::Minify
+        } else {
+            MinifyType::NoMinify
+        })
         .module_id_strategy(module_id_strategy)
         .build(),
     ))
