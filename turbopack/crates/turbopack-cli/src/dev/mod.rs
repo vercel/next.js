@@ -259,8 +259,12 @@ async fn source(
     )
     .build();
 
-    let execution_context =
-        ExecutionContext::new(project_path, Vc::upcast(build_chunking_context), env);
+    let execution_context = ExecutionContext::new(
+        project_path,
+        Vc::upcast(build_chunking_context),
+        env,
+        "".into(),
+    );
 
     let server_fs = Vc::upcast::<Box<dyn FileSystem>>(ServerFileSystem::new());
     let server_root = server_fs.root();

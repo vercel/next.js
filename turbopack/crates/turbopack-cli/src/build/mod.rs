@@ -210,8 +210,12 @@ async fn build_internal(
     );
 
     let compile_time_info = get_client_compile_time_info(browserslist_query, node_env);
-    let execution_context =
-        ExecutionContext::new(project_path, chunking_context, load_env(project_path));
+    let execution_context = ExecutionContext::new(
+        project_path,
+        chunking_context,
+        load_env(project_path),
+        "".into(),
+    );
     let asset_context =
         get_client_asset_context(project_path, execution_context, compile_time_info, node_env);
 
