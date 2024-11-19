@@ -698,17 +698,17 @@ impl ResolveResult {
                             request,
                             match item {
                                 ResolveResultItem::Source(source) => asset_fn(source).await?,
-                                ResolveResultItem::External {
-                                    name,
-                                    ty,
-                                    // TODO remove this whole function? it's easy to drop traced
-                                    // externals now
-                                    traced: _,
-                                } => ModuleResolveResultItem::External {
-                                    name,
-                                    ty,
-                                    traced: None,
-                                },
+                                ResolveResultItem::External { name, ty, traced } => {
+                                    if traced == ExternalTraced::Traced {
+                                        // Should use map_primary_items instead
+                                        bail!("map_module doesn't handle traced externals");
+                                    }
+                                    ModuleResolveResultItem::External {
+                                        name,
+                                        ty,
+                                        traced: None,
+                                    }
+                                }
                                 ResolveResultItem::Ignore => ModuleResolveResultItem::Ignore,
                                 ResolveResultItem::Empty => ModuleResolveResultItem::Empty,
                                 ResolveResultItem::Error(e) => {
