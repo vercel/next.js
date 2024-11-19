@@ -177,20 +177,20 @@ function getSourcemappedFrameIfPossible(
       /* returnNullOnMissing */ true
     ) ?? null
 
-  const applicableSourcMap = findApplicableSourceMapPayload(
+  const applicableSourceMap = findApplicableSourceMapPayload(
     frame,
     sourceMapPayload
   )
   // TODO(veil): Upstream a method to sourcemap consumer that immediately says if a frame is ignored or not.
   let ignored = false
-  if (applicableSourcMap === undefined) {
+  if (applicableSourceMap === undefined) {
     console.error('No applicable source map found in sections for frame', frame)
   } else {
     // TODO: O(n^2). Consider moving `ignoreList` into a Set
-    const sourceIndex = applicableSourcMap.sources.indexOf(
+    const sourceIndex = applicableSourceMap.sources.indexOf(
       sourcePosition.source
     )
-    ignored = applicableSourcMap.ignoreList?.includes(sourceIndex) ?? false
+    ignored = applicableSourceMap.ignoreList?.includes(sourceIndex) ?? false
   }
 
   const originalFrame: IgnoreableStackFrame = {
