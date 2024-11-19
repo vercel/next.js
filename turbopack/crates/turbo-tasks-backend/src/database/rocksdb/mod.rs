@@ -232,8 +232,6 @@ impl<'a> BaseWriteBatch<'a> for ConcurrentRocksDbWriteBatch<'a> {
     }
 
     fn commit(self) -> Result<()> {
-        println!("commit started");
-        let start = Instant::now();
         for vec in self.thread_local.into_iter() {
             let vec = vec.into_inner();
             if !vec.is_empty() {
@@ -242,7 +240,6 @@ impl<'a> BaseWriteBatch<'a> for ConcurrentRocksDbWriteBatch<'a> {
         }
         drop(self.sender);
         let batch = self.thread.join().unwrap()?;
-        println!("Finishing batch took {:?}", start.elapsed());
         write_and_flush(&self.this.db, batch)
     }
 }
@@ -318,7 +315,6 @@ impl<'a> BaseWriteBatch<'a> for SerialRocksDbWriteBatch<'a> {
     }
 
     fn commit(self) -> Result<()> {
-        println!("commit started");
         let batch = self.batch;
         write_and_flush(&self.this.db, batch)
     }
@@ -344,14 +340,11 @@ impl<'a> SerialWriteBatch<'a> for SerialRocksDbWriteBatch<'a> {
 }
 
 fn write_and_flush(db: &DB, batch: rocksdb::WriteBatch) -> Result<()> {
-    let start = Instant::now();
     let mut write_options = WriteOptions::default();
     if USE_ATOMIC_FLUSH {
         write_options.disable_wal(true);
     }
     db.write_opt(batch, &write_options)?;
-    println!("Write took {:?}", start.elapsed());
-    let start = Instant::now();
     if !USE_ATOMIC_FLUSH {
         scope(|s| {
             let threads = RocksDbKeyValueDatabase::all_cf_names()
@@ -372,7 +365,6 @@ fn write_and_flush(db: &DB, batch: rocksdb::WriteBatch) -> Result<()> {
     let mut wait_for_compact_options = rocksdb::WaitForCompactOptions::default();
     wait_for_compact_options.set_flush(USE_ATOMIC_FLUSH);
     db.wait_for_compact(&wait_for_compact_options)?;
-    println!("Flush took {:?}", start.elapsed());
     Ok(())
 }
 
