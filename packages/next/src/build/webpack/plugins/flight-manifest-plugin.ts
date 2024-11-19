@@ -83,6 +83,11 @@ export interface ClientReferenceManifestForRsc {
   }
 }
 
+export interface EntryCssFile {
+  path: string
+  content: string
+}
+
 export interface ClientReferenceManifest extends ClientReferenceManifestForRsc {
   readonly moduleLoading: {
     prefix: string
@@ -95,7 +100,7 @@ export interface ClientReferenceManifest extends ClientReferenceManifestForRsc {
     [moduleId: string]: ManifestNode
   }
   entryCSSFiles: {
-    [entry: string]: string[]
+    [entry: string]: EntryCssFile[]
   }
   entryJSFiles?: {
     [entry: string]: string[]
@@ -296,9 +301,18 @@ export class ClientReferenceManifestPlugin {
         /[\\/]/g,
         path.sep
       )
+
       manifest.entryCSSFiles[chunkEntryName] = entrypoint
         .getFiles()
         .filter((f) => !f.startsWith('static/css/pages/') && f.endsWith('.css'))
+        .map((file) => {
+          const source = compilation.assets[file].source()
+          // TODO: only do this when inlineCss is enabled
+          return {
+            path: file,
+            content: typeof source === 'string' ? source : source.toString(),
+          }
+        })
 
       const requiredChunks = getAppPathRequiredChunks(entrypoint, rootMainFiles)
       const recordModule = (modId: ModuleId, mod: webpack.NormalModule) => {

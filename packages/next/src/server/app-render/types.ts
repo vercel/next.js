@@ -132,6 +132,7 @@ export type ServerOnInstrumentationRequestError = (
 ) => void | Promise<void>
 
 export interface RenderOptsPartial {
+  distDir?: string
   previewProps: __ApiPreviewProps | undefined
   err?: Error | null
   dev?: boolean
@@ -182,6 +183,7 @@ export interface RenderOptsPartial {
     clientTraceMetadata: string[] | undefined
     after: boolean
     dynamicIO: boolean
+    inlineCss: boolean
   }
   postponed?: string
 

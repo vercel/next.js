@@ -4,7 +4,9 @@ import { getLinkAndScriptTags } from './get-css-inlined-link-tags'
 import type { AppRenderContext } from './app-render'
 import { getAssetQueryString } from './get-asset-query-string'
 import { encodeURIPath } from '../../shared/lib/encode-uri-path'
+import type { EntryCssFile } from '../../build/webpack/plugins/flight-manifest-plugin'
 
+// [STEP 1] TODO: consolidate this with get-layer-assets.tsx
 export async function createComponentStylesAndScripts({
   filePath,
   getComponent,
@@ -14,7 +16,7 @@ export async function createComponentStylesAndScripts({
 }: {
   filePath: string
   getComponent: () => any
-  injectedCSS: Set<string>
+  injectedCSS: Set<EntryCssFile>
   injectedJS: Set<string>
   ctx: AppRenderContext
 }): Promise<[React.ComponentType<any>, React.ReactNode, React.ReactNode]> {
@@ -26,9 +28,9 @@ export async function createComponentStylesAndScripts({
   )
 
   const styles = cssHrefs
-    ? cssHrefs.map((href, index) => {
+    ? cssHrefs.map((entryCssFile, index) => {
         const fullHref = `${ctx.assetPrefix}/_next/${encodeURIPath(
-          href
+          entryCssFile.path
         )}${getAssetQueryString(ctx, true)}`
 
         // `Precedence` is an opt-in signal for React to handle resource
@@ -38,7 +40,9 @@ export async function createComponentStylesAndScripts({
         // for different stylesheets, so their order will be kept.
         // https://github.com/facebook/react/pull/25060
         const precedence =
-          process.env.NODE_ENV === 'development' ? 'next_' + href : 'next'
+          process.env.NODE_ENV === 'development'
+            ? 'next_' + entryCssFile.path
+            : 'next'
 
         return (
           <link

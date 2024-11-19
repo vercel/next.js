@@ -556,6 +556,12 @@ export interface ExperimentalConfig {
    * unless explicitly cached.
    */
   dynamicIO?: boolean
+
+  /**
+   * Render <style> tags inline in the HTML for imported CSS assets.
+   * This is always disabled in the edge runtime.
+   */
+  inlineCss?: boolean
 }
 
 export type ExportPathMap = {
