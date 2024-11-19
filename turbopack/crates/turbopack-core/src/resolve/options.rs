@@ -96,7 +96,8 @@ pub enum ResolveInPackage {
 pub enum ImportMapping {
     /// If specified, the optional name overrides the request, importing that external instead.
     External(Option<RcStr>, ExternalType, ExternalTraced),
-    /// Only make the request external if the request is resolvable from the specified directory.
+    /// Try to make the request external if it is is resolvable from the specified
+    /// directory, and fall back to resolving the original request if it fails.
     ///
     /// If specified, the optional name overrides the request, importing that external instead.
     PrimaryAlternativeExternal(

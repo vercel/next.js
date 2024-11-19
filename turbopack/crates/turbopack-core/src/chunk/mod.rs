@@ -254,7 +254,7 @@ enum ChunkContentGraphNode {
     AsyncModule {
         module: Vc<Box<dyn ChunkableModule>>,
     },
-    // TODO docs
+    // Module that is referenced as traced and will be turned into a separate RebasedAsset
     TracedModule {
         module: Vc<Box<dyn Module>>,
     },
