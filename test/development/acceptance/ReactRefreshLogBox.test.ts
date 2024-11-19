@@ -1,7 +1,10 @@
 /* eslint-env jest */
 import { createSandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
-import { describeVariants as describe } from 'next-test-utils'
+import {
+  describeVariants as describe,
+  toggleCollapseCallStackFrames,
+} from 'next-test-utils'
 import path from 'path'
 import { outdent } from 'outdent'
 
@@ -756,6 +759,8 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     const { session, browser } = sandbox
     await session.assertHasRedbox()
 
+    await toggleCollapseCallStackFrames(browser)
+
     // Expect more than the default amount of frames
     // The default stackTraceLimit results in max 9 [data-nextjs-call-stack-frame] elements
     const callStackFrames = await browser.elementsByCss(
@@ -793,6 +798,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     )
     const { session, browser } = sandbox
     await session.assertHasRedbox()
+    await toggleCollapseCallStackFrames(browser)
     let callStackFrames = await browser.elementsByCss(
       '[data-nextjs-call-stack-frame]'
     )

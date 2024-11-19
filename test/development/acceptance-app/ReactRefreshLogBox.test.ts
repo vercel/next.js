@@ -874,31 +874,16 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     expect(stackFrames).toEqual(
       process.env.TURBOPACK
         ? [
-            // TODO: Why is Turbopack off by one in the column?
             outdent`
                 Page
                 app/page.js (5:6)
               `,
-            // TODO: Show useful stack
-            // Internal frames of React.
-            // Feel free to adjust until we show useful stacks.
-            '',
-            '',
-            '',
-            '',
           ]
         : [
             outdent`
                 Page
                 app/page.js (5:5)
               `,
-            // TODO: Show useful stack
-            // Internal frames of React.
-            // Feel free to adjust until we show useful stacks.
-            '',
-            '',
-            '',
-            '',
           ]
     )
   })
@@ -932,17 +917,9 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     const stackFrames = await Promise.all(
       stackFrameElements.map((f) => f.innerText())
     )
-    expect(stackFrames).toEqual(
-      // TODO: Show useful stack
-      [
-        // Internal frames of React.
-        // Feel free to adjust until we show useful stacks.
-        '',
-        '',
-        '',
-        '',
-      ]
-    )
+
+    // Filtered out the nodejs internal calls by default
+    expect(stackFrames).toEqual([])
   })
 
   test('Server component errors should open up in fullscreen', async () => {
