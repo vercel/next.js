@@ -238,14 +238,10 @@ impl EcmascriptModuleAssetBuilder {
 #[turbo_tasks::value]
 pub struct EcmascriptModuleAsset {
     pub source: ResolvedVc<Box<dyn Source>>,
-    #[turbo_tasks(debug_ignore)]
     pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
     pub ty: EcmascriptModuleAssetType,
-    #[turbo_tasks(debug_ignore)]
     pub transforms: ResolvedVc<EcmascriptInputTransforms>,
-    #[turbo_tasks(debug_ignore)]
     pub options: ResolvedVc<EcmascriptOptions>,
-    #[turbo_tasks(debug_ignore)]
     pub compile_time_info: ResolvedVc<CompileTimeInfo>,
     pub inner_assets: Option<ResolvedVc<InnerAssets>>,
     #[turbo_tasks(debug_ignore)]
