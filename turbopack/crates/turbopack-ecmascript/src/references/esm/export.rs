@@ -4,7 +4,7 @@ use std::{
     ops::ControlFlow,
 };
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use swc_core::{
     common::DUMMY_SP,
@@ -16,7 +16,7 @@ use swc_core::{
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, FxIndexMap, ResolvedVc, TryFlatJoinIterExt, ValueToString, Vc,
+    trace::TraceRawVcs, vdbg, FxIndexMap, ResolvedVc, TryFlatJoinIterExt, ValueToString, Vc,
 };
 use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
@@ -25,6 +25,7 @@ use turbopack_core::{
     issue::{analyze::AnalyzeIssue, IssueExt, IssueSeverity, StyledString},
     module::Module,
     reference::ModuleReference,
+    resolve::ModulePart,
 };
 
 use super::base::ReferencedAsset;
@@ -32,6 +33,8 @@ use crate::{
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::{CodeGenerateable, CodeGeneration, CodeGenerationHoistedStmt},
     magic_identifier,
+    tree_shake::asset::EcmascriptModulePartAsset,
+    EcmascriptModuleAsset,
 };
 
 #[derive(Clone, Hash, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
@@ -172,7 +175,12 @@ pub async fn follow_reexports(
 
         // Try to find the export in the star exports
         if !exports_ref.star_exports.is_empty() && &*export_name != "default" {
-            let result = find_export_from_reexports(module, export_name.clone()).await?;
+            let module_name = module.ident().to_string().await?;
+            let result = find_export_from_reexports(module, export_name.clone())
+                .await
+                .with_context(|| {
+                    format!("failed to find export from reexports for {}", module_name)
+                })?;
             if let Some(m) = result.esm_export {
                 module = *m;
                 continue;
@@ -275,10 +283,36 @@ async fn find_export_from_reexports(
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     export_name: RcStr,
 ) -> Result<Vc<FindExportFromReexportsResult>> {
-    let exports = module.get_exports().await?;
+    if let Some(module) =
+        Vc::try_resolve_downcast_type::<EcmascriptModulePartAsset>(*module).await?
+    {
+        if matches!(&*module.await?.part.await?, ModulePart::Exports) {
+            let module_part = EcmascriptModulePartAsset::select_part(
+                *module.await?.full_module,
+                ModulePart::export(export_name.clone()),
+            );
+
+            // If we apply this logic to EcmascriptModuleAsset, we will resolve everything in the
+            // target module.
+            if (Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(module_part).await?)
+                .is_none()
+            {
+                return Ok(find_export_from_reexports(
+                    Vc::upcast(module_part),
+                    export_name,
+                ));
+            }
+        }
+    }
+
+    let module_name = module.ident().to_string().await?;
+    let exports = module
+        .get_exports()
+        .await
+        .with_context(|| format!("failed to get exports for {}", module_name))?;
     let EcmascriptExports::EsmExports(exports) = &*exports else {
         return Ok(FindExportFromReexportsResult {
-            esm_export: Some(module),
+            esm_export: None,
             dynamic_exporting_modules: vec![],
         }
         .cell());
@@ -286,6 +320,13 @@ async fn find_export_from_reexports(
 
     let exports = exports.await?;
     let mut dynamic_exporting_modules = Vec::new();
+
+    vdbg!(
+        module,
+        export_name.clone(),
+        exports.exports.clone(),
+        exports.star_exports.to_vec(),
+    );
 
     for (name, _) in exports.exports.iter() {
         if *name == export_name {
