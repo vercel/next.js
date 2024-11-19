@@ -1,8 +1,8 @@
 import type { LoadContext, ResolveContext } from './types'
+import { existsSync } from 'node:fs'
 import { extname } from 'node:path'
 import { isBareSpecifier, resolveSWCOptions } from './utils.js'
 import { transform } from '../swc/index.js'
-import { existsSync } from 'node:fs'
 
 const tsExts = new Set(['.ts', '.mts', '.cts'])
 const localContext = new Map<string, string>()
@@ -11,36 +11,26 @@ export async function initialize({ cwd }: { cwd: string }) {
   localContext.set('cwd', cwd)
 }
 
-// The expected module resolving order:
-// 1) config.js (loadConfig) -> 2) next.config.ts -> 3) ...imports
-//
-// As we skip if the parent URL is not available, the "entrypoint"
-// will be next.config.ts.
 export async function resolve(
   specifier: string,
   context: ResolveContext,
   nextResolve: Function
 ) {
+  // next.config.* are also be imported from the "next/src/server/config.ts"
+  // so we expect the parentURL is available.
   if (!context.parentURL) {
     return nextResolve(specifier, context)
   }
 
   // e.g. "next", "react", etc.
   // Packages that look like bare specifiers depending on the "baseUrl"
-  // should already be resolved by SWC.
+  // should already be resolved path by SWC.
   if (isBareSpecifier(specifier)) {
     return nextResolve(specifier, context)
   }
 
   const url = new URL(specifier, context.parentURL).href
 
-  // When the specifier starts with http(s)://, Node.js resolver will throw
-  // with ERR_UNSUPPORTED_ESM_URL_SCHEME error.
-  if (url.startsWith('http://') || url.startsWith('https://')) {
-    return { url, shortCircuit: true }
-  }
-
-  // From here the specifier will be a relative path.
   const ext = extname(specifier)
   // If the specifier has no extension, we try to resolve it as TS then JS.
   if (ext === '') {
@@ -60,7 +50,7 @@ export async function resolve(
     }
   }
 
-  // Node.js resolver can take care of the rest of the non-ts files.
+  // Node.js resolver can take care of the rest of the non-TS files.
   if (!tsExts.has(ext)) {
     return nextResolve(specifier, context)
   }
