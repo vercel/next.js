@@ -6,7 +6,8 @@ use next_core::{
     next_server::{get_server_runtime_entries, ServerContextType},
 };
 use tracing::Instrument;
-use turbo_tasks::{Completion, RcStr, ResolvedVc, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{Completion, ResolvedVc, Value, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
@@ -230,9 +231,7 @@ impl Endpoint for InstrumentationEndpoint {
             let this = self.await?;
             let output_assets = self.output_assets();
             let _ = output_assets.resolve().await?;
-            this.project
-                .emit_all_output_assets(Vc::cell(output_assets))
-                .await?;
+            let _ = this.project.emit_all_output_assets(Vc::cell(output_assets));
 
             let node_root = this.project.node_root();
             let server_paths = all_server_paths(output_assets, node_root)

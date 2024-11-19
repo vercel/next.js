@@ -1,12 +1,14 @@
 use std::collections::{HashSet, VecDeque};
 
 use anyhow::Result;
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
-    FxIndexSet, RcStr, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
+    FxIndexSet, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
 };
 
 use crate::{
+    chunk::{ChunkableModuleReference, ChunkingType, ChunkingTypeOption},
     issue::IssueDescriptionExt,
     module::{Module, Modules},
     output::{OutputAsset, OutputAssets},
@@ -80,6 +82,44 @@ impl SingleModuleReference {
     #[turbo_tasks::function]
     pub fn asset(&self) -> Vc<Box<dyn Module>> {
         *self.asset
+    }
+}
+
+#[turbo_tasks::value]
+pub struct SingleChunkableModuleReference {
+    asset: ResolvedVc<Box<dyn Module>>,
+    description: Vc<RcStr>,
+}
+
+#[turbo_tasks::value_impl]
+impl SingleChunkableModuleReference {
+    #[turbo_tasks::function]
+    pub fn new(asset: ResolvedVc<Box<dyn Module>>, description: Vc<RcStr>) -> Vc<Self> {
+        Self::cell(SingleChunkableModuleReference { asset, description })
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ChunkableModuleReference for SingleChunkableModuleReference {
+    #[turbo_tasks::function]
+    fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
+        Vc::cell(Some(ChunkingType::ParallelInheritAsync))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ModuleReference for SingleChunkableModuleReference {
+    #[turbo_tasks::function]
+    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
+        ModuleResolveResult::module(self.asset).cell()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ValueToString for SingleChunkableModuleReference {
+    #[turbo_tasks::function]
+    fn to_string(&self) -> Vc<RcStr> {
+        self.description
     }
 }
 

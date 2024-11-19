@@ -3,7 +3,8 @@
 #![feature(arbitrary_self_types_pointers)]
 
 use anyhow::Result;
-use turbo_tasks::{mark_session_dependent, RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{mark_session_dependent, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::issue::{Issue, IssueSeverity, IssueStage, OptionStyledString, StyledString};
 

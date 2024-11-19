@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import fs from 'fs/promises'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import {
@@ -92,7 +92,7 @@ describe('server-side dev errors', () => {
       await assertHasRedbox(browser)
 
       expect(await getRedboxSource(browser)).toContain('missingVar')
-      await fs.writeFile(gspPage, content)
+      await fs.writeFile(gspPage, content, { flush: true })
       await assertHasRedbox(browser)
     } finally {
       await fs.writeFile(gspPage, content)
@@ -126,7 +126,7 @@ describe('server-side dev errors', () => {
           ' ⨯ ReferenceError: missingVar is not defined' +
             '\n    at getServerSideProps (./test/integration/server-side-dev-errors/pages/gssp.js:6:3)' +
             // TODO(veil): Should be sourcemapped
-            '\n    a'
+            '\n    at'
         )
       } else {
         expect(stderrOutput).toStartWith(
@@ -364,7 +364,8 @@ describe('server-side dev errors', () => {
         "
       `)
     } else {
-      expect(stderrOutput).toMatchInlineSnapshot(`
+      // sometimes there is a leading newline, so trim it
+      expect(stderrOutput.trimStart()).toMatchInlineSnapshot(`
         "Error: catch this rejection
             at Timeout.eval [as _onTimeout] (../../test/integration/server-side-dev-errors/pages/uncaught-rejection.js:7:19)
            5 | export async function getServerSideProps() {

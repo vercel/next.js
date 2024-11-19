@@ -27,7 +27,8 @@ use tokio::{
     sync::{OwnedSemaphorePermit, Semaphore},
     time::{sleep, timeout},
 };
-use turbo_tasks::{duration_span, FxIndexSet, RcStr, ResolvedVc, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{duration_span, FxIndexSet, ResolvedVc, Vc};
 use turbo_tasks_fs::{json::parse_json_with_source_context, FileSystemPath};
 use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
 

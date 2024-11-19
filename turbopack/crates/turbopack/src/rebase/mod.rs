@@ -16,18 +16,18 @@ use turbopack_core::{
 #[turbo_tasks::value]
 #[derive(Hash)]
 pub struct RebasedAsset {
-    source: Vc<Box<dyn Module>>,
-    input_dir: Vc<FileSystemPath>,
-    output_dir: Vc<FileSystemPath>,
+    source: ResolvedVc<Box<dyn Module>>,
+    input_dir: ResolvedVc<FileSystemPath>,
+    output_dir: ResolvedVc<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
 impl RebasedAsset {
     #[turbo_tasks::function]
     pub fn new(
-        source: Vc<Box<dyn Module>>,
-        input_dir: Vc<FileSystemPath>,
-        output_dir: Vc<FileSystemPath>,
+        source: ResolvedVc<Box<dyn Module>>,
+        input_dir: ResolvedVc<FileSystemPath>,
+        output_dir: ResolvedVc<FileSystemPath>,
     ) -> Vc<Self> {
         Self::cell(RebasedAsset {
             source,
@@ -43,20 +43,20 @@ impl OutputAsset for RebasedAsset {
     fn ident(&self) -> Vc<AssetIdent> {
         AssetIdent::from_path(FileSystemPath::rebase(
             self.source.ident().path(),
-            self.input_dir,
-            self.output_dir,
+            *self.input_dir,
+            *self.output_dir,
         ))
     }
 
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<OutputAssets>> {
         let mut references = Vec::new();
-        for &module in referenced_modules_and_affecting_sources(self.source)
+        for &module in referenced_modules_and_affecting_sources(*self.source)
             .await?
             .iter()
         {
             references.push(ResolvedVc::upcast(
-                RebasedAsset::new(*module, self.input_dir, self.output_dir)
+                RebasedAsset::new(*module, *self.input_dir, *self.output_dir)
                     .to_resolved()
                     .await?,
             ));
