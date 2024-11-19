@@ -6,13 +6,14 @@ use swc_core::{
     quote,
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{fxindexmap, ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::{
         ChunkItemExt, ChunkableModule, ChunkableModuleReference, ChunkingContext, ChunkingType,
         ChunkingTypeOption,
     },
+    context::AssetContext,
     issue::{
         Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
         OptionStyledString, StyledString,
@@ -23,7 +24,7 @@ use turbopack_core::{
     resolve::{
         origin::{ResolveOrigin, ResolveOriginExt},
         parse::Request,
-        ExternalType, ModulePart, ModuleResolveResult, ModuleResolveResultItem,
+        ExternalType, ModulePart, ModuleResolveResult, ModuleResolveResultItem, RequestKey,
     },
 };
 use turbopack_resolve::ecmascript::esm_resolve;
@@ -168,6 +169,30 @@ impl ModuleReference for EsmAssetReference {
                         ResolvedVc::try_downcast_type(self.origin)
                             .await?
                             .expect("EsmAssetReference origin should be a EcmascriptModuleAsset");
+
+                    // We handle this logic here because these references are already resolved as
+                    // _module_ so we cannot return Ignore in resolve step. This causes a problem
+                    // for side-effect optimization logic.w
+                    if matches!(
+                        &*part.await?,
+                        ModulePart::Evaluation | ModulePart::InternalEvaluation(..)
+                    ) {
+                        let side_effect_free_packages =
+                            module.asset_context().side_effect_free_packages();
+
+                        if *module
+                            .is_marked_as_side_effect_free(side_effect_free_packages)
+                            .await?
+                        {
+                            return Ok(ModuleResolveResult {
+                                primary: fxindexmap! {
+                                    RequestKey::default() => ModuleResolveResultItem::Ignore
+                                },
+                                affecting_sources: Vec::new(),
+                            }
+                            .cell());
+                        }
+                    }
 
                     return Ok(ModuleResolveResult::module(ResolvedVc::upcast(
                         EcmascriptModulePartAsset::new(*module, *part)

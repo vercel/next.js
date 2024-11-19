@@ -8,7 +8,7 @@ use turbopack_core::{
     context::AssetContext,
     ident::AssetIdent,
     module::Module,
-    reference::{ModuleReference, ModuleReferences, SingleModuleReference},
+    reference::ModuleReferences,
     resolve::{origin::ResolveOrigin, ModulePart},
 };
 
@@ -102,21 +102,13 @@ impl EcmascriptModulePartAsset {
         module: Vc<EcmascriptModuleAsset>,
         part: ResolvedVc<ModulePart>,
     ) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
-        let SplitResult::Ok { entrypoints, .. } = &*split_module(module).await? else {
+        let SplitResult::Ok { .. } = &*split_module(module).await? else {
             return Ok(Vc::upcast(module));
         };
-
-        vdbg!(module.ident().with_part(*part).to_string());
 
         // We follow reexports here
         if let ModulePart::Export(export) = &*part.await? {
             let export_name = export.await?.clone_value();
-
-            // If a local binding or reexport with the same name exists, we stop here.
-            // Side effects of the barrel file are preserved.
-            if entrypoints.contains_key(&Key::Export(export_name.clone())) {
-                return Ok(Vc::upcast(EcmascriptModulePartAsset::new(module, *part)));
-            }
 
             let side_effect_free_packages = module.asset_context().side_effect_free_packages();
 
@@ -154,11 +146,6 @@ impl EcmascriptModulePartAsset {
                     ModulePart::renamed_namespace(export_name.clone()),
                 ))
             };
-            vdbg!(final_module.ident().to_string());
-
-            for side_effect in side_effects.iter() {
-                vdbg!(side_effect.ident().to_string());
-            }
 
             if side_effects.is_empty() {
                 return Ok(Vc::upcast(final_module));
