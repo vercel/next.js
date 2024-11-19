@@ -26,7 +26,7 @@ import _pkg from 'next/package.json'
 import type { SpawnOptions, ChildProcess } from 'child_process'
 import type { RequestInit, Response } from 'node-fetch'
 import type { NextServer } from 'next/dist/server/next'
-import type { BrowserInterface } from './browsers/base'
+import { BrowserInterface } from './browsers/base'
 
 import { getTurbopackFlag, shouldRunTurboDevTest } from './turbo'
 import stripAnsi from 'strip-ansi'
@@ -1499,4 +1499,16 @@ export async function getStackFramesContent(browser) {
     .join('\n')
 
   return stackFramesContent
+}
+
+export async function toggleCollapseCallStackFrames(browser: BrowserInterface) {
+  const button = await browser.elementByCss('[data-expand-ignore-button]')
+  const lastExpanded = await button.getAttribute('data-expand-ignore-button')
+  await button.click()
+
+  await retry(async () => {
+    const button = await browser.elementByCss('[data-expand-ignore-button]')
+    const currExpanded = await button.getAttribute('data-expand-ignore-button')
+    expect(currExpanded).not.toBe(lastExpanded)
+  })
 }
