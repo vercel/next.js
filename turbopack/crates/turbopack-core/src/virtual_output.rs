@@ -1,4 +1,3 @@
-use anyhow::Result;
 use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
 
@@ -52,8 +51,8 @@ impl OutputAsset for VirtualOutputAsset {
     }
 
     #[turbo_tasks::function]
-    async fn references(&self) -> Result<Vc<OutputAssets>> {
-        Ok(self.references)
+    fn references(&self) -> Vc<OutputAssets> {
+        self.references
     }
 }
 
