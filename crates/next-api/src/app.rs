@@ -1400,10 +1400,8 @@ impl AppEndpoint {
                 {
                     server_assets.insert(ResolvedVc::upcast(
                         NftJsonAsset::new(
+                            this.app_project.project(),
                             *rsc_chunk,
-                            this.app_project.project().output_fs(),
-                            this.app_project.project().project_fs(),
-                            this.app_project.project().client_fs(),
                             client_reference_manifest.iter().map(|m| **m).collect(),
                         )
                         .to_resolved()
