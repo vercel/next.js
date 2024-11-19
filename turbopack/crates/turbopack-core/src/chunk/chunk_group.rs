@@ -6,6 +6,7 @@ use futures::future::try_join_all;
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, Vc,
 };
+use turbo_tasks_fs::{FileSystem, VirtualFileSystem};
 
 use super::{
     availability_info::AvailabilityInfo, available_chunk_items::AvailableChunkItemInfo,
@@ -200,6 +201,12 @@ pub async fn make_chunk_group(
         chunks: resolved_chunks,
         availability_info,
     })
+}
+
+// Without this wrapper, VirtualFileSystem::new_with_name always returns a new filesystem
+#[turbo_tasks::function]
+fn traced_fs() -> Vc<VirtualFileSystem> {
+    VirtualFileSystem::new_with_name("traced".into())
 }
 
 async fn references_to_output_assets(
