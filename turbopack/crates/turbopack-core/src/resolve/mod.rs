@@ -2638,31 +2638,35 @@ async fn resolve_import_map_result(
                 && alias_lookup_path.to_resolved().await? == original_lookup_path
             {
                 None
-            } else if !(resolve_internal(
-                **alias_lookup_path,
-                request,
-                match ty {
-                    ExternalType::Url => options,
-                    // TODO is that root correct?
-                    ExternalType::CommonJs => node_cjs_resolve_options(alias_lookup_path.root()),
-                    ExternalType::EcmaScriptModule => {
-                        node_esm_resolve_options(alias_lookup_path.root())
-                    }
-                },
-            )
-            .await?
-            .is_unresolvable_ref())
-            {
-                Some(
-                    ResolveResult::primary(ResolveResultItem::External {
-                        name: name.clone(),
-                        ty: *ty,
-                        traced: *traced,
-                    })
-                    .cell(),
-                )
             } else {
-                None
+                let is_external_resolvable = !resolve_internal(
+                    **alias_lookup_path,
+                    request,
+                    match ty {
+                        ExternalType::Url => options,
+                        // TODO is that root correct?
+                        ExternalType::CommonJs => {
+                            node_cjs_resolve_options(alias_lookup_path.root())
+                        }
+                        ExternalType::EcmaScriptModule => {
+                            node_esm_resolve_options(alias_lookup_path.root())
+                        }
+                    },
+                )
+                .await?
+                .is_unresolvable_ref();
+                if is_external_resolvable {
+                    Some(
+                        ResolveResult::primary(ResolveResultItem::External {
+                            name: name.clone(),
+                            ty: *ty,
+                            traced: *traced,
+                        })
+                        .cell(),
+                    )
+                } else {
+                    None
+                }
             }
         }
         ImportMapResult::Alternatives(list) => {
