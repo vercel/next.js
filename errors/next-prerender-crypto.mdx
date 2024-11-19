@@ -10,6 +10,8 @@ If the API used has an async version you can also switch to that in instead of u
 
 ## Possible Ways to Fix It
 
+### Cache the token value
+
 If you are generating a token to talk to a database that itself should be cached move the token generation inside the `"use cache"`.
 
 Before:
@@ -42,6 +44,8 @@ export default async function Page() {
 }
 ```
 
+### Use an async API at request-time
+
 If you require this random value to be unique per Request and an async version of the API exists switch to it instead. Also ensure that there is a parent Suspense boundary that defines a fallback UI Next.js can use while rendering this component on each Request.
 
 Before:
@@ -67,6 +71,8 @@ export default async function Page() {
   return ...
 }
 ```
+
+### Use `await connection()` at request-time
 
 If you require this random value to be unique per Request and an async version of the API does not exist, call `await connection()`. Also ensure that there is a parent Suspense boundary that defines a fallback UI Next.js can use while rendering this component on each Request.
 
