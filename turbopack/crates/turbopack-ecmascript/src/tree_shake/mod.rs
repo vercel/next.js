@@ -376,6 +376,9 @@ impl Analyzer<'_> {
 pub(crate) enum Key {
     ModuleEvaluation,
     Export(RcStr),
+    /// All star exports. This is used to point to only _unknown_ exports.
+    StarExports,
+    /// All exports, including star exports
     Exports,
 }
 
@@ -414,7 +417,7 @@ async fn get_part_id(result: &SplitResult, part: Vc<ModulePart>) -> Result<u32> 
 
     // This is required to handle `export * from 'foo'`
     if let ModulePart::Export(..) = &*part {
-        if let Some(&v) = entrypoints.get(&Key::Exports) {
+        if let Some(&v) = entrypoints.get(&Key::StarExports) {
             return Ok(v);
         }
     }
