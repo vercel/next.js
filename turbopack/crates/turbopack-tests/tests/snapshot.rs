@@ -46,7 +46,7 @@ use turbopack_core::{
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
     free_var_references,
-    issue::{Issue, IssueDescriptionExt},
+    issue::{Issue, IssueDescriptionExt, PlainIssue},
     module::Module,
     output::{OutputAsset, OutputAssets},
     reference_type::{EntryReferenceSubType, ReferenceType},
@@ -158,8 +158,15 @@ async fn run(resource: PathBuf) -> Result<()> {
     let tt = TurboTasks::new(MemoryBackend::default());
     let task = tt.spawn_once_task(async move {
         let out = run_test(resource.to_str().unwrap().into());
+        let _ = out.resolve_strongly_consistent().await?;
+        let captured_issues = out.peek_issues_with_path().await?;
 
-        let emit = snapshot_issues(out);
+        let plain_issues = captured_issues
+            .iter_with_shortest_path()
+            .map(|(issue_vc, path)| issue_vc.into_plain(path))
+            .collect();
+
+        let emit = snapshot_issues(plain_issues, out);
         emit.strongly_consistent()
             .await
             .context("Unable to handle issues")?;
@@ -175,17 +182,16 @@ async fn run(resource: PathBuf) -> Result<()> {
 
 // a wrapper to make the snapshot_issues function a turbo task
 #[turbo_tasks::function]
-async fn snapshot_issues(test_output: Vc<FileSystemPath>) -> Result<()> {
-    let _ = test_output.resolve_strongly_consistent().await?;
-    let captured_issues = test_output.peek_issues_with_path().await?;
-
-    let plain_issues = captured_issues
-        .iter_with_shortest_path()
-        .map(|(issue_vc, path)| async move { issue_vc.into_plain(path).await })
-        .try_join()
-        .await?;
-
-    snapshot::snapshot_issues(plain_issues, test_output.join("issues".into()), &REPO_ROOT).await
+async fn snapshot_issues(
+    plain_issues: Vec<Vc<PlainIssue>>,
+    test_output: Vc<FileSystemPath>,
+) -> Result<()> {
+    snapshot::snapshot_issues(
+        plain_issues.iter().try_join().await?,
+        test_output.join("issues".into()),
+        &REPO_ROOT,
+    )
+    .await
 }
 
 #[turbo_tasks::function]
