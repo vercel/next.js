@@ -204,8 +204,8 @@ importers:
         specifier: 6.1.1
         version: 6.1.1(@types/node-fetch@2.6.1)(node-fetch@2.6.7(encoding@0.1.13))
       '@vercel/og':
-        specifier: 0.6.3
-        version: 0.6.3
+        specifier: 0.6.4
+        version: 0.6.4
       abort-controller:
         specifier: 3.0.0
         version: 3.0.0
@@ -5758,8 +5758,8 @@ packages:
     engines: {node: '>=16'}
     hasBin: true
 
-  '@vercel/og@0.6.3':
-    resolution: {integrity: sha512-aoCrC9FqkeA+WEEb9CwSmjD0rGlFeNqbUsI41JPmKWR9Hx6FFn86tvH96O5HZMF6VAXTGHxa3nPH3BokROpdgA==}
+  '@vercel/og@0.6.4':
+    resolution: {integrity: sha512-+IB8fYbVHEAtLfhCXSRS61Q/OfBJTaPCXhvGvXTBIUfs9lqZMDesZ2UnvKYbnEYHSMgCzBaj5BOq66iePl8mjw==}
     engines: {node: '>=16'}
 
   '@webassemblyjs/ast@1.12.1':
@@ -7179,6 +7179,10 @@ packages:
     engines: {node: ^14 || ^16 || >=18}
     peerDependencies:
       postcss: ^8.0.9
+
+  css-gradient-parser@0.0.16:
+    resolution: {integrity: sha512-3O5QdqgFRUbXvK1x5INf1YkBz1UKSWqrd63vWsum8MNHDBYD5urm3QtxZbKU259OrEXNM26lP/MPY3d1IGkBgA==}
+    engines: {node: '>=16'}
 
   css-has-pseudo@3.0.4:
     resolution: {integrity: sha512-Vse0xpR1K9MNlp2j5w1pgWIJtm1a8qS0JwS9goFYcImjlHEmywP9VUF05aGBXzGpDJF86QXk4L0ypBmwPhGArw==}
@@ -13544,6 +13548,10 @@ packages:
 
   satori@0.10.9:
     resolution: {integrity: sha512-XU9EELUEZuioT4acLIpCXxHcFzrsC8muvg0MY28d+TlqwxbkTzBmWbw+3+hnCzXT7YZ0Qm8k3eXktDaEu+qmEw==}
+    engines: {node: '>=16'}
+
+  satori@0.12.0:
+    resolution: {integrity: sha512-e0e+qQyeFwEszujN7SpWpRtZgww7Nh8lSO3bUn2spHZ5JpqEl3zJ3P14/JlWruxEwdgREs35ZnavrPrWaRVFDg==}
     engines: {node: '>=16'}
 
   sax@1.2.4:
@@ -20637,10 +20645,10 @@ snapshots:
       - encoding
       - supports-color
 
-  '@vercel/og@0.6.3':
+  '@vercel/og@0.6.4':
     dependencies:
       '@resvg/resvg-wasm': 2.4.0
-      satori: 0.10.9
+      satori: 0.12.0
       yoga-wasm-web: 0.3.3
 
   '@webassemblyjs/ast@1.12.1':
@@ -22321,6 +22329,8 @@ snapshots:
   css-declaration-sorter@7.2.0(postcss@8.4.31):
     dependencies:
       postcss: 8.4.31
+
+  css-gradient-parser@0.0.16: {}
 
   css-has-pseudo@3.0.4(postcss@8.4.31):
     dependencies:
@@ -30401,6 +30411,20 @@ snapshots:
       css-box-shadow: 1.0.0-3
       css-to-react-native: 3.2.0
       emoji-regex: 10.2.1
+      escape-html: 1.0.3
+      linebreak: 1.1.0
+      parse-css-color: 0.2.1
+      postcss-value-parser: 4.2.0
+      yoga-wasm-web: 0.3.3
+
+  satori@0.12.0:
+    dependencies:
+      '@shuding/opentype.js': 1.4.0-beta.0
+      css-background-parser: 0.1.0
+      css-box-shadow: 1.0.0-3
+      css-gradient-parser: 0.0.16
+      css-to-react-native: 3.2.0
+      emoji-regex: 10.3.0
       escape-html: 1.0.3
       linebreak: 1.1.0
       parse-css-color: 0.2.1
