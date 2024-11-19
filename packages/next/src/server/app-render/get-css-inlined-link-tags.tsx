@@ -1,6 +1,6 @@
 import type {
   ClientReferenceManifest,
-  EntryCssFile,
+  CssResource,
 } from '../../build/webpack/plugins/flight-manifest-plugin'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 
@@ -10,12 +10,12 @@ import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 export function getLinkAndScriptTags(
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   filePath: string,
-  injectedCSS: Set<EntryCssFile>,
+  injectedCSS: Set<CssResource>,
   injectedScripts: Set<string>,
   collectNewImports?: boolean
-): { styles: EntryCssFile[]; scripts: string[] } {
+): { styles: CssResource[]; scripts: string[] } {
   const filePathWithoutExt = filePath.replace(/\.[^.]+$/, '')
-  const cssChunks = new Set<EntryCssFile>()
+  const cssChunks = new Set<CssResource>()
   const jsChunks = new Set<string>()
 
   const entryCSSFiles =

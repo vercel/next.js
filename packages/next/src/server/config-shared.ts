@@ -1166,6 +1166,7 @@ export const defaultConfig: NextConfig = {
     staticGenerationMaxConcurrency: 8,
     staticGenerationMinPagesPerWorker: 25,
     dynamicIO: false,
+    inlineCss: false,
   },
   bundlePagesRouterDependencies: false,
 }

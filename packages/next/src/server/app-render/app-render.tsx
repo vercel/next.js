@@ -21,7 +21,7 @@ import type { LoaderTree } from '../lib/app-dir-module'
 import type { AppPageModule } from '../route-modules/app-page/module'
 import type {
   ClientReferenceManifest,
-  EntryCssFile,
+  CssResource,
   ManifestNode,
 } from '../../build/webpack/plugins/flight-manifest-plugin'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
@@ -696,7 +696,7 @@ async function getRSCPayload(
   ctx: AppRenderContext,
   is404: boolean
 ): Promise<InitialRSCPayload & { P: React.ReactNode }> {
-  const injectedCSS = new Set<EntryCssFile>()
+  const injectedCSS = new Set<CssResource>()
   const injectedJS = new Set<string>()
   const injectedFontPreloadTags = new Set<string>()
   let missingSlots: Set<string> | undefined

@@ -4,9 +4,9 @@ import { getLinkAndScriptTags } from './get-css-inlined-link-tags'
 import type { AppRenderContext } from './app-render'
 import { getAssetQueryString } from './get-asset-query-string'
 import { encodeURIPath } from '../../shared/lib/encode-uri-path'
-import type { EntryCssFile } from '../../build/webpack/plugins/flight-manifest-plugin'
+import type { CssResource } from '../../build/webpack/plugins/flight-manifest-plugin'
+import { renderCssResource } from './render-css-resource'
 
-// [STEP 1] TODO: consolidate this with get-layer-assets.tsx
 export async function createComponentStylesAndScripts({
   filePath,
   getComponent,
@@ -16,46 +16,18 @@ export async function createComponentStylesAndScripts({
 }: {
   filePath: string
   getComponent: () => any
-  injectedCSS: Set<EntryCssFile>
+  injectedCSS: Set<CssResource>
   injectedJS: Set<string>
   ctx: AppRenderContext
 }): Promise<[React.ComponentType<any>, React.ReactNode, React.ReactNode]> {
-  const { styles: cssHrefs, scripts: jsHrefs } = getLinkAndScriptTags(
+  const { styles: entryCssFiles, scripts: jsHrefs } = getLinkAndScriptTags(
     ctx.clientReferenceManifest,
     filePath,
     injectedCSS,
     injectedJS
   )
 
-  const styles = cssHrefs
-    ? cssHrefs.map((entryCssFile, index) => {
-        const fullHref = `${ctx.assetPrefix}/_next/${encodeURIPath(
-          entryCssFile.path
-        )}${getAssetQueryString(ctx, true)}`
-
-        // `Precedence` is an opt-in signal for React to handle resource
-        // loading and deduplication, etc. It's also used as the key to sort
-        // resources so they will be injected in the correct order.
-        // During HMR, it's critical to use different `precedence` values
-        // for different stylesheets, so their order will be kept.
-        // https://github.com/facebook/react/pull/25060
-        const precedence =
-          process.env.NODE_ENV === 'development'
-            ? 'next_' + entryCssFile.path
-            : 'next'
-
-        return (
-          <link
-            rel="stylesheet"
-            href={fullHref}
-            // @ts-ignore
-            precedence={precedence}
-            crossOrigin={ctx.renderOpts.crossOrigin}
-            key={`style-${index}`}
-          />
-        )
-      })
-    : null
+  const styles = renderCssResource(entryCssFiles, ctx)
 
   const scripts = jsHrefs
     ? jsHrefs.map((href, index) => (
