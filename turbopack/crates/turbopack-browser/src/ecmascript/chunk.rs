@@ -172,10 +172,8 @@ impl Introspectable for EcmascriptDevChunk {
     #[turbo_tasks::function]
     async fn children(&self) -> Result<Vc<IntrospectableChildren>> {
         let mut children = FxIndexSet::default();
-        let chunk = Vc::upcast::<Box<dyn Introspectable>>(*self.chunk)
-            .resolve()
-            .await?;
-        children.insert((Vc::cell("chunk".into()), chunk));
+        let chunk = ResolvedVc::upcast::<Box<dyn Introspectable>>(self.chunk);
+        children.insert((Vc::cell("chunk".into()), *chunk));
         Ok(Vc::cell(children))
     }
 }
