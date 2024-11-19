@@ -22,14 +22,15 @@ export type Manifest = {
   description?: string | undefined
   dir?: 'ltr' | 'rtl' | 'auto' | undefined
   display?: 'fullscreen' | 'standalone' | 'minimal-ui' | 'browser' | undefined
-  display_override?: (
-    | 'fullscreen'
-    | 'standalone'
-    | 'minimal-ui'
-    | 'browser'
-    | 'window-controls-overlay'
+  display_override?:
+    | (
+        | 'fullscreen'
+        | 'standalone'
+        | 'minimal-ui'
+        | 'browser'
+        | 'window-controls-overlay'
+      )[]
     | undefined
-  )[]
   file_handlers?:
     | {
         action: string

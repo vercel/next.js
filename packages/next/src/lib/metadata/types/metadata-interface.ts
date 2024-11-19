@@ -649,7 +649,12 @@ interface Viewport extends ViewportLayout {
    * <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
    * ```
    */
-  themeColor?: null | string | ThemeColorDescriptor | ThemeColorDescriptor[]
+  themeColor?:
+    | null
+    | string
+    | ThemeColorDescriptor
+    | ThemeColorDescriptor[]
+    | undefined
 
   /**
    * The color scheme for the document.
