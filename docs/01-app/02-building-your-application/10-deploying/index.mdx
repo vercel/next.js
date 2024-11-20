@@ -200,8 +200,9 @@ module.exports = class CacheHandler {
     this.options = options
   }
 
-  async get(key) {
+  async get(key /*, ctx */) {
     // This could be stored anywhere, like durable storage
+    // ctx can be used to customize the key if needed
     return cache.get(key)
   }
 
