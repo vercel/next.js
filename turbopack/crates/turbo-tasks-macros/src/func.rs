@@ -511,22 +511,22 @@ impl TurboFn<'_> {
             }
         } else if self.operation {
             let mut assertions = Vec::new();
+            // theoretically we could support methods by rewriting the exposed self argument, but
+            // it's not worth it, given the rarity of operations.
+            const SELF_ERROR: &str = "methods taking `self` are not supported with `operation`";
             for arg in &self.orig_signature.inputs {
                 match arg {
                     FnArg::Receiver(receiver) => {
-                        // theoretically we could support this by rewriting the exposed argument to
-                        // `OperationVc` and awaiting it internally (similar to what we do for
-                        // `ResolvedVc`), but it's not worth it, given the rarity of operations.
-                        receiver
-                            .span()
-                            .unwrap()
-                            .error(
-                                "self arguments on operation functions must use `self: \
-                                 OperationVc<Self>`",
-                            )
-                            .emit();
+                        receiver.span().unwrap().error(SELF_ERROR).emit();
                     }
                     FnArg::Typed(pat_type) => {
+                        if let Pat::Ident(ident) = &*pat_type.pat {
+                            // needed for syn 1.x where arbitrary self types use FnArg::Typed, this
+                            // is fixed in syn 2.x, where `self` is always `FnArg::Receiver`.
+                            if ident.ident == "self" {
+                                pat_type.span().unwrap().error(SELF_ERROR).emit();
+                            }
+                        }
                         let ty = &pat_type.ty;
                         assertions.push(quote_spanned! {
                             ty.span() =>
