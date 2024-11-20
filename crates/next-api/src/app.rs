@@ -909,7 +909,7 @@ impl AppEndpoint {
         };
 
         let (
-            app_server_reference_modules,
+            server_action_manifest_loader,
             client_dynamic_imports,
             client_references,
             client_references_chunks,
@@ -1122,10 +1122,26 @@ impl AppEndpoint {
                 }
             }
 
+            let server_action_manifest = create_server_actions_manifest(
+                *ResolvedVc::upcast(app_entry.rsc_entry),
+                get_app_server_reference_modules(client_references_cell.types()),
+                this.app_project.project().project_path(),
+                node_root,
+                app_entry.original_name.clone(),
+                runtime,
+                match runtime {
+                    NextRuntime::Edge => Vc::upcast(this.app_project.edge_rsc_module_context()),
+                    NextRuntime::NodeJs => Vc::upcast(this.app_project.rsc_module_context()),
+                },
+                this.app_project
+                    .project()
+                    .runtime_chunking_context(process_client_assets, runtime),
+            )
+            .await?;
+            server_assets.insert(server_action_manifest.manifest);
+
             (
-                Some(get_app_server_reference_modules(
-                    client_references_cell.types(),
-                )),
+                Some(server_action_manifest.loader),
                 Some(client_dynamic_imports),
                 Some(client_references_cell),
                 Some(client_references_chunks),
@@ -1133,30 +1149,6 @@ impl AppEndpoint {
         } else {
             (None, None, None, None)
         };
-
-        let server_action_manifest_loader =
-            if let Some(app_server_reference_modules) = app_server_reference_modules {
-                let server_action_manifest = create_server_actions_manifest(
-                    *ResolvedVc::upcast(app_entry.rsc_entry),
-                    app_server_reference_modules,
-                    this.app_project.project().project_path(),
-                    node_root,
-                    app_entry.original_name.clone(),
-                    runtime,
-                    match runtime {
-                        NextRuntime::Edge => Vc::upcast(this.app_project.edge_rsc_module_context()),
-                        NextRuntime::NodeJs => Vc::upcast(this.app_project.rsc_module_context()),
-                    },
-                    this.app_project
-                        .project()
-                        .runtime_chunking_context(process_client_assets, runtime),
-                )
-                .await?;
-                server_assets.insert(server_action_manifest.manifest);
-                Some(server_action_manifest.loader)
-            } else {
-                None
-            };
 
         let (app_entry_chunks, app_entry_chunks_availability) = &*self
             .app_entry_chunks(
