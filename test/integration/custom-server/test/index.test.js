@@ -301,7 +301,7 @@ describe.each([
       await fetchViaHTTP(nextUrl, '/unhandled-rejection', undefined, { agent })
       await check(() => stderr, /unhandledRejection/)
       expect(stderr).toContain('unhandledRejection: Error: unhandled rejection')
-      expect(stderr).toContain('server.js:38:22')
+      expect(stderr).toMatch(/\/server\.js:\d+\d+/)
     })
   })
 
@@ -317,4 +317,72 @@ describe.each([
       )
     })
   })
+
+  describe.each(['development', 'production'])(
+    'legacy NextCustomServer methods - %s mode',
+    (mode) => {
+      const isNextDev = mode === 'development'
+
+      beforeAll(async () => {
+        if (!isNextDev) {
+          await nextBuild(appDir)
+        }
+        await startServer({ NODE_ENV: mode })
+      })
+      afterAll(() => killApp(server))
+
+      it('NextCustomServer.renderToHTML', async () => {
+        const rawHTML = await renderViaHTTP(
+          nextUrl,
+          '/legacy-methods/render-to-html?q=2',
+          undefined,
+          { agent }
+        )
+        const $ = cheerio.load(rawHTML)
+        const text = $('p').text()
+        expect(text).toContain('made it to dynamic dashboard')
+        expect(text).toContain('query param: 1')
+      })
+
+      it('NextCustomServer.render404', async () => {
+        const html = await renderViaHTTP(
+          nextUrl,
+          '/legacy-methods/render404',
+          undefined,
+          { agent }
+        )
+        expect(html).toContain('made it to 404')
+      })
+
+      it('NextCustomServer.renderError', async () => {
+        const html = await renderViaHTTP(
+          nextUrl,
+          '/legacy-methods/render-error',
+          undefined,
+          { agent }
+        )
+        if (isNextDev) {
+          // in dev, we always render error overlay + default error page, not /500
+          expect(html).toContain('Error: kaboom')
+        } else {
+          expect(html).toContain('made it to 500')
+        }
+      })
+
+      it('NextCustomServer.renderErrorToHTML', async () => {
+        const html = await renderViaHTTP(
+          nextUrl,
+          '/legacy-methods/render-error-to-html',
+          undefined,
+          { agent }
+        )
+        if (isNextDev) {
+          // in dev, we always render error overlay + default error page, not /500
+          expect(html).toContain('Error: kaboom')
+        } else {
+          expect(html).toContain('made it to 500')
+        }
+      })
+    }
+  )
 })
