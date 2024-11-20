@@ -26,8 +26,15 @@ import type {
   RawSourceMap,
 } from 'next/dist/compiled/source-map08'
 import { formatFrameSourceFile } from '../internal/helpers/webpack-module-path'
-import { shouldIgnorePath } from '../../../../build/webpack/config/ignore-list'
 import type { MappedPosition } from 'source-map'
+
+function shouldIgnorePath(modulePath: string): boolean {
+  return (
+    modulePath.includes('node_modules') ||
+    // Only relevant for when Next.js is symlinked e.g. in the Next.js monorepo
+    modulePath.includes('next/dist')
+  )
+}
 
 interface ModernRawSourceMap extends RawSourceMap {
   ignoreList?: number[]
@@ -184,7 +191,7 @@ export async function createOriginalStackFrame({
     isIgnoredSource(source, sourcePosition) ||
     // If the source file is externals, should be excluded even it's not ignored source.
     // e.g. webpack://next/dist/.. needs to be ignored
-    (source.type === 'file' && shouldIgnorePath(source.modulePath))
+    shouldIgnorePath(source.modulePath)
 
   const sourcePath = getSourcePath(
     // When sourcePosition.source is the loader path the modulePath is generally better.
@@ -287,7 +294,6 @@ async function getSource(
     const ignoreList = []
     const moduleFilenames = sourceMap?.sources ?? []
 
-    // console.log('moduleFilenames', moduleFilenames)
     for (let index = 0; index < moduleFilenames.length; index++) {
       // bundlerFilePath case: webpack://./app/page.tsx
       const bundlerFilePath = moduleFilenames[index]

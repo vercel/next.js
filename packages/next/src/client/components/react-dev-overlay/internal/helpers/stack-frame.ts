@@ -84,7 +84,7 @@ function getOriginalStackFrame(
     originalStackFrame: null,
     originalCodeFrame: null,
     sourcePackage: null,
-    ignored: true,
+    ignored: false,
   }))
 }
 
