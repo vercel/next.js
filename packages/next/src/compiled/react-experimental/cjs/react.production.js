@@ -456,6 +456,9 @@ exports.experimental_useEffectEvent = function (callback) {
 exports.experimental_useOptimistic = function (passthrough, reducer) {
   return useOptimistic(passthrough, reducer);
 };
+exports.experimental_useResourceEffect = function () {
+  throw Error("Not implemented.");
+};
 exports.forwardRef = function (render) {
   return { $$typeof: REACT_FORWARD_REF_TYPE, render: render };
 };
@@ -566,4 +569,4 @@ exports.useSyncExternalStore = function (
 exports.useTransition = function () {
   return ReactSharedInternals.H.useTransition();
 };
-exports.version = "19.0.0-experimental-380f5d67-20241113";
+exports.version = "19.0.0-experimental-64f89510-20241119";

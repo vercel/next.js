@@ -1036,6 +1036,9 @@
       );
       return useOptimistic(passthrough, reducer);
     };
+    exports.experimental_useResourceEffect = function () {
+      throw Error("Not implemented.");
+    };
     exports.forwardRef = function (render) {
       null != render && render.$$typeof === REACT_MEMO_TYPE
         ? console.error(
@@ -1243,7 +1246,7 @@
     exports.useTransition = function () {
       return resolveDispatcher().useTransition();
     };
-    exports.version = "19.0.0-experimental-380f5d67-20241113";
+    exports.version = "19.0.0-experimental-64f89510-20241119";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&
