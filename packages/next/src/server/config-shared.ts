@@ -559,7 +559,7 @@ export interface ExperimentalConfig {
 
   /**
    * Render <style> tags inline in the HTML for imported CSS assets.
-   * Supports app-router only.
+   * Supports app-router in production mode only.
    */
   inlineCss?: boolean
 }
