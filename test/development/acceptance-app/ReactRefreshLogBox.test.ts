@@ -1179,9 +1179,23 @@ export default function Home() {
     const source = await session.getRedboxSource()
 
     if (isTurbopack) {
-      expect(source).toMatchInlineSnapshot(``)
+      expect(source).toMatchInlineSnapshot(`
+        "app/utils.ts (1:7) @ [project]/app/utils.ts [app-client] (ecmascript)
+
+        > 1 | throw new Error('utils error')
+            |       ^
+          2 | export function foo(){}
+          3 |           "
+      `)
     } else {
-      expect(source).toMatchInlineSnapshot(``)
+      expect(source).toMatchInlineSnapshot(`
+        "app/utils.ts (1:7) @ eval
+
+        > 1 | throw new Error('utils error')
+            |       ^
+          2 | export function foo(){}
+          3 |           "
+      `)
     }
   })
 })
