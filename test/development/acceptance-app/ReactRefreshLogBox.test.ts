@@ -41,7 +41,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     )
     await session.evaluate(() => document.querySelector('a').click())
 
-    await session.waitForAndOpenRuntimeError()
+    await session.openRedbox()
     expect(await session.getRedboxSource()).toMatchSnapshot()
   })
 
@@ -149,7 +149,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
       `export default function FunctionDefault() { throw new Error('no'); }`
     )
 
-    await session.waitForAndOpenRuntimeError()
+    await session.openRedbox()
     expect(await session.getRedboxSource()).toMatchSnapshot()
     expect(
       await session.evaluate(() => document.querySelector('h2').textContent)
@@ -390,7 +390,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     )
 
     await session.evaluate(() => document.querySelector('button').click())
-    await session.waitForAndOpenRuntimeError()
+    await session.openRedbox()
 
     const header = await session.getRedboxDescription()
     expect(header).toMatchSnapshot()
@@ -435,7 +435,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     )
 
     await session.evaluate(() => document.querySelector('button').click())
-    await session.waitForAndOpenRuntimeError()
+    await session.openRedbox()
 
     const header2 = await session.getRedboxDescription()
     expect(header2).toMatchSnapshot()
@@ -480,7 +480,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     )
 
     await session.evaluate(() => document.querySelector('button').click())
-    await session.waitForAndOpenRuntimeError()
+    await session.openRedbox()
 
     const header3 = await session.getRedboxDescription()
     expect(header3).toMatchSnapshot()
@@ -525,7 +525,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     )
 
     await session.evaluate(() => document.querySelector('button').click())
-    await session.waitForAndOpenRuntimeError()
+    await session.openRedbox()
 
     const header4 = await session.getRedboxDescription()
     expect(header4).toEqual(
