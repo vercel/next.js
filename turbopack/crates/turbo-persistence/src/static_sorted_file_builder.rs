@@ -10,6 +10,7 @@ use lzzzz::lz4::{max_compressed_size, ACC_LEVEL_DEFAULT};
 
 use crate::{
     entry::{Entry, EntryValue},
+    key::StoreKey,
     static_sorted_file::{
         BLOCK_TYPE_INDEX, BLOCK_TYPE_KEY, KEY_BLOCK_ENTRY_TYPE_BLOB, KEY_BLOCK_ENTRY_TYPE_DELETED,
         KEY_BLOCK_ENTRY_TYPE_NORMAL,
@@ -34,7 +35,11 @@ pub struct StaticSortedFileBuilder {
 }
 
 impl StaticSortedFileBuilder {
-    pub fn new(entries: &[Entry], total_key_size: usize, total_value_size: usize) -> Self {
+    pub fn new<K: StoreKey>(
+        entries: &[Entry<K>],
+        total_key_size: usize,
+        total_value_size: usize,
+    ) -> Self {
         let mut builder = Self::default();
         builder.compute_aqmf(entries);
         builder.compute_compression_dictionary(entries, total_key_size, total_value_size);
@@ -42,7 +47,7 @@ impl StaticSortedFileBuilder {
         builder
     }
 
-    fn compute_aqmf(&mut self, entries: &[Entry]) {
+    fn compute_aqmf<K: StoreKey>(&mut self, entries: &[Entry<K>]) {
         let mut filter = qfilter::Filter::new(entries.len() as u64, AQMF_FALSE_POSITIVE_RATE)
             // This won't fail as we limit the number of entries per SST file
             .expect("Filter can't be constructed");
@@ -55,9 +60,9 @@ impl StaticSortedFileBuilder {
         self.aqmf = pot::to_vec(&filter).expect("AQMF serialization failed");
     }
 
-    fn compute_compression_dictionary(
+    fn compute_compression_dictionary<K: StoreKey>(
         &mut self,
-        entries: &[Entry],
+        entries: &[Entry<K>],
         total_key_size: usize,
         total_value_size: usize,
     ) {
@@ -95,17 +100,16 @@ impl StaticSortedFileBuilder {
             }
             if key_remaining > 0 {
                 let key = &entry.key;
-                let key = if key.len() <= COMPRESSION_DICTIONARY_SAMPLE_PER_ENTRY {
-                    &key
+                let used_len = min(key_remaining, COMPRESSION_DICTIONARY_SAMPLE_PER_ENTRY);
+                if key.len() <= used_len {
+                    key.write_to(&mut self.key_compression_dictionary);
                 } else {
-                    j = (j + 12345678) % (key.len() - COMPRESSION_DICTIONARY_SAMPLE_PER_ENTRY);
-                    &key[j..j + COMPRESSION_DICTIONARY_SAMPLE_PER_ENTRY]
-                };
-                if key.len() <= key_remaining {
-                    self.key_compression_dictionary.extend_from_slice(&key);
-                } else {
+                    let mut temp = Vec::with_capacity(key.len());
+                    key.write_to(&mut temp);
+
+                    j = (j + 12345678) % (temp.len() - used_len);
                     self.key_compression_dictionary
-                        .extend_from_slice(&key[..key_remaining]);
+                        .extend_from_slice(&temp[j..j + used_len]);
                 }
             }
             if key_remaining == 0 && value_remaining == 0 {
@@ -115,7 +119,7 @@ impl StaticSortedFileBuilder {
         }
     }
 
-    fn compute_blocks(&mut self, entries: &[Entry]) {
+    fn compute_blocks<K: StoreKey>(&mut self, entries: &[Entry<K>]) {
         // TODO implement multi level index
         // TODO place key and value block near to each other
 
@@ -171,8 +175,8 @@ impl StaticSortedFileBuilder {
         key_block_boundaries.push((0, 0));
 
         // Split the keys into blocks
-        fn add_entry_to_block(
-            entry: &Entry,
+        fn add_entry_to_block<K: StoreKey>(
+            entry: &Entry<K>,
             value_location: &(usize, usize),
             block: &mut KeyBlockBuilder,
         ) {
@@ -319,13 +323,19 @@ impl KeyBlockBuilder {
         }
     }
 
-    pub fn put(&mut self, key: &[u8], value_block: u8, value_offset: u32, value_size: u32) {
+    pub fn put<K: StoreKey>(
+        &mut self,
+        key: K,
+        value_block: u8,
+        value_offset: u32,
+        value_size: u32,
+    ) {
         let pos = self.data.len() - self.header_size;
         let header_offset = KEY_BLOCK_HEADER_SIZE + self.current_entry * 4;
         let header = (pos as u32) | ((KEY_BLOCK_ENTRY_TYPE_NORMAL as u32) << 24);
         BE::write_u32(&mut self.data[header_offset..header_offset + 4], header);
 
-        self.data.extend_from_slice(key);
+        key.write_to(&mut self.data);
         self.data.write_u8(value_block).unwrap();
         self.data.write_u24::<BE>(value_size).unwrap();
         self.data.write_u32::<BE>(value_offset).unwrap();
@@ -333,24 +343,24 @@ impl KeyBlockBuilder {
         self.current_entry += 1;
     }
 
-    pub fn delete(&mut self, key: &[u8]) {
+    pub fn delete<K: StoreKey>(&mut self, key: K) {
         let pos = self.data.len() - self.header_size;
         let header_offset = KEY_BLOCK_HEADER_SIZE + self.current_entry * 4;
         let header = (pos as u32) | ((KEY_BLOCK_ENTRY_TYPE_DELETED as u32) << 24);
         BE::write_u32(&mut self.data[header_offset..header_offset + 4], header);
 
-        self.data.extend_from_slice(key);
+        key.write_to(&mut self.data);
 
         self.current_entry += 1;
     }
 
-    pub fn put_blob(&mut self, key: &[u8], blob: u32) {
+    pub fn put_blob<K: StoreKey>(&mut self, key: K, blob: u32) {
         let pos = self.data.len() - self.header_size;
         let header_offset = KEY_BLOCK_HEADER_SIZE + self.current_entry * 4;
         let header = (pos as u32) | ((KEY_BLOCK_ENTRY_TYPE_BLOB as u32) << 24);
         BE::write_u32(&mut self.data[header_offset..header_offset + 4], header);
 
-        self.data.extend_from_slice(key);
+        key.write_to(&mut self.data);
         self.data.write_u32::<BE>(blob).unwrap();
 
         self.current_entry += 1;
@@ -370,7 +380,7 @@ pub struct IndexBlockBuilder {
 const INDEX_BLOCK_HEADER_SIZE: usize = 3;
 
 impl IndexBlockBuilder {
-    pub fn new(entry_count: u16, first_key: &[u8]) -> Self {
+    pub fn new<K: StoreKey>(entry_count: u16, first_key: K) -> Self {
         const ESTIMATED_KEY_SIZE: usize = 16;
         let mut data = Vec::with_capacity(entry_count as usize * ESTIMATED_KEY_SIZE);
         data.write_u8(BLOCK_TYPE_INDEX).unwrap();
@@ -379,7 +389,7 @@ impl IndexBlockBuilder {
             data.write_u16::<BE>(0).unwrap();
         }
         let header_size = data.len();
-        data.extend_from_slice(first_key);
+        first_key.write_to(&mut data);
         Self {
             current_entry: 0,
             header_size,
@@ -387,7 +397,7 @@ impl IndexBlockBuilder {
         }
     }
 
-    pub fn put(&mut self, block: u8, key: &[u8]) {
+    pub fn put<K: StoreKey>(&mut self, block: u8, key: K) {
         self.data.write_u8(block).unwrap();
 
         let pos = self.data.len() - self.header_size;
@@ -395,7 +405,7 @@ impl IndexBlockBuilder {
         let header = pos as u16;
         BE::write_u16(&mut self.data[header_offset..header_offset + 2], header);
 
-        self.data.extend_from_slice(key);
+        key.write_to(&mut self.data);
 
         self.current_entry += 1;
     }

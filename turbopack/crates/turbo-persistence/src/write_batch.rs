@@ -13,22 +13,22 @@ use lzzzz::lz4::{self, ACC_LEVEL_DEFAULT};
 use thread_local::ThreadLocal;
 
 use crate::{
-    collector::Collector, constants::MAX_SMALL_VALUE_SIZE, entry::Entry,
+    collector::Collector, constants::MAX_SMALL_VALUE_SIZE, entry::Entry, key::StoreKey,
     static_sorted_file_builder::StaticSortedFileBuilder,
 };
 
-struct ThreadLocalState {
-    collector: Collector,
+struct ThreadLocalState<K: StoreKey + Send> {
+    collector: Collector<K>,
     new_sst_files: Vec<(u32, File)>,
 }
 
-pub struct WriteBatch {
+pub struct WriteBatch<K: StoreKey + Send> {
     path: PathBuf,
     current_sequence_number: AtomicU32,
-    collectors: ThreadLocal<UnsafeCell<ThreadLocalState>>,
+    collectors: ThreadLocal<UnsafeCell<ThreadLocalState<K>>>,
 }
 
-impl WriteBatch {
+impl<K: StoreKey + Send> WriteBatch<K> {
     pub fn new(path: PathBuf, current: u32) -> Self {
         Self {
             path,
@@ -37,7 +37,7 @@ impl WriteBatch {
         }
     }
 
-    fn collector_mut(&self) -> Result<&mut Collector> {
+    fn collector_mut(&self) -> Result<&mut Collector<K>> {
         let cell = self.collectors.get_or(|| {
             UnsafeCell::new(ThreadLocalState {
                 collector: Collector::new(),
@@ -54,7 +54,7 @@ impl WriteBatch {
         Ok(&mut state.collector)
     }
 
-    pub fn put(&self, key: Vec<u8>, value: Cow<'_, [u8]>) -> Result<()> {
+    pub fn put(&self, key: K, value: Cow<'_, [u8]>) -> Result<()> {
         let collector = self.collector_mut()?;
         if value.len() <= MAX_SMALL_VALUE_SIZE {
             collector.put(key, value.into_owned());
@@ -65,7 +65,7 @@ impl WriteBatch {
         Ok(())
     }
 
-    pub fn delete(&self, key: Vec<u8>) -> Result<()> {
+    pub fn delete(&self, key: K) -> Result<()> {
         let collector = self.collector_mut()?;
         collector.delete(key);
         Ok(())
@@ -104,7 +104,10 @@ impl WriteBatch {
         Ok(seq)
     }
 
-    fn create_sst_file(&self, collector_data: (Vec<Entry>, usize, usize)) -> Result<(u32, File)> {
+    fn create_sst_file(
+        &self,
+        collector_data: (Vec<Entry<K>>, usize, usize),
+    ) -> Result<(u32, File)> {
         let (entries, total_key_size, total_value_size) = collector_data;
         let seq = self.current_sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
 

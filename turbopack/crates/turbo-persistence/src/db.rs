@@ -20,8 +20,10 @@ use crate::{
         AQMF_AVG_SIZE, AQMF_CACHE_SIZE, KEY_BLOCK_AVG_SIZE, KEY_BLOCK_CACHE_SIZE,
         VALUE_BLOCK_AVG_SIZE, VALUE_BLOCK_CACHE_SIZE,
     },
+    key::StoreKey,
     static_sorted_file::{AqmfCache, BlockCache, LookupResult, StaticSortedFile},
     write_batch::WriteBatch,
+    QueryKey,
 };
 
 pub struct TurboPersistence {
@@ -198,7 +200,7 @@ impl TurboPersistence {
         Ok(ArcSlice::from(buffer))
     }
 
-    pub fn write_batch(&self) -> Result<WriteBatch> {
+    pub fn write_batch<K: StoreKey + Send>(&self) -> Result<WriteBatch<K>> {
         if self
             .active_write_operation
             .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
@@ -213,7 +215,7 @@ impl TurboPersistence {
         Ok(WriteBatch::new(self.path.clone(), current))
     }
 
-    pub fn commit_write_batch(&self, write_batch: WriteBatch) -> Result<()> {
+    pub fn commit_write_batch<K: StoreKey + Send>(&self, write_batch: WriteBatch<K>) -> Result<()> {
         let (seq, new_sst_files) = write_batch.finish()?;
         let new_sst_files = new_sst_files
             .into_iter()
@@ -238,7 +240,7 @@ impl TurboPersistence {
         Ok(())
     }
 
-    pub fn get(&self, key: &[u8]) -> Result<Option<ArcSlice<u8>>> {
+    pub fn get<K: QueryKey>(&self, key: &K) -> Result<Option<ArcSlice<u8>>> {
         let inner = self.inner.read();
         for sst in inner.static_sorted_files.iter().rev() {
             match sst.lookup(
