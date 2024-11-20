@@ -2444,7 +2444,6 @@ export default abstract class Server<
         onAfterTaskError: undefined,
         // only available in dev
         setAppIsrStatus: (this as any).setAppIsrStatus,
-        distDir: this.distDir,
       }
 
       if (isDebugStaticShell || isDebugDynamicAccesses) {

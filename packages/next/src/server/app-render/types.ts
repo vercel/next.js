@@ -132,7 +132,6 @@ export type ServerOnInstrumentationRequestError = (
 ) => void | Promise<void>
 
 export interface RenderOptsPartial {
-  distDir?: string
   previewProps: __ApiPreviewProps | undefined
   err?: Error | null
   dev?: boolean

@@ -559,7 +559,7 @@ export interface ExperimentalConfig {
 
   /**
    * Render <style> tags inline in the HTML for imported CSS assets.
-   * This is always disabled in the edge runtime.
+   * Supports app-router only.
    */
   inlineCss?: boolean
 }
