@@ -1,23 +1,18 @@
-import type { NextServer, RequestHandler } from '../next'
+import type { NextServer, RequestHandler, UpgradeHandler } from '../next'
 import type { DevBundlerService } from './dev-bundler-service'
 import type { PropagateToWorkersField } from './router-utils/types'
 
 import next from '../next'
 import type { Span } from '../../trace'
 
-let initializations: Record<
-  string,
-  | Promise<{
-      requestHandler: ReturnType<
-        InstanceType<typeof NextServer>['getRequestHandler']
-      >
-      upgradeHandler: ReturnType<
-        InstanceType<typeof NextServer>['getUpgradeHandler']
-      >
-      app: ReturnType<typeof next>
-    }>
-  | undefined
-> = {}
+type InitializationResult = {
+  requestHandler: RequestHandler
+  upgradeHandler: UpgradeHandler
+  app: NextServer
+}
+
+let initializations: Record<string, Promise<InitializationResult> | undefined> =
+  {}
 
 let sandboxContext: undefined | typeof import('../web/sandbox/context')
 
@@ -93,7 +88,7 @@ async function initializeImpl(opts: {
   }
 
   let requestHandler: RequestHandler
-  let upgradeHandler: any
+  let upgradeHandler: UpgradeHandler
 
   const app = next({
     ...opts,
@@ -101,7 +96,7 @@ async function initializeImpl(opts: {
     customServer: false,
     httpServer: opts.server,
     port: opts.port,
-  })
+  }) as NextServer // should return a NextServer when `customServer: false`
   requestHandler = app.getRequestHandler()
   upgradeHandler = app.getUpgradeHandler()
 
@@ -116,15 +111,7 @@ async function initializeImpl(opts: {
 
 export async function initialize(
   opts: Parameters<typeof initializeImpl>[0]
-): Promise<{
-  requestHandler: ReturnType<
-    InstanceType<typeof NextServer>['getRequestHandler']
-  >
-  upgradeHandler: ReturnType<
-    InstanceType<typeof NextServer>['getUpgradeHandler']
-  >
-  app: NextServer
-}> {
+): Promise<InitializationResult> {
   // if we already setup the server return as we only need to do
   // this on first worker boot
   if (initializations[opts.dir]) {
