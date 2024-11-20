@@ -21,25 +21,26 @@ import type { LoadingModuleData } from '../../shared/lib/app-router-context.shar
 
 // Contains metadata about the route tree. The client must fetch this before
 // it can fetch any actual segment data.
-type RootTreePrefetch = {
+export type RootTreePrefetch = {
+  buildId: string
   tree: TreePrefetch
   head: React.ReactNode | null
   staleTime: number
 }
 
-type TreePrefetch = {
+export type TreePrefetch = {
   // Access token. Required to fetch the segment data. In the future this will
   // not be provided during a prefetch if the parent segment did not include it
   // in its prerender; the client will have to perform a dynamic navigation in
   // order to get the access token.
   token: string
 
-  // The key to use when requesting the data for this segment (analogous to a
+  // The path to use when requesting the data for this segment (analogous to a
   // URL). Also used as a cache key, although the server may specify a different
   // cache key when it responds (analagous to a Vary header), like to omit
   // params if they aren't used to compute the response. (This part not
   // yet implemented)
-  key: string
+  path: string
 
   // Child segments.
   slots: null | {
@@ -54,9 +55,10 @@ type TreePrefetch = {
   extra: [segment: Segment, isRootLayout: boolean]
 }
 
-type SegmentPrefetch = {
+export type SegmentPrefetch = {
+  buildId: string
   rsc: React.ReactNode | null
-  loading: LoadingModuleData
+  loading: LoadingModuleData | Promise<LoadingModuleData>
 }
 
 export async function collectSegmentData(
@@ -161,6 +163,8 @@ async function PrefetchTreeData({
     }
   )
 
+  const buildId = initialRSCPayload.b
+
   // FlightDataPath is an unsound type, hence the additional checks.
   const flightDataPaths = initialRSCPayload.f
   if (flightDataPaths.length !== 1 && flightDataPaths[0].length !== 3) {
@@ -179,6 +183,7 @@ async function PrefetchTreeData({
   // each segment.
   const tree = await collectSegmentDataImpl(
     flightRouterState,
+    buildId,
     seedData,
     fullPageDataBuffer,
     clientModules,
@@ -195,6 +200,7 @@ async function PrefetchTreeData({
 
   // Render the route tree to a special `/_tree` segment.
   const treePrefetch: RootTreePrefetch = {
+    buildId,
     tree,
     head,
     staleTime,
@@ -204,7 +210,8 @@ async function PrefetchTreeData({
 
 async function collectSegmentDataImpl(
   route: FlightRouterState,
-  seedData: CacheNodeSeedData,
+  buildId: string,
+  seedData: CacheNodeSeedData | null,
   fullPageDataBuffer: Buffer,
   clientModules: ManifestNode,
   serverConsumerManifest: any,
@@ -217,15 +224,12 @@ async function collectSegmentDataImpl(
   let slotMetadata: { [parallelRouteKey: string]: TreePrefetch } | null = null
 
   const children = route[1]
-  const seedDataChildren = seedData[2]
+  const seedDataChildren = seedData !== null ? seedData[2] : null
   for (const parallelRouteKey in children) {
     const childRoute = children[parallelRouteKey]
     const childSegment = childRoute[0]
-    const childSeedData = seedDataChildren[parallelRouteKey]
-    if (!childSeedData) {
-      // No corresponding seed data for this segment.
-      continue
-    }
+    const childSeedData =
+      seedDataChildren !== null ? seedDataChildren[parallelRouteKey] : null
     const childSegmentPathStr =
       segmentPathStr +
       '/' +
@@ -238,7 +242,8 @@ async function collectSegmentDataImpl(
     )
     const childTree = await collectSegmentDataImpl(
       childRoute,
-      seedData,
+      buildId,
+      childSeedData,
       fullPageDataBuffer,
       clientModules,
       serverConsumerManifest,
@@ -252,26 +257,35 @@ async function collectSegmentDataImpl(
     slotMetadata[parallelRouteKey] = childTree
   }
 
-  // Spawn a task to write the segment data to a new Flight stream.
-  segmentTasks.push(
-    // Since we're already in the middle of a render, wait until after the
-    // current task to escape the current rendering context.
-    waitAtLeastOneReactRenderTask().then(() =>
-      renderSegmentPrefetch(
-        seedData,
-        segmentPathStr,
-        accessToken,
-        clientModules
+  if (seedData !== null) {
+    // Spawn a task to write the segment data to a new Flight stream.
+    segmentTasks.push(
+      // Since we're already in the middle of a render, wait until after the
+      // current task to escape the current rendering context.
+      waitAtLeastOneReactRenderTask().then(() =>
+        renderSegmentPrefetch(
+          buildId,
+          seedData,
+          segmentPathStr,
+          accessToken,
+          clientModules
+        )
       )
     )
-  )
+  } else {
+    // This segment does not have any seed data. Skip generating a prefetch
+    // response for it. We'll still include it in the route tree, though.
+    // TODO: We should encode in the route tree whether a segment is missing
+    // so we don't attempt to fetch it for no reason. As of now this shouldn't
+    // ever happen in practice, though.
+  }
 
   // Metadata about the segment. Sent to the client as part of the
   // tree prefetch.
   const segment = route[0]
   const isRootLayout = route[4]
   return {
-    key: segmentPathStr === '' ? '/' : segmentPathStr,
+    path: segmentPathStr === '' ? '/' : segmentPathStr,
     token: accessToken,
     slots: slotMetadata,
     extra: [segment, isRootLayout === true],
@@ -279,6 +293,7 @@ async function collectSegmentDataImpl(
 }
 
 async function renderSegmentPrefetch(
+  buildId: string,
   seedData: CacheNodeSeedData,
   segmentPathStr: string,
   accessToken: string,
@@ -290,6 +305,7 @@ async function renderSegmentPrefetch(
   const rsc = seedData[1]
   const loading = seedData[3]
   const segmentPrefetch: SegmentPrefetch = {
+    buildId,
     rsc,
     loading,
   }
