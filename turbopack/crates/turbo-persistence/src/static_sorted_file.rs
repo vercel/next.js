@@ -14,7 +14,7 @@ use memmap2::Mmap;
 use quick_cache::sync::GuardResult;
 use rustc_hash::FxHasher;
 
-use crate::arc_slice::ArcSlice;
+use crate::{arc_slice::ArcSlice, QueryKey};
 
 pub const BLOCK_TYPE_INDEX: u8 = 0;
 pub const BLOCK_TYPE_KEY: u8 = 1;
@@ -126,9 +126,9 @@ impl StaticSortedFile {
         })
     }
 
-    pub fn lookup(
+    pub fn lookup<K: QueryKey>(
         &self,
-        key: &[u8],
+        key: &K,
         aqmf_cache: &AqmfCache,
         key_block_cache: &BlockCache,
         value_block_cache: &BlockCache,
@@ -181,7 +181,7 @@ impl StaticSortedFile {
         }
     }
 
-    fn lookup_index_block(&self, mut block: &[u8], key: &[u8]) -> Result<Option<u8>> {
+    fn lookup_index_block<K: QueryKey>(&self, mut block: &[u8], key: &K) -> Result<Option<u8>> {
         let entry_count = block.read_u16::<BE>()? as usize;
         let start_entries = (entry_count - 1) * 2;
         let offsets = &block[..start_entries];
@@ -220,8 +220,8 @@ impl StaticSortedFile {
             Ordering::Greater => {}
         }
         let right_key = get_key(&offsets, &entries, entry_count, entry_count as usize - 1)?;
-        match right_key.cmp(key) {
-            Ordering::Less => {
+        match key.cmp(right_key) {
+            Ordering::Greater => {
                 // not in this block
                 return Ok(None);
             }
@@ -233,7 +233,7 @@ impl StaticSortedFile {
                     entry_count as usize - 2,
                 )?));
             }
-            Ordering::Greater => {}
+            Ordering::Less => {}
         }
         let mut l = 0;
         let mut r = entry_count;
@@ -256,10 +256,10 @@ impl StaticSortedFile {
         Ok(Some(get_block(&offsets, &entries, l - 1)?))
     }
 
-    fn lookup_key_block(
+    fn lookup_key_block<K: QueryKey>(
         &self,
         mut block: &[u8],
-        key: &[u8],
+        key: &K,
         header: &Header,
         value_block_cache: &BlockCache,
     ) -> Result<LookupResult> {

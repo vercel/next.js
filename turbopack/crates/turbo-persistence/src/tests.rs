@@ -11,16 +11,16 @@ fn full_cycle() -> Result<()> {
     fn test_case(
         test_cases: &mut Vec<(
             &'static str,
-            Box<dyn Fn(&mut WriteBatch) -> Result<()>>,
+            Box<dyn Fn(&mut WriteBatch<Vec<u8>>) -> Result<()>>,
             Box<dyn Fn(&TurboPersistence) -> Result<()>>,
         )>,
         name: &'static str,
-        write: impl Fn(&mut WriteBatch) -> Result<()> + 'static,
+        write: impl Fn(&mut WriteBatch<Vec<u8>>) -> Result<()> + 'static,
         read: impl Fn(&TurboPersistence) -> Result<()> + 'static,
     ) {
         test_cases.push((
             name,
-            Box::new(write) as Box<dyn Fn(&mut WriteBatch) -> Result<()>>,
+            Box::new(write) as Box<dyn Fn(&mut WriteBatch<Vec<u8>>) -> Result<()>>,
             Box::new(read) as Box<dyn Fn(&TurboPersistence) -> Result<()>>,
         ));
     }
@@ -70,7 +70,7 @@ fn full_cycle() -> Result<()> {
         &mut test_cases,
         "Many items (multi-threaded)",
         |batch| {
-            (0..1000 * 1024u32).into_par_iter().for_each(|i| {
+            (0..1024 * 1024u32).into_par_iter().for_each(|i| {
                 batch
                     .put(i.to_be_bytes().into(), i.to_be_bytes().to_vec().into())
                     .unwrap();
@@ -78,7 +78,7 @@ fn full_cycle() -> Result<()> {
             Ok(())
         },
         |db| {
-            (0..1000 * 1024u32).into_par_iter().for_each(|i| {
+            (0..1024 * 1024u32).into_par_iter().for_each(|i| {
                 let Some(value) = db.get(&i.to_be_bytes()).unwrap() else {
                     panic!("Value not found");
                 };
@@ -90,13 +90,50 @@ fn full_cycle() -> Result<()> {
 
     test_case(
         &mut test_cases,
-        "Large keys and values",
+        "Big keys and values",
+        |batch| {
+            for i in 0..200u8 {
+                batch.put(vec![i; 10 * 1024], vec![i; 100 * 1024].into())?;
+            }
+            Ok(())
+        },
+        |db| {
+            for i in 0..200u8 {
+                let Some(value) = db.get(&vec![i; 10 * 1024])? else {
+                    panic!("Value not found");
+                };
+                assert_eq!(&*value, &vec![i; 100 * 1024]);
+            }
+            Ok(())
+        },
+    );
+
+    test_case(
+        &mut test_cases,
+        "Large keys and values (blob files)",
+        |batch| {
+            for i in 0..200u8 {
+                batch.put(vec![i; 1024], vec![i; 10 * 1024 * 1024].into())?;
+            }
+            Ok(())
+        },
+        |db| {
+            for i in 0..200u8 {
+                let Some(value) = db.get(&vec![i; 1024])? else {
+                    panic!("Value not found");
+                };
+                assert_eq!(&*value, &vec![i; 10 * 1024 * 1024]);
+            }
+            Ok(())
+        },
+    );
+
+    test_case(
+        &mut test_cases,
+        "Different sizes keys and values",
         |batch| {
             for i in 100..200u8 {
                 batch.put(vec![i; i as usize], vec![i; i as usize].into())?;
-            }
-            for i in 0..200u8 {
-                batch.put(vec![i; 1024], vec![i; 10 * 1024 * 1024].into())?;
             }
             Ok(())
         },
@@ -106,12 +143,6 @@ fn full_cycle() -> Result<()> {
                     panic!("Value not found");
                 };
                 assert_eq!(&*value, &vec![i; i as usize]);
-            }
-            for i in 0..200u8 {
-                let Some(value) = db.get(&vec![i; 1024])? else {
-                    panic!("Value not found");
-                };
-                assert_eq!(&*value, &vec![i; 10 * 1024 * 1024]);
             }
             Ok(())
         },
