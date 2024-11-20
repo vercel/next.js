@@ -750,11 +750,10 @@ impl DepGraph {
             graph_ix: &self.g.graph_ix,
             data,
         };
-        loop {
-            if !optimizer.merge_single_incoming_nodes(&mut condensed) {
-                break;
-            }
-        }
+
+        while optimizer.merge_single_incoming_nodes(&mut condensed)
+            || optimizer.merge_nodes_with_same_starting_point(&mut condensed)
+        {}
 
         let mut new_graph = InternedGraph::default();
 

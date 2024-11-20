@@ -1,7 +1,7 @@
 use std::ops::Index;
 
 use petgraph::{visit::EdgeRef, Direction, Graph};
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use turbo_tasks::FxIndexSet;
 
 use crate::tree_shake::graph::{Dependency, ItemData, ItemId, ItemIdGroupKind, ItemIdItemKind};
@@ -119,6 +119,78 @@ impl GraphOptimizer<'_> {
         for node in removed_nodes.into_iter().rev() {
             g.remove_node(node).expect("Node should exist");
 
+            did_work = true;
+        }
+
+        did_work
+    }
+
+    pub(super) fn merge_nodes_with_same_starting_point<N>(
+        &self,
+        g: &mut Graph<Vec<N>, Dependency>,
+    ) -> bool
+    where
+        N: Copy,
+        Self: Index<N, Output = ItemId>,
+    {
+        let mut did_work = false;
+        let mut nodes_to_merge = Vec::new();
+
+        for node in g.node_indices() {
+            let items = g.node_weight(node).expect("Node should exist");
+            for item in items {
+                let item_id = &self[*item];
+                if matches!(item_id, ItemId::Group(..)) {
+                    let incoming_edges: Vec<_> =
+                        g.edges_directed(node, Direction::Incoming).collect();
+                    if incoming_edges.len() == 1 && incoming_edges[0].source() == node {
+                        nodes_to_merge.push(node);
+                        break;
+                    }
+                }
+            }
+        }
+
+        for node in nodes_to_merge {
+            let mut dependencies = g
+                .edges_directed(node, Direction::Outgoing)
+                .map(|e| (e.target(), *e.weight()))
+                .collect::<Vec<_>>();
+
+            // Handle transitive dependencies
+            let mut visited = FxHashSet::default();
+            let mut stack = dependencies.clone();
+            while let Some((dependency, _weight)) = stack.pop() {
+                if visited.insert(dependency) {
+                    let transitive_deps = g
+                        .edges_directed(dependency, Direction::Outgoing)
+                        .map(|e| (e.target(), *e.weight()))
+                        .collect::<Vec<_>>();
+                    stack.extend(transitive_deps.clone());
+                    dependencies.extend(transitive_deps);
+                }
+            }
+
+            for (dependency, weight) in dependencies {
+                let edge = g
+                    .find_edge(node, dependency)
+                    .and_then(|e| g.edge_weight_mut(e));
+                match edge {
+                    Some(v) => {
+                        if matches!(v, Dependency::Weak) {
+                            *v = weight;
+                        }
+                    }
+                    None => {
+                        g.add_edge(node, dependency, weight);
+                    }
+                }
+            }
+
+            let items = g.node_weight(node).expect("Node should exist").clone();
+            g.node_weight_mut(node).unwrap().extend(items);
+
+            g.remove_node(node).expect("Node should exist");
             did_work = true;
         }
 
