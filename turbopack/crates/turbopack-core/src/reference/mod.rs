@@ -1,4 +1,4 @@
-use std::collections::{HashSet, VecDeque};
+use std::collections::HashSet;
 
 use anyhow::Result;
 use turbo_rcstr::RcStr;
@@ -9,7 +9,6 @@ use turbo_tasks::{
 
 use crate::{
     chunk::{ChunkableModuleReference, ChunkingType, ChunkingTypeOption},
-    issue::IssueDescriptionExt,
     module::{Module, Modules},
     output::{OutputAsset, OutputAssets},
     raw_module::RawModule,
@@ -266,31 +265,6 @@ pub async fn primary_referenced_modules(module: Vc<Box<dyn Module>>) -> Result<V
         .filter(|&module| set.insert(module))
         .collect();
     Ok(Vc::cell(modules))
-}
-
-/// Aggregates all [Module]s referenced by an [Module] including transitively
-/// referenced [Module]s. This basically gives all [Module]s in a subgraph
-/// starting from the passed [Module].
-#[turbo_tasks::function]
-pub async fn all_modules_and_affecting_sources(
-    asset: ResolvedVc<Box<dyn Module>>,
-) -> Result<Vc<Modules>> {
-    // TODO need to track import path here
-    let mut queue = VecDeque::with_capacity(32);
-    queue.push_back((asset, referenced_modules_and_affecting_sources(*asset)));
-    let mut assets = HashSet::new();
-    assets.insert(asset);
-    while let Some((parent, references)) = queue.pop_front() {
-        let references = references
-            .issue_file_path(parent.ident().path(), "expanding references of asset")
-            .await?;
-        for asset in references.await?.iter() {
-            if assets.insert(*asset) {
-                queue.push_back((*asset, referenced_modules_and_affecting_sources(**asset)));
-            }
-        }
-    }
-    Ok(Vc::cell(assets.into_iter().collect()))
 }
 
 /// Walks the asset graph from multiple assets and collect all referenced
