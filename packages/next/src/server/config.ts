@@ -1138,7 +1138,7 @@ export default async function loadConfig(
           // "module.register" is not supported on Node.js v19.
           if (semver.satisfies(nodeVersion, '19.x')) {
             throw new Error(
-              `${configErrorReason} is not supported on Node.js v19 (current: ${nodeVersion}). Please upgrade to Node.js 20 or higher.`
+              `${configErrorReason} is not supported on Node.js v19 (current: ${nodeVersion}). Please upgrade to Node.js 20.6.0 or higher.`
             )
           }
 
