@@ -1,0 +1,25 @@
+[package]
+name = "turbo-persistence"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[dependencies]
+anyhow = { workspace = true }
+pot = "3.0.0"
+byteorder = "1.5.0"
+lzzzz = "1.1.0"
+memmap2 = "0.9.5"
+parking_lot = { workspace = true }
+qfilter = { version = "0.2.1", features = ["serde"] }
+quick_cache = "0.6.9"
+rustc-hash = { workspace = true }
+serde = { workspace = true }
+thread_local = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3.14.0"
+rayon = { workspace = true }
+
+[lints]
+workspace = true
