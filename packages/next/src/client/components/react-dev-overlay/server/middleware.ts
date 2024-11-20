@@ -110,11 +110,7 @@ async function findOriginalSourcePositionAndContent(
   }
 }
 
-<<<<<<< HEAD
 export function getIgnoredSources(sourceMap: RawSourceMap): IgnoredSources {
-=======
-function getIgnoredSources(sourceMap: RawSourceMap): IgnoredSources {
->>>>>>> f34446dbae (add ignored sources)
   const ignoreList = new Set<number>()
   const moduleFilenames = sourceMap?.sources ?? []
 
