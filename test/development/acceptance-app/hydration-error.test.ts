@@ -443,7 +443,7 @@ describe('Error overlay for hydration errors in App router', () => {
             <ScrollAndFocusHandler segmentPath={[...]}>
               <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                 <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                  <LoadingBoundary hasLoading={false} loading={undefined} loadingStyles={undefined} loadingScripts={undefined}>
+                  <LoadingBoundary loading={null}>
                     <HTTPAccessFallbackBoundary notFound={[...]}>
                       <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} missingSlots={Set}>
                         <RedirectBoundary>
