@@ -593,6 +593,7 @@ export default abstract class Server<
         clientTraceMetadata: this.nextConfig.experimental.clientTraceMetadata,
         after: this.nextConfig.experimental.after ?? false,
         dynamicIO: this.nextConfig.experimental.dynamicIO ?? false,
+        inlineCss: this.nextConfig.experimental.inlineCss ?? false,
       },
       onInstrumentationRequestError:
         this.instrumentationOnRequestError.bind(this),
