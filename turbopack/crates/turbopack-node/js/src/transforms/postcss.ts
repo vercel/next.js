@@ -1,4 +1,4 @@
-declare const __turbopack_external_require__: (id: string) => any;
+declare const __turbopack_external_require__: (id: string, thunk: () => any, esm?: boolean) => any;
 
 // @ts-ignore
 import postcss from "@vercel/turbopack/postcss";
@@ -54,7 +54,7 @@ export const init = async (ipc: Ipc<IpcInfoMessage, IpcRequestMessage>) => {
       let pluginFactory = arg;
 
       if (typeof pluginFactory === "string") {
-        pluginFactory = __turbopack_external_require__(pluginFactory);
+        pluginFactory = require(/* turbopackIgnore: true */ pluginFactory);
       }
 
       if (pluginFactory.default) {
