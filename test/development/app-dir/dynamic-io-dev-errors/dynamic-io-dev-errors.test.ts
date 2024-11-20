@@ -67,12 +67,12 @@ describe('Dynamic IO Dev Errors', () => {
         `We don't have the exact line number added to error messages yet but you can see which component in the stack below. ` +
         `See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense` +
         '\n    at Page [Server] (<anonymous>)' +
-        // TODO(veil): Should be ignore-listed. Feel free to adjust the component name since it's Next.js internals.
-        '\n    at parallelRouterKey (' +
         (isTurbopack
-          ? 'node_modules'
-          : // TODO(veil): Why is this not pointing to n_m in Webpack?
-            '../')
+          ? // TODO(Veil): Should be sourcemapped
+            '\n    at InnerScrollAndFocusHandler (.next/'
+          : // TODO(veil): Should be ignore-listed
+            // TODO(veil): Why is this not pointing to n_m in Webpack?
+            '\n    at parallelRouterKey (..')
     )
 
     const description = await getRedboxDescription(browser)
