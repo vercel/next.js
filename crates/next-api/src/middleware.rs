@@ -284,9 +284,15 @@ impl Endpoint for MiddlewareEndpoint {
 
             // Middleware could in theory have a client path (e.g. `new URL`).
             let client_relative_root = this.project.client_relative_path();
-            let client_paths = all_paths_in_root(output_assets, client_relative_root)
-                .await?
-                .clone_value();
+            let client_paths = async {
+                anyhow::Ok(
+                    all_paths_in_root(output_assets, client_relative_root)
+                        .await?
+                        .clone_value(),
+                )
+            }
+            .instrument(tracing::info_span!("client_paths"))
+            .await?;
 
             Ok(WrittenEndpoint::Edge {
                 server_paths,

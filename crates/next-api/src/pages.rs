@@ -1278,9 +1278,15 @@ impl Endpoint for PageEndpoint {
                 .clone_value();
 
             let client_relative_root = this.pages_project.project().client_relative_path();
-            let client_paths = all_paths_in_root(output_assets, client_relative_root)
-                .await?
-                .clone_value();
+            let client_paths = async {
+                anyhow::Ok(
+                    all_paths_in_root(output_assets, client_relative_root)
+                        .await?
+                        .clone_value(),
+                )
+            }
+            .instrument(tracing::info_span!("client_paths"))
+            .await?;
 
             let node_root = &node_root.await?;
             let written_endpoint = match *output {
