@@ -320,9 +320,9 @@ export class ClientReferenceManifestPlugin {
           const source = compilation.assets[file].source()
           if (
             this.experimentalInlineCss &&
-            // Inline CSS currently does not work in Turbopack HMR, so we only inline
-            // CSS in production.
-            process.env.NODE_ENV === 'production'
+            // Inline CSS currently does not work properly with HMR, so we only
+            // inline CSS in production.
+            !this.dev
           ) {
             return {
               inlined: true,
