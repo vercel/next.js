@@ -573,6 +573,9 @@ impl From<&FreeVarReference> for JsValue {
     fn from(v: &FreeVarReference) -> Self {
         match v {
             FreeVarReference::Value(v) => v.into(),
+            FreeVarReference::Ident(_) => {
+                JsValue::unknown_empty(false, "compile time injected ident")
+            }
             FreeVarReference::EcmaScriptModule { .. } => {
                 JsValue::unknown_empty(false, "compile time injected free var module")
             }
