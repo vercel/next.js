@@ -1,6 +1,5 @@
 import { existsSync } from 'fs'
 import { readFile } from 'node:fs/promises'
-import { register } from 'node:module'
 import { basename, extname, join, relative, isAbsolute, resolve } from 'path'
 import { pathToFileURL } from 'url'
 import findUp from 'next/dist/compiled/find-up'
@@ -1115,16 +1114,35 @@ export default async function loadConfig(
         })
       } else {
         if (shouldRegisterLoader) {
-          // "module.register" is not supported on Node.js v19.
+          // TODO: Remove the version detects that passed the current minimum Node.js version.
           const nodeVersion = process.versions.node
+          const configErrorReason =
+            configFileName === 'next.config.mts'
+              ? configFileName
+              : `${configFileName} with Native ESM app (package.json type: module)`
+
+          // "module.register" was added in Node.js v18.19.0, v20.6.0
+          if (semver.lt(nodeVersion, '18.19.0')) {
+            throw new Error(
+              `${configErrorReason} requires Node.js 18.19.0 or higher (current: ${nodeVersion}).`
+            )
+          }
+          if (
+            semver.satisfies(nodeVersion, '20.x') &&
+            semver.lt(nodeVersion, '20.6.0')
+          ) {
+            throw new Error(
+              `${configErrorReason} requires Node.js 20.6.0 or higher (current: ${nodeVersion}).`
+            )
+          }
+          // "module.register" is not supported on Node.js v19.
           if (semver.satisfies(nodeVersion, '19.x')) {
             throw new Error(
-              `"${configFileName}" is not supported on Node.js v19 (current: ${nodeVersion}). To use "${configFileName}", please upgrade to Node.js 20 or later.`
+              `${configErrorReason} is not supported on Node.js v19 (current: ${nodeVersion}). Please upgrade to Node.js 20 or higher.`
             )
           }
 
-          // TODO(jiwon): can we deregister after loading the config?
-          register('../build/next-config-ts/loader.mjs', {
+          require('module').register('../build/next-config-ts/loader.mjs', {
             parentURL: pathToFileURL(__filename),
             // data is passed to the loader "initialize" function
             data: { cwd: dir },
