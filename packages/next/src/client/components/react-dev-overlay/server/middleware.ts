@@ -36,9 +36,7 @@ function shouldIgnorePath(modulePath: string): boolean {
   )
 }
 
-interface ModernRawSourceMap extends RawSourceMap {
-  ignoreList?: number[]
-}
+type IgnoredSources = Array<{ url: string; ignored: boolean }>
 
 export interface IgnorableStackFrame extends StackFrame {
   ignored: boolean
@@ -52,12 +50,14 @@ type SourceAttributes = {
 type Source =
   | {
       type: 'file'
-      sourceMap: ModernRawSourceMap
+      sourceMap: RawSourceMap
+      ignoredSources: IgnoredSources
       modulePath: string
     }
   | {
       type: 'bundle'
-      sourceMap: ModernRawSourceMap
+      sourceMap: RawSourceMap
+      ignoredSources: IgnoredSources
       compilation: webpack.Compilation
       moduleId: string
       modulePath: string
@@ -81,7 +81,7 @@ function getSourcePath(source: string) {
 }
 
 async function findOriginalSourcePositionAndContent(
-  sourceMap: ModernRawSourceMap,
+  sourceMap: RawSourceMap,
   position: { line: number; column: number | null }
 ): Promise<SourceAttributes | null> {
   const consumer = await new SourceMapConsumer(sourceMap)
@@ -110,6 +110,30 @@ async function findOriginalSourcePositionAndContent(
   }
 }
 
+function getIgnoredSources(sourceMap: RawSourceMap): IgnoredSources {
+  const ignoreList = new Set<number>()
+  const moduleFilenames = sourceMap?.sources ?? []
+
+  for (let index = 0; index < moduleFilenames.length; index++) {
+    // bundlerFilePath case: webpack://./app/page.tsx
+    const bundlerFilePath = moduleFilenames[index]
+    // Format the path to the normal file path
+    const formattedFilePath = formatFrameSourceFile(bundlerFilePath)
+    if (shouldIgnorePath(formattedFilePath)) {
+      ignoreList.add(index)
+    }
+  }
+
+  const ignoredSources = sourceMap.sources.map((source, index) => {
+    return {
+      url: source,
+      ignored: ignoreList.has(sourceMap.sources.indexOf(source)),
+      content: sourceMap.sourcesContent?.[index] ?? null,
+    }
+  })
+  return ignoredSources
+}
+
 function isIgnoredSource(
   source: Source,
   sourcePosition: MappedPosition | NullableMappedPosition
@@ -117,8 +141,8 @@ function isIgnoredSource(
   if (sourcePosition.source == null) {
     return true
   }
-  for (const ignoreIndex of source.sourceMap.ignoreList || []) {
-    if (source.sourceMap.sources[ignoreIndex] === sourcePosition.source) {
+  for (const ignoredSource of source.ignoredSources) {
+    if (ignoredSource.ignored && ignoredSource.url === sourcePosition.source) {
       return true
     }
   }
@@ -265,11 +289,11 @@ async function getSource(
 
   if (filename.startsWith('file:')) {
     const sourceMap = await getSourceMapFromFile(filename)
-
     return sourceMap
       ? {
           type: 'file',
           sourceMap,
+          ignoredSources: getIgnoredSources(sourceMap),
           modulePath: filename.replace(/^file:\/\//, ''),
         }
       : undefined
@@ -305,14 +329,14 @@ async function getSource(
     }
 
     if (sourceMap) {
-      const modernSourceMap = sourceMap as ModernRawSourceMap
-      modernSourceMap.ignoreList = ignoreList
+      const ignoredSources = getIgnoredSources(sourceMap)
       return {
         type: 'bundle',
-        sourceMap: modernSourceMap,
+        sourceMap,
         compilation,
         moduleId,
         modulePath,
+        ignoredSources,
       }
     }
   }
