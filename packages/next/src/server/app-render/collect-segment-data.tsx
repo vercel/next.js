@@ -23,6 +23,7 @@ import type { LoadingModuleData } from '../../shared/lib/app-router-context.shar
 // it can fetch any actual segment data.
 type RootTreePrefetch = {
   tree: TreePrefetch
+  head: React.ReactNode | null
   staleTime: number
 }
 
@@ -81,6 +82,16 @@ export async function collectSegmentData(
     await waitAtLeastOneReactRenderTask()
   } catch {}
 
+  // Create an abort controller that we'll use to stop the stream.
+  const abortController = new AbortController()
+  const onCompletedProcessingRouteTree = async () => {
+    // Since all we're doing is decoding and re-encoding a cached prerender, if
+    // serializing the stream takes longer than a microtask, it must because of
+    // hanging promises caused by dynamic data.
+    await waitAtLeastOneReactRenderTask()
+    abortController.abort()
+  }
+
   // Generate a stream for the route tree prefetch. While we're walking the
   // tree, we'll also spawn additional tasks to generate the segment prefetches.
   // The promises for these tasks are pushed to a mutable array that we will
@@ -97,13 +108,11 @@ export async function collectSegmentData(
       clientModules={clientModules}
       staleTime={staleTime}
       segmentTasks={segmentTasks}
+      onCompletedProcessingRouteTree={onCompletedProcessingRouteTree}
     />,
     clientModules,
     {
-      // Unlike when rendering the segment streams, we do not pass an abort
-      // controller here. There's nothing dynamic in the prefetch metadata; we
-      // will always render the result. We do still have to account for hanging
-      // promises, but we use a different strategy. See PrefetchTreeData.
+      signal: abortController.signal,
       onError() {
         // Ignore any errors. These would have already been reported when
         // we created the full page data.
@@ -131,12 +140,14 @@ async function PrefetchTreeData({
   clientModules,
   staleTime,
   segmentTasks,
+  onCompletedProcessingRouteTree,
 }: {
   fullPageDataBuffer: Buffer
   serverConsumerManifest: any
   clientModules: ManifestNode
   staleTime: number
   segmentTasks: Array<Promise<[string, Buffer]>>
+  onCompletedProcessingRouteTree: () => void
 }): Promise<RootTreePrefetch | null> {
   // We're currently rendering a Flight response for the route tree prefetch.
   // Inside this component, decode the Flight stream for the whole page. This is
@@ -161,6 +172,7 @@ async function PrefetchTreeData({
   }
   const flightRouterState: FlightRouterState = flightDataPaths[0][0]
   const seedData: CacheNodeSeedData = flightDataPaths[0][1]
+  const head: React.ReactNode | null = flightDataPaths[0][2]
 
   // Compute the route metadata tree by traversing the FlightRouterState. As we
   // walk the tree, we will also spawn a task to produce a prefetch response for
@@ -176,9 +188,15 @@ async function PrefetchTreeData({
     segmentTasks
   )
 
+  // Notify the abort controller that we're done processing the route tree.
+  // Anything async that happens after this point must be due to hanging
+  // promises in the original stream.
+  onCompletedProcessingRouteTree()
+
   // Render the route tree to a special `/_tree` segment.
   const treePrefetch: RootTreePrefetch = {
     tree,
+    head,
     staleTime,
   }
   return treePrefetch
