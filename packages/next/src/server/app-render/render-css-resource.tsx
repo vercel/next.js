@@ -36,12 +36,7 @@ export function renderCssResource(
       entryCssFile.path
     )}${getAssetQueryString(ctx, true)}`
 
-    if (
-      entryCssFile.inlined &&
-      // Inline CSS currently does not work in Turbopack HMR, so we only inline
-      // CSS in production.
-      process.env.NODE_ENV === 'production'
-    ) {
+    if (entryCssFile.inlined) {
       return (
         <style
           key={index}

@@ -16,6 +16,7 @@ use turbopack_ecmascript::utils::StringifyJs;
 
 use super::{ClientReferenceManifest, CssResource, ManifestNode, ManifestNodeEntry, ModuleId};
 use crate::{
+    mode::NextMode,
     next_app::ClientReferencesChunks,
     next_client_reference::{ClientReferenceGraphResult, ClientReferenceType},
     next_config::NextConfig,
@@ -37,6 +38,7 @@ impl ClientReferenceManifest {
         ssr_chunking_context: Option<Vc<Box<dyn ChunkingContext>>>,
         next_config: Vc<NextConfig>,
         runtime: NextRuntime,
+        mode: Vc<NextMode>,
     ) -> Result<Vc<Box<dyn OutputAsset>>> {
         let mut entry_manifest: ClientReferenceManifest = Default::default();
         let mut references = FxIndexSet::default();
@@ -271,7 +273,8 @@ impl ClientReferenceManifest {
                 }
             }
 
-            let inlined = next_config.await?.experimental.inline_css.unwrap_or(false);
+            let inlined = next_config.await?.experimental.inline_css.unwrap_or(false)
+                && mode.await?.is_production();
             let entry_css_files_vec = entry_css_files_with_chunk
                 .into_iter()
                 .map(|(path, chunk)| async {

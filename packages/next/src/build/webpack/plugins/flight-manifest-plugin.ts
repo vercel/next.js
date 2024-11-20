@@ -318,7 +318,12 @@ export class ClientReferenceManifestPlugin {
         .filter((f) => !f.startsWith('static/css/pages/') && f.endsWith('.css'))
         .map((file) => {
           const source = compilation.assets[file].source()
-          if (this.experimentalInlineCss) {
+          if (
+            this.experimentalInlineCss &&
+            // Inline CSS currently does not work in Turbopack HMR, so we only inline
+            // CSS in production.
+            process.env.NODE_ENV === 'production'
+          ) {
             return {
               inlined: true,
               path: file,
