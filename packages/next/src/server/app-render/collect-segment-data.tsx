@@ -9,7 +9,7 @@ import type { ManifestNode } from '../../build/webpack/plugins/flight-manifest-p
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { createFromReadableStream } from 'react-server-dom-webpack/client.edge'
 // eslint-disable-next-line import/no-extraneous-dependencies
-import { renderToReadableStream } from 'react-server-dom-webpack/server.edge'
+import { prerender } from 'react-server-dom-webpack/static.edge'
 
 import {
   streamFromBuffer,
@@ -86,7 +86,7 @@ export async function collectSegmentData(
   // The promises for these tasks are pushed to a mutable array that we will
   // await once the route tree is fully rendered.
   const segmentTasks: Array<Promise<[string, Buffer]>> = []
-  const treeStream = await renderToReadableStream(
+  const { prelude: treeStream } = await prerender(
     // RootTreePrefetch is not a valid return type for a React component, but
     // we need to use a component so that when we decode the original stream
     // inside of it, the side effects are transferred to the new stream.
@@ -144,7 +144,7 @@ async function PrefetchTreeData({
   // Float preloads) onto the Flight stream for the tree prefetch.
   // TODO: React needs a better way to do this. Needed for Server Actions, too.
   const initialRSCPayload: InitialRSCPayload = await createFromReadableStream(
-    streamFromBuffer(fullPageDataBuffer),
+    createUnclosingPrefetchStream(streamFromBuffer(fullPageDataBuffer)),
     {
       serverConsumerManifest,
     }
@@ -280,7 +280,7 @@ async function renderSegmentPrefetch(
   // caused by dynamic data. Abort the stream at the end of the current task.
   const abortController = new AbortController()
   waitAtLeastOneReactRenderTask().then(() => abortController.abort())
-  const segmentStream = await renderToReadableStream(
+  const { prelude: segmentStream } = await prerender(
     segmentPrefetch,
     clientModules,
     {
@@ -419,4 +419,37 @@ async function createSegmentAccessToken(
     .join('')
 
   return hashHex
+}
+
+function createUnclosingPrefetchStream(
+  originalFlightStream: ReadableStream<Uint8Array>
+): ReadableStream<Uint8Array> {
+  // When PPR is enabled, prefetch streams may contain references that never
+  // resolve, because that's how we encode dynamic data access. In the decoded
+  // object returned by the Flight client, these are reified into hanging
+  // promises that suspend during render, which is effectively what we want.
+  // The UI resolves when it switches to the dynamic data stream
+  // (via useDeferredValue(dynamic, static)).
+  //
+  // However, the Flight implementation currently errors if the server closes
+  // the response before all the references are resolved. As a cheat to work
+  // around this, we wrap the original stream in a new stream that never closes,
+  // and therefore doesn't error.
+  const reader = originalFlightStream.getReader()
+  return new ReadableStream({
+    async pull(controller) {
+      while (true) {
+        const { done, value } = await reader.read()
+        if (!done) {
+          // Pass to the target stream and keep consuming the Flight response
+          // from the server.
+          controller.enqueue(value)
+          continue
+        }
+        // The server stream has closed. Exit, but intentionally do not close
+        // the target stream.
+        return
+      }
+    },
+  })
 }
