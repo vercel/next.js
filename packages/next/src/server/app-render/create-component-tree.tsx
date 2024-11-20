@@ -22,7 +22,6 @@ import type { LoadingModuleData } from '../../shared/lib/app-router-context.shar
 import type { Params } from '../request/params'
 import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 import { OUTLET_BOUNDARY_NAME } from '../../lib/metadata/metadata-constants'
-import type { CssResource } from '../../build/webpack/plugins/flight-manifest-plugin'
 
 /**
  * Use the provided loader tree to create the React Component tree.
@@ -33,7 +32,7 @@ export function createComponentTree(props: {
   parentParams: Params
   rootLayoutIncluded: boolean
   firstItem?: boolean
-  injectedCSS: Set<CssResource>
+  injectedCSS: Set<string>
   injectedJS: Set<string>
   injectedFontPreloadTags: Set<string>
   getMetadataReady: () => Promise<void>
@@ -81,7 +80,7 @@ async function createComponentTreeInternal({
   parentParams: Params
   rootLayoutIncluded: boolean
   firstItem?: boolean
-  injectedCSS: Set<CssResource>
+  injectedCSS: Set<string>
   injectedJS: Set<string>
   injectedFontPreloadTags: Set<string>
   getMetadataReady: () => Promise<void>

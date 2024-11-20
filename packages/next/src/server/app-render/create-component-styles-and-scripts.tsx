@@ -4,7 +4,6 @@ import { getLinkAndScriptTags } from './get-css-inlined-link-tags'
 import type { AppRenderContext } from './app-render'
 import { getAssetQueryString } from './get-asset-query-string'
 import { encodeURIPath } from '../../shared/lib/encode-uri-path'
-import type { CssResource } from '../../build/webpack/plugins/flight-manifest-plugin'
 import { renderCssResource } from './render-css-resource'
 
 export async function createComponentStylesAndScripts({
@@ -16,7 +15,7 @@ export async function createComponentStylesAndScripts({
 }: {
   filePath: string
   getComponent: () => any
-  injectedCSS: Set<CssResource>
+  injectedCSS: Set<string>
   injectedJS: Set<string>
   ctx: AppRenderContext
 }): Promise<[React.ComponentType<any>, React.ReactNode, React.ReactNode]> {

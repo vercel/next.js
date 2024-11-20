@@ -21,7 +21,6 @@ import {
   addSearchParamsIfPageSegment,
 } from '../../shared/lib/segment'
 import { createComponentTree } from './create-component-tree'
-import type { CssResource } from '../../build/webpack/plugins/flight-manifest-plugin'
 
 /**
  * Use router state to decide at what common layout to render the page.
@@ -50,7 +49,7 @@ export async function walkTreeWithFlightRouterState({
   flightRouterState?: FlightRouterState
   parentRendered?: boolean
   rscPayloadHead: React.ReactNode
-  injectedCSS: Set<CssResource>
+  injectedCSS: Set<string>
   injectedJS: Set<string>
   injectedFontPreloadTags: Set<string>
   rootLayoutIncluded: boolean

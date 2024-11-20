@@ -5,7 +5,6 @@ import type { AppRenderContext } from './app-render'
 import { getAssetQueryString } from './get-asset-query-string'
 import { encodeURIPath } from '../../shared/lib/encode-uri-path'
 import type { PreloadCallbacks } from './types'
-import type { CssResource } from '../../build/webpack/plugins/flight-manifest-plugin'
 import { renderCssResource } from './render-css-resource'
 
 export function getLayerAssets({
@@ -17,7 +16,7 @@ export function getLayerAssets({
   preloadCallbacks,
 }: {
   layoutOrPagePath: string | undefined
-  injectedCSS: Set<CssResource>
+  injectedCSS: Set<string>
   injectedJS: Set<string>
   injectedFontPreloadTags: Set<string>
   ctx: AppRenderContext

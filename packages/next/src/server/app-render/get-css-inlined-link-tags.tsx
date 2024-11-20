@@ -10,7 +10,7 @@ import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 export function getLinkAndScriptTags(
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   filePath: string,
-  injectedCSS: Set<CssResource>,
+  injectedCSS: Set<string>,
   injectedScripts: Set<string>,
   collectNewImports?: boolean
 ): { styles: CssResource[]; scripts: string[] } {
@@ -24,12 +24,12 @@ export function getLinkAndScriptTags(
     clientReferenceManifest.entryJSFiles?.[filePathWithoutExt] ?? []
 
   if (entryCSSFiles) {
-    for (const file of entryCSSFiles) {
-      if (!injectedCSS.has(file)) {
+    for (const css of entryCSSFiles) {
+      if (!injectedCSS.has(css.path)) {
         if (collectNewImports) {
-          injectedCSS.add(file)
+          injectedCSS.add(css.path)
         }
-        cssChunks.add(file)
+        cssChunks.add(css)
       }
     }
   }
