@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { getRedboxHeader, retry } from 'next-test-utils'
+import { assertHasRedbox, getRedboxHeader, retry } from 'next-test-utils'
 
 describe('expireTag-rsc', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({
@@ -28,11 +28,10 @@ describe('expireTag-rsc', () => {
       await browser.elementByCss('#revalidate-via-page').click()
 
       if (isNextDev) {
-        await retry(async () => {
-          expect(await getRedboxHeader(browser)).toContain(
-            'Route /revalidate_via_page used "expireTag data"'
-          )
-        })
+        await assertHasRedbox(browser)
+        await expect(getRedboxHeader(browser)).resolves.toContain(
+          'Route /revalidate_via_page used "expireTag data"'
+        )
       } else {
         await retry(async () => {
           expect(
