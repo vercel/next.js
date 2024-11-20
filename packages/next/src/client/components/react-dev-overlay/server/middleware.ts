@@ -81,7 +81,7 @@ function getSourcePath(source: string) {
 }
 
 async function findOriginalSourcePositionAndContent(
-  sourceMap: ModernRawSourceMap,
+  sourceMap: RawSourceMap,
   position: { line: number; column: number | null }
 ): Promise<SourceAttributes | null> {
   const consumer = await new SourceMapConsumer(sourceMap)
@@ -110,7 +110,11 @@ async function findOriginalSourcePositionAndContent(
   }
 }
 
+<<<<<<< HEAD
 export function getIgnoredSources(sourceMap: RawSourceMap): IgnoredSources {
+=======
+function getIgnoredSources(sourceMap: RawSourceMap): IgnoredSources {
+>>>>>>> f34446dbae (add ignored sources)
   const ignoreList = new Set<number>()
   const moduleFilenames = sourceMap?.sources ?? []
 
