@@ -45,14 +45,13 @@ export function renderCssResource(
       return (
         <style
           key={index}
-          dangerouslySetInnerHTML={{
-            __html: entryCssFile.content,
-          }}
           nonce={ctx.nonce}
           // @ts-ignore
           precedence={precedence}
           href={fullHref}
-        />
+        >
+          {entryCssFile.content}
+        </style>
       )
     }
 
