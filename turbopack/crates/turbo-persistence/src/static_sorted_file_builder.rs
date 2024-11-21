@@ -13,7 +13,7 @@ use crate::{
     key::{HashKey, StoreKey},
     static_sorted_file::{
         BLOCK_TYPE_INDEX, BLOCK_TYPE_KEY, KEY_BLOCK_ENTRY_TYPE_BLOB, KEY_BLOCK_ENTRY_TYPE_DELETED,
-        KEY_BLOCK_ENTRY_TYPE_NORMAL,
+        KEY_BLOCK_ENTRY_TYPE_MEDIUM, KEY_BLOCK_ENTRY_TYPE_NORMAL,
     },
 };
 
@@ -82,7 +82,7 @@ impl StaticSortedFileBuilder {
             let key_remaining =
                 key_compression_dictionary_size - self.key_compression_dictionary.len();
             if value_remaining > 0 {
-                if let EntryValue::Small { value } = &entry.value {
+                if let EntryValue::Small { value } | EntryValue::Medium { value } = &entry.value {
                     let value = if value.len() <= COMPRESSION_DICTIONARY_SAMPLE_PER_ENTRY {
                         &value
                     } else {
@@ -132,43 +132,54 @@ impl StaticSortedFileBuilder {
         self.blocks.push((0, Vec::new()));
 
         // Store the locations of the values
-        let mut value_locations = Vec::with_capacity(entries.len());
+        let mut value_locations: Vec<(usize, usize)> = Vec::with_capacity(entries.len());
 
         // Split the values into blocks
         let mut current_block_start = 0;
         let mut current_block_count = 0;
         let mut current_block_size = 0;
         for (i, entry) in entries.iter().enumerate() {
-            if let EntryValue::Small { value } = &entry.value {
-                if current_block_size + value.len() > MAX_VALUE_BLOCK_SIZE
-                    || current_block_count + 1 >= MAX_VALUE_BLOCK_ENTRIES
-                {
-                    let mut block = Vec::with_capacity(current_block_size);
-                    for j in current_block_start..i {
-                        if let EntryValue::Small { value } = &entries[j].value {
-                            block.extend_from_slice(value);
+            match &entry.value {
+                EntryValue::Small { value } => {
+                    if current_block_size + value.len() > MAX_VALUE_BLOCK_SIZE
+                        || current_block_count + 1 >= MAX_VALUE_BLOCK_ENTRIES
+                    {
+                        let block_index = self.blocks.len();
+                        let mut block = Vec::with_capacity(current_block_size);
+                        for j in current_block_start..i {
+                            if let EntryValue::Small { value } = &entries[j].value {
+                                block.extend_from_slice(value);
+                                value_locations[j].0 = block_index;
+                            }
                         }
+                        self.blocks.push(self.compress_value_block(&block));
+                        current_block_start = i;
+                        current_block_size = 0;
+                        current_block_count = 0;
                     }
-                    self.blocks.push(self.compress_value_block(block));
-                    current_block_start = i;
-                    current_block_size = 0;
-                    current_block_count = 0;
+                    value_locations.push((0, current_block_size));
+                    current_block_size += value.len();
+                    current_block_count += 1;
                 }
-                value_locations.push((self.blocks.len(), current_block_size));
-                current_block_size += value.len();
-                current_block_count += 1;
-            } else {
-                value_locations.push((0, 0));
+                EntryValue::Medium { value } => {
+                    value_locations.push((self.blocks.len(), value.len()));
+                    self.blocks.push(self.compress_value_block(value));
+                }
+                _ => {
+                    value_locations.push((0, 0));
+                }
             }
         }
         if current_block_count > 0 {
+            let block_index = self.blocks.len();
             let mut block = Vec::with_capacity(current_block_size);
-            for entry in &entries[current_block_start..] {
-                if let EntryValue::Small { value } = &entry.value {
+            for j in current_block_start..entries.len() {
+                if let EntryValue::Small { value } = &entries[j].value {
                     block.extend_from_slice(value);
+                    value_locations[j].0 = block_index;
                 }
             }
-            self.blocks.push(self.compress_value_block(block));
+            self.blocks.push(self.compress_value_block(&block));
         }
 
         let mut key_block_boundaries = Vec::new();
@@ -188,6 +199,9 @@ impl StaticSortedFileBuilder {
                         value_location.1.try_into().unwrap(),
                         value.len().try_into().unwrap(),
                     );
+                }
+                EntryValue::Medium { .. } => {
+                    block.put_medium(&entry.key, value_location.0.try_into().unwrap());
                 }
                 EntryValue::Large { blob } => {
                     block.put_blob(&entry.key, *blob);
@@ -210,7 +224,7 @@ impl StaticSortedFileBuilder {
                     add_entry_to_block(entry, value_location, &mut block);
                 }
                 key_block_boundaries.push((self.blocks.len(), i - 1));
-                self.blocks.push(self.compress_key_block(block.finish()));
+                self.blocks.push(self.compress_key_block(&block.finish()));
                 current_block_size = 0;
                 current_block_start = i;
             }
@@ -224,7 +238,7 @@ impl StaticSortedFileBuilder {
                 add_entry_to_block(entry, value_location, &mut block);
             }
             key_block_boundaries.push((self.blocks.len(), entries.len() - 1));
-            self.blocks.push(self.compress_key_block(block.finish()));
+            self.blocks.push(self.compress_key_block(&block.finish()));
         }
 
         // Compute the index
@@ -235,15 +249,15 @@ impl StaticSortedFileBuilder {
         for (block, entry_index) in &key_block_boundaries[1..] {
             index_block.put(*block as u16, &entries[*entry_index].key);
         }
-        self.blocks[0] = self.compress_key_block(index_block.finish());
+        self.blocks[0] = self.compress_key_block(&index_block.finish());
     }
 
-    fn compress_block(&self, block: Vec<u8>, dict: &[u8]) -> (u32, Vec<u8>) {
+    fn compress_block(&self, block: &[u8], dict: &[u8]) -> (u32, Vec<u8>) {
         let mut compressor =
             lzzzz::lz4::Compressor::with_dict(dict).expect("LZ4 compressor creation failed");
         let mut compressed = Vec::with_capacity(max_compressed_size(block.len()));
         compressor
-            .next_to_vec(&block, &mut compressed, ACC_LEVEL_DEFAULT)
+            .next_to_vec(block, &mut compressed, ACC_LEVEL_DEFAULT)
             .expect("Compression failed");
         if compressed.capacity() > compressed.len() * 2 {
             compressed.shrink_to_fit();
@@ -251,11 +265,11 @@ impl StaticSortedFileBuilder {
         (block.len().try_into().unwrap(), compressed)
     }
 
-    fn compress_key_block(&self, block: Vec<u8>) -> (u32, Vec<u8>) {
+    fn compress_key_block(&self, block: &[u8]) -> (u32, Vec<u8>) {
         self.compress_block(block, &self.key_compression_dictionary)
     }
 
-    fn compress_value_block(&self, block: Vec<u8>) -> (u32, Vec<u8>) {
+    fn compress_value_block(&self, block: &[u8]) -> (u32, Vec<u8>) {
         self.compress_block(block, &self.value_compression_dictionary)
     }
 
@@ -339,6 +353,18 @@ impl KeyBlockBuilder {
         self.data.write_u16::<BE>(value_block).unwrap();
         self.data.write_u24::<BE>(value_size).unwrap();
         self.data.write_u32::<BE>(value_offset).unwrap();
+
+        self.current_entry += 1;
+    }
+
+    pub fn put_medium<K: StoreKey>(&mut self, key: K, value_block: u16) {
+        let pos = self.data.len() - self.header_size;
+        let header_offset = KEY_BLOCK_HEADER_SIZE + self.current_entry * 4;
+        let header = (pos as u32) | ((KEY_BLOCK_ENTRY_TYPE_MEDIUM as u32) << 24);
+        BE::write_u32(&mut self.data[header_offset..header_offset + 4], header);
+
+        key.write_to(&mut self.data);
+        self.data.write_u16::<BE>(value_block).unwrap();
 
         self.current_entry += 1;
     }

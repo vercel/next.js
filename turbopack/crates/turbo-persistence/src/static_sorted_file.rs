@@ -22,6 +22,7 @@ pub const BLOCK_TYPE_KEY: u8 = 1;
 pub const KEY_BLOCK_ENTRY_TYPE_NORMAL: u8 = 0;
 pub const KEY_BLOCK_ENTRY_TYPE_BLOB: u8 = 1;
 pub const KEY_BLOCK_ENTRY_TYPE_DELETED: u8 = 2;
+pub const KEY_BLOCK_ENTRY_TYPE_MEDIUM: u8 = 3;
 
 pub enum LookupResult {
     Deleted,
@@ -285,6 +286,9 @@ impl StaticSortedFile {
                 KEY_BLOCK_ENTRY_TYPE_NORMAL => {
                     (&entries[start..end - 9], ty, &entries[end - 9..end])
                 }
+                KEY_BLOCK_ENTRY_TYPE_MEDIUM => {
+                    (&entries[start..end - 2], ty, &entries[end - 2..end])
+                }
                 KEY_BLOCK_ENTRY_TYPE_BLOB => (&entries[start..end - 4], ty, &entries[end - 4..end]),
                 KEY_BLOCK_ENTRY_TYPE_DELETED => (&entries[start..end], ty, &entries[start..end]),
                 _ => {
@@ -325,8 +329,14 @@ impl StaticSortedFile {
                 let block = val.read_u16::<BE>()?;
                 let size = val.read_u24::<BE>()? as usize;
                 let position = val.read_u32::<BE>()? as usize;
-                let value =
-                    self.lookup_value_block(block, position, size, header, value_block_cache)?;
+                let value = self
+                    .get_value_block(block, header, value_block_cache)?
+                    .slice(position..position + size);
+                LookupResult::Small { value }
+            }
+            KEY_BLOCK_ENTRY_TYPE_MEDIUM => {
+                let block = val.read_u16::<BE>()?;
+                let value = self.get_value_block(block, header, value_block_cache)?;
                 LookupResult::Small { value }
             }
             KEY_BLOCK_ENTRY_TYPE_BLOB => {
@@ -340,11 +350,9 @@ impl StaticSortedFile {
         })
     }
 
-    fn lookup_value_block(
+    fn get_value_block(
         &self,
         block: u16,
-        position: usize,
-        size: usize,
         header: &Header,
         value_block_cache: &BlockCache,
     ) -> Result<ArcSlice<u8>> {
@@ -358,8 +366,7 @@ impl StaticSortedFile {
             }
             GuardResult::Timeout => unreachable!(),
         };
-        let value = block.slice(position..position + size);
-        Ok(value)
+        Ok(block)
     }
 
     fn read_key_block(&self, header: &Header, block_index: u16) -> Result<ArcSlice<u8>> {

@@ -1,4 +1,7 @@
 /// Values larger than this become blob files
+pub const MAX_MEDIUM_VALUE_SIZE: usize = 10 * 1024 * 1024;
+
+/// Values larger than this become separate value blocks
 pub const MAX_SMALL_VALUE_SIZE: usize = 1024 * 1024;
 
 // This value is chosen so the AQMF fits into 16bit length
