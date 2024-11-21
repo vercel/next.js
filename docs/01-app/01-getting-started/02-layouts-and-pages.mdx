@@ -5,9 +5,9 @@ description: Learn how to create layouts and pages in your Next.js application, 
 related:
   title: Learn more about the features mentioned in this page.
   links:
-    - /docs/app/api-reference/file-conventions/layout
-    - /docs/app/api-reference/file-conventions/page
-    - /docs/app/api-reference/components/link
+    - app/api-reference/file-conventions/layout
+    - app/api-reference/file-conventions/page
+    - app/api-reference/components/link
 ---
 
 Next.js uses **file-system based routing**, meaning you can use folders and files to define routes. This page will guide you through how to create layouts and pages, and link between them.
@@ -320,7 +320,7 @@ export default async function Post({ post }) {
 
 **Deep Dive: How navigation works in Next.js**
 
-Next.js uses a hybrid approach for navigation. On the server, your application code is automatically [code-split](#1-code-splitting) by route segments. On the client, Next.js [prefetches](#2-prefetching) and [caches](#3-caching) these segments. This means, when a user navigates to a new route, the browser rerenders only the segments that change and not the whole page - improving the navigation experience and performance.
+Next.js uses a hybrid approach for navigation. On the server, your application code is automatically [code-split](#1-code-splitting) by route segments. On the client, Next.js [prefetches](#2-prefetching) and [caches](#3-browser-caching) these segments. This means, when a user navigates to a new route, the browser rerenders only the segments that change and not the whole page - improving the navigation experience and performance.
 
 ### 1. Code Splitting
 
