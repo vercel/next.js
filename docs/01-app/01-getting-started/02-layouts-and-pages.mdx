@@ -1,0 +1,364 @@
+---
+title: How to create layouts and pages
+nav_title: Layouts and Pages
+description: Learn how to create layouts and pages in your Next.js application, and link between them.
+related:
+  title: Learn more about the features mentioned in this page.
+  links:
+    - /docs/app/api-reference/file-conventions/layout
+    - /docs/app/api-reference/file-conventions/page
+    - /docs/app/api-reference/components/link
+---
+
+Next.js uses **file-system based routing**, meaning you can use folders and files to define routes. This page will guide you through how to create layouts and pages, and link between them.
+
+## Creating a page
+
+A **page** is UI that is rendered on a specific route. To create a page, add a [`page` file](/docs/app/api-reference/file-conventions/page) inside the `app` directory and default export a React component. For example, to create an index page (`/`):
+
+<Image
+  alt="page.js special file"
+  srcLight="/docs/light/page-special-file.png"
+  srcDark="/docs/dark/page-special-file.png"
+  width="1600"
+  height="282"
+/>
+
+```tsx filename="app/page.tsx" switcher
+export default function Page() {
+  return <h1>Hello Next.js!</h1>
+}
+```
+
+```jsx filename="app/page.js" switcher
+export default function Page() {
+  return <h1>Hello Next.js!</h1>
+}
+```
+
+## Creating a layout
+
+A layout is UI that is **shared** between multiple pages. On navigation, layouts preserve state, remain interactive, and do not rerender.
+
+You can define a layout by default exporting a React component from a [`layout` file](/docs/app/api-reference/file-conventions/layout). The component should accept a `children` prop which can be a page or another [layout](#nesting-layouts).
+
+For example, to create a layout that accepts your index page as child, add a `layout` file inside the `app` directory:
+
+<Image
+  alt="layout.js special file"
+  srcLight="/docs/light/layout-special-file.png"
+  srcDark="/docs/dark/layout-special-file.png"
+  width="1600"
+  height="363"
+/>
+
+```tsx filename="app/layout.tsx" switcher
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html lang="en">
+      <body>
+        {/* Layout UI */}
+        {/* Place children where you want to render a page or nested layout */}
+        <main>{children}</main>
+      </body>
+    </html>
+  )
+}
+```
+
+```jsx filename="app/layout.js" switcher
+export default function DashboardLayout({ children }) {
+  return (
+    <html lang="en">
+      <body>
+        {/* Layout UI */}
+        {/* Place children where you want to render a page or nested layout */}
+        <main>{children}</main>
+      </body>
+    </html>
+  )
+}
+```
+
+The layout above is called a [root layout](#root-layout-required) because it is defined at the root of the `app` directory.
+
+### Root Layout (Required)
+
+The root layout is defined at the top level and wraps all routes. This layout is **required** and must contain `html` and `body` tags.
+
+## Creating a nested route
+
+---
+
+{/* TODO: Add Deep Dive Component */}
+
+**Deep Dive: Routing Terminology**
+
+The following routing terminology is used in the documentation, and may be helpful to understand how routing works in Next.js:
+
+<Image
+  alt="Terminology for Component Tree"
+  srcLight="/docs/light/terminology-component-tree.png"
+  srcDark="/docs/dark/terminology-component-tree.png"
+  width="1600"
+  height="832"
+/>
+
+- **Tree:** A convention for visualizing a hierarchical structure. For example, a component tree with parent and children components, a folder structure, etc.
+- **Subtree:** Part of a tree, starting at a new root (first) and ending at the leaves (last).
+- **Root**: The first node in a tree or subtree, such as a root layout.
+- **Leaf:** Nodes in a subtree that have no children, such as the last segment in a URL path.
+
+<Image
+  alt="Terminology for URL Anatomy"
+  srcLight="/docs/light/terminology-url-anatomy.png"
+  srcDark="/docs/dark/terminology-url-anatomy.png"
+  width="1600"
+  height="371"
+/>
+
+- **URL Segment:** Part of the URL path delimited by slashes.
+- **URL Path:** Part of the URL that comes after the domain (composed of segments).
+
+---
+
+A nested route is a route composed of multiple URL segments. For example, the `/blog/[slug]` route is composed of three segments:
+
+- `/` (Root Segment)
+- `blog` (Segment)
+- `[slug]` (Leaf Segment)
+
+In Next.js:
+
+- **Folders** are used to define the route segments that map to URL segments.
+- **Files** (like `page` and `layout`) are used to create UI that is shown for a segment.
+
+To create nested routes, you can nest folders inside each other. For example, to add a route for `/blog`, create a folder called `blog` in the `app` directory. Then, to make `/blog` publicly accessible, add a `page` file:
+
+<Image
+  alt="File hierarchy showing blog folder and a page.js file"
+  srcLight="/docs/light/blog-nested-route.png"
+  srcDark="/docs/dark/blog-nested-route.png"
+  width="1600"
+  height="525"
+/>
+
+```tsx filename="app/blog/page.tsx" switcher
+import { getPosts } from '@/lib/posts'
+import { Post } from '@/ui/post'
+
+export default async function Page() {
+  const posts = await getPosts()
+
+  return (
+    <ul>
+      {posts.map((post) => (
+        <Post key={post.id} post={post} />
+      ))}
+    </ul>
+  )
+}
+```
+
+```jsx filename="app/blog/[slug]/page.js" switcher
+import { getPosts } from '@/lib/posts'
+import { Post } from '@/ui/post'
+
+export default async function Page() {
+  const posts = await getPosts()
+
+  return (
+    <ul>
+      {posts.map((post) => (
+        <Post key={post.id} post={post} />
+      ))}
+    </ul>
+  )
+}
+```
+
+You can continue nesting folders to create nested routes. For example, to create a route for a specific blog post, create a new `[slug]` folder inside `blog` and add a `page` file:
+
+<Image
+  alt="File hierarchy showing blog folder with a nested slug folder and a page.js file"
+  srcLight="/docs/light/blog-post-nested-route.png"
+  srcDark="/docs/dark/blog-post-nested-route.png"
+  width="1600"
+  height="687"
+/>
+
+```tsx filename="app/blog/[slug]/page.tsx" switcher
+function generateStaticParams() {}
+
+export default function Page() {
+  return <h1>Hello, Blog Post Page!</h1>
+}
+```
+
+```jsx filename="app/blog/[slug]/page.js" switcher
+function generateStaticParams() {}
+
+export default function Page() {
+  return <h1>Hello, Blog Post Page!</h1>
+}
+```
+
+> **Good to know**: Wrapping a folder name in square brackets (e.g. `[slug]`) creates a special **dynamic route segment** used to generate multiple pages from data. This is useful for blog posts, product pages, etc. Learn more about [dynamic segments](/docs/app/building-your-application/routing/dynamic-routes).
+
+### Nesting layouts
+
+By default, layouts in the folder hierarchy are also nested, which means they wrap child layouts via their `children` prop. You can nest layouts by adding `layout` inside specific route segments (folders).
+
+For example, to create a layout for the `/blog` route, add a new `layout` file inside the `blog` folder.
+
+<Image
+  alt="File hierarchy showing root layout wrapping the blog layout"
+  srcLight="/docs/light/nested-layouts.png"
+  srcDark="/docs/dark/nested-layouts.png"
+  width="1600"
+  height="768"
+/>
+
+```tsx filename="app/blog/layout.tsx" switcher
+export default function BlogLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return <section>{children}</section>
+}
+```
+
+```jsx filename="app/blog/layout.js" switcher
+export default function BlogLayout({ children }) {
+  return <section>{children}</section>
+}
+```
+
+If you were to combine the two layouts above, the root layout (`app/layout.js`) would wrap the blog layout (`app/blog/layout.js`), which would wrap the blog (`app/blog/page.js`) and blog post page (`app/blog/[slug]/page.js`).
+
+---
+
+**Deep Dive: Component Hierarchy**
+
+The React components defined in special files of a route segment are rendered in a specific hierarchy:
+
+- `layout.js`
+- `template.js`
+- `error.js` (React error boundary)
+- `loading.js` (React suspense boundary)
+- `not-found.js` (React error boundary)
+- `page.js` or nested `layout.js`
+
+<Image
+  alt="Component Hierarchy for File Conventions"
+  srcLight="/docs/light/file-conventions-component-hierarchy.png"
+  srcDark="/docs/dark/file-conventions-component-hierarchy.png"
+  width="1600"
+  height="643"
+/>
+
+In a nested route, the components of a segment will be nested **inside** the components of its parent segment.
+
+<Image
+  alt="Nested File Conventions Component Hierarchy"
+  srcLight="/docs/light/nested-file-conventions-component-hierarchy.png"
+  srcDark="/docs/dark/nested-file-conventions-component-hierarchy.png"
+  width="1600"
+  height="863"
+/>
+
+## Linking between pages
+
+You can use the [`<Link>` component](/docs/app/api-reference/components/link) to navigate between routes. `<Link>` is a built-in Next.js component that extends the HTML `<a>` tag to provide [prefetching](#2-prefetching) and [client-side navigation](#5-client-side-navigation).
+
+For example, to generate a list of blog posts, import `<Link>` from `next/link` and pass a `href` prop to the component:
+
+```tsx filename="app/ui/post.tsx" highlight={1,6} switcher
+import Link from 'next/link'
+
+export default async function Post({ post }) {
+  const posts = await getPosts()
+
+  return (
+    <ul>
+      {posts.map((post) => (
+        <li key={post.slug}>
+          <Link href={`/blog/${post.slug}`}>{post.title}</Link>
+        </li>
+      ))}
+    </ul>
+  )
+}
+```
+
+```jsx filename="app/ui/post.js" highlight={1,6}  switcher
+import Link from 'next/link'
+
+export default async function Post({ post }) {
+  const posts = await getPosts()
+
+  return (
+    <ul>
+      {posts.map((post) => (
+        <li key={post.slug}>
+          <Link href={`/blog/${post.slug}`}>{post.title}</Link>
+        </li>
+      ))}
+    </ul>
+  )
+}
+```
+
+`<Link>` is the primary and recommended way to navigate between routes in your Next.js application. However, you can also use the [`useRouter` hook](/docs/app/api-reference/functions/use-router) for more advanced navigation.
+
+{/* TODO: Add Deep Dive Component */}
+
+**Deep Dive: How navigation works in Next.js**
+
+Next.js uses a hybrid approach for navigation. On the server, your application code is automatically [code-split](#1-code-splitting) by route segments. On the client, Next.js [prefetches](#2-prefetching) and [caches](#3-caching) these segments. This means, when a user navigates to a new route, the browser rerenders only the segments that change and not the whole page - improving the navigation experience and performance.
+
+### 1. Code Splitting
+
+Code splitting allows you to split your application code into smaller bundles to be downloaded and executed by the browser. With [React Server Components (RSC)](https://react.dev/reference/rsc/server-component), your application code is automatically code-split by route segments. This means only the code needed for the current route is loaded on navigation, reducing the amount of data transferred and execution time for each request.
+
+### 2. Prefetching
+
+Prefetching preloads routes in the background before users visit them. In Next.js, there are two ways routes are prefetched:
+
+- **`<Link>` component**: Route segments are automatically prefetched when links appear in the user's viewport, either during the initial page load or when they come into view through scrolling. Learn how to configure the prefetching behavior.
+- **`router.prefetch()`**: Allows you programatically prefetch routes.
+
+### 3. Browser Caching
+
+The RSC Payload of prefetched route segments and visited routes are stored in the browser cache. This avoid unecessary trips to the server on navigation.
+
+### 4. Partial Rendering
+
+On navigation, the browser cache is reused as much as possible. Partial rendering means only the route segments that change on navigation re-render on the client, and any shared segments are preserved.
+
+For example, when navigating between two sibling routes, `/blog/a` and `/blog/b`, page `a` will be unmounted, page `b` will be mounted with fresh state, and the shared `blog` layout will be preserved.
+
+{/* TODO: Update diagram */}
+
+<Image
+  alt="How partial rendering works"
+  srcLight="/docs/light/partial-rendering.png"
+  srcDark="/docs/dark/partial-rendering.png"
+  width="1600"
+  height="945"
+/>
+
+Without partial rendering, each navigation would cause the full page to re-render on the client. Rendering only the segment that changes reduces the amount of data transferred and execution time, leading to improved performance.
+
+### 5. Client-side navigation
+
+Browsers perform a "hard navigation" when navigating between pages. But Next.js enables "soft navigation" between pages. This enables client state in the layouts to be preserved during navigation.
+
+### 6. Back and forward navigation and scroll position
+
+By default, Next.js will maintain the scroll position for backwards and forwards navigation.
