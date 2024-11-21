@@ -1,5 +1,6 @@
 use std::{
     borrow::{Borrow, Cow},
+    cmp::max,
     collections::hash_map::Entry,
     sync::Arc,
 };
@@ -14,9 +15,24 @@ use crate::{
     backend::{AnyOperation, TaskDataCategory},
     backing_storage::BackingStorage,
     data::{CachedDataItem, CachedDataItemKey, CachedDataItemValue, CachedDataUpdate},
-    database::key_value_database::{KeySpace, KeyValueDatabase, WriteBatch},
+    database::{
+        key_value_database::{KeySpace, KeyValueDatabase},
+        write_batch::{
+            BaseWriteBatch, ConcurrentWriteBatch, SerialWriteBatch, WriteBatch, WriteBatchRef,
+        },
+    },
     utils::chunked_vec::ChunkedVec,
 };
+
+const POT_CONFIG: pot::Config = pot::Config::new().compatibility(pot::Compatibility::V4);
+
+fn pot_ser_symbol_map() -> pot::ser::SymbolMap {
+    pot::ser::SymbolMap::new().with_compatibility(pot::Compatibility::V4)
+}
+
+fn pot_de_symbol_list<'l>() -> pot::de::SymbolList<'l> {
+    pot::de::SymbolList::new()
+}
 
 const META_KEY_OPERATIONS: u32 = 0;
 const META_KEY_NEXT_FREE_TASK_ID: u32 = 1;
@@ -26,7 +42,7 @@ struct IntKey([u8; 4]);
 
 impl IntKey {
     fn new(value: u32) -> Self {
-        Self(value.to_be_bytes())
+        Self(value.to_le_bytes())
     }
 }
 
@@ -37,7 +53,7 @@ impl AsRef<[u8]> for IntKey {
 }
 
 fn as_u32(bytes: impl Borrow<[u8]>) -> Result<u32> {
-    let n = u32::from_be_bytes(bytes.borrow().try_into()?);
+    let n = u32::from_le_bytes(bytes.borrow().try_into()?);
     Ok(n)
 }
 
@@ -106,7 +122,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
             else {
                 return Ok(Vec::new());
             };
-            let operations = pot::from_slice(operations.borrow())?;
+            let operations = POT_CONFIG.deserialize(operations.borrow())?;
             Ok(operations)
         }
         get(&self.database).unwrap_or_default()
@@ -120,143 +136,208 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
         meta_updates: Vec<ChunkedVec<CachedDataUpdate>>,
         data_updates: Vec<ChunkedVec<CachedDataUpdate>>,
     ) -> Result<()> {
-        let span = tracing::trace_span!("save snapshot", session_id = ?session_id, operations = operations.len(), db_operation_count = tracing::field::Empty);
-        let mut op_count = 0;
+        let _span = tracing::trace_span!("save snapshot", session_id = ?session_id, operations = operations.len());
         let mut batch = self.database.write_batch()?;
         let mut task_meta_items_result = Ok(Vec::new());
         let mut task_data_items_result = Ok(Vec::new());
 
-        turbo_tasks::scope(|s| {
-            // Start organizing the updates in parallel
-            s.spawn(|_| {
-                task_meta_items_result =
-                    process_task_data(&self.database, KeySpace::TaskMeta, meta_updates);
-            });
-            s.spawn(|_| {
-                task_data_items_result =
-                    process_task_data(&self.database, KeySpace::TaskData, data_updates);
-            });
+        // Start organizing the updates in parallel
+        match &mut batch {
+            WriteBatch::Concurrent(ref batch, _) => {
+                turbo_tasks::scope(|s| {
+                    s.spawn(|_| {
+                        let _span = tracing::trace_span!("update task meta").entered();
+                        task_meta_items_result = process_task_data(
+                            &self.database,
+                            KeySpace::TaskMeta,
+                            meta_updates,
+                            Some(batch),
+                        );
+                    });
+                    s.spawn(|_| {
+                        let _span = tracing::trace_span!("update task data").entered();
+                        task_data_items_result = process_task_data(
+                            &self.database,
+                            KeySpace::TaskData,
+                            data_updates,
+                            Some(batch),
+                        );
+                    });
 
-            {
-                let _span =
-                    tracing::trace_span!("update session id", session_id = ?session_id).entered();
-                batch
-                    .put(
-                        KeySpace::Infra,
-                        Cow::Borrowed(IntKey::new(META_KEY_SESSION_ID).as_ref()),
-                        Cow::Borrowed(&session_id.to_be_bytes()),
-                    )
-                    .with_context(|| anyhow!("Unable to write next session id"))?;
-            }
+                    let mut next_task_id =
+                        get_next_free_task_id::<
+                            T::SerialWriteBatch<'_>,
+                            T::ConcurrentWriteBatch<'_>,
+                        >(&mut WriteBatchRef::concurrent(batch))?;
 
-            let mut next_task_id = match batch.get(
-                KeySpace::Infra,
-                IntKey::new(META_KEY_NEXT_FREE_TASK_ID).as_ref(),
-            )? {
-                Some(bytes) => u32::from_be_bytes(bytes.borrow().try_into()?),
-                None => 1,
-            };
-            {
-                let _span = tracing::trace_span!(
-                    "update task cache",
-                    items = task_cache_updates.iter().map(|m| m.len()).sum::<usize>()
-                )
-                .entered();
-                for (task_type, task_id) in task_cache_updates.into_iter().flatten() {
-                    let task_id = *task_id;
-                    let task_type_bytes = pot::to_vec(&*task_type).with_context(|| {
-                        anyhow!("Unable to serialize task cache key {task_type:?}")
-                    })?;
-                    #[cfg(feature = "verify_serialization")]
                     {
-                        let deserialize: Result<CachedTaskType, _> =
-                            serde_path_to_error::deserialize(
-                                &mut pot::de::SymbolList::new()
-                                    .deserializer_for_slice(&task_type_bytes)?,
-                            );
-                        if let Err(err) = deserialize {
-                            println!(
-                                "Task type would not be deserializable {task_id}: \
-                                 {err:?}\n{task_type:#?}"
-                            );
-                            panic!("Task type would not be deserializable {task_id}: {err:?}");
+                        let _span = tracing::trace_span!(
+                            "update task cache",
+                            items = task_cache_updates.iter().map(|m| m.len()).sum::<usize>()
+                        )
+                        .entered();
+                        let result = task_cache_updates
+                            .into_par_iter()
+                            .map(|updates| {
+                                let mut max_task_id = 0;
+
+                                let mut task_type_bytes = Vec::new();
+                                for (task_type, task_id) in updates {
+                                    let task_id: u32 = *task_id;
+                                    serialize_task_type(&task_type, &mut task_type_bytes, task_id)?;
+
+                                    batch
+                                        .put(
+                                            KeySpace::ForwardTaskCache,
+                                            Cow::Borrowed(&task_type_bytes),
+                                            Cow::Borrowed(&task_id.to_le_bytes()),
+                                        )
+                                        .with_context(|| {
+                                            anyhow!(
+                                                "Unable to write task cache {task_type:?} => \
+                                                 {task_id}"
+                                            )
+                                        })?;
+                                    batch
+                                        .put(
+                                            KeySpace::ReverseTaskCache,
+                                            Cow::Borrowed(IntKey::new(task_id).as_ref()),
+                                            Cow::Borrowed(&task_type_bytes),
+                                        )
+                                        .with_context(|| {
+                                            anyhow!(
+                                                "Unable to write task cache {task_id} => \
+                                                 {task_type:?}"
+                                            )
+                                        })?;
+                                    max_task_id = max_task_id.max(task_id + 1);
+                                }
+
+                                Ok(max_task_id)
+                            })
+                            .reduce(
+                                || Ok(0),
+                                |a, b| -> anyhow::Result<_> {
+                                    let a_max = a?;
+                                    let b_max = b?;
+                                    Ok(max(a_max, b_max))
+                                },
+                            )?;
+                        next_task_id = next_task_id.max(result);
+                    }
+
+                    save_infra::<T::SerialWriteBatch<'_>, T::ConcurrentWriteBatch<'_>>(
+                        &mut WriteBatchRef::concurrent(batch),
+                        next_task_id,
+                        session_id,
+                        operations,
+                    )?;
+                    anyhow::Ok(())
+                })?;
+
+                task_meta_items_result?;
+                task_data_items_result?;
+            }
+            WriteBatch::Serial(batch) => {
+                turbo_tasks::scope(|s| {
+                    s.spawn(|_| {
+                        task_meta_items_result = process_task_data(
+                            &self.database,
+                            KeySpace::TaskMeta,
+                            meta_updates,
+                            None::<&T::ConcurrentWriteBatch<'_>>,
+                        );
+                    });
+                    s.spawn(|_| {
+                        task_data_items_result = process_task_data(
+                            &self.database,
+                            KeySpace::TaskData,
+                            data_updates,
+                            None::<&T::ConcurrentWriteBatch<'_>>,
+                        );
+                    });
+
+                    let mut next_task_id =
+                        get_next_free_task_id::<
+                            T::SerialWriteBatch<'_>,
+                            T::ConcurrentWriteBatch<'_>,
+                        >(&mut WriteBatchRef::serial(batch))?;
+
+                    {
+                        let _span = tracing::trace_span!(
+                            "update task cache",
+                            items = task_cache_updates.iter().map(|m| m.len()).sum::<usize>()
+                        )
+                        .entered();
+                        let mut task_type_bytes = Vec::new();
+                        for (task_type, task_id) in task_cache_updates.into_iter().flatten() {
+                            let task_id = *task_id;
+                            serialize_task_type(&task_type, &mut task_type_bytes, task_id)?;
+
+                            batch
+                                .put(
+                                    KeySpace::ForwardTaskCache,
+                                    Cow::Borrowed(&task_type_bytes),
+                                    Cow::Borrowed(&task_id.to_le_bytes()),
+                                )
+                                .with_context(|| {
+                                    anyhow!("Unable to write task cache {task_type:?} => {task_id}")
+                                })?;
+                            batch
+                                .put(
+                                    KeySpace::ReverseTaskCache,
+                                    Cow::Borrowed(IntKey::new(task_id).as_ref()),
+                                    Cow::Borrowed(&task_type_bytes),
+                                )
+                                .with_context(|| {
+                                    anyhow!("Unable to write task cache {task_id} => {task_type:?}")
+                                })?;
+                            next_task_id = next_task_id.max(task_id + 1);
                         }
                     }
 
-                    batch
-                        .put(
-                            KeySpace::ForwardTaskCache,
-                            Cow::Borrowed(&task_type_bytes),
-                            Cow::Borrowed(&task_id.to_be_bytes()),
-                        )
-                        .with_context(|| {
-                            anyhow!("Unable to write task cache {task_type:?} => {task_id}")
-                        })?;
-                    batch
-                        .put(
-                            KeySpace::ReverseTaskCache,
-                            Cow::Borrowed(IntKey::new(task_id).as_ref()),
-                            Cow::Borrowed(&task_type_bytes),
-                        )
-                        .with_context(|| {
-                            anyhow!("Unable to write task cache {task_id} => {task_type:?}")
-                        })?;
-                    op_count += 2;
-                    next_task_id = next_task_id.max(task_id + 1);
-                }
-                batch
-                    .put(
-                        KeySpace::Infra,
-                        Cow::Borrowed(IntKey::new(META_KEY_NEXT_FREE_TASK_ID).as_ref()),
-                        Cow::Borrowed(&next_task_id.to_be_bytes()),
-                    )
-                    .with_context(|| anyhow!("Unable to write next free task id"))?;
-            }
-            {
-                let _span =
-                    tracing::trace_span!("update operations", operations = operations.len())
-                        .entered();
-                let operations = pot::to_vec(&operations)
-                    .with_context(|| anyhow!("Unable to serialize operations"))?;
-                batch
-                    .put(
-                        KeySpace::Infra,
-                        Cow::Borrowed(IntKey::new(META_KEY_OPERATIONS).as_ref()),
-                        operations.into(),
-                    )
-                    .with_context(|| anyhow!("Unable to write operations"))?;
-                op_count += 2;
-            }
+                    save_infra::<T::SerialWriteBatch<'_>, T::ConcurrentWriteBatch<'_>>(
+                        &mut WriteBatchRef::serial(batch),
+                        next_task_id,
+                        session_id,
+                        operations,
+                    )?;
+                    anyhow::Ok(())
+                })?;
 
-            anyhow::Ok(())
-        })?;
-
-        for (key_space, task_items) in [
-            (KeySpace::TaskMeta, task_meta_items_result?),
-            (KeySpace::TaskData, task_data_items_result?),
-        ] {
-            {
-                let _span =
-                    tracing::trace_span!("update task data", tasks = task_items.len()).entered();
-                for (task_id, value) in task_items.into_iter().flatten() {
-                    batch
-                        .put(
-                            key_space,
-                            Cow::Borrowed(IntKey::new(*task_id).as_ref()),
-                            value.into(),
-                        )
-                        .with_context(|| anyhow!("Unable to write data items for {task_id}"))?;
-                    op_count += 1;
+                let jobs = [
+                    (
+                        KeySpace::TaskMeta,
+                        tracing::trace_span!("update task meta"),
+                        task_meta_items_result?,
+                    ),
+                    (
+                        KeySpace::TaskData,
+                        tracing::trace_span!("update task data"),
+                        task_data_items_result?,
+                    ),
+                ];
+                for (key_space, span, task_items) in jobs {
+                    let _span = span.entered();
+                    for (task_id, value) in task_items.into_iter().flatten() {
+                        batch
+                            .put(
+                                key_space,
+                                Cow::Borrowed(IntKey::new(*task_id).as_ref()),
+                                value.into(),
+                            )
+                            .with_context(|| anyhow!("Unable to write data items for {task_id}"))?;
+                    }
                 }
             }
         }
+
         {
             let _span = tracing::trace_span!("commit").entered();
             batch
                 .commit()
                 .with_context(|| anyhow!("Unable to commit operations"))?;
         }
-        span.record("db_operation_count", op_count);
         Ok(())
     }
 
@@ -274,12 +355,12 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
             tx: &D::ReadTransaction<'_>,
             task_type: &CachedTaskType,
         ) -> Result<Option<TaskId>> {
-            let task_type = pot::to_vec(task_type)?;
+            let task_type = POT_CONFIG.serialize(task_type)?;
             let Some(bytes) = database.get(tx, KeySpace::ForwardTaskCache, &task_type)? else {
                 return Ok(None);
             };
             let bytes = bytes.borrow().try_into()?;
-            let id = TaskId::from(u32::from_be_bytes(bytes));
+            let id = TaskId::from(u32::from_le_bytes(bytes));
             Ok(Some(id))
         }
         let id = self
@@ -307,7 +388,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
             else {
                 return Ok(None);
             };
-            Ok(Some(pot::from_slice(bytes.borrow())?))
+            Ok(Some(POT_CONFIG.deserialize(bytes.borrow())?))
         }
         let result = self
             .with_tx(tx, |tx| lookup(&self.database, tx, task_id))
@@ -340,7 +421,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
             else {
                 return Ok(Vec::new());
             };
-            let result: Vec<CachedDataItem> = pot::from_slice(bytes.borrow())?;
+            let result: Vec<CachedDataItem> = POT_CONFIG.deserialize(bytes.borrow())?;
             Ok(result)
         }
         self.with_tx(tx, |tx| lookup(&self.database, tx, task_id, category))
@@ -349,12 +430,99 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
     }
 }
 
+fn get_next_free_task_id<'a, S, C>(
+    batch: &mut WriteBatchRef<'_, 'a, S, C>,
+) -> Result<u32, anyhow::Error>
+where
+    S: SerialWriteBatch<'a>,
+    C: ConcurrentWriteBatch<'a>,
+{
+    Ok(
+        match batch.get(
+            KeySpace::Infra,
+            IntKey::new(META_KEY_NEXT_FREE_TASK_ID).as_ref(),
+        )? {
+            Some(bytes) => u32::from_le_bytes(Borrow::<[u8]>::borrow(&bytes).try_into()?),
+            None => 1,
+        },
+    )
+}
+
+fn save_infra<'a, S, C>(
+    batch: &mut WriteBatchRef<'_, 'a, S, C>,
+    next_task_id: u32,
+    session_id: SessionId,
+    operations: Vec<Arc<AnyOperation>>,
+) -> Result<(), anyhow::Error>
+where
+    S: SerialWriteBatch<'a>,
+    C: ConcurrentWriteBatch<'a>,
+{
+    {
+        batch
+            .put(
+                KeySpace::Infra,
+                Cow::Borrowed(IntKey::new(META_KEY_NEXT_FREE_TASK_ID).as_ref()),
+                Cow::Borrowed(&next_task_id.to_le_bytes()),
+            )
+            .with_context(|| anyhow!("Unable to write next free task id"))?;
+    }
+    {
+        let _span = tracing::trace_span!("update session id", session_id = ?session_id).entered();
+        batch
+            .put(
+                KeySpace::Infra,
+                Cow::Borrowed(IntKey::new(META_KEY_SESSION_ID).as_ref()),
+                Cow::Borrowed(&session_id.to_le_bytes()),
+            )
+            .with_context(|| anyhow!("Unable to write next session id"))?;
+    }
+    {
+        let _span =
+            tracing::trace_span!("update operations", operations = operations.len()).entered();
+        let operations = POT_CONFIG
+            .serialize(&operations)
+            .with_context(|| anyhow!("Unable to serialize operations"))?;
+        batch
+            .put(
+                KeySpace::Infra,
+                Cow::Borrowed(IntKey::new(META_KEY_OPERATIONS).as_ref()),
+                operations.into(),
+            )
+            .with_context(|| anyhow!("Unable to write operations"))?;
+    }
+    Ok(())
+}
+
+fn serialize_task_type(
+    task_type: &Arc<CachedTaskType>,
+    mut task_type_bytes: &mut Vec<u8>,
+    task_id: u32,
+) -> Result<()> {
+    task_type_bytes.clear();
+    POT_CONFIG
+        .serialize_into(&**task_type, &mut task_type_bytes)
+        .with_context(|| anyhow!("Unable to serialize task {task_id} cache key {task_type:?}"))?;
+    #[cfg(feature = "verify_serialization")]
+    {
+        let deserialize: Result<CachedTaskType, _> = serde_path_to_error::deserialize(
+            &mut pot_de_symbol_list().deserializer_for_slice(&*task_type_bytes)?,
+        );
+        if let Err(err) = deserialize {
+            println!("Task type would not be deserializable {task_id}: {err:?}\n{task_type:#?}");
+            panic!("Task type would not be deserializable {task_id}: {err:?}");
+        }
+    }
+    Ok(())
+}
+
 type SerializedTasks = Vec<Vec<(TaskId, Vec<u8>)>>;
 
-fn process_task_data(
+fn process_task_data<'a, B: ConcurrentWriteBatch<'a> + Send + Sync>(
     database: &(impl KeyValueDatabase + Sync),
     key_space: KeySpace,
     updates: Vec<ChunkedVec<CachedDataUpdate>>,
+    batch: Option<&B>,
 ) -> Result<SerializedTasks> {
     let span = Span::current();
     let turbo_tasks = turbo_tasks::turbo_tasks();
@@ -441,11 +609,12 @@ fn process_task_data(
                     if let Some(old_data) =
                         database.get(&tx, key_space, IntKey::new(*task).as_ref())?
                     {
-                        let old_data: Vec<CachedDataItem> = match pot::from_slice(old_data.borrow())
+                        let old_data: Vec<CachedDataItem> = match POT_CONFIG
+                            .deserialize(old_data.borrow())
                         {
                             Ok(d) => d,
                             Err(_) => serde_path_to_error::deserialize(
-                                &mut pot::de::SymbolList::new()
+                                &mut pot_de_symbol_list()
                                     .deserializer_for_slice(old_data.borrow())?,
                             )
                             .with_context(|| {
@@ -475,8 +644,16 @@ fn process_task_data(
                     // Serialize new data
                     let value = serialize(task, data)?;
 
-                    // Store the new task data
-                    tasks.push((task, value));
+                    if let Some(batch) = batch {
+                        batch.put(
+                            key_space,
+                            Cow::Borrowed(IntKey::new(*task).as_ref()),
+                            Cow::Owned(value),
+                        )?;
+                    } else {
+                        // Store the new task data
+                        tasks.push((task, value));
+                    }
                 }
 
                 span.record("restored_tasks", restored_tasks);
@@ -487,14 +664,14 @@ fn process_task_data(
 }
 
 fn serialize(task: TaskId, mut data: Vec<CachedDataItem>) -> Result<Vec<u8>> {
-    Ok(match pot::to_vec(&data) {
+    Ok(match POT_CONFIG.serialize(&data) {
         #[cfg(not(feature = "verify_serialization"))]
         Ok(value) => value,
         _ => {
             let mut error = Ok(());
             data.retain(|item| {
                 let mut buf = Vec::<u8>::new();
-                let mut symbol_map = pot::ser::SymbolMap::new();
+                let mut symbol_map = pot_ser_symbol_map();
                 let mut serializer = symbol_map.serializer_for(&mut buf).unwrap();
                 if let Err(err) = serde_path_to_error::serialize(item, &mut serializer) {
                     if item.is_optional() {
@@ -511,9 +688,7 @@ fn serialize(task: TaskId, mut data: Vec<CachedDataItem>) -> Result<Vec<u8>> {
                     {
                         let deserialize: Result<CachedDataItem, _> =
                             serde_path_to_error::deserialize(
-                                &mut pot::de::SymbolList::new()
-                                    .deserializer_for_slice(&buf)
-                                    .unwrap(),
+                                &mut pot_de_symbol_list().deserializer_for_slice(&buf).unwrap(),
                             );
                         if let Err(err) = deserialize {
                             println!(
@@ -527,7 +702,8 @@ fn serialize(task: TaskId, mut data: Vec<CachedDataItem>) -> Result<Vec<u8>> {
             });
             error?;
 
-            pot::to_vec(&data)
+            POT_CONFIG
+                .serialize(&data)
                 .with_context(|| anyhow!("Unable to serialize data items for {task}: {data:#?}"))?
         }
     })

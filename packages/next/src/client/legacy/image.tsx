@@ -192,7 +192,7 @@ function defaultLoader({
     }
   }
 
-  if (src.endsWith('.svg') && !config.dangerouslyAllowSVG) {
+  if (!config.dangerouslyAllowSVG && src.split('?', 1)[0].endsWith('.svg')) {
     // Special case to make svg serve as-is to avoid proxying
     // through the built-in Image Optimization API.
     return src

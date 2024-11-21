@@ -358,6 +358,7 @@ async function exportAppImpl(
       expireTime: nextConfig.expireTime,
       after: nextConfig.experimental.after ?? false,
       dynamicIO: nextConfig.experimental.dynamicIO ?? false,
+      inlineCss: nextConfig.experimental.inlineCss ?? false,
     },
     reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
   }

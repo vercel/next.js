@@ -556,6 +556,12 @@ export interface ExperimentalConfig {
    * unless explicitly cached.
    */
   dynamicIO?: boolean
+
+  /**
+   * Render <style> tags inline in the HTML for imported CSS assets.
+   * Supports app-router in production mode only.
+   */
+  inlineCss?: boolean
 }
 
 export type ExportPathMap = {
@@ -1160,6 +1166,7 @@ export const defaultConfig: NextConfig = {
     staticGenerationMaxConcurrency: 8,
     staticGenerationMinPagesPerWorker: 25,
     dynamicIO: false,
+    inlineCss: false,
   },
   bundlePagesRouterDependencies: false,
 }

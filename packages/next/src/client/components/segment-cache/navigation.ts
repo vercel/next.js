@@ -1,15 +1,30 @@
 import type {
+  CacheNodeSeedData,
   FlightRouterState,
   FlightSegmentPath,
 } from '../../../server/app-render/types'
-import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
+import type {
+  CacheNode,
+  LoadingModuleData,
+} from '../../../shared/lib/app-router-context.shared-runtime'
 import type { NormalizedFlightData } from '../../flight-data-helpers'
-import { fetchServerResponse } from '../router-reducer/fetch-server-response'
+import {
+  fetchServerResponse,
+  type FetchServerResponseResult,
+} from '../router-reducer/fetch-server-response'
 import {
   updateCacheNodeOnNavigation,
   listenForDynamicRequest,
 } from '../router-reducer/ppr-navigations'
 import { createHrefFromUrl as createCanonicalUrl } from '../router-reducer/create-href-from-url'
+import {
+  EntryStatus,
+  readRouteCacheEntry,
+  readSegmentCacheEntry,
+  waitForSegmentCacheEntry,
+} from './cache'
+import type { TreePrefetch } from '../../../server/app-render/collect-segment-data'
+import { createCacheKey } from './cache-key'
 
 export const enum NavigationResultTag {
   MPA,
@@ -44,6 +59,12 @@ type AsyncNavigationResult = {
   >
 }
 
+export type NavigationResult =
+  | MPANavigationResult
+  | SuccessfulNavigationResult
+  | NoOpNavigationResult
+  | AsyncNavigationResult
+
 const noOpNavigationResult: NoOpNavigationResult = {
   tag: NavigationResultTag.NoOp,
   data: null,
@@ -62,14 +83,42 @@ export function navigate(
   currentCacheNode: CacheNode,
   currentFlightRouterState: FlightRouterState,
   nextUrl: string | null
-): AsyncNavigationResult {
-  // TODO: The Segment Cache is not yet implemented. As of now, when the
-  // experimental flag is enabled, every navigation goes straight to a dynamic
-  // request, no prefetching. This will be filled in with the real
-  // implementation later, but we'll still have this fallback for cases where
-  // there's no matching prefetch in the cache.
+): AsyncNavigationResult | SuccessfulNavigationResult | NoOpNavigationResult {
+  const now = Date.now()
 
-  // Perform a fully dynamic navigation.
+  // TODO: Interception routes not yet implemented in Segment Cache. Pass a
+  // Next-URL to createCacheKey.
+  const cacheKey = createCacheKey(url.href, null)
+  const route = readRouteCacheEntry(now, cacheKey)
+  if (
+    route !== null &&
+    route.status === EntryStatus.Fulfilled &&
+    // TODO: Prefetching interception routes is not support yet by the Segment
+    // Cache. For now, treat this as a cache miss and fallthrough to a full
+    // dynamic navigation.
+    !route.couldBeIntercepted
+  ) {
+    // We have a matching prefetch.
+    const snapshot = readRenderSnapshotFromCache(now, route.tree)
+    const prefetchFlightRouterState = snapshot.flightRouterState
+    const prefetchSeedData = snapshot.seedData
+    const prefetchHead = route.head
+    const canonicalUrl = route.canonicalUrl
+    const promiseForDynamicServerResponse = fetchServerResponse(url, {
+      flightRouterState: currentFlightRouterState,
+      nextUrl,
+    })
+    return navigateUsingPrefetchedRouteTree(
+      currentCacheNode,
+      currentFlightRouterState,
+      prefetchFlightRouterState,
+      prefetchSeedData,
+      prefetchHead,
+      canonicalUrl,
+      promiseForDynamicServerResponse
+    )
+  }
+  // There's no matching prefetch for this route in the cache.
   return {
     tag: NavigationResultTag.Async,
     data: navigateDynamicallyWithNoPrefetch(
@@ -78,6 +127,114 @@ export function navigate(
       currentFlightRouterState,
       nextUrl
     ),
+  }
+}
+
+function navigateUsingPrefetchedRouteTree(
+  currentCacheNode: CacheNode,
+  currentFlightRouterState: FlightRouterState,
+  prefetchFlightRouterState: FlightRouterState,
+  prefetchSeedData: CacheNodeSeedData | null,
+  prefetchHead: React.ReactNode | null,
+  canonicalUrl: string,
+  promiseForDynamicServerResponse: Promise<FetchServerResponseResult>
+): SuccessfulNavigationResult | NoOpNavigationResult {
+  // Recursively construct a prefetch tree by reading from the Segment Cache. To
+  // maintain compatibility, we output the same data structures as the old
+  // prefetching implementation: FlightRouterState and CacheNodeSeedData.
+  // TODO: Eventually updateCacheNodeOnNavigation (or the equivalent) should
+  // read from the Segment Cache directly. It's only structured this way for now
+  // so we can share code with the old prefetching implementation.
+  const task = updateCacheNodeOnNavigation(
+    currentCacheNode,
+    currentFlightRouterState,
+    prefetchFlightRouterState,
+    prefetchSeedData,
+    prefetchHead
+  )
+  if (task !== null) {
+    const newCacheNode = task.node
+    if (newCacheNode !== null) {
+      listenForDynamicRequest(task, promiseForDynamicServerResponse)
+    }
+    return {
+      tag: NavigationResultTag.Success,
+      data: {
+        flightRouterState: task.route,
+        cacheNode: newCacheNode !== null ? newCacheNode : currentCacheNode,
+        canonicalUrl,
+      },
+    }
+  }
+  // The server sent back an empty tree patch. There's nothing to update.
+  return noOpNavigationResult
+}
+
+function readRenderSnapshotFromCache(
+  now: number,
+  tree: TreePrefetch
+): { flightRouterState: FlightRouterState; seedData: CacheNodeSeedData } {
+  let childRouterStates: { [parallelRouteKey: string]: FlightRouterState } = {}
+  let childSeedDatas: {
+    [parallelRouteKey: string]: CacheNodeSeedData | null
+  } = {}
+  const slots = tree.slots
+  if (slots !== null) {
+    for (const parallelRouteKey in slots) {
+      const childTree = slots[parallelRouteKey]
+      const childResult = readRenderSnapshotFromCache(now, childTree)
+      childRouterStates[parallelRouteKey] = childResult.flightRouterState
+      childSeedDatas[parallelRouteKey] = childResult.seedData
+    }
+  }
+
+  let rsc: React.ReactNode | null = null
+  let loading: LoadingModuleData | Promise<LoadingModuleData> = null
+
+  const segmentEntry = readSegmentCacheEntry(now, tree.path)
+  if (segmentEntry !== null) {
+    switch (segmentEntry.status) {
+      case EntryStatus.Fulfilled: {
+        // Happy path: a cache hit
+        rsc = segmentEntry.rsc
+        loading = segmentEntry.loading
+        break
+      }
+      case EntryStatus.Pending: {
+        // We haven't received data for this segment yet, but there's already
+        // an in-progress request. Since it's extremely likely to arrive
+        // before the dynamic data response, we might as well use it.
+        const promiseForFulfilledEntry = waitForSegmentCacheEntry(segmentEntry)
+        rsc = promiseForFulfilledEntry.then((entry) =>
+          entry !== null ? entry.rsc : null
+        )
+        loading = promiseForFulfilledEntry.then((entry) =>
+          entry !== null ? entry.loading : null
+        )
+        break
+      }
+      case EntryStatus.Rejected:
+        break
+      default: {
+        const _exhaustiveCheck: never = segmentEntry
+        break
+      }
+    }
+  }
+
+  const extra = tree.extra
+  const flightRouterStateSegment = extra[0]
+  const isRootLayout = extra[1]
+
+  return {
+    flightRouterState: [
+      flightRouterStateSegment,
+      childRouterStates,
+      null,
+      null,
+      isRootLayout,
+    ],
+    seedData: [flightRouterStateSegment, rsc, childSeedDatas, loading],
   }
 }
 
@@ -132,34 +289,17 @@ async function navigateDynamicallyWithNoPrefetch(
   // nor a prefetch head.
   const prefetchSeedData = null
   const prefetchHead = null
-  const task = updateCacheNodeOnNavigation(
+
+  // Now we proceed exactly as we would for normal navigation.
+  return navigateUsingPrefetchedRouteTree(
     currentCacheNode,
     currentFlightRouterState,
     prefetchFlightRouterState,
     prefetchSeedData,
-    prefetchHead
+    prefetchHead,
+    createCanonicalUrl(canonicalUrlOverride ? canonicalUrlOverride : url),
+    promiseForDynamicServerResponse
   )
-
-  // Now we proceed exactly as we would for normal navigation.
-  if (task !== null) {
-    const newCacheNode = task.node
-    if (newCacheNode !== null) {
-      listenForDynamicRequest(task, promiseForDynamicServerResponse)
-    }
-    return {
-      tag: NavigationResultTag.Success,
-      data: {
-        flightRouterState: task.route,
-        cacheNode: newCacheNode !== null ? newCacheNode : currentCacheNode,
-        canonicalUrl: createCanonicalUrl(
-          canonicalUrlOverride ? canonicalUrlOverride : url
-        ),
-      },
-    }
-  }
-
-  // The server sent back an empty tree patch. There's nothing to update.
-  return noOpNavigationResult
 }
 
 function simulatePrefetchTreeUsingDynamicTreePatch(

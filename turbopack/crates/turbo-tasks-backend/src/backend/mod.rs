@@ -741,7 +741,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 persisted_storage_meta_log,
                 persisted_storage_data_log,
             ) {
-                println!("Persising failed: {:#?}", err);
+                println!("Persisting failed: {}", err);
                 return None;
             }
         }
@@ -1116,11 +1116,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let (span, future) = match task_type {
             TaskType::Cached(task_type) => match &*task_type {
                 CachedTaskType::Native { fn_type, this, arg } => (
-                    registry::get_function(*fn_type).span(),
+                    registry::get_function(*fn_type).span(task_id),
                     registry::get_function(*fn_type).execute(*this, &**arg),
                 ),
                 CachedTaskType::ResolveNative { fn_type, .. } => {
-                    let span = registry::get_function(*fn_type).resolve_span();
+                    let span = registry::get_function(*fn_type).resolve_span(task_id);
                     let turbo_tasks = turbo_tasks.pin();
                     (
                         span,
@@ -1487,9 +1487,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 let last_snapshot = self.last_snapshot.load(Ordering::Relaxed);
                 let mut last_snapshot = self.start_time + Duration::from_millis(last_snapshot);
                 loop {
-                    const FIRST_SNAPSHOT_WAIT: Duration = Duration::from_secs(30);
-                    const SNAPSHOT_INTERVAL: Duration = Duration::from_secs(15);
-                    const IDLE_TIMEOUT: Duration = Duration::from_secs(1);
+                    const FIRST_SNAPSHOT_WAIT: Duration = Duration::from_secs(60);
+                    const SNAPSHOT_INTERVAL: Duration = Duration::from_secs(30);
+                    const IDLE_TIMEOUT: Duration = Duration::from_secs(2);
 
                     let time = if id == BACKEND_JOB_INITIAL_SNAPSHOT {
                         FIRST_SNAPSHOT_WAIT
