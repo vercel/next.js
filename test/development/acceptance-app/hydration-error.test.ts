@@ -434,8 +434,8 @@ describe('Error overlay for hydration errors in App router', () => {
               <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                 <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
                   <LoadingBoundary loading={null}>
-                    <HTTPAccessFallbackBoundary notFound={[...]}>
-                      <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} missingSlots={Set}>
+                    <HTTPAccessFallbackBoundary notFound={[...]} forbidden={undefined} unauthorized={undefined}>
+                      <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} forbidden={undefined} ...>
                         <RedirectBoundary>
                           <RedirectErrorBoundary router={{...}}>
                             <InnerLayoutRouter parallelRouterKey="children" url="/" tree={[...]} childNodes={Map} ...>
@@ -888,7 +888,7 @@ describe('Error overlay for hydration errors in App router', () => {
     if (isTurbopack) {
       expect(fullPseudoHtml).toMatchInlineSnapshot(`
         "...
-          <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} missingSlots={Set}>
+          <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} forbidden={undefined} unauthorized={undefined} ...>
             <RedirectBoundary>
               <RedirectErrorBoundary router={{...}}>
                 <InnerLayoutRouter parallelRouterKey="children" url="/" tree={[...]} childNodes={Map} segmentPath={[...]} ...>
@@ -908,7 +908,7 @@ describe('Error overlay for hydration errors in App router', () => {
     } else {
       expect(fullPseudoHtml).toMatchInlineSnapshot(`
         "...
-          <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} missingSlots={Set}>
+          <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} forbidden={undefined} unauthorized={undefined} ...>
             <RedirectBoundary>
               <RedirectErrorBoundary router={{...}}>
                 <InnerLayoutRouter parallelRouterKey="children" url="/" tree={[...]} childNodes={Map} segmentPath={[...]} ...>
