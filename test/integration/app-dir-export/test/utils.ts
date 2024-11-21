@@ -176,7 +176,10 @@ export async function runTests({
       if (isDev) {
         const url = dynamicPage ? '/another/first' : '/api/json'
         const browser = await webdriver(port, url)
-        await assertHasRedbox(browser)
+        await assertHasRedbox(browser, {
+          // Main issue here that a local run hits a Node.js bug: https://linear.app/vercel/issue/NDX-505
+          fixmeStackFramesHaveBrokenSourcemaps: true,
+        })
         const header = await getRedboxHeader(browser)
         const source = await getRedboxSource(browser)
         expect(`${header}\n${source}`).toContain(expectedErrMsg)

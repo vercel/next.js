@@ -21,7 +21,9 @@ describe('app dir - css', () => {
         it('should use original source points for sass errors', async () => {
           const browser = await next.browser('/sass-error')
 
-          await assertHasRedbox(browser)
+          await assertHasRedbox(browser, {
+            pageResponseCode: 500,
+          })
           const source = await getRedboxSource(browser)
 
           // css-loader does not report an error for this case

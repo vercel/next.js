@@ -6,7 +6,7 @@ import { check } from 'next-test-utils'
 import { outdent } from 'outdent'
 
 describe('ReactRefreshRegression app', () => {
-  const { next } = nextTestSetup({
+  const { isTurbopack, next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     dependencies: {
       'styled-components': '5.1.0',
@@ -277,7 +277,12 @@ describe('ReactRefreshRegression app', () => {
       `export default function () { throw new Error('boom'); }`
     )
 
-    await session.assertHasRedbox()
+    await session.assertHasRedbox({
+      pageResponseCode: isTurbopack
+        ? 500
+        : // Webpack clears the console
+          undefined,
+    })
 
     const source = await session.getRedboxSource()
     expect(source.split(/\r?\n/g).slice(2).join('\n')).toMatchInlineSnapshot(`
@@ -295,7 +300,13 @@ describe('ReactRefreshRegression app', () => {
       `export default function Page() { throw new Error('boom'); }`
     )
 
-    await session.assertHasRedbox()
+    // webpack fail
+    await session.assertHasRedbox({
+      pageResponseCode: isTurbopack
+        ? 500
+        : // Webpack clears the console
+          undefined,
+    })
 
     const source = await session.getRedboxSource()
     expect(source.split(/\r?\n/g).slice(2).join('\n')).toMatchInlineSnapshot(`
@@ -316,7 +327,12 @@ describe('ReactRefreshRegression app', () => {
       `
     )
 
-    await session.assertHasRedbox()
+    await session.assertHasRedbox({
+      pageResponseCode: isTurbopack
+        ? // Turbopack clears the console
+          undefined
+        : 500,
+    })
 
     const source = await session.getRedboxSource()
     expect(source.split(/\r?\n/g).slice(2).join('\n')).toMatchInlineSnapshot(`

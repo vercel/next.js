@@ -17,7 +17,10 @@ describe('Undefined default export', () => {
       '/specific-path/server'
     )
     const { session } = sandbox
-    await session.assertHasRedbox()
+    await session.assertHasRedbox({
+      // TODO: Unclear why the test is navigating to the page twice
+      pageResponseCode: [500, 500],
+    })
     expect(await session.getRedboxDescription()).toInclude(
       'The default export is not a React Component in "/specific-path/server/page"'
     )
@@ -39,7 +42,9 @@ describe('Undefined default export', () => {
       '/will-not-found'
     )
     const { session } = sandbox
-    await session.assertHasRedbox()
+    await session.assertHasRedbox({
+      pageResponseCode: 500,
+    })
     expect(await session.getRedboxDescription()).toInclude(
       'The default export is not a React Component in "/will-not-found/not-found"'
     )
@@ -55,7 +60,10 @@ describe('Undefined default export', () => {
     // Wait for the DOM node #__next to be present
     await browser.waitForElementByCss('#__next')
 
-    await session.assertHasRedbox()
+    await session.assertHasRedbox({
+      // TODO: really?
+      fixmeStackFramesHaveBrokenSourcemaps: true,
+    })
     expect(await session.getRedboxDescription()).toInclude(
       'The default export is not a React Component in "/page"'
     )
@@ -73,7 +81,9 @@ describe('Undefined default export', () => {
       '/server-with-errors/page-export-initial-error'
     )
     const { session } = sandbox
-    await session.assertHasRedbox()
+    await session.assertHasRedbox({
+      pageResponseCode: 500,
+    })
     expect(await session.getRedboxDescription()).toInclude(
       'The default export is not a React Component in "/server-with-errors/page-export-initial-error/page"'
     )

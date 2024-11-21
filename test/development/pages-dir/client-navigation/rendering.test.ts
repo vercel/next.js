@@ -135,7 +135,7 @@ describe('Client Navigation rendering', () => {
       const expectedErrorMessage =
         'Circular structure in "getInitialProps" result of page "/circular-json-error".'
 
-      await assertHasRedbox(browser)
+      await assertHasRedbox(browser, { pageResponseCode: 500 })
       const text = await getRedboxHeader(browser)
       expect(text).toContain(expectedErrorMessage)
     })
@@ -149,17 +149,17 @@ describe('Client Navigation rendering', () => {
       const expectedErrorMessage =
         '"InstanceInitialPropsPage.getInitialProps()" is defined as an instance method - visit https://nextjs.org/docs/messages/get-initial-props-as-an-instance-method for more information.'
 
-      await assertHasRedbox(browser)
+      await assertHasRedbox(browser, { pageResponseCode: 500 })
       const text = await getRedboxHeader(browser)
       expect(text).toContain(expectedErrorMessage)
     })
 
-    test('getInitialProps resolves to null', async () => {
+    it('getInitialProps resolves to null', async () => {
       const browser = await webdriver(next.appPort, '/empty-get-initial-props')
       const expectedErrorMessage =
         '"EmptyInitialPropsPage.getInitialProps()" should resolve to an object. But found "null" instead.'
 
-      await assertHasRedbox(browser)
+      await assertHasRedbox(browser, { pageResponseCode: 500 })
       const text = await getRedboxHeader(browser)
       expect(text).toContain(expectedErrorMessage)
     })
@@ -195,14 +195,14 @@ describe('Client Navigation rendering', () => {
 
     test('default export is not a React Component', async () => {
       const browser = await webdriver(next.appPort, '/no-default-export')
-      await assertHasRedbox(browser)
+      await assertHasRedbox(browser, { pageResponseCode: 500 })
       const text = await getRedboxHeader(browser)
       expect(text).toMatch(/The default export is not a React Component/)
     })
 
     test('error-inside-page', async () => {
       const browser = await webdriver(next.appPort, '/error-inside-page')
-      await assertHasRedbox(browser)
+      await assertHasRedbox(browser, { pageResponseCode: 500 })
       const text = await getRedboxHeader(browser)
       expect(text).toMatch(/This is an expected error/)
       // Sourcemaps are applied by react-error-overlay, so we can't check them on SSR.
@@ -213,7 +213,7 @@ describe('Client Navigation rendering', () => {
         next.appPort,
         '/error-in-the-global-scope'
       )
-      await assertHasRedbox(browser)
+      await assertHasRedbox(browser, { pageResponseCode: 500 })
       const text = await getRedboxHeader(browser)
       expect(text).toMatch(/aa is not defined/)
       // Sourcemaps are applied by react-error-overlay, so we can't check them on SSR.
@@ -313,7 +313,7 @@ describe('Client Navigation rendering', () => {
 
     it('should show a valid error when undefined is thrown', async () => {
       const browser = await webdriver(next.appPort, '/throw-undefined')
-      await assertHasRedbox(browser)
+      await assertHasRedbox(browser, { pageResponseCode: 500 })
       const text = await getRedboxHeader(browser)
 
       expect(text).toContain(

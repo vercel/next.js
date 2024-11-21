@@ -12,7 +12,7 @@ describe('serialize-circular-error', () => {
 
   it('should serialize the object from server component in console correctly', async () => {
     const browser = await next.browser('/')
-    await assertHasRedbox(browser)
+    await assertHasRedbox(browser, { pageResponseCode: 500 })
 
     const description = await getRedboxDescription(browser)
     // React cannot serialize thrown objects with circular references

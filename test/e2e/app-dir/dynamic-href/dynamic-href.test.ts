@@ -19,8 +19,7 @@ describe('dynamic-href', () => {
     it('should error when using dynamic href.pathname in app dir', async () => {
       const browser = await next.browser('/object')
 
-      // Error should show up
-      await assertHasRedbox(browser)
+      await assertHasRedbox(browser, { pageResponseCode: 500 })
       expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
         `"Error: Dynamic href \`/object/[slug]\` found in <Link> while using the \`/app\` router, this is not supported. Read more: https://nextjs.org/docs/messages/app-dir-dynamic-href"`
       )
@@ -47,8 +46,7 @@ describe('dynamic-href', () => {
     it('should error when using dynamic href in app dir', async () => {
       const browser = await next.browser('/string')
 
-      // Error should show up
-      await assertHasRedbox(browser)
+      await assertHasRedbox(browser, { pageResponseCode: 500 })
       expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
         `"Error: Dynamic href \`/object/[slug]\` found in <Link> while using the \`/app\` router, this is not supported. Read more: https://nextjs.org/docs/messages/app-dir-dynamic-href"`
       )

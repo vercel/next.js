@@ -1,11 +1,6 @@
 import { assertHasRedbox, getRedboxHeader } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 
-async function testDev(browser, errorRegex) {
-  await assertHasRedbox(browser)
-  expect(await getRedboxHeader(browser)).toMatch(errorRegex)
-}
-
 describe('app dir - global error - with style import', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
@@ -20,7 +15,8 @@ describe('app dir - global error - with style import', () => {
     const browser = await next.browser('/')
 
     if (isNextDev) {
-      await testDev(browser, /Root Layout Error/)
+      await assertHasRedbox(browser, { pageResponseCode: 500 })
+      expect(await getRedboxHeader(browser)).toMatch(/Root Layout Error/)
       return
     }
 

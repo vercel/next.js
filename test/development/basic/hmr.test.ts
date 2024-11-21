@@ -507,7 +507,7 @@ describe.each([
 
       await next.patchFile(aboutPage, aboutContent.replace('</div>', 'div'))
 
-      await assertHasRedbox(browser)
+      await assertHasRedbox(browser, { pageResponseCode: 500 })
       const source = next.normalizeTestDirContent(
         await getRedboxSource(browser)
       )
@@ -610,7 +610,7 @@ describe.each([
 
           browser = await webdriver(next.url, basePath + '/hmr/contact')
 
-          await assertHasRedbox(browser)
+          await assertHasRedbox(browser, { pageResponseCode: 500 })
           expect(await getRedboxSource(browser)).toMatch(/Unexpected eof/)
 
           await next.patchFile(aboutPage, aboutContent)
@@ -650,7 +650,7 @@ describe.each([
           aboutContent.replace('export', 'aa=20;\nexport')
         )
 
-        await assertHasRedbox(browser)
+        await assertHasRedbox(browser, { pageResponseCode: 500 })
         expect(await getRedboxHeader(browser)).toMatch(/aa is not defined/)
 
         await next.patchFile(aboutPage, aboutContent)
@@ -680,7 +680,7 @@ describe.each([
           )
         )
 
-        await assertHasRedbox(browser)
+        await assertHasRedbox(browser, { pageResponseCode: 500 })
         expect(await getRedboxSource(browser)).toMatch(/an-expected-error/)
 
         await next.patchFile(aboutPage, aboutContent)
@@ -719,7 +719,7 @@ describe.each([
           )
         )
 
-        await assertHasRedbox(browser)
+        await assertHasRedbox(browser, { pageResponseCode: 500 })
         expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
           `"Error: The default export is not a React Component in page: "/hmr/about5""`
         )
@@ -761,7 +761,7 @@ describe.each([
           )
         )
 
-        await assertHasRedbox(browser)
+        await assertHasRedbox(browser, { pageResponseCode: 500 })
         // TODO: Replace this when webpack 5 is the default
         expect(await getRedboxHeader(browser)).toMatch(
           `Objects are not valid as a React child (found: [object RegExp]). If you meant to render a collection of children, use an array instead.`
@@ -805,7 +805,7 @@ describe.each([
           )
         )
 
-        await assertHasRedbox(browser)
+        await assertHasRedbox(browser, { pageResponseCode: 500 })
         expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
           `"Error: The default export is not a React Component in page: "/hmr/about7""`
         )
@@ -849,7 +849,7 @@ describe.each([
           )
         )
 
-        await assertHasRedbox(browser)
+        await assertHasRedbox(browser, { pageResponseCode: 500 })
         expect(await getRedboxHeader(browser)).toMatch('Failed to compile')
 
         if (process.env.TURBOPACK) {
@@ -915,7 +915,7 @@ describe.each([
           )
         )
 
-        await assertHasRedbox(browser)
+        await assertHasRedbox(browser, { pageResponseCode: 500 })
         expect(await getRedboxHeader(browser)).toMatch('Failed to compile')
         let redboxSource = await getRedboxSource(browser)
 
@@ -983,7 +983,7 @@ describe.each([
         browser = await webdriver(next.url, basePath + '/hmr')
         await browser.elementByCss('#error-in-gip-link').click()
 
-        await assertHasRedbox(browser)
+        await assertHasRedbox(browser, { pageResponseCode: 500 })
         expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
           `"Error: an-expected-error-in-gip"`
         )
@@ -1024,7 +1024,7 @@ describe.each([
       try {
         browser = await webdriver(next.url, basePath + '/hmr/error-in-gip')
 
-        await assertHasRedbox(browser)
+        await assertHasRedbox(browser, { pageResponseCode: 500 })
         expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
           `"Error: an-expected-error-in-gip"`
         )
@@ -1168,7 +1168,7 @@ describe.each([
         pageName,
         `import hello from 'non-existent'\n` + originalContent
       )
-      await assertHasRedbox(browser)
+      await assertHasRedbox(browser, { pageResponseCode: 500 })
       await waitFor(3000)
       await next.patchFile(pageName, originalContent)
       await check(() => next.cliOutput.substring(outputLength), /Compiled.*?/i)

@@ -221,7 +221,7 @@ describe('config-output-export', () => {
       await killApp(app).catch(() => {})
       fs.rmSync(blog)
     }
-    await assertHasRedbox(browser)
+    await assertHasRedbox(browser, { pageResponseCode: 500 })
     expect(await getRedboxHeader(browser)).toContain(
       'ISR cannot be used with "output: export".'
     )
@@ -312,7 +312,7 @@ describe('config-output-export', () => {
       await killApp(app).catch(() => {})
       fs.rmSync(blog)
     }
-    await assertHasRedbox(browser)
+    await assertHasRedbox(browser, { pageResponseCode: 500 })
     expect(await getRedboxHeader(browser)).toContain(
       'getServerSideProps cannot be used with "output: export".'
     )
@@ -352,7 +352,7 @@ describe('config-output-export', () => {
         output: 'export',
       })
       browser = await webdriver(result.port, '/posts/one')
-      await assertHasRedbox(browser)
+      await assertHasRedbox(browser, { pageResponseCode: 500 })
       expect(await getRedboxHeader(browser)).toContain(
         'getStaticPaths with "fallback: true" cannot be used with "output: export".'
       )
@@ -396,7 +396,7 @@ describe('config-output-export', () => {
         output: 'export',
       })
       browser = await webdriver(result.port, '/posts/one')
-      await assertHasRedbox(browser)
+      await assertHasRedbox(browser, { pageResponseCode: 500 })
       expect(await getRedboxHeader(browser)).toContain(
         'getStaticPaths with "fallback: blocking" cannot be used with "output: export".'
       )

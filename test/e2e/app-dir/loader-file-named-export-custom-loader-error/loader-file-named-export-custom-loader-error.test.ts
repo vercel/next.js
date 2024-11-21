@@ -4,11 +4,6 @@ import { assertHasRedbox, getRedboxHeader } from 'next-test-utils'
 const errorMessage =
   'images.loaderFile detected but the file is missing default export.\nRead more: https://nextjs.org/docs/messages/invalid-images-config'
 
-async function testDev(browser, errorRegex) {
-  await assertHasRedbox(browser)
-  expect(await getRedboxHeader(browser)).toMatch(errorRegex)
-}
-
 describe('Error test if the loader file export a named function', () => {
   describe('in Development', () => {
     const { next, isNextDev } = nextTestSetup({
@@ -19,12 +14,14 @@ describe('Error test if the loader file export a named function', () => {
     ;(isNextDev ? describe : describe.skip)('development only', () => {
       it('should show the error when using `Image` component', async () => {
         const browser = await next.browser('/')
-        await testDev(browser, errorMessage)
+        await assertHasRedbox(browser, { pageResponseCode: 500 })
+        expect(await getRedboxHeader(browser)).toMatch(errorMessage)
       })
 
       it('should show the error when using `getImageProps` method', async () => {
         const browser = await next.browser('/get-img-props')
-        await testDev(browser, errorMessage)
+        await assertHasRedbox(browser, { pageResponseCode: 500 })
+        expect(await getRedboxHeader(browser)).toMatch(errorMessage)
       })
     })
   })

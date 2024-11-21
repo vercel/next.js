@@ -22,7 +22,7 @@ function runTests({ isDev }) {
   it('should show error', async () => {
     if (isDev) {
       const browser = await webdriver(appPort, '/')
-      await assertHasRedbox(browser)
+      await assertHasRedbox(browser, { pageResponseCode: 500 })
       expect(await getRedboxHeader(browser)).toMatch('Failed to compile')
       const source = await getRedboxSource(browser)
       if (process.env.TURBOPACK) {

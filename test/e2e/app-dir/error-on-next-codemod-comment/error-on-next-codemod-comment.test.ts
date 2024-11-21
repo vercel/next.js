@@ -21,7 +21,7 @@ describe('app-dir - error-on-next-codemod-comment', () => {
     it('should error with swc if you have codemod comments left', async () => {
       const browser = await next.browser('/')
 
-      await assertHasRedbox(browser)
+      await assertHasRedbox(browser, { pageResponseCode: 500 })
 
       if (process.env.TURBOPACK) {
         expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
@@ -67,7 +67,7 @@ describe('app-dir - error-on-next-codemod-comment', () => {
 
       const browser = await next.browser('/')
 
-      await assertHasRedbox(browser)
+      await assertHasRedbox(browser, { pageResponseCode: 500 })
 
       // Recover the original file content
       await next.patchFile('app/page.tsx', originFileContent)
@@ -76,7 +76,7 @@ describe('app-dir - error-on-next-codemod-comment', () => {
     it('should disappear the error when you rre the codemod comment', async () => {
       const browser = await next.browser('/')
 
-      await assertHasRedbox(browser)
+      await assertHasRedbox(browser, { pageResponseCode: 500 })
 
       let originFileContent
       await next.patchFile('app/page.tsx', (code) => {
@@ -98,7 +98,7 @@ describe('app-dir - error-on-next-codemod-comment', () => {
     it('should disappear the error when you replace with bypass comment', async () => {
       const browser = await next.browser('/')
 
-      await assertHasRedbox(browser)
+      await assertHasRedbox(browser, { pageResponseCode: 500 })
 
       let originFileContent
       await next.patchFile('app/page.tsx', (code) => {

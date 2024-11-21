@@ -5,9 +5,11 @@ import {
   getRedboxHeader,
   getRedboxSource,
   getVersionCheckerText,
+  type AssertHasRedboxOptions,
   assertHasRedbox,
   assertNoRedbox,
   waitFor,
+  type OpenRedboxOptions,
   openRedbox,
   getRedboxDescriptionWarning,
   toggleCollapseComponentStack,
@@ -118,14 +120,14 @@ export async function createSandbox(
             )
           }
         },
-        async assertHasRedbox() {
-          return assertHasRedbox(browser)
+        async assertHasRedbox(options?: AssertHasRedboxOptions) {
+          return assertHasRedbox(browser, options)
         },
         async assertNoRedbox() {
           return assertNoRedbox(browser)
         },
-        async openRedbox() {
-          return openRedbox(browser)
+        async openRedbox(options?: OpenRedboxOptions) {
+          return openRedbox(browser, options)
         },
         async hasErrorToast() {
           return Boolean(await hasErrorToast(browser))

@@ -58,7 +58,9 @@ describe('Client Navigation', () => {
 
     it('should have proper error when no children are provided', async () => {
       const browser = await webdriver(next.appPort, '/link-no-child')
-      await assertHasRedbox(browser)
+      await assertHasRedbox(browser, {
+        pageResponseCode: 500,
+      })
       expect(await getRedboxHeader(browser)).toContain(
         'No children were passed to <Link> with `href` of `/about` but one child is required'
       )

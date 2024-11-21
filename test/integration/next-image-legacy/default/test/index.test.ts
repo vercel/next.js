@@ -21,6 +21,7 @@ import { join } from 'path'
 import { existsSync } from 'fs'
 
 const appDir = join(__dirname, '../')
+const isTurbopack = Boolean(process.env.TURBOPACK)
 
 let appPort
 let app
@@ -824,7 +825,11 @@ function runTests(mode) {
     it('should show invalid src error', async () => {
       const browser = await webdriver(appPort, '/invalid-src')
 
-      await assertHasRedbox(browser)
+      await assertHasRedbox(browser, {
+        pageResponseCode: 500,
+        // Main issue here that a local run hits a Node.js bug: https://linear.app/vercel/issue/NDX-505
+        fixmeStackFramesHaveBrokenSourcemaps: !isTurbopack,
+      })
       expect(await getRedboxHeader(browser)).toContain(
         'Invalid src prop (https://google.com/test.png) on `next/image`, hostname "google.com" is not configured under images in your `next.config.js`'
       )
@@ -833,7 +838,11 @@ function runTests(mode) {
     it('should show invalid src error when protocol-relative', async () => {
       const browser = await webdriver(appPort, '/invalid-src-proto-relative')
 
-      await assertHasRedbox(browser)
+      await assertHasRedbox(browser, {
+        pageResponseCode: 500,
+        // Main issue here that a local run hits a Node.js bug: https://linear.app/vercel/issue/NDX-505
+        fixmeStackFramesHaveBrokenSourcemaps: !isTurbopack,
+      })
       expect(await getRedboxHeader(browser)).toContain(
         'Failed to parse src "//assets.example.com/img.jpg" on `next/image`, protocol-relative URL (//) must be changed to an absolute URL (http:// or https://)'
       )
@@ -842,7 +851,11 @@ function runTests(mode) {
     it('should show error when string src and placeholder=blur and blurDataURL is missing', async () => {
       const browser = await webdriver(appPort, '/invalid-placeholder-blur')
 
-      await assertHasRedbox(browser)
+      await assertHasRedbox(browser, {
+        pageResponseCode: 500,
+        // Main issue here that a local run hits a Node.js bug: https://linear.app/vercel/issue/NDX-505
+        fixmeStackFramesHaveBrokenSourcemaps: !isTurbopack,
+      })
       expect(await getRedboxHeader(browser)).toContain(
         `Image with src "/test.png" has "placeholder='blur'" property but is missing the "blurDataURL" property.`
       )
@@ -851,7 +864,11 @@ function runTests(mode) {
     it('should show error when not numeric string width or height', async () => {
       const browser = await webdriver(appPort, '/invalid-width-or-height')
 
-      await assertHasRedbox(browser)
+      await assertHasRedbox(browser, {
+        pageResponseCode: 500,
+        // Main issue here that a local run hits a Node.js bug: https://linear.app/vercel/issue/NDX-505
+        fixmeStackFramesHaveBrokenSourcemaps: !isTurbopack,
+      })
       expect(await getRedboxHeader(browser)).toContain(
         `Image with src "/test.jpg" has invalid "width" or "height" property. These should be numeric values.`
       )
@@ -863,7 +880,11 @@ function runTests(mode) {
         '/invalid-placeholder-blur-static'
       )
 
-      await assertHasRedbox(browser)
+      await assertHasRedbox(browser, {
+        pageResponseCode: 500,
+        // Main issue here that a local run hits a Node.js bug: https://linear.app/vercel/issue/NDX-505
+        fixmeStackFramesHaveBrokenSourcemaps: !isTurbopack,
+      })
       expect(await getRedboxHeader(browser)).toMatch(
         /Image with src "(.*)bmp" has "placeholder='blur'" property but is missing the "blurDataURL" property/
       )

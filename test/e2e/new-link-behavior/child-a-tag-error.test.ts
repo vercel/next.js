@@ -30,7 +30,7 @@ describe('New Link Behavior with <a> child', () => {
 
     if (isNextDev) {
       expect(next.cliOutput).toContain(msg)
-      await assertHasRedbox(browser)
+      await assertHasRedbox(browser, { pageResponseCode: 500 })
       expect(await getRedboxDescription(browser)).toContain(msg)
       expect(link.length).toBe(0)
     } else {

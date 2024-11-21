@@ -3,13 +3,12 @@ import {
   assertNoRedbox,
   getRedboxHeader,
   getRedboxSource,
-  retry,
   getRedboxDescription,
 } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 
 describe('Conflict between app file and pages file', () => {
-  const { next, isNextDev, isNextStart, skipped } = nextTestSetup({
+  const { isTurbopack, next, isNextDev, isNextStart, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
     skipStart: true,
@@ -48,29 +47,31 @@ describe('Conflict between app file and pages file', () => {
   }
 
   async function containConflictsError(browser, conflicts) {
-    await retry(async () => {
-      await assertHasRedbox(browser)
-      if (process.env.TURBOPACK) {
-        expect(await getRedboxDescription(browser)).toContain(
-          'App Router and Pages Router both match path:'
+    if (process.env.TURBOPACK) {
+      expect(await getRedboxDescription(browser)).toContain(
+        'App Router and Pages Router both match path:'
+      )
+    }
+
+    if (!process.env.TURBOPACK) {
+      for (const pair of conflicts) {
+        expect(await getRedboxSource(browser)).toContain(
+          `"${pair[0]}" - "${pair[1]}"`
         )
       }
-
-      if (!process.env.TURBOPACK) {
-        for (const pair of conflicts) {
-          expect(await getRedboxSource(browser)).toContain(
-            `"${pair[0]}" - "${pair[1]}"`
-          )
-        }
-      }
-    })
+    }
   }
 
   if (isNextDev) {
     it('should show error overlay for /another', async () => {
       await next.start()
       const browser = await next.browser('/another')
-      await assertHasRedbox(browser)
+      await assertHasRedbox(browser, {
+        pageResponseCode: isTurbopack
+          ? 500
+          : // TODO(veil): Why no 500 in Webpack
+            undefined,
+      })
       await containConflictsError(browser, [
         ['pages/index.js', 'app/page.js'],
         ['pages/another.js', 'app/another/page.js'],
@@ -79,7 +80,12 @@ describe('Conflict between app file and pages file', () => {
 
     it('should show error overlay for /', async () => {
       const browser = await next.browser('/')
-      await assertHasRedbox(browser)
+      await assertHasRedbox(browser, {
+        pageResponseCode: isTurbopack
+          ? 500
+          : // TODO(veil): Why no 500 in Webpack
+            undefined,
+      })
       await containConflictsError(browser, [
         ['pages/index.js', 'app/page.js'],
         ['pages/another.js', 'app/another/page.js'],
@@ -88,7 +94,12 @@ describe('Conflict between app file and pages file', () => {
 
     it('should support hmr with conflicts', async () => {
       const browser = await next.browser('/')
-      await assertHasRedbox(browser)
+      await assertHasRedbox(browser, {
+        pageResponseCode: isTurbopack
+          ? 500
+          : // TODO(veil): Why no 500 in Webpack
+            undefined,
+      })
 
       await next.renameFile('pages/index.js', 'pages/index2.js')
       await next.renameFile('pages/another.js', 'pages/another2.js')
@@ -120,7 +131,13 @@ describe('Conflict between app file and pages file', () => {
 
       // Re-trigger the conflicted errors
       await next.renameFile('pages/index2.js', 'pages/index.js')
-      await assertHasRedbox(browser)
+      await assertHasRedbox(browser, {
+        pageResponseCode: isTurbopack
+          ? // TODO(veil): Why two 500 in Turbopack?
+            [500, 500]
+          : // TODO(veil): Why no 500 in Webpack?
+            undefined,
+      })
       await containConflictsError(browser, [['pages/index.js', 'app/page.js']])
     })
   }

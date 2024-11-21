@@ -27,6 +27,8 @@ let buildId
 const appDir = join(__dirname, '../')
 const buildIdPath = join(appDir, '.next/BUILD_ID')
 
+const isTurbopack = Boolean(process.env.TURBOPACK)
+
 function runTests({ dev }) {
   if (!dev) {
     it('should have correct cache entries on prefetch', async () => {
@@ -1200,7 +1202,10 @@ function runTests({ dev }) {
         await browser
           .elementByCss('#view-post-1-interpolated-incorrectly')
           .click()
-        await assertHasRedbox(browser)
+        await assertHasRedbox(browser, {
+          // TODO(veil): This is odd. Should the bundler affect the response code?
+          pageResponseCode: isTurbopack ? undefined : 500,
+        })
         const header = await getRedboxHeader(browser)
         expect(header).toContain(
           'The provided `href` (/[name]?another=value) value is missing query values (name) to be interpolated properly.'

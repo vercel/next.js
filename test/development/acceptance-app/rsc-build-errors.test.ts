@@ -109,7 +109,7 @@ describe('Error overlay - RSC build errors', () => {
     await session.patch(pageFile, uncomment)
     await next.patchFile(pageFile, content)
 
-    await session.assertHasRedbox()
+    await session.assertHasRedbox({ pageResponseCode: 500 })
     expect(await session.getRedboxSource()).toInclude(
       '"getStaticProps" is not supported in app/'
     )
@@ -218,7 +218,7 @@ describe('Error overlay - RSC build errors', () => {
         `/server-with-errors/react-apis/${api.toLowerCase()}`
       )
       const { session } = sandbox
-      await session.assertHasRedbox()
+      await session.assertHasRedbox({ pageResponseCode: 500 })
       expect(await session.getRedboxSource()).toInclude(
         // `Component` has a custom error message
         api === 'Component'
@@ -242,7 +242,7 @@ describe('Error overlay - RSC build errors', () => {
         `/server-with-errors/react-dom-apis/${api.toLowerCase()}`
       )
       const { session } = sandbox
-      await session.assertHasRedbox()
+      await session.assertHasRedbox({ pageResponseCode: 500 })
       expect(await session.getRedboxSource()).toInclude(
         `You're importing a component that needs \`${api}\`. This React hook only works in a client component. To fix, mark the file (or its parent) with the \`"use client"\` directive.`
       )
@@ -305,7 +305,9 @@ describe('Error overlay - RSC build errors', () => {
       'export default function Error() {}'
     )
 
-    await session.assertHasRedbox()
+    await session.assertHasRedbox({
+      pageResponseCode: isTurbopack ? 500 : undefined,
+    })
     await expect(session.getRedboxSource()).resolves.toMatch(
       /must be a Client \n| Component/
     )
@@ -355,7 +357,9 @@ describe('Error overlay - RSC build errors', () => {
     // Empty file
     await session.patch('app/server-with-errors/error-file/error.js', '')
 
-    await session.assertHasRedbox()
+    await session.assertHasRedbox({
+      pageResponseCode: isTurbopack ? undefined : 500,
+    })
     await expect(session.getRedboxSource()).resolves.toMatch(
       /Add the "use client"/
     )

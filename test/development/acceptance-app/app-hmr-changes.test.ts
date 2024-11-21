@@ -51,7 +51,12 @@ describe('Error overlay - RSC build errors', () => {
           await session.patch(pagePath, break2.replace('break 3', '<Hello />'))
 
           await session.patch(pagePath, break2)
-          await session.assertHasRedbox()
+          // TODO: remove try-catch
+          try {
+            await session.assertHasRedbox()
+          } catch (cause) {
+            throw new Error(`Failed attempt ${i}`, { cause })
+          }
 
           await session.patch(pagePath, break1)
 

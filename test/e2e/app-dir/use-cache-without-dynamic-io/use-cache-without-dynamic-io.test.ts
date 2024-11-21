@@ -78,7 +78,7 @@ describe('use-cache-without-dynamic-io', () => {
     it('should show a build error', async () => {
       const browser = await next.browser('/')
 
-      await assertHasRedbox(browser)
+      await assertHasRedbox(browser, { pageResponseCode: 500 })
 
       const errorDescription = await getRedboxDescription(browser)
       const errorSource = await getRedboxSource(browser)
@@ -120,7 +120,7 @@ describe('use-cache-without-dynamic-io', () => {
     it('should recover from the build error if dynamicIO flag is set', async () => {
       const browser = await next.browser('/')
 
-      await assertHasRedbox(browser)
+      await assertHasRedbox(browser, { pageResponseCode: 500 })
 
       await next.patchFile(
         'next.config.js',

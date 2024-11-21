@@ -520,7 +520,7 @@ describe('Error Overlay for server components', () => {
         ])
       )
       const { session } = sandbox
-      await session.assertHasRedbox()
+      await session.assertHasRedbox({ pageResponseCode: 500 })
       // In webpack when the message too long it gets truncated with `  | ` with new lines.
       // So we need to check for the first part of the message.
       const normalizedSource = await session.getRedboxSource()

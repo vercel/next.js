@@ -281,7 +281,11 @@ describe('ReactRefreshRegression', () => {
     )
     expect(didNotReload).toBe(false)
 
-    await session.assertHasRedbox()
+    await session.assertHasRedbox({
+      pageResponseCode:
+        // TODO: Unclear why the test is navigating to the page twice
+        [500, 500],
+    })
 
     const source = await session.getRedboxSource()
     expect(source.split(/\r?\n/g).slice(2).join('\n')).toMatchInlineSnapshot(`

@@ -18,7 +18,9 @@ describe.each(['default', 'turbo'])(
         new Map([['pages/_app.js', ``]])
       )
       const { session } = sandbox
-      await session.assertHasRedbox()
+      await session.assertHasRedbox({
+        pageResponseCode: 500,
+      })
       expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
         `"Error: The default export is not a React Component in page: "/_app""`
       )
@@ -41,7 +43,9 @@ describe.each(['default', 'turbo'])(
         new Map([['pages/_document.js', ``]])
       )
       const { session } = sandbox
-      await session.assertHasRedbox()
+      await session.assertHasRedbox({
+        pageResponseCode: 500,
+      })
       expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
         `"Error: The default export is not a React Component in page: "/_document""`
       )
@@ -92,7 +96,9 @@ describe.each(['default', 'turbo'])(
         ])
       )
       const { session } = sandbox
-      await session.assertHasRedbox()
+      await session.assertHasRedbox({
+        pageResponseCode: 500,
+      })
       const content = await session.getRedboxSource()
       const source = next.normalizeTestDirContent(content)
       if (process.env.TURBOPACK) {
@@ -178,7 +184,9 @@ describe.each(['default', 'turbo'])(
         ])
       )
       const { session } = sandbox
-      await session.assertHasRedbox()
+      await session.assertHasRedbox({
+        pageResponseCode: 500,
+      })
       const source = next.normalizeTestDirContent(
         await session.getRedboxSource()
       )

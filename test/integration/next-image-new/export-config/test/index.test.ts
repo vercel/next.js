@@ -35,7 +35,10 @@ describe('next/image with output export config', () => {
         const browser = await webdriver(appPort, '/')
         const msg =
           "Image Optimization using the default loader is not compatible with `{ output: 'export' }`."
-        await assertHasRedbox(browser)
+        await assertHasRedbox(browser, {
+          // Main issue here that a local run hits a Node.js bug: https://linear.app/vercel/issue/NDX-505
+          fixmeStackFramesHaveBrokenSourcemaps: true,
+        })
         expect(await getRedboxHeader(browser)).toContain(msg)
         expect(stderr).toContain(msg)
       })

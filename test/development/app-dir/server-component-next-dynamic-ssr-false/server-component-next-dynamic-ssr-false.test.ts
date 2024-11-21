@@ -12,7 +12,7 @@ describe('app-dir - server-component-next-dynamic-ssr-false', () => {
 
   it('should error when use dynamic ssr:false in server component', async () => {
     const browser = await next.browser('/')
-    await assertHasRedbox(browser)
+    await assertHasRedbox(browser, { pageResponseCode: 500 })
     const redbox = {
       description: await getRedboxDescription(browser),
       source: await getRedboxSource(browser),

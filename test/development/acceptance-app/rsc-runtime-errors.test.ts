@@ -27,7 +27,9 @@ describe('Error overlay - RSC runtime errors', () => {
 
     const browser = await next.browser('/server')
 
-    await assertHasRedbox(browser)
+    await assertHasRedbox(browser, {
+      fixmeStackFramesHaveBrokenSourcemaps: true,
+    })
     const errorDescription = await getRedboxDescription(browser)
 
     expect(errorDescription).toContain(
@@ -69,7 +71,9 @@ describe('Error overlay - RSC runtime errors', () => {
     )
 
     const browser = await next.browser('/server')
-    await assertHasRedbox(browser)
+    await assertHasRedbox(browser, {
+      fixmeStackFramesHaveBrokenSourcemaps: true,
+    })
 
     const errorDescription = await getRedboxDescription(browser)
 
@@ -87,7 +91,9 @@ describe('Error overlay - RSC runtime errors', () => {
         `
     )
     const browser = await next.browser('/server')
-    await assertHasRedbox(browser)
+    await assertHasRedbox(browser, {
+      fixmeStackFramesHaveBrokenSourcemaps: true,
+    })
 
     const source = await getRedboxSource(browser)
     // Can show the original source code
@@ -106,7 +112,9 @@ describe('Error overlay - RSC runtime errors', () => {
     )
     const browser = await next.browser('/server')
 
-    await assertHasRedbox(browser)
+    await assertHasRedbox(browser, {
+      fixmeStackFramesHaveBrokenSourcemaps: true,
+    })
     const versionText = await getVersionCheckerText(browser)
     expect(versionText).toMatch(/Next.js \([\w.-]+\)/)
   })
@@ -122,7 +130,9 @@ describe('Error overlay - RSC runtime errors', () => {
     )
     const browser = await next.browser('/server')
 
-    await assertHasRedbox(browser)
+    await assertHasRedbox(browser, {
+      fixmeStackFramesHaveBrokenSourcemaps: true,
+    })
     const source = await getRedboxSource(browser)
     expect(source).toContain('app/server/page.js')
     expect(source).not.toContain('//app/server/page.js')

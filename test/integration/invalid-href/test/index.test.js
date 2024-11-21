@@ -20,6 +20,8 @@ let app
 let appPort
 const appDir = join(__dirname, '..')
 
+const isTurbopack = Boolean(process.env.TURBOPACK)
+
 // This test doesn't seem to benefit from retries, let's disable them until the test gets fixed
 // to prevent long running times
 jest.retryTimes(0)
@@ -49,7 +51,10 @@ const showsError = async (pathname, regex, click = false, isWarn = false) => {
         return warnLogs.join('\n')
       }, regex)
     } else {
-      await assertHasRedbox(browser)
+      await assertHasRedbox(browser, {
+        // TODO(veil): This is odd. Should the bundler affect the response code?
+        pageResponseCode: isTurbopack ? undefined : 500,
+      })
       const errorContent = await getRedboxHeader(browser)
       expect(errorContent).toMatch(regex)
     }

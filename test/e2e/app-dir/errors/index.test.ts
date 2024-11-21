@@ -162,7 +162,7 @@ describe('app-dir - errors', () => {
       const browser = await next.browser('/global-error-boundary/server')
 
       if (isNextDev) {
-        await assertHasRedbox(browser)
+        await assertHasRedbox(browser, { pageResponseCode: 500 })
         expect(await getRedboxHeader(browser)).toMatch(/custom server error/)
       } else {
         expect(

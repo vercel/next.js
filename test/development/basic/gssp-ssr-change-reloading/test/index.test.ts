@@ -276,7 +276,8 @@ describe('GS(S)P Server-Side Change Reloading', () => {
 
     try {
       await next.patchFile(page, originalContent.replace('props:', 'propss:'))
-      await assertHasRedbox(browser)
+      // TODO: Unclear why two page navigations are triggered
+      await assertHasRedbox(browser, { pageResponseCode: [500, 500] })
       expect(await getRedboxHeader(browser)).toContain(
         'Additional keys were returned from'
       )
@@ -306,7 +307,8 @@ describe('GS(S)P Server-Side Change Reloading', () => {
           'throw new Error("custom oops"); const count'
         )
       )
-      await assertHasRedbox(browser)
+      // TODO: Unclear why two page navigations are triggered
+      await assertHasRedbox(browser, { pageResponseCode: [500, 500] })
       expect(await getRedboxHeader(browser)).toContain('custom oops')
 
       await next.patchFile(page, originalContent)

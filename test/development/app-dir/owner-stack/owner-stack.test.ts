@@ -166,7 +166,7 @@ describe('app-dir - owner-stack', () => {
   it('should log stitched error for SSR errors', async () => {
     const browser = await next.browser('/ssr')
 
-    await assertHasRedbox(browser)
+    await assertHasRedbox(browser, { pageResponseCode: 500 })
 
     const stackFramesContent = await getStackFramesContent(browser)
     if (process.env.TURBOPACK) {

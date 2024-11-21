@@ -25,7 +25,7 @@ describe('unstable_after() - invalid usages', () => {
   it('errors at compile time when used in a client module', async () => {
     const session = await next.browser('/invalid-in-client')
 
-    await assertHasRedbox(session)
+    await assertHasRedbox(session, { pageResponseCode: 500 })
     expect(await getRedboxSource(session)).toMatch(
       /You're importing a component that needs "?unstable_after"?\. That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component\./
     )

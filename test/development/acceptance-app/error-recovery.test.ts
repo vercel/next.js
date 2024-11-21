@@ -6,7 +6,7 @@ import path from 'path'
 import { outdent } from 'outdent'
 
 describe.each(['default', 'turbo'])('Error recovery app %s', () => {
-  const { next } = nextTestSetup({
+  const { isTurbopack, next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     skipStart: true,
   })
@@ -225,7 +225,9 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
         `
       )
 
-      await session.assertHasRedbox()
+      await session.assertHasRedbox({
+        pageResponseCode: isTurbopack || type === 'server' ? undefined : 500,
+      })
       expect(await session.getRedboxSource()).toInclude(
         'export default function Child()'
       )
@@ -359,7 +361,9 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
     )
 
     // We get an error because Foo didn't import React. Fair.
-    await session.assertHasRedbox()
+    await session.assertHasRedbox({
+      pageResponseCode: isTurbopack ? undefined : 500,
+    })
     expect(await session.getRedboxSource()).toInclude(
       "return React.createElement('h1', null, 'Foo');"
     )
@@ -454,7 +458,9 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
         export default ClassDefault;
       `
     )
-    await session.assertHasRedbox()
+    await session.assertHasRedbox({
+      pageResponseCode: isTurbopack ? undefined : 500,
+    })
 
     await expect(session.getRedboxSource()).resolves.toInclude('render() {')
 
@@ -469,7 +475,7 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
       new Map([['app/page.js', '{{{']])
     )
     const { session } = sandbox
-    await session.assertHasRedbox()
+    await session.assertHasRedbox({ pageResponseCode: 500 })
     await expect(session.getRedboxSource(true)).resolves.toMatch(
       /Failed to compile/
     )

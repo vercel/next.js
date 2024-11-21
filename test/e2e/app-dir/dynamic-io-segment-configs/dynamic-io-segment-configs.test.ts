@@ -26,7 +26,7 @@ describe('dynamic-io-segment-configs', () => {
 
     if (isNextDev) {
       const browser = await next.browser('/revalidate')
-      await assertHasRedbox(browser)
+      await assertHasRedbox(browser, { pageResponseCode: 500 })
       const redbox = {
         description: await getRedboxDescription(browser),
         source: await getRedboxSource(browser),
@@ -79,7 +79,7 @@ describe('dynamic-io-segment-configs', () => {
 
         if (isNextDev) {
           const browser = await next.browser('/revalidate')
-          await assertHasRedbox(browser)
+          await assertHasRedbox(browser, { pageResponseCode: 500 })
           const redbox = {
             description: await getRedboxDescription(browser),
             source: await getRedboxSource(browser),

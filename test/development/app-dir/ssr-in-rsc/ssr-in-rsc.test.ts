@@ -265,7 +265,7 @@ describe('react-dom/server in React Server environment', () => {
     )
 
     if (isTurbopack) {
-      await assertHasRedbox(browser)
+      await assertHasRedbox(browser, { pageResponseCode: 500 })
     } else {
       // FIXME: why no redbox when there is an error?
       await assertNoRedbox(browser)
@@ -312,7 +312,7 @@ describe('react-dom/server in React Server environment', () => {
       '/exports/app-code/react-dom-server-node-explicit'
     )
 
-    await assertHasRedbox(browser)
+    await assertHasRedbox(browser, { pageResponseCode: 500 })
     const redbox = {
       description: await getRedboxDescription(browser),
       source: await getRedboxSource(browser),
@@ -369,7 +369,7 @@ describe('react-dom/server in React Server environment', () => {
       '/exports/app-code/react-dom-server-node-implicit'
     )
 
-    await assertHasRedbox(browser)
+    await assertHasRedbox(browser, { pageResponseCode: 500 })
     const redbox = {
       description: await getRedboxDescription(browser),
       source: await getRedboxSource(browser),
@@ -425,7 +425,7 @@ describe('react-dom/server in React Server environment', () => {
       '/exports/library-code/react-dom-server-browser-explicit'
     )
 
-    await assertHasRedbox(browser)
+    await assertHasRedbox(browser, { pageResponseCode: 500 })
     const redbox = {
       description: await getRedboxDescription(browser),
       source: await getRedboxSource(browser),
@@ -723,7 +723,7 @@ describe('react-dom/server in React Server environment', () => {
       '/exports/library-code/react-dom-server-node-explicit'
     )
 
-    await assertHasRedbox(browser)
+    await assertHasRedbox(browser, { pageResponseCode: 500 })
     const redbox = {
       description: await getRedboxDescription(browser),
       source: await getRedboxSource(browser),
@@ -780,7 +780,7 @@ describe('react-dom/server in React Server environment', () => {
       '/exports/library-code/react-dom-server-node-implicit'
     )
 
-    await assertHasRedbox(browser)
+    await assertHasRedbox(browser, { pageResponseCode: 500 })
     const redbox = {
       description: await getRedboxDescription(browser),
       source: await getRedboxSource(browser),

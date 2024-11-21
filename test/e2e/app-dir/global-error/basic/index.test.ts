@@ -1,11 +1,6 @@
 import { assertHasRedbox, getRedboxHeader } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 
-async function testDev(browser, errorRegex) {
-  await assertHasRedbox(browser)
-  expect(await getRedboxHeader(browser)).toMatch(errorRegex)
-}
-
 describe('app dir - global error', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
@@ -19,9 +14,9 @@ describe('app dir - global error', () => {
       .click()
 
     if (isNextDev) {
-      await testDev(browser, /Error: Client error/)
+      await assertHasRedbox(browser)
+      expect(await getRedboxHeader(browser)).toMatch(/Error: Client error/)
     } else {
-      await browser
       expect(await browser.elementByCss('#error').text()).toBe(
         'Global error: Client error'
       )
@@ -32,7 +27,8 @@ describe('app dir - global error', () => {
     const browser = await next.browser('/ssr/server')
 
     if (isNextDev) {
-      await testDev(browser, /Error: server page error/)
+      await assertHasRedbox(browser, { pageResponseCode: 500 })
+      expect(await getRedboxHeader(browser)).toMatch(/Error: server page error/)
     } else {
       expect(await browser.elementByCss('h1').text()).toBe('Global Error')
       expect(await browser.elementByCss('#error').text()).toBe(
@@ -46,7 +42,8 @@ describe('app dir - global error', () => {
     const browser = await next.browser('/ssr/client')
 
     if (isNextDev) {
-      await testDev(browser, /Error: client page error/)
+      await assertHasRedbox(browser, { pageResponseCode: 500 })
+      expect(await getRedboxHeader(browser)).toMatch(/Error: client page error/)
     } else {
       expect(await browser.elementByCss('h1').text()).toBe('Global Error')
       expect(await browser.elementByCss('#error').text()).toBe(
@@ -70,7 +67,8 @@ describe('app dir - global error', () => {
     const browser = await next.browser('/metadata-error-without-boundary')
 
     if (isNextDev) {
-      await testDev(browser, /Error: Metadata error/)
+      await assertHasRedbox(browser, { pageResponseCode: 500 })
+      expect(await getRedboxHeader(browser)).toMatch(/Error: Metadata error/)
     } else {
       expect(await browser.elementByCss('h1').text()).toBe('Global Error')
       expect(await browser.elementByCss('#error').text()).toBe(
@@ -82,7 +80,8 @@ describe('app dir - global error', () => {
   it('should catch the client error thrown in the nested routes', async () => {
     const browser = await next.browser('/nested/nested')
     if (isNextDev) {
-      await testDev(browser, /Error: nested error/)
+      await assertHasRedbox(browser)
+      expect(await getRedboxHeader(browser)).toMatch(/Error: nested error/)
     } else {
       expect(await browser.elementByCss('h1').text()).toBe('Global Error')
       expect(await browser.elementByCss('#error').text()).toBe(
