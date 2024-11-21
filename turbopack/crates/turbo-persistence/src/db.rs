@@ -20,7 +20,7 @@ use crate::{
         AQMF_AVG_SIZE, AQMF_CACHE_SIZE, KEY_BLOCK_AVG_SIZE, KEY_BLOCK_CACHE_SIZE,
         VALUE_BLOCK_AVG_SIZE, VALUE_BLOCK_CACHE_SIZE,
     },
-    key::StoreKey,
+    key::{hash_key, StoreKey},
     static_sorted_file::{AqmfCache, BlockCache, LookupResult, StaticSortedFile},
     write_batch::WriteBatch,
     QueryKey,
@@ -241,9 +241,11 @@ impl TurboPersistence {
     }
 
     pub fn get<K: QueryKey>(&self, key: &K) -> Result<Option<ArcSlice<u8>>> {
+        let hash = hash_key(key);
         let inner = self.inner.read();
         for sst in inner.static_sorted_files.iter().rev() {
             match sst.lookup(
+                hash,
                 key,
                 &self.aqmf_cache,
                 &self.key_block_cache,

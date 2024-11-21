@@ -1,7 +1,4 @@
-use std::{
-    cmp::min,
-    hash::{Hash, Hasher},
-};
+use std::{cmp::min, hash::Hasher};
 
 pub trait KeyBase {
     fn len(&self) -> usize;
@@ -162,24 +159,17 @@ impl<T: StoreKey> StoreKey for &'_ T {
     }
 }
 
-pub struct HashKey<'l, K: KeyBase>(pub &'l K);
-
-impl<K: KeyBase> Hash for HashKey<'_, K> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.0.hash(state);
-    }
+pub fn hash_key(key: &impl KeyBase) -> u64 {
+    let mut hasher = twox_hash::XxHash64::with_seed(0);
+    key.hash(&mut hasher);
+    hasher.finish()
 }
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        cmp::Ordering,
-        hash::{BuildHasher, BuildHasherDefault},
-    };
+    use std::cmp::Ordering;
 
-    use rustc_hash::FxHasher;
-
-    use crate::{key::HashKey, QueryKey};
+    use crate::{key::hash_key, QueryKey};
 
     #[test]
     fn tuple() {
@@ -198,11 +188,9 @@ mod tests {
 
     #[test]
     fn hash() {
-        type H = BuildHasherDefault<FxHasher>;
-        let h = H::default();
-        let h1 = h.hash_one(HashKey(&[1, 2, 3, 4]));
-        let h2 = h.hash_one(HashKey(&(&[1, 2], &[3, 4])));
-        let h3 = h.hash_one(HashKey(&(vec![1, 2, 3], 4u8)));
+        let h1 = hash_key(&[1, 2, 3, 4]);
+        let h2 = hash_key(&(&[1, 2], &[3, 4]));
+        let h3 = hash_key(&(vec![1, 2, 3], 4u8));
         assert_eq!(h2, h1);
         assert_eq!(h3, h1);
     }
