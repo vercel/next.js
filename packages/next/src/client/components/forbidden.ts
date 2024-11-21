@@ -14,9 +14,6 @@ import {
  * [Route Handlers](https://nextjs.org/docs/app/building-your-application/routing/route-handlers), and
  * [Server Actions](https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions-and-mutations).
  *
- * - In a Server Component, this will insert a `<meta name="robots" content="noindex" />` meta tag and set the status code to 403.
- * - In a Route Handler or Server Action, it will serve a 403 to the caller.
- *
  * Read more: [Next.js Docs: `forbidden`](https://nextjs.org/docs/app/api-reference/functions/forbidden)
  */
 export function forbidden(): never {

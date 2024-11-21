@@ -14,8 +14,6 @@ import {
  * [Route Handlers](https://nextjs.org/docs/app/building-your-application/routing/route-handlers), and
  * [Server Actions](https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions-and-mutations).
  *
- * - In a Server Component, this will insert a `<meta name="robots" content="noindex" />` meta tag and set the status code to 401.
- * - In a Route Handler or Server Action, it will serve a 401 to the caller.
  *
  * Read more: [Next.js Docs: `unauthorized`](https://nextjs.org/docs/app/api-reference/functions/unauthorized)
  */
