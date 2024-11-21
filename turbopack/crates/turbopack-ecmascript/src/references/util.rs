@@ -1,6 +1,7 @@
 use anyhow::Result;
 use swc_core::{ecma::ast::Expr, quote};
-use turbo_tasks::{RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::Vc;
 use turbopack_core::resolve::parse::Request;
 
 /// Creates a IIFE expression that throws a "Cannot find module" error for the

@@ -128,17 +128,6 @@ module.exports = function (task) {
       const output = yield transform(source, options)
       const ext = path.extname(file.base)
 
-      // Make sure the output content keeps the `"use client"` directive.
-      // TODO: Remove this once SWC fixes the issue.
-      if (/^['"]use client['"]/.test(source)) {
-        output.code =
-          '"use client";\n' +
-          output.code
-            .split('\n')
-            .map((l) => (/^['"]use client['"]/.test(l) ? '' : l))
-            .join('\n')
-      }
-
       // Replace `.ts|.tsx` with `.js` in files with an extension
       if (ext) {
         const extRegex = new RegExp(ext.replace('.', '\\.') + '$', 'i')

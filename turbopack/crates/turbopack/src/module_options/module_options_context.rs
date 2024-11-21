@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, FxIndexMap, RcStr, ResolvedVc, ValueDefault, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{trace::TraceRawVcs, FxIndexMap, ResolvedVc, ValueDefault, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::MinifyType, condition::ContextCondition, environment::Environment,
@@ -16,7 +17,7 @@ use super::ModuleRule;
 
 #[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize)]
 pub struct LoaderRuleItem {
-    pub loaders: Vc<WebpackLoaderItems>,
+    pub loaders: ResolvedVc<WebpackLoaderItems>,
     pub rename_as: Option<RcStr>,
 }
 
@@ -26,13 +27,13 @@ pub struct WebpackRules(FxIndexMap<RcStr, LoaderRuleItem>);
 
 #[derive(Default)]
 #[turbo_tasks::value(transparent)]
-pub struct OptionWebpackRules(Option<Vc<WebpackRules>>);
+pub struct OptionWebpackRules(Option<ResolvedVc<WebpackRules>>);
 
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
 pub struct WebpackLoadersOptions {
-    pub rules: Vc<WebpackRules>,
-    pub loader_runner_package: Option<Vc<ImportMapping>>,
+    pub rules: ResolvedVc<WebpackRules>,
+    pub loader_runner_package: Option<ResolvedVc<ImportMapping>>,
 }
 
 /// The kind of decorators transform to use.
@@ -113,12 +114,12 @@ pub struct ModuleOptionsContext {
     pub ecmascript: EcmascriptOptionsContext,
     pub css: CssOptionsContext,
 
-    pub enable_postcss_transform: Option<Vc<PostCssTransformOptions>>,
-    pub enable_webpack_loaders: Option<Vc<WebpackLoadersOptions>>,
+    pub enable_postcss_transform: Option<ResolvedVc<PostCssTransformOptions>>,
+    pub enable_webpack_loaders: Option<ResolvedVc<WebpackLoadersOptions>>,
     // [Note]: currently mdx, and mdx_rs have different configuration entrypoint from next.config.js,
     // however we might want to unify them in the future.
     pub enable_mdx: bool,
-    pub enable_mdx_rs: Option<Vc<MdxTransformOptions>>,
+    pub enable_mdx_rs: Option<ResolvedVc<MdxTransformOptions>>,
 
     pub preset_env_versions: Option<ResolvedVc<Environment>>,
     pub execution_context: Option<ResolvedVc<ExecutionContext>>,
@@ -130,13 +131,13 @@ pub struct ModuleOptionsContext {
     ///
     /// The filepath is the directory from which the bundled files will require the externals at
     /// runtime.
-    pub enable_externals_tracing: Option<Vc<FileSystemPath>>,
+    pub enable_externals_tracing: Option<ResolvedVc<FileSystemPath>>,
 
     /// Custom rules to be applied after all default rules.
     pub module_rules: Vec<ModuleRule>,
     /// A list of rules to use a different module option context for certain
     /// context paths. The first matching is used.
-    pub rules: Vec<(ContextCondition, Vc<ModuleOptionsContext>)>,
+    pub rules: Vec<(ContextCondition, ResolvedVc<ModuleOptionsContext>)>,
     pub placeholder_for_future_extensions: (),
 }
 
@@ -145,11 +146,11 @@ pub struct ModuleOptionsContext {
 #[serde(default)]
 pub struct EcmascriptOptionsContext {
     pub enable_typeof_window_inlining: Option<TypeofWindow>,
-    pub enable_jsx: Option<Vc<JsxTransformOptions>>,
+    pub enable_jsx: Option<ResolvedVc<JsxTransformOptions>>,
     /// Follow type references and resolve declaration files in additional to
     /// normal resolution.
     pub enable_types: bool,
-    pub enable_typescript_transform: Option<Vc<TypescriptTransformOptions>>,
+    pub enable_typescript_transform: Option<ResolvedVc<TypescriptTransformOptions>>,
     pub enable_decorators: Option<ResolvedVc<DecoratorsOptions>>,
     pub esm_url_rewrite_behavior: Option<UrlRewriteBehavior>,
     /// References to externals from ESM imports should use `import()` and make
@@ -173,7 +174,6 @@ pub struct CssOptionsContext {
     /// This is useful for node-file-trace, which tries to emit all assets in
     /// the module graph, but neither asset types can be emitted directly.
     pub enable_raw_css: bool,
-    pub use_swc_css: bool,
 
     pub minify_type: MinifyType,
 

@@ -4,9 +4,8 @@ pub mod source_map;
 use std::fmt::Write;
 
 use anyhow::{bail, Result};
-use turbo_tasks::{
-    FxIndexSet, RcStr, ResolvedVc, TryJoinIterExt, Value, ValueDefault, ValueToString, Vc,
-};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexSet, ResolvedVc, TryJoinIterExt, Value, ValueDefault, ValueToString, Vc};
 use turbo_tasks_fs::{rope::Rope, File, FileSystem};
 use turbopack_core::{
     asset::{Asset, AssetContent},

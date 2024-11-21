@@ -113,6 +113,8 @@ pub async fn minify(path: Vc<FileSystemPath>, code: Vc<Code>) -> Result<Vc<Code>
 
     write!(
         builder,
+        // findSourceMapURL assumes this co-located sourceMappingURL,
+        // and needs to be adjusted in case this is ever changed.
         "\n\n//# sourceMappingURL={}.map",
         urlencoding::encode(path.file_name())
     )?;

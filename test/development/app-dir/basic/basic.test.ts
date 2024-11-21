@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { describeVariants as describe, waitFor } from 'next-test-utils'
-import { sandbox, waitForHydration } from 'development-sandbox'
+import { createSandbox, waitForHydration } from 'development-sandbox'
 
 describe.each(['default', 'turbo'])('basic app-dir tests', () => {
   const { next } = nextTestSetup({
@@ -8,7 +8,8 @@ describe.each(['default', 'turbo'])('basic app-dir tests', () => {
   })
 
   it('should reload app pages without error', async () => {
-    const { session, cleanup, browser } = await sandbox(next, undefined, '/')
+    await using sandbox = await createSandbox(next, undefined, '/')
+    const { session, browser } = sandbox
     await session.assertNoRedbox()
 
     browser.refresh()
@@ -20,7 +21,5 @@ describe.each(['default', 'turbo'])('basic app-dir tests', () => {
       await session.assertNoRedbox()
       await waitFor(1000)
     }
-
-    await cleanup()
   })
 })

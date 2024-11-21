@@ -1,7 +1,8 @@
 use anyhow::{bail, Result};
 use auto_hash_map::AutoMap;
 use include_dir::{Dir, DirEntry};
-use turbo_tasks::{Completion, RcStr, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{Completion, ValueToString, Vc};
 
 use crate::{
     DirectoryContent, DirectoryEntry, File, FileContent, FileMeta, FileSystem, FileSystemPath,
@@ -75,20 +76,12 @@ impl FileSystem for EmbeddedFileSystem {
     }
 
     #[turbo_tasks::function]
-    fn write(
-        &self,
-        _path: Vc<FileSystemPath>,
-        _content: Vc<FileContent>,
-    ) -> Result<Vc<Completion>> {
+    fn write(&self, _path: Vc<FileSystemPath>, _content: Vc<FileContent>) -> Result<Vc<()>> {
         bail!("Writing is not possible to the embedded filesystem")
     }
 
     #[turbo_tasks::function]
-    fn write_link(
-        &self,
-        _path: Vc<FileSystemPath>,
-        _target: Vc<LinkContent>,
-    ) -> Result<Vc<Completion>> {
+    fn write_link(&self, _path: Vc<FileSystemPath>, _target: Vc<LinkContent>) -> Result<Vc<()>> {
         bail!("Writing is not possible to the embedded filesystem")
     }
 
