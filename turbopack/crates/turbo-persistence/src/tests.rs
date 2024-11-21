@@ -48,6 +48,66 @@ fn full_cycle() -> Result<()> {
 
     test_case(
         &mut test_cases,
+        "Medium keys and values",
+        |batch| {
+            for i in 0..200u8 {
+                batch.put(vec![i; 10 * 1024], vec![i; 100 * 1024].into())?;
+            }
+            Ok(())
+        },
+        |db| {
+            for i in 0..200u8 {
+                let Some(value) = db.get(&vec![i; 10 * 1024])? else {
+                    panic!("Value not found");
+                };
+                assert_eq!(&*value, &vec![i; 100 * 1024]);
+            }
+            Ok(())
+        },
+    );
+
+    test_case(
+        &mut test_cases,
+        "Large keys and values (blob files)",
+        |batch| {
+            for i in 0..20u8 {
+                batch.put(vec![i; 10 * 1024 * 1024], vec![i; 10 * 1024 * 1024].into())?;
+            }
+            Ok(())
+        },
+        |db| {
+            for i in 0..20u8 {
+                let Some(value) = db.get(&vec![i; 10 * 1024 * 1024])? else {
+                    panic!("Value not found");
+                };
+                assert_eq!(&*value, &vec![i; 10 * 1024 * 1024]);
+            }
+            Ok(())
+        },
+    );
+
+    test_case(
+        &mut test_cases,
+        "Different sizes keys and values",
+        |batch| {
+            for i in 100..200u8 {
+                batch.put(vec![i; i as usize], vec![i; i as usize].into())?;
+            }
+            Ok(())
+        },
+        |db| {
+            for i in 100..200u8 {
+                let Some(value) = db.get(&vec![i; i as usize])? else {
+                    panic!("Value not found");
+                };
+                assert_eq!(&*value, &vec![i; i as usize]);
+            }
+            Ok(())
+        },
+    );
+
+    test_case(
+        &mut test_cases,
         "Many items",
         |batch| {
             for i in 0..1000 * 1024u32 {
@@ -105,66 +165,6 @@ fn full_cycle() -> Result<()> {
                     };
                     assert_eq!(&*value, &i.to_be_bytes());
                 }
-            }
-            Ok(())
-        },
-    );
-
-    test_case(
-        &mut test_cases,
-        "Big keys and values",
-        |batch| {
-            for i in 0..200u8 {
-                batch.put(vec![i; 10 * 1024], vec![i; 100 * 1024].into())?;
-            }
-            Ok(())
-        },
-        |db| {
-            for i in 0..200u8 {
-                let Some(value) = db.get(&vec![i; 10 * 1024])? else {
-                    panic!("Value not found");
-                };
-                assert_eq!(&*value, &vec![i; 100 * 1024]);
-            }
-            Ok(())
-        },
-    );
-
-    test_case(
-        &mut test_cases,
-        "Large keys and values (blob files)",
-        |batch| {
-            for i in 0..200u8 {
-                batch.put(vec![i; 1024], vec![i; 10 * 1024 * 1024].into())?;
-            }
-            Ok(())
-        },
-        |db| {
-            for i in 0..200u8 {
-                let Some(value) = db.get(&vec![i; 1024])? else {
-                    panic!("Value not found");
-                };
-                assert_eq!(&*value, &vec![i; 10 * 1024 * 1024]);
-            }
-            Ok(())
-        },
-    );
-
-    test_case(
-        &mut test_cases,
-        "Different sizes keys and values",
-        |batch| {
-            for i in 100..200u8 {
-                batch.put(vec![i; i as usize], vec![i; i as usize].into())?;
-            }
-            Ok(())
-        },
-        |db| {
-            for i in 100..200u8 {
-                let Some(value) = db.get(&vec![i; i as usize])? else {
-                    panic!("Value not found");
-                };
-                assert_eq!(&*value, &vec![i; i as usize]);
             }
             Ok(())
         },
