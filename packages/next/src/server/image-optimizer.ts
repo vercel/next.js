@@ -546,9 +546,8 @@ export async function optimizeImage({
   }
 
   if (contentType === AVIF) {
-    const avifQuality = quality - 20
     transformer.avif({
-      quality: Math.max(avifQuality, 1),
+      quality: Math.max(quality - 15, 1),
       chromaSubsampling: '4:2:0', // same as webp
     })
   } else if (contentType === WEBP) {
