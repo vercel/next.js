@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 
 use super::available_chunk_items::{AvailableChunkItemInfoMap, AvailableChunkItems};
 
@@ -12,7 +12,7 @@ pub enum AvailabilityInfo {
     Root,
     /// There are modules already available.
     Complete {
-        available_chunk_items: Vc<AvailableChunkItems>,
+        available_chunk_items: ResolvedVc<AvailableChunkItems>,
     },
 }
 
