@@ -1,4 +1,4 @@
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::{
@@ -11,8 +11,8 @@ use crate::{
 /// to other assets.
 #[turbo_tasks::value]
 pub struct VirtualOutputAsset {
-    pub path: Vc<FileSystemPath>,
-    pub content: Vc<AssetContent>,
+    pub path: ResolvedVc<FileSystemPath>,
+    pub content: ResolvedVc<AssetContent>,
     pub references: Vc<OutputAssets>,
 }
 
