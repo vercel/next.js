@@ -937,4 +937,44 @@ describe('Error overlay for hydration errors in App router', () => {
       `)
     }
   })
+
+  it('should handle nested html tag hydration error', async () => {
+    await using sandbox = await createSandbox(
+      next,
+      new Map([
+        [
+          'app/layout.js',
+          outdent`
+          export default function Layout({ children }) {
+            return <html>{children}</html>
+          }
+          `,
+        ],
+        [
+          'app/page.js',
+          outdent`
+            export default function Page() {
+              return (
+                <html>
+                  <p>hello</p>
+                </html>
+              )
+            }
+          `,
+        ],
+      ])
+    )
+    const { session } = sandbox
+    await session.openRedbox()
+
+    const description = await session.getRedboxDescription()
+    expect(description).toMatchInlineSnapshot(``)
+
+    const pseudoHtml = await session.getRedboxComponentStack()
+    if (isTurbopack) {
+      expect(pseudoHtml).toMatchInlineSnapshot(``)
+    } else {
+      expect(pseudoHtml).toMatchInlineSnapshot(``)
+    }
+  })
 })
