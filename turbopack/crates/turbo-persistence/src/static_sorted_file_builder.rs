@@ -233,7 +233,7 @@ impl StaticSortedFileBuilder {
             &entries[key_block_boundaries[0].1].key,
         );
         for (block, entry_index) in &key_block_boundaries[1..] {
-            index_block.put(*block as u8, &entries[*entry_index].key);
+            index_block.put(*block as u16, &entries[*entry_index].key);
         }
         self.blocks[0] = self.compress_key_block(index_block.finish());
     }
@@ -270,7 +270,7 @@ impl StaticSortedFileBuilder {
         // Value compression dictionary length
         file.write_u16::<BE>(self.value_compression_dictionary.len().try_into().unwrap())?;
         // Number of blocks
-        file.write_u8(self.blocks.len().try_into().unwrap())?;
+        file.write_u16::<BE>(self.blocks.len().try_into().unwrap())?;
 
         // Write the AQMF
         file.write_all(&self.aqmf)?;
@@ -397,8 +397,8 @@ impl IndexBlockBuilder {
         }
     }
 
-    pub fn put<K: StoreKey>(&mut self, block: u8, key: K) {
-        self.data.write_u8(block).unwrap();
+    pub fn put<K: StoreKey>(&mut self, block: u16, key: K) {
+        self.data.write_u16::<BE>(block).unwrap();
 
         let pos = self.data.len() - self.header_size;
         let header_offset = INDEX_BLOCK_HEADER_SIZE + self.current_entry * 2;
