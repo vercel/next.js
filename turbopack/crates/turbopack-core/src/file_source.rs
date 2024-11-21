@@ -20,15 +20,15 @@ pub struct FileSource {
 #[turbo_tasks::value_impl]
 impl FileSource {
     #[turbo_tasks::function]
-    pub fn new(path: Vc<FileSystemPath>) -> Vc<Self> {
+    pub fn new(path: ResolvedVc<FileSystemPath>) -> Vc<Self> {
         Self::cell(FileSource {
             path,
-            query: Vc::<RcStr>::default(),
+            query: RcStr::default().resolved_cell(),
         })
     }
 
     #[turbo_tasks::function]
-    pub fn new_with_query(path: Vc<FileSystemPath>, query: Vc<RcStr>) -> Vc<Self> {
+    pub fn new_with_query(path: ResolvedVc<FileSystemPath>, query: ResolvedVc<RcStr>) -> Vc<Self> {
         Self::cell(FileSource { path, query })
     }
 }
@@ -37,7 +37,7 @@ impl FileSource {
 impl Source for FileSource {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        AssetIdent::from_path(self.path).with_query(self.query)
+        AssetIdent::from_path(*self.path).with_query(*self.query)
     }
 }
 
