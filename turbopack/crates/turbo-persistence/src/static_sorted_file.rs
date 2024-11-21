@@ -5,6 +5,7 @@ use std::{
     mem::{transmute, MaybeUninit},
     path::PathBuf,
     sync::{Arc, OnceLock},
+    time::Instant,
 };
 
 use anyhow::{bail, Result};
@@ -134,11 +135,16 @@ impl StaticSortedFile {
         value_block_cache: &BlockCache,
     ) -> Result<LookupResult> {
         let aqmf = match aqmf_cache.get_value_or_guard(&self.sequence_number, None) {
-            GuardResult::Value(aqmf) => aqmf,
+            GuardResult::Value(aqmf) => {
+                eprintln!("AQMF HIT");
+                aqmf
+            }
             GuardResult::Guard(guard) => {
                 let header = self.header()?;
+                let start = Instant::now();
                 let aqmf = &self.mmap[header.aqmf.start..header.aqmf.end];
                 let aqmf: Arc<qfilter::Filter> = Arc::new(pot::from_slice(aqmf)?);
+                eprintln!("AQMF MISS {:?} {}", start.elapsed(), aqmf.len());
                 let _ = guard.insert(aqmf.clone());
                 aqmf
             }
@@ -153,9 +159,22 @@ impl StaticSortedFile {
             let block = match key_block_cache
                 .get_value_or_guard(&(self.sequence_number, current_block), None)
             {
-                GuardResult::Value(block) => block,
+                GuardResult::Value(block) => {
+                    if current_block == 0 {
+                        eprintln!("INDEX HIT");
+                    } else {
+                        eprintln!("KEY HIT");
+                    }
+                    block
+                }
                 GuardResult::Guard(guard) => {
+                    let start = Instant::now();
                     let block = self.read_key_block(header, current_block)?;
+                    if current_block == 0 {
+                        eprintln!("INDEX MISS {:?} {}", start.elapsed(), block.len());
+                    } else {
+                        eprintln!("KEY MISS {:?} {}", start.elapsed(), block.len());
+                    }
                     let _ = guard.insert(block.clone());
                     block
                 }
@@ -350,9 +369,14 @@ impl StaticSortedFile {
     ) -> Result<ArcSlice<u8>> {
         let block = match value_block_cache.get_value_or_guard(&(self.sequence_number, block), None)
         {
-            GuardResult::Value(block) => block,
+            GuardResult::Value(block) => {
+                eprintln!("VALUE HIT");
+                block
+            }
             GuardResult::Guard(guard) => {
+                let start = Instant::now();
                 let block = self.read_value_block(header, block)?;
+                eprintln!("VALUE MISS {:?} {}", start.elapsed(), block.len());
                 let _ = guard.insert(block.clone());
                 block
             }
