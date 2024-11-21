@@ -90,6 +90,28 @@ fn full_cycle() -> Result<()> {
 
     test_case(
         &mut test_cases,
+        "Many items, few reads",
+        |batch| {
+            for i in 0..1000 * 1024u32 {
+                batch.put(i.to_be_bytes().into(), i.to_be_bytes().to_vec().into())?;
+            }
+            Ok(())
+        },
+        |db| {
+            for _ in 0..250 * 1024u32 {
+                for i in [13 * 1024u32, 42 * 1024u32, 170 * 1024u32, 170 * 1024u32 + 1] {
+                    let Some(value) = db.get(&i.to_be_bytes())? else {
+                        panic!("Value not found");
+                    };
+                    assert_eq!(&*value, &i.to_be_bytes());
+                }
+            }
+            Ok(())
+        },
+    );
+
+    test_case(
+        &mut test_cases,
         "Big keys and values",
         |batch| {
             for i in 0..200u8 {
@@ -193,20 +215,25 @@ fn full_cycle() -> Result<()> {
             db.commit_write_batch(batch)?;
             println!("All write time: {:?}", start.elapsed());
 
-            let start = Instant::now();
-            for (_, _, read) in test_cases.iter() {
+            for (name, _, read) in test_cases.iter() {
+                let start = Instant::now();
                 read(&db)?;
+                println!("{name} read time: {:?}", start.elapsed());
             }
-            println!("All read time: {:?}", start.elapsed());
         }
         {
             let start = Instant::now();
             let db = TurboPersistence::open(path.to_path_buf())?;
             println!("All restore time: {:?}", start.elapsed());
-            for (_, _, read) in test_cases.iter() {
+            for (name, _, read) in test_cases.iter() {
                 let start = Instant::now();
                 read(&db)?;
-                println!("All read time after restore: {:?}", start.elapsed());
+                println!("{name} read time after restore: {:?}", start.elapsed());
+            }
+            for (name, _, read) in test_cases.iter() {
+                let start = Instant::now();
+                read(&db)?;
+                println!("{name} read time after read: {:?}", start.elapsed());
             }
         }
     }
