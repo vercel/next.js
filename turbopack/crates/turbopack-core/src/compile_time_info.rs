@@ -267,9 +267,9 @@ impl FreeVarReferences {
 #[turbo_tasks::value(shared)]
 #[derive(Debug, Clone)]
 pub struct CompileTimeInfo {
-    pub environment: Vc<Environment>,
-    pub defines: Vc<CompileTimeDefines>,
-    pub free_var_references: Vc<FreeVarReferences>,
+    pub environment: ResolvedVc<Environment>,
+    pub defines: ResolvedVc<CompileTimeDefines>,
+    pub free_var_references: ResolvedVc<FreeVarReferences>,
 }
 
 impl CompileTimeInfo {
