@@ -19,7 +19,7 @@ use crate::{arc_slice::ArcSlice, key::HashKey, QueryKey};
 pub const BLOCK_TYPE_INDEX: u8 = 0;
 pub const BLOCK_TYPE_KEY: u8 = 1;
 
-pub const KEY_BLOCK_ENTRY_TYPE_NORMAL: u8 = 0;
+pub const KEY_BLOCK_ENTRY_TYPE_SMALL: u8 = 0;
 pub const KEY_BLOCK_ENTRY_TYPE_BLOB: u8 = 1;
 pub const KEY_BLOCK_ENTRY_TYPE_DELETED: u8 = 2;
 pub const KEY_BLOCK_ENTRY_TYPE_MEDIUM: u8 = 3;
@@ -283,8 +283,8 @@ impl StaticSortedFile {
                 (&offsets[(index + 1) * 4 + 1..]).read_u24::<BE>()? as usize
             };
             Ok(match ty {
-                KEY_BLOCK_ENTRY_TYPE_NORMAL => {
-                    (&entries[start..end - 9], ty, &entries[end - 9..end])
+                KEY_BLOCK_ENTRY_TYPE_SMALL => {
+                    (&entries[start..end - 8], ty, &entries[end - 8..end])
                 }
                 KEY_BLOCK_ENTRY_TYPE_MEDIUM => {
                     (&entries[start..end - 2], ty, &entries[end - 2..end])
@@ -325,9 +325,9 @@ impl StaticSortedFile {
         value_block_cache: &BlockCache,
     ) -> Result<LookupResult> {
         Ok(match ty {
-            KEY_BLOCK_ENTRY_TYPE_NORMAL => {
+            KEY_BLOCK_ENTRY_TYPE_SMALL => {
                 let block = val.read_u16::<BE>()?;
-                let size = val.read_u24::<BE>()? as usize;
+                let size = val.read_u16::<BE>()? as usize;
                 let position = val.read_u32::<BE>()? as usize;
                 let value = self
                     .get_value_block(block, header, value_block_cache)?

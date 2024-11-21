@@ -69,7 +69,7 @@ Depending on the `type` field entry has a different format:
 * 0: normal key (small value)
   * key data
   * 2 byte block index
-  * 3 bytes size
+  * 2 bytes size
   * 4 bytes position in block
 * 1: blob reference
   * key data
