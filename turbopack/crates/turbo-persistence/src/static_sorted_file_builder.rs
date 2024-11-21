@@ -13,14 +13,16 @@ use crate::{
     key::{HashKey, StoreKey},
     static_sorted_file::{
         BLOCK_TYPE_INDEX, BLOCK_TYPE_KEY, KEY_BLOCK_ENTRY_TYPE_BLOB, KEY_BLOCK_ENTRY_TYPE_DELETED,
-        KEY_BLOCK_ENTRY_TYPE_MEDIUM, KEY_BLOCK_ENTRY_TYPE_NORMAL,
+        KEY_BLOCK_ENTRY_TYPE_MEDIUM, KEY_BLOCK_ENTRY_TYPE_SMALL,
     },
 };
 
 const MAX_KEY_BLOCK_ENTRIES: usize = 100 * 1024;
-const MAX_KEY_BLOCK_SIZE: usize = 16 * 1024 * 1024 - 1;
-const MAX_VALUE_BLOCK_ENTRIES: usize = 100 * 1024;
-const MAX_VALUE_BLOCK_SIZE: usize = 16 * 1024 * 1024;
+// Note this must fit into 3 bytes length
+const MAX_KEY_BLOCK_SIZE: usize = 1024 * 1024;
+const KEY_BLOCK_ENTRY_META_OVERHEAD: usize = 8;
+const MAX_SMALL_VALUE_BLOCK_ENTRIES: usize = 100 * 1024;
+const MAX_SMALL_VALUE_BLOCK_SIZE: usize = 128 * 1024;
 const AQMF_FALSE_POSITIVE_RATE: f64 = 0.01;
 const VALUE_COMPRESSION_DICTIONARY_SIZE: usize = 64 * 1024 - 1;
 const KEY_COMPRESSION_DICTIONARY_SIZE: usize = 64 * 1024 - 1;
@@ -141,8 +143,8 @@ impl StaticSortedFileBuilder {
         for (i, entry) in entries.iter().enumerate() {
             match &entry.value {
                 EntryValue::Small { value } => {
-                    if current_block_size + value.len() > MAX_VALUE_BLOCK_SIZE
-                        || current_block_count + 1 >= MAX_VALUE_BLOCK_ENTRIES
+                    if current_block_size + value.len() > MAX_SMALL_VALUE_BLOCK_SIZE
+                        || current_block_count + 1 >= MAX_SMALL_VALUE_BLOCK_ENTRIES
                     {
                         let block_index = self.blocks.len();
                         let mut block = Vec::with_capacity(current_block_size);
@@ -193,7 +195,7 @@ impl StaticSortedFileBuilder {
         ) {
             match &entry.value {
                 EntryValue::Small { value } => {
-                    block.put(
+                    block.put_small(
                         &entry.key,
                         value_location.0.try_into().unwrap(),
                         value_location.1.try_into().unwrap(),
@@ -214,7 +216,8 @@ impl StaticSortedFileBuilder {
         let mut current_block_start = 0;
         let mut current_block_size = 0;
         for (i, entry) in entries.iter().enumerate() {
-            if current_block_size + entry.key.len() > MAX_KEY_BLOCK_SIZE
+            if current_block_size + entry.key.len() + KEY_BLOCK_ENTRY_META_OVERHEAD
+                > MAX_KEY_BLOCK_SIZE
                 || i - current_block_start >= MAX_KEY_BLOCK_ENTRIES
             {
                 let mut block = KeyBlockBuilder::new((i - current_block_start) as u32);
@@ -228,7 +231,7 @@ impl StaticSortedFileBuilder {
                 current_block_size = 0;
                 current_block_start = i;
             }
-            current_block_size += entry.key.len();
+            current_block_size += entry.key.len() + KEY_BLOCK_ENTRY_META_OVERHEAD;
         }
         if current_block_size > 0 {
             let mut block = KeyBlockBuilder::new((entries.len() - current_block_start) as u32);
@@ -337,21 +340,21 @@ impl KeyBlockBuilder {
         }
     }
 
-    pub fn put<K: StoreKey>(
+    pub fn put_small<K: StoreKey>(
         &mut self,
         key: K,
         value_block: u16,
         value_offset: u32,
-        value_size: u32,
+        value_size: u16,
     ) {
         let pos = self.data.len() - self.header_size;
         let header_offset = KEY_BLOCK_HEADER_SIZE + self.current_entry * 4;
-        let header = (pos as u32) | ((KEY_BLOCK_ENTRY_TYPE_NORMAL as u32) << 24);
+        let header = (pos as u32) | ((KEY_BLOCK_ENTRY_TYPE_SMALL as u32) << 24);
         BE::write_u32(&mut self.data[header_offset..header_offset + 4], header);
 
         key.write_to(&mut self.data);
         self.data.write_u16::<BE>(value_block).unwrap();
-        self.data.write_u24::<BE>(value_size).unwrap();
+        self.data.write_u16::<BE>(value_size).unwrap();
         self.data.write_u32::<BE>(value_offset).unwrap();
 
         self.current_entry += 1;
