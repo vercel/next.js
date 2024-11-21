@@ -57,7 +57,7 @@ export type UpgradeHandler = (
 
 const SYMBOL_LOAD_CONFIG = Symbol('next.load_config')
 
-export interface NextWrapperServer {
+interface NextWrapperServer {
   // NOTE: the methods/properties here are the public API for custom servers.
   // Consider backwards compatibilty when changing something here!
 
