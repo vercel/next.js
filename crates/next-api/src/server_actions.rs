@@ -97,7 +97,7 @@ pub(crate) async fn create_server_actions_manifest(
 
         for module in server_component_entries {
             let refs = client_references_by_server_component
-                .get(&None)
+                .get(&Some(*module))
                 .map_or(&[] as &[_], |vec| vec.as_slice())
                 .iter()
                 .map(|r| async move { Ok(Vc::upcast(*r.await?.ssr_module)) })
