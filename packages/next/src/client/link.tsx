@@ -451,9 +451,21 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         }
 
         if (href) {
-          const hasDynamicSegment = href
-            .split('/')
-            .some((segment) => segment.startsWith('[') && segment.endsWith(']'))
+          const segments = href.split('/')
+
+          const hasObjectTypeSegment = segments.some(
+            (segment) => segment === '[object Object]'
+          )
+
+          const hasDynamicSegment = segments.some(
+            (segment) => segment.startsWith('[') && segment.endsWith(']')
+          )
+
+          if (hasObjectTypeSegment) {
+            throw new Error(
+              `The href \`${href}\` contains Object in <Link>, this is not supported.`
+            )
+          }
 
           if (hasDynamicSegment) {
             throw new Error(
