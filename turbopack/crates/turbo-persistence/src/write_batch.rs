@@ -1,4 +1,3 @@
-use core::panic;
 use std::{
     borrow::Cow,
     cell::UnsafeCell,
@@ -6,7 +5,6 @@ use std::{
     mem::take,
     path::PathBuf,
     sync::atomic::{AtomicU32, Ordering},
-    u64,
 };
 
 use anyhow::{Context, Result};
@@ -15,11 +13,7 @@ use lzzzz::lz4::{self, ACC_LEVEL_DEFAULT};
 use thread_local::ThreadLocal;
 
 use crate::{
-    collector::Collector,
-    constants::MAX_SMALL_VALUE_SIZE,
-    entry::{Entry, EntryValue},
-    key::StoreKey,
-    static_sorted_file::{AqmfCache, BlockCache, LookupResult, StaticSortedFile},
+    collector::Collector, constants::MAX_SMALL_VALUE_SIZE, entry::Entry, key::StoreKey,
     static_sorted_file_builder::StaticSortedFileBuilder,
 };
 
@@ -124,7 +118,15 @@ impl<K: StoreKey + Send> WriteBatch<K> {
             .write(&path)
             .with_context(|| format!("Unable to write SST file {:08}.sst", seq))?;
 
+        #[cfg(feature = "verify_sst_content")]
         {
+            use core::panic;
+
+            use crate::{
+                entry::EntryValue,
+                static_sorted_file::{AqmfCache, BlockCache, LookupResult, StaticSortedFile},
+            };
+
             file.sync_all();
             let sst = StaticSortedFile::open(seq, path)?;
             let cache1 = AqmfCache::with(
