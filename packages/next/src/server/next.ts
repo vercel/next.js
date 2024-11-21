@@ -301,7 +301,7 @@ export class NextServer implements NextWrapperServer {
 /** The wrapper server used for `import next from "next" (in a custom server)` */
 class NextCustomServer implements NextWrapperServer {
   private didWebSocketSetup: boolean = false
-  protected cleanupListeners = new AsyncCallbackSet()
+  protected cleanupListeners?: AsyncCallbackSet
 
   protected init?: ServerInitResult
 
@@ -342,13 +342,17 @@ class NextCustomServer implements NextWrapperServer {
     const { getRequestHandlers } =
       require('./lib/start-server') as typeof import('./lib/start-server')
 
+    let onDevServerCleanup: AsyncCallbackSet['add'] | undefined
+    if (this.options.dev) {
+      this.cleanupListeners = new AsyncCallbackSet()
+      onDevServerCleanup = this.cleanupListeners.add.bind(this.cleanupListeners)
+    }
+
     const initResult = await getRequestHandlers({
       dir: this.options.dir!,
       port: this.options.port || 3000,
       isDev: !!this.options.dev,
-      onDevServerCleanup: this.options.dev
-        ? this.cleanupListeners.add.bind(this.cleanupListeners)
-        : undefined,
+      onDevServerCleanup,
       hostname: this.options.hostname || 'localhost',
       minimalMode: this.options.minimalMode,
       quiet: this.options.quiet,
@@ -441,7 +445,7 @@ class NextCustomServer implements NextWrapperServer {
   async close() {
     await Promise.allSettled([
       this.init?.server.close(),
-      this.cleanupListeners.runAll(),
+      this.cleanupListeners?.runAll(),
     ])
   }
 }
