@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import {
   getRedboxSource,
-  waitForAndOpenRuntimeError,
+  openRedbox,
   getStackFramesContent,
 } from 'next-test-utils'
 
@@ -19,7 +19,7 @@ const isOwnerStackEnabled =
 
     it('should catch invalid element from on rsc component', async () => {
       const browser = await next.browser('/rsc')
-      await waitForAndOpenRuntimeError(browser)
+      await openRedbox(browser)
 
       const stackFramesContent = await getStackFramesContent(browser)
       const source = await getRedboxSource(browser)
@@ -61,7 +61,7 @@ const isOwnerStackEnabled =
 
     it('should catch invalid element from on ssr client component', async () => {
       const browser = await next.browser('/ssr')
-      await waitForAndOpenRuntimeError(browser)
+      await openRedbox(browser)
 
       const stackFramesContent = await getStackFramesContent(browser)
       const source = await getRedboxSource(browser)

@@ -879,8 +879,19 @@ export async function hasErrorToast(
   })
 }
 
-export async function waitForAndOpenRuntimeError(browser: BrowserInterface) {
-  return browser.waitForElementByCss('[data-nextjs-toast]', 5000).click()
+/**
+ * Has retried version of {@link hasErrorToast} built-in.
+ * Success implies {@link assertHasRedbox}.
+ */
+export async function openRedbox(browser: BrowserInterface): Promise<void> {
+  try {
+    browser.waitForElementByCss('[data-nextjs-toast]', 5000).click()
+  } catch (cause) {
+    const error = new Error('No Redbox to open.', { cause })
+    Error.captureStackTrace(error, openRedbox)
+    throw error
+  }
+  await assertHasRedbox(browser)
 }
 
 export function getRedboxHeader(browser: BrowserInterface) {
