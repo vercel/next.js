@@ -6,6 +6,11 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  experimental: {
+    turbo: {
+      unstablePersistentCaching: process.env.TURBO_CACHE ? 1 : false,
+    },
+  },
 }
 
 export default nextConfig
