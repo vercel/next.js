@@ -14,9 +14,10 @@ export function enqueueConsecutiveDedupedError(
   // TODO: change all to push error into errorQueue,
   // currently there's a async api error is always erroring while hydration error showing up.
   // Move hydration error to the front of the queue to unblock.
-  if (isFront) {
-    queue.unshift(error)
-  } else {
-    queue.push(error)
-  }
+  // if (isFront) {
+  //   queue.unshift(error)
+  // } else {
+  //   queue.push(error)
+  // }
+  queue.push(error)
 }

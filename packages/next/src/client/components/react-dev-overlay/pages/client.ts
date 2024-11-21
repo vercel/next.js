@@ -2,7 +2,7 @@ import * as Bus from './bus'
 import { parseStack } from '../internal/helpers/parse-stack'
 import { parseComponentStack } from '../internal/helpers/parse-component-stack'
 import {
-  hydrationErrorState,
+  // hydrationErrorState,
   storeHydrationErrorStateFromConsoleArgs,
 } from '../../errors/hydration-error-info'
 import {
@@ -26,10 +26,10 @@ function handleError(error: unknown) {
     return
   }
 
-  attachHydrationErrorState(error)
+  // attachHydrationErrorState(error)
 
   const componentStackTrace =
-    (error as any)._componentStack || hydrationErrorState.componentStack
+    (error as any)._componentStack // || hydrationErrorState.componentStack
   const componentStackFrames =
     typeof componentStackTrace === 'string'
       ? parseComponentStack(componentStackTrace)

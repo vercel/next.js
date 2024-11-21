@@ -17,7 +17,9 @@ export const getDefaultHydrationErrorMessage = () => {
 }
 
 export function isHydrationError(error: unknown): boolean {
-  return isError(error) && hydrationErrorRegex.test(error.message)
+  return isError(error) && (
+    hydrationErrorRegex.test(error.message)
+  )
 }
 
 export function isReactHydrationErrorMessage(msg: string): boolean {
@@ -37,7 +39,7 @@ export function getHydrationErrorStackInfo(rawMessage: string): {
   const firstLineBreak = rawMessage.indexOf('\n')
   rawMessage = rawMessage.slice(firstLineBreak + 1).trim()
 
-  const [message, trailing] = rawMessage.split(`${reactHydrationErrorDocLink}`)
+  const [message, trailing] = rawMessage.split(reactHydrationErrorDocLink)
   const trimmedMessage = message.trim()
   // React built-in hydration diff starts with a newline, checking if length is > 1
   if (trailing && trailing.length > 1) {

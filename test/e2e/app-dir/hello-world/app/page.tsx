@@ -1,3 +1,12 @@
+'use client'
+
 export default function Page() {
-  return <p>hello world</p>
+  // return (
+  //   <p>{typeof window === 'undefined' ? 'server' : 'client'}</p>
+  // )
+  return (
+    <p>
+      <p>nested</p>
+    </p>
+  )
 }

@@ -57,7 +57,7 @@ const isTextMismatchWarning = (message: string) =>
 const isTextInTagsMismatchWarning = (msg: string) =>
   textAndTagsMismatchWarnings.has(msg)
 
-const isKnownHydrationWarning = (message: NullableText) => {
+export const isKnownHydrationWarning = (message: NullableText) => {
   if (typeof message !== 'string') {
     return false
   }
@@ -92,14 +92,22 @@ export const getReactHydrationDiffSegments = (msg: NullableText) => {
 export function storeHydrationErrorStateFromConsoleArgs(...args: any[]) {
   const [msg, serverContent, clientContent, componentStack] = args
   if (isKnownHydrationWarning(msg)) {
-    hydrationErrorState.warning = [
+    const warning: [string, string, string] = [
       // remove the last %s from the message
       msg,
       serverContent,
       clientContent,
     ]
+    hydrationErrorState.warning = warning
     hydrationErrorState.componentStack = componentStack
     hydrationErrorState.serverContent = serverContent
     hydrationErrorState.clientContent = clientContent
+    return {
+      warning,
+      componentStack,
+      serverContent,
+      clientContent,
+    }
   }
+  return null
 }

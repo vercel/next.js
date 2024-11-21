@@ -296,6 +296,23 @@ export function Errors({
         .replace(/^Error: /, '')
     : null
 
+
+  const diffContent = (errorDetails.componentStack || '') 
+    .trim()
+    .replace(/\.\.\.\s*/, '')
+  const showHydrationDiff = Boolean(
+    hydrationWarning &&
+    (activeError.componentStackFrames?.length || !!diffContent)
+  )
+  console.log(
+    'hydrationErrorType', hydrationErrorType
+    // 'showHydrationDiff', showHydrationDiff,
+    // 'hydrationWarning', hydrationWarning,
+    // 'activeError.componentStackFrames', activeError.componentStackFrames,
+    // 'diffContent', diffContent,
+    // 'errorDetails', errorDetails
+  )
+  
   return (
     <Overlay>
       <Dialog
@@ -378,16 +395,14 @@ export function Errors({
               </p>
             ) : null}
 
-            {hydrationWarning &&
-            (activeError.componentStackFrames?.length ||
-              !!errorDetails.reactOutputComponentDiff) ? (
+            {showHydrationDiff ? (
               <PseudoHtmlDiff
                 className="nextjs__container_errors__component-stack"
                 hydrationMismatchType={hydrationErrorType}
                 componentStackFrames={activeError.componentStackFrames || []}
                 firstContent={serverContent}
                 secondContent={clientContent}
-                reactOutputComponentDiff={errorDetails.reactOutputComponentDiff}
+                reactOutputComponentDiff={diffContent}
               />
             ) : null}
             {isServerError ? (
