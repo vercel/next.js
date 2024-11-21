@@ -1897,7 +1897,7 @@ export default class NextNodeServer extends BaseServer<
 
     const awaiter = new AwaiterOnce({ onError: console.error })
 
-    // TODO(after): warn if exiting before these are awaited?
+    // TODO(after): warn if the process exits before these are awaited
     this.onServerClose(() => awaiter.awaiting())
 
     return awaiter.waitUntil
