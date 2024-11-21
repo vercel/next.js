@@ -43,6 +43,7 @@ mod completion;
 pub mod debug;
 mod display;
 pub mod duration_span;
+mod effect;
 pub mod event;
 pub mod graph;
 mod id;
@@ -61,7 +62,6 @@ mod output;
 pub mod persisted_graph;
 pub mod primitives;
 mod raw_vc;
-mod rcstr;
 mod read_ref;
 pub mod registry;
 mod scope;
@@ -86,6 +86,7 @@ use auto_hash_map::AutoSet;
 pub use collectibles::CollectiblesSource;
 pub use completion::{Completion, Completions};
 pub use display::ValueToString;
+pub use effect::{apply_effects, effect, get_effects, Effects};
 pub use id::{
     ExecutionId, FunctionId, LocalTaskId, SessionId, TaskId, TraitTypeId, ValueTypeId,
     TRANSIENT_TASK_BIT,
@@ -107,7 +108,6 @@ pub use manager::{
 pub use native_function::{FunctionMeta, NativeFunction};
 pub use output::OutputContent;
 pub use raw_vc::{CellId, RawVc, ReadRawVcFuture, ResolveTypeError};
-pub use rcstr::RcStr;
 pub use read_ref::ReadRef;
 use rustc_hash::FxHasher;
 pub use scope::scope;

@@ -24,13 +24,14 @@ import {
   resolveMetadataItems,
   accumulateMetadata,
   accumulateViewport,
+  type MetadataErrorType,
 } from './resolve-metadata'
 import { MetaFilter } from './generate/meta'
 import type {
   ResolvedMetadata,
   ResolvedViewport,
 } from './types/metadata-interface'
-import { isNotFoundError } from '../../client/components/not-found'
+import { isHTTPAccessFallbackError } from '../../client/components/http-access-fallback/http-access-fallback'
 import type { MetadataContext } from './types/resolvers'
 import type { WorkStore } from '../../server/app-render/work-async-storage.external'
 import {
@@ -61,7 +62,7 @@ export function createMetadataComponents({
   metadataContext: MetadataContext
   getDynamicParamFromSegment: GetDynamicParamFromSegment
   appUsingSizeAdjustment: boolean
-  errorType?: 'not-found' | 'redirect'
+  errorType?: MetadataErrorType | 'redirect'
   createServerParamsForMetadata: CreateServerParamsForMetadata
   workStore: WorkStore
   MetadataBoundary: (props: { children: React.ReactNode }) => React.ReactNode
@@ -76,7 +77,9 @@ export function createMetadataComponents({
         <ViewportBoundary>
           <Viewport />
         </ViewportBoundary>
-        {appUsingSizeAdjustment ? <meta name="next-size-adjust" /> : null}
+        {appUsingSizeAdjustment ? (
+          <meta name="next-size-adjust" content="" />
+        ) : null}
       </>
     )
   }
@@ -96,7 +99,7 @@ export function createMetadataComponents({
     try {
       return await viewport()
     } catch (error) {
-      if (!errorType && isNotFoundError(error)) {
+      if (!errorType && isHTTPAccessFallbackError(error)) {
         try {
           return await getNotFoundViewport(
             tree,
@@ -132,7 +135,7 @@ export function createMetadataComponents({
     try {
       return await metadata()
     } catch (error) {
-      if (!errorType && isNotFoundError(error)) {
+      if (!errorType && isHTTPAccessFallbackError(error)) {
         try {
           return await getNotFoundMetadata(
             tree,
@@ -170,7 +173,7 @@ async function getResolvedMetadataImpl(
   metadataContext: MetadataContext,
   createServerParamsForMetadata: CreateServerParamsForMetadata,
   workStore: WorkStore,
-  errorType?: 'not-found' | 'redirect'
+  errorType?: MetadataErrorType | 'redirect'
 ): Promise<React.ReactNode> {
   const errorConvention = errorType === 'redirect' ? undefined : errorType
 
@@ -232,7 +235,7 @@ async function getResolvedViewportImpl(
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
   createServerParamsForMetadata: CreateServerParamsForMetadata,
   workStore: WorkStore,
-  errorType?: 'not-found' | 'redirect'
+  errorType?: MetadataErrorType | 'redirect'
 ): Promise<React.ReactNode> {
   const errorConvention = errorType === 'redirect' ? undefined : errorType
 

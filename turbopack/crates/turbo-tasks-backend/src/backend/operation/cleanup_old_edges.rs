@@ -99,7 +99,7 @@ impl Operation for CleanupOldEdgesOperation {
                             }
                             OutdatedEdge::Collectible(collectible, count) => {
                                 let mut collectibles = Vec::new();
-                                collectibles.push((collectible, count));
+                                collectibles.push((collectible, -count));
                                 outdated.retain(|e| match e {
                                     OutdatedEdge::Collectible(collectible, count) => {
                                         collectibles.push((*collectible, -*count));
@@ -108,8 +108,14 @@ impl Operation for CleanupOldEdgesOperation {
                                     _ => true,
                                 });
                                 let mut task = ctx.task(task_id, TaskDataCategory::All);
-                                for &(collectible, count) in collectibles.iter() {
-                                    update_count!(task, Collectible { collectible }, -count);
+                                for (collectible, count) in collectibles.iter_mut() {
+                                    update_count!(
+                                        task,
+                                        Collectible {
+                                            collectible: *collectible
+                                        },
+                                        *count
+                                    );
                                 }
                                 queue.extend(AggregationUpdateJob::data_update(
                                     &mut task,

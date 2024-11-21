@@ -21,9 +21,9 @@ let BACKEND: RuntimeBackend;
 
 type ExternalRequire = (
   id: ModuleId,
+  thunk: () => any,
   esm?: boolean
 ) => Exports | EsmNamespaceObject;
-
 type ExternalImport = (id: ModuleId) => Promise<Exports | EsmNamespaceObject>;
 
 interface TurbopackEdgeContext extends TurbopackBaseContext<Module> {

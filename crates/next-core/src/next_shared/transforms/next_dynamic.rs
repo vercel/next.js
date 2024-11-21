@@ -2,7 +2,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use next_custom_transforms::transforms::dynamic::{next_dynamic, NextDynamicMode};
 use swc_core::{common::FileName, ecma::ast::Program};
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
 use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext};
 
@@ -17,17 +17,18 @@ pub async fn get_next_dynamic_transform_rule(
     mode: Vc<NextMode>,
     enable_mdx_rs: bool,
 ) -> Result<ModuleRule> {
-    let dynamic_transform = EcmascriptInputTransform::Plugin(Vc::cell(Box::new(NextJsDynamic {
-        is_server_compiler,
-        is_react_server_layer,
-        is_app_dir,
-        mode: *mode.await?,
-    }) as _));
+    let dynamic_transform =
+        EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(NextJsDynamic {
+            is_server_compiler,
+            is_react_server_layer,
+            is_app_dir,
+            mode: *mode.await?,
+        }) as _));
     Ok(ModuleRule::new(
         module_rule_match_js_no_url(enable_mdx_rs),
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
-            prepend: Vc::cell(vec![]),
-            append: Vc::cell(vec![dynamic_transform]),
+            prepend: ResolvedVc::cell(vec![]),
+            append: ResolvedVc::cell(vec![dynamic_transform]),
         }],
     ))
 }

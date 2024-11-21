@@ -152,10 +152,8 @@ export interface ExperimentalTurboOptions {
 
   /**
    * Enable persistent caching for the turbopack dev server and build.
-   * Need to provide the expected level of stability, otherwise it will fail.
-   * Currently stability level: 1
    */
-  unstablePersistentCaching?: number | false
+  unstablePersistentCaching?: boolean
 
   /**
    * Enable tree shaking for the turbopack dev server and build.
@@ -249,6 +247,7 @@ export interface ExperimentalConfig {
   prerenderEarlyExit?: boolean
   linkNoTouchStart?: boolean
   caseSensitiveRoutes?: boolean
+  clientSegmentCache?: boolean
   appDocumentPreloading?: boolean
   preloadEntriesOnStart?: boolean
   /** @default true */
@@ -557,6 +556,12 @@ export interface ExperimentalConfig {
    * unless explicitly cached.
    */
   dynamicIO?: boolean
+
+  /**
+   * Render <style> tags inline in the HTML for imported CSS assets.
+   * Supports app-router in production mode only.
+   */
+  inlineCss?: boolean
 }
 
 export type ExportPathMap = {
@@ -895,6 +900,12 @@ export interface NextConfig extends Record<string, any> {
       | {
           useLightningcss?: boolean
         }
+
+    /**
+     * Replaces variables in your code during compile time. Each key will be
+     * replaced with the respective values.
+     */
+    define?: Record<string, string>
   }
 
   /**
@@ -1085,6 +1096,7 @@ export const defaultConfig: NextConfig = {
     serverSourceMaps: false,
     linkNoTouchStart: false,
     caseSensitiveRoutes: false,
+    clientSegmentCache: false,
     appDocumentPreloading: undefined,
     preloadEntriesOnStart: true,
     clientRouterFilter: true,
@@ -1154,6 +1166,7 @@ export const defaultConfig: NextConfig = {
     staticGenerationMaxConcurrency: 8,
     staticGenerationMinPagesPerWorker: 25,
     dynamicIO: false,
+    inlineCss: false,
   },
   bundlePagesRouterDependencies: false,
 }

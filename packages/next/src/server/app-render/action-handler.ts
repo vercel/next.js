@@ -11,7 +11,10 @@ import {
   NEXT_ROUTER_STATE_TREE_HEADER,
   ACTION_HEADER,
 } from '../../client/components/app-router-headers'
-import { isNotFoundError } from '../../client/components/not-found'
+import {
+  getAccessFallbackHTTPStatus,
+  isHTTPAccessFallbackError,
+} from '../../client/components/http-access-fallback/http-access-fallback'
 import {
   getRedirectTypeFromError,
   getURLFromRedirectError,
@@ -256,7 +259,7 @@ function getAppRelativeRedirectUrl(
   host: Host,
   redirectUrl: string
 ): URL | null {
-  if (redirectUrl.startsWith('/') || redirectUrl.startsWith('./')) {
+  if (redirectUrl.startsWith('/') || redirectUrl.startsWith('.')) {
     // Make sure we are appending the basePath to relative URLS
     return new URL(`${basePath}${redirectUrl}`, 'http://n')
   }
@@ -945,8 +948,8 @@ export async function handleAction({
         type: 'done',
         result: RenderResult.fromStatic(''),
       }
-    } else if (isNotFoundError(err)) {
-      res.statusCode = 404
+    } else if (isHTTPAccessFallbackError(err)) {
+      res.statusCode = getAccessFallbackHTTPStatus(err)
 
       await addRevalidationHeader(res, {
         workStore,

@@ -121,9 +121,9 @@ impl EcmascriptChunkItemContent {
             args.push("e: exports");
         }
         if self.options.stub_require {
-            args.push("z: require");
+            args.push("z: __turbopack_require_stub__");
         } else {
-            args.push("t: require");
+            args.push("t: __turbopack_require_real__");
         }
         if self.options.wasm {
             args.push("w: __turbopack_wasm__");
@@ -193,8 +193,8 @@ pub struct EcmascriptChunkItemOptions {
     /// Whether this chunk item's module factory should include an `exports`
     /// argument.
     pub exports: bool,
-    /// Whether this chunk item's module factory should include an argument for the real `require`,
-    /// or just a throwing stub (for ESM)
+    /// Whether this chunk item's module factory should include an argument for a throwing require
+    /// stub (for ESM)
     pub stub_require: bool,
     /// Whether this chunk item's module factory should include a
     /// `__turbopack_external_require__` argument.
@@ -227,7 +227,7 @@ pub trait EcmascriptChunkItem: ChunkItem {
     }
 }
 
-pub trait EcmascriptChunkItemExt: Send {
+pub trait EcmascriptChunkItemExt {
     /// Generates the module factory for this chunk item.
     fn code(self: Vc<Self>, async_module_info: Option<Vc<AsyncModuleInfo>>) -> Vc<Code>;
 }

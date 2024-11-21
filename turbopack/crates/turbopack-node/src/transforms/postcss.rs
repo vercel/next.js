@@ -1,8 +1,9 @@
 use anyhow::{bail, Context, Result};
 use indoc::formatdoc;
 use serde::{Deserialize, Serialize};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    fxindexmap, trace::TraceRawVcs, Completion, Completions, RcStr, ResolvedVc, TaskInput,
+    fxindexmap, trace::TraceRawVcs, Completion, Completions, ResolvedVc, TaskInput,
     TryFlatJoinIterExt, Value, Vc,
 };
 use turbo_tasks_bytes::stream::SingleValue;
@@ -195,6 +196,7 @@ async fn extra_configs_changed(
 
     let config_paths = [
         parent_path.join("tailwind.config.js".into()),
+        parent_path.join("tailwind.config.mjs".into()),
         parent_path.join("tailwind.config.ts".into()),
     ];
 
@@ -210,9 +212,7 @@ async fn extra_configs_changed(
                         )
                         .try_into_module()
                         .await?
-                        .as_deref()
-                        .copied()
-                        .map(any_content_changed_of_module)
+                        .map(|rvc| any_content_changed_of_module(*rvc))
                 } else {
                     None
                 },

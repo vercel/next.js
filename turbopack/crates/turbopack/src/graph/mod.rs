@@ -9,8 +9,8 @@ pub enum AggregatedGraph {
     Leaf(ResolvedVc<Box<dyn OutputAsset>>),
     Node {
         depth: usize,
-        content: HashSet<Vc<AggregatedGraph>>,
-        references: HashSet<Vc<AggregatedGraph>>,
+        content: HashSet<ResolvedVc<AggregatedGraph>>,
+        references: HashSet<ResolvedVc<AggregatedGraph>>,
     },
 }
 
@@ -36,7 +36,7 @@ impl AggregatedGraph {
     #[turbo_tasks::function]
     pub async fn content(self: Vc<Self>) -> Result<Vc<AggregatedGraphNodeContent>> {
         Ok(match *self.await? {
-            AggregatedGraph::Leaf(asset) => AggregatedGraphNodeContent::Asset(*asset).into(),
+            AggregatedGraph::Leaf(asset) => AggregatedGraphNodeContent::Asset(asset).into(),
             AggregatedGraph::Node { ref content, .. } => {
                 AggregatedGraphNodeContent::Children(content.clone()).into()
             }
@@ -60,7 +60,7 @@ impl AggregatedGraph {
                 let mut set = HashSet::new();
                 for item in references
                     .iter()
-                    .map(|&reference| aggregate_more(reference))
+                    .map(|&reference| aggregate_more(*reference))
                     .collect::<Vec<_>>()
                     .into_iter()
                 {
@@ -129,7 +129,7 @@ pub async fn aggregate(asset: Vc<Box<dyn OutputAsset>>) -> Result<Vc<AggregatedG
 struct AggregationCost(usize);
 
 #[turbo_tasks::function]
-async fn aggregate_more(node: Vc<AggregatedGraph>) -> Result<Vc<AggregatedGraph>> {
+async fn aggregate_more(node: ResolvedVc<AggregatedGraph>) -> Result<Vc<AggregatedGraph>> {
     let node_data = node.await?;
     let depth = node_data.depth();
     let mut in_progress = HashSet::new();
@@ -152,20 +152,20 @@ async fn aggregate_more(node: Vc<AggregatedGraph>) -> Result<Vc<AggregatedGraph>
         for valued_refs in valued_refs {
             let valued_refs = valued_refs.await?;
             for &reference in valued_refs.inner.iter() {
-                content.insert(*reference);
+                content.insert(reference);
             }
             for &reference in valued_refs.references.iter() {
                 if content.contains(&reference) {
                     continue;
                 }
-                references.insert(*reference);
+                references.insert(reference);
             }
             for &reference in valued_refs.outer.iter() {
                 if content.contains(&reference) {
                     continue;
                 }
                 references.remove(&reference);
-                in_progress.insert(*reference);
+                in_progress.insert(reference);
             }
         }
     }
@@ -187,8 +187,8 @@ struct AggregatedGraphsSet {
 
 #[turbo_tasks::value(shared)]
 pub enum AggregatedGraphNodeContent {
-    Asset(Vc<Box<dyn OutputAsset>>),
-    Children(HashSet<Vc<AggregatedGraph>>),
+    Asset(ResolvedVc<Box<dyn OutputAsset>>),
+    Children(HashSet<ResolvedVc<AggregatedGraph>>),
 }
 
 #[turbo_tasks::value(shared)]

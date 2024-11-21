@@ -10,7 +10,8 @@ pub use custom_module_type::CustomModuleType;
 pub use module_options_context::*;
 pub use module_rule::*;
 pub use rule_condition::*;
-use turbo_tasks::{RcStr, ResolvedVc, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 use turbopack_core::{
     reference_type::{CssReferenceSubType, ReferenceType, UrlReferenceSubType},
@@ -98,7 +99,7 @@ impl ModuleOptions {
                 if condition.matches(&path_value).await? {
                     return Ok(ModuleOptions::new(
                         path,
-                        *new_context,
+                        **new_context,
                         resolve_options_context,
                     ));
                 }
@@ -119,8 +120,8 @@ impl ModuleOptions {
             transforms.push(EcmascriptInputTransform::React {
                 development: jsx.development,
                 refresh: jsx.react_refresh,
-                import_source: Vc::cell(jsx.import_source.clone()),
-                runtime: Vc::cell(jsx.runtime.clone()),
+                import_source: ResolvedVc::cell(jsx.import_source.clone()),
+                runtime: ResolvedVc::cell(jsx.runtime.clone()),
             });
         }
 
@@ -132,7 +133,7 @@ impl ModuleOptions {
             refresh,
             ..Default::default()
         };
-        let ecmascript_options_vc = ecmascript_options.cell();
+        let ecmascript_options_vc = ecmascript_options.resolved_cell();
 
         if let Some(env) = preset_env_versions {
             transforms.push(EcmascriptInputTransform::PresetEnv(
@@ -234,7 +235,7 @@ impl ModuleOptions {
                         specified_module_type: SpecifiedModuleType::EcmaScript,
                         ..ecmascript_options
                     }
-                    .into(),
+                    .resolved_cell(),
                 })],
             ),
             ModuleRule::new_all(
@@ -245,7 +246,7 @@ impl ModuleOptions {
                         specified_module_type: SpecifiedModuleType::CommonJs,
                         ..ecmascript_options
                     }
-                    .into(),
+                    .resolved_cell(),
                 })],
             ),
             ModuleRule::new_all(
@@ -276,7 +277,7 @@ impl ModuleOptions {
                         specified_module_type: SpecifiedModuleType::EcmaScript,
                         ..ecmascript_options
                     }
-                    .into(),
+                    .resolved_cell(),
                 })],
             ),
             ModuleRule::new_all(
@@ -289,7 +290,7 @@ impl ModuleOptions {
                         specified_module_type: SpecifiedModuleType::EcmaScript,
                         ..ecmascript_options
                     }
-                    .into(),
+                    .resolved_cell(),
                 })],
             ),
             ModuleRule::new_all(
@@ -302,7 +303,7 @@ impl ModuleOptions {
                         specified_module_type: SpecifiedModuleType::CommonJs,
                         ..ecmascript_options
                     }
-                    .into(),
+                    .resolved_cell(),
                 })],
             ),
             ModuleRule::new_all(
@@ -315,7 +316,7 @@ impl ModuleOptions {
                         specified_module_type: SpecifiedModuleType::CommonJs,
                         ..ecmascript_options
                     }
-                    .into(),
+                    .resolved_cell(),
                 })],
             ),
             ModuleRule::new(
@@ -410,7 +411,7 @@ impl ModuleOptions {
 
                 rules.push(ModuleRule::new(
                     RuleCondition::ResourcePathEndsWith(".css".to_string()),
-                    vec![ModuleRuleEffect::SourceTransforms(Vc::cell(vec![
+                    vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
                         Vc::upcast(PostCssTransform::new(
                             node_evaluate_asset_context(
                                 *execution_context,
@@ -501,7 +502,9 @@ impl ModuleOptions {
                 (None, None, false)
             };
 
-            let mdx_options = &*enable_mdx_rs.unwrap_or(Default::default()).await?;
+            let mdx_options = &*enable_mdx_rs
+                .unwrap_or_else(|| MdxTransformOptions::default().resolved_cell())
+                .await?;
 
             let mdx_transform_options = (MdxTransformOptions {
                 development: Some(development),
@@ -517,7 +520,7 @@ impl ModuleOptions {
                     RuleCondition::ResourcePathEndsWith(".md".to_string()),
                     RuleCondition::ResourcePathEndsWith(".mdx".to_string()),
                 ]),
-                vec![ModuleRuleEffect::SourceTransforms(Vc::cell(vec![
+                vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
                     Vc::upcast(MdxTransform::new(mdx_transform_options)),
                 ]))],
             ));
@@ -532,7 +535,7 @@ impl ModuleOptions {
             {
                 package_import_map_from_import_mapping(
                     "loader-runner".into(),
-                    loader_runner_package,
+                    *loader_runner_package,
                 )
             } else {
                 package_import_map_from_context("loader-runner".into(), path)
@@ -550,7 +553,7 @@ impl ModuleOptions {
                         },
                         RuleCondition::not(RuleCondition::ResourceIsVirtualSource),
                     ]),
-                    vec![ModuleRuleEffect::SourceTransforms(Vc::cell(vec![
+                    vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
                         Vc::upcast(WebpackLoaders::new(
                             node_evaluate_asset_context(
                                 *execution_context,
@@ -560,7 +563,7 @@ impl ModuleOptions {
                                 false,
                             ),
                             *execution_context,
-                            rule.loaders,
+                            *rule.loaders,
                             rule.rename_as.clone(),
                             resolve_options_context,
                         )),
