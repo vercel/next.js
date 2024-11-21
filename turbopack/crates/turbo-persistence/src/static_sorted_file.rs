@@ -44,6 +44,8 @@ struct Header {
     value_compression_dictionary: LocationInFile,
     block_offsets_start: usize,
     blocks_start: usize,
+    #[cfg(feature = "strict_checks")]
+    block_count: u16,
 }
 
 #[derive(Clone, Default)]
@@ -96,7 +98,7 @@ impl StaticSortedFile {
             let aqmf_length = file.read_u24::<BE>()? as usize;
             let key_compression_dictionary_length = file.read_u16::<BE>()? as usize;
             let value_compression_dictionary_length = file.read_u16::<BE>()? as usize;
-            let block_count = file.read_u16::<BE>()? as usize;
+            let block_count = file.read_u16::<BE>()?;
             const HEADER_SIZE: usize = 13;
             let mut current_offset = HEADER_SIZE;
             let aqmf = LocationInFile {
@@ -115,7 +117,7 @@ impl StaticSortedFile {
             };
             current_offset += value_compression_dictionary_length;
             let block_offsets_start = current_offset;
-            let blocks_start = block_offsets_start + block_count * 4;
+            let blocks_start = block_offsets_start + block_count as usize * 4;
 
             Ok(Header {
                 aqmf,
@@ -123,6 +125,8 @@ impl StaticSortedFile {
                 value_compression_dictionary,
                 block_offsets_start,
                 blocks_start,
+                #[cfg(feature = "strict_checks")]
+                block_count,
             })
         })
     }
@@ -394,7 +398,32 @@ impl StaticSortedFile {
         block_index: u16,
         compression_dictionary: &[u8],
     ) -> Result<ArcSlice<u8>> {
+        #[cfg(feature = "strict_checks")]
+        if block_index >= header.block_count {
+            bail!(
+                "Corrupted file seq:{} block:{} > number of blocks {} (block_offsets: {:x}, \
+                 blocks: {:x})",
+                self.sequence_number,
+                block_index,
+                header.block_count,
+                header.block_offsets_start,
+                header.blocks_start
+            );
+        }
         let offset = header.block_offsets_start + block_index as usize * 4;
+        #[cfg(feature = "strict_checks")]
+        if offset + 4 > self.mmap.len() {
+            bail!(
+                "Corrupted file seq:{} block:{} block offset locations {} + 4 bytes > file end {} \
+                 (block_offsets: {:x}, blocks: {:x})",
+                self.sequence_number,
+                block_index,
+                offset,
+                self.mmap.len(),
+                header.block_offsets_start,
+                header.blocks_start
+            );
+        }
         let block_start = if block_index == 0 {
             header.blocks_start
         } else {
@@ -402,6 +431,20 @@ impl StaticSortedFile {
         };
         let block_end =
             header.blocks_start + (&self.mmap[offset..offset + 4]).read_u32::<BE>()? as usize;
+        #[cfg(feature = "strict_checks")]
+        if block_end > self.mmap.len() || block_start > self.mmap.len() {
+            bail!(
+                "Corrupted file seq:{} block:{} block {} - {} > file end {} (block_offsets: {:x}, \
+                 blocks: {:x})",
+                self.sequence_number,
+                block_index,
+                block_start,
+                block_end,
+                self.mmap.len(),
+                header.block_offsets_start,
+                header.blocks_start
+            );
+        }
         let uncompressed_length =
             (&self.mmap[block_start..block_start + 4]).read_u32::<BE>()? as usize;
         let block = self.mmap[block_start + 4..block_end].to_vec();

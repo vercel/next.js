@@ -6,6 +6,7 @@ license = "MIT"
 
 [features]
 verify_sst_content = []
+strict_checks = []
 
 [dependencies]
 anyhow = { workspace = true }
