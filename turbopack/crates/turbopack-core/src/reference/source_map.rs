@@ -13,8 +13,8 @@ use crate::{
 
 #[turbo_tasks::value]
 pub struct SourceMapReference {
-    from: Vc<FileSystemPath>,
-    file: Vc<FileSystemPath>,
+    from: ResolvedVc<FileSystemPath>,
+    file: ResolvedVc<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
