@@ -435,7 +435,7 @@ describe('Error overlay for hydration errors in App router', () => {
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
       "In HTML, whitespace text nodes cannot be a child of <table>. Make sure you don't have any extra whitespace between tags on each line of your source code.
       This will cause a hydration error.
-  
+
         ...
           <RenderFromTemplateContext>
             <ScrollAndFocusHandler segmentPath={[...]}>
@@ -455,6 +455,7 @@ describe('Error overlay for hydration errors in App router', () => {
                               ...
       "
     `)
+
     // FIXME: fix the `pseudoHtml` should be extracted from the description
     // const pseudoHtml = await session.getRedboxComponentStack()
     // expect(pseudoHtml).toMatchInlineSnapshot(``)

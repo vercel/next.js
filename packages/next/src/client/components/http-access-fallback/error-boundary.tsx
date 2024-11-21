@@ -16,6 +16,7 @@ import { useUntrackedPathname } from '../navigation-untracked'
 import {
   HTTPAccessErrorStatus,
   getAccessFallbackHTTPStatus,
+  getAccessFallbackErrorTypeByStatus,
   isHTTPAccessFallbackError,
 } from './http-access-fallback'
 import { warnOnce } from '../../../shared/lib/utils/warn-once'
@@ -112,6 +113,12 @@ class HTTPAccessFallbackErrorBoundary extends React.Component<
   render() {
     const { notFound, forbidden, unauthorized, children } = this.props
     const { triggeredStatus } = this.state
+    const errorComponents = {
+      [HTTPAccessErrorStatus.NOT_FOUND]: notFound,
+      [HTTPAccessErrorStatus.FORBIDDEN]: forbidden,
+      [HTTPAccessErrorStatus.UNAUTHORIZED]: unauthorized,
+    }
+
     if (triggeredStatus) {
       const isNotFound =
         triggeredStatus === HTTPAccessErrorStatus.NOT_FOUND && notFound
@@ -129,11 +136,12 @@ class HTTPAccessFallbackErrorBoundary extends React.Component<
         <>
           <meta name="robots" content="noindex" />
           {process.env.NODE_ENV === 'development' && (
-            <meta name="next-error" content="not-found" />
+            <meta
+              name="next-error"
+              content={getAccessFallbackErrorTypeByStatus(triggeredStatus)}
+            />
           )}
-          {isNotFound ? notFound : null}
-          {isForbidden ? forbidden : null}
-          {isUnauthorized ? unauthorized : null}
+          {errorComponents[triggeredStatus]}
         </>
       )
     }

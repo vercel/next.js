@@ -183,7 +183,7 @@ export interface RenderOptsPartial {
     after: boolean
     dynamicIO: boolean
     inlineCss: boolean
-    navigationDeniedApi: boolean
+    authInterrupts: boolean
   }
   postponed?: string
 

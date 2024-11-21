@@ -48,7 +48,7 @@ export async function exportAppRoute(
   htmlFilepath: string,
   fileWriter: FileWriter,
   experimental: Required<
-    Pick<ExperimentalConfig, 'after' | 'dynamicIO' | 'navigationDeniedApi'>
+    Pick<ExperimentalConfig, 'after' | 'dynamicIO' | 'authInterrupts'>
   >,
   buildId: string
 ): Promise<ExportRouteResult> {

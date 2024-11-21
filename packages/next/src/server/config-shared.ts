@@ -567,7 +567,7 @@ export interface ExperimentalConfig {
   /**
    * This config allows you to enable the experimental navigation API `forbidden` and `unauthorized`.
    */
-  navigationDeniedApi?: boolean
+  authInterrupts?: boolean
 }
 
 export type ExportPathMap = {
@@ -1155,7 +1155,7 @@ export const defaultConfig: NextConfig = {
         process.env.__NEXT_TEST_MODE &&
         process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
       ),
-    navigationDeniedApi: false,
+    authInterrupts: false,
     reactOwnerStack: false,
     webpackBuildWorker: undefined,
     webpackMemoryOptimizations: false,

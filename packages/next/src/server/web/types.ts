@@ -17,7 +17,7 @@ export interface RequestData {
     trailingSlash?: boolean
     experimental?: Pick<
       ExperimentalConfig,
-      'after' | 'cacheLife' | 'navigationDeniedApi'
+      'after' | 'cacheLife' | 'authInterrupts'
     >
   }
   page?: {

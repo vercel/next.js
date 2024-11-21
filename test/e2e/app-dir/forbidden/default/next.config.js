@@ -3,7 +3,7 @@
  */
 const nextConfig = {
   experimental: {
-    navigationDeniedApi: true,
+    authInterrupts: true,
   },
 }
 
