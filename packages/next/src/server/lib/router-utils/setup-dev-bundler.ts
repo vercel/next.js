@@ -69,6 +69,7 @@ import {
   getSourceMapFromCompilation,
   getSourceMapFromFile,
   parseStack,
+  getIgnoredSources,
 } from '../../../client/components/react-dev-overlay/server/middleware'
 import {
   batchedTraceSource,
@@ -1012,6 +1013,7 @@ async function startWatcher(opts: SetupOpts) {
                     type: 'bundle',
                     sourceMap,
                     compilation,
+                    ignoredSources: getIgnoredSources(sourceMap),
                     moduleId,
                     modulePath,
                   },
