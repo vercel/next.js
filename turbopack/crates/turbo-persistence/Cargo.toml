@@ -4,6 +4,9 @@ version = "0.1.0"
 edition = "2021"
 license = "MIT"
 
+[features]
+verify_sst_content = []
+
 [dependencies]
 anyhow = { workspace = true }
 pot = "3.0.0"
