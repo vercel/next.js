@@ -26,6 +26,50 @@ use crate::{
     QueryKey,
 };
 
+#[cfg(feature = "stats")]
+#[derive(Debug)]
+pub struct CacheStatistics {
+    pub hit_rate: f32,
+    pub fill: f32,
+    pub items: usize,
+    pub size: u64,
+    pub hits: u64,
+    pub misses: u64,
+}
+
+#[cfg(feature = "stats")]
+impl CacheStatistics {
+    fn new<Key, Val, We, B, L>(cache: &quick_cache::sync::Cache<Key, Val, We, B, L>) -> Self
+    where
+        Key: Eq + std::hash::Hash,
+        Val: Clone,
+        We: quick_cache::Weighter<Key, Val> + Clone,
+        B: std::hash::BuildHasher + Clone,
+        L: quick_cache::Lifecycle<Key, Val> + Clone,
+    {
+        let size = cache.weight();
+        let hits = cache.hits();
+        let misses = cache.misses();
+        Self {
+            hit_rate: hits as f32 / (hits + misses) as f32,
+            fill: size as f32 / cache.capacity() as f32,
+            items: cache.len(),
+            size,
+            hits,
+            misses,
+        }
+    }
+}
+
+#[cfg(feature = "stats")]
+#[derive(Debug)]
+pub struct Statistics {
+    pub sst_files: usize,
+    pub key_block_cache: CacheStatistics,
+    pub value_block_cache: CacheStatistics,
+    pub aqmf_cache: CacheStatistics,
+}
+
 pub struct TurboPersistence {
     path: PathBuf,
     inner: RwLock<Inner>,
@@ -268,5 +312,16 @@ impl TurboPersistence {
             }
         }
         Ok(None)
+    }
+
+    #[cfg(feature = "stats")]
+    pub fn statistics(&self) -> Statistics {
+        let inner = self.inner.read();
+        Statistics {
+            sst_files: inner.static_sorted_files.len(),
+            key_block_cache: CacheStatistics::new(&self.key_block_cache),
+            value_block_cache: CacheStatistics::new(&self.value_block_cache),
+            aqmf_cache: CacheStatistics::new(&self.aqmf_cache),
+        }
     }
 }

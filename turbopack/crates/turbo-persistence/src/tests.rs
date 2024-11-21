@@ -197,6 +197,8 @@ fn full_cycle() -> Result<()> {
             let start = Instant::now();
             read(&db)?;
             println!("{name} read time after read: {:?}", start.elapsed());
+            #[cfg(feature = "stats")]
+            println!("{name} stats: {:#?}", db.statistics());
         }
     }
 
@@ -235,6 +237,8 @@ fn full_cycle() -> Result<()> {
                 read(&db)?;
                 println!("{name} read time after read: {:?}", start.elapsed());
             }
+            #[cfg(feature = "stats")]
+            println!("All stats: {:#?}", db.statistics());
         }
     }
     Ok(())
