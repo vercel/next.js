@@ -33,13 +33,19 @@ describe('app dir - metadata missing metadataBase', () => {
     await next.fetch('/og-image-convention')
     const output = getCliOutput(logStartPosition)
 
-    // TODO: This is currently broken and will be addressed in a follow-up PR. We
-    // currently warn even for metadata that conforms to the `opengraph-image` convention.
-    if (false) {
+    if (isNextDev) {
       expect(output).not.toInclude(METADATA_BASE_WARN_STRING)
     } else {
       expect(output).toInclude(METADATA_BASE_WARN_STRING)
     }
+  })
+
+  it('should warn metadataBase is missing and a relative URL is used', async () => {
+    const logStartPosition = next.cliOutput.length
+    await next.fetch('/relative-url-og')
+    const output = getCliOutput(logStartPosition)
+
+    expect(output).toInclude(METADATA_BASE_WARN_STRING)
   })
 
   it('should warn for unsupported metadata properties', async () => {

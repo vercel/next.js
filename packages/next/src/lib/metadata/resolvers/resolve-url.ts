@@ -19,9 +19,15 @@ function getProductionDeploymentUrl(): URL | undefined {
   return origin ? new URL(`https://${origin}`) : undefined
 }
 
-// For deployment url for metadata routes, prefer to use the deployment url if possible
-// as these routes are unique to the deployments url.
-export function getSocialImageFallbackMetadataBase(
+/**
+ * Given an optional user-provided metadataBase, this determines what the metadataBase should
+ * fallback to. Specifically:
+ * - In dev, it should always be localhost
+ * - In Vercel preview builds, it should be the preview build ID
+ * - In start, it should be the user-provided metadataBase value. Otherwise,
+ * it'll fall back to the Vercel production deployment, and localhost as a last resort.
+ */
+export function getSocialImageMetadataBaseFallback(
   metadataBase: URL | null
 ): URL {
   const defaultMetadataBase = createLocalMetadataBase()
