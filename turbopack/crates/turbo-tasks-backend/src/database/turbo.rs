@@ -1,4 +1,4 @@
-use std::{borrow::Cow, path::Path};
+use std::{borrow::Cow, path::PathBuf};
 
 use anyhow::Result;
 use turbo_persistence::{ArcSlice, TurboPersistence};
@@ -13,7 +13,7 @@ pub struct TurboKeyValueDatabase {
 }
 
 impl TurboKeyValueDatabase {
-    pub fn new(path: &Path) -> Result<Self> {
+    pub fn new(path: PathBuf) -> Result<Self> {
         Ok(Self {
             db: TurboPersistence::open(path.to_path_buf())?,
         })
