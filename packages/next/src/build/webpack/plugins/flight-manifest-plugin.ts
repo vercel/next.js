@@ -32,6 +32,7 @@ import type { ModuleInfo } from './flight-client-entry-plugin'
 interface Options {
   dev: boolean
   appDir: string
+  experimentalInlineCss: boolean
 }
 
 /**
@@ -83,6 +84,19 @@ export interface ClientReferenceManifestForRsc {
   }
 }
 
+export type CssResource = InlinedCssFile | UninlinedCssFile
+
+interface InlinedCssFile {
+  path: string
+  inlined: true
+  content: string
+}
+
+interface UninlinedCssFile {
+  path: string
+  inlined: false
+}
+
 export interface ClientReferenceManifest extends ClientReferenceManifestForRsc {
   readonly moduleLoading: {
     prefix: string
@@ -95,7 +109,7 @@ export interface ClientReferenceManifest extends ClientReferenceManifestForRsc {
     [moduleId: string]: ManifestNode
   }
   entryCSSFiles: {
-    [entry: string]: string[]
+    [entry: string]: CssResource[]
   }
   entryJSFiles?: {
     [entry: string]: string[]
@@ -200,11 +214,13 @@ export class ClientReferenceManifestPlugin {
   dev: Options['dev'] = false
   appDir: Options['appDir']
   appDirBase: string
+  experimentalInlineCss: Options['experimentalInlineCss']
 
   constructor(options: Options) {
     this.dev = options.dev
     this.appDir = options.appDir
     this.appDirBase = path.dirname(this.appDir) + path.sep
+    this.experimentalInlineCss = options.experimentalInlineCss
   }
 
   apply(compiler: webpack.Compiler) {
@@ -296,9 +312,29 @@ export class ClientReferenceManifestPlugin {
         /[\\/]/g,
         path.sep
       )
+
       manifest.entryCSSFiles[chunkEntryName] = entrypoint
         .getFiles()
         .filter((f) => !f.startsWith('static/css/pages/') && f.endsWith('.css'))
+        .map((file) => {
+          const source = compilation.assets[file].source()
+          if (
+            this.experimentalInlineCss &&
+            // Inline CSS currently does not work properly with HMR, so we only
+            // inline CSS in production.
+            !this.dev
+          ) {
+            return {
+              inlined: true,
+              path: file,
+              content: typeof source === 'string' ? source : source.toString(),
+            }
+          }
+          return {
+            inlined: false,
+            path: file,
+          }
+        })
 
       const requiredChunks = getAppPathRequiredChunks(entrypoint, rootMainFiles)
       const recordModule = (modId: ModuleId, mod: webpack.NormalModule) => {

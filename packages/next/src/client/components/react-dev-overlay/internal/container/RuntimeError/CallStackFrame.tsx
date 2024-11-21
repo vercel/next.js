@@ -37,7 +37,7 @@ export const CallStackFrame: React.FC<{
 
   return (
     <div data-nextjs-call-stack-frame>
-      <h3 data-nextjs-frame-expanded={Boolean(frame.expanded)}>
+      <h3 data-nextjs-frame-expanded={!frame.ignored}>
         <HotlinkedText text={formattedMethod} />
       </h3>
       <div

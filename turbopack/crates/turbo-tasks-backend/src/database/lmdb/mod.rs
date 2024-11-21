@@ -6,7 +6,10 @@ use lmdb::{
     Transaction, WriteFlags,
 };
 
-use crate::database::key_value_database::{KeySpace, KeyValueDatabase, WriteBatch};
+use crate::database::{
+    key_value_database::{KeySpace, KeyValueDatabase},
+    write_batch::{BaseWriteBatch, SerialWriteBatch, WriteBatch},
+};
 
 mod extended_key;
 
@@ -111,16 +114,18 @@ impl KeyValueDatabase for LmbdKeyValueDatabase {
         Ok(Some(value))
     }
 
-    type WriteBatch<'l>
+    type SerialWriteBatch<'l>
         = LmbdWriteBatch<'l>
     where
         Self: 'l;
 
-    fn write_batch(&self) -> Result<Self::WriteBatch<'_>> {
-        Ok(LmbdWriteBatch {
+    fn write_batch(
+        &self,
+    ) -> Result<WriteBatch<'_, Self::SerialWriteBatch<'_>, Self::ConcurrentWriteBatch<'_>>> {
+        Ok(WriteBatch::serial(LmbdWriteBatch {
             tx: self.env.begin_rw_txn()?,
             this: self,
-        })
+        }))
     }
 }
 
@@ -129,28 +134,7 @@ pub struct LmbdWriteBatch<'l> {
     this: &'l LmbdKeyValueDatabase,
 }
 
-impl<'a> WriteBatch<'a> for LmbdWriteBatch<'a> {
-    fn put(&mut self, key_space: KeySpace, key: Cow<[u8]>, value: Cow<[u8]>) -> Result<()> {
-        extended_key::put(
-            &mut self.tx,
-            self.this.db(key_space),
-            &key,
-            &value,
-            WriteFlags::empty(),
-        )?;
-        Ok(())
-    }
-
-    fn delete(&mut self, key_space: KeySpace, key: Cow<[u8]>) -> Result<()> {
-        extended_key::delete(
-            &mut self.tx,
-            self.this.db(key_space),
-            &key,
-            WriteFlags::empty(),
-        )?;
-        Ok(())
-    }
-
+impl<'a> BaseWriteBatch<'a> for LmbdWriteBatch<'a> {
     type ValueBuffer<'l>
         = &'l [u8]
     where
@@ -175,6 +159,29 @@ impl<'a> WriteBatch<'a> for LmbdWriteBatch<'a> {
 
     fn commit(self) -> Result<()> {
         self.tx.commit()?;
+        Ok(())
+    }
+}
+
+impl<'a> SerialWriteBatch<'a> for LmbdWriteBatch<'a> {
+    fn put(&mut self, key_space: KeySpace, key: Cow<[u8]>, value: Cow<[u8]>) -> Result<()> {
+        extended_key::put(
+            &mut self.tx,
+            self.this.db(key_space),
+            &key,
+            &value,
+            WriteFlags::empty(),
+        )?;
+        Ok(())
+    }
+
+    fn delete(&mut self, key_space: KeySpace, key: Cow<[u8]>) -> Result<()> {
+        extended_key::delete(
+            &mut self.tx,
+            self.this.db(key_space),
+            &key,
+            WriteFlags::empty(),
+        )?;
         Ok(())
     }
 }
