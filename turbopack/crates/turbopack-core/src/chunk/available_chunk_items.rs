@@ -27,7 +27,7 @@ pub struct AvailableChunkItemInfoMap(
 #[turbo_tasks::value]
 pub struct AvailableChunkItems {
     parent: Option<ResolvedVc<AvailableChunkItems>>,
-    chunk_items: Vc<AvailableChunkItemInfoMap>,
+    chunk_items: ResolvedVc<AvailableChunkItemInfoMap>,
 }
 
 #[turbo_tasks::value_impl]
