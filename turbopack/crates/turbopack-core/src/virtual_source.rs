@@ -1,4 +1,4 @@
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::{
@@ -10,8 +10,8 @@ use crate::{
 /// A [Source] that is created from some passed source code.
 #[turbo_tasks::value]
 pub struct VirtualSource {
-    pub ident: Vc<AssetIdent>,
-    pub content: Vc<AssetContent>,
+    pub ident: ResolvedVc<AssetIdent>,
+    pub content: ResolvedVc<AssetContent>,
 }
 
 #[turbo_tasks::value_impl]
