@@ -315,41 +315,6 @@ impl<C: Comments> ServerActions<C> {
         })
     }
 
-    // Check if the function or arrow function is an action or cache function,
-    // and remove any server function directive.
-    fn get_directive_for_function(
-        &mut self,
-        maybe_body: Option<&mut BlockStmt>,
-    ) -> Option<Directive> {
-        let mut directive: Option<Directive> = None;
-
-        // Even if it's a file-level action or cache module, the function body
-        // might still have directives that override the module-level annotations.
-
-        // Check if the function has a server function directive.
-        if let Some(body) = maybe_body {
-            let mut is_allowed_position = true;
-
-            body.stmts.retain(|stmt| {
-                let found_directive = self.get_directive_for_stmt(
-                    &stmt,
-                    &mut directive,
-                    DirectiveLocation::FunctionBody,
-                    &mut is_allowed_position,
-                );
-
-                !found_directive
-            });
-        }
-
-        // All exported functions inherit the file directive if they don't have their own directive.
-        if self.in_exported_expr && directive.is_none() && self.file_directive.is_some() {
-            directive = self.file_directive.clone();
-        }
-
-        directive
-    }
-
     fn get_directive_for_stmt(
         &mut self,
         stmt: &Stmt,
@@ -495,6 +460,65 @@ impl<C: Comments> ServerActions<C> {
         };
 
         false
+    }
+
+    // Check if the function or arrow function is an action or cache function,
+    // and remove any server function directive.
+    fn get_directive_for_function(
+        &mut self,
+        maybe_body: Option<&mut BlockStmt>,
+    ) -> Option<Directive> {
+        let mut directive: Option<Directive> = None;
+
+        // Even if it's a file-level action or cache module, the function body
+        // might still have directives that override the module-level annotations.
+
+        // Check if the function has a server function directive.
+        if let Some(body) = maybe_body {
+            let mut is_allowed_position = true;
+
+            body.stmts.retain(|stmt| {
+                let found_directive = self.get_directive_for_stmt(
+                    &stmt,
+                    &mut directive,
+                    DirectiveLocation::FunctionBody,
+                    &mut is_allowed_position,
+                );
+
+                !found_directive
+            });
+        }
+
+        // All exported functions inherit the file directive if they don't have their own directive.
+        if self.in_exported_expr && directive.is_none() && self.file_directive.is_some() {
+            directive = self.file_directive.clone();
+        }
+
+        directive
+    }
+
+    fn get_directive_for_module(&mut self, stmts: &mut Vec<ModuleItem>) -> Option<Directive> {
+        let mut directive: Option<Directive> = None;
+        let mut is_allowed_position = true;
+
+        stmts.retain(|item| {
+            if let ModuleItem::Stmt(stmt) = item {
+                let found_directive = self.get_directive_for_stmt(
+                    &stmt,
+                    &mut directive,
+                    DirectiveLocation::Module,
+                    &mut is_allowed_position,
+                );
+
+                !found_directive
+            } else {
+                is_allowed_position = false;
+
+                true
+            }
+        });
+
+        directive
     }
 
     fn maybe_hoist_and_create_proxy_for_server_action_arrow_expr(
@@ -1390,7 +1414,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     }
 
     fn visit_mut_module_items(&mut self, stmts: &mut Vec<ModuleItem>) {
-        self.file_directive = get_directive_for_module(stmts, &self.config);
+        self.file_directive = self.get_directive_for_module(stmts);
 
         let in_cache_file = matches!(self.file_directive, Some(Directive::UseCache { .. }));
         let in_action_file = matches!(self.file_directive, Some(Directive::UseServer));
@@ -2435,140 +2459,6 @@ fn detect_similar_strings(a: &str, b: &str) -> bool {
         // This happens when the last character of A is an extra character.
         true
     }
-}
-
-fn get_directive_for_module(stmts: &mut Vec<ModuleItem>, config: &Config) -> Option<Directive> {
-    let mut directive: Option<Directive> = None;
-    let mut allow_directive = true;
-
-    stmts.retain(|stmt| {
-        match stmt {
-            ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-                expr: box Expr::Lit(Lit::Str(Str { value, span, .. })),
-                ..
-            })) => {
-                if value == "use server" {
-                    if let Some(Directive::UseCache { .. }) = directive {
-                        emit_error(ServerActionsErrorKind::MultipleDirectives {
-                            span: *span,
-                            location: DirectiveLocation::Module,
-                        });
-                    } else if allow_directive {
-                        directive = Some(Directive::UseServer);
-                        return false;
-                    } else {
-                        emit_error(ServerActionsErrorKind::MisplacedDirective {
-                            span: *span,
-                            directive: value.to_string(),
-                            location: DirectiveLocation::Module,
-                        });
-                    }
-                } else if detect_similar_strings(value, "use server") {
-                    // Detect typo of "use server"
-                    emit_error(ServerActionsErrorKind::MisspelledDirective {
-                        span: *span,
-                        directive: value.to_string(),
-                        expected_directive: "use server".to_string(),
-                    });
-                } else
-                // `use cache` or `use cache: foo`
-                if value == "use cache" || value.starts_with("use cache: ") {
-                    if let Some(Directive::UseServer) = directive {
-                        emit_error(ServerActionsErrorKind::MultipleDirectives {
-                            span: *span,
-                            location: DirectiveLocation::Module,
-                        });
-                    } else if allow_directive {
-                        if !config.dynamic_io_enabled {
-                            emit_error(ServerActionsErrorKind::UseCacheWithoutDynamicIO {
-                                span: *span,
-                                directive: value.to_string(),
-                            });
-                        }
-
-                        if value == "use cache" {
-                            directive = Some(Directive::UseCache {
-                                cache_kind: RcStr::from("default"),
-                            })
-                        } else {
-                            // Slice the value after "use cache: "
-                            let cache_kind = RcStr::from(value.split_at("use cache: ".len()).1);
-
-                            if !config.cache_kinds.contains(&cache_kind) {
-                                emit_error(ServerActionsErrorKind::UnknownCacheKind {
-                                    span: *span,
-                                    cache_kind: cache_kind.clone(),
-                                });
-                            }
-
-                            directive = Some(Directive::UseCache { cache_kind })
-                        }
-
-                        return false;
-                    } else {
-                        emit_error(ServerActionsErrorKind::MisplacedDirective {
-                            span: *span,
-                            directive: value.to_string(),
-                            location: DirectiveLocation::Module,
-                        });
-                    }
-                } else {
-                    // Detect typo of "use cache"
-                    if detect_similar_strings(value, "use cache") {
-                        emit_error(ServerActionsErrorKind::MisspelledDirective {
-                            span: *span,
-                            directive: value.to_string(),
-                            expected_directive: "use cache".to_string(),
-                        });
-                    }
-                }
-            }
-            ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-                expr:
-                    box Expr::Paren(ParenExpr {
-                        expr: box Expr::Lit(Lit::Str(Str { value, .. })),
-                        ..
-                    }),
-                span,
-                ..
-            })) => {
-                // Match `("use server")`.
-                if value == "use server" || detect_similar_strings(value, "use server") {
-                    if allow_directive {
-                        emit_error(ServerActionsErrorKind::WrappedDirective {
-                            span: *span,
-                            directive: "use server".to_string(),
-                        });
-                    } else {
-                        emit_error(ServerActionsErrorKind::MisplacedWrappedDirective {
-                            span: *span,
-                            directive: "use server".to_string(),
-                            location: DirectiveLocation::Module,
-                        });
-                    }
-                } else if value == "use cache" || detect_similar_strings(value, "use cache") {
-                    if allow_directive {
-                        emit_error(ServerActionsErrorKind::WrappedDirective {
-                            span: *span,
-                            directive: "use cache".to_string(),
-                        });
-                    } else {
-                        emit_error(ServerActionsErrorKind::MisplacedWrappedDirective {
-                            span: *span,
-                            directive: "use cache".to_string(),
-                            location: DirectiveLocation::Module,
-                        });
-                    }
-                }
-            }
-            _ => {
-                allow_directive = false;
-            }
-        }
-        true
-    });
-
-    directive
 }
 
 // Check if the function or arrow function has any action or cache directives,
