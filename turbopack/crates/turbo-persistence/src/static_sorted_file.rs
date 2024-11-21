@@ -189,7 +189,7 @@ impl StaticSortedFile {
 
     fn lookup_index_block<K: QueryKey>(&self, mut block: &[u8], key: &K) -> Result<Option<u16>> {
         let entry_count = block.read_u16::<BE>()? as usize;
-        let start_entries = (entry_count - 1) * 2;
+        let start_entries = (entry_count - 1) * 4;
         let offsets = &block[..start_entries];
         let entries = &block[start_entries..];
         fn get_key<'l>(
@@ -201,17 +201,17 @@ impl StaticSortedFile {
             let start = if index == 0 {
                 0
             } else {
-                (&offsets[(index - 1) * 2..]).read_u16::<BE>()? as usize
+                (&offsets[(index - 1) * 4..]).read_u32::<BE>()? as usize
             };
             let end = if index == entry_count - 1 {
                 entries.len()
             } else {
-                (&offsets[index * 2..]).read_u16::<BE>()? as usize - 2
+                (&offsets[index * 4..]).read_u32::<BE>()? as usize - 2
             };
             Ok(&entries[start..end])
         }
         fn get_block(offsets: &[u8], entries: &[u8], index: usize) -> Result<u16> {
-            let loc = (&offsets[index * 2..]).read_u16::<BE>()? as usize;
+            let loc = (&offsets[index * 4..]).read_u32::<BE>()? as usize;
             Ok((&entries[loc - 2..loc]).read_u16::<BE>()?)
         }
         let left_key = get_key(&offsets, &entries, entry_count, 0)?;

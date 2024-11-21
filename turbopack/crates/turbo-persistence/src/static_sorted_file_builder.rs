@@ -216,9 +216,10 @@ impl StaticSortedFileBuilder {
         let mut current_block_start = 0;
         let mut current_block_size = 0;
         for (i, entry) in entries.iter().enumerate() {
-            if current_block_size + entry.key.len() + KEY_BLOCK_ENTRY_META_OVERHEAD
-                > MAX_KEY_BLOCK_SIZE
-                || i - current_block_start >= MAX_KEY_BLOCK_ENTRIES
+            if current_block_size > 0
+                && (current_block_size + entry.key.len() + KEY_BLOCK_ENTRY_META_OVERHEAD
+                    > MAX_KEY_BLOCK_SIZE
+                    || i - current_block_start >= MAX_KEY_BLOCK_ENTRIES)
             {
                 let mut block = KeyBlockBuilder::new((i - current_block_start) as u32);
                 for j in current_block_start..i {
@@ -415,7 +416,7 @@ impl IndexBlockBuilder {
         data.write_u8(BLOCK_TYPE_INDEX).unwrap();
         data.write_u16::<BE>(entry_count as u16).unwrap();
         for _ in 0..entry_count - 1 {
-            data.write_u16::<BE>(0).unwrap();
+            data.write_u32::<BE>(0).unwrap();
         }
         let header_size = data.len();
         first_key.write_to(&mut data);
@@ -427,12 +428,13 @@ impl IndexBlockBuilder {
     }
 
     pub fn put<K: StoreKey>(&mut self, block: u16, key: K) {
+        assert!(key.len() < (1 << 32));
         self.data.write_u16::<BE>(block).unwrap();
 
         let pos = self.data.len() - self.header_size;
-        let header_offset = INDEX_BLOCK_HEADER_SIZE + self.current_entry * 2;
-        let header = pos as u16;
-        BE::write_u16(&mut self.data[header_offset..header_offset + 2], header);
+        let header_offset = INDEX_BLOCK_HEADER_SIZE + self.current_entry * 4;
+        let header = pos.try_into().unwrap();
+        BE::write_u32(&mut self.data[header_offset..header_offset + 4], header);
 
         key.write_to(&mut self.data);
 

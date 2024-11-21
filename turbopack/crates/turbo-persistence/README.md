@@ -47,10 +47,10 @@ Therefore there are there value types:
 #### Index Block
 
 * 1 byte block type (0: index block)
-* 2 bytes entry count
+* 3 bytes entry count
 * foreach entry (expect first)
-  * 2 bytes position in block after header
-* Max block size: 64 KB
+  * 4 bytes position in block after header
+* Max block size: 4 GB
 
 An Index block contains `n` keys, which specify `n - 1` key ranges (eq key goes into the prev range, except for the first key). Between these `n` keys there are `n - 1` 2 byte block indicies that point to the block that contains the key range.
 
