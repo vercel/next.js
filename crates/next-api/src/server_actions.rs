@@ -100,7 +100,7 @@ pub(crate) async fn create_server_actions_manifest(
                 .get(&Some(*module))
                 .map_or(&[] as &[_], |vec| vec.as_slice())
                 .iter()
-                .map(|r| async move { Ok(Vc::upcast(*r.await?.ssr_module)) })
+                .map(|r| async move { Ok(Vc::upcast(*r.await?.client_module)) })
                 .try_join()
                 .await?;
             let current_actions = find_actions(
