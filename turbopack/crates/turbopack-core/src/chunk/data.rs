@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ReadRef, TryJoinIterExt, Vc};
+use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::{
@@ -14,7 +14,7 @@ pub struct ChunkData {
     pub included: Vec<ReadRef<ModuleId>>,
     pub excluded: Vec<ReadRef<ModuleId>>,
     pub module_chunks: Vec<String>,
-    pub references: Vc<OutputAssets>,
+    pub references: ResolvedVc<OutputAssets>,
 }
 
 #[turbo_tasks::value(transparent)]
