@@ -227,10 +227,10 @@ pub enum NodeEnvironmentType {
 
 #[turbo_tasks::value(shared)]
 pub struct NodeJsEnvironment {
-    pub compile_target: Vc<CompileTarget>,
-    pub node_version: Vc<NodeJsVersion>,
+    pub compile_target: ResolvedVc<CompileTarget>,
+    pub node_version: ResolvedVc<NodeJsVersion>,
     // user specified process.cwd
-    pub cwd: Vc<Option<RcStr>>,
+    pub cwd: ResolvedVc<Option<RcStr>>,
 }
 
 impl Default for NodeJsEnvironment {
