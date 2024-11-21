@@ -593,7 +593,7 @@ async function startWatcher(opts: SetupOpts) {
             }
           )
 
-          if (usingTypeScript) {
+          if (usingTypeScript && nextConfig.experimental?.typedEnv) {
             // do not await, this is not essential for further process
             createEnvDefinitions({
               distDir,
