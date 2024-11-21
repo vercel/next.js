@@ -8,7 +8,6 @@ use next_core::{
     },
     get_edge_resolve_options_context, get_next_package,
     next_app::{
-        app_client_references_chunks::get_app_server_reference_modules,
         get_app_client_references_chunks, get_app_client_shared_chunk_group, get_app_page_entry,
         get_app_route_entry, include_modules_module::IncludeModulesModule,
         metadata::route::get_app_metadata_route_entry, AppEntry, AppPage,
@@ -970,7 +969,10 @@ impl AppEndpoint {
                     .values()
                 {
                     let result = collect_next_dynamic_imports(
-                        refs.clone(),
+                        refs.iter()
+                            .map(|r| async move { Ok(Vc::upcast(*r.await?.ssr_module)) })
+                            .try_join()
+                            .await?,
                         Vc::upcast(this.app_project.client_module_context()),
                         visited_modules,
                     )
@@ -1124,7 +1126,7 @@ impl AppEndpoint {
 
             let server_action_manifest = create_server_actions_manifest(
                 *ResolvedVc::upcast(app_entry.rsc_entry),
-                get_app_server_reference_modules(client_references_cell.types()),
+                client_references_cell,
                 this.app_project.project().project_path(),
                 node_root,
                 app_entry.original_name.clone(),

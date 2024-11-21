@@ -1,8 +1,13 @@
-use std::{collections::BTreeMap, future::Future, io::Write, iter::once};
+use std::{
+    collections::{BTreeMap, HashSet},
+    future::Future,
+    io::Write,
+};
 
 use anyhow::{bail, Context, Result};
 use indexmap::map::Entry;
 use next_core::{
+    next_client_reference::{find_server_entries, ClientReferenceGraphResult, ServerEntries},
     next_manifests::{
         ActionLayer, ActionManifestModuleId, ActionManifestWorkerEntry, ServerReferenceManifest,
     },
@@ -19,7 +24,7 @@ use swc_core::{
 use tracing::{Instrument, Level};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    graph::{GraphTraversal, NonDeterministic, VisitControlFlow},
+    graph::{GraphTraversal, NonDeterministic, VisitControlFlow, VisitedNodes},
     FxIndexMap, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, ValueToString, Vc,
 };
 use turbo_tasks_fs::{self, rope::RopeBuilder, File, FileSystemPath};
@@ -28,7 +33,7 @@ use turbopack_core::{
     chunk::{ChunkItem, ChunkItemExt, ChunkableModule, ChunkingContext, EvaluatableAsset},
     context::AssetContext,
     file_source::FileSource,
-    module::{Module, Modules},
+    module::Module,
     output::OutputAsset,
     reference::primary_referenced_modules,
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
@@ -57,7 +62,7 @@ pub(crate) struct ServerActionsManifest {
 #[turbo_tasks::function]
 pub(crate) async fn create_server_actions_manifest(
     rsc_entry: Vc<Box<dyn Module>>,
-    server_reference_modules: Vc<Modules>,
+    client_references: Vc<ClientReferenceGraphResult>,
     project_path: Vc<FileSystemPath>,
     node_root: Vc<FileSystemPath>,
     page_name: RcStr,
@@ -65,7 +70,63 @@ pub(crate) async fn create_server_actions_manifest(
     asset_context: Vc<Box<dyn AssetContext>>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<Vc<ServerActionsManifest>> {
-    let actions = find_actions(rsc_entry, server_reference_modules, asset_context);
+    let client_references_by_server_component = &client_references
+        .await?
+        .client_references_by_server_component;
+
+    let actions = {
+        let ServerEntries {
+            server_component_entries,
+            server_utils,
+        } = &*find_server_entries(rsc_entry).await?;
+
+        let mut actions = find_actions(
+            server_utils.clone(),
+            client_references_by_server_component
+                .get(&None)
+                .map_or(&[] as &[_], |vec| vec.as_slice())
+                .iter()
+                .map(|r| async move { Ok(Vc::upcast(*r.await?.ssr_module)) })
+                .try_join()
+                .await?,
+            asset_context,
+            VisitedFindActionsNodes::empty(),
+        )
+        .await?
+        .clone_value();
+
+        for module in server_component_entries {
+            let refs = client_references_by_server_component
+                .get(&None)
+                .map_or(&[] as &[_], |vec| vec.as_slice())
+                .iter()
+                .map(|r| async move { Ok(Vc::upcast(*r.await?.ssr_module)) })
+                .try_join()
+                .await?;
+            let current_actions = find_actions(
+                vec![Vc::upcast(*module)],
+                refs,
+                asset_context,
+                actions.visited_nodes,
+            )
+            .await?;
+
+            actions.extend(&current_actions);
+        }
+
+        actions.extend(
+            &*find_actions(
+                vec![rsc_entry],
+                vec![],
+                asset_context,
+                actions.visited_nodes,
+            )
+            .await?,
+        );
+
+        Vc::cell(actions.actions)
+    };
+
     let loader =
         build_server_actions_loader(project_path, page_name.clone(), actions, asset_context);
     let evaluable = Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(loader)
@@ -181,39 +242,81 @@ async fn build_manifest(
     ))
 }
 
+type FindActionsNode = (ActionLayer, ResolvedVc<Box<dyn Module>>, ReadRef<RcStr>);
+
+#[turbo_tasks::value(shared)]
+pub struct VisitedFindActionsNodes(HashSet<FindActionsNode>);
+
+#[turbo_tasks::value_impl]
+impl VisitedFindActionsNodes {
+    #[turbo_tasks::function]
+    pub fn empty() -> Vc<Self> {
+        VisitedFindActionsNodes(Default::default()).cell()
+    }
+}
+
+#[turbo_tasks::value(shared)]
+#[derive(Clone)]
+struct FindActionsResult {
+    pub actions: HashToLayerNameModule,
+    pub visited_nodes: Vc<VisitedFindActionsNodes>,
+}
+
+impl FindActionsResult {
+    /// Merges multiple return values of client_reference_graph together.
+    pub fn extend(&mut self, other: &Self) {
+        self.actions
+            .extend(other.actions.iter().map(|(k, v)| (k.clone(), v.clone())));
+        self.visited_nodes = other.visited_nodes;
+    }
+}
+
 /// Traverses the entire module graph starting from [Module], looking for magic
 /// comment which identifies server actions. Every found server action will be
 /// returned along with the module which exports that action.
 #[turbo_tasks::function]
 async fn find_actions(
-    rsc_entry: ResolvedVc<Box<dyn Module>>,
-    server_reference_modules: Vc<Modules>,
+    entries: Vec<ResolvedVc<Box<dyn Module>>>,
+    server_reference_modules: Vec<ResolvedVc<Box<dyn Module>>>,
     asset_context: Vc<Box<dyn AssetContext>>,
-) -> Result<Vc<AllActions>> {
+    visited_nodes: Vc<VisitedFindActionsNodes>,
+) -> Result<Vc<FindActionsResult>> {
+    let entries_names = entries
+        .iter()
+        .map(|m| m.ident().to_string())
+        .try_join()
+        .await?;
+    let server_reference_modules_names = server_reference_modules
+        .iter()
+        .map(|m| m.ident().to_string())
+        .try_join()
+        .await?;
     async move {
-        let actions = NonDeterministic::new()
-            .skip_duplicates()
+        let (actions, visited_nodes) = NonDeterministic::new()
+            .skip_duplicates_with_visited_nodes(VisitedNodes(visited_nodes.await?.0.clone()))
             .visit(
-                once((
-                    ActionLayer::Rsc,
-                    rsc_entry,
-                    rsc_entry.ident().to_string().await?,
-                ))
-                .chain(
-                    server_reference_modules
-                        .await?
-                        .iter()
-                        .map(|m| async move {
-                            Ok((ActionLayer::ActionBrowser, *m, m.ident().to_string().await?))
-                        })
-                        .try_join()
-                        .await?,
-                ),
+                entries
+                    .into_iter()
+                    .map(|m| async move { Ok((ActionLayer::Rsc, m, m.ident().to_string().await?)) })
+                    .try_join()
+                    .await?
+                    .into_iter()
+                    .chain(
+                        server_reference_modules
+                            .iter()
+                            .map(|m| async move {
+                                Ok((ActionLayer::ActionBrowser, *m, m.ident().to_string().await?))
+                            })
+                            .try_join()
+                            .await?,
+                    ),
                 FindActionsVisit {},
             )
             .await
             .completed()?
-            .into_inner()
+            .into_inner_with_visited();
+
+        let actions = actions
             .into_iter()
             .map(parse_actions_filter_map)
             .try_flat_join()
@@ -245,13 +348,20 @@ async fn find_actions(
         }
 
         all_actions.sort_keys();
-        Ok(Vc::cell(all_actions))
+        Ok(FindActionsResult {
+            actions: all_actions,
+            visited_nodes: VisitedFindActionsNodes(visited_nodes.0).cell(),
+        }
+        .cell())
     }
-    .instrument(tracing::info_span!("find server actions"))
+    .instrument(tracing::info_span!(
+        "find server actions",
+        entries = debug(entries_names),
+        references = debug(server_reference_modules_names)
+    ))
     .await
 }
 
-type FindActionsNode = (ActionLayer, ResolvedVc<Box<dyn Module>>, ReadRef<RcStr>);
 struct FindActionsVisit {}
 impl turbo_tasks::graph::Visit<FindActionsNode> for FindActionsVisit {
     type Edge = FindActionsNode;

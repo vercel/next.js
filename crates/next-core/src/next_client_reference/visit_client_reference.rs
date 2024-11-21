@@ -53,10 +53,8 @@ pub enum ClientReferenceType {
 #[derive(Clone, Debug)]
 pub struct ClientReferenceGraphResult {
     pub client_references: Vec<ClientReference>,
-    /// Only the [`ClientReferenceType::EcmascriptClientReference`]s are listed in this map.
-    #[allow(clippy::type_complexity)]
     pub client_references_by_server_component:
-        FxIndexMap<Option<Vc<NextServerComponentModule>>, Vec<Vc<Box<dyn Module>>>>,
+        FxIndexMap<Option<Vc<NextServerComponentModule>>, Vec<Vc<EcmascriptClientReferenceModule>>>,
     pub server_component_entries: Vec<Vc<NextServerComponentModule>>,
     pub server_utils: Vec<Vc<Box<dyn Module>>>,
     pub visited_nodes: Vc<VisitedClientReferenceGraphNodes>,
@@ -187,9 +185,7 @@ pub async fn client_reference_graph(
                         client_references_by_server_component
                             .entry(client_reference.server_component)
                             .or_insert_with(Vec::new)
-                            .push(*ResolvedVc::upcast::<Box<dyn Module>>(
-                                entry.await?.ssr_module,
-                            ));
+                            .push(entry);
                     }
                 }
                 VisitClientReferenceNodeType::ServerUtilEntry(server_util, _) => {
