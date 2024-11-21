@@ -7,11 +7,11 @@ mod collector;
 mod constants;
 mod db;
 mod entry;
+mod key;
 mod static_sorted_file;
 mod static_sorted_file_builder;
 mod write_batch;
 
-mod key;
 #[cfg(test)]
 mod tests;
 

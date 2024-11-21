@@ -19,6 +19,7 @@ quick_cache = "0.6.9"
 rustc-hash = { workspace = true }
 serde = { workspace = true }
 thread_local = { workspace = true }
+twox-hash = { version = "2.0.1", features = ["xxhash64"] }
 
 [dev-dependencies]
 tempfile = "3.14.0"

@@ -14,7 +14,7 @@ use memmap2::Mmap;
 use quick_cache::sync::GuardResult;
 use rustc_hash::FxHasher;
 
-use crate::{arc_slice::ArcSlice, key::HashKey, QueryKey};
+use crate::{arc_slice::ArcSlice, QueryKey};
 
 pub const BLOCK_TYPE_INDEX: u8 = 0;
 pub const BLOCK_TYPE_KEY: u8 = 1;
@@ -129,6 +129,7 @@ impl StaticSortedFile {
 
     pub fn lookup<K: QueryKey>(
         &self,
+        hash: u64,
         key: &K,
         aqmf_cache: &AqmfCache,
         key_block_cache: &BlockCache,
@@ -145,7 +146,7 @@ impl StaticSortedFile {
             }
             GuardResult::Timeout => unreachable!(),
         };
-        if !aqmf.contains(&HashKey(key)) {
+        if !aqmf.contains_fingerprint(hash) {
             return Ok(LookupResult::QuickFilterMiss);
         }
         let header = self.header()?;
