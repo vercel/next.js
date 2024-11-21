@@ -28,6 +28,6 @@
     {"offset": {"line": 204, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
     {"offset": {"line": 210, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":""}},
     {"offset": {"line": 216, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
-    {"offset": {"line": 222, "column": 0}, "map": {"version":3,"sources":["turbopack://[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/export-namespace/input/index.js"],"sourcesContent":["import {lib} from './module'\n\nconsole.log(lib.cat)\n"],"names":[],"mappings":";AAAA;AAAA;;AAEA,QAAQ,GAAG,CAAC,iPAAA,CAAA,MAAG,CAAC,GAAG"}},
+    {"offset": {"line": 222, "column": 0}, "map": {"version":3,"sources":["turbopack://[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/export-namespace/input/index.js"],"sourcesContent":["import {lib} from './module'\n\nconsole.log(lib.cat)\n"],"names":[],"mappings":";AAAA;AAAA;;AAEA,QAAQ,GAAG,CAAC,uPAAA,CAAA,MAAG,CAAC,GAAG"}},
     {"offset": {"line": 227, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
 }
