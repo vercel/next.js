@@ -68,7 +68,7 @@ A Key block contains n keys, which specify n key value pairs. The `i`-th value c
 Depending on the `type` field entry has a different format:
 * 0: normal key
   * key data
-  * 1 byte block index
+  * 2 byte block index
   * 3 bytes size
   * 4 bytes position in block
 * 1: blob reference
@@ -76,9 +76,9 @@ Depending on the `type` field entry has a different format:
   * 4 bytes sequence number
 * 2: deleted key / thumbstone (no data)
   * key data
-* 3: merge key (future)
+* 7: merge key (future)
   * key data
-  * 1 byte block index
+  * 2 byte block index
   * 3 bytes size
   * 4 bytes position in block
 * 8..255: inlined key (future)

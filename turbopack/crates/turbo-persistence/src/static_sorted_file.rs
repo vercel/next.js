@@ -283,7 +283,7 @@ impl StaticSortedFile {
             };
             Ok(match ty {
                 KEY_BLOCK_ENTRY_TYPE_NORMAL => {
-                    (&entries[start..end - 8], ty, &entries[end - 8..end])
+                    (&entries[start..end - 9], ty, &entries[end - 9..end])
                 }
                 KEY_BLOCK_ENTRY_TYPE_BLOB => (&entries[start..end - 4], ty, &entries[end - 4..end]),
                 KEY_BLOCK_ENTRY_TYPE_DELETED => (&entries[start..end], ty, &entries[start..end]),
@@ -322,7 +322,7 @@ impl StaticSortedFile {
     ) -> Result<LookupResult> {
         Ok(match ty {
             KEY_BLOCK_ENTRY_TYPE_NORMAL => {
-                let block = val.read_u8()? as u16;
+                let block = val.read_u16::<BE>()?;
                 let size = val.read_u24::<BE>()? as usize;
                 let position = val.read_u32::<BE>()? as usize;
                 let value =
