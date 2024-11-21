@@ -50,13 +50,14 @@ export const TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST =
 export const DEV_CLIENT_MIDDLEWARE_MANIFEST = '_devMiddlewareManifest.json'
 export const REACT_LOADABLE_MANIFEST = 'react-loadable-manifest.json'
 export const SERVER_DIRECTORY = 'server'
+// order based on priority: rare to common
 export const CONFIG_FILES = [
-  'next.config.js',
-  'next.config.mjs',
   'next.config.cjs',
-  'next.config.ts',
-  'next.config.mts',
+  'next.config.mjs',
+  'next.config.js',
   'next.config.cts',
+  'next.config.mts',
+  'next.config.ts',
 ]
 export const BUILD_ID_FILE = 'BUILD_ID'
 export const BLOCKED_PAGES = ['/_document', '/_app', '/_error']
