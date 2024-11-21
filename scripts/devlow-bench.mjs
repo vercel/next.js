@@ -26,13 +26,14 @@ const GIT_BRANCH =
   })())
 
 const nextBuildWorkflow =
-  (benchmarkName, pages) =>
+  (benchmarkName, pages, enableTurbopackCache) =>
   async ({ turbopack, page }) => {
     const pageConfig =
       typeof pages[page] === 'string' ? { url: pages[page] } : pages[page]
     const cleanupTasks = []
     try {
       const env = {
+        TURBO_CACHE: enableTurbopackCache ? '1' : '0',
         PATH: process.env.PATH,
         NODE: process.env.NODE,
         HOSTNAME: process.env.HOSTNAME,
@@ -574,7 +575,17 @@ describe(
     mode: 'build',
     page: Object.keys(pages),
   },
-  nextBuildWorkflow('heavy-npm-deps', pages)
+  nextBuildWorkflow('heavy-npm-deps', pages, false)
+)
+
+describe(
+  'heavy-npm-deps-build-turbo-cache-enabled',
+  {
+    turbopack: true,
+    mode: 'build',
+    page: Object.keys(pages),
+  },
+  nextBuildWorkflow('heavy-npm-deps-build-turbo-cache-enabled', pages, true)
 )
 
 async function retry(fn) {

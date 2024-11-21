@@ -8,7 +8,7 @@ export interface OriginalStackFrame extends OriginalStackFrameResponse {
   error: boolean
   reason: string | null
   external: boolean
-  expanded: boolean
+  ignored: boolean
   sourceStackFrame: StackFrame
 }
 
@@ -49,20 +49,15 @@ function getOriginalStackFrame(
       error: false,
       reason: null,
       external: false,
-      expanded: !Boolean(
-        /* collapsed */
-        (source.file?.includes('node_modules') ||
-          body.originalStackFrame?.file?.includes('node_modules') ||
-          body.originalStackFrame?.file?.startsWith('[turbopack]/')) ??
-          true
-      ),
       sourceStackFrame: source,
       originalStackFrame: body.originalStackFrame,
       originalCodeFrame: body.originalCodeFrame || null,
       sourcePackage: body.sourcePackage,
+      ignored: body.originalStackFrame?.ignored || false,
     }
   }
 
+  // TODO: merge this section into ignoredList handling
   if (
     source.file === '<anonymous>' ||
     source.file === 'file://' ||
@@ -73,11 +68,11 @@ function getOriginalStackFrame(
       error: false,
       reason: null,
       external: true,
-      expanded: false,
       sourceStackFrame: source,
       originalStackFrame: null,
       originalCodeFrame: null,
       sourcePackage: null,
+      ignored: true,
     })
   }
 
@@ -85,11 +80,11 @@ function getOriginalStackFrame(
     error: true,
     reason: err?.message ?? err?.toString() ?? 'Unknown Error',
     external: false,
-    expanded: false,
     sourceStackFrame: source,
     originalStackFrame: null,
     originalCodeFrame: null,
     sourcePackage: null,
+    ignored: false,
   }))
 }
 

@@ -21,7 +21,7 @@ use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
 use tokio::{runtime::Handle, select, task_local};
 use tokio_util::task::TaskTracker;
-use tracing::{info_span, instrument, trace_span, Instrument, Level};
+use tracing::{info_span, instrument, trace_span, Instrument, Level, Span};
 use turbo_tasks_malloc::TurboMalloc;
 
 use crate::{
@@ -1754,7 +1754,7 @@ pub fn emit<T: VcValueTrait + ?Sized>(collectible: Vc<T>) {
 
 pub async fn spawn_blocking<T: Send + 'static>(func: impl FnOnce() -> T + Send + 'static) -> T {
     let turbo_tasks = turbo_tasks();
-    let span = trace_span!("blocking operation").or_current();
+    let span = Span::current();
     let (result, duration, alloc_info) = tokio::task::spawn_blocking(|| {
         let _guard = span.entered();
         let start = Instant::now();

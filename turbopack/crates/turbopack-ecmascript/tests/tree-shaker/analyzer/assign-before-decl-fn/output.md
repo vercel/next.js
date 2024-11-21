@@ -81,7 +81,7 @@ graph TD
 # Final
 ```mermaid
 graph TD
-    N0["Items: [ItemId(ModuleEvaluation), ItemId(0, Normal), ItemId(1, Normal), ItemId(2, Normal)]"];
+    N0["Items: [ItemId(0, Normal), ItemId(1, Normal), ItemId(2, Normal), ItemId(ModuleEvaluation)]"];
 ```
 # Entrypoints
 
@@ -96,10 +96,10 @@ graph TD
 # Modules (dev)
 ## Part 0
 ```js
-"module evaluation";
 a = ()=>{};
 function a() {}
 console.log(a);
+"module evaluation";
 export { a as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
@@ -111,10 +111,10 @@ export { a as a } from "__TURBOPACK_VAR__" assert {
 ```
 ## Merged (module eval)
 ```js
-"module evaluation";
 a = ()=>{};
 function a() {}
 console.log(a);
+"module evaluation";
 export { a as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
@@ -133,10 +133,10 @@ export { a as a } from "__TURBOPACK_VAR__" assert {
 # Modules (prod)
 ## Part 0
 ```js
-"module evaluation";
 a = ()=>{};
 function a() {}
 console.log(a);
+"module evaluation";
 export { a as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
@@ -148,10 +148,10 @@ export { a as a } from "__TURBOPACK_VAR__" assert {
 ```
 ## Merged (module eval)
 ```js
-"module evaluation";
 a = ()=>{};
 function a() {}
 console.log(a);
+"module evaluation";
 export { a as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };

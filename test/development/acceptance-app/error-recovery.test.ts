@@ -456,10 +456,7 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
     )
     await session.assertHasRedbox()
 
-    await check(async () => {
-      const source = await session.getRedboxSource()
-      return source?.includes('render() {') ? 'success' : source
-    }, 'success')
+    await expect(session.getRedboxSource()).resolves.toInclude('render() {')
 
     expect(await session.getRedboxSource()).toInclude(
       "throw new Error('nooo');"
@@ -473,6 +470,8 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
     )
     const { session } = sandbox
     await session.assertHasRedbox()
-    await check(() => session.getRedboxSource(true), /Failed to compile/)
+    await expect(session.getRedboxSource(true)).resolves.toMatch(
+      /Failed to compile/
+    )
   })
 })
