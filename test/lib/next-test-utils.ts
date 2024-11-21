@@ -776,19 +776,6 @@ export class File {
   }
 }
 
-export async function evaluate(
-  browser: BrowserInterface,
-  input: string | Function
-) {
-  if (typeof input === 'function') {
-    const result = await browser.eval(input)
-    await new Promise((resolve) => setTimeout(resolve, 30))
-    return result
-  } else {
-    throw new Error(`You must pass a function to be evaluated in the browser.`)
-  }
-}
-
 export async function retry<T>(
   fn: () => T | Promise<T>,
   duration: number = 3000,
@@ -825,7 +812,7 @@ export async function assertHasRedbox(browser: BrowserInterface) {
   try {
     await retry(
       async () => {
-        const hasRedbox = await evaluate(browser, () => {
+        const hasRedbox = await browser.eval(() => {
           return Boolean(
             [].slice
               .call(document.querySelectorAll('nextjs-portal'))
@@ -850,7 +837,7 @@ export async function assertHasRedbox(browser: BrowserInterface) {
 
 export async function assertNoRedbox(browser: BrowserInterface) {
   await waitFor(5000)
-  const hasRedbox = await evaluate(browser, () => {
+  const hasRedbox = await browser.eval(() => {
     return Boolean(
       [].slice
         .call(document.querySelectorAll('nextjs-portal'))
@@ -897,7 +884,7 @@ export async function waitForAndOpenRuntimeError(browser: BrowserInterface) {
 }
 
 export function getRedboxHeader(browser: BrowserInterface) {
-  return evaluate(browser, () => {
+  return browser.eval(() => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
       .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))
@@ -912,7 +899,7 @@ export async function getRedboxTotalErrorCount(browser: BrowserInterface) {
 }
 
 export function getRedboxSource(browser: BrowserInterface) {
-  return evaluate(browser, () => {
+  return browser.eval(() => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
       .find((p) =>
@@ -927,7 +914,7 @@ export function getRedboxSource(browser: BrowserInterface) {
 }
 
 export function getRedboxTitle(browser: BrowserInterface) {
-  return evaluate(browser, () => {
+  return browser.eval(() => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
       .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))
@@ -939,7 +926,7 @@ export function getRedboxTitle(browser: BrowserInterface) {
 }
 
 export function getRedboxDescription(browser: BrowserInterface) {
-  return evaluate(browser, () => {
+  return browser.eval(() => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
       .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))
@@ -951,7 +938,7 @@ export function getRedboxDescription(browser: BrowserInterface) {
 }
 
 export function getRedboxDescriptionWarning(browser: BrowserInterface) {
-  return evaluate(browser, () => {
+  return browser.eval(() => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
       .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))
@@ -966,7 +953,7 @@ export function getRedboxDescriptionWarning(browser: BrowserInterface) {
 export function getRedboxErrorLink(
   browser: BrowserInterface
 ): Promise<string | undefined> {
-  return evaluate(browser, () => {
+  return browser.eval(() => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
       .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))

@@ -1049,8 +1049,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     // Wait for patch to apply and new error to show.
     await session.assertHasRedbox()
     if (isTurbopack) {
-      await retry(async () => {
-        expect(await session.getRedboxSource()).toEqual(outdent`
+      expect(await session.getRedboxSource()).toEqual(outdent`
           ./app/styles2.css:1:2
           Module not found: Can't resolve './boom.css'
           > 1 | @import "./boom.css"
@@ -1058,10 +1057,8 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
           
           https://nextjs.org/docs/messages/module-not-found
         `)
-      })
     } else {
-      await retry(async () => {
-        expect(await session.getRedboxSource()).toEqual(outdent`
+      expect(await session.getRedboxSource()).toEqual(outdent`
           ./app/styles2.css
           Module not found: Can't resolve './boom.css'
           
@@ -1070,7 +1067,6 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
           Import trace for requested module:
           ./app/styles1.css
         `)
-      })
     }
   })
 
@@ -1124,8 +1120,7 @@ export default function Home() {
 
     // Wait for patch to apply and new error to show.
     await session.assertHasRedbox()
-    await retry(async () => {
-      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+    expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
         "app/actions.ts (4:9) @ serverAction
 
           2 |
@@ -1134,7 +1129,6 @@ export default function Home() {
             |         ^
           5 | }"
       `)
-    })
   })
 
   test('Should show error location for server actions in server component', async () => {
