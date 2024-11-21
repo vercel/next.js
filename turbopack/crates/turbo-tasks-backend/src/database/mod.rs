@@ -6,6 +6,7 @@ pub mod lmdb;
 pub mod noop_kv;
 pub mod read_transaction_cache;
 mod startup_cache;
+mod turbo;
 pub mod write_batch;
 
 pub use db_versioning::handle_db_versioning;
@@ -14,3 +15,4 @@ pub use fresh_db_optimization::{is_fresh, FreshDbOptimization};
 pub use noop_kv::NoopKvDb;
 pub use read_transaction_cache::ReadTransactionCache;
 pub use startup_cache::StartupCacheLayer;
+pub use turbo::TurboKeyValueDatabase;

@@ -19,7 +19,7 @@ pub use self::{
 };
 use crate::database::{
     handle_db_versioning, is_fresh, lmdb::LmbdKeyValueDatabase, FreshDbOptimization, NoopKvDb,
-    ReadTransactionCache, StartupCacheLayer,
+    ReadTransactionCache, StartupCacheLayer, TurboKeyValueDatabase,
 };
 
 pub type LmdbBackingStorage = KeyValueDatabaseBackingStorage<
@@ -36,14 +36,22 @@ pub fn lmdb_backing_storage(path: &Path) -> Result<LmdbBackingStorage> {
     Ok(KeyValueDatabaseBackingStorage::new(database))
 }
 
+pub type TurboBackingStorage = KeyValueDatabaseBackingStorage<TurboKeyValueDatabase>;
+
+pub fn turbo_backing_storage(path: &Path) -> Result<TurboBackingStorage> {
+    let path = handle_db_versioning(path)?;
+    let database = TurboKeyValueDatabase::new(path)?;
+    Ok(KeyValueDatabaseBackingStorage::new(database))
+}
+
 pub type NoopBackingStorage = KeyValueDatabaseBackingStorage<NoopKvDb>;
 
 pub fn noop_backing_storage() -> NoopBackingStorage {
     KeyValueDatabaseBackingStorage::new(NoopKvDb)
 }
 
-pub type DefaultBackingStorage = LmdbBackingStorage;
+pub type DefaultBackingStorage = TurboBackingStorage;
 
 pub fn default_backing_storage(path: &Path) -> Result<DefaultBackingStorage> {
-    lmdb_backing_storage(path)
+    turbo_backing_storage(path)
 }
