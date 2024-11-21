@@ -613,4 +613,11 @@ export class NextInstance {
       cb(...args)
     })
   }
+
+  public getCliOutputFromHere() {
+    const length = this.cliOutput.length
+    return () => {
+      return this.cliOutput.slice(length)
+    }
+  }
 }
