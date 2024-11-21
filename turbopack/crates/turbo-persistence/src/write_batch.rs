@@ -124,10 +124,11 @@ impl<K: StoreKey + Send> WriteBatch<K> {
 
             use crate::{
                 entry::EntryValue,
+                key::hash_key,
                 static_sorted_file::{AqmfCache, BlockCache, LookupResult, StaticSortedFile},
             };
 
-            file.sync_all();
+            file.sync_all()?;
             let sst = StaticSortedFile::open(seq, path)?;
             let cache1 = AqmfCache::with(
                 10,
@@ -154,7 +155,7 @@ impl<K: StoreKey + Send> WriteBatch<K> {
                 let mut key = Vec::with_capacity(entry.key.len());
                 entry.key.write_to(&mut key);
                 let result = sst
-                    .lookup(&key, &cache1, &cache2, &cache3)
+                    .lookup(hash_key(&key), &key, &cache1, &cache2, &cache3)
                     .expect("key found");
                 match result {
                     LookupResult::Deleted => {}
