@@ -164,20 +164,6 @@ function Card<T extends string>({ href }: { href: Route<T> | URL }) {
 
 During the development, Next.js generates a `.d.ts` file in `.next/types` that contains information about the loaded environment variables for the intellisense of your editor. When the key of the environment variable is duplicated, it will be deduped based on the [Environment Variable Load Order](https://nextjs.org/docs/app/building-your-application/configuring/environment-variables#environment-variable-load-order).
 
-To opt-into this feature, `experimental.typedEnv` need to be enabled and the project needs to be using TypeScript.
-
-```ts filename="next.config.ts"
-import type { NextConfig } from 'next'
-
-const nextConfig: NextConfig = {
-  experimental: {
-    typedEnv: true,
-  },
-}
-
-export default nextConfig
-```
-
 > **Good to know**: The types will be generated based on the loaded environment variables in the development runtime, which will exclude from the `.env.production*` files by default. To include the production-specific environment variables, run `next dev` with `NODE_ENV=production`.
 
 ### With Async Server Components
