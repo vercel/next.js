@@ -34,7 +34,7 @@ Therefore there are there value types:
   * 3 bytes AQMF length
   * 2 bytes key Compression Dictionary length
   * 2 bytes value Compression Dictionary length
-  * 1 bytes block count
+  * 2 bytes block count
 * serialized AQMF
 * serialized key Compression Dictionary
 * serialized value Compression Dictionary
@@ -52,7 +52,7 @@ Therefore there are there value types:
   * 2 bytes position in block after header
 * Max block size: 64 KB
 
-An Index block contains `n` keys, which specify `n - 1` key ranges (eq key goes into the prev range, except for the first key). Between these `n` keys there are `n - 1` 1 byte block indicies that point to the block that contains the key range.
+An Index block contains `n` keys, which specify `n - 1` key ranges (eq key goes into the prev range, except for the first key). Between these `n` keys there are `n - 1` 2 byte block indicies that point to the block that contains the key range.
 
 #### Key Block
 

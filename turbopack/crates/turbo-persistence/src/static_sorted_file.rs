@@ -57,8 +57,8 @@ impl quick_cache::Weighter<u32, Arc<qfilter::Filter>> for AqmfWeighter {
 #[derive(Clone, Default)]
 pub struct BlockWeighter;
 
-impl quick_cache::Weighter<(u32, u8), ArcSlice<u8>> for BlockWeighter {
-    fn weight(&self, _key: &(u32, u8), val: &ArcSlice<u8>) -> u64 {
+impl quick_cache::Weighter<(u32, u16), ArcSlice<u8>> for BlockWeighter {
+    fn weight(&self, _key: &(u32, u16), val: &ArcSlice<u8>) -> u64 {
         val.len() as u64 + 8
     }
 }
@@ -66,7 +66,7 @@ impl quick_cache::Weighter<(u32, u8), ArcSlice<u8>> for BlockWeighter {
 pub type AqmfCache =
     quick_cache::sync::Cache<u32, Arc<qfilter::Filter>, AqmfWeighter, BuildHasherDefault<FxHasher>>;
 pub type BlockCache =
-    quick_cache::sync::Cache<(u32, u8), ArcSlice<u8>, BlockWeighter, BuildHasherDefault<FxHasher>>;
+    quick_cache::sync::Cache<(u32, u16), ArcSlice<u8>, BlockWeighter, BuildHasherDefault<FxHasher>>;
 
 pub struct StaticSortedFile {
     sequence_number: u32,
@@ -95,8 +95,8 @@ impl StaticSortedFile {
             let aqmf_length = file.read_u24::<BE>()? as usize;
             let key_compression_dictionary_length = file.read_u16::<BE>()? as usize;
             let value_compression_dictionary_length = file.read_u16::<BE>()? as usize;
-            let block_count = file.read_u8()? as usize;
-            const HEADER_SIZE: usize = 12;
+            let block_count = file.read_u16::<BE>()? as usize;
+            const HEADER_SIZE: usize = 13;
             let mut current_offset = HEADER_SIZE;
             let aqmf = LocationInFile {
                 start: current_offset,
@@ -148,7 +148,7 @@ impl StaticSortedFile {
             return Ok(LookupResult::QuickFilterMiss);
         }
         let header = self.header()?;
-        let mut current_block = 0;
+        let mut current_block = 0u16;
         loop {
             let block = match key_block_cache
                 .get_value_or_guard(&(self.sequence_number, current_block), None)
@@ -181,7 +181,7 @@ impl StaticSortedFile {
         }
     }
 
-    fn lookup_index_block<K: QueryKey>(&self, mut block: &[u8], key: &K) -> Result<Option<u8>> {
+    fn lookup_index_block<K: QueryKey>(&self, mut block: &[u8], key: &K) -> Result<Option<u16>> {
         let entry_count = block.read_u16::<BE>()? as usize;
         let start_entries = (entry_count - 1) * 2;
         let offsets = &block[..start_entries];
@@ -200,12 +200,13 @@ impl StaticSortedFile {
             let end = if index == entry_count - 1 {
                 entries.len()
             } else {
-                (&offsets[index * 2..]).read_u16::<BE>()? as usize - 1
+                (&offsets[index * 2..]).read_u16::<BE>()? as usize - 2
             };
             Ok(&entries[start..end])
         }
-        fn get_block(offsets: &[u8], entries: &[u8], index: usize) -> Result<u8> {
-            Ok(entries[(&offsets[index * 2..]).read_u16::<BE>()? as usize - 1])
+        fn get_block(offsets: &[u8], entries: &[u8], index: usize) -> Result<u16> {
+            let loc = (&offsets[index * 2..]).read_u16::<BE>()? as usize;
+            Ok((&entries[loc - 2..loc]).read_u16::<BE>()?)
         }
         let left_key = get_key(&offsets, &entries, entry_count, 0)?;
         match key.cmp(left_key) {
@@ -321,7 +322,7 @@ impl StaticSortedFile {
     ) -> Result<LookupResult> {
         Ok(match ty {
             KEY_BLOCK_ENTRY_TYPE_NORMAL => {
-                let block = val.read_u8()?;
+                let block = val.read_u8()? as u16;
                 let size = val.read_u24::<BE>()? as usize;
                 let position = val.read_u32::<BE>()? as usize;
                 let value =
@@ -341,7 +342,7 @@ impl StaticSortedFile {
 
     fn lookup_value_block(
         &self,
-        block: u8,
+        block: u16,
         position: usize,
         size: usize,
         header: &Header,
@@ -361,7 +362,7 @@ impl StaticSortedFile {
         Ok(value)
     }
 
-    fn read_key_block(&self, header: &Header, block_index: u8) -> Result<ArcSlice<u8>> {
+    fn read_key_block(&self, header: &Header, block_index: u16) -> Result<ArcSlice<u8>> {
         self.read_block(
             header,
             block_index,
@@ -370,7 +371,7 @@ impl StaticSortedFile {
         )
     }
 
-    fn read_value_block(&self, header: &Header, block_index: u8) -> Result<ArcSlice<u8>> {
+    fn read_value_block(&self, header: &Header, block_index: u16) -> Result<ArcSlice<u8>> {
         self.read_block(
             header,
             block_index,
@@ -382,7 +383,7 @@ impl StaticSortedFile {
     fn read_block(
         &self,
         header: &Header,
-        block_index: u8,
+        block_index: u16,
         compression_dictionary: &[u8],
     ) -> Result<ArcSlice<u8>> {
         let offset = header.block_offsets_start + block_index as usize * 4;
