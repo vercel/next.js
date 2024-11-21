@@ -1,7 +1,7 @@
 use std::mem::replace;
 
 use crate::{
-    constants::{DATA_THRESHOLD_PER_FILE, MAX_ENTRIES_PER_FILE},
+    constants::{DATA_THRESHOLD_PER_FILE, MAX_ENTRIES_PER_FILE, MAX_SMALL_VALUE_SIZE},
     entry::{Entry, EntryValue},
     key::StoreKey,
 };
@@ -35,7 +35,11 @@ impl<K: StoreKey> Collector<K> {
         self.total_value_size += value.len();
         self.entries.push(Entry {
             key,
-            value: EntryValue::Small { value },
+            value: if value.len() > MAX_SMALL_VALUE_SIZE {
+                EntryValue::Medium { value }
+            } else {
+                EntryValue::Small { value }
+            },
         });
     }
 
@@ -57,7 +61,7 @@ impl<K: StoreKey> Collector<K> {
 
     pub fn add_entry(&mut self, entry: Entry<K>) {
         self.total_key_size += entry.key.len();
-        if let EntryValue::Small { value } = &entry.value {
+        if let EntryValue::Small { value } | EntryValue::Medium { value } = &entry.value {
             self.total_value_size += value.len();
         }
         self.entries.push(entry);

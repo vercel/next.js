@@ -13,7 +13,7 @@ use lzzzz::lz4::{self, ACC_LEVEL_DEFAULT};
 use thread_local::ThreadLocal;
 
 use crate::{
-    collector::Collector, constants::MAX_SMALL_VALUE_SIZE, entry::Entry, key::StoreKey,
+    collector::Collector, constants::MAX_MEDIUM_VALUE_SIZE, entry::Entry, key::StoreKey,
     static_sorted_file_builder::StaticSortedFileBuilder,
 };
 
@@ -56,7 +56,7 @@ impl<K: StoreKey + Send> WriteBatch<K> {
 
     pub fn put(&self, key: K, value: Cow<'_, [u8]>) -> Result<()> {
         let collector = self.collector_mut()?;
-        if value.len() <= MAX_SMALL_VALUE_SIZE {
+        if value.len() <= MAX_MEDIUM_VALUE_SIZE {
             collector.put(key, value.into_owned());
         } else {
             let blob = self.create_blob(&value)?;
@@ -159,7 +159,9 @@ impl<K: StoreKey + Send> WriteBatch<K> {
                 match result {
                     LookupResult::Deleted => {}
                     LookupResult::Small { value: val } => {
-                        if let EntryValue::Small { value } = entry.value {
+                        if let EntryValue::Small { value } | EntryValue::Medium { value } =
+                            entry.value
+                        {
                             assert_eq!(&*val, &*value);
                         } else {
                             panic!("Unexpected value");

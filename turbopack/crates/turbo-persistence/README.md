@@ -66,7 +66,7 @@ An Index block contains `n` keys, which specify `n - 1` key ranges (eq key goes 
 A Key block contains n keys, which specify n key value pairs. The `i`-th value can be found in `current block index + base block offset + 1` at entry `i`.
 
 Depending on the `type` field entry has a different format:
-* 0: normal key
+* 0: normal key (small value)
   * key data
   * 2 byte block index
   * 3 bytes size
@@ -76,6 +76,9 @@ Depending on the `type` field entry has a different format:
   * 4 bytes sequence number
 * 2: deleted key / thumbstone (no data)
   * key data
+* 3: normal key (medium sized value)
+  * key data
+  * 2 byte block index
 * 7: merge key (future)
   * key data
   * 2 byte block index
