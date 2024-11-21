@@ -3,7 +3,6 @@ import { readFile } from 'node:fs/promises'
 import { basename, extname, join, relative, isAbsolute, resolve } from 'path'
 import { pathToFileURL } from 'url'
 import findUp from 'next/dist/compiled/find-up'
-import semver from 'next/dist/compiled/semver'
 import * as Log from '../build/output/log'
 import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import { defaultConfig, normalizeConfig } from './config-shared'
@@ -1084,16 +1083,27 @@ export default async function loadConfig(
     // To resolve "next.config.(ts|cts)" and it's imports, register the require hook
     // and transpile the config with SWC. The data will be directly "required" from
     // the compiled string.
-    const shouldRegisterRequireHook =
+    let shouldRegisterRequireHook =
       extname(configFileName) === '.cts' ||
       (extname(configFileName) === '.ts' && packageJson.type !== 'module')
 
     // To resolve "next.config.(ts|mts)" ("ts" when package.json "type" is "module")
     // and it's imports, register the loader hook and transpile the config with SWC.
     // Node.js will then load the compiled source passed from the loader.
-    const shouldRegisterLoader =
+    let shouldRegisterLoader =
       extname(configFileName) === '.mts' ||
       (extname(configFileName) === '.ts' && packageJson.type === 'module')
+
+    const { register } = require('module')
+
+    if (shouldRegisterLoader) {
+      // `module.register` was added in Node.js v18.19.0, v20.6.0 and is not
+      // supported on Node.js v19. If `module.register` is missing, fallback to
+      // the require hook. Will throw properly based on the Node.js version there.
+      if (typeof register !== 'function') {
+        shouldRegisterRequireHook = true
+      }
+    }
 
     let userConfigModule: any
     try {
@@ -1111,38 +1121,11 @@ export default async function loadConfig(
         userConfigModule = await transpileConfig({
           nextConfigPath: path,
           cwd: dir,
+          isFallback: shouldRegisterLoader,
         })
       } else {
         if (shouldRegisterLoader) {
-          // TODO: Remove the version detects that passed the current minimum Node.js version.
-          const nodeVersion = process.versions.node
-          const configErrorReason =
-            configFileName === 'next.config.mts'
-              ? configFileName
-              : `${configFileName} with Native ESM app (package.json type: module)`
-
-          // "module.register" was added in Node.js v18.19.0, v20.6.0
-          if (semver.lt(nodeVersion, '18.19.0')) {
-            throw new Error(
-              `${configErrorReason} requires Node.js 18.19.0 or higher (current: ${nodeVersion}).`
-            )
-          }
-          if (
-            semver.satisfies(nodeVersion, '20.x') &&
-            semver.lt(nodeVersion, '20.6.0')
-          ) {
-            throw new Error(
-              `${configErrorReason} requires Node.js 20.6.0 or higher (current: ${nodeVersion}).`
-            )
-          }
-          // "module.register" is not supported on Node.js v19.
-          if (semver.satisfies(nodeVersion, '19.x')) {
-            throw new Error(
-              `${configErrorReason} is not supported on Node.js v19 (current: ${nodeVersion}). Please upgrade to Node.js 20.6.0 or higher.`
-            )
-          }
-
-          require('module').register('../build/next-config-ts/loader.mjs', {
+          register('../build/next-config-ts/loader.mjs', {
             parentURL: pathToFileURL(__filename),
             // data is passed to the loader "initialize" function
             data: { cwd: dir },

@@ -1,7 +1,8 @@
 import type { Options as SWCOptions } from '@swc/core'
 import type { CompilerOptions } from 'typescript'
-import { resolve } from 'node:path'
+import { basename, resolve } from 'node:path'
 import { readFile } from 'node:fs/promises'
+import semver from 'next/dist/compiled/semver'
 import { deregisterHook, registerHook, requireFromString } from './require-hook'
 import { lazilyGetTSConfig } from './utils'
 
@@ -30,9 +31,11 @@ function resolveSWCOptions(
 export async function transpileConfig({
   nextConfigPath,
   cwd,
+  isFallback,
 }: {
   nextConfigPath: string
   cwd: string
+  isFallback: boolean
 }) {
   let hasRequire = false
   try {
@@ -54,6 +57,43 @@ export async function transpileConfig({
     // filename & extension don't matter here
     return requireFromString(code, resolve(cwd, 'next.config.compiled.js'))
   } catch (error) {
+    // Fallback to the require hook because the loader was needed but the
+    // `module.register` is missing. Throw based on the Node.js version
+    // as it can be resolved when using the loader.
+    if (isFallback) {
+      // TODO: Remove the version detects that passed the current minimum Node.js version.
+      const nodeVersion = process.versions.node
+      const configFileName = basename(nextConfigPath)
+      const configErrorReason =
+        configFileName === 'next.config.mts'
+          ? configFileName
+          : `${configFileName} with Native ESM app (package.json type: module)`
+
+      // `module.register` was added in Node.js v18.19.0, v20.6.0
+      if (semver.lt(nodeVersion, '18.19.0')) {
+        throw new Error(
+          `${configErrorReason} requires Node.js 18.19.0 or higher (current: ${nodeVersion}).`,
+          { cause: error }
+        )
+      }
+      if (
+        semver.satisfies(nodeVersion, '20.x') &&
+        semver.lt(nodeVersion, '20.6.0')
+      ) {
+        throw new Error(
+          `${configErrorReason} requires Node.js 20.6.0 or higher (current: ${nodeVersion}).`,
+          { cause: error }
+        )
+      }
+      // `module.register` is not supported on Node.js v19.
+      if (semver.satisfies(nodeVersion, '19.x')) {
+        throw new Error(
+          `${configErrorReason} is not supported on Node.js v19 (current: ${nodeVersion}). Please upgrade to Node.js 20.6.0 or higher.`,
+          { cause: error }
+        )
+      }
+    }
+
     throw error
   } finally {
     if (hasRequire) {
