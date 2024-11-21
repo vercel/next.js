@@ -7,7 +7,9 @@ use std::{
 use anyhow::{bail, Context, Result};
 use indexmap::map::Entry;
 use next_core::{
-    next_client_reference::{find_server_entries, ClientReferenceGraphResult, ServerEntries},
+    next_client_reference::{
+        find_server_entries, ClientReferenceGraphResult, ClientReferenceType, ServerEntries,
+    },
     next_manifests::{
         ActionLayer, ActionManifestModuleId, ActionManifestWorkerEntry, ServerReferenceManifest,
     },
@@ -117,7 +119,24 @@ pub(crate) async fn create_server_actions_manifest(
         actions.extend(
             &*find_actions(
                 vec![rsc_entry],
-                vec![],
+                // API routes don't have any server_component_entries, handle that here
+                client_references
+                    .types()
+                    .await?
+                    .iter()
+                    .map(|client_reference_ty| async move {
+                        Ok(match client_reference_ty {
+                            ClientReferenceType::EcmascriptClientReference {
+                                module: ecmascript_client_reference,
+                                ..
+                            } => Some(*ResolvedVc::upcast(
+                                ecmascript_client_reference.await?.client_module,
+                            )),
+                            _ => None,
+                        })
+                    })
+                    .try_flat_join()
+                    .await?,
                 asset_context,
                 actions.visited_nodes,
             )
