@@ -1,6 +1,6 @@
 use anyhow::{bail, Result};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexSet, ValueToString, Vc};
+use turbo_tasks::{FxIndexSet, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::File;
 
 use crate::{
@@ -14,7 +14,7 @@ use crate::{
 /// Represents the source map of an ecmascript asset.
 #[turbo_tasks::value]
 pub struct SourceMapAsset {
-    asset: Vc<Box<dyn OutputAsset>>,
+    asset: ResolvedVc<Box<dyn OutputAsset>>,
 }
 
 #[turbo_tasks::value_impl]
