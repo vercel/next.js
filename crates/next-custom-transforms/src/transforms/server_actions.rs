@@ -479,7 +479,7 @@ impl<C: Comments> ServerActions<C> {
 
             body.stmts.retain(|stmt| {
                 let found_directive = self.get_directive_for_stmt(
-                    &stmt,
+                    stmt,
                     &mut directive,
                     DirectiveLocation::FunctionBody,
                     &mut is_allowed_position,
@@ -504,7 +504,7 @@ impl<C: Comments> ServerActions<C> {
         stmts.retain(|item| {
             if let ModuleItem::Stmt(stmt) = item {
                 let found_directive = self.get_directive_for_stmt(
-                    &stmt,
+                    stmt,
                     &mut directive,
                     DirectiveLocation::Module,
                     &mut is_allowed_position,
