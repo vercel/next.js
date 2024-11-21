@@ -9,15 +9,22 @@ describe('typed-env', () => {
   it('should have env types from next config', async () => {
     await retry(async () => {
       const envDTS = await next.readFile('.next/types/env.d.ts')
+      // since NODE_ENV is development, env types will
+      // not include production-specific env
+      expect(envDTS).not.toContain('FROM_ENV_PROD')
+      expect(envDTS).not.toContain('FROM_ENV_PROD_LOCAL')
+
       expect(envDTS).toMatchInlineSnapshot(`
         "// Type definitions for Next.js environment variables
         declare global {
           namespace NodeJS {
             interface ProcessEnv {
               /** Loaded from \`.env.development.local\` */
-              FROM_DEV_ENV_LOCAL?: string
+              FROM_ENV_DEV_LOCAL?: string
               /** Loaded from \`.env.local\` */
               FROM_ENV_LOCAL?: string
+              /** Loaded from \`.env.development\` */
+              FROM_ENV_DEV?: string
               /** Loaded from \`.env\` */
               FROM_ENV?: string
               /** Loaded from \`next.config.js\` */
@@ -50,9 +57,11 @@ describe('typed-env', () => {
           namespace NodeJS {
             interface ProcessEnv {
               /** Loaded from \`.env.development.local\` */
-              FROM_DEV_ENV_LOCAL?: string
+              FROM_ENV_DEV_LOCAL?: string
               /** Loaded from \`.env.local\` */
               FROM_ENV_LOCAL?: string
+              /** Loaded from \`.env.development\` */
+              FROM_ENV_DEV?: string
               /** Loaded from \`.env\` */
               FROM_ENV?: string
               /** Loaded from \`next.config.js\` */
