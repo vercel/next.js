@@ -184,9 +184,9 @@ impl StaticSortedFileBuilder {
                 EntryValue::Small { value } => {
                     block.put(
                         &entry.key,
-                        value_location.0 as u8,
-                        value_location.1 as u32,
-                        value.len() as u32,
+                        value_location.0.try_into().unwrap(),
+                        value_location.1.try_into().unwrap(),
+                        value.len().try_into().unwrap(),
                     );
                 }
                 EntryValue::Large { blob } => {
@@ -326,7 +326,7 @@ impl KeyBlockBuilder {
     pub fn put<K: StoreKey>(
         &mut self,
         key: K,
-        value_block: u8,
+        value_block: u16,
         value_offset: u32,
         value_size: u32,
     ) {
@@ -336,7 +336,7 @@ impl KeyBlockBuilder {
         BE::write_u32(&mut self.data[header_offset..header_offset + 4], header);
 
         key.write_to(&mut self.data);
-        self.data.write_u8(value_block).unwrap();
+        self.data.write_u16::<BE>(value_block).unwrap();
         self.data.write_u24::<BE>(value_size).unwrap();
         self.data.write_u32::<BE>(value_offset).unwrap();
 
