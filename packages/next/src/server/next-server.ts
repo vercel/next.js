@@ -107,6 +107,7 @@ import type { ServerOnInstrumentationRequestError } from './app-render/types'
 import { RouteKind } from './route-kind'
 import { InvariantError } from '../shared/lib/invariant-error'
 import { AwaiterOnce } from './after/awaiter'
+import { AsyncCallbackSet } from './lib/async-callback-set'
 
 export * from './base-server'
 
@@ -174,7 +175,8 @@ export default class NextNodeServer extends BaseServer<
     res: ServerResponse
   ) => void
 
-  private internalWaitUntil: WaitUntil | undefined
+  protected cleanupListeners = new AsyncCallbackSet()
+  protected internalWaitUntil: WaitUntil | undefined
 
   constructor(options: Options) {
     // Initialize super class
@@ -1873,6 +1875,14 @@ export default class NextNodeServer extends BaseServer<
     }
   }
 
+  protected onServerClose(listener: () => Promise<void>) {
+    this.cleanupListeners.add(listener)
+  }
+
+  async close(): Promise<void> {
+    await this.cleanupListeners.runAll()
+  }
+
   protected getInternalWaitUntil(): WaitUntil {
     this.internalWaitUntil ??= this.createInternalWaitUntil()
     return this.internalWaitUntil
@@ -1885,18 +1895,10 @@ export default class NextNodeServer extends BaseServer<
       )
     }
 
-    if (!this.serverOptions.onCleanup) {
-      // If there's no `onCleanup`, then we have no way to
-      // await pending `after` callbacks before shutting down. Return a noop.
-      return function noopWaitUntil(promise: Promise<unknown>) {
-        promise.catch((err) => console.error(err))
-      }
-    }
-
     const awaiter = new AwaiterOnce({ onError: console.error })
 
     // TODO(after): warn if exiting before these are awaited?
-    this.serverOptions.onCleanup(() => awaiter.awaiting())
+    this.onServerClose(() => awaiter.awaiting())
 
     return awaiter.waitUntil
   }

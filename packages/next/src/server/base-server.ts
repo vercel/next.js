@@ -255,7 +255,6 @@ export interface Options {
    * The HTTP Server that Next.js is running behind
    */
   httpServer?: HTTPServer
-  onCleanup?: (cb: () => Promise<void>) => void
 }
 
 export type RenderOpts = PagesRenderOptsPartial & AppRenderOptsPartial
@@ -1631,8 +1630,7 @@ export default abstract class Server<
   protected async prepareImpl(): Promise<void> {}
   protected async loadInstrumentationModule(): Promise<any> {}
 
-  // Backwards compatibility
-  protected async close(): Promise<void> {}
+  public async close(): Promise<void> {}
 
   protected getAppPathRoutes(): Record<string, string[]> {
     const appPathRoutes: Record<string, string[]> = {}

@@ -26,6 +26,7 @@ import { NextServerSpan } from './lib/trace/constants'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
 import type { ServerFields } from './lib/router-utils/setup-dev-bundler'
 import type { ServerInitResult } from './lib/render-server'
+import { AsyncCallbackSet } from './lib/async-callback-set'
 
 let ServerImpl: typeof NextNodeServer
 
@@ -198,8 +199,7 @@ export class NextServer implements NextWrapperServer {
 
   async close() {
     if (this.server) {
-      // BaseServer.close() is protected
-      await this.server['close']()
+      await this.server.close()
     }
   }
 
@@ -269,7 +269,6 @@ export class NextServer implements NextWrapperServer {
 
         this.server = await this.createServer({
           ...this.options,
-          onCleanup: this.onCleanup.bind(this),
           conf,
         })
         if (this.preparedAssetPrefix) {
@@ -302,7 +301,7 @@ export class NextServer implements NextWrapperServer {
 /** The wrapper server used for `import next from "next" (in a custom server)` */
 class NextCustomServer implements NextWrapperServer {
   private didWebSocketSetup: boolean = false
-  protected cleanupListeners: (() => Promise<void>)[] = []
+  protected cleanupListeners = new AsyncCallbackSet()
 
   protected init?: ServerInitResult
 
@@ -347,7 +346,7 @@ class NextCustomServer implements NextWrapperServer {
       dir: this.options.dir!,
       port: this.options.port || 3000,
       isDev: !!this.options.dev,
-      onCleanup: (listener) => this.cleanupListeners.push(listener),
+      onCleanup: this.cleanupListeners.add.bind(this.cleanupListeners),
       hostname: this.options.hostname || 'localhost',
       minimalMode: this.options.minimalMode,
       quiet: this.options.quiet,
@@ -440,7 +439,7 @@ class NextCustomServer implements NextWrapperServer {
   async close() {
     await Promise.all([
       this.init?.server.close(),
-      ...this.cleanupListeners.map((f) => f()),
+      this.cleanupListeners.runAll(),
     ])
   }
 }

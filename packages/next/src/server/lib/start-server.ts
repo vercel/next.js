@@ -32,6 +32,7 @@ import { validateTurboNextConfig } from '../../lib/turbopack-warning'
 import { type Span, trace, flushAllTraces } from '../../trace'
 import { isPostpone } from './router-utils/is-postpone'
 import { isIPv6 } from './is-ipv6'
+import { AsyncCallbackSet } from './async-callback-set'
 
 const debug = setupDebug('next:start-server')
 let startServerSpan: Span | undefined
@@ -218,10 +219,8 @@ export async function startServer(
     }
   })
 
-  const cleanupListeners: (() => Promise<void>)[] = []
-  const onCleanup = (listener: () => Promise<void>) => {
-    cleanupListeners.push(listener)
-  }
+  const cleanupListeners = new AsyncCallbackSet()
+  const onCleanup = cleanupListeners.add.bind(cleanupListeners)
 
   onCleanup(() => new Promise<void>((res) => server.close(() => res())))
 
@@ -300,7 +299,7 @@ export async function startServer(
           cleanupStarted = true
           ;(async () => {
             debug('start-server process cleanup')
-            await Promise.allSettled(cleanupListeners.map(async (f) => f()))
+            await cleanupListeners.runAll()
             debug('start-server process cleanup finished')
             process.exit(0)
           })()
