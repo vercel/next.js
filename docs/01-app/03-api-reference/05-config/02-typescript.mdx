@@ -160,7 +160,7 @@ function Card<T extends string>({ href }: { href: Route<T> | URL }) {
 >
 > When running `next dev` or `next build`, Next.js generates a hidden `.d.ts` file inside `.next` that contains information about all existing routes in your application (all valid routes as the `href` type of `Link`). This `.d.ts` file is included in `tsconfig.json` and the TypeScript compiler will check that `.d.ts` and provide feedback in your editor about invalid links.
 
-## Type Intellisense for Environment Variables
+### Type Intellisense for Environment Variables
 
 During the development, Next.js generates a `.d.ts` file in `.next/types` that contains information about the loaded environment variables for the intellisense of your editor. When the key of the environment variable is duplicated, it will be deduped based on the [Environment Variable Load Order](https://nextjs.org/docs/app/building-your-application/configuring/environment-variables#environment-variable-load-order).
 
@@ -179,34 +179,6 @@ export default nextConfig
 ```
 
 > **Good to know**: The types will be generated based on the loaded environment variables in the development runtime, which will exclude from the `.env.production*` files by default. To include the production-specific environment variables, run `next dev` with `NODE_ENV=production`.
-
-## End-to-End Type Safety
-
-The Next.js App Router has **enhanced type safety**. This includes:
-
-1. **No serialization of data between fetching function and page**: You can `fetch` directly in components, layouts, and pages on the server. This data _does not_ need to be serialized (converted to a string) to be passed to the client side for consumption in React. Instead, since `app` uses Server Components by default, we can use values like `Date`, `Map`, `Set`, and more without any extra steps. Previously, you needed to manually type the boundary between server and client with Next.js-specific types.
-2. **Streamlined data flow between components**: With the removal of `_app` in favor of root layouts, it is now easier to visualize the data flow between components and pages. Previously, data flowing between individual `pages` and `_app` were difficult to type and could introduce confusing bugs. With [colocated data fetching](/docs/app/building-your-application/data-fetching/fetching) in the App Router, this is no longer an issue.
-
-[Data Fetching in Next.js](/docs/app/building-your-application/data-fetching/fetching) now provides as close to end-to-end type safety as possible without being prescriptive about your database or content provider selection.
-
-We're able to type the response data as you would expect with normal TypeScript. For example:
-
-```tsx filename="app/page.tsx"
-async function getData() {
-  const res = await fetch('https://api.example.com/...')
-  // The return value is *not* serialized
-  // You can return Date, Map, Set, etc.
-  return res.json()
-}
-
-export default async function Page() {
-  const name = await getData()
-
-  return '...'
-}
-```
-
-For _complete_ end-to-end type safety, this also requires your database or content provider to support TypeScript. This could be through using an [ORM](https://en.wikipedia.org/wiki/Object%E2%80%93relational_mapping) or type-safe query builder.
 
 ## Async Server Component TypeScript Error
 
