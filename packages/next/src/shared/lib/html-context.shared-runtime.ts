@@ -22,6 +22,7 @@ export type HtmlProps = {
   hybridAmp: boolean
   isDevelopment: boolean
   dynamicImports: string[]
+  allDynamicCssFiles: Set<string>
   assetPrefix?: string
   canonicalBase: string
   headTags: any[]
