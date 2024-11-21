@@ -17,11 +17,11 @@ use crate::{
 
 #[turbo_tasks::value(shared)]
 pub struct ResolvingIssue {
-    pub severity: Vc<IssueSeverity>,
+    pub severity: ResolvedVc<IssueSeverity>,
     pub request_type: String,
-    pub request: Vc<Request>,
-    pub file_path: Vc<FileSystemPath>,
-    pub resolve_options: Vc<ResolveOptions>,
+    pub request: ResolvedVc<Request>,
+    pub file_path: ResolvedVc<FileSystemPath>,
+    pub resolve_options: ResolvedVc<ResolveOptions>,
     pub error_message: Option<String>,
     pub source: Option<ResolvedVc<IssueSource>>,
 }

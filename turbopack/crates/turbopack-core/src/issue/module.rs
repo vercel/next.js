@@ -1,4 +1,4 @@
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
 use super::{Issue, IssueStage, OptionStyledString, StyledString};
@@ -6,9 +6,9 @@ use crate::{ident::AssetIdent, issue::IssueExt, source::Source};
 
 #[turbo_tasks::value(shared)]
 pub struct ModuleIssue {
-    pub ident: Vc<AssetIdent>,
-    pub title: Vc<StyledString>,
-    pub description: Vc<StyledString>,
+    pub ident: ResolvedVc<AssetIdent>,
+    pub title: ResolvedVc<StyledString>,
+    pub description: ResolvedVc<StyledString>,
 }
 
 #[turbo_tasks::value_impl]
