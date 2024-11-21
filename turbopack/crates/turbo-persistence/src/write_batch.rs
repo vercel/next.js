@@ -1,3 +1,4 @@
+use core::panic;
 use std::{
     borrow::Cow,
     cell::UnsafeCell,
@@ -5,6 +6,7 @@ use std::{
     mem::take,
     path::PathBuf,
     sync::atomic::{AtomicU32, Ordering},
+    u64,
 };
 
 use anyhow::{Context, Result};
@@ -13,7 +15,11 @@ use lzzzz::lz4::{self, ACC_LEVEL_DEFAULT};
 use thread_local::ThreadLocal;
 
 use crate::{
-    collector::Collector, constants::MAX_SMALL_VALUE_SIZE, entry::Entry, key::StoreKey,
+    collector::Collector,
+    constants::MAX_SMALL_VALUE_SIZE,
+    entry::{Entry, EntryValue},
+    key::StoreKey,
+    static_sorted_file::{AqmfCache, BlockCache, LookupResult, StaticSortedFile},
     static_sorted_file_builder::StaticSortedFileBuilder,
 };
 
@@ -113,10 +119,58 @@ impl<K: StoreKey + Send> WriteBatch<K> {
 
         let builder = StaticSortedFileBuilder::new(&entries, total_key_size, total_value_size);
 
-        let file = self.path.join(&format!("{:08}.sst", seq));
+        let path = self.path.join(&format!("{:08}.sst", seq));
         let file = builder
-            .write(&file)
+            .write(&path)
             .with_context(|| format!("Unable to write SST file {:08}.sst", seq))?;
+
+        {
+            file.sync_all();
+            let sst = StaticSortedFile::open(seq, path)?;
+            let cache1 = AqmfCache::with(
+                10,
+                u64::MAX,
+                Default::default(),
+                Default::default(),
+                Default::default(),
+            );
+            let cache2 = BlockCache::with(
+                10,
+                u64::MAX,
+                Default::default(),
+                Default::default(),
+                Default::default(),
+            );
+            let cache3 = BlockCache::with(
+                10,
+                u64::MAX,
+                Default::default(),
+                Default::default(),
+                Default::default(),
+            );
+            for entry in entries {
+                let mut key = Vec::with_capacity(entry.key.len());
+                entry.key.write_to(&mut key);
+                let result = sst
+                    .lookup(&key, &cache1, &cache2, &cache3)
+                    .expect("key found");
+                match result {
+                    LookupResult::Deleted => {}
+                    LookupResult::Small { value: val } => {
+                        if let EntryValue::Small { value } = entry.value {
+                            assert_eq!(&*val, &*value);
+                        } else {
+                            panic!("Unexpected value");
+                        }
+                    }
+                    LookupResult::Blob { sequence_number } => {}
+                    LookupResult::QuickFilterMiss => panic!("aqmf must include"),
+                    LookupResult::RangeMiss => panic!("Index must cover"),
+                    LookupResult::KeyMiss => panic!("All keys must exist"),
+                }
+            }
+        }
+
         Ok((seq, file))
     }
 }

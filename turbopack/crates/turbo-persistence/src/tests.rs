@@ -35,13 +35,13 @@ fn full_cycle() -> Result<()> {
             Ok(())
         },
         |db| {
-            let Some(value) = db.get(&[42])? else {
+            let Some(value) = db.get(&[42u8])? else {
                 panic!("Value not found");
             };
             assert_eq!(&*value, &[42]);
-            assert!(db.get(&[42, 42])?.is_none());
-            assert!(db.get(&[0])?.is_none());
-            assert!(db.get(&[255])?.is_none());
+            assert!(db.get(&[42u8, 42])?.is_none());
+            assert!(db.get(&[0u8])?.is_none());
+            assert!(db.get(&[255u8])?.is_none());
             Ok(())
         },
     );

@@ -122,7 +122,7 @@ fsync! The new sequence number is written to the `CURRENT` file.
 
 After that optimization might take place.
 
-## Optimization
+## Compaction
 
 * During reading we track cases where too many blocks have been read to find a key. In these cases we found multiple SST files that have overlapping key ranges. We can optimize these.
 * We track that by storing an atomic index for every SST file that points to a previous SST file that has overlapping key range.

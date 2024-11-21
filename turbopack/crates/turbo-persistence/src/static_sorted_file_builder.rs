@@ -10,7 +10,7 @@ use lzzzz::lz4::{max_compressed_size, ACC_LEVEL_DEFAULT};
 
 use crate::{
     entry::{Entry, EntryValue},
-    key::StoreKey,
+    key::{HashKey, StoreKey},
     static_sorted_file::{
         BLOCK_TYPE_INDEX, BLOCK_TYPE_KEY, KEY_BLOCK_ENTRY_TYPE_BLOB, KEY_BLOCK_ENTRY_TYPE_DELETED,
         KEY_BLOCK_ENTRY_TYPE_NORMAL,
@@ -53,7 +53,7 @@ impl StaticSortedFileBuilder {
             .expect("Filter can't be constructed");
         for entry in entries {
             filter
-                .insert(&entry.key)
+                .insert(&HashKey(&entry.key))
                 // This can't fail as we allocated enough capacity
                 .expect("AQMF insert failed");
         }

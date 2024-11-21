@@ -14,7 +14,7 @@ use memmap2::Mmap;
 use quick_cache::sync::GuardResult;
 use rustc_hash::FxHasher;
 
-use crate::{arc_slice::ArcSlice, QueryKey};
+use crate::{arc_slice::ArcSlice, key::HashKey, QueryKey};
 
 pub const BLOCK_TYPE_INDEX: u8 = 0;
 pub const BLOCK_TYPE_KEY: u8 = 1;
@@ -144,7 +144,7 @@ impl StaticSortedFile {
             }
             GuardResult::Timeout => unreachable!(),
         };
-        if !aqmf.contains(key) {
+        if !aqmf.contains(&HashKey(key)) {
             return Ok(LookupResult::QuickFilterMiss);
         }
         let header = self.header()?;
@@ -235,8 +235,8 @@ impl StaticSortedFile {
             }
             Ordering::Less => {}
         }
-        let mut l = 0;
-        let mut r = entry_count;
+        let mut l = 1;
+        let mut r = entry_count - 1;
         // binary search for the range
         while l < r {
             let m = (l + r) / 2;
