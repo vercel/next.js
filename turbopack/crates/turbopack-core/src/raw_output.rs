@@ -1,4 +1,4 @@
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::{
@@ -12,8 +12,8 @@ use crate::{
 /// This module has no references to other modules.
 #[turbo_tasks::value]
 pub struct RawOutput {
-    path: Vc<FileSystemPath>,
-    source: Vc<Box<dyn Source>>,
+    path: ResolvedVc<FileSystemPath>,
+    source: ResolvedVc<Box<dyn Source>>,
 }
 
 #[turbo_tasks::value_impl]
