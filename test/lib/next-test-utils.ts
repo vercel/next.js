@@ -647,8 +647,21 @@ export async function stopApp(server: http.Server | undefined) {
   await promisify(server.close).apply(server)
 }
 
-export function waitFor(millis: number) {
-  return new Promise((resolve) => setTimeout(resolve, millis))
+export async function waitFor(
+  millisOrCondition: number | (() => boolean)
+): Promise<void> {
+  if (typeof millisOrCondition === 'number') {
+    return new Promise((resolve) => setTimeout(resolve, millisOrCondition))
+  }
+
+  return new Promise((resolve) => {
+    const interval = setInterval(() => {
+      if (millisOrCondition()) {
+        clearInterval(interval)
+        resolve()
+      }
+    }, 100)
+  })
 }
 
 export async function startStaticServer(
@@ -879,8 +892,19 @@ export async function hasErrorToast(
   })
 }
 
-export async function waitForAndOpenRuntimeError(browser: BrowserInterface) {
-  return browser.waitForElementByCss('[data-nextjs-toast]', 5000).click()
+/**
+ * Has retried version of {@link hasErrorToast} built-in.
+ * Success implies {@link assertHasRedbox}.
+ */
+export async function openRedbox(browser: BrowserInterface): Promise<void> {
+  try {
+    browser.waitForElementByCss('[data-nextjs-toast]', 5000).click()
+  } catch (cause) {
+    const error = new Error('No Redbox to open.', { cause })
+    Error.captureStackTrace(error, openRedbox)
+    throw error
+  }
+  await assertHasRedbox(browser)
 }
 
 export function getRedboxHeader(browser: BrowserInterface) {

@@ -269,6 +269,8 @@ export function useSelectedLayoutSegment(
 // Shared components APIs
 export {
   notFound,
+  forbidden,
+  unauthorized,
   redirect,
   permanentRedirect,
   RedirectType,

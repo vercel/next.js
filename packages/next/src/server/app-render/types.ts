@@ -183,6 +183,7 @@ export interface RenderOptsPartial {
     after: boolean
     dynamicIO: boolean
     inlineCss: boolean
+    authInterrupts: boolean
   }
   postponed?: string
 
