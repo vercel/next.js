@@ -3,7 +3,6 @@ use std::{
     cmp::max,
     collections::hash_map::Entry,
     sync::Arc,
-    time::Instant,
 };
 
 use anyhow::{anyhow, Context, Result};
