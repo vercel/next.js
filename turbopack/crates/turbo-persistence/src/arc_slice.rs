@@ -1,4 +1,5 @@
 use std::{
+    borrow::Borrow,
     ops::{Deref, Range},
     sync::Arc,
 };
@@ -32,6 +33,12 @@ impl<T> Deref for ArcSlice<T> {
 
     fn deref(&self) -> &Self::Target {
         unsafe { &*self.data }
+    }
+}
+
+impl<T> Borrow<[T]> for ArcSlice<T> {
+    fn borrow(&self) -> &[T] {
+        &*self
     }
 }
 
