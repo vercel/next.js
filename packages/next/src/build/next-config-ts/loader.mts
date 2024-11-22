@@ -87,8 +87,6 @@ export async function load(
   const swcOptions = resolveSWCOptionsForNextConfigLoader(cwd)
   const { code } = await transform(rawSource, swcOptions)
 
-  console.log({ code })
-
   return {
     // TODO(jiwon): Support format `commonjs` and drop the require hooks.
     // `source` is ignored when `format` is `commonjs` on Node.js v18.

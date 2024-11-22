@@ -1,6 +1,7 @@
 import type { Options as SWCOptions } from '@swc/core'
 import type { CompilerOptions } from 'typescript'
 import { resolve } from 'path'
+import { warnOnce } from '../output/log'
 import { parseJsonFile } from '../load-jsconfig'
 
 export function resolveSWCOptionsForNextConfigLoader(cwd: string): SWCOptions {
@@ -27,6 +28,8 @@ export function resolveSWCOptionsForNextConfigLoader(cwd: string): SWCOptions {
   } satisfies SWCOptions
 }
 
+// As we verify the TypeScript setup in the later process, it is too
+// heavy to do a full tsconfig parsing with `typescript` module.
 // Since we only need "paths" and "baseUrl" from tsconfig for now,
 // we lazily look for tsconfig.json at cwd. Does not cover edge cases
 // like "extends" or even the case where tsconfig.json does not exist.
@@ -41,6 +44,13 @@ export function lazilyGetTSConfig(cwd: string): {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
       throw error
     }
+  }
+
+  // TODO: correctly parse tsconfig.json using `typescript` module
+  if ('extends' in tsConfig) {
+    warnOnce(
+      '`extends` field in tsconfig.json is not supported in next.config.ts.'
+    )
   }
 
   return tsConfig
