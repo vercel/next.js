@@ -70,7 +70,7 @@ import {
   getSourceMapFromFile,
   parseStack,
   getIgnoredSources,
-} from '../../../client/components/react-dev-overlay/server/middleware'
+} from '../../../client/components/react-dev-overlay/server/middleware-webpack'
 import {
   batchedTraceSource,
   createOriginalStackFrame as createOriginalTurboStackFrame,
