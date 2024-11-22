@@ -26,7 +26,7 @@ const GIT_BRANCH =
   })())
 
 const nextBuildWorkflow =
-  (benchmarkName, pages, enableTurbopackCache) =>
+  (benchmarkName, benchDir, pages, enableTurbopackCache) =>
   async ({ turbopack, page }) => {
     const pageConfig =
       typeof pages[page] === 'string' ? { url: pages[page] } : pages[page]
@@ -47,7 +47,7 @@ const nextBuildWorkflow =
         __NEXT_TEST_MODE: '1',
       }
 
-      const benchmarkDir = resolve(REPO_ROOT, 'bench', benchmarkName)
+      const benchmarkDir = resolve(REPO_ROOT, 'bench', benchDir)
 
       // cleanup .next directory to remove persistent cache
       await retry(() =>
@@ -233,13 +233,13 @@ const nextBuildWorkflow =
   }
 
 const nextDevWorkflow =
-  (benchmarkName, pages) =>
+  (benchmarkName, benchDir, pages) =>
   async ({ turbopack, page }) => {
     const pageConfig =
       typeof pages[page] === 'string' ? { url: pages[page] } : pages[page]
     const cleanupTasks = []
     try {
-      const benchmarkDir = resolve(REPO_ROOT, 'bench', benchmarkName)
+      const benchmarkDir = resolve(REPO_ROOT, 'bench', benchDir)
 
       // cleanup .next directory to remove persistent cache
       await retry(() =>
@@ -565,7 +565,7 @@ describe(
     mode: 'dev',
     page: Object.keys(pages),
   },
-  nextDevWorkflow('heavy-npm-deps', pages)
+  nextDevWorkflow('heavy-npm-deps', 'heavy-npm-deps', pages)
 )
 
 describe(
@@ -575,7 +575,7 @@ describe(
     mode: 'build',
     page: Object.keys(pages),
   },
-  nextBuildWorkflow('heavy-npm-deps', pages, false)
+  nextBuildWorkflow('heavy-npm-deps', 'heavy-npm-deps', pages, false)
 )
 
 describe(
@@ -585,7 +585,12 @@ describe(
     mode: 'build',
     page: Object.keys(pages),
   },
-  nextBuildWorkflow('heavy-npm-deps-build-turbo-cache-enabled', pages, true)
+  nextBuildWorkflow(
+    'heavy-npm-deps-build-turbo-cache-enabled',
+    'heavy-npm-deps',
+    pages,
+    true
+  )
 )
 
 async function retry(fn) {

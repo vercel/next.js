@@ -83,6 +83,7 @@ type InternalLinkProps = {
   /**
    * The active locale is automatically prepended. `locale` allows for providing a different locale.
    * When `false` `href` has to include the locale as the default behavior is disabled.
+   * Note: This is only available in the Pages Router.
    */
   locale?: string | false
   /**

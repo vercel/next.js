@@ -136,7 +136,7 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('1')
 
-    await session.waitForAndOpenRuntimeError()
+    await session.openRedbox()
 
     expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
       "index.js (7:11) @ Index.useCallback[increment]
@@ -282,7 +282,7 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
     )
 
     await new Promise((resolve) => setTimeout(resolve, 1000))
-    await session.waitForAndOpenRuntimeError()
+    await session.openRedbox()
     expect(await session.getRedboxSource()).not.toInclude(
       "Expected '}', got '<eof>'"
     )

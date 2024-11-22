@@ -13,6 +13,7 @@ import { PrefetchKind } from '../components/router-reducer/router-reducer-types'
 import { useMergedRef } from '../use-merged-ref'
 import { isAbsoluteUrl } from '../../shared/lib/utils'
 import { addBasePath } from '../add-base-path'
+import { warnOnce } from '../../shared/lib/utils/warn-once'
 
 type Url = string | UrlObject
 type RequiredKeys<T> = {
@@ -78,6 +79,7 @@ type InternalLinkProps = {
   /**
    * The active locale is automatically prepended. `locale` allows for providing a different locale.
    * When `false` `href` has to include the locale as the default behavior is disabled.
+   * Note: This is only available in the Pages Router.
    */
   locale?: string | false
   /**
@@ -108,7 +110,7 @@ type InternalLinkProps = {
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export type LinkProps<RouteInferType = any> = InternalLinkProps
 type LinkPropsRequired = RequiredKeys<LinkProps>
-type LinkPropsOptional = OptionalKeys<InternalLinkProps>
+type LinkPropsOptional = OptionalKeys<Omit<InternalLinkProps, 'locale'>>
 
 function prefetch(
   router: AppRouterInstance,
@@ -157,8 +159,7 @@ function linkClicked(
   as: string,
   replace?: boolean,
   shallow?: boolean,
-  scroll?: boolean,
-  locale?: string | false
+  scroll?: boolean
 ): void {
   const { nodeName } = e.currentTarget
 
@@ -178,7 +179,6 @@ function linkClicked(
     if ('beforePopState' in router) {
       router[replace ? 'replace' : 'push'](href, as, {
         shallow,
-        locale,
         scroll: routerScroll,
       })
     } else {
@@ -225,7 +225,6 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       replace,
       shallow,
       scroll,
-      locale,
       onClick,
       onMouseEnter: onMouseEnterProp,
       onTouchStart: onTouchStartProp,
@@ -302,7 +301,6 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         shallow: true,
         passHref: true,
         prefetch: true,
-        locale: true,
         onClick: true,
         onMouseEnter: true,
         onTouchStart: true,
@@ -319,14 +317,6 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
             throw createPropError({
               key,
               expected: '`string` or `object`',
-              actual: valType,
-            })
-          }
-        } else if (key === 'locale') {
-          if (props[key] && valType !== 'string') {
-            throw createPropError({
-              key,
-              expected: '`string`',
               actual: valType,
             })
           }
@@ -366,6 +356,11 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
     }
 
     if (process.env.NODE_ENV !== 'production') {
+      if (props.locale) {
+        warnOnce(
+          'The `locale` prop is not supported in `next/link` while using the `app` router. Read more about app router internalization: https://nextjs.org/docs/app/building-your-application/routing/internationalization'
+        )
+      }
       if (!asProp) {
         let href: string | undefined
         if (typeof hrefProp === 'string') {
@@ -488,7 +483,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       prefetch(router, href, {
         kind: appPrefetchKind,
       })
-    }, [as, href, isVisible, locale, prefetchEnabled, router, appPrefetchKind])
+    }, [as, href, isVisible, prefetchEnabled, router, appPrefetchKind])
 
     const childProps: {
       onTouchStart?: React.TouchEventHandler<HTMLAnchorElement>
@@ -527,7 +522,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           return
         }
 
-        linkClicked(e, router, href, as, replace, shallow, scroll, locale)
+        linkClicked(e, router, href, as, replace, shallow, scroll)
       },
       onMouseEnter(e) {
         if (!legacyBehavior && typeof onMouseEnterProp === 'function') {
@@ -585,7 +580,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
 
     // If child is an <a> tag and doesn't have a href attribute, or if the 'passHref' property is
     // defined, we specify the current 'href', so that repetition is not needed by the user.
-    // If the url is absolute, we can bypass the logic to prepend the domain and locale.
+    // If the url is absolute, we can bypass the logic to prepend the basePath.
     if (isAbsoluteUrl(as)) {
       childProps.href = as
     } else if (

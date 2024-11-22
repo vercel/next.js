@@ -1260,6 +1260,9 @@ export default async function build(
       )
 
       const isAppDynamicIOEnabled = Boolean(config.experimental.dynamicIO)
+      const isAuthInterruptsEnabled = Boolean(
+        config.experimental.authInterrupts
+      )
       const isAppPPREnabled = checkIsAppPPREnabled(config.experimental.ppr)
 
       const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
@@ -1989,6 +1992,7 @@ export default async function build(
               configFileName,
               runtimeEnvConfig,
               dynamicIO: isAppDynamicIOEnabled,
+              authInterrupts: isAuthInterruptsEnabled,
               httpAgentOptions: config.httpAgentOptions,
               locales: config.i18n?.locales,
               defaultLocale: config.i18n?.defaultLocale,
@@ -2212,6 +2216,7 @@ export default async function build(
                             edgeInfo,
                             pageType,
                             dynamicIO: isAppDynamicIOEnabled,
+                            authInterrupts: isAuthInterruptsEnabled,
                             cacheHandler: config.cacheHandler,
                             cacheHandlers: config.experimental.cacheHandlers,
                             isrFlushToDisk: ciEnvironment.hasNextSupport
