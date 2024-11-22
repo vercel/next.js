@@ -233,7 +233,7 @@ async function run(): Promise<void> {
       importAlias: '@/*',
       customizeImportAlias: false,
       empty: false,
-      turbopack: false,
+      turbopack: true,
       disableGit: false,
     }
     const getPrefOrDefault = (field: string) =>
@@ -360,7 +360,7 @@ async function run(): Promise<void> {
           onState: onPromptState,
           type: 'toggle',
           name: 'turbopack',
-          message: `Would you like to use ${styledTurbo} for ${`next dev`}?`,
+          message: `Would you like to use ${styledTurbo} for \`next dev\`?`,
           initial: getPrefOrDefault('turbopack'),
           active: 'Yes',
           inactive: 'No',
@@ -387,7 +387,7 @@ async function run(): Promise<void> {
           onState: onPromptState,
           type: 'toggle',
           name: 'customizeImportAlias',
-          message: `Would you like to customize the ${styledImportAlias} (${defaults.importAlias} by default)?`,
+          message: `Would you like to customize the ${styledImportAlias} (\`${defaults.importAlias}\` by default)?`,
           initial: getPrefOrDefault('customizeImportAlias'),
           active: 'Yes',
           inactive: 'No',

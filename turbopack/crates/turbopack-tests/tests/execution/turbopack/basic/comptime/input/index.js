@@ -172,3 +172,27 @@ it('should analyze numeric additions',()=>{
     require("fail");
   }
 })
+
+it('should consider side-effects of conditions', () => {
+  let sideEffects = 0;
+  function sideEffectFalse(value) {
+    sideEffects += value;
+    return false
+  }
+
+  function calculate() {
+    var state = 0
+    if (sideEffectFalse((state += 1))) {
+      state += 10
+      return state
+    }
+    if (sideEffectFalse(state)) {
+      state += 10
+      return state
+    }
+    return state
+  }
+
+  expect(calculate()).toBe(1)
+  expect(sideEffects).toBe(2);
+})

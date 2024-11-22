@@ -87,21 +87,25 @@ Transforms into:
 
 ```tsx
 import { use } from 'react'
-import { cookies, headers, type UnsafeUnwrappedCookies } from 'next/headers'
-
-const token = (await cookies()).get('token')
+import {
+  cookies,
+  headers,
+  type UnsafeUnwrappedCookies,
+  type UnsafeUnwrappedHeaders,
+} from 'next/headers'
+const token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
 
 function useToken() {
   const token = use(cookies()).get('token')
   return token
 }
 
-export default function Page() {
+export default async function Page() {
   const name = (await cookies()).get('name')
 }
 
 function getHeader() {
-  return (headers() as UnsafeUnwrappedCookies).get('x-foo')
+  return (headers() as unknown as UnsafeUnwrappedHeaders).get('x-foo')
 }
 ```
 
@@ -126,6 +130,7 @@ export default function Page({
 }
 
 export function generateMetadata({ params }: { params: { slug: string } }) {
+  const { slug } = params
   return {
     title: `My Page - ${slug}`,
   }
@@ -136,18 +141,22 @@ Transforms into:
 
 ```tsx
 // page.tsx
-export default function Page(props: {
-  params: { slug: string }
-  searchParams: { [key: string]: string | string[] | undefined }
+export default async function Page(props: {
+  params: Promise<{ slug: string }>
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }) {
-  const { value } = await props.searchParams
+  const searchParams = await props.searchParams
+  const { value } = searchParams
   if (value === 'foo') {
     // ...
   }
 }
 
-export function generateMetadata(props: { params: { slug: string } }) {
-  const { slug } = await props.params
+export async function generateMetadata(props: {
+  params: Promise<{ slug: string }>
+}) {
+  const params = await props.params
+  const { slug } = params
   return {
     title: `My Page - ${slug}`,
   }

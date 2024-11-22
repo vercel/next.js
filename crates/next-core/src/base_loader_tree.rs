@@ -1,6 +1,7 @@
 use anyhow::Result;
 use indoc::formatdoc;
-use turbo_tasks::{FxIndexMap, RcStr, ResolvedVc, Value, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexMap, ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::{transition::Transition, ModuleAssetContext};
 use turbopack_core::{
@@ -28,6 +29,8 @@ pub enum AppDirModuleType {
     Loading,
     Template,
     NotFound,
+    Forbidden,
+    Unauthorized,
     GlobalError,
 }
 
@@ -41,6 +44,8 @@ impl AppDirModuleType {
             AppDirModuleType::Loading => "loading",
             AppDirModuleType::Template => "template",
             AppDirModuleType::NotFound => "not-found",
+            AppDirModuleType::Forbidden => "forbidden",
+            AppDirModuleType::Unauthorized => "unauthorized",
             AppDirModuleType::GlobalError => "global-error",
         }
     }

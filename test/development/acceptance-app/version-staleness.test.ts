@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import { sandbox } from 'development-sandbox'
+import { createSandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
 import { outdent } from 'outdent'
@@ -24,13 +24,13 @@ describe('Error Overlay version staleness', () => {
     )
     nextPackageJson.version = '1.0.0'
 
-    const { browser, session, cleanup } = await sandbox(
+    await using sandbox = await createSandbox(
       next,
       new Map([
         ['node_modules/next/package.json', JSON.stringify(nextPackageJson)],
       ])
     )
-
+    const { session, browser } = sandbox
     await session.patch(
       'app/page.js',
       outdent`
@@ -45,7 +45,7 @@ describe('Error Overlay version staleness', () => {
       `
     )
 
-    await session.waitForAndOpenRuntimeError()
+    await session.openRedbox()
 
     if (process.env.TURBOPACK) {
       expect(await getStaleness(browser)).toMatchInlineSnapshot(
@@ -56,8 +56,6 @@ describe('Error Overlay version staleness', () => {
         `"Next.js (1.0.0) is outdated (learn more)"`
       )
     }
-
-    await cleanup()
   })
 
   it('should show version staleness in render error', async () => {
@@ -67,13 +65,13 @@ describe('Error Overlay version staleness', () => {
     )
     nextPackageJson.version = '2.0.0'
 
-    const { browser, session, cleanup } = await sandbox(
+    await using sandbox = await createSandbox(
       next,
       new Map([
         ['node_modules/next/package.json', JSON.stringify(nextPackageJson)],
       ])
     )
-
+    const { session, browser } = sandbox
     await session.patch(
       'app/page.js',
       outdent`
@@ -93,8 +91,6 @@ describe('Error Overlay version staleness', () => {
         `"Next.js (2.0.0) is outdated (learn more)"`
       )
     }
-
-    await cleanup()
   })
 
   it('should show version staleness in build error', async () => {
@@ -104,13 +100,13 @@ describe('Error Overlay version staleness', () => {
     )
     nextPackageJson.version = '3.0.0'
 
-    const { browser, session, cleanup } = await sandbox(
+    await using sandbox = await createSandbox(
       next,
       new Map([
         ['node_modules/next/package.json', JSON.stringify(nextPackageJson)],
       ])
     )
-
+    const { session, browser } = sandbox
     await session.patch(
       'app/page.js',
       outdent`
@@ -127,7 +123,5 @@ describe('Error Overlay version staleness', () => {
         `"Next.js (3.0.0) is outdated (learn more)"`
       )
     }
-
-    await cleanup()
   })
 })

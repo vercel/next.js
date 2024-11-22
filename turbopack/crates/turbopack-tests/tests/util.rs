@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use dunce::canonicalize;
 use once_cell::sync::Lazy;
-use turbo_tasks::RcStr;
+use turbo_rcstr::RcStr;
 
 /// The turbo repo root. Should be used as the root when building with turbopack
 /// against fixtures in this crate.

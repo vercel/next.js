@@ -2,7 +2,8 @@ use std::{collections::HashMap, fmt::Write, mem::take};
 
 use anyhow::Result;
 use serde_json::Value as JsonValue;
-use turbo_tasks::{fxindexset, RcStr, ResolvedVc, Value, ValueDefault, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{fxindexset, ResolvedVc, Value, ValueDefault, Vc};
 use turbo_tasks_fs::{FileContent, FileJsonContent, FileSystemPath};
 use turbopack_core::{
     asset::Asset,

@@ -138,7 +138,7 @@ export const shouldBeTemplateProject = ({
     files: getProjectSetting({ template, mode, setting: 'files', srcDir }),
   })
 
-  // Tailwind templates share the same files (tailwind.config.js, postcss.config.mjs)
+  // Tailwind templates share the same files (tailwind.config.mjs, postcss.config.mjs)
   if (
     !['app-tw', 'app-tw-empty', 'default-tw', 'default-tw-empty'].includes(
       template

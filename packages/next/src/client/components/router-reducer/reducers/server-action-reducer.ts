@@ -51,6 +51,10 @@ import { getRedirectError, RedirectType } from '../../redirect'
 import { createSeededPrefetchCacheEntry } from '../prefetch-cache-utils'
 import { removeBasePath } from '../../../remove-base-path'
 import { hasBasePath } from '../../../has-base-path'
+import {
+  extractInfoFromServerReferenceId,
+  omitUnusedArgs,
+} from './server-reference-info'
 
 type FetchServerActionResult = {
   redirectLocation: URL | undefined
@@ -71,7 +75,15 @@ async function fetchServerAction(
   { actionId, actionArgs }: ServerActionAction
 ): Promise<FetchServerActionResult> {
   const temporaryReferences = createTemporaryReferenceSet()
-  const body = await encodeReply(actionArgs, { temporaryReferences })
+  const info = extractInfoFromServerReferenceId(actionId)
+
+  // TODO: Currently, we're only omitting unused args for the experimental "use
+  // cache" functions. Once the server reference info byte feature is stable, we
+  // should apply this to server actions as well.
+  const usedArgs =
+    info.type === 'use-cache' ? omitUnusedArgs(actionArgs, info) : actionArgs
+
+  const body = await encodeReply(usedArgs, { temporaryReferences })
 
   const res = await fetch('', {
     method: 'POST',
@@ -194,7 +206,6 @@ export function serverActionReducer(
 ): ReducerState {
   const { resolve, reject } = action
   const mutable: ServerActionMutable = {}
-  const href = state.canonicalUrl
 
   let currentTree = state.tree
 
@@ -218,6 +229,8 @@ export function serverActionReducer(
       isPrerender,
       revalidatedParts,
     }) => {
+      let redirectHref: string | undefined
+
       // honor the redirect type instead of defaulting to push in case of server actions.
       if (redirectLocation) {
         if (redirectType === RedirectType.replace) {
@@ -227,6 +240,9 @@ export function serverActionReducer(
           state.pushRef.pendingPush = true
           mutable.pendingPush = true
         }
+
+        redirectHref = createHrefFromUrl(redirectLocation, false)
+        mutable.canonicalUrl = redirectHref
       }
 
       if (!flightData) {
@@ -246,6 +262,8 @@ export function serverActionReducer(
 
       if (typeof flightData === 'string') {
         // Handle case when navigating to page in `pages` from `app`
+        resolve(actionResult)
+
         return handleExternalUrl(
           state,
           mutable,
@@ -270,6 +288,8 @@ export function serverActionReducer(
         if (!isRootRender) {
           // TODO-APP: handle this case better
           console.log('SERVER ACTION APPLY FAILED')
+          resolve(actionResult)
+
           return state
         }
 
@@ -279,20 +299,22 @@ export function serverActionReducer(
           [''],
           currentTree,
           treePatch,
-          redirectLocation
-            ? createHrefFromUrl(redirectLocation)
-            : state.canonicalUrl
+          redirectHref ? redirectHref : state.canonicalUrl
         )
 
         if (newTree === null) {
+          resolve(actionResult)
+
           return handleSegmentMismatch(state, action, treePatch)
         }
 
         if (isNavigatingToNewRootLayout(currentTree, newTree)) {
+          resolve(actionResult)
+
           return handleExternalUrl(
             state,
             mutable,
-            href,
+            redirectHref || state.canonicalUrl,
             state.pushRef.pendingPush
           )
         }
@@ -331,10 +353,7 @@ export function serverActionReducer(
         currentTree = newTree
       }
 
-      if (redirectLocation) {
-        const newHref = createHrefFromUrl(redirectLocation, false)
-        mutable.canonicalUrl = newHref
-
+      if (redirectLocation && redirectHref) {
         // Because the RedirectBoundary will trigger a navigation, we need to seed the prefetch cache
         // with the FlightData that we got from the server action for the target page, so that it's
         // available when the page is navigated to and doesn't need to be re-fetched.
@@ -369,7 +388,9 @@ export function serverActionReducer(
         // a response with the correct status code.
         reject(
           getRedirectError(
-            hasBasePath(newHref) ? removeBasePath(newHref) : newHref,
+            hasBasePath(redirectHref)
+              ? removeBasePath(redirectHref)
+              : redirectHref,
             redirectType || RedirectType.push
           )
         )

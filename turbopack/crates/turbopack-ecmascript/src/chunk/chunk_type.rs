@@ -1,5 +1,6 @@
 use anyhow::{bail, Result};
-use turbo_tasks::{RcStr, TryJoinIterExt, ValueDefault, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{TryJoinIterExt, ValueDefault, ValueToString, Vc};
 use turbopack_core::{
     chunk::{
         round_chunk_item_size, AsyncModuleInfo, Chunk, ChunkItem, ChunkItemWithAsyncModuleInfo,

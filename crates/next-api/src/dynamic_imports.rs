@@ -8,10 +8,11 @@ use swc_core::ecma::{
     visit::{Visit, VisitWith},
 };
 use tracing::{Instrument, Level};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
     graph::{GraphTraversal, NonDeterministic, VisitControlFlow, VisitedNodes},
     trace::TraceRawVcs,
-    FxIndexMap, RcStr, ReadRef, ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc,
+    FxIndexMap, ReadRef, ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc,
 };
 use turbopack_core::{
     chunk::{

@@ -2,8 +2,9 @@ use std::{fmt::Write, mem::replace};
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    fxindexmap, trace::TraceRawVcs, FxIndexMap, RcStr, ResolvedVc, TaskInput, TryJoinIterExt,
+    fxindexmap, trace::TraceRawVcs, FxIndexMap, ResolvedVc, TaskInput, TryJoinIterExt,
     ValueToString, Vc,
 };
 
