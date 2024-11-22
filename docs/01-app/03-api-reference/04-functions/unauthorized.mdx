@@ -1,0 +1,46 @@
+---
+title: unauthorized
+description: API Reference for the unauthorized function.
+version: unstable
+related:
+  links:
+    - app/api-reference/file-conventions/unauthorized
+---
+
+The `unauthorized` function allows you to render the [`unauthorized.js` file](/docs/app/api-reference/file-conventions/unauthorized) during authentication.
+
+To use `unauthorized`, enable the experimental [`authInterrupts`](/docs/app/api-reference/config/next-config-js/authInterrupts) configuration option in your `next.config.js` file:
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  experimental: {
+    authInterrupts: true,
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+module.exports = {
+  experimental: {
+    authInterrupts: true,
+  },
+}
+```
+
+`unauthorized` can be used in [Server Components](/docs/app/building-your-application/rendering/server-components), [Server Actions](/docs/app/building-your-application/data-fetching/server-actions), and [Route Handlers](/docs/app/building-your-application/routing/route-handlers).
+
+## Reference
+
+### Returns
+
+The `unauthorized` function returns a `Response` object with the HTTP status code set to `401`.
+
+## Version History
+
+| Version   | Changes                    |
+| --------- | -------------------------- |
+| `v15.1.0` | `unauthorized` introduced. |

@@ -1,0 +1,66 @@
+---
+title: forbidden
+description: API Reference for the forbidden function.
+version: unstable
+related:
+  links:
+    - app/api-reference/file-conventions/forbidden
+---
+
+The `forbidden` function allows you to render the [`forbidden.js` file](/docs/app/api-reference/file-conventions/forbidden) for authentication errors.
+
+To use `forbidden`, enable the experimental [`authInterrupts`](/docs/app/api-reference/config/next-config-js/authInterrupts) configuration option in your `next.config.js` file:
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  experimental: {
+    authInterrupts: true,
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+module.exports = {
+  experimental: {
+    authInterrupts: true,
+  },
+}
+```
+
+`forbidden` can be used in [Server Components](/docs/app/building-your-application/rendering/server-components), [Server Actions](/docs/app/building-your-application/data-fetching/server-actions), and [Route Handlers](/docs/app/building-your-application/routing/route-handlers).
+
+For example, the following code will render the [`forbidden.js` file](/docs/app/api-reference/file-conventions/forbidden) when the `id` parameter is `403`:
+
+```js filename="app/page.js" switcher
+import { forbidden } from 'next/navigation'
+
+export default async function Page(params) {
+  const { id } = await params
+
+  if (id === '403') {
+    forbidden()
+  }
+
+  return <></>
+}
+```
+
+## Reference
+
+### Returns
+
+The `forbidden` function returns a `Response` object with the HTTP status code set to `403`.
+
+## Good to know
+
+- The `forbidden` function cannot be called in the [root layout](/docs/app/building-your-application/routing/layouts-and-templates#root-layout-required).
+
+## Version History
+
+| Version   | Changes                 |
+| --------- | ----------------------- |
+| `v15.1.0` | `forbidden` introduced. |
