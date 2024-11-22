@@ -1,7 +1,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use swc_core::quote;
-use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, Vc};
+use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, ResolvedVc, Vc};
 use turbopack_core::chunk::ChunkingContext;
 
 use super::AstPath;
@@ -18,14 +18,14 @@ enum DynamicExpressionType {
 
 #[turbo_tasks::value]
 pub struct DynamicExpression {
-    path: Vc<AstPath>,
+    path: ResolvedVc<AstPath>,
     ty: DynamicExpressionType,
 }
 
 #[turbo_tasks::value_impl]
 impl DynamicExpression {
     #[turbo_tasks::function]
-    pub fn new(path: Vc<AstPath>) -> Vc<Self> {
+    pub fn new(path: ResolvedVc<AstPath>) -> Vc<Self> {
         Self::cell(DynamicExpression {
             path,
             ty: DynamicExpressionType::Normal,
@@ -33,7 +33,7 @@ impl DynamicExpression {
     }
 
     #[turbo_tasks::function]
-    pub fn new_promise(path: Vc<AstPath>) -> Vc<Self> {
+    pub fn new_promise(path: ResolvedVc<AstPath>) -> Vc<Self> {
         Self::cell(DynamicExpression {
             path,
             ty: DynamicExpressionType::Promise,

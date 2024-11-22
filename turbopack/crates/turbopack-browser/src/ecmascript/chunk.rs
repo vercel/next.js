@@ -1,5 +1,6 @@
 use anyhow::Result;
-use turbo_tasks::{FxIndexSet, RcStr, ResolvedVc, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexSet, ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{Chunk, ChunkingContext, OutputChunk, OutputChunkRuntimeInfo},
@@ -16,8 +17,8 @@ use crate::{ecmascript::content::EcmascriptDevChunkContent, BrowserChunkingConte
 /// Development Ecmascript chunk.
 #[turbo_tasks::value(shared)]
 pub struct EcmascriptDevChunk {
-    chunking_context: Vc<BrowserChunkingContext>,
-    chunk: Vc<EcmascriptChunk>,
+    chunking_context: ResolvedVc<BrowserChunkingContext>,
+    chunk: ResolvedVc<EcmascriptChunk>,
 }
 
 #[turbo_tasks::value_impl]
@@ -25,8 +26,8 @@ impl EcmascriptDevChunk {
     /// Creates a new [`Vc<EcmascriptDevChunk>`].
     #[turbo_tasks::function]
     pub fn new(
-        chunking_context: Vc<BrowserChunkingContext>,
-        chunk: Vc<EcmascriptChunk>,
+        chunking_context: ResolvedVc<BrowserChunkingContext>,
+        chunk: ResolvedVc<EcmascriptChunk>,
     ) -> Vc<Self> {
         EcmascriptDevChunk {
             chunking_context,
@@ -67,7 +68,7 @@ impl EcmascriptDevChunk {
     async fn own_content(self: Vc<Self>) -> Result<Vc<EcmascriptDevChunkContent>> {
         let this = self.await?;
         Ok(EcmascriptDevChunkContent::new(
-            this.chunking_context,
+            *this.chunking_context,
             self,
             this.chunk.chunk_content(),
         ))
@@ -75,7 +76,7 @@ impl EcmascriptDevChunk {
 
     #[turbo_tasks::function]
     pub fn chunk(&self) -> Result<Vc<Box<dyn Chunk>>> {
-        Ok(Vc::upcast(self.chunk))
+        Ok(Vc::upcast(*self.chunk))
     }
 }
 
@@ -171,10 +172,8 @@ impl Introspectable for EcmascriptDevChunk {
     #[turbo_tasks::function]
     async fn children(&self) -> Result<Vc<IntrospectableChildren>> {
         let mut children = FxIndexSet::default();
-        let chunk = Vc::upcast::<Box<dyn Introspectable>>(self.chunk)
-            .resolve()
-            .await?;
-        children.insert((Vc::cell("chunk".into()), chunk));
+        let chunk = ResolvedVc::upcast::<Box<dyn Introspectable>>(self.chunk);
+        children.insert((Vc::cell("chunk".into()), *chunk));
         Ok(Vc::cell(children))
     }
 }

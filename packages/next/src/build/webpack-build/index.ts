@@ -2,9 +2,8 @@ import type { COMPILER_INDEXES } from '../../shared/lib/constants'
 import * as Log from '../output/log'
 import { NextBuildContext } from '../build-context'
 import type { BuildTraceContext } from '../webpack/plugins/next-trace-entrypoints-plugin'
-import { Worker } from 'next/dist/compiled/jest-worker'
+import { Worker } from '../../lib/worker'
 import origDebug from 'next/dist/compiled/debug'
-import type { ChildProcess } from 'child_process'
 import path from 'path'
 import { exportTraceState, recordTraceEvents } from '../../trace'
 
@@ -38,35 +37,17 @@ async function webpackBuildWithWorker(
 
   prunedBuildContext.pluginState = pluginState
 
-  const getWorker = (compilerName: string) => {
-    const _worker = new Worker(path.join(__dirname, 'impl.js'), {
-      exposedMethods: ['workerMain'],
-      numWorkers: 1,
-      maxRetries: 0,
-      forkOptions: {
-        env: {
-          ...process.env,
-          NEXT_PRIVATE_BUILD_WORKER: '1',
-        },
+  const worker = new Worker(path.join(__dirname, 'impl.js'), {
+    exposedMethods: ['workerMain'],
+    numWorkers: 1,
+    maxRetries: 0,
+    forkOptions: {
+      env: {
+        ...process.env,
+        NEXT_PRIVATE_BUILD_WORKER: '1',
       },
-    }) as Worker & typeof import('./impl')
-    _worker.getStderr().pipe(process.stderr)
-    _worker.getStdout().pipe(process.stdout)
-
-    for (const worker of ((_worker as any)._workerPool?._workers || []) as {
-      _child: ChildProcess
-    }[]) {
-      worker._child.on('exit', (code, signal) => {
-        if (code || (signal && signal !== 'SIGINT')) {
-          debug(
-            `Compiler ${compilerName} unexpectedly exited with code: ${code} and signal: ${signal}`
-          )
-        }
-      })
-    }
-
-    return _worker
-  }
+    },
+  }) as Worker & typeof import('./impl')
 
   const combinedResult = {
     duration: 0,
@@ -74,8 +55,6 @@ async function webpackBuildWithWorker(
   }
 
   for (const compilerName of compilerNames) {
-    const worker = getWorker(compilerName)
-
     const curResult = await worker.workerMain({
       buildContext: prunedBuildContext,
       compilerName,
@@ -88,8 +67,6 @@ async function webpackBuildWithWorker(
     if (nextBuildSpan && curResult.debugTraceEvents) {
       recordTraceEvents(curResult.debugTraceEvents)
     }
-    // destroy worker so it's not sticking around using memory
-    await worker.end()
 
     // Update plugin state
     pluginState = deepMerge(pluginState, curResult.pluginState)
@@ -124,6 +101,9 @@ async function webpackBuildWithWorker(
       }
     }
   }
+
+  // destroy worker so it's not sticking around using memory
+  worker.end()
 
   if (compilerNames.length === 3) {
     Log.event('Compiled successfully')

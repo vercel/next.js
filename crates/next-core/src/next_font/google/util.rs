@@ -1,7 +1,8 @@
 use std::{cmp::Ordering, collections::BTreeSet};
 
 use anyhow::{bail, Context, Result};
-use turbo_tasks::{FxIndexSet, RcStr};
+use turbo_rcstr::RcStr;
+use turbo_tasks::FxIndexSet;
 
 use super::options::{FontData, FontWeights};
 

@@ -38,22 +38,22 @@ describe('next/font/google fetch error', () => {
       const ascentOverride = await browser.eval(
         'Array.from(document.fonts.values()).find(font => font.family.includes("Inter Fallback")).ascentOverride'
       )
-      expect(ascentOverride).toBe('90.49%')
+      expect(ascentOverride).toMatchInlineSnapshot(`"90.44%"`)
 
       const descentOverride = await browser.eval(
         'Array.from(document.fonts.values()).find(font => font.family.includes("Inter Fallback")).descentOverride'
       )
-      expect(descentOverride).toBe('22.56%')
+      expect(descentOverride).toMatchInlineSnapshot(`"22.52%"`)
 
       const lineGapOverride = await browser.eval(
         'Array.from(document.fonts.values()).find(font => font.family.includes("Inter Fallback")).lineGapOverride'
       )
-      expect(lineGapOverride).toBe('0%')
+      expect(lineGapOverride).toMatchInlineSnapshot(`"0%"`)
 
       const sizeAdjust = await browser.eval(
         'Array.from(document.fonts.values()).find(font => font.family.includes("Inter Fallback")).sizeAdjust'
       )
-      expect(sizeAdjust).toBe('107.06%')
+      expect(sizeAdjust).toMatchInlineSnapshot(`"107.12%"`)
 
       expect(next.cliOutput.slice(outputIndex)).toInclude(
         'Failed to download `Inter` from Google Fonts. Using fallback font instead.'

@@ -1,7 +1,8 @@
 use anyhow::Result;
 use next_core::{all_assets_from_entries, next_manifests::AssetBinding};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, RcStr, ResolvedVc, TryFlatJoinIterExt, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{trace::TraceRawVcs, ResolvedVc, TryFlatJoinIterExt, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -104,6 +105,16 @@ pub(crate) async fn get_wasm_paths_from_root(
     output_assets: &[ResolvedVc<Box<dyn OutputAsset>>],
 ) -> Result<Vec<RcStr>> {
     get_paths_from_root(root, output_assets, |path| path.ends_with(".wasm")).await
+}
+
+pub(crate) async fn get_asset_paths_from_root(
+    root: &FileSystemPath,
+    output_assets: &[ResolvedVc<Box<dyn OutputAsset>>],
+) -> Result<Vec<RcStr>> {
+    get_paths_from_root(root, output_assets, |path| {
+        !path.ends_with(".js") && !path.ends_with(".map") && !path.ends_with(".wasm")
+    })
+    .await
 }
 
 pub(crate) async fn get_font_paths_from_root(

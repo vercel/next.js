@@ -349,4 +349,76 @@ describe('getImageProps()', () => {
       ['src', '/_next/image?url=%2Ftest.png&w=256&q=75'],
     ])
   })
+  it('should auto unoptimized for relative svg', async () => {
+    const { props } = getImageProps({
+      alt: 'a nice desc',
+      src: '/test.svg',
+      width: 100,
+      height: 200,
+    })
+    expect(warningMessages).toStrictEqual([])
+    expect(Object.entries(props)).toStrictEqual([
+      ['alt', 'a nice desc'],
+      ['loading', 'lazy'],
+      ['width', 100],
+      ['height', 200],
+      ['decoding', 'async'],
+      ['style', { color: 'transparent' }],
+      ['src', '/test.svg'],
+    ])
+  })
+  it('should auto unoptimized for relative svg with query', async () => {
+    const { props } = getImageProps({
+      alt: 'a nice desc',
+      src: '/test.svg?v=1',
+      width: 100,
+      height: 200,
+    })
+    expect(warningMessages).toStrictEqual([])
+    expect(Object.entries(props)).toStrictEqual([
+      ['alt', 'a nice desc'],
+      ['loading', 'lazy'],
+      ['width', 100],
+      ['height', 200],
+      ['decoding', 'async'],
+      ['style', { color: 'transparent' }],
+      ['src', '/test.svg?v=1'],
+    ])
+  })
+  it('should auto unoptimized for absolute svg', async () => {
+    const { props } = getImageProps({
+      alt: 'a nice desc',
+      src: 'https://example.com/test.svg',
+      width: 100,
+      height: 200,
+    })
+    expect(warningMessages).toStrictEqual([])
+    expect(Object.entries(props)).toStrictEqual([
+      ['alt', 'a nice desc'],
+      ['loading', 'lazy'],
+      ['width', 100],
+      ['height', 200],
+      ['decoding', 'async'],
+      ['style', { color: 'transparent' }],
+      ['src', 'https://example.com/test.svg'],
+    ])
+  })
+  it('should auto unoptimized for absolute svg with query', async () => {
+    const { props } = getImageProps({
+      alt: 'a nice desc',
+      src: 'https://example.com/test.svg?v=1',
+      width: 100,
+      height: 200,
+    })
+    expect(warningMessages).toStrictEqual([])
+    expect(Object.entries(props)).toStrictEqual([
+      ['alt', 'a nice desc'],
+      ['loading', 'lazy'],
+      ['width', 100],
+      ['height', 200],
+      ['decoding', 'async'],
+      ['style', { color: 'transparent' }],
+      ['src', 'https://example.com/test.svg?v=1'],
+    ])
+  })
 })

@@ -11,9 +11,10 @@ use std::{
 
 use anyhow::{Context, Result};
 use owo_colors::OwoColorize;
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
     util::{FormatBytes, FormatDuration},
-    RcStr, TransientInstance, TurboTasks, UpdateInfo, Value, Vc,
+    TransientInstance, TurboTasks, UpdateInfo, Value, Vc,
 };
 use turbo_tasks_fs::FileSystem;
 use turbo_tasks_malloc::TurboMalloc;

@@ -2,7 +2,8 @@ use std::fmt::Write;
 
 use anyhow::Result;
 use indoc::{formatdoc, writedoc};
-use turbo_tasks::{RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::Vc;
 use turbo_tasks_fs::File;
 use turbopack_core::{asset::AssetContent, source::Source, virtual_source::VirtualSource};
 use turbopack_ecmascript::utils::StringifyJs;

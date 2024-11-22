@@ -1,0 +1,6 @@
+  x Unknown cache kind "x". Please configure a cache handler for this kind in the "experimental.cacheHandlers" object in your Next.js config.
+  | 
+   ,-[input.js:1:1]
+ 1 | 'use cache: x'
+   : ^^^^^^^^^^^^^^
+   `----

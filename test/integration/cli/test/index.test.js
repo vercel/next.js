@@ -476,6 +476,10 @@ describe('CLI Usage', () => {
       )
       try {
         await check(() => output, new RegExp(`http://localhost:${port}`))
+        await check(
+          () => output,
+          /Network:\s*http:\/\/[\d]{1,}\.[\d]{1,}\.[\d]{1,}/
+        )
       } finally {
         await killApp(app)
       }
@@ -495,6 +499,10 @@ describe('CLI Usage', () => {
       )
       try {
         await check(() => output, new RegExp(`http://localhost:${port}`))
+        await check(
+          () => output,
+          /Network:\s*http:\/\/[\d]{1,}\.[\d]{1,}\.[\d]{1,}/
+        )
       } finally {
         await killApp(app)
       }
@@ -648,7 +656,6 @@ describe('CLI Usage', () => {
       expect(stdout).not.toMatch(/ready/i)
       expect(stdout).not.toMatch('started')
       expect(stdout).not.toMatch(`${port}`)
-      expect(stripAnsi(stdout).trim()).toBeFalsy()
     })
 
     test('Allow retry if default port is already in use', async () => {

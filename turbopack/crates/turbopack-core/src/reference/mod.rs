@@ -1,13 +1,14 @@
-use std::collections::{HashSet, VecDeque};
+use std::collections::HashSet;
 
 use anyhow::Result;
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
-    FxIndexSet, RcStr, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
+    FxIndexSet, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
 };
 
 use crate::{
-    issue::IssueDescriptionExt,
+    chunk::{ChunkableModuleReference, ChunkingType, ChunkingTypeOption},
     module::{Module, Modules},
     output::{OutputAsset, OutputAssets},
     raw_module::RawModule,
@@ -80,6 +81,44 @@ impl SingleModuleReference {
     #[turbo_tasks::function]
     pub fn asset(&self) -> Vc<Box<dyn Module>> {
         *self.asset
+    }
+}
+
+#[turbo_tasks::value]
+pub struct SingleChunkableModuleReference {
+    asset: ResolvedVc<Box<dyn Module>>,
+    description: Vc<RcStr>,
+}
+
+#[turbo_tasks::value_impl]
+impl SingleChunkableModuleReference {
+    #[turbo_tasks::function]
+    pub fn new(asset: ResolvedVc<Box<dyn Module>>, description: Vc<RcStr>) -> Vc<Self> {
+        Self::cell(SingleChunkableModuleReference { asset, description })
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ChunkableModuleReference for SingleChunkableModuleReference {
+    #[turbo_tasks::function]
+    fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
+        Vc::cell(Some(ChunkingType::ParallelInheritAsync))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ModuleReference for SingleChunkableModuleReference {
+    #[turbo_tasks::function]
+    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
+        ModuleResolveResult::module(self.asset).cell()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ValueToString for SingleChunkableModuleReference {
+    #[turbo_tasks::function]
+    fn to_string(&self) -> Vc<RcStr> {
+        self.description
     }
 }
 
@@ -159,6 +198,45 @@ pub async fn referenced_modules_and_affecting_sources(
     Ok(Vc::cell(resolved_modules.into_iter().collect()))
 }
 
+#[turbo_tasks::value]
+pub struct TracedModuleReference {
+    module: ResolvedVc<Box<dyn Module>>,
+}
+
+#[turbo_tasks::value_impl]
+impl ModuleReference for TracedModuleReference {
+    #[turbo_tasks::function]
+    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
+        ModuleResolveResult::module(self.module).cell()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ValueToString for TracedModuleReference {
+    #[turbo_tasks::function]
+    async fn to_string(&self) -> Result<Vc<RcStr>> {
+        Ok(Vc::cell(
+            format!("traced {}", self.module.ident().to_string().await?).into(),
+        ))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ChunkableModuleReference for TracedModuleReference {
+    #[turbo_tasks::function]
+    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
+        Vc::cell(Some(ChunkingType::Traced))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl TracedModuleReference {
+    #[turbo_tasks::function]
+    pub fn new(module: ResolvedVc<Box<dyn Module>>) -> Vc<Self> {
+        Self::cell(TracedModuleReference { module })
+    }
+}
+
 /// Aggregates all primary [Module]s referenced by an [Module]. [AssetReference]
 /// This does not include transitively references [Module]s, only includes
 /// primary [Module]s referenced.
@@ -187,31 +265,6 @@ pub async fn primary_referenced_modules(module: Vc<Box<dyn Module>>) -> Result<V
         .filter(|&module| set.insert(module))
         .collect();
     Ok(Vc::cell(modules))
-}
-
-/// Aggregates all [Module]s referenced by an [Module] including transitively
-/// referenced [Module]s. This basically gives all [Module]s in a subgraph
-/// starting from the passed [Module].
-#[turbo_tasks::function]
-pub async fn all_modules_and_affecting_sources(
-    asset: ResolvedVc<Box<dyn Module>>,
-) -> Result<Vc<Modules>> {
-    // TODO need to track import path here
-    let mut queue = VecDeque::with_capacity(32);
-    queue.push_back((asset, referenced_modules_and_affecting_sources(*asset)));
-    let mut assets = HashSet::new();
-    assets.insert(asset);
-    while let Some((parent, references)) = queue.pop_front() {
-        let references = references
-            .issue_file_path(parent.ident().path(), "expanding references of asset")
-            .await?;
-        for asset in references.await?.iter() {
-            if assets.insert(*asset) {
-                queue.push_back((*asset, referenced_modules_and_affecting_sources(**asset)));
-            }
-        }
-    }
-    Ok(Vc::cell(assets.into_iter().collect()))
 }
 
 /// Walks the asset graph from multiple assets and collect all referenced
