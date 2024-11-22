@@ -46,22 +46,24 @@ export function lazilyGetTSConfig(cwd: string): {
   return tsConfig
 }
 
-// A bare specifier is a specifier that is not a relative path or a URL.
-// e.g. "next", "react", etc.
+// There are three types of `import` Specifiers:
+// - Relative specifiers like './foo.js'
+// - Bare specifiers like 'next' or 'next/dist/compiled/react'
+// - Absolute specifiers like 'file:///path/to/module'
+// x-ref: https://nodejs.org/api/esm.html#import-specifiers
 export function isBareSpecifier(specifier: string) {
-  // Relative paths are not bare specifiers.
-  // e.g. "./foo"
+  // Specifiers starting with "." are Relative specifiers.
   if (specifier.startsWith('.')) {
     return false
   }
 
-  // URLs are not bare specifiers.
-  // e.g. "file://", "https://", etc.
+  // URL-like specifiers are Absolute specifiers.
   try {
     new URL(specifier)
   } catch {
-    // new URL('next') will throw something like:
-    // "Failed to construct 'URL': Invalid URL"
+    // If the specifier is not a valid URL nor a relative path, it's a Bare specifier.
+    // e.g. new URL('next') will throw something like:
+    // "TypeError [ERR_INVALID_URL]: Invalid URL"
     return true
   }
 
