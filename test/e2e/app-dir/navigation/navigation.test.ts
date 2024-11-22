@@ -881,29 +881,63 @@ describe('app dir - navigation', () => {
   })
 
   describe('navigating to a page with async metadata', () => {
-    it('should render the final state of the page with correct metadata', async () => {
+    it('shows a fallback when prefetch was pending', async () => {
+      const resolveMetadataDuration = 5000
       const browser = await next.browser('/metadata-await-promise')
 
-      // dev doesn't trigger the loading boundary as it's not prefetched
-      if (isNextDev) {
-        await browser
-          .elementByCss("[href='/metadata-await-promise/nested']")
-          .click()
-      } else {
-        const loadingText = await browser
-          .elementByCss("[href='/metadata-await-promise/nested']")
-          .click()
-          .waitForElementByCss('#loading')
-          .text()
+      // Hopefully this click happened before the prefetch was completed.
+      // TODO: Programmatically trigger prefetch e.g. by mounting the link later.
+      await browser
+        .elementByCss("[href='/metadata-await-promise/nested']")
+        .click()
 
-        expect(loadingText).toBe('Loading')
+      if (!isNextDev) {
+        // next-dev has no prefetch
+        expect(
+          await browser
+            .waitForElementByCss(
+              '#loading',
+              // Wait a bit longer than the prefetch duration since the click takes a while to register and the fallback render also takes time.
+              resolveMetadataDuration + 500
+            )
+            .text()
+        ).toEqual('Loading')
+        expect(await browser.elementByCss('title').text()).toBe('Async Title')
       }
 
-      await retry(async () => {
-        expect(await browser.elementById('page-content').text()).toBe('Content')
+      await waitFor(resolveMetadataDuration)
 
+      expect(await browser.elementById('page-content').text()).toBe('Content')
+    })
+
+    it('shows a fallback when prefetch completed', async () => {
+      const resolveMetadataDuration = 5000
+      const browser = await next.browser('/metadata-await-promise')
+
+      if (!isNextDev) {
+        await waitFor(resolveMetadataDuration + 500)
+      }
+
+      await browser
+        .elementByCss("[href='/metadata-await-promise/nested']")
+        .click()
+
+      if (!isNextDev) {
+        expect(
+          await browser
+            .waitForElementByCss(
+              '#loading',
+              // Give it some time to commit
+              100
+            )
+            .text()
+        ).toEqual('Loading')
         expect(await browser.elementByCss('title').text()).toBe('Async Title')
-      })
+
+        await waitFor(resolveMetadataDuration + 500)
+      }
+
+      expect(await browser.elementById('page-content').text()).toBe('Content')
     })
   })
 
