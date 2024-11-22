@@ -19,10 +19,10 @@ use crate::{
 
 const MAX_KEY_BLOCK_ENTRIES: usize = 100 * 1024;
 // Note this must fit into 3 bytes length
-const MAX_KEY_BLOCK_SIZE: usize = 1024 * 1024;
+const MAX_KEY_BLOCK_SIZE: usize = 16 * 1024;
 const KEY_BLOCK_ENTRY_META_OVERHEAD: usize = 8;
 const MAX_SMALL_VALUE_BLOCK_ENTRIES: usize = 100 * 1024;
-const MAX_SMALL_VALUE_BLOCK_SIZE: usize = 128 * 1024;
+const MAX_SMALL_VALUE_BLOCK_SIZE: usize = 16 * 1024;
 const AQMF_FALSE_POSITIVE_RATE: f64 = 0.01;
 const VALUE_COMPRESSION_DICTIONARY_SIZE: usize = 64 * 1024 - 1;
 const KEY_COMPRESSION_DICTIONARY_SIZE: usize = 64 * 1024 - 1;

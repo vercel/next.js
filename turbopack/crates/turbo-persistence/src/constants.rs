@@ -22,7 +22,7 @@ pub const INDEX_BLOCK_AVG_SIZE: usize = 152000;
 
 /// Maximum RAM bytes for key block cache
 pub const KEY_BLOCK_CACHE_SIZE: u64 = 100 * 1024 * 1024;
-pub const KEY_BLOCK_AVG_SIZE: usize = 152000;
+pub const KEY_BLOCK_AVG_SIZE: usize = 16 * 1024;
 
 /// Maximum RAM bytes for value block cache
 pub const VALUE_BLOCK_CACHE_SIZE: u64 = 100 * 1024 * 1024;
