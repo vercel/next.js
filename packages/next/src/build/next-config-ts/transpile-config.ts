@@ -1,6 +1,6 @@
 import type { Options as SWCOptions } from '@swc/core'
 import type { CompilerOptions } from 'typescript'
-import { basename, resolve } from 'path'
+import { resolve } from 'path'
 import { readFile } from 'fs/promises'
 import semver from 'next/dist/compiled/semver'
 import { deregisterHook, registerHook, requireFromString } from './require-hook'
@@ -30,10 +30,12 @@ function resolveSWCOptionsForNextConfigRequireHook(
 
 export async function transpileConfig({
   nextConfigPath,
+  configFileName,
   cwd,
   isFallback,
 }: {
   nextConfigPath: string
+  configFileName: string
   cwd: string
   isFallback: boolean
 }) {
@@ -65,8 +67,17 @@ export async function transpileConfig({
     // as it can be resolved when using the loader.
     if (isFallback) {
       // TODO: Remove the version detects that passed the current minimum Node.js version.
-      const nodeVersion = process.versions.node
-      const configFileName = basename(nextConfigPath)
+      const nodeVersion = process?.versions?.node
+
+      // `process.versions.node` value may be missing in other runtimes.
+      if (!nodeVersion) {
+        throw new Error(
+          'Module.register is not available and cannot find Node.js version.\n' +
+            'Please upgrade to Node.js higher than 18.x with 18.19.0 or 20.x with 20.6.0.',
+          { cause: error }
+        )
+      }
+
       const configErrorReason =
         configFileName === 'next.config.mts'
           ? configFileName

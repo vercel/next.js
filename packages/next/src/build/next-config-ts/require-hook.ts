@@ -47,6 +47,7 @@ export function deregisterHook() {
   extensions.forEach((ext) => delete require.extensions[ext])
 }
 
+// FIXME: Errors with require does not bubble up to trycatch.
 export function requireFromString(code: string, filename: string) {
   const paths = (Module as any)._nodeModulePaths(dirname(filename))
   const m = new Module(filename, module.parent!) as any

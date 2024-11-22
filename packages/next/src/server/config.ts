@@ -1120,6 +1120,7 @@ export default async function loadConfig(
       } else if (shouldRegisterRequireHook) {
         userConfigModule = await transpileConfig({
           nextConfigPath: path,
+          configFileName,
           cwd: dir,
           isFallback: shouldRegisterLoader,
         })
