@@ -22,6 +22,8 @@ export function resolveSWCOptionsForNextConfigLoader(cwd: string): SWCOptions {
     },
     env: {
       targets: {
+        // TODO: The value may be missing in other runtimes,
+        // but we aren't considering them for now.
         node: process.versions.node,
       },
     },
