@@ -1,7 +1,7 @@
 ---
 title: forbidden
 description: API Reference for the forbidden function.
-version: unstable
+version: experimental
 related:
   links:
     - app/api-reference/file-conventions/forbidden
@@ -33,21 +33,7 @@ module.exports = {
 
 `forbidden` can be used in [Server Components](/docs/app/building-your-application/rendering/server-components), [Server Actions](/docs/app/building-your-application/data-fetching/server-actions), and [Route Handlers](/docs/app/building-your-application/routing/route-handlers).
 
-For example, the following code will render the [`forbidden.js` file](/docs/app/api-reference/file-conventions/forbidden) when the `id` parameter is `403`:
-
-```js filename="app/page.js" switcher
-import { forbidden } from 'next/navigation'
-
-export default async function Page(params) {
-  const { id } = await params
-
-  if (id === '403') {
-    forbidden()
-  }
-
-  return <></>
-}
-```
+TODO: Add Example
 
 ## Reference
 
