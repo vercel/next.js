@@ -315,153 +315,6 @@ impl<C: Comments> ServerActions<C> {
         })
     }
 
-    fn get_directive_for_stmt(
-        &mut self,
-        stmt: &Stmt,
-        directive: &mut Option<Directive>,
-        location: DirectiveLocation,
-        is_allowed_position: &mut bool,
-    ) -> bool {
-        let in_fn_body = matches!(location, DirectiveLocation::FunctionBody);
-        let allow_inline = self.config.is_react_server_layer || self.file_directive.is_some();
-
-        match stmt {
-            Stmt::Expr(ExprStmt {
-                expr: box Expr::Lit(Lit::Str(Str { value, span, .. })),
-                ..
-            }) => {
-                if value == "use server" {
-                    if in_fn_body && !allow_inline {
-                        emit_error(ServerActionsErrorKind::InlineUseServerInClientComponent {
-                            span: *span,
-                        })
-                    } else if let Some(Directive::UseCache { .. }) = directive {
-                        emit_error(ServerActionsErrorKind::MultipleDirectives {
-                            span: *span,
-                            location,
-                        });
-                    } else if *is_allowed_position {
-                        *directive = Some(Directive::UseServer);
-
-                        return true;
-                    } else {
-                        emit_error(ServerActionsErrorKind::MisplacedDirective {
-                            span: *span,
-                            directive: value.to_string(),
-                            location,
-                        });
-                    }
-                } else if detect_similar_strings(value, "use server") {
-                    // Detect typo of "use server"
-                    emit_error(ServerActionsErrorKind::MisspelledDirective {
-                        span: *span,
-                        directive: value.to_string(),
-                        expected_directive: "use server".to_string(),
-                    });
-                } else
-                // `use cache` or `use cache: foo`
-                if value == "use cache" || value.starts_with("use cache: ") {
-                    if in_fn_body && !allow_inline {
-                        emit_error(ServerActionsErrorKind::InlineUseCacheInClientComponent {
-                            span: *span,
-                        })
-                    } else if let Some(Directive::UseServer) = directive {
-                        emit_error(ServerActionsErrorKind::MultipleDirectives {
-                            span: *span,
-                            location,
-                        });
-                    } else if *is_allowed_position {
-                        if !self.config.dynamic_io_enabled {
-                            emit_error(ServerActionsErrorKind::UseCacheWithoutDynamicIO {
-                                span: *span,
-                                directive: value.to_string(),
-                            });
-                        }
-
-                        if value == "use cache" {
-                            *directive = Some(Directive::UseCache {
-                                cache_kind: RcStr::from("default"),
-                            })
-                        } else {
-                            // Slice the value after "use cache: "
-                            let cache_kind = RcStr::from(value.split_at("use cache: ".len()).1);
-
-                            if !self.config.cache_kinds.contains(&cache_kind) {
-                                emit_error(ServerActionsErrorKind::UnknownCacheKind {
-                                    span: *span,
-                                    cache_kind: cache_kind.clone(),
-                                });
-                            }
-
-                            *directive = Some(Directive::UseCache { cache_kind })
-                        }
-
-                        return true;
-                    } else {
-                        emit_error(ServerActionsErrorKind::MisplacedDirective {
-                            span: *span,
-                            directive: value.to_string(),
-                            location,
-                        });
-                    }
-                } else {
-                    // Detect typo of "use cache"
-                    if detect_similar_strings(value, "use cache") {
-                        emit_error(ServerActionsErrorKind::MisspelledDirective {
-                            span: *span,
-                            directive: value.to_string(),
-                            expected_directive: "use cache".to_string(),
-                        });
-                    }
-                }
-            }
-            Stmt::Expr(ExprStmt {
-                expr:
-                    box Expr::Paren(ParenExpr {
-                        expr: box Expr::Lit(Lit::Str(Str { value, .. })),
-                        ..
-                    }),
-                span,
-                ..
-            }) => {
-                // Match `("use server")`.
-                if value == "use server" || detect_similar_strings(value, "use server") {
-                    if *is_allowed_position {
-                        emit_error(ServerActionsErrorKind::WrappedDirective {
-                            span: *span,
-                            directive: "use server".to_string(),
-                        });
-                    } else {
-                        emit_error(ServerActionsErrorKind::MisplacedWrappedDirective {
-                            span: *span,
-                            directive: "use server".to_string(),
-                            location,
-                        });
-                    }
-                } else if value == "use cache" || detect_similar_strings(value, "use cache") {
-                    if *is_allowed_position {
-                        emit_error(ServerActionsErrorKind::WrappedDirective {
-                            span: *span,
-                            directive: "use cache".to_string(),
-                        });
-                    } else {
-                        emit_error(ServerActionsErrorKind::MisplacedWrappedDirective {
-                            span: *span,
-                            directive: "use cache".to_string(),
-                            location,
-                        });
-                    }
-                }
-            }
-            _ => {
-                // Directives must not be placed after other statements.
-                *is_allowed_position = false;
-            }
-        };
-
-        false
-    }
-
     // Check if the function or arrow function is an action or cache function,
     // and remove any server function directive.
     fn get_directive_for_function(
@@ -472,53 +325,53 @@ impl<C: Comments> ServerActions<C> {
 
         // Even if it's a file-level action or cache module, the function body
         // might still have directives that override the module-level annotations.
-
-        // Check if the function has a server function directive.
         if let Some(body) = maybe_body {
-            let mut is_allowed_position = true;
+            let directive_visitor = &mut DirectiveVisitor {
+                config: &self.config,
+                directive: None,
+                file_directive: &self.file_directive,
+                is_allowed_position: true,
+                location: DirectiveLocation::FunctionBody,
+            };
 
             body.stmts.retain(|stmt| {
-                let found_directive = self.get_directive_for_stmt(
-                    stmt,
-                    &mut directive,
-                    DirectiveLocation::FunctionBody,
-                    &mut is_allowed_position,
-                );
+                let has_directive = directive_visitor.visit_stmt(stmt);
 
-                !found_directive
+                !has_directive
             });
+
+            directive = directive_visitor.directive.clone();
         }
 
         // All exported functions inherit the file directive if they don't have their own directive.
         if self.in_exported_expr && directive.is_none() && self.file_directive.is_some() {
-            directive = self.file_directive.clone();
+            return self.file_directive.clone();
         }
 
         directive
     }
 
     fn get_directive_for_module(&mut self, stmts: &mut Vec<ModuleItem>) -> Option<Directive> {
-        let mut directive: Option<Directive> = None;
-        let mut is_allowed_position = true;
+        let directive_visitor = &mut DirectiveVisitor {
+            config: &self.config,
+            directive: None,
+            file_directive: &self.file_directive,
+            is_allowed_position: true,
+            location: DirectiveLocation::Module,
+        };
 
         stmts.retain(|item| {
             if let ModuleItem::Stmt(stmt) = item {
-                let found_directive = self.get_directive_for_stmt(
-                    stmt,
-                    &mut directive,
-                    DirectiveLocation::Module,
-                    &mut is_allowed_position,
-                );
+                let has_directive = directive_visitor.visit_stmt(stmt);
 
-                !found_directive
+                !has_directive
             } else {
-                is_allowed_position = false;
-
+                directive_visitor.is_allowed_position = false;
                 true
             }
         });
 
-        directive
+        directive_visitor.directive.clone()
     }
 
     fn maybe_hoist_and_create_proxy_for_server_action_arrow_expr(
@@ -2586,6 +2439,161 @@ fn collect_idents_in_pat(pat: &Pat, idents: &mut Vec<Ident>) {
 fn collect_decl_idents_in_stmt(stmt: &Stmt, idents: &mut Vec<Ident>) {
     if let Stmt::Decl(Decl::Var(var)) = &stmt {
         collect_idents_in_var_decls(&var.decls, idents);
+    }
+}
+
+struct DirectiveVisitor<'a> {
+    config: &'a Config,
+    file_directive: &'a Option<Directive>,
+    location: DirectiveLocation,
+    directive: Option<Directive>,
+    is_allowed_position: bool,
+}
+
+impl DirectiveVisitor<'_> {
+    /**
+     * Returns `true` if the statement contains a server directive.
+     * The found directive is assigned to `DirectiveVisitor::directive`.
+     */
+    fn visit_stmt(&mut self, stmt: &Stmt) -> bool {
+        let in_fn_body = matches!(self.location, DirectiveLocation::FunctionBody);
+        let allow_inline = self.config.is_react_server_layer || self.file_directive.is_some();
+
+        match stmt {
+            Stmt::Expr(ExprStmt {
+                expr: box Expr::Lit(Lit::Str(Str { value, span, .. })),
+                ..
+            }) => {
+                if value == "use server" {
+                    if in_fn_body && !allow_inline {
+                        emit_error(ServerActionsErrorKind::InlineUseServerInClientComponent {
+                            span: *span,
+                        })
+                    } else if let Some(Directive::UseCache { .. }) = self.directive {
+                        emit_error(ServerActionsErrorKind::MultipleDirectives {
+                            span: *span,
+                            location: self.location.clone(),
+                        });
+                    } else if self.is_allowed_position {
+                        self.directive = Some(Directive::UseServer);
+
+                        return true;
+                    } else {
+                        emit_error(ServerActionsErrorKind::MisplacedDirective {
+                            span: *span,
+                            directive: value.to_string(),
+                            location: self.location.clone(),
+                        });
+                    }
+                } else if detect_similar_strings(value, "use server") {
+                    // Detect typo of "use server"
+                    emit_error(ServerActionsErrorKind::MisspelledDirective {
+                        span: *span,
+                        directive: value.to_string(),
+                        expected_directive: "use server".to_string(),
+                    });
+                } else
+                // `use cache` or `use cache: foo`
+                if value == "use cache" || value.starts_with("use cache: ") {
+                    if in_fn_body && !allow_inline {
+                        emit_error(ServerActionsErrorKind::InlineUseCacheInClientComponent {
+                            span: *span,
+                        })
+                    } else if let Some(Directive::UseServer) = self.directive {
+                        emit_error(ServerActionsErrorKind::MultipleDirectives {
+                            span: *span,
+                            location: self.location.clone(),
+                        });
+                    } else if self.is_allowed_position {
+                        if !self.config.dynamic_io_enabled {
+                            emit_error(ServerActionsErrorKind::UseCacheWithoutDynamicIO {
+                                span: *span,
+                                directive: value.to_string(),
+                            });
+                        }
+
+                        if value == "use cache" {
+                            self.directive = Some(Directive::UseCache {
+                                cache_kind: RcStr::from("default"),
+                            });
+                        } else {
+                            // Slice the value after "use cache: "
+                            let cache_kind = RcStr::from(value.split_at("use cache: ".len()).1);
+
+                            if !self.config.cache_kinds.contains(&cache_kind) {
+                                emit_error(ServerActionsErrorKind::UnknownCacheKind {
+                                    span: *span,
+                                    cache_kind: cache_kind.clone(),
+                                });
+                            }
+
+                            self.directive = Some(Directive::UseCache { cache_kind });
+                        }
+
+                        return true;
+                    } else {
+                        emit_error(ServerActionsErrorKind::MisplacedDirective {
+                            span: *span,
+                            directive: value.to_string(),
+                            location: self.location.clone(),
+                        });
+                    }
+                } else {
+                    // Detect typo of "use cache"
+                    if detect_similar_strings(value, "use cache") {
+                        emit_error(ServerActionsErrorKind::MisspelledDirective {
+                            span: *span,
+                            directive: value.to_string(),
+                            expected_directive: "use cache".to_string(),
+                        });
+                    }
+                }
+            }
+            Stmt::Expr(ExprStmt {
+                expr:
+                    box Expr::Paren(ParenExpr {
+                        expr: box Expr::Lit(Lit::Str(Str { value, .. })),
+                        ..
+                    }),
+                span,
+                ..
+            }) => {
+                // Match `("use server")`.
+                if value == "use server" || detect_similar_strings(value, "use server") {
+                    if self.is_allowed_position {
+                        emit_error(ServerActionsErrorKind::WrappedDirective {
+                            span: *span,
+                            directive: "use server".to_string(),
+                        });
+                    } else {
+                        emit_error(ServerActionsErrorKind::MisplacedWrappedDirective {
+                            span: *span,
+                            directive: "use server".to_string(),
+                            location: self.location.clone(),
+                        });
+                    }
+                } else if value == "use cache" || detect_similar_strings(value, "use cache") {
+                    if self.is_allowed_position {
+                        emit_error(ServerActionsErrorKind::WrappedDirective {
+                            span: *span,
+                            directive: "use cache".to_string(),
+                        });
+                    } else {
+                        emit_error(ServerActionsErrorKind::MisplacedWrappedDirective {
+                            span: *span,
+                            directive: "use cache".to_string(),
+                            location: self.location.clone(),
+                        });
+                    }
+                }
+            }
+            _ => {
+                // Directives must not be placed after other statements.
+                self.is_allowed_position = false;
+            }
+        };
+
+        false
     }
 }
 
