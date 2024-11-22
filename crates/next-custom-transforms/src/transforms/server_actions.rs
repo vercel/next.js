@@ -329,7 +329,7 @@ impl<C: Comments> ServerActions<C> {
             let directive_visitor = &mut DirectiveVisitor {
                 config: &self.config,
                 directive: None,
-                file_directive: &self.file_directive,
+                has_file_directive: self.file_directive.is_some(),
                 is_allowed_position: true,
                 location: DirectiveLocation::FunctionBody,
             };
@@ -355,7 +355,7 @@ impl<C: Comments> ServerActions<C> {
         let directive_visitor = &mut DirectiveVisitor {
             config: &self.config,
             directive: None,
-            file_directive: &self.file_directive,
+            has_file_directive: false,
             is_allowed_position: true,
             location: DirectiveLocation::Module,
         };
@@ -2444,9 +2444,9 @@ fn collect_decl_idents_in_stmt(stmt: &Stmt, idents: &mut Vec<Ident>) {
 
 struct DirectiveVisitor<'a> {
     config: &'a Config,
-    file_directive: &'a Option<Directive>,
     location: DirectiveLocation,
     directive: Option<Directive>,
+    has_file_directive: bool,
     is_allowed_position: bool,
 }
 
@@ -2457,7 +2457,7 @@ impl DirectiveVisitor<'_> {
      */
     fn visit_stmt(&mut self, stmt: &Stmt) -> bool {
         let in_fn_body = matches!(self.location, DirectiveLocation::FunctionBody);
-        let allow_inline = self.config.is_react_server_layer || self.file_directive.is_some();
+        let allow_inline = self.config.is_react_server_layer || self.has_file_directive;
 
         match stmt {
             Stmt::Expr(ExprStmt {
