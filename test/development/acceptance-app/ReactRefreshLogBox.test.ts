@@ -41,7 +41,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     )
     await session.evaluate(() => document.querySelector('a').click())
 
-    await session.waitForAndOpenRuntimeError()
+    await session.openRedbox()
     expect(await session.getRedboxSource()).toMatchSnapshot()
   })
 
@@ -149,7 +149,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
       `export default function FunctionDefault() { throw new Error('no'); }`
     )
 
-    await session.waitForAndOpenRuntimeError()
+    await session.openRedbox()
     expect(await session.getRedboxSource()).toMatchSnapshot()
     expect(
       await session.evaluate(() => document.querySelector('h2').textContent)
@@ -390,7 +390,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     )
 
     await session.evaluate(() => document.querySelector('button').click())
-    await session.waitForAndOpenRuntimeError()
+    await session.openRedbox()
 
     const header = await session.getRedboxDescription()
     expect(header).toMatchSnapshot()
@@ -435,7 +435,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     )
 
     await session.evaluate(() => document.querySelector('button').click())
-    await session.waitForAndOpenRuntimeError()
+    await session.openRedbox()
 
     const header2 = await session.getRedboxDescription()
     expect(header2).toMatchSnapshot()
@@ -480,7 +480,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     )
 
     await session.evaluate(() => document.querySelector('button').click())
-    await session.waitForAndOpenRuntimeError()
+    await session.openRedbox()
 
     const header3 = await session.getRedboxDescription()
     expect(header3).toMatchSnapshot()
@@ -525,7 +525,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     )
 
     await session.evaluate(() => document.querySelector('button').click())
-    await session.waitForAndOpenRuntimeError()
+    await session.openRedbox()
 
     const header4 = await session.getRedboxDescription()
     expect(header4).toEqual(
@@ -1049,8 +1049,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     // Wait for patch to apply and new error to show.
     await session.assertHasRedbox()
     if (isTurbopack) {
-      await retry(async () => {
-        expect(await session.getRedboxSource()).toEqual(outdent`
+      expect(await session.getRedboxSource()).toEqual(outdent`
           ./app/styles2.css:1:2
           Module not found: Can't resolve './boom.css'
           > 1 | @import "./boom.css"
@@ -1058,10 +1057,8 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
           
           https://nextjs.org/docs/messages/module-not-found
         `)
-      })
     } else {
-      await retry(async () => {
-        expect(await session.getRedboxSource()).toEqual(outdent`
+      expect(await session.getRedboxSource()).toEqual(outdent`
           ./app/styles2.css
           Module not found: Can't resolve './boom.css'
           
@@ -1070,7 +1067,6 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
           Import trace for requested module:
           ./app/styles1.css
         `)
-      })
     }
   })
 
@@ -1124,8 +1120,7 @@ export default function Home() {
 
     // Wait for patch to apply and new error to show.
     await session.assertHasRedbox()
-    await retry(async () => {
-      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+    expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
         "app/actions.ts (4:9) @ serverAction
 
           2 |
@@ -1134,7 +1129,6 @@ export default function Home() {
             |         ^
           5 | }"
       `)
-    })
   })
 
   test('Should show error location for server actions in server component', async () => {
