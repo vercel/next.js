@@ -334,8 +334,8 @@ export async function startServer(
           keepAliveTimeout,
           experimentalHttpsServer: !!selfSignedCertificate,
         })
-        requestHandler = initResult[0]
-        upgradeHandler = initResult[1]
+        requestHandler = initResult.requestHandler
+        upgradeHandler = initResult.upgradeHandler
 
         const startServerProcessDuration =
           performance.mark('next-start-end') &&

@@ -5,14 +5,13 @@ import type { PropagateToWorkersField } from './router-utils/types'
 import next from '../next'
 import type { Span } from '../../trace'
 
-type InitializationResult = {
+export type ServerInitResult = {
   requestHandler: RequestHandler
   upgradeHandler: UpgradeHandler
-  app: NextServer
+  server: NextServer
 }
 
-let initializations: Record<string, Promise<InitializationResult> | undefined> =
-  {}
+let initializations: Record<string, Promise<ServerInitResult> | undefined> = {}
 
 let sandboxContext: undefined | typeof import('../web/sandbox/context')
 
@@ -36,9 +35,9 @@ export async function getServerField(
   if (!initialization) {
     throw new Error('Invariant cant propagate server field, no app initialized')
   }
-  const { app } = initialization
-  let appField = (app as any).server
-  return appField[field]
+  const { server } = initialization
+  let wrappedServer = server['server']! // NextServer.server is private
+  return wrappedServer[field as keyof typeof wrappedServer]
 }
 
 export async function propagateServerField(
@@ -50,17 +49,20 @@ export async function propagateServerField(
   if (!initialization) {
     throw new Error('Invariant cant propagate server field, no app initialized')
   }
-  const { app } = initialization
-  let appField = (app as any).server
+  const { server } = initialization
+  let wrappedServer = server['server']
+  const _field = field as keyof NonNullable<typeof wrappedServer>
 
-  if (appField) {
-    if (typeof appField[field] === 'function') {
-      await appField[field].apply(
-        (app as any).server,
+  if (wrappedServer) {
+    if (typeof wrappedServer[_field] === 'function') {
+      // @ts-expect-error
+      await wrappedServer[_field].apply(
+        wrappedServer,
         Array.isArray(value) ? value : []
       )
     } else {
-      appField[field] = value
+      // @ts-expect-error
+      wrappedServer[_field] = value
     }
   }
 }
@@ -81,7 +83,7 @@ async function initializeImpl(opts: {
   bundlerService: DevBundlerService | undefined
   startServerSpan: Span | undefined
   quiet?: boolean
-}) {
+}): Promise<ServerInitResult> {
   const type = process.env.__NEXT_PRIVATE_RENDER_WORKER
   if (type) {
     process.title = 'next-render-worker-' + type
@@ -90,28 +92,28 @@ async function initializeImpl(opts: {
   let requestHandler: RequestHandler
   let upgradeHandler: UpgradeHandler
 
-  const app = next({
+  const server = next({
     ...opts,
     hostname: opts.hostname || 'localhost',
     customServer: false,
     httpServer: opts.server,
     port: opts.port,
   }) as NextServer // should return a NextServer when `customServer: false`
-  requestHandler = app.getRequestHandler()
-  upgradeHandler = app.getUpgradeHandler()
+  requestHandler = server.getRequestHandler()
+  upgradeHandler = server.getUpgradeHandler()
 
-  await app.prepare(opts.serverFields)
+  await server.prepare(opts.serverFields)
 
   return {
     requestHandler,
     upgradeHandler,
-    app,
+    server,
   }
 }
 
 export async function initialize(
   opts: Parameters<typeof initializeImpl>[0]
-): Promise<InitializationResult> {
+): Promise<ServerInitResult> {
   // if we already setup the server return as we only need to do
   // this on first worker boot
   if (initializations[opts.dir]) {

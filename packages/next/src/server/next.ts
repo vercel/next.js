@@ -7,7 +7,6 @@ import type { UrlWithParsedQuery } from 'url'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { Duplex } from 'stream'
 import type { NextUrlWithParsedQuery } from './request-meta'
-import type { WorkerRequestHandler, WorkerUpgradeHandler } from './lib/types'
 
 import './require-hook'
 import './node-polyfill-crypto'
@@ -26,6 +25,7 @@ import { getTracer } from './lib/trace/tracer'
 import { NextServerSpan } from './lib/trace/constants'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
 import type { ServerFields } from './lib/router-utils/setup-dev-bundler'
+import type { ServerInitResult } from './lib/render-server'
 
 let ServerImpl: typeof NextNodeServer
 
@@ -303,11 +303,7 @@ class NextCustomServer implements NextWrapperServer {
   private didWebSocketSetup: boolean = false
   protected cleanupListeners: (() => Promise<void>)[] = []
 
-  protected init?: {
-    requestHandler: WorkerRequestHandler
-    upgradeHandler: WorkerUpgradeHandler
-    renderServer: NextServer
-  }
+  protected init?: ServerInitResult
 
   public options: NextServerOptions
 
@@ -330,8 +326,8 @@ class NextCustomServer implements NextWrapperServer {
   protected get upgradeHandler() {
     return this.getInit().upgradeHandler
   }
-  protected get renderServer() {
-    return this.getInit().renderServer
+  protected get server() {
+    return this.getInit().server
   }
 
   get hostname() {
@@ -355,11 +351,7 @@ class NextCustomServer implements NextWrapperServer {
       minimalMode: this.options.minimalMode,
       quiet: this.options.quiet,
     })
-    this.init = {
-      requestHandler: initResult[0],
-      upgradeHandler: initResult[1],
-      renderServer: initResult[2],
-    }
+    this.init = initResult
   }
 
   private setupWebSocketHandler(
@@ -415,38 +407,38 @@ class NextCustomServer implements NextWrapperServer {
   }
 
   setAssetPrefix(assetPrefix: string): void {
-    this.renderServer.setAssetPrefix(assetPrefix)
+    this.server.setAssetPrefix(assetPrefix)
   }
 
   getUpgradeHandler(): UpgradeHandler {
-    return this.renderServer.getUpgradeHandler()
+    return this.server.getUpgradeHandler()
   }
 
   logError(...args: Parameters<NextWrapperServer['logError']>) {
-    this.renderServer.logError(...args)
+    this.server.logError(...args)
   }
 
   async renderToHTML(...args: Parameters<NextWrapperServer['renderToHTML']>) {
-    return this.renderServer.renderToHTML(...args)
+    return this.server.renderToHTML(...args)
   }
 
   async renderError(...args: Parameters<NextWrapperServer['renderError']>) {
-    return this.renderServer.renderError(...args)
+    return this.server.renderError(...args)
   }
 
   async renderErrorToHTML(
     ...args: Parameters<NextWrapperServer['renderErrorToHTML']>
   ) {
-    return this.renderServer.renderErrorToHTML(...args)
+    return this.server.renderErrorToHTML(...args)
   }
 
   async render404(...args: Parameters<NextWrapperServer['render404']>) {
-    return this.renderServer.render404(...args)
+    return this.server.render404(...args)
   }
 
   async close() {
     await Promise.all([
-      this.init?.renderServer.close(),
+      this.init?.server.close(),
       ...this.cleanupListeners.map((f) => f()),
     ])
   }
