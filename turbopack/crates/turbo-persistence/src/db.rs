@@ -4,7 +4,7 @@ use std::{
     mem::{transmute, MaybeUninit},
     path::PathBuf,
     sync::{
-        atomic::{AtomicBool, Ordering},
+        atomic::{AtomicBool, AtomicU64, Ordering},
         Arc,
     },
 };
@@ -69,6 +69,23 @@ pub struct Statistics {
     pub key_block_cache: CacheStatistics,
     pub value_block_cache: CacheStatistics,
     pub aqmf_cache: CacheStatistics,
+    pub hits: u64,
+    pub misses: u64,
+    pub miss_aqmf: u64,
+    pub miss_index: u64,
+    pub miss_key: u64,
+}
+
+#[cfg(feature = "stats")]
+#[derive(Default)]
+struct TrackedStats {
+    hits_deleted: AtomicU64,
+    hits_small: AtomicU64,
+    hits_blob: AtomicU64,
+    miss_aqmf: AtomicU64,
+    miss_index: AtomicU64,
+    miss_key: AtomicU64,
+    miss_global: AtomicU64,
 }
 
 pub struct TurboPersistence {
@@ -79,6 +96,8 @@ pub struct TurboPersistence {
     index_block_cache: BlockCache,
     key_block_cache: BlockCache,
     value_block_cache: BlockCache,
+    #[cfg(feature = "stats")]
+    stats: TrackedStats,
 }
 
 struct Inner {
@@ -123,6 +142,8 @@ impl TurboPersistence {
                 Default::default(),
                 Default::default(),
             ),
+            #[cfg(feature = "stats")]
+            stats: TrackedStats::default(),
         };
         db.open_directory()?;
         Ok(db)
@@ -306,21 +327,38 @@ impl TurboPersistence {
                 &self.value_block_cache,
             )? {
                 LookupResult::Deleted => {
+                    #[cfg(feature = "stats")]
+                    self.stats.hits_deleted.fetch_add(1, Ordering::Relaxed);
                     return Ok(None);
                 }
                 LookupResult::Small { value } => {
+                    #[cfg(feature = "stats")]
+                    self.stats.hits_small.fetch_add(1, Ordering::Relaxed);
                     return Ok(Some(value));
                 }
                 LookupResult::Blob { sequence_number } => {
+                    #[cfg(feature = "stats")]
+                    self.stats.hits_blob.fetch_add(1, Ordering::Relaxed);
                     let blob = self.read_blob(sequence_number)?;
                     return Ok(Some(blob));
                 }
-                LookupResult::QuickFilterMiss | LookupResult::RangeMiss => {}
+                LookupResult::QuickFilterMiss => {
+                    #[cfg(feature = "stats")]
+                    self.stats.miss_aqmf.fetch_add(1, Ordering::Relaxed);
+                }
+                LookupResult::RangeMiss => {
+                    #[cfg(feature = "stats")]
+                    self.stats.miss_index.fetch_add(1, Ordering::Relaxed);
+                }
                 LookupResult::KeyMiss => {
+                    #[cfg(feature = "stats")]
+                    self.stats.miss_key.fetch_add(1, Ordering::Relaxed);
                     // TODO track lookup chain
                 }
             }
         }
+        #[cfg(feature = "stats")]
+        self.stats.miss_global.fetch_add(1, Ordering::Relaxed);
         Ok(None)
     }
 
@@ -333,6 +371,13 @@ impl TurboPersistence {
             key_block_cache: CacheStatistics::new(&self.key_block_cache),
             value_block_cache: CacheStatistics::new(&self.value_block_cache),
             aqmf_cache: CacheStatistics::new(&self.aqmf_cache),
+            hits: self.stats.hits_deleted.load(Ordering::Relaxed)
+                + self.stats.hits_small.load(Ordering::Relaxed)
+                + self.stats.hits_blob.load(Ordering::Relaxed),
+            misses: self.stats.miss_global.load(Ordering::Relaxed),
+            miss_aqmf: self.stats.miss_aqmf.load(Ordering::Relaxed),
+            miss_index: self.stats.miss_index.load(Ordering::Relaxed),
+            miss_key: self.stats.miss_key.load(Ordering::Relaxed),
         }
     }
 
