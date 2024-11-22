@@ -16,6 +16,8 @@ pub struct ValueTraitArguments {
     ///
     /// `Some(...)` if enabled, containing the span that enabled the constraint.
     pub resolved: Option<Span>,
+    /// Should the trait have a `turbo_tasks::OperationValue` constraint?
+    pub operation: Option<Span>,
 }
 
 impl Default for ValueTraitArguments {
@@ -23,6 +25,7 @@ impl Default for ValueTraitArguments {
         Self {
             debug: true,
             resolved: None,
+            operation: None,
         }
     }
 }
@@ -42,6 +45,9 @@ impl Parse for ValueTraitArguments {
                 }
                 Some("resolved") => {
                     result.resolved = Some(meta.span());
+                }
+                Some("operation") => {
+                    result.operation = Some(meta.span());
                 }
                 _ => {
                     return Err(syn::Error::new_spanned(meta, "unknown parameter"));
