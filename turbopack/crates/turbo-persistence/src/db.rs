@@ -324,4 +324,10 @@ impl TurboPersistence {
             aqmf_cache: CacheStatistics::new(&self.aqmf_cache),
         }
     }
+
+    pub fn shutdown(&self) -> Result<()> {
+        #[cfg(feature = "stats")]
+        println!("{:#?}", self.statistics());
+        Ok(())
+    }
 }
