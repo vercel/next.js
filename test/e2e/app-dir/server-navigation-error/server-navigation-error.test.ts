@@ -1,32 +1,46 @@
 import { nextTestSetup } from 'e2e-utils'
+import { assertHasRedbox, getRedboxDescription } from 'next-test-utils'
 
 describe('server-navigation-error', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
 
-  // Recommended for tests that check HTML. Cheerio is a HTML parser that has a jQuery like API.
-  it('should work using cheerio', async () => {
-    const $ = await next.render$('/')
-    expect($('p').text()).toBe('hello world')
+  describe('redirect', () => {
+    it('should error on navigation usage in pages router', async () => {
+      const browser = await next.browser('/pages/redirect')
+      await assertHasRedbox(browser)
+      expect(await getRedboxDescription(browser)).toMatch(
+        `Next.js navigation API is not allowed to be used in Pages Router.`
+      )
+    })
+
+    it('should error on navigation usage in middleware ', async () => {
+      const browser = await next.browser('/middleware/redirect')
+      // FIXME: the first request to middleware error load didn't show the redbox, need one more reload
+      await browser.refresh()
+      await assertHasRedbox(browser)
+      expect(await getRedboxDescription(browser)).toMatch(
+        `Next.js navigation API is not allowed to be used in Middleware.`
+      )
+    })
   })
 
-  // Recommended for tests that need a full browser
-  it('should work using browser', async () => {
-    const browser = await next.browser('/')
-    expect(await browser.elementByCss('p').text()).toBe('hello world')
-  })
+  describe('not-found', () => {
+    it('should error on navigation usage in pages router', async () => {
+      const browser = await next.browser('/pages/not-found')
+      await assertHasRedbox(browser)
+      expect(await getRedboxDescription(browser)).toMatch(
+        `Next.js navigation API is not allowed to be used in Pages Router.`
+      )
+    })
 
-  // In case you need the full HTML. Can also use $.html() with cheerio.
-  it('should work with html', async () => {
-    const html = await next.render('/')
-    expect(html).toContain('hello world')
-  })
-
-  // In case you need to test the response object
-  it('should work with fetch', async () => {
-    const res = await next.fetch('/')
-    const html = await res.text()
-    expect(html).toContain('hello world')
+    it('should error on navigation usage in middleware ', async () => {
+      const browser = await next.browser('/middleware/not-found')
+      await assertHasRedbox(browser)
+      expect(await getRedboxDescription(browser)).toMatch(
+        `Next.js navigation API is not allowed to be used in Middleware.`
+      )
+    })
   })
 })
