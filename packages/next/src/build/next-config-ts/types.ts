@@ -1,3 +1,4 @@
+// TODO: Upstream to @types/node and remove this.
 /** https://nodejs.org/api/module.html#resolvespecifier-context-nextresolve */
 export type ResolveContext = {
   conditions: string[]
