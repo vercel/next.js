@@ -1,6 +1,4 @@
-use std::{
-    borrow::Cow, ops::ControlFlow, sync::Arc, thread::available_parallelism, time::Duration,
-};
+use std::{borrow::Cow, ops::ControlFlow, thread::available_parallelism, time::Duration};
 
 use anyhow::{anyhow, bail, Result};
 use async_stream::try_stream as generator;
@@ -14,8 +12,8 @@ use parking_lot::Mutex;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use turbo_tasks::{
-    duration_span, fxindexmap, get_effects, mark_finished, prevent_gc, util::SharedError,
-    Completion, Effects, RawVc, ResolvedVc, TaskInput, TryJoinIterExt, Value, Vc,
+    apply_effects, duration_span, fxindexmap, mark_finished, prevent_gc, util::SharedError,
+    Completion, RawVc, ResolvedVc, TaskInput, TryJoinIterExt, Value, Vc,
 };
 use turbo_tasks_bytes::{Bytes, Stream};
 use turbo_tasks_env::ProcessEnv;
@@ -174,36 +172,22 @@ async fn emit_evaluate_pool_assets(
     .cell())
 }
 
-#[turbo_tasks::value(serialization = "none")]
-struct EmittedEvaluatePoolAssetsWithEffects {
-    bootstrap: ResolvedVc<Box<dyn OutputAsset>>,
-    output_root: ResolvedVc<FileSystemPath>,
-    entrypoint: ResolvedVc<FileSystemPath>,
-    effects: Arc<Effects>,
-}
-
 #[turbo_tasks::function]
 async fn emit_evaluate_pool_assets_with_effects(
     module_asset: Vc<Box<dyn Module>>,
     asset_context: Vc<Box<dyn AssetContext>>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     runtime_entries: Option<Vc<EvaluatableAssets>>,
-) -> Result<Vc<EmittedEvaluatePoolAssetsWithEffects>> {
+) -> Result<Vc<EmittedEvaluatePoolAssets>> {
     let operation = emit_evaluate_pool_assets(
         module_asset,
         asset_context,
         chunking_context,
         runtime_entries,
     );
-    let result = operation.strongly_consistent().await?;
-    let effects = Arc::new(get_effects(operation).await?);
-    Ok(EmittedEvaluatePoolAssetsWithEffects {
-        bootstrap: result.bootstrap,
-        output_root: result.output_root,
-        entrypoint: result.entrypoint,
-        effects,
-    }
-    .cell())
+    let result = operation.resolve_strongly_consistent().await?;
+    apply_effects(operation).await?;
+    Ok(result)
 }
 
 #[turbo_tasks::function]
@@ -220,11 +204,10 @@ pub async fn get_evaluate_pool(
     debug: bool,
     untracked_env_vars: bool,
 ) -> Result<Vc<NodeJsPool>> {
-    let EmittedEvaluatePoolAssetsWithEffects {
+    let EmittedEvaluatePoolAssets {
         bootstrap,
         output_root,
         entrypoint,
-        ref effects,
     } = *emit_evaluate_pool_assets_with_effects(
         module_asset,
         asset_context,
@@ -233,7 +216,6 @@ pub async fn get_evaluate_pool(
     )
     .strongly_consistent()
     .await?;
-    effects.apply().await?;
 
     let (Some(cwd), Some(entrypoint)) = (to_sys_path(cwd).await?, to_sys_path(*entrypoint).await?)
     else {
