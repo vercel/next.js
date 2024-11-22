@@ -48,6 +48,7 @@ import {
 import { onRecoverableError } from './react-client-callbacks/shared'
 import tracer from './tracing/tracer'
 import reportToSocket from './tracing/report-to-socket'
+import { isNextRouterError } from './components/is-next-router-error'
 
 /// <reference types="react-dom/experimental" />
 
@@ -927,6 +928,15 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
 
           error.name = initialErr!.name
           error.stack = initialErr!.stack
+
+          if (isNextRouterError(error)) {
+            // const routerError = error
+            // const originStack = (routerError.stack || '').replace(routerError.message, '')
+            error.message =
+              'Next.js navigation API is not allowed to be used here.'
+            // error.stack = error.message + '\n' + originStack
+          }
+
           throw getServerError(error, initialErr!.source!)
         })
       }
