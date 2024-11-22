@@ -6,7 +6,7 @@ import semver from 'next/dist/compiled/semver'
 import { deregisterHook, registerHook, requireFromString } from './require-hook'
 import { lazilyGetTSConfig } from './utils'
 
-function resolveSWCOptions(
+function resolveSWCOptionsForNextConfigRequireHook(
   cwd: string,
   compilerOptions: CompilerOptions
 ): SWCOptions {
@@ -40,7 +40,10 @@ export async function transpileConfig({
   let hasRequire = false
   try {
     const tsConfig = lazilyGetTSConfig(cwd)
-    const swcOptions = resolveSWCOptions(cwd, tsConfig.compilerOptions ?? {})
+    const swcOptions = resolveSWCOptionsForNextConfigRequireHook(
+      cwd,
+      tsConfig.compilerOptions ?? {}
+    )
 
     const nextConfigString = await readFile(nextConfigPath, 'utf8')
     // lazy require swc since it loads React before even setting NODE_ENV

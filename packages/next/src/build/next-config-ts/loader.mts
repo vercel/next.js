@@ -1,7 +1,10 @@
 import type { LoadContext, ResolveContext } from './types'
 import { existsSync } from 'node:fs'
 import { extname } from 'node:path'
-import { isBareSpecifier, resolveSWCOptions } from './utils.js'
+import {
+  isBareSpecifier,
+  resolveSWCOptionsForNextConfigLoader,
+} from './utils.js'
 import { transform } from '../swc/index.js'
 
 const tsExts = new Set(['.ts', '.mts', '.cts'])
@@ -81,7 +84,7 @@ export async function load(
   const rawSource =
     '' + (await nextLoad(url, { ...context, format: 'module' })).source
 
-  const swcOptions = resolveSWCOptions(cwd)
+  const swcOptions = resolveSWCOptionsForNextConfigLoader(cwd)
   const { code } = await transform(rawSource, swcOptions)
 
   console.log({ code })

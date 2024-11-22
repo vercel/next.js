@@ -3,7 +3,7 @@ import type { CompilerOptions } from 'typescript'
 import { resolve } from 'node:path'
 import { parseJsonFile } from '../load-jsconfig'
 
-export function resolveSWCOptions(cwd: string): SWCOptions {
+export function resolveSWCOptionsForNextConfigLoader(cwd: string): SWCOptions {
   const tsConfig = lazilyGetTSConfig(cwd)
 
   return {
