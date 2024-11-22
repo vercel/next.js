@@ -18,6 +18,7 @@ memmap2 = "0.9.5"
 parking_lot = { workspace = true }
 qfilter = { version = "0.2.1", features = ["serde"] }
 quick_cache = { version = "0.6.9" }
+rayon = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true }
 thread_local = { workspace = true }
@@ -25,7 +26,6 @@ twox-hash = { version = "2.0.1", features = ["xxhash64"] }
 
 [dev-dependencies]
 tempfile = "3.14.0"
-rayon = { workspace = true }
 
 [lints]
 workspace = true
