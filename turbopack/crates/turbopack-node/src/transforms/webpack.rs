@@ -354,6 +354,9 @@ pub enum InfoMessage {
         path: RcStr,
         glob: RcStr,
     },
+    EnvDependency {
+        name: RcStr,
+    },
     EmittedError {
         severity: IssueSeverity,
         error: StructuredError,
@@ -426,6 +429,10 @@ impl EvaluateContext for WebpackLoaderContext {
             None,
             *self.additional_invalidation,
             should_debug("webpack_loader"),
+            // Env vars are read untracked, since we want a more granular dependency on certain env
+            // vars only. So the runtime code tracks which env vars are read and send a dependency
+            // message for them.
+            true,
         )
     }
 
@@ -486,6 +493,9 @@ impl EvaluateContext for WebpackLoaderContext {
                 // Read dependencies to make them a dependencies of this task. This task will
                 // execute again when they change.
                 dir_dependency(self.cwd.join(path).read_glob(Glob::new(glob), false)).await?;
+            }
+            InfoMessage::EnvDependency { name } => {
+                self.env.read(name).await?;
             }
             InfoMessage::EmittedError { error, severity } => {
                 EvaluateEmittedErrorIssue {

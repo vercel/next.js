@@ -218,6 +218,7 @@ pub async fn get_evaluate_pool(
     runtime_entries: Option<Vc<EvaluatableAssets>>,
     additional_invalidation: Vc<Completion>,
     debug: bool,
+    untracked_env_vars: bool,
 ) -> Result<Vc<NodeJsPool>> {
     let EmittedEvaluatePoolAssetsWithEffects {
         bootstrap,
@@ -247,11 +248,14 @@ pub async fn get_evaluate_pool(
     let pool = NodeJsPool::new(
         cwd,
         entrypoint,
-        env.read_all()
-            .await?
-            .iter()
-            .map(|(k, v)| (k.clone(), v.clone()))
-            .collect(),
+        if untracked_env_vars {
+            env.read_all().untracked().await?
+        } else {
+            env.read_all().await?
+        }
+        .iter()
+        .map(|(k, v)| (k.clone(), v.clone()))
+        .collect(),
         assets_for_source_mapping,
         output_root,
         chunking_context.context_path().root().to_resolved().await?,
@@ -577,6 +581,7 @@ impl EvaluateContext for BasicEvaluateContext {
             self.runtime_entries.map(|r| *r),
             *self.additional_invalidation,
             self.debug,
+            false,
         )
     }
 
