@@ -1068,9 +1068,6 @@ importers:
       '@types/content-type':
         specifier: 1.1.3
         version: 1.1.3
-      '@types/cookie':
-        specifier: 0.6.0
-        version: 0.6.0
       '@types/cross-spawn':
         specifier: 6.0.0
         version: 6.0.0
@@ -1219,8 +1216,8 @@ importers:
         specifier: 1.0.4
         version: 1.0.4
       cookie:
-        specifier: 0.7.2
-        version: 0.7.2
+        specifier: 1.0.2
+        version: 1.0.2
       cross-env:
         specifier: 6.0.3
         version: 6.0.3
@@ -7343,9 +7340,9 @@ packages:
     resolution: {integrity: sha512-YZ3GUyn/o8gfKJlnlX7g7xq4gyO6OSuhGPKaaGssGB2qgDUS0gPgtTvoyZLTt9Ab6dC4hfc9dV5arkvc/OCmrw==}
     engines: {node: '>= 0.6'}
 
-  cookie@0.7.2:
-    resolution: {integrity: sha512-yki5XnKuf750l50uGTllt6kKILY4nQ1eNIQatoXEByZ5dWgnKqbnqmTrBE5B4N7lrMJKQ2ytWMiTO2o0v6Ew/w==}
-    engines: {node: '>= 0.6'}
+  cookie@1.0.2:
+    resolution: {integrity: sha512-9Kr/j4O16ISv8zBBhJoi4bXOYNTkFLOqSL3UDB0njXxCXNezjeyVrJyGOWtgfs/q2km1gwBcfH8q1yEGoMYunA==}
+    engines: {node: '>=18'}
 
   cookiejar@2.1.2:
     resolution: {integrity: sha512-Mw+adcfzPxcPeI+0WlvRrr/3lGVO0bD75SxX6811cxSh1Wbxx7xZBGK1eVtDf6si8rg2lhnUjsVLMFMfbRIuwA==}
@@ -23262,7 +23259,7 @@ snapshots:
 
   cookie@0.5.0: {}
 
-  cookie@0.7.2: {}
+  cookie@1.0.2: {}
 
   cookiejar@2.1.2: {}
 
@@ -32769,6 +32766,13 @@ snapshots:
     optionalDependencies:
       '@babel/core': 7.22.5
       babel-plugin-macros: 3.1.0
+
+  styled-jsx@5.1.6(@babel/core@7.22.5)(react@19.0.0-rc-f90a6bcc-20240827):
+    dependencies:
+      client-only: 0.0.1
+      react: 19.0.0-rc-f90a6bcc-20240827
+    optionalDependencies:
+      '@babel/core': 7.22.5
 
   stylehacks@4.0.3:
     dependencies:

@@ -1,6 +1,6 @@
 import type { IncomingMessage } from 'http'
 import type { BaseNextRequest } from '../base-http'
-import type { CookieSerializeOptions } from 'next/dist/compiled/cookie'
+import type { SerializeOptions } from 'next/dist/compiled/cookie'
 import type { NextApiResponse } from '../../shared/lib/utils'
 
 import { HeadersAdapter } from '../web/spec-extension/adapters/headers'
@@ -132,7 +132,7 @@ export function clearPreviewData<T>(
       secure: process.env.NODE_ENV !== 'development',
       path: '/',
       ...(options.path !== undefined
-        ? ({ path: options.path } as CookieSerializeOptions)
+        ? ({ path: options.path } as SerializeOptions)
         : undefined),
     }),
     serialize(COOKIE_NAME_PRERENDER_DATA, '', {
@@ -145,7 +145,7 @@ export function clearPreviewData<T>(
       secure: process.env.NODE_ENV !== 'development',
       path: '/',
       ...(options.path !== undefined
-        ? ({ path: options.path } as CookieSerializeOptions)
+        ? ({ path: options.path } as SerializeOptions)
         : undefined),
     }),
   ])
