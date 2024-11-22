@@ -355,10 +355,18 @@ pub struct ClientReferenceManifest {
     pub edge_rsc_module_mapping: HashMap<ModuleId, ManifestNode>,
     /// Mapping of server component path to required CSS client chunks.
     #[serde(rename = "entryCSSFiles")]
-    pub entry_css_files: HashMap<RcStr, FxIndexSet<RcStr>>,
+    pub entry_css_files: HashMap<RcStr, FxIndexSet<CssResource>>,
     /// Mapping of server component path to required JS client chunks.
     #[serde(rename = "entryJSFiles")]
     pub entry_js_files: HashMap<RcStr, FxIndexSet<RcStr>>,
+}
+
+#[derive(Serialize, Debug, Clone, Eq, Hash, PartialEq)]
+pub struct CssResource {
+    pub path: RcStr,
+    pub inlined: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub content: Option<RcStr>,
 }
 
 #[derive(Serialize, Default, Debug)]

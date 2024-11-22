@@ -103,6 +103,7 @@ pub fn server_actions<C: Comments>(file_name: &FileName, config: Config, comment
         file_cache_kind: None,
         in_exported_expr: false,
         in_default_export_decl: false,
+        fn_decl_ident: None,
         in_callee: false,
         has_action: false,
         has_cache: false,
@@ -153,6 +154,7 @@ struct ServerActions<C: Comments> {
     file_cache_kind: Option<RcStr>,
     in_exported_expr: bool,
     in_default_export_decl: bool,
+    fn_decl_ident: Option<Ident>,
     in_callee: bool,
     has_action: bool,
     has_cache: bool,
@@ -388,7 +390,12 @@ impl<C: Comments> ServerActions<C> {
             .push((action_name.to_string(), action_id.clone()));
 
         let register_action_expr = bind_args_to_ref_expr(
-            annotate_ident_as_server_reference(action_ident.clone(), action_id.clone(), arrow.span),
+            annotate_ident_as_server_reference(
+                action_ident.clone(),
+                action_id.clone(),
+                arrow.span,
+                &self.comments,
+            ),
             ids_from_closure
                 .iter()
                 .cloned()
@@ -501,7 +508,7 @@ impl<C: Comments> ServerActions<C> {
     fn maybe_hoist_and_create_proxy_for_server_action_function(
         &mut self,
         ids_from_closure: Vec<Name>,
-        function: &mut Box<Function>,
+        function: &mut Function,
         fn_name: Option<Ident>,
     ) -> Box<Expr> {
         let mut new_params: Vec<Param> = vec![];
@@ -530,6 +537,7 @@ impl<C: Comments> ServerActions<C> {
                 action_ident.clone(),
                 action_id.clone(),
                 function.span,
+                &self.comments,
             ),
             ids_from_closure
                 .iter()
@@ -601,7 +609,7 @@ impl<C: Comments> ServerActions<C> {
                             function: Box::new(Function {
                                 params: new_params,
                                 body: new_body,
-                                ..*function.take()
+                                ..function.take()
                             }),
                         }))),
                     }],
@@ -714,6 +722,7 @@ impl<C: Comments> ServerActions<C> {
             cache_ident.clone(),
             reference_id.clone(),
             arrow.span,
+            &self.comments,
         );
 
         // If there're any bound args from the closure, we need to hoist the
@@ -753,7 +762,7 @@ impl<C: Comments> ServerActions<C> {
         ids_from_closure: Vec<Name>,
         fn_name: Option<Ident>,
         cache_kind: &str,
-        function: &mut Box<Function>,
+        function: &mut Function,
     ) -> Box<Expr> {
         let mut new_params: Vec<Param> = vec![];
 
@@ -786,6 +795,7 @@ impl<C: Comments> ServerActions<C> {
             cache_ident.clone(),
             reference_id.clone(),
             function.span,
+            &self.comments,
         );
 
         function.body.visit_mut_with(&mut ClosureReplacer {
@@ -808,7 +818,7 @@ impl<C: Comments> ServerActions<C> {
                                 ident: fn_name.clone(),
                                 function: Box::new(Function {
                                     params: new_params,
-                                    ..*function.take()
+                                    ..function.take()
                                 }),
                             })),
                             cache_kind,
@@ -897,10 +907,19 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     }
 
     fn visit_mut_fn_expr(&mut self, f: &mut FnExpr) {
+        let old_arrow_or_fn_expr_ident = self.arrow_or_fn_expr_ident.clone();
+        if let Some(ident) = &f.ident {
+            self.arrow_or_fn_expr_ident = Some(ident.clone());
+        }
+        f.visit_mut_children_with(self);
+        self.arrow_or_fn_expr_ident = old_arrow_or_fn_expr_ident;
+    }
+
+    fn visit_mut_function(&mut self, f: &mut Function) {
         let BodyInfo {
             is_action_fn,
             cache_kind,
-        } = self.get_body_info(f.function.body.as_mut());
+        } = self.get_body_info(f.body.as_mut());
 
         let declared_idents_until = self.declared_idents.len();
         let current_names = take(&mut self.names);
@@ -911,16 +930,19 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             let old_should_track_names = self.should_track_names;
             let old_in_exported_expr = self.in_exported_expr;
             let old_in_default_export_decl = self.in_default_export_decl;
+            let old_fn_decl_ident = self.fn_decl_ident.clone();
             self.in_module_level = false;
             self.should_track_names =
                 is_action_fn || cache_kind.is_some() || self.should_track_names;
             self.in_exported_expr = false;
             self.in_default_export_decl = false;
+            self.fn_decl_ident = None;
             f.visit_mut_children_with(self);
             self.in_module_level = old_in_module;
             self.should_track_names = old_should_track_names;
             self.in_exported_expr = old_in_exported_expr;
             self.in_default_export_decl = old_in_default_export_decl;
+            self.fn_decl_ident = old_fn_decl_ident;
         }
 
         let mut child_names = if self.should_track_names {
@@ -932,9 +954,9 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             take(&mut self.names)
         };
 
-        if (is_action_fn || cache_kind.is_some()) && !f.function.is_async {
+        if (is_action_fn || cache_kind.is_some()) && !f.is_async {
             emit_error(ServerActionsErrorKind::InlineSyncFunction {
-                span: f.function.span,
+                span: f.span,
                 is_action_fn,
             });
 
@@ -955,9 +977,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
             let new_expr = self.maybe_hoist_and_create_proxy_for_cache_function(
                 child_names.clone(),
-                f.ident.clone().or(self.arrow_or_fn_expr_ident.clone()),
+                self.fn_decl_ident
+                    .clone()
+                    .or(self.arrow_or_fn_expr_ident.clone()),
                 cache_kind_str.as_str(),
-                &mut f.function,
+                f,
             );
 
             if self.in_default_export_decl {
@@ -966,6 +990,19 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 // This specific case (default export) isn't handled by `visit_mut_expr`.
                 // Replace the original function expr with a action proxy expr.
                 self.rewrite_default_fn_expr_to_proxy_expr = Some(new_expr);
+            } else if let Some(ident) = &self.fn_decl_ident {
+                // Replace the original function declaration with a cache decl.
+                self.rewrite_fn_decl_to_proxy_decl = Some(VarDecl {
+                    span: DUMMY_SP,
+                    kind: VarDeclKind::Var,
+                    decls: vec![VarDeclarator {
+                        span: DUMMY_SP,
+                        name: Pat::Ident(ident.clone().into()),
+                        init: Some(new_expr),
+                        definite: false,
+                    }],
+                    ..Default::default()
+                });
             } else {
                 self.rewrite_expr_to_proxy_expr = Some(new_expr);
             }
@@ -981,8 +1018,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
             let new_expr = self.maybe_hoist_and_create_proxy_for_server_action_function(
                 child_names,
-                &mut f.function,
-                f.ident.clone().or(self.arrow_or_fn_expr_ident.clone()),
+                f,
+                self.fn_decl_ident
+                    .clone()
+                    .or(self.arrow_or_fn_expr_ident.clone()),
             );
 
             if self.in_default_export_decl {
@@ -991,6 +1030,20 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 // This specific case (default export) isn't handled by `visit_mut_expr`.
                 // Replace the original function expr with a action proxy expr.
                 self.rewrite_default_fn_expr_to_proxy_expr = Some(new_expr);
+            } else if let Some(ident) = &self.fn_decl_ident {
+                // Replace the original function declaration with an action proxy declaration
+                // expr.
+                self.rewrite_fn_decl_to_proxy_decl = Some(VarDecl {
+                    span: DUMMY_SP,
+                    kind: VarDeclKind::Var,
+                    decls: vec![VarDeclarator {
+                        span: DUMMY_SP,
+                        name: Pat::Ident(ident.clone().into()),
+                        init: Some(new_expr),
+                        definite: false,
+                    }],
+                    ..Default::default()
+                });
             } else {
                 self.rewrite_expr_to_proxy_expr = Some(new_expr);
             }
@@ -1010,149 +1063,13 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
     fn visit_mut_fn_decl(&mut self, f: &mut FnDecl) {
         let old_in_exported_expr = self.in_exported_expr;
-
         if self.in_module_level && self.exported_local_ids.contains(&f.ident.to_id()) {
             self.in_exported_expr = true
         }
-
-        let BodyInfo {
-            is_action_fn,
-            cache_kind,
-        } = self.get_body_info(f.function.body.as_mut());
-
-        let declared_idents_until = self.declared_idents.len();
-        let current_names = take(&mut self.names);
-
-        {
-            // Visit children
-            let old_in_module = self.in_module_level;
-            let old_should_track_names = self.should_track_names;
-            let old_in_exported_expr = self.in_exported_expr;
-            let old_in_default_export_decl = self.in_default_export_decl;
-            self.in_module_level = false;
-            self.should_track_names =
-                is_action_fn || cache_kind.is_some() || self.should_track_names;
-            self.in_exported_expr = false;
-            self.in_default_export_decl = false;
-            f.visit_mut_children_with(self);
-            self.in_module_level = old_in_module;
-            self.should_track_names = old_should_track_names;
-            self.in_exported_expr = old_in_exported_expr;
-            self.in_default_export_decl = old_in_default_export_decl;
-        }
-
-        if !is_action_fn && cache_kind.is_none() || !self.config.is_react_server_layer {
-            self.in_exported_expr = old_in_exported_expr;
-
-            return;
-        }
-
-        let mut child_names = if self.should_track_names {
-            let names = take(&mut self.names);
-            self.names = current_names;
-            self.names.extend(names.iter().cloned());
-            names
-        } else {
-            take(&mut self.names)
-        };
-
-        if let Some(cache_kind_str) = cache_kind {
-            if !f.function.is_async {
-                emit_error(ServerActionsErrorKind::InlineSyncFunction {
-                    span: f.ident.span,
-                    is_action_fn: false,
-                });
-
-                self.in_exported_expr = old_in_exported_expr;
-
-                return;
-            }
-
-            // Collect all the identifiers defined inside the closure and used
-            // in the cache function. With deduplication.
-            retain_names_from_declared_idents(
-                &mut child_names,
-                &self.declared_idents[..declared_idents_until],
-            );
-
-            let new_expr = self.maybe_hoist_and_create_proxy_for_cache_function(
-                child_names,
-                Some(f.ident.clone()),
-                cache_kind_str.as_str(),
-                &mut f.function,
-            );
-
-            // Replace the original function declaration with a cache decl.
-            self.rewrite_fn_decl_to_proxy_decl = Some(VarDecl {
-                span: DUMMY_SP,
-                kind: VarDeclKind::Var,
-                decls: vec![VarDeclarator {
-                    span: DUMMY_SP,
-                    name: Pat::Ident(f.ident.clone().into()),
-                    init: Some(new_expr),
-                    definite: false,
-                }],
-                ..Default::default()
-            });
-        } else if is_action_fn {
-            if !f.function.is_async {
-                emit_error(ServerActionsErrorKind::InlineSyncFunction {
-                    span: f.ident.span,
-                    is_action_fn: true,
-                });
-            }
-
-            if !(self.in_action_file && self.in_exported_expr) {
-                // Collect all the identifiers defined inside the closure and used
-                // in the action function. With deduplication.
-                retain_names_from_declared_idents(
-                    &mut child_names,
-                    &self.declared_idents[..declared_idents_until],
-                );
-
-                let new_expr = self.maybe_hoist_and_create_proxy_for_server_action_function(
-                    child_names,
-                    &mut f.function,
-                    Some(f.ident.clone()),
-                );
-
-                // Replace the original function declaration with a action proxy declaration
-                // expr.
-                self.rewrite_fn_decl_to_proxy_decl = Some(VarDecl {
-                    span: DUMMY_SP,
-                    kind: VarDeclKind::Var,
-                    decls: vec![VarDeclarator {
-                        span: DUMMY_SP,
-                        name: Pat::Ident(f.ident.clone().into()),
-                        init: Some(new_expr),
-                        definite: false,
-                    }],
-                    ..Default::default()
-                });
-            }
-        }
-
+        let old_fn_decl_ident = self.fn_decl_ident.replace(f.ident.clone());
+        f.visit_mut_children_with(self);
         self.in_exported_expr = old_in_exported_expr;
-    }
-
-    fn visit_mut_method_prop(&mut self, m: &mut MethodProp) {
-        let old_in_exported_expr = self.in_exported_expr;
-        let old_in_default_export_decl = self.in_default_export_decl;
-        self.in_exported_expr = false;
-        self.in_default_export_decl = false;
-        m.visit_mut_children_with(self);
-        self.in_exported_expr = old_in_exported_expr;
-        self.in_default_export_decl = old_in_default_export_decl;
-    }
-
-    fn visit_mut_class_method(&mut self, m: &mut ClassMethod) {
-        let old_in_exported_expr = self.in_exported_expr;
-        let old_in_default_export_decl = self.in_default_export_decl;
-        self.in_exported_expr = false;
-        self.in_default_export_decl = false;
-        m.visit_mut_children_with(self);
-        self.in_exported_expr = old_in_exported_expr;
-        self.in_default_export_decl = old_in_default_export_decl;
+        self.fn_decl_ident = old_fn_decl_ident;
     }
 
     fn visit_mut_arrow_expr(&mut self, a: &mut ArrowExpr) {
@@ -1265,15 +1182,33 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     }
 
     fn visit_mut_prop_or_spread(&mut self, n: &mut PropOrSpread) {
-        let old_arrow_expr_ident = self.arrow_or_fn_expr_ident.take();
+        let old_arrow_or_fn_expr_ident = self.arrow_or_fn_expr_ident.clone();
 
-        if let PropOrSpread::Prop(box Prop::KeyValue(KeyValueProp {
-            key: PropName::Ident(ident_name),
-            value: box Expr::Arrow(_) | box Expr::Fn(_),
-            ..
-        })) = n
-        {
-            self.arrow_or_fn_expr_ident = Some(ident_name.clone().into());
+        match n {
+            PropOrSpread::Prop(box Prop::KeyValue(KeyValueProp {
+                key: PropName::Ident(ident_name),
+                value: box Expr::Arrow(_) | box Expr::Fn(_),
+                ..
+            })) => {
+                self.arrow_or_fn_expr_ident = Some(ident_name.clone().into());
+            }
+            PropOrSpread::Prop(box Prop::Method(MethodProp { key, .. })) => {
+                let key = key.clone();
+                if let PropName::Ident(ident_name) = &key {
+                    self.arrow_or_fn_expr_ident = Some(ident_name.clone().into());
+                }
+                self.rewrite_expr_to_proxy_expr = None;
+                n.visit_mut_children_with(self);
+                if let Some(expr) = &self.rewrite_expr_to_proxy_expr {
+                    *n = PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+                        key,
+                        value: expr.clone(),
+                    })));
+                    self.rewrite_expr_to_proxy_expr = None;
+                }
+                return;
+            }
+            _ => {}
         }
 
         if !self.in_module_level && self.should_track_names {
@@ -1287,7 +1222,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         }
 
         n.visit_mut_children_with(self);
-        self.arrow_or_fn_expr_ident = old_arrow_expr_ident
+        self.arrow_or_fn_expr_ident = old_arrow_or_fn_expr_ident;
     }
 
     fn visit_mut_callee(&mut self, n: &mut Callee) {
@@ -1833,6 +1768,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             ident.clone(),
                             ref_id.to_string(),
                             ident.span,
+                            &self.comments,
                         )),
                     }));
                 }
@@ -2030,7 +1966,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     }
 
     fn visit_mut_jsx_attr(&mut self, attr: &mut JSXAttr) {
-        let old_arrow_expr_ident = self.arrow_or_fn_expr_ident.take();
+        let old_arrow_or_fn_expr_ident = self.arrow_or_fn_expr_ident.take();
 
         if let (Some(JSXAttrValue::JSXExprContainer(container)), JSXAttrName::Ident(ident_name)) =
             (&attr.value, &attr.name)
@@ -2044,13 +1980,12 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         }
 
         attr.visit_mut_children_with(self);
-
-        self.arrow_or_fn_expr_ident = old_arrow_expr_ident
+        self.arrow_or_fn_expr_ident = old_arrow_or_fn_expr_ident;
     }
 
     fn visit_mut_var_declarator(&mut self, var_declarator: &mut VarDeclarator) {
         let old_in_exported_expr = self.in_exported_expr;
-        let old_arrow_expr_ident = self.arrow_or_fn_expr_ident.take();
+        let old_arrow_or_fn_expr_ident = self.arrow_or_fn_expr_ident.take();
 
         if let (Pat::Ident(ident), Some(box Expr::Arrow(_) | box Expr::Fn(_))) =
             (&var_declarator.name, &var_declarator.init)
@@ -2065,11 +2000,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         var_declarator.visit_mut_children_with(self);
 
         self.in_exported_expr = old_in_exported_expr;
-        self.arrow_or_fn_expr_ident = old_arrow_expr_ident;
+        self.arrow_or_fn_expr_ident = old_arrow_or_fn_expr_ident;
     }
 
     fn visit_mut_assign_expr(&mut self, assign_expr: &mut AssignExpr) {
-        let old_arrow_expr_ident = self.arrow_or_fn_expr_ident.take();
+        let old_arrow_or_fn_expr_ident = self.arrow_or_fn_expr_ident.clone();
 
         if let (
             AssignTarget::Simple(SimpleAssignTarget::Ident(ident)),
@@ -2083,8 +2018,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         }
 
         assign_expr.visit_mut_children_with(self);
-
-        self.arrow_or_fn_expr_ident = old_arrow_expr_ident;
+        self.arrow_or_fn_expr_ident = old_arrow_or_fn_expr_ident;
     }
 
     noop_visit_mut_type!();
@@ -2241,7 +2175,19 @@ fn annotate_ident_as_server_reference(
     ident: Ident,
     action_id: String,
     original_span: Span,
+    comments: &dyn Comments,
 ) -> Expr {
+    if !original_span.lo.is_dummy() {
+        comments.add_leading(
+            original_span.lo,
+            Comment {
+                kind: CommentKind::Block,
+                span: original_span,
+                text: "#__TURBOPACK_DISABLE_EXPORT_MERGING__".into(),
+            },
+        );
+    }
+
     // registerServerReference(reference, id, null)
     Expr::Call(CallExpr {
         span: original_span,

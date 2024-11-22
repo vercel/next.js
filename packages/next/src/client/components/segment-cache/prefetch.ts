@@ -1,4 +1,6 @@
 import { createPrefetchURL } from '../../components/app-router'
+import { createCacheKey } from './cache-key'
+import { schedulePrefetchTask } from './scheduler'
 
 /**
  * Entrypoint for prefetching a URL into the Segment Cache.
@@ -12,5 +14,8 @@ export function prefetch(href: string) {
     return
   }
 
-  // TODO: Not yet implemented
+  // TODO: Interception routes not yet implemented in Segment Cache. Pass a
+  // Next-URL to createCacheKey.
+  const cacheKey = createCacheKey(url.href, null)
+  schedulePrefetchTask(cacheKey)
 }
