@@ -354,13 +354,13 @@ impl StaticSortedFile {
                 let size = val.read_u16::<BE>()? as usize;
                 let position = val.read_u32::<BE>()? as usize;
                 let value = self
-                    .get_value_block(block, header, value_block_cache)?
+                    .get_value_block(header, block, value_block_cache)?
                     .slice(position..position + size);
                 LookupResult::Small { value }
             }
             KEY_BLOCK_ENTRY_TYPE_MEDIUM => {
                 let block = val.read_u16::<BE>()?;
-                let value = self.get_value_block(block, header, value_block_cache)?;
+                let value = self.read_value_block(header, block)?;
                 LookupResult::Small { value }
             }
             KEY_BLOCK_ENTRY_TYPE_BLOB => {
@@ -376,8 +376,8 @@ impl StaticSortedFile {
 
     fn get_value_block(
         &self,
-        block: u16,
         header: &Header,
+        block: u16,
         value_block_cache: &BlockCache,
     ) -> Result<ArcSlice<u8>> {
         let block = match value_block_cache.get_value_or_guard(&(self.sequence_number, block), None)
