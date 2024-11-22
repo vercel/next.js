@@ -18,6 +18,10 @@ export function resolveSWCOptionsForNextConfigLoader(cwd: string): SWCOptions {
       baseUrl: resolve(cwd, tsConfig?.compilerOptions?.baseUrl ?? ''),
       experimental: {
         keepImportAttributes: true,
+        // Without this option, `assert` assertion also transpiles to `with` attribute,
+        // which will throw if in Node.js version that does not support `with`.
+        // Switch from Import Assertions to Import Attributes held at v21.0.0, v20.10.0, v18.20.0.
+        emitAssertForImportAttributes: true,
       },
     },
     env: {
