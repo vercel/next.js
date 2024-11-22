@@ -16,6 +16,8 @@ pub struct NodeRenderingEntry {
     pub project_dir: ResolvedVc<FileSystemPath>,
 }
 
+// TODO(ResolvedVc): this struct seems to be trivially used in this trait which returns a Vc
+//                   so perhaps it should remain a Vc?
 #[turbo_tasks::value(transparent)]
 pub struct NodeRenderingEntries(Vec<Vc<NodeRenderingEntry>>);
 
