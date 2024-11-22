@@ -63,6 +63,10 @@ impl KeyValueDatabase for TurboKeyValueDatabase {
             db: &self.db,
         }))
     }
+
+    fn shutdown(&self) -> Result<()> {
+        self.db.shutdown()
+    }
 }
 
 pub struct TurboWriteBatch<'a> {
