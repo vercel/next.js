@@ -1,6 +1,5 @@
 import type { Options as SWCOptions } from '@swc/core'
 import type { CompilerOptions } from 'typescript'
-
 import { resolve } from 'node:path'
 import { parseJsonFile } from '../load-jsconfig'
 
@@ -18,7 +17,6 @@ export function resolveSWCOptions(cwd: string): SWCOptions {
       baseUrl: resolve(cwd, tsConfig?.compilerOptions?.baseUrl ?? ''),
       experimental: {
         keepImportAttributes: true,
-        emitAssertForImportAttributes: true,
       },
     },
     env: {

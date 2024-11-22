@@ -1,5 +1,6 @@
 import type { NextConfig } from 'next'
-import fooJson from './foo.json' with { type: 'json' }
+// TODO: Use `with` attribute when the CI Node.js version is above 18.20.0
+import fooJson from './foo.json' assert { type: 'json' }
 
 export default {
   env: {
