@@ -16,10 +16,14 @@ pub const DATA_THRESHOLD_PER_FILE: usize = 64 * 1024 * 1024;
 pub const AQMF_CACHE_SIZE: u64 = 10 * 1024 * 1024;
 pub const AQMF_AVG_SIZE: usize = 37399;
 
+/// Maximum RAM bytes for index block cache
+pub const INDEX_BLOCK_CACHE_SIZE: u64 = 100 * 1024 * 1024;
+pub const INDEX_BLOCK_AVG_SIZE: usize = 152000;
+
 /// Maximum RAM bytes for key block cache
 pub const KEY_BLOCK_CACHE_SIZE: u64 = 100 * 1024 * 1024;
-pub const KEY_BLOCK_AVG_SIZE: usize = 4 * 1024 * 1024;
+pub const KEY_BLOCK_AVG_SIZE: usize = 152000;
 
 /// Maximum RAM bytes for value block cache
 pub const VALUE_BLOCK_CACHE_SIZE: u64 = 100 * 1024 * 1024;
-pub const VALUE_BLOCK_AVG_SIZE: usize = 8 * 1024 * 1024;
+pub const VALUE_BLOCK_AVG_SIZE: usize = 132000;

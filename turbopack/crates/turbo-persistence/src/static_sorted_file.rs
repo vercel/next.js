@@ -75,6 +75,7 @@ pub struct StaticSortedFile {
     sequence_number: u32,
     mmap: Mmap,
     header: OnceLock<Header>,
+    aqmf: OnceLock<qfilter::Filter>,
 }
 
 impl StaticSortedFile {
@@ -84,6 +85,7 @@ impl StaticSortedFile {
             sequence_number,
             mmap,
             header: OnceLock::new(),
+            aqmf: OnceLock::new(),
         };
         Ok(file)
     }
@@ -136,28 +138,45 @@ impl StaticSortedFile {
         hash: u64,
         key: &K,
         aqmf_cache: &AqmfCache,
+        index_block_cache: &BlockCache,
         key_block_cache: &BlockCache,
         value_block_cache: &BlockCache,
     ) -> Result<LookupResult> {
-        let aqmf = match aqmf_cache.get_value_or_guard(&self.sequence_number, None) {
-            GuardResult::Value(aqmf) => aqmf,
-            GuardResult::Guard(guard) => {
+        let use_aqmf_cache = false;
+        if use_aqmf_cache {
+            let aqmf = match aqmf_cache.get_value_or_guard(&self.sequence_number, None) {
+                GuardResult::Value(aqmf) => aqmf,
+                GuardResult::Guard(guard) => {
+                    let header = self.header()?;
+                    let aqmf = &self.mmap[header.aqmf.start..header.aqmf.end];
+                    let aqmf: Arc<qfilter::Filter> = Arc::new(pot::from_slice(aqmf)?);
+                    let _ = guard.insert(aqmf.clone());
+                    aqmf
+                }
+                GuardResult::Timeout => unreachable!(),
+            };
+            if !aqmf.contains_fingerprint(hash) {
+                return Ok(LookupResult::QuickFilterMiss);
+            }
+        } else {
+            let aqmf = self.aqmf.get_or_try_init(|| {
                 let header = self.header()?;
                 let aqmf = &self.mmap[header.aqmf.start..header.aqmf.end];
-                let aqmf: Arc<qfilter::Filter> = Arc::new(pot::from_slice(aqmf)?);
-                let _ = guard.insert(aqmf.clone());
-                aqmf
+                anyhow::Ok(pot::from_slice(aqmf)?)
+            })?;
+            if !aqmf.contains_fingerprint(hash) {
+                return Ok(LookupResult::QuickFilterMiss);
             }
-            GuardResult::Timeout => unreachable!(),
-        };
-        if !aqmf.contains_fingerprint(hash) {
-            return Ok(LookupResult::QuickFilterMiss);
         }
         let header = self.header()?;
         let mut current_block = 0u16;
         loop {
-            let block = match key_block_cache
-                .get_value_or_guard(&(self.sequence_number, current_block), None)
+            let cache = if current_block == 0 {
+                index_block_cache
+            } else {
+                key_block_cache
+            };
+            let block = match cache.get_value_or_guard(&(self.sequence_number, current_block), None)
             {
                 GuardResult::Value(block) => block,
                 GuardResult::Guard(guard) => {
