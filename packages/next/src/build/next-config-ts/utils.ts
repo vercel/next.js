@@ -1,6 +1,6 @@
 import type { Options as SWCOptions } from '@swc/core'
 import type { CompilerOptions } from 'typescript'
-import { resolve } from 'node:path'
+import { resolve } from 'path'
 import { parseJsonFile } from '../load-jsconfig'
 
 export function resolveSWCOptionsForNextConfigLoader(cwd: string): SWCOptions {

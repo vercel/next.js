@@ -1,7 +1,7 @@
 import type { Options as SWCOptions } from '@swc/core'
-import Module from 'node:module'
-import { readFileSync } from 'node:fs'
-import { dirname } from 'node:path'
+import Module from 'module'
+import { readFileSync } from 'fs'
+import { dirname } from 'path'
 
 const oldJSHook = require.extensions['.js']
 const extensions = ['.ts', '.cts', '.mts', '.cjs', '.mjs']

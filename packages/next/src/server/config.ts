@@ -1,5 +1,5 @@
 import { existsSync } from 'fs'
-import { readFile } from 'node:fs/promises'
+import { readFile } from 'fs/promises'
 import { basename, extname, join, relative, isAbsolute, resolve } from 'path'
 import { pathToFileURL } from 'url'
 import findUp from 'next/dist/compiled/find-up'
