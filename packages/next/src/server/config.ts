@@ -1071,6 +1071,14 @@ export default async function loadConfig(
 
   const path = await findUp(CONFIG_FILES, { cwd: dir })
 
+  if (process.env.__NEXT_TEST_MODE) {
+    if (path) {
+      Log.info(`Loading config from ${path}`)
+    } else {
+      Log.info('No config file found')
+    }
+  }
+
   // If config file was found
   if (path?.length) {
     configFileName = basename(path)
@@ -1086,7 +1094,6 @@ export default async function loadConfig(
         // dynamic import does not currently work inside of vm which
         // jest relies on so we fall back to require for this case
         // https://github.com/nodejs/node/issues/35889
-        console.log(`Loaded next.config from ${path}`)
         userConfigModule = require(path)
       } else if (configFileName === 'next.config.ts') {
         userConfigModule = await transpileConfig({
