@@ -4,8 +4,8 @@ import type {
   ModuleFormat,
   ResolveHook,
 } from 'module'
-import { existsSync } from 'node:fs'
-import { extname } from 'node:path'
+import { existsSync } from 'fs'
+import { extname } from 'path'
 import {
   isBareSpecifier,
   resolveSWCOptionsForNextConfigLoader,
