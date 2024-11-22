@@ -1,4 +1,9 @@
-import type { LoadContext, ResolveContext } from './types'
+import type {
+  InitializeHook,
+  LoadHook,
+  ModuleFormat,
+  ResolveHook,
+} from 'module'
 import { existsSync } from 'node:fs'
 import { extname } from 'node:path'
 import {
@@ -10,15 +15,11 @@ import { transform } from '../swc/index.js'
 const tsExts = new Set(['.ts', '.mts', '.cts'])
 const localContext = new Map<string, string>()
 
-export async function initialize({ cwd }: { cwd: string }) {
+export const initialize: InitializeHook<{ cwd: string }> = async ({ cwd }) => {
   localContext.set('cwd', cwd)
 }
 
-export async function resolve(
-  specifier: string,
-  context: ResolveContext,
-  nextResolve: Function
-) {
+export const resolve: ResolveHook = async (specifier, context, nextResolve) => {
   // next.config.* are also be imported from the "next/src/server/config.ts"
   // so we expect the parentURL is available.
   if (!context.parentURL) {
@@ -42,7 +43,7 @@ export async function resolve(
 
     if (existsSync(possibleTsFileURL)) {
       return {
-        format: 'typescript',
+        format: 'typescript' as ModuleFormat,
         shortCircuit: true,
         url: possibleTsFileURL.href,
       }
@@ -59,18 +60,14 @@ export async function resolve(
   }
 
   return {
-    format: 'typescript',
+    format: 'typescript' as ModuleFormat,
     shortCircuit: true,
     url,
   }
 }
 
-export async function load(
-  url: string,
-  context: LoadContext,
-  nextLoad: Function
-) {
-  if (context.format !== 'typescript') {
+export const load: LoadHook = async (url, context, nextLoad) => {
+  if (context.format !== ('typescript' as ModuleFormat)) {
     return nextLoad(url, context)
   }
 
