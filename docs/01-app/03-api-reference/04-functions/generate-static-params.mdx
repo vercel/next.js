@@ -355,7 +355,7 @@ export async function generateStaticParams({
 export default function Page({
   params,
 }: {
-  params: { category: string; product: string }
+  params: Promise<{ category: string; product: string }>
 }) {
   // ...
 }

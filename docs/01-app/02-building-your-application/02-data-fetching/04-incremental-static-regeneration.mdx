@@ -86,8 +86,9 @@ export async function generateStaticParams() {
 }
 
 export default async function Page({ params }) {
-  const post = await fetch(`https://api.vercel.app/blog/${params.id}`).then(
-    (res) => res.json()
+  const { id } = await params
+  const post = await fetch(`https://api.vercel.app/blog/${id}`).then((res) =>
+    res.json()
   )
   return (
     <main>
