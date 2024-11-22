@@ -22,9 +22,10 @@ export function resolveSWCOptionsForNextConfigLoader(cwd: string): SWCOptions {
     },
     env: {
       targets: {
-        // TODO: The value may be missing in other runtimes,
-        // but we aren't considering them for now.
-        node: process.versions.node,
+        // TODO: Bump to v20 when v18 EOL.
+        // The value may be missing in other runtimes, so fallback to
+        // the minimum Node.js version.
+        node: process?.versions?.node ?? '18.18.0',
       },
     },
   } satisfies SWCOptions
