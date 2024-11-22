@@ -2,7 +2,7 @@ use std::{
     borrow::Cow,
     cell::UnsafeCell,
     fs::File,
-    mem::take,
+    mem::{replace, take},
     path::PathBuf,
     sync::atomic::{AtomicU32, Ordering},
 };
@@ -10,6 +10,7 @@ use std::{
 use anyhow::{Context, Result};
 use byteorder::{WriteBytesExt, BE};
 use lzzzz::lz4::{self, ACC_LEVEL_DEFAULT};
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use thread_local::ThreadLocal;
 
 use crate::{
@@ -73,20 +74,27 @@ impl<K: StoreKey + Send> WriteBatch<K> {
 
     pub fn finish(mut self) -> Result<(u32, Vec<(u32, File)>)> {
         let mut global_collector = Collector::new();
+        let mut global_collectors = Vec::new();
         let mut new_sst_files = Vec::new();
         for cell in take(&mut self.collectors).into_iter() {
             let mut state = cell.into_inner();
             new_sst_files.append(&mut state.new_sst_files);
             for entry in state.collector.into_entries() {
                 if global_collector.is_full() {
-                    new_sst_files.push(self.create_sst_file(global_collector.drain_sorted())?);
+                    global_collectors.push(replace(&mut global_collector, Collector::new()));
                 }
                 global_collector.add_entry(entry);
             }
         }
         if !global_collector.is_empty() {
-            new_sst_files.push(self.create_sst_file(global_collector.drain_sorted())?);
+            global_collectors.push(global_collector);
         }
+        new_sst_files.extend(
+            global_collectors
+                .into_par_iter()
+                .map(|mut collector| self.create_sst_file(collector.drain_sorted()))
+                .collect::<Result<Vec<_>>>()?,
+        );
         let seq = self.current_sequence_number.load(Ordering::SeqCst);
         new_sst_files.sort_by_key(|(seq, _)| *seq);
         Ok((seq, new_sst_files))
