@@ -1,7 +1,7 @@
 use std::{
     collections::{BTreeMap, HashSet},
     convert::{TryFrom, TryInto},
-    mem::take,
+    mem::{replace, take},
 };
 
 use hex::encode as hex_encode;
@@ -910,24 +910,20 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     }
 
     fn visit_mut_export_default_decl(&mut self, decl: &mut ExportDefaultDecl) {
-        let old = self.in_exported_expr;
-        let old_default = self.in_default_export_decl;
-        self.in_exported_expr = true;
-        self.in_default_export_decl = true;
+        let old_in_exported_expr = replace(&mut self.in_exported_expr, true);
+        let old_in_default_export_decl = replace(&mut self.in_default_export_decl, true);
         self.rewrite_default_fn_expr_to_proxy_expr = None;
         decl.decl.visit_mut_with(self);
-        self.in_exported_expr = old;
-        self.in_default_export_decl = old_default;
+        self.in_exported_expr = old_in_exported_expr;
+        self.in_default_export_decl = old_in_default_export_decl;
     }
 
     fn visit_mut_export_default_expr(&mut self, expr: &mut ExportDefaultExpr) {
-        let old = self.in_exported_expr;
-        let old_default = self.in_default_export_decl;
-        self.in_exported_expr = true;
-        self.in_default_export_decl = true;
+        let old_in_exported_expr = replace(&mut self.in_exported_expr, true);
+        let old_in_default_export_decl = replace(&mut self.in_default_export_decl, true);
         expr.expr.visit_mut_with(self);
-        self.in_exported_expr = old;
-        self.in_default_export_decl = old_default;
+        self.in_exported_expr = old_in_exported_expr;
+        self.in_default_export_decl = old_in_default_export_decl;
     }
 
     fn visit_mut_fn_expr(&mut self, f: &mut FnExpr) {
@@ -952,16 +948,12 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
         // Visit children
         {
-            let old_in_module = self.in_module_level;
-            let old_should_track_names = self.should_track_names;
-            let old_in_exported_expr = self.in_exported_expr;
-            let old_in_default_export_decl = self.in_default_export_decl;
-            let old_fn_decl_ident = self.fn_decl_ident.clone();
-            self.in_module_level = false;
-            self.should_track_names = directive.is_some() || self.should_track_names;
-            self.in_exported_expr = false;
-            self.in_default_export_decl = false;
-            self.fn_decl_ident = None;
+            let old_in_module = replace(&mut self.in_module_level, false);
+            let should_track_names = directive.is_some() || self.should_track_names;
+            let old_should_track_names = replace(&mut self.should_track_names, should_track_names);
+            let old_in_exported_expr = replace(&mut self.in_exported_expr, false);
+            let old_in_default_export_decl = replace(&mut self.in_default_export_decl, false);
+            let old_fn_decl_ident = self.fn_decl_ident.take();
             f.visit_mut_children_with(self);
             self.in_module_level = old_in_module;
             self.should_track_names = old_should_track_names;
@@ -1089,8 +1081,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     }
 
     fn visit_mut_fn_decl(&mut self, f: &mut FnDecl) {
-        let old_this_status = self.this_status.clone();
-        self.this_status = ThisStatus::Allowed;
+        let old_this_status = replace(&mut self.this_status, ThisStatus::Allowed);
         let old_in_exported_expr = self.in_exported_expr;
         if self.in_module_level && self.exported_local_ids.contains(&f.ident.to_id()) {
             self.in_exported_expr = true
@@ -1124,14 +1115,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
         {
             // Visit children
-            let old_in_module = self.in_module_level;
-            let old_should_track_names = self.should_track_names;
-            let old_in_exported_expr = self.in_exported_expr;
-            let old_in_default_export_decl = self.in_default_export_decl;
-            self.in_module_level = false;
-            self.should_track_names = directive.is_some() || self.should_track_names;
-            self.in_exported_expr = false;
-            self.in_default_export_decl = false;
+            let old_in_module = replace(&mut self.in_module_level, false);
+            let should_track_names = directive.is_some() || self.should_track_names;
+            let old_should_track_names = replace(&mut self.should_track_names, should_track_names);
+            let old_in_exported_expr = replace(&mut self.in_exported_expr, false);
+            let old_in_default_export_decl = replace(&mut self.in_default_export_decl, false);
             {
                 for n in &mut a.params {
                     collect_idents_in_pat(n, &mut self.declared_idents);
@@ -1236,8 +1224,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     self.arrow_or_fn_expr_ident = Some(ident_name.clone().into());
                 }
 
-                let old_this_status = self.this_status.clone();
-                self.this_status = ThisStatus::Allowed;
+                let old_this_status = replace(&mut self.this_status, ThisStatus::Allowed);
                 self.rewrite_expr_to_proxy_expr = None;
                 self.in_exported_expr = false;
                 n.visit_mut_children_with(self);
@@ -1275,9 +1262,9 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     fn visit_mut_call_expr(&mut self, n: &mut CallExpr) {
         if let Callee::Expr(box Expr::Ident(Ident { sym, .. })) = &mut n.callee {
             if sym == "jsxDEV" || sym == "_jsxDEV" {
-                // Do not visit the 6th arg in a generated jsxDEV call, which is a `this` expression,
-                // to avoid emitting an error for using `this` if it's inside of a server function.
-                // https://github.com/facebook/react/blob/9106107/packages/react/src/jsx/ReactJSXElement.js#L429
+                // Do not visit the 6th arg in a generated jsxDEV call, which is a `this`
+                // expression, to avoid emitting an error for using `this` if it's
+                // inside of a server function. https://github.com/facebook/react/blob/9106107/packages/react/src/jsx/ReactJSXElement.js#L429
                 if n.args.len() > 4 {
                     for arg in &mut n.args[0..4] {
                         arg.visit_mut_with(self);
@@ -1291,8 +1278,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     }
 
     fn visit_mut_callee(&mut self, n: &mut Callee) {
-        let old_in_callee = self.in_callee;
-        self.in_callee = true;
+        let old_in_callee = replace(&mut self.in_callee, true);
         n.visit_mut_children_with(self);
         self.in_callee = old_in_callee;
     }
