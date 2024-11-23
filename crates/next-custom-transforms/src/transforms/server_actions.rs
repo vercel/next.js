@@ -2854,7 +2854,7 @@ fn emit_error(error_kind: ServerActionsErrorKind) {
             span,
             formatdoc! {
                 r#"
-                    {subject} can not use `{expr}`.
+                    {subject} cannot use `{expr}`.
                 "#,
                 subject = if let Directive::UseServer = directive {
                     "Server Actions"

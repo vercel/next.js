@@ -1,4 +1,4 @@
-  x Server Actions can not use `this`.
+  x Server Actions cannot use `this`.
   | 
     ,-[input.js:13:1]
  12 |     // this is not allowed here
@@ -6,7 +6,7 @@
     :     ^^^^
  14 |     // arguments is not allowed here
     `----
-  x Server Actions can not use `arguments`.
+  x Server Actions cannot use `arguments`.
   | 
     ,-[input.js:15:1]
  14 |     // arguments is not allowed here
