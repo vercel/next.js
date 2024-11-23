@@ -9,7 +9,6 @@ use std::{
         Arc,
     },
     thread::{available_parallelism, scope, spawn, JoinHandle},
-    time::Instant,
 };
 
 use anyhow::{Context, Result};
