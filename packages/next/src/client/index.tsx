@@ -928,10 +928,7 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
 
           error.name = initialErr!.name
           error.stack = initialErr!.stack
-
-          if ('digest' in initialErr) {
-            ;(error as any).digest = initialErr!.digest
-          }
+          const errSource = initialErr.source!
 
           // In development, error the navigation API usage in runtime,
           // since it's not allowed to be used in pages router as it doesn't contain error boundary like app router.
@@ -940,8 +937,7 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
               'Next.js navigation API is not allowed to be used in Pages Router.'
           }
 
-          const errSource = 'source' in initialErr ? initialErr.source : null
-          throw getServerError(error, errSource || 'server')
+          throw getServerError(error, errSource)
         })
       }
       // We replaced the server-side error with a client-side error, and should
