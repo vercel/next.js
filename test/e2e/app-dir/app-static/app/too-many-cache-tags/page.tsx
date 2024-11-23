@@ -3,7 +3,7 @@ export const revalidate = 0
 export default async function Page() {
   const tags: string[] = []
 
-  for (let i = 0; i < 96; i++) {
+  for (let i = 0; i < 130; i++) {
     tags.push(`tag-${i}`)
   }
   const data = await fetch(
