@@ -1275,7 +1275,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     fn visit_mut_call_expr(&mut self, n: &mut CallExpr) {
         if let Callee::Expr(box Expr::Ident(Ident { sym, .. })) = &mut n.callee {
             if sym == "jsxDEV" || sym == "_jsxDEV" {
-                // Do not visit the 6th arg in a generated jsxDEV call, which is a `this` exression,
+                // Do not visit the 6th arg in a generated jsxDEV call, which is a `this` expression,
                 // to avoid emitting an error for using `this` if it's inside of a server function.
                 // https://github.com/facebook/react/blob/9106107/packages/react/src/jsx/ReactJSXElement.js#L429
                 if n.args.len() > 4 {
