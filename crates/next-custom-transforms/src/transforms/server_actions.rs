@@ -1190,6 +1190,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
     fn visit_mut_prop_or_spread(&mut self, n: &mut PropOrSpread) {
         let old_arrow_or_fn_expr_ident = self.arrow_or_fn_expr_ident.clone();
+        let old_in_exported_expr = self.in_exported_expr;
 
         match n {
             PropOrSpread::Prop(box Prop::KeyValue(KeyValueProp {
@@ -1197,6 +1198,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 value: box Expr::Arrow(_) | box Expr::Fn(_),
                 ..
             })) => {
+                self.in_exported_expr = false;
                 self.arrow_or_fn_expr_ident = Some(ident_name.clone().into());
             }
             PropOrSpread::Prop(box Prop::Method(MethodProp { key, .. })) => {
@@ -1205,7 +1207,9 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     self.arrow_or_fn_expr_ident = Some(ident_name.clone().into());
                 }
                 self.rewrite_expr_to_proxy_expr = None;
+                self.in_exported_expr = false;
                 n.visit_mut_children_with(self);
+                self.in_exported_expr = old_in_exported_expr;
                 if let Some(expr) = &self.rewrite_expr_to_proxy_expr {
                     *n = PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
                         key,
@@ -1230,6 +1234,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
         n.visit_mut_children_with(self);
         self.arrow_or_fn_expr_ident = old_arrow_or_fn_expr_ident;
+        self.in_exported_expr = old_in_exported_expr;
     }
 
     fn visit_mut_callee(&mut self, n: &mut Callee) {
