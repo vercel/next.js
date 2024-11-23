@@ -9,7 +9,6 @@ use std::{
         mpsc::{SyncSender, sync_channel},
     },
     thread::{JoinHandle, available_parallelism, scope, spawn},
-    time::Instant,
 };
 
 use anyhow::{Context, Result};
