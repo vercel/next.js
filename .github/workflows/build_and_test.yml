@@ -188,6 +188,7 @@ jobs:
         selector:
           - '--scenario=heavy-npm-deps-dev --page=homepage'
           - '--scenario=heavy-npm-deps-build --page=homepage'
+          - '--scenario=heavy-npm-deps-build-turbo-cache-enabled --page=homepage'
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: pnpm install && ./node_modules/.bin/devlow-bench ./scripts/devlow-bench.mjs --datadog=ubuntu-latest-16-core ${{ matrix.mode }} ${{ matrix.selector }}

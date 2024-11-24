@@ -550,7 +550,7 @@ impl Project {
 
     #[turbo_tasks::function]
     pub fn client_fs(self: Vc<Self>) -> Vc<Box<dyn FileSystem>> {
-        let virtual_fs = VirtualFileSystem::new();
+        let virtual_fs = VirtualFileSystem::new_with_name("client-fs".into());
         Vc::upcast(virtual_fs)
     }
 
@@ -667,6 +667,8 @@ impl Project {
         Ok(get_server_compile_time_info(
             self.env(),
             this.define_env.nodejs(),
+            // `/ROOT` corresponds to `[project]/`, so we need exactly the `path` part.
+            format!("/ROOT/{}", self.project_path().await?.path).into(),
         ))
     }
 
@@ -1164,7 +1166,7 @@ impl Project {
     pub async fn emit_all_output_assets(
         self: Vc<Self>,
         output_assets: Vc<OutputAssetsOperation>,
-    ) -> Result<Vc<()>> {
+    ) -> Result<()> {
         let span = tracing::info_span!("emitting");
         async move {
             let all_output_assets = all_assets_from_entries_operation(output_assets);
@@ -1173,27 +1175,23 @@ impl Project {
             let node_root = self.node_root();
 
             if let Some(map) = self.await?.versioned_content_map {
-                let _ = map
-                    .insert_output_assets(
-                        all_output_assets,
-                        node_root,
-                        client_relative_path,
-                        node_root,
-                    )
-                    .resolve()
-                    .await?;
+                let _ = map.insert_output_assets(
+                    all_output_assets,
+                    node_root,
+                    client_relative_path,
+                    node_root,
+                );
 
-                Ok(Vc::cell(()))
+                Ok(())
             } else {
                 let _ = emit_assets(
                     *all_output_assets.await?,
                     node_root,
                     client_relative_path,
                     node_root,
-                )
-                .resolve()
-                .await?;
-                Ok(Vc::cell(()))
+                );
+
+                Ok(())
             }
         }
         .instrument(span)

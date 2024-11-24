@@ -54,12 +54,8 @@ pub async fn get_next_server_transforms_rules(
         ));
     }
 
-    let dynamic_io_enabled = next_config
-        .experimental()
-        .await?
-        .dynamic_io
-        .unwrap_or(false);
-
+    let dynamic_io_enabled = *next_config.enable_dynamic_io().await?;
+    let cache_kinds = next_config.cache_kinds().to_resolved().await?;
     let mut is_app_dir = false;
 
     let is_server_components = match context_ty {
@@ -96,6 +92,7 @@ pub async fn get_next_server_transforms_rules(
                 ActionsTransform::Client,
                 mdx_rs,
                 dynamic_io_enabled,
+                cache_kinds,
             ));
 
             is_app_dir = true;
@@ -107,6 +104,7 @@ pub async fn get_next_server_transforms_rules(
                 ActionsTransform::Server,
                 mdx_rs,
                 dynamic_io_enabled,
+                cache_kinds,
             ));
 
             is_app_dir = true;
@@ -118,6 +116,7 @@ pub async fn get_next_server_transforms_rules(
                 ActionsTransform::Server,
                 mdx_rs,
                 dynamic_io_enabled,
+                cache_kinds,
             ));
 
             is_app_dir = true;

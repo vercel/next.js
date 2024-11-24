@@ -11,13 +11,18 @@ import {
   NEXT_ROUTER_STATE_TREE_HEADER,
   ACTION_HEADER,
 } from '../../client/components/app-router-headers'
-import { isNotFoundError } from '../../client/components/not-found'
+import {
+  getAccessFallbackHTTPStatus,
+  isHTTPAccessFallbackError,
+} from '../../client/components/http-access-fallback/http-access-fallback'
 import {
   getRedirectTypeFromError,
   getURLFromRedirectError,
+} from '../../client/components/redirect'
+import {
   isRedirectError,
   type RedirectType,
-} from '../../client/components/redirect'
+} from '../../client/components/redirect-error'
 import RenderResult from '../render-result'
 import type { WorkStore } from '../app-render/work-async-storage.external'
 import { FlightRenderResult } from './flight-render-result'
@@ -945,8 +950,8 @@ export async function handleAction({
         type: 'done',
         result: RenderResult.fromStatic(''),
       }
-    } else if (isNotFoundError(err)) {
-      res.statusCode = 404
+    } else if (isHTTPAccessFallbackError(err)) {
+      res.statusCode = getAccessFallbackHTTPStatus(err)
 
       await addRevalidationHeader(res, {
         workStore,

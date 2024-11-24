@@ -71,9 +71,8 @@ describe('Error overlay for hydration errors in App router', () => {
       ])
     )
     const { session, browser } = sandbox
-    await session.waitForAndOpenRuntimeError()
+    await session.openRedbox()
 
-    await session.assertHasRedbox()
     expect(await getRedboxTotalErrorCount(browser)).toBe(1)
 
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
@@ -153,9 +152,8 @@ describe('Error overlay for hydration errors in App router', () => {
       ])
     )
     const { session, browser } = sandbox
-    await session.waitForAndOpenRuntimeError()
+    await session.openRedbox()
 
-    await session.assertHasRedbox()
     expect(await getRedboxTotalErrorCount(browser)).toBe(1)
 
     const pseudoHtml = await session.getRedboxComponentStack()
@@ -203,9 +201,8 @@ describe('Error overlay for hydration errors in App router', () => {
       ])
     )
     const { session, browser } = sandbox
-    await session.waitForAndOpenRuntimeError()
+    await session.openRedbox()
 
-    await session.assertHasRedbox()
     expect(await getRedboxTotalErrorCount(browser)).toBe(1)
 
     const pseudoHtml = await session.getRedboxComponentStack()
@@ -239,9 +236,8 @@ describe('Error overlay for hydration errors in App router', () => {
       ])
     )
     const { session, browser } = sandbox
-    await session.waitForAndOpenRuntimeError()
+    await session.openRedbox()
 
-    await session.assertHasRedbox()
     expect(await getRedboxTotalErrorCount(browser)).toBe(1)
 
     const pseudoHtml = await session.getRedboxComponentStack()
@@ -288,9 +284,8 @@ describe('Error overlay for hydration errors in App router', () => {
       ])
     )
     const { session, browser } = sandbox
-    await session.waitForAndOpenRuntimeError()
+    await session.openRedbox()
 
-    await session.assertHasRedbox()
     expect(await getRedboxTotalErrorCount(browser)).toBe(1)
 
     const pseudoHtml = await session.getRedboxComponentStack()
@@ -330,9 +325,8 @@ describe('Error overlay for hydration errors in App router', () => {
       ])
     )
     const { session, browser } = sandbox
-    await session.waitForAndOpenRuntimeError()
+    await session.openRedbox()
 
-    await session.assertHasRedbox()
     expect(await getRedboxTotalErrorCount(browser)).toBe(1)
 
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
@@ -378,9 +372,8 @@ describe('Error overlay for hydration errors in App router', () => {
       ])
     )
     const { session, browser } = sandbox
-    await session.waitForAndOpenRuntimeError()
+    await session.openRedbox()
 
-    await session.assertHasRedbox()
     expect(await getRedboxTotalErrorCount(browser)).toBe(2)
 
     // FIXME: Should also have "text nodes cannot be a child of tr"
@@ -427,12 +420,9 @@ describe('Error overlay for hydration errors in App router', () => {
       ])
     )
     const { session, browser } = sandbox
-    await session.waitForAndOpenRuntimeError()
+    await session.openRedbox()
 
-    await session.assertHasRedbox()
-    await retry(async () => {
-      expect(await getRedboxTotalErrorCount(browser)).toBe(1)
-    })
+    expect(await getRedboxTotalErrorCount(browser)).toBe(1)
 
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
       "In HTML, whitespace text nodes cannot be a child of <table>. Make sure you don't have any extra whitespace between tags on each line of your source code.
@@ -443,9 +433,9 @@ describe('Error overlay for hydration errors in App router', () => {
             <ScrollAndFocusHandler segmentPath={[...]}>
               <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                 <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                  <LoadingBoundary hasLoading={false} loading={undefined} loadingStyles={undefined} loadingScripts={undefined}>
-                    <HTTPAccessFallbackBoundary notFound={[...]}>
-                      <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} missingSlots={Set}>
+                  <LoadingBoundary loading={null}>
+                    <HTTPAccessFallbackBoundary notFound={[...]} forbidden={undefined} unauthorized={undefined}>
+                      <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} forbidden={undefined} ...>
                         <RedirectBoundary>
                           <RedirectErrorBoundary router={{...}}>
                             <InnerLayoutRouter parallelRouterKey="children" url="/" tree={[...]} childNodes={Map} ...>
@@ -489,7 +479,7 @@ describe('Error overlay for hydration errors in App router', () => {
       ])
     )
     const { session } = sandbox
-    await session.waitForAndOpenRuntimeError()
+    await session.openRedbox()
 
     const pseudoHtml = await session.getRedboxComponentStack()
     if (isTurbopack) {
@@ -574,9 +564,8 @@ describe('Error overlay for hydration errors in App router', () => {
     )
 
     const { session, browser } = sandbox
-    await session.waitForAndOpenRuntimeError()
+    await session.openRedbox()
 
-    await session.assertHasRedbox()
     expect(await getRedboxTotalErrorCount(browser)).toBe(2)
 
     const description = await session.getRedboxDescription()
@@ -633,9 +622,8 @@ describe('Error overlay for hydration errors in App router', () => {
     )
 
     const { session, browser } = sandbox
-    await session.waitForAndOpenRuntimeError()
+    await session.openRedbox()
 
-    await session.assertHasRedbox()
     expect(await getRedboxTotalErrorCount(browser)).toBe(2)
 
     const description = await session.getRedboxDescription()
@@ -672,9 +660,8 @@ describe('Error overlay for hydration errors in App router', () => {
     )
 
     const { session, browser } = sandbox
-    await session.waitForAndOpenRuntimeError()
+    await session.openRedbox()
 
-    await session.assertHasRedbox()
     expect(await getRedboxTotalErrorCount(browser)).toBe(2)
 
     const description = await session.getRedboxDescription()
@@ -726,9 +713,8 @@ describe('Error overlay for hydration errors in App router', () => {
     )
 
     const { session, browser } = sandbox
-    await session.waitForAndOpenRuntimeError()
+    await session.openRedbox()
 
-    await session.assertHasRedbox()
     expect(await getRedboxTotalErrorCount(browser)).toBe(2)
 
     const description = await session.getRedboxDescription()
@@ -798,9 +784,7 @@ describe('Error overlay for hydration errors in App router', () => {
       ])
     )
     const { session, browser } = sandbox
-    await session.waitForAndOpenRuntimeError()
-
-    await session.assertHasRedbox()
+    await session.openRedbox()
 
     retry(async () => {
       expect(await getRedboxTotalErrorCount(browser)).toBe(4)
@@ -870,9 +854,8 @@ describe('Error overlay for hydration errors in App router', () => {
       ])
     )
     const { session, browser } = sandbox
-    await session.waitForAndOpenRuntimeError()
+    await session.openRedbox()
 
-    await session.assertHasRedbox()
     expect(await getRedboxTotalErrorCount(browser)).toBe(1)
 
     const pseudoHtml = await session.getRedboxComponentStack()
@@ -905,7 +888,7 @@ describe('Error overlay for hydration errors in App router', () => {
     if (isTurbopack) {
       expect(fullPseudoHtml).toMatchInlineSnapshot(`
         "...
-          <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} missingSlots={Set}>
+          <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} forbidden={undefined} unauthorized={undefined} ...>
             <RedirectBoundary>
               <RedirectErrorBoundary router={{...}}>
                 <InnerLayoutRouter parallelRouterKey="children" url="/" tree={[...]} childNodes={Map} segmentPath={[...]} ...>
@@ -925,7 +908,7 @@ describe('Error overlay for hydration errors in App router', () => {
     } else {
       expect(fullPseudoHtml).toMatchInlineSnapshot(`
         "...
-          <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} missingSlots={Set}>
+          <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} forbidden={undefined} unauthorized={undefined} ...>
             <RedirectBoundary>
               <RedirectErrorBoundary router={{...}}>
                 <InnerLayoutRouter parallelRouterKey="children" url="/" tree={[...]} childNodes={Map} segmentPath={[...]} ...>

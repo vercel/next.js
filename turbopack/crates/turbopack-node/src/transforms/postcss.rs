@@ -212,9 +212,7 @@ async fn extra_configs_changed(
                         )
                         .try_into_module()
                         .await?
-                        .as_deref()
-                        .copied()
-                        .map(any_content_changed_of_module)
+                        .map(|rvc| any_content_changed_of_module(*rvc))
                 } else {
                     None
                 },

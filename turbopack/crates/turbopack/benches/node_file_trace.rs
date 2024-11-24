@@ -3,13 +3,12 @@ use std::{fs, path::PathBuf};
 use criterion::{Bencher, BenchmarkId, Criterion};
 use regex::Regex;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ReadConsistency, TurboTasks, Value, Vc};
+use turbo_tasks::{apply_effects, ReadConsistency, TurboTasks, Value, Vc};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, NullFileSystem};
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
     emit_with_completion,
     module_options::{EcmascriptOptionsContext, ModuleOptionsContext},
-    rebase::RebasedAsset,
     register, ModuleAssetContext,
 };
 use turbopack_core::{
@@ -17,6 +16,7 @@ use turbopack_core::{
     context::AssetContext,
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
+    rebase::RebasedAsset,
     reference_type::ReferenceType,
 };
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
@@ -112,7 +112,9 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
                     .module();
                 let rebased = RebasedAsset::new(Vc::upcast(module), input_dir, output_dir);
 
-                emit_with_completion(Vc::upcast(rebased), output_dir).await?;
+                let emit = emit_with_completion(Vc::upcast(rebased), output_dir);
+                emit.strongly_consistent().await?;
+                apply_effects(emit).await?;
 
                 Ok::<Vc<()>, _>(Default::default())
             });

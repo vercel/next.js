@@ -130,12 +130,18 @@ async function createNextInstall({
         }, {}),
       }
 
+      const scripts = {
+        debug: `NEXT_PRIVATE_SKIP_CANARY_CHECK=1 NEXT_TELEMETRY_DISABLED=1 NEXT_TEST_NATIVE_DIR=${process.env.NEXT_TEST_NATIVE_DIR} node --inspect --trace-deprecation --enable-source-maps node_modules/next/dist/bin/next`,
+        ...packageJson.scripts,
+      }
+
       await fs.ensureDir(installDir)
       await fs.writeFile(
         path.join(installDir, 'package.json'),
         JSON.stringify(
           {
             ...packageJson,
+            scripts,
             dependencies: combinedDependencies,
             private: true,
             // Add resolutions if provided.

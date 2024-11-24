@@ -7,6 +7,10 @@ export var $$RSC_SERVER_CACHE_0 = $$cache__("default", "c03128060c414d59f8552e47
         foo: $$ACTION_ARG_1
     };
 });
+Object.defineProperty($$RSC_SERVER_CACHE_0, "name", {
+    "value": "fn",
+    "writable": false
+});
 async function Component({ foo }) {
     const a = 123;
     const fn = $$RSC_SERVER_REF_1.bind(null, encryptActionBoundArgs("c03128060c414d59f8552e4788b846c0d2b7f74743", [
@@ -16,4 +20,4 @@ async function Component({ foo }) {
     const data = await fn();
     return <div>{data}</div>;
 }
-var $$RSC_SERVER_REF_1 = registerServerReference($$RSC_SERVER_CACHE_0, "c03128060c414d59f8552e4788b846c0d2b7f74743", null);
+var $$RSC_SERVER_REF_1 = /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ registerServerReference($$RSC_SERVER_CACHE_0, "c03128060c414d59f8552e4788b846c0d2b7f74743", null);

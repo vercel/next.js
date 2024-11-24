@@ -62,11 +62,7 @@ The HTML `<iframe>` tag allows you to embed videos from external platforms like 
 ```jsx filename="app/page.jsx"
 export default function Page() {
   return (
-    <iframe
-      src="https://www.youtube.com/watch?v=gfU1iZnjRZM"
-      frameborder="0"
-      allowfullscreen
-    />
+    <iframe src="https://www.youtube.com/embed/19g66ezsKAg" allowFullScreen />
   )
 }
 ```
@@ -78,8 +74,7 @@ export default function Page() {
 | `src`             | The URL of the page to embed.                                          | `<iframe src="https://example.com" />` |
 | `width`           | Sets the width of the iframe.                                          | `<iframe width="500" />`               |
 | `height`          | Sets the height of the iframe.                                         | `<iframe height="300" />`              |
-| `frameborder`     | Specifies whether or not to display a border around the iframe.        | `<iframe frameborder="0" />`           |
-| `allowfullscreen` | Allows the iframe content to be displayed in full-screen mode.         | `<iframe allowfullscreen />`           |
+| `allowFullScreen` | Allows the iframe content to be displayed in full-screen mode.         | `<iframe allowFullScreen />`           |
 | `sandbox`         | Enables an extra set of restrictions on the content within the iframe. | `<iframe sandbox />`                   |
 | `loading`         | Optimize loading behavior (e.g., lazy loading).                        | `<iframe loading="lazy" />`            |
 | `title`           | Provides a title for the iframe to support accessibility.              | `<iframe title="Description" />`       |
@@ -107,7 +102,7 @@ The first step is to create a [Server Component](https://nextjs.org/docs/app/bui
 export default async function VideoComponent() {
   const src = await getVideoSrc()
 
-  return <iframe src={src} frameborder="0" allowfullscreen />
+  return <iframe src={src} allowFullScreen />
 }
 ```
 
