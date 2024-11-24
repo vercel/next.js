@@ -216,6 +216,10 @@ import { inlineStaticEnv } from './flying-shuttle/inline-static-env'
 import { FallbackMode, fallbackModeToFallbackField } from '../lib/fallback'
 import { RenderingMode } from './rendering-mode'
 import { getParamKeys } from '../server/request/fallback-params'
+import {
+  formatNodeOptions,
+  getParsedNodeOptionsWithoutInspect,
+} from '../server/lib/utils'
 
 type Fallback = null | boolean | string
 
@@ -684,6 +688,12 @@ export function createStaticWorker(
     clear: () => void
   }
 ): StaticWorker {
+  // Get the node options without inspect and also remove the
+  // --max-old-space-size flag as it can cause memory issues.
+  const nodeOptions = getParsedNodeOptionsWithoutInspect()
+  delete nodeOptions['max-old-space-size']
+  delete nodeOptions['max_old_space_size']
+
   return new Worker(staticWorkerPath, {
     logger: Log,
     numWorkers: getNumberOfWorkers(config),
@@ -694,7 +704,7 @@ export function createStaticWorker(
       progress?.clear()
     },
     forkOptions: {
-      env: process.env,
+      env: { ...process.env, NODE_OPTIONS: formatNodeOptions(nodeOptions) },
     },
     enableWorkerThreads: config.experimental.workerThreads,
     exposedMethods: staticWorkerExposedMethods,
