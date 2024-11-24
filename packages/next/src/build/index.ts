@@ -186,6 +186,7 @@ import { createProgress } from './progress'
 import { traceMemoryUsage } from '../lib/memory/trace'
 import { generateEncryptionKeyBase64 } from '../server/app-render/encryption-utils'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
+import { getNodeOptionsWithoutInspect } from '../server/lib/utils'
 
 interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
@@ -564,7 +565,6 @@ function createStaticWorker(
 ): StaticWorker {
   let infoPrinted = false
   const timeout = config.staticPageGenerationTimeout || 0
-
   return new Worker(staticWorkerPath, {
     timeout: timeout * 1000,
     logger: Log,
@@ -607,6 +607,11 @@ function createStaticWorker(
           ? incrementalCacheIpcPort + ''
           : undefined,
         __NEXT_INCREMENTAL_CACHE_IPC_KEY: incrementalCacheIpcValidationKey,
+        // we don't pass down NODE_OPTIONS as it can
+        // extra memory usage
+        NODE_OPTIONS: getNodeOptionsWithoutInspect()
+          .replace(/--max-old-space-size=[\d]{1,}/, '')
+          .trim(),
       },
     },
     enableWorkerThreads: config.experimental.workerThreads,
