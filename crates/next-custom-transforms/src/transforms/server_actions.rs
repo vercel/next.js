@@ -1,7 +1,7 @@
 use std::{
     collections::{BTreeMap, HashSet},
     convert::{TryFrom, TryInto},
-    mem::take,
+    mem::{replace, take},
 };
 
 use hex::encode as hex_encode;
@@ -47,10 +47,21 @@ enum DirectiveLocation {
 }
 
 #[derive(Clone, Debug)]
+enum ThisStatus {
+    Allowed,
+    Forbidden { directive: Directive },
+}
+
+#[derive(Clone, Debug)]
 enum ServerActionsErrorKind {
     ExportedSyncFunction {
         span: Span,
         in_action_file: bool,
+    },
+    ForbiddenExpression {
+        span: Span,
+        expr: String,
+        directive: Directive,
     },
     InlineSyncFunction {
         span: Span,
@@ -113,6 +124,7 @@ pub fn server_actions<C: Comments>(file_name: &FileName, config: Config, comment
         in_callee: false,
         has_action: false,
         has_cache: false,
+        this_status: ThisStatus::Allowed,
 
         reference_index: 0,
         in_module_level: true,
@@ -163,6 +175,7 @@ struct ServerActions<C: Comments> {
     in_callee: bool,
     has_action: bool,
     has_cache: bool,
+    this_status: ThisStatus,
 
     reference_index: u32,
     in_module_level: bool,
@@ -897,24 +910,20 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     }
 
     fn visit_mut_export_default_decl(&mut self, decl: &mut ExportDefaultDecl) {
-        let old = self.in_exported_expr;
-        let old_default = self.in_default_export_decl;
-        self.in_exported_expr = true;
-        self.in_default_export_decl = true;
+        let old_in_exported_expr = replace(&mut self.in_exported_expr, true);
+        let old_in_default_export_decl = replace(&mut self.in_default_export_decl, true);
         self.rewrite_default_fn_expr_to_proxy_expr = None;
         decl.decl.visit_mut_with(self);
-        self.in_exported_expr = old;
-        self.in_default_export_decl = old_default;
+        self.in_exported_expr = old_in_exported_expr;
+        self.in_default_export_decl = old_in_default_export_decl;
     }
 
     fn visit_mut_export_default_expr(&mut self, expr: &mut ExportDefaultExpr) {
-        let old = self.in_exported_expr;
-        let old_default = self.in_default_export_decl;
-        self.in_exported_expr = true;
-        self.in_default_export_decl = true;
+        let old_in_exported_expr = replace(&mut self.in_exported_expr, true);
+        let old_in_default_export_decl = replace(&mut self.in_default_export_decl, true);
         expr.expr.visit_mut_with(self);
-        self.in_exported_expr = old;
-        self.in_default_export_decl = old_default;
+        self.in_exported_expr = old_in_exported_expr;
+        self.in_default_export_decl = old_in_default_export_decl;
     }
 
     fn visit_mut_fn_expr(&mut self, f: &mut FnExpr) {
@@ -931,18 +940,20 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         let declared_idents_until = self.declared_idents.len();
         let current_names = take(&mut self.names);
 
+        if let Some(directive) = &directive {
+            self.this_status = ThisStatus::Forbidden {
+                directive: directive.clone(),
+            };
+        }
+
         // Visit children
         {
-            let old_in_module = self.in_module_level;
-            let old_should_track_names = self.should_track_names;
-            let old_in_exported_expr = self.in_exported_expr;
-            let old_in_default_export_decl = self.in_default_export_decl;
-            let old_fn_decl_ident = self.fn_decl_ident.clone();
-            self.in_module_level = false;
-            self.should_track_names = directive.is_some() || self.should_track_names;
-            self.in_exported_expr = false;
-            self.in_default_export_decl = false;
-            self.fn_decl_ident = None;
+            let old_in_module = replace(&mut self.in_module_level, false);
+            let should_track_names = directive.is_some() || self.should_track_names;
+            let old_should_track_names = replace(&mut self.should_track_names, should_track_names);
+            let old_in_exported_expr = replace(&mut self.in_exported_expr, false);
+            let old_in_default_export_decl = replace(&mut self.in_default_export_decl, false);
+            let old_fn_decl_ident = self.fn_decl_ident.take();
             f.visit_mut_children_with(self);
             self.in_module_level = old_in_module;
             self.should_track_names = old_should_track_names;
@@ -1070,12 +1081,14 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     }
 
     fn visit_mut_fn_decl(&mut self, f: &mut FnDecl) {
+        let old_this_status = replace(&mut self.this_status, ThisStatus::Allowed);
         let old_in_exported_expr = self.in_exported_expr;
         if self.in_module_level && self.exported_local_ids.contains(&f.ident.to_id()) {
             self.in_exported_expr = true
         }
         let old_fn_decl_ident = self.fn_decl_ident.replace(f.ident.clone());
         f.visit_mut_children_with(self);
+        self.this_status = old_this_status;
         self.in_exported_expr = old_in_exported_expr;
         self.fn_decl_ident = old_fn_decl_ident;
     }
@@ -1091,19 +1104,22 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             },
         );
 
+        if let Some(directive) = &directive {
+            self.this_status = ThisStatus::Forbidden {
+                directive: directive.clone(),
+            };
+        }
+
         let declared_idents_until = self.declared_idents.len();
         let current_names = take(&mut self.names);
 
         {
             // Visit children
-            let old_in_module = self.in_module_level;
-            let old_should_track_names = self.should_track_names;
-            let old_in_exported_expr = self.in_exported_expr;
-            let old_in_default_export_decl = self.in_default_export_decl;
-            self.in_module_level = false;
-            self.should_track_names = directive.is_some() || self.should_track_names;
-            self.in_exported_expr = false;
-            self.in_default_export_decl = false;
+            let old_in_module = replace(&mut self.in_module_level, false);
+            let should_track_names = directive.is_some() || self.should_track_names;
+            let old_should_track_names = replace(&mut self.should_track_names, should_track_names);
+            let old_in_exported_expr = replace(&mut self.in_exported_expr, false);
+            let old_in_default_export_decl = replace(&mut self.in_default_export_decl, false);
             {
                 for n in &mut a.params {
                     collect_idents_in_pat(n, &mut self.declared_idents);
@@ -1190,6 +1206,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
     fn visit_mut_prop_or_spread(&mut self, n: &mut PropOrSpread) {
         let old_arrow_or_fn_expr_ident = self.arrow_or_fn_expr_ident.clone();
+        let old_in_exported_expr = self.in_exported_expr;
 
         match n {
             PropOrSpread::Prop(box Prop::KeyValue(KeyValueProp {
@@ -1197,15 +1214,23 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 value: box Expr::Arrow(_) | box Expr::Fn(_),
                 ..
             })) => {
+                self.in_exported_expr = false;
                 self.arrow_or_fn_expr_ident = Some(ident_name.clone().into());
             }
             PropOrSpread::Prop(box Prop::Method(MethodProp { key, .. })) => {
                 let key = key.clone();
+
                 if let PropName::Ident(ident_name) = &key {
                     self.arrow_or_fn_expr_ident = Some(ident_name.clone().into());
                 }
+
+                let old_this_status = replace(&mut self.this_status, ThisStatus::Allowed);
                 self.rewrite_expr_to_proxy_expr = None;
+                self.in_exported_expr = false;
                 n.visit_mut_children_with(self);
+                self.in_exported_expr = old_in_exported_expr;
+                self.this_status = old_this_status;
+
                 if let Some(expr) = &self.rewrite_expr_to_proxy_expr {
                     *n = PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
                         key,
@@ -1213,6 +1238,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     })));
                     self.rewrite_expr_to_proxy_expr = None;
                 }
+
                 return;
             }
             _ => {}
@@ -1230,11 +1256,29 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
         n.visit_mut_children_with(self);
         self.arrow_or_fn_expr_ident = old_arrow_or_fn_expr_ident;
+        self.in_exported_expr = old_in_exported_expr;
+    }
+
+    fn visit_mut_call_expr(&mut self, n: &mut CallExpr) {
+        if let Callee::Expr(box Expr::Ident(Ident { sym, .. })) = &mut n.callee {
+            if sym == "jsxDEV" || sym == "_jsxDEV" {
+                // Do not visit the 6th arg in a generated jsxDEV call, which is a `this`
+                // expression, to avoid emitting an error for using `this` if it's
+                // inside of a server function. https://github.com/facebook/react/blob/9106107/packages/react/src/jsx/ReactJSXElement.js#L429
+                if n.args.len() > 4 {
+                    for arg in &mut n.args[0..4] {
+                        arg.visit_mut_with(self);
+                    }
+                    return;
+                }
+            }
+        }
+
+        n.visit_mut_children_with(self);
     }
 
     fn visit_mut_callee(&mut self, n: &mut Callee) {
-        let old_in_callee = self.in_callee;
-        self.in_callee = true;
+        let old_in_callee = replace(&mut self.in_callee, true);
         n.visit_mut_children_with(self);
         self.in_callee = old_in_callee;
     }
@@ -2022,6 +2066,28 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         self.arrow_or_fn_expr_ident = old_arrow_or_fn_expr_ident;
     }
 
+    fn visit_mut_this_expr(&mut self, n: &mut ThisExpr) {
+        if let ThisStatus::Forbidden { directive } = &self.this_status {
+            emit_error(ServerActionsErrorKind::ForbiddenExpression {
+                span: n.span,
+                expr: "this".into(),
+                directive: directive.clone(),
+            });
+        }
+    }
+
+    fn visit_mut_ident(&mut self, n: &mut Ident) {
+        if n.sym == *"arguments" {
+            if let ThisStatus::Forbidden { directive } = &self.this_status {
+                emit_error(ServerActionsErrorKind::ForbiddenExpression {
+                    span: n.span,
+                    expr: "arguments".into(),
+                    directive: directive.clone(),
+                });
+            }
+        }
+    }
+
     noop_visit_mut_type!();
 }
 
@@ -2763,6 +2829,23 @@ fn emit_error(error_kind: ServerActionsErrorKind) {
                     "\"use server\""
                 } else {
                     "\"use cache\""
+                }
+            },
+        ),
+        ServerActionsErrorKind::ForbiddenExpression {
+            span,
+            expr,
+            directive,
+        } => (
+            span,
+            formatdoc! {
+                r#"
+                    {subject} cannot use `{expr}`.
+                "#,
+                subject = if let Directive::UseServer = directive {
+                    "Server Actions"
+                } else {
+                    "\"use cache\" functions"
                 }
             },
         ),
