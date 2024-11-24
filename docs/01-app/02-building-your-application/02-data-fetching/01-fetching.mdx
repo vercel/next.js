@@ -281,16 +281,16 @@ interface Post {
 }
 
 async function getPost(id: string) {
-  let res = await fetch(`https://api.vercel.app/blog/${id}`, {
+  const res = await fetch(`https://api.vercel.app/blog/${id}`, {
     cache: 'force-cache',
   })
-  let post: Post = await res.json()
+  const post: Post = await res.json()
   if (!post) notFound()
   return post
 }
 
 export async function generateStaticParams() {
-  let posts = await fetch('https://api.vercel.app/blog', {
+  const posts = await fetch('https://api.vercel.app/blog', {
     cache: 'force-cache',
   }).then((res) => res.json())
 
@@ -305,7 +305,7 @@ export async function generateMetadata({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  let post = await getPost(id)
+  const post = await getPost(id)
 
   return {
     title: post.title,
@@ -318,7 +318,7 @@ export default async function Page({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  let post = await getPost(id)
+  const post = await getPost(id)
 
   return (
     <article>
@@ -333,14 +333,14 @@ export default async function Page({
 import { notFound } from 'next/navigation'
 
 async function getPost(id) {
-  let res = await fetch(`https://api.vercel.app/blog/${id}`)
-  let post = await res.json()
+  const res = await fetch(`https://api.vercel.app/blog/${id}`)
+  const post = await res.json()
   if (!post) notFound()
   return post
 }
 
 export async function generateStaticParams() {
-  let posts = await fetch('https://api.vercel.app/blog').then((res) =>
+  const posts = await fetch('https://api.vercel.app/blog').then((res) =>
     res.json()
   )
 
@@ -351,7 +351,7 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }) {
   const { id } = await params
-  let post = await getPost(id)
+  const post = await getPost(id)
 
   return {
     title: post.title,
@@ -360,7 +360,7 @@ export async function generateMetadata({ params }) {
 
 export default async function Page({ params }) {
   const { id } = await params
-  let post = await getPost(id)
+  const post = await getPost(id)
 
   return (
     <article>
