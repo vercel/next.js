@@ -483,7 +483,7 @@ impl ProjectDefineEnv {
 
     #[turbo_tasks::function]
     pub fn nodejs(&self) -> Vc<EnvMap> {
-        *self.nodejs
+        self.nodejs
     }
 }
 
@@ -519,7 +519,7 @@ impl Issue for ConflictIssue {
 
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(self.description))
+        Vc::cell(Some(*self.description))
     }
 }
 
@@ -529,9 +529,10 @@ impl Project {
     pub async fn app_project(self: Vc<Self>) -> Result<Vc<OptionAppProject>> {
         let app_dir = find_app_dir(self.project_path()).await?;
 
-        Ok(Vc::cell(
-            app_dir.map(|app_dir| AppProject::new(self, *app_dir)),
-        ))
+        Ok(Vc::cell(match *app_dir {
+            Some(app_dir) => Some(AppProject::new(self, *app_dir).to_resolved().await?),
+            None => None,
+        }))
     }
 
     #[turbo_tasks::function]
@@ -611,17 +612,17 @@ impl Project {
 
     #[turbo_tasks::function]
     pub(super) fn next_config(&self) -> Vc<NextConfig> {
-        self.next_config
+        *self.next_config
     }
 
     #[turbo_tasks::function]
     pub(super) fn next_mode(&self) -> Vc<NextMode> {
-        self.mode
+        *self.mode
     }
 
     #[turbo_tasks::function]
     pub(super) fn js_config(&self) -> Vc<JsConfig> {
-        self.js_config
+        *self.js_config
     }
 
     #[turbo_tasks::function]
