@@ -297,7 +297,7 @@ impl CompileTimeInfo {
 
     #[turbo_tasks::function]
     pub fn environment(&self) -> Vc<Environment> {
-        self.environment
+        *self.environment
     }
 }
 
