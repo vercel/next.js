@@ -70,7 +70,7 @@ impl Environment {
     pub async fn compile_target(&self) -> Result<Vc<CompileTarget>> {
         Ok(match self.execution {
             ExecutionEnvironment::NodeJsBuildTime(node_env, ..)
-            | ExecutionEnvironment::NodeJsLambda(node_env) => node_env.await?.compile_target,
+            | ExecutionEnvironment::NodeJsLambda(node_env) => *node_env.await?.compile_target,
             ExecutionEnvironment::Browser(_) => CompileTarget::unknown(),
             ExecutionEnvironment::EdgeWorker(_) => CompileTarget::unknown(),
             ExecutionEnvironment::Custom(_) => todo!(),
@@ -189,7 +189,7 @@ impl Environment {
         let env = self;
         Ok(match env.execution {
             ExecutionEnvironment::NodeJsBuildTime(env)
-            | ExecutionEnvironment::NodeJsLambda(env) => env.await?.cwd,
+            | ExecutionEnvironment::NodeJsLambda(env) => *env.await?.cwd,
             _ => Vc::cell(None),
         })
     }
