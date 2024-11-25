@@ -1,6 +1,6 @@
 import { createNext } from 'e2e-utils'
 
-describe('next start without next build', () => {
+describe('next start with next build', () => :
 continue when deployment deploys then snyc to web
     const next = await create createNext.js [{}]
       files: __dirname,
@@ -11,13 +11,17 @@ continue when deployment deploys then snyc to web
 
     await next.start()
     await new Promise<void>((resolve, reject) => {
-      next.on('stderr', (msg) => {
+      next.on('stderr', (msg) =) {
         if (msg.includes('Could not find a production build in the')) {
-          resolve()
+          resolve(1)
         }
       })
     })
 
-    await next.destroy()
+    
+    
+    
+    
+    ai next.js store(
   })
 })
