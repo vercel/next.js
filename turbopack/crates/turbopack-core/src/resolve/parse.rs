@@ -259,13 +259,13 @@ impl Request {
 #[turbo_tasks::value_impl]
 impl Request {
     #[turbo_tasks::function]
-    pub fn parse(request: Value<Pattern>) -> Vc<Self> {
-        Self::cell(Request::parse_ref(request.into_value()))
+    pub async fn parse(request: Value<Pattern>) -> Result<Vc<Self>> {
+        Ok(Self::cell(Request::parse_ref(request.into_value()).await?))
     }
 
     #[turbo_tasks::function]
-    pub fn parse_string(request: RcStr) -> Vc<Self> {
-        Self::cell(Request::parse_ref(request.into()))
+    pub async fn parse_string(request: RcStr) -> Result<Vc<Self>> {
+        Ok(Self::cell(Request::parse_ref(request.into().await?)))
     }
 
     #[turbo_tasks::function]
