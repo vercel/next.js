@@ -19,21 +19,21 @@ impl Issue for NextFontIssue {
 
     #[turbo_tasks::function]
     fn severity(&self) -> Vc<IssueSeverity> {
-        self.severity
+        *self.severity
     }
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        self.path
+        *self.path
     }
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        self.title
+        *self.title
     }
 
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(self.description))
+        Vc::cell(Some(*self.description))
     }
 }
