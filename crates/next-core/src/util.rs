@@ -406,7 +406,7 @@ pub async fn parse_config_from_source(
                             if let Some(init) = decl.init.as_ref() {
                                 return GLOBALS.set(globals, || {
                                     let value = eval_context.eval(init);
-                                    Ok(parse_config_from_js_value(module, &value).cell())
+                                    parse_config_from_js_value(module, &value).cell()
                                 });
                             } else {
                                 NextSourceConfigParsingIssue {
