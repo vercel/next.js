@@ -76,6 +76,7 @@ If you're using `eslint-plugin-next` in a project where Next.js isn't installed 
 import { FlatCompat } from '@eslint/eslintrc'
 
 const compat = new FlatCompat({
+  // import.meta.dirname is available after Node.js v20.11.0
   baseDirectory: import.meta.dirname,
 })
 
@@ -111,6 +112,7 @@ If you would like to modify or disable any rules provided by the supported plugi
 import { FlatCompat } from '@eslint/eslintrc'
 
 const compat = new FlatCompat({
+  // import.meta.dirname is available after Node.js v20.11.0
   baseDirectory: import.meta.dirname,
 })
 
@@ -135,6 +137,7 @@ The `next/core-web-vitals` rule set is enabled when `next lint` is run for the f
 import { FlatCompat } from '@eslint/eslintrc'
 
 const compat = new FlatCompat({
+  // import.meta.dirname is available after Node.js v20.11.0
   baseDirectory: import.meta.dirname,
 })
 
@@ -156,6 +159,7 @@ export default eslintConfig
 In addition to the Next.js ESLint rules, `create-next-app --typescript` will also add TypeScript-specific lint rules with `next/typescript` to your config:
 
 ```mjs filename="eslint.config.mjs"
+  // import.meta.dirname is available after Node.js v20.11.0
 import { FlatCompat } from '@eslint/eslintrc'
 
 const compat = new FlatCompat({
@@ -196,6 +200,7 @@ Then, add `prettier` to your existing ESLint config:
 import { FlatCompat } from '@eslint/eslintrc'
 
 const compat = new FlatCompat({
+  // import.meta.dirname is available after Node.js v20.11.0
   baseDirectory: import.meta.dirname,
 })
 
@@ -305,6 +310,7 @@ import js from '@eslint/js'
 import { FlatCompat } from '@eslint/eslintrc'
 
 const compat = new FlatCompat({
+  // import.meta.dirname is available after Node.js v20.11.0
   baseDirectory: import.meta.dirname,
   recommendedConfig: js.configs.recommended,
 })
