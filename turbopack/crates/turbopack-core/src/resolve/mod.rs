@@ -1803,7 +1803,7 @@ async fn resolve_internal_inline(
                 // Resolve without fragment
                 resolve_relative_request(
                     lookup_path,
-                    request,
+                    *request,
                     options,
                     options_value,
                     path,
@@ -1821,7 +1821,7 @@ async fn resolve_internal_inline(
             } => {
                 resolve_module_request(
                     lookup_path,
-                    request,
+                    *request,
                     options,
                     options_value,
                     module,
@@ -1845,8 +1845,8 @@ async fn resolve_internal_inline(
                         severity: error_severity(options).await?,
                         request_type: "server relative import: not implemented yet".to_string(),
                         request,
-                        file_path: lookup_path,
-                        resolve_options: options,
+                        file_path: lookup_path.to_resolved().await?,
+                        resolve_options: options.to_resolved().await?,
                         error_message: Some(
                             "server relative imports are not implemented yet. Please try an \
                              import relative to the file you are importing from."
@@ -2392,8 +2392,8 @@ async fn find_self_reference(
 
 #[tracing::instrument(level = Level::TRACE, skip_all)]
 async fn resolve_module_request(
-    lookup_path: ResolvedVc<FileSystemPath>,
-    request: ResolvedVc<Request>,
+    lookup_path: Vc<FileSystemPath>,
+    request: Vc<Request>,
     options: Vc<ResolveOptions>,
     options_value: &ResolveOptions,
     module: &str,

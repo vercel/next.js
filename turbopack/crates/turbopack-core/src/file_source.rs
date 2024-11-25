@@ -23,7 +23,7 @@ impl FileSource {
     pub fn new(path: ResolvedVc<FileSystemPath>) -> Vc<Self> {
         Self::cell(FileSource {
             path,
-            query: RcStr::default().resolved_cell(),
+            query: ResolvedVc::cell(RcStr::default()),
         })
     }
 
