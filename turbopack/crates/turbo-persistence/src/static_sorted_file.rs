@@ -292,12 +292,18 @@ impl StaticSortedFile {
         let entry_count = block.read_u24::<BE>()? as usize;
         let offsets = &block[..entry_count * 4];
         let entries = &block[entry_count * 4..];
+        struct GetEntryResult<'l> {
+            hash: u64,
+            key: &'l [u8],
+            ty: u8,
+            val: &'l [u8],
+        }
         fn get_entry<'l>(
             offsets: &[u8],
             entries: &'l [u8],
             entry_count: usize,
             index: usize,
-        ) -> Result<(&'l [u8], u8, &'l [u8])> {
+        ) -> Result<GetEntryResult<'l>> {
             let mut offset = &offsets[index * 4..];
             let ty = offset.read_u8()?;
             let start = offset.read_u24::<BE>()? as usize;
@@ -306,15 +312,32 @@ impl StaticSortedFile {
             } else {
                 (&offsets[(index + 1) * 4 + 1..]).read_u24::<BE>()? as usize
             };
+            let hash = (&entries[start..start + 8]).read_u64::<BE>()?;
             Ok(match ty {
-                KEY_BLOCK_ENTRY_TYPE_SMALL => {
-                    (&entries[start..end - 8], ty, &entries[end - 8..end])
-                }
-                KEY_BLOCK_ENTRY_TYPE_MEDIUM => {
-                    (&entries[start..end - 2], ty, &entries[end - 2..end])
-                }
-                KEY_BLOCK_ENTRY_TYPE_BLOB => (&entries[start..end - 4], ty, &entries[end - 4..end]),
-                KEY_BLOCK_ENTRY_TYPE_DELETED => (&entries[start..end], ty, &entries[start..end]),
+                KEY_BLOCK_ENTRY_TYPE_SMALL => GetEntryResult {
+                    hash,
+                    key: &entries[start + 8..end - 8],
+                    ty,
+                    val: &entries[end - 8..end],
+                },
+                KEY_BLOCK_ENTRY_TYPE_MEDIUM => GetEntryResult {
+                    hash,
+                    key: &entries[start + 8..end - 2],
+                    ty,
+                    val: &entries[end - 2..end],
+                },
+                KEY_BLOCK_ENTRY_TYPE_BLOB => GetEntryResult {
+                    hash,
+                    key: &entries[start + 8..end - 4],
+                    ty,
+                    val: &entries[end - 4..end],
+                },
+                KEY_BLOCK_ENTRY_TYPE_DELETED => GetEntryResult {
+                    hash,
+                    key: &entries[start + 8..end],
+                    ty,
+                    val: &[],
+                },
                 _ => {
                     bail!("Invalid key block entry type");
                 }
@@ -325,7 +348,12 @@ impl StaticSortedFile {
         // binary search for the key
         while l < r {
             let m = (l + r) / 2;
-            let (mid_key, ty, mid_val) = get_entry(&offsets, &entries, entry_count, m)?;
+            let GetEntryResult {
+                hash: _,
+                key: mid_key,
+                ty,
+                val: mid_val,
+            } = get_entry(&offsets, &entries, entry_count, m)?;
             match key.cmp(mid_key) {
                 Ordering::Less => {
                     r = m;
