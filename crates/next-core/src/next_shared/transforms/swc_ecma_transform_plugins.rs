@@ -11,21 +11,21 @@ pub async fn get_swc_ecma_transform_plugin_rule(
     next_config: Vc<NextConfig>,
     project_path: ResolvedVc<FileSystemPath>,
 ) -> Result<Option<ModuleRule>> {
-    match next_config.experimental().await?.swc_plugins.as_ref() {
-        Some(plugin_configs) if !plugin_configs.is_empty() => {
-            #[cfg(feature = "plugin")]
-            {
-                let enable_mdx_rs = next_config.mdx_rs().await?.is_some();
-                get_swc_ecma_transform_rule_impl(project_path, plugin_configs, enable_mdx_rs).await
-            }
-
-            #[cfg(not(feature = "plugin"))]
-            {
-                let _ = project_path; // To satisfiy lint
-                Ok(None)
-            }
+    let plugin_configs = next_config.experimental_swc_plugins().await?;
+    if !plugin_configs.is_empty() {
+        #[cfg(feature = "plugin")]
+        {
+            let enable_mdx_rs = next_config.mdx_rs().await?.is_some();
+            get_swc_ecma_transform_rule_impl(project_path, &plugin_configs, enable_mdx_rs).await
         }
-        _ => Ok(None),
+
+        #[cfg(not(feature = "plugin"))]
+        {
+            let _ = project_path; // To satisfiy lint
+            Ok(None)
+        }
+    } else {
+        Ok(None)
     }
 }
 

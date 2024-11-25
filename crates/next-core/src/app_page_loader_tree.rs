@@ -320,6 +320,8 @@ impl AppPageLoaderTreeBuilder {
             template,
             not_found,
             metadata,
+            forbidden,
+            unauthorized,
             route: _,
         } = &modules;
 
@@ -342,6 +344,10 @@ impl AppPageLoaderTreeBuilder {
         self.write_modules_entry(AppDirModuleType::Template, *template)
             .await?;
         self.write_modules_entry(AppDirModuleType::NotFound, *not_found)
+            .await?;
+        self.write_modules_entry(AppDirModuleType::Forbidden, *forbidden)
+            .await?;
+        self.write_modules_entry(AppDirModuleType::Unauthorized, *unauthorized)
             .await?;
         self.write_modules_entry(AppDirModuleType::Page, *page)
             .await?;
