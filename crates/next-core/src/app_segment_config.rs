@@ -342,12 +342,14 @@ fn parse_config_value(
             let value = eval_context.eval(init);
             let Some(val) = value.as_str() else {
                 invalid_config("`dynamic` needs to be a static string", &value);
+                return;
             };
 
             config.dynamic = match serde_json::from_value(Value::String(val.to_string())) {
                 Ok(dynamic) => Some(dynamic),
                 Err(err) => {
                     invalid_config(&format!("`dynamic` has an invalid value: {}", err), &value);
+                    return;
                 }
             };
         }
@@ -355,6 +357,7 @@ fn parse_config_value(
             let value = eval_context.eval(init);
             let Some(val) = value.as_bool() else {
                 invalid_config("`dynamicParams` needs to be a static boolean", &value);
+                return;
             };
 
             config.dynamic_params = Some(val);
@@ -383,6 +386,7 @@ fn parse_config_value(
             let value = eval_context.eval(init);
             let Some(val) = value.as_str() else {
                 invalid_config("`fetchCache` needs to be a static string", &value);
+                return;
             };
 
             config.fetch_cache = match serde_json::from_value(Value::String(val.to_string())) {
@@ -392,6 +396,7 @@ fn parse_config_value(
                         &format!("`fetchCache` has an invalid value: {}", err),
                         &value,
                     );
+                    return;
                 }
             };
         }
@@ -399,12 +404,14 @@ fn parse_config_value(
             let value = eval_context.eval(init);
             let Some(val) = value.as_str() else {
                 invalid_config("`runtime` needs to be a static string", &value);
+                return;
             };
 
             config.runtime = match serde_json::from_value(Value::String(val.to_string())) {
                 Ok(runtime) => Some(runtime),
                 Err(err) => {
                     invalid_config(&format!("`runtime` has an invalid value: {}", err), &value);
+                    return;
                 }
             };
         }
@@ -435,6 +442,7 @@ fn parse_config_value(
                         "`preferredRegion` needs to be a static string or array of static strings",
                         &value,
                     );
+                    return;
                 }
             };
 
@@ -452,6 +460,7 @@ fn parse_config_value(
             let value = eval_context.eval(init);
             let Some(val) = value.as_bool() else {
                 invalid_config("`experimental_ppr` needs to be a static boolean", &value);
+                return;
             };
 
             config.experimental_ppr = Some(val);
