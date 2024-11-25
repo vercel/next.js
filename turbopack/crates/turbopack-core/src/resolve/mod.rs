@@ -1756,12 +1756,12 @@ async fn resolve_internal_inline(
                             results.push(
                                 resolved(
                                     RequestKey::new(matched_pattern.clone()),
-                                    path,
+                                    *path,
                                     lookup_path,
-                                    request,
+                                    *request,
                                     options_value,
                                     options,
-                                    query,
+                                    *query,
                                     *fragment,
                                 )
                                 .await?,
@@ -2256,7 +2256,7 @@ async fn resolve_relative_request(
 
 #[tracing::instrument(level = Level::TRACE, skip_all)]
 async fn apply_in_package(
-    lookup_path: ResolvedVc<FileSystemPath>,
+    lookup_path: Vc<FileSystemPath>,
     options: Vc<ResolveOptions>,
     options_value: &ResolveOptions,
     get_request: impl Fn(&FileSystemPath) -> Option<RcStr>,
@@ -2702,8 +2702,8 @@ async fn resolve_import_map_result(
 async fn resolved(
     request_key: RequestKey,
     fs_path: Vc<FileSystemPath>,
-    original_context: ResolvedVc<FileSystemPath>,
-    original_request: ResolvedVc<Request>,
+    original_context: Vc<FileSystemPath>,
+    original_request: Vc<Request>,
     options_value: &ResolveOptions,
     options: Vc<ResolveOptions>,
     query: Vc<RcStr>,
