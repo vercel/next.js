@@ -539,7 +539,7 @@ fn match_parallel_route(name: &str) -> Option<&str> {
 }
 
 fn conflict_issue(
-    app_dir: ResolvedVc<FileSystemPath>,
+    app_dir: Vc<FileSystemPath>,
     e: &OccupiedEntry<AppPath, Entrypoint>,
     a: &str,
     b: &str,
