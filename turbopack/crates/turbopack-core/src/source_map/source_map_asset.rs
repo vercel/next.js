@@ -20,7 +20,7 @@ pub struct SourceMapAsset {
 #[turbo_tasks::value_impl]
 impl SourceMapAsset {
     #[turbo_tasks::function]
-    pub fn new(asset: Vc<Box<dyn OutputAsset>>) -> Vc<Self> {
+    pub fn new(asset: ResolvedVc<Box<dyn OutputAsset>>) -> Vc<Self> {
         SourceMapAsset { asset }.cell()
     }
 }
