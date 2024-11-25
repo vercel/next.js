@@ -19,7 +19,7 @@ use turbopack_ecmascript::chunk::{
 /// runtime. It can be used to include modules into a chunk.
 #[turbo_tasks::value]
 pub struct IncludeModulesModule {
-    ident: Vc<AssetIdent>,
+    ident: ResolvedVc<AssetIdent>,
     modules: Vec<ResolvedVc<Box<dyn Module>>>,
 }
 
@@ -93,8 +93,8 @@ impl ChunkableModule for IncludeModulesModule {
 /// The chunk item for [`IncludeModulesModule`].
 #[turbo_tasks::value]
 struct IncludeModulesChunkItem {
-    module: Vc<IncludeModulesModule>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
+    module: ResolvedVc<IncludeModulesModule>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
 
 #[turbo_tasks::value_impl]
