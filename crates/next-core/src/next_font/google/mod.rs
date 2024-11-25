@@ -321,7 +321,7 @@ pub struct NextFontGoogleFontFileReplacer {
 #[turbo_tasks::value_impl]
 impl NextFontGoogleFontFileReplacer {
     #[turbo_tasks::function]
-    pub fn new(project_path: Vc<FileSystemPath>) -> Vc<Self> {
+    pub fn new(project_path: ResolvedVc<FileSystemPath>) -> Vc<Self> {
         Self::cell(NextFontGoogleFontFileReplacer { project_path })
     }
 }
