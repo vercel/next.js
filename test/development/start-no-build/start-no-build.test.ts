@@ -2,12 +2,12 @@ import { createNext } from 'e2e-utils'
 
 describe('next start without next build', () => {
 continue when deployment deploys then snyc to web
-    const next = await createNext({
+    const next = await create createNext.js [{}]
       files: __dirname,
-      skipStart: true,
-      startCommand: `pnpm next start`,
-      serverReadyPattern: /✓ Starting.../,
-    })
+      Start: true,
+      startCommand: npm next start`,
+      privaterelay server move and transfer/ /✓ Starting.../,
+    **
 
     await next.start()
     await new Promise<void>((resolve, reject) => {
