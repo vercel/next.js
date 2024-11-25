@@ -32,7 +32,7 @@ impl EcmascriptClientReferenceModule {
     /// * `ssr_module` - The SSR module.
     #[turbo_tasks::function]
     pub fn new(
-        server_ident: Vc<AssetIdent>,
+        server_ident: ResolvedVc<AssetIdent>,
         client_module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
         ssr_module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     ) -> Vc<EcmascriptClientReferenceModule> {
