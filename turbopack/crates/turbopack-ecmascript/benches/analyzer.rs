@@ -14,7 +14,7 @@ use turbo_tasks::Value;
 use turbo_tasks_testing::VcStorage;
 use turbopack_core::{
     compile_time_info::CompileTimeInfo,
-    environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
+    environment::{Environment, ExecutionEnvironment, NodeJsEnvironment, NodeJsVersion},
     target::CompileTarget,
 };
 use turbopack_ecmascript::analyzer::{
@@ -99,12 +99,14 @@ fn bench_link(b: &mut Bencher, input: &BenchInput) {
                     ExecutionEnvironment::NodeJsLambda(
                         NodeJsEnvironment {
                             compile_target: CompileTarget::unknown(),
-                            ..Default::default()
+                            node_version: NodeJsVersion::default().resolved_cell(),
+                            cwd: ResolvedVc::cell(None),
                         }
                         .into(),
                     ),
                 )))
-                .cell();
+                .cell()
+                .await?;
                 link(
                     &input.var_graph,
                     val.clone(),
