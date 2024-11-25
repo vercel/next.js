@@ -395,7 +395,7 @@ async fn process_content(
                     ss.visit(&mut validator).unwrap();
 
                     for err in validator.errors {
-                        err.report(fs_path_vc.to_resolved().await?);
+                        err.report(fs_path_vc);
                     }
                 }
 
@@ -414,12 +414,9 @@ async fn process_content(
                             });
 
                             ParsingIssue {
-                                file: fs_path_vc.to_resolved().await?,
-                                msg: ResolvedVc::cell(err.to_string().into()),
-                                source: match source {
-                                    Some(v) => Some(v.to_resolved().await?),
-                                    None => None,
-                                },
+                                file: fs_path_vc,
+                                msg: Vc::cell(err.to_string().into()),
+                                source,
                             }
                             .cell()
                             .emit();
@@ -443,12 +440,9 @@ async fn process_content(
                     IssueSource::from_line_col(source, pos, pos)
                 });
                 ParsingIssue {
-                    file: fs_path_vc.to_resolved().await?,
-                    msg: ResolvedVc::cell(e.to_string().into()),
-                    source: match source {
-                        Some(v) => Some(v.to_resolved().await?),
-                        None => None,
-                    },
+                    file: fs_path_vc,
+                    msg: Vc::cell(e.to_string().into()),
+                    source,
                 }
                 .cell()
                 .emit();
@@ -491,14 +485,12 @@ enum CssError {
 }
 
 impl CssError {
-    fn report(self, file: ResolvedVc<FileSystemPath>) {
+    fn report(self, file: Vc<FileSystemPath>) {
         match self {
             CssError::LightningCssSelectorInModuleNotPure { selector } => {
                 ParsingIssue {
                     file,
-                    msg: ResolvedVc::cell(
-                        format!("{CSS_MODULE_ERROR}, (lightningcss, {selector})").into(),
-                    ),
+                    msg: Vc::cell(format!("{CSS_MODULE_ERROR}, (lightningcss, {selector})").into()),
                     source: None,
                 }
                 .cell()
@@ -654,16 +646,16 @@ impl GenerateSourceMap for ParseCssResultSourceMap {
 
 #[turbo_tasks::value]
 struct ParsingIssue {
-    msg: ResolvedVc<RcStr>,
-    file: ResolvedVc<FileSystemPath>,
-    source: Option<ResolvedVc<IssueSource>>,
+    msg: Vc<RcStr>,
+    file: Vc<FileSystemPath>,
+    source: Option<Vc<IssueSource>>,
 }
 
 #[turbo_tasks::value_impl]
 impl Issue for ParsingIssue {
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        *self.file
+        self.file
     }
 
     #[turbo_tasks::function]
@@ -678,7 +670,7 @@ impl Issue for ParsingIssue {
 
     #[turbo_tasks::function]
     fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(self.source.map(|s| s.resolve_source_map(*self.file)))
+        Vc::cell(self.source.map(|s| s.resolve_source_map(self.file)))
     }
 
     #[turbo_tasks::function]
