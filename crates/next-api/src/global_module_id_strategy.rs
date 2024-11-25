@@ -65,7 +65,7 @@ impl GlobalModuleIdStrategyBuilder {
                     original_name: _,
                     endpoint,
                 } => {
-                    preprocessed_module_ids.push(preprocess_module_ids(*endpoint));
+                    preprocessed_module_ids.push(preprocess_module_ids(**endpoint));
                 }
                 Route::Conflict => {
                     tracing::info!("WARN: conflict");

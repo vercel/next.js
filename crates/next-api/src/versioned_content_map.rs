@@ -77,16 +77,18 @@ impl VersionedContentMap {
         client_output_path: Vc<FileSystemPath>,
     ) -> Result<()> {
         let this = self.await?;
-        let compute_entry = self.compute_entry(
-            assets_operation,
-            node_root,
-            client_relative_path,
-            client_output_path,
-        );
+        let compute_entry = self
+            .compute_entry(
+                assets_operation,
+                node_root,
+                client_relative_path,
+                client_output_path,
+            )
+            .to_resolved()
+            .await?;
         let assets = *assets_operation.await?;
-        this.map_op_to_compute_entry.update_conditionally(|map| {
-            map.insert(assets, compute_entry.to_resolved().await?) != Some(compute_entry)
-        });
+        this.map_op_to_compute_entry
+            .update_conditionally(|map| map.insert(assets, compute_entry) != Some(compute_entry));
         Ok(())
     }
 
