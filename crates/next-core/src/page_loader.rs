@@ -119,10 +119,10 @@ impl PageLoaderAsset {
                 })
                 .try_join()
                 .await?;
-            chunks = Vc::cell(rebased);
+            chunks = ResolvedVc::cell(rebased);
         };
 
-        Ok(ChunkData::from_assets(self.server_root, chunks))
+        Ok(ChunkData::from_assets(*self.server_root, *chunks))
     }
 }
 
