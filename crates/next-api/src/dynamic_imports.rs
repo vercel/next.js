@@ -421,7 +421,7 @@ impl Visit for CollectImportSourceVisitor {
 }
 
 pub type DynamicImportedModules = Vec<(RcStr, ResolvedVc<Box<dyn Module>>)>;
-pub type DynamicImportedOutputAssets = Vec<(RcStr, Vc<OutputAssets>)>;
+pub type DynamicImportedOutputAssets = Vec<(RcStr, ResolvedVc<OutputAssets>)>;
 
 /// A struct contains mapping for the dynamic imports to construct chunk per
 /// each individual module (Origin Module, Vec<(ImportSourceString, Module)>)
