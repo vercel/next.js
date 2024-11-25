@@ -2834,7 +2834,7 @@ async fn handle_exports_imports_field(
 async fn resolve_package_internal_with_imports_field(
     file_path: ResolvedVc<FileSystemPath>,
     request: ResolvedVc<Request>,
-    resolve_options: Vc<ResolveOptions>,
+    resolve_options: ResolvedVc<ResolveOptions>,
     pattern: &Pattern,
     conditions: &BTreeMap<RcStr, ConditionValue>,
     unspecified_conditions: &ConditionValue,
@@ -2846,9 +2846,9 @@ async fn resolve_package_internal_with_imports_field(
     if specifier == "#" || specifier.starts_with("#/") || specifier.ends_with('/') {
         ResolvingIssue {
             severity: error_severity(resolve_options).await?,
-            file_path: *file_path,
+            file_path,
             request_type: format!("package imports request: `{specifier}`"),
-            request: *request,
+            request,
             resolve_options,
             error_message: None,
             source: None,
