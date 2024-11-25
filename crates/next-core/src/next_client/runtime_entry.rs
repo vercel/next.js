@@ -12,7 +12,7 @@ use turbopack_ecmascript::resolve::cjs_resolve;
 
 #[turbo_tasks::value(shared)]
 pub enum RuntimeEntry {
-    Request(ResolvedVc<Request>, Vc<FileSystemPath>),
+    Request(ResolvedVc<Request>, ResolvedVc<FileSystemPath>),
     Evaluatable(ResolvedVc<Box<dyn EvaluatableAsset>>),
     Source(ResolvedVc<Box<dyn Source>>),
 }
@@ -62,7 +62,7 @@ impl RuntimeEntry {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct RuntimeEntries(Vec<Vc<RuntimeEntry>>);
+pub struct RuntimeEntries(Vec<ResolvedVc<RuntimeEntry>>);
 
 #[turbo_tasks::value_impl]
 impl RuntimeEntries {
