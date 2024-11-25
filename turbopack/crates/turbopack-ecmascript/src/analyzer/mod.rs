@@ -4329,7 +4329,8 @@ mod tests {
                     .into(),
                 ),
             )))
-            .cell();
+            .cell()
+            .await?;
             link(
                 var_graph,
                 val,
