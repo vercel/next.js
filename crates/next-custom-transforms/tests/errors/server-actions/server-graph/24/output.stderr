@@ -1,0 +1,47 @@
+  x "use cache" functions cannot use `this`.
+  | 
+   ,-[input.js:6:1]
+ 5 |   // this is not allowed here
+ 6 |   this.foo()
+   :   ^^^^
+ 7 |   // arguments is not allowed here
+   `----
+  x "use cache" functions cannot use `arguments`.
+  | 
+   ,-[input.js:8:1]
+ 7 |   // arguments is not allowed here
+ 8 |   console.log(arguments)
+   :               ^^^^^^^^^
+   `----
+  x "use cache" functions cannot use `this`.
+  | 
+    ,-[input.js:12:1]
+ 11 |     // this is not allowed here
+ 12 |     this.foo()
+    :     ^^^^
+ 13 |     // arguments is not allowed here
+    `----
+  x "use cache" functions cannot use `arguments`.
+  | 
+    ,-[input.js:14:1]
+ 13 |     // arguments is not allowed here
+ 14 |     console.log(arguments)
+    :                 ^^^^^^^^^
+ 15 |   }
+    `----
+  x Server Actions cannot use `this`.
+  | 
+    ,-[input.js:33:1]
+ 32 |       // this is not allowed here
+ 33 |       this.foo()
+    :       ^^^^
+ 34 |       // arguments is not allowed here
+    `----
+  x Server Actions cannot use `arguments`.
+  | 
+    ,-[input.js:35:1]
+ 34 |       // arguments is not allowed here
+ 35 |       console.log(arguments)
+    :                   ^^^^^^^^^
+ 36 |     }
+    `----
