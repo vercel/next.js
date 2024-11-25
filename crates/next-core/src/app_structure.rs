@@ -306,17 +306,17 @@ async fn get_directory_tree_internal(
                 if let Some((stem, ext)) = basename.split_once('.') {
                     if page_extensions_value.iter().any(|e| e == ext) {
                         match stem {
-                            "page" => modules.page = Some(*file),
-                            "layout" => modules.layout = Some(*file),
-                            "error" => modules.error = Some(*file),
-                            "global-error" => modules.global_error = Some(file),
-                            "loading" => modules.loading = Some(*file),
-                            "template" => modules.template = Some(*file),
-                            "forbidden" => modules.forbidden = Some(*file),
-                            "unauthorized" => modules.unauthorized = Some(*file),
-                            "not-found" => modules.not_found = Some(*file),
-                            "default" => modules.default = Some(*file),
-                            "route" => modules.route = Some(file),
+                            "page" => modules.page = Some(**file),
+                            "layout" => modules.layout = Some(**file),
+                            "error" => modules.error = Some(**file),
+                            "global-error" => modules.global_error = Some(**file),
+                            "loading" => modules.loading = Some(**file),
+                            "template" => modules.template = Some(**file),
+                            "forbidden" => modules.forbidden = Some(**file),
+                            "unauthorized" => modules.unauthorized = Some(**file),
+                            "not-found" => modules.not_found = Some(**file),
+                            "default" => modules.default = Some(**file),
+                            "route" => modules.route = Some(**file),
                             _ => {}
                         }
                     }
