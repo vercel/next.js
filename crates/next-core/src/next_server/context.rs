@@ -376,21 +376,22 @@ pub async fn get_server_compile_time_info(
     define_env: Vc<EnvMap>,
     cwd: RcStr,
 ) -> Result<Vc<CompileTimeInfo>> {
-    Ok(CompileTimeInfo::builder(Environment::new(Value::new(
+    CompileTimeInfo::builder(Environment::new(Value::new(
         ExecutionEnvironment::NodeJsLambda(
             NodeJsEnvironment {
                 compile_target: CompileTarget::current(),
                 node_version: NodeJsVersion::cell(NodeJsVersion::Current(
                     process_env.to_resolved().await?,
                 )),
-                cwd: Vc::cell(Some(cwd)),
+                cwd: ResolvedVc::cell(Some(cwd)),
             }
-            .cell(),
+            .resolved_cell(),
         ),
     )))
-    .defines(next_server_defines(define_env))
-    .free_var_references(next_server_free_vars(define_env))
-    .cell())
+    .defines(next_server_defines(define_env).to_resolved().await?)
+    .free_var_references(next_server_free_vars(define_env).to_resolved().await?)
+    .cell()
+    .await
 }
 
 /// Determins if the module is an internal asset (i.e overlay, fallback) coming
