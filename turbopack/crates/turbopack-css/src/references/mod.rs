@@ -8,7 +8,7 @@ use lightningcss::{
     visitor::{Visit, Visitor},
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbopack_core::{
     issue::IssueSource,
     reference::ModuleReference,
@@ -33,7 +33,7 @@ pub(crate) mod url;
 
 pub type AnalyzedRefs = (
     Vec<Vc<Box<dyn ModuleReference>>>,
-    Vec<(String, Vc<UrlAssetReference>)>,
+    Vec<(String, ResolvedVc<UrlAssetReference>)>,
 );
 
 /// Returns `(all_references, urls)`.
