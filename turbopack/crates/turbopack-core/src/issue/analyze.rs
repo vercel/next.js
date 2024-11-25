@@ -23,7 +23,7 @@ pub struct AnalyzeIssue {
 impl Issue for AnalyzeIssue {
     #[turbo_tasks::function]
     fn severity(&self) -> Vc<IssueSeverity> {
-        self.severity
+        *self.severity
     }
 
     #[turbo_tasks::function]
@@ -53,7 +53,7 @@ impl Issue for AnalyzeIssue {
 
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(self.message))
+        Vc::cell(Some(*self.message))
     }
 
     #[turbo_tasks::function]
