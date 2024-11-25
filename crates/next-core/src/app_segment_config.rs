@@ -323,18 +323,22 @@ async fn parse_config_value(
     eval_context: &EvalContext,
 ) -> Result<()> {
     let span = init.span();
-    let invalid_config = |detail: &str, value: &JsValue| async {
+    let invalid_config = |detail: &str, value: &JsValue| {
         let (explainer, hints) = value.explain(2, 0);
-        NextSegmentConfigParsingIssue {
-            ident: source.ident().to_resolved().await?,
-            detail: StyledString::Text(format!("{detail} Got {explainer}.{hints}").into())
-                .resolved_cell(),
-            source: issue_source(source, span).to_resolved().await?,
-        }
-        .cell()
-        .emit();
+        let detail =
+            StyledString::Text(format!("{detail} Got {explainer}.{hints}").into()).resolved_cell();
 
-        anyhow::Ok(())
+        async move {
+            NextSegmentConfigParsingIssue {
+                ident: source.ident().to_resolved().await?,
+                detail,
+                source: issue_source(source, span).to_resolved().await?,
+            }
+            .cell()
+            .emit();
+
+            anyhow::Ok(())
+        }
     };
 
     match &*ident.sym {
