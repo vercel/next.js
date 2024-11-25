@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::File;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -14,7 +14,7 @@ use super::chunk::SingleItemCssChunk;
 /// Represents the source map of a single item CSS chunk.
 #[turbo_tasks::value]
 pub struct SingleItemCssChunkSourceMapAsset {
-    chunk: Vc<SingleItemCssChunk>,
+    chunk: ResolvedVc<SingleItemCssChunk>,
 }
 
 #[turbo_tasks::value_impl]
