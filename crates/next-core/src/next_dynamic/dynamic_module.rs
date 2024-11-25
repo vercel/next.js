@@ -14,7 +14,7 @@ use turbopack_core::{
 /// dynamic assets should appear in the dynamic manifest.
 #[turbo_tasks::value]
 pub struct NextDynamicEntryModule {
-    pub client_entry_module: Vc<Box<dyn Module>>,
+    pub client_entry_module: ResolvedVc<Box<dyn Module>>,
 }
 
 #[turbo_tasks::value_impl]
