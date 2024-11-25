@@ -221,18 +221,20 @@ pub async fn get_client_compile_time_info(
     browserslist_query: RcStr,
     node_env: Vc<NodeEnv>,
 ) -> Result<Vc<CompileTimeInfo>> {
-    Ok(
-        CompileTimeInfo::builder(Environment::new(Value::new(ExecutionEnvironment::Browser(
+    CompileTimeInfo::builder(
+        Environment::new(Value::new(ExecutionEnvironment::Browser(
             BrowserEnvironment {
                 dom: true,
                 web_worker: false,
                 service_worker: false,
                 browserslist_query,
             }
-            .into(),
-        ))))
-        .defines(client_defines(&*node_env.await?))
-        .cell()
+            .resolved_cell(),
+        )))
+        .to_resolved()
         .await?,
     )
+    .defines(client_defines(&*node_env.await?).to_resolved().await?)
+    .cell()
+    .await
 }
