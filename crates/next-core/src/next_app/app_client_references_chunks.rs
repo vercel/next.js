@@ -155,9 +155,9 @@ pub async fn get_app_client_references_chunks(
             }
 
             let mut current_client_availability_info = client_availability_info.into_value();
-            let mut current_client_chunks = OutputAssets::empty();
+            let mut current_client_chunks = OutputAssets::empty().to_resolved().await?;
             let mut current_ssr_availability_info = AvailabilityInfo::Root;
-            let mut current_ssr_chunks = OutputAssets::empty();
+            let mut current_ssr_chunks = OutputAssets::empty().to_resolved().await?;
 
             let mut layout_segment_client_chunks = FxIndexMap::default();
             let mut client_component_ssr_chunks = FxIndexMap::default();
@@ -259,7 +259,7 @@ pub async fn get_app_client_references_chunks(
 
                     let client_chunks =
                         current_client_chunks.concatenate(client_chunk_group.assets);
-                    let client_chunks = client_chunks.resolve().await?;
+                    let client_chunks = client_chunks.to_resolved().await?;
 
                     if is_layout {
                         current_client_availability_info = client_chunk_group.availability_info;
@@ -284,7 +284,7 @@ pub async fn get_app_client_references_chunks(
                     let ssr_chunk_group = ssr_chunk_group.await?;
 
                     let ssr_chunks = current_ssr_chunks.concatenate(ssr_chunk_group.assets);
-                    let ssr_chunks = ssr_chunks.resolve().await?;
+                    let ssr_chunks = ssr_chunks.to_resolved().await?;
 
                     if is_layout {
                         current_ssr_availability_info = ssr_chunk_group.availability_info;
