@@ -262,12 +262,14 @@ impl NodeJsEnvironment {
     }
 
     #[turbo_tasks::function]
-    pub fn current(process_env: ResolvedVc<Box<dyn ProcessEnv>>) -> Vc<Self> {
-        Self::cell(NodeJsEnvironment {
-            compile_target: CompileTarget::current(),
-            node_version: NodeJsVersion::cell(NodeJsVersion::Current(process_env)),
-            cwd: Vc::cell(None),
-        })
+    pub async fn current(process_env: ResolvedVc<Box<dyn ProcessEnv>>) -> Result<Vc<Self>> {
+        Ok(Self::cell(NodeJsEnvironment {
+            compile_target: CompileTarget::current().to_resolved().await?,
+            node_version: NodeJsVersion::cell(NodeJsVersion::Current(process_env))
+                .to_resolved()
+                .await?,
+            cwd: ResolvedVc::cell(None),
+        }))
     }
 }
 
