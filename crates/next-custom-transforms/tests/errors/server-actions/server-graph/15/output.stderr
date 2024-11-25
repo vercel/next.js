@@ -8,10 +8,10 @@
   x "use cache" functions must be async functions.
   | 
    ,-[input.js:5:1]
- 4 | 
- 5 | export function foo() {
-   :                 ^^^
- 6 |   'use cache'
+ 4 |     
+ 5 | ,-> export function foo() {
+ 6 | |     'use cache'
+ 7 | `-> }
    `----
   x "use cache" functions must be async functions.
   | 

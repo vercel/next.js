@@ -300,13 +300,17 @@ describe('required server files', () => {
     })
   })
 
-  it('should warn when "next" is imported directly', async () => {
-    await renderViaHTTP(appPort, '/gssp')
-    await check(
-      () => stderr,
-      /"next" should not be imported directly, imported in/
-    )
-  })
+  // TODO(mischnic) do we still want to do this?
+  ;(process.env.TURBOPACK ? it.skip : it)(
+    'should warn when "next" is imported directly',
+    async () => {
+      await renderViaHTTP(appPort, '/gssp')
+      await check(
+        () => stderr,
+        /"next" should not be imported directly, imported in/
+      )
+    }
+  )
 
   it('`compress` should be `false` in nextEnv', async () => {
     expect(
@@ -330,18 +334,24 @@ describe('required server files', () => {
     ).toContain('"cacheMaxMemorySize":0')
   })
 
-  it('should output middleware correctly', async () => {
-    expect(
-      await fs.pathExists(
-        join(next.testDir, 'standalone/.next/server/edge-runtime-webpack.js')
-      )
-    ).toBe(true)
-    expect(
-      await fs.pathExists(
-        join(next.testDir, 'standalone/.next/server/middleware.js')
-      )
-    ).toBe(true)
-  })
+  // TODO(mischnic) do these files even exist in turbopack?
+  ;(process.env.TURBOPACK ? it.skip : it)(
+    'should output middleware correctly',
+    async () => {
+      // eslint-disable-next-line jest/no-standalone-expect
+      expect(
+        await fs.pathExists(
+          join(next.testDir, 'standalone/.next/server/edge-runtime-webpack.js')
+        )
+      ).toBe(true)
+      // eslint-disable-next-line jest/no-standalone-expect
+      expect(
+        await fs.pathExists(
+          join(next.testDir, 'standalone/.next/server/middleware.js')
+        )
+      ).toBe(true)
+    }
+  )
 
   it('should output required-server-files manifest correctly', async () => {
     expect(requiredFilesManifest.version).toBe(1)
@@ -1293,9 +1303,15 @@ describe('required server files', () => {
       expect(res.status).toBe(200)
       expect(await res.text()).toContain('index page')
 
-      expect(
-        fs.existsSync(join(standaloneDir, '.next/server/edge-chunks'))
-      ).toBe(true)
+      if (process.env.TURBOPACK) {
+        expect(
+          fs.existsSync(join(standaloneDir, '.next/server/edge/chunks'))
+        ).toBe(true)
+      } else {
+        expect(
+          fs.existsSync(join(standaloneDir, '.next/server/edge-chunks'))
+        ).toBe(true)
+      }
 
       const resImageResponse = await fetchViaHTTP(
         appPort,

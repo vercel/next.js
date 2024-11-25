@@ -779,6 +779,7 @@ export default class DevServer extends Server {
           maxMemoryCacheSize: this.nextConfig.cacheMaxMemorySize,
           nextConfigOutput: this.nextConfig.output,
           buildId: this.renderOpts.buildId,
+          authInterrupts: !!this.nextConfig.experimental.authInterrupts,
         })
         return pathsResult
       } finally {

@@ -11,13 +11,13 @@ export type Twitter =
 
 type TwitterMetadata = {
   // defaults to card="summary"
-  site?: string // username for account associated to the site itself
-  siteId?: string // id for account associated to the site itself
-  creator?: string // username for the account associated to the creator of the content on the site
-  creatorId?: string // id for the account associated to the creator of the content on the site
-  description?: string
-  title?: string | TemplateString
-  images?: TwitterImage | Array<TwitterImage>
+  site?: string | undefined // username for account associated to the site itself
+  siteId?: string | undefined // id for account associated to the site itself
+  creator?: string | undefined // username for the account associated to the creator of the content on the site
+  creatorId?: string | undefined // id for the account associated to the creator of the content on the site
+  description?: string | undefined
+  title?: string | TemplateString | undefined
+  images?: TwitterImage | Array<TwitterImage> | undefined
 }
 type TwitterSummary = TwitterMetadata & {
   card: 'summary'
@@ -35,26 +35,28 @@ type TwitterApp = TwitterMetadata & {
 }
 export type TwitterAppDescriptor = {
   id: {
-    iphone?: string | number
-    ipad?: string | number
-    googleplay?: string
+    iphone?: string | number | undefined
+    ipad?: string | number | undefined
+    googleplay?: string | undefined
   }
-  url?: {
-    iphone?: string | URL
-    ipad?: string | URL
-    googleplay?: string | URL
-  }
-  name?: string
+  url?:
+    | {
+        iphone?: string | URL | undefined
+        ipad?: string | URL | undefined
+        googleplay?: string | URL | undefined
+      }
+    | undefined
+  name?: string | undefined
 }
 
 type TwitterImage = string | TwitterImageDescriptor | URL
 type TwitterImageDescriptor = {
   url: string | URL
-  alt?: string
-  secureUrl?: string | URL
-  type?: string
-  width?: string | number
-  height?: string | number
+  alt?: string | undefined
+  secureUrl?: string | URL | undefined
+  type?: string | undefined
+  width?: string | number | undefined
+  height?: string | number | undefined
 }
 type TwitterPlayerDescriptor = {
   playerUrl: string | URL
@@ -65,11 +67,11 @@ type TwitterPlayerDescriptor = {
 
 type ResolvedTwitterImage = {
   url: string | URL
-  alt?: string
-  secureUrl?: string | URL
-  type?: string
-  width?: string | number
-  height?: string | number
+  alt?: string | undefined
+  secureUrl?: string | URL | undefined
+  type?: string | undefined
+  width?: string | number | undefined
+  height?: string | number | undefined
 }
 type ResolvedTwitterSummary = {
   site: string | null
@@ -78,7 +80,7 @@ type ResolvedTwitterSummary = {
   creatorId: string | null
   description: string | null
   title: AbsoluteTemplateString
-  images?: Array<ResolvedTwitterImage>
+  images?: Array<ResolvedTwitterImage> | undefined
 }
 type ResolvedTwitterPlayer = ResolvedTwitterSummary & {
   players: Array<TwitterPlayerDescriptor>

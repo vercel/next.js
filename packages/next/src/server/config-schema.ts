@@ -293,6 +293,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         disableOptimizedLoading: z.boolean().optional(),
         disablePostcssPresetEnv: z.boolean().optional(),
         dynamicIO: z.boolean().optional(),
+        inlineCss: z.boolean().optional(),
         esmExternals: z.union([z.boolean(), z.literal('loose')]).optional(),
         serverActions: z
           .object({
@@ -444,6 +445,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         staticGenerationMinPagesPerWorker: z.number().int().optional(),
         typedEnv: z.boolean().optional(),
         serverComponentsHmrCache: z.boolean().optional(),
+        authInterrupts: z.boolean().optional(),
       })
       .optional(),
     exportPathMap: z

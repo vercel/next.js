@@ -2,7 +2,7 @@
 import { encryptActionBoundArgs, decryptActionBoundArgs } from "private-next-rsc-action-encryption";
 import React from 'react';
 import inter from '@next/font/google/target.css?{"path":"app/test.tsx","import":"Inter","arguments":[],"variableName":"inter"}';
-export async function myCoolServerAction() {
+export async function /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ myCoolServerAction() {
     return <div className={inter.className}>Hello from server action</div>;
 }
 import { ensureServerEntryExports } from "private-next-rsc-action-validate";
