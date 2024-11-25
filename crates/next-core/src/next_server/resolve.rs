@@ -38,8 +38,8 @@ pub enum ExternalPredicate {
 #[turbo_tasks::value]
 pub(crate) struct ExternalCjsModulesResolvePlugin {
     project_path: ResolvedVc<FileSystemPath>,
-    root: Vc<FileSystemPath>,
-    predicate: Vc<ExternalPredicate>,
+    root: ResolvedVc<FileSystemPath>,
+    predicate: ResolvedVc<ExternalPredicate>,
     import_externals: bool,
 }
 
@@ -455,7 +455,7 @@ async fn packages_glob(packages: Vc<Vec<RcStr>>) -> Result<Vc<OptionPackagesGlob
 
 #[turbo_tasks::value]
 struct ExternalizeIssue {
-    file_path: Vc<FileSystemPath>,
+    file_path: ResolvedVc<FileSystemPath>,
     package: RcStr,
     request_str: RcStr,
     reason: Vec<StyledString>,
