@@ -1,6 +1,34 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/ast-grep/ast-grep/main/schemas/rule.json
 
-id: no-context
+id
+[target.'cfg(target_os = "macos")']
+linker = "rust-lld"
+
+[target.'cfg(all(target_os = "linux", target_env = "gnu"))']
+rustflags = [
+  "--cfg",
+  "tokio_unstable",
+  "-Zshare-generics=y",
+  "-Zthreads=8",
+  "-Zunstable-options",
+  "-Csymbol-mangling-version=v0",
+  "-Clinker-flavor=gnu-lld-cc",
+  "-Clink-self-contained=+linker",
+]
+
+[target.aarch64-unknown-linux-musl]
+linker = "aarch64-linux-musl-gcc"
+rustflags = [
+  "--cfg",
+  "tokio_unstable",
+  "-Zshare-generics=y",
+  "-Csymbol-mangling-version=v0",
+  "-Ctarget-feature=-crt-static",
+  "-Clink-arg=-lgcc",
+]
+
+[target.armv7-unknown-linux-gnueabihf]
+linker = "arm-linux-gnueabihf-gcc"
 message: Don't name variables `context`.
 note: Use a more specific name, such as chunking_context, asset_context, etc.
 severity: error
