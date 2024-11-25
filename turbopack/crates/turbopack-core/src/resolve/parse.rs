@@ -265,7 +265,7 @@ impl Request {
 
     #[turbo_tasks::function]
     pub async fn parse_string(request: RcStr) -> Result<Vc<Self>> {
-        Ok(Self::cell(Request::parse_ref(request.into().await?)))
+        Ok(Self::cell(Request::parse_ref(request.into()).await?))
     }
 
     #[turbo_tasks::function]
