@@ -37,7 +37,10 @@ pub struct HmrEntryModule {
 #[turbo_tasks::value_impl]
 impl HmrEntryModule {
     #[turbo_tasks::function]
-    pub fn new(ident: Vc<AssetIdent>, module: Vc<Box<dyn ChunkableModule>>) -> Vc<Self> {
+    pub fn new(
+        ident: ResolvedVc<AssetIdent>,
+        module: ResolvedVc<Box<dyn ChunkableModule>>,
+    ) -> Vc<Self> {
         Self { ident, module }.cell()
     }
 }
@@ -52,7 +55,7 @@ impl Module for HmrEntryModule {
     #[turbo_tasks::function]
     fn references(&self) -> Vc<ModuleReferences> {
         Vc::cell(vec![Vc::upcast(HmrEntryModuleReference::new(Vc::upcast(
-            self.module,
+            *self.module,
         )))])
     }
 }
