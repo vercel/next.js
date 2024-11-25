@@ -141,7 +141,7 @@ struct HmrEntryChunkItem {
 impl ChunkItem for HmrEntryChunkItem {
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        Vc::upcast(self.chunking_context)
+        Vc::upcast(*self.chunking_context)
     }
 
     #[turbo_tasks::function]
@@ -169,14 +169,14 @@ impl ChunkItem for HmrEntryChunkItem {
 impl EcmascriptChunkItem for HmrEntryChunkItem {
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        self.chunking_context
+        *self.chunking_context
     }
 
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<EcmascriptChunkItemContent>> {
         let this = self.module.await?;
         let module = this.module;
-        let chunk_item = module.as_chunk_item(self.chunking_context);
+        let chunk_item = module.as_chunk_item(*self.chunking_context);
         let id = self.chunking_context.chunk_item_id(chunk_item).await?;
 
         let mut code = RopeBuilder::default();
