@@ -61,8 +61,8 @@ impl Module for HmrEntryModule {
 impl ChunkableModule for HmrEntryModule {
     #[turbo_tasks::function]
     fn as_chunk_item(
-        self: Vc<Self>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        self: ResolvedVc<Self>,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn ChunkItem>> {
         Vc::upcast(
             HmrEntryChunkItem {
@@ -133,8 +133,8 @@ impl ChunkableModuleReference for HmrEntryModuleReference {}
 /// The chunk item for [`HmrEntryModule`].
 #[turbo_tasks::value]
 struct HmrEntryChunkItem {
-    module: Vc<HmrEntryModule>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
+    module: ResolvedVc<HmrEntryModule>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -161,7 +161,7 @@ impl ChunkItem for HmrEntryChunkItem {
 
     #[turbo_tasks::function]
     fn module(&self) -> Vc<Box<dyn Module>> {
-        Vc::upcast(self.module)
+        Vc::upcast(*self.module)
     }
 }
 
