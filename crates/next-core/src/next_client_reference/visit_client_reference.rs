@@ -56,10 +56,10 @@ pub struct ClientReferenceGraphResult {
     /// Only the [`ClientReferenceType::EcmascriptClientReference`]s are listed in this map.
     #[allow(clippy::type_complexity)]
     pub client_references_by_server_component:
-        FxIndexMap<Option<Vc<NextServerComponentModule>>, Vec<Vc<Box<dyn Module>>>>,
-    pub server_component_entries: Vec<Vc<NextServerComponentModule>>,
-    pub server_utils: Vec<Vc<Box<dyn Module>>>,
-    pub visited_nodes: Vc<VisitedClientReferenceGraphNodes>,
+        FxIndexMap<Option<Vc<NextServerComponentModule>>, Vec<ResolvedVc<Box<dyn Module>>>>,
+    pub server_component_entries: Vec<ResolvedVc<NextServerComponentModule>>,
+    pub server_utils: Vec<ResolvedVc<Box<dyn Module>>>,
+    pub visited_nodes: ResolvedVc<VisitedClientReferenceGraphNodes>,
 }
 
 impl Default for ClientReferenceGraphResult {
@@ -217,8 +217,8 @@ pub async fn client_reference_graph(
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
 pub struct ServerEntries {
-    pub server_component_entries: Vec<Vc<NextServerComponentModule>>,
-    pub server_utils: Vec<Vc<Box<dyn Module>>>,
+    pub server_component_entries: Vec<ResolvedVc<NextServerComponentModule>>,
+    pub server_utils: Vec<ResolvedVc<Box<dyn Module>>>,
 }
 
 #[turbo_tasks::function]
