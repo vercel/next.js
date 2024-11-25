@@ -79,7 +79,7 @@ impl InstrumentationEndpoint {
             .await?;
 
         let edge_entry_module = wrap_edge_entry(
-            self.asset_context,
+            *self.asset_context,
             self.project.project_path(),
             *userland_module,
             "instrumentation".into(),
@@ -117,7 +117,7 @@ impl InstrumentationEndpoint {
             }),
             this.project.next_mode(),
         )
-        .resolve_entries(this.asset_context)
+        .resolve_entries(*this.asset_context)
         .await?
         .clone_value();
 
@@ -169,7 +169,7 @@ impl InstrumentationEndpoint {
                     }),
                     this.project.next_mode(),
                 )
-                .resolve_entries(this.asset_context),
+                .resolve_entries(*this.asset_context),
                 OutputAssets::empty(),
                 Value::new(AvailabilityInfo::Root),
             )
@@ -225,7 +225,7 @@ impl InstrumentationEndpoint {
             let mut output_assets = vec![chunk];
             if this.project.next_mode().await?.is_production() {
                 output_assets.push(ResolvedVc::upcast(
-                    NftJsonAsset::new(this.project, *chunk, vec![])
+                    NftJsonAsset::new(*this.project, *chunk, vec![])
                         .to_resolved()
                         .await?,
                 ));
@@ -250,7 +250,9 @@ impl Endpoint for InstrumentationEndpoint {
             let this = self.await?;
             let output_assets = self.output_assets();
             let _ = output_assets.resolve().await?;
-            let _ = this.project.emit_all_output_assets(Vc::cell(output_assets));
+            let _ = this
+                .project
+                .emit_all_output_assets(ResolvedVc::cell(output_assets));
 
             let server_paths = if this.project.next_mode().await?.is_development() {
                 let node_root = this.project.node_root();
