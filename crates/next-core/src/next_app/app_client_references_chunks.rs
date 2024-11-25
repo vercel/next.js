@@ -34,7 +34,8 @@ pub struct ClientReferencesChunks {
         FxIndexMap<ClientReferenceType, (ResolvedVc<OutputAssets>, AvailabilityInfo)>,
     pub client_component_ssr_chunks:
         FxIndexMap<ClientReferenceType, (ResolvedVc<OutputAssets>, AvailabilityInfo)>,
-    pub layout_segment_client_chunks: FxIndexMap<Vc<NextServerComponentModule>, Vc<OutputAssets>>,
+    pub layout_segment_client_chunks:
+        FxIndexMap<ResolvedVc<NextServerComponentModule>, ResolvedVc<OutputAssets>>,
 }
 
 /// Computes all client references chunks.
