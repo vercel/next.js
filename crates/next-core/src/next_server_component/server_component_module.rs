@@ -135,15 +135,15 @@ impl EcmascriptChunkPlaceable for NextServerComponentModule {
 
 #[turbo_tasks::value]
 struct NextServerComponentChunkItem {
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
-    inner: Vc<NextServerComponentModule>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    inner: ResolvedVc<NextServerComponentModule>,
 }
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for NextServerComponentChunkItem {
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        self.chunking_context
+        *self.chunking_context
     }
 
     #[turbo_tasks::function]
