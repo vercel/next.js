@@ -64,9 +64,7 @@ $k = (...) => ((bj(a) ? 1 : 0) | 11 | 14 | 2)
   | undefined
   | ???*0*
   | b
-  | null
   | pj(a, b, c)
-  | b["child"]
   | cj(a, b, b["type"], b["pendingProps"], c)
   | yj(a, b, c)
   | ej(a, b, c)
@@ -126,7 +124,10 @@ $k = (...) => ((bj(a) ? 1 : 0) | 11 | 14 | 2)
 
 *anonymous function 131212* = (...) => sl(null, a, b, !(1), c)
 
-*anonymous function 131315* = (...) => (a["_reactRootContainer"] ? !(0) : !(1))
+*anonymous function 131315* = (...) => (a["_reactRootContainer"] ? ???*0* : !(1))
+- *0* !(0)
+  ⚠️  sequence with side effects
+  ⚠️  This value might have side effects
 
 *anonymous function 131389* = (...) => undefined
 
@@ -713,14 +714,17 @@ Fh = {"current": {}}
 
 Fi = (...) => di()["memoizedState"]
 
-Fj = (...) => (undefined | null | (???*0* ? b : null) | ???*1* | b["child"])
-- *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* b
+Fj = (...) => (undefined | ???*0* | null | (???*1* ? b : null) | b["child"])
+- *0* null
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
+- *1* unsupported expression
+  ⚠️  This value might have side effects
 
-Fk = (...) => null
+Fk = (...) => (???*0* | null)
+- *0* null
+  ⚠️  sequence with side effects
+  ⚠️  This value might have side effects
 
 G = (...) => undefined
 
@@ -997,7 +1001,7 @@ Jh = (...) => undefined
 
 Ji = (...) => undefined
 
-Jj = (...) => (undefined | ???*0* | null | (???*3* ? ???*4* : null))
+Jj = (...) => (undefined | ???*0* | (???*3* ? ???*4* : null) | null)
 - *0* (???*1* ? ???*2* : null)
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
@@ -2161,7 +2165,10 @@ Vk = (...) => undefined
 
 W = (...) => undefined
 
-Wa = (...) => (!(1) | !(0) | ((a !== c) ? !(0) : !(1)))
+Wa = (...) => (!(1) | !(0) | ((a !== c) ? ???*0* : !(1)))
+- *0* !(0)
+  ⚠️  sequence with side effects
+  ⚠️  This value might have side effects
 
 Wb = (...) => (b["dehydrated"] | null)
 
@@ -2202,9 +2209,7 @@ Wk = (
       | undefined
       | ???*1*
       | b
-      | null
       | pj(a, b, c)
-      | b["child"]
       | cj(a, b, b["type"], b["pendingProps"], c)
       | yj(a, b, c)
       | ej(a, b, c)
@@ -2270,7 +2275,10 @@ Ya = (...) => A(
 - *2* unsupported expression
   ⚠️  This value might have side effects
 
-Yb = (...) => (((b !== a) ? null : a) | a | b | ((c["stateNode"]["current"] === c) ? a : b))
+Yb = (...) => (((b !== a) ? null : a) | ???*0* | ((c["stateNode"]["current"] === c) ? a : b))
+- *0* a
+  ⚠️  sequence with side effects
+  ⚠️  This value might have side effects
 
 Yc = (...) => (
   | a
@@ -5917,14 +5925,24 @@ b#1001 = ???*0*
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 
-b#1004 = (???*0* | ???*1* | 0 | ???*3*)
+b#1004 = (???*0* | ???*1* | ???*3* | 0 | ???*6*)
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 - *1* ???*2*["name"]
   ⚠️  unknown object
 - *2* arguments[2]
   ⚠️  function calls are not analysed yet
-- *3* updated with update expression
+- *3* ???*4*["name"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *4* ???*5*["querySelectorAll"](
+        `input[name=${FreeVar(JSON)["stringify"](`${b}`)}][type="radio"]`
+    )
+  ⚠️  unknown callee object
+  ⚠️  This value might have side effects
+- *5* c
+  ⚠️  circular variable reference
+- *6* updated with update expression
   ⚠️  This value might have side effects
 
 b#101 = ???*0*
@@ -9026,9 +9044,7 @@ b#868 = ???*0*
           | undefined
           | ???*2*
           | b
-          | null
           | pj(a, b, c)
-          | b["child"]
           | cj(a, b, b["type"], b["pendingProps"], c)
           | yj(a, b, c)
           | ej(a, b, c)
@@ -9757,22 +9773,32 @@ c#1001 = (
 - *16* arguments[0]
   ⚠️  function calls are not analysed yet
 
-c#1004 = (???*0* | ???*1* | ???*3*)
+c#1004 = (???*0* | ???*1* | ???*3* | ???*6*)
 - *0* arguments[2]
   ⚠️  function calls are not analysed yet
 - *1* ???*2*["parentNode"]
   ⚠️  unknown object
 - *2* arguments[2]
   ⚠️  function calls are not analysed yet
-- *3* ???*4*["querySelectorAll"](`input[name=${???*5*}][type="radio"]`)
+- *3* ???*4*["parentNode"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *4* ???*5*["querySelectorAll"](
+        `input[name=${FreeVar(JSON)["stringify"](`${b}`)}][type="radio"]`
+    )
   ⚠️  unknown callee object
   ⚠️  This value might have side effects
-- *4* arguments[2]
+- *5* c
+  ⚠️  circular variable reference
+- *6* ???*7*["querySelectorAll"](`input[name=${???*8*}][type="radio"]`)
+  ⚠️  unknown callee object
+  ⚠️  This value might have side effects
+- *7* arguments[2]
   ⚠️  function calls are not analysed yet
-- *5* ???*6*["stringify"](b)
+- *8* ???*9*["stringify"](b)
   ⚠️  unknown callee object
   ⚠️  This value might have side effects
-- *6* FreeVar(JSON)
+- *9* FreeVar(JSON)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
@@ -12662,7 +12688,7 @@ ck = (...) => undefined
 cl = (...) => a
 
 d#1004 = ???*0*
-- *0* ???*1*[(???*2* | ???*3* | 0 | ???*5*)]
+- *0* ???*1*[(???*2* | ???*3* | ???*5* | 0 | ???*8*)]
   ⚠️  unknown object
   ⚠️  This value might have side effects
 - *1* arguments[2]
@@ -12673,7 +12699,17 @@ d#1004 = ???*0*
   ⚠️  unknown object
 - *4* arguments[2]
   ⚠️  function calls are not analysed yet
-- *5* updated with update expression
+- *5* ???*6*["name"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *6* ???*7*["querySelectorAll"](
+        `input[name=${FreeVar(JSON)["stringify"](`${b}`)}][type="radio"]`
+    )
+  ⚠️  unknown callee object
+  ⚠️  This value might have side effects
+- *7* c
+  ⚠️  circular variable reference
+- *8* updated with update expression
   ⚠️  This value might have side effects
 
 d#1013 = (
@@ -15131,7 +15167,7 @@ e#1004 = (???*0* | null)
 - *0* ???*1*[Pf]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *1* ???*2*[(???*3* | ???*4* | 0 | ???*6*)]
+- *1* ???*2*[(???*3* | ???*4* | ???*6* | 0 | ???*9*)]
   ⚠️  unknown object
   ⚠️  This value might have side effects
 - *2* arguments[2]
@@ -15142,7 +15178,17 @@ e#1004 = (???*0* | null)
   ⚠️  unknown object
 - *5* arguments[2]
   ⚠️  function calls are not analysed yet
-- *6* updated with update expression
+- *6* ???*7*["name"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *7* ???*8*["querySelectorAll"](
+        `input[name=${FreeVar(JSON)["stringify"](`${b}`)}][type="radio"]`
+    )
+  ⚠️  unknown callee object
+  ⚠️  This value might have side effects
+- *8* c
+  ⚠️  circular variable reference
+- *9* updated with update expression
   ⚠️  This value might have side effects
 
 e#1013 = (
@@ -20069,7 +20115,10 @@ kh = (...) => undefined
 
 ki = (...) => c(*anonymous function 67764*)
 
-kj = (...) => ($i(a, b, f) | b["child"])
+kj = (...) => (???*0* | b["child"])
+- *0* $i(a, b, f)
+  ⚠️  sequence with side effects
+  ⚠️  This value might have side effects
 
 kk = (...) => undefined
 
@@ -20516,7 +20565,10 @@ n#404 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-n#431 = (...) => l
+n#431 = (...) => (???*0* | l)
+- *0* l
+  ⚠️  sequence with side effects
+  ⚠️  This value might have side effects
 
 n#449 = ???*0*
 - *0* max number of linking steps reached
@@ -21008,7 +21060,10 @@ t#404 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-t#431 = (...) => l
+t#431 = (...) => (???*0* | l)
+- *0* l
+  ⚠️  sequence with side effects
+  ⚠️  This value might have side effects
 
 t#454 = ???*0*
 - *0* max number of linking steps reached

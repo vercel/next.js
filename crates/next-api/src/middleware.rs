@@ -1,3 +1,5 @@
+use std::future::IntoFuture;
+
 use anyhow::{bail, Context, Result};
 use next_core::{
     all_assets_from_entries,
@@ -25,7 +27,7 @@ use turbopack_ecmascript::chunk::EcmascriptChunkPlaceable;
 
 use crate::{
     paths::{
-        all_paths_in_root, all_server_paths, get_js_paths_from_root, get_paths_from_root,
+        all_paths_in_root, all_server_paths, get_asset_paths_from_root, get_js_paths_from_root,
         get_wasm_paths_from_root, paths_to_bindings, wasm_paths_to_bindings,
     },
     project::Project,
@@ -141,8 +143,7 @@ impl MiddlewareEndpoint {
         let wasm_paths_from_root =
             get_wasm_paths_from_root(&node_root_value, &all_output_assets).await?;
 
-        let all_assets =
-            get_paths_from_root(&node_root_value, &all_output_assets, |_asset| true).await?;
+        let all_assets = get_asset_paths_from_root(&node_root_value, &all_output_assets).await?;
 
         // Awaited later for parallelism
         let config = config.await?;
@@ -276,9 +277,7 @@ impl Endpoint for MiddlewareEndpoint {
             let this = self.await?;
             let output_assets = self.output_assets();
             let _ = output_assets.resolve().await?;
-            this.project
-                .emit_all_output_assets(Vc::cell(output_assets))
-                .await?;
+            let _ = this.project.emit_all_output_assets(Vc::cell(output_assets));
 
             let node_root = this.project.node_root();
             let server_paths = all_server_paths(output_assets, node_root)
@@ -288,6 +287,8 @@ impl Endpoint for MiddlewareEndpoint {
             // Middleware could in theory have a client path (e.g. `new URL`).
             let client_relative_root = this.project.client_relative_path();
             let client_paths = all_paths_in_root(output_assets, client_relative_root)
+                .into_future()
+                .instrument(tracing::info_span!("client_paths"))
                 .await?
                 .clone_value();
 

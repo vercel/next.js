@@ -53,7 +53,7 @@ export type LazyCacheNode = {
   prefetchHead: React.ReactNode
   head: React.ReactNode
 
-  loading: LoadingModuleData
+  loading: LoadingModuleData | Promise<LoadingModuleData>
 
   /**
    * Child parallel routes.
@@ -95,7 +95,7 @@ export type ReadyCacheNode = {
   prefetchHead: React.ReactNode
   head: React.ReactNode
 
-  loading: LoadingModuleData
+  loading: LoadingModuleData | Promise<LoadingModuleData>
 
   parallelRoutes: Map<string, ChildSegmentMap>
 }
@@ -149,7 +149,7 @@ export const LayoutRouterContext = React.createContext<{
   childNodes: CacheNode['parallelRoutes']
   tree: FlightRouterState
   url: string
-  loading: LoadingModuleData
+  loading: LoadingModuleData | Promise<LoadingModuleData>
 } | null>(null)
 
 export const GlobalLayoutRouterContext = React.createContext<{

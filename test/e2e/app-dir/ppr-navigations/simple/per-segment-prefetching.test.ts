@@ -52,11 +52,10 @@ describe('per segment prefetching', () => {
     expect(enResponseText).toEqual(frResponseText)
 
     // Now use the route tree to construct a request for the child segment.
-    const childSegmentPath = routeTree.tree.slots.children.key
-    const childToken = routeTree.tree.slots.children.token
+    const child = routeTree.tree.slots.children
 
     // The access token is appended to the end of the segment path.
-    const fullChildSegmentPath = `${childSegmentPath}.${childToken}`
+    const fullChildSegmentPath = `${child.path}.${child.token}`
     const childResponse = await prefetch('/en', fullChildSegmentPath)
     const childResponseText = await childResponse.text()
 

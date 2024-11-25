@@ -1,0 +1,16 @@
+  x Server Actions cannot use `this`.
+  | 
+    ,-[input.js:13:1]
+ 12 |     // this is not allowed here
+ 13 |     this.foo()
+    :     ^^^^
+ 14 |     // arguments is not allowed here
+    `----
+  x Server Actions cannot use `arguments`.
+  | 
+    ,-[input.js:15:1]
+ 14 |     // arguments is not allowed here
+ 15 |     console.log(arguments)
+    :                 ^^^^^^^^^
+ 16 |   }
+    `----

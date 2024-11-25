@@ -166,10 +166,15 @@ if (isNextProd) {
       next.destroy()
     })
 
-    it('should pass correct nextRuntime values', async () => {
-      const content = await next.readFile('runtimes.txt')
-      expect(content.split('\n').sort()).toEqual(['client', 'edge', 'nodejs'])
-    })
+    // Relies on the custom webpack config above
+    ;(process.env.TURBOPACK ? it.skip : it)(
+      'should pass correct nextRuntime values',
+      async () => {
+        const content = await next.readFile('runtimes.txt')
+        // eslint-disable-next-line jest/no-standalone-expect
+        expect(content.split('\n').sort()).toEqual(['client', 'edge', 'nodejs'])
+      }
+    )
 
     it('should generate html response by streaming correctly', async () => {
       const html = await renderViaHTTP(next.url, '/')

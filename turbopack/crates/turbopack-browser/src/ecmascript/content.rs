@@ -3,7 +3,7 @@ use std::io::Write;
 use anyhow::{bail, Result};
 use indoc::writedoc;
 use turbo_rcstr::RcStr;
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::File;
 use turbopack_core::{
     asset::AssetContent,
@@ -23,21 +23,21 @@ use crate::BrowserChunkingContext;
 
 #[turbo_tasks::value(serialization = "none")]
 pub struct EcmascriptDevChunkContent {
-    pub(super) entries: Vc<EcmascriptDevChunkContentEntries>,
-    pub(super) chunking_context: Vc<BrowserChunkingContext>,
-    pub(super) chunk: Vc<EcmascriptDevChunk>,
+    pub(super) entries: ResolvedVc<EcmascriptDevChunkContentEntries>,
+    pub(super) chunking_context: ResolvedVc<BrowserChunkingContext>,
+    pub(super) chunk: ResolvedVc<EcmascriptDevChunk>,
 }
 
 #[turbo_tasks::value_impl]
 impl EcmascriptDevChunkContent {
     #[turbo_tasks::function]
     pub(crate) async fn new(
-        chunking_context: Vc<BrowserChunkingContext>,
-        chunk: Vc<EcmascriptDevChunk>,
+        chunking_context: ResolvedVc<BrowserChunkingContext>,
+        chunk: ResolvedVc<EcmascriptDevChunk>,
         content: Vc<EcmascriptChunkContent>,
     ) -> Result<Vc<Self>> {
         let entries = EcmascriptDevChunkContentEntries::new(content)
-            .resolve()
+            .to_resolved()
             .await?;
         Ok(EcmascriptDevChunkContent {
             entries,
@@ -49,7 +49,7 @@ impl EcmascriptDevChunkContent {
 
     #[turbo_tasks::function]
     pub fn entries(&self) -> Vc<EcmascriptDevChunkContentEntries> {
-        self.entries
+        *self.entries
     }
 }
 
@@ -60,7 +60,7 @@ impl EcmascriptDevChunkContent {
         EcmascriptDevChunkVersion::new(
             self.chunking_context.output_root(),
             self.chunk.ident().path(),
-            self.entries,
+            *self.entries,
         )
     }
 

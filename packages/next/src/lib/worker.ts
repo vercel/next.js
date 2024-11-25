@@ -1,9 +1,5 @@
 import type { ChildProcess } from 'child_process'
 import { Worker as JestWorker } from 'next/dist/compiled/jest-worker'
-import {
-  getParsedNodeOptionsWithoutInspect,
-  formatNodeOptions,
-} from '../server/lib/utils'
 import { Transform } from 'stream'
 
 type FarmOptions = ConstructorParameters<typeof JestWorker>[1]
@@ -47,12 +43,6 @@ export class Worker {
     })
 
     const createWorker = () => {
-      // Get the node options without inspect and also remove the
-      // --max-old-space-size flag as it can cause memory issues.
-      const nodeOptions = getParsedNodeOptionsWithoutInspect()
-      delete nodeOptions['max-old-space-size']
-      delete nodeOptions['max_old_space_size']
-
       this._worker = new JestWorker(workerPath, {
         ...farmOptions,
         forkOptions: {
@@ -60,7 +50,6 @@ export class Worker {
           env: {
             ...((farmOptions.forkOptions?.env || {}) as any),
             ...process.env,
-            NODE_OPTIONS: formatNodeOptions(nodeOptions),
           } as any,
         },
         maxRetries: 0,

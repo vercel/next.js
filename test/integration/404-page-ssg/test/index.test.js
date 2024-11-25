@@ -68,6 +68,7 @@ const runTests = (isDev) => {
       )
       expect(data.routes['/404']).toEqual({
         allowHeader: [
+          'host',
           'x-matched-path',
           'x-prerender-revalidate',
           'x-prerender-revalidate-if-generated',

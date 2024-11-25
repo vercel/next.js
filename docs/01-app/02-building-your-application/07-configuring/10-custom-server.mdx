@@ -87,17 +87,16 @@ const app = next({})
 
 The above `next` import is a function that receives an object with the following options:
 
-| Option         | Type               | Description                                                                         |
-| -------------- | ------------------ | ----------------------------------------------------------------------------------- |
-| `conf`         | `Object`           | The same object you would use in `next.config.js`. Defaults to `{}`                 |
-| `customServer` | `Boolean`          | (_Optional_) Set to false when the server was created by Next.js                    |
-| `dev`          | `Boolean`          | (_Optional_) Whether or not to launch Next.js in dev mode. Defaults to `false`      |
-| `dir`          | `String`           | (_Optional_) Location of the Next.js project. Defaults to `'.'`                     |
-| `quiet`        | `Boolean`          | (_Optional_) Hide error messages containing server information. Defaults to `false` |
-| `hostname`     | `String`           | (_Optional_) The hostname the server is running behind                              |
-| `port`         | `Number`           | (_Optional_) The port the server is running behind                                  |
-| `httpServer`   | `node:http#Server` | (_Optional_) The HTTP Server that Next.js is running behind                         |
-| `turbo`        | `Boolean`          | (_Optional_) Enable Turbopack                                                       |
+| Option       | Type               | Description                                                                         |
+| ------------ | ------------------ | ----------------------------------------------------------------------------------- |
+| `conf`       | `Object`           | The same object you would use in `next.config.js`. Defaults to `{}`                 |
+| `dev`        | `Boolean`          | (_Optional_) Whether or not to launch Next.js in dev mode. Defaults to `false`      |
+| `dir`        | `String`           | (_Optional_) Location of the Next.js project. Defaults to `'.'`                     |
+| `quiet`      | `Boolean`          | (_Optional_) Hide error messages containing server information. Defaults to `false` |
+| `hostname`   | `String`           | (_Optional_) The hostname the server is running behind                              |
+| `port`       | `Number`           | (_Optional_) The port the server is running behind                                  |
+| `httpServer` | `node:http#Server` | (_Optional_) The HTTP Server that Next.js is running behind                         |
+| `turbo`      | `Boolean`          | (_Optional_) Enable Turbopack                                                       |
 
 The returned `app` can then be used to let Next.js handle requests as required.
 

@@ -393,4 +393,63 @@ describe('use-cache', () => {
       expect(await browser.elementByCss('p').text()).toBe(value)
     })
   })
+
+  it('works with "use cache" in method props', async () => {
+    const browser = await next.browser('/method-props')
+
+    let [value1, value2] = await Promise.all([
+      browser.elementByCss('#form-1 p').text(),
+      browser.elementByCss('#form-2 p').text(),
+    ])
+
+    expect(value1).toBe('-1')
+    expect(value2).toBe('-1')
+
+    await browser.elementByCss('#form-1 button').click()
+
+    await retry(async () => {
+      value1 = await browser.elementByCss('#form-1 p').text()
+      expect(value1).toMatch(/1\.\d+/)
+    })
+
+    await browser.elementByCss('#form-2 button').click()
+
+    await retry(async () => {
+      value2 = await browser.elementByCss('#form-2 p').text()
+      expect(value2).toMatch(/2\.\d+/)
+    })
+
+    await browser.elementByCss('#form-1 button').click()
+
+    await retry(async () => {
+      expect(await browser.elementByCss('#form-1 p').text()).toBe(value1)
+    })
+
+    await browser.elementByCss('#form-2 button').click()
+
+    await retry(async () => {
+      expect(await browser.elementByCss('#form-2 p').text()).toBe(value2)
+    })
+  })
+
+  it('works with "use cache" in static class methods', async () => {
+    const browser = await next.browser('/static-class-method')
+
+    let value = await browser.elementByCss('p').text()
+
+    expect(value).toBe('-1')
+
+    await browser.elementByCss('button').click()
+
+    await retry(async () => {
+      value = await browser.elementByCss('p').text()
+      expect(value).toMatch(/\d\.\d+/)
+    })
+
+    await browser.elementByCss('button').click()
+
+    await retry(async () => {
+      expect(await browser.elementByCss('p').text()).toBe(value)
+    })
+  })
 })

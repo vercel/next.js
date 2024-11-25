@@ -55,13 +55,8 @@ import { useNavFailureHandler } from './nav-failure-handler'
 import { useServerActionDispatcher } from '../app-call-server'
 import type { AppRouterActionQueue } from '../../shared/lib/router/action-queue'
 import { prefetch as prefetchWithSegmentCache } from '../components/segment-cache/prefetch'
-
-import {
-  getRedirectTypeFromError,
-  getURLFromRedirectError,
-  isRedirectError,
-  RedirectType,
-} from './redirect'
+import { getRedirectTypeFromError, getURLFromRedirectError } from './redirect'
+import { isRedirectError, RedirectType } from './redirect-error'
 
 const globalMutable: {
   pendingMpaPath?: string

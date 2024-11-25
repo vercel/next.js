@@ -6,6 +6,7 @@ pub mod constant_value;
 pub mod dynamic_expression;
 pub mod esm;
 pub mod external_module;
+pub mod ident;
 pub mod node;
 pub mod pattern_mapping;
 pub mod raw;
@@ -133,6 +134,7 @@ use crate::{
         cjs::{CjsRequireAssetReference, CjsRequireCacheAccess, CjsRequireResolveAssetReference},
         dynamic_expression::DynamicExpression,
         esm::{module_id::EsmModuleIdAssetReference, EsmBinding, UrlRewriteBehavior},
+        ident::IdentReplacement,
         node::PackageJsonReference,
         require_context::{RequireContextAssetReference, RequireContextMap},
         type_issue::SpecifiedModuleTypeIssue,
@@ -584,7 +586,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     let handler = Handler::with_emitter(
         true,
         false,
-        Box::new(IssueEmitter::new(*source, source_map.clone(), None)),
+        Box::new(IssueEmitter::new(source, source_map.clone(), None)),
     );
 
     let mut var_graph =
@@ -900,6 +902,10 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 span: _,
                 in_try: _,
             } => {
+                // Don't replace condition with it's truth-y value, if it has side effects (e.g.
+                // function calls)
+                let condition_has_side_effects = condition.has_side_effects();
+
                 let condition = analysis_state
                     .link_value(condition, ImportAttributes::empty_ref())
                     .await?;
@@ -911,10 +917,12 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 }
                 macro_rules! condition {
                     ($expr:expr) => {
-                        analysis.add_code_gen(ConstantCondition::new(
-                            Value::new($expr),
-                            Vc::cell(condition_ast_path.to_vec()),
-                        ));
+                        if !condition_has_side_effects {
+                            analysis.add_code_gen(ConstantCondition::new(
+                                Value::new($expr),
+                                Vc::cell(condition_ast_path.to_vec()),
+                            ));
+                        }
                     };
                 }
                 macro_rules! active {
@@ -1152,7 +1160,14 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 span,
                 in_try: _,
             } => {
-                handle_free_var(&ast_path, var, span, &analysis_state, &mut analysis).await?;
+                // FreeVar("require") might be turbopackIgnore-d
+                if !analysis_state
+                    .link_value(var.clone(), eval_context.imports.get_attributes(span))
+                    .await?
+                    .is_unknown()
+                {
+                    handle_free_var(&ast_path, var, span, &analysis_state, &mut analysis).await?;
+                }
             }
             Effect::Member {
                 obj,
@@ -1236,10 +1251,10 @@ async fn compile_time_info_for_module_type(
     let free_var_references = compile_time_info.free_var_references;
 
     let mut free_var_references = free_var_references.await?.clone_value();
-    let (typeof_exports, typeof_module) = if is_esm {
-        ("undefined", "undefined")
+    let (typeof_exports, typeof_module, require) = if is_esm {
+        ("undefined", "undefined", "__turbopack_require_stub__")
     } else {
-        ("object", "object")
+        ("object", "object", "__turbopack_require_real__")
     };
     free_var_references
         .entry(vec![
@@ -1266,6 +1281,9 @@ async fn compile_time_info_for_module_type(
             DefineableNameSegment::TypeOf,
         ])
         .or_insert("function".into());
+    free_var_references
+        .entry(vec![DefineableNameSegment::Name("require".into())])
+        .or_insert(FreeVarReference::Ident(require.into()));
 
     Ok(CompileTimeInfo {
         environment: compile_time_info.environment,
@@ -1524,7 +1542,9 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
 
         JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve) => {
             let args = linked_args(args).await?;
-            if args.len() == 1 {
+            if args.len() == 1 || args.len() == 2 {
+                // TODO error TP1003 require.resolve(???*0*, {"paths": [???*1*]}) is not statically
+                // analyse-able with ignore_dynamic_requests = true
                 let pat = js_value_to_pattern(&args[0]);
                 if !pat.has_constant_parts() {
                     let (args, hints) = explain_args(&args);
@@ -2192,6 +2212,12 @@ async fn handle_free_var_reference(
         FreeVarReference::Value(value) => {
             analysis.add_code_gen(ConstantValue::new(
                 Value::new(value.clone()),
+                Vc::cell(ast_path.to_vec()),
+            ));
+        }
+        FreeVarReference::Ident(value) => {
+            analysis.add_code_gen(IdentReplacement::new(
+                value.clone(),
                 Vc::cell(ast_path.to_vec()),
             ));
         }
