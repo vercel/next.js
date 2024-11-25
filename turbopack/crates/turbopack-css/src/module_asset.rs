@@ -267,7 +267,7 @@ impl ResolveOrigin for ModuleCssAsset {
 
     #[turbo_tasks::function]
     fn asset_context(&self) -> Vc<Box<dyn AssetContext>> {
-        self.asset_context
+        *self.asset_context
     }
 }
 
@@ -291,7 +291,7 @@ impl ChunkItem for ModuleChunkItem {
 
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        Vc::upcast(self.chunking_context)
+        Vc::upcast(*self.chunking_context)
     }
 
     #[turbo_tasks::function]
@@ -303,7 +303,7 @@ impl ChunkItem for ModuleChunkItem {
 
     #[turbo_tasks::function]
     fn module(&self) -> Vc<Box<dyn Module>> {
-        Vc::upcast(self.module)
+        Vc::upcast(*self.module)
     }
 }
 
@@ -311,7 +311,7 @@ impl ChunkItem for ModuleChunkItem {
 impl EcmascriptChunkItem for ModuleChunkItem {
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        self.chunking_context
+        *self.chunking_context
     }
 
     #[turbo_tasks::function]
@@ -368,7 +368,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                             ResolvedVc::upcast(css_module);
 
                         let module_id = placeable
-                            .as_chunk_item(Vc::upcast(self.chunking_context))
+                            .as_chunk_item(Vc::upcast(*self.chunking_context))
                             .id()
                             .await?;
                         let module_id = StringifyJs(&*module_id);
