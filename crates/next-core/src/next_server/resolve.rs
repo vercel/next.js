@@ -48,8 +48,8 @@ impl ExternalCjsModulesResolvePlugin {
     #[turbo_tasks::function]
     pub fn new(
         project_path: ResolvedVc<FileSystemPath>,
-        root: Vc<FileSystemPath>,
-        predicate: Vc<ExternalPredicate>,
+        root: ResolvedVc<FileSystemPath>,
+        predicate: ResolvedVc<ExternalPredicate>,
         import_externals: bool,
     ) -> Vc<Self> {
         ExternalCjsModulesResolvePlugin {
@@ -71,16 +71,16 @@ fn condition(root: Vc<FileSystemPath>) -> Vc<AfterResolvePluginCondition> {
 impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
     #[turbo_tasks::function]
     fn after_resolve_condition(&self) -> Vc<AfterResolvePluginCondition> {
-        condition(self.root)
+        condition(*self.root)
     }
 
     #[turbo_tasks::function]
     async fn after_resolve(
         &self,
-        fs_path: Vc<FileSystemPath>,
-        lookup_path: Vc<FileSystemPath>,
+        fs_path: ResolvedVc<FileSystemPath>,
+        lookup_path: ResolvedVc<FileSystemPath>,
         reference_type: Value<ReferenceType>,
-        request: Vc<Request>,
+        request: ResolvedVc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
         let request_value = &*request.await?;
         let Request::Module {
@@ -108,7 +108,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
         let predicate = self.predicate.await?;
         let must_be_external = match &*predicate {
             ExternalPredicate::AllExcept(exceptions) => {
-                if *condition(self.root).matches(lookup_path).await? {
+                if *condition(*self.root).matches(lookup_path).await? {
                     return Ok(ResolveResultOption::none());
                 }
 
@@ -211,7 +211,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
             Ok(ResolveResultOption::none())
         };
 
-        let mut request = request;
+        let mut request = *request;
         let mut request_str = request_str.to_string();
 
         let node_resolve_options = if is_esm {
