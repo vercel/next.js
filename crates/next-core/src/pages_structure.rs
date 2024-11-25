@@ -28,11 +28,11 @@ pub struct PagesStructureItem {
 impl PagesStructureItem {
     #[turbo_tasks::function]
     fn new(
-        base_path: Vc<FileSystemPath>,
-        extensions: Vc<Vec<RcStr>>,
+        base_path: ResolvedVc<FileSystemPath>,
+        extensions: ResolvedVc<Vec<RcStr>>,
         fallback_path: Option<ResolvedVc<FileSystemPath>>,
-        next_router_path: Vc<FileSystemPath>,
-        original_path: Vc<FileSystemPath>,
+        next_router_path: ResolvedVc<FileSystemPath>,
+        original_path: ResolvedVc<FileSystemPath>,
     ) -> Vc<Self> {
         PagesStructureItem {
             base_path,
@@ -56,7 +56,7 @@ impl PagesStructureItem {
         if let Some(fallback_path) = self.fallback_path {
             Ok(*fallback_path)
         } else {
-            Ok(self.base_path)
+            Ok(*self.base_path)
         }
     }
 }
@@ -76,17 +76,17 @@ pub struct PagesStructure {
 impl PagesStructure {
     #[turbo_tasks::function]
     pub fn app(&self) -> Vc<PagesStructureItem> {
-        self.app
+        *self.app
     }
 
     #[turbo_tasks::function]
     pub fn document(&self) -> Vc<PagesStructureItem> {
-        self.document
+        *self.document
     }
 
     #[turbo_tasks::function]
     pub fn error(&self) -> Vc<PagesStructureItem> {
-        self.error
+        *self.error
     }
 }
 
@@ -104,7 +104,7 @@ impl PagesDirectoryStructure {
     /// system.
     #[turbo_tasks::function]
     pub fn project_path(&self) -> Vc<FileSystemPath> {
-        self.project_path
+        *self.project_path
     }
 }
 
