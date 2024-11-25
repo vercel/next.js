@@ -13,10 +13,10 @@ use super::issue::NextFontIssue;
 /// module.
 #[turbo_tasks::value(shared)]
 pub(crate) struct FontCssProperties {
-    pub font_family: Vc<RcStr>,
-    pub weight: Vc<Option<RcStr>>,
-    pub style: Vc<Option<RcStr>>,
-    pub variable: Vc<Option<RcStr>>,
+    pub font_family: ResolvedVc<RcStr>,
+    pub weight: ResolvedVc<Option<RcStr>>,
+    pub style: ResolvedVc<Option<RcStr>>,
+    pub variable: ResolvedVc<Option<RcStr>>,
 }
 
 /// A hash of the requested querymap derived from how the user invoked
