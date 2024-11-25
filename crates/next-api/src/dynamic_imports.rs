@@ -106,7 +106,7 @@ pub(crate) async fn collect_evaluated_chunk_group(
 #[turbo_tasks::value(shared)]
 pub struct NextDynamicImportsResult {
     pub client_dynamic_imports: FxIndexMap<ResolvedVc<Box<dyn Module>>, DynamicImportedModules>,
-    pub visited_modules: Vc<VisitedDynamicImportModules>,
+    pub visited_modules: ResolvedVc<VisitedDynamicImportModules>,
 }
 
 #[turbo_tasks::value(shared)]
@@ -430,7 +430,7 @@ pub struct DynamicImportsMap(pub (ResolvedVc<Box<dyn Module>>, DynamicImportedMo
 
 /// An Option wrapper around [DynamicImportsMap].
 #[turbo_tasks::value(transparent)]
-pub struct OptionDynamicImportsMap(Option<Vc<DynamicImportsMap>>);
+pub struct OptionDynamicImportsMap(Option<ResolvedVc<DynamicImportsMap>>);
 
 #[turbo_tasks::value(transparent)]
 pub struct DynamicImportedChunks(
