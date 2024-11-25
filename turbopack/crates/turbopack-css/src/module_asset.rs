@@ -49,7 +49,10 @@ pub struct ModuleCssAsset {
 #[turbo_tasks::value_impl]
 impl ModuleCssAsset {
     #[turbo_tasks::function]
-    pub fn new(source: Vc<Box<dyn Source>>, asset_context: Vc<Box<dyn AssetContext>>) -> Vc<Self> {
+    pub fn new(
+        source: ResolvedVc<Box<dyn Source>>,
+        asset_context: ResolvedVc<Box<dyn AssetContext>>,
+    ) -> Vc<Self> {
         Self::cell(ModuleCssAsset {
             source,
             asset_context,
@@ -151,7 +154,7 @@ impl ModuleCssAsset {
     #[turbo_tasks::function]
     fn inner(&self) -> Vc<ProcessResult> {
         self.asset_context.process(
-            self.source,
+            *self.source,
             Value::new(ReferenceType::Css(CssReferenceSubType::Internal)),
         )
     }
@@ -190,7 +193,9 @@ impl ModuleCssAsset {
                                     Request::parse(Value::new(
                                         RcStr::from(specifier.clone()).into(),
                                     )),
-                                ),
+                                )
+                                .to_resolved()
+                                .await?,
                             }
                         }
                         CssModuleReference::Local { name } => ModuleCssClass::Local {
@@ -217,7 +222,7 @@ impl ModuleCssAsset {
             for class_name in class_names {
                 match class_name {
                     ModuleCssClass::Import { from, .. } => {
-                        references.push(Vc::upcast(*from));
+                        references.push(Vc::upcast(**from));
                     }
                     ModuleCssClass::Local { .. } | ModuleCssClass::Global { .. } => {}
                 }
@@ -232,8 +237,8 @@ impl ModuleCssAsset {
 impl ChunkableModule for ModuleCssAsset {
     #[turbo_tasks::function]
     fn as_chunk_item(
-        self: Vc<Self>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        self: ResolvedVc<Self>,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
         Vc::upcast(
             ModuleChunkItem {
