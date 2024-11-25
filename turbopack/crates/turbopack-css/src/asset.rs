@@ -33,9 +33,9 @@ fn modifier() -> Vc<RcStr> {
 #[turbo_tasks::value]
 #[derive(Clone)]
 pub struct CssModuleAsset {
-    source: Vc<Box<dyn Source>>,
-    asset_context: Vc<Box<dyn AssetContext>>,
-    import_context: Option<Vc<ImportContext>>,
+    source: ResolvedVc<Box<dyn Source>>,
+    asset_context: ResolvedVc<Box<dyn AssetContext>>,
+    import_context: Option<ResolvedVc<ImportContext>>,
     ty: CssModuleAssetType,
     minify_type: MinifyType,
 }
@@ -172,8 +172,8 @@ impl ResolveOrigin for CssModuleAsset {
 
 #[turbo_tasks::value]
 struct CssModuleChunkItem {
-    module: Vc<CssModuleAsset>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
+    module: ResolvedVc<CssModuleAsset>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
 
 #[turbo_tasks::value_impl]
