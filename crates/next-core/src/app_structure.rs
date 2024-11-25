@@ -587,14 +587,7 @@ fn add_app_page(
     };
 
     let conflict = |existing_name: &str, existing_page: &AppPage| {
-        conflict_issue(
-            app_dir.to_resolved().await?,
-            &e,
-            "page",
-            existing_name,
-            &page,
-            existing_page,
-        );
+        conflict_issue(app_dir, &e, "page", existing_name, &page, existing_page);
     };
 
     let value = e.get();
@@ -1434,7 +1427,7 @@ struct DirectoryTreeIssue {
 impl Issue for DirectoryTreeIssue {
     #[turbo_tasks::function]
     fn severity(&self) -> Vc<IssueSeverity> {
-        self.severity
+        *self.severity
     }
 
     #[turbo_tasks::function]
@@ -1449,11 +1442,11 @@ impl Issue for DirectoryTreeIssue {
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        self.app_dir
+        *self.app_dir
     }
 
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(self.message))
+        Vc::cell(Some(*self.message))
     }
 }
