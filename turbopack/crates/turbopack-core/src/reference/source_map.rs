@@ -20,7 +20,7 @@ pub struct SourceMapReference {
 #[turbo_tasks::value_impl]
 impl SourceMapReference {
     #[turbo_tasks::function]
-    pub fn new(from: Vc<FileSystemPath>, file: Vc<FileSystemPath>) -> Vc<Self> {
+    pub fn new(from: ResolvedVc<FileSystemPath>, file: ResolvedVc<FileSystemPath>) -> Vc<Self> {
         Self::cell(SourceMapReference { from, file })
     }
 }
@@ -30,7 +30,7 @@ impl SourceMapReference {
         let file_type = self.file.get_type().await;
         if let Ok(file_type_result) = file_type.as_ref() {
             if let FileSystemEntryType::File = &**file_type_result {
-                return Some(self.file);
+                return Some(*self.file);
             }
         }
         None
