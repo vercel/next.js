@@ -1702,7 +1702,7 @@ async fn resolve_internal_inline(
                         lookup_path,
                         lookup_path,
                         request.to_resolved().await?,
-                        *options,
+                        options,
                         request.query(),
                     )
                     .await?;
@@ -1760,7 +1760,7 @@ async fn resolve_internal_inline(
                                     lookup_path,
                                     request,
                                     options_value,
-                                    options,
+                                    *options,
                                     *query,
                                     *fragment,
                                 )
@@ -1769,7 +1769,7 @@ async fn resolve_internal_inline(
                         }
                         PatternMatch::Directory(matched_pattern, path) => {
                             results.push(
-                                resolve_into_folder(*path, options)
+                                resolve_into_folder(*path, *options)
                                     .with_request(matched_pattern.clone()),
                             );
                         }
@@ -1844,8 +1844,8 @@ async fn resolve_internal_inline(
                     ResolvingIssue {
                         severity: error_severity(options).await?,
                         request_type: "server relative import: not implemented yet".to_string(),
-                        request: *request,
-                        file_path: *lookup_path,
+                        request,
+                        file_path: lookup_path,
                         resolve_options: options,
                         error_message: Some(
                             "server relative imports are not implemented yet. Please try an \
