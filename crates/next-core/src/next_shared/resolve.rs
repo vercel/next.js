@@ -100,7 +100,7 @@ impl Issue for InvalidImportModuleIssue {
 /// configured when each context sets up its resolve options.
 #[turbo_tasks::value]
 pub(crate) struct InvalidImportResolvePlugin {
-    root: Vc<FileSystemPath>,
+    root: ResolvedVc<FileSystemPath>,
     invalid_import: RcStr,
     message: Vec<RcStr>,
 }
@@ -255,7 +255,7 @@ impl AfterResolvePlugin for NextExternalResolvePlugin {
 
 #[turbo_tasks::value]
 pub(crate) struct NextNodeSharedRuntimeResolvePlugin {
-    root: Vc<FileSystemPath>,
+    root: ResolvedVc<FileSystemPath>,
     server_context_type: ServerContextType,
 }
 
@@ -334,7 +334,7 @@ impl AfterResolvePlugin for NextNodeSharedRuntimeResolvePlugin {
 /// telemetry events if there is a match.
 #[turbo_tasks::value]
 pub(crate) struct ModuleFeatureReportResolvePlugin {
-    root: Vc<FileSystemPath>,
+    root: ResolvedVc<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
@@ -391,13 +391,13 @@ impl BeforeResolvePlugin for ModuleFeatureReportResolvePlugin {
 
 #[turbo_tasks::value]
 pub(crate) struct NextSharedRuntimeResolvePlugin {
-    root: Vc<FileSystemPath>,
+    root: ResolvedVc<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
 impl NextSharedRuntimeResolvePlugin {
     #[turbo_tasks::function]
-    pub fn new(root: Vc<FileSystemPath>) -> Vc<Self> {
+    pub fn new(root: ResolvedVc<FileSystemPath>) -> Vc<Self> {
         NextSharedRuntimeResolvePlugin { root }.cell()
     }
 }
