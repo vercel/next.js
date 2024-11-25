@@ -122,7 +122,7 @@ pub async fn get_client_compile_time_info(
                 service_worker: false,
                 browserslist_query: browserslist_query.to_owned(),
             }
-            .into(),
+            .resolved_cell(),
         )))
         .to_resolved()
         .await?,
