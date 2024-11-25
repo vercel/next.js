@@ -127,8 +127,8 @@ pub async fn get_client_compile_time_info(
         .to_resolved()
         .await?,
     )
-    .defines(next_client_defines(define_env))
-    .free_var_references(next_client_free_vars(define_env))
+    .defines(next_client_defines(define_env).to_resolved().await?)
+    .free_var_references(next_client_free_vars(define_env).to_resolved().await?)
     .cell()
     .await
 }
