@@ -127,7 +127,6 @@ impl Request {
         })
     }
 
-    #[async_recursion::async_recursion]
     pub async fn parse_ref(mut request: Pattern) -> Result<Self> {
         request.normalize();
         Ok(match request {
