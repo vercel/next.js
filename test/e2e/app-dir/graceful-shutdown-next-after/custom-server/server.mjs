@@ -61,8 +61,17 @@ async function main() {
 
   try {
     await new Promise((resolve, reject) => {
-      httpServer.listen(currentPort, (err) => (err ? reject(err) : resolve()))
+      httpServer.on('error', reject)
+      httpServer.listen(currentPort, (err) => {
+        if (err) {
+          reject(err)
+        } else {
+          resolve()
+        }
+        httpServer.off('error', reject)
+      })
     })
+
     console.log(
       [
         `Custom server started`,
@@ -71,7 +80,7 @@ async function main() {
       ].join('\n')
     )
   } catch (err) {
-    console.error('Failed to start server', err)
+    console.error('Failed to start server:', err)
     process.exit(1)
   }
 }
