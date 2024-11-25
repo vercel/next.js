@@ -38,8 +38,7 @@ impl<K: StoreKey> EntryKey<K> {
 
 impl<K: StoreKey> PartialEq for EntryKey<K> {
     fn eq(&self, other: &Self) -> bool {
-        // self.hash == other.hash && self.data == other.data
-        self.data == other.data
+        self.hash == other.hash && self.data == other.data
     }
 }
 
@@ -53,9 +52,8 @@ impl<K: StoreKey> PartialOrd for EntryKey<K> {
 
 impl<K: StoreKey> Ord for EntryKey<K> {
     fn cmp(&self, other: &Self) -> Ordering {
-        // self.hash
-        //     .cmp(&other.hash)
-        //     .then_with(|| self.data.cmp(&other.data))
-        self.data.cmp(&other.data)
+        self.hash
+            .cmp(&other.hash)
+            .then_with(|| self.data.cmp(&other.data))
     }
 }

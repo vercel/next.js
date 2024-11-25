@@ -219,7 +219,9 @@ impl StaticSortedFileBuilder {
             if current_block_size > 0
                 && (current_block_size + entry.key.len() + KEY_BLOCK_ENTRY_META_OVERHEAD
                     > MAX_KEY_BLOCK_SIZE
-                    || i - current_block_start >= MAX_KEY_BLOCK_ENTRIES)
+                    || i - current_block_start >= MAX_KEY_BLOCK_ENTRIES) &&
+                    // avoid breaking the block in the middle of a hash conflict
+                    entries[i - 1].key.hash != entry.key.hash
             {
                 let mut block = KeyBlockBuilder::new((i - current_block_start) as u32);
                 for j in current_block_start..i {
@@ -227,7 +229,7 @@ impl StaticSortedFileBuilder {
                     let value_location = &value_locations[j];
                     add_entry_to_block(entry, value_location, &mut block);
                 }
-                key_block_boundaries.push((self.blocks.len(), i - 1));
+                key_block_boundaries.push((self.blocks.len(), entries[i - 1].key.hash));
                 self.blocks.push(self.compress_key_block(&block.finish()));
                 current_block_size = 0;
                 current_block_start = i;
@@ -241,17 +243,15 @@ impl StaticSortedFileBuilder {
                 let value_location = &value_locations[j];
                 add_entry_to_block(entry, value_location, &mut block);
             }
-            key_block_boundaries.push((self.blocks.len(), entries.len() - 1));
+            key_block_boundaries.push((self.blocks.len(), entries.last().unwrap().key.hash));
             self.blocks.push(self.compress_key_block(&block.finish()));
         }
 
         // Compute the index
-        let mut index_block = IndexBlockBuilder::new(
-            key_block_boundaries.len() as u16,
-            &entries[key_block_boundaries[0].1].key,
-        );
-        for (block, entry_index) in &key_block_boundaries[1..] {
-            index_block.put(*block as u16, &entries[*entry_index].key);
+        let mut index_block =
+            IndexBlockBuilder::new(key_block_boundaries.len() as u16, key_block_boundaries[0].1);
+        for (block, hash) in &key_block_boundaries[1..] {
+            index_block.put(*block as u16, *hash);
         }
         self.blocks[0] = self.compress_key_block(&index_block.finish());
     }
@@ -406,43 +406,20 @@ impl KeyBlockBuilder {
 }
 
 pub struct IndexBlockBuilder {
-    current_entry: usize,
-    header_size: usize,
     data: Vec<u8>,
 }
 
-const INDEX_BLOCK_HEADER_SIZE: usize = 3;
-
 impl IndexBlockBuilder {
-    pub fn new<K: StoreKey>(entry_count: u16, first_key: &EntryKey<K>) -> Self {
-        const ESTIMATED_KEY_SIZE: usize = 16;
-        let mut data = Vec::with_capacity(entry_count as usize * ESTIMATED_KEY_SIZE);
+    pub fn new(entry_count: u16, first_hash: u64) -> Self {
+        let mut data = Vec::with_capacity(entry_count as usize * 10 - 1);
         data.write_u8(BLOCK_TYPE_INDEX).unwrap();
-        data.write_u16::<BE>(entry_count as u16).unwrap();
-        for _ in 0..entry_count - 1 {
-            data.write_u32::<BE>(0).unwrap();
-        }
-        let header_size = data.len();
-        first_key.data.write_to(&mut data);
-        Self {
-            current_entry: 0,
-            header_size,
-            data,
-        }
+        data.write_u64::<BE>(first_hash).unwrap();
+        Self { data }
     }
 
-    pub fn put<K: StoreKey>(&mut self, block: u16, key: &EntryKey<K>) {
-        assert!(key.data.len() < (1 << 32));
+    pub fn put(&mut self, block: u16, hash: u64) {
         self.data.write_u16::<BE>(block).unwrap();
-
-        let pos = self.data.len() - self.header_size;
-        let header_offset = INDEX_BLOCK_HEADER_SIZE + self.current_entry * 4;
-        let header = pos.try_into().unwrap();
-        BE::write_u32(&mut self.data[header_offset..header_offset + 4], header);
-
-        key.data.write_to(&mut self.data);
-
-        self.current_entry += 1;
+        self.data.write_u64::<BE>(hash).unwrap();
     }
 
     fn finish(self) -> Vec<u8> {
