@@ -59,6 +59,7 @@ describe('unstable_after during server shutdown', () => {
       skipStart: true,
       env: {
         NODE_ENV: isNextDev ? 'development' : 'production',
+        DEBUG: '1',
       },
     })
 

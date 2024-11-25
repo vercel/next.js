@@ -1,7 +1,13 @@
 import next from 'next'
 import * as http from 'node:http'
 
+const debug = (...args) => {
+  if (!process.env.DEBUG) return
+  console.log('debug ::', ...args)
+}
+
 async function main() {
+  debug('starting custom server...')
   const currentPort = parseInt(process.env.PORT, 10) || 3000
   const isDev = process.env.NODE_ENV !== 'production'
 
@@ -12,9 +18,11 @@ async function main() {
     quiet: false,
   })
 
+  debug('nextServer.prepare()')
   await nextServer.prepare()
   const nextRequestHandler = nextServer.getRequestHandler()
 
+  debug('http.createServer()')
   const httpServer = http.createServer(async (req, res) => {
     try {
       await nextRequestHandler(req, res)
@@ -29,7 +37,7 @@ async function main() {
     // in dev, there might be a devserver websocket connection
     // that prevents `httpServer.close` from completing, so skip it
     if (!isDev) {
-      console.log('closing HTTP server...')
+      debug('closing HTTP server...')
       await new Promise((resolve) =>
         httpServer.close((err) => {
           if (err) {
@@ -40,15 +48,15 @@ async function main() {
       )
     }
 
-    console.log('closing Next server...')
+    debug('closing Next server...')
     await nextServer.close()
 
-    console.log('cleanup finished')
+    debug('cleanup finished')
   })
 
   /** @type {NodeJS.SignalsListener} */
   const onShutdownSignal = async (signal) => {
-    console.log('onShutdownSignal', signal)
+    debug('onShutdownSignal', signal)
     try {
       await cleanup()
     } finally {
@@ -62,6 +70,7 @@ async function main() {
   try {
     await new Promise((resolve, reject) => {
       httpServer.on('error', reject)
+      debug('httpServer.listen()')
       httpServer.listen(currentPort, (err) => {
         if (err) {
           reject(err)
