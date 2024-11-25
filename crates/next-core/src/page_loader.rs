@@ -72,10 +72,10 @@ pub async fn create_page_loader_entry_module(
 
 #[turbo_tasks::value(shared)]
 pub struct PageLoaderAsset {
-    pub server_root: Vc<FileSystemPath>,
-    pub pathname: Vc<RcStr>,
-    pub rebase_prefix_path: Vc<FileSystemPathOption>,
-    pub page_chunks: Vc<OutputAssets>,
+    pub server_root: ResolvedVc<FileSystemPath>,
+    pub pathname: ResolvedVc<RcStr>,
+    pub rebase_prefix_path: ResolvedVc<FileSystemPathOption>,
+    pub page_chunks: ResolvedVc<OutputAssets>,
 }
 
 #[turbo_tasks::value_impl]
