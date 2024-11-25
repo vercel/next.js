@@ -19,7 +19,7 @@ use swc_core::{
 };
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ValueToString, Vc};
+use turbo_tasks::{FxIndexMap, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -646,9 +646,9 @@ impl GenerateSourceMap for ParseCssResultSourceMap {
 
 #[turbo_tasks::value]
 struct ParsingIssue {
-    msg: Vc<RcStr>,
-    file: Vc<FileSystemPath>,
-    source: Option<Vc<IssueSource>>,
+    msg: ResolvedVc<RcStr>,
+    file: ResolvedVc<FileSystemPath>,
+    source: Option<ResolvedVc<IssueSource>>,
 }
 
 #[turbo_tasks::value_impl]
