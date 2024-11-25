@@ -2,8 +2,8 @@ use std::mem::replace;
 
 use crate::{
     constants::{DATA_THRESHOLD_PER_FILE, MAX_ENTRIES_PER_FILE, MAX_SMALL_VALUE_SIZE},
-    entry::{Entry, EntryValue},
-    key::StoreKey,
+    entry::{Entry, EntryKey, EntryValue},
+    key::{hash_key, StoreKey},
 };
 
 pub struct Collector<K: StoreKey> {
@@ -31,19 +31,25 @@ impl<K: StoreKey> Collector<K> {
     }
 
     pub fn put(&mut self, key: K, value: Vec<u8>) {
+        let key = EntryKey {
+            hash: hash_key(&key),
+            data: key,
+        };
+        let value = if value.len() > MAX_SMALL_VALUE_SIZE {
+            EntryValue::Medium { value }
+        } else {
+            EntryValue::Small { value }
+        };
         self.total_key_size += key.len();
         self.total_value_size += value.len();
-        self.entries.push(Entry {
-            key,
-            value: if value.len() > MAX_SMALL_VALUE_SIZE {
-                EntryValue::Medium { value }
-            } else {
-                EntryValue::Small { value }
-            },
-        });
+        self.entries.push(Entry { key, value });
     }
 
     pub fn put_blob(&mut self, key: K, blob: u32) {
+        let key = EntryKey {
+            hash: hash_key(&key),
+            data: key,
+        };
         self.total_key_size += key.len();
         self.entries.push(Entry {
             key,
@@ -52,6 +58,10 @@ impl<K: StoreKey> Collector<K> {
     }
 
     pub fn delete(&mut self, key: K) {
+        let key = EntryKey {
+            hash: hash_key(&key),
+            data: key,
+        };
         self.total_key_size += key.len();
         self.entries.push(Entry {
             key,
@@ -61,9 +71,7 @@ impl<K: StoreKey> Collector<K> {
 
     pub fn add_entry(&mut self, entry: Entry<K>) {
         self.total_key_size += entry.key.len();
-        if let EntryValue::Small { value } | EntryValue::Medium { value } = &entry.value {
-            self.total_value_size += value.len();
-        }
+        self.total_value_size += entry.value.len();
         self.entries.push(entry);
     }
 
