@@ -68,12 +68,12 @@ impl Issue for ResolvingIssue {
         let request_value = self.request.await?;
         let request_parts = match &*request_value {
             Request::Alternatives { requests } => requests.as_slice(),
-            _ => &[*self.request],
+            _ => &[self.request],
         };
 
         if let Some(import_map) = &self.resolve_options.await?.import_map {
             for request in request_parts {
-                match lookup_import_map(**import_map, *self.file_path, *request).await {
+                match lookup_import_map(**import_map, *self.file_path, **request).await {
                     Ok(None) => {}
                     Ok(Some(str)) => writeln!(description, "Import map: {}", str)?,
                     Err(err) => {

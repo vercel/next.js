@@ -1665,12 +1665,12 @@ async fn resolve_internal(
     request: ResolvedVc<Request>,
     options: ResolvedVc<ResolveOptions>,
 ) -> Result<Vc<ResolveResult>> {
-    resolve_internal_inline(*lookup_path, request, *options).await
+    resolve_internal_inline(*lookup_path, *request, *options).await
 }
 
 async fn resolve_internal_inline(
     lookup_path: Vc<FileSystemPath>,
-    request: ResolvedVc<Request>,
+    request: Vc<Request>,
     options: Vc<ResolveOptions>,
 ) -> Result<Vc<ResolveResult>> {
     let span = {
@@ -1691,10 +1691,10 @@ async fn resolve_internal_inline(
         if let Some(import_map) = &options_value.import_map {
             let request_parts = match &*request_value {
                 Request::Alternatives { requests } => requests.as_slice(),
-                _ => &[*request],
+                _ => &[request.to_resolved().await?],
             };
             for request in request_parts {
-                let result = import_map.await?.lookup(lookup_path, *request).await?;
+                let result = import_map.await?.lookup(lookup_path, request).await?;
                 if !matches!(result, ImportMapResult::NoEntry) {
                     has_alias = true;
                     let resolved_result = resolve_import_map_result(
@@ -1859,8 +1859,8 @@ async fn resolve_internal_inline(
                 }
 
                 Box::pin(resolve_internal_inline(
-                    lookup_path.root().to_resolved().await?,
-                    relative.to_resolved().await?,
+                    lookup_path.root(),
+                    relative,
                     options,
                 ))
                 .await?
@@ -1874,9 +1874,9 @@ async fn resolve_internal_inline(
                     ResolvingIssue {
                         severity: error_severity(options).await?,
                         request_type: "windows import: not implemented yet".to_string(),
-                        request,
-                        file_path: lookup_path,
-                        resolve_options: options,
+                        request: request.to_resolved().await?,
+                        file_path: lookup_path.to_resolved().await?,
+                        resolve_options: options.to_resolved().await?,
                         error_message: Some("windows imports are not implemented yet".to_string()),
                         source: None,
                     }
