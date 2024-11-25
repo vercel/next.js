@@ -1336,8 +1336,10 @@ impl AppEndpoint {
 
                 AppEndpointOutput::Edge {
                     files: *app_entry_chunks,
-                    server_assets: Vc::cell(server_assets.iter().cloned().collect::<Vec<_>>()),
-                    client_assets,
+                    server_assets: ResolvedVc::cell(
+                        server_assets.iter().cloned().collect::<Vec<_>>(),
+                    ),
+                    client_assets: client_assets.to_resolved().await?,
                 }
             }
             NextRuntime::NodeJs => {
