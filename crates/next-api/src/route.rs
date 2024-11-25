@@ -22,8 +22,8 @@ impl AppPageRoute {
             rsc_endpoint,
             ..
         } = self;
-        *html_endpoint = html_endpoint.resolve().await?;
-        *rsc_endpoint = rsc_endpoint.resolve().await?;
+        *html_endpoint = html_endpoint.to_resolved().await?;
+        *rsc_endpoint = rsc_endpoint.to_resolved().await?;
         Ok(())
     }
 }

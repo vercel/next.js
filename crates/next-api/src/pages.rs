@@ -902,7 +902,7 @@ impl PageEndpoint {
 
                 Ok(SsrChunk::NodeJs {
                     entry: ssr_entry_chunk,
-                    dynamic_import_entries,
+                    dynamic_import_entries: dynamic_import_entries.to_resolved().await?,
                     server_asset_trace_file,
                 }
                 .cell())
@@ -1117,14 +1117,14 @@ impl PageEndpoint {
                     server_assets.push(pages_manifest);
 
                     let loadable_manifest_output =
-                        self.react_loadable_manifest(dynamic_import_entries);
+                        self.react_loadable_manifest(*dynamic_import_entries);
                     server_assets.extend(loadable_manifest_output.await?.iter().copied());
                 }
 
                 PageEndpointOutput::NodeJs {
                     entry_chunk: entry,
-                    server_assets: Vc::cell(server_assets),
-                    client_assets,
+                    server_assets: ResolvedVc::cell(server_assets),
+                    client_assets: client_assets.to_resolved().await?,
                 }
             }
             SsrChunk::Edge {

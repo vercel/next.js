@@ -37,7 +37,7 @@ where
     F: FnMut(Vc<Box<dyn ChunkableModule>>) -> Fu,
     Fu: Future<Output = Result<Vc<OutputAssets>>> + Send,
 {
-    let mut chunks_hash: HashMap<RcStr, Vc<OutputAssets>> = HashMap::new();
+    let mut chunks_hash: HashMap<RcStr, ResolvedVc<OutputAssets>> = HashMap::new();
     let mut dynamic_import_chunks = FxIndexMap::default();
 
     // Iterate over the collected import mappings, and create a chunk for each
@@ -45,7 +45,7 @@ where
     for (origin_module, dynamic_imports) in dynamic_import_entries {
         for (imported_raw_str, imported_module) in dynamic_imports {
             let chunk = if let Some(chunk) = chunks_hash.get(&imported_raw_str) {
-                *chunk
+                chunk.to_resolved().await?
             } else {
                 let Some(module) =
                     ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(imported_module).await?
@@ -59,7 +59,7 @@ where
                 // naive hash to have additional
                 // chunks in case if there are same modules being imported in different
                 // origins.
-                let chunk_group = build_chunk(*module).await?;
+                let chunk_group = build_chunk(*module).await?.to_resolved().await?;
                 chunks_hash.insert(imported_raw_str.clone(), chunk_group);
                 chunk_group
             };
@@ -201,7 +201,7 @@ pub(crate) async fn collect_next_dynamic_imports(
 
         Ok(NextDynamicImportsResult {
             client_dynamic_imports: import_mappings,
-            visited_modules: VisitedDynamicImportModules(visited_modules.0).cell(),
+            visited_modules: VisitedDynamicImportModules(visited_modules.0).resolved_cell(),
         }
         .cell())
     }

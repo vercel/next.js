@@ -930,9 +930,9 @@ impl Project {
             routes,
             middleware,
             instrumentation,
-            pages_document_endpoint,
-            pages_app_endpoint,
-            pages_error_endpoint,
+            pages_document_endpoint: pages_document_endpoint.to_resolved().await?,
+            pages_app_endpoint: pages_app_endpoint.to_resolved().await?,
+            pages_error_endpoint: pages_error_endpoint.to_resolved().await?,
         }
         .cell())
     }
