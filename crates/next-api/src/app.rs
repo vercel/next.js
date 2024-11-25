@@ -137,8 +137,12 @@ impl AppProject {
         let this = self.await?;
         Ok(ServerContextType::AppRSC {
             app_dir: this.app_dir,
-            client_transition: Some(Vc::upcast(self.client_transition())),
-            ecmascript_client_reference_transition_name: Some(self.client_transition_name()),
+            client_transition: Some(ResolvedVc::upcast(
+                self.client_transition().to_resolved().await?,
+            )),
+            ecmascript_client_reference_transition_name: Some(
+                self.client_transition_name().to_resolved().await?,
+            ),
         }
         .cell())
     }
@@ -148,7 +152,9 @@ impl AppProject {
         let this = self.await?;
         Ok(ServerContextType::AppRoute {
             app_dir: this.app_dir,
-            ecmascript_client_reference_transition_name: Some(self.client_transition_name()),
+            ecmascript_client_reference_transition_name: Some(
+                self.client_transition_name().to_resolved().await?,
+            ),
         }
         .cell())
     }

@@ -90,9 +90,7 @@ impl MiddlewareEndpoint {
             Value::new(ServerContextType::Middleware {
                 app_dir: self.app_dir,
                 ecmascript_client_reference_transition_name: self
-                    .ecmascript_client_reference_transition_name
-                    .as_deref()
-                    .copied(),
+                    .ecmascript_client_reference_transition_name,
             }),
             self.project.next_mode(),
         )

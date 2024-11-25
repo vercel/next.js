@@ -944,9 +944,10 @@ impl Project {
         let app_dir = *find_app_dir(self.project_path()).await?;
         let app_project = *self.app_project().await?;
 
-        let ecmascript_client_reference_transition_name = app_project
-            .as_ref()
-            .map(|app_project| app_project.client_transition_name());
+        let ecmascript_client_reference_transition_name = match app_project {
+            Some(app_project) => Some(app_project.client_transition_name().to_resolved().await?),
+            None => None,
+        };
 
         if let Some(app_project) = app_project {
             transitions.push((
@@ -1028,9 +1029,10 @@ impl Project {
         let app_dir = *find_app_dir(self.project_path()).await?;
         let app_project = &*self.app_project().await?;
 
-        let ecmascript_client_reference_transition_name = app_project
-            .as_ref()
-            .map(|app_project| app_project.client_transition_name());
+        let ecmascript_client_reference_transition_name = match app_project {
+            Some(app_project) => Some(app_project.client_transition_name().to_resolved().await?),
+            None => None,
+        };
 
         if let Some(app_project) = app_project {
             transitions.push((
@@ -1081,9 +1083,10 @@ impl Project {
         let app_dir = *find_app_dir(self.project_path()).await?;
         let app_project = &*self.app_project().await?;
 
-        let ecmascript_client_reference_transition_name = app_project
-            .as_ref()
-            .map(|app_project| app_project.client_transition_name());
+        let ecmascript_client_reference_transition_name = match app_project {
+            Some(app_project) => Some(app_project.client_transition_name().to_resolved().await?),
+            None => None,
+        };
 
         if let Some(app_project) = app_project {
             transitions.push((
