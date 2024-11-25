@@ -60,7 +60,7 @@ pub(super) async fn get_font_fallbacks(
     };
 
     if let Some(fallback) = &options.fallback {
-        font_fallbacks.push(FontFallback::Manual(fallback.clone()).into());
+        font_fallbacks.push(FontFallback::Manual(fallback.clone()).resolved_cell());
     }
 
     Ok(Vc::cell(font_fallbacks))
