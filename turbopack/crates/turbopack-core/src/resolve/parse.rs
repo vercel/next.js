@@ -139,8 +139,8 @@ impl Request {
 
                     Request::ServerRelative {
                         path,
-                        query,
-                        fragment,
+                        query: query.to_resolved().await?,
+                        fragment: fragment.to_resolved().await?,
                     }
                 } else if r.starts_with('#') {
                     Request::PackageInternal {
@@ -152,8 +152,8 @@ impl Request {
                     Request::Relative {
                         path,
                         force_in_lookup_dir: false,
-                        query,
-                        fragment,
+                        query: query.to_resolved().await?,
+                        fragment: fragment.to_resolved().await?,
                     }
                 } else {
                     lazy_static! {
@@ -168,8 +168,8 @@ impl Request {
 
                         return Request::Windows {
                             path,
-                            query,
-                            fragment,
+                            query: query.to_resolved().await?,
+                            fragment: fragment.to_resolved().await?,
                         };
                     }
 
@@ -608,11 +608,11 @@ impl Request {
     #[turbo_tasks::function]
     pub fn query(&self) -> Vc<RcStr> {
         match self {
-            Request::Raw { query, .. } => *query,
-            Request::Relative { query, .. } => *query,
-            Request::Module { query, .. } => *query,
-            Request::ServerRelative { query, .. } => *query,
-            Request::Windows { query, .. } => *query,
+            Request::Raw { query, .. } => **query,
+            Request::Relative { query, .. } => **query,
+            Request::Module { query, .. } => **query,
+            Request::ServerRelative { query, .. } => **query,
+            Request::Windows { query, .. } => **query,
             Request::Empty => Vc::<RcStr>::default(),
             Request::PackageInternal { .. } => Vc::<RcStr>::default(),
             Request::Uri { .. } => Vc::<RcStr>::default(),
