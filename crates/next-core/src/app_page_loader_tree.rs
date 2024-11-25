@@ -49,7 +49,7 @@ impl AppPageLoaderTreeBuilder {
     async fn write_modules_entry(
         &mut self,
         module_type: AppDirModuleType,
-        path: Option<Vc<FileSystemPath>>,
+        path: Option<ResolvedVc<FileSystemPath>>,
     ) -> Result<()> {
         if let Some(path) = path {
             if matches!(module_type, AppDirModuleType::Page) {
