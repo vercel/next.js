@@ -7,7 +7,9 @@ related:
     - app/api-reference/file-conventions/unauthorized
 ---
 
-The `unauthorized` function allows you to render the [`unauthorized.js` file](/docs/app/api-reference/file-conventions/unauthorized) to handle authentication errors. To start using `unauthorized`, enable the experimental [`authInterrupts`](/docs/app/api-reference/config/next-config-js/authInterrupts) configuration option in your `next.config.js` file:
+The `unauthorized` function throws an error that renders a Next.js 401 error page. It is useful for handling authorization errors in your application. You can customize the UI using the [`unauthorized.js` file](/docs/app/api-reference/file-conventions/unauthorized).
+
+To start using `unauthorized`, enable the experimental [`authInterrupts`](/docs/app/api-reference/config/next-config-js/authInterrupts) configuration option in your `next.config.js` file:
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
@@ -33,7 +35,7 @@ module.exports = {
 
 ```tsx filename="app/dashboard/page.tsx" switcher
 import { verifySession } from '@/app/lib/dal'
-import { unauthorized } from 'next/server'
+import { unauthorized } from 'next/navigation'
 
 export default async function DashboardPage() {
   const session = await verifySession()
@@ -46,7 +48,7 @@ export default async function DashboardPage() {
   return (
     <main>
       <h1>Welcome to the Dashboard</h1>
-      <p>Hi, {session.user.name}! You have successfully logged in.</p>
+      <p>Hi, {session.user.name}.</p>
     </main>
   )
 }
@@ -54,7 +56,7 @@ export default async function DashboardPage() {
 
 ```jsx filename="app/dashboard/page.js" switcher
 import { verifySession } from '@/app/lib/dal'
-import { unauthorized } from 'next/server'
+import { unauthorized } from 'next/navigation'
 
 export default async function DashboardPage() {
   const session = await verifySession()
@@ -67,7 +69,7 @@ export default async function DashboardPage() {
   return (
     <main>
       <h1>Welcome to the Dashboard</h1>
-      <p>Hi, {session.user.name}! You have successfully logged in.</p>
+      <p>Hi, {session.user.name}.</p>
     </main>
   )
 }
@@ -81,7 +83,7 @@ You can use `unauthorized` function to display the `unauthorized.js` file with a
 
 ```tsx filename="app/dashboard/page.tsx" switcher
 import { verifySession } from '@/app/lib/dal'
-import { unauthorized } from 'next/server'
+import { unauthorized } from 'next/navigation'
 
 export default async function DashboardPage() {
   const session = await verifySession()
@@ -96,7 +98,7 @@ export default async function DashboardPage() {
 
 ```jsx filename="app/dashboard/page.js" switcher
 import { verifySession } from '@/app/lib/dal'
-import { unauthorized } from 'next/server'
+import { unauthorized } from 'next/navigation'
 
 export default async function DashboardPage() {
   const session = await verifySession()
@@ -145,7 +147,7 @@ You can invoke `unauthorized` in Server Actions to ensure only authenticated use
 'use server'
 
 import { verifySession } from '@/app/lib/dal'
-import { unauthorized } from 'next/server'
+import { unauthorized } from 'next/navigation'
 import db from '@/app/lib/db'
 
 export async function updateProfile(data: FormData) {
@@ -156,12 +158,8 @@ export async function updateProfile(data: FormData) {
     unauthorized()
   }
 
-  // Proceed with the update for authenticated users
-  const { userId } = session
-  const newName = data.get('name')
-  await db.users.update({ where: { id: userId }, data: { name: newName } })
-
-  return { success: true }
+  // Proceed with mutation
+  // ...
 }
 ```
 
@@ -169,7 +167,7 @@ export async function updateProfile(data: FormData) {
 'use server'
 
 import { verifySession } from '@/app/lib/dal'
-import { unauthorized } from 'next/server'
+import { unauthorized } from 'next/navigation'
 import db from '@/app/lib/db'
 
 export async function updateProfile(data) {
@@ -180,12 +178,8 @@ export async function updateProfile(data) {
     unauthorized()
   }
 
-  // Proceed with the update for authenticated users
-  const { userId } = session
-  const newName = data.get('name')
-  await db.users.update({ where: { id: userId }, data: { name: newName } })
-
-  return { success: true }
+  // Proceed with mutation
+  // ...
 }
 ```
 
@@ -196,7 +190,7 @@ You can use `unauthorized` in Route Handlers to ensure only authenticated users 
 ```tsx filename="app/api/profile/route.ts" switcher
 import { NextRequest, NextResponse } from 'next/server'
 import { verifySession } from '@/app/lib/dal'
-import { unauthorized } from 'next/server'
+import { unauthorized } from 'next/navigation'
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
   // Verify the user's session
@@ -208,12 +202,13 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   }
 
   // Fetch data
+  // ...
 }
 ```
 
 ```jsx filename="app/api/profile/route.js" switcher
 import { verifySession } from '@/app/lib/dal'
-import { unauthorized } from 'next/server'
+import { unauthorized } from 'next/navigation'
 
 export async function GET() {
   const session = await verifySession()
@@ -224,6 +219,7 @@ export async function GET() {
   }
 
   // Fetch data
+  // ...
 }
 ```
 

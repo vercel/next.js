@@ -7,7 +7,9 @@ related:
     - app/api-reference/file-conventions/forbidden
 ---
 
-The `forbidden` function allows you to render the [`forbidden.js` file](/docs/app/api-reference/file-conventions/forbidden) to handle authorization errors. To start using `forbidden`, enable the experimental [`authInterrupts`](/docs/app/api-reference/config/next-config-js/authInterrupts) configuration option in your `next.config.js` file:
+The `forbidden` function throws an error that renders a Next.js 403 error page. It is useful for handling authorization errors in your application. You can customize the UI using the [`forbidden.js` file](/docs/app/api-reference/file-conventions/forbidden).
+
+To start using `forbidden`, enable the experimental [`authInterrupts`](/docs/app/api-reference/config/next-config-js/authInterrupts) configuration option in your `next.config.js` file:
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
@@ -33,35 +35,35 @@ module.exports = {
 
 ```tsx filename="app/auth/route.tsx" switcher
 import { verifySession } from '@/app/lib/dal'
-import { unauthorized, forbidden } from 'next/server'
+import { forbidden } from 'next/navigation'
 
-export async function GET() {
+export default async function AdminPage() {
   const session = await verifySession()
 
+  // Check if the user has the 'admin' role
   if (session.role !== 'admin') {
-    // User is authenticated but does not have the required permissions
     forbidden()
   }
 
-  // Authorized user logic here
-  return new Response('Welcome, admin!', { status: 200 })
+  // Render the admin page for authorized users
+  return <></>
 }
 ```
 
 ```jsx filename="app/auth/route.js" switcher
 import { verifySession } from '@/app/lib/dal'
-import { unauthorized, forbidden } from 'next/server'
+import { forbidden } from 'next/navigation'
 
-export async function GET() {
+export default async function AdminPage() {
   const session = await verifySession()
 
+  // Check if the user has the 'admin' role
   if (session.role !== 'admin') {
-    // User is authenticated but does not have the required permissions
     forbidden()
   }
 
-  // Authorized user logic here
-  return new Response('Welcome, admin!', { status: 200 })
+  // Render the admin page for authorized users
+  return <></>
 }
 ```
 
@@ -77,7 +79,7 @@ You can use the `forbidden` function to restrict access to certain routes based 
 
 ```tsx filename="app/admin/page.tsx" switcher
 import { verifySession } from '@/app/lib/dal'
-import { forbidden } from 'next/server'
+import { forbidden } from 'next/navigation'
 
 export default async function AdminPage() {
   const session = await verifySession()
@@ -99,7 +101,7 @@ export default async function AdminPage() {
 
 ```jsx filename="app/admin/page.js" switcher
 import { verifySession } from '@/app/lib/dal'
-import { forbidden } from 'next/server'
+import { forbidden } from 'next/navigation'
 
 export default async function AdminPage() {
   const session = await verifySession()
@@ -127,7 +129,7 @@ When implementing mutations in Server Actions, you can use `forbidden` to only a
 'use server'
 
 import { verifySession } from '@/app/lib/dal'
-import { forbidden } from 'next/server'
+import { forbidden } from 'next/navigation'
 import db from '@/app/lib/db'
 
 export async function updateRole(formData: FormData) {
@@ -147,7 +149,7 @@ export async function updateRole(formData: FormData) {
 'use server'
 
 import { verifySession } from '@/app/lib/dal'
-import { forbidden } from 'next/server'
+import { forbidden } from 'next/navigation'
 import db from '@/app/lib/db'
 
 export async function updateRole(formData) {
