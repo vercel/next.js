@@ -355,7 +355,7 @@ struct AnalysisState<'a> {
     url_rewrite_behavior: Option<UrlRewriteBehavior>,
 }
 
-impl<'a> AnalysisState<'a> {
+impl AnalysisState<'_> {
     /// Links a value to the graph, returning the linked value.
     async fn link_value(&self, value: JsValue, attributes: &ImportAttributes) -> Result<JsValue> {
         let fun_args_values = self.fun_args_values.lock().clone();
