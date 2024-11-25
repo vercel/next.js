@@ -82,10 +82,10 @@ pub struct PageLoaderAsset {
 impl PageLoaderAsset {
     #[turbo_tasks::function]
     pub fn new(
-        server_root: Vc<FileSystemPath>,
-        pathname: Vc<RcStr>,
-        rebase_prefix_path: Vc<FileSystemPathOption>,
-        page_chunks: Vc<OutputAssets>,
+        server_root: ResolvedVc<FileSystemPath>,
+        pathname: ResolvedVc<RcStr>,
+        rebase_prefix_path: ResolvedVc<FileSystemPathOption>,
+        page_chunks: ResolvedVc<OutputAssets>,
     ) -> Vc<Self> {
         Self {
             server_root,
