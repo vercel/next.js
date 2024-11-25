@@ -9,6 +9,70 @@ version: experimental
 
 The **unauthorized** file is used to render UI when the [`unauthorized`](/docs/app/api-reference/functions/unauthorized) function is invoked during authentication.
 
+## Examples
+
+### Displaying login UI to unauthenticated users
+
+You can use `unauthorized` function to display the `unauthorized.js` file with a login UI.
+
+```tsx filename="app/dashboard/page.tsx" switcher
+import { verifySession } from '@/app/lib/dal'
+import { unauthorized } from 'next/server'
+
+export default async function DashboardPage() {
+  const session = await verifySession()
+
+  if (!session) {
+    unauthorized()
+  }
+
+  return <div>Dashboard</div>
+}
+```
+
+```jsx filename="app/dashboard/page.js" switcher
+import { verifySession } from '@/app/lib/dal'
+import { unauthorized } from 'next/server'
+
+export default async function DashboardPage() {
+  const session = await verifySession()
+
+  if (!session) {
+    unauthorized()
+  }
+
+  return <div>Dashboard</div>
+}
+```
+
+```tsx filename="app/unauthorized.tsx" switcher
+import Login from '@/app/components/Login'
+
+export default function UnauthorizedPage() {
+  return (
+    <main>
+      <h1>401 - Unauthorized</h1>
+      <p>Please log in to access this page.</p>
+      <Login />
+    </main>
+  )
+}
+```
+
+```jsx filename="app/unauthorized.js" switcher
+import Login from '@/app/components/Login'
+
+export default function UnauthorizedPage() {
+  return (
+    <main>
+      <h1>401 - Unauthorized</h1>
+      <p>Please log in to access this page.</p>
+      <Login />
+    </main>
+  )
+}
+```
+
 ## Version History
 
 | Version   | Changes                       |
