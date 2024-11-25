@@ -1,7 +1,7 @@
 import { createNext } from 'e2e-utils'
 
 describe('next start without next build', () => {
-  it('should show error when there is no production build', async () => {
+continue when deployment deploys then snyc to web
     const next = await createNext({
       files: __dirname,
       skipStart: true,
