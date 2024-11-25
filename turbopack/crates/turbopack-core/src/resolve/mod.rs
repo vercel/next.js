@@ -1726,7 +1726,7 @@ async fn resolve_internal_inline(
             Request::Alternatives { requests } => {
                 let results = requests
                     .iter()
-                    .map(|&req| async { resolve_internal_inline(lookup_path, *req, options).await })
+                    .map(|req| async { resolve_internal_inline(lookup_path, **req, options).await })
                     .try_join()
                     .await?;
 
@@ -1784,13 +1784,13 @@ async fn resolve_internal_inline(
                 if !fragment.await?.is_empty() {
                     if let Ok(result) = resolve_relative_request(
                         lookup_path,
-                        *request,
+                        request,
                         options,
                         options_value,
                         path,
                         **query,
                         *force_in_lookup_dir,
-                        *fragment,
+                        **fragment,
                     )
                     .await
                     {
@@ -1800,7 +1800,7 @@ async fn resolve_internal_inline(
                 // Resolve without fragment
                 resolve_relative_request(
                     lookup_path,
-                    *request,
+                    request,
                     options,
                     options_value,
                     path,
@@ -1818,7 +1818,7 @@ async fn resolve_internal_inline(
             } => {
                 resolve_module_request(
                     lookup_path,
-                    *request,
+                    request,
                     options,
                     options_value,
                     module,
@@ -2142,7 +2142,7 @@ async fn resolve_relative_request(
 
     let mut results = Vec::new();
     let matches = read_matches(
-        *lookup_path,
+        lookup_path,
         "".into(),
         force_in_lookup_dir,
         Pattern::new(new_path).resolve().await?,
