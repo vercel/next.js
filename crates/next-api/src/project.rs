@@ -483,7 +483,7 @@ impl ProjectDefineEnv {
 
     #[turbo_tasks::function]
     pub fn nodejs(&self) -> Vc<EnvMap> {
-        self.nodejs
+        *self.nodejs
     }
 }
 
@@ -504,7 +504,7 @@ impl Issue for ConflictIssue {
 
     #[turbo_tasks::function]
     fn severity(&self) -> Vc<IssueSeverity> {
-        self.severity
+        *self.severity
     }
 
     #[turbo_tasks::function]
