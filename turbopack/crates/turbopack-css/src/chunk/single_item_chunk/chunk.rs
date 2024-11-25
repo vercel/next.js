@@ -55,9 +55,12 @@ impl SingleItemCssChunk {
 
         writeln!(code, "/* {} */", id)?;
         let content = this.item.content().await?;
-        let close = write_import_context(&mut code, content.import_context).await?;
+        let close = write_import_context(&mut code, content.import_context.map(|v| *v)).await?;
 
-        code.push_source(&content.inner_code, content.source_map.map(Vc::upcast));
+        code.push_source(
+            &content.inner_code,
+            content.source_map.map(ResolvedVc::upcast).map(|v| *v),
+        );
         write!(code, "{close}")?;
 
         if *this
