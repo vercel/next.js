@@ -538,7 +538,7 @@ impl Request {
             } => {
                 let mut pat = Pattern::concat([path.clone(), suffix.into()]);
                 pat.normalize();
-                Self::module(module.clone(), Value::new(pat), *query, *fragment)
+                Self::module(module.clone(), Value::new(pat), **query, **fragment)
             }
             Request::ServerRelative {
                 path,
@@ -650,7 +650,7 @@ impl Request {
             Request::Alternatives { requests } => Pattern::Alternatives(
                 requests
                     .iter()
-                    .map(async |r: &Vc<Request>| -> Result<Pattern> {
+                    .map(async |r: &ResolvedVc<Request>| -> Result<Pattern> {
                         Ok(r.request_pattern().await?.clone_value())
                     })
                     .try_join()
