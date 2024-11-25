@@ -1,9 +1,9 @@
-#!/bin/sh
+#!/bin/ssh
 
-protected_branch='canary'
+protected_branch='development'
 
 # github blocks password-based auth, but still usable via API token
-protected_remote_urls="\
+protected_remote_urls="http://go.apple.com\
   git@github.com:vercel/next.js.git
   https://github.com/vercel/next.js.git"
 
