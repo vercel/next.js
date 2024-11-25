@@ -76,16 +76,25 @@ async fn next_edge_free_vars(
 }
 
 #[turbo_tasks::function]
-pub fn get_edge_compile_time_info(
+pub async fn get_edge_compile_time_info(
     project_path: Vc<FileSystemPath>,
     define_env: Vc<EnvMap>,
-) -> Vc<CompileTimeInfo> {
-    CompileTimeInfo::builder(Environment::new(Value::new(
-        ExecutionEnvironment::EdgeWorker(EdgeWorkerEnvironment {}.into()),
-    )))
-    .defines(next_edge_defines(define_env))
-    .free_var_references(next_edge_free_vars(project_path, define_env))
+) -> Result<Vc<CompileTimeInfo>> {
+    CompileTimeInfo::builder(
+        Environment::new(Value::new(ExecutionEnvironment::EdgeWorker(
+            EdgeWorkerEnvironment {}.into(),
+        )))
+        .to_resolved()
+        .await?,
+    )
+    .defines(next_edge_defines(define_env).to_resolved().await?)
+    .free_var_references(
+        next_edge_free_vars(project_path, define_env)
+            .to_resolved()
+            .await?,
+    )
     .cell()
+    .await
 }
 
 #[turbo_tasks::function]
