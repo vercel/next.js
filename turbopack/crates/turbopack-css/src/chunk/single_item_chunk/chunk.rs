@@ -31,8 +31,8 @@ impl SingleItemCssChunk {
     /// Creates a new [`Vc<SingleItemCssChunk>`].
     #[turbo_tasks::function]
     pub fn new(
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-        item: Vc<Box<dyn CssChunkItem>>,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+        item: ResolvedVc<Box<dyn CssChunkItem>>,
     ) -> Vc<Self> {
         SingleItemCssChunk {
             chunking_context,
@@ -89,7 +89,7 @@ impl Chunk for SingleItemCssChunk {
 
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        self.chunking_context
+        *self.chunking_context
     }
 }
 
