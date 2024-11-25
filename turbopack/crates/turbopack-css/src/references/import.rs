@@ -94,11 +94,11 @@ pub struct ImportAssetReference {
 impl ImportAssetReference {
     #[turbo_tasks::function]
     pub fn new(
-        origin: Vc<Box<dyn ResolveOrigin>>,
-        request: Vc<Request>,
-        attributes: Vc<ImportAttributes>,
-        import_context: Vc<ImportContext>,
-        issue_source: Vc<IssueSource>,
+        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+        request: ResolvedVc<Request>,
+        attributes: ResolvedVc<ImportAttributes>,
+        import_context: ResolvedVc<ImportContext>,
+        issue_source: ResolvedVc<IssueSource>,
     ) -> Vc<Self> {
         Self::cell(ImportAssetReference {
             origin,
@@ -121,10 +121,10 @@ impl ModuleReference for ImportAssetReference {
         };
 
         Ok(css_resolve(
-            self.origin,
-            self.request,
+            *self.origin,
+            *self.request,
             Value::new(CssReferenceSubType::AtImport(Some(import_context))),
-            Some(self.issue_source),
+            Some(*self.issue_source),
         ))
     }
 }
