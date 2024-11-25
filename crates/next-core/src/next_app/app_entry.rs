@@ -1,5 +1,5 @@
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::ResolvedVc;
 use turbopack_core::module::Module;
 
 use crate::app_segment_config::NextSegmentConfig;
