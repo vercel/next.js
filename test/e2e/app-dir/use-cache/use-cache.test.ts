@@ -431,4 +431,25 @@ describe('use-cache', () => {
       expect(await browser.elementByCss('#form-2 p').text()).toBe(value2)
     })
   })
+
+  it('works with "use cache" in static class methods', async () => {
+    const browser = await next.browser('/static-class-method')
+
+    let value = await browser.elementByCss('p').text()
+
+    expect(value).toBe('-1')
+
+    await browser.elementByCss('button').click()
+
+    await retry(async () => {
+      value = await browser.elementByCss('p').text()
+      expect(value).toMatch(/\d\.\d+/)
+    })
+
+    await browser.elementByCss('button').click()
+
+    await retry(async () => {
+      expect(await browser.elementByCss('p').text()).toBe(value)
+    })
+  })
 })

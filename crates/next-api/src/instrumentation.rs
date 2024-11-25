@@ -252,10 +252,14 @@ impl Endpoint for InstrumentationEndpoint {
             let _ = output_assets.resolve().await?;
             let _ = this.project.emit_all_output_assets(Vc::cell(output_assets));
 
-            let node_root = this.project.node_root();
-            let server_paths = all_server_paths(output_assets, node_root)
-                .await?
-                .clone_value();
+            let server_paths = if this.project.next_mode().await?.is_development() {
+                let node_root = this.project.node_root();
+                all_server_paths(output_assets, node_root)
+                    .await?
+                    .clone_value()
+            } else {
+                vec![]
+            };
 
             Ok(WrittenEndpoint::Edge {
                 server_paths,
