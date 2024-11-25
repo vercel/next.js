@@ -8,7 +8,7 @@ use swc_core::{
     ecma::ast::{Decl, Expr, FnExpr, Ident, Program},
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{trace::TraceRawVcs, TryJoinIterExt, ValueDefault, Vc};
+use turbo_tasks::{trace::TraceRawVcs, ResolvedVc, TryJoinIterExt, ValueDefault, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     file_source::FileSource,
@@ -207,7 +207,7 @@ impl Issue for NextSegmentConfigParsingIssue {
 
     #[turbo_tasks::function]
     fn detail(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(self.detail))
+        Vc::cell(Some(*self.detail))
     }
 
     #[turbo_tasks::function]
