@@ -72,7 +72,7 @@ struct FontData(FxIndexMap<RcStr, FontDataEntry>);
 
 #[turbo_tasks::value(shared)]
 pub(crate) struct NextFontGoogleReplacer {
-    project_path: Vc<FileSystemPath>,
+    project_path: ResolvedVc<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
@@ -180,8 +180,8 @@ impl ImportMappingReplacement for NextFontGoogleReplacer {
 
 #[turbo_tasks::value(shared)]
 pub struct NextFontGoogleCssModuleReplacer {
-    project_path: Vc<FileSystemPath>,
-    execution_context: Vc<ExecutionContext>,
+    project_path: ResolvedVc<FileSystemPath>,
+    execution_context: ResolvedVc<ExecutionContext>,
 }
 
 #[turbo_tasks::value_impl]
@@ -315,7 +315,7 @@ struct NextFontGoogleFontFileOptions {
 
 #[turbo_tasks::value(shared)]
 pub struct NextFontGoogleFontFileReplacer {
-    project_path: Vc<FileSystemPath>,
+    project_path: ResolvedVc<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
