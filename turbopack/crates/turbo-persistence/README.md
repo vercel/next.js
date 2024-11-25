@@ -47,12 +47,12 @@ Therefore there are there value types:
 #### Index Block
 
 * 1 byte block type (0: index block)
-* 3 bytes entry count
-* foreach entry (expect first)
-  * 4 bytes position in block after header
-* Max block size: 4 GB
 
-An Index block contains `n` keys, which specify `n - 1` key ranges (eq key goes into the prev range, except for the first key). Between these `n` keys there are `n - 1` 2 byte block indicies that point to the block that contains the key range.
+An Index block contains `n` 8 bytes hashes, which specify `n - 1` hash ranges (eq hash goes into the prev range, except for the first key). Between these `n` hashes there are `n - 1` 2 byte block indicies that point to the block that contains the hash range.
+
+The hashes are sorted.
+
+`n` is `(block size + 1) / 10`
 
 #### Key Block
 
@@ -92,6 +92,8 @@ Depending on the `type` field entry has a different format:
   * 8 bytes key hash
   * key data
   * type - 8 bytes value data
+
+The entries are sorted by key hash and key.
 
 TODO: 8 bytes key hash is a bit inefficient for small keys.
 

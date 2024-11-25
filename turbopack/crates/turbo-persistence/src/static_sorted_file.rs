@@ -135,7 +135,7 @@ impl StaticSortedFile {
 
     pub fn lookup<K: QueryKey>(
         &self,
-        hash: u64,
+        key_hash: u64,
         key: &K,
         aqmf_cache: &AqmfCache,
         index_block_cache: &BlockCache,
@@ -155,7 +155,7 @@ impl StaticSortedFile {
                 }
                 GuardResult::Timeout => unreachable!(),
             };
-            if !aqmf.contains_fingerprint(hash) {
+            if !aqmf.contains_fingerprint(key_hash) {
                 return Ok(LookupResult::QuickFilterMiss);
             }
         } else {
@@ -164,7 +164,7 @@ impl StaticSortedFile {
                 let aqmf = &self.mmap[header.aqmf.start..header.aqmf.end];
                 anyhow::Ok(pot::from_slice(aqmf)?)
             })?;
-            if !aqmf.contains_fingerprint(hash) {
+            if !aqmf.contains_fingerprint(key_hash) {
                 return Ok(LookupResult::QuickFilterMiss);
             }
         }
@@ -190,14 +190,14 @@ impl StaticSortedFile {
             let block_type = block.read_u8()?;
             match block_type {
                 BLOCK_TYPE_INDEX => {
-                    if let Some(next_block) = self.lookup_index_block(block, key)? {
+                    if let Some(next_block) = self.lookup_index_block(block, key_hash)? {
                         current_block = next_block;
                     } else {
                         return Ok(LookupResult::RangeMiss);
                     }
                 }
                 BLOCK_TYPE_KEY => {
-                    return self.lookup_key_block(block, key, header, value_block_cache);
+                    return self.lookup_key_block(block, key_hash, key, header, value_block_cache);
                 }
                 _ => {
                     bail!("Invalid block type");
@@ -206,58 +206,36 @@ impl StaticSortedFile {
         }
     }
 
-    fn lookup_index_block<K: QueryKey>(&self, mut block: &[u8], key: &K) -> Result<Option<u16>> {
-        let entry_count = block.read_u16::<BE>()? as usize;
-        let start_entries = (entry_count - 1) * 4;
-        let offsets = &block[..start_entries];
-        let entries = &block[start_entries..];
-        fn get_key<'l>(
-            offsets: &[u8],
-            entries: &'l [u8],
-            entry_count: usize,
-            index: usize,
-        ) -> Result<&'l [u8]> {
-            let start = if index == 0 {
-                0
-            } else {
-                (&offsets[(index - 1) * 4..]).read_u32::<BE>()? as usize
-            };
-            let end = if index == entry_count - 1 {
-                entries.len()
-            } else {
-                (&offsets[index * 4..]).read_u32::<BE>()? as usize - 2
-            };
-            Ok(&entries[start..end])
+    fn lookup_index_block(&self, block: &[u8], hash: u64) -> Result<Option<u16>> {
+        let entry_count = (block.len() + 2) / 10;
+        let entries = block;
+        fn get_hash<'l>(entries: &'l [u8], index: usize) -> Result<u64> {
+            Ok((&entries[index * 10..]).read_u64::<BE>()?)
         }
-        fn get_block(offsets: &[u8], entries: &[u8], index: usize) -> Result<u16> {
-            let loc = (&offsets[index * 4..]).read_u32::<BE>()? as usize;
-            Ok((&entries[loc - 2..loc]).read_u16::<BE>()?)
+        fn get_block(entries: &[u8], index: usize) -> Result<u16> {
+            Ok((&entries[index * 10 + 8..]).read_u16::<BE>()?)
         }
-        let left_key = get_key(&offsets, &entries, entry_count, 0)?;
-        match key.cmp(left_key) {
+        let left_hash = get_hash(&entries, 0)?;
+        match hash.cmp(&left_hash) {
             Ordering::Less => {
                 // not in this block
                 return Ok(None);
             }
             Ordering::Equal => {
                 // It's in the first range
-                return Ok(Some(get_block(&offsets, &entries, 0)?));
+                return Ok(Some(get_block(&entries, 0)?));
             }
             Ordering::Greater => {}
         }
-        let right_key = get_key(&offsets, &entries, entry_count, entry_count as usize - 1)?;
-        match key.cmp(right_key) {
+        let right_hash = get_hash(&entries, entry_count as usize - 1)?;
+        match hash.cmp(&right_hash) {
             Ordering::Greater => {
                 // not in this block
                 return Ok(None);
             }
             Ordering::Equal => {
                 // It's in the last range
-                return Ok(Some(get_block(
-                    &offsets,
-                    &entries,
-                    entry_count as usize - 2,
-                )?));
+                return Ok(Some(get_block(&entries, entry_count as usize - 2)?));
             }
             Ordering::Less => {}
         }
@@ -266,25 +244,26 @@ impl StaticSortedFile {
         // binary search for the range
         while l < r {
             let m = (l + r) / 2;
-            let mid_key = get_key(&offsets, &entries, entry_count, m)?;
-            match key.cmp(mid_key) {
+            let mid_hash = get_hash(&entries, m)?;
+            match hash.cmp(&mid_hash) {
                 Ordering::Less => {
                     r = m;
                 }
                 Ordering::Equal => {
-                    return Ok(Some(get_block(&offsets, &entries, m - 1)?));
+                    return Ok(Some(get_block(&entries, m - 1)?));
                 }
                 Ordering::Greater => {
                     l = m + 1;
                 }
             }
         }
-        Ok(Some(get_block(&offsets, &entries, l - 1)?))
+        Ok(Some(get_block(&entries, l - 1)?))
     }
 
     fn lookup_key_block<K: QueryKey>(
         &self,
         mut block: &[u8],
+        key_hash: u64,
         key: &K,
         header: &Header,
         value_block_cache: &BlockCache,
@@ -349,12 +328,12 @@ impl StaticSortedFile {
         while l < r {
             let m = (l + r) / 2;
             let GetEntryResult {
-                hash: _,
+                hash: mid_hash,
                 key: mid_key,
                 ty,
                 val: mid_val,
             } = get_entry(&offsets, &entries, entry_count, m)?;
-            match key.cmp(mid_key) {
+            match key_hash.cmp(&mid_hash).then_with(|| key.cmp(mid_key)) {
                 Ordering::Less => {
                     r = m;
                 }
