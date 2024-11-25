@@ -47,7 +47,7 @@ use turbopack_ecmascript::{
 
 #[turbo_tasks::value]
 pub(crate) struct ServerActionsManifest {
-    pub loader: Vc<Box<dyn EvaluatableAsset>>,
+    pub loader: ResolvedVc<Box<dyn EvaluatableAsset>>,
     pub manifest: ResolvedVc<Box<dyn OutputAsset>>,
 }
 
@@ -512,7 +512,7 @@ struct ActionMap(FxIndexMap<String, String>);
 
 /// An Option wrapper around [ActionMap].
 #[turbo_tasks::value(transparent)]
-struct OptionActionMap(Option<Vc<ActionMap>>);
+struct OptionActionMap(Option<ResolvedVc<ActionMap>>);
 
 #[turbo_tasks::value_impl]
 impl OptionActionMap {
