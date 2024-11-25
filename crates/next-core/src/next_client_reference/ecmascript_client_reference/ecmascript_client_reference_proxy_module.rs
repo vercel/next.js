@@ -48,10 +48,10 @@ impl EcmascriptClientReferenceProxyModule {
     /// * `ssr_module` - The SSR module.
     #[turbo_tasks::function]
     pub fn new(
-        server_module_ident: Vc<AssetIdent>,
-        server_asset_context: Vc<Box<dyn AssetContext>>,
-        client_module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
-        ssr_module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
+        server_module_ident: ResolvedVc<AssetIdent>,
+        server_asset_context: ResolvedVc<Box<dyn AssetContext>>,
+        client_module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+        ssr_module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     ) -> Vc<EcmascriptClientReferenceProxyModule> {
         EcmascriptClientReferenceProxyModule {
             server_module_ident,
