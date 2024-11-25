@@ -91,7 +91,7 @@ impl CssChunk {
                     None => None,
                 }
             } else {
-                content.source_map.map(ResolvedVc::upcast)
+                content.source_map.map(ResolvedVc::upcast).map(|v| *v)
             };
 
             body.push_source(&content.inner_code, source_map);
@@ -136,7 +136,7 @@ impl CssChunk {
 
 pub async fn write_import_context(
     body: &mut impl std::io::Write,
-    import_context: Option<Vc<ImportContext>>,
+    import_context: Option<ResolvedVc<ImportContext>>,
 ) -> Result<String> {
     let mut close = String::new();
     if let Some(import_context) = import_context {
