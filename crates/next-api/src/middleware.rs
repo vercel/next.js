@@ -275,7 +275,7 @@ impl Endpoint for MiddlewareEndpoint {
         let span = tracing::info_span!("middleware endpoint");
         async move {
             let this = self.await?;
-            let output_assets = self.output_assets();
+            let output_assets = self.output_assets().to_resolved().await?;
             let _ = output_assets.resolve().await?;
             let _ = this.project.emit_all_output_assets(Vc::cell(output_assets));
 
