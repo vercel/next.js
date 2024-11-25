@@ -25,8 +25,8 @@ pub struct NextEcmascriptClientReferenceTransition {
 impl NextEcmascriptClientReferenceTransition {
     #[turbo_tasks::function]
     pub fn new(
-        client_transition: Vc<Box<dyn Transition>>,
-        ssr_transition: Vc<ContextTransition>,
+        client_transition: ResolvedVc<Box<dyn Transition>>,
+        ssr_transition: ResolvedVc<ContextTransition>,
     ) -> Vc<Self> {
         NextEcmascriptClientReferenceTransition {
             client_transition,
