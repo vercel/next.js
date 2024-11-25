@@ -364,14 +364,14 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
                             ClientReference {
                                 server_component: node.state.server_component(),
                                 ty: ClientReferenceType::EcmascriptClientReference {
-                                    parent_module: *ResolvedVc::try_downcast_type::<
+                                    parent_module: ResolvedVc::try_downcast_type::<
                                         EcmascriptClientReferenceProxyModule,
                                     >(
                                         parent_module
                                     )
                                     .await?
                                     .unwrap(),
-                                    module: *client_reference_module,
+                                    module: client_reference_module,
                                 },
                             },
                             client_reference_module.ident().to_string().await?,
