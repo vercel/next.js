@@ -362,7 +362,11 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
                         state: node.state,
                         ty: VisitClientReferenceNodeType::ClientReference(
                             ClientReference {
-                                server_component: node.state.server_component(),
+                                server_component: node
+                                    .state
+                                    .server_component()
+                                    .to_resolved()
+                                    .await?,
                                 ty: ClientReferenceType::EcmascriptClientReference {
                                     parent_module: ResolvedVc::try_downcast_type::<
                                         EcmascriptClientReferenceProxyModule,
@@ -388,7 +392,7 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
                             ClientReference {
                                 server_component: node.state.server_component(),
                                 ty: ClientReferenceType::CssClientReference(
-                                    *css_client_reference_asset,
+                                    css_client_reference_asset,
                                 ),
                             },
                             css_client_reference_asset.ident().to_string().await?,
