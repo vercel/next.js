@@ -54,7 +54,7 @@ impl NextDynamicEntries {
                         // traversal.
                     }
                     VisitDynamicNode::Dynamic(dynamic_asset, _) => {
-                        next_dynamics.push(*dynamic_asset);
+                        next_dynamics.push(dynamic_asset);
                     }
                 }
             }
