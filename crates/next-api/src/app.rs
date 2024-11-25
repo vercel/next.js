@@ -1,3 +1,5 @@
+use std::future::IntoFuture;
+
 use anyhow::{Context, Result};
 use next_core::{
     all_assets_from_entries,
@@ -1643,6 +1645,8 @@ impl Endpoint for AppEndpoint {
 
             let client_relative_root = this.app_project.project().client_relative_path();
             let client_paths = all_paths_in_root(output_assets, client_relative_root)
+                .into_future()
+                .instrument(tracing::info_span!("client_paths"))
                 .await?
                 .clone_value();
 
