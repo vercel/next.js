@@ -193,10 +193,10 @@ pub async fn client_reference_graph(
                     }
                 }
                 VisitClientReferenceNodeType::ServerUtilEntry(server_util, _) => {
-                    server_utils.push(**server_util);
+                    server_utils.push(*server_util);
                 }
                 VisitClientReferenceNodeType::ServerComponentEntry(server_component, _) => {
-                    server_component_entries.push(**server_component);
+                    server_component_entries.push(*server_component);
                 }
             }
         }
@@ -362,11 +362,12 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
                         state: node.state,
                         ty: VisitClientReferenceNodeType::ClientReference(
                             ClientReference {
-                                server_component: node
-                                    .state
-                                    .server_component()
-                                    .to_resolved()
-                                    .await?,
+                                server_component: match node.state.server_component() {
+                                    Some(server_component) => {
+                                        Some(server_component.to_resolved().await?)
+                                    }
+                                    None => None,
+                                },
                                 ty: ClientReferenceType::EcmascriptClientReference {
                                     parent_module: ResolvedVc::try_downcast_type::<
                                         EcmascriptClientReferenceProxyModule,
