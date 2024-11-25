@@ -1,11 +1,12 @@
+const { defineConfig } = require('next/config')
+
 // This should work
 console.log(require('webpack').sources.RawSource)
 
-/** @type {import('next').NextConfig} */
-const nextConfig = {
+const nextConfig = defineConfig({
   webpack(config) {
     return config
   },
-}
+})
 
 module.exports = nextConfig

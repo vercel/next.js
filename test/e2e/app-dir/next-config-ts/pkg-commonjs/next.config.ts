@@ -1,4 +1,4 @@
-import type { NextConfig } from 'next'
+import { defineConfig } from 'next/config'
 import { cjs } from './fixtures/cjs.cjs'
 import { mjs } from './fixtures/mjs.mjs'
 import { cts } from './fixtures/cts.cts'
@@ -6,7 +6,7 @@ import { mts } from './fixtures/mts.mts'
 import { ts } from './fixtures/ts'
 import { commonjs } from './fixtures/commonjs'
 
-const nextConfig: NextConfig = {
+const nextConfig = defineConfig({
   env: {
     cjs,
     mjs,
@@ -15,6 +15,6 @@ const nextConfig: NextConfig = {
     ts,
     commonjs,
   },
-}
+})
 
 export default nextConfig

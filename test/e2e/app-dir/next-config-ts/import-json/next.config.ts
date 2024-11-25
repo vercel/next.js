@@ -1,8 +1,8 @@
-import type { NextConfig } from 'next'
+import { defineConfig } from 'next/config'
 import { foo } from './foo.json'
 
-export default {
+export default defineConfig({
   env: {
     foo,
   },
-} satisfies NextConfig
+})
