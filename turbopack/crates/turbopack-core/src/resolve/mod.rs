@@ -1531,12 +1531,12 @@ pub async fn url_resolve(
         rel_request,
         resolve_options,
     );
-    let result = if *rel_result.is_unresolvable().await? && rel_request.resolve().await? != *request
+    let result = if *rel_result.is_unresolvable().await? && rel_request.resolve().await? != request
     {
         resolve(
             origin.origin_path().parent(),
             reference_type.clone(),
-            *request,
+            request,
             resolve_options,
         )
         .with_affecting_sources(
@@ -2893,8 +2893,8 @@ pub async fn handle_resolve_error(
                     is_optional,
                     origin_path,
                     reference_type,
-                    request.to_resolved().await?,
-                    resolve_options.to_resolved().await?,
+                    request,
+                    resolve_options,
                     source,
                 )
                 .await?;

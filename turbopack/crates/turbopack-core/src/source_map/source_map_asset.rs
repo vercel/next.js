@@ -40,7 +40,7 @@ impl Asset for SourceMapAsset {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<AssetContent>> {
         let Some(generate_source_map) =
-            Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(self.asset).await?
+            ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(self.asset).await?
         else {
             bail!("asset does not support generating source maps")
         };
