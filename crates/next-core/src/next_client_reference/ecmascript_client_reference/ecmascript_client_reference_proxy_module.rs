@@ -215,10 +215,12 @@ impl ChunkableModule for EcmascriptClientReferenceProxyModule {
         self: ResolvedVc<Self>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<Box<dyn ChunkItem>>> {
-        let item = self.proxy_module().as_chunk_item(chunking_context);
+        let item = self.proxy_module().as_chunk_item(*chunking_context);
         let ecmascript_item = Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkItem>>(item)
             .await?
-            .context("EcmascriptModuleAsset must implement EcmascriptChunkItem")?;
+            .context("EcmascriptModuleAsset must implement EcmascriptChunkItem")?
+            .to_resolved()
+            .await?;
 
         Ok(Vc::upcast(
             ProxyModuleChunkItem {
