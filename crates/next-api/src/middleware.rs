@@ -1,3 +1,5 @@
+use std::future::IntoFuture;
+
 use anyhow::{bail, Context, Result};
 use next_core::{
     all_assets_from_entries,
@@ -277,16 +279,23 @@ impl Endpoint for MiddlewareEndpoint {
             let _ = output_assets.resolve().await?;
             let _ = this.project.emit_all_output_assets(Vc::cell(output_assets));
 
-            let node_root = this.project.node_root();
-            let server_paths = all_server_paths(output_assets, node_root)
-                .await?
-                .clone_value();
+            let (server_paths, client_paths) = if this.project.next_mode().await?.is_development() {
+                let node_root = this.project.node_root();
+                let server_paths = all_server_paths(output_assets, node_root)
+                    .await?
+                    .clone_value();
 
-            // Middleware could in theory have a client path (e.g. `new URL`).
-            let client_relative_root = this.project.client_relative_path();
-            let client_paths = all_paths_in_root(output_assets, client_relative_root)
-                .await?
-                .clone_value();
+                // Middleware could in theory have a client path (e.g. `new URL`).
+                let client_relative_root = this.project.client_relative_path();
+                let client_paths = all_paths_in_root(output_assets, client_relative_root)
+                    .into_future()
+                    .instrument(tracing::info_span!("client_paths"))
+                    .await?
+                    .clone_value();
+                (server_paths, client_paths)
+            } else {
+                (vec![], vec![])
+            };
 
             Ok(WrittenEndpoint::Edge {
                 server_paths,

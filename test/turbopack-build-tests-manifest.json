@@ -6050,9 +6050,10 @@
       "passed": [
         "prerender native module should render /blog/first correctly",
         "prerender native module should render /blog/second correctly",
-        "prerender native module should render index correctly"
+        "prerender native module should render index correctly",
+        "prerender native module should output traces"
       ],
-      "failed": ["prerender native module should output traces"],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false

@@ -1,3 +1,5 @@
+use std::future::IntoFuture;
+
 use anyhow::{bail, Context, Result};
 use next_core::{
     all_assets_from_entries, create_page_loader_entry_module, get_asset_path_from_pathname,
@@ -1273,14 +1275,28 @@ impl Endpoint for PageEndpoint {
                 .emit_all_output_assets(Vc::cell(output_assets));
 
             let node_root = this.pages_project.project().node_root();
-            let server_paths = all_server_paths(output_assets, node_root)
-                .await?
-                .clone_value();
 
-            let client_relative_root = this.pages_project.project().client_relative_path();
-            let client_paths = all_paths_in_root(output_assets, client_relative_root)
+            let (server_paths, client_paths) = if this
+                .pages_project
+                .project()
+                .next_mode()
                 .await?
-                .clone_value();
+                .is_development()
+            {
+                let server_paths = all_server_paths(output_assets, node_root)
+                    .await?
+                    .clone_value();
+
+                let client_relative_root = this.pages_project.project().client_relative_path();
+                let client_paths = all_paths_in_root(output_assets, client_relative_root)
+                    .into_future()
+                    .instrument(tracing::info_span!("client_paths"))
+                    .await?
+                    .clone_value();
+                (server_paths, client_paths)
+            } else {
+                (vec![], vec![])
+            };
 
             let node_root = &node_root.await?;
             let written_endpoint = match *output {

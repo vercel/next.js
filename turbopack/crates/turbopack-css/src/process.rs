@@ -19,7 +19,7 @@ use swc_core::{
 };
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ValueToString, Vc};
+use turbo_tasks::{FxIndexMap, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -118,14 +118,14 @@ pub struct UnresolvedUrlReferences(pub Vec<(String, Vc<UrlAssetReference>)>);
 #[turbo_tasks::value(shared, serialization = "none", eq = "manual", cell = "new")]
 pub enum ParseCssResult {
     Ok {
-        code: Vc<FileContent>,
+        code: ResolvedVc<FileContent>,
 
         #[turbo_tasks(trace_ignore)]
         stylesheet: StyleSheetLike<'static, 'static>,
 
-        references: Vc<ModuleReferences>,
+        references: ResolvedVc<ModuleReferences>,
 
-        url_references: Vc<UnresolvedUrlReferences>,
+        url_references: ResolvedVc<UnresolvedUrlReferences>,
 
         #[turbo_tasks(trace_ignore)]
         options: ParserOptions<'static, 'static>,
@@ -137,11 +137,11 @@ pub enum ParseCssResult {
 #[turbo_tasks::value(shared, serialization = "none", eq = "manual", cell = "new")]
 pub enum CssWithPlaceholderResult {
     Ok {
-        parse_result: Vc<ParseCssResult>,
+        parse_result: ResolvedVc<ParseCssResult>,
 
-        references: Vc<ModuleReferences>,
+        references: ResolvedVc<ModuleReferences>,
 
-        url_references: Vc<UnresolvedUrlReferences>,
+        url_references: ResolvedVc<UnresolvedUrlReferences>,
 
         #[turbo_tasks(trace_ignore)]
         exports: Option<FxIndexMap<String, CssModuleExport>>,
@@ -162,7 +162,7 @@ pub enum FinalCssResult {
         #[turbo_tasks(trace_ignore)]
         exports: Option<CssModuleExports>,
 
-        source_map: Vc<ParseCssResultSourceMap>,
+        source_map: ResolvedVc<ParseCssResultSourceMap>,
     },
     Unparseable,
     NotFound,
@@ -176,7 +176,7 @@ impl PartialEq for FinalCssResult {
 
 #[turbo_tasks::function]
 pub async fn process_css_with_placeholder(
-    parse_result: Vc<ParseCssResult>,
+    parse_result: ResolvedVc<ParseCssResult>,
 ) -> Result<Vc<CssWithPlaceholderResult>> {
     let result = parse_result.await?;
 
@@ -265,7 +265,7 @@ pub async fn finalize_css(
             Ok(FinalCssResult::Ok {
                 output_code: result.code,
                 exports: result.exports,
-                source_map: srcmap.unwrap().cell(),
+                source_map: srcmap.unwrap().resolved_cell(),
             }
             .into())
         }
@@ -458,10 +458,10 @@ async fn process_content(
         analyze_references(&mut stylesheet, source, origin, import_context)?;
 
     Ok(ParseCssResult::Ok {
-        code: content_vc,
+        code: content_vc.to_resolved().await?,
         stylesheet,
-        references: Vc::cell(references),
-        url_references: Vc::cell(url_references),
+        references: ResolvedVc::cell(references),
+        url_references: ResolvedVc::cell(url_references),
         options: config,
     }
     .cell())
