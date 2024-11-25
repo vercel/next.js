@@ -36,7 +36,7 @@ export function renderCssResource(
       entryCssFile.path
     )}${getAssetQueryString(ctx, true)}`
 
-    if (entryCssFile.inlined) {
+    if (entryCssFile.inlined && !ctx.parsedRequestHeaders.isRSCRequest) {
       return (
         <style
           key={index}
