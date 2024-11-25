@@ -127,6 +127,7 @@ impl Request {
         })
     }
 
+    #[async_recursion::async_recursion]
     pub async fn parse_ref(mut request: Pattern) -> Result<Self> {
         request.normalize();
         Ok(match request {
@@ -251,7 +252,9 @@ impl Request {
                     .into_iter()
                     .map(Value::new)
                     .map(Request::parse)
-                    .collect(),
+                    .map(|v| async move { v.to_resolved().await })
+                    .try_join()
+                    .await?,
             },
         })
     }
@@ -352,7 +355,9 @@ impl Request {
                     .copied()
                     .map(|v| *v)
                     .map(Request::as_relative)
-                    .collect();
+                    .map(|v| async move { v.to_resolved().await })
+                    .try_join()
+                    .await?;
                 Request::Alternatives { requests }.cell()
             }
         })
@@ -427,7 +432,9 @@ impl Request {
                     .iter()
                     .copied()
                     .map(|req| req.with_query(query))
-                    .collect();
+                    .map(|v| async move { v.to_resolved().await })
+                    .try_join()
+                    .await?;
                 Request::Alternatives { requests }.cell()
             }
         })
@@ -502,7 +509,9 @@ impl Request {
                     .iter()
                     .copied()
                     .map(|req| req.with_fragment(fragment))
-                    .collect();
+                    .map(|v| async move { v.to_resolved().await })
+                    .try_join()
+                    .await?;
                 Request::Alternatives { requests }.cell()
             }
         })
@@ -599,8 +608,9 @@ impl Request {
             Request::Alternatives { requests } => {
                 let requests = requests
                     .iter()
-                    .map(|req| req.append_path(suffix.clone()))
-                    .collect();
+                    .map(|req| async { req.append_path(suffix.clone()).to_resolved().await })
+                    .try_join()
+                    .await?;
                 Request::Alternatives { requests }.cell()
             }
         })
