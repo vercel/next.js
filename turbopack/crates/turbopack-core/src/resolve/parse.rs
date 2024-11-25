@@ -444,7 +444,7 @@ impl Request {
                 path: path.clone(),
                 query: *query,
                 force_in_lookup_dir: *force_in_lookup_dir,
-                fragment,
+                fragment: fragment.to_resolved().await?,
             }
             .cell(),
             Request::Relative {
@@ -456,7 +456,7 @@ impl Request {
                 path: path.clone(),
                 query: *query,
                 force_in_lookup_dir: *force_in_lookup_dir,
-                fragment,
+                fragment: fragment.to_resolved().await?,
             }
             .cell(),
             Request::Module {
@@ -468,7 +468,7 @@ impl Request {
                 module: module.clone(),
                 path: path.clone(),
                 query: *query,
-                fragment,
+                fragment: fragment.to_resolved().await?,
             }
             .cell(),
             Request::ServerRelative {
@@ -478,7 +478,7 @@ impl Request {
             } => Request::ServerRelative {
                 path: path.clone(),
                 query: *query,
-                fragment,
+                fragment: fragment.to_resolved().await?,
             }
             .cell(),
             Request::Windows {
@@ -488,7 +488,7 @@ impl Request {
             } => Request::Windows {
                 path: path.clone(),
                 query: *query,
-                fragment,
+                fragment: fragment.to_resolved().await?,
             }
             .cell(),
             Request::Empty => self,
