@@ -1,3 +1,5 @@
+use std::future::IntoFuture;
+
 use anyhow::{bail, Context, Result};
 use next_core::{
     all_assets_from_entries, create_page_loader_entry_module, get_asset_path_from_pathname,
@@ -1278,15 +1280,11 @@ impl Endpoint for PageEndpoint {
                 .clone_value();
 
             let client_relative_root = this.pages_project.project().client_relative_path();
-            let client_paths = async {
-                anyhow::Ok(
-                    all_paths_in_root(output_assets, client_relative_root)
-                        .await?
-                        .clone_value(),
-                )
-            }
-            .instrument(tracing::info_span!("client_paths"))
-            .await?;
+            let client_paths = all_paths_in_root(output_assets, client_relative_root)
+                .into_future()
+                .instrument(tracing::info_span!("client_paths"))
+                .await?
+                .clone_value();
 
             let node_root = &node_root.await?;
             let written_endpoint = match *output {

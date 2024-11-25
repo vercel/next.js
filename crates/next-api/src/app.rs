@@ -1,3 +1,5 @@
+use std::future::IntoFuture;
+
 use anyhow::{Context, Result};
 use next_core::{
     all_assets_from_entries,
@@ -1642,15 +1644,11 @@ impl Endpoint for AppEndpoint {
                 .clone_value();
 
             let client_relative_root = this.app_project.project().client_relative_path();
-            let client_paths = async {
-                anyhow::Ok(
-                    all_paths_in_root(output_assets, client_relative_root)
-                        .await?
-                        .clone_value(),
-                )
-            }
-            .instrument(tracing::info_span!("client_paths"))
-            .await?;
+            let client_paths = all_paths_in_root(output_assets, client_relative_root)
+                .into_future()
+                .instrument(tracing::info_span!("client_paths"))
+                .await?
+                .clone_value();
 
             let written_endpoint = match *output {
                 AppEndpointOutput::NodeJs { rsc_chunk, .. } => WrittenEndpoint::NodeJs {
