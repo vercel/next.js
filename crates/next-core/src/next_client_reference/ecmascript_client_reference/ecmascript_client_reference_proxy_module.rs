@@ -274,7 +274,7 @@ impl ChunkItem for ProxyModuleChunkItem {
 
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        Vc::upcast(self.chunking_context)
+        Vc::upcast(*self.chunking_context)
     }
 
     #[turbo_tasks::function]
@@ -284,7 +284,7 @@ impl ChunkItem for ProxyModuleChunkItem {
 
     #[turbo_tasks::function]
     fn module(&self) -> Vc<Box<dyn Module>> {
-        Vc::upcast(self.client_proxy_asset)
+        Vc::upcast(*self.client_proxy_asset)
     }
 }
 
