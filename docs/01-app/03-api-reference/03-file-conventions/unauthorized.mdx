@@ -7,13 +7,47 @@ related:
 version: experimental
 ---
 
-The **unauthorized** file is used to render UI when the [`unauthorized`](/docs/app/api-reference/functions/unauthorized) function is invoked during authentication.
+The **unauthorized** file is used to render UI when the [`unauthorized`](/docs/app/api-reference/functions/unauthorized) function is invoked during authentication. Along with allowing you to customize the UI, Next.js will return a `401` status code.
+
+```tsx filename="app/unauthorized.tsx" switcher
+import Login from '@/app/components/Login'
+
+export default function Unauthorized() {
+  return (
+    <main>
+      <h1>401 - Unauthorized</h1>
+      <p>Please log in to access this page.</p>
+      <Login />
+    </main>
+  )
+}
+```
+
+```jsx filename="app/unauthorized.js" switcher
+import Login from '@/app/components/Login'
+
+export default function Unauthorized() {
+  return (
+    <main>
+      <h1>401 - Unauthorized</h1>
+      <p>Please log in to access this page.</p>
+      <Login />
+    </main>
+  )
+}
+```
+
+## Reference
+
+### Props
+
+`unauthorized.js` components do not accept any props.
 
 ## Examples
 
 ### Displaying login UI to unauthenticated users
 
-You can use `unauthorized` function to display the `unauthorized.js` file with a login UI.
+You can use [`unauthorized`](/docs/app/api-reference/functions/unauthorized) function to display the `unauthorized.js` file with a login UI.
 
 ```tsx filename="app/dashboard/page.tsx" switcher
 import { verifySession } from '@/app/lib/dal'
