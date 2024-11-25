@@ -41,9 +41,9 @@ pub struct UrlAssetReference {
 impl UrlAssetReference {
     #[turbo_tasks::function]
     pub fn new(
-        origin: Vc<Box<dyn ResolveOrigin>>,
-        request: Vc<Request>,
-        issue_source: Vc<IssueSource>,
+        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+        request: ResolvedVc<Request>,
+        issue_source: ResolvedVc<IssueSource>,
     ) -> Vc<Self> {
         Self::cell(UrlAssetReference {
             origin,
@@ -86,10 +86,10 @@ impl ModuleReference for UrlAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
         url_resolve(
-            self.origin,
-            self.request,
+            *self.origin,
+            *self.request,
             Value::new(ReferenceType::Url(UrlReferenceSubType::CssUrl)),
-            Some(self.issue_source),
+            Some(*self.issue_source),
             false,
         )
     }
