@@ -321,18 +321,22 @@ impl CompileTimeInfoBuilder {
         self
     }
 
-    pub fn build(self) -> CompileTimeInfo {
-        CompileTimeInfo {
+    pub async fn build(self) -> Result<CompileTimeInfo> {
+        Ok(CompileTimeInfo {
             environment: self.environment,
-            defines: self.defines.unwrap_or_else(CompileTimeDefines::empty),
-            free_var_references: self
-                .free_var_references
-                .unwrap_or_else(FreeVarReferences::empty),
-        }
+            defines: match self.defines {
+                Some(defines) => defines,
+                None => CompileTimeDefines::empty().to_resolved().await?,
+            },
+            free_var_references: match self.free_var_references {
+                Some(free_var_references) => free_var_references,
+                None => FreeVarReferences::empty().to_resolved().await?,
+            },
+        })
     }
 
-    pub fn cell(self) -> Vc<CompileTimeInfo> {
-        self.build().cell()
+    pub async fn cell(self) -> Result<Vc<CompileTimeInfo>> {
+        Ok(self.build().await?.cell())
     }
 }
 
