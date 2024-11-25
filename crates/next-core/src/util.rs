@@ -251,10 +251,10 @@ fn emit_invalid_config_warning(ident: Vc<AssetIdent>, detail: &str, value: &JsVa
     .emit()
 }
 
-async fn parse_route_matcher_from_js_value(
+fn parse_route_matcher_from_js_value(
     ident: Vc<AssetIdent>,
     value: &JsValue,
-) -> Result<Option<Vec<MiddlewareMatcherKind>>> {
+) -> Option<Vec<MiddlewareMatcherKind>> {
     let parse_matcher_kind_matcher = |value: &JsValue| {
         let mut route_has = vec![];
         if let JsValue::Array { items, .. } = value {
@@ -367,17 +367,15 @@ async fn parse_route_matcher_from_js_value(
         ),
     }
 
-    Ok(if matchers.is_empty() {
+    if matchers.is_empty() {
         None
     } else {
         Some(matchers)
-    })
+    }
 }
 
 #[turbo_tasks::function]
-pub async fn parse_config_from_source(
-    module: ResolvedVc<Box<dyn Module>>,
-) -> Result<Vc<NextSourceConfig>> {
+pub async fn parse_config_from_source(module: ResolvedVc<Box<dyn Module>>) -> Vc<NextSourceConfig> {
     if let Some(ecmascript_asset) =
         ResolvedVc::try_sidecast::<Box<dyn EcmascriptParsable>>(module).await?
     {
@@ -406,11 +404,11 @@ pub async fn parse_config_from_source(
                             if let Some(init) = decl.init.as_ref() {
                                 return GLOBALS.set(globals, || {
                                     let value = eval_context.eval(init);
-                                    parse_config_from_js_value(module, &value).cell()
+                                    parse_config_from_js_value(*module, &value).cell()
                                 });
                             } else {
                                 NextSourceConfigParsingIssue {
-                                    ident: module.ident().to_resolved().await?,
+                                    ident: module.ident(),
                                     detail: StyledString::Text(
                                         "The exported config object must contain an variable \
                                          initializer."
@@ -429,7 +427,7 @@ pub async fn parse_config_from_source(
                             .unwrap_or_default()
                         {
                             let runtime_value_issue = NextSourceConfigParsingIssue {
-                                ident: module.ident().to_resolved().await?,
+                                ident: module.ident(),
                                 detail: StyledString::Text(
                                     "The runtime property must be either \"nodejs\" or \"edge\"."
                                         .into(),
@@ -462,7 +460,7 @@ pub async fn parse_config_from_source(
                                 }
                             } else {
                                 NextSourceConfigParsingIssue {
-                                    ident: module.ident().to_resolved().await?,
+                                    ident: module.ident(),
                                     detail: StyledString::Text(
                                         "The exported segment runtime option must contain an \
                                          variable initializer."
@@ -482,10 +480,7 @@ pub async fn parse_config_from_source(
     Ok(Default::default())
 }
 
-fn parse_config_from_js_value(
-    module: Vc<Box<dyn Module>>,
-    value: &JsValue,
-) -> Result<NextSourceConfig> {
+fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> NextSourceConfig {
     let mut config = NextSourceConfig::default();
 
     if let JsValue::Object { parts, .. } = value {
@@ -529,8 +524,7 @@ fn parse_config_from_js_value(
                             }
                             "matcher" => {
                                 config.matcher =
-                                    parse_route_matcher_from_js_value(module.ident(), value)
-                                        .await?;
+                                    parse_route_matcher_from_js_value(module.ident(), value);
                             }
                             "regions" => {
                                 config.regions = match value {
