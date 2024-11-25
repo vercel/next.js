@@ -31,7 +31,7 @@ fn blur_options() -> Vc<BlurPlaceholderOptions> {
 /// an object with meta information like width, height and a blur placeholder.
 #[turbo_tasks::value(shared)]
 pub struct StructuredImageFileSource {
-    pub image: Vc<Box<dyn Source>>,
+    pub image: ResolvedVc<Box<dyn Source>>,
     pub blur_placeholder_mode: BlurPlaceholderMode,
 }
 
