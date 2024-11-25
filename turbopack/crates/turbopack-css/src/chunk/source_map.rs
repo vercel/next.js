@@ -20,7 +20,7 @@ pub struct CssChunkSourceMapAsset {
 #[turbo_tasks::value_impl]
 impl CssChunkSourceMapAsset {
     #[turbo_tasks::function]
-    pub fn new(chunk: Vc<CssChunk>) -> Vc<Self> {
+    pub fn new(chunk: ResolvedVc<CssChunk>) -> Vc<Self> {
         CssChunkSourceMapAsset { chunk }.cell()
     }
 }
