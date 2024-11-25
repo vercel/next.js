@@ -4,7 +4,7 @@ use std::{
     mem::{transmute, MaybeUninit},
     path::PathBuf,
     sync::{
-        atomic::{AtomicBool, AtomicU64, Ordering},
+        atomic::{AtomicBool, Ordering},
         Arc,
     },
 };
@@ -79,13 +79,13 @@ pub struct Statistics {
 #[cfg(feature = "stats")]
 #[derive(Default)]
 struct TrackedStats {
-    hits_deleted: AtomicU64,
-    hits_small: AtomicU64,
-    hits_blob: AtomicU64,
-    miss_aqmf: AtomicU64,
-    miss_index: AtomicU64,
-    miss_key: AtomicU64,
-    miss_global: AtomicU64,
+    hits_deleted: std::sync::atomic::AtomicU64,
+    hits_small: std::sync::atomic::AtomicU64,
+    hits_blob: std::sync::atomic::AtomicU64,
+    miss_aqmf: std::sync::atomic::AtomicU64,
+    miss_index: std::sync::atomic::AtomicU64,
+    miss_key: std::sync::atomic::AtomicU64,
+    miss_global: std::sync::atomic::AtomicU64,
 }
 
 pub struct TurboPersistence {
