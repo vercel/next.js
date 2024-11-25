@@ -459,15 +459,15 @@ pub async fn parse_config_from_source(module: Vc<Box<dyn Module>>) -> Result<Vc<
                                 }
                             } else {
                                 NextSourceConfigParsingIssue {
-                                    ident: module.ident(),
+                                    ident: module.ident().to_resolved().await?,
                                     detail: StyledString::Text(
                                         "The exported segment runtime option must contain an \
                                          variable initializer."
                                             .into(),
                                     )
-                                    .cell(),
+                                    .resolved_cell(),
                                 }
-                                .cell()
+                                .resolved_cell()
                                 .emit()
                             }
                         }
