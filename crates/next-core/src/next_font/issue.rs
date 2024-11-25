@@ -4,10 +4,10 @@ use turbopack_core::issue::{Issue, IssueSeverity, IssueStage, OptionStyledString
 
 #[turbo_tasks::value(shared)]
 pub(crate) struct NextFontIssue {
-    pub(crate) path: Vc<FileSystemPath>,
-    pub(crate) title: Vc<StyledString>,
-    pub(crate) description: Vc<StyledString>,
-    pub(crate) severity: Vc<IssueSeverity>,
+    pub(crate) path: ResolvedVc<FileSystemPath>,
+    pub(crate) title: ResolvedVc<StyledString>,
+    pub(crate) description: ResolvedVc<StyledString>,
+    pub(crate) severity: ResolvedVc<IssueSeverity>,
 }
 
 #[turbo_tasks::value_impl]
