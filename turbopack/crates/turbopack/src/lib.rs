@@ -631,7 +631,7 @@ async fn process_default_internal(
         module_type.cell(),
         Value::new(reference_type.clone()),
         part,
-        inner_assets,
+        inner_assets.map(|v| *v),
         matches!(reference_type, ReferenceType::Runtime),
     ))
 }
@@ -645,7 +645,7 @@ async fn externals_tracing_module_context(ty: ExternalType) -> Result<Vc<ModuleA
     .await?;
 
     let resolve_options = ResolveOptionsContext {
-        emulate_environment: Some(env.to_resolved().await?),
+        emulate_environment: Some(env),
         loose_errors: true,
         custom_conditions: match ty {
             ExternalType::CommonJs => vec!["require".into()],
@@ -657,7 +657,7 @@ async fn externals_tracing_module_context(ty: ExternalType) -> Result<Vc<ModuleA
 
     Ok(ModuleAssetContext::new_without_replace_externals(
         Default::default(),
-        CompileTimeInfo::builder(*env).cell(),
+        CompileTimeInfo::builder(env).cell().await?,
         ModuleOptionsContext::default().cell(),
         resolve_options.cell(),
         Vc::cell("externals-tracing".into()),
