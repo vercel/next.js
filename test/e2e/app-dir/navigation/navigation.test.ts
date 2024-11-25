@@ -891,23 +891,10 @@ describe('app dir - navigation', () => {
         .elementByCss("[href='/metadata-await-promise/nested']")
         .click()
 
-      if (!isNextDev) {
-        // next-dev has no prefetch
-        expect(
-          await browser
-            .waitForElementByCss(
-              '#loading',
-              // Wait a bit longer than the prefetch duration since the click takes a while to register and the fallback render also takes time.
-              resolveMetadataDuration + 500
-            )
-            .text()
-        ).toEqual('Loading')
-        expect(await browser.elementByCss('title').text()).toBe('Async Title')
-      }
-
       await waitFor(resolveMetadataDuration)
 
       expect(await browser.elementById('page-content').text()).toBe('Content')
+      expect(await browser.elementByCss('title').text()).toBe('Async Title')
     })
 
     it('shows a fallback when prefetch completed', async () => {
