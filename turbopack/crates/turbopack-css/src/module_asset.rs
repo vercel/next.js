@@ -39,7 +39,7 @@ fn modifier() -> Vc<RcStr> {
     Vc::cell("css module".into())
 }
 
-#[turbo_tasks::value(resolved)]
+#[turbo_tasks::value]
 #[derive(Clone)]
 pub struct ModuleCssAsset {
     pub source: ResolvedVc<Box<dyn Source>>,
