@@ -196,7 +196,7 @@ impl ValueDefault for NextSourceConfig {
 /// An issue that occurred while parsing the page config.
 #[turbo_tasks::value(shared)]
 pub struct NextSourceConfigParsingIssue {
-    ident: ResolvedVc<AssetIdent>,
+    ident: Vc<AssetIdent>,
     detail: ResolvedVc<StyledString>,
 }
 
@@ -240,7 +240,7 @@ impl Issue for NextSourceConfigParsingIssue {
     }
 }
 
-fn emit_invalid_config_warning(ident: ResolvedVc<AssetIdent>, detail: &str, value: &JsValue) {
+fn emit_invalid_config_warning(ident: Vc<AssetIdent>, detail: &str, value: &JsValue) {
     let (explainer, hints) = value.explain(2, 0);
     NextSourceConfigParsingIssue {
         ident,
@@ -482,8 +482,8 @@ pub async fn parse_config_from_source(
     Ok(Default::default())
 }
 
-async fn parse_config_from_js_value(
-    module: ResolvedVc<Box<dyn Module>>,
+fn parse_config_from_js_value(
+    module: Vc<Box<dyn Module>>,
     value: &JsValue,
 ) -> Result<NextSourceConfig> {
     let mut config = NextSourceConfig::default();
@@ -492,7 +492,7 @@ async fn parse_config_from_js_value(
         for part in parts {
             match part {
                 ObjectPart::Spread(_) => emit_invalid_config_warning(
-                    module.ident().to_resolved().await?,
+                    module.ident(),
                     "Spread properties are not supported in the config export.",
                     value,
                 ),
@@ -511,7 +511,7 @@ async fn parse_config_from_js_value(
                                             }
                                             _ => {
                                                 emit_invalid_config_warning(
-                                                    module.ident().to_resolved().await?,
+                                                    module.ident(),
                                                     "The runtime property must be either \
                                                      \"nodejs\" or \"edge\".",
                                                     value,

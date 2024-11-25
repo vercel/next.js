@@ -247,10 +247,10 @@ pub async fn find_server_entries(entry: ResolvedVc<Box<dyn Module>>) -> Result<V
     for node in graph.reverse_topological() {
         match &node.ty {
             VisitClientReferenceNodeType::ServerUtilEntry(server_util, _) => {
-                server_utils.push(**server_util);
+                server_utils.push(*server_util);
             }
             VisitClientReferenceNodeType::ServerComponentEntry(server_component, _) => {
-                server_component_entries.push(**server_component);
+                server_component_entries.push(*server_component);
             }
             VisitClientReferenceNodeType::Internal(_, _)
             | VisitClientReferenceNodeType::ClientReference(_, _) => {}
