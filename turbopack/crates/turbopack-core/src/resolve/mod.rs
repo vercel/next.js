@@ -2924,15 +2924,15 @@ pub async fn handle_resolve_error(
 }
 
 pub async fn handle_resolve_source_error(
-    result: Vc<ResolveResult>,
+    result: ResolvedVc<ResolveResult>,
     reference_type: Value<ReferenceType>,
-    origin_path: Vc<FileSystemPath>,
-    request: Vc<Request>,
-    resolve_options: Vc<ResolveOptions>,
+    origin_path: ResolvedVc<FileSystemPath>,
+    request: ResolvedVc<Request>,
+    resolve_options: ResolvedVc<ResolveOptions>,
     is_optional: bool,
     source: Option<ResolvedVc<IssueSource>>,
 ) -> Result<Vc<ResolveResult>> {
-    async fn is_unresolvable(result: Vc<ResolveResult>) -> Result<bool> {
+    async fn is_unresolvable(result: ResolvedVc<ResolveResult>) -> Result<bool> {
         Ok(*result.resolve().await?.is_unresolvable().await?)
     }
     Ok(match is_unresolvable(result).await {
@@ -2969,10 +2969,10 @@ pub async fn handle_resolve_source_error(
 
 async fn emit_resolve_error_issue(
     is_optional: bool,
-    origin_path: Vc<FileSystemPath>,
+    origin_path: ResolvedVc<FileSystemPath>,
     reference_type: Value<ReferenceType>,
-    request: Vc<Request>,
-    resolve_options: Vc<ResolveOptions>,
+    request: ResolvedVc<Request>,
+    resolve_options: ResolvedVc<ResolveOptions>,
     err: anyhow::Error,
     source: Option<ResolvedVc<IssueSource>>,
 ) -> Result<()> {
