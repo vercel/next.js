@@ -1288,7 +1288,7 @@ async fn compile_time_info_for_module_type(
     Ok(CompileTimeInfo {
         environment: compile_time_info.environment,
         defines: compile_time_info.defines,
-        free_var_references: FreeVarReferences(free_var_references).cell(),
+        free_var_references: FreeVarReferences(free_var_references).resolved_cell(),
     }
     .cell())
 }
