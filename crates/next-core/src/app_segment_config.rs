@@ -315,7 +315,7 @@ fn issue_source(source: Vc<Box<dyn Source>>, span: Span) -> Vc<IssueSource> {
     IssueSource::from_swc_offsets(source, span.lo.to_usize(), span.hi.to_usize())
 }
 
-async fn parse_config_value(
+fn parse_config_value(
     source: Vc<Box<dyn Source>>,
     config: &mut NextSegmentConfig,
     ident: &Ident,

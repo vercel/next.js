@@ -456,7 +456,7 @@ pub async fn parse_config_from_source(
                                         }
                                     }
 
-                                    return config.cell();
+                                    return Ok(config.cell());
                                 } else {
                                     runtime_value_issue.emit();
                                 }
@@ -585,7 +585,7 @@ fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> N
         );
     }
 
-    Ok(config)
+    config
 }
 
 /// Loads a next.js template, replaces `replacements` and `injections` and makes
