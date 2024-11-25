@@ -391,7 +391,12 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
                         state: node.state,
                         ty: VisitClientReferenceNodeType::ClientReference(
                             ClientReference {
-                                server_component: node.state.server_component(),
+                                server_component: match node.state.server_component() {
+                                    Some(server_component) => {
+                                        Some(server_component.to_resolved().await?)
+                                    }
+                                    None => None,
+                                },
                                 ty: ClientReferenceType::CssClientReference(
                                     css_client_reference_asset,
                                 ),

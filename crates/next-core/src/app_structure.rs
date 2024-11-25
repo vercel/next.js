@@ -1419,7 +1419,7 @@ pub async fn get_global_metadata(
 #[turbo_tasks::value(shared)]
 struct DirectoryTreeIssue {
     pub severity: ResolvedVc<IssueSeverity>,
-    pub app_dir: ResolvedVc<FileSystemPath>,
+    pub app_dir: Vc<FileSystemPath>,
     pub message: ResolvedVc<StyledString>,
 }
 
@@ -1442,7 +1442,7 @@ impl Issue for DirectoryTreeIssue {
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        *self.app_dir
+        self.app_dir
     }
 
     #[turbo_tasks::function]
