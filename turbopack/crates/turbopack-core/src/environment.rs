@@ -233,16 +233,6 @@ pub struct NodeJsEnvironment {
     pub cwd: ResolvedVc<Option<RcStr>>,
 }
 
-impl Default for NodeJsEnvironment {
-    fn default() -> Self {
-        NodeJsEnvironment {
-            compile_target: CompileTarget::current(),
-            node_version: NodeJsVersion::default().cell(),
-            cwd: Vc::cell(None),
-        }
-    }
-}
-
 #[turbo_tasks::value_impl]
 impl NodeJsEnvironment {
     #[turbo_tasks::function]
