@@ -236,17 +236,18 @@ impl Issue for NextSourceConfigParsingIssue {
 
     #[turbo_tasks::function]
     fn detail(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(self.detail))
+        Vc::cell(Some(*self.detail))
     }
 }
 
-fn emit_invalid_config_warning(ident: Vc<AssetIdent>, detail: &str, value: &JsValue) {
+fn emit_invalid_config_warning(ident: ResolvedVc<AssetIdent>, detail: &str, value: &JsValue) {
     let (explainer, hints) = value.explain(2, 0);
     NextSourceConfigParsingIssue {
         ident,
-        detail: StyledString::Text(format!("{detail} Got {explainer}.{hints}").into()).cell(),
+        detail: StyledString::Text(format!("{detail} Got {explainer}.{hints}").into())
+            .resolved_cell(),
     }
-    .cell()
+    .resolved_cell()
     .emit()
 }
 
@@ -426,14 +427,14 @@ pub async fn parse_config_from_source(module: Vc<Box<dyn Module>>) -> Result<Vc<
                             .unwrap_or_default()
                         {
                             let runtime_value_issue = NextSourceConfigParsingIssue {
-                                ident: module.ident(),
+                                ident: module.ident().to_resolved().await?,
                                 detail: StyledString::Text(
                                     "The runtime property must be either \"nodejs\" or \"edge\"."
                                         .into(),
                                 )
-                                .cell(),
+                                .resolved_cell(),
                             }
-                            .cell();
+                            .resolved_cell();
                             if let Some(init) = decl.init.as_ref() {
                                 // skipping eval and directly read the expr's value, as we know it
                                 // should be a const string
