@@ -201,7 +201,7 @@ impl NextFontGoogleCssModuleReplacer {
     async fn import_map_result(&self, query: RcStr) -> Result<Vc<ImportMapResult>> {
         let request_hash = get_request_hash(&query).await?;
         let query_vc = Vc::cell(query);
-        let font_data = load_font_data(self.project_path);
+        let font_data = load_font_data(*self.project_path);
         let options = font_options_from_query_map(query_vc, font_data);
         let stylesheet_url = get_stylesheet_url_from_options(options, font_data);
         let scoped_font_family =
@@ -223,11 +223,11 @@ impl NextFontGoogleCssModuleReplacer {
             .as_ref()
             .map_or_else(
                 || fetch_real_stylesheet(stylesheet_url, css_virtual_path).boxed(),
-                |p| get_mock_stylesheet(stylesheet_url, p, self.execution_context).boxed(),
+                |p| get_mock_stylesheet(stylesheet_url, p, *self.execution_context).boxed(),
             )
             .await?;
 
-        let font_fallback = get_font_fallback(self.project_path, options);
+        let font_fallback = get_font_fallback(*self.project_path, options);
 
         let stylesheet = match stylesheet_str {
             Some(s) => Some(
@@ -548,8 +548,8 @@ async fn get_font_css_properties(
     }
 
     Ok(FontCssProperties::cell(FontCssProperties {
-        font_family: Vc::cell(font_families.join(", ").into()),
-        weight: Vc::cell(match &options.weights {
+        font_family: ResolvedVc::cell(font_families.join(", ").into()),
+        weight: ResolvedVc::cell(match &options.weights {
             FontWeights::Variable => None,
             FontWeights::Fixed(weights) => {
                 if weights.len() > 1 {
@@ -560,13 +560,13 @@ async fn get_font_css_properties(
                 }
             }
         }),
-        style: Vc::cell(if options.styles.len() > 1 {
+        style: ResolvedVc::cell(if options.styles.len() > 1 {
             // Don't set a rule for style if multiple are requested
             None
         } else {
             options.styles.first().cloned()
         }),
-        variable: Vc::cell(options.variable.clone()),
+        variable: ResolvedVc::cell(options.variable.clone()),
     }))
 }
 
