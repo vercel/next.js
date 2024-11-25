@@ -15,6 +15,17 @@ pub struct CompileTarget {
     pub libc: Libc,
 }
 
+impl Default for CompileTarget {
+    fn default() -> Self {
+        CompileTarget {
+            arch: Arch::Unknown,
+            platform: Platform::Unknown,
+            endianness: Endianness::Big,
+            libc: Libc::Unknown,
+        }
+    }
+}
+
 #[turbo_tasks::value_impl]
 impl CompileTarget {
     #[turbo_tasks::function]

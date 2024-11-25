@@ -56,10 +56,10 @@ impl Environment {
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Debug, Hash, Clone, Copy)]
 pub enum ExecutionEnvironment {
-    NodeJsBuildTime(Vc<NodeJsEnvironment>),
-    NodeJsLambda(Vc<NodeJsEnvironment>),
-    EdgeWorker(Vc<EdgeWorkerEnvironment>),
-    Browser(Vc<BrowserEnvironment>),
+    NodeJsBuildTime(ResolvedVc<NodeJsEnvironment>),
+    NodeJsLambda(ResolvedVc<NodeJsEnvironment>),
+    EdgeWorker(ResolvedVc<EdgeWorkerEnvironment>),
+    Browser(ResolvedVc<BrowserEnvironment>),
     // TODO allow custom trait here
     Custom(u8),
 }
@@ -231,6 +231,16 @@ pub struct NodeJsEnvironment {
     pub node_version: ResolvedVc<NodeJsVersion>,
     // user specified process.cwd
     pub cwd: ResolvedVc<Option<RcStr>>,
+}
+
+impl Default for NodeJsEnvironment {
+    fn default() -> Self {
+        NodeJsEnvironment {
+            compile_target: CompileTarget::default().resolved_cell(),
+            node_version: NodeJsVersion::default().resolved_cell(),
+            cwd: ResolvedVc::cell(None),
+        }
+    }
 }
 
 #[turbo_tasks::value_impl]
