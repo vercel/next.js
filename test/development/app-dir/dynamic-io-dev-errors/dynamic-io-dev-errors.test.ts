@@ -71,6 +71,7 @@ describe('Dynamic IO Dev Errors', () => {
     )
 
     // Expand the stack frames, since the first frame `Page [Server] <anonymous>` is treated as ignored.
+    // TODO: Remove the filter of anonymous frames when we have a better way to handle them.
     await toggleCollapseCallStackFrames(browser)
     const stack = await getRedboxCallStack(browser)
     // TODO: use snapshot testing for stack
