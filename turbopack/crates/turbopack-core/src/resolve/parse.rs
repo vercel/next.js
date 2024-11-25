@@ -166,22 +166,22 @@ impl Request {
                     if WINDOWS_PATH.is_match(&r) {
                         let (path, query, fragment) = split_off_query_fragment(r);
 
-                        return Request::Windows {
+                        return Ok(Request::Windows {
                             path,
                             query: query.to_resolved().await?,
                             fragment: fragment.to_resolved().await?,
-                        };
+                        });
                     }
 
                     if let Some(caps) = URI_PATH.captures(&r) {
                         if let (Some(protocol), Some(remainder)) = (caps.get(1), caps.get(2)) {
                             // TODO data uri
-                            return Request::Uri {
+                            return Ok(Request::Uri {
                                 protocol: protocol.as_str().to_string(),
                                 remainder: remainder.as_str().to_string(),
                                 query: ResolvedVc::cell(RcStr::default()),
                                 fragment: ResolvedVc::cell(RcStr::default()),
-                            };
+                            });
                         }
                     }
 
@@ -192,12 +192,12 @@ impl Request {
                         let (path, query, fragment) =
                             split_off_query_fragment(path.as_str().into());
 
-                        return Request::Module {
+                        return Ok(Request::Module {
                             module: module.as_str().into(),
                             path,
                             query: query.to_resolved().await?,
                             fragment: fragment.to_resolved().await?,
-                        };
+                        });
                     }
 
                     Request::Unknown {
