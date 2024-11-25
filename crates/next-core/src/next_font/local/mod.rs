@@ -115,7 +115,7 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
                             source_error.downcast_ref::<FontError>()
                         {
                             FontResolvingIssue {
-                                origin_path: lookup_path.to_resolved().await?,
+                                origin_path: lookup_path,
                                 font_path: ResolvedVc::cell(font_path.clone()),
                             }
                             .cell()
@@ -259,7 +259,9 @@ async fn get_font_css_properties(
     let options = &*options_vc.await?;
 
     Ok(FontCssProperties::cell(FontCssProperties {
-        font_family: build_font_family_string(options_vc, font_fallbacks),
+        font_family: build_font_family_string(options_vc, font_fallbacks)
+            .to_resolved()
+            .await?,
         weight: ResolvedVc::cell(match &options.fonts {
             FontDescriptors::Many(_) => None,
             // When the user only provided a top-level font file, include the font weight in the
@@ -317,7 +319,7 @@ async fn font_file_options_from_query_map(
 #[turbo_tasks::value(shared)]
 struct FontResolvingIssue {
     font_path: ResolvedVc<RcStr>,
-    origin_path: ResolvedVc<FileSystemPath>,
+    origin_path: Vc<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
@@ -329,7 +331,7 @@ impl Issue for FontResolvingIssue {
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        *self.origin_path
+        self.origin_path
     }
 
     #[turbo_tasks::function]

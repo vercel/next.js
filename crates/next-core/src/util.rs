@@ -375,7 +375,9 @@ fn parse_route_matcher_from_js_value(
 }
 
 #[turbo_tasks::function]
-pub async fn parse_config_from_source(module: ResolvedVc<Box<dyn Module>>) -> Vc<NextSourceConfig> {
+pub async fn parse_config_from_source(
+    module: ResolvedVc<Box<dyn Module>>,
+) -> Result<Vc<NextSourceConfig>> {
     if let Some(ecmascript_asset) =
         ResolvedVc::try_sidecast::<Box<dyn EcmascriptParsable>>(module).await?
     {
@@ -404,7 +406,7 @@ pub async fn parse_config_from_source(module: ResolvedVc<Box<dyn Module>>) -> Vc
                             if let Some(init) = decl.init.as_ref() {
                                 return GLOBALS.set(globals, || {
                                     let value = eval_context.eval(init);
-                                    parse_config_from_js_value(*module, &value).cell()
+                                    Ok(parse_config_from_js_value(*module, &value).cell())
                                 });
                             } else {
                                 NextSourceConfigParsingIssue {
@@ -454,7 +456,7 @@ pub async fn parse_config_from_source(module: ResolvedVc<Box<dyn Module>>) -> Vc
                                         }
                                     }
 
-                                    return Ok(config.cell());
+                                    return config.cell();
                                 } else {
                                     runtime_value_issue.emit();
                                 }
