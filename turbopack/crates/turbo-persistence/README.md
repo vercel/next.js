@@ -63,20 +63,24 @@ An Index block contains `n` keys, which specify `n - 1` key ranges (eq key goes 
   * 3 bytes position in block after header
 * Max block size: 16 MB
 
-A Key block contains n keys, which specify n key value pairs. The `i`-th value can be found in `current block index + base block offset + 1` at entry `i`.
+A Key block contains n keys, which specify n key value pairs.
 
 Depending on the `type` field entry has a different format:
 * 0: normal key (small value)
+  * 8 bytes key hash
   * key data
   * 2 byte block index
   * 2 bytes size
   * 4 bytes position in block
 * 1: blob reference
+  * 8 bytes key hash
   * key data
   * 4 bytes sequence number
 * 2: deleted key / thumbstone (no data)
+  * 8 bytes key hash
   * key data
 * 3: normal key (medium sized value)
+  * 8 bytes key hash
   * key data
   * 2 byte block index
 * 7: merge key (future)
@@ -85,8 +89,11 @@ Depending on the `type` field entry has a different format:
   * 3 bytes size
   * 4 bytes position in block
 * 8..255: inlined key (future)
+  * 8 bytes key hash
   * key data
   * type - 8 bytes value data
+
+TODO: 8 bytes key hash is a bit inefficient for small keys.
 
 #### Value Block
 

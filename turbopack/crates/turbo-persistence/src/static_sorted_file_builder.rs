@@ -43,19 +43,24 @@ impl StaticSortedFileBuilder {
         total_value_size: usize,
     ) -> Self {
         let mut builder = Self::default();
-        builder.compute_aqmf(entries);
+        let hashes = builder.compute_hashes(entries);
+        builder.compute_aqmf(&hashes);
         builder.compute_compression_dictionary(entries, total_key_size, total_value_size);
-        builder.compute_blocks(entries);
+        builder.compute_blocks(entries, &hashes);
         builder
     }
 
-    fn compute_aqmf<K: StoreKey>(&mut self, entries: &[Entry<K>]) {
-        let mut filter = qfilter::Filter::new(entries.len() as u64, AQMF_FALSE_POSITIVE_RATE)
+    fn compute_hashes<K: StoreKey>(&self, entries: &[Entry<K>]) -> Vec<u64> {
+        entries.iter().map(|entry| hash_key(&entry.key)).collect()
+    }
+
+    fn compute_aqmf(&mut self, hashes: &[u64]) {
+        let mut filter = qfilter::Filter::new(hashes.len() as u64, AQMF_FALSE_POSITIVE_RATE)
             // This won't fail as we limit the number of entries per SST file
             .expect("Filter can't be constructed");
-        for entry in entries {
+        for hash in hashes {
             filter
-                .insert_fingerprint(false, hash_key(&entry.key))
+                .insert_fingerprint(false, *hash)
                 // This can't fail as we allocated enough capacity
                 .expect("AQMF insert failed");
         }
@@ -121,7 +126,7 @@ impl StaticSortedFileBuilder {
         }
     }
 
-    fn compute_blocks<K: StoreKey>(&mut self, entries: &[Entry<K>]) {
+    fn compute_blocks<K: StoreKey>(&mut self, entries: &[Entry<K>], hashes: &[u64]) {
         // TODO implement multi level index
         // TODO place key and value block near to each other
 
@@ -190,12 +195,14 @@ impl StaticSortedFileBuilder {
         // Split the keys into blocks
         fn add_entry_to_block<K: StoreKey>(
             entry: &Entry<K>,
+            key_hash: u64,
             value_location: &(usize, usize),
             block: &mut KeyBlockBuilder,
         ) {
             match &entry.value {
                 EntryValue::Small { value } => {
                     block.put_small(
+                        key_hash,
                         &entry.key,
                         value_location.0.try_into().unwrap(),
                         value_location.1.try_into().unwrap(),
@@ -203,13 +210,13 @@ impl StaticSortedFileBuilder {
                     );
                 }
                 EntryValue::Medium { .. } => {
-                    block.put_medium(&entry.key, value_location.0.try_into().unwrap());
+                    block.put_medium(key_hash, &entry.key, value_location.0.try_into().unwrap());
                 }
                 EntryValue::Large { blob } => {
-                    block.put_blob(&entry.key, *blob);
+                    block.put_blob(key_hash, &entry.key, *blob);
                 }
                 EntryValue::Deleted => {
-                    block.delete(&entry.key);
+                    block.delete(key_hash, &entry.key);
                 }
             }
         }
@@ -225,7 +232,7 @@ impl StaticSortedFileBuilder {
                 for j in current_block_start..i {
                     let entry = &entries[j];
                     let value_location = &value_locations[j];
-                    add_entry_to_block(entry, value_location, &mut block);
+                    add_entry_to_block(entry, hashes[j], value_location, &mut block);
                 }
                 key_block_boundaries.push((self.blocks.len(), i - 1));
                 self.blocks.push(self.compress_key_block(&block.finish()));
@@ -239,7 +246,7 @@ impl StaticSortedFileBuilder {
             for j in current_block_start..entries.len() {
                 let entry = &entries[j];
                 let value_location = &value_locations[j];
-                add_entry_to_block(entry, value_location, &mut block);
+                add_entry_to_block(entry, hashes[j], value_location, &mut block);
             }
             key_block_boundaries.push((self.blocks.len(), entries.len() - 1));
             self.blocks.push(self.compress_key_block(&block.finish()));
@@ -343,6 +350,7 @@ impl KeyBlockBuilder {
 
     pub fn put_small<K: StoreKey>(
         &mut self,
+        key_hash: u64,
         key: K,
         value_block: u16,
         value_offset: u32,
@@ -353,6 +361,7 @@ impl KeyBlockBuilder {
         let header = (pos as u32) | ((KEY_BLOCK_ENTRY_TYPE_SMALL as u32) << 24);
         BE::write_u32(&mut self.data[header_offset..header_offset + 4], header);
 
+        self.data.write_u64::<BE>(key_hash).unwrap();
         key.write_to(&mut self.data);
         self.data.write_u16::<BE>(value_block).unwrap();
         self.data.write_u16::<BE>(value_size).unwrap();
@@ -361,35 +370,38 @@ impl KeyBlockBuilder {
         self.current_entry += 1;
     }
 
-    pub fn put_medium<K: StoreKey>(&mut self, key: K, value_block: u16) {
+    pub fn put_medium<K: StoreKey>(&mut self, key_hash: u64, key: K, value_block: u16) {
         let pos = self.data.len() - self.header_size;
         let header_offset = KEY_BLOCK_HEADER_SIZE + self.current_entry * 4;
         let header = (pos as u32) | ((KEY_BLOCK_ENTRY_TYPE_MEDIUM as u32) << 24);
         BE::write_u32(&mut self.data[header_offset..header_offset + 4], header);
 
+        self.data.write_u64::<BE>(key_hash).unwrap();
         key.write_to(&mut self.data);
         self.data.write_u16::<BE>(value_block).unwrap();
 
         self.current_entry += 1;
     }
 
-    pub fn delete<K: StoreKey>(&mut self, key: K) {
+    pub fn delete<K: StoreKey>(&mut self, key_hash: u64, key: K) {
         let pos = self.data.len() - self.header_size;
         let header_offset = KEY_BLOCK_HEADER_SIZE + self.current_entry * 4;
         let header = (pos as u32) | ((KEY_BLOCK_ENTRY_TYPE_DELETED as u32) << 24);
         BE::write_u32(&mut self.data[header_offset..header_offset + 4], header);
 
+        self.data.write_u64::<BE>(key_hash).unwrap();
         key.write_to(&mut self.data);
 
         self.current_entry += 1;
     }
 
-    pub fn put_blob<K: StoreKey>(&mut self, key: K, blob: u32) {
+    pub fn put_blob<K: StoreKey>(&mut self, key_hash: u64, key: K, blob: u32) {
         let pos = self.data.len() - self.header_size;
         let header_offset = KEY_BLOCK_HEADER_SIZE + self.current_entry * 4;
         let header = (pos as u32) | ((KEY_BLOCK_ENTRY_TYPE_BLOB as u32) << 24);
         BE::write_u32(&mut self.data[header_offset..header_offset + 4], header);
 
+        self.data.write_u64::<BE>(key_hash).unwrap();
         key.write_to(&mut self.data);
         self.data.write_u32::<BE>(blob).unwrap();
 
