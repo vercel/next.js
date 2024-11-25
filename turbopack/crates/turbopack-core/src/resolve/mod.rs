@@ -2804,7 +2804,7 @@ async fn handle_exports_imports_field(
             .await?;
 
             let resolve_result =
-                Box::pin(resolve_internal_inline(package_path, request, options)).await?;
+                Box::pin(resolve_internal_inline(package_path, *request, options)).await?;
             if conditions.is_empty() {
                 resolved_results.push(resolve_result.with_request(path.into()));
             } else {
@@ -2862,7 +2862,7 @@ async fn resolve_package_internal_with_imports_field(
     };
 
     handle_exports_imports_field(
-        package_json_path.parent().to_resolved().await?,
+        package_json_path.parent(),
         *package_json_path,
         resolve_options,
         imports,
@@ -2964,9 +2964,9 @@ pub async fn handle_resolve_source_error(
 
 async fn emit_resolve_error_issue(
     is_optional: bool,
-    origin_path: ResolvedVc<FileSystemPath>,
+    origin_path: Vc<FileSystemPath>,
     reference_type: Value<ReferenceType>,
-    request: ResolvedVc<Request>,
+    request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
     err: anyhow::Error,
     source: Option<ResolvedVc<IssueSource>>,
@@ -2978,10 +2978,10 @@ async fn emit_resolve_error_issue(
     };
     ResolvingIssue {
         severity,
-        file_path: origin_path,
+        file_path: origin_path.to_resolved().await?,
         request_type: format!("{} request", reference_type.into_value()),
         request,
-        resolve_options,
+        resolve_options: resolve_options.to_resolved().await?,
         error_message: Some(format!("{}", PrettyPrintError(&err))),
         source,
     }
