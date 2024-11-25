@@ -32,7 +32,7 @@ impl VirtualOutputAsset {
     pub fn new_with_references(
         path: ResolvedVc<FileSystemPath>,
         content: ResolvedVc<AssetContent>,
-        references: ResolvedVc<OutputAssets>,
+        references: Vc<OutputAssets>,
     ) -> Vc<Self> {
         VirtualOutputAsset {
             path,
