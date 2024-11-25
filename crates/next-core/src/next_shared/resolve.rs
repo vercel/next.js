@@ -43,7 +43,7 @@ lazy_static! {
 
 #[turbo_tasks::value(shared)]
 pub struct InvalidImportModuleIssue {
-    pub file_path: Vc<FileSystemPath>,
+    pub file_path: ResolvedVc<FileSystemPath>,
     pub messages: Vec<RcStr>,
     pub skip_context_message: bool,
 }
