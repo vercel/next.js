@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-use anyhow::{bail, Ok, Result};
+use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use swc_core::{
@@ -334,7 +334,7 @@ async fn parse_config_value(
         .cell()
         .emit();
 
-        Ok(())
+        anyhow::Ok(())
     };
 
     match &*ident.sym {
