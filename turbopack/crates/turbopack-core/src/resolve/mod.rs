@@ -2404,7 +2404,7 @@ async fn resolve_module_request(
     // Check alias field for module aliases first
     if let Some(result) = apply_in_package(
         *lookup_path,
-        options,
+        *options,
         options_value,
         |_| {
             let full_pattern = Pattern::concat([RcStr::from(module).into(), path.clone()]);
@@ -2977,9 +2977,9 @@ async fn emit_resolve_error_issue(
     source: Option<ResolvedVc<IssueSource>>,
 ) -> Result<()> {
     let severity = if is_optional || resolve_options.await?.loose_errors {
-        IssueSeverity::Warning.cell()
+        IssueSeverity::Warning.resolved_cell()
     } else {
-        IssueSeverity::Error.cell()
+        IssueSeverity::Error.resolved_cell()
     };
     ResolvingIssue {
         severity,
@@ -2997,10 +2997,10 @@ async fn emit_resolve_error_issue(
 
 async fn emit_unresolvable_issue(
     is_optional: bool,
-    origin_path: Vc<FileSystemPath>,
+    origin_path: ResolvedVc<FileSystemPath>,
     reference_type: Value<ReferenceType>,
-    request: Vc<Request>,
-    resolve_options: Vc<ResolveOptions>,
+    request: ResolvedVc<Request>,
+    resolve_options: ResolvedVc<ResolveOptions>,
     source: Option<ResolvedVc<IssueSource>>,
 ) -> Result<()> {
     let severity = if is_optional || resolve_options.await?.loose_errors {
