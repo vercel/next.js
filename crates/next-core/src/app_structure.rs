@@ -31,25 +31,25 @@ use crate::{
 #[derive(Default, Debug, Clone)]
 pub struct AppDirModules {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub page: Option<Vc<FileSystemPath>>,
+    pub page: Option<ResolvedVc<FileSystemPath>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub layout: Option<Vc<FileSystemPath>>,
+    pub layout: Option<ResolvedVc<FileSystemPath>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub error: Option<Vc<FileSystemPath>>,
+    pub error: Option<ResolvedVc<FileSystemPath>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub global_error: Option<ResolvedVc<FileSystemPath>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub loading: Option<Vc<FileSystemPath>>,
+    pub loading: Option<ResolvedVc<FileSystemPath>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub template: Option<Vc<FileSystemPath>>,
+    pub template: Option<ResolvedVc<FileSystemPath>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub forbidden: Option<Vc<FileSystemPath>>,
+    pub forbidden: Option<ResolvedVc<FileSystemPath>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub unauthorized: Option<Vc<FileSystemPath>>,
+    pub unauthorized: Option<ResolvedVc<FileSystemPath>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub not_found: Option<Vc<FileSystemPath>>,
+    pub not_found: Option<ResolvedVc<FileSystemPath>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub default: Option<Vc<FileSystemPath>>,
+    pub default: Option<ResolvedVc<FileSystemPath>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub route: Option<ResolvedVc<FileSystemPath>>,
     #[serde(skip_serializing_if = "Metadata::is_empty", default)]
@@ -407,7 +407,7 @@ pub struct AppPageLoaderTree {
     pub segment: RcStr,
     pub parallel_routes: FxIndexMap<RcStr, AppPageLoaderTree>,
     pub modules: AppDirModules,
-    pub global_metadata: Vc<GlobalMetadata>,
+    pub global_metadata: ResolvedVc<GlobalMetadata>,
 }
 
 impl AppPageLoaderTree {
@@ -741,7 +741,7 @@ fn directory_tree_to_entrypoints(
 
 #[turbo_tasks::value]
 struct DuplicateParallelRouteIssue {
-    app_dir: Vc<FileSystemPath>,
+    app_dir: ResolvedVc<FileSystemPath>,
     page: AppPage,
 }
 
