@@ -150,6 +150,7 @@ pub async fn get_app_client_references_chunks(
             }
             for client_reference in app_client_references.client_references.iter() {
                 if let Some(server_component) = client_reference.server_component() {
+                    let server_component = server_component.to_resolved().await?;
                     client_references_by_server_component
                         .entry(server_component)
                         .or_default()
