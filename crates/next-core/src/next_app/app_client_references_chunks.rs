@@ -267,7 +267,8 @@ pub async fn get_app_client_references_chunks(
                         current_client_chunks = client_chunks;
                     }
 
-                    layout_segment_client_chunks.insert(server_component, client_chunks);
+                    layout_segment_client_chunks
+                        .insert(server_component.to_resolved().await?, client_chunks);
 
                     for &client_reference_ty in client_reference_types.iter() {
                         if let ClientReferenceType::EcmascriptClientReference { .. } =
