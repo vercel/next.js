@@ -2,7 +2,7 @@ use std::io::Write;
 
 use anyhow::{bail, Result};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{fxindexmap, TryJoinIterExt, Value, Vc};
+use turbo_tasks::{fxindexmap, ResolvedVc, TryJoinIterExt, Value, Vc};
 use turbo_tasks_fs::{
     self, rope::RopeBuilder, File, FileContent, FileSystemPath, FileSystemPathOption,
 };
@@ -62,7 +62,7 @@ pub async fn create_page_loader_entry_module(
     let module = client_context
         .process(
             virtual_source,
-            Value::new(ReferenceType::Internal(Vc::cell(fxindexmap! {
+            Value::new(ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
                 "PAGE".into() => module,
             }))),
         )

@@ -124,7 +124,7 @@ async fn build_server_actions_loader(
     let module = asset_context
         .process(
             Vc::upcast(source),
-            Value::new(ReferenceType::Internal(Vc::cell(import_map))),
+            Value::new(ReferenceType::Internal(ResolvedVc::cell(import_map))),
         )
         .module();
 
