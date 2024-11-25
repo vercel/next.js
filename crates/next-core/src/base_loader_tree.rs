@@ -89,7 +89,7 @@ impl BaseLoaderTreeBuilder {
     pub async fn create_module_tuple_code(
         &mut self,
         module_type: AppDirModuleType,
-        path: Vc<FileSystemPath>,
+        path: ResolvedVc<FileSystemPath>,
     ) -> Result<String> {
         let name = module_type.name();
         let i = self.unique_number();

@@ -27,7 +27,7 @@ use crate::{
 pub struct AppPageLoaderTreeBuilder {
     base: BaseLoaderTreeBuilder,
     loader_tree_code: String,
-    pages: Vec<Vc<FileSystemPath>>,
+    pages: Vec<ResolvedVc<FileSystemPath>>,
     /// next.config.js' basePath option to construct og metadata.
     base_path: Option<RcStr>,
 }
