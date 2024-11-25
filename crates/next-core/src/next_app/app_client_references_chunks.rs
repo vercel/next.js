@@ -121,12 +121,20 @@ pub async fn get_app_client_references_chunks(
                     .map(|&(client_reference_ty, (client_chunks, _))| {
                         (client_reference_ty, client_chunks)
                     })
+                    .map(|v| async move { Ok((v.0, (v.1 .0.to_resolved().await?, v.1 .1))) })
+                    .try_join()
+                    .await?
+                    .into_iter()
                     .collect(),
                 client_component_ssr_chunks: app_client_references_chunks
                     .iter()
                     .flat_map(|&(client_reference_ty, (_, ssr_chunks))| {
                         ssr_chunks.map(|ssr_chunks| (client_reference_ty, ssr_chunks))
                     })
+                    .map(|v| async move { Ok((v.0, (v.1 .0.to_resolved().await?, v.1 .1))) })
+                    .try_join()
+                    .await?
+                    .into_iter()
                     .collect(),
                 layout_segment_client_chunks: FxIndexMap::default(),
             }
