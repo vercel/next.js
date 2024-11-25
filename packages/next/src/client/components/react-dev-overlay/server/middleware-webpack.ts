@@ -312,7 +312,6 @@ async function getSource(
   const modulePath = moduleId.replace(/^(\(.*\)\/?)/, '')
 
   for (const compilation of getCompilations()) {
-    // TODO: `ignoreList`
     const sourceMap = await getSourceMapFromCompilation(moduleId, compilation)
     const ignoreList = []
     const moduleFilenames = sourceMap?.sources ?? []
