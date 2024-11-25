@@ -375,7 +375,9 @@ async fn parse_route_matcher_from_js_value(
 }
 
 #[turbo_tasks::function]
-pub async fn parse_config_from_source(module: Vc<Box<dyn Module>>) -> Result<Vc<NextSourceConfig>> {
+pub async fn parse_config_from_source(
+    module: ResolvedVc<Box<dyn Module>>,
+) -> Result<Vc<NextSourceConfig>> {
     if let Some(ecmascript_asset) =
         Vc::try_resolve_sidecast::<Box<dyn EcmascriptParsable>>(module).await?
     {
@@ -480,14 +482,17 @@ pub async fn parse_config_from_source(module: Vc<Box<dyn Module>>) -> Result<Vc<
     Ok(Default::default())
 }
 
-fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> NextSourceConfig {
+async fn parse_config_from_js_value(
+    module: ResolvedVc<Box<dyn Module>>,
+    value: &JsValue,
+) -> Result<NextSourceConfig> {
     let mut config = NextSourceConfig::default();
 
     if let JsValue::Object { parts, .. } = value {
         for part in parts {
             match part {
                 ObjectPart::Spread(_) => emit_invalid_config_warning(
-                    module.ident(),
+                    module.ident().to_resolved().await?,
                     "Spread properties are not supported in the config export.",
                     value,
                 ),
@@ -506,7 +511,7 @@ fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> N
                                             }
                                             _ => {
                                                 emit_invalid_config_warning(
-                                                    module.ident(),
+                                                    module.ident().to_resolved().await?,
                                                     "The runtime property must be either \
                                                      \"nodejs\" or \"edge\".",
                                                     value,
@@ -516,7 +521,7 @@ fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> N
                                     }
                                 } else {
                                     emit_invalid_config_warning(
-                                        module.ident(),
+                                        module.ident().to_resolved().await?,
                                         "The runtime property must be a constant string.",
                                         value,
                                     );
@@ -524,7 +529,8 @@ fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> N
                             }
                             "matcher" => {
                                 config.matcher =
-                                    parse_route_matcher_from_js_value(module.ident(), value);
+                                    parse_route_matcher_from_js_value(module.ident(), value)
+                                        .await?;
                             }
                             "regions" => {
                                 config.regions = match value {
@@ -543,7 +549,7 @@ fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> N
                                                 regions.push(str.to_string().into());
                                             } else {
                                                 emit_invalid_config_warning(
-                                                    module.ident(),
+                                                    module.ident().to_resolved().await?,
                                                     "Values of the `config.regions` array need to \
                                                      static strings",
                                                     item,
@@ -554,7 +560,7 @@ fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> N
                                     }
                                     _ => {
                                         emit_invalid_config_warning(
-                                            module.ident(),
+                                            module.ident().to_resolved().await?,
                                             "`config.regions` needs to be a static string or \
                                              array of static strings",
                                             value,
@@ -567,7 +573,7 @@ fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> N
                         }
                     } else {
                         emit_invalid_config_warning(
-                            module.ident(),
+                            module.ident().to_resolved().await?,
                             "The exported config object must not contain non-constant strings.",
                             key,
                         );
@@ -577,13 +583,13 @@ fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> N
         }
     } else {
         emit_invalid_config_warning(
-            module.ident(),
+            module.ident().to_resolved().await?,
             "The exported config object must be a valid object literal.",
             value,
         );
     }
 
-    config
+    Ok(config)
 }
 
 /// Loads a next.js template, replaces `replacements` and `injections` and makes
