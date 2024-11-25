@@ -1932,9 +1932,9 @@ async fn resolve_internal_inline(
                     ResolvingIssue {
                         severity: error_severity(options).await?,
                         request_type: format!("unknown import: `{}`", path),
-                        request,
-                        file_path: lookup_path,
-                        resolve_options: options,
+                        request: request.to_resolved().await?,
+                        file_path: lookup_path.to_resolved().await?,
+                        resolve_options: options.to_resolved().await?,
                         error_message: None,
                         source: None,
                     }
@@ -2002,7 +2002,7 @@ async fn resolve_into_folder(
                         } else {
                             options
                         };
-                        let result = &*resolve_internal_inline(package_path, request, options)
+                        let result = &*resolve_internal_inline(*package_path, *request, options)
                             .await?
                             .await?;
                         // we are not that strict when a main field fails to resolve
@@ -2039,11 +2039,9 @@ async fn resolve_into_folder(
 
     let request = Request::parse(Value::new(pattern));
 
-    Ok(
-        resolve_internal_inline(package_path, request.to_resolved().await?, options)
-            .await?
-            .with_request(".".into()),
-    )
+    Ok(resolve_internal_inline(*package_path, request, options)
+        .await?
+        .with_request(".".into()))
 }
 
 #[tracing::instrument(level = Level::TRACE, skip_all)]
