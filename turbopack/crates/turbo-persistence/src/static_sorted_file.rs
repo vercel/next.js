@@ -46,7 +46,6 @@ struct Header {
     value_compression_dictionary: LocationInFile,
     block_offsets_start: usize,
     blocks_start: usize,
-    #[cfg(feature = "strict_checks")]
     block_count: u16,
 }
 
@@ -133,7 +132,6 @@ impl StaticSortedFile {
                 value_compression_dictionary,
                 block_offsets_start,
                 blocks_start,
-                #[cfg(feature = "strict_checks")]
                 block_count,
             })
         })
@@ -177,7 +175,7 @@ impl StaticSortedFile {
                 return Ok(LookupResult::QuickFilterMiss);
             }
         }
-        let mut current_block = 0u16;
+        let mut current_block = header.block_count - 1;
         loop {
             let cache = if current_block == 0 {
                 index_block_cache

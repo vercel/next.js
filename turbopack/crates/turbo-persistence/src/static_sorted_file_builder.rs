@@ -130,12 +130,9 @@ impl StaticSortedFileBuilder {
         // TODO place key and value block near to each other
 
         // For now we use something simple to implement:
-        // Block 0 is Index block
-        // Followed by all Value blocks
-        // And the rest are the Key blocks
-
-        // Reserve the first block for the index block
-        self.blocks.push((0, Vec::new()));
+        // Start with Value blocks
+        // And then Key blocks
+        // Last block is Index block
 
         // Store the locations of the values
         let mut value_locations: Vec<(usize, usize)> = Vec::with_capacity(entries.len());
@@ -260,7 +257,8 @@ impl StaticSortedFileBuilder {
         for (hash, block) in &key_block_boundaries[1..] {
             index_block.put(*hash, *block as u16);
         }
-        self.blocks[0] = self.compress_key_block(&index_block.finish());
+        self.blocks
+            .push(self.compress_key_block(&index_block.finish()));
     }
 
     fn compress_block(&self, block: &[u8], dict: &[u8]) -> (u32, Vec<u8>) {
