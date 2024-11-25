@@ -1518,7 +1518,7 @@ pub async fn resolve_inline(
 #[turbo_tasks::function]
 pub async fn url_resolve(
     origin: Vc<Box<dyn ResolveOrigin>>,
-    request: Vc<Request>,
+    request: ResolvedVc<Request>,
     reference_type: Value<ReferenceType>,
     issue_source: Option<ResolvedVc<IssueSource>>,
     is_optional: bool,
@@ -1531,12 +1531,12 @@ pub async fn url_resolve(
         rel_request,
         resolve_options,
     );
-    let result = if *rel_result.is_unresolvable().await? && rel_request.resolve().await? != request
+    let result = if *rel_result.is_unresolvable().await? && rel_request.resolve().await? != *request
     {
         resolve(
             origin.origin_path().parent(),
             reference_type.clone(),
-            request,
+            *request,
             resolve_options,
         )
         .with_affecting_sources(
@@ -1665,13 +1665,13 @@ async fn resolve_internal(
     request: ResolvedVc<Request>,
     options: ResolvedVc<ResolveOptions>,
 ) -> Result<Vc<ResolveResult>> {
-    resolve_internal_inline(lookup_path, request, options).await
+    resolve_internal_inline(*lookup_path, request, *options).await
 }
 
 async fn resolve_internal_inline(
-    lookup_path: ResolvedVc<FileSystemPath>,
+    lookup_path: Vc<FileSystemPath>,
     request: ResolvedVc<Request>,
-    options: ResolvedVc<ResolveOptions>,
+    options: Vc<ResolveOptions>,
 ) -> Result<Vc<ResolveResult>> {
     let span = {
         let lookup_path = lookup_path.to_string().await?.to_string();
@@ -1788,7 +1788,7 @@ async fn resolve_internal_inline(
                     if let Ok(result) = resolve_relative_request(
                         lookup_path,
                         request,
-                        options,
+                        *options,
                         options_value,
                         path,
                         *query,
@@ -2883,7 +2883,7 @@ pub async fn handle_resolve_error(
     result: Vc<ModuleResolveResult>,
     reference_type: Value<ReferenceType>,
     origin_path: Vc<FileSystemPath>,
-    request: Vc<Request>,
+    request: ResolvedVc<Request>,
     resolve_options: Vc<ResolveOptions>,
     is_optional: bool,
     source: Option<ResolvedVc<IssueSource>>,
@@ -2905,7 +2905,7 @@ pub async fn handle_resolve_error(
                 .await?;
             }
 
-            result
+            *result
         }
         Err(err) => {
             emit_resolve_error_issue(
@@ -2949,7 +2949,7 @@ pub async fn handle_resolve_source_error(
                 .await?;
             }
 
-            result
+            *result
         }
         Err(err) => {
             emit_resolve_error_issue(
@@ -2972,7 +2972,7 @@ async fn emit_resolve_error_issue(
     origin_path: ResolvedVc<FileSystemPath>,
     reference_type: Value<ReferenceType>,
     request: ResolvedVc<Request>,
-    resolve_options: ResolvedVc<ResolveOptions>,
+    resolve_options: Vc<ResolveOptions>,
     err: anyhow::Error,
     source: Option<ResolvedVc<IssueSource>>,
 ) -> Result<()> {
@@ -2997,10 +2997,10 @@ async fn emit_resolve_error_issue(
 
 async fn emit_unresolvable_issue(
     is_optional: bool,
-    origin_path: ResolvedVc<FileSystemPath>,
+    origin_path: Vc<FileSystemPath>,
     reference_type: Value<ReferenceType>,
     request: ResolvedVc<Request>,
-    resolve_options: ResolvedVc<ResolveOptions>,
+    resolve_options: Vc<ResolveOptions>,
     source: Option<ResolvedVc<IssueSource>>,
 ) -> Result<()> {
     let severity = if is_optional || resolve_options.await?.loose_errors {
@@ -3010,10 +3010,10 @@ async fn emit_unresolvable_issue(
     };
     ResolvingIssue {
         severity,
-        file_path: origin_path,
+        file_path: origin_path.to_resolved().await?,
         request_type: format!("{} request", reference_type.into_value()),
         request,
-        resolve_options,
+        resolve_options: resolve_options.to_resolved().await?,
         error_message: None,
         source,
     }
