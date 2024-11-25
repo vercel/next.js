@@ -232,6 +232,7 @@ pub async fn get_client_compile_time_info(
             .into(),
         ))))
         .defines(client_defines(&*node_env.await?))
-        .cell(),
+        .cell()
+        .await?,
     )
 }
