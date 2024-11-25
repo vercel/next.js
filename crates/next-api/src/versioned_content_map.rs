@@ -20,22 +20,23 @@ use turbopack_core::{
 /// it's stored for later usage and we want to reconnect this operation when
 /// it's received from the map again.
 #[turbo_tasks::value(transparent)]
-pub struct OutputAssetsOperation(Vc<OutputAssets>);
+pub struct OutputAssetsOperation(ResolvedVc<OutputAssets>);
 
 #[derive(Clone, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Serialize, Deserialize, Debug)]
 struct MapEntry {
     // must not be resolved
     assets_operation: Vc<OutputAssets>,
     /// Precomputed map for quick access to output asset by filepath
-    path_to_asset: HashMap<ResolvedVc<FileSystemPath>, Vc<Box<dyn OutputAsset>>>,
+    path_to_asset: HashMap<ResolvedVc<FileSystemPath>, ResolvedVc<Box<dyn OutputAsset>>>,
 }
 
 #[turbo_tasks::value(transparent)]
 struct OptionMapEntry(Option<MapEntry>);
 
-type PathToOutputOperation = HashMap<ResolvedVc<FileSystemPath>, FxIndexSet<Vc<OutputAssets>>>;
+type PathToOutputOperation =
+    HashMap<ResolvedVc<FileSystemPath>, FxIndexSet<ResolvedVc<OutputAssets>>>;
 // A precomputed map for quick access to output asset by filepath
-type OutputOperationToComputeEntry = HashMap<Vc<OutputAssets>, Vc<OptionMapEntry>>;
+type OutputOperationToComputeEntry = HashMap<ResolvedVc<OutputAssets>, ResolvedVc<OptionMapEntry>>;
 
 #[turbo_tasks::value]
 pub struct VersionedContentMap {
