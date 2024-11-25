@@ -3,7 +3,7 @@ use std::{io::Write, iter::once};
 use anyhow::{bail, Context, Result};
 use indoc::writedoc;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{Value, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::File;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -188,9 +188,9 @@ impl Module for EcmascriptClientReferenceProxyModule {
             .copied()
             .chain(once(Vc::upcast(SingleModuleReference::new(
                 Vc::upcast(EcmascriptClientReferenceModule::new(
-                    *server_module_ident,
-                    *client_module,
-                    *ssr_module,
+                    **server_module_ident,
+                    **client_module,
+                    **ssr_module,
                 )),
                 client_reference_description(),
             ))))
