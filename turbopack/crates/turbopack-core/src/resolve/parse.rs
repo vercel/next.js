@@ -269,48 +269,48 @@ impl Request {
     }
 
     #[turbo_tasks::function]
-    pub fn raw(
+    pub async fn raw(
         request: Value<Pattern>,
         query: Vc<RcStr>,
         fragment: Vc<RcStr>,
         force_in_lookup_dir: bool,
-    ) -> Vc<Self> {
-        Self::cell(Request::Raw {
+    ) -> Result<Vc<Self>> {
+        Ok(Self::cell(Request::Raw {
             path: request.into_value(),
             force_in_lookup_dir,
-            query,
-            fragment,
-        })
+            query: query.to_resolved().await?,
+            fragment: fragment.to_resolved().await?,
+        }))
     }
 
     #[turbo_tasks::function]
-    pub fn relative(
+    pub async fn relative(
         request: Value<Pattern>,
         query: Vc<RcStr>,
         fragment: Vc<RcStr>,
         force_in_lookup_dir: bool,
-    ) -> Vc<Self> {
-        Self::cell(Request::Relative {
+    ) -> Result<Vc<Self>> {
+        Ok(Self::cell(Request::Relative {
             path: request.into_value(),
             force_in_lookup_dir,
-            query,
-            fragment,
-        })
+            query: query.to_resolved().await?,
+            fragment: fragment.to_resolved().await?,
+        }))
     }
 
     #[turbo_tasks::function]
-    pub fn module(
+    pub async fn module(
         module: RcStr,
         path: Value<Pattern>,
         query: Vc<RcStr>,
         fragment: Vc<RcStr>,
-    ) -> Vc<Self> {
-        Self::cell(Request::Module {
+    ) -> Result<Vc<Self>> {
+        Ok(Self::cell(Request::Module {
             module,
             path: path.into_value(),
-            query,
-            fragment,
-        })
+            query: query.to_resolved().await?,
+            fragment: fragment.to_resolved().await?,
+        }))
     }
 
     #[turbo_tasks::function]
