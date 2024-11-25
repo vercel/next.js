@@ -16,7 +16,7 @@ mod prefix_suffix;
 /// A route matcher that matches a path against an exact route.
 #[turbo_tasks::value]
 pub(crate) struct NextExactMatcher {
-    path: Vc<RcStr>,
+    path: ResolvedVc<RcStr>,
 }
 
 #[turbo_tasks::value_impl]
