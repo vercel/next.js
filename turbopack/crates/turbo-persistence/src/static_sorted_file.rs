@@ -28,8 +28,8 @@ pub enum LookupResult {
     Deleted,
     Small { value: ArcSlice<u8> },
     Blob { sequence_number: u32 },
-    QuickFilterMiss,
     RangeMiss,
+    QuickFilterMiss,
     KeyMiss,
 }
 
@@ -39,6 +39,8 @@ struct LocationInFile {
 }
 
 struct Header {
+    min_hash: u64,
+    max_hash: u64,
     aqmf: LocationInFile,
     key_compression_dictionary: LocationInFile,
     value_compression_dictionary: LocationInFile,
@@ -97,11 +99,13 @@ impl StaticSortedFile {
             if magic != 0x53535401 {
                 bail!("Invalid magic number or version");
             }
+            let min_hash = file.read_u64::<BE>()?;
+            let max_hash = file.read_u64::<BE>()?;
             let aqmf_length = file.read_u24::<BE>()? as usize;
             let key_compression_dictionary_length = file.read_u16::<BE>()? as usize;
             let value_compression_dictionary_length = file.read_u16::<BE>()? as usize;
             let block_count = file.read_u16::<BE>()?;
-            const HEADER_SIZE: usize = 13;
+            const HEADER_SIZE: usize = 29;
             let mut current_offset = HEADER_SIZE;
             let aqmf = LocationInFile {
                 start: current_offset,
@@ -122,6 +126,8 @@ impl StaticSortedFile {
             let blocks_start = block_offsets_start + block_count as usize * 4;
 
             Ok(Header {
+                min_hash,
+                max_hash,
                 aqmf,
                 key_compression_dictionary,
                 value_compression_dictionary,
@@ -142,12 +148,16 @@ impl StaticSortedFile {
         key_block_cache: &BlockCache,
         value_block_cache: &BlockCache,
     ) -> Result<LookupResult> {
+        let header = self.header()?;
+        if key_hash < header.min_hash || key_hash > header.max_hash {
+            return Ok(LookupResult::RangeMiss);
+        }
+
         let use_aqmf_cache = false;
         if use_aqmf_cache {
             let aqmf = match aqmf_cache.get_value_or_guard(&self.sequence_number, None) {
                 GuardResult::Value(aqmf) => aqmf,
                 GuardResult::Guard(guard) => {
-                    let header = self.header()?;
                     let aqmf = &self.mmap[header.aqmf.start..header.aqmf.end];
                     let aqmf: Arc<qfilter::Filter> = Arc::new(pot::from_slice(aqmf)?);
                     let _ = guard.insert(aqmf.clone());
@@ -160,7 +170,6 @@ impl StaticSortedFile {
             }
         } else {
             let aqmf = self.aqmf.get_or_try_init(|| {
-                let header = self.header()?;
                 let aqmf = &self.mmap[header.aqmf.start..header.aqmf.end];
                 anyhow::Ok(pot::from_slice(aqmf)?)
             })?;
@@ -168,7 +177,6 @@ impl StaticSortedFile {
                 return Ok(LookupResult::QuickFilterMiss);
             }
         }
-        let header = self.header()?;
         let mut current_block = 0u16;
         loop {
             let cache = if current_block == 0 {
@@ -190,11 +198,7 @@ impl StaticSortedFile {
             let block_type = block.read_u8()?;
             match block_type {
                 BLOCK_TYPE_INDEX => {
-                    if let Some(next_block) = self.lookup_index_block(block, key_hash)? {
-                        current_block = next_block;
-                    } else {
-                        return Ok(LookupResult::RangeMiss);
-                    }
+                    current_block = self.lookup_index_block(block, key_hash)?;
                 }
                 BLOCK_TYPE_KEY => {
                     return self.lookup_key_block(block, key_hash, key, header, value_block_cache);
@@ -206,8 +210,9 @@ impl StaticSortedFile {
         }
     }
 
-    fn lookup_index_block(&self, block: &[u8], hash: u64) -> Result<Option<u16>> {
-        let entry_count = (block.len() + 2) / 10;
+    fn lookup_index_block(&self, mut block: &[u8], hash: u64) -> Result<u16> {
+        let first_block = block.read_u16::<BE>()?;
+        let entry_count = block.len() / 10;
         let entries = block;
         fn get_hash<'l>(entries: &'l [u8], index: usize) -> Result<u64> {
             Ok((&entries[index * 10..]).read_u64::<BE>()?)
@@ -215,32 +220,19 @@ impl StaticSortedFile {
         fn get_block(entries: &[u8], index: usize) -> Result<u16> {
             Ok((&entries[index * 10 + 8..]).read_u16::<BE>()?)
         }
-        let left_hash = get_hash(&entries, 0)?;
-        match hash.cmp(&left_hash) {
+        let first_hash = get_hash(&entries, 0)?;
+        match hash.cmp(&first_hash) {
             Ordering::Less => {
-                // not in this block
-                return Ok(None);
+                return Ok(first_block);
             }
             Ordering::Equal => {
-                // It's in the first range
-                return Ok(Some(get_block(&entries, 0)?));
+                return Ok(get_block(&entries, 0)?);
             }
             Ordering::Greater => {}
         }
-        let right_hash = get_hash(&entries, entry_count as usize - 1)?;
-        match hash.cmp(&right_hash) {
-            Ordering::Greater => {
-                // not in this block
-                return Ok(None);
-            }
-            Ordering::Equal => {
-                // It's in the last range
-                return Ok(Some(get_block(&entries, entry_count as usize - 2)?));
-            }
-            Ordering::Less => {}
-        }
+
         let mut l = 1;
-        let mut r = entry_count - 1;
+        let mut r = entry_count;
         // binary search for the range
         while l < r {
             let m = (l + r) / 2;
@@ -250,14 +242,14 @@ impl StaticSortedFile {
                     r = m;
                 }
                 Ordering::Equal => {
-                    return Ok(Some(get_block(&entries, m - 1)?));
+                    return Ok(get_block(&entries, m)?);
                 }
                 Ordering::Greater => {
                     l = m + 1;
                 }
             }
         }
-        Ok(Some(get_block(&entries, l - 1)?))
+        Ok(get_block(&entries, l - 1)?)
     }
 
     fn lookup_key_block<K: QueryKey>(

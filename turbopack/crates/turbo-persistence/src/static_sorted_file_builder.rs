@@ -34,6 +34,8 @@ pub struct StaticSortedFileBuilder {
     key_compression_dictionary: Vec<u8>,
     value_compression_dictionary: Vec<u8>,
     blocks: Vec<(u32, Vec<u8>)>,
+    min_hash: u64,
+    max_hash: u64,
 }
 
 impl StaticSortedFileBuilder {
@@ -43,6 +45,8 @@ impl StaticSortedFileBuilder {
         total_value_size: usize,
     ) -> Self {
         let mut builder = Self::default();
+        builder.min_hash = entries.first().map(|e| e.key.hash).unwrap_or(u64::MAX);
+        builder.max_hash = entries.last().map(|e| e.key.hash).unwrap_or(0);
         builder.compute_aqmf(&entries);
         builder.compute_compression_dictionary(entries, total_key_size, total_value_size);
         builder.compute_blocks(entries);
@@ -185,7 +189,7 @@ impl StaticSortedFileBuilder {
         }
 
         let mut key_block_boundaries = Vec::new();
-        key_block_boundaries.push((0, 0));
+        key_block_boundaries.push((0, self.blocks.len()));
 
         // Split the keys into blocks
         fn add_entry_to_block<K: StoreKey>(
@@ -229,7 +233,8 @@ impl StaticSortedFileBuilder {
                     let value_location = &value_locations[j];
                     add_entry_to_block(entry, value_location, &mut block);
                 }
-                key_block_boundaries.push((self.blocks.len(), entries[i - 1].key.hash));
+                key_block_boundaries
+                    .push((entries[current_block_start].key.hash, self.blocks.len()));
                 self.blocks.push(self.compress_key_block(&block.finish()));
                 current_block_size = 0;
                 current_block_start = i;
@@ -243,15 +248,17 @@ impl StaticSortedFileBuilder {
                 let value_location = &value_locations[j];
                 add_entry_to_block(entry, value_location, &mut block);
             }
-            key_block_boundaries.push((self.blocks.len(), entries.last().unwrap().key.hash));
+            key_block_boundaries.push((entries[current_block_start].key.hash, self.blocks.len()));
             self.blocks.push(self.compress_key_block(&block.finish()));
         }
 
         // Compute the index
-        let mut index_block =
-            IndexBlockBuilder::new(key_block_boundaries.len() as u16, key_block_boundaries[0].1);
-        for (block, hash) in &key_block_boundaries[1..] {
-            index_block.put(*block as u16, *hash);
+        let mut index_block = IndexBlockBuilder::new(
+            key_block_boundaries.len() as u16,
+            key_block_boundaries[0].1 as u16,
+        );
+        for (hash, block) in &key_block_boundaries[1..] {
+            index_block.put(*hash, *block as u16);
         }
         self.blocks[0] = self.compress_key_block(&index_block.finish());
     }
@@ -281,6 +288,10 @@ impl StaticSortedFileBuilder {
         let mut file = BufWriter::new(File::create(file)?);
         // magic number and version
         file.write_u32::<BE>(0x53535401)?;
+        // min hash
+        file.write_u64::<BE>(self.min_hash)?;
+        // max hash
+        file.write_u64::<BE>(self.max_hash)?;
         // AQMF length
         file.write_u24::<BE>(self.aqmf.len().try_into().unwrap())?;
         // Key compression dictionary length
@@ -410,16 +421,16 @@ pub struct IndexBlockBuilder {
 }
 
 impl IndexBlockBuilder {
-    pub fn new(entry_count: u16, first_hash: u64) -> Self {
-        let mut data = Vec::with_capacity(entry_count as usize * 10 - 1);
+    pub fn new(entry_count: u16, first_block: u16) -> Self {
+        let mut data = Vec::with_capacity(entry_count as usize * 10 + 3);
         data.write_u8(BLOCK_TYPE_INDEX).unwrap();
-        data.write_u64::<BE>(first_hash).unwrap();
+        data.write_u16::<BE>(first_block).unwrap();
         Self { data }
     }
 
-    pub fn put(&mut self, block: u16, hash: u64) {
-        self.data.write_u16::<BE>(block).unwrap();
+    pub fn put(&mut self, hash: u64, block: u16) {
         self.data.write_u64::<BE>(hash).unwrap();
+        self.data.write_u16::<BE>(block).unwrap();
     }
 
     fn finish(self) -> Vec<u8> {

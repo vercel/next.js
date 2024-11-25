@@ -71,8 +71,8 @@ pub struct Statistics {
     pub aqmf_cache: CacheStatistics,
     pub hits: u64,
     pub misses: u64,
+    pub miss_range: u64,
     pub miss_aqmf: u64,
-    pub miss_index: u64,
     pub miss_key: u64,
 }
 
@@ -82,8 +82,8 @@ struct TrackedStats {
     hits_deleted: std::sync::atomic::AtomicU64,
     hits_small: std::sync::atomic::AtomicU64,
     hits_blob: std::sync::atomic::AtomicU64,
+    miss_range: std::sync::atomic::AtomicU64,
     miss_aqmf: std::sync::atomic::AtomicU64,
-    miss_index: std::sync::atomic::AtomicU64,
     miss_key: std::sync::atomic::AtomicU64,
     miss_global: std::sync::atomic::AtomicU64,
 }
@@ -342,13 +342,13 @@ impl TurboPersistence {
                     let blob = self.read_blob(sequence_number)?;
                     return Ok(Some(blob));
                 }
+                LookupResult::RangeMiss => {
+                    #[cfg(feature = "stats")]
+                    self.stats.miss_range.fetch_add(1, Ordering::Relaxed);
+                }
                 LookupResult::QuickFilterMiss => {
                     #[cfg(feature = "stats")]
                     self.stats.miss_aqmf.fetch_add(1, Ordering::Relaxed);
-                }
-                LookupResult::RangeMiss => {
-                    #[cfg(feature = "stats")]
-                    self.stats.miss_index.fetch_add(1, Ordering::Relaxed);
                 }
                 LookupResult::KeyMiss => {
                     #[cfg(feature = "stats")]
@@ -375,8 +375,8 @@ impl TurboPersistence {
                 + self.stats.hits_small.load(Ordering::Relaxed)
                 + self.stats.hits_blob.load(Ordering::Relaxed),
             misses: self.stats.miss_global.load(Ordering::Relaxed),
+            miss_range: self.stats.miss_range.load(Ordering::Relaxed),
             miss_aqmf: self.stats.miss_aqmf.load(Ordering::Relaxed),
-            miss_index: self.stats.miss_index.load(Ordering::Relaxed),
             miss_key: self.stats.miss_key.load(Ordering::Relaxed),
         }
     }
