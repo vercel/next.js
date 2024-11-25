@@ -24,7 +24,7 @@ use crate::{
 #[turbo_tasks::function]
 pub fn node_build_environment() -> Vc<Environment> {
     Environment::new(Value::new(ExecutionEnvironment::NodeJsBuildTime(
-        NodeJsEnvironment::default().celll(),
+        NodeJsEnvironment::default().resolved_cell(),
     )))
 }
 
