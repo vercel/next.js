@@ -694,7 +694,7 @@ pub async fn app_entry_point_to_route(
                             app_project,
                             page,
                         }
-                        .cell(),
+                        .resolved_cell(),
                     ),
                 })
                 .collect(),

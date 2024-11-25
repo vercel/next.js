@@ -781,13 +781,13 @@ impl PageEndpoint {
                 ssr_module
             } else {
                 create_page_ssr_entry_module(
-                    this.pathname,
+                    *this.pathname,
                     reference_type,
                     project_root,
                     Vc::upcast(module_context),
                     self.source(),
-                    this.original_name,
-                    this.pages_structure,
+                    *this.original_name,
+                    *this.pages_structure,
                     config.runtime,
                     this.pages_project.project().next_config(),
                 )

@@ -84,8 +84,9 @@ impl VersionedContentMap {
             client_output_path,
         );
         let assets = *assets_operation.await?;
-        this.map_op_to_compute_entry
-            .update_conditionally(|map| map.insert(assets, compute_entry) != Some(compute_entry));
+        this.map_op_to_compute_entry.update_conditionally(|map| {
+            map.insert(assets, compute_entry.to_resolved().await?) != Some(compute_entry)
+        });
         Ok(())
     }
 
@@ -244,7 +245,7 @@ impl VersionedContentMap {
             return Vc::cell(None);
         };
         // Need to reconnect the operation to the map
-        Vc::connect(compute_entry);
+        Vc::connect(*compute_entry);
 
         compute_entry
     }

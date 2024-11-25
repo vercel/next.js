@@ -1,7 +1,9 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, Completion, FxIndexMap, Vc};
+use turbo_tasks::{
+    debug::ValueDebugFormat, trace::TraceRawVcs, Completion, FxIndexMap, ResolvedVc, Vc,
+};
 use turbopack_core::module::Modules;
 
 use crate::paths::ServerPath;
@@ -9,8 +11,8 @@ use crate::paths::ServerPath;
 #[derive(TraceRawVcs, Serialize, Deserialize, PartialEq, Eq, ValueDebugFormat, Clone, Debug)]
 pub struct AppPageRoute {
     pub original_name: String,
-    pub html_endpoint: Vc<Box<dyn Endpoint>>,
-    pub rsc_endpoint: Vc<Box<dyn Endpoint>>,
+    pub html_endpoint: ResolvedVc<Box<dyn Endpoint>>,
+    pub rsc_endpoint: ResolvedVc<Box<dyn Endpoint>>,
 }
 
 impl AppPageRoute {
