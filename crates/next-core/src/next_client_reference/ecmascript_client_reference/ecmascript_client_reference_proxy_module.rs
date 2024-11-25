@@ -212,8 +212,8 @@ impl Asset for EcmascriptClientReferenceProxyModule {
 impl ChunkableModule for EcmascriptClientReferenceProxyModule {
     #[turbo_tasks::function]
     async fn as_chunk_item(
-        self: Vc<Self>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        self: ResolvedVc<Self>,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<Box<dyn ChunkItem>>> {
         let item = self.proxy_module().as_chunk_item(chunking_context);
         let ecmascript_item = Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkItem>>(item)
@@ -306,6 +306,6 @@ impl EcmascriptChunkItem for ProxyModuleChunkItem {
 
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        EcmascriptChunkItem::chunking_context(self.inner_proxy_module_chunk_item)
+        EcmascriptChunkItem::chunking_context(*self.inner_proxy_module_chunk_item)
     }
 }
