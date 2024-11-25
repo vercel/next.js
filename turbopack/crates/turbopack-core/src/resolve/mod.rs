@@ -2256,8 +2256,8 @@ async fn resolve_relative_request(
 
 #[tracing::instrument(level = Level::TRACE, skip_all)]
 async fn apply_in_package(
-    lookup_path: Vc<FileSystemPath>,
-    options: Vc<ResolveOptions>,
+    lookup_path: ResolvedVc<FileSystemPath>,
+    options: ResolvedVc<ResolveOptions>,
     options_value: &ResolveOptions,
     get_request: impl Fn(&FileSystemPath) -> Option<RcStr>,
     query: Vc<RcStr>,
@@ -2338,9 +2338,11 @@ async fn apply_in_package(
 
         ResolvingIssue {
             severity: error_severity(options).await?,
-            file_path: **package_json_path,
+            file_path: *package_json_path,
             request_type: format!("alias field ({field})"),
-            request: Request::parse(Value::new(Pattern::Constant(request))),
+            request: Request::parse(Value::new(Pattern::Constant(request)))
+                .to_resolved()
+                .await?,
             resolve_options: options,
             error_message: Some(format!("invalid alias field value: {}", value)),
             source: None,
@@ -2600,7 +2602,7 @@ async fn resolve_import_map_result(
     lookup_path: ResolvedVc<FileSystemPath>,
     original_lookup_path: ResolvedVc<FileSystemPath>,
     original_request: ResolvedVc<Request>,
-    options: Vc<ResolveOptions>,
+    options: ResolvedVc<ResolveOptions>,
     query: Vc<RcStr>,
 ) -> Result<Option<Vc<ResolveResult>>> {
     Ok(match result {
