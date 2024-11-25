@@ -17,8 +17,8 @@ use super::ecmascript_client_reference_proxy_module::EcmascriptClientReferencePr
 
 #[turbo_tasks::value(shared)]
 pub struct NextEcmascriptClientReferenceTransition {
-    client_transition: Vc<Box<dyn Transition>>,
-    ssr_transition: Vc<ContextTransition>,
+    client_transition: ResolvedVc<Box<dyn Transition>>,
+    ssr_transition: ResolvedVc<ContextTransition>,
 }
 
 #[turbo_tasks::value_impl]
