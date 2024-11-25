@@ -5,7 +5,7 @@ use lightningcss::{
     traits::ToCss,
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{Value, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
 use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext},
     issue::IssueSource,
@@ -83,11 +83,11 @@ impl ImportAttributes {
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct ImportAssetReference {
-    pub origin: Vc<Box<dyn ResolveOrigin>>,
-    pub request: Vc<Request>,
-    pub attributes: Vc<ImportAttributes>,
-    pub import_context: Vc<ImportContext>,
-    pub issue_source: Vc<IssueSource>,
+    pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    pub request: ResolvedVc<Request>,
+    pub attributes: ResolvedVc<ImportAttributes>,
+    pub import_context: ResolvedVc<ImportContext>,
+    pub issue_source: ResolvedVc<IssueSource>,
 }
 
 #[turbo_tasks::value_impl]
