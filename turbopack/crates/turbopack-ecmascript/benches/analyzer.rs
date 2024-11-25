@@ -10,7 +10,7 @@ use swc_core::{
         visit::VisitMutWith,
     },
 };
-use turbo_tasks::Value;
+use turbo_tasks::{ResolvedVc, Value};
 use turbo_tasks_testing::VcStorage;
 use turbopack_core::{
     compile_time_info::CompileTimeInfo,
@@ -95,16 +95,18 @@ fn bench_link(b: &mut Bencher, input: &BenchInput) {
     b.to_async(rt).iter(|| async {
         for val in input.var_graph.values.values() {
             VcStorage::with(async {
-                let compile_time_info = CompileTimeInfo::builder(Environment::new(Value::new(
-                    ExecutionEnvironment::NodeJsLambda(
+                let compile_time_info = CompileTimeInfo::builder(
+                    Environment::new(Value::new(ExecutionEnvironment::NodeJsLambda(
                         NodeJsEnvironment {
-                            compile_target: CompileTarget::unknown(),
+                            compile_target: CompileTarget::unknown().to_resolved().await?,
                             node_version: NodeJsVersion::default().resolved_cell(),
                             cwd: ResolvedVc::cell(None),
                         }
                         .into(),
-                    ),
-                )))
+                    )))
+                    .to_resolved()
+                    .await?,
+                )
                 .cell()
                 .await?;
                 link(
