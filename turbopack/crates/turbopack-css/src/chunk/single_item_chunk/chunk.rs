@@ -22,8 +22,8 @@ use crate::chunk::{write_import_context, CssChunkItem};
 /// avoiding rule duplication.
 #[turbo_tasks::value]
 pub struct SingleItemCssChunk {
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
-    item: Vc<Box<dyn CssChunkItem>>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    item: ResolvedVc<Box<dyn CssChunkItem>>,
 }
 
 #[turbo_tasks::value_impl]
