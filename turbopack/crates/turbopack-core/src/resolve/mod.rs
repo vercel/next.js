@@ -1663,7 +1663,7 @@ async fn handle_after_resolve_plugins(
 async fn resolve_internal(
     lookup_path: ResolvedVc<FileSystemPath>,
     request: ResolvedVc<Request>,
-    options: Vc<ResolveOptions>,
+    options: ResolvedVc<ResolveOptions>,
 ) -> Result<Vc<ResolveResult>> {
     resolve_internal_inline(lookup_path, request, options).await
 }
@@ -1671,7 +1671,7 @@ async fn resolve_internal(
 async fn resolve_internal_inline(
     lookup_path: ResolvedVc<FileSystemPath>,
     request: ResolvedVc<Request>,
-    options: Vc<ResolveOptions>,
+    options: ResolvedVc<ResolveOptions>,
 ) -> Result<Vc<ResolveResult>> {
     let span = {
         let lookup_path = lookup_path.to_string().await?.to_string();
@@ -1702,7 +1702,7 @@ async fn resolve_internal_inline(
                         lookup_path,
                         lookup_path,
                         request.to_resolved().await?,
-                        options,
+                        *options,
                         request.query(),
                     )
                     .await?;
@@ -1932,8 +1932,8 @@ async fn resolve_internal_inline(
                     ResolvingIssue {
                         severity: error_severity(options).await?,
                         request_type: format!("unknown import: `{}`", path),
-                        request: *request,
-                        file_path: *lookup_path,
+                        request,
+                        file_path: lookup_path,
                         resolve_options: options,
                         error_message: None,
                         source: None,
