@@ -68,19 +68,19 @@ impl MiddlewareEndpoint {
         let userland_module = self
             .asset_context
             .process(
-                self.source,
+                *self.source,
                 Value::new(ReferenceType::Entry(EntryReferenceSubType::Middleware)),
             )
             .module();
 
         let module = get_middleware_module(
-            self.asset_context,
+            *self.asset_context,
             self.project.project_path(),
             userland_module,
         );
 
         let module = wrap_edge_entry(
-            self.asset_context,
+            *self.asset_context,
             self.project.project_path(),
             module,
             "middleware".into(),
@@ -96,7 +96,7 @@ impl MiddlewareEndpoint {
             }),
             self.project.next_mode(),
         )
-        .resolve_entries(self.asset_context)
+        .resolve_entries(*self.asset_context)
         .await?
         .clone_value();
 
