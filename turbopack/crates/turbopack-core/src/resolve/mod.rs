@@ -1874,8 +1874,8 @@ async fn resolve_internal_inline(
                     ResolvingIssue {
                         severity: error_severity(options).await?,
                         request_type: "windows import: not implemented yet".to_string(),
-                        request: *request,
-                        file_path: *lookup_path,
+                        request,
+                        file_path: lookup_path,
                         resolve_options: options,
                         error_message: Some("windows imports are not implemented yet".to_string()),
                         source: None,
