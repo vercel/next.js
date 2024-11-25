@@ -69,7 +69,7 @@ impl Default for ClientReferenceGraphResult {
             client_references_by_server_component: Default::default(),
             server_component_entries: Default::default(),
             server_utils: Default::default(),
-            visited_nodes: VisitedClientReferenceGraphNodes::empty(),
+            visited_nodes: ResolvedVc::cell(VisitedClientReferenceGraphNodes(Default::default())),
         }
     }
 }
@@ -206,7 +206,7 @@ pub async fn client_reference_graph(
             client_references_by_server_component,
             server_component_entries,
             server_utils,
-            visited_nodes: VisitedClientReferenceGraphNodes(visited_nodes.0).cell(),
+            visited_nodes: VisitedClientReferenceGraphNodes(visited_nodes.0).resolved_cell(),
         }
         .cell())
     }
