@@ -20,7 +20,7 @@ pub struct RawOutput {
 impl OutputAsset for RawOutput {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        AssetIdent::from_path(self.path)
+        AssetIdent::from_path(*self.path)
     }
 }
 
@@ -35,7 +35,10 @@ impl Asset for RawOutput {
 #[turbo_tasks::value_impl]
 impl RawOutput {
     #[turbo_tasks::function]
-    pub fn new(path: Vc<FileSystemPath>, source: Vc<Box<dyn Source>>) -> Vc<RawOutput> {
+    pub fn new(
+        path: ResolvedVc<FileSystemPath>,
+        source: ResolvedVc<Box<dyn Source>>,
+    ) -> Vc<RawOutput> {
         RawOutput { path, source }.cell()
     }
 }
