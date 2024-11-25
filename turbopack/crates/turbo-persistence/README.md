@@ -31,6 +31,8 @@ Therefore there are there value types:
 
 * Headers
   * 4 bytes magic number and version
+  * 8 bytes min hash
+  * 8 bytes max hash
   * 3 bytes AQMF length
   * 2 bytes key Compression Dictionary length
   * 2 bytes value Compression Dictionary length
@@ -47,6 +49,10 @@ Therefore there are there value types:
 #### Index Block
 
 * 1 byte block type (0: index block)
+* 2 bytes block index
+* `n` times
+  * 8 bytes hash
+  * 2 bytes block index
 
 An Index block contains `n` 8 bytes hashes, which specify `n - 1` hash ranges (eq hash goes into the prev range, except for the first key). Between these `n` hashes there are `n - 1` 2 byte block indicies that point to the block that contains the hash range.
 
