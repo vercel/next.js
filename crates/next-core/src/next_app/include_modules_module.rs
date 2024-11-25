@@ -26,7 +26,10 @@ pub struct IncludeModulesModule {
 #[turbo_tasks::value_impl]
 impl IncludeModulesModule {
     #[turbo_tasks::function]
-    pub fn new(ident: Vc<AssetIdent>, modules: Vec<ResolvedVc<Box<dyn Module>>>) -> Vc<Self> {
+    pub fn new(
+        ident: ResolvedVc<AssetIdent>,
+        modules: Vec<ResolvedVc<Box<dyn Module>>>,
+    ) -> Vc<Self> {
         Self { ident, modules }.cell()
     }
 }
@@ -41,7 +44,7 @@ impl Asset for IncludeModulesModule {
 impl Module for IncludeModulesModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        self.ident
+        *self.ident
     }
 
     #[turbo_tasks::function]
@@ -101,7 +104,7 @@ struct IncludeModulesChunkItem {
 impl ChunkItem for IncludeModulesChunkItem {
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        Vc::upcast(self.chunking_context)
+        Vc::upcast(*self.chunking_context)
     }
     #[turbo_tasks::function]
     fn asset_ident(&self) -> Vc<AssetIdent> {
