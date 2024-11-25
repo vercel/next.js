@@ -69,7 +69,7 @@ impl Default for ClientReferenceGraphResult {
             client_references_by_server_component: Default::default(),
             server_component_entries: Default::default(),
             server_utils: Default::default(),
-            visited_nodes: ResolvedVc::cell(VisitedClientReferenceGraphNodes(Default::default())),
+            visited_nodes: VisitedClientReferenceGraphNodes(Default::default()).resolved_cell(),
         }
     }
 }
