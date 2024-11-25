@@ -1040,7 +1040,7 @@ async fn directory_tree_to_loader_tree_internal(
         if modules.default.is_some() || current_level_is_parallel_route {
             tree = default_route_tree(
                 app_dir,
-                global_metadata.to_resolved().await?,
+                global_metadata,
                 app_page,
                 modules.default.map(|v| *v),
             )
@@ -1053,7 +1053,7 @@ async fn directory_tree_to_loader_tree_internal(
             "children".into(),
             default_route_tree(
                 app_dir,
-                global_metadata.to_resolved().await?,
+                global_metadata,
                 app_page,
                 modules.default.map(|v| *v),
             )
@@ -1099,7 +1099,7 @@ async fn default_route_tree(
                 ..Default::default()
             }
         },
-        global_metadata,
+        global_metadata: global_metadata.to_resolved().await?,
     })
 }
 
@@ -1234,31 +1234,38 @@ async fn directory_tree_to_entrypoints_internal_untraced(
         // Next.js has this logic in "collect-app-paths", where the root not-found page
         // is considered as its own entry point.
         let not_found_tree = AppPageLoaderTree {
-                page: app_page.clone(),
-                segment: directory_name.clone(),
-                parallel_routes: fxindexmap! {
-                    "children".into() => AppPageLoaderTree {
-                        page: app_page.clone(),
-                        segment: "/_not-found".into(),
-                        parallel_routes: fxindexmap! {
-                            "children".into() => AppPageLoaderTree {
-                                page: app_page.clone(),
-                                segment: "__PAGE__".into(),
-                                parallel_routes: FxIndexMap::default(),
-                                modules: AppDirModules {
-                                    page: modules.not_found.or_else(|| Some(get_next_package(app_dir).join("dist/client/components/not-found-error.js".into()))),
-                                    ..Default::default()
+            page: app_page.clone(),
+            segment: directory_name.clone(),
+            parallel_routes: fxindexmap! {
+                "children".into() => AppPageLoaderTree {
+                    page: app_page.clone(),
+                    segment: "/_not-found".into(),
+                    parallel_routes: fxindexmap! {
+                        "children".into() => AppPageLoaderTree {
+                            page: app_page.clone(),
+                            segment: "__PAGE__".into(),
+                            parallel_routes: FxIndexMap::default(),
+                            modules: AppDirModules {
+                                page: match modules.not_found {
+                                    Some(v) => Some(v),
+                                    None => Some(get_next_package(app_dir)
+                                        .join("dist/client/components/not-found-error.js".into())
+                                        .to_resolved()
+                                        .await?),
                                 },
-                                global_metadata
-                            }
-                        },
-                        modules: AppDirModules::default(),
-                        global_metadata,
+                                ..Default::default()
+                            },
+                            global_metadata: global_metadata.to_resolved().await?,
+                        }
                     },
+                    modules: AppDirModules::default(),
+                    global_metadata: global_metadata.to_resolved().await?,
                 },
-                modules: modules.without_leafs(),
-                global_metadata,
-            }.resolved_cell();
+            },
+            modules: modules.without_leafs(),
+            global_metadata: global_metadata.to_resolved().await?,
+        }
+        .resolved_cell();
 
         {
             let app_page = app_page

@@ -107,7 +107,7 @@ impl BaseLoaderTreeBuilder {
         );
 
         let module = self
-            .process_source(Vc::upcast(FileSource::new(path)))
+            .process_source(Vc::upcast(FileSource::new(*path)))
             .to_resolved()
             .await?;
 
