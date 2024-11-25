@@ -315,20 +315,21 @@ fn issue_source(source: Vc<Box<dyn Source>>, span: Span) -> Vc<IssueSource> {
     IssueSource::from_swc_offsets(source, span.lo.to_usize(), span.hi.to_usize())
 }
 
-fn parse_config_value(
+async fn parse_config_value(
     source: Vc<Box<dyn Source>>,
     config: &mut NextSegmentConfig,
     ident: &Ident,
     init: &Expr,
     eval_context: &EvalContext,
-) {
+) -> Result<()> {
     let span = init.span();
     let invalid_config = |detail: &str, value: &JsValue| {
         let (explainer, hints) = value.explain(2, 0);
         NextSegmentConfigParsingIssue {
-            ident: source.ident(),
-            detail: StyledString::Text(format!("{detail} Got {explainer}.{hints}").into()).cell(),
-            source: issue_source(source, span),
+            ident: source.ident().to_resolved().await?,
+            detail: StyledString::Text(format!("{detail} Got {explainer}.{hints}").into())
+                .resolved_cell(),
+            source: issue_source(source, span).to_resolved().await?,
         }
         .cell()
         .emit();
@@ -465,6 +466,8 @@ fn parse_config_value(
         }
         _ => {}
     }
+
+    Ok(())
 }
 
 #[turbo_tasks::function]
