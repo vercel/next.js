@@ -664,11 +664,11 @@ impl AppProject {
 }
 
 #[turbo_tasks::function]
-pub fn app_entry_point_to_route(
+pub async fn app_entry_point_to_route(
     app_project: Vc<AppProject>,
     entrypoint: AppEntrypoint,
-) -> Vc<Route> {
-    match entrypoint {
+) -> Result<Vc<Route>> {
+    Ok(match entrypoint {
         AppEntrypoint::AppPage { pages, loader_tree } => Route::AppPage(
             pages
                 .into_iter()
@@ -680,7 +680,7 @@ pub fn app_entry_point_to_route(
                                 ty: AppPageEndpointType::Html,
                                 loader_tree: *loader_tree,
                             },
-                            app_project,
+                            app_project: app_project.to_resolved().await?,
                             page: page.clone(),
                         }
                         .cell(),
@@ -691,7 +691,7 @@ pub fn app_entry_point_to_route(
                                 ty: AppPageEndpointType::Rsc,
                                 loader_tree: *loader_tree,
                             },
-                            app_project,
+                            app_project: app_project.to_resolved().await?,
                             page,
                         }
                         .cell(),
@@ -711,7 +711,7 @@ pub fn app_entry_point_to_route(
                         path: *path,
                         root_layouts: *root_layouts,
                     },
-                    app_project,
+                    app_project: app_project.to_resolved().await?,
                     page,
                 }
                 .cell(),
@@ -722,14 +722,14 @@ pub fn app_entry_point_to_route(
             endpoint: Vc::upcast(
                 AppEndpoint {
                     ty: AppEndpointType::Metadata { metadata },
-                    app_project,
+                    app_project: app_project.to_resolved().await?,
                     page,
                 }
                 .cell(),
             ),
         },
     }
-    .cell()
+    .cell())
 }
 
 #[turbo_tasks::function]
@@ -1737,7 +1737,7 @@ impl AppEndpointOutput {
     pub fn server_assets(&self) -> Vc<OutputAssets> {
         match *self {
             AppEndpointOutput::NodeJs { server_assets, .. }
-            | AppEndpointOutput::Edge { server_assets, .. } => server_assets,
+            | AppEndpointOutput::Edge { server_assets, .. } => *server_assets,
         }
     }
 
@@ -1745,7 +1745,7 @@ impl AppEndpointOutput {
     pub fn client_assets(&self) -> Vc<OutputAssets> {
         match *self {
             AppEndpointOutput::NodeJs { client_assets, .. }
-            | AppEndpointOutput::Edge { client_assets, .. } => client_assets,
+            | AppEndpointOutput::Edge { client_assets, .. } => *client_assets,
         }
     }
 }
