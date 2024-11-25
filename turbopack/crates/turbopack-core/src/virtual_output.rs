@@ -19,7 +19,7 @@ pub struct VirtualOutputAsset {
 #[turbo_tasks::value_impl]
 impl VirtualOutputAsset {
     #[turbo_tasks::function]
-    pub fn new(path: Vc<FileSystemPath>, content: Vc<AssetContent>) -> Vc<Self> {
+    pub fn new(path: ResolvedVc<FileSystemPath>, content: ResolvedVc<AssetContent>) -> Vc<Self> {
         VirtualOutputAsset {
             path,
             content,
@@ -30,9 +30,9 @@ impl VirtualOutputAsset {
 
     #[turbo_tasks::function]
     pub fn new_with_references(
-        path: Vc<FileSystemPath>,
-        content: Vc<AssetContent>,
-        references: Vc<OutputAssets>,
+        path: ResolvedVc<FileSystemPath>,
+        content: ResolvedVc<AssetContent>,
+        references: ResolvedVc<OutputAssets>,
     ) -> Vc<Self> {
         VirtualOutputAsset {
             path,
@@ -47,7 +47,7 @@ impl VirtualOutputAsset {
 impl OutputAsset for VirtualOutputAsset {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        AssetIdent::from_path(self.path)
+        AssetIdent::from_path(*self.path)
     }
 
     #[turbo_tasks::function]
@@ -60,6 +60,6 @@ impl OutputAsset for VirtualOutputAsset {
 impl Asset for VirtualOutputAsset {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<AssetContent> {
-        self.content
+        *self.content
     }
 }
