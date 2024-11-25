@@ -232,8 +232,8 @@ async fn get_pages_structure_for_root_directory(
 
         Some(
             PagesDirectoryStructure {
-                project_path: **project_path,
-                next_router_path,
+                project_path: *project_path,
+                next_router_path: next_router_path.to_resolved().await?,
                 items: items.into_iter().map(|(_, v)| v).collect(),
                 children: children.into_iter().map(|(_, v)| v).collect(),
             }
@@ -358,8 +358,8 @@ async fn get_pages_structure_for_directory(
         children.sort_by_key(|(k, _)| *k);
 
         Ok(PagesDirectoryStructure {
-            project_path,
-            next_router_path,
+            project_path: *project_path,
+            next_router_path: next_router_path.to_resolved().await?,
             items: items.into_iter().map(|(_, v)| v).collect(),
             children: children.into_iter().map(|(_, v)| v).collect(),
         }

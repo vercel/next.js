@@ -108,7 +108,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
         let predicate = self.predicate.await?;
         let must_be_external = match &*predicate {
             ExternalPredicate::AllExcept(exceptions) => {
-                if *condition(*self.root).matches(lookup_path).await? {
+                if *condition(*self.root).matches(*lookup_path).await? {
                     return Ok(ResolveResultOption::none());
                 }
 
@@ -221,7 +221,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
         };
         let result_from_original_location = loop {
             let node_resolved_from_original_location = resolve(
-                lookup_path,
+                *lookup_path,
                 reference_type.clone(),
                 request,
                 node_resolve_options,
@@ -485,7 +485,7 @@ impl Issue for ExternalizeIssue {
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        self.file_path
+        *self.file_path
     }
 
     #[turbo_tasks::function]
