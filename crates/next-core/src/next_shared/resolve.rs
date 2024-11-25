@@ -108,7 +108,11 @@ pub(crate) struct InvalidImportResolvePlugin {
 #[turbo_tasks::value_impl]
 impl InvalidImportResolvePlugin {
     #[turbo_tasks::function]
-    pub fn new(root: Vc<FileSystemPath>, invalid_import: RcStr, message: Vec<RcStr>) -> Vc<Self> {
+    pub fn new(
+        root: ResolvedVc<FileSystemPath>,
+        invalid_import: RcStr,
+        message: Vec<RcStr>,
+    ) -> Vc<Self> {
         InvalidImportResolvePlugin {
             root,
             invalid_import,
@@ -263,7 +267,7 @@ pub(crate) struct NextNodeSharedRuntimeResolvePlugin {
 impl NextNodeSharedRuntimeResolvePlugin {
     #[turbo_tasks::function]
     pub fn new(
-        root: Vc<FileSystemPath>,
+        root: ResolvedVc<FileSystemPath>,
         server_context_type: Value<ServerContextType>,
     ) -> Vc<Self> {
         let server_context_type = server_context_type.into_value();
