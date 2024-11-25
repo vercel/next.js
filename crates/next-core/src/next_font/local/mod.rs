@@ -316,8 +316,8 @@ async fn font_file_options_from_query_map(
 
 #[turbo_tasks::value(shared)]
 struct FontResolvingIssue {
-    font_path: Vc<RcStr>,
-    origin_path: Vc<FileSystemPath>,
+    font_path: ResolvedVc<RcStr>,
+    origin_path: ResolvedVc<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
