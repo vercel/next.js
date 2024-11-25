@@ -2878,7 +2878,7 @@ pub async fn handle_resolve_error(
     result: Vc<ModuleResolveResult>,
     reference_type: Value<ReferenceType>,
     origin_path: Vc<FileSystemPath>,
-    request: ResolvedVc<Request>,
+    request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
     is_optional: bool,
     source: Option<ResolvedVc<IssueSource>>,
@@ -2893,8 +2893,8 @@ pub async fn handle_resolve_error(
                     is_optional,
                     origin_path,
                     reference_type,
-                    request,
-                    resolve_options,
+                    request.to_resolved().await?,
+                    resolve_options.to_resolved().await?,
                     source,
                 )
                 .await?;
@@ -2919,15 +2919,15 @@ pub async fn handle_resolve_error(
 }
 
 pub async fn handle_resolve_source_error(
-    result: ResolvedVc<ResolveResult>,
+    result: Vc<ResolveResult>,
     reference_type: Value<ReferenceType>,
-    origin_path: ResolvedVc<FileSystemPath>,
-    request: ResolvedVc<Request>,
-    resolve_options: ResolvedVc<ResolveOptions>,
+    origin_path: Vc<FileSystemPath>,
+    request: Vc<Request>,
+    resolve_options: Vc<ResolveOptions>,
     is_optional: bool,
     source: Option<ResolvedVc<IssueSource>>,
 ) -> Result<Vc<ResolveResult>> {
-    async fn is_unresolvable(result: ResolvedVc<ResolveResult>) -> Result<bool> {
+    async fn is_unresolvable(result: Vc<ResolveResult>) -> Result<bool> {
         Ok(*result.resolve().await?.is_unresolvable().await?)
     }
     Ok(match is_unresolvable(result).await {
@@ -2944,7 +2944,7 @@ pub async fn handle_resolve_source_error(
                 .await?;
             }
 
-            *result
+            result
         }
         Err(err) => {
             emit_resolve_error_issue(
@@ -2980,7 +2980,7 @@ async fn emit_resolve_error_issue(
         severity,
         file_path: origin_path.to_resolved().await?,
         request_type: format!("{} request", reference_type.into_value()),
-        request,
+        request: request.to_resolved().await?,
         resolve_options: resolve_options.to_resolved().await?,
         error_message: Some(format!("{}", PrettyPrintError(&err))),
         source,
