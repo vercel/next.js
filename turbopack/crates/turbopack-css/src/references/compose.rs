@@ -35,8 +35,8 @@ impl ModuleReference for CssModuleComposeReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
         css_resolve(
-            self.origin,
-            self.request,
+            *self.origin,
+            *self.request,
             Value::new(CssReferenceSubType::Compose),
             // TODO: add real issue source, currently impossible because `CssClassName` doesn't
             // contain the source span
