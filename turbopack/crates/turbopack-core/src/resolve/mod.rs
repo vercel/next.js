@@ -3020,11 +3020,11 @@ async fn emit_unresolvable_issue(
     Ok(())
 }
 
-async fn error_severity(resolve_options: Vc<ResolveOptions>) -> Result<Vc<IssueSeverity>> {
+async fn error_severity(resolve_options: Vc<ResolveOptions>) -> Result<ResolvedVc<IssueSeverity>> {
     Ok(if resolve_options.await?.loose_errors {
-        IssueSeverity::Warning.cell()
+        IssueSeverity::Warning.resolved_cell()
     } else {
-        IssueSeverity::Error.cell()
+        IssueSeverity::Error.resolved_cell()
     })
 }
 
