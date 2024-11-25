@@ -2058,7 +2058,7 @@ async fn resolve_relative_request(
     // Check alias field for aliases first
     let lookup_path_ref = &*lookup_path.await?;
     if let Some(result) = apply_in_package(
-        *lookup_path,
+        lookup_path,
         options,
         options_value,
         |package_path| {
@@ -2420,7 +2420,7 @@ async fn resolve_module_request(
     // module. This should match only using the exports field and no other
     // fields/fallbacks.
     if let FindSelfReferencePackageResult::Found { name, package_path } =
-        &*find_self_reference(*lookup_path).await?
+        &*find_self_reference(lookup_path).await?
     {
         if name == module {
             let result = resolve_into_package(
@@ -2437,7 +2437,7 @@ async fn resolve_module_request(
     }
 
     let result = find_package(
-        *lookup_path,
+        lookup_path,
         module.into(),
         resolve_modules_options(options).resolve().await?,
     )
@@ -2502,7 +2502,7 @@ async fn resolve_module_request(
             .to_resolved()
             .await?;
         let relative_result =
-            Box::pin(resolve_internal_inline(lookup_path, relative, options)).await?;
+            Box::pin(resolve_internal_inline(lookup_path, *relative, options)).await?;
         let relative_result = relative_result
             .with_replaced_request_key(module_prefix, Value::new(RequestKey::new(module.into())));
 
@@ -2554,9 +2554,9 @@ async fn resolve_into_package(
 
                 results.push(
                     handle_exports_imports_field(
-                        package_path,
+                        *package_path,
                         package_json_path,
-                        options,
+                        *options,
                         exports_field,
                         &path,
                         conditions,
