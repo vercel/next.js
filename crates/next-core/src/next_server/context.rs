@@ -379,8 +379,8 @@ pub async fn get_server_compile_time_info(
     CompileTimeInfo::builder(
         Environment::new(Value::new(ExecutionEnvironment::NodeJsLambda(
             NodeJsEnvironment {
-                compile_target: CompileTarget::current().to_resolved(),
-                node_version: NodeJsVersion::cell(NodeJsVersion::Current(
+                compile_target: CompileTarget::current().to_resolved().await?,
+                node_version: NodeJsVersion::resolved_cell(NodeJsVersion::Current(
                     process_env.to_resolved().await?,
                 )),
                 cwd: ResolvedVc::cell(Some(cwd)),
