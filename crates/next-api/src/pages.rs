@@ -86,7 +86,7 @@ pub struct PagesProject {
 #[turbo_tasks::value_impl]
 impl PagesProject {
     #[turbo_tasks::function]
-    pub fn new(project: Vc<Project>) -> Vc<Self> {
+    pub fn new(project: ResolvedVc<Project>) -> Vc<Self> {
         PagesProject { project }.cell()
     }
 
@@ -234,7 +234,7 @@ impl PagesProject {
 
     #[turbo_tasks::function]
     fn project(&self) -> Vc<Project> {
-        self.project
+        *self.project
     }
 
     #[turbo_tasks::function]
@@ -1209,13 +1209,14 @@ impl PageEndpoint {
                     server_assets.push(ResolvedVc::upcast(middleware_manifest_v2));
                 }
 
-                let loadable_manifest_output = self.react_loadable_manifest(dynamic_import_entries);
+                let loadable_manifest_output =
+                    self.react_loadable_manifest(*dynamic_import_entries);
                 server_assets.extend(loadable_manifest_output.await?.iter().copied());
 
                 PageEndpointOutput::Edge {
                     files,
-                    server_assets: Vc::cell(server_assets),
-                    client_assets,
+                    server_assets: ResolvedVc::cell(server_assets),
+                    client_assets: client_assets.to_resolved().await?,
                 }
             }
         };
