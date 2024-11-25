@@ -102,7 +102,7 @@ fn bench_link(b: &mut Bencher, input: &BenchInput) {
                             node_version: NodeJsVersion::default().resolved_cell(),
                             cwd: ResolvedVc::cell(None),
                         }
-                        .into(),
+                        .resolved_cell(),
                     )))
                     .to_resolved()
                     .await?,
