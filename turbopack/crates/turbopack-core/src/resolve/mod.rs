@@ -1788,7 +1788,7 @@ async fn resolve_internal_inline(
                         options,
                         options_value,
                         path,
-                        *query,
+                        **query,
                         *force_in_lookup_dir,
                         *fragment,
                     )
@@ -1804,7 +1804,7 @@ async fn resolve_internal_inline(
                     options,
                     options_value,
                     path,
-                    *query,
+                    **query,
                     *force_in_lookup_dir,
                     Vc::cell(RcStr::default()),
                 )
@@ -1823,8 +1823,8 @@ async fn resolve_internal_inline(
                     options_value,
                     module,
                     path,
-                    *query,
-                    *fragment,
+                    **query,
+                    **fragment,
                 )
                 .await?
             }
