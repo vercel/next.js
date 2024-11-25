@@ -3,11 +3,12 @@ import * as http from 'node:http'
 
 async function main() {
   const currentPort = parseInt(process.env.PORT, 10) || 3000
+  const isDev = process.env.NODE_ENV !== 'production'
 
   const nextServer = next({
     hostname: 'localhost',
     port: currentPort,
-    dev: false,
+    dev: isDev,
     quiet: false,
   })
 
@@ -25,11 +26,29 @@ async function main() {
   })
 
   const cleanup = once(async () => {
-    await new Promise((resolve) => httpServer.close(() => resolve()))
+    // in dev, there might be a devserver websocket connection
+    // that prevents `httpServer.close` from completing, so skip it
+    if (!isDev) {
+      console.log('closing HTTP server...')
+      await new Promise((resolve) =>
+        httpServer.close((err) => {
+          if (err) {
+            console.error(err)
+          }
+          resolve()
+        })
+      )
+    }
+
+    console.log('closing Next server...')
     await nextServer.close()
+
+    console.log('cleanup finished')
   })
 
-  const onShutdownSignal = async () => {
+  /** @type {NodeJS.SignalsListener} */
+  const onShutdownSignal = async (signal) => {
+    console.log('onShutdownSignal', signal)
     try {
       await cleanup()
     } finally {

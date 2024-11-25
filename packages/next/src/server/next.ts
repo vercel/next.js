@@ -198,7 +198,7 @@ export class NextServer implements NextWrapperServer {
   }
 
   async close() {
-    if (this.server) {
+    if (this.server && !this.options.dev) {
       await this.server.close()
     }
   }

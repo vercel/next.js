@@ -1,6 +1,6 @@
 import { join } from 'path'
 import { isNextDev, nextTestSetup } from 'e2e-utils'
-import { renderViaHTTP, retry } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('unstable_after during server shutdown', () => {
   describe('next start', () => {
@@ -51,13 +51,15 @@ describe('unstable_after during server shutdown', () => {
     }
   })
 
-  const describeNoDev = isNextDev ? describe.skip : describe
-  describeNoDev('custom server', () => {
+  describe('custom server', () => {
     const { next } = nextTestSetup({
       files: join(__dirname, 'custom-server'),
       startCommand: 'node server.mjs',
       serverReadyPattern: /Custom server started/,
       skipStart: true,
+      env: {
+        NODE_ENV: isNextDev ? 'development' : 'production',
+      },
     })
 
     beforeEach(async () => {
@@ -69,16 +71,32 @@ describe('unstable_after during server shutdown', () => {
       await next.stop()
     })
 
-    it.each(['SIGINT', 'SIGTERM'] as const)(
-      'waits for unstable_after callbacks when the server receives %s',
-      async (signal) => {
-        await renderViaHTTP(next.appPort, '/')
-        await retry(async () => {
-          expect(next.cliOutput).toInclude('[after] starting sleep')
-        })
-        await next.stop(signal)
-        expect(next.cliOutput).toInclude('[after] finished sleep')
-      }
-    )
+    if (isNextDev) {
+      it.each(['SIGINT', 'SIGTERM'] as const)(
+        'does not wait for unstable_after callbacks when the server receives %s',
+        async (signal) => {
+          await next.browser('/')
+          await retry(async () => {
+            expect(next.cliOutput).toInclude('[after] starting sleep')
+          })
+          await next.stop(signal)
+          expect(next.cliOutput).not.toInclude('[after] finished sleep')
+        }
+      )
+    }
+
+    if (!isNextDev) {
+      it.each(['SIGINT', 'SIGTERM'] as const)(
+        'waits for unstable_after callbacks when the server receives %s',
+        async (signal) => {
+          await next.browser('/')
+          await retry(async () => {
+            expect(next.cliOutput).toInclude('[after] starting sleep')
+          })
+          await next.stop(signal)
+          expect(next.cliOutput).toInclude('[after] finished sleep')
+        }
+      )
+    }
   })
 })
