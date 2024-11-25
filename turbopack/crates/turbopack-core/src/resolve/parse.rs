@@ -208,7 +208,7 @@ impl Request {
             Pattern::Concatenation(list) => {
                 let mut iter = list.into_iter();
                 if let Some(first) = iter.next() {
-                    let mut result = Self::parse_ref(first);
+                    let mut result = Self::parse_ref(first).await?;
                     match &mut result {
                         Request::Raw { path, .. } => {
                             path.extend(iter);
@@ -226,7 +226,8 @@ impl Request {
                             path.extend(iter);
                         }
                         Request::Empty => {
-                            result = Request::parse_ref(Pattern::Concatenation(iter.collect()))
+                            result =
+                                Request::parse_ref(Pattern::Concatenation(iter.collect())).await?;
                         }
                         Request::PackageInternal { path } => {
                             path.extend(iter);
