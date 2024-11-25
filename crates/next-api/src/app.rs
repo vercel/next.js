@@ -1160,7 +1160,7 @@ impl AppEndpoint {
         let (app_entry_chunks, app_entry_chunks_availability) = &*self
             .app_entry_chunks(
                 client_references,
-                server_action_manifest_loader,
+                server_action_manifest_loader.map(|v| *v),
                 server_path,
                 process_client_assets,
             )
