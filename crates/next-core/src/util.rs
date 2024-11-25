@@ -251,10 +251,10 @@ fn emit_invalid_config_warning(ident: ResolvedVc<AssetIdent>, detail: &str, valu
     .emit()
 }
 
-fn parse_route_matcher_from_js_value(
+async fn parse_route_matcher_from_js_value(
     ident: Vc<AssetIdent>,
     value: &JsValue,
-) -> Option<Vec<MiddlewareMatcherKind>> {
+) -> Result<Option<Vec<MiddlewareMatcherKind>>> {
     let parse_matcher_kind_matcher = |value: &JsValue| {
         let mut route_has = vec![];
         if let JsValue::Array { items, .. } = value {
@@ -317,7 +317,7 @@ fn parse_route_matcher_from_js_value(
                 matchers.push(MiddlewareMatcherKind::Str(matcher.to_string()));
             } else {
                 emit_invalid_config_warning(
-                    ident,
+                    ident.to_resolved().await?,
                     "The matcher property must be a string or array of strings",
                     value,
                 );
@@ -353,7 +353,7 @@ fn parse_route_matcher_from_js_value(
                     matchers.push(MiddlewareMatcherKind::Matcher(matcher));
                 } else {
                     emit_invalid_config_warning(
-                        ident,
+                        ident.to_resolved().await?,
                         "The matcher property must be a string or array of strings",
                         value,
                     );
@@ -361,7 +361,7 @@ fn parse_route_matcher_from_js_value(
             }
         }
         _ => emit_invalid_config_warning(
-            ident,
+            ident.to_resolved().await?,
             "The matcher property must be a string or array of strings",
             value,
         ),
@@ -408,15 +408,15 @@ pub async fn parse_config_from_source(module: Vc<Box<dyn Module>>) -> Result<Vc<
                                 });
                             } else {
                                 NextSourceConfigParsingIssue {
-                                    ident: module.ident(),
+                                    ident: module.ident().to_resolved().await?,
                                     detail: StyledString::Text(
                                         "The exported config object must contain an variable \
                                          initializer."
                                             .into(),
                                     )
-                                    .cell(),
+                                    .resolved_cell(),
                                 }
-                                .cell()
+                                .resolved_cell()
                                 .emit()
                             }
                         }
