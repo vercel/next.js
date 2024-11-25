@@ -1701,7 +1701,7 @@ async fn resolve_internal_inline(
                         &result,
                         lookup_path,
                         lookup_path,
-                        request,
+                        *request,
                         options,
                         request.query(),
                     )
@@ -2600,8 +2600,8 @@ async fn resolve_into_package(
 async fn resolve_import_map_result(
     result: &ImportMapResult,
     lookup_path: Vc<FileSystemPath>,
-    original_lookup_path: ResolvedVc<FileSystemPath>,
-    original_request: ResolvedVc<Request>,
+    original_lookup_path: Vc<FileSystemPath>,
+    original_request: Vc<Request>,
     options: Vc<ResolveOptions>,
     query: Vc<RcStr>,
 ) -> Result<Option<Vc<ResolveResult>>> {
