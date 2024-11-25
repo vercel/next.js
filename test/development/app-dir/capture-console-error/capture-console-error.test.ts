@@ -1,12 +1,11 @@
 import { nextTestSetup } from 'e2e-utils'
 import {
-  assertHasRedbox,
   getRedboxCallStack,
   getRedboxDescription,
   getRedboxTitle,
   getRedboxSource,
   getRedboxTotalErrorCount,
-  waitForAndOpenRuntimeError,
+  openRedbox,
 } from 'next-test-utils'
 
 async function getRedboxResult(browser: any) {
@@ -41,8 +40,7 @@ describe('app-dir - capture-console-error', () => {
     const browser = await next.browser('/browser/event')
     await browser.elementByCss('button').click()
 
-    await waitForAndOpenRuntimeError(browser)
-    await assertHasRedbox(browser)
+    await openRedbox(browser)
 
     const result = await getRedboxResult(browser)
 
@@ -88,8 +86,7 @@ describe('app-dir - capture-console-error', () => {
   it('should capture browser console error in render and dedupe if necessary', async () => {
     const browser = await next.browser('/browser/render')
 
-    await waitForAndOpenRuntimeError(browser)
-    await assertHasRedbox(browser)
+    await openRedbox(browser)
 
     const result = await getRedboxResult(browser)
 
@@ -135,8 +132,7 @@ describe('app-dir - capture-console-error', () => {
   it('should capture browser console error in render and dedupe when multi same errors logged', async () => {
     const browser = await next.browser('/browser/render')
 
-    await waitForAndOpenRuntimeError(browser)
-    await assertHasRedbox(browser)
+    await openRedbox(browser)
 
     const result = await getRedboxResult(browser)
 
@@ -182,8 +178,7 @@ describe('app-dir - capture-console-error', () => {
   it('should capture server replay string error from console error', async () => {
     const browser = await next.browser('/ssr')
 
-    await waitForAndOpenRuntimeError(browser)
-    await assertHasRedbox(browser)
+    await openRedbox(browser)
 
     const result = await getRedboxResult(browser)
 
@@ -229,8 +224,7 @@ describe('app-dir - capture-console-error', () => {
   it('should capture server replay error instance from console error', async () => {
     const browser = await next.browser('/ssr-error-instance')
 
-    await waitForAndOpenRuntimeError(browser)
-    await assertHasRedbox(browser)
+    await openRedbox(browser)
 
     const result = await getRedboxResult(browser)
 
@@ -276,8 +270,7 @@ describe('app-dir - capture-console-error', () => {
   it('should be able to capture rsc logged error', async () => {
     const browser = await next.browser('/rsc')
 
-    await waitForAndOpenRuntimeError(browser)
-    await assertHasRedbox(browser)
+    await openRedbox(browser)
 
     const result = await getRedboxResult(browser)
 

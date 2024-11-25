@@ -224,4 +224,16 @@ describe('app-dir root layout', () => {
       .waitForElementByCss('#root-b')
     expect(await browser.hasElementByCssSelector('#root-a')).toBeFalse()
   })
+
+  it('should correctly handle navigation between multiple root layouts when redirecting in a server action', async () => {
+    const browser = await next.browser('/root-layout-a')
+
+    await browser.waitForElementByCss('#action-redirect-to-b')
+    expect(await browser.hasElementByCssSelector('#root-b')).toBeFalse()
+    await browser
+      .elementById('action-redirect-to-b')
+      .click()
+      .waitForElementByCss('#root-b')
+    expect(await browser.hasElementByCssSelector('#root-a')).toBeFalse()
+  })
 })

@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { getRedboxSource, waitForAndOpenRuntimeError } from 'next-test-utils'
+import { getRedboxSource, openRedbox } from 'next-test-utils'
 
 // TODO: When owner stack is enabled by default, remove the condition and only keep one test
 const isOwnerStackEnabled =
@@ -60,7 +60,7 @@ async function getStackFramesContent(browser) {
 
     it('should catch invalid element from on rsc component', async () => {
       const browser = await next.browser('/rsc')
-      await waitForAndOpenRuntimeError(browser)
+      await openRedbox(browser)
 
       const stackFramesContent = await getStackFramesContent(browser)
       const source = await getRedboxSource(browser)
@@ -97,7 +97,7 @@ async function getStackFramesContent(browser) {
 
     it('should catch invalid element from on ssr client component', async () => {
       const browser = await next.browser('/ssr')
-      await waitForAndOpenRuntimeError(browser)
+      await openRedbox(browser)
 
       const stackFramesContent = await getStackFramesContent(browser)
       const source = await getRedboxSource(browser)

@@ -69,7 +69,8 @@ import {
   getSourceMapFromCompilation,
   getSourceMapFromFile,
   parseStack,
-} from '../../../client/components/react-dev-overlay/server/middleware'
+  getIgnoredSources,
+} from '../../../client/components/react-dev-overlay/server/middleware-webpack'
 import {
   batchedTraceSource,
   createOriginalStackFrame as createOriginalTurboStackFrame,
@@ -1012,6 +1013,7 @@ async function startWatcher(opts: SetupOpts) {
                     type: 'bundle',
                     sourceMap,
                     compilation,
+                    ignoredSources: getIgnoredSources(sourceMap),
                     moduleId,
                     modulePath,
                   },
