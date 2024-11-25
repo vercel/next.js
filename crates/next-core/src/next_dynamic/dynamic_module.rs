@@ -22,7 +22,7 @@ impl NextDynamicEntryModule {
     /// Create a new [`NextDynamicEntryModule`] from the given source CSS
     /// asset.
     #[turbo_tasks::function]
-    pub fn new(client_entry_module: Vc<Box<dyn Module>>) -> Vc<NextDynamicEntryModule> {
+    pub fn new(client_entry_module: ResolvedVc<Box<dyn Module>>) -> Vc<NextDynamicEntryModule> {
         NextDynamicEntryModule {
             client_entry_module,
         }
