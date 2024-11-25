@@ -32,8 +32,8 @@ use crate::{process::ParseCssResultSourceMap, util::stringify_js, ImportAssetRef
 
 #[turbo_tasks::value]
 pub struct CssChunk {
-    pub chunking_context: Vc<Box<dyn ChunkingContext>>,
-    pub content: Vc<CssChunkContent>,
+    pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    pub content: ResolvedVc<CssChunkContent>,
 }
 
 #[turbo_tasks::value_impl]
@@ -163,8 +163,8 @@ pub async fn write_import_context(
 
 #[turbo_tasks::value]
 pub struct CssChunkContent {
-    pub chunk_items: Vec<Vc<Box<dyn CssChunkItem>>>,
-    pub referenced_output_assets: Vc<OutputAssets>,
+    pub chunk_items: Vec<ResolvedVc<Box<dyn CssChunkItem>>>,
+    pub referenced_output_assets: ResolvedVc<OutputAssets>,
 }
 
 #[turbo_tasks::value_impl]
@@ -349,7 +349,7 @@ impl GenerateSourceMap for CssChunk {
 
 #[turbo_tasks::value]
 pub struct CssChunkContext {
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
 
 #[turbo_tasks::value_impl]
