@@ -338,7 +338,10 @@ async fn build_dynamic_imports_map_for_module(
         }
     }
 
-    Ok(Vc::cell(Some(Vc::cell((server_module, import_sources)))))
+    Ok(Vc::cell(Some(ResolvedVc::cell((
+        server_module,
+        import_sources,
+    )))))
 }
 
 /// A visitor to check if there's import to `next/dynamic`, then collecting the

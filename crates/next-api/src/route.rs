@@ -53,11 +53,11 @@ impl Route {
                 html_endpoint,
                 data_endpoint,
             } => {
-                *html_endpoint = html_endpoint.resolve().await?;
-                *data_endpoint = data_endpoint.resolve().await?;
+                *html_endpoint = html_endpoint.to_resolved().await?;
+                *data_endpoint = data_endpoint.to_resolved().await?;
             }
             Route::PageApi { endpoint } => {
-                *endpoint = endpoint.resolve().await?;
+                *endpoint = endpoint.to_resolved().await?;
             }
             Route::AppPage(routes) => {
                 for route in routes {
@@ -65,7 +65,7 @@ impl Route {
                 }
             }
             Route::AppRoute { endpoint, .. } => {
-                *endpoint = endpoint.resolve().await?;
+                *endpoint = endpoint.to_resolved().await?;
             }
             Route::Conflict => {}
         }
