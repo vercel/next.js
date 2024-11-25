@@ -261,7 +261,7 @@ impl MiddlewareEndpoint {
     fn userland_module(&self) -> Vc<Box<dyn Module>> {
         self.asset_context
             .process(
-                self.source,
+                *self.source,
                 Value::new(ReferenceType::Entry(EntryReferenceSubType::Middleware)),
             )
             .module()
@@ -281,13 +281,13 @@ impl Endpoint for MiddlewareEndpoint {
 
             let (server_paths, client_paths) = if this.project.next_mode().await?.is_development() {
                 let node_root = this.project.node_root();
-                let server_paths = all_server_paths(output_assets, node_root)
+                let server_paths = all_server_paths(*output_assets, node_root)
                     .await?
                     .clone_value();
 
                 // Middleware could in theory have a client path (e.g. `new URL`).
                 let client_relative_root = this.project.client_relative_path();
-                let client_paths = all_paths_in_root(output_assets, client_relative_root)
+                let client_paths = all_paths_in_root(*output_assets, client_relative_root)
                     .into_future()
                     .instrument(tracing::info_span!("client_paths"))
                     .await?
