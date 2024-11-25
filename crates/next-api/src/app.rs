@@ -93,7 +93,7 @@ pub struct AppProject {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct OptionAppProject(Option<Vc<AppProject>>);
+pub struct OptionAppProject(Option<ResolvedVc<AppProject>>);
 
 impl AppProject {}
 
@@ -743,7 +743,7 @@ fn server_utils_modifier() -> Vc<RcStr> {
 }
 
 #[turbo_tasks::value(transparent)]
-struct OutputAssetsWithAvailability((Vc<OutputAssets>, AvailabilityInfo));
+struct OutputAssetsWithAvailability((ResolvedVc<OutputAssets>, AvailabilityInfo));
 
 #[derive(Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Debug, TraceRawVcs)]
 enum AppPageEndpointType {
@@ -769,7 +769,7 @@ enum AppEndpointType {
 #[turbo_tasks::value]
 struct AppEndpoint {
     ty: AppEndpointType,
-    app_project: Vc<AppProject>,
+    app_project: ResolvedVc<AppProject>,
     page: AppPage,
 }
 
@@ -1708,13 +1708,13 @@ impl Endpoint for AppEndpoint {
 enum AppEndpointOutput {
     NodeJs {
         rsc_chunk: ResolvedVc<Box<dyn OutputAsset>>,
-        server_assets: Vc<OutputAssets>,
-        client_assets: Vc<OutputAssets>,
+        server_assets: ResolvedVc<OutputAssets>,
+        client_assets: ResolvedVc<OutputAssets>,
     },
     Edge {
-        files: Vc<OutputAssets>,
-        server_assets: Vc<OutputAssets>,
-        client_assets: Vc<OutputAssets>,
+        files: ResolvedVc<OutputAssets>,
+        server_assets: ResolvedVc<OutputAssets>,
+        client_assets: ResolvedVc<OutputAssets>,
     },
 }
 
