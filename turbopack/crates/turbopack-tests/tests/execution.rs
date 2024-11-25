@@ -271,8 +271,10 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
     let static_root_path = path.join("static".into());
 
     let env = Environment::new(Value::new(ExecutionEnvironment::NodeJsBuildTime(
-        NodeJsEnvironment::default().into(),
-    )));
+        NodeJsEnvironment::default().resolved_cell(),
+    )))
+    .to_resolved()
+    .await?;
 
     let compile_time_info = CompileTimeInfo::builder(env)
         .defines(
@@ -281,9 +283,10 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
                 process.env.TURBOPACK = true,
                 process.env.NODE_ENV = "development",
             )
-            .cell(),
+            .resolved_cell(),
         )
-        .cell();
+        .cell()
+        .await?;
 
     let mut import_map = ImportMap::empty();
     import_map.insert_wildcard_alias(
@@ -359,7 +362,7 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
         static_root_path,
         chunk_root_path,
         static_root_path,
-        env,
+        *env,
         RuntimeType::Development,
     )
     .build();
@@ -370,7 +373,9 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
     let test_asset = asset_context
         .process(
             Vc::upcast(test_source),
-            Value::new(ReferenceType::Internal(InnerAssets::empty())),
+            Value::new(ReferenceType::Internal(
+                InnerAssets::empty().to_resolved().await?,
+            )),
         )
         .module()
         .to_resolved()
@@ -379,7 +384,7 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
     let jest_entry_asset = asset_context
         .process(
             Vc::upcast(jest_entry_source),
-            Value::new(ReferenceType::Internal(Vc::cell(fxindexmap! {
+            Value::new(ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
                 "TESTS".into() => test_asset,
             }))),
         )
