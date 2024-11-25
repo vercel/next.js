@@ -4327,7 +4327,7 @@ mod tests {
                         node_version: NodeJsVersion::default().resolved_cell(),
                         cwd: ResolvedVc::cell(None),
                     }
-                    .into(),
+                    .resolved_cell(),
                 )))
                 .to_resolved()
                 .await?,
