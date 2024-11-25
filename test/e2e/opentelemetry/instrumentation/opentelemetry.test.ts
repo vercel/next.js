@@ -172,12 +172,8 @@ describe('opentelemetry', () => {
                           'next.clientComponentLoadCount': isNextDev
                             ? // In dev, additional client components are being loaded
                               // due to RSC props being deserialized.
-                              process.env.TURBOPACK
-                              ? 11
-                              : 9
-                            : process.env.TURBOPACK
-                              ? 8
-                              : 6,
+                              9
+                            : 6,
                           'next.span_type':
                             'NextNodeServer.clientComponentLoading',
                         },
