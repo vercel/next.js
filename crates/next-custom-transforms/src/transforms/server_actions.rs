@@ -1316,9 +1316,6 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         let in_cache_file = matches!(self.file_directive, Some(Directive::UseCache { .. }));
         let in_action_file = matches!(self.file_directive, Some(Directive::UseServer));
 
-        self.has_action = in_action_file;
-        self.has_cache = in_cache_file;
-
         if in_cache_file {
             // If we're in a "use cache" file, collect all original IDs from
             // export specifiers in a pre-pass so that we know which functions
@@ -1697,13 +1694,34 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             }
         }
 
+        let mut actions = self.export_actions.take();
+
+        if in_action_file || in_cache_file && !self.config.is_react_server_layer {
+            actions.extend(
+                self.exported_idents
+                    .iter()
+                    .map(|e| (e.1.clone(), e.2.clone())),
+            );
+
+            if !actions.is_empty() {
+                self.has_action |= in_action_file;
+                self.has_cache |= in_cache_file;
+            }
+        };
+
+        // Make it a hashmap of id -> name.
+        let actions = actions
+            .into_iter()
+            .map(|a| (a.1, a.0))
+            .collect::<ActionsMap>();
+
         // If it's compiled in the client layer, each export field needs to be
         // wrapped by a reference creation call.
         let create_ref_ident = private_ident!("createServerReference");
         let call_server_ident = private_ident!("callServer");
         let find_source_map_url_ident = private_ident!("findSourceMapURL");
 
-        if should_track_exports && !self.config.is_react_server_layer {
+        if (self.has_action || self.has_cache) && !self.config.is_react_server_layer {
             // import {
             //   createServerReference,
             //   callServer,
@@ -1828,7 +1846,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             //
             // But it's only needed for the server layer, because on the client
             // layer they're transformed into references already.
-            if self.config.is_react_server_layer {
+            if (self.has_action || self.has_cache) && self.config.is_react_server_layer {
                 new.append(&mut self.extra_items);
 
                 // For "use cache" files, there's no need to do extra annotations.
@@ -1883,23 +1901,6 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         }
 
         if self.has_action || self.has_cache {
-            let mut actions = self.export_actions.clone();
-
-            // All exported values are considered as actions if the file is an action file.
-            if in_action_file || in_cache_file && !self.config.is_react_server_layer {
-                actions.extend(
-                    self.exported_idents
-                        .iter()
-                        .map(|e| (e.1.clone(), e.2.clone())),
-                );
-            };
-
-            // Make it a hashmap of id -> name.
-            let actions = actions
-                .into_iter()
-                .map(|a| (a.1, a.0))
-                .collect::<ActionsMap>();
-
             // Prepend a special comment to the top of the file.
             self.comments.add_leading(
                 self.start_pos,
@@ -1911,7 +1912,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             );
         }
 
-        // import { cache as $cache } from "private-next-rsc-cache-wrapper";
+        // import { cache as $$cache__ } from "private-next-rsc-cache-wrapper";
         if self.has_cache && self.config.is_react_server_layer {
             new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                 span: DUMMY_SP,
