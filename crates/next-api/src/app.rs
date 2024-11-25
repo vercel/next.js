@@ -1628,7 +1628,7 @@ impl Endpoint for AppEndpoint {
             let output = self.output().await?;
             // Must use self.output_assets() instead of output.output_assets() to make it a
             // single operation
-            let output_assets = self.output_assets();
+            let output_assets = self.output_assets().to_resolved().await?;
 
             let node_root = this.app_project.project().node_root();
 
@@ -1647,12 +1647,13 @@ impl Endpoint for AppEndpoint {
                 .is_development()
             {
                 let node_root = this.app_project.project().node_root();
-                let server_paths = all_server_paths(output_assets, node_root)
+                let server_paths = all_server_paths(*output_assets, node_root)
+                    .to_resolved()
                     .await?
                     .clone_value();
 
                 let client_relative_root = this.app_project.project().client_relative_path();
-                let client_paths = all_paths_in_root(output_assets, client_relative_root)
+                let client_paths = all_paths_in_root(*output_assets, client_relative_root)
                     .into_future()
                     .instrument(tracing::info_span!("client_paths"))
                     .await?
