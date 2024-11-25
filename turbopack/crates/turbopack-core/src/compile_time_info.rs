@@ -1,3 +1,4 @@
+use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
@@ -273,7 +274,7 @@ pub struct CompileTimeInfo {
 }
 
 impl CompileTimeInfo {
-    pub fn builder(environment: Vc<Environment>) -> CompileTimeInfoBuilder {
+    pub fn builder(environment: ResolvedVc<Environment>) -> CompileTimeInfoBuilder {
         CompileTimeInfoBuilder {
             environment,
             defines: None,
@@ -285,13 +286,13 @@ impl CompileTimeInfo {
 #[turbo_tasks::value_impl]
 impl CompileTimeInfo {
     #[turbo_tasks::function]
-    pub fn new(environment: Vc<Environment>) -> Vc<Self> {
-        CompileTimeInfo {
+    pub async fn new(environment: ResolvedVc<Environment>) -> Result<Vc<Self>> {
+        Ok(CompileTimeInfo {
             environment,
-            defines: CompileTimeDefines::empty(),
-            free_var_references: FreeVarReferences::empty(),
+            defines: CompileTimeDefines::empty().to_resolved().await?,
+            free_var_references: FreeVarReferences::empty().to_resolved().await?,
         }
-        .cell()
+        .cell())
     }
 
     #[turbo_tasks::function]
@@ -301,18 +302,21 @@ impl CompileTimeInfo {
 }
 
 pub struct CompileTimeInfoBuilder {
-    environment: Vc<Environment>,
-    defines: Option<Vc<CompileTimeDefines>>,
-    free_var_references: Option<Vc<FreeVarReferences>>,
+    environment: ResolvedVc<Environment>,
+    defines: Option<ResolvedVc<CompileTimeDefines>>,
+    free_var_references: Option<ResolvedVc<FreeVarReferences>>,
 }
 
 impl CompileTimeInfoBuilder {
-    pub fn defines(mut self, defines: Vc<CompileTimeDefines>) -> Self {
+    pub fn defines(mut self, defines: ResolvedVc<CompileTimeDefines>) -> Self {
         self.defines = Some(defines);
         self
     }
 
-    pub fn free_var_references(mut self, free_var_references: Vc<FreeVarReferences>) -> Self {
+    pub fn free_var_references(
+        mut self,
+        free_var_references: ResolvedVc<FreeVarReferences>,
+    ) -> Self {
         self.free_var_references = Some(free_var_references);
         self
     }
