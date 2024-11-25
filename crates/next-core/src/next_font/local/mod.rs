@@ -260,7 +260,7 @@ async fn get_font_css_properties(
 
     Ok(FontCssProperties::cell(FontCssProperties {
         font_family: build_font_family_string(options_vc, font_fallbacks),
-        weight: Vc::cell(match &options.fonts {
+        weight: ResolvedVc::cell(match &options.fonts {
             FontDescriptors::Many(_) => None,
             // When the user only provided a top-level font file, include the font weight in the
             // className selector rules
@@ -272,13 +272,13 @@ async fn get_font_css_properties(
                 .filter(|w| !matches!(w, FontWeight::Variable(_, _)))
                 .map(|w| w.to_string().into()),
         }),
-        style: Vc::cell(match &options.fonts {
+        style: ResolvedVc::cell(match &options.fonts {
             FontDescriptors::Many(_) => None,
             // When the user only provided a top-level font file, include the font style in the
             // className selector rules
             FontDescriptors::One(descriptor) => descriptor.style.clone(),
         }),
-        variable: Vc::cell(options.variable.clone()),
+        variable: ResolvedVc::cell(options.variable.clone()),
     }))
 }
 
