@@ -36,7 +36,7 @@ fn modifier() -> Vc<RcStr> {
 
 #[turbo_tasks::value(shared)]
 pub struct NextServerComponentModule {
-    module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
+    module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
 }
 
 #[turbo_tasks::value_impl]
