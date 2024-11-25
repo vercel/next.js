@@ -87,11 +87,7 @@
       "outputs": ["native/*.node"]
     },
     "rust-check": {
-      "dependsOn": [
-        "rust-check-fmt",
-        "rust-check-clippy",
-        "rust-check-napi-rustls"
-      ]
+      "dependsOn": ["rust-check-fmt", "rust-check-clippy", "rust-check-napi"]
     },
     "rust-check-fmt": {
       "inputs": [
@@ -116,7 +112,7 @@
         "../../rust-toolchain"
       ]
     },
-    "rust-check-napi-rustls": {
+    "rust-check-napi": {
       "inputs": [
         "../../.cargo/**",
         "../../crates/**",

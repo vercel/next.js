@@ -19,7 +19,6 @@ import {
   REACT_LOADABLE_MANIFEST,
   CLIENT_REFERENCE_MANIFEST,
   SERVER_REFERENCE_MANIFEST,
-  UNDERSCORE_NOT_FOUND_ROUTE,
 } from '../shared/lib/constants'
 import { join } from 'path'
 import { requirePage } from './require'
@@ -31,6 +30,7 @@ import { wait } from '../lib/wait'
 import { setReferenceManifestsSingleton } from './app-render/encryption-utils'
 import { createServerModuleMap } from './app-render/action-utils'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
+import { isMetadataRoute } from '../lib/metadata/is-metadata-route'
 
 export type ManifestItem = {
   id: number | string
@@ -42,8 +42,8 @@ export type ReactLoadableManifest = { [moduleId: string]: ManifestItem }
 /**
  * A manifest entry type for the react-loadable-manifest.json.
  *
- * The whole manifest.json is a type of `Record<pathName, LoadableManifest>`
- * where pathName is a string-based key points to the path of the page contains
+ * The whole manifest.json is a type of `Record<pathname, LoadableManifest>`
+ * where pathname is a string-based key points to the path of the page contains
  * each dynamic imports.
  */
 export interface LoadableManifest {
@@ -140,9 +140,8 @@ async function loadComponentsImpl<N = any>({
     ])
   }
 
-  // Make sure to avoid loading the manifest for Route Handlers
-  const hasClientManifest =
-    isAppPath && (page.endsWith('/page') || page === UNDERSCORE_NOT_FOUND_ROUTE)
+  // Make sure to avoid loading the manifest for metadata route handlers.
+  const hasClientManifest = isAppPath && !isMetadataRoute(page)
 
   // Load the manifest files first
   const [
@@ -173,16 +172,16 @@ async function loadComponentsImpl<N = any>({
       : null,
   ])
 
-  // Before requring the actual page module, we have to set the reference manifests
-  // to our global store so Server Action's encryption util can access to them
-  // at the top level of the page module.
+  // Before requiring the actual page module, we have to set the reference
+  // manifests to our global store so Server Action's encryption util can access
+  // to them at the top level of the page module.
   if (serverActionsManifest && clientReferenceManifest) {
     setReferenceManifestsSingleton({
+      page,
       clientReferenceManifest,
       serverActionsManifest,
       serverModuleMap: createServerModuleMap({
         serverActionsManifest,
-        pageName: page,
       }),
     })
   }

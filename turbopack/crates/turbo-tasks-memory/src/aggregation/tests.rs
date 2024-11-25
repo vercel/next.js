@@ -11,11 +11,11 @@ use std::{
     time::Instant,
 };
 
-use indexmap::IndexSet;
 use parking_lot::{Mutex, MutexGuard};
 use rand::{rngs::SmallRng, Rng, SeedableRng};
 use ref_cast::RefCast;
 use rstest::*;
+use turbo_tasks::FxIndexSet;
 
 use self::aggregation_data::prepare_aggregation_data;
 use super::{
@@ -491,8 +491,11 @@ impl AggregationNodeGuard for NodeGuard {
     }
 }
 
-impl<'a> AggregationContext for NodeAggregationContext<'a> {
-    type Guard<'l> = NodeGuard where Self: 'l;
+impl AggregationContext for NodeAggregationContext<'_> {
+    type Guard<'l>
+        = NodeGuard
+    where
+        Self: 'l;
     type Data = Aggregated;
     type NodeRef = NodeRef;
     type DataChange = Change;
@@ -1029,7 +1032,7 @@ fn fuzzy(#[case] seed: u32, #[case] count: u32) {
     }
     prepare_aggregation_data(&ctx, &NodeRef(nodes[0].clone()));
 
-    let mut edges = IndexSet::new();
+    let mut edges = FxIndexSet::default();
 
     for _ in 0..1000 {
         match r.gen_range(0..=2) {

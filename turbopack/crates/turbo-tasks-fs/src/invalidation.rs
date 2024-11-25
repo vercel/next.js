@@ -3,8 +3,8 @@ use std::{
     hash::Hash,
 };
 
-use indexmap::IndexSet;
-use turbo_tasks::{util::StaticOrArc, InvalidationReason, InvalidationReasonKind, RcStr};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{util::StaticOrArc, FxIndexSet, InvalidationReason, InvalidationReasonKind};
 
 /// Invalidation was caused by a file change detected by the file watcher
 #[derive(PartialEq, Eq, Hash)]
@@ -33,7 +33,7 @@ static WATCH_CHANGE_KIND: WatchChangeKind = WatchChangeKind;
 impl InvalidationReasonKind for WatchChangeKind {
     fn fmt(
         &self,
-        reasons: &IndexSet<StaticOrArc<dyn InvalidationReason>>,
+        reasons: &FxIndexSet<StaticOrArc<dyn InvalidationReason>>,
         f: &mut Formatter<'_>,
     ) -> std::fmt::Result {
         write!(
@@ -51,7 +51,7 @@ impl InvalidationReasonKind for WatchChangeKind {
 
 /// Invalidation was caused by a directory starting to watch from which was read
 /// before.
-#[derive(PartialEq, Eq, Hash)]
+#[derive(PartialEq, Eq, Hash, Clone)]
 pub struct WatchStart {
     pub name: RcStr,
     pub path: RcStr,
@@ -78,7 +78,7 @@ static WATCH_START_KIND: WatchStartKind = WatchStartKind;
 impl InvalidationReasonKind for WatchStartKind {
     fn fmt(
         &self,
-        reasons: &IndexSet<StaticOrArc<dyn InvalidationReason>>,
+        reasons: &FxIndexSet<StaticOrArc<dyn InvalidationReason>>,
         f: &mut Formatter<'_>,
     ) -> std::fmt::Result {
         let example = reasons[0].as_any().downcast_ref::<WatchStart>().unwrap();
@@ -119,7 +119,7 @@ static WRITE_KIND: WriteKind = WriteKind;
 impl InvalidationReasonKind for WriteKind {
     fn fmt(
         &self,
-        reasons: &IndexSet<StaticOrArc<dyn InvalidationReason>>,
+        reasons: &FxIndexSet<StaticOrArc<dyn InvalidationReason>>,
         f: &mut Formatter<'_>,
     ) -> std::fmt::Result {
         write!(
@@ -158,7 +158,7 @@ static INVALIDATE_FILESYSTEM_KIND: InvalidateFilesystemKind = InvalidateFilesyst
 impl InvalidationReasonKind for InvalidateFilesystemKind {
     fn fmt(
         &self,
-        reasons: &IndexSet<StaticOrArc<dyn InvalidationReason>>,
+        reasons: &FxIndexSet<StaticOrArc<dyn InvalidationReason>>,
         f: &mut Formatter<'_>,
     ) -> std::fmt::Result {
         write!(

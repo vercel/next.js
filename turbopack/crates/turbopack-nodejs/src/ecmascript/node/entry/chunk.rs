@@ -2,7 +2,8 @@ use std::io::Write;
 
 use anyhow::{bail, Result};
 use indoc::writedoc;
-use turbo_tasks::{RcStr, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -144,17 +145,16 @@ impl EcmascriptBuildNodeEntryChunk {
     }
 
     #[turbo_tasks::function]
-    async fn runtime_chunk(self: Vc<Self>) -> Result<Vc<EcmascriptBuildNodeRuntimeChunk>> {
-        let this = self.await?;
-        Ok(EcmascriptBuildNodeRuntimeChunk::new(this.chunking_context))
+    fn runtime_chunk(&self) -> Vc<EcmascriptBuildNodeRuntimeChunk> {
+        EcmascriptBuildNodeRuntimeChunk::new(self.chunking_context)
     }
 }
 
 #[turbo_tasks::value_impl]
 impl ValueToString for EcmascriptBuildNodeEntryChunk {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell("Ecmascript Build Node Evaluate Chunk".into()))
+    fn to_string(&self) -> Vc<RcStr> {
+        Vc::cell("Ecmascript Build Node Evaluate Chunk".into())
     }
 }
 
@@ -178,19 +178,23 @@ impl OutputAsset for EcmascriptBuildNodeEntryChunk {
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
         let this = self.await?;
-        let mut references = vec![Vc::upcast(self.runtime_chunk())];
+        let mut references = vec![ResolvedVc::upcast(
+            self.runtime_chunk().to_resolved().await?,
+        )];
 
         if *this
             .chunking_context
             .reference_chunk_source_maps(Vc::upcast(self))
             .await?
         {
-            references.push(Vc::upcast(SourceMapAsset::new(Vc::upcast(self))))
+            references.push(ResolvedVc::upcast(
+                SourceMapAsset::new(Vc::upcast(self)).to_resolved().await?,
+            ))
         }
 
         let other_chunks = this.other_chunks.await?;
         for &other_chunk in &*other_chunks {
-            references.push(Vc::upcast(other_chunk));
+            references.push(ResolvedVc::upcast(other_chunk));
         }
 
         Ok(Vc::cell(references))

@@ -1,7 +1,7 @@
 use anyhow::Result;
 #[allow(unused_imports)]
-use turbo_tasks::RcStr;
-use turbo_tasks::Vc;
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::ModuleRule;
 
@@ -9,29 +9,29 @@ use crate::next_config::NextConfig;
 
 pub async fn get_swc_ecma_transform_plugin_rule(
     next_config: Vc<NextConfig>,
-    project_path: Vc<FileSystemPath>,
+    project_path: ResolvedVc<FileSystemPath>,
 ) -> Result<Option<ModuleRule>> {
-    match next_config.await?.experimental.swc_plugins.as_ref() {
-        Some(plugin_configs) if !plugin_configs.is_empty() => {
-            #[cfg(feature = "plugin")]
-            {
-                let enable_mdx_rs = next_config.mdx_rs().await?.is_some();
-                get_swc_ecma_transform_rule_impl(project_path, plugin_configs, enable_mdx_rs).await
-            }
-
-            #[cfg(not(feature = "plugin"))]
-            {
-                let _ = project_path; // To satisfiy lint
-                Ok(None)
-            }
+    let plugin_configs = next_config.experimental_swc_plugins().await?;
+    if !plugin_configs.is_empty() {
+        #[cfg(feature = "plugin")]
+        {
+            let enable_mdx_rs = next_config.mdx_rs().await?.is_some();
+            get_swc_ecma_transform_rule_impl(project_path, &plugin_configs, enable_mdx_rs).await
         }
-        _ => Ok(None),
+
+        #[cfg(not(feature = "plugin"))]
+        {
+            let _ = project_path; // To satisfiy lint
+            Ok(None)
+        }
+    } else {
+        Ok(None)
     }
 }
 
 #[cfg(feature = "plugin")]
 pub async fn get_swc_ecma_transform_rule_impl(
-    project_path: Vc<FileSystemPath>,
+    project_path: ResolvedVc<FileSystemPath>,
     plugin_configs: &[(RcStr, serde_json::Value)],
     enable_mdx_rs: bool,
 ) -> Result<Option<ModuleRule>> {
@@ -41,7 +41,6 @@ pub async fn get_swc_ecma_transform_rule_impl(
     use turbopack::{resolve_options, resolve_options_context::ResolveOptionsContext};
     use turbopack_core::{
         asset::Asset,
-        issue::IssueSeverity,
         reference_type::{CommonJsReferenceSubType, ReferenceType},
         resolve::{handle_resolve_error, parse::Request, pattern::Pattern, resolve},
     };
@@ -60,9 +59,9 @@ pub async fn get_swc_ecma_transform_rule_impl(
         // Current resolve will fail with latter.
         let request = Request::parse(Value::new(Pattern::Constant(name.as_str().into())));
         let resolve_options = resolve_options(
-            project_path,
+            *project_path,
             ResolveOptionsContext {
-                enable_node_modules: Some(project_path.root().resolve().await?),
+                enable_node_modules: Some(project_path.root().to_resolved().await?),
                 enable_node_native_modules: true,
                 ..Default::default()
             }
@@ -71,17 +70,17 @@ pub async fn get_swc_ecma_transform_rule_impl(
 
         let plugin_wasm_module_resolve_result = handle_resolve_error(
             resolve(
-                project_path,
+                *project_path,
                 Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined)),
                 request,
                 resolve_options,
             )
             .as_raw_module_result(),
             Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined)),
-            project_path,
+            *project_path,
             request,
             resolve_options,
-            IssueSeverity::Error.cell(),
+            false,
             None,
         )
         .await?;
@@ -97,10 +96,7 @@ pub async fn get_swc_ecma_transform_rule_impl(
         };
 
         plugins.push((
-            SwcPluginModule::cell(SwcPluginModule::new(
-                name,
-                file.content().to_bytes()?.to_vec(),
-            )),
+            SwcPluginModule::new(name, file.content().to_bytes()?.to_vec()).resolved_cell(),
             config.clone(),
         ));
     }

@@ -21,7 +21,7 @@ function getLocationType(location: string): LocationType {
   if (location.startsWith('file://')) {
     return LocationType.FILE
   }
-  if (location.startsWith('webpack-internal://')) {
+  if (location.includes('webpack-internal://')) {
     return LocationType.WEBPACK_INTERNAL
   }
   if (location.startsWith('http://') || location.startsWith('https://')) {
@@ -72,6 +72,7 @@ export function parseComponentStack(
 ): ComponentStackFrame[] {
   const componentStackFrames: ComponentStackFrame[] = []
   for (const line of componentStack.trim().split('\n')) {
+    // TODO: support safari stack trace
     // Get component and file from the component stack line
     const match = /at ([^ ]+)( \((.*)\))?/.exec(line)
     if (match?.[1]) {

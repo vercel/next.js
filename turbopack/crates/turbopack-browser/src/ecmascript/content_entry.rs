@@ -1,9 +1,8 @@
 use std::io::Write as _;
 
 use anyhow::Result;
-use indexmap::IndexMap;
 use tracing::{info_span, Instrument};
-use turbo_tasks::{ReadRef, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkItem, ChunkItemExt, ModuleId},
     code_builder::{Code, CodeBuilder},
@@ -23,8 +22,8 @@ use turbopack_ecmascript::chunk::{
 #[turbo_tasks::value]
 #[derive(Debug)]
 pub struct EcmascriptDevChunkContentEntry {
-    pub code: Vc<Code>,
-    pub hash: Vc<u64>,
+    pub code: ResolvedVc<Code>,
+    pub hash: ResolvedVc<u64>,
 }
 
 impl EcmascriptDevChunkContentEntry {
@@ -32,17 +31,17 @@ impl EcmascriptDevChunkContentEntry {
         chunk_item: Vc<Box<dyn EcmascriptChunkItem>>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Self> {
-        let code = chunk_item.code(async_module_info).resolve().await?;
+        let code = chunk_item.code(async_module_info).to_resolved().await?;
         Ok(EcmascriptDevChunkContentEntry {
             code,
-            hash: code.source_code_hash().resolve().await?,
+            hash: code.source_code_hash().to_resolved().await?,
         })
     }
 }
 
 #[turbo_tasks::value(transparent)]
 pub struct EcmascriptDevChunkContentEntries(
-    IndexMap<ReadRef<ModuleId>, EcmascriptDevChunkContentEntry>,
+    FxIndexMap<ReadRef<ModuleId>, EcmascriptDevChunkContentEntry>,
 );
 
 #[turbo_tasks::value_impl]
@@ -53,7 +52,7 @@ impl EcmascriptDevChunkContentEntries {
     ) -> Result<Vc<EcmascriptDevChunkContentEntries>> {
         let chunk_content = chunk_content.await?;
 
-        let entries: IndexMap<_, _> = chunk_content
+        let entries: FxIndexMap<_, _> = chunk_content
             .chunk_items
             .iter()
             .map(|&(chunk_item, async_module_info)| async move {

@@ -11,10 +11,6 @@ const nextConfig = {
             key: 'cache-control',
             value: 'max-age=1234',
           },
-          {
-            key: 'content-type',
-            value: 'image/vnd.microsoft.icon',
-          },
         ],
       },
     ]

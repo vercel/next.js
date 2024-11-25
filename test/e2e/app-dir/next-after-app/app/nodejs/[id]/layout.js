@@ -1,7 +1,8 @@
-import { unstable_after as after } from 'next/server'
+import { unstable_after as after, connection } from 'next/server'
 import { cliLog } from '../../../utils/log'
 
-export default function Layout({ children }) {
+export default async function Layout({ children }) {
+  await connection()
   after(async () => {
     cliLog({ source: '[layout] /[id]' })
   })

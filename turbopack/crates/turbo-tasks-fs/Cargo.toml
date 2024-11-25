@@ -39,15 +39,18 @@ jsonc-parser = { version = "0.21.0", features = ["serde"] }
 mime = { workspace = true }
 notify = { workspace = true }
 parking_lot = { workspace = true }
+rayon = { workspace = true }
 serde = { workspace = true, features = ["rc"] }
 serde_bytes = { workspace = true }
 serde_json = { workspace = true }
 serde_path_to_error = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
+turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-hash = { workspace = true }
 unicode-segmentation = { workspace = true }
+urlencoding = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }

@@ -17,6 +17,12 @@ import { createServerModuleMap } from '../../server/app-render/action-utils'
 declare const incrementalCacheHandler: any
 // OPTIONAL_IMPORT:incrementalCacheHandler
 
+const cacheHandlers = {}
+
+if (!(globalThis as any).__nextCacheHandlers) {
+  ;(globalThis as any).__nextCacheHandlers = cacheHandlers
+}
+
 const Document: DocumentType = null!
 const appMod = null
 const errorMod = null
@@ -50,11 +56,11 @@ const interceptionRouteRewrites =
 
 if (rscManifest && rscServerManifest) {
   setReferenceManifestsSingleton({
+    page: 'VAR_PAGE',
     clientReferenceManifest: rscManifest,
     serverActionsManifest: rscServerManifest,
     serverModuleMap: createServerModuleMap({
       serverActionsManifest: rscServerManifest,
-      pageName: 'VAR_PAGE',
     }),
   })
 }

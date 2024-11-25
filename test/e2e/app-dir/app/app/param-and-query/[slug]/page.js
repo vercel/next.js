@@ -1,6 +1,10 @@
 'use client'
 
-export default function Page({ params, searchParams }) {
+import { use } from 'react'
+
+export default function Page(props) {
+  const searchParams = use(props.searchParams)
+  const params = use(props.params)
   return (
     <h1
       id="params-and-query"

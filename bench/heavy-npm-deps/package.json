@@ -3,8 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev-turbopack": "next dev --turbo",
+    "dev-turbopack": "next dev --turbopack",
     "dev-webpack": "next dev",
+    "build-turbopack": "TURBOPACK=1 TURBOPACK_BUILD=1 next build",
+    "build-webpack": "next build",
+    "start-turbopack": "TURBOPACK=1 next start",
+    "start-webpack": "next start",
     "build-application": "next build",
     "start-application": "next start"
   },
@@ -13,7 +17,7 @@
     "lodash-es": "^4.17.21",
     "lucide-react": "^0.383.0",
     "mermaid": "^10.9.1",
-    "next": "workspace:*"
-  },
-  "devDependencies": {}
+    "next": "workspace:*",
+    "tailwindcss": "3.2.7"
+  }
 }

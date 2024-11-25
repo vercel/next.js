@@ -10,7 +10,7 @@ import type {
   Options,
   RouteHandler,
 } from './base-server'
-import type { Revalidate, SwrDelta } from './lib/revalidate'
+import type { Revalidate, ExpireTime } from './lib/revalidate'
 
 import { byteLength } from './api-utils/web'
 import BaseServer, { NoFallbackError } from './base-server'
@@ -80,6 +80,7 @@ export default class NextWebServer extends BaseServer<
     return new IncrementalCache({
       dev,
       requestHeaders,
+      dynamicIO: Boolean(this.nextConfig.experimental.dynamicIO),
       requestProtocol: 'https',
       allowedRevalidateHeaderKeys:
         this.nextConfig.experimental.allowedRevalidateHeaderKeys,
@@ -254,7 +255,9 @@ export default class NextWebServer extends BaseServer<
       Object.assign(renderOpts, {
         disableOptimizedLoading: true,
         runtime: 'experimental-edge',
-      })
+      }),
+      undefined,
+      false
     )
   }
 
@@ -267,7 +270,7 @@ export default class NextWebServer extends BaseServer<
       generateEtags: boolean
       poweredByHeader: boolean
       revalidate: Revalidate | undefined
-      swrDelta: SwrDelta | undefined
+      expireTime: ExpireTime | undefined
     }
   ): Promise<void> {
     res.setHeader('X-Edge-Runtime', '1')

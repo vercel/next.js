@@ -5,9 +5,10 @@ import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
 import type { ParsedUrlQuery } from 'querystring'
 import type { AppPageModule } from '../route-modules/app-page/module'
-import type { SwrDelta } from '../lib/revalidate'
+import type { ExpireTime } from '../lib/revalidate'
 import type { LoadingModuleData } from '../../shared/lib/app-router-context.shared-runtime'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
+import type { __ApiPreviewProps } from '../api-utils'
 
 import s from 'next/dist/compiled/superstruct'
 import type { RequestLifecycleOpts } from '../base-server'
@@ -15,6 +16,7 @@ import type { InstrumentationOnRequestError } from '../instrumentation/types'
 import type { NextRequestHint } from '../web/adapter'
 import type { BaseNextRequest } from '../base-http'
 import type { IncomingMessage } from 'http'
+import type { RenderResumeDataCache } from '../resume-data-cache/resume-data-cache'
 
 export type DynamicParamTypes =
   | 'catchall'
@@ -94,7 +96,7 @@ export type CacheNodeSeedData = [
   parallelRoutes: {
     [parallelRouterKey: string]: CacheNodeSeedData | null
   },
-  loading: LoadingModuleData,
+  loading: LoadingModuleData | Promise<LoadingModuleData>,
 ]
 
 export type FlightDataSegment = [
@@ -130,6 +132,7 @@ export type ServerOnInstrumentationRequestError = (
 ) => void | Promise<void>
 
 export interface RenderOptsPartial {
+  previewProps: __ApiPreviewProps | undefined
   err?: Error | null
   dev?: boolean
   buildId: string
@@ -145,7 +148,10 @@ export interface RenderOptsPartial {
   nextFontManifest?: DeepReadonly<NextFontManifest>
   isBot?: boolean
   incrementalCache?: import('../lib/incremental-cache').IncrementalCache
-  setAppIsrStatus?: (key: string, value: false | number | null) => void
+  cacheLifeProfiles?: {
+    [profile: string]: import('../use-cache/cache-life').CacheLife
+  }
+  setAppIsrStatus?: (key: string, value: boolean | null) => void
   isRevalidate?: boolean
   nextExport?: boolean
   nextConfigOutput?: 'standalone' | 'export'
@@ -172,12 +178,21 @@ export interface RenderOptsPartial {
      * prerendering.
      */
     isRoutePPREnabled?: boolean
-    swrDelta: SwrDelta | undefined
+    expireTime: ExpireTime | undefined
     clientTraceMetadata: string[] | undefined
     after: boolean
     dynamicIO: boolean
+    inlineCss: boolean
+    authInterrupts: boolean
   }
   postponed?: string
+
+  /**
+   * The resume data cache that was generated for this partially prerendered
+   * page during dev warmup.
+   */
+  devRenderResumeDataCache?: RenderResumeDataCache
+
   /**
    * When true, only the static shell of the page will be rendered. This will
    * also enable other debugging features such as logging in development.
@@ -220,9 +235,11 @@ export type InitialRSCPayload = {
   /** missingSlots */
   m: Set<string> | undefined
   /** GlobalError */
-  G: React.ComponentType<any>
+  G: [React.ComponentType<any>, React.ReactNode | undefined]
   /** postponed */
   s: boolean
+  /** prerendered */
+  S: boolean
 }
 
 // Response from `createFromFetch` for normal rendering
@@ -231,6 +248,8 @@ export type NavigationFlightResponse = {
   b: string
   /** flightData */
   f: FlightData
+  /** prerendered */
+  S: boolean
 }
 
 // Response from `createFromFetch` for server actions. Action's flight data can be null

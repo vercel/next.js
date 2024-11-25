@@ -1,5 +1,6 @@
 use anyhow::Result;
-use turbo_tasks::{RcStr, TryJoinIterExt, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{TryJoinIterExt, Vc};
 use turbopack_core::introspect::{Introspectable, IntrospectableChildren};
 
 use super::{
@@ -9,6 +10,7 @@ use super::{
 use crate::source::ContentSources;
 
 /// Combines multiple [ContentSource]s by trying all content sources in order.
+///
 /// The content source which responds with the most specific response (that is
 /// not a [ContentSourceContent::NotFound]) will be returned.
 #[turbo_tasks::value(shared)]

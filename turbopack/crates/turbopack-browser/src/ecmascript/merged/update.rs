@@ -1,9 +1,8 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use indexmap::{IndexMap, IndexSet};
 use serde::Serialize;
-use turbo_tasks::{IntoTraitRef, ReadRef, TryJoinIterExt, Vc};
+use turbo_tasks::{FxIndexMap, FxIndexSet, IntoTraitRef, ReadRef, TryJoinIterExt, Vc};
 use turbo_tasks_fs::rope::Rope;
 use turbopack_core::{
     chunk::{ChunkingContext, ModuleId},
@@ -26,11 +25,11 @@ use super::{
 #[serde(tag = "type", rename_all = "camelCase")]
 struct EcmascriptMergedUpdate<'a> {
     /// A map from module id to latest module entry.
-    #[serde(skip_serializing_if = "IndexMap::is_empty")]
-    entries: IndexMap<ReadRef<ModuleId>, EcmascriptModuleEntry>,
+    #[serde(skip_serializing_if = "FxIndexMap::is_empty")]
+    entries: FxIndexMap<ReadRef<ModuleId>, EcmascriptModuleEntry>,
     /// A map from chunk path to the chunk update.
-    #[serde(skip_serializing_if = "IndexMap::is_empty")]
-    chunks: IndexMap<&'a str, EcmascriptMergedChunkUpdate>,
+    #[serde(skip_serializing_if = "FxIndexMap::is_empty")]
+    chunks: FxIndexMap<&'a str, EcmascriptMergedChunkUpdate>,
 }
 
 impl EcmascriptMergedUpdate<'_> {
@@ -50,8 +49,8 @@ enum EcmascriptMergedChunkUpdate {
 #[derive(Serialize, Default)]
 #[serde(rename_all = "camelCase")]
 struct EcmascriptMergedChunkAdded {
-    #[serde(skip_serializing_if = "IndexSet::is_empty")]
-    modules: IndexSet<ReadRef<ModuleId>>,
+    #[serde(skip_serializing_if = "FxIndexSet::is_empty")]
+    modules: FxIndexSet<ReadRef<ModuleId>>,
 }
 
 #[derive(Serialize, Default)]
@@ -60,17 +59,17 @@ struct EcmascriptMergedChunkDeleted {
     // Technically, this is redundant, since the client will already know all
     // modules in the chunk from the previous version. However, it's useful for
     // merging updates without access to an initial state.
-    #[serde(skip_serializing_if = "IndexSet::is_empty")]
-    modules: IndexSet<ReadRef<ModuleId>>,
+    #[serde(skip_serializing_if = "FxIndexSet::is_empty")]
+    modules: FxIndexSet<ReadRef<ModuleId>>,
 }
 
 #[derive(Serialize, Default)]
 #[serde(rename_all = "camelCase")]
 struct EcmascriptMergedChunkPartial {
-    #[serde(skip_serializing_if = "IndexSet::is_empty")]
-    added: IndexSet<ReadRef<ModuleId>>,
-    #[serde(skip_serializing_if = "IndexSet::is_empty")]
-    deleted: IndexSet<ReadRef<ModuleId>>,
+    #[serde(skip_serializing_if = "FxIndexSet::is_empty")]
+    added: FxIndexSet<ReadRef<ModuleId>>,
+    #[serde(skip_serializing_if = "FxIndexSet::is_empty")]
+    deleted: FxIndexSet<ReadRef<ModuleId>>,
 }
 
 #[derive(Serialize)]
@@ -167,7 +166,7 @@ pub(super) async fn update_ecmascript_merged_chunk(
         return Ok(Update::None);
     }
 
-    let mut from_versions_by_chunk_path: IndexMap<_, _> = from
+    let mut from_versions_by_chunk_path: FxIndexMap<_, _> = from
         .versions
         .iter()
         .map(|version| (&*version.chunk_path, version))
@@ -196,7 +195,7 @@ pub(super) async fn update_ecmascript_merged_chunk(
         };
 
         let chunk_update = if let Some(from_version) =
-            from_versions_by_chunk_path.remove(chunk_path)
+            from_versions_by_chunk_path.swap_remove(chunk_path)
         {
             // The chunk was present in the previous version, so we must update it.
             let update = update_ecmascript_chunk(*content, from_version).await?;
@@ -216,7 +215,7 @@ pub(super) async fn update_ecmascript_merged_chunk(
                         if merged_module_map.get(&module_id) != Some(module_hash) {
                             let entry = EcmascriptModuleEntry::from_code(
                                 &module_id,
-                                module_code,
+                                *module_code,
                                 chunk_path,
                             )
                             .await?;
@@ -228,7 +227,7 @@ pub(super) async fn update_ecmascript_merged_chunk(
 
                     for (module_id, module_code) in chunk_partial.modified {
                         let entry =
-                            EcmascriptModuleEntry::from_code(&module_id, module_code, chunk_path)
+                            EcmascriptModuleEntry::from_code(&module_id, *module_code, chunk_path)
                                 .await?;
                         merged_update.entries.insert(module_id, entry);
                     }
@@ -246,7 +245,7 @@ pub(super) async fn update_ecmascript_merged_chunk(
 
                 if merged_module_map.get(id) != Some(hash) {
                     let entry =
-                        EcmascriptModuleEntry::from_code(id, entry.code, chunk_path).await?;
+                        EcmascriptModuleEntry::from_code(id, *entry.code, chunk_path).await?;
                     merged_update.entries.insert(id.clone(), entry);
                 }
             }

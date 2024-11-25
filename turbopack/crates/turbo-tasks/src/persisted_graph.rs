@@ -29,8 +29,10 @@ pub struct TaskData {
 
 /// A newtype struct that intercepts serde. This is required
 /// because for safety reasons, TaskCell<()> is not allowed to
-/// be deserialized. We augment it with type data then write
-/// it. This is inefficient on disk but could be alleviated later.
+/// be deserialized.
+///
+/// We augment it with type data then write it. This is inefficient
+/// on disk but could be alleviated later.
 #[derive(Debug)]
 pub struct TaskCells(pub Vec<(CellId, TaskCell)>);
 

@@ -1,5 +1,6 @@
 use anyhow::Result;
-use turbo_tasks::{RcStr, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
@@ -20,9 +21,10 @@ fn modifier() -> Vc<RcStr> {
 }
 
 /// The manifest module is deferred until requested by the manifest loader
-/// item when the dynamic `import()` expression is reached. Its responsibility
-/// is to generate a Promise that will resolve only after all the necessary
-/// chunks needed by the dynamic import are loaded by the client.
+/// item when the dynamic `import()` expression is reached.
+///
+/// Its responsibility is to generate a Promise that will resolve only after
+/// all the necessary chunks needed by the dynamic import are loaded by the client.
 ///
 /// Splitting the dynamic import into a quickly generate-able manifest loader
 /// item and a slow-to-generate manifest chunk allows for faster incremental
@@ -31,17 +33,17 @@ fn modifier() -> Vc<RcStr> {
 /// import appears in.
 #[turbo_tasks::value(shared)]
 pub struct ManifestAsyncModule {
-    pub inner: Vc<Box<dyn ChunkableModule>>,
-    pub chunking_context: Vc<Box<dyn ChunkingContext>>,
+    pub inner: ResolvedVc<Box<dyn ChunkableModule>>,
+    pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     pub availability_info: AvailabilityInfo,
 }
 
 #[turbo_tasks::value_impl]
 impl ManifestAsyncModule {
     #[turbo_tasks::function]
-    pub fn new(
-        module: Vc<Box<dyn ChunkableModule>>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
+    pub async fn new(
+        module: ResolvedVc<Box<dyn ChunkableModule>>,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Vc<Self> {
         Self::cell(ManifestAsyncModule {
@@ -52,11 +54,11 @@ impl ManifestAsyncModule {
     }
 
     #[turbo_tasks::function]
-    pub(super) async fn chunks(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
-        let this = self.await?;
-        Ok(this
-            .chunking_context
-            .chunk_group_assets(Vc::upcast(this.inner), Value::new(this.availability_info)))
+    pub(super) fn chunks(&self) -> Vc<OutputAssets> {
+        self.chunking_context.chunk_group_assets(
+            *ResolvedVc::upcast(self.inner),
+            Value::new(self.availability_info),
+        )
     }
 
     #[turbo_tasks::function]
@@ -66,7 +68,7 @@ impl ManifestAsyncModule {
             if chunk_items
                 .get(
                     this.inner
-                        .as_chunk_item(Vc::upcast(this.chunking_context))
+                        .as_chunk_item(*ResolvedVc::upcast(this.chunking_context))
                         .resolve()
                         .await?,
                 )
@@ -120,7 +122,7 @@ impl Module for ManifestAsyncModule {
                 .copied()
                 .map(|chunk| {
                     Vc::upcast(SingleOutputAssetReference::new(
-                        chunk,
+                        *chunk,
                         manifest_chunk_reference_description(),
                     ))
                 })
@@ -141,16 +143,16 @@ impl Asset for ManifestAsyncModule {
 impl ChunkableModule for ManifestAsyncModule {
     #[turbo_tasks::function]
     async fn as_chunk_item(
-        self: Vc<Self>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
-        Ok(Vc::upcast(
+        self: ResolvedVc<Self>,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
+        Vc::upcast(
             ManifestChunkItem {
                 chunking_context,
                 manifest: self,
             }
             .cell(),
-        ))
+        )
     }
 }
 

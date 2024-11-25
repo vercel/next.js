@@ -1,4 +1,6 @@
 #![feature(arbitrary_self_types)]
+#![feature(arbitrary_self_types_pointers)]
+#![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
 use anyhow::Result;
 use turbo_tasks::Vc;
@@ -99,8 +101,8 @@ impl Value {
     }
 
     #[turbo_tasks::function]
-    async fn async_vc_method(self: Vc<Self>) -> Result<Vc<u32>> {
-        Ok(Vc::cell(self.await?.0))
+    async fn async_vc_method(&self) -> Result<Vc<u32>> {
+        Ok(Vc::cell(self.0))
     }
 }
 

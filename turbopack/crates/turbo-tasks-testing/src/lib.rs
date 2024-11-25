@@ -24,7 +24,7 @@ use turbo_tasks::{
     TaskPersistence, TraitTypeId, TurboTasksApi, TurboTasksCallApi,
 };
 
-pub use crate::run::{run, run_without_cache_check, Registration};
+pub use crate::run::{run, run_with_tt, run_without_cache_check, Registration};
 
 enum Task {
     Spawned(Event),
@@ -313,7 +313,7 @@ impl TurboTasksApi for VcStorage {
         // no-op
     }
 
-    fn mark_own_task_as_dirty_when_persisted(&self, _task: TaskId) {
+    fn mark_own_task_as_session_dependent(&self, _task: TaskId) {
         // no-op
     }
 

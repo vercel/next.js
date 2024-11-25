@@ -9,7 +9,7 @@ use parking_lot::{Mutex, MutexGuard};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    get_invalidator, mark_dirty_when_persisted, mark_stateful, trace::TraceRawVcs, Invalidator,
+    get_invalidator, mark_session_dependent, mark_stateful, trace::TraceRawVcs, Invalidator,
     SerializationInvalidator,
 };
 
@@ -68,7 +68,7 @@ pub struct StateRef<'a, T> {
     mutated: bool,
 }
 
-impl<'a, T> Deref for StateRef<'a, T> {
+impl<T> Deref for StateRef<'_, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -76,14 +76,14 @@ impl<'a, T> Deref for StateRef<'a, T> {
     }
 }
 
-impl<'a, T> DerefMut for StateRef<'a, T> {
+impl<T> DerefMut for StateRef<'_, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.mutated = true;
         &mut self.inner.value
     }
 }
 
-impl<'a, T> Drop for StateRef<'a, T> {
+impl<T> Drop for StateRef<'_, T> {
     fn drop(&mut self) {
         if self.mutated {
             for invalidator in take(&mut self.inner.invalidators) {
@@ -266,7 +266,7 @@ impl<T> TransientState<T> {
     /// as dependency of the state and will be invalidated when the state
     /// changes.
     pub fn get(&self) -> StateRef<'_, Option<T>> {
-        mark_dirty_when_persisted();
+        mark_session_dependent();
         let invalidator = get_invalidator();
         let mut inner = self.inner.lock();
         inner.add_invalidator(invalidator);

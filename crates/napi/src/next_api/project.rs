@@ -1,4 +1,4 @@
-use std::{io::Write, path::PathBuf, sync::Arc, thread, time::Duration};
+use std::{path::PathBuf, sync::Arc, thread, time::Duration};
 
 use anyhow::{anyhow, bail, Context, Result};
 use napi::{
@@ -10,7 +10,7 @@ use next_api::{
     entrypoints::Entrypoints,
     project::{
         DefineEnv, DraftModeOptions, Instrumentation, Middleware, PartialProjectOptions, Project,
-        ProjectContainer, ProjectOptions,
+        ProjectContainer, ProjectOptions, WatchOptions,
     },
     route::{Endpoint, Route},
 };
@@ -18,18 +18,21 @@ use next_core::tracing_presets::{
     TRACING_NEXT_OVERVIEW_TARGETS, TRACING_NEXT_TARGETS, TRACING_NEXT_TURBOPACK_TARGETS,
     TRACING_NEXT_TURBO_TASKS_TARGETS,
 };
+use once_cell::sync::Lazy;
 use rand::Rng;
 use tokio::{io::AsyncWriteExt, time::Instant};
 use tracing::Instrument;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
-use turbo_tasks::{Completion, RcStr, ReadRef, TransientInstance, TurboTasks, UpdateInfo, Vc};
-use turbo_tasks_fs::{DiskFileSystem, FileContent, FileSystem, FileSystemPath};
-use turbo_tasks_memory::MemoryBackend;
+use turbo_rcstr::RcStr;
+use turbo_tasks::{get_effects, Completion, Effects, ReadRef, TransientInstance, UpdateInfo, Vc};
+use turbo_tasks_fs::{
+    util::uri_from_file, DiskFileSystem, FileContent, FileSystem, FileSystemPath,
+};
 use turbopack_core::{
     diagnostics::PlainDiagnostic,
     error::PrettyPrintError,
     issue::PlainIssue,
-    source_map::Token,
+    source_map::{SourceMap, Token},
     version::{PartialUpdate, TotalUpdate, Update, VersionState},
     SOURCE_MAP_PREFIX,
 };
@@ -44,8 +47,8 @@ use url::Url;
 use super::{
     endpoint::ExternalEndpoint,
     utils::{
-        get_diagnostics, get_issues, subscribe, NapiDiagnostic, NapiIssue, RootTask,
-        TurbopackResult, VcArc,
+        create_turbo_tasks, get_diagnostics, get_issues, subscribe, NapiDiagnostic, NapiIssue,
+        NextTurboTasks, RootTask, TurbopackResult, VcArc,
     },
 };
 use crate::register;
@@ -53,6 +56,8 @@ use crate::register;
 /// Used by [`benchmark_file_io`]. This is a noisy benchmark, so set the
 /// threshold high.
 const SLOW_FILESYSTEM_THRESHOLD: Duration = Duration::from_millis(100);
+static SOURCE_MAP_PREFIX_PROJECT: Lazy<String> =
+    Lazy::new(|| format!("{}[project]/", SOURCE_MAP_PREFIX));
 
 #[napi(object)]
 #[derive(Clone, Debug)]
@@ -79,6 +84,16 @@ impl From<NapiDraftModeOptions> for DraftModeOptions {
 }
 
 #[napi(object)]
+pub struct NapiWatchOptions {
+    /// Whether to watch the filesystem for file changes.
+    pub enable: bool,
+
+    /// Enable polling at a certain interval if the native file watching doesn't work (e.g.
+    /// docker).
+    pub poll_interval_ms: Option<f64>,
+}
+
+#[napi(object)]
 pub struct NapiProjectOptions {
     /// A root path from which all files must be nested under. Trying to access
     /// a file outside this root will fail. Think of this as a chroot.
@@ -89,10 +104,10 @@ pub struct NapiProjectOptions {
 
     /// next.config's distDir. Project initialization occurs eariler than
     /// deserializing next.config, so passing it as separate option.
-    pub dist_dir: Option<String>,
+    pub dist_dir: String,
 
-    /// Whether to watch he filesystem for file changes.
-    pub watch: bool,
+    /// Filesystem watcher options.
+    pub watch: NapiWatchOptions,
 
     /// The contents of next.config.js, serialized to JSON.
     pub next_config: String,
@@ -137,8 +152,8 @@ pub struct NapiPartialProjectOptions {
     /// deserializing next.config, so passing it as separate option.
     pub dist_dir: Option<Option<String>>,
 
-    /// Whether to watch he filesystem for file changes.
-    pub watch: Option<bool>,
+    /// Filesystem watcher options.
+    pub watch: Option<NapiWatchOptions>,
 
     /// The contents of next.config.js, serialized to JSON.
     pub next_config: Option<String>,
@@ -179,8 +194,22 @@ pub struct NapiDefineEnv {
 
 #[napi(object)]
 pub struct NapiTurboEngineOptions {
+    /// Use the new backend with persistent caching enabled.
+    pub persistent_caching: Option<bool>,
     /// An upper bound of memory that turbopack will attempt to stay under.
     pub memory_limit: Option<f64>,
+}
+
+impl From<NapiWatchOptions> for WatchOptions {
+    fn from(val: NapiWatchOptions) -> Self {
+        WatchOptions {
+            enable: val.enable,
+            poll_interval: val
+                .poll_interval_ms
+                .filter(|interval| !interval.is_nan() && interval.is_finite() && *interval > 0.0)
+                .map(|interval| Duration::from_secs_f64(interval / 1000.0)),
+        }
+    }
 }
 
 impl From<NapiProjectOptions> for ProjectOptions {
@@ -188,7 +217,7 @@ impl From<NapiProjectOptions> for ProjectOptions {
         ProjectOptions {
             root_path: val.root_path.into(),
             project_path: val.project_path.into(),
-            watch: val.watch,
+            watch: val.watch.into(),
             next_config: val.next_config.into(),
             js_config: val.js_config.into(),
             env: val
@@ -211,7 +240,7 @@ impl From<NapiPartialProjectOptions> for PartialProjectOptions {
         PartialProjectOptions {
             root_path: val.root_path.map(From::from),
             project_path: val.project_path.map(From::from),
-            watch: val.watch,
+            watch: val.watch.map(From::from),
             next_config: val.next_config.map(From::from),
             js_config: val.js_config.map(From::from),
             env: val.env.map(|env| {
@@ -251,12 +280,12 @@ impl From<NapiDefineEnv> for DefineEnv {
 }
 
 pub struct ProjectInstance {
-    turbo_tasks: Arc<TurboTasks<MemoryBackend>>,
+    turbo_tasks: NextTurboTasks,
     container: Vc<ProjectContainer>,
     exit_receiver: tokio::sync::Mutex<Option<ExitReceiver>>,
 }
 
-#[napi(ts_return_type = "{ __napiType: \"Project\" }")]
+#[napi(ts_return_type = "Promise<{ __napiType: \"Project\" }>")]
 pub async fn project_new(
     options: NapiProjectOptions,
     turbo_engine_options: NapiTurboEngineOptions,
@@ -287,10 +316,7 @@ pub async fn project_new(
         let subscriber = Registry::default();
 
         let subscriber = subscriber.with(EnvFilter::builder().parse(trace).unwrap());
-        let dist_dir = options
-            .dist_dir
-            .as_ref()
-            .map_or_else(|| ".next".to_string(), |d| d.to_string());
+        let dist_dir = options.dist_dir.clone();
 
         let internal_dir = PathBuf::from(&options.project_path).join(dist_dir);
         std::fs::create_dir_all(&internal_dir)
@@ -316,27 +342,37 @@ pub async fn project_new(
         subscriber.init();
     }
 
-    let turbo_tasks = TurboTasks::new(MemoryBackend::new(
-        turbo_engine_options
-            .memory_limit
-            .map(|m| m as usize)
-            .unwrap_or(usize::MAX),
-    ));
-    let stats_path = std::env::var_os("NEXT_TURBOPACK_TASK_STATISTICS");
-    if let Some(stats_path) = stats_path {
-        let task_stats = turbo_tasks.backend().task_statistics().enable().clone();
-        exit.on_exit(async move {
-            tokio::task::spawn_blocking(move || {
-                let mut file = std::fs::File::create(&stats_path)
-                    .with_context(|| format!("failed to create or open {stats_path:?}"))?;
-                serde_json::to_writer(&file, &task_stats)
-                    .context("failed to serialize or write task statistics")?;
-                file.flush().context("failed to flush file")
-            })
-            .await
-            .unwrap()
-            .unwrap();
-        });
+    let memory_limit = turbo_engine_options
+        .memory_limit
+        .map(|m| m as usize)
+        .unwrap_or(usize::MAX);
+    let persistent_caching = turbo_engine_options.persistent_caching.unwrap_or_default();
+    let turbo_tasks = create_turbo_tasks(
+        PathBuf::from(&options.dist_dir),
+        persistent_caching,
+        memory_limit,
+    )?;
+    if !persistent_caching {
+        use std::io::Write;
+        let stats_path = std::env::var_os("NEXT_TURBOPACK_TASK_STATISTICS");
+        if let Some(stats_path) = stats_path {
+            let Some(backend) = turbo_tasks.memory_backend() else {
+                return Err(anyhow!("task statistics require a memory backend").into());
+            };
+            let task_stats = backend.task_statistics().enable().clone();
+            exit.on_exit(async move {
+                tokio::task::spawn_blocking(move || {
+                    let mut file = std::fs::File::create(&stats_path)
+                        .with_context(|| format!("failed to create or open {stats_path:?}"))?;
+                    serde_json::to_writer(&file, &task_stats)
+                        .context("failed to serialize or write task statistics")?;
+                    file.flush().context("failed to flush file")
+                })
+                .await
+                .unwrap()
+                .unwrap();
+            });
+        }
     }
     let options: ProjectOptions = options.into();
     let container = turbo_tasks
@@ -421,7 +457,7 @@ async fn benchmark_file_io(directory: Vc<FileSystemPath>) -> Result<Vc<Completio
     Ok(Completion::new())
 }
 
-#[napi(ts_return_type = "{ __napiType: \"Project\" }")]
+#[napi]
 pub async fn project_update(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     options: NapiPartialProjectOptions,
@@ -439,7 +475,7 @@ pub async fn project_update(
     Ok(())
 }
 
-#[napi(ts_return_type = "{ __napiType: \"Project\" }")]
+#[napi]
 pub async fn project_shutdown(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
 ) {
@@ -477,11 +513,7 @@ struct NapiRoute {
 }
 
 impl NapiRoute {
-    fn from_route(
-        pathname: String,
-        value: Route,
-        turbo_tasks: &Arc<TurboTasks<MemoryBackend>>,
-    ) -> Self {
+    fn from_route(pathname: String, value: Route, turbo_tasks: &NextTurboTasks) -> Self {
         let convert_endpoint = |endpoint: Vc<Box<dyn Endpoint>>| {
             Some(External::new(ExternalEndpoint(VcArc::new(
                 turbo_tasks.clone(),
@@ -545,10 +577,7 @@ struct NapiMiddleware {
 }
 
 impl NapiMiddleware {
-    fn from_middleware(
-        value: &Middleware,
-        turbo_tasks: &Arc<TurboTasks<MemoryBackend>>,
-    ) -> Result<Self> {
+    fn from_middleware(value: &Middleware, turbo_tasks: &NextTurboTasks) -> Result<Self> {
         Ok(NapiMiddleware {
             endpoint: External::new(ExternalEndpoint(VcArc::new(
                 turbo_tasks.clone(),
@@ -565,10 +594,7 @@ struct NapiInstrumentation {
 }
 
 impl NapiInstrumentation {
-    fn from_instrumentation(
-        value: &Instrumentation,
-        turbo_tasks: &Arc<TurboTasks<MemoryBackend>>,
-    ) -> Result<Self> {
+    fn from_instrumentation(value: &Instrumentation, turbo_tasks: &NextTurboTasks) -> Result<Self> {
         Ok(NapiInstrumentation {
             node_js: External::new(ExternalEndpoint(VcArc::new(
                 turbo_tasks.clone(),
@@ -597,6 +623,7 @@ struct EntrypointsWithIssues {
     entrypoints: ReadRef<Entrypoints>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
     diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
+    effects: Arc<Effects>,
 }
 
 #[turbo_tasks::function]
@@ -607,10 +634,12 @@ async fn get_entrypoints_with_issues(
     let entrypoints = entrypoints_operation.strongly_consistent().await?;
     let issues = get_issues(entrypoints_operation).await?;
     let diagnostics = get_diagnostics(entrypoints_operation).await?;
+    let effects = Arc::new(get_effects(entrypoints_operation).await?);
     Ok(EntrypointsWithIssues {
         entrypoints,
         issues,
         diagnostics,
+        effects,
     }
     .cell())
 }
@@ -627,13 +656,14 @@ pub fn project_entrypoints_subscribe(
         func,
         move || {
             async move {
+                let operation = get_entrypoints_with_issues(container);
                 let EntrypointsWithIssues {
                     entrypoints,
                     issues,
                     diagnostics,
-                } = &*get_entrypoints_with_issues(container)
-                    .strongly_consistent()
-                    .await?;
+                    effects,
+                } = &*operation.strongly_consistent().await?;
+                effects.apply().await?;
                 Ok((entrypoints.clone(), issues.clone(), diagnostics.clone()))
             }
             .instrument(tracing::info_span!("entrypoints subscription"))
@@ -692,6 +722,7 @@ struct HmrUpdateWithIssues {
     update: ReadRef<Update>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
     diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
+    effects: Arc<Effects>,
 }
 
 #[turbo_tasks::function]
@@ -704,10 +735,12 @@ async fn hmr_update(
     let update = update_operation.strongly_consistent().await?;
     let issues = get_issues(update_operation).await?;
     let diagnostics = get_diagnostics(update_operation).await?;
+    let effects = Arc::new(get_effects(update_operation).await?);
     Ok(HmrUpdateWithIssues {
         update,
         issues,
         diagnostics,
+        effects,
     }
     .cell())
 }
@@ -734,14 +767,15 @@ pub fn project_hmr_events(
                     let project = project.project().resolve().await?;
                     let state = project.hmr_version_state(identifier.clone(), session);
 
-                    let update = hmr_update(project, identifier.clone(), state)
-                        .strongly_consistent()
-                        .await?;
+                    let operation = hmr_update(project, identifier.clone(), state);
+                    let update = operation.strongly_consistent().await?;
                     let HmrUpdateWithIssues {
                         update,
                         issues,
                         diagnostics,
+                        effects,
                     } = &*update;
+                    effects.apply().await?;
                     match &**update {
                         Update::Missing | Update::None => {}
                         Update::Total(TotalUpdate { to }) => {
@@ -806,6 +840,7 @@ struct HmrIdentifiersWithIssues {
     identifiers: ReadRef<Vec<RcStr>>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
     diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
+    effects: Arc<Effects>,
 }
 
 #[turbo_tasks::function]
@@ -816,10 +851,12 @@ async fn get_hmr_identifiers_with_issues(
     let hmr_identifiers = hmr_identifiers_operation.strongly_consistent().await?;
     let issues = get_issues(hmr_identifiers_operation).await?;
     let diagnostics = get_diagnostics(hmr_identifiers_operation).await?;
+    let effects = Arc::new(get_effects(hmr_identifiers_operation).await?);
     Ok(HmrIdentifiersWithIssues {
         identifiers: hmr_identifiers,
         issues,
         diagnostics,
+        effects,
     }
     .cell())
 }
@@ -835,13 +872,14 @@ pub fn project_hmr_identifiers_subscribe(
         turbo_tasks.clone(),
         func,
         move || async move {
+            let operation = get_hmr_identifiers_with_issues(container);
             let HmrIdentifiersWithIssues {
                 identifiers,
                 issues,
                 diagnostics,
-            } = &*get_hmr_identifiers_with_issues(container)
-                .strongly_consistent()
-                .await?;
+                effects,
+            } = &*operation.strongly_consistent().await?;
+            effects.apply().await?;
 
             Ok((identifiers.clone(), issues.clone(), diagnostics.clone()))
         },
@@ -910,6 +948,7 @@ impl From<UpdateInfo> for NapiUpdateInfo {
 }
 
 /// Subscribes to lifecycle events of the compilation.
+///
 /// Emits an [UpdateMessage::Start] event when any computation starts.
 /// Emits an [UpdateMessage::End] event when there was no computation for the
 /// specified time (`aggregation_ms`). The [UpdateMessage::End] event contains
@@ -981,73 +1020,75 @@ pub struct StackFrame {
     pub method_name: Option<String>,
 }
 
+pub async fn get_source_map(
+    container: Vc<ProjectContainer>,
+    file_path: String,
+) -> Result<Option<Vc<SourceMap>>> {
+    let (file, module) = match Url::parse(&file_path) {
+        Ok(url) => match url.scheme() {
+            "file" => {
+                let path = urlencoding::decode(url.path())?.to_string();
+                let module = url.query_pairs().find(|(k, _)| k == "id");
+                (
+                    path,
+                    match module {
+                        Some(module) => Some(urlencoding::decode(&module.1)?.into_owned().into()),
+                        None => None,
+                    },
+                )
+            }
+            _ => bail!("Unknown url scheme"),
+        },
+        Err(_) => (file_path.to_string(), None),
+    };
+
+    let Some(chunk_base) = file.strip_prefix(
+        &(format!(
+            "{}/{}/",
+            container.project().await?.project_path,
+            container.project().dist_dir().await?
+        )),
+    ) else {
+        // File doesn't exist within the dist dir
+        return Ok(None);
+    };
+
+    let server_path = container.project().node_root().join(chunk_base.into());
+
+    let client_path = container
+        .project()
+        .client_relative_path()
+        .join(chunk_base.into());
+
+    let mut map = container
+        .get_source_map(server_path, module.clone())
+        .await?;
+
+    if map.is_none() {
+        // If the chunk doesn't exist as a server chunk, try a client chunk.
+        // TODO: Properly tag all server chunks and use the `isServer` query param.
+        // Currently, this is inaccurate as it does not cover RSC server
+        // chunks.
+        map = container.get_source_map(client_path, module).await?;
+    }
+
+    let map = map.context("chunk/module is missing a sourcemap")?;
+
+    Ok(Some(map))
+}
+
 #[napi]
 pub async fn project_trace_source(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     frame: StackFrame,
 ) -> napi::Result<Option<StackFrame>> {
     let turbo_tasks = project.turbo_tasks.clone();
+    let container = project.container;
     let traced_frame = turbo_tasks
         .run_once(async move {
-            let (file, module) = match Url::parse(&frame.file) {
-                Ok(url) => match url.scheme() {
-                    "file" => {
-                        let path = urlencoding::decode(url.path())?.to_string();
-                        let module = url.query_pairs().find(|(k, _)| k == "id");
-                        (
-                            path,
-                            match module {
-                                Some(module) => {
-                                    Some(urlencoding::decode(&module.1)?.into_owned().into())
-                                }
-                                None => None,
-                            },
-                        )
-                    }
-                    _ => bail!("Unknown url scheme"),
-                },
-                Err(_) => (frame.file.to_string(), None),
-            };
-
-            let Some(chunk_base) = file.strip_prefix(
-                &(format!(
-                    "{}/{}/",
-                    project.container.project().await?.project_path,
-                    project.container.project().dist_dir().await?
-                )),
-            ) else {
-                // File doesn't exist within the dist dir
+            let Some(map) = get_source_map(container, frame.file).await? else {
                 return Ok(None);
             };
-
-            let server_path = project
-                .container
-                .project()
-                .node_root()
-                .join(chunk_base.into());
-
-            let client_path = project
-                .container
-                .project()
-                .client_relative_path()
-                .join(chunk_base.into());
-
-            let mut map = project
-                .container
-                .get_source_map(server_path, module.clone())
-                .await?;
-
-            if map.is_none() {
-                // If the chunk doesn't exist as a server chunk, try a client chunk.
-                // TODO: Properly tag all server chunks and use the `isServer` query param.
-                // Currently, this is inaccurate as it does not cover RSC server
-                // chunks.
-                map = project
-                    .container
-                    .get_source_map(client_path, module)
-                    .await?;
-            }
-            let map = map.context("chunk/module is missing a sourcemap")?;
 
             let Some(line) = frame.line else {
                 return Ok(None);
@@ -1062,7 +1103,7 @@ pub async fn project_trace_source(
 
             let (original_file, line, column, name) = match &*token {
                 Token::Original(token) => (
-                    &token.original_file,
+                    urlencoding::decode(&token.original_file)?.into_owned(),
                     // JS stack frames are 1-indexed, source map tokens are 0-indexed
                     Some(token.original_line as u32 + 1),
                     Some(token.original_column as u32 + 1),
@@ -1072,19 +1113,27 @@ pub async fn project_trace_source(
                     let Some(file) = &token.guessed_original_file else {
                         return Ok(None);
                     };
-                    (file, None, None, None)
+                    (file.to_owned(), None, None, None)
                 }
             };
 
-            let Some(source_file) = original_file.strip_prefix(SOURCE_MAP_PREFIX) else {
-                bail!("Original file ({}) outside project", original_file)
-            };
-
+            let project_path_uri =
+                uri_from_file(project.container.project().project_path(), None).await? + "/";
             let (source_file, is_internal) =
-                if let Some(source_file) = source_file.strip_prefix("[project]/") {
+                if let Some(source_file) = original_file.strip_prefix(&project_path_uri) {
+                    // Client code uses file://
                     (source_file, false)
-                } else {
+                } else if let Some(source_file) =
+                    original_file.strip_prefix(&*SOURCE_MAP_PREFIX_PROJECT)
+                {
+                    // Server code uses turbopack://[project]
+                    // TODO should this also be file://?
+                    (source_file, false)
+                } else if let Some(source_file) = original_file.strip_prefix(SOURCE_MAP_PREFIX) {
+                    // All other code like turbopack://[turbopack] is internal code
                     (source_file, true)
+                } else {
+                    bail!("Original file ({}) outside project", original_file)
                 };
 
             Ok(Some(StackFrame {
@@ -1129,6 +1178,28 @@ pub async fn project_get_source_for_asset(
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
 
     Ok(source)
+}
+
+#[napi]
+pub async fn project_get_source_map(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+    file_path: String,
+) -> napi::Result<Option<String>> {
+    let turbo_tasks = project.turbo_tasks.clone();
+    let container = project.container;
+
+    let source_map = turbo_tasks
+        .run_once(async move {
+            let Some(map) = get_source_map(container, file_path).await? else {
+                return Ok(None);
+            };
+
+            Ok(Some(map.to_rope().await?.to_str()?.to_string()))
+        })
+        .await
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
+
+    Ok(source_map)
 }
 
 /// Runs exit handlers for the project registered using the [`ExitHandler`] API.

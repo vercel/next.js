@@ -123,7 +123,7 @@ impl Display for TraceValue<'_> {
     }
 }
 
-impl<'a> TraceValue<'a> {
+impl TraceValue<'_> {
     pub fn as_u64(&self) -> Option<u64> {
         match self {
             TraceValue::UInt(u) => Some(*u),

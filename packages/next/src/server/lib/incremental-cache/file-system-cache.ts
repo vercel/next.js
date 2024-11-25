@@ -7,15 +7,18 @@ import {
   type CachedFetchValue,
 } from '../../response-cache'
 
-import LRUCache from 'next/dist/compiled/lru-cache'
+import { LRUCache } from '../lru-cache'
 import path from '../../../shared/lib/isomorphic/path'
 import {
   NEXT_CACHE_TAGS_HEADER,
   NEXT_DATA_SUFFIX,
   NEXT_META_SUFFIX,
   RSC_PREFETCH_SUFFIX,
+  RSC_SEGMENT_SUFFIX,
+  RSC_SEGMENTS_DIR_SUFFIX,
   RSC_SUFFIX,
 } from '../../../lib/constants'
+import { tagsManifest } from './tags-manifest.external'
 
 type FileSystemCacheContext = Omit<
   CacheHandlerContext,
@@ -25,18 +28,12 @@ type FileSystemCacheContext = Omit<
   serverDistDir: string
 }
 
-type TagsManifest = {
-  version: 1
-  items: { [tag: string]: { revalidatedAt: number } }
-}
-let memoryCache: LRUCache<string, CacheHandlerValue> | undefined
-let tagsManifest: TagsManifest | undefined
+let memoryCache: LRUCache<CacheHandlerValue> | undefined
 
 export default class FileSystemCache implements CacheHandler {
   private fs: FileSystemCacheContext['fs']
   private flushToDisk?: FileSystemCacheContext['flushToDisk']
   private serverDistDir: FileSystemCacheContext['serverDistDir']
-  private tagsManifestPath?: string
   private revalidatedTags: string[]
   private debug: boolean
 
@@ -53,82 +50,37 @@ export default class FileSystemCache implements CacheHandler {
           console.log('using memory store for fetch cache')
         }
 
-        memoryCache = new LRUCache({
-          max: ctx.maxMemoryCacheSize,
-          length({ value }) {
-            if (!value) {
-              return 25
-            } else if (value.kind === CachedRouteKind.REDIRECT) {
-              return JSON.stringify(value.props).length
-            } else if (value.kind === CachedRouteKind.IMAGE) {
-              throw new Error('invariant image should not be incremental-cache')
-            } else if (value.kind === CachedRouteKind.FETCH) {
-              return JSON.stringify(value.data || '').length
-            } else if (value.kind === CachedRouteKind.APP_ROUTE) {
-              return value.body.length
-            }
-            // rough estimate of size of cache value
-            return (
-              value.html.length +
-              (JSON.stringify(
-                value.kind === CachedRouteKind.APP_PAGE
-                  ? value.rscData
-                  : value.pageData
-              )?.length || 0)
-            )
-          },
+        memoryCache = new LRUCache(ctx.maxMemoryCacheSize, function length({
+          value,
+        }) {
+          if (!value) {
+            return 25
+          } else if (value.kind === CachedRouteKind.REDIRECT) {
+            return JSON.stringify(value.props).length
+          } else if (value.kind === CachedRouteKind.IMAGE) {
+            throw new Error('invariant image should not be incremental-cache')
+          } else if (value.kind === CachedRouteKind.FETCH) {
+            return JSON.stringify(value.data || '').length
+          } else if (value.kind === CachedRouteKind.APP_ROUTE) {
+            return value.body.length
+          }
+          // rough estimate of size of cache value
+          return (
+            value.html.length +
+            (JSON.stringify(
+              value.kind === CachedRouteKind.APP_PAGE
+                ? value.rscData
+                : value.pageData
+            )?.length || 0)
+          )
         })
       }
     } else if (this.debug) {
       console.log('not using memory store for fetch cache')
     }
-
-    if (this.serverDistDir && this.fs) {
-      this.tagsManifestPath = path.join(
-        this.serverDistDir,
-        '..',
-        'cache',
-        'fetch-cache',
-        'tags-manifest.json'
-      )
-
-      this.loadTagsManifestSync()
-    }
   }
 
   public resetRequestCache(): void {}
-
-  /**
-   * Load the tags manifest from the file system
-   */
-  private async loadTagsManifest() {
-    if (!this.tagsManifestPath || !this.fs || tagsManifest) return
-    try {
-      tagsManifest = JSON.parse(
-        await this.fs.readFile(this.tagsManifestPath, 'utf8')
-      )
-    } catch (err: any) {
-      tagsManifest = { version: 1, items: {} }
-    }
-    if (this.debug) console.log('loadTagsManifest', tagsManifest)
-  }
-
-  /**
-   * As above, but synchronous for use in the constructor. This is to
-   * preserve the existing behaviour when instantiating the cache handler. Although it's
-   * not ideal to block the main thread it's only called once during startup.
-   */
-  private loadTagsManifestSync() {
-    if (!this.tagsManifestPath || !this.fs || tagsManifest) return
-    try {
-      tagsManifest = JSON.parse(
-        this.fs.readFileSync(this.tagsManifestPath, 'utf8')
-      )
-    } catch (err: any) {
-      tagsManifest = { version: 1, items: {} }
-    }
-    if (this.debug) console.log('loadTagsManifest', tagsManifest)
-  }
 
   public async revalidateTag(
     ...args: Parameters<CacheHandler['revalidateTag']>
@@ -144,31 +96,10 @@ export default class FileSystemCache implements CacheHandler {
       return
     }
 
-    // we need to ensure the tagsManifest is refreshed
-    // since separate workers can be updating it at the same
-    // time and we can't flush out of sync data
-    await this.loadTagsManifest()
-    if (!tagsManifest || !this.tagsManifestPath) {
-      return
-    }
-
     for (const tag of tags) {
       const data = tagsManifest.items[tag] || {}
       data.revalidatedAt = Date.now()
       tagsManifest.items[tag] = data
-    }
-
-    try {
-      await this.fs.mkdir(path.dirname(this.tagsManifestPath))
-      await this.fs.writeFile(
-        this.tagsManifestPath,
-        JSON.stringify(tagsManifest || {})
-      )
-      if (this.debug) {
-        console.log('Updated tags manifest', tagsManifest)
-      }
-    } catch (err: any) {
-      console.warn('Failed to update tags manifest.', err)
     }
   }
 
@@ -263,6 +194,38 @@ export default class FileSystemCache implements CacheHandler {
             )
           } catch {}
 
+          let maybeSegmentData: { [segmentPath: string]: string } | undefined
+          if (meta?.segmentPaths) {
+            // Collect all the segment data for this page.
+            // TODO: To optimize file system reads, we should consider creating
+            // separate cache entries for each segment, rather than storing them
+            // all on the page's entry. Though the behavior is
+            // identical regardless.
+            const segmentData: { [segmentPath: string]: string } = {}
+            maybeSegmentData = segmentData
+            const segmentsDir = key + RSC_SEGMENTS_DIR_SUFFIX
+            await Promise.all(
+              meta.segmentPaths.map(async (segmentPath: string) => {
+                const segmentDataFilePath = this.getFilePath(
+                  segmentPath === '/'
+                    ? segmentsDir + '/_index' + RSC_SEGMENT_SUFFIX
+                    : segmentsDir + segmentPath + RSC_SEGMENT_SUFFIX,
+                  IncrementalCacheKind.APP_PAGE
+                )
+                try {
+                  segmentData[segmentPath] = await this.fs.readFile(
+                    segmentDataFilePath,
+                    'utf8'
+                  )
+                } catch {
+                  // This shouldn't happen, but if for some reason we fail to
+                  // load a segment from the filesystem, treat it the same as if
+                  // the segment is dynamic and does not have a prefetch.
+                }
+              })
+            )
+          }
+
           let rscData: Buffer | undefined
           if (!isFallback) {
             rscData = await this.fs.readFile(
@@ -282,6 +245,7 @@ export default class FileSystemCache implements CacheHandler {
               postponed: meta?.postponed,
               headers: meta?.headers,
               status: meta?.status,
+              segmentData: maybeSegmentData,
             },
           }
         } else if (kind === IncrementalCacheKind.PAGES) {
@@ -336,8 +300,6 @@ export default class FileSystemCache implements CacheHandler {
       }
 
       if (cacheTags?.length) {
-        await this.loadTagsManifest()
-
         const isStale = cacheTags.some((tag) => {
           return (
             tagsManifest?.items[tag]?.revalidatedAt &&
@@ -354,8 +316,6 @@ export default class FileSystemCache implements CacheHandler {
         }
       }
     } else if (data?.value?.kind === CachedRouteKind.FETCH) {
-      await this.loadTagsManifest()
-
       const combinedTags = [...(tags || []), ...(softTags || [])]
 
       const wasRevalidated = combinedTags.some((tag) => {
@@ -405,6 +365,7 @@ export default class FileSystemCache implements CacheHandler {
         headers: data.headers,
         status: data.status,
         postponed: undefined,
+        segmentPaths: undefined,
       }
 
       await this.fs.writeFile(
@@ -447,6 +408,7 @@ export default class FileSystemCache implements CacheHandler {
           headers: data.headers,
           status: data.status,
           postponed: data.postponed,
+          segmentPaths: undefined,
         }
 
         await this.fs.writeFile(

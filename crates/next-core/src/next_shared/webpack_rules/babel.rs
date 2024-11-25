@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbo_tasks_fs::{self, FileSystemEntryType, FileSystemPath};
 use turbopack::module_options::{LoaderRuleItem, OptionWebpackRules, WebpackRules};
 use turbopack_core::{
@@ -27,7 +27,7 @@ const BABEL_CONFIG_FILES: &[&str] = &[
 #[turbo_tasks::function]
 pub async fn maybe_add_babel_loader(
     project_root: Vc<FileSystemPath>,
-    webpack_rules: Option<Vc<WebpackRules>>,
+    webpack_rules: Option<ResolvedVc<WebpackRules>>,
 ) -> Result<Vc<OptionWebpackRules>> {
     let has_babel_config = {
         let mut has_babel_config = false;
@@ -89,12 +89,12 @@ pub async fn maybe_add_babel_loader(
                 if let Some(rule) = rule {
                     let mut loaders = rule.loaders.await?.clone_value();
                     loaders.push(loader);
-                    rule.loaders = Vc::cell(loaders);
+                    rule.loaders = ResolvedVc::cell(loaders);
                 } else {
                     rules.insert(
                         pattern.into(),
                         LoaderRuleItem {
-                            loaders: Vc::cell(vec![loader]),
+                            loaders: ResolvedVc::cell(vec![loader]),
                             rename_as: Some("*".into()),
                         },
                     );
@@ -104,7 +104,7 @@ pub async fn maybe_add_babel_loader(
         }
 
         if has_changed {
-            return Ok(Vc::cell(Some(Vc::cell(rules))));
+            return Ok(Vc::cell(Some(ResolvedVc::cell(rules))));
         }
     }
     Ok(Vc::cell(webpack_rules))

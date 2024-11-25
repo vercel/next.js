@@ -59,7 +59,7 @@ export async function writeAppTypeDeclarations({
   directives.push(
     '',
     '// NOTE: This file should not be edited',
-    `// see https://nextjs.org/docs/${hasAppDir ? 'app' : 'pages'}/building-your-application/configuring/typescript for more information.`
+    `// see https://nextjs.org/docs/${hasAppDir ? 'app' : 'pages'}/api-reference/config/typescript for more information.`
   )
 
   const content = directives.join(eol) + eol

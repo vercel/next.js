@@ -1,12 +1,6 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use swc_core::{
-    common::util::take::Take,
-    ecma::{
-        ast::{Module, Program},
-        visit::FoldWith,
-    },
-};
+use swc_core::ecma::ast::Program;
 use turbo_tasks::Vc;
 use turbopack::module_options::ModuleRule;
 use turbopack_ecmascript::{CustomTransformer, TransformContext};
@@ -21,10 +15,10 @@ pub async fn get_react_remove_properties_transform_rule(
     let enable_mdx_rs = next_config.mdx_rs().await?.is_some();
 
     let module_rule = next_config
+        .compiler()
         .await?
-        .compiler
+        .react_remove_properties
         .as_ref()
-        .and_then(|value| value.react_remove_properties.as_ref())
         .and_then(|config| match config {
             ReactRemoveProperties::Boolean(false) => None,
             ReactRemoveProperties::Boolean(true) => {
@@ -56,8 +50,7 @@ struct ReactRemovePropertiesTransformer {
 impl CustomTransformer for ReactRemovePropertiesTransformer {
     #[tracing::instrument(level = tracing::Level::TRACE, name = "react_remove_properties", skip_all)]
     async fn transform(&self, program: &mut Program, _ctx: &TransformContext<'_>) -> Result<()> {
-        let p = std::mem::replace(program, Program::Module(Module::dummy()));
-        *program = p.fold_with(&mut react_remove_properties::react_remove_properties(
+        program.mutate(react_remove_properties::react_remove_properties(
             self.config.clone(),
         ));
 

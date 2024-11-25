@@ -1,7 +1,7 @@
 use anyhow::Result;
-use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, Completion, RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, Completion, FxIndexMap, Vc};
 use turbopack_core::module::Modules;
 
 use crate::paths::ServerPath;
@@ -97,4 +97,4 @@ pub enum WrittenEndpoint {
 /// The routes as map from pathname to route. (pathname includes the leading
 /// slash)
 #[turbo_tasks::value(transparent)]
-pub struct Routes(IndexMap<RcStr, Route>);
+pub struct Routes(FxIndexMap<RcStr, Route>);

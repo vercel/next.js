@@ -12,7 +12,9 @@ use turbopack_ecmascript::TreeShakingMode;
 pub fn get_runtime_asset_context(environment: Vc<Environment>) -> Vc<Box<dyn AssetContext>> {
     let module_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
-            enable_typescript_transform: Some(TypescriptTransformOptions::default().cell()),
+            enable_typescript_transform: Some(
+                TypescriptTransformOptions::default().resolved_cell(),
+            ),
             ..Default::default()
         },
         // TODO: Somehow this fails to compile when enabled.

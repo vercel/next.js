@@ -41,6 +41,9 @@ npm install && npm run dev
 # or
 cd home
 yarn && yarn dev
+# or
+cd home
+pnpm install && pnpm dev
 ```
 
 The `/home` app should be up and running in [http://localhost:3000](http://localhost:3000)!
@@ -53,6 +56,9 @@ npm install && npm run dev
 # or
 cd blog
 yarn && yarn dev
+# or
+cd blog
+pnpm install && pnpm dev
 ```
 
 The `blog` app should be up and running in [http://localhost:4000/blog](http://localhost:4000/blog)!

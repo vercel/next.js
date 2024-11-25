@@ -1,6 +1,8 @@
 use anyhow::{bail, Result};
+use auto_hash_map::AutoMap;
 use include_dir::{Dir, DirEntry};
-use turbo_tasks::{Completion, RcStr, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{Completion, ValueToString, Vc};
 
 use crate::{
     DirectoryContent, DirectoryEntry, File, FileContent, FileMeta, FileSystem, FileSystemPath,
@@ -46,29 +48,26 @@ impl FileSystem for EmbeddedFileSystem {
             (_, None) => return Ok(DirectoryContent::NotFound.cell()),
         };
 
-        let entries = dir
-            .entries()
-            .iter()
-            .map(|e| {
-                let entry_name: RcStr = e
-                    .path()
-                    .file_name()
-                    .unwrap_or_default()
-                    .to_string_lossy()
-                    .into();
-                let entry_path = path.join(entry_name.clone());
+        let mut converted_entries = AutoMap::new();
+        for e in dir.entries() {
+            let entry_name: RcStr = e
+                .path()
+                .file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .into();
+            let entry_path = path.join(entry_name.clone()).to_resolved().await?;
 
-                (
-                    entry_name,
-                    match e {
-                        DirEntry::Dir(_) => DirectoryEntry::Directory(entry_path),
-                        DirEntry::File(_) => DirectoryEntry::File(entry_path),
-                    },
-                )
-            })
-            .collect();
+            converted_entries.insert(
+                entry_name,
+                match e {
+                    DirEntry::Dir(_) => DirectoryEntry::Directory(entry_path),
+                    DirEntry::File(_) => DirectoryEntry::File(entry_path),
+                },
+            );
+        }
 
-        Ok(DirectoryContent::new(entries))
+        Ok(DirectoryContent::new(converted_entries))
     }
 
     #[turbo_tasks::function]
@@ -77,20 +76,12 @@ impl FileSystem for EmbeddedFileSystem {
     }
 
     #[turbo_tasks::function]
-    fn write(
-        &self,
-        _path: Vc<FileSystemPath>,
-        _content: Vc<FileContent>,
-    ) -> Result<Vc<Completion>> {
+    fn write(&self, _path: Vc<FileSystemPath>, _content: Vc<FileContent>) -> Result<Vc<()>> {
         bail!("Writing is not possible to the embedded filesystem")
     }
 
     #[turbo_tasks::function]
-    fn write_link(
-        &self,
-        _path: Vc<FileSystemPath>,
-        _target: Vc<LinkContent>,
-    ) -> Result<Vc<Completion>> {
+    fn write_link(&self, _path: Vc<FileSystemPath>, _target: Vc<LinkContent>) -> Result<Vc<()>> {
         bail!("Writing is not possible to the embedded filesystem")
     }
 

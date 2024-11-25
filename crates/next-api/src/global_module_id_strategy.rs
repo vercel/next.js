@@ -84,9 +84,7 @@ impl GlobalModuleIdStrategyBuilder {
 // NOTE(LichuAcu) We can't move this function to `turbopack-core` because we need access to
 // `Endpoint`, which is not available there.
 #[turbo_tasks::function]
-async fn preprocess_module_ids(
-    endpoint: Vc<Box<dyn Endpoint>>,
-) -> Result<Vc<PreprocessedChildrenIdents>> {
+fn preprocess_module_ids(endpoint: Vc<Box<dyn Endpoint>>) -> Vc<PreprocessedChildrenIdents> {
     let root_modules = endpoint.root_modules();
-    Ok(children_modules_idents(root_modules))
+    children_modules_idents(root_modules)
 }

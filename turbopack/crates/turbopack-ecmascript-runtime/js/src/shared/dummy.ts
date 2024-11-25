@@ -7,4 +7,7 @@
  * This interface will be implemented by runtimes.
  */
 
-declare var getOrInstantiateModuleFromParent: GetOrInstantiateModuleFromParent;
+declare function getOrInstantiateModuleFromParent<M>(
+  id: ModuleId,
+  sourceModule: M
+): M;

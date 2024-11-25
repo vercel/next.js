@@ -1,10 +1,11 @@
-use std::{any::Any, fmt::Debug, future::Future, hash::Hash};
+use std::{any::Any, fmt::Debug, future::Future, hash::Hash, time::Duration};
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use turbo_rcstr::RcStr;
 
 use crate::{
-    MagicAny, RcStr, ResolvedVc, TaskId, TransientInstance, TransientValue, Value, ValueTypeId, Vc,
+    MagicAny, ResolvedVc, TaskId, TransientInstance, TransientValue, Value, ValueTypeId, Vc,
 };
 
 /// Trait to implement in order for a type to be accepted as a
@@ -42,7 +43,8 @@ impl_task_input! {
     usize,
     RcStr,
     TaskId,
-    ValueTypeId
+    ValueTypeId,
+    Duration
 }
 
 impl<T> TaskInput for Vec<T>
@@ -94,7 +96,7 @@ where
 
 impl<T> TaskInput for Vc<T>
 where
-    T: Send,
+    T: Send + Sync + ?Sized,
 {
     fn is_resolved(&self) -> bool {
         Vc::is_resolved(*self)
@@ -109,16 +111,22 @@ where
     }
 }
 
+// `TaskInput` isn't needed/used for a bare `ResolvedVc`, as we'll expose `ResolvedVc` arguments as
+// `Vc`, but it is useful for structs that contain `ResolvedVc` and want to derive `TaskInput`.
 impl<T> TaskInput for ResolvedVc<T>
 where
-    T: Send,
+    T: Send + Sync + ?Sized,
 {
     fn is_resolved(&self) -> bool {
         true
     }
 
     fn is_transient(&self) -> bool {
-        self.node.node.get_task_id().is_transient()
+        self.node.is_transient()
+    }
+
+    async fn resolve(&self) -> Result<Self> {
+        Ok(*self)
     }
 }
 

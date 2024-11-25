@@ -1,10 +1,10 @@
 'use server'
-import { revalidatePath } from 'next/cache'
+import { expirePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
 export const action = async () => {
   console.log('revalidating')
-  revalidatePath('/delayed-action', 'page')
+  expirePath('/delayed-action', 'page')
   return Math.random()
 }
 

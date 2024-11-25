@@ -546,7 +546,7 @@ export function onDemandEntryHandler({
 
   function getPagePathsFromEntrypoints(
     type: CompilerNameValues,
-    entrypoints: Map<string, { name?: string }>
+    entrypoints: Map<string, { name?: string | null }>
   ) {
     const pagePaths: string[] = []
     for (const entrypoint of entrypoints.values()) {

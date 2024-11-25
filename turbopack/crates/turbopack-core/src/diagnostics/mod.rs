@@ -2,15 +2,15 @@ use std::cmp::Ordering;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use indexmap::IndexMap;
-use turbo_tasks::{emit, CollectiblesSource, RcStr, Upcast, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{emit, CollectiblesSource, FxIndexMap, Upcast, Vc};
 
 #[turbo_tasks::value(serialization = "none")]
 #[derive(Clone, Debug)]
 pub struct PlainDiagnostic {
     pub category: RcStr,
     pub name: RcStr,
-    pub payload: IndexMap<RcStr, RcStr>,
+    pub payload: FxIndexMap<RcStr, RcStr>,
 }
 
 impl Ord for PlainDiagnostic {
@@ -44,7 +44,7 @@ impl PartialOrd for PlainDiagnostic {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct DiagnosticPayload(pub IndexMap<RcStr, RcStr>);
+pub struct DiagnosticPayload(pub FxIndexMap<RcStr, RcStr>);
 
 /// An arbitrary payload can be used to analyze, diagnose
 /// Turbopack's behavior.

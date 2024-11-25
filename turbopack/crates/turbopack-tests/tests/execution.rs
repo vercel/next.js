@@ -1,5 +1,7 @@
 #![cfg(test)]
 #![feature(arbitrary_self_types)]
+#![feature(arbitrary_self_types_pointers)]
+#![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
 mod util;
 
@@ -7,11 +9,11 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 use dunce::canonicalize;
-use indexmap::indexmap;
 use serde::{Deserialize, Serialize};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, Completion, RcStr, TryJoinIterExt, TurboTasks,
-    Value, Vc,
+    apply_effects, debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs, Completion, ResolvedVc,
+    TryJoinIterExt, TurboTasks, Value, Vc,
 };
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::CommandLineProcessEnv;
@@ -22,7 +24,7 @@ use turbo_tasks_fs::{
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
     ecmascript::TreeShakingMode,
-    module_options::{EcmascriptOptionsContext, ModuleOptionsContext},
+    module_options::{EcmascriptOptionsContext, ModuleOptionsContext, TypescriptTransformOptions},
     ModuleAssetContext,
 };
 use turbopack_core::{
@@ -36,7 +38,7 @@ use turbopack_core::{
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
         options::{ImportMap, ImportMapping},
-        ExternalType,
+        ExternalTraced, ExternalType,
     },
     source::Source,
 };
@@ -64,6 +66,8 @@ struct JsResult {
     jest_result: JestRunResult,
 }
 
+#[turbo_tasks::value]
+#[derive(Copy, Clone, Debug, Hash)]
 enum IssueSnapshotMode {
     Snapshots,
     NoSnapshots,
@@ -166,16 +170,27 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
 
     let tt = TurboTasks::new(MemoryBackend::default());
     tt.run_once(async move {
-        let resource_str = resource.to_str().unwrap();
-        let prepared_test = prepare_test(resource_str.into());
-        let run_result = run_test(prepared_test);
-        if matches!(snapshot_mode, IssueSnapshotMode::Snapshots) {
-            snapshot_issues(prepared_test, run_result).await?;
-        }
+        let emit = run_inner(resource.to_str().unwrap().into(), Value::new(snapshot_mode));
+        let result = emit.strongly_consistent().await?;
+        apply_effects(emit).await?;
 
-        Ok((*run_result.await.unwrap().js_result.await.unwrap()).clone())
+        Ok(result.clone_value())
     })
     .await
+}
+
+#[turbo_tasks::function]
+async fn run_inner(
+    resource: RcStr,
+    snapshot_mode: Value<IssueSnapshotMode>,
+) -> Result<Vc<JsResult>> {
+    let prepared_test = prepare_test(resource);
+    let run_result = run_test(prepared_test);
+    if *snapshot_mode == IssueSnapshotMode::Snapshots {
+        snapshot_issues(prepared_test, run_result).await?;
+    }
+
+    Ok(run_result.await?.js_result)
 }
 
 #[derive(PartialEq, Eq, Debug, Default, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat)]
@@ -189,7 +204,7 @@ struct PreparedTest {
     path: Vc<FileSystemPath>,
     project_path: Vc<FileSystemPath>,
     tests_path: Vc<FileSystemPath>,
-    project_root: Vc<FileSystemPath>,
+    project_root: ResolvedVc<FileSystemPath>,
     options: TestOptions,
 }
 
@@ -205,7 +220,7 @@ async fn prepare_test(resource: RcStr) -> Result<Vc<PreparedTest>> {
 
     let root_fs = DiskFileSystem::new("workspace".into(), REPO_ROOT.clone(), vec![]);
     let project_fs = DiskFileSystem::new("project".into(), REPO_ROOT.clone(), vec![]);
-    let project_root = project_fs.root();
+    let project_root = project_fs.root().to_resolved().await?;
 
     let relative_path = resource_path.strip_prefix(&*REPO_ROOT).context(format!(
         "stripping repo root {:?} from resource path {:?}",
@@ -273,7 +288,22 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
     let mut import_map = ImportMap::empty();
     import_map.insert_wildcard_alias(
         "esm-external/",
-        ImportMapping::External(Some("*".into()), ExternalType::EcmaScriptModule).cell(),
+        ImportMapping::External(
+            Some("*".into()),
+            ExternalType::EcmaScriptModule,
+            ExternalTraced::Untraced,
+        )
+        .resolved_cell(),
+    );
+    import_map.insert_exact_alias(
+        "jest-circus",
+        ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Untraced)
+            .resolved_cell(),
+    );
+    import_map.insert_exact_alias(
+        "expect",
+        ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Untraced)
+            .resolved_cell(),
     );
 
     let asset_context: Vc<Box<dyn AssetContext>> = Vc::upcast(ModuleAssetContext::new(
@@ -281,11 +311,13 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
         compile_time_info,
         ModuleOptionsContext {
             ecmascript: EcmascriptOptionsContext {
-                enable_typescript_transform: Some(Default::default()),
+                enable_typescript_transform: Some(
+                    TypescriptTransformOptions::default().resolved_cell(),
+                ),
                 import_externals: true,
                 ..Default::default()
             },
-            preset_env_versions: Some(env),
+            preset_env_versions: Some(env.to_resolved().await?),
             tree_shaking_mode: options.tree_shaking_mode,
             rules: vec![(
                 ContextCondition::InDirectory("node_modules".into()),
@@ -293,7 +325,7 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
                     tree_shaking_mode: options.tree_shaking_mode,
                     ..Default::default()
                 }
-                .cell(),
+                .resolved_cell(),
             )],
             ..Default::default()
         }
@@ -310,11 +342,11 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
                     browser: true,
                     ..Default::default()
                 }
-                .cell(),
+                .resolved_cell(),
             )],
             browser: true,
             module: true,
-            import_map: Some(import_map.cell()),
+            import_map: Some(import_map.resolved_cell()),
             ..Default::default()
         }
         .cell(),
@@ -322,7 +354,7 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
     ));
 
     let chunking_context = NodeJsChunkingContext::builder(
-        project_root,
+        *project_root,
         chunk_root_path,
         static_root_path,
         chunk_root_path,
@@ -340,12 +372,14 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
             Vc::upcast(test_source),
             Value::new(ReferenceType::Internal(InnerAssets::empty())),
         )
-        .module();
+        .module()
+        .to_resolved()
+        .await?;
 
     let jest_entry_asset = asset_context
         .process(
             Vc::upcast(jest_entry_source),
-            Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
+            Value::new(ReferenceType::Internal(Vc::cell(fxindexmap! {
                 "TESTS".into() => test_asset,
             }))),
         )

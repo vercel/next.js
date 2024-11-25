@@ -32,6 +32,8 @@ Download schema introspection data from configured Relay endpoint
 npm run schema
 # or
 yarn schema
+# or
+pnpm schema
 ```
 
 Run Relay ahead-of-time compilation (should be re-run after any edits to components that query data with Relay)
@@ -40,6 +42,8 @@ Run Relay ahead-of-time compilation (should be re-run after any edits to compone
 npm run relay
 # or
 yarn relay
+# or
+pnpm relay
 ```
 
 Run the project
@@ -48,6 +52,8 @@ Run the project
 npm run dev
 # or
 yarn dev
+# or
+pnpm dev
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

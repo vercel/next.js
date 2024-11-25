@@ -135,6 +135,37 @@ export class I18NProvider {
   }
 
   /**
+   * Validates that the locale is valid.
+   *
+   * @param locale The locale to validate.
+   * @returns `true` if the locale is valid, `false` otherwise.
+   */
+  private validate(locale: string): boolean {
+    return this.lowerCaseLocales.includes(locale.toLowerCase())
+  }
+
+  /**
+   * Validates that the locales in the query object are valid.
+   *
+   * @param query The query object to validate.
+   * @returns `true` if the locale is valid, `false` otherwise.
+   */
+  public validateQuery(query: NextParsedUrlQuery) {
+    if (query.__nextLocale && !this.validate(query.__nextLocale)) {
+      return false
+    }
+
+    if (
+      query.__nextDefaultLocale &&
+      !this.validate(query.__nextDefaultLocale)
+    ) {
+      return false
+    }
+
+    return true
+  }
+
+  /**
    * Analyzes the pathname for a locale and returns the pathname without it.
    *
    * @param pathname The pathname that could contain a locale prefix.

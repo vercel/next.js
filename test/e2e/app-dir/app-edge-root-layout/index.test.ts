@@ -25,7 +25,7 @@ describe('app-dir edge runtime root layout', () => {
       const middlewareManifest = await next.readFile(
         '.next/server/middleware-manifest.json'
       )
-      expect(middlewareManifest).not.toContain('favicon')
+      expect(middlewareManifest).not.toContain('/favicon')
     })
   }
 })

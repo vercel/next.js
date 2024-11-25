@@ -1,6 +1,7 @@
 use anyhow::Result;
 use swc_core::quote;
-use turbo_tasks::{RcStr, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
     chunk::{
         ChunkItemExt, ChunkableModule, ChunkableModuleReference, ChunkingContext,
@@ -21,14 +22,14 @@ use crate::{
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct EsmModuleIdAssetReference {
-    inner: Vc<EsmAssetReference>,
-    ast_path: Vc<AstPath>,
+    inner: ResolvedVc<EsmAssetReference>,
+    ast_path: ResolvedVc<AstPath>,
 }
 
 #[turbo_tasks::value_impl]
 impl EsmModuleIdAssetReference {
     #[turbo_tasks::function]
-    pub fn new(inner: Vc<EsmAssetReference>, ast_path: Vc<AstPath>) -> Vc<Self> {
+    pub fn new(inner: ResolvedVc<EsmAssetReference>, ast_path: ResolvedVc<AstPath>) -> Vc<Self> {
         Self::cell(EsmModuleIdAssetReference { inner, ast_path })
     }
 }
@@ -90,6 +91,6 @@ impl CodeGenerateable for EsmModuleIdAssetReference {
             );
         }
 
-        Ok(CodeGeneration { visitors }.into())
+        Ok(CodeGeneration::visitors(visitors))
     }
 }

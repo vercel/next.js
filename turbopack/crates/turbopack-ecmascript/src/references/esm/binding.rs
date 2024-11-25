@@ -13,7 +13,8 @@ use swc_core::{
         },
     },
 };
-use turbo_tasks::{trace::TraceRawVcs, RcStr, TaskInput, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{trace::TraceRawVcs, ResolvedVc, TaskInput, Vc};
 use turbopack_core::chunk::ChunkingContext;
 
 use super::EsmAssetReference;
@@ -41,14 +42,14 @@ impl EsmBindings {
 pub struct EsmBinding {
     pub reference: Vc<EsmAssetReference>,
     pub export: Option<RcStr>,
-    pub ast_path: Vc<AstPath>,
+    pub ast_path: ResolvedVc<AstPath>,
 }
 
 impl EsmBinding {
     pub fn new(
         reference: Vc<EsmAssetReference>,
         export: Option<RcStr>,
-        ast_path: Vc<AstPath>,
+        ast_path: ResolvedVc<AstPath>,
     ) -> Self {
         EsmBinding {
             reference,
@@ -151,18 +152,17 @@ impl EsmBinding {
 impl CodeGenerateable for EsmBindings {
     #[turbo_tasks::function]
     async fn code_generation(
-        self: Vc<Self>,
+        &self,
         _context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
-        let this = self.await?;
         let mut visitors = Vec::new();
-        let bindings = this.bindings.clone();
+        let bindings = self.bindings.clone();
 
         for item in bindings.into_iter() {
             item.to_visitors(&mut visitors).await?;
         }
 
-        Ok(CodeGeneration { visitors }.into())
+        Ok(CodeGeneration::visitors(visitors))
     }
 }
 

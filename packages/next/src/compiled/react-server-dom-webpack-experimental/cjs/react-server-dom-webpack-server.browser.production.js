@@ -845,16 +845,17 @@ function serializeThenable(request, task, thenable) {
       pingTask(request, newTask);
     },
     function (reason) {
-      "object" === typeof reason &&
-      null !== reason &&
-      reason.$$typeof === REACT_POSTPONE_TYPE
-        ? (logPostpone(request, reason.message, newTask),
-          emitPostponeChunk(request, newTask.id))
-        : ((reason = logRecoverableError(request, reason, newTask)),
-          emitErrorChunk(request, newTask.id, reason));
-      newTask.status = 4;
-      request.abortableTasks.delete(newTask);
-      enqueueFlush(request);
+      0 === newTask.status &&
+        ("object" === typeof reason &&
+        null !== reason &&
+        reason.$$typeof === REACT_POSTPONE_TYPE
+          ? (logPostpone(request, reason.message, newTask),
+            emitPostponeChunk(request, newTask.id))
+          : ((reason = logRecoverableError(request, reason, newTask)),
+            emitErrorChunk(request, newTask.id, reason)),
+        (newTask.status = 4),
+        request.abortableTasks.delete(newTask),
+        enqueueFlush(request));
     }
   );
   return newTask.id;
@@ -1523,6 +1524,9 @@ function renderModelDestructive(
             break;
           case "3":
             existingReference = "props";
+            break;
+          case "4":
+            existingReference = "_owner";
         }
       elementReference.set(value, writtenObjects + ":" + existingReference);
     }
@@ -1542,6 +1546,7 @@ function renderModelDestructive(
         (value = Array.from(value.entries())),
         "$K" + outlineModel(request, value).toString(16)
       );
+    if (value instanceof Error) return "$Z";
     if (value instanceof ArrayBuffer)
       return serializeTypedArray(request, "A", new Uint8Array(value));
     if (value instanceof Int8Array)
@@ -1600,6 +1605,7 @@ function renderModelDestructive(
             ))),
         value
       );
+    if (value instanceof Date) return "$D" + value.toJSON();
     request = getPrototypeOf(value);
     if (
       request !== ObjectPrototype &&
@@ -2114,7 +2120,9 @@ function resolveServerReference(bundlerConfig, id) {
           '" in the React Server Manifest. This is probably a bug in the React Server Components bundler.'
       );
   }
-  return [resolvedModuleData.id, resolvedModuleData.chunks, name];
+  return resolvedModuleData.async
+    ? [resolvedModuleData.id, resolvedModuleData.chunks, name, 1]
+    : [resolvedModuleData.id, resolvedModuleData.chunks, name];
 }
 var chunkCache = new Map();
 function requireAsyncModule(id) {

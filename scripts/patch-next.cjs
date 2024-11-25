@@ -3,7 +3,7 @@
 const {
   NEXT_DIR,
   exec,
-  logCommand,
+  execFn,
   booleanArg,
   packageFiles,
 } = require('./pack-util.cjs')
@@ -20,11 +20,6 @@ const noBuild = booleanArg(args, '--no-build')
 const noNativeBuild = booleanArg(args, '--no-native-build')
 
 const PROJECT_DIR = path.resolve(args[0])
-
-async function execFn(title, fn) {
-  logCommand(title, fn.toString())
-  return fn()
-}
 
 function realPathIfAny(path) {
   try {

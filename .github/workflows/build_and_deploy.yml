@@ -109,8 +109,6 @@ jobs:
           # only build the binaries we run automated tests against
           # linux GNU x64
           - settings:
-              target: ${{ needs.deploy-target.outputs.value == 'automated-preview' && 'i686-pc-windows-msvc' }}
-          - settings:
               target: ${{ needs.deploy-target.outputs.value == 'automated-preview' && 'aarch64-apple-darwin' }}
           - settings:
               target: ${{ needs.deploy-target.outputs.value == 'automated-preview' && 'aarch64-pc-windows-msvc' }}
@@ -168,19 +166,6 @@ jobs:
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
               turbo run build-native-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target x86_64-pc-windows-msvc
             target: 'x86_64-pc-windows-msvc'
-
-          - host:
-              - 'self-hosted'
-              - 'windows'
-              - 'x64'
-
-            # --env-mode loose is a breaking change required with turbo 2.x since Strict mode is now the default
-            # TODO: we should add the relevant envs later to to switch to strict mode
-            build: |
-              corepack enable
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
-              turbo run build-native-no-plugin-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target i686-pc-windows-msvc
-            target: 'i686-pc-windows-msvc'
 
           - host:
               - 'self-hosted'
@@ -571,6 +556,37 @@ jobs:
           name: npm-publish-logs
           path: /home/runner/.npm/_logs/*
 
+  publish-turbopack-npm-packages:
+    # Matches the commit message written by turbopack/xtask/src/publish.rs:377
+    if: "${{(github.ref == 'refs/heads/canary') && startsWith(github.event.head_commit.message, 'chore: release turbopack npm packages')}}"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_LTS_VERSION }}
+          check-latest: true
+      - run: corepack enable
+
+      - uses: ./.github/actions/setup-rust
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpx turbo@canary run build --only --filter='./turbopack/packages/*'
+
+      - name: Write NPM_TOKEN
+        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN_ELEVATED }}" > ~/.npmrc
+
+      - name: Publish
+        run: cargo xtask workspace --publish
+
   deployExamples:
     if: ${{ needs.deploy-target.outputs.value != 'automated-preview' }}
     name: Deploy examples
@@ -612,7 +628,7 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          pattern: next-swc-binaries
+          pattern: next-swc-binaries-*
           merge-multiple: true
           path: packages/next-swc/native
 

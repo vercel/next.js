@@ -10,7 +10,8 @@ pub use custom_module_type::CustomModuleType;
 pub use module_options_context::*;
 pub use module_rule::*;
 pub use rule_condition::*;
-use turbo_tasks::{RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 use turbopack_core::{
     reference_type::{CssReferenceSubType, ReferenceType, UrlReferenceSubType},
@@ -29,27 +30,27 @@ use crate::{
 #[turbo_tasks::function]
 async fn package_import_map_from_import_mapping(
     package_name: RcStr,
-    package_mapping: Vc<ImportMapping>,
-) -> Result<Vc<ImportMap>> {
+    package_mapping: ResolvedVc<ImportMapping>,
+) -> Vc<ImportMap> {
     let mut import_map = ImportMap::default();
     import_map.insert_exact_alias(
         format!("@vercel/turbopack/{}", package_name),
         package_mapping,
     );
-    Ok(import_map.cell())
+    import_map.cell()
 }
 
 #[turbo_tasks::function]
 async fn package_import_map_from_context(
     package_name: RcStr,
-    context_path: Vc<FileSystemPath>,
-) -> Result<Vc<ImportMap>> {
+    context_path: ResolvedVc<FileSystemPath>,
+) -> Vc<ImportMap> {
     let mut import_map = ImportMap::default();
     import_map.insert_exact_alias(
         format!("@vercel/turbopack/{}", package_name),
-        ImportMapping::PrimaryAlternative(package_name, Some(context_path)).cell(),
+        ImportMapping::PrimaryAlternative(package_name, Some(context_path)).resolved_cell(),
     );
-    Ok(import_map.cell())
+    import_map.cell()
 }
 
 #[turbo_tasks::value(cell = "new", eq = "manual")]
@@ -80,12 +81,7 @@ impl ModuleOptions {
                 },
             enable_mdx,
             enable_mdx_rs,
-            css:
-                CssOptionsContext {
-                    enable_raw_css,
-                    use_swc_css,
-                    ..
-                },
+            css: CssOptionsContext { enable_raw_css, .. },
             ref enable_postcss_transform,
             ref enable_webpack_loaders,
             preset_env_versions,
@@ -93,7 +89,6 @@ impl ModuleOptions {
             execution_context,
             ref rules,
             tree_shaking_mode,
-            special_exports,
             ..
         } = *module_options_context.await?;
 
@@ -104,7 +99,7 @@ impl ModuleOptions {
                 if condition.matches(&path_value).await? {
                     return Ok(ModuleOptions::new(
                         path,
-                        *new_context,
+                        **new_context,
                         resolve_options_context,
                     ));
                 }
@@ -125,8 +120,8 @@ impl ModuleOptions {
             transforms.push(EcmascriptInputTransform::React {
                 development: jsx.development,
                 refresh: jsx.react_refresh,
-                import_source: Vc::cell(jsx.import_source.clone()),
-                runtime: Vc::cell(jsx.runtime.clone()),
+                import_source: ResolvedVc::cell(jsx.import_source.clone()),
+                runtime: ResolvedVc::cell(jsx.runtime.clone()),
             });
         }
 
@@ -136,13 +131,14 @@ impl ModuleOptions {
             import_externals,
             ignore_dynamic_requests,
             refresh,
-            special_exports: special_exports.unwrap_or_else(|| Vc::cell(vec![])),
             ..Default::default()
         };
-        let ecmascript_options_vc = ecmascript_options.cell();
+        let ecmascript_options_vc = ecmascript_options.resolved_cell();
 
         if let Some(env) = preset_env_versions {
-            transforms.push(EcmascriptInputTransform::PresetEnv(env));
+            transforms.push(EcmascriptInputTransform::PresetEnv(
+                env.to_resolved().await?,
+            ));
         }
 
         if let Some(enable_typeof_window_inlining) = enable_typeof_window_inlining {
@@ -239,7 +235,7 @@ impl ModuleOptions {
                         specified_module_type: SpecifiedModuleType::EcmaScript,
                         ..ecmascript_options
                     }
-                    .into(),
+                    .resolved_cell(),
                 })],
             ),
             ModuleRule::new_all(
@@ -250,7 +246,7 @@ impl ModuleOptions {
                         specified_module_type: SpecifiedModuleType::CommonJs,
                         ..ecmascript_options
                     }
-                    .into(),
+                    .resolved_cell(),
                 })],
             ),
             ModuleRule::new_all(
@@ -281,7 +277,7 @@ impl ModuleOptions {
                         specified_module_type: SpecifiedModuleType::EcmaScript,
                         ..ecmascript_options
                     }
-                    .into(),
+                    .resolved_cell(),
                 })],
             ),
             ModuleRule::new_all(
@@ -294,7 +290,7 @@ impl ModuleOptions {
                         specified_module_type: SpecifiedModuleType::EcmaScript,
                         ..ecmascript_options
                     }
-                    .into(),
+                    .resolved_cell(),
                 })],
             ),
             ModuleRule::new_all(
@@ -307,7 +303,7 @@ impl ModuleOptions {
                         specified_module_type: SpecifiedModuleType::CommonJs,
                         ..ecmascript_options
                     }
-                    .into(),
+                    .resolved_cell(),
                 })],
             ),
             ModuleRule::new_all(
@@ -320,7 +316,7 @@ impl ModuleOptions {
                         specified_module_type: SpecifiedModuleType::CommonJs,
                         ..ecmascript_options
                     }
-                    .into(),
+                    .resolved_cell(),
                 })],
             ),
             ModuleRule::new(
@@ -390,7 +386,6 @@ impl ModuleOptions {
                     )]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Default,
-                        use_swc_css,
                     })],
                 ),
                 ModuleRule::new(
@@ -399,7 +394,6 @@ impl ModuleOptions {
                     )]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Module,
-                        use_swc_css,
                     })],
                 ),
             ]);
@@ -410,23 +404,23 @@ impl ModuleOptions {
                     .context("execution_context is required for the postcss_transform")?;
 
                 let import_map = if let Some(postcss_package) = options.postcss_package {
-                    package_import_map_from_import_mapping("postcss".into(), postcss_package)
+                    package_import_map_from_import_mapping("postcss".into(), *postcss_package)
                 } else {
                     package_import_map_from_context("postcss".into(), path)
                 };
 
                 rules.push(ModuleRule::new(
                     RuleCondition::ResourcePathEndsWith(".css".to_string()),
-                    vec![ModuleRuleEffect::SourceTransforms(Vc::cell(vec![
+                    vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
                         Vc::upcast(PostCssTransform::new(
                             node_evaluate_asset_context(
-                                execution_context,
+                                *execution_context,
                                 Some(import_map),
                                 None,
                                 "postcss".into(),
                                 true,
                             ),
-                            execution_context,
+                            *execution_context,
                             options.config_location,
                         )),
                     ]))],
@@ -466,7 +460,6 @@ impl ModuleOptions {
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Default,
-                        use_swc_css,
                     })],
                 ),
                 ModuleRule::new(
@@ -479,21 +472,18 @@ impl ModuleOptions {
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Module,
-                        use_swc_css,
                     })],
                 ),
                 ModuleRule::new_internal(
                     RuleCondition::ResourcePathEndsWith(".css".to_string()),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Default,
-                        use_swc_css,
                     })],
                 ),
                 ModuleRule::new_internal(
                     RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Module,
-                        use_swc_css,
                     })],
                 ),
             ]);
@@ -512,7 +502,9 @@ impl ModuleOptions {
                 (None, None, false)
             };
 
-            let mdx_options = &*enable_mdx_rs.unwrap_or(Default::default()).await?;
+            let mdx_options = &*enable_mdx_rs
+                .unwrap_or_else(|| MdxTransformOptions::default().resolved_cell())
+                .await?;
 
             let mdx_transform_options = (MdxTransformOptions {
                 development: Some(development),
@@ -528,7 +520,7 @@ impl ModuleOptions {
                     RuleCondition::ResourcePathEndsWith(".md".to_string()),
                     RuleCondition::ResourcePathEndsWith(".mdx".to_string()),
                 ]),
-                vec![ModuleRuleEffect::SourceTransforms(Vc::cell(vec![
+                vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
                     Vc::upcast(MdxTransform::new(mdx_transform_options)),
                 ]))],
             ));
@@ -543,7 +535,7 @@ impl ModuleOptions {
             {
                 package_import_map_from_import_mapping(
                     "loader-runner".into(),
-                    loader_runner_package,
+                    *loader_runner_package,
                 )
             } else {
                 package_import_map_from_context("loader-runner".into(), path)
@@ -561,17 +553,17 @@ impl ModuleOptions {
                         },
                         RuleCondition::not(RuleCondition::ResourceIsVirtualSource),
                     ]),
-                    vec![ModuleRuleEffect::SourceTransforms(Vc::cell(vec![
+                    vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
                         Vc::upcast(WebpackLoaders::new(
                             node_evaluate_asset_context(
-                                execution_context,
+                                *execution_context,
                                 Some(import_map),
                                 None,
                                 "webpack_loaders".into(),
                                 false,
                             ),
-                            execution_context,
-                            rule.loaders,
+                            *execution_context,
+                            *rule.loaders,
                             rule.rename_as.clone(),
                             resolve_options_context,
                         )),

@@ -2,7 +2,8 @@ use std::fmt::Write;
 
 use anyhow::Result;
 use indoc::{formatdoc, writedoc};
-use turbo_tasks::{RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::Vc;
 use turbo_tasks_fs::File;
 use turbopack_core::{asset::AssetContent, source::Source, virtual_source::VirtualSource};
 use turbopack_ecmascript::utils::StringifyJs;
@@ -62,9 +63,7 @@ pub(crate) async fn instantiating_loader_source(
 /// Create a javascript loader to compile the WebAssembly module and export it
 /// without instantiating.
 #[turbo_tasks::function]
-pub(crate) async fn compiling_loader_source(
-    source: Vc<WebAssemblySource>,
-) -> Result<Vc<Box<dyn Source>>> {
+pub(crate) fn compiling_loader_source(source: Vc<WebAssemblySource>) -> Vc<Box<dyn Source>> {
     let code: RcStr = formatdoc! {
         r#"
             import wasmPath from "WASM_PATH";
@@ -76,8 +75,8 @@ pub(crate) async fn compiling_loader_source(
     }
     .into();
 
-    Ok(Vc::upcast(VirtualSource::new(
+    Vc::upcast(VirtualSource::new(
         source.ident().path().append("_.loader.mjs".into()),
         AssetContent::file(File::from(code).into()),
-    )))
+    ))
 }

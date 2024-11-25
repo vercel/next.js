@@ -45,7 +45,6 @@ export function refreshReducer(
       'refetch',
     ],
     nextUrl: includeNextUrl ? state.nextUrl : null,
-    buildId: state.buildId,
   })
 
   return cache.lazyData.then(

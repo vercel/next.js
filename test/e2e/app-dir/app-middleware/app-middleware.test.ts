@@ -254,14 +254,14 @@ describe('app dir - middleware with middleware in src dir', () => {
       import { cookies } from 'next/headers'
 
       export async function middleware(request) {
-        const cookie = cookies().get('test-cookie')
+        const cookie = (await cookies()).get('test-cookie')
         return NextResponse.json({ cookie })
       }
     `,
     },
   })
 
-  it('works without crashing when using requestAsyncStorage', async () => {
+  it('works without crashing when using RequestStore', async () => {
     const browser = await next.browser('/')
     await browser.addCookie({
       name: 'test-cookie',

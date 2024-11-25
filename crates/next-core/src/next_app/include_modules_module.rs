@@ -1,5 +1,6 @@
 use anyhow::Result;
-use turbo_tasks::{RcStr, TryJoinIterExt, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -19,13 +20,13 @@ use turbopack_ecmascript::chunk::{
 #[turbo_tasks::value]
 pub struct IncludeModulesModule {
     ident: Vc<AssetIdent>,
-    modules: Vec<Vc<Box<dyn Module>>>,
+    modules: Vec<ResolvedVc<Box<dyn Module>>>,
 }
 
 #[turbo_tasks::value_impl]
 impl IncludeModulesModule {
     #[turbo_tasks::function]
-    pub fn new(ident: Vc<AssetIdent>, modules: Vec<Vc<Box<dyn Module>>>) -> Vc<Self> {
+    pub fn new(ident: Vc<AssetIdent>, modules: Vec<ResolvedVc<Box<dyn Module>>>) -> Vc<Self> {
         Self { ident, modules }.cell()
     }
 }
@@ -50,7 +51,7 @@ impl Module for IncludeModulesModule {
                 .iter()
                 .map(|&module| async move {
                     Ok(Vc::upcast(
-                        IncludedModuleReference::new(module).resolve().await?,
+                        IncludedModuleReference::new(*module).resolve().await?,
                     ))
                 })
                 .try_join()
@@ -75,17 +76,17 @@ impl EcmascriptChunkPlaceable for IncludeModulesModule {
 #[turbo_tasks::value_impl]
 impl ChunkableModule for IncludeModulesModule {
     #[turbo_tasks::function]
-    async fn as_chunk_item(
+    fn as_chunk_item(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<Box<dyn ChunkItem>>> {
-        Ok(Vc::upcast(
+    ) -> Vc<Box<dyn ChunkItem>> {
+        Vc::upcast(
             IncludeModulesChunkItem {
                 module: self,
                 chunking_context,
             }
             .cell(),
-        ))
+        )
     }
 }
 
@@ -143,13 +144,13 @@ impl EcmascriptChunkItem for IncludeModulesChunkItem {
 /// [`IncludeModulesModule`].
 #[turbo_tasks::value]
 pub struct IncludedModuleReference {
-    pub module: Vc<Box<dyn Module>>,
+    pub module: ResolvedVc<Box<dyn Module>>,
 }
 
 #[turbo_tasks::value_impl]
 impl IncludedModuleReference {
     #[turbo_tasks::function]
-    pub fn new(module: Vc<Box<dyn Module>>) -> Vc<Self> {
+    pub fn new(module: ResolvedVc<Box<dyn Module>>) -> Vc<Self> {
         IncludedModuleReference { module }.cell()
     }
 }
@@ -165,8 +166,8 @@ impl ValueToString for IncludedModuleReference {
 #[turbo_tasks::value_impl]
 impl ModuleReference for IncludedModuleReference {
     #[turbo_tasks::function]
-    async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        Ok(ModuleResolveResult::module(self.module).cell())
+    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
+        ModuleResolveResult::module(self.module).cell()
     }
 }
 

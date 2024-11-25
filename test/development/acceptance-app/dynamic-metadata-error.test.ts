@@ -1,6 +1,6 @@
 /* eslint-env jest */
 import path from 'path'
-import { sandbox } from 'development-sandbox'
+import { createSandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
@@ -33,7 +33,7 @@ describe('dynamic metadata error', () => {
       return new ImageResponse(<div>icon</div>)
     }
     `
-    const { cleanup } = await sandbox(
+    await using _sandbox = await createSandbox(
       next,
       new Map([[iconFilePath, contentMissingIdProperty]]),
       '/metadata-base/unset/icon/100'
@@ -44,8 +44,6 @@ describe('dynamic metadata error', () => {
         `id property is required for every item returned from generateImageMetadata`
       )
     })
-
-    await cleanup()
   })
 
   it('should error when id is missing in generateSitemaps', async () => {
@@ -68,7 +66,7 @@ describe('dynamic metadata error', () => {
       ]
     }`
 
-    const { cleanup } = await sandbox(
+    await using _sandbox = await createSandbox(
       next,
       new Map([[sitemapFilePath, contentMissingIdProperty]]),
       '/metadata-base/unset/sitemap/100.xml'
@@ -79,8 +77,6 @@ describe('dynamic metadata error', () => {
         `id property is required for every item returned from generateSitemaps`
       )
     })
-
-    await cleanup()
   })
 
   it('should error if the default export of dynamic image is missing', async () => {
@@ -90,7 +86,7 @@ describe('dynamic metadata error', () => {
     export function foo() {}  
     `
 
-    const { cleanup } = await sandbox(
+    await using _sandbox = await createSandbox(
       next,
       new Map([[ogImageFilePath, ogImageFileContentWithoutDefaultExport]]),
       '/opengraph-image'
@@ -98,7 +94,5 @@ describe('dynamic metadata error', () => {
     await retry(async () => {
       expect(next.cliOutput).toContain(`Default export is missing in`)
     })
-
-    await cleanup()
   })
 })

@@ -5,7 +5,8 @@ use futures::prelude::*;
 use tokio::sync::mpsc::Sender;
 use tokio_stream::wrappers::ReceiverStream;
 use tracing::Instrument;
-use turbo_tasks::{IntoTraitRef, RcStr, ReadRef, TransientInstance, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{IntoTraitRef, ReadRef, TransientInstance, Vc};
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack_core::{
     error::PrettyPrintError,
@@ -164,7 +165,7 @@ async fn compute_update_stream(
     from: Vc<VersionState>,
     get_content: TransientInstance<GetContentFn>,
     sender: TransientInstance<Sender<Result<ReadRef<UpdateStreamItem>>>>,
-) -> Result<Vc<()>> {
+) -> Vc<()> {
     let item = get_update_stream_item(resource, from, get_content)
         .strongly_consistent()
         .await;
@@ -172,7 +173,7 @@ async fn compute_update_stream(
     // Send update. Ignore channel closed error.
     let _ = sender.send(item).await;
 
-    Ok(Default::default())
+    Default::default()
 }
 
 pub(super) struct UpdateStream(

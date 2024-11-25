@@ -2,11 +2,11 @@ use std::io::Write;
 
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, Upcast, ValueToString, Vc};
-use turbo_tasks_fs::rope::Rope;
+use turbo_tasks::{trace::TraceRawVcs, ResolvedVc, Upcast, ValueToString, Vc};
+use turbo_tasks_fs::{rope::Rope, FileSystemPath};
 use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkItem, ChunkItemExt, ChunkingContext},
-    code_builder::{Code, CodeBuilder},
+    code_builder::{fileify_source_map, Code, CodeBuilder},
     error::PrettyPrintError,
     issue::{code_gen::CodeGenerationIssue, IssueExt, IssueSeverity, StyledString},
     source_map::GenerateSourceMap,
@@ -24,6 +24,7 @@ pub struct EcmascriptChunkItemContent {
     pub inner_code: Rope,
     pub source_map: Option<Vc<Box<dyn GenerateSourceMap>>>,
     pub options: EcmascriptChunkItemOptions,
+    pub rewrite_source_path: Option<ResolvedVc<FileSystemPath>>,
     pub placeholder_for_future_extensions: (),
 }
 
@@ -46,6 +47,11 @@ impl EcmascriptChunkItemContent {
         let async_module = async_module_options.await?.clone_value();
 
         Ok(EcmascriptChunkItemContent {
+            rewrite_source_path: if *chunking_context.should_use_file_source_map_uris().await? {
+                Some(chunking_context.context_path().to_resolved().await?)
+            } else {
+                None
+            },
             inner_code: content.inner_code.clone(),
             source_map: content.source_map,
             options: if content.is_esm {
@@ -78,8 +84,7 @@ impl EcmascriptChunkItemContent {
     }
 
     #[turbo_tasks::function]
-    pub async fn module_factory(self: Vc<Self>) -> Result<Vc<Code>> {
-        let this = self.await?;
+    pub async fn module_factory(&self) -> Result<Vc<Code>> {
         let mut args = vec![
             "r: __turbopack_require__",
             "f: __turbopack_module_context__",
@@ -99,65 +104,78 @@ impl EcmascriptChunkItemContent {
             // HACK
             "__dirname",
         ];
-        if this.options.async_module.is_some() {
+        if self.options.async_module.is_some() {
             args.push("a: __turbopack_async_module__");
         }
-        if this.options.externals {
+        if self.options.externals {
             args.push("x: __turbopack_external_require__");
             args.push("y: __turbopack_external_import__");
         }
-        if this.options.refresh {
+        if self.options.refresh {
             args.push("k: __turbopack_refresh__");
         }
-        if this.options.module || this.options.refresh {
+        if self.options.module || self.options.refresh {
             args.push("m: module");
         }
-        if this.options.exports {
+        if self.options.exports {
             args.push("e: exports");
         }
-        if this.options.stub_require {
-            args.push("z: require");
+        if self.options.stub_require {
+            args.push("z: __turbopack_require_stub__");
         } else {
-            args.push("t: require");
+            args.push("t: __turbopack_require_real__");
         }
-        if this.options.wasm {
+        if self.options.wasm {
             args.push("w: __turbopack_wasm__");
             args.push("u: __turbopack_wasm_module__");
         }
         let mut code = CodeBuilder::default();
         let args = FormatIter(|| args.iter().copied().intersperse(", "));
-        if this.options.this {
-            writeln!(code, "(function({{ {} }}) {{ !function() {{", args,)?;
+        if self.options.this {
+            code += "(function(__turbopack_context__) {\n";
         } else {
-            writeln!(code, "(({{ {} }}) => (() => {{", args,)?;
+            code += "((__turbopack_context__) => {\n";
         }
-        if this.options.strict {
+        if self.options.strict {
             code += "\"use strict\";\n\n";
         } else {
             code += "\n";
         }
+        writeln!(code, "var {{ {} }} = __turbopack_context__;", args)?;
 
-        if this.options.async_module.is_some() {
+        if self.options.async_module.is_some() {
             code += "__turbopack_async_module__(async (__turbopack_handle_async_dependencies__, \
                      __turbopack_async_result__) => { try {\n";
+        } else {
+            code += "{\n";
         }
 
-        code.push_source(&this.inner_code, this.source_map);
+        let source_map = if let Some(rewrite_source_path) = self.rewrite_source_path {
+            let source_map = self.source_map.map(|m| m.generate_source_map());
+            match source_map {
+                Some(map) => fileify_source_map(map, *rewrite_source_path)
+                    .await?
+                    .map(Vc::upcast),
+                None => None,
+            }
+        } else {
+            self.source_map
+        };
 
-        if let Some(opts) = &this.options.async_module {
+        code.push_source(&self.inner_code, source_map);
+
+        if let Some(opts) = &self.options.async_module {
             write!(
                 code,
                 "__turbopack_async_result__();\n}} catch(e) {{ __turbopack_async_result__(e); }} \
                  }}, {});",
                 opts.has_top_level_await
             )?;
+        } else {
+            code += "}";
         }
 
-        if this.options.this {
-            code += "\n}.call(this) })";
-        } else {
-            code += "\n})())";
-        }
+        code += "})";
         Ok(code.build().cell())
     }
 }
@@ -175,8 +193,8 @@ pub struct EcmascriptChunkItemOptions {
     /// Whether this chunk item's module factory should include an `exports`
     /// argument.
     pub exports: bool,
-    /// Whether this chunk item's module factory should include an argument for the real `require`,
-    /// or just a throwing stub (for ESM)
+    /// Whether this chunk item's module factory should include an argument for a throwing require
+    /// stub (for ESM)
     pub stub_require: bool,
     /// Whether this chunk item's module factory should include a
     /// `__turbopack_external_require__` argument.
@@ -209,7 +227,7 @@ pub trait EcmascriptChunkItem: ChunkItem {
     }
 }
 
-pub trait EcmascriptChunkItemExt: Send {
+pub trait EcmascriptChunkItemExt {
     /// Generates the module factory for this chunk item.
     fn code(self: Vc<Self>, async_module_info: Option<Vc<AsyncModuleInfo>>) -> Vc<Code>;
 }
@@ -264,9 +282,3 @@ async fn module_factory_with_code_generation_issue(
         },
     )
 }
-
-#[turbo_tasks::value(transparent)]
-pub struct EcmascriptChunkItemsChunk(Vec<Vc<Box<dyn EcmascriptChunkItem>>>);
-
-#[turbo_tasks::value(transparent)]
-pub struct EcmascriptChunkItems(pub(super) Vec<Vc<Box<dyn EcmascriptChunkItem>>>);

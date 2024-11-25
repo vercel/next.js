@@ -11,10 +11,10 @@ use serde::{
     Deserialize, Deserializer, Serialize, Serializer,
 };
 use serde_bytes::{ByteBuf, Bytes};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
     debug::{internal::PassthroughDebug, ValueDebugFormat, ValueDebugFormatString},
     trace::{TraceRawVcs, TraceRawVcsContext},
-    RcStr,
 };
 
 use super::pattern::Pattern;
@@ -407,7 +407,7 @@ struct AliasMapIterItem<'a, T> {
     iterator: std::collections::btree_map::Iter<'a, AliasKey, T>,
 }
 
-impl<'a, T> AliasMapIter<'a, T> {
+impl<T> AliasMapIter<'_, T> {
     fn advance_iter(&mut self) -> bool {
         let Some((prefix, map)) = self.iter.next() else {
             return false;
@@ -615,7 +615,7 @@ where
     }
 
     /// Returns the wrapped value.
-    pub fn as_self(&'a self) -> &T::Output<'a> {
+    pub fn as_self(&self) -> &T::Output<'a> {
         match self {
             Self::Exact(v) => v,
             Self::Replaced(v) => v,
@@ -747,7 +747,10 @@ mod test {
     }
 
     impl<'a> AliasTemplate for &'a str {
-        type Output<'b> = Pattern where Self: 'b;
+        type Output<'b>
+            = Pattern
+        where
+            Self: 'b;
 
         fn replace(&self, capture: &Pattern) -> Self::Output<'a> {
             capture.spread_into_star(self)

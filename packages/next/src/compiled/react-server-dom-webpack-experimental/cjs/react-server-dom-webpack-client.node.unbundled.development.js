@@ -24,15 +24,15 @@
     }
     function resolveClientReference(bundlerConfig, metadata) {
       var moduleExports = bundlerConfig[metadata[0]];
-      if ((bundlerConfig = moduleExports[metadata[2]]))
+      if ((bundlerConfig = moduleExports && moduleExports[metadata[2]]))
         moduleExports = bundlerConfig.name;
       else {
-        bundlerConfig = moduleExports["*"];
+        bundlerConfig = moduleExports && moduleExports["*"];
         if (!bundlerConfig)
           throw Error(
             'Could not find the module "' +
               metadata[0] +
-              '" in the React SSR Manifest. This is probably a bug in the React Server Components bundler.'
+              '" in the React Server Consumer Manifest. This is probably a bug in the React Server Components bundler.'
           );
         moduleExports = metadata[2];
       }
@@ -41,6 +41,12 @@
         name: moduleExports,
         async: 4 === metadata.length
       };
+    }
+    function resolveServerReference(bundlerConfig, id) {
+      var idx = id.lastIndexOf("#");
+      bundlerConfig = id.slice(0, idx);
+      id = id.slice(idx + 1);
+      return { specifier: bundlerConfig, name: id };
     }
     function preloadModule(metadata) {
       var existingPromise = asyncModuleCache.get(metadata.specifier);
@@ -65,6 +71,17 @@
       );
       asyncModuleCache.set(metadata.specifier, modulePromise);
       return modulePromise;
+    }
+    function requireModule(metadata) {
+      var moduleExports = asyncModuleCache.get(metadata.specifier);
+      if ("fulfilled" === moduleExports.status)
+        moduleExports = moduleExports.value;
+      else throw moduleExports.reason;
+      return "*" === metadata.name
+        ? moduleExports
+        : "" === metadata.name
+          ? moduleExports.default
+          : moduleExports[metadata.name];
     }
     function prepareDestinationWithChunks(
       moduleLoading,
@@ -697,12 +714,17 @@
         pendingParts = 0,
         formData = null,
         writtenObjects = new WeakMap(),
-        modelRoot = root;
-      root = serializeModel(root, 0);
+        modelRoot = root,
+        json = serializeModel(root, 0);
       null === formData
-        ? resolve(root)
-        : (formData.set(formFieldPrefix + "0", root),
+        ? resolve(json)
+        : (formData.set(formFieldPrefix + "0", json),
           0 === pendingParts && resolve(formData));
+      return function () {
+        0 < pendingParts &&
+          ((pendingParts = 0),
+          null === formData ? resolve(json) : resolve(formData));
+      };
     }
     function encodeFormData(reference) {
       var resolve,
@@ -1060,6 +1082,12 @@
         }
       return null;
     }
+    function prepareStackTrace(error, structuredStackTrace) {
+      error = (error.name || "Error") + ": " + (error.message || "");
+      for (var i = 0; i < structuredStackTrace.length; i++)
+        error += "\n    at " + structuredStackTrace[i].toString();
+      return error;
+    }
     function ReactPromise(status, value, reason, response) {
       this.status = status;
       this.value = value;
@@ -1199,16 +1227,7 @@
     }
     function initializeModuleChunk(chunk) {
       try {
-        var metadata = chunk.value,
-          promise = asyncModuleCache.get(metadata.specifier);
-        if ("fulfilled" === promise.status) var moduleExports = promise.value;
-        else throw promise.reason;
-        var value =
-          "*" === metadata.name
-            ? moduleExports
-            : "" === metadata.name
-              ? moduleExports.default
-              : moduleExports[metadata.name];
+        var value = requireModule(chunk.value);
         chunk.status = "fulfilled";
         chunk.value = value;
       } catch (error) {
@@ -1276,17 +1295,22 @@
             }
           value = value[path[i]];
         }
-        parentObject[key] = map(response, value);
-        "" === key &&
-          null === handler.value &&
-          (handler.value = parentObject[key]);
-        parentObject[0] === REACT_ELEMENT_TYPE &&
-          "3" === key &&
+        i = map(response, value, parentObject, key);
+        parentObject[key] = i;
+        "" === key && null === handler.value && (handler.value = i);
+        if (
+          parentObject[0] === REACT_ELEMENT_TYPE &&
           "object" === typeof handler.value &&
           null !== handler.value &&
-          handler.value.$$typeof === REACT_ELEMENT_TYPE &&
-          null === handler.value.props &&
-          (handler.value.props = parentObject[key]);
+          handler.value.$$typeof === REACT_ELEMENT_TYPE
+        )
+          switch (((value = handler.value), key)) {
+            case "3":
+              value.props = i;
+              break;
+            case "4":
+              value._owner = i;
+          }
         handler.deps--;
         0 === handler.deps &&
           ((i = handler.chunk),
@@ -1338,13 +1362,97 @@
       referencedChunk.then(fulfill, reject);
       return null;
     }
-    function createServerReferenceProxy(response, metaData) {
-      return createBoundServerReference(
-        metaData,
-        response._callServer,
-        response._encodeFormAction,
-        response._debugFindSourceMapURL
+    function loadServerReference(response, metaData, parentObject, key) {
+      if (!response._serverReferenceConfig)
+        return createBoundServerReference(
+          metaData,
+          response._callServer,
+          response._encodeFormAction,
+          response._debugFindSourceMapURL
+        );
+      var serverReference = resolveServerReference(
+        response._serverReferenceConfig,
+        metaData.id
       );
+      if ((response = preloadModule(serverReference)))
+        metaData.bound && (response = Promise.all([response, metaData.bound]));
+      else if (metaData.bound) response = Promise.resolve(metaData.bound);
+      else return requireModule(serverReference);
+      if (initializingHandler) {
+        var handler = initializingHandler;
+        handler.deps++;
+      } else
+        handler = initializingHandler = {
+          parent: null,
+          chunk: null,
+          value: null,
+          deps: 1,
+          errored: !1
+        };
+      response.then(
+        function () {
+          var resolvedValue = requireModule(serverReference);
+          if (metaData.bound) {
+            var boundArgs = metaData.bound.value.slice(0);
+            boundArgs.unshift(null);
+            resolvedValue = resolvedValue.bind.apply(resolvedValue, boundArgs);
+          }
+          parentObject[key] = resolvedValue;
+          "" === key &&
+            null === handler.value &&
+            (handler.value = resolvedValue);
+          if (
+            parentObject[0] === REACT_ELEMENT_TYPE &&
+            "object" === typeof handler.value &&
+            null !== handler.value &&
+            handler.value.$$typeof === REACT_ELEMENT_TYPE
+          )
+            switch (((boundArgs = handler.value), key)) {
+              case "3":
+                boundArgs.props = resolvedValue;
+                break;
+              case "4":
+                boundArgs._owner = resolvedValue;
+            }
+          handler.deps--;
+          0 === handler.deps &&
+            ((resolvedValue = handler.chunk),
+            null !== resolvedValue &&
+              "blocked" === resolvedValue.status &&
+              ((boundArgs = resolvedValue.value),
+              (resolvedValue.status = "fulfilled"),
+              (resolvedValue.value = handler.value),
+              null !== boundArgs && wakeChunk(boundArgs, handler.value)));
+        },
+        function (error) {
+          if (!handler.errored) {
+            var blockedValue = handler.value;
+            handler.errored = !0;
+            handler.value = error;
+            var chunk = handler.chunk;
+            if (null !== chunk && "blocked" === chunk.status) {
+              if (
+                "object" === typeof blockedValue &&
+                null !== blockedValue &&
+                blockedValue.$$typeof === REACT_ELEMENT_TYPE
+              ) {
+                var erroredComponent = {
+                  name: getComponentNameFromType(blockedValue.type) || "",
+                  owner: blockedValue._owner
+                };
+                erroredComponent.debugStack = blockedValue._debugStack;
+                supportsCreateTask &&
+                  (erroredComponent.debugTask = blockedValue._debugTask);
+                (chunk._debugInfo || (chunk._debugInfo = [])).push(
+                  erroredComponent
+                );
+              }
+              triggerErrorOnChunk(chunk, error);
+            }
+          }
+        }
+      );
+      return null;
     }
     function getOutlinedModel(response, reference, parentObject, key, map) {
       reference = reference.split(":");
@@ -1374,7 +1482,7 @@
                 );
             value = value[reference[i]];
           }
-          response = map(response, value);
+          response = map(response, value, parentObject, key);
           id._debugInfo &&
             ("object" !== typeof response ||
               null === response ||
@@ -1474,7 +1582,7 @@
                 value,
                 parentObject,
                 key,
-                createServerReferenceProxy
+                loadServerReference
               )
             );
           case "T":
@@ -1511,6 +1619,17 @@
                 createFormData
               )
             );
+          case "Z":
+            return (
+              (value = value.slice(2)),
+              getOutlinedModel(
+                response,
+                value,
+                parentObject,
+                key,
+                resolveErrorDev
+              )
+            );
           case "i":
             return (
               (value = value.slice(2)),
@@ -1544,7 +1663,7 @@
             return (
               Object.defineProperty(parentObject, key, {
                 get: function () {
-                  throw "This object has been omitted by React in the console log to avoid sending too much data from the server. Try logging smaller or more specific objects.";
+                  return "This object has been omitted by React in the console log to avoid sending too much data from the server. Try logging smaller or more specific objects.";
                 },
                 enumerable: !0,
                 configurable: !1
@@ -1567,6 +1686,7 @@
     }
     function ResponseInstance(
       bundlerConfig,
+      serverReferenceConfig,
       moduleLoading,
       callServer,
       encodeFormAction,
@@ -1578,6 +1698,7 @@
     ) {
       var chunks = new Map();
       this._bundlerConfig = bundlerConfig;
+      this._serverReferenceConfig = serverReferenceConfig;
       this._moduleLoading = moduleLoading;
       this._callServer = void 0 !== callServer ? callServer : missingCall;
       this._encodeFormAction = encodeFormAction;
@@ -1604,6 +1725,23 @@
       this._replayConsole = replayConsole;
       this._rootEnvironmentName = environmentName;
       this._fromJSON = createFromJSONCallback(this);
+    }
+    function resolveModel(response, id, model) {
+      var chunks = response._chunks,
+        chunk = chunks.get(id);
+      chunk
+        ? resolveModelChunk(chunk, model)
+        : chunks.set(
+            id,
+            new ReactPromise("resolved_model", model, null, response)
+          );
+    }
+    function resolveText(response, id, text) {
+      var chunks = response._chunks,
+        chunk = chunks.get(id);
+      chunk && "pending" !== chunk.status
+        ? chunk.reason.enqueueValue(text)
+        : chunks.set(id, new ReactPromise("fulfilled", text, null, response));
     }
     function resolveBuffer(response, id, buffer) {
       var chunks = response._chunks,
@@ -1844,6 +1982,87 @@
         }
       );
     }
+    function stopStream(response, id, row) {
+      (response = response._chunks.get(id)) &&
+        "fulfilled" === response.status &&
+        response.reason.close("" === row ? '"$undefined"' : row);
+    }
+    function resolveErrorDev(response, errorInfo) {
+      var env = errorInfo.env;
+      errorInfo = buildFakeCallStack(
+        response,
+        errorInfo.stack,
+        env,
+        Error.bind(
+          null,
+          errorInfo.message ||
+            "An error occurred in the Server Components render but no message was provided"
+        )
+      );
+      response = getRootTask(response, env);
+      response = null != response ? response.run(errorInfo) : errorInfo();
+      response.environmentName = env;
+      return response;
+    }
+    function resolvePostponeDev(response, id, reason, stack, env) {
+      reason = buildFakeCallStack(
+        response,
+        stack,
+        env,
+        Error.bind(null, reason || "")
+      );
+      stack = response._debugRootTask;
+      reason = null != stack ? stack.run(reason) : reason();
+      reason.$$typeof = REACT_POSTPONE_TYPE;
+      stack = response._chunks;
+      (env = stack.get(id))
+        ? triggerErrorOnChunk(env, reason)
+        : stack.set(id, new ReactPromise("rejected", null, reason, response));
+    }
+    function resolveHint(response, code, model) {
+      response = JSON.parse(model, response._fromJSON);
+      model = ReactDOMSharedInternals.d;
+      switch (code) {
+        case "D":
+          model.D(response);
+          break;
+        case "C":
+          "string" === typeof response
+            ? model.C(response)
+            : model.C(response[0], response[1]);
+          break;
+        case "L":
+          code = response[0];
+          var as = response[1];
+          3 === response.length
+            ? model.L(code, as, response[2])
+            : model.L(code, as);
+          break;
+        case "m":
+          "string" === typeof response
+            ? model.m(response)
+            : model.m(response[0], response[1]);
+          break;
+        case "X":
+          "string" === typeof response
+            ? model.X(response)
+            : model.X(response[0], response[1]);
+          break;
+        case "S":
+          "string" === typeof response
+            ? model.S(response)
+            : model.S(
+                response[0],
+                0 === response[1] ? void 0 : response[1],
+                3 === response.length ? response[2] : void 0
+              );
+          break;
+        case "M":
+          "string" === typeof response
+            ? model.M(response)
+            : model.M(response[0], response[1]);
+      }
+    }
     function createFakeFunction(
       name,
       filename,
@@ -1876,11 +2095,13 @@
             "\n//# sourceURL=rsc://React/" +
             encodeURIComponent(environmentName) +
             "/" +
-            filename +
+            encodeURI(filename) +
             "?" +
             fakeFunctionIdx++),
           (col += "\n//# sourceMappingURL=" + sourceMap))
-        : filename && (col += "\n//# sourceURL=" + filename);
+        : (col = filename
+            ? col + ("\n//# sourceURL=" + encodeURI(filename))
+            : col + "\n//# sourceURL=<anonymous>");
       try {
         var fn = (0, eval)(col)[name];
       } catch (x) {
@@ -1985,6 +2206,19 @@
         null != debugInfo.owner &&
           initializeFakeStack(response, debugInfo.owner));
     }
+    function resolveDebugInfo(response, id, debugInfo) {
+      initializeFakeTask(
+        response,
+        debugInfo,
+        void 0 === debugInfo.env ? response._rootEnvironmentName : debugInfo.env
+      );
+      null === debugInfo.owner && null != response._debugRootOwner
+        ? ((debugInfo.owner = response._debugRootOwner),
+          (debugInfo.debugStack = response._debugRootStack))
+        : initializeFakeStack(response, debugInfo);
+      response = getChunk(response, id);
+      (response._debugInfo || (response._debugInfo = [])).push(debugInfo);
+    }
     function getCurrentStackInDEV() {
       var owner = currentOwnerInDEV;
       if (null === owner) return "";
@@ -1998,7 +2232,7 @@
                 var JSCompiler_temp_const = info;
                 var error = ownerStack,
                   prevPrepareStackTrace = Error.prepareStackTrace;
-                Error.prepareStackTrace = void 0;
+                Error.prepareStackTrace = prepareStackTrace;
                 var stack = error.stack;
                 Error.prepareStackTrace = prevPrepareStackTrace;
                 stack.startsWith("Error: react-stack-top-frame\n") &&
@@ -2039,6 +2273,24 @@
           "\nError generating stack: " + x.message + "\n" + x.stack;
       }
       return JSCompiler_inline_result$jscomp$0;
+    }
+    function resolveConsoleEntry(response, value) {
+      if (response._replayConsole) {
+        var payload = JSON.parse(value, response._fromJSON);
+        value = payload[0];
+        var stackTrace = payload[1],
+          owner = payload[2],
+          env = payload[3];
+        payload = payload.slice(4);
+        replayConsoleWithCallStackInDEV(
+          response,
+          value,
+          stackTrace,
+          owner,
+          env,
+          payload
+        );
+      }
     }
     function mergeBuffer(buffer, lastChunk) {
       for (
@@ -2136,113 +2388,35 @@
           resolveModule(response, id, row);
           break;
         case 72:
-          id = row[0];
-          row = row.slice(1);
-          response = JSON.parse(row, response._fromJSON);
-          row = ReactDOMSharedInternals.d;
-          switch (id) {
-            case "D":
-              row.D(response);
-              break;
-            case "C":
-              "string" === typeof response
-                ? row.C(response)
-                : row.C(response[0], response[1]);
-              break;
-            case "L":
-              id = response[0];
-              tag = response[1];
-              3 === response.length
-                ? row.L(id, tag, response[2])
-                : row.L(id, tag);
-              break;
-            case "m":
-              "string" === typeof response
-                ? row.m(response)
-                : row.m(response[0], response[1]);
-              break;
-            case "X":
-              "string" === typeof response
-                ? row.X(response)
-                : row.X(response[0], response[1]);
-              break;
-            case "S":
-              "string" === typeof response
-                ? row.S(response)
-                : row.S(
-                    response[0],
-                    0 === response[1] ? void 0 : response[1],
-                    3 === response.length ? response[2] : void 0
-                  );
-              break;
-            case "M":
-              "string" === typeof response
-                ? row.M(response)
-                : row.M(response[0], response[1]);
-          }
+          resolveHint(response, row[0], row.slice(1));
           break;
         case 69:
-          var errorInfo = JSON.parse(row);
-          row = errorInfo.digest;
-          tag = errorInfo.env;
-          errorInfo = buildFakeCallStack(
-            response,
-            errorInfo.stack,
-            tag,
-            Error.bind(
-              null,
-              errorInfo.message ||
-                "An error occurred in the Server Components render but no message was provided"
-            )
-          );
-          var rootTask = getRootTask(response, tag);
-          errorInfo = null != rootTask ? rootTask.run(errorInfo) : errorInfo();
-          errorInfo.digest = row;
-          errorInfo.environmentName = tag;
+          row = JSON.parse(row);
+          tag = resolveErrorDev(response, row);
+          tag.digest = row.digest;
           row = response._chunks;
-          (tag = row.get(id))
-            ? triggerErrorOnChunk(tag, errorInfo)
-            : row.set(
-                id,
-                new ReactPromise("rejected", null, errorInfo, response)
-              );
+          var chunk = row.get(id);
+          chunk
+            ? triggerErrorOnChunk(chunk, tag)
+            : row.set(id, new ReactPromise("rejected", null, tag, response));
           break;
         case 84:
-          tag = response._chunks;
-          (errorInfo = tag.get(id)) && "pending" !== errorInfo.status
-            ? errorInfo.reason.enqueueValue(row)
-            : tag.set(id, new ReactPromise("fulfilled", row, null, response));
+          resolveText(response, id, row);
           break;
         case 68:
-          row = JSON.parse(row, response._fromJSON);
-          initializeFakeTask(
-            response,
-            row,
-            void 0 === row.env ? response._rootEnvironmentName : row.env
-          );
-          null === row.owner && null != response._debugRootOwner
-            ? ((row.owner = response._debugRootOwner),
-              (row.debugStack = response._debugRootStack))
-            : initializeFakeStack(response, row);
-          response = getChunk(response, id);
-          (response._debugInfo || (response._debugInfo = [])).push(row);
+          tag = new ReactPromise("resolved_model", row, null, response);
+          initializeModelChunk(tag);
+          "fulfilled" === tag.status
+            ? resolveDebugInfo(response, id, tag.value)
+            : tag.then(
+                function (v) {
+                  return resolveDebugInfo(response, id, v);
+                },
+                function () {}
+              );
           break;
         case 87:
-          response._replayConsole &&
-            ((rootTask = JSON.parse(row, response._fromJSON)),
-            (id = rootTask[0]),
-            (row = rootTask[1]),
-            (tag = rootTask[2]),
-            (errorInfo = rootTask[3]),
-            (rootTask = rootTask.slice(4)),
-            replayConsoleWithCallStackInDEV(
-              response,
-              id,
-              row,
-              tag,
-              errorInfo,
-              rootTask
-            ));
+          resolveConsoleEntry(response, row);
           break;
         case 82:
           startReadableStream(response, id, void 0);
@@ -2257,34 +2431,14 @@
           startAsyncIterable(response, id, !0);
           break;
         case 67:
-          (response = response._chunks.get(id)) &&
-            "fulfilled" === response.status &&
-            response.reason.close("" === row ? '"$undefined"' : row);
+          stopStream(response, id, row);
           break;
         case 80:
-          row = JSON.parse(row);
-          row = buildFakeCallStack(
-            response,
-            row.stack,
-            row.env,
-            Error.bind(null, row.reason || "")
-          );
-          tag = response._debugRootTask;
-          row = null != tag ? tag.run(row) : row();
-          row.$$typeof = REACT_POSTPONE_TYPE;
-          tag = response._chunks;
-          (errorInfo = tag.get(id))
-            ? triggerErrorOnChunk(errorInfo, row)
-            : tag.set(id, new ReactPromise("rejected", null, row, response));
+          tag = JSON.parse(row);
+          resolvePostponeDev(response, id, tag.reason, tag.stack, tag.env);
           break;
         default:
-          (tag = response._chunks),
-            (errorInfo = tag.get(id))
-              ? resolveModelChunk(errorInfo, row)
-              : tag.set(
-                  id,
-                  new ReactPromise("resolved_model", row, null, response)
-                );
+          resolveModel(response, id, row);
       }
     }
     function createFromJSONCallback(response) {
@@ -2568,10 +2722,15 @@
       replayConsoleWithCallStackInDEV = replayConsoleWithCallStack[
         "react-stack-bottom-frame"
       ].bind(replayConsoleWithCallStack);
-    exports.createFromNodeStream = function (stream, ssrManifest, options) {
+    exports.createFromNodeStream = function (
+      stream,
+      serverConsumerManifest,
+      options
+    ) {
       var response = new ResponseInstance(
-        ssrManifest.moduleMap,
-        ssrManifest.moduleLoading,
+        serverConsumerManifest.moduleMap,
+        serverConsumerManifest.serverModuleMap,
+        serverConsumerManifest.moduleLoading,
         noServerCall,
         options ? options.encodeFormAction : void 0,
         options && "string" === typeof options.nonce ? options.nonce : void 0,

@@ -1,6 +1,6 @@
 declare const __turbopack_external_require__: {
   resolve: (name: string, opt: { paths: string[] }) => string;
-} & ((id: string) => any);
+} & ((id: string, thunk: () => any, esm?: boolean) => any);
 
 import type { Ipc } from "../ipc/evaluate";
 import {
@@ -58,12 +58,7 @@ type LoaderConfig =
     options: { [k: string]: unknown };
   };
 
-let runLoaders: typeof import("loader-runner")["runLoaders"];
-try {
-  ({ runLoaders } = require("@vercel/turbopack/loader-runner"));
-} catch {
-  ({ runLoaders } = __turbopack_external_require__("loader-runner"));
-}
+const { runLoaders }: typeof import("loader-runner") = require("@vercel/turbopack/loader-runner");
 
 const contextDir = process.cwd();
 const toPath = (file: string) => {
@@ -498,11 +493,13 @@ function makeErrorEmitter(
             name: error.name,
             message: error.message,
             stack: error.stack ? parseStackTrace(error.stack) : [],
+            cause: undefined,
           }
           : {
             name: "Error",
             message: error,
             stack: [],
+            cause: undefined,
           },
     });
   };

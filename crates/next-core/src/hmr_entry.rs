@@ -1,7 +1,8 @@
 use std::io::Write;
 
 use anyhow::Result;
-use turbo_tasks::{RcStr, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{glob::Glob, rope::RopeBuilder};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -99,13 +100,13 @@ impl EvaluatableAsset for HmrEntryModule {}
 
 #[turbo_tasks::value]
 pub struct HmrEntryModuleReference {
-    pub module: Vc<Box<dyn Module>>,
+    pub module: ResolvedVc<Box<dyn Module>>,
 }
 
 #[turbo_tasks::value_impl]
 impl HmrEntryModuleReference {
     #[turbo_tasks::function]
-    pub fn new(module: Vc<Box<dyn Module>>) -> Vc<Self> {
+    pub fn new(module: ResolvedVc<Box<dyn Module>>) -> Vc<Self> {
         HmrEntryModuleReference { module }.cell()
     }
 }
@@ -121,8 +122,8 @@ impl ValueToString for HmrEntryModuleReference {
 #[turbo_tasks::value_impl]
 impl ModuleReference for HmrEntryModuleReference {
     #[turbo_tasks::function]
-    async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        Ok(ModuleResolveResult::module(self.module).cell())
+    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
+        ModuleResolveResult::module(self.module).cell()
     }
 }
 

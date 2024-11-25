@@ -10,7 +10,8 @@ import nodeUrl, { type UrlWithParsedQuery } from 'url'
 
 import { getImageBlurSvg } from '../shared/lib/image-blur-svg'
 import type { ImageConfigComplete } from '../shared/lib/image-config'
-import { hasMatch } from '../shared/lib/match-remote-pattern'
+import { hasLocalMatch } from '../shared/lib/match-local-pattern'
+import { hasRemoteMatch } from '../shared/lib/match-remote-pattern'
 import type { NextConfigComplete } from './config-shared'
 import { createRequestResponseMocks } from './lib/mock-request'
 import type { NextUrlWithParsedQuery } from './request-meta'
@@ -46,7 +47,7 @@ const BLUR_QUALITY = 70 // should match `next-image-loader`
 
 let _sharp: typeof import('sharp')
 
-function getSharp() {
+function getSharp(concurrency: number | null | undefined) {
   if (_sharp) {
     return _sharp
   }
@@ -58,7 +59,7 @@ function getSharp() {
       // https://sharp.pixelplumbing.com/api-utility#concurrency
       const divisor = process.env.NODE_ENV === 'development' ? 4 : 2
       _sharp.concurrency(
-        Math.floor(Math.max(_sharp.concurrency() / divisor, 1))
+        concurrency ?? Math.floor(Math.max(_sharp.concurrency() / divisor, 1))
       )
     }
   } catch (e: unknown) {
@@ -213,6 +214,7 @@ export class ImageOptimizerCache {
       formats = ['image/webp'],
     } = imageData
     const remotePatterns = nextConfig.images?.remotePatterns || []
+    const localPatterns = nextConfig.images?.localPatterns
     const { url, w, q } = query
     let href: string
 
@@ -252,6 +254,9 @@ export class ImageOptimizerCache {
           errorMessage: '"url" parameter cannot be recursive',
         }
       }
+      if (!hasLocalMatch(localPatterns, url)) {
+        return { errorMessage: '"url" parameter is not allowed' }
+      }
     } else {
       let hrefParsed: URL
 
@@ -267,7 +272,7 @@ export class ImageOptimizerCache {
         return { errorMessage: '"url" parameter is invalid' }
       }
 
-      if (!hasMatch(domains, remotePatterns, hrefParsed)) {
+      if (!hasRemoteMatch(domains, remotePatterns, hrefParsed)) {
         return { errorMessage: '"url" parameter is not allowed' }
       }
     }
@@ -507,15 +512,30 @@ export async function optimizeImage({
   quality,
   width,
   height,
+  concurrency,
+  limitInputPixels,
+  sequentialRead,
+  timeoutInSeconds,
 }: {
   buffer: Buffer
   contentType: string
   quality: number
   width: number
   height?: number
+  concurrency?: number | null
+  limitInputPixels?: number
+  sequentialRead?: boolean | null
+  timeoutInSeconds?: number
 }): Promise<Buffer> {
-  const sharp = getSharp()
-  const transformer = sharp(buffer).timeout({ seconds: 7 }).rotate()
+  const sharp = getSharp(concurrency)
+  const transformer = sharp(buffer, {
+    limitInputPixels,
+    sequentialRead: sequentialRead ?? undefined,
+  })
+    .timeout({
+      seconds: timeoutInSeconds ?? 7,
+    })
+    .rotate()
 
   if (height) {
     transformer.resize(width, height)
@@ -526,9 +546,9 @@ export async function optimizeImage({
   }
 
   if (contentType === AVIF) {
-    const avifQuality = quality - 20
     transformer.avif({
-      quality: Math.max(avifQuality, 1),
+      quality: Math.max(quality - 20, 1),
+      effort: 3,
     })
   } else if (contentType === WEBP) {
     transformer.webp({ quality })
@@ -626,6 +646,13 @@ export async function imageOptimizer(
     'href' | 'width' | 'quality' | 'mimeType'
   >,
   nextConfig: {
+    experimental: Pick<
+      NextConfigComplete['experimental'],
+      | 'imgOptConcurrency'
+      | 'imgOptMaxInputPixels'
+      | 'imgOptSequentialRead'
+      | 'imgOptTimeoutInSeconds'
+    >
     images: Pick<
       NextConfigComplete['images'],
       'dangerouslyAllowSVG' | 'minimumCacheTTL'
@@ -730,6 +757,10 @@ export async function imageOptimizer(
       contentType,
       quality,
       width,
+      concurrency: nextConfig.experimental.imgOptConcurrency,
+      limitInputPixels: nextConfig.experimental.imgOptMaxInputPixels,
+      sequentialRead: nextConfig.experimental.imgOptSequentialRead,
+      timeoutInSeconds: nextConfig.experimental.imgOptTimeoutInSeconds,
     })
     if (optimizedBuffer) {
       if (isDev && width <= BLUR_IMG_SIZE && quality === BLUR_QUALITY) {

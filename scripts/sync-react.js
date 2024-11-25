@@ -20,6 +20,10 @@ const filesReferencingReactPeerDependencyVersion = [
   'packages/create-next-app/templates/index.ts',
   'test/lib/next-modes/base.ts',
 ]
+const libraryManifestsSupportingNextjsReact = [
+  'packages/third-parties/package.json',
+  'packages/next/package.json',
+]
 const appManifestsInstallingNextjsPeerDependencies = [
   'examples/reproduction-template/package.json',
   'test/.stats-app/package.json',
@@ -207,7 +211,7 @@ async function main() {
   ) {
     const { stdout, stderr } = await execa(
       'npm',
-      ['view', 'react@canary', 'version'],
+      ['--silent', 'view', 'react@canary', 'version'],
       {
         // Avoid "Usage Error: This project is configured to use pnpm".
         cwd: '/tmp',
@@ -321,30 +325,16 @@ Or, run this command with no arguments to use the most recently published versio
     }
   }
 
-  const nextjsPackageJsonPath = path.join(
-    process.cwd(),
-    'packages',
-    'next',
-    'package.json'
-  )
-  const nextjsPackageJson = JSON.parse(
-    await fsp.readFile(nextjsPackageJsonPath, 'utf-8')
-  )
-  nextjsPackageJson.peerDependencies.react = `${newVersionStr}`
-  nextjsPackageJson.peerDependencies['react-dom'] = `${newVersionStr}`
-  await fsp.writeFile(
-    nextjsPackageJsonPath,
-    JSON.stringify(nextjsPackageJson, null, 2) +
-      // Prettier would add a newline anyway so do it manually to skip the additional `pnpm prettier-write`
-      '\n'
-  )
-
   for (const fileName of appManifestsInstallingNextjsPeerDependencies) {
     const packageJsonPath = path.join(cwd, fileName)
     const packageJson = await fsp.readFile(packageJsonPath, 'utf-8')
     const manifest = JSON.parse(packageJson)
-    manifest.dependencies['react'] = newVersionStr
-    manifest.dependencies['react-dom'] = newVersionStr
+    if (manifest.dependencies['react']) {
+      manifest.dependencies['react'] = newVersionStr
+    }
+    if (manifest.dependencies['react-dom']) {
+      manifest.dependencies['react-dom'] = newVersionStr
+    }
     await fsp.writeFile(
       packageJsonPath,
       JSON.stringify(manifest, null, 2) +
@@ -354,7 +344,29 @@ Or, run this command with no arguments to use the most recently published versio
   }
 
   if (commit) {
-    await commitEverything('Updated peer dependency references')
+    await commitEverything('Updated peer dependency references in apps')
+  }
+
+  for (const fileName of libraryManifestsSupportingNextjsReact) {
+    const packageJsonPath = path.join(cwd, fileName)
+    const packageJson = await fsp.readFile(packageJsonPath, 'utf-8')
+    const manifest = JSON.parse(packageJson)
+    if (manifest.peerDependencies['react']) {
+      manifest.peerDependencies['react'] = `^18.2.0 || ${newVersionStr}`
+    }
+    if (manifest.peerDependencies['react-dom']) {
+      manifest.peerDependencies['react-dom'] = `^18.2.0 || ${newVersionStr}`
+    }
+    await fsp.writeFile(
+      packageJsonPath,
+      JSON.stringify(manifest, null, 2) +
+        // Prettier would add a newline anyway so do it manually to skip the additional `pnpm prettier-write`
+        '\n'
+    )
+  }
+
+  if (commit) {
+    await commitEverything('Updated peer dependency references in libraries')
   }
 
   // Install the updated dependencies and build the vendored React files.

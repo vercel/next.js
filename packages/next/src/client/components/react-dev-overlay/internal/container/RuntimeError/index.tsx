@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { CodeFrame } from '../../components/CodeFrame'
-import type { ReadyRuntimeError } from '../../helpers/getErrorByType'
+import type { ReadyRuntimeError } from '../../helpers/get-error-by-type'
 import { noop as css } from '../../helpers/noop-template'
 import { groupStackFramesByFramework } from '../../helpers/group-stack-frames-by-framework'
 import { GroupedStackFrames } from './GroupedStackFrames'
@@ -8,55 +8,38 @@ import { GroupedStackFrames } from './GroupedStackFrames'
 export type RuntimeErrorProps = { error: ReadyRuntimeError }
 
 export function RuntimeError({ error }: RuntimeErrorProps) {
+  const { frames } = error
   const { firstFrame, allLeadingFrames, allCallStackFrames } =
     React.useMemo(() => {
-      const filteredFrames = error.frames
-        // Filter out nodejs internal frames since you can't do anything about them.
-        // e.g. node:internal/timers shows up pretty often due to timers, but not helpful to users.
-        // Only present the last line before nodejs internal trace.
-        .filter((f) => !f.sourceStackFrame.file?.startsWith('node:'))
-
-      const firstFirstPartyFrameIndex = filteredFrames.findIndex(
+      const firstFirstPartyFrameIndex = frames.findIndex(
         (entry) =>
-          entry.expanded &&
+          !entry.ignored &&
           Boolean(entry.originalCodeFrame) &&
           Boolean(entry.originalStackFrame)
       )
 
       return {
-        firstFrame: filteredFrames[firstFirstPartyFrameIndex] ?? null,
+        firstFrame: frames[firstFirstPartyFrameIndex] ?? null,
         allLeadingFrames:
           firstFirstPartyFrameIndex < 0
             ? []
-            : filteredFrames.slice(0, firstFirstPartyFrameIndex),
-        allCallStackFrames: filteredFrames.slice(firstFirstPartyFrameIndex + 1),
+            : frames.slice(0, firstFirstPartyFrameIndex),
+        allCallStackFrames: frames.slice(firstFirstPartyFrameIndex + 1),
       }
-    }, [error.frames])
+    }, [frames])
 
-  const [all, setAll] = React.useState(firstFrame == null)
+  const { leadingFramesGroupedByFramework, stackFramesGroupedByFramework } =
+    React.useMemo(() => {
+      const leadingFrames = allLeadingFrames.filter((f) => !f.ignored)
 
-  const {
-    canShowMore,
-    leadingFramesGroupedByFramework,
-    stackFramesGroupedByFramework,
-  } = React.useMemo(() => {
-    const leadingFrames = allLeadingFrames.filter((f) => f.expanded || all)
-    const visibleCallStackFrames = allCallStackFrames.filter(
-      (f) => f.expanded || all
-    )
+      return {
+        stackFramesGroupedByFramework:
+          groupStackFramesByFramework(allCallStackFrames),
 
-    return {
-      canShowMore:
-        allCallStackFrames.length !== visibleCallStackFrames.length ||
-        (all && firstFrame != null),
-
-      stackFramesGroupedByFramework:
-        groupStackFramesByFramework(allCallStackFrames),
-
-      leadingFramesGroupedByFramework:
-        groupStackFramesByFramework(leadingFrames),
-    }
-  }, [all, allCallStackFrames, allLeadingFrames, firstFrame])
+        leadingFramesGroupedByFramework:
+          groupStackFramesByFramework(leadingFrames),
+      }
+    }, [allCallStackFrames, allLeadingFrames])
 
   return (
     <React.Fragment>
@@ -82,32 +65,11 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
           />
         </React.Fragment>
       ) : undefined}
-      {canShowMore ? (
-        <React.Fragment>
-          <button
-            tabIndex={10}
-            data-nextjs-data-runtime-error-collapsed-action
-            type="button"
-            onClick={() => setAll(!all)}
-          >
-            {all ? 'Hide' : 'Show'} collapsed frames
-          </button>
-        </React.Fragment>
-      ) : undefined}
     </React.Fragment>
   )
 }
 
 export const styles = css`
-  button[data-nextjs-data-runtime-error-collapsed-action] {
-    background: none;
-    border: none;
-    padding: 0;
-    font-size: var(--size-font-small);
-    line-height: var(--size-font-bigger);
-    color: var(--color-accents-3);
-  }
-
   [data-nextjs-call-stack-frame]:not(:last-child),
   [data-nextjs-component-stack-frame]:not(:last-child) {
     margin-bottom: var(--size-gap-double);
@@ -149,7 +111,7 @@ export const styles = css`
     margin-bottom: var(--size-gap);
     font-family: var(--font-stack-monospace);
     font-size: var(--size-font);
-    color: #222;
+    color: #666;
   }
   [data-nextjs-call-stack-frame] > h3[data-nextjs-frame-expanded='false'] {
     color: #666;

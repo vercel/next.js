@@ -30,6 +30,8 @@ DEALINGS IN THE SOFTWARE.
 #![deny(clippy::all)]
 #![feature(box_patterns)]
 #![feature(arbitrary_self_types)]
+#![feature(arbitrary_self_types_pointers)]
 
 pub mod chain_transforms;
+mod linter;
 pub mod transforms;

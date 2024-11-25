@@ -7,12 +7,12 @@ export async function GET(
   {
     params,
   }: {
-    params: {
+    params: Promise<{
       path: string
-    }
+    }>
   }
 ): Promise<Response> {
-  request.nextUrl.pathname = `/app-future/en/${params.path}`
+  request.nextUrl.pathname = `/app-future/en/${(await params).path}`
   return fetch(request.nextUrl, {
     headers: new Headers({
       cookie: request.headers.get('cookie') ?? '',

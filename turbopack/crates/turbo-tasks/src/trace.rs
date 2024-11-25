@@ -9,8 +9,9 @@ use std::{
 
 use auto_hash_map::{AutoMap, AutoSet};
 use indexmap::{IndexMap, IndexSet};
+use turbo_rcstr::RcStr;
 
-use crate::{RawVc, RcStr};
+use crate::RawVc;
 
 pub struct TraceRawVcsContext {
     list: Vec<RawVc>,

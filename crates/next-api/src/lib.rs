@@ -1,5 +1,6 @@
 #![feature(future_join)]
 #![feature(arbitrary_self_types)]
+#![feature(arbitrary_self_types_pointers)]
 #![feature(impl_trait_in_assoc_type)]
 
 mod app;
@@ -11,12 +12,14 @@ pub mod global_module_id_strategy;
 mod instrumentation;
 mod loadable_manifest;
 mod middleware;
+mod nft_json;
 mod pages;
 pub mod paths;
 pub mod project;
 pub mod route;
 mod server_actions;
 mod versioned_content_map;
+mod webpack_stats;
 
 // Declare build-time information variables generated in build.rs
 shadow_rs::shadow!(build);

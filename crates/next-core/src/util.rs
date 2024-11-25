@@ -1,11 +1,14 @@
 use anyhow::{bail, Context, Result};
-use indexmap::{IndexMap, IndexSet};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use swc_core::{
     common::GLOBALS,
     ecma::ast::{Expr, Lit, Program},
 };
-use turbo_tasks::{trace::TraceRawVcs, RcStr, TaskInput, ValueDefault, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{
+    trace::TraceRawVcs, FxIndexMap, FxIndexSet, ResolvedVc, TaskInput, ValueDefault, ValueToString,
+    Vc,
+};
 use turbo_tasks_fs::{
     self, json::parse_json_rope_with_source_context, rope::Rope, util::join_path, File,
     FileContent, FileSystemPath,
@@ -69,7 +72,7 @@ pub async fn pathname_for_path(
     Ok(Vc::cell(path))
 }
 
-// Adapted from https://github.com/vercel/next.js/blob/canary/packages/next/shared/lib/router/utils/get-asset-path-from-route.ts
+// Adapted from https://github.com/vercel/next.js/blob/canary/packages/next/src/shared/lib/router/utils/get-asset-path-from-route.ts
 // TODO(alexkirsz) There's no need to create an intermediate string here (and
 // below), we should instead return an `impl Display`.
 pub fn get_asset_prefix_from_pathname(pathname: &str) -> String {
@@ -82,7 +85,7 @@ pub fn get_asset_prefix_from_pathname(pathname: &str) -> String {
     }
 }
 
-// Adapted from https://github.com/vercel/next.js/blob/canary/packages/next/shared/lib/router/utils/get-asset-path-from-route.ts
+// Adapted from https://github.com/vercel/next.js/blob/canary/packages/next/src/shared/lib/router/utils/get-asset-path-from-route.ts
 pub fn get_asset_path_from_pathname(pathname: &str, ext: &str) -> String {
     format!("{}{}", get_asset_prefix_from_pathname(pathname), ext)
 }
@@ -90,7 +93,7 @@ pub fn get_asset_path_from_pathname(pathname: &str, ext: &str) -> String {
 #[turbo_tasks::function]
 pub async fn get_transpiled_packages(
     next_config: Vc<NextConfig>,
-    project_path: Vc<FileSystemPath>,
+    project_path: ResolvedVc<FileSystemPath>,
 ) -> Result<Vc<Vec<RcStr>>> {
     let mut transpile_packages: Vec<RcStr> = next_config.transpile_packages().await?.clone_value();
 
@@ -107,16 +110,16 @@ pub async fn get_transpiled_packages(
 
 pub async fn foreign_code_context_condition(
     next_config: Vc<NextConfig>,
-    project_path: Vc<FileSystemPath>,
+    project_path: ResolvedVc<FileSystemPath>,
 ) -> Result<ContextCondition> {
-    let transpiled_packages = get_transpiled_packages(next_config, project_path).await?;
+    let transpiled_packages = get_transpiled_packages(next_config, *project_path).await?;
 
     // The next template files are allowed to import the user's code via import
     // mapping, and imports must use the project-level [ResolveOptions] instead
     // of the `node_modules` specific resolve options (the template files are
     // technically node module files).
     let not_next_template_dir = ContextCondition::not(ContextCondition::InPath(
-        get_next_package(project_path).join(NEXT_TEMPLATE_PATH.into()),
+        get_next_package(*project_path).join(NEXT_TEMPLATE_PATH.into()),
     ));
 
     let result = ContextCondition::all(vec![
@@ -380,7 +383,7 @@ pub async fn parse_config_from_source(module: Vc<Box<dyn Module>>) -> Result<Vc<
             globals,
             eval_context,
             ..
-        } = &*ecmascript_asset.failsafe_parse().await?
+        } = &*ecmascript_asset.parse_original().await?
         {
             for item in &module_ast.body {
                 if let Some(decl) = item
@@ -587,9 +590,9 @@ fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> N
 pub async fn load_next_js_template(
     path: &str,
     project_path: Vc<FileSystemPath>,
-    replacements: IndexMap<&'static str, RcStr>,
-    injections: IndexMap<&'static str, RcStr>,
-    imports: IndexMap<&'static str, Option<RcStr>>,
+    replacements: FxIndexMap<&'static str, RcStr>,
+    injections: FxIndexMap<&'static str, RcStr>,
+    imports: FxIndexMap<&'static str, Option<RcStr>>,
 ) -> Result<Vc<Box<dyn Source>>> {
     let path = virtual_next_js_template_path(project_path, path.to_string());
 
@@ -679,7 +682,7 @@ pub async fn load_next_js_template(
 
     // Replace all the template variables with the actual values. If a template
     // variable is missing, throw an error.
-    let mut replaced = IndexSet::new();
+    let mut replaced = FxIndexSet::default();
     for (key, replacement) in &replacements {
         let full = format!("'{}'", key);
 
@@ -721,7 +724,7 @@ pub async fn load_next_js_template(
     }
 
     // Replace the injections.
-    let mut injected = IndexSet::new();
+    let mut injected = FxIndexSet::default();
     for (key, injection) in &injections {
         let full = format!("// INJECT:{}", key);
 
@@ -764,7 +767,7 @@ pub async fn load_next_js_template(
     }
 
     // Replace the optional imports.
-    let mut imports_added = IndexSet::new();
+    let mut imports_added = FxIndexSet::default();
     for (key, import_path) in &imports {
         let mut full = format!("// OPTIONAL_IMPORT:{}", key);
         let namespace = if !content.contains(&full) {
@@ -859,10 +862,10 @@ pub fn virtual_next_js_template_path(
 }
 
 pub async fn load_next_js_templateon<T: DeserializeOwned>(
-    project_path: Vc<FileSystemPath>,
+    project_path: ResolvedVc<FileSystemPath>,
     path: RcStr,
 ) -> Result<T> {
-    let file_path = get_next_package(project_path).join(path.clone());
+    let file_path = get_next_package(*project_path).join(path.clone());
 
     let content = &*file_path.read().await?;
 

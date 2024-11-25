@@ -36,11 +36,11 @@ import type { NextFontManifest } from '../build/webpack/plugins/next-font-manife
 import type { PagesModule } from './route-modules/pages/module'
 import type { ComponentsEnhancer } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
-import type { Revalidate, SwrDelta } from './lib/revalidate'
+import type { Revalidate, ExpireTime } from './lib/revalidate'
 import type { COMPILER_NAMES } from '../shared/lib/constants'
 
 import React, { type JSX } from 'react'
-import ReactDOMServerEdge from 'react-dom/server.edge'
+import ReactDOMServerPages from 'next/dist/server/ReactDOMServerPages'
 import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
 import {
   GSP_NO_RETURNED_VALUE,
@@ -127,7 +127,7 @@ function noRouter() {
 }
 
 async function renderToString(element: React.ReactElement) {
-  const renderStream = await ReactDOMServerEdge.renderToReadableStream(element)
+  const renderStream = await ReactDOMServerPages.renderToReadableStream(element)
   await renderStream.allReady
   return streamToString(renderStream)
 }
@@ -284,7 +284,7 @@ export type RenderOptsPartial = {
   isServerAction?: boolean
   isExperimentalCompile?: boolean
   isPrefetch?: boolean
-  swrDelta?: SwrDelta
+  expireTime?: ExpireTime
   experimental: {
     clientTraceMetadata?: string[]
   }
@@ -456,7 +456,7 @@ export async function renderToHTMLImpl(
     images,
     runtime: globalRuntime,
     isExperimentalCompile,
-    swrDelta,
+    expireTime,
   } = renderOpts
   const { App } = extra
 
@@ -517,7 +517,7 @@ export async function renderToHTMLImpl(
       'Cache-Control',
       formatRevalidate({
         revalidate: false,
-        swrDelta,
+        expireTime,
       })
     )
     isAutoExport = false
@@ -844,9 +844,7 @@ export async function renderToHTMLImpl(
         },
         () =>
           getStaticProps({
-            ...(pageIsDynamic
-              ? { params: query as ParsedUrlQuery }
-              : undefined),
+            ...(pageIsDynamic ? { params } : undefined),
             ...(isPreview
               ? { draftMode: true, preview: true, previewData: previewData }
               : undefined),
@@ -1069,9 +1067,7 @@ export async function renderToHTMLImpl(
             res: resOrProxy,
             query,
             resolvedUrl: renderOpts.resolvedUrl as string,
-            ...(pageIsDynamic
-              ? { params: params as ParsedUrlQuery }
-              : undefined),
+            ...(pageIsDynamic ? { params } : undefined),
             ...(previewData !== false
               ? { draftMode: true, preview: true, previewData: previewData }
               : undefined),
@@ -1326,7 +1322,7 @@ export async function renderToHTMLImpl(
     ) => {
       const content = renderContent(EnhancedApp, EnhancedComponent)
       return await renderToInitialFizzStream({
-        ReactDOMServer: ReactDOMServerEdge,
+        ReactDOMServer: ReactDOMServerPages,
         element: content,
       })
     }
@@ -1391,7 +1387,7 @@ export async function renderToHTMLImpl(
     }
   }
 
-  getTracer().getRootSpanAttributes()?.set('next.route', renderOpts.page)
+  getTracer().setRootSpanAttribute('next.route', renderOpts.page)
   const documentResult = await getTracer().trace(
     RenderSpan.renderDocument,
     {

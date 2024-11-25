@@ -1,4 +1,6 @@
 #![feature(arbitrary_self_types)]
+#![feature(arbitrary_self_types_pointers)]
+#![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
 use anyhow::Result;
 use turbo_tasks::{
@@ -25,26 +27,6 @@ async fn test_store_and_read() -> Result<()> {
 
         let c = TransparentWrapper(42).local_cell();
         assert_eq!(*c.await.unwrap(), 42);
-
-        Ok(())
-    })
-    .await
-}
-
-#[tokio::test]
-async fn test_store_and_read_generic() -> Result<()> {
-    run(&REGISTRATION, || async {
-        // `Vc<Vec<Vc<T>>>` is stored as `Vc<Vec<Vc<()>>>` and requires special
-        // transmute handling
-        let cells: Vc<Vec<Vc<u32>>> =
-            Vc::local_cell(vec![Vc::local_cell(1), Vc::local_cell(2), Vc::cell(3)]);
-
-        let mut output = Vec::new();
-        for el in cells.await.unwrap() {
-            output.push(*el.await.unwrap());
-        }
-
-        assert_eq!(output, vec![1, 2, 3]);
 
         Ok(())
     })

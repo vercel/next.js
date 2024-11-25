@@ -1,5 +1,6 @@
 use anyhow::{bail, Result};
-use turbo_tasks::{RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::Vc;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkableModule, ChunkingContext, ChunkingContextExt},
@@ -30,13 +31,11 @@ impl NextDynamicEntryModule {
 
     #[turbo_tasks::function]
     pub async fn client_chunks(
-        self: Vc<Self>,
+        &self,
         client_chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<OutputAssets>> {
-        let this = self.await?;
-
         let Some(client_entry_module) =
-            Vc::try_resolve_sidecast::<Box<dyn ChunkableModule>>(this.client_entry_module).await?
+            Vc::try_resolve_sidecast::<Box<dyn ChunkableModule>>(self.client_entry_module).await?
         else {
             bail!("dynamic client asset must be chunkable");
         };

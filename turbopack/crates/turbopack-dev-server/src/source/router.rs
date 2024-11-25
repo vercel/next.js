@@ -1,7 +1,8 @@
 use std::iter::once;
 
 use anyhow::Result;
-use turbo_tasks::{RcStr, TryJoinIterExt, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{TryJoinIterExt, Value, Vc};
 use turbopack_core::introspect::{Introspectable, IntrospectableChildren};
 
 use super::{
@@ -11,8 +12,9 @@ use super::{
 };
 use crate::source::{route_tree::MapGetContentSourceContent, ContentSources};
 
-/// Binds different ContentSources to different subpaths. The request path must
-/// begin with the prefix, which will be stripped (along with the subpath)
+/// Binds different ContentSources to different subpaths.
+///
+/// The request path must begin with the prefix, which will be stripped (along with the subpath)
 /// before querying the ContentSource. A fallback ContentSource will serve all
 /// other subpaths, including if the request path does not include the prefix.
 #[turbo_tasks::value(shared)]
@@ -25,17 +27,17 @@ pub struct PrefixedRouterContentSource {
 #[turbo_tasks::value_impl]
 impl PrefixedRouterContentSource {
     #[turbo_tasks::function]
-    pub async fn new(
+    pub fn new(
         prefix: Vc<RcStr>,
         routes: Vec<(RcStr, Vc<Box<dyn ContentSource>>)>,
         fallback: Vc<Box<dyn ContentSource>>,
-    ) -> Result<Vc<Self>> {
-        Ok(PrefixedRouterContentSource {
+    ) -> Vc<Self> {
+        PrefixedRouterContentSource {
             prefix,
             routes,
             fallback,
         }
-        .cell())
+        .cell()
     }
 }
 

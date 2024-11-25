@@ -1,9 +1,9 @@
 use std::{collections::HashMap, fmt::Write, mem::take};
 
 use anyhow::Result;
-use indexmap::IndexSet;
 use serde_json::Value as JsonValue;
-use turbo_tasks::{RcStr, Value, ValueDefault, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{fxindexset, ResolvedVc, Value, ValueDefault, Vc};
 use turbo_tasks_fs::{FileContent, FileJsonContent, FileSystemPath};
 use turbopack_core::{
     asset::Asset,
@@ -31,8 +31,8 @@ use crate::ecmascript::get_condition_maps;
 
 #[turbo_tasks::value(shared)]
 pub struct TsConfigIssue {
-    pub severity: Vc<IssueSeverity>,
-    pub source_ident: Vc<AssetIdent>,
+    pub severity: ResolvedVc<IssueSeverity>,
+    pub source_ident: ResolvedVc<AssetIdent>,
     pub message: RcStr,
 }
 
@@ -43,14 +43,14 @@ async fn json_only(resolve_options: Vc<ResolveOptions>) -> Result<Vc<ResolveOpti
     Ok(opts.cell())
 }
 
-type TsConfigs = Vec<(Vc<FileJsonContent>, Vc<Box<dyn Source>>)>;
+type TsConfig = (Vc<FileJsonContent>, ResolvedVc<Box<dyn Source>>);
 
 #[tracing::instrument(skip_all)]
 pub async fn read_tsconfigs(
     mut data: Vc<FileContent>,
-    mut tsconfig: Vc<Box<dyn Source>>,
+    mut tsconfig: ResolvedVc<Box<dyn Source>>,
     resolve_options: Vc<ResolveOptions>,
-) -> Result<TsConfigs> {
+) -> Result<Vec<TsConfig>> {
     let mut configs = Vec::new();
     let resolve_options = json_only(resolve_options);
     loop {
@@ -72,8 +72,8 @@ pub async fn read_tsconfigs(
                     write!(message, "{}", e)?;
                 }
                 TsConfigIssue {
-                    severity: IssueSeverity::Error.into(),
-                    source_ident: tsconfig.ident(),
+                    severity: IssueSeverity::Error.resolved_cell(),
+                    source_ident: tsconfig.ident().to_resolved().await?,
                     message: message.into(),
                 }
                 .cell()
@@ -81,8 +81,8 @@ pub async fn read_tsconfigs(
             }
             FileJsonContent::NotFound => {
                 TsConfigIssue {
-                    severity: IssueSeverity::Error.into(),
-                    source_ident: tsconfig.ident(),
+                    severity: IssueSeverity::Error.resolved_cell(),
+                    source_ident: tsconfig.ident().to_resolved().await?,
                     message: "tsconfig not found".into(),
                 }
                 .cell()
@@ -91,15 +91,15 @@ pub async fn read_tsconfigs(
             FileJsonContent::Content(json) => {
                 configs.push((parsed_data, tsconfig));
                 if let Some(extends) = json["extends"].as_str() {
-                    let resolved = resolve_extends(tsconfig, extends, resolve_options).await?;
+                    let resolved = resolve_extends(*tsconfig, extends, resolve_options).await?;
                     if let Some(source) = *resolved.await? {
                         data = source.content().file_content();
                         tsconfig = source;
                         continue;
                     } else {
                         TsConfigIssue {
-                            severity: IssueSeverity::Error.into(),
-                            source_ident: tsconfig.ident(),
+                            severity: IssueSeverity::Error.resolved_cell(),
+                            source_ident: tsconfig.ident().to_resolved().await?,
                             message: format!("extends: \"{}\" doesn't resolve correctly", extends)
                                 .into(),
                         }
@@ -201,11 +201,9 @@ async fn resolve_extends_rooted_or_relative(
     Ok(result)
 }
 
-type Config = (Vc<FileJsonContent>, Vc<Box<dyn Source>>);
-
 pub async fn read_from_tsconfigs<T>(
-    configs: &[Config],
-    accessor: impl Fn(&JsonValue, Vc<Box<dyn Source>>) -> Option<T>,
+    configs: &[TsConfig],
+    accessor: impl Fn(&JsonValue, ResolvedVc<Box<dyn Source>>) -> Option<T>,
 ) -> Result<Option<T>> {
     for (config, source) in configs.iter() {
         if let FileJsonContent::Content(json) = &*config.await? {
@@ -221,8 +219,8 @@ pub async fn read_from_tsconfigs<T>(
 #[turbo_tasks::value]
 #[derive(Default)]
 pub struct TsConfigResolveOptions {
-    base_url: Option<Vc<FileSystemPath>>,
-    import_map: Option<Vc<ImportMap>>,
+    base_url: Option<ResolvedVc<FileSystemPath>>,
+    import_map: Option<ResolvedVc<ImportMap>>,
     is_module_resolution_nodenext: bool,
 }
 
@@ -241,7 +239,7 @@ pub async fn tsconfig_resolve_options(
 ) -> Result<Vc<TsConfigResolveOptions>> {
     let configs = read_tsconfigs(
         tsconfig.read(),
-        Vc::upcast(FileSource::new(tsconfig)),
+        ResolvedVc::upcast(FileSource::new(tsconfig).to_resolved().await?),
         node_cjs_resolve_options(tsconfig.root()),
     )
     .await?;
@@ -269,9 +267,10 @@ pub async fn tsconfig_resolve_options(
                 let mut context_dir = source.ident().path().parent();
                 if let Some(base_url) = json["compilerOptions"]["baseUrl"].as_str() {
                     if let Some(new_context) = *context_dir.try_join(base_url.into()).await? {
-                        context_dir = new_context;
+                        context_dir = *new_context;
                     }
                 };
+                let context_dir = context_dir.to_resolved().await?;
                 for (key, value) in paths.iter() {
                     if let JsonValue::Array(vec) = value {
                         let entries = vec
@@ -299,8 +298,8 @@ pub async fn tsconfig_resolve_options(
                         );
                     } else {
                         TsConfigIssue {
-                            severity: IssueSeverity::Warning.cell(),
-                            source_ident: source.ident(),
+                            severity: IssueSeverity::Warning.resolved_cell(),
+                            source_ident: source.ident().to_resolved().await?,
                             message: format!(
                                 "compilerOptions.paths[{key}] doesn't contains an array as \
                                  expected\n{key}: {value:#}",
@@ -320,9 +319,9 @@ pub async fn tsconfig_resolve_options(
     let import_map = if !all_paths.is_empty() {
         let mut import_map = ImportMap::empty();
         for (key, value) in all_paths {
-            import_map.insert_alias(AliasPattern::parse(key), value.into());
+            import_map.insert_alias(AliasPattern::parse(key), value.resolved_cell());
         }
-        Some(import_map.cell())
+        Some(import_map.resolved_cell())
     } else {
         None
     };
@@ -363,7 +362,7 @@ pub async fn apply_tsconfig_resolve_options(
             ResolveModules::Path {
                 dir: base_url,
                 // tsconfig basepath doesn't apply to json requests
-                excluded_extensions: Vc::cell(IndexSet::from([".json".into()])),
+                excluded_extensions: ResolvedVc::cell(fxindexset![".json".into()]),
             },
         );
     }
@@ -371,8 +370,10 @@ pub async fn apply_tsconfig_resolve_options(
         resolve_options.import_map = Some(
             resolve_options
                 .import_map
-                .map(|import_map| import_map.extend(tsconfig_import_map))
-                .unwrap_or(tsconfig_import_map),
+                .map(|import_map| import_map.extend(*tsconfig_import_map))
+                .unwrap_or(*tsconfig_import_map)
+                .to_resolved()
+                .await?,
         );
     }
     resolve_options.enable_typescript_with_output_extension =
@@ -423,7 +424,7 @@ pub async fn type_resolve(
             request,
             options,
         );
-        if !*result1.is_unresolveable().await? {
+        if !*result1.is_unresolvable().await? {
             result1
         } else {
             resolve(
@@ -456,7 +457,7 @@ pub async fn type_resolve(
         origin.origin_path(),
         request,
         options,
-        IssueSeverity::Error.cell(),
+        false,
         None,
     )
     .await
@@ -515,15 +516,12 @@ async fn apply_typescript_types_options(
 impl Issue for TsConfigIssue {
     #[turbo_tasks::function]
     fn severity(&self) -> Vc<IssueSeverity> {
-        self.severity
+        *self.severity
     }
 
     #[turbo_tasks::function]
-    async fn title(&self) -> Result<Vc<StyledString>> {
-        Ok(
-            StyledString::Text("An issue occurred while parsing a tsconfig.json file.".into())
-                .cell(),
-        )
+    fn title(&self) -> Vc<StyledString> {
+        StyledString::Text("An issue occurred while parsing a tsconfig.json file.".into()).cell()
     }
 
     #[turbo_tasks::function]

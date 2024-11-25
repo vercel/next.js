@@ -9,7 +9,7 @@ pub struct FindFunctionsOutsideModuleScope<'a> {
     pub state: &'a super::State,
 }
 
-impl<'a> Visit for FindFunctionsOutsideModuleScope<'a> {
+impl Visit for FindFunctionsOutsideModuleScope<'_> {
     noop_visit_type!();
 
     fn visit_ident(&mut self, ident: &Ident) {

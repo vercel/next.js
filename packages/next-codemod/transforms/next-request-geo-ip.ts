@@ -8,6 +8,7 @@ import type {
   ImportSpecifier,
   Identifier,
 } from 'jscodeshift'
+import { createParserFromPath } from '../lib/parser'
 
 const GEO = 'geo'
 const IP = 'ip'
@@ -15,12 +16,12 @@ const GEOLOCATION = 'geolocation'
 const IP_ADDRESS = 'ipAddress'
 const GEO_TYPE = 'Geo'
 
-export default function (fileInfo: FileInfo, api: API) {
-  const j = api.jscodeshift.withParser('tsx')
-  const root = j(fileInfo.source)
+export default function (file: FileInfo, _api: API) {
+  const j = createParserFromPath(file.path)
+  const root = j(file.source)
 
   if (!root.length) {
-    return fileInfo.source
+    return file.source
   }
 
   const nextReqType = root
@@ -97,7 +98,7 @@ export default function (fileInfo: FileInfo, api: API) {
     hasChangedIpType
 
   if (!needChanges) {
-    return fileInfo.source
+    return file.source
   }
 
   // Even if there was a change above, if there's an existing import,

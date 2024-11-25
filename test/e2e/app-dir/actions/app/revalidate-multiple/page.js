@@ -1,4 +1,4 @@
-import { revalidateTag } from 'next/cache'
+import { expireTag } from 'next/cache'
 
 export default async function Page() {
   const data1 = await fetch(
@@ -29,8 +29,8 @@ export default async function Page() {
           id="revalidate"
           formAction={async () => {
             'use server'
-            revalidateTag('thankyounext')
-            revalidateTag('justputit')
+            expireTag('thankyounext')
+            expireTag('justputit')
           }}
         >
           revalidate thankyounext

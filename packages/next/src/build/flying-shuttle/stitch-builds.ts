@@ -31,6 +31,7 @@ import {
 } from '../../shared/lib/constants'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import type { NextConfigComplete } from '../../server/config-shared'
+import { isMetadataRoute } from '../../lib/metadata/is-metadata-route'
 
 export async function stitchBuilds(
   {
@@ -106,7 +107,7 @@ export async function stitchBuilds(
       path.join(distDir, entryFile + '.nft.json')
     )
 
-    if (type === 'app' && !entry.endsWith('/route')) {
+    if (type === 'app' && !isMetadataRoute(entry)) {
       const clientRefManifestFile = path.join(
         'server',
         type,

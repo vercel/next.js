@@ -13,6 +13,8 @@ import webdriver from 'next-webdriver'
 import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 
+const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
+
 describe('Client Navigation', () => {
   const { next } = nextTestSetup({
     files: path.join(__dirname, 'fixture'),
@@ -1669,19 +1671,19 @@ describe.each([[false], [true]])(
         expect(
           Number(await browser.eval('window.__test_async_executions'))
         ).toBe(
-          strictNextHead
+          strictNextHead || isReact18
             ? 1
             : // <meta name="next-head-count" /> is floated before <script />.
-              // head-manager thinks it needs t add these again resulting in another execution.
+              // head-manager thinks it needs to add these again resulting in another execution.
               2
         )
         expect(
           Number(await browser.eval('window.__test_defer_executions'))
         ).toBe(
-          strictNextHead
+          strictNextHead || isReact18
             ? 1
             : // <meta name="next-head-count" /> is floated before <script defer />.
-              // head-manager thinks it needs t add these again resulting in another execution.
+              // head-manager thinks it needs to add these again resulting in another execution.
               2
         )
 
@@ -1690,20 +1692,20 @@ describe.each([[false], [true]])(
 
         expect(
           Number(await browser.eval('window.__test_async_executions'))
-        ).toBe(strictNextHead ? 1 : 2)
+        ).toBe(strictNextHead || isReact18 ? 1 : 2)
         expect(
           Number(await browser.eval('window.__test_defer_executions'))
-        ).toBe(strictNextHead ? 1 : 2)
+        ).toBe(strictNextHead || isReact18 ? 1 : 2)
 
         await browser.elementByCss('#toggleScript').click()
         await waitFor(2000)
 
         expect(
           Number(await browser.eval('window.__test_async_executions'))
-        ).toBe(strictNextHead ? 1 : 2)
+        ).toBe(strictNextHead || isReact18 ? 1 : 2)
         expect(
           Number(await browser.eval('window.__test_defer_executions'))
-        ).toBe(strictNextHead ? 1 : 2)
+        ).toBe(strictNextHead || isReact18 ? 1 : 2)
       } finally {
         if (browser) {
           await browser.close()

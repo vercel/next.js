@@ -66,7 +66,7 @@ export function PseudoHtmlDiff({
   firstContent: string
   secondContent: string
   reactOutputComponentDiff: string | undefined
-  hydrationMismatchType: 'tag' | 'text'
+  hydrationMismatchType: 'tag' | 'text' | 'text-in-tag'
 } & React.HTMLAttributes<HTMLPreElement>) {
   const isHtmlTagsWarning = hydrationMismatchType === 'tag'
   const isReactHydrationDiff = !!reactOutputComponentDiff
@@ -85,7 +85,7 @@ export function PseudoHtmlDiff({
       reactComponentDiffLines.forEach((line, index) => {
         let trimmedLine = line.trim()
         const isDiffLine = trimmedLine[0] === '+' || trimmedLine[0] === '-'
-        const spaces = ' '.repeat(componentStacks.length * 2)
+        const spaces = ' '.repeat(Math.max(componentStacks.length * 2, 1))
 
         if (isDiffLine) {
           const sign = trimmedLine[0]
@@ -126,6 +126,15 @@ export function PseudoHtmlDiff({
               </span>
             )
           }
+        } else if (!isHtmlCollapsed) {
+          // In general, if it's not collapsed, show the whole diff
+          componentStacks.push(
+            <span key={'comp-diff' + index}>
+              {spaces}
+              {trimmedLine}
+              {'\n'}
+            </span>
+          )
         }
       })
       return componentStacks.concat(diffHtmlStack)

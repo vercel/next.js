@@ -234,6 +234,10 @@ impl<T> ReadRef<T> {
     pub fn ptr_eq(&self, other: &ReadRef<T>) -> bool {
         triomphe::Arc::ptr_eq(&self.0, &other.0)
     }
+
+    pub fn ptr(&self) -> *const T {
+        &*self.0 as *const T
+    }
 }
 
 impl<T> ReadRef<T>

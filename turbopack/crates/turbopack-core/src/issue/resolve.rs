@@ -1,7 +1,8 @@
 use std::fmt::Write;
 
 use anyhow::Result;
-use turbo_tasks::{RcStr, ReadRef, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ReadRef, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
 use super::{Issue, IssueSource, IssueStage, OptionIssueSource, OptionStyledString, StyledString};
@@ -22,7 +23,7 @@ pub struct ResolvingIssue {
     pub file_path: Vc<FileSystemPath>,
     pub resolve_options: Vc<ResolveOptions>,
     pub error_message: Option<String>,
-    pub source: Option<Vc<IssueSource>>,
+    pub source: Option<ResolvedVc<IssueSource>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -34,17 +35,17 @@ impl Issue for ResolvingIssue {
 
     #[turbo_tasks::function]
     async fn title(&self) -> Result<Vc<StyledString>> {
-        let module_not_found = StyledString::Strong("Module not found".into());
-
-        Ok(match self.request.await?.request() {
-            Some(request) => StyledString::Line(vec![
-                module_not_found,
-                StyledString::Text(": Can't resolve '".into()),
-                StyledString::Code(request),
-                StyledString::Text("'".into()),
-            ]),
-            None => module_not_found,
-        }
+        let request = self
+            .request
+            .request_pattern()
+            .to_string()
+            .await?
+            .clone_value();
+        Ok(StyledString::Line(vec![
+            StyledString::Strong("Module not found".into()),
+            StyledString::Text(": Can't resolve ".into()),
+            StyledString::Code(request),
+        ])
         .cell())
     }
 
@@ -72,7 +73,7 @@ impl Issue for ResolvingIssue {
 
         if let Some(import_map) = &self.resolve_options.await?.import_map {
             for request in request_parts {
-                match lookup_import_map(*import_map, self.file_path, *request).await {
+                match lookup_import_map(**import_map, self.file_path, *request).await {
                     Ok(None) => {}
                     Ok(Some(str)) => writeln!(description, "Import map: {}", str)?,
                     Err(err) => {

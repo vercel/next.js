@@ -286,7 +286,7 @@ enum QueueItem<'a> {
     SpanBottomUpSpan(SpanRef<'a>),
 }
 
-impl<'a> QueueItem<'a> {
+impl QueueItem<'_> {
     fn value(&self, value_mode: ValueMode) -> u64 {
         match self {
             QueueItem::Span(span) => value_mode.value_from_span(span),
@@ -1088,8 +1088,7 @@ fn add_child_item<'a>(
     let child_width = child.value(value_mode);
     let max_depth = child.max_depth();
     let pixel1 = *current * view_rect.horizontal_pixels / view_rect.width;
-    let pixel2 = ((*current + child_width) * view_rect.horizontal_pixels + view_rect.width - 1)
-        / view_rect.width;
+    let pixel2 = ((*current + child_width) * view_rect.horizontal_pixels).div_ceil(view_rect.width);
     let start = *current;
     *current += child_width;
 

@@ -1,7 +1,6 @@
-use std::{borrow::Cow, fmt::Write};
+use std::fmt::Write;
 
 use anyhow::{bail, Result};
-use indexmap::IndexSet;
 use rustc_hash::FxHashMap;
 use swc_core::{
     common::{comments::Comments, util::take::Take, SyntaxContext, DUMMY_SP, GLOBALS},
@@ -13,7 +12,8 @@ use swc_core::{
         codegen::to_code,
     },
 };
-use turbo_tasks::{RcStr, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexSet, ResolvedVc, ValueToString, Vc};
 use turbopack_core::{ident::AssetIdent, resolve::ModulePart, source::Source};
 
 pub(crate) use self::graph::{
@@ -26,6 +26,8 @@ pub mod asset;
 pub mod chunk_item;
 mod graph;
 pub mod merge;
+mod optimizations;
+pub mod side_effect_module;
 #[cfg(test)]
 mod tests;
 mod util;
@@ -52,14 +54,14 @@ struct VarState {
     last_writes: Vec<ItemId>,
     /// The module items that might read that variable.
     last_reads: Vec<ItemId>,
+
+    last_op: Option<VarOp>,
 }
 
-fn get_var<'a>(map: &'a FxHashMap<Id, VarState>, id: &Id) -> Cow<'a, VarState> {
-    let v = map.get(id);
-    match v {
-        Some(v) => Cow::Borrowed(v),
-        None => Cow::Owned(Default::default()),
-    }
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum VarOp {
+    Read,
+    Write,
 }
 
 impl Analyzer<'_> {
@@ -88,15 +90,27 @@ impl Analyzer<'_> {
 
         analyzer.handle_exports(module);
 
+        analyzer.handle_explicit_deps();
+
         (g, items)
+    }
+
+    fn handle_explicit_deps(&mut self) {
+        for item_id in self.item_ids.iter() {
+            if let Some(item) = self.items.get(item_id) {
+                if !item.explicit_deps.is_empty() {
+                    self.g.add_strong_deps(item_id, item.explicit_deps.iter());
+                }
+            }
+        }
     }
 
     /// Phase 1: Hoisted Variables and Bindings
     ///
     ///
     /// Returns all (EVENTUAL_READ/WRITE_VARS) in the module.
-    fn hoist_vars_and_bindings(&mut self) -> IndexSet<Id> {
-        let mut eventual_ids = IndexSet::default();
+    fn hoist_vars_and_bindings(&mut self) -> FxIndexSet<Id> {
+        let mut eventual_ids = FxIndexSet::default();
 
         for item_id in self.item_ids.iter() {
             if let Some(item) = self.items.get(item_id) {
@@ -105,7 +119,7 @@ impl Analyzer<'_> {
 
                 if item.is_hoisted && item.side_effects {
                     self.g
-                        .add_strong_deps(item_id, self.last_side_effects.iter());
+                        .add_strong_deps(item_id, self.last_side_effects.last());
 
                     self.last_side_effects.push(item_id.clone());
                 }
@@ -131,7 +145,7 @@ impl Analyzer<'_> {
     }
 
     /// Phase 2: Immediate evaluation
-    fn evaluate_immediate(&mut self, _module: &Module, eventual_ids: &IndexSet<Id>) {
+    fn evaluate_immediate(&mut self, _module: &Module, eventual_ids: &FxIndexSet<Id>) {
         for item_id in self.item_ids.iter() {
             if let Some(item) = self.items.get(item_id) {
                 // Ignore HOISTED module items, they have been processed in phase 1 already.
@@ -148,11 +162,12 @@ impl Analyzer<'_> {
 
                 // For each var in READ_VARS:
                 for id in item.read_vars.iter() {
-                    // Create a strong dependency to all module items listed in LAST_WRITES for that
-                    // var.
+                    // read (last: read) -> ref last_writes, push last_reads
+                    // read (last: (read +) write) -> ref last_writes, clear last_reads, push
+                    // last_reads
 
                     // (the writes need to be executed before this read)
-                    let state = get_var(&self.vars, id);
+                    let state = self.vars.entry(id.clone()).or_default();
                     self.g.add_strong_deps(item_id, state.last_writes.iter());
 
                     if let Some(declarator) = &state.declarator {
@@ -161,6 +176,10 @@ impl Analyzer<'_> {
                             self.g
                                 .add_strong_deps(item_id, [declarator].iter().copied());
                         }
+                    }
+
+                    if state.last_op == Some(VarOp::Write) && !item.write_vars.contains(id) {
+                        state.last_reads.clear();
                     }
                 }
 
@@ -172,7 +191,7 @@ impl Analyzer<'_> {
                     // (the reads need to be executed before this write, when
                     // it’s needed)
 
-                    let state = get_var(&self.vars, id);
+                    let state = self.vars.entry(id.clone()).or_default();
                     self.g.add_weak_deps(item_id, state.last_reads.iter());
 
                     if let Some(declarator) = &state.declarator {
@@ -181,21 +200,48 @@ impl Analyzer<'_> {
                             self.g.add_strong_deps(item_id, [declarator]);
                         }
                     }
+
+                    if !item.read_vars.contains(id) {
+                        // write (last: read) -> weak_ref last_reads, clear last_writes, push
+                        // last_writes
+
+                        if state.last_op == Some(VarOp::Read) {
+                            state.last_writes.clear();
+                        } else if state.last_op == Some(VarOp::Write) {
+                            // write (last: (read +) write) -> weak_ref last_reads, push last_writes
+                        }
+                    } else {
+                        // read+write (last: read) -> weak_ref last_reads, ref last_writes, clear
+                        // last_reads, clear last_writes, push last_reads, push last_writes
+
+                        // read+write (last: (read +) write) -> ref last_writes, clear
+                        // last_reads, clear last_writes, push
+                        // last_reads, push last_writes
+                        if state.last_op.is_some() {
+                            state.last_reads.clear();
+                            state.last_writes.clear();
+                        }
+                    }
                 }
 
                 if item.side_effects {
                     // Create a strong dependency to LAST_SIDE_EFFECT.
 
                     self.g
-                        .add_strong_deps(item_id, self.last_side_effects.iter());
+                        .add_strong_deps(item_id, self.last_side_effects.last());
 
-                    // Create weak dependencies to all LAST_WRITES and
-                    // LAST_READS.
+                    // Create weak dependencies to all LAST_WRITES and strong
+                    // dependencies to LAST_READS.
+                    //
+                    // We need to create strong dependencies to LAST_READS because
+                    // prototype-based methods definitions should be executed before
+                    // any usage of those methods, and the usage of those methods are
+                    // flagged as a side effect.
                     for id in eventual_ids.iter() {
-                        let state = get_var(&self.vars, id);
+                        let state = self.vars.entry(id.clone()).or_default();
 
                         self.g.add_weak_deps(item_id, state.last_writes.iter());
-                        self.g.add_weak_deps(item_id, state.last_reads.iter());
+                        self.g.add_strong_deps(item_id, state.last_reads.iter());
                     }
                 }
 
@@ -242,6 +288,13 @@ impl Analyzer<'_> {
                     state
                         .last_reads
                         .retain(|last_read| !self.g.has_dep(item_id, last_read, true));
+
+                    state.last_op = Some(VarOp::Read);
+                }
+
+                for id in item.write_vars.iter() {
+                    let state = self.vars.entry(id.clone()).or_default();
+                    state.last_op = Some(VarOp::Write);
                 }
 
                 if item.side_effects {
@@ -261,7 +314,7 @@ impl Analyzer<'_> {
                     // Create a strong dependency to all module items listed in
                     // LAST_WRITES for that var.
 
-                    let state = get_var(&self.vars, id);
+                    let state = self.vars.entry(id.clone()).or_default();
                     self.g.add_strong_deps(item_id, state.last_writes.iter());
 
                     if let Some(declarator) = &state.declarator {
@@ -277,7 +330,7 @@ impl Analyzer<'_> {
                     // Create a weak dependency to all module items listed in
                     // LAST_READS for that var.
 
-                    let state = get_var(&self.vars, id);
+                    let state = self.vars.entry(id.clone()).or_default();
 
                     self.g.add_weak_deps(item_id, state.last_reads.iter());
 
@@ -304,12 +357,12 @@ impl Analyzer<'_> {
                         // Create a strong dependency to LAST_SIDE_EFFECTS
 
                         self.g
-                            .add_strong_deps(item_id, self.last_side_effects.iter());
+                            .add_strong_deps(item_id, self.last_side_effects.last());
                     }
                     ItemIdGroupKind::Export(local, _) => {
                         // Create a strong dependency to LAST_WRITES for this var
 
-                        let state = get_var(&self.vars, local);
+                        let state = self.vars.entry(local.clone()).or_default();
 
                         self.g.add_strong_deps(item_id, state.last_writes.iter());
                     }
@@ -335,7 +388,9 @@ async fn get_part_id(result: &SplitResult, part: Vc<ModulePart>) -> Result<u32> 
         ModulePart::Evaluation => Key::ModuleEvaluation,
         ModulePart::Export(export) => Key::Export(export.await?.as_str().into()),
         ModulePart::Exports => Key::Exports,
-        ModulePart::Internal(part_id) => return Ok(*part_id),
+        ModulePart::Internal(part_id) | ModulePart::InternalEvaluation(part_id) => {
+            return Ok(*part_id)
+        }
         ModulePart::Locals
         | ModulePart::Facade
         | ModulePart::RenamedExport { .. }
@@ -388,14 +443,14 @@ async fn get_part_id(result: &SplitResult, part: Vc<ModulePart>) -> Result<u32> 
 #[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
 pub(crate) enum SplitResult {
     Ok {
-        asset_ident: Vc<AssetIdent>,
+        asset_ident: ResolvedVc<AssetIdent>,
 
         /// `u32` is a index to `modules`.
         #[turbo_tasks(trace_ignore)]
         entrypoints: FxHashMap<Key, u32>,
 
         #[turbo_tasks(debug_ignore, trace_ignore)]
-        modules: Vec<Vc<ParseResult>>,
+        modules: Vec<ResolvedVc<ParseResult>>,
 
         #[turbo_tasks(trace_ignore)]
         deps: FxHashMap<u32, Vec<PartId>>,
@@ -404,7 +459,7 @@ pub(crate) enum SplitResult {
         star_reexports: Vec<ExportAll>,
     },
     Failed {
-        parse_result: Vc<ParseResult>,
+        parse_result: ResolvedVc<ParseResult>,
     },
 }
 
@@ -419,23 +474,17 @@ impl PartialEq for SplitResult {
 
 #[turbo_tasks::function]
 pub(super) async fn split_module(asset: Vc<EcmascriptModuleAsset>) -> Result<Vc<SplitResult>> {
-    Ok(split(
-        asset.source().ident(),
-        asset.source(),
-        asset.parse(),
-        asset.options().await?.special_exports,
-    ))
+    Ok(split(asset.source().ident(), asset.source(), asset.parse()))
 }
 
 #[turbo_tasks::function]
 pub(super) async fn split(
-    ident: Vc<AssetIdent>,
+    ident: ResolvedVc<AssetIdent>,
     source: Vc<Box<dyn Source>>,
-    parsed: Vc<ParseResult>,
-    special_exports: Vc<Vec<RcStr>>,
+    parsed: ResolvedVc<ParseResult>,
 ) -> Result<Vc<SplitResult>> {
     // Do not split already split module
-    if ident.await?.part.is_some() {
+    if !ident.await?.parts.is_empty() {
         return Ok(SplitResult::Failed {
             parse_result: parsed,
         }
@@ -464,7 +513,7 @@ pub(super) async fn split(
             ..
         } => {
             // If the script file is a common js file, we cannot split the module
-            if util::should_skip_tree_shaking(program, &special_exports.await?) {
+            if util::should_skip_tree_shaking(program) {
                 return Ok(SplitResult::Failed {
                     parse_result: parsed,
                 }
@@ -532,7 +581,7 @@ pub(super) async fn split(
                         Some(source),
                     );
 
-                    ParseResult::cell(ParseResult::Ok {
+                    ParseResult::resolved_cell(ParseResult::Ok {
                         program,
                         globals: globals.clone(),
                         comments: comments.clone(),
@@ -680,8 +729,8 @@ pub(crate) async fn part_of_module(
                 );
             }
 
-            Ok(modules[part_id as usize])
+            Ok(*modules[part_id as usize])
         }
-        SplitResult::Failed { parse_result } => Ok(*parse_result),
+        SplitResult::Failed { parse_result } => Ok(**parse_result),
     }
 }

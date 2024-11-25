@@ -1,12 +1,15 @@
 use anyhow::Result;
-use turbo_tasks::{RcStr, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbopack::{transition::Transition, ModuleAssetContext};
 use turbopack_core::{context::ProcessResult, reference_type::ReferenceType, source::Source};
 
 use super::NextDynamicEntryModule;
 
 /// This transition is used to create the marker asset for a next/dynamic
-/// import. This will get picked up during module processing and will be used to
+/// import.
+///
+/// This will get picked up during module processing and will be used to
 /// create the dynamic entry, and the dynamic manifest entry.
 #[turbo_tasks::value]
 pub struct NextDynamicTransition {
@@ -46,12 +49,15 @@ impl Transition for NextDynamicTransition {
                 module_asset_context,
                 Value::new(ReferenceType::Undefined),
             )
+            .try_into_module()
             .await?
         {
-            ProcessResult::Module(client_module) => {
-                ProcessResult::Module(Vc::upcast(NextDynamicEntryModule::new(client_module)))
-            }
-            ProcessResult::Ignore => ProcessResult::Ignore,
+            Some(client_module) => ProcessResult::Module(ResolvedVc::upcast(
+                NextDynamicEntryModule::new(*client_module)
+                    .to_resolved()
+                    .await?,
+            )),
+            None => ProcessResult::Ignore,
         }
         .cell())
     }

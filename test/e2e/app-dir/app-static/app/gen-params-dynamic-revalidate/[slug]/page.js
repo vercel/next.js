@@ -6,7 +6,8 @@ export async function generateStaticParams() {
   return [{ slug: 'one' }]
 }
 
-export default async function page({ params }) {
+export default async function page(props) {
+  const params = await props.params
   const { slug } = params
   let data
 

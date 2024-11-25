@@ -1,11 +1,14 @@
 #![feature(arbitrary_self_types)]
+#![feature(arbitrary_self_types_pointers)]
+#![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
 use std::{collections::HashSet, time::Duration};
 
 use anyhow::Result;
 use auto_hash_map::AutoSet;
 use tokio::time::sleep;
-use turbo_tasks::{emit, CollectiblesSource, RcStr, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{emit, CollectiblesSource, ValueToString, Vc};
 use turbo_tasks_testing::{register, run, Registration};
 
 static REGISTRATION: Registration = register!();

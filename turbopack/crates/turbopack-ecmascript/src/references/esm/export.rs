@@ -5,18 +5,19 @@ use std::{
 };
 
 use anyhow::Result;
-use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use swc_core::{
     common::DUMMY_SP,
     ecma::ast::{
-        self, AssignTarget, ComputedPropName, Expr, ExprStmt, Ident, KeyValueProp, Lit, MemberExpr,
-        MemberProp, ModuleItem, ObjectLit, Program, Prop, PropName, PropOrSpread, Script,
-        SimpleAssignTarget, Stmt, Str,
+        AssignTarget, ComputedPropName, Expr, ExprStmt, Ident, KeyValueProp, Lit, MemberExpr,
+        MemberProp, ObjectLit, Prop, PropName, PropOrSpread, SimpleAssignTarget, Stmt, Str,
     },
     quote, quote_expr,
 };
-use turbo_tasks::{trace::TraceRawVcs, RcStr, TryFlatJoinIterExt, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{
+    trace::TraceRawVcs, FxIndexMap, ResolvedVc, TryFlatJoinIterExt, ValueToString, Vc,
+};
 use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
     chunk::ChunkingContext,
@@ -29,9 +30,8 @@ use turbopack_core::{
 use super::base::ReferencedAsset;
 use crate::{
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
-    code_gen::{CodeGenerateable, CodeGeneration},
-    create_visitor, magic_identifier,
-    references::esm::base::insert_hoisted_stmt,
+    code_gen::{CodeGenerateable, CodeGeneration, CodeGenerationHoistedStmt},
+    magic_identifier,
 };
 
 #[derive(Clone, Hash, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
@@ -52,7 +52,7 @@ pub enum EsmExport {
 
 #[turbo_tasks::function]
 pub async fn is_export_missing(
-    module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
+    module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     export_name: RcStr,
 ) -> Result<Vc<bool>> {
     let exports = module.get_exports().await?;
@@ -77,7 +77,7 @@ pub async fn is_export_missing(
         return Ok(Vc::cell(true));
     }
 
-    let all_export_names = get_all_export_names(module).await?;
+    let all_export_names = get_all_export_names(*module).await?;
     if all_export_names.esm_exports.contains_key(&export_name) {
         return Ok(Vc::cell(false));
     }
@@ -128,10 +128,12 @@ pub async fn follow_reexports(
     module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
     export_name: RcStr,
     side_effect_free_packages: Vc<Glob>,
+    ignore_side_effect_of_entry: bool,
 ) -> Result<Vc<FollowExportsResult>> {
-    if !*module
-        .is_marked_as_side_effect_free(side_effect_free_packages)
-        .await?
+    if !ignore_side_effect_of_entry
+        && !*module
+            .is_marked_as_side_effect_free(side_effect_free_packages)
+            .await?
     {
         return Ok(FollowExportsResult::cell(FollowExportsResult {
             module,
@@ -221,12 +223,12 @@ async fn handle_declared_export(
                     .await?
                 {
                     return Ok(ControlFlow::Break(FollowExportsResult {
-                        module,
+                        module: *module,
                         export_name: Some(name.clone()),
                         ty: FoundExportType::SideEffects,
                     }));
                 }
-                return Ok(ControlFlow::Continue((module, name.clone())));
+                return Ok(ControlFlow::Continue((*module, name.clone())));
             }
         }
         EsmExport::ImportedNamespace(reference) => {
@@ -234,7 +236,7 @@ async fn handle_declared_export(
                 *ReferencedAsset::from_resolve_result(reference.resolve_reference()).await?
             {
                 return Ok(ControlFlow::Break(FollowExportsResult {
-                    module: m,
+                    module: *m,
                     export_name: None,
                     ty: FoundExportType::Found,
                 }));
@@ -264,7 +266,7 @@ async fn handle_declared_export(
 
 #[turbo_tasks::value]
 struct AllExportNamesResult {
-    esm_exports: IndexMap<RcStr, Vc<Box<dyn EcmascriptChunkPlaceable>>>,
+    esm_exports: FxIndexMap<RcStr, Vc<Box<dyn EcmascriptChunkPlaceable>>>,
     dynamic_exporting_modules: Vec<Vc<Box<dyn EcmascriptChunkPlaceable>>>,
 }
 
@@ -275,14 +277,14 @@ async fn get_all_export_names(
     let exports = module.get_exports().await?;
     let EcmascriptExports::EsmExports(exports) = &*exports else {
         return Ok(AllExportNamesResult {
-            esm_exports: IndexMap::new(),
+            esm_exports: FxIndexMap::default(),
             dynamic_exporting_modules: vec![module],
         }
         .cell());
     };
 
     let exports = exports.await?;
-    let mut esm_exports = IndexMap::new();
+    let mut esm_exports = FxIndexMap::default();
     let mut dynamic_exporting_modules = Vec::new();
     esm_exports.extend(exports.exports.keys().cloned().map(|n| (n, module)));
     let star_export_names = exports
@@ -293,7 +295,7 @@ async fn get_all_export_names(
                 if let ReferencedAsset::Some(m) =
                     *ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?
                 {
-                    Some(get_all_export_names(m))
+                    Some(get_all_export_names(*m))
                 } else {
                     None
                 },
@@ -344,8 +346,8 @@ pub async fn expand_star_exports(
                     if let ReferencedAsset::Some(asset) =
                         &*ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?
                     {
-                        if checked_modules.insert(*asset) {
-                            queue.push((*asset, asset.get_exports()));
+                        if checked_modules.insert(**asset) {
+                            queue.push((**asset, asset.get_exports()));
                         }
                     }
                 }
@@ -428,7 +430,7 @@ pub struct EsmExports {
 pub struct ExpandedExports {
     pub exports: BTreeMap<RcStr, EsmExport>,
     /// Modules we couldn't analyse all exports of.
-    pub dynamic_exports: Vec<Vc<Box<dyn EcmascriptChunkPlaceable>>>,
+    pub dynamic_exports: Vec<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -438,7 +440,7 @@ impl EsmExports {
         let mut exports: BTreeMap<RcStr, EsmExport> = self.exports.clone();
         let mut dynamic_exports = vec![];
 
-        for esm_ref in self.star_exports.iter() {
+        for &esm_ref in self.star_exports.iter() {
             // TODO(PACK-2176): we probably need to handle re-exporting from external
             // modules.
             let ReferencedAsset::Some(asset) =
@@ -447,13 +449,13 @@ impl EsmExports {
                 continue;
             };
 
-            let export_info = expand_star_exports(*asset).await?;
+            let export_info = expand_star_exports(**asset).await?;
 
             for export in &export_info.star_exports {
                 if !exports.contains_key(export) {
                     exports.insert(
                         export.clone(),
-                        EsmExport::ImportedBinding(Vc::upcast(*esm_ref), export.clone(), false),
+                        EsmExport::ImportedBinding(Vc::upcast(esm_ref), export.clone(), false),
                     );
                 }
             }
@@ -478,8 +480,6 @@ impl CodeGenerateable for EsmExports {
         self: Vc<Self>,
         _context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
-        let mut visitors = Vec::new();
-
         let expanded = self.expand_exports().await?;
 
         let mut dynamic_exports = Vec::<Box<Expr>>::new();
@@ -595,23 +595,20 @@ impl CodeGenerateable for EsmExports {
             None
         };
 
-        visitors.push(create_visitor!(visit_mut_program(program: &mut Program) {
-            let stmt = quote!("__turbopack_esm__($getters);" as Stmt,
-                getters: Expr = getters.clone()
-            );
-            match program {
-                Program::Module(ast::Module { body, .. }) => {
-                    body.insert(0, ModuleItem::Stmt(stmt));
-                }
-                Program::Script(Script { body, .. }) => {
-                    body.insert(0, stmt);
-                }
-            }
-            if let Some(dynamic_stmt) = dynamic_stmt.clone() {
-                insert_hoisted_stmt(program, dynamic_stmt);
-            }
-        }));
-
-        Ok(CodeGeneration { visitors }.into())
+        Ok(CodeGeneration::new(
+            vec![],
+            [dynamic_stmt
+                .clone()
+                .map(|stmt| CodeGenerationHoistedStmt::new("__turbopack_dynamic__".into(), stmt))]
+            .into_iter()
+            .flatten()
+            .collect(),
+            vec![CodeGenerationHoistedStmt::new(
+                "__turbopack_esm__".into(),
+                quote!("__turbopack_esm__($getters);" as Stmt,
+                    getters: Expr = getters.clone()
+                ),
+            )],
+        ))
     }
 }

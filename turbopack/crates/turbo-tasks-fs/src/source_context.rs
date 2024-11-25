@@ -27,7 +27,7 @@ pub enum SourceContextLine<'a> {
     },
 }
 
-impl<'a> Display for SourceContextLine<'a> {
+impl Display for SourceContextLine<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             SourceContextLine::Context { line, outside } => {
@@ -91,7 +91,7 @@ impl<'a> Display for SourceContextLine<'a> {
 
 pub struct SourceContextLines<'a>(pub Vec<SourceContextLine<'a>>);
 
-impl<'a> Display for SourceContextLines<'a> {
+impl Display for SourceContextLines<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for line in &self.0 {
             write!(f, "{}", line)?;

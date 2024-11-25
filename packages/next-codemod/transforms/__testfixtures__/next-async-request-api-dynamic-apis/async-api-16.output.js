@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 
 function MyComponent() {
-  callSomething(/* TODO: please manually await this call, codemod cannot transform due to undetermined async scope */
+  callSomething(/* @next-codemod-error Manually await this call and refactor the function to be async */
   cookies());
 }

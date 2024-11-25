@@ -1,6 +1,11 @@
 import Link from 'next/link'
 
-export default function Page({ params: { id } }: { params: { id: string } }) {
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const { id } = await params
   return (
     <div id="non-intercepted-page">
       <h1>No Interception Page</h1>

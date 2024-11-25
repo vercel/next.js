@@ -1,9 +1,12 @@
 use std::{fmt::Write, mem::replace};
 
 use anyhow::Result;
-use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, RcStr, TaskInput, TryJoinIterExt, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{
+    fxindexmap, trace::TraceRawVcs, FxIndexMap, ResolvedVc, TaskInput, TryJoinIterExt,
+    ValueToString, Vc,
+};
 
 use super::{GetContentSourceContent, GetContentSourceContents};
 
@@ -33,6 +36,7 @@ impl BaseSegment {
 }
 
 /// This struct allows to cell a list of RouteTrees and merge them into one.
+///
 /// This can't be a single method `fn merge(Vec<Vc<RouteTree>>)` as this would
 /// lead to creating new tasks over and over. A celled list leads to task reuse
 /// and faster operation.
@@ -98,8 +102,8 @@ impl RouteTrees {
 pub struct RouteTree {
     base: Vec<BaseSegment>,
     sources: Vec<Vc<Box<dyn GetContentSourceContent>>>,
-    static_segments: IndexMap<RcStr, Vc<RouteTree>>,
-    dynamic_segments: Vec<Vc<RouteTree>>,
+    static_segments: FxIndexMap<RcStr, Vc<RouteTree>>,
+    dynamic_segments: Vec<ResolvedVc<RouteTree>>,
     catch_all_sources: Vec<Vc<Box<dyn GetContentSourceContent>>>,
     fallback_sources: Vec<Vc<Box<dyn GetContentSourceContent>>>,
     not_found_sources: Vec<Vc<Box<dyn GetContentSourceContent>>>,
@@ -137,7 +141,7 @@ impl RouteTree {
     }
 
     async fn flat_merge(&mut self, others: impl IntoIterator<Item = &Self> + '_) -> Result<()> {
-        let mut static_segments = IndexMap::new();
+        let mut static_segments = FxIndexMap::default();
         for other in others {
             debug_assert_eq!(self.base, other.base);
             self.sources.extend(other.sources.iter().copied());
@@ -148,7 +152,7 @@ impl RouteTree {
             self.not_found_sources
                 .extend(other.not_found_sources.iter().copied());
             for (key, value) in other.static_segments.iter() {
-                if let Some((key, self_value)) = self.static_segments.remove_entry(key) {
+                if let Some((key, self_value)) = self.static_segments.swap_remove_entry(key) {
                     static_segments.insert(key, vec![self_value, *value]);
                 } else if let Some(list) = static_segments.get_mut(key) {
                     list.push(*value);
@@ -331,13 +335,13 @@ impl RouteTree {
             match selector_segment {
                 BaseSegment::Static(value) => Ok(RouteTree {
                     base,
-                    static_segments: IndexMap::from([(value, inner.cell())]),
+                    static_segments: fxindexmap! { value => inner.cell() },
                     ..Default::default()
                 }
                 .cell()),
                 BaseSegment::Dynamic => Ok(RouteTree {
                     base,
-                    dynamic_segments: vec![inner.cell()],
+                    dynamic_segments: vec![inner.resolved_cell()],
                     ..Default::default()
                 }
                 .cell()),
@@ -364,24 +368,26 @@ impl RouteTree {
             fallback_sources,
             not_found_sources,
         } = &mut this;
-        sources
-            .iter_mut()
-            .for_each(|s| *s = mapper.map_get_content(*s));
-        catch_all_sources
-            .iter_mut()
-            .for_each(|s| *s = mapper.map_get_content(*s));
-        fallback_sources
-            .iter_mut()
-            .for_each(|s| *s = mapper.map_get_content(*s));
-        not_found_sources
-            .iter_mut()
-            .for_each(|s| *s = mapper.map_get_content(*s));
-        static_segments
-            .values_mut()
-            .for_each(|r| *r = r.map_routes(mapper));
-        dynamic_segments
-            .iter_mut()
-            .for_each(|r| *r = r.map_routes(mapper));
+
+        for s in sources.iter_mut() {
+            *s = mapper.map_get_content(*s);
+        }
+        for s in catch_all_sources.iter_mut() {
+            *s = mapper.map_get_content(*s);
+        }
+        for s in fallback_sources.iter_mut() {
+            *s = mapper.map_get_content(*s);
+        }
+        for s in not_found_sources.iter_mut() {
+            *s = mapper.map_get_content(*s);
+        }
+        for r in static_segments.values_mut() {
+            *r = r.map_routes(mapper);
+        }
+        for r in dynamic_segments.iter_mut() {
+            *r = r.map_routes(mapper).to_resolved().await?;
+        }
+
         Ok(this.cell())
     }
 }

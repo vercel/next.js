@@ -5,7 +5,8 @@ use swc_core::common::{
     source_map::SmallPos,
     SourceMap,
 };
-use turbo_tasks::{RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     issue::{analyze::AnalyzeIssue, IssueExt, IssueSeverity, IssueSource, StyledString},
     source::Source,
@@ -13,15 +14,15 @@ use turbopack_core::{
 
 #[derive(Clone)]
 pub struct IssueEmitter {
-    pub source: Vc<Box<dyn Source>>,
+    pub source: ResolvedVc<Box<dyn Source>>,
     pub source_map: Arc<SourceMap>,
     pub title: Option<RcStr>,
-    pub emitted_issues: Vec<Vc<AnalyzeIssue>>,
+    pub emitted_issues: Vec<ResolvedVc<AnalyzeIssue>>,
 }
 
 impl IssueEmitter {
     pub fn new(
-        source: Vc<Box<dyn Source>>,
+        source: ResolvedVc<Box<dyn Source>>,
         source_map: Arc<SourceMap>,
         title: Option<RcStr>,
     ) -> Self {
@@ -78,7 +79,7 @@ impl Emitter for IssueEmitter {
         }
 
         let source = db.span.primary_span().map(|span| {
-            IssueSource::from_swc_offsets(self.source, span.lo.to_usize(), span.hi.to_usize())
+            IssueSource::from_swc_offsets(*self.source, span.lo.to_usize(), span.hi.to_usize())
         });
         // TODO add other primary and secondary spans with labels as sub_issues
 
@@ -90,7 +91,7 @@ impl Emitter for IssueEmitter {
             code,
             source,
         }
-        .cell();
+        .resolved_cell();
 
         self.emitted_issues.push(issue);
 

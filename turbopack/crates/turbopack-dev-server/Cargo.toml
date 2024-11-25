@@ -37,6 +37,7 @@ tokio-util = { workspace = true }
 tracing = { workspace = true }
 urlencoding = "2.1.2"
 
+turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-bytes = { workspace = true }
 turbo-tasks-fs = { workspace = true }

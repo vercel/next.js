@@ -31,28 +31,10 @@ describe.each([
     next = await createNext({
       files: join(__dirname, 'hmr'),
       nextConfig,
+      patchFileDelay: 500,
     })
   })
   afterAll(() => next.destroy())
-
-  it('should show hydration error correctly', async () => {
-    const browser = await webdriver(next.url, basePath + '/hydration-error', {
-      pushErrorAsConsoleLog: true,
-    })
-    await retry(async () => {
-      const logs = await browser.log()
-      expect(logs).toEqual(
-        expect.arrayContaining([
-          {
-            message: expect.stringContaining(
-              'https://react.dev/link/hydration-mismatch'
-            ),
-            source: 'error',
-          },
-        ])
-      )
-    })
-  })
 
   it('should have correct router.isReady for auto-export page', async () => {
     let browser = await webdriver(next.url, basePath + '/auto-export-is-ready')

@@ -15,20 +15,23 @@ import type {
   TurbopackConnectedAction,
 } from './hot-reloader-types'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from './hot-reloader-types'
-import type { Update as TurbopackUpdate } from '../../build/swc'
-import {
-  createDefineEnv,
-  type Endpoint,
-  type TurbopackResult,
-  type WrittenEndpoint,
-} from '../../build/swc'
+import type {
+  Update as TurbopackUpdate,
+  Endpoint,
+  WrittenEndpoint,
+  TurbopackResult,
+} from '../../build/swc/types'
+import { createDefineEnv } from '../../build/swc'
 import * as Log from '../../build/output/log'
 import {
   getVersionInfo,
   matchNextPageBundleRequest,
 } from './hot-reloader-webpack'
 import { BLOCKED_PAGES } from '../../shared/lib/constants'
-import { getOverlayMiddleware } from '../../client/components/react-dev-overlay/server/middleware-turbopack'
+import {
+  getOverlayMiddleware,
+  getSourceMapMiddleware,
+} from '../../client/components/react-dev-overlay/server/middleware-turbopack'
 import { PageNotFoundError } from '../../shared/lib/utils'
 import { debounce } from '../utils'
 import { deleteAppClientCache, deleteCache } from './require-cache'
@@ -60,6 +63,7 @@ import {
   isWellKnownError,
   printNonFatalIssue,
   normalizedPageToTurbopackStructureRoute,
+  isPersistentCachingEnabled,
 } from './turbopack-utils'
 import {
   propagateServerField,
@@ -76,10 +80,11 @@ import {
   splitEntryKey,
 } from './turbopack/entry-key'
 import { FAST_REFRESH_RUNTIME_RELOAD } from './messages'
-import { generateEncryptionKeyBase64 } from '../app-render/encryption-utils'
+import { generateEncryptionKeyBase64 } from '../app-render/encryption-utils-server'
 import { isAppPageRouteDefinition } from '../route-definitions/app-page-route-definition'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { getNodeDebugType } from '../lib/utils'
+import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
 // import { getSupportedBrowsers } from '../../build/utils'
 
 const wsServer = new ws.Server({ noServer: true })
@@ -127,7 +132,10 @@ export async function createHotReloaderTurbopack(
   // of the current `next dev` invocation.
   hotReloaderSpan.stop()
 
-  const encryptionKey = await generateEncryptionKeyBase64(dev)
+  const encryptionKey = await generateEncryptionKeyBase64({
+    isBuild: false,
+    distDir,
+  })
 
   // TODO: Implement
   let clientRouterFilters: any
@@ -147,9 +155,13 @@ export async function createHotReloaderTurbopack(
         opts.nextConfig.experimental.turbo?.root ||
         opts.nextConfig.outputFileTracingRoot ||
         dir,
+      distDir,
       nextConfig: opts.nextConfig,
       jsConfig: await getTurbopackJsConfig(dir, nextConfig),
-      watch: dev,
+      watch: {
+        enable: dev,
+        pollIntervalMs: nextConfig.watchOptions?.pollIntervalMs,
+      },
       dev,
       env: process.env as Record<string, string>,
       defineEnv: createDefineEnv({
@@ -169,6 +181,7 @@ export async function createHotReloaderTurbopack(
       browserslistQuery: supportedBrowsers.join(', '),
     },
     {
+      persistentCaching: isPersistentCachingEnabled(opts.nextConfig),
       memoryLimit: opts.nextConfig.experimental.turbo?.memoryLimit,
     }
   )
@@ -471,6 +484,7 @@ export async function createHotReloaderTurbopack(
       // reload, only this client is out of date.
       const reloadAction: ReloadPageAction = {
         action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE,
+        data: `error in HMR event subscription for ${id}: ${e}`,
       }
       sendToClient(client, reloadAction)
       client.close()
@@ -552,7 +566,12 @@ export async function createHotReloaderTurbopack(
       2
     )
   )
-  const overlayMiddleware = getOverlayMiddleware(project)
+
+  const middlewares = [
+    getOverlayMiddleware(project),
+    getSourceMapMiddleware(project),
+  ]
+
   const versionInfoPromise = getVersionInfo(
     isTestMode || opts.telemetry.isEnabled
   )
@@ -602,7 +621,17 @@ export async function createHotReloaderTurbopack(
         }
       }
 
-      await overlayMiddleware(req, res)
+      for (const middleware of middlewares) {
+        let calledNext = false
+
+        await middleware(req, res, () => {
+          calledNext = true
+        })
+
+        if (!calledNext) {
+          return { finished: true }
+        }
+      }
 
       // Request was not finished.
       return { finished: undefined }
@@ -909,10 +938,17 @@ export async function createHotReloaderTurbopack(
       }
 
       const isInsideAppDir = routeDef.bundlePath.startsWith('app/')
-      const normalizedAppPage = normalizedPageToTurbopackStructureRoute(
-        page,
-        extname(routeDef.filename)
+      const isEntryMetadataRouteFile = isMetadataRouteFile(
+        routeDef.filename.replace(opts.appDir || '', ''),
+        nextConfig.pageExtensions,
+        true
       )
+      const normalizedAppPage = isEntryMetadataRouteFile
+        ? normalizedPageToTurbopackStructureRoute(
+            page,
+            extname(routeDef.filename)
+          )
+        : page
 
       const route = isInsideAppDir
         ? currentEntrypoints.app.get(normalizedAppPage)
