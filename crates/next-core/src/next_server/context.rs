@@ -376,18 +376,20 @@ pub async fn get_server_compile_time_info(
     define_env: Vc<EnvMap>,
     cwd: RcStr,
 ) -> Result<Vc<CompileTimeInfo>> {
-    CompileTimeInfo::builder(Environment::new(Value::new(
-        ExecutionEnvironment::NodeJsLambda(
+    CompileTimeInfo::builder(
+        Environment::new(Value::new(ExecutionEnvironment::NodeJsLambda(
             NodeJsEnvironment {
-                compile_target: CompileTarget::current(),
+                compile_target: CompileTarget::current().to_resolved(),
                 node_version: NodeJsVersion::cell(NodeJsVersion::Current(
                     process_env.to_resolved().await?,
                 )),
                 cwd: ResolvedVc::cell(Some(cwd)),
             }
             .resolved_cell(),
-        ),
-    )))
+        )))
+        .to_resolved()
+        .await?,
+    )
     .defines(next_server_defines(define_env).to_resolved().await?)
     .free_var_references(next_server_free_vars(define_env).to_resolved().await?)
     .cell()
