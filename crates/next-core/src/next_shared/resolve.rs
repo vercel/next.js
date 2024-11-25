@@ -344,7 +344,7 @@ pub(crate) struct ModuleFeatureReportResolvePlugin {
 #[turbo_tasks::value_impl]
 impl ModuleFeatureReportResolvePlugin {
     #[turbo_tasks::function]
-    pub fn new(root: Vc<FileSystemPath>) -> Vc<Self> {
+    pub fn new(root: ResolvedVc<FileSystemPath>) -> Vc<Self> {
         ModuleFeatureReportResolvePlugin { root }.cell()
     }
 }
