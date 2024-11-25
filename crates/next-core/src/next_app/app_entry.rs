@@ -15,5 +15,5 @@ pub struct AppEntry {
     /// The RSC module asset for the route or page.
     pub rsc_entry: ResolvedVc<Box<dyn Module>>,
     /// The source code config for this entry.
-    pub config: Vc<NextSegmentConfig>,
+    pub config: ResolvedVc<NextSegmentConfig>,
 }
