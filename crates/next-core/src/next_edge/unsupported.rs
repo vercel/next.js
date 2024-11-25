@@ -21,8 +21,8 @@ use turbopack_node::execution_context::ExecutionContext;
 /// This can be used by import map alias, refer `next_import_map` for the setup.
 #[turbo_tasks::value(shared)]
 pub struct NextEdgeUnsupportedModuleReplacer {
-    project_path: Vc<FileSystemPath>,
-    execution_context: Vc<ExecutionContext>,
+    project_path: ResolvedVc<FileSystemPath>,
+    execution_context: ResolvedVc<ExecutionContext>,
 }
 
 #[turbo_tasks::value_impl]
