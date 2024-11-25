@@ -367,11 +367,11 @@ async fn parse_route_matcher_from_js_value(
         ),
     }
 
-    if matchers.is_empty() {
+    Ok(if matchers.is_empty() {
         None
     } else {
         Some(matchers)
-    }
+    })
 }
 
 #[turbo_tasks::function]
@@ -379,7 +379,7 @@ pub async fn parse_config_from_source(
     module: ResolvedVc<Box<dyn Module>>,
 ) -> Result<Vc<NextSourceConfig>> {
     if let Some(ecmascript_asset) =
-        Vc::try_resolve_sidecast::<Box<dyn EcmascriptParsable>>(module).await?
+        ResolvedVc::try_sidecast::<Box<dyn EcmascriptParsable>>(module).await?
     {
         if let ParseResult::Ok {
             program: Program::Module(module_ast),

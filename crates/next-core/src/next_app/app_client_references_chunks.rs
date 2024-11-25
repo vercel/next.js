@@ -235,7 +235,7 @@ pub async fn get_app_client_references_chunks(
                             } => {
                                 let ecmascript_client_reference_ref =
                                     ecmascript_client_reference.await?;
-                                *ResolvedVc::upcast(ecmascript_client_reference_ref.client_module)
+                                ResolvedVc::upcast(ecmascript_client_reference_ref.client_module)
                             }
                             ClientReferenceType::CssClientReference(css_module) => {
                                 ResolvedVc::upcast(*css_module)
