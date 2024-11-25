@@ -64,7 +64,7 @@ describe('app-dir static/dynamic handling', () => {
     expect(res.status).toBe(200)
     await retry(() => {
       expect(next.cliOutput).toContain('exceeded max tag count for')
-      expect(next.cliOutput).toContain('tag-65')
+      expect(next.cliOutput).toContain('tag-129')
     })
   })
 
