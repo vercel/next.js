@@ -115,8 +115,8 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
                             source_error.downcast_ref::<FontError>()
                         {
                             FontResolvingIssue {
-                                origin_path: lookup_path,
-                                font_path: Vc::cell(font_path.clone()),
+                                origin_path: lookup_path.to_resolved().await?,
+                                font_path: ResolvedVc::cell(font_path.clone()),
                             }
                             .cell()
                             .emit();
