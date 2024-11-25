@@ -538,14 +538,14 @@ fn match_parallel_route(name: &str) -> Option<&str> {
     name.strip_prefix('@')
 }
 
-fn conflict_issue(
+async fn conflict_issue(
     app_dir: Vc<FileSystemPath>,
     e: &OccupiedEntry<AppPath, Entrypoint>,
     a: &str,
     b: &str,
     value_a: &AppPage,
     value_b: &AppPage,
-) {
+) -> Result<()> {
     let item_names = if a == b {
         format!("{}s", a)
     } else {
@@ -553,7 +553,7 @@ fn conflict_issue(
     };
 
     DirectoryTreeIssue {
-        app_dir,
+        app_dir: app_dir.to_resolved().await?,
         message: StyledString::Text(
             format!(
                 "Conflicting {} at {}: {a} at {value_a} and {b} at {value_b}",
@@ -562,11 +562,13 @@ fn conflict_issue(
             )
             .into(),
         )
-        .cell(),
-        severity: IssueSeverity::Error.cell(),
+        .resolved_cell(),
+        severity: IssueSeverity::Error.resolved_cell(),
     }
     .cell()
     .emit();
+
+    Ok(())
 }
 
 fn add_app_page(
