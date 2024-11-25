@@ -1,15 +1,13 @@
 ---
 title: forbidden
 description: API Reference for the forbidden function.
-version: experimental
+version: canary
 related:
   links:
     - app/api-reference/file-conventions/forbidden
 ---
 
-The `forbidden` function allows you to render the [`forbidden.js` file](/docs/app/api-reference/file-conventions/forbidden) for authentication errors.
-
-To use `forbidden`, enable the experimental [`authInterrupts`](/docs/app/api-reference/config/next-config-js/authInterrupts) configuration option in your `next.config.js` file:
+The `forbidden` function allows you to render the [`forbidden.js` file](/docs/app/api-reference/file-conventions/forbidden) to handle authorization errors. To start using `forbidden`, enable the experimental [`authInterrupts`](/docs/app/api-reference/config/next-config-js/authInterrupts) configuration option in your `next.config.js` file:
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
@@ -31,19 +29,95 @@ module.exports = {
 }
 ```
 
-`forbidden` can be used in [Server Components](/docs/app/building-your-application/rendering/server-components), [Server Actions](/docs/app/building-your-application/data-fetching/server-actions), and [Route Handlers](/docs/app/building-your-application/routing/route-handlers).
+`forbidden` can be used in [Server Components](/docs/app/building-your-application/rendering/server-components), [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations), and [Route Handlers](/docs/app/building-your-application/routing/route-handlers).
 
-TODO: Add Example
+```tsx filename="app/auth/route.tsx" switcher
+import { verifySession } from '@/app/lib/dal'
+import { unauthorized, forbidden } from 'next/server'
 
-## Reference
+export async function GET() {
+  const session = await verifySession()
 
-### Returns
+  if (session.role !== 'admin') {
+    // User is authenticated but does not have the required permissions
+    forbidden()
+  }
 
-The `forbidden` function returns a `Response` object with the HTTP status code set to `403`.
+  // Authorized user logic here
+  return new Response('Welcome, admin!', { status: 200 })
+}
+```
+
+```jsx filename="app/auth/route.js" switcher
+import { verifySession } from '@/app/lib/dal'
+import { unauthorized, forbidden } from 'next/server'
+
+export async function GET() {
+  const session = await verifySession()
+
+  if (session.role !== 'admin') {
+    // User is authenticated but does not have the required permissions
+    forbidden()
+  }
+
+  // Authorized user logic here
+  return new Response('Welcome, admin!', { status: 200 })
+}
+```
 
 ## Good to know
 
 - The `forbidden` function cannot be called in the [root layout](/docs/app/building-your-application/routing/layouts-and-templates#root-layout-required).
+
+## Examples
+
+### Role-based route protection
+
+You can use the `forbidden` function to restrict access to certain routes based on user roles. This ensures that users who are authenticated but lack the required permissions cannot access the route.
+
+```tsx filename="app/admin/page.tsx" switcher
+import { verifySession } from '@/app/lib/dal'
+import { forbidden } from 'next/server'
+
+export default async function AdminPage() {
+  const session = await verifySession()
+
+  // Check if the user has the 'admin' role
+  if (session.role !== 'admin') {
+    forbidden()
+  }
+
+  // Render the admin page for authorized users
+  return (
+    <main>
+      <h1>Admin Dashboard</h1>
+      <p>Welcome, {session.user.name}!</p>
+    </main>
+  )
+}
+```
+
+```jsx filename="app/admin/page.js" switcher
+import { verifySession } from '@/app/lib/dal'
+import { forbidden } from 'next/server'
+
+export default async function AdminPage() {
+  const session = await verifySession()
+
+  // Check if the user has the 'admin' role
+  if (session.role !== 'admin') {
+    forbidden()
+  }
+
+  // Render the admin page for authorized users
+  return (
+    <main>
+      <h1>Admin Dashboard</h1>
+      <p>Welcome, {session.user.name}!</p>
+    </main>
+  )
+}
+```
 
 ## Version History
 
