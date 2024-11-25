@@ -1638,17 +1638,28 @@ impl Endpoint for AppEndpoint {
                 .project()
                 .emit_all_output_assets(Vc::cell(output_assets));
 
-            let node_root = this.app_project.project().node_root();
-            let server_paths = all_server_paths(output_assets, node_root)
+            let (server_paths, client_paths) = if this
+                .app_project
+                .project()
+                .next_mode()
                 .await?
-                .clone_value();
+                .is_development()
+            {
+                let node_root = this.app_project.project().node_root();
+                let server_paths = all_server_paths(output_assets, node_root)
+                    .await?
+                    .clone_value();
 
-            let client_relative_root = this.app_project.project().client_relative_path();
-            let client_paths = all_paths_in_root(output_assets, client_relative_root)
-                .into_future()
-                .instrument(tracing::info_span!("client_paths"))
-                .await?
-                .clone_value();
+                let client_relative_root = this.app_project.project().client_relative_path();
+                let client_paths = all_paths_in_root(output_assets, client_relative_root)
+                    .into_future()
+                    .instrument(tracing::info_span!("client_paths"))
+                    .await?
+                    .clone_value();
+                (server_paths, client_paths)
+            } else {
+                (vec![], vec![])
+            };
 
             let written_endpoint = match *output {
                 AppEndpointOutput::NodeJs { rsc_chunk, .. } => WrittenEndpoint::NodeJs {
