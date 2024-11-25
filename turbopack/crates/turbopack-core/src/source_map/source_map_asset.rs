@@ -84,7 +84,7 @@ impl Introspectable for SourceMapAsset {
     #[turbo_tasks::function]
     async fn children(&self) -> Result<Vc<IntrospectableChildren>> {
         let mut children = FxIndexSet::default();
-        if let Some(asset) = Vc::try_resolve_sidecast::<Box<dyn Introspectable>>(self.asset).await?
+        if let Some(asset) = ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(self.asset).await?
         {
             children.insert((Vc::cell("asset".into()), asset));
         }
