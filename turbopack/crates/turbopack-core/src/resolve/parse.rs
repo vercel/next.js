@@ -2,7 +2,7 @@ use anyhow::Result;
 use lazy_static::lazy_static;
 use regex::Regex;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{TryJoinIterExt, Value, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc};
 
 use super::pattern::Pattern;
 
@@ -11,31 +11,31 @@ use super::pattern::Pattern;
 pub enum Request {
     Raw {
         path: Pattern,
-        query: Vc<RcStr>,
+        query: ResolvedVc<RcStr>,
         force_in_lookup_dir: bool,
-        fragment: Vc<RcStr>,
+        fragment: ResolvedVc<RcStr>,
     },
     Relative {
         path: Pattern,
-        query: Vc<RcStr>,
+        query: ResolvedVc<RcStr>,
         force_in_lookup_dir: bool,
-        fragment: Vc<RcStr>,
+        fragment: ResolvedVc<RcStr>,
     },
     Module {
         module: RcStr,
         path: Pattern,
-        query: Vc<RcStr>,
-        fragment: Vc<RcStr>,
+        query: ResolvedVc<RcStr>,
+        fragment: ResolvedVc<RcStr>,
     },
     ServerRelative {
         path: Pattern,
-        query: Vc<RcStr>,
-        fragment: Vc<RcStr>,
+        query: ResolvedVc<RcStr>,
+        fragment: ResolvedVc<RcStr>,
     },
     Windows {
         path: Pattern,
-        query: Vc<RcStr>,
-        fragment: Vc<RcStr>,
+        query: ResolvedVc<RcStr>,
+        fragment: ResolvedVc<RcStr>,
     },
     Empty,
     PackageInternal {
@@ -44,15 +44,15 @@ pub enum Request {
     Uri {
         protocol: String,
         remainder: String,
-        query: Vc<RcStr>,
-        fragment: Vc<RcStr>,
+        query: ResolvedVc<RcStr>,
+        fragment: ResolvedVc<RcStr>,
     },
     Unknown {
         path: Pattern,
     },
     Dynamic,
     Alternatives {
-        requests: Vec<Vc<Request>>,
+        requests: Vec<ResolvedVc<Request>>,
     },
 }
 
