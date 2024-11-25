@@ -2338,7 +2338,7 @@ async fn apply_in_package(
             request: Request::parse(Value::new(Pattern::Constant(request)))
                 .to_resolved()
                 .await?,
-            resolve_options: options,
+            resolve_options: options.to_resolved().await?,
             error_message: Some(format!("invalid alias field value: {}", value)),
             source: None,
         }
@@ -2585,7 +2585,7 @@ async fn resolve_into_package(
         let relative = Request::relative(Value::new(new_pat), query, fragment, true)
             .to_resolved()
             .await?;
-        results.push(resolve_internal_inline(package_path, relative, options).await?);
+        results.push(resolve_internal_inline(*package_path, *relative, *options).await?);
     }
 
     Ok(merge_results(results))
@@ -2603,16 +2603,16 @@ async fn resolve_import_map_result(
     Ok(match result {
         ImportMapResult::Result(result) => Some(**result),
         ImportMapResult::Alias(request, alias_lookup_path) => {
-            let request = *request;
+            let request = **request;
             let lookup_path = match alias_lookup_path {
-                Some(path) => *path,
+                Some(path) => **path,
                 None => lookup_path,
             };
             // We must avoid cycles during resolving
             if request == original_request && lookup_path == original_lookup_path {
                 None
             } else {
-                let result = resolve_internal(*lookup_path, *request, options);
+                let result = resolve_internal(lookup_path, request, options);
                 Some(result.with_replaced_request_key_pattern(
                     request.request_pattern(),
                     original_request.request_pattern(),
@@ -2636,8 +2636,8 @@ async fn resolve_import_map_result(
             let request = Request::parse_string(name.clone());
 
             // We must avoid cycles during resolving
-            if request.resolve().await? == *original_request
-                && alias_lookup_path.to_resolved().await? == original_lookup_path
+            if request.resolve().await? == original_request
+                && *alias_lookup_path.to_resolved().await? == original_lookup_path
             {
                 None
             } else {
