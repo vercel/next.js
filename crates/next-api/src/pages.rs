@@ -629,11 +629,11 @@ impl PageEndpoint {
     #[turbo_tasks::function]
     fn new(
         ty: PageEndpointType,
-        pages_project: Vc<PagesProject>,
-        pathname: Vc<RcStr>,
-        original_name: Vc<RcStr>,
-        page: Vc<PagesStructureItem>,
-        pages_structure: Vc<PagesStructure>,
+        pages_project: ResolvedVc<PagesProject>,
+        pathname: ResolvedVc<RcStr>,
+        original_name: ResolvedVc<RcStr>,
+        page: ResolvedVc<PagesStructureItem>,
+        pages_structure: ResolvedVc<PagesStructure>,
     ) -> Vc<Self> {
         PageEndpoint {
             ty,
