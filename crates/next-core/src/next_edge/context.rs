@@ -82,7 +82,7 @@ pub async fn get_edge_compile_time_info(
 ) -> Result<Vc<CompileTimeInfo>> {
     CompileTimeInfo::builder(
         Environment::new(Value::new(ExecutionEnvironment::EdgeWorker(
-            EdgeWorkerEnvironment {}.into(),
+            EdgeWorkerEnvironment {}.resolved_cell(),
         )))
         .to_resolved()
         .await?,
