@@ -402,7 +402,7 @@ pub struct AppPageLoaderTreeModule {
     pub imports: Vec<RcStr>,
     pub loader_tree_code: RcStr,
     pub inner_assets: FxIndexMap<RcStr, ResolvedVc<Box<dyn Module>>>,
-    pub pages: Vec<Vc<FileSystemPath>>,
+    pub pages: Vec<ResolvedVc<FileSystemPath>>,
 }
 
 impl AppPageLoaderTreeModule {
