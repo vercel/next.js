@@ -1,7 +1,7 @@
 use anyhow::Result;
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::{
     DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath, FileSystemPathOption,
 };
@@ -234,8 +234,16 @@ async fn get_pages_structure_for_root_directory(
             PagesDirectoryStructure {
                 project_path: *project_path,
                 next_router_path: next_router_path.to_resolved().await?,
-                items: items.into_iter().map(|(_, v)| v).collect(),
-                children: children.into_iter().map(|(_, v)| v).collect(),
+                items: items
+                    .into_iter()
+                    .map(|(_, v)| async move { v.to_resolved().await })
+                    .try_join()
+                    .await?,
+                children: children
+                    .into_iter()
+                    .map(|(_, v)| async move { v.to_resolved().await })
+                    .try_join()
+                    .await?,
             }
             .resolved_cell(),
         )
@@ -283,9 +291,9 @@ async fn get_pages_structure_for_root_directory(
     };
 
     Ok(PagesStructure {
-        app: app_item,
-        document: document_item,
-        error: error_item,
+        app: app_item.to_resolved().await?,
+        document: document_item.to_resolved().await?,
+        error: error_item.to_resolved().await?,
         api: api_directory,
         pages: pages_directory,
     }
@@ -358,10 +366,20 @@ async fn get_pages_structure_for_directory(
         children.sort_by_key(|(k, _)| *k);
 
         Ok(PagesDirectoryStructure {
-            project_path: *project_path,
+            project_path: project_path.to_resolved().await?,
             next_router_path: next_router_path.to_resolved().await?,
-            items: items.into_iter().map(|(_, v)| v).collect(),
-            children: children.into_iter().map(|(_, v)| v).collect(),
+            items: items
+                .into_iter()
+                .map(|(_, v)| v)
+                .map(|v| async move { v.to_resolved().await })
+                .try_join()
+                .await?,
+            children: children
+                .into_iter()
+                .map(|(_, v)| v)
+                .map(|v| async move { v.to_resolved().await })
+                .try_join()
+                .await?,
         }
         .cell())
     }
