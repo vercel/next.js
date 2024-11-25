@@ -35,12 +35,12 @@ impl NextDynamicEntryModule {
         client_chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<OutputAssets>> {
         let Some(client_entry_module) =
-            Vc::try_resolve_sidecast::<Box<dyn ChunkableModule>>(self.client_entry_module).await?
+            ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(self.client_entry_module).await?
         else {
             bail!("dynamic client asset must be chunkable");
         };
 
-        Ok(client_chunking_context.root_chunk_group_assets(client_entry_module))
+        Ok(client_chunking_context.root_chunk_group_assets(*client_entry_module))
     }
 }
 
