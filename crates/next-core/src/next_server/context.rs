@@ -93,20 +93,20 @@ pub enum ServerContextType {
     },
     AppRSC {
         app_dir: ResolvedVc<FileSystemPath>,
-        ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
-        client_transition: Option<Vc<Box<dyn Transition>>>,
+        ecmascript_client_reference_transition_name: Option<ResolvedVc<RcStr>>,
+        client_transition: Option<ResolvedVc<Box<dyn Transition>>>,
     },
     AppRoute {
         app_dir: ResolvedVc<FileSystemPath>,
-        ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
+        ecmascript_client_reference_transition_name: Option<ResolvedVc<RcStr>>,
     },
     Middleware {
         app_dir: Option<ResolvedVc<FileSystemPath>>,
-        ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
+        ecmascript_client_reference_transition_name: Option<ResolvedVc<RcStr>>,
     },
     Instrumentation {
         app_dir: Option<ResolvedVc<FileSystemPath>>,
-        ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
+        ecmascript_client_reference_transition_name: Option<ResolvedVc<RcStr>>,
     },
 }
 
