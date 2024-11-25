@@ -2518,7 +2518,7 @@ async fn resolve_into_package(
     package_path: ResolvedVc<FileSystemPath>,
     query: Vc<RcStr>,
     fragment: Vc<RcStr>,
-    options: Vc<ResolveOptions>,
+    options: ResolvedVc<ResolveOptions>,
 ) -> Result<Vc<ResolveResult>> {
     let path = path.into_value();
     let options_value = options.await?;
@@ -2767,7 +2767,7 @@ async fn resolved(
 async fn handle_exports_imports_field(
     package_path: ResolvedVc<FileSystemPath>,
     package_json_path: Vc<FileSystemPath>,
-    options: Vc<ResolveOptions>,
+    options: ResolvedVc<ResolveOptions>,
     exports_imports_field: &AliasMap<SubpathValue>,
     path: &str,
     conditions: &BTreeMap<RcStr, ConditionValue>,
