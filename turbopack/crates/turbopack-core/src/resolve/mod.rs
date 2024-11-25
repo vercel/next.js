@@ -1693,8 +1693,8 @@ async fn resolve_internal_inline(
                 Request::Alternatives { requests } => requests.as_slice(),
                 _ => &[request.to_resolved().await?],
             };
-            for request in request_parts {
-                let result = import_map.await?.lookup(lookup_path, request).await?;
+            for &request in request_parts {
+                let result = import_map.await?.lookup(lookup_path, *request).await?;
                 if !matches!(result, ImportMapResult::NoEntry) {
                     has_alias = true;
                     let resolved_result = resolve_import_map_result(
@@ -1726,10 +1726,7 @@ async fn resolve_internal_inline(
             Request::Alternatives { requests } => {
                 let results = requests
                     .iter()
-                    .map(|req| async {
-                        resolve_internal_inline(lookup_path, req.to_resolved().await?, options)
-                            .await
-                    })
+                    .map(|&req| async { resolve_internal_inline(lookup_path, *req, options).await })
                     .try_join()
                     .await?;
 
@@ -1758,11 +1755,11 @@ async fn resolve_internal_inline(
                                     RequestKey::new(matched_pattern.clone()),
                                     *path,
                                     lookup_path,
-                                    *request,
+                                    request,
                                     options_value,
                                     options,
-                                    *query,
-                                    *fragment,
+                                    **query,
+                                    **fragment,
                                 )
                                 .await?,
                             );
