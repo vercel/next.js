@@ -1413,8 +1413,10 @@ impl AppEndpoint {
 
                 AppEndpointOutput::NodeJs {
                     rsc_chunk,
-                    server_assets: Vc::cell(server_assets.iter().cloned().collect::<Vec<_>>()),
-                    client_assets,
+                    server_assets: ResolvedVc::cell(
+                        server_assets.iter().cloned().collect::<Vec<_>>(),
+                    ),
+                    client_assets: client_assets.to_resolved().await?,
                 }
             }
         }
