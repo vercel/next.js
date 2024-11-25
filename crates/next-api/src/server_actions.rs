@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, io::Write, iter::once};
+use std::{collections::BTreeMap, future::Future, io::Write, iter::once};
 
 use anyhow::{bail, Context, Result};
 use indexmap::map::Entry;
@@ -19,11 +19,11 @@ use swc_core::{
         utils::find_pat_ids,
     },
 };
-use tracing::Instrument;
+use tracing::{Instrument, Level};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    graph::{GraphTraversal, NonDeterministic},
-    FxIndexMap, ResolvedVc, TryFlatJoinIterExt, Value, ValueToString, Vc,
+    graph::{GraphTraversal, NonDeterministic, VisitControlFlow},
+    FxIndexMap, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, ValueToString, Vc,
 };
 use turbo_tasks_fs::{self, rope::RopeBuilder, File, FileSystemPath};
 use turbopack_core::{
@@ -68,7 +68,7 @@ pub(crate) async fn create_server_actions_manifest(
     asset_context: Vc<Box<dyn AssetContext>>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<Vc<ServerActionsManifest>> {
-    let actions = get_actions(rsc_entry, server_reference_modules, asset_context);
+    let actions = find_actions(rsc_entry, server_reference_modules, asset_context);
     let loader =
         build_server_actions_loader(project_path, page_name.clone(), actions, asset_context);
     let evaluable = Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(loader)
@@ -188,7 +188,7 @@ async fn build_manifest(
 /// comment which identifies server actions. Every found server action will be
 /// returned along with the module which exports that action.
 #[turbo_tasks::function]
-async fn get_actions(
+async fn find_actions(
     rsc_entry: ResolvedVc<Box<dyn Module>>,
     server_reference_modules: Vc<Modules>,
     asset_context: Vc<Box<dyn AssetContext>>,
@@ -197,13 +197,22 @@ async fn get_actions(
         let actions = NonDeterministic::new()
             .skip_duplicates()
             .visit(
-                once((ActionLayer::Rsc, rsc_entry)).chain(
+                once((
+                    ActionLayer::Rsc,
+                    rsc_entry,
+                    rsc_entry.ident().to_string().await?,
+                ))
+                .chain(
                     server_reference_modules
                         .await?
                         .iter()
-                        .map(|m| (ActionLayer::ActionBrowser, *m)),
+                        .map(|m| async move {
+                            Ok((ActionLayer::ActionBrowser, *m, m.ident().to_string().await?))
+                        })
+                        .try_join()
+                        .await?,
                 ),
-                get_referenced_modules,
+                FindActionsVisit {},
             )
             .await
             .completed()?
@@ -217,7 +226,7 @@ async fn get_actions(
         // to use the RSC layer's module. We do that by merging the hashes (which match
         // in both layers) and preferring the RSC layer's action.
         let mut all_actions: HashToLayerNameModule = FxIndexMap::default();
-        for ((layer, module), actions_map) in actions.iter() {
+        for ((layer, module, _), actions_map) in actions.iter() {
             let module = if *layer == ActionLayer::Rsc {
                 *module
             } else {
@@ -245,6 +254,46 @@ async fn get_actions(
     .await
 }
 
+type FindActionsNode = (ActionLayer, ResolvedVc<Box<dyn Module>>, ReadRef<RcStr>);
+struct FindActionsVisit {}
+impl turbo_tasks::graph::Visit<FindActionsNode> for FindActionsVisit {
+    type Edge = FindActionsNode;
+    type EdgesIntoIter = impl Iterator<Item = FindActionsNode>;
+    type EdgesFuture = impl Future<Output = Result<Self::EdgesIntoIter>>;
+
+    fn visit(&mut self, edge: Self::Edge) -> VisitControlFlow<Self::Edge> {
+        VisitControlFlow::Continue(edge)
+    }
+
+    fn edges(&mut self, node: &Self::Edge) -> Self::EdgesFuture {
+        get_referenced_modules(node.clone())
+    }
+
+    fn span(&mut self, node: &Self::Edge) -> tracing::Span {
+        let (_, _, name) = node;
+        tracing::span!(
+            Level::INFO,
+            "find server actions visit",
+            name = display(name)
+        )
+    }
+}
+
+/// Our graph traversal visitor, which finds the primary modules directly
+/// referenced by parent.
+async fn get_referenced_modules(
+    (layer, module, _): FindActionsNode,
+) -> Result<impl Iterator<Item = FindActionsNode> + Send> {
+    let modules = primary_referenced_modules(*module).await?;
+
+    Ok(modules
+        .into_iter()
+        .map(move |&m| async move { Ok((layer, m, m.ident().to_string().await?)) })
+        .try_join()
+        .await?
+        .into_iter())
+}
+
 /// The ActionBrowser layer's module is in the Client context, and we need to
 /// bring it into the RSC context.
 async fn to_rsc_context(
@@ -263,16 +312,6 @@ async fn to_rsc_context(
         .to_resolved()
         .await?;
     Ok(module)
-}
-
-/// Our graph traversal visitor, which finds the primary modules directly
-/// referenced by parent.
-async fn get_referenced_modules(
-    (layer, module): (ActionLayer, ResolvedVc<Box<dyn Module>>),
-) -> Result<impl Iterator<Item = (ActionLayer, ResolvedVc<Box<dyn Module>>)> + Send> {
-    primary_referenced_modules(*module)
-        .await
-        .map(|modules| modules.into_iter().map(move |&m| (layer, m)))
 }
 
 /// Parses the Server Actions comment for all exported action function names.
@@ -440,12 +479,12 @@ fn is_turbopack_internal_var(with: &Option<Box<ObjectLit>>) -> bool {
 /// Converts our cached [parse_actions] call into a data type suitable for
 /// collecting into a flat-mapped [FxIndexMap].
 async fn parse_actions_filter_map(
-    (layer, module): (ActionLayer, ResolvedVc<Box<dyn Module>>),
-) -> Result<Option<((ActionLayer, ResolvedVc<Box<dyn Module>>), Vc<ActionMap>)>> {
+    (layer, module, name): FindActionsNode,
+) -> Result<Option<(FindActionsNode, Vc<ActionMap>)>> {
     parse_actions(*module).await.map(|option_action_map| {
         option_action_map
             .clone_value()
-            .map(|action_map| ((layer, module), action_map))
+            .map(|action_map| ((layer, module, name), action_map))
     })
 }
 

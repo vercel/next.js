@@ -21,12 +21,12 @@ use crate::{
 
 #[turbo_tasks::function]
 pub async fn module_references(
-    source: Vc<Box<dyn Source>>,
+    source: ResolvedVc<Box<dyn Source>>,
     runtime: Vc<WebpackRuntime>,
     transforms: ResolvedVc<EcmascriptInputTransforms>,
 ) -> Result<Vc<ModuleReferences>> {
     let parsed = parse(
-        source,
+        *source,
         Value::new(EcmascriptModuleAssetType::Ecmascript),
         *transforms,
     )

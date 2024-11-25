@@ -1,3 +1,5 @@
+use std::future::IntoFuture;
+
 use anyhow::{bail, Context, Result};
 use next_core::{
     all_assets_from_entries,
@@ -285,6 +287,8 @@ impl Endpoint for MiddlewareEndpoint {
             // Middleware could in theory have a client path (e.g. `new URL`).
             let client_relative_root = this.project.client_relative_path();
             let client_paths = all_paths_in_root(output_assets, client_relative_root)
+                .into_future()
+                .instrument(tracing::info_span!("client_paths"))
                 .await?
                 .clone_value();
 

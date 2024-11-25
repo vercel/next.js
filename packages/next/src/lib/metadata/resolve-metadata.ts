@@ -67,7 +67,7 @@ type ViewportResolver = (
   parent: ResolvingViewport
 ) => Viewport | Promise<Viewport>
 
-export type MetadataErrorType = 'not-found'
+export type MetadataErrorType = 'not-found' | 'forbidden' | 'unauthorized'
 
 export type MetadataItems = [
   Metadata | MetadataResolver | null,

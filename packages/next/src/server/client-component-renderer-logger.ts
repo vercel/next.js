@@ -26,7 +26,6 @@ export function wrapClientComponentLoader(ComponentMod: any) {
     loadChunk: (...args: any[]) => {
       const startTime = performance.now()
       try {
-        clientComponentLoadCount += 1
         return ComponentMod.__next_app__.loadChunk(...args)
       } finally {
         clientComponentLoadTimes += performance.now() - startTime

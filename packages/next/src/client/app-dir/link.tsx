@@ -1,28 +1,19 @@
 'use client'
 
-import type {
-  NextRouter,
-  PrefetchOptions as RouterPrefetchOptions,
-} from '../../shared/lib/router/router'
+import type { NextRouter } from '../../shared/lib/router/router'
 
 import React from 'react'
 import type { UrlObject } from 'url'
-import { resolveHref } from '../resolve-href'
-import { isLocalURL } from '../../shared/lib/router/utils/is-local-url'
 import { formatUrl } from '../../shared/lib/router/utils/format-url'
-import { isAbsoluteUrl } from '../../shared/lib/utils'
-import { addLocale } from '../add-locale'
-import { RouterContext } from '../../shared/lib/router-context.shared-runtime'
 import { AppRouterContext } from '../../shared/lib/app-router-context.shared-runtime'
-import type {
-  AppRouterInstance,
-  PrefetchOptions as AppRouterPrefetchOptions,
-} from '../../shared/lib/app-router-context.shared-runtime'
+import type { AppRouterInstance } from '../../shared/lib/app-router-context.shared-runtime'
+import type { PrefetchOptions } from '../../shared/lib/app-router-context.shared-runtime'
 import { useIntersection } from '../use-intersection'
-import { getDomainLocale } from '../get-domain-locale'
-import { addBasePath } from '../add-base-path'
 import { PrefetchKind } from '../components/router-reducer/router-reducer-types'
 import { useMergedRef } from '../use-merged-ref'
+import { isAbsoluteUrl } from '../../shared/lib/utils'
+import { addBasePath } from '../add-base-path'
+import { warnOnce } from '../../shared/lib/utils/warn-once'
 
 type Url = string | UrlObject
 type RequiredKeys<T> = {
@@ -88,6 +79,7 @@ type InternalLinkProps = {
   /**
    * The active locale is automatically prepended. `locale` allows for providing a different locale.
    * When `false` `href` has to include the locale as the default behavior is disabled.
+   * Note: This is only available in the Pages Router.
    */
   locale?: string | false
   /**
@@ -118,72 +110,24 @@ type InternalLinkProps = {
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export type LinkProps<RouteInferType = any> = InternalLinkProps
 type LinkPropsRequired = RequiredKeys<LinkProps>
-type LinkPropsOptional = OptionalKeys<InternalLinkProps>
-
-const prefetched = new Set<string>()
-
-type PrefetchOptions = RouterPrefetchOptions & {
-  /**
-   * bypassPrefetchedCheck will bypass the check to see if the `href` has
-   * already been fetched.
-   */
-  bypassPrefetchedCheck?: boolean
-}
+type LinkPropsOptional = OptionalKeys<Omit<InternalLinkProps, 'locale'>>
 
 function prefetch(
-  router: NextRouter | AppRouterInstance,
+  router: AppRouterInstance,
   href: string,
-  as: string,
-  options: PrefetchOptions,
-  appOptions: AppRouterPrefetchOptions,
-  isAppRouter: boolean
+  options: PrefetchOptions
 ): void {
   if (typeof window === 'undefined') {
     return
   }
 
-  // app-router supports external urls out of the box so it shouldn't short-circuit here as support for e.g. `replace` is added in the app-router.
-  if (!isAppRouter && !isLocalURL(href)) {
-    return
-  }
-
-  // We should only dedupe requests when experimental.optimisticClientCache is
-  // disabled & when we're not using the app router. App router handles
-  // reusing an existing prefetch entry (if it exists) for the same URL.
-  // If we dedupe in here, we will cause a race where different prefetch kinds
-  // to the same URL (ie auto vs true) will cause one to be ignored.
-  if (!options.bypassPrefetchedCheck && !isAppRouter) {
-    const locale =
-      // Let the link's locale prop override the default router locale.
-      typeof options.locale !== 'undefined'
-        ? options.locale
-        : // Otherwise fallback to the router's locale.
-          'locale' in router
-          ? router.locale
-          : undefined
-
-    const prefetchedKey = href + '%' + as + '%' + locale
-
-    // If we've already fetched the key, then don't prefetch it again!
-    if (prefetched.has(prefetchedKey)) {
-      return
-    }
-
-    // Mark this URL as prefetched.
-    prefetched.add(prefetchedKey)
-  }
-
   const doPrefetch = async () => {
-    if (isAppRouter) {
-      // note that `appRouter.prefetch()` is currently sync,
-      // so we have to wrap this call in an async function to be able to catch() errors below.
-      return (router as AppRouterInstance).prefetch(href, appOptions)
-    } else {
-      return (router as NextRouter).prefetch(href, as, options)
-    }
+    // note that `appRouter.prefetch()` is currently sync,
+    // so we have to wrap this call in an async function to be able to catch() errors below.
+    return router.prefetch(href, options)
   }
 
-  // Prefetch the JSON page if asked (only in the client)
+  // Prefetch the page if asked (only in the client)
   // We need to handle a prefetch error here since we may be
   // loading with priority which can reject but we don't
   // want to force navigation since this is only a prefetch
@@ -215,21 +159,14 @@ function linkClicked(
   as: string,
   replace?: boolean,
   shallow?: boolean,
-  scroll?: boolean,
-  locale?: string | false,
-  isAppRouter?: boolean
+  scroll?: boolean
 ): void {
   const { nodeName } = e.currentTarget
 
   // anchors inside an svg have a lowercase nodeName
   const isAnchorNodeName = nodeName.toUpperCase() === 'A'
 
-  if (
-    isAnchorNodeName &&
-    (isModifiedEvent(e) ||
-      // app-router supports external urls out of the box so it shouldn't short-circuit here as support for e.g. `replace` is added in the app-router.
-      (!isAppRouter && !isLocalURL(href)))
-  ) {
+  if (isAnchorNodeName && isModifiedEvent(e)) {
     // ignore click for browser’s default behavior
     return
   }
@@ -242,7 +179,6 @@ function linkClicked(
     if ('beforePopState' in router) {
       router[replace ? 'replace' : 'push'](href, as, {
         shallow,
-        locale,
         scroll: routerScroll,
       })
     } else {
@@ -252,11 +188,7 @@ function linkClicked(
     }
   }
 
-  if (isAppRouter) {
-    React.startTransition(navigate)
-  } else {
-    navigate()
-  }
+  React.startTransition(navigate)
 }
 
 type LinkPropsReal = React.PropsWithChildren<
@@ -293,7 +225,6 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       replace,
       shallow,
       scroll,
-      locale,
       onClick,
       onMouseEnter: onMouseEnterProp,
       onTouchStart: onTouchStartProp,
@@ -310,12 +241,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       children = <a>{children}</a>
     }
 
-    const pagesRouter = React.useContext(RouterContext)
-    const appRouter = React.useContext(AppRouterContext)
-    const router = pagesRouter ?? appRouter
-
-    // We're in the app directory if there is no pages router.
-    const isAppRouter = !pagesRouter
+    const router = React.useContext(AppRouterContext)
 
     const prefetchEnabled = prefetchProp !== false
     /**
@@ -375,7 +301,6 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         shallow: true,
         passHref: true,
         prefetch: true,
-        locale: true,
         onClick: true,
         onMouseEnter: true,
         onTouchStart: true,
@@ -392,14 +317,6 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
             throw createPropError({
               key,
               expected: '`string` or `object`',
-              actual: valType,
-            })
-          }
-        } else if (key === 'locale') {
-          if (props[key] && valType !== 'string') {
-            throw createPropError({
-              key,
-              expected: '`string`',
               actual: valType,
             })
           }
@@ -439,7 +356,12 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
     }
 
     if (process.env.NODE_ENV !== 'production') {
-      if (isAppRouter && !asProp) {
+      if (props.locale) {
+        warnOnce(
+          'The `locale` prop is not supported in `next/link` while using the `app` router. Read more about app router internalization: https://nextjs.org/docs/app/building-your-application/routing/internationalization'
+        )
+      }
+      if (!asProp) {
         let href: string | undefined
         if (typeof hrefProp === 'string') {
           href = hrefProp
@@ -465,27 +387,12 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
     }
 
     const { href, as } = React.useMemo(() => {
-      if (!pagesRouter) {
-        const resolvedHref = formatStringOrUrl(hrefProp)
-        return {
-          href: resolvedHref,
-          as: asProp ? formatStringOrUrl(asProp) : resolvedHref,
-        }
-      }
-
-      const [resolvedHref, resolvedAs] = resolveHref(
-        pagesRouter,
-        hrefProp,
-        true
-      )
-
+      const resolvedHref = formatStringOrUrl(hrefProp)
       return {
         href: resolvedHref,
-        as: asProp
-          ? resolveHref(pagesRouter, asProp)
-          : resolvedAs || resolvedHref,
+        as: asProp ? formatStringOrUrl(asProp) : resolvedHref,
       }
-    }, [pagesRouter, hrefProp, asProp])
+    }, [hrefProp, asProp])
 
     const previousHref = React.useRef<string>(href)
     const previousAs = React.useRef<string>(as)
@@ -573,27 +480,10 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       }
 
       // Prefetch the URL.
-      prefetch(
-        router,
-        href,
-        as,
-        { locale },
-        {
-          kind: appPrefetchKind,
-        },
-        isAppRouter
-      )
-    }, [
-      as,
-      href,
-      isVisible,
-      locale,
-      prefetchEnabled,
-      pagesRouter?.locale,
-      router,
-      isAppRouter,
-      appPrefetchKind,
-    ])
+      prefetch(router, href, {
+        kind: appPrefetchKind,
+      })
+    }, [as, href, isVisible, prefetchEnabled, router, appPrefetchKind])
 
     const childProps: {
       onTouchStart?: React.TouchEventHandler<HTMLAnchorElement>
@@ -632,17 +522,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           return
         }
 
-        linkClicked(
-          e,
-          router,
-          href,
-          as,
-          replace,
-          shallow,
-          scroll,
-          locale,
-          isAppRouter
-        )
+        linkClicked(e, router, href, as, replace, shallow, scroll)
       },
       onMouseEnter(e) {
         if (!legacyBehavior && typeof onMouseEnterProp === 'function') {
@@ -661,28 +541,13 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           return
         }
 
-        if (
-          (!prefetchEnabled || process.env.NODE_ENV === 'development') &&
-          isAppRouter
-        ) {
+        if (!prefetchEnabled || process.env.NODE_ENV === 'development') {
           return
         }
 
-        prefetch(
-          router,
-          href,
-          as,
-          {
-            locale,
-            priority: true,
-            // @see {https://github.com/vercel/next.js/discussions/40268?sort=top#discussioncomment-3572642}
-            bypassPrefetchedCheck: true,
-          },
-          {
-            kind: appPrefetchKind,
-          },
-          isAppRouter
-        )
+        prefetch(router, href, {
+          kind: appPrefetchKind,
+        })
       },
       onTouchStart: process.env.__NEXT_LINK_NO_TOUCH_START
         ? undefined
@@ -703,31 +568,19 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
               return
             }
 
-            if (!prefetchEnabled && isAppRouter) {
+            if (!prefetchEnabled) {
               return
             }
 
-            prefetch(
-              router,
-              href,
-              as,
-              {
-                locale,
-                priority: true,
-                // @see {https://github.com/vercel/next.js/discussions/40268?sort=top#discussioncomment-3572642}
-                bypassPrefetchedCheck: true,
-              },
-              {
-                kind: appPrefetchKind,
-              },
-              isAppRouter
-            )
+            prefetch(router, href, {
+              kind: appPrefetchKind,
+            })
           },
     }
 
     // If child is an <a> tag and doesn't have a href attribute, or if the 'passHref' property is
     // defined, we specify the current 'href', so that repetition is not needed by the user.
-    // If the url is absolute, we can bypass the logic to prepend the domain and locale.
+    // If the url is absolute, we can bypass the logic to prepend the basePath.
     if (isAbsoluteUrl(as)) {
       childProps.href = as
     } else if (
@@ -735,23 +588,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       passHref ||
       (child.type === 'a' && !('href' in child.props))
     ) {
-      const curLocale =
-        typeof locale !== 'undefined' ? locale : pagesRouter?.locale
-
-      // we only render domain locales if we are currently on a domain locale
-      // so that locale links are still visitable in development/preview envs
-      const localeDomain =
-        pagesRouter?.isLocaleDomain &&
-        getDomainLocale(
-          as,
-          curLocale,
-          pagesRouter?.locales,
-          pagesRouter?.domainLocales
-        )
-
-      childProps.href =
-        localeDomain ||
-        addBasePath(addLocale(as, curLocale, pagesRouter?.defaultLocale))
+      childProps.href = addBasePath(as)
     }
 
     return legacyBehavior ? (
