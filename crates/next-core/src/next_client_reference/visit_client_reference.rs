@@ -24,12 +24,12 @@ use crate::{
     Copy, Clone, Eq, PartialEq, Hash, Serialize, Deserialize, Debug, ValueDebugFormat, TraceRawVcs,
 )]
 pub struct ClientReference {
-    server_component: Option<Vc<NextServerComponentModule>>,
+    server_component: Option<ResolvedVc<NextServerComponentModule>>,
     ty: ClientReferenceType,
 }
 
 impl ClientReference {
-    pub fn server_component(&self) -> Option<Vc<NextServerComponentModule>> {
+    pub fn server_component(&self) -> Option<ResolvedVc<NextServerComponentModule>> {
         self.server_component
     }
 
@@ -43,10 +43,10 @@ impl ClientReference {
 )]
 pub enum ClientReferenceType {
     EcmascriptClientReference {
-        parent_module: Vc<EcmascriptClientReferenceProxyModule>,
-        module: Vc<EcmascriptClientReferenceModule>,
+        parent_module: ResolvedVc<EcmascriptClientReferenceProxyModule>,
+        module: ResolvedVc<EcmascriptClientReferenceModule>,
     },
-    CssClientReference(Vc<CssModuleAsset>),
+    CssClientReference(ResolvedVc<CssModuleAsset>),
 }
 
 #[turbo_tasks::value(shared)]
@@ -187,7 +187,7 @@ pub async fn client_reference_graph(
                         client_references_by_server_component
                             .entry(client_reference.server_component)
                             .or_insert_with(Vec::new)
-                            .push(*ResolvedVc::upcast::<Box<dyn Module>>(
+                            .push(ResolvedVc::upcast::<Box<dyn Module>>(
                                 entry.await?.ssr_module,
                             ));
                     }
