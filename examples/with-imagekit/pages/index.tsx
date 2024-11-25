@@ -26,7 +26,6 @@ export default function Home({
 }) {
   const [filterState, setFileterState] = useState<FilterType>(FilterEnum.ALL);
   const [files, setFiles] = useState<FileObject[]>(allFiles);
-  console.log({ allFiles, images, videos, sort });
   useEffect(() => {
     switch (filterState) {
       case FilterEnum.ALL:

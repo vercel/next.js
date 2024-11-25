@@ -6,7 +6,7 @@ const SortIcon = ({ direction }: SortIconInterface) => {
     <svg
       stroke="currentColor"
       fill="currentColor"
-      stroke-width="0"
+      strokeWidth="0"
       viewBox="0 0 16 16"
       focusable="false"
       className="chakra-icon css-6ey7w3"
