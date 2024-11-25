@@ -15,7 +15,7 @@ use turbopack_ecmascript::chunk::EcmascriptChunkPlaceable;
 /// indicate which client reference should appear in the client reference manifest.
 #[turbo_tasks::value]
 pub struct EcmascriptClientReferenceModule {
-    pub server_ident: Vc<AssetIdent>,
+    pub server_ident: ResolvedVc<AssetIdent>,
     pub client_module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     pub ssr_module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
 }
