@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{Value, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
 use turbopack_core::{
     chunk::ChunkableModuleReference,
     reference::ModuleReference,
@@ -14,8 +14,8 @@ use crate::references::css_resolve;
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct CssModuleComposeReference {
-    pub origin: Vc<Box<dyn ResolveOrigin>>,
-    pub request: Vc<Request>,
+    pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    pub request: ResolvedVc<Request>,
 }
 
 #[turbo_tasks::value_impl]
