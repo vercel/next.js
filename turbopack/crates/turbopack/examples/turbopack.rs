@@ -46,7 +46,9 @@ async fn main() -> Result<()> {
             let module_asset_context = turbopack::ModuleAssetContext::new(
                 Default::default(),
                 CompileTimeInfo::new(Environment::new(Value::new(
-                    ExecutionEnvironment::NodeJsLambda(NodeJsEnvironment::default().into()),
+                    ExecutionEnvironment::NodeJsLambda(
+                        NodeJsEnvironment::default().resolved_cell(),
+                    ),
                 ))),
                 Default::default(),
                 ResolveOptionsContext {
