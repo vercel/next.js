@@ -948,14 +948,14 @@ async fn directory_tree_to_loader_tree_internal(
             illegal_path_error = Some(e);
         }
 
-        let subtree = directory_tree_to_loader_tree_internal(
+        let subtree = Box::pin(directory_tree_to_loader_tree_internal(
             app_dir,
             global_metadata,
             subdir_name.clone(),
             subdirectory,
             child_app_page.clone(),
             for_app_path.clone(),
-        )
+        ))
         .await?;
 
         if let Some(illegal_path) = subtree.as_ref().and(illegal_path_error) {
