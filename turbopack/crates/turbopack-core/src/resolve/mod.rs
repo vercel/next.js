@@ -1769,7 +1769,7 @@ async fn resolve_internal_inline(
                         }
                         PatternMatch::Directory(matched_pattern, path) => {
                             results.push(
-                                resolve_into_folder(*path, *options)
+                                resolve_into_folder(*path, options)
                                     .with_request(matched_pattern.clone()),
                             );
                         }
@@ -1787,8 +1787,8 @@ async fn resolve_internal_inline(
                 if !fragment.await?.is_empty() {
                     if let Ok(result) = resolve_relative_request(
                         lookup_path,
-                        request,
-                        *options,
+                        *request,
+                        options,
                         options_value,
                         path,
                         *query,
@@ -2048,8 +2048,8 @@ async fn resolve_into_folder(
 
 #[tracing::instrument(level = Level::TRACE, skip_all)]
 async fn resolve_relative_request(
-    lookup_path: ResolvedVc<FileSystemPath>,
-    request: ResolvedVc<Request>,
+    lookup_path: Vc<FileSystemPath>,
+    request: Vc<Request>,
     options: Vc<ResolveOptions>,
     options_value: &ResolveOptions,
     path_pattern: &Pattern,
