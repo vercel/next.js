@@ -30,10 +30,10 @@ use super::ecmascript_client_reference_module::EcmascriptClientReferenceModule;
 /// a client or SSR asset.
 #[turbo_tasks::value]
 pub struct EcmascriptClientReferenceProxyModule {
-    server_module_ident: Vc<AssetIdent>,
-    server_asset_context: Vc<Box<dyn AssetContext>>,
-    client_module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
-    ssr_module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
+    server_module_ident: ResolvedVc<AssetIdent>,
+    server_asset_context: ResolvedVc<Box<dyn AssetContext>>,
+    client_module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    ssr_module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -245,9 +245,9 @@ impl EcmascriptChunkPlaceable for EcmascriptClientReferenceProxyModule {
 /// [`Vc<EcmascriptClientReferenceProxyModule>`].
 #[turbo_tasks::value]
 struct ProxyModuleChunkItem {
-    client_proxy_asset: Vc<EcmascriptClientReferenceProxyModule>,
-    inner_proxy_module_chunk_item: Vc<Box<dyn EcmascriptChunkItem>>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
+    client_proxy_asset: ResolvedVc<EcmascriptClientReferenceProxyModule>,
+    inner_proxy_module_chunk_item: ResolvedVc<Box<dyn EcmascriptChunkItem>>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
 
 #[turbo_tasks::function]
