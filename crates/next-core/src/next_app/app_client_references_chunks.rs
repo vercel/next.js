@@ -98,7 +98,7 @@ pub async fn get_app_client_references_chunks(
                             }
                             ClientReferenceType::CssClientReference(css_module) => {
                                 let client_chunk_group = client_chunking_context
-                                    .root_chunk_group(Vc::upcast(css_module))
+                                    .root_chunk_group(*ResolvedVc::upcast(css_module))
                                     .await?;
 
                                 (
