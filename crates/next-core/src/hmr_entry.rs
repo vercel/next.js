@@ -30,8 +30,8 @@ fn modifier() -> Vc<RcStr> {
 
 #[turbo_tasks::value(shared)]
 pub struct HmrEntryModule {
-    pub ident: Vc<AssetIdent>,
-    pub module: Vc<Box<dyn ChunkableModule>>,
+    pub ident: ResolvedVc<AssetIdent>,
+    pub module: ResolvedVc<Box<dyn ChunkableModule>>,
 }
 
 #[turbo_tasks::value_impl]
