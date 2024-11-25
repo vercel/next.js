@@ -674,24 +674,24 @@ pub async fn app_entry_point_to_route(
                 .into_iter()
                 .map(|page| AppPageRoute {
                     original_name: page.to_string(),
-                    html_endpoint: Vc::upcast(
+                    html_endpoint: ResolvedVc::upcast(
                         AppEndpoint {
                             ty: AppEndpointType::Page {
                                 ty: AppPageEndpointType::Html,
                                 loader_tree: *loader_tree,
                             },
-                            app_project: app_project.to_resolved().await?,
+                            app_project,
                             page: page.clone(),
                         }
-                        .cell(),
+                        .resolved_cell(),
                     ),
-                    rsc_endpoint: Vc::upcast(
+                    rsc_endpoint: ResolvedVc::upcast(
                         AppEndpoint {
                             ty: AppEndpointType::Page {
                                 ty: AppPageEndpointType::Rsc,
                                 loader_tree: *loader_tree,
                             },
-                            app_project: app_project.to_resolved().await?,
+                            app_project,
                             page,
                         }
                         .cell(),
@@ -705,27 +705,27 @@ pub async fn app_entry_point_to_route(
             root_layouts,
         } => Route::AppRoute {
             original_name: page.to_string(),
-            endpoint: Vc::upcast(
+            endpoint: ResolvedVc::upcast(
                 AppEndpoint {
                     ty: AppEndpointType::Route {
                         path: *path,
                         root_layouts: *root_layouts,
                     },
-                    app_project: app_project.to_resolved().await?,
+                    app_project,
                     page,
                 }
-                .cell(),
+                .resolved_cell(),
             ),
         },
         AppEntrypoint::AppMetadata { page, metadata } => Route::AppRoute {
             original_name: page.to_string(),
-            endpoint: Vc::upcast(
+            endpoint: ResolvedVc::upcast(
                 AppEndpoint {
                     ty: AppEndpointType::Metadata { metadata },
-                    app_project: app_project.to_resolved().await?,
+                    app_project,
                     page,
                 }
-                .cell(),
+                .resolved_cell(),
             ),
         },
     }
@@ -769,7 +769,7 @@ enum AppEndpointType {
 #[turbo_tasks::value]
 struct AppEndpoint {
     ty: AppEndpointType,
-    app_project: ResolvedVc<AppProject>,
+    app_project: Vc<AppProject>,
     page: AppPage,
 }
 
@@ -1566,7 +1566,7 @@ impl AppEndpoint {
                 }
                 .instrument(tracing::trace_span!("server node entrypoint"))
                 .await?);
-                Vc::cell((Vc::cell(vec![rsc_chunk]), availability_info))
+                Vc::cell((ResolvedVc::cell(vec![rsc_chunk]), availability_info))
             }
         })
     }
