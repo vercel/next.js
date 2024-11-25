@@ -834,7 +834,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             message: StyledString::Text("top level await is only supported in ESM modules.".into())
                 .resolved_cell(),
             source_ident: source.ident(),
-            severity: IssueSeverity::Error.into(),
+            severity: IssueSeverity::Error.resolved_cell(),
             source: Some(issue_source(*source, span)),
             title: ResolvedVc::cell("unexpected top level await".into()),
         }
