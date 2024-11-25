@@ -42,7 +42,7 @@ pub struct NextServerComponentModule {
 #[turbo_tasks::value_impl]
 impl NextServerComponentModule {
     #[turbo_tasks::function]
-    pub fn new(module: Vc<Box<dyn EcmascriptChunkPlaceable>>) -> Vc<Self> {
+    pub fn new(module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>) -> Vc<Self> {
         NextServerComponentModule { module }.cell()
     }
 
@@ -62,7 +62,7 @@ impl Module for NextServerComponentModule {
     #[turbo_tasks::function]
     fn references(&self) -> Vc<ModuleReferences> {
         Vc::cell(vec![Vc::upcast(NextServerComponentModuleReference::new(
-            Vc::upcast(self.module),
+            Vc::upcast(*self.module),
         ))])
     }
 
@@ -113,7 +113,7 @@ impl EcmascriptChunkPlaceable for NextServerComponentModule {
     #[turbo_tasks::function]
     fn get_exports(&self) -> Vc<EcmascriptExports> {
         let module_reference = Vc::upcast(NextServerComponentModuleReference::new(Vc::upcast(
-            self.module,
+            *self.module,
         )));
 
         let mut exports = BTreeMap::new();
