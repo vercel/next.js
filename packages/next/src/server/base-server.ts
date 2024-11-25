@@ -175,7 +175,6 @@ import type { RouteModule } from './route-modules/route-module'
 import { FallbackMode, parseFallbackField } from '../lib/fallback'
 import { toResponseCacheEntry } from './response-cache/utils'
 import { scheduleOnNextTick } from '../lib/scheduler'
-import { createRenderResumeDataCache } from './resume-data-cache/resume-data-cache'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -594,6 +593,8 @@ export default abstract class Server<
         clientTraceMetadata: this.nextConfig.experimental.clientTraceMetadata,
         after: this.nextConfig.experimental.after ?? false,
         dynamicIO: this.nextConfig.experimental.dynamicIO ?? false,
+        inlineCss: this.nextConfig.experimental.inlineCss ?? false,
+        authInterrupts: !!this.nextConfig.experimental.authInterrupts,
       },
       onInstrumentationRequestError:
         this.instrumentationOnRequestError.bind(this),
@@ -1931,9 +1932,11 @@ export default abstract class Server<
     if (pathname === UNDERSCORE_NOT_FOUND_ROUTE) {
       pathname = '/404'
     }
-    const is404Page = pathname === '/404'
-
-    const is500Page = pathname === '/500'
+    const isErrorPathname = pathname === '/_error'
+    const is404Page =
+      pathname === '/404' || (isErrorPathname && res.statusCode === 404)
+    const is500Page =
+      pathname === '/500' || (isErrorPathname && res.statusCode === 500)
     const isAppPath = components.isAppPath === true
 
     const hasServerProps = !!components.getServerSideProps
@@ -2479,6 +2482,7 @@ export default abstract class Server<
               experimental: {
                 after: renderOpts.experimental.after,
                 dynamicIO: renderOpts.experimental.dynamicIO,
+                authInterrupts: renderOpts.experimental.authInterrupts,
               },
               supportsDynamicResponse,
               incrementalCache,
@@ -2505,7 +2509,7 @@ export default abstract class Server<
               context.renderOpts as any
             ).fetchMetrics
 
-            const cacheTags = (context.renderOpts as any).collectedTags
+            const cacheTags = context.renderOpts.collectedTags
 
             // If the request is for a static response, we can cache it so long
             // as it's not edge.
@@ -2524,12 +2528,10 @@ export default abstract class Server<
               }
 
               const revalidate =
-                typeof (context.renderOpts as any).collectedRevalidate ===
-                  'undefined' ||
-                (context.renderOpts as any).collectedRevalidate >=
-                  INFINITE_CACHE
+                typeof context.renderOpts.collectedRevalidate === 'undefined' ||
+                context.renderOpts.collectedRevalidate >= INFINITE_CACHE
                   ? false
-                  : (context.renderOpts as any).collectedRevalidate
+                  : context.renderOpts.collectedRevalidate
 
               // Create the cache entry for the response.
               const cacheEntry: ResponseCacheEntry = {
@@ -2652,11 +2654,9 @@ export default abstract class Server<
 
               // If the warmup is successful, we should use the resume data
               // cache from the warmup.
-              if (warmup.metadata.devWarmupPrerenderResumeDataCache) {
-                renderOpts.devWarmupRenderResumeDataCache =
-                  createRenderResumeDataCache(
-                    warmup.metadata.devWarmupPrerenderResumeDataCache
-                  )
+              if (warmup.metadata.devRenderResumeDataCache) {
+                renderOpts.devRenderResumeDataCache =
+                  warmup.metadata.devRenderResumeDataCache
               }
             }
 
@@ -3293,7 +3293,10 @@ export default abstract class Server<
 
       // If cache control is already set on the response we don't
       // override it to allow users to customize it via next.config
-      if (cacheEntry.revalidate && !res.getHeader('Cache-Control')) {
+      if (
+        typeof cacheEntry.revalidate !== 'undefined' &&
+        !res.getHeader('Cache-Control')
+      ) {
         res.setHeader(
           'Cache-Control',
           formatRevalidate({
@@ -3316,7 +3319,10 @@ export default abstract class Server<
     } else if (cachedData.kind === CachedRouteKind.REDIRECT) {
       // If cache control is already set on the response we don't
       // override it to allow users to customize it via next.config
-      if (cacheEntry.revalidate && !res.getHeader('Cache-Control')) {
+      if (
+        typeof cacheEntry.revalidate !== 'undefined' &&
+        !res.getHeader('Cache-Control')
+      ) {
         res.setHeader(
           'Cache-Control',
           formatRevalidate({
@@ -3340,17 +3346,33 @@ export default abstract class Server<
         return null
       }
     } else if (cachedData.kind === CachedRouteKind.APP_ROUTE) {
-      const headers = { ...cachedData.headers }
+      const headers = fromNodeOutgoingHttpHeaders(cachedData.headers)
 
       if (!(this.minimalMode && isSSG)) {
-        delete headers[NEXT_CACHE_TAGS_HEADER]
+        headers.delete(NEXT_CACHE_TAGS_HEADER)
+      }
+
+      // If cache control is already set on the response we don't
+      // override it to allow users to customize it via next.config
+      if (
+        typeof cacheEntry.revalidate !== 'undefined' &&
+        !res.getHeader('Cache-Control') &&
+        !headers.get('Cache-Control')
+      ) {
+        headers.set(
+          'Cache-Control',
+          formatRevalidate({
+            revalidate: cacheEntry.revalidate,
+            expireTime: this.nextConfig.expireTime,
+          })
+        )
       }
 
       await sendResponse(
         req,
         res,
         new Response(cachedData.body, {
-          headers: fromNodeOutgoingHttpHeaders(headers),
+          headers,
           status: cachedData.status || 200,
         })
       )

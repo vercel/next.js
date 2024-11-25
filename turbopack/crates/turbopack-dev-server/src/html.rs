@@ -1,6 +1,7 @@
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use mime_guess::mime::TEXT_HTML_UTF_8;
-use turbo_tasks::{RcStr, ReadRef, ResolvedVc, TryJoinIterExt, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, Value, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbo_tasks_hash::{encode_hex, Xxh3Hash64Hasher};
 use turbopack_core::{
@@ -191,7 +192,7 @@ impl DevHtmlAssetContent {
                     relative_path
                 ));
             } else {
-                return Err(anyhow!("chunk with unknown asset type: {}", relative_path));
+                anyhow::bail!("chunk with unknown asset type: {}", relative_path)
             }
         }
 

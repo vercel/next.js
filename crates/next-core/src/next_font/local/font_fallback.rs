@@ -254,7 +254,7 @@ fn parse_weight_string(weight_str: &str) -> Result<f64> {
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use turbo_tasks::RcStr;
+    use turbo_rcstr::RcStr;
 
     use crate::next_font::local::{
         font_fallback::pick_font_for_fallback_generation,

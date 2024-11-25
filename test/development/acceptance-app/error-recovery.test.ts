@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import { sandbox } from 'development-sandbox'
+import { createSandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import { check, describeVariants as describe } from 'next-test-utils'
 import path from 'path'
@@ -12,7 +12,8 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
   })
 
   test('can recover from a syntax error without losing state', async () => {
-    const { session, cleanup } = await sandbox(next)
+    await using sandbox = await createSandbox(next)
+    const { session } = sandbox
 
     await session.patch(
       'index.js',
@@ -68,19 +69,13 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
       () => session.evaluate(() => document.querySelector('p').textContent),
       /Count: 1/
     )
-
-    await cleanup()
   })
 
   test.each([['client'], ['server']])(
     '%s component can recover from syntax error',
     async (type: string) => {
-      const { session, browser, cleanup } = await sandbox(
-        next,
-        undefined,
-        '/' + type
-      )
-
+      await using sandbox = await createSandbox(next, undefined, '/' + type)
+      const { session } = sandbox
       // Add syntax error
       await session.patch(
         `app/${type}/page.js`,
@@ -101,13 +96,16 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
         `
       )
 
-      await check(() => browser.elementByCss('p').text(), 'Hello world 2')
-      await cleanup()
+      await check(
+        () => session.evaluate(() => document.querySelector('p').textContent),
+        'Hello world 2'
+      )
     }
   )
 
   test('can recover from a event handler error', async () => {
-    const { session, cleanup } = await sandbox(next)
+    await using sandbox = await createSandbox(next)
+    const { session } = sandbox
 
     await session.patch(
       'index.js',
@@ -138,10 +136,10 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('1')
 
-    await session.waitForAndOpenRuntimeError()
+    await session.openRedbox()
 
     expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
-      "index.js (7:11) @ eval
+      "index.js (7:11) @ Index.useCallback[increment]
 
          5 |   const increment = useCallback(() => {
          6 |     setCount(c => c + 1)
@@ -183,18 +181,13 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
 
     await session.assertNoRedbox()
     expect(await session.hasErrorToast()).toBe(false)
-
-    await cleanup()
   })
 
   test.each([['client'], ['server']])(
     '%s component can recover from a component error',
     async (type: string) => {
-      const { session, cleanup, browser } = await sandbox(
-        next,
-        undefined,
-        '/' + type
-      )
+      await using sandbox = await createSandbox(next, undefined, '/' + type)
+      const { session, browser } = sandbox
 
       await session.write(
         'child.js',
@@ -253,14 +246,13 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
       expect(
         await session.evaluate(() => document.querySelector('p').textContent)
       ).toBe('Hello')
-
-      await cleanup()
     }
   )
 
   // https://github.com/pmmmwh/react-refresh-webpack-plugin/pull/3#issuecomment-554150098
   test('syntax > runtime error', async () => {
-    const { session, cleanup } = await sandbox(next)
+    await using sandbox = await createSandbox(next)
+    const { session } = sandbox
 
     // Start here.
     await session.patch(
@@ -290,7 +282,7 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
     )
 
     await new Promise((resolve) => setTimeout(resolve, 1000))
-    await session.waitForAndOpenRuntimeError()
+    await session.openRedbox()
     expect(await session.getRedboxSource()).not.toInclude(
       "Expected '}', got '<eof>'"
     )
@@ -321,13 +313,12 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
     expect(await session.getRedboxSource()).toInclude(
       "Expected '}', got '<eof>'"
     )
-
-    await cleanup()
   })
 
   // https://github.com/pmmmwh/react-refresh-webpack-plugin/pull/3#issuecomment-554144016
   test('stuck error', async () => {
-    const { session, cleanup } = await sandbox(next)
+    await using sandbox = await createSandbox(next)
+    const { session } = sandbox
 
     // We start here.
     await session.patch(
@@ -386,13 +377,12 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
 
     // Expected: this fixes the problem
     await session.assertNoRedbox()
-
-    await cleanup()
   })
 
   // https://github.com/pmmmwh/react-refresh-webpack-plugin/pull/3#issuecomment-554137262
   test('render error not shown right after syntax error', async () => {
-    const { session, cleanup } = await sandbox(next)
+    await using sandbox = await createSandbox(next)
+    const { session } = sandbox
 
     // Starting here:
     await session.patch(
@@ -466,27 +456,22 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
     )
     await session.assertHasRedbox()
 
-    await check(async () => {
-      const source = await session.getRedboxSource()
-      return source?.includes('render() {') ? 'success' : source
-    }, 'success')
+    await expect(session.getRedboxSource()).resolves.toInclude('render() {')
 
     expect(await session.getRedboxSource()).toInclude(
       "throw new Error('nooo');"
     )
-
-    await cleanup()
   })
 
   test('displays build error on initial page load', async () => {
-    const { session, cleanup } = await sandbox(
+    await using sandbox = await createSandbox(
       next,
       new Map([['app/page.js', '{{{']])
     )
-
+    const { session } = sandbox
     await session.assertHasRedbox()
-    await check(() => session.getRedboxSource(true), /Failed to compile/)
-
-    await cleanup()
+    await expect(session.getRedboxSource(true)).resolves.toMatch(
+      /Failed to compile/
+    )
   })
 })

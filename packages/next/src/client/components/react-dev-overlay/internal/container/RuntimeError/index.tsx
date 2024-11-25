@@ -8,34 +8,29 @@ import { GroupedStackFrames } from './GroupedStackFrames'
 export type RuntimeErrorProps = { error: ReadyRuntimeError }
 
 export function RuntimeError({ error }: RuntimeErrorProps) {
+  const { frames } = error
   const { firstFrame, allLeadingFrames, allCallStackFrames } =
     React.useMemo(() => {
-      const filteredFrames = error.frames
-        // Filter out nodejs internal frames since you can't do anything about them.
-        // e.g. node:internal/timers shows up pretty often due to timers, but not helpful to users.
-        // Only present the last line before nodejs internal trace.
-        .filter((f) => !f.sourceStackFrame.file?.startsWith('node:'))
-
-      const firstFirstPartyFrameIndex = filteredFrames.findIndex(
+      const firstFirstPartyFrameIndex = frames.findIndex(
         (entry) =>
-          entry.expanded &&
+          !entry.ignored &&
           Boolean(entry.originalCodeFrame) &&
           Boolean(entry.originalStackFrame)
       )
 
       return {
-        firstFrame: filteredFrames[firstFirstPartyFrameIndex] ?? null,
+        firstFrame: frames[firstFirstPartyFrameIndex] ?? null,
         allLeadingFrames:
           firstFirstPartyFrameIndex < 0
             ? []
-            : filteredFrames.slice(0, firstFirstPartyFrameIndex),
-        allCallStackFrames: filteredFrames.slice(firstFirstPartyFrameIndex + 1),
+            : frames.slice(0, firstFirstPartyFrameIndex),
+        allCallStackFrames: frames.slice(firstFirstPartyFrameIndex + 1),
       }
-    }, [error.frames])
+    }, [frames])
 
   const { leadingFramesGroupedByFramework, stackFramesGroupedByFramework } =
     React.useMemo(() => {
-      const leadingFrames = allLeadingFrames.filter((f) => f.expanded)
+      const leadingFrames = allLeadingFrames.filter((f) => !f.ignored)
 
       return {
         stackFramesGroupedByFramework:

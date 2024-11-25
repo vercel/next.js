@@ -2,7 +2,8 @@ use std::{collections::HashMap, fmt::Write, mem::take};
 
 use anyhow::Result;
 use serde_json::Value as JsonValue;
-use turbo_tasks::{fxindexset, RcStr, ResolvedVc, Value, ValueDefault, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{fxindexset, ResolvedVc, Value, ValueDefault, Vc};
 use turbo_tasks_fs::{FileContent, FileJsonContent, FileSystemPath};
 use turbopack_core::{
     asset::Asset,
@@ -42,14 +43,14 @@ async fn json_only(resolve_options: Vc<ResolveOptions>) -> Result<Vc<ResolveOpti
     Ok(opts.cell())
 }
 
-type TsConfigs = Vec<(Vc<FileJsonContent>, Vc<Box<dyn Source>>)>;
+type TsConfig = (Vc<FileJsonContent>, ResolvedVc<Box<dyn Source>>);
 
 #[tracing::instrument(skip_all)]
 pub async fn read_tsconfigs(
     mut data: Vc<FileContent>,
-    mut tsconfig: Vc<Box<dyn Source>>,
+    mut tsconfig: ResolvedVc<Box<dyn Source>>,
     resolve_options: Vc<ResolveOptions>,
-) -> Result<TsConfigs> {
+) -> Result<Vec<TsConfig>> {
     let mut configs = Vec::new();
     let resolve_options = json_only(resolve_options);
     loop {
@@ -90,7 +91,7 @@ pub async fn read_tsconfigs(
             FileJsonContent::Content(json) => {
                 configs.push((parsed_data, tsconfig));
                 if let Some(extends) = json["extends"].as_str() {
-                    let resolved = resolve_extends(tsconfig, extends, resolve_options).await?;
+                    let resolved = resolve_extends(*tsconfig, extends, resolve_options).await?;
                     if let Some(source) = *resolved.await? {
                         data = source.content().file_content();
                         tsconfig = source;
@@ -200,11 +201,9 @@ async fn resolve_extends_rooted_or_relative(
     Ok(result)
 }
 
-type Config = (Vc<FileJsonContent>, Vc<Box<dyn Source>>);
-
 pub async fn read_from_tsconfigs<T>(
-    configs: &[Config],
-    accessor: impl Fn(&JsonValue, Vc<Box<dyn Source>>) -> Option<T>,
+    configs: &[TsConfig],
+    accessor: impl Fn(&JsonValue, ResolvedVc<Box<dyn Source>>) -> Option<T>,
 ) -> Result<Option<T>> {
     for (config, source) in configs.iter() {
         if let FileJsonContent::Content(json) = &*config.await? {
@@ -240,7 +239,7 @@ pub async fn tsconfig_resolve_options(
 ) -> Result<Vc<TsConfigResolveOptions>> {
     let configs = read_tsconfigs(
         tsconfig.read(),
-        Vc::upcast(FileSource::new(tsconfig)),
+        ResolvedVc::upcast(FileSource::new(tsconfig).to_resolved().await?),
         node_cjs_resolve_options(tsconfig.root()),
     )
     .await?;

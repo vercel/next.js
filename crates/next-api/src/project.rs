@@ -22,13 +22,14 @@ use next_core::{
 };
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
     debug::ValueDebugFormat,
     fxindexmap,
     graph::{AdjacencyMap, GraphTraversal},
     trace::TraceRawVcs,
-    Completion, Completions, FxIndexMap, IntoTraitRef, RcStr, ReadRef, ResolvedVc, State,
-    TaskInput, TransientInstance, TryFlatJoinIterExt, Value, Vc,
+    Completion, Completions, FxIndexMap, IntoTraitRef, ReadRef, ResolvedVc, State, TaskInput,
+    TransientInstance, TryFlatJoinIterExt, Value, Vc,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath, VirtualFileSystem};
@@ -539,7 +540,7 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    fn project_fs(&self) -> Vc<DiskFileSystem> {
+    pub fn project_fs(&self) -> Vc<DiskFileSystem> {
         DiskFileSystem::new(
             PROJECT_FILESYSTEM_NAME.into(),
             self.root_path.clone(),
@@ -548,8 +549,8 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    fn client_fs(self: Vc<Self>) -> Vc<Box<dyn FileSystem>> {
-        let virtual_fs = VirtualFileSystem::new();
+    pub fn client_fs(self: Vc<Self>) -> Vc<Box<dyn FileSystem>> {
+        let virtual_fs = VirtualFileSystem::new_with_name("client-fs".into());
         Vc::upcast(virtual_fs)
     }
 
@@ -666,6 +667,8 @@ impl Project {
         Ok(get_server_compile_time_info(
             self.env(),
             this.define_env.nodejs(),
+            // `/ROOT` corresponds to `[project]/`, so we need exactly the `path` part.
+            format!("/ROOT/{}", self.project_path().await?.path).into(),
         ))
     }
 
@@ -699,6 +702,7 @@ impl Project {
             self.client_compile_time_info().environment(),
             self.next_mode(),
             self.module_id_strategy(),
+            self.next_config().turbo_minify(self.next_mode()),
         )
     }
 
@@ -716,6 +720,7 @@ impl Project {
                 self.next_config().computed_asset_prefix(),
                 self.server_compile_time_info().environment(),
                 self.module_id_strategy(),
+                self.next_config().turbo_minify(self.next_mode()),
             )
         } else {
             get_server_chunking_context(
@@ -724,6 +729,7 @@ impl Project {
                 self.node_root(),
                 self.server_compile_time_info().environment(),
                 self.module_id_strategy(),
+                self.next_config().turbo_minify(self.next_mode()),
             )
         }
     }
@@ -742,6 +748,7 @@ impl Project {
                 self.next_config().computed_asset_prefix(),
                 self.edge_compile_time_info().environment(),
                 self.module_id_strategy(),
+                self.next_config().turbo_minify(self.next_mode()),
             )
         } else {
             get_edge_chunking_context(
@@ -750,6 +757,7 @@ impl Project {
                 self.node_root(),
                 self.edge_compile_time_info().environment(),
                 self.module_id_strategy(),
+                self.next_config().turbo_minify(self.next_mode()),
             )
         }
     }
@@ -939,7 +947,10 @@ impl Project {
         if let Some(app_project) = app_project {
             transitions.push((
                 ECMASCRIPT_CLIENT_TRANSITION_NAME.into(),
-                app_project.edge_client_reference_transition(),
+                app_project
+                    .edge_client_reference_transition()
+                    .to_resolved()
+                    .await?,
             ));
         }
 
@@ -1020,7 +1031,10 @@ impl Project {
         if let Some(app_project) = app_project {
             transitions.push((
                 ECMASCRIPT_CLIENT_TRANSITION_NAME.into(),
-                app_project.client_reference_transition(),
+                app_project
+                    .client_reference_transition()
+                    .to_resolved()
+                    .await?,
             ));
         }
 
@@ -1070,7 +1084,10 @@ impl Project {
         if let Some(app_project) = app_project {
             transitions.push((
                 ECMASCRIPT_CLIENT_TRANSITION_NAME.into(),
-                app_project.edge_client_reference_transition(),
+                app_project
+                    .edge_client_reference_transition()
+                    .to_resolved()
+                    .await?,
             ));
         }
 
@@ -1149,7 +1166,7 @@ impl Project {
     pub async fn emit_all_output_assets(
         self: Vc<Self>,
         output_assets: Vc<OutputAssetsOperation>,
-    ) -> Result<Vc<()>> {
+    ) -> Result<()> {
         let span = tracing::info_span!("emitting");
         async move {
             let all_output_assets = all_assets_from_entries_operation(output_assets);
@@ -1158,27 +1175,23 @@ impl Project {
             let node_root = self.node_root();
 
             if let Some(map) = self.await?.versioned_content_map {
-                let _ = map
-                    .insert_output_assets(
-                        all_output_assets,
-                        node_root,
-                        client_relative_path,
-                        node_root,
-                    )
-                    .resolve()
-                    .await?;
+                let _ = map.insert_output_assets(
+                    all_output_assets,
+                    node_root,
+                    client_relative_path,
+                    node_root,
+                );
 
-                Ok(Vc::cell(()))
+                Ok(())
             } else {
                 let _ = emit_assets(
                     *all_output_assets.await?,
                     node_root,
                     client_relative_path,
                     node_root,
-                )
-                .resolve()
-                .await?;
-                Ok(Vc::cell(()))
+                );
+
+                Ok(())
             }
         }
         .instrument(span)

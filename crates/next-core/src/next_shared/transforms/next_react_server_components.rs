@@ -34,11 +34,7 @@ pub async fn get_next_react_server_components_transform_rule(
     app_dir: Option<Vc<FileSystemPath>>,
 ) -> Result<ModuleRule> {
     let enable_mdx_rs = next_config.mdx_rs().await?.is_some();
-    let dynamic_io_enabled = next_config
-        .experimental()
-        .await?
-        .dynamic_io
-        .unwrap_or(false);
+    let dynamic_io_enabled = *next_config.enable_dynamic_io().await?;
     Ok(get_ecma_transform_rule(
         Box::new(NextJsReactServerComponents::new(
             is_react_server_layer,

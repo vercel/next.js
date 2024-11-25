@@ -2,7 +2,8 @@ use std::{io::Write, iter::once};
 
 use anyhow::{bail, Context, Result};
 use indoc::writedoc;
-use turbo_tasks::{RcStr, Value, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{Value, ValueToString, Vc};
 use turbo_tasks_fs::File;
 use turbopack_core::{
     asset::{Asset, AssetContent},

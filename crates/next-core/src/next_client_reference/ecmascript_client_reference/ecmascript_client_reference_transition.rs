@@ -1,5 +1,6 @@
 use anyhow::{bail, Result};
-use turbo_tasks::{RcStr, ResolvedVc, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbopack::{
     transition::{ContextTransition, Transition},
     ModuleAssetContext,
@@ -116,11 +117,11 @@ impl Transition for NextEcmascriptClientReferenceTransition {
         // the context.
         let module_asset_context = module_asset_context.await?;
         let server_context = ModuleAssetContext::new(
-            module_asset_context.transitions,
-            module_asset_context.compile_time_info,
-            module_asset_context.module_options_context,
-            module_asset_context.resolve_options_context,
-            module_asset_context.layer,
+            *module_asset_context.transitions,
+            *module_asset_context.compile_time_info,
+            *module_asset_context.module_options_context,
+            *module_asset_context.resolve_options_context,
+            *module_asset_context.layer,
         );
 
         Ok(ProcessResult::Module(ResolvedVc::upcast(

@@ -1,7 +1,8 @@
 use std::fmt::Write;
 
 use anyhow::Result;
-use turbo_tasks::{RcStr, ResolvedVc, Value, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64, DeterministicHash, Xxh3Hash64Hasher};
 
@@ -283,14 +284,18 @@ impl AssetIdent {
                     5_u8.deterministic_hash(&mut hasher);
                     id.deterministic_hash(&mut hasher);
                 }
-                ModulePart::Locals => {
+                ModulePart::InternalEvaluation(id) => {
                     6_u8.deterministic_hash(&mut hasher);
+                    id.deterministic_hash(&mut hasher);
                 }
-                ModulePart::Exports => {
+                ModulePart::Locals => {
                     7_u8.deterministic_hash(&mut hasher);
                 }
-                ModulePart::Facade => {
+                ModulePart::Exports => {
                     8_u8.deterministic_hash(&mut hasher);
+                }
+                ModulePart::Facade => {
+                    9_u8.deterministic_hash(&mut hasher);
                 }
             }
 

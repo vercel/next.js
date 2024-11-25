@@ -23,7 +23,8 @@ use rand::Rng;
 use tokio::{io::AsyncWriteExt, time::Instant};
 use tracing::Instrument;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
-use turbo_tasks::{Completion, RcStr, ReadRef, TransientInstance, UpdateInfo, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{get_effects, Completion, Effects, ReadRef, TransientInstance, UpdateInfo, Vc};
 use turbo_tasks_fs::{
     util::uri_from_file, DiskFileSystem, FileContent, FileSystem, FileSystemPath,
 };
@@ -622,6 +623,7 @@ struct EntrypointsWithIssues {
     entrypoints: ReadRef<Entrypoints>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
     diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
+    effects: Arc<Effects>,
 }
 
 #[turbo_tasks::function]
@@ -632,10 +634,12 @@ async fn get_entrypoints_with_issues(
     let entrypoints = entrypoints_operation.strongly_consistent().await?;
     let issues = get_issues(entrypoints_operation).await?;
     let diagnostics = get_diagnostics(entrypoints_operation).await?;
+    let effects = Arc::new(get_effects(entrypoints_operation).await?);
     Ok(EntrypointsWithIssues {
         entrypoints,
         issues,
         diagnostics,
+        effects,
     }
     .cell())
 }
@@ -652,13 +656,14 @@ pub fn project_entrypoints_subscribe(
         func,
         move || {
             async move {
+                let operation = get_entrypoints_with_issues(container);
                 let EntrypointsWithIssues {
                     entrypoints,
                     issues,
                     diagnostics,
-                } = &*get_entrypoints_with_issues(container)
-                    .strongly_consistent()
-                    .await?;
+                    effects,
+                } = &*operation.strongly_consistent().await?;
+                effects.apply().await?;
                 Ok((entrypoints.clone(), issues.clone(), diagnostics.clone()))
             }
             .instrument(tracing::info_span!("entrypoints subscription"))
@@ -717,6 +722,7 @@ struct HmrUpdateWithIssues {
     update: ReadRef<Update>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
     diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
+    effects: Arc<Effects>,
 }
 
 #[turbo_tasks::function]
@@ -729,10 +735,12 @@ async fn hmr_update(
     let update = update_operation.strongly_consistent().await?;
     let issues = get_issues(update_operation).await?;
     let diagnostics = get_diagnostics(update_operation).await?;
+    let effects = Arc::new(get_effects(update_operation).await?);
     Ok(HmrUpdateWithIssues {
         update,
         issues,
         diagnostics,
+        effects,
     }
     .cell())
 }
@@ -759,14 +767,15 @@ pub fn project_hmr_events(
                     let project = project.project().resolve().await?;
                     let state = project.hmr_version_state(identifier.clone(), session);
 
-                    let update = hmr_update(project, identifier.clone(), state)
-                        .strongly_consistent()
-                        .await?;
+                    let operation = hmr_update(project, identifier.clone(), state);
+                    let update = operation.strongly_consistent().await?;
                     let HmrUpdateWithIssues {
                         update,
                         issues,
                         diagnostics,
+                        effects,
                     } = &*update;
+                    effects.apply().await?;
                     match &**update {
                         Update::Missing | Update::None => {}
                         Update::Total(TotalUpdate { to }) => {
@@ -831,6 +840,7 @@ struct HmrIdentifiersWithIssues {
     identifiers: ReadRef<Vec<RcStr>>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
     diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
+    effects: Arc<Effects>,
 }
 
 #[turbo_tasks::function]
@@ -841,10 +851,12 @@ async fn get_hmr_identifiers_with_issues(
     let hmr_identifiers = hmr_identifiers_operation.strongly_consistent().await?;
     let issues = get_issues(hmr_identifiers_operation).await?;
     let diagnostics = get_diagnostics(hmr_identifiers_operation).await?;
+    let effects = Arc::new(get_effects(hmr_identifiers_operation).await?);
     Ok(HmrIdentifiersWithIssues {
         identifiers: hmr_identifiers,
         issues,
         diagnostics,
+        effects,
     }
     .cell())
 }
@@ -860,13 +872,14 @@ pub fn project_hmr_identifiers_subscribe(
         turbo_tasks.clone(),
         func,
         move || async move {
+            let operation = get_hmr_identifiers_with_issues(container);
             let HmrIdentifiersWithIssues {
                 identifiers,
                 issues,
                 diagnostics,
-            } = &*get_hmr_identifiers_with_issues(container)
-                .strongly_consistent()
-                .await?;
+                effects,
+            } = &*operation.strongly_consistent().await?;
+            effects.apply().await?;
 
             Ok((identifiers.clone(), issues.clone(), diagnostics.clone()))
         },
@@ -893,10 +906,6 @@ pub fn project_hmr_identifiers_subscribe(
     )
 }
 
-struct NapiUpdateInfoOpts {
-    include_reasons: bool,
-}
-
 enum UpdateMessage {
     Start,
     End(UpdateInfo),
@@ -908,8 +917,8 @@ struct NapiUpdateMessage {
     pub value: Option<NapiUpdateInfo>,
 }
 
-impl NapiUpdateMessage {
-    fn from_update_message(update_message: UpdateMessage, opts: NapiUpdateInfoOpts) -> Self {
+impl From<UpdateMessage> for NapiUpdateMessage {
+    fn from(update_message: UpdateMessage) -> Self {
         match update_message {
             UpdateMessage::Start => NapiUpdateMessage {
                 update_type: "start".to_string(),
@@ -917,7 +926,7 @@ impl NapiUpdateMessage {
             },
             UpdateMessage::End(info) => NapiUpdateMessage {
                 update_type: "end".to_string(),
-                value: Some(NapiUpdateInfo::from_update_info(info, opts)),
+                value: Some(info.into()),
             },
         }
     }
@@ -927,27 +936,13 @@ impl NapiUpdateMessage {
 struct NapiUpdateInfo {
     pub duration: u32,
     pub tasks: u32,
-    /// A human-readable list of invalidation reasons (typically changed file paths) if known. Will
-    /// be `None` if [`NapiUpdateInfoOpts::include_reasons`] is `false` or if no reason was
-    /// specified (not every invalidation includes a reason).
-    pub reasons: Option<String>,
 }
 
-impl NapiUpdateInfo {
-    fn from_update_info(update_info: UpdateInfo, opts: NapiUpdateInfoOpts) -> Self {
+impl From<UpdateInfo> for NapiUpdateInfo {
+    fn from(update_info: UpdateInfo) -> Self {
         Self {
-            // u32::MAX in milliseconds is 49.71 days
-            duration: update_info
-                .duration
-                .as_millis()
-                .try_into()
-                .expect("update duration in milliseconds should not exceed u32::MAX"),
-            tasks: update_info
-                .tasks
-                .try_into()
-                .expect("number of tasks should not exceed u32::MAX"),
-            reasons: (opts.include_reasons && !update_info.reasons.is_empty())
-                .then(|| update_info.reasons.to_string()),
+            duration: update_info.duration.as_millis() as u32,
+            tasks: update_info.tasks as u32,
         }
     }
 }
@@ -967,17 +962,12 @@ impl NapiUpdateInfo {
 pub fn project_update_info_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     aggregation_ms: u32,
-    include_reasons: bool,
     func: JsFunction,
 ) -> napi::Result<()> {
-    let func: ThreadsafeFunction<UpdateMessage> =
-        func.create_threadsafe_function(0, move |ctx| {
-            let message = ctx.value;
-            Ok(vec![NapiUpdateMessage::from_update_message(
-                message,
-                NapiUpdateInfoOpts { include_reasons },
-            )])
-        })?;
+    let func: ThreadsafeFunction<UpdateMessage> = func.create_threadsafe_function(0, |ctx| {
+        let message = ctx.value;
+        Ok(vec![NapiUpdateMessage::from(message)])
+    })?;
     let turbo_tasks = project.turbo_tasks.clone();
     tokio::spawn(async move {
         loop {

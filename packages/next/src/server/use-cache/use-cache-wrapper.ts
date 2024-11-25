@@ -36,6 +36,8 @@ import {
 import DefaultCacheHandler from '../lib/cache-handlers/default'
 import type { CacheHandler, CacheEntry } from '../lib/cache-handlers/types'
 import type { CacheSignal } from '../app-render/cache-signal'
+import { decryptActionBoundArgs } from '../app-render/encryption'
+import { InvariantError } from '../../shared/lib/invariant-error'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -433,12 +435,12 @@ function createTrackedReadableStream(
   })
 }
 
-export function cache(kind: string, id: string, fn: any) {
-  if (!process.env.__NEXT_DYNAMIC_IO) {
-    throw new Error(
-      '"use cache" is only available with the experimental.dynamicIO config.'
-    )
-  }
+export function cache(
+  kind: string,
+  id: string,
+  boundArgsLength: number,
+  fn: any
+) {
   for (const [key, value] of Object.entries(
     _globalThis.__nextCacheHandlers || {}
   )) {
@@ -493,6 +495,31 @@ export function cache(kind: string, id: string, fn: any) {
           // or not at all if we don't end up waiting for the input.
           process.nextTick(() => controller.abort())
         }
+      }
+
+      if (boundArgsLength > 0) {
+        if (args.length === 0) {
+          throw new InvariantError(
+            `Expected the "use cache" function ${JSON.stringify(fn.name)} to receive its encrypted bound arguments as the first argument.`
+          )
+        }
+
+        const encryptedBoundArgs = args.shift()
+        const boundArgs = await decryptActionBoundArgs(id, encryptedBoundArgs)
+
+        if (!Array.isArray(boundArgs)) {
+          throw new InvariantError(
+            `Expected the bound arguments of "use cache" function ${JSON.stringify(fn.name)} to deserialize into an array, got ${typeof boundArgs} instead.`
+          )
+        }
+
+        if (boundArgsLength !== boundArgs.length) {
+          throw new InvariantError(
+            `Expected the "use cache" function ${JSON.stringify(fn.name)} to receive ${boundArgsLength} bound arguments, got ${boundArgs.length} instead.`
+          )
+        }
+
+        args.unshift(boundArgs)
       }
 
       const temporaryReferences = createClientTemporaryReferenceSet()

@@ -96,7 +96,7 @@ export type CacheNodeSeedData = [
   parallelRoutes: {
     [parallelRouterKey: string]: CacheNodeSeedData | null
   },
-  loading: LoadingModuleData,
+  loading: LoadingModuleData | Promise<LoadingModuleData>,
 ]
 
 export type FlightDataSegment = [
@@ -182,6 +182,8 @@ export interface RenderOptsPartial {
     clientTraceMetadata: string[] | undefined
     after: boolean
     dynamicIO: boolean
+    inlineCss: boolean
+    authInterrupts: boolean
   }
   postponed?: string
 
@@ -189,7 +191,7 @@ export interface RenderOptsPartial {
    * The resume data cache that was generated for this partially prerendered
    * page during dev warmup.
    */
-  devWarmupRenderResumeDataCache?: RenderResumeDataCache
+  devRenderResumeDataCache?: RenderResumeDataCache
 
   /**
    * When true, only the static shell of the page will be rendered. This will

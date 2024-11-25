@@ -4,7 +4,8 @@ use anyhow::{bail, Context, Result};
 use futures::FutureExt;
 use indoc::formatdoc;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{Completion, FxIndexMap, RcStr, ResolvedVc, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{Completion, FxIndexMap, ResolvedVc, Value, Vc};
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::{CommandLineProcessEnv, ProcessEnv};
 use turbo_tasks_fetch::{fetch, HttpResponseBody};
@@ -133,11 +134,11 @@ impl NextFontGoogleReplacer {
                 .into(),
             )
             .cell()),
-        );
-        Ok(
-            ImportMapResult::Result(ResolveResult::source(Vc::upcast(js_asset)).resolved_cell())
-                .cell(),
+        ).to_resolved().await?;
+        Ok(ImportMapResult::Result(
+            ResolveResult::source(ResolvedVc::upcast(js_asset)).resolved_cell(),
         )
+        .cell())
     }
 }
 
@@ -267,7 +268,7 @@ impl NextFontGoogleCssModuleReplacer {
         .await?;
 
         Ok(ImportMapResult::Result(
-            ResolveResult::source(*ResolvedVc::upcast(css_asset)).resolved_cell(),
+            ResolveResult::source(ResolvedVc::upcast(css_asset)).resolved_cell(),
         )
         .cell())
     }
@@ -386,17 +387,19 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
         let font_source = VirtualSource::new(
             font_virtual_path,
             AssetContent::file(FileContent::Content(font.await?.0.as_slice().into()).cell()),
-        );
-
-        Ok(
-            ImportMapResult::Result(ResolveResult::source(Vc::upcast(font_source)).resolved_cell())
-                .cell(),
         )
+        .to_resolved()
+        .await?;
+
+        Ok(ImportMapResult::Result(
+            ResolveResult::source(ResolvedVc::upcast(font_source)).resolved_cell(),
+        )
+        .cell())
     }
 }
 
 #[turbo_tasks::function]
-async fn load_font_data(project_root: Vc<FileSystemPath>) -> Result<Vc<FontData>> {
+async fn load_font_data(project_root: ResolvedVc<FileSystemPath>) -> Result<Vc<FontData>> {
     let data: FontData = load_next_js_templateon(
         project_root,
         "dist/compiled/@next/font/dist/google/font-data.json".into(),

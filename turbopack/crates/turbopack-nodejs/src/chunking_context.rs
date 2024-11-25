@@ -2,7 +2,8 @@ use std::iter::once;
 
 use anyhow::{bail, Context, Result};
 use tracing::Instrument;
-use turbo_tasks::{RcStr, ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::{
@@ -41,6 +42,11 @@ impl NodeJsChunkingContextBuilder {
 
     pub fn minify_type(mut self, minify_type: MinifyType) -> Self {
         self.chunking_context.minify_type = minify_type;
+        self
+    }
+
+    pub fn file_tracing(mut self, enable_tracing: bool) -> Self {
+        self.chunking_context.enable_file_tracing = enable_tracing;
         self
     }
 
@@ -91,6 +97,8 @@ pub struct NodeJsChunkingContext {
     environment: Vc<Environment>,
     /// The kind of runtime to include in the output.
     runtime_type: RuntimeType,
+    /// Enable tracing for this chunking
+    enable_file_tracing: bool,
     /// Whether to minify resulting chunks
     minify_type: MinifyType,
     /// Whether to use manifest chunks for lazy compilation
@@ -120,6 +128,7 @@ impl NodeJsChunkingContext {
                 chunk_root_path,
                 asset_root_path,
                 asset_prefix: Default::default(),
+                enable_file_tracing: false,
                 environment,
                 runtime_type,
                 minify_type: MinifyType::NoMinify,
@@ -199,6 +208,11 @@ impl ChunkingContext for NodeJsChunkingContext {
     #[turbo_tasks::function]
     fn environment(&self) -> Vc<Environment> {
         self.environment
+    }
+
+    #[turbo_tasks::function]
+    fn is_tracing_enabled(&self) -> Vc<bool> {
+        Vc::cell(self.enable_file_tracing)
     }
 
     #[turbo_tasks::function]

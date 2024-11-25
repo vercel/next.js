@@ -1,8 +1,9 @@
 use anyhow::{bail, Context, Result};
 use indoc::formatdoc;
 use serde::{Deserialize, Serialize};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    fxindexmap, trace::TraceRawVcs, Completion, Completions, RcStr, ResolvedVc, TaskInput,
+    fxindexmap, trace::TraceRawVcs, Completion, Completions, ResolvedVc, TaskInput,
     TryFlatJoinIterExt, Value, Vc,
 };
 use turbo_tasks_bytes::stream::SingleValue;
@@ -195,6 +196,7 @@ async fn extra_configs_changed(
 
     let config_paths = [
         parent_path.join("tailwind.config.js".into()),
+        parent_path.join("tailwind.config.mjs".into()),
         parent_path.join("tailwind.config.ts".into()),
     ];
 
@@ -203,18 +205,14 @@ async fn extra_configs_changed(
         .map(|path| async move {
             Ok(
                 if matches!(&*path.get_type().await?, FileSystemEntryType::File) {
-                    match *asset_context
+                    asset_context
                         .process(
                             Vc::upcast(FileSource::new(path)),
                             Value::new(ReferenceType::Internal(InnerAssets::empty())),
                         )
+                        .try_into_module()
                         .await?
-                    {
-                        ProcessResult::Module(module) => {
-                            Some(any_content_changed_of_module(*module))
-                        }
-                        ProcessResult::Ignore => None,
-                    }
+                        .map(|rvc| any_content_changed_of_module(*rvc))
                 } else {
                     None
                 },
@@ -281,7 +279,7 @@ impl Asset for JsonSource {
                 let value = match &*self.key.await? {
                     Some(key) => {
                         let Some(value) = json.get(&**key) else {
-                            return Err(anyhow::anyhow!("Invalid file type {:?}", file_type));
+                            anyhow::bail!("Invalid file type {:?}", file_type)
                         };
                         value
                     }

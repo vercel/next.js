@@ -6,6 +6,7 @@ pub mod lmdb;
 pub mod noop_kv;
 pub mod read_transaction_cache;
 mod startup_cache;
+pub mod write_batch;
 
 pub use db_versioning::handle_db_versioning;
 pub use fresh_db_optimization::{is_fresh, FreshDbOptimization};

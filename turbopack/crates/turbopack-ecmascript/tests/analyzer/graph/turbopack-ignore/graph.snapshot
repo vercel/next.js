@@ -1,5 +1,23 @@
 [
     (
+        "exported_t_r",
+        Call(
+            3,
+            FreeVar(
+                "require",
+            ),
+            [
+                Constant(
+                    Str(
+                        Word(
+                            "exported_t_r",
+                        ),
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
         "t_i",
         Call(
             3,

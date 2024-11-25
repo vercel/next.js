@@ -12,14 +12,18 @@ use swc_core::{
     atoms::Atom,
     common::comments::Comments,
     ecma::{
-        ast::{Decl, ExportSpecifier, Id, ModuleDecl, ModuleItem, Program},
+        ast::{
+            Decl, ExportSpecifier, Id, ModuleDecl, ModuleItem, ObjectLit, Program,
+            PropOrSpread::Prop,
+        },
         utils::find_pat_ids,
     },
 };
 use tracing::Instrument;
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
     graph::{GraphTraversal, NonDeterministic},
-    FxIndexMap, RcStr, ResolvedVc, TryFlatJoinIterExt, Value, ValueToString, Vc,
+    FxIndexMap, ResolvedVc, TryFlatJoinIterExt, Value, ValueToString, Vc,
 };
 use turbo_tasks_fs::{self, rope::RopeBuilder, File, FileSystemPath};
 use turbopack_core::{
@@ -309,10 +313,7 @@ async fn parse_actions(module: Vc<Box<dyn Module>>) -> Result<Vc<OptionActionMap
     {
         if matches!(
             &*module.await?.part.await?,
-            ModulePart::Evaluation
-                | ModulePart::Exports
-                | ModulePart::Facade
-                | ModulePart::Internal(..)
+            ModulePart::Evaluation | ModulePart::Facade
         ) {
             return Ok(OptionActionMap::none());
         }
@@ -379,6 +380,10 @@ fn all_export_names(program: &Program) -> Vec<Atom> {
                         _ => {}
                     },
                     ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(decl)) => {
+                        if is_turbopack_internal_var(&decl.with) {
+                            continue;
+                        }
+
                         for s in decl.specifiers.iter() {
                             match s {
                                 ExportSpecifier::Named(named) => {
@@ -410,6 +415,26 @@ fn all_export_names(program: &Program) -> Vec<Atom> {
             vec![]
         }
     }
+}
+
+fn is_turbopack_internal_var(with: &Option<Box<ObjectLit>>) -> bool {
+    with.as_deref()
+        .and_then(|v| {
+            v.props.iter().find_map(|p| match p {
+                Prop(prop) => match &**prop {
+                    swc_core::ecma::ast::Prop::KeyValue(key_value_prop) => {
+                        if key_value_prop.key.as_ident()?.sym == "__turbopack_var__" {
+                            Some(key_value_prop.value.as_lit()?.as_bool()?.value)
+                        } else {
+                            None
+                        }
+                    }
+                    _ => None,
+                },
+                _ => None,
+            })
+        })
+        .unwrap_or(false)
 }
 
 /// Converts our cached [parse_actions] call into a data type suitable for

@@ -1,8 +1,10 @@
 use anyhow::Result;
 use either::Either;
-use turbo_tasks::{RcStr, ResolvedVc, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
+    chunk::{ChunkableModuleReference, ChunkingType, ChunkingTypeOption},
     file_source::FileSource,
     raw_module::RawModule,
     reference::ModuleReference,
@@ -16,13 +18,13 @@ use turbopack_core::{
 #[turbo_tasks::value]
 #[derive(Hash, Clone, Debug)]
 pub struct PackageJsonReference {
-    pub package_json: Vc<FileSystemPath>,
+    pub package_json: ResolvedVc<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
 impl PackageJsonReference {
     #[turbo_tasks::function]
-    pub fn new(package_json: Vc<FileSystemPath>) -> Vc<Self> {
+    pub fn new(package_json: ResolvedVc<FileSystemPath>) -> Vc<Self> {
         Self::cell(PackageJsonReference { package_json })
     }
 }
@@ -32,7 +34,7 @@ impl ModuleReference for PackageJsonReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         Ok(ModuleResolveResult::module(ResolvedVc::upcast(
-            RawModule::new(Vc::upcast(FileSource::new(self.package_json)))
+            RawModule::new(Vc::upcast(FileSource::new(*self.package_json)))
                 .to_resolved()
                 .await?,
         ))
@@ -53,14 +55,14 @@ impl ValueToString for PackageJsonReference {
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct DirAssetReference {
-    pub source: Vc<Box<dyn Source>>,
-    pub path: Vc<Pattern>,
+    pub source: ResolvedVc<Box<dyn Source>>,
+    pub path: ResolvedVc<Pattern>,
 }
 
 #[turbo_tasks::value_impl]
 impl DirAssetReference {
     #[turbo_tasks::function]
-    pub fn new(source: Vc<Box<dyn Source>>, path: Vc<Pattern>) -> Vc<Self> {
+    pub fn new(source: ResolvedVc<Box<dyn Source>>, path: ResolvedVc<Pattern>) -> Vc<Self> {
         Self::cell(DirAssetReference { source, path })
     }
 }
@@ -124,7 +126,9 @@ async fn resolve_reference_from_dir(
             PatternMatch::File(matched_path, file) => {
                 let realpath = file.realpath_with_links().await?;
                 for &symlink in &realpath.symlinks {
-                    affecting_sources.push(Vc::upcast(FileSource::new(*symlink)));
+                    affecting_sources.push(ResolvedVc::upcast(
+                        FileSource::new(*symlink).to_resolved().await?,
+                    ));
                 }
                 results.push((
                     RequestKey::new(matched_path.clone()),
@@ -148,8 +152,16 @@ impl ModuleReference for DirAssetReference {
         let parent_path = self.source.ident().path().parent();
         Ok(resolve_reference_from_dir(
             parent_path.resolve().await?,
-            self.path,
+            *self.path,
         ))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ChunkableModuleReference for DirAssetReference {
+    #[turbo_tasks::function]
+    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
+        Vc::cell(Some(ChunkingType::Traced))
     }
 }
 

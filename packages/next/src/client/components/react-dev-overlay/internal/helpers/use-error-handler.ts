@@ -8,6 +8,9 @@ import { createUnhandledError } from './console-error'
 import { enqueueConsecutiveDedupedError } from './enqueue-client-error'
 import { getReactStitchedError } from './stitched-error'
 
+const queueMicroTask =
+  globalThis.queueMicrotask || ((cb: () => void) => Promise.resolve().then(cb))
+
 export type ErrorHandler = (error: Error) => void
 
 const errorQueue: Array<Error> = []
@@ -17,23 +20,31 @@ const rejectionHandlers: Array<ErrorHandler> = []
 
 export function handleClientError(
   originError: unknown,
-  consoleErrorArgs: any[]
+  consoleErrorArgs: any[],
+  capturedFromConsole: boolean = false
 ) {
   let error: Error
   if (!originError || !isError(originError)) {
     // If it's not an error, format the args into an error
     const formattedErrorMessage = formatConsoleArgs(consoleErrorArgs)
-    error = getReactStitchedError(createUnhandledError(formattedErrorMessage))
+    error = createUnhandledError(formattedErrorMessage)
   } else {
-    error = originError
+    error = capturedFromConsole
+      ? createUnhandledError(originError)
+      : originError
   }
+  error = getReactStitchedError(error)
 
   storeHydrationErrorStateFromConsoleArgs(...consoleErrorArgs)
   attachHydrationErrorState(error)
 
   enqueueConsecutiveDedupedError(errorQueue, error)
   for (const handler of errorHandlers) {
-    handler(error)
+    // Delayed the error being passed to React Dev Overlay,
+    // avoid the state being synchronously updated in the component.
+    queueMicroTask(() => {
+      handler(error)
+    })
   }
 }
 

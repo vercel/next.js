@@ -2,17 +2,17 @@
 title: Cannot access Request information synchronously with `cookies()`, `headers()`, or `draftMode()`
 ---
 
-#### Why This Error Occurred
+## Why This Error Occurred
 
 In Next.js 15 global functions that provide access to Request Header information such as `cookies()`, `headers()`, and `draftMode()` are each now `async` and return a `Promise` rather than the associated object directly.
 
 To support migrating to the async APIs Next.js 15 still supports accessing properties of the underlying object directly on the returned Promise. However when `dynamicIO` is enabled it is an error to do so.
 
-#### Possible Ways to Fix It
+## Possible Ways to Fix It
 
 If you haven't already followed the Next.js 15 upgrade guide which includes running a codemod to auto-convert to the necessary async form of these APIs start there.
 
-[Next 15 Upgrade Guide](https://nextjs.org/docs/app/building-your-application/upgrading/version-15#async-request-apis-breaking-change)
+[Next 15 Upgrade Guide](/docs/app/building-your-application/upgrading/version-15#async-request-apis-breaking-change)
 
 If you have already run the codemod on your project look for instances of the string `@next-codemod-error` to see where the codemod was unable to convert to the async form. You will have to refactor your code manually here to make it compatible with the new result type.
 
@@ -57,7 +57,7 @@ export default async function Page() {
 
 If you do not find instances of this string then it is possible the synchronous use of Request Header data is inside a 3rd party library. You should identify which library is using this function and see if it has published a Next 15 compatible version that adheres to the new Promise return type.
 
-as a last resort you can add `await connection()` before calling the 3rd party function which uses this API. This will inform Next.js that everything after this await should be excluded from prerendering. This will continue to work until we remove support for synchronously access Request data which is expected to happen in the next major version.
+As a last resort you can add `await connection()` before calling the 3rd party function which uses this API. This will inform Next.js that everything after this await should be excluded from prerendering. This will continue to work until we remove support for synchronously access Request data which is expected to happen in the next major version.
 
 Before:
 
@@ -88,10 +88,10 @@ export default async function Page() {
 
 Note that with `await connection()` and `dynamicIO` it is still required that there is a Suspense boundary somewhere above the component that uses `await connection()`. If you do not have any Suspense boundary parent you will need to add one where is appropriate to describe a fallback UI.
 
-### Useful Links
+## Useful Links
 
-- [`headers` function](https://nextjs.org/docs/app/api-reference/functions/headers)
-- [`cookies` function](https://nextjs.org/docs/app/api-reference/functions/cookies)
-- [`draftMode` function](https://nextjs.org/docs/app/api-reference/functions/draft-mode)
-- [`connection` function](https://nextjs.org/docs/app/api-reference/functions/connection)
+- [`headers` function](/docs/app/api-reference/functions/headers)
+- [`cookies` function](/docs/app/api-reference/functions/cookies)
+- [`draftMode` function](/docs/app/api-reference/functions/draft-mode)
+- [`connection` function](/docs/app/api-reference/functions/connection)
 - [`Suspense` React API](https://react.dev/reference/react/Suspense)
