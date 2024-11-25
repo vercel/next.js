@@ -1360,8 +1360,8 @@ async fn all_assets_from_entries_operation_inner(
     operation: Vc<OutputAssetsOperation>,
 ) -> Result<Vc<OutputAssets>> {
     let assets = *operation.await?;
-    Vc::connect(assets);
-    Ok(all_assets_from_entries(assets))
+    Vc::connect(*assets);
+    Ok(all_assets_from_entries(*assets))
 }
 
 fn all_assets_from_entries_operation(
