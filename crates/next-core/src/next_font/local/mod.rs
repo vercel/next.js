@@ -186,7 +186,7 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
             "@vercel/turbopack-next/internal/font/local/cssmodule.module.css" => {
                 let query = query_vc.await?.to_string();
                 let request_hash = get_request_hash(&query).await?;
-                let options = font_options_from_query_map(*query_vc);
+                let options = font_options_from_query_map(**query_vc);
                 let css_virtual_path = lookup_path.join(
                     format!(
                         "/{}.module.css",
