@@ -353,7 +353,7 @@ impl AppPageLoaderTreeBuilder {
             .await?;
         self.write_modules_entry(AppDirModuleType::DefaultPage, *default)
             .await?;
-        self.write_modules_entry(AppDirModuleType::GlobalError, global_error.map(|err| *err))
+        self.write_modules_entry(AppDirModuleType::GlobalError, *global_error)
             .await?;
 
         let modules_code = replace(&mut self.loader_tree_code, temp_loader_tree_code);
