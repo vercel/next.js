@@ -22,7 +22,10 @@ pub struct CssModuleComposeReference {
 impl CssModuleComposeReference {
     /// Creates a new [`CssModuleComposeReference`].
     #[turbo_tasks::function]
-    pub fn new(origin: Vc<Box<dyn ResolveOrigin>>, request: Vc<Request>) -> Vc<Self> {
+    pub fn new(
+        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+        request: ResolvedVc<Request>,
+    ) -> Vc<Self> {
         Self::cell(CssModuleComposeReference { origin, request })
     }
 }
