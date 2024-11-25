@@ -1838,7 +1838,7 @@ async fn resolve_internal_inline(
             } => {
                 let mut new_pat = path.clone();
                 new_pat.push_front(RcStr::from(".").into());
-                let relative = Request::relative(Value::new(new_pat), **query, *fragment, true);
+                let relative = Request::relative(Value::new(new_pat), **query, **fragment, true);
 
                 if !has_alias {
                     ResolvingIssue {
@@ -1948,7 +1948,7 @@ async fn resolve_internal_inline(
         // Apply fallback import mappings if provided
         if let Some(import_map) = &options_value.fallback_import_map {
             if *result.is_unresolvable().await? {
-                let result = import_map.await?.lookup(*lookup_path, *request).await?;
+                let result = import_map.await?.lookup(lookup_path, request).await?;
                 let resolved_result = resolve_import_map_result(
                     &result,
                     lookup_path,
