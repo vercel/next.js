@@ -30,7 +30,7 @@ pub struct ResolvingIssue {
 impl Issue for ResolvingIssue {
     #[turbo_tasks::function]
     fn severity(&self) -> Vc<IssueSeverity> {
-        self.severity
+        *self.severity
     }
 
     #[turbo_tasks::function]

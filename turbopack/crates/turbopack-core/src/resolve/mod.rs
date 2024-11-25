@@ -3002,9 +3002,9 @@ async fn emit_unresolvable_issue(
     source: Option<ResolvedVc<IssueSource>>,
 ) -> Result<()> {
     let severity = if is_optional || resolve_options.await?.loose_errors {
-        IssueSeverity::Warning.cell()
+        IssueSeverity::Warning.resolved_cell()
     } else {
-        IssueSeverity::Error.cell()
+        IssueSeverity::Error.resolved_cell()
     };
     ResolvingIssue {
         severity,
