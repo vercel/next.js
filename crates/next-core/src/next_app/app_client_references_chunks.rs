@@ -31,9 +31,9 @@ pub fn client_modules_ssr_modifier() -> Vc<RcStr> {
 #[turbo_tasks::value]
 pub struct ClientReferencesChunks {
     pub client_component_client_chunks:
-        FxIndexMap<ClientReferenceType, (Vc<OutputAssets>, AvailabilityInfo)>,
+        FxIndexMap<ClientReferenceType, (ResolvedVc<OutputAssets>, AvailabilityInfo)>,
     pub client_component_ssr_chunks:
-        FxIndexMap<ClientReferenceType, (Vc<OutputAssets>, AvailabilityInfo)>,
+        FxIndexMap<ClientReferenceType, (ResolvedVc<OutputAssets>, AvailabilityInfo)>,
     pub layout_segment_client_chunks: FxIndexMap<Vc<NextServerComponentModule>, Vc<OutputAssets>>,
 }
 
