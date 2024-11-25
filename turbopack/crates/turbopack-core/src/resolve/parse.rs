@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Ok, Result};
 use lazy_static::lazy_static;
 use regex::Regex;
 use turbo_rcstr::RcStr;
@@ -127,9 +127,9 @@ impl Request {
         })
     }
 
-    pub fn parse_ref(mut request: Pattern) -> Self {
+    pub async fn parse_ref(mut request: Pattern) -> Result<Self> {
         request.normalize();
-        match request {
+        Ok(match request {
             Pattern::Dynamic => Request::Dynamic,
             Pattern::Constant(r) => {
                 if r.is_empty() {
@@ -179,8 +179,8 @@ impl Request {
                             return Request::Uri {
                                 protocol: protocol.as_str().to_string(),
                                 remainder: remainder.as_str().to_string(),
-                                query: Vc::<RcStr>::default(),
-                                fragment: Vc::<RcStr>::default(),
+                                query: ResolvedVc::cell(RcStr::default()),
+                                fragment: ResolvedVc::cell(RcStr::default()),
                             };
                         }
                     }
@@ -195,8 +195,8 @@ impl Request {
                         return Request::Module {
                             module: module.as_str().into(),
                             path,
-                            query,
-                            fragment,
+                            query: query.to_resolved().await?,
+                            fragment: fragment.to_resolved().await?,
                         };
                     }
 
@@ -252,7 +252,7 @@ impl Request {
                     .map(Request::parse)
                     .collect(),
             },
-        }
+        })
     }
 }
 
