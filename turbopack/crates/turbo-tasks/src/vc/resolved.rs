@@ -11,7 +11,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     debug::{ValueDebug, ValueDebugFormat, ValueDebugFormatString},
-    marker_trait::impl_auto_marker_trait,
     trace::{TraceRawVcs, TraceRawVcsContext},
     vc::Vc,
     ResolveTypeError, Upcast, VcRead, VcTransparentRead, VcValueTrait, VcValueType,
@@ -240,18 +239,3 @@ where
         self.node.value_debug_format(depth)
     }
 }
-
-/// Indicates that a type does not contain any instances of [`Vc`] or
-/// [`OperationVc`][crate::OperationVc]. It may contain [`ResolvedVc`].
-///
-/// # Safety
-///
-/// This trait is marked as unsafe. You should not derive it yourself, but instead you should rely
-/// on [`#[turbo_tasks::value(resolved)]`][macro@ crate::value] to do it for you.
-pub unsafe trait ResolvedValue {}
-
-unsafe impl<T: ?Sized + ResolvedValue> ResolvedValue for ResolvedVc<T> {}
-
-impl_auto_marker_trait!(ResolvedValue);
-
-pub use turbo_tasks_macros::ResolvedValue;

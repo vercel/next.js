@@ -35,7 +35,7 @@ pub fn assert_fields_impl_trait(
             quote_spanned! {
                 // attribute type assertion errors to the line where the field is defined
                 ty.span() =>
-                // this call is only valid if ty is a ResolvedValue
+                // this call is only valid if ty is a NonLocalValue
                 Self::#assertion_fn_ident::<#ty>();
             }
         });

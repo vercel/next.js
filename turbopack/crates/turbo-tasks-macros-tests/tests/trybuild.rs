@@ -6,10 +6,10 @@ fn derive_operation_value() {
 }
 
 #[test]
-fn derive_resolved_value() {
+fn derive_non_local_value() {
     let t = trybuild::TestCases::new();
-    t.pass("tests/derive_resolved_value/pass_*.rs");
-    t.compile_fail("tests/derive_resolved_value/fail_*.rs");
+    t.pass("tests/derive_non_local_value/pass_*.rs");
+    t.compile_fail("tests/derive_non_local_value/fail_*.rs");
 }
 
 #[test]
