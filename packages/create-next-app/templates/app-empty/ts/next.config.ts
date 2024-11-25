@@ -1,7 +1,7 @@
-import type { NextConfig } from "next";
+const { defineConfig } = require("next/config");
 
-const nextConfig: NextConfig = {
+const nextConfig = defineConfig({
   /* config options here */
-};
+});
 
 export default nextConfig;
