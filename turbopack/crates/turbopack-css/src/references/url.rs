@@ -32,9 +32,9 @@ pub enum ReferencedAsset {
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct UrlAssetReference {
-    pub origin: Vc<Box<dyn ResolveOrigin>>,
-    pub request: Vc<Request>,
-    pub issue_source: Vc<IssueSource>,
+    pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    pub request: ResolvedVc<Request>,
+    pub issue_source: ResolvedVc<IssueSource>,
 }
 
 #[turbo_tasks::value_impl]
