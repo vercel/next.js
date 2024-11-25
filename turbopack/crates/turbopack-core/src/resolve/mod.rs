@@ -1838,13 +1838,13 @@ async fn resolve_internal_inline(
             } => {
                 let mut new_pat = path.clone();
                 new_pat.push_front(RcStr::from(".").into());
-                let relative = Request::relative(Value::new(new_pat), *query, *fragment, true);
+                let relative = Request::relative(Value::new(new_pat), **query, *fragment, true);
 
                 if !has_alias {
                     ResolvingIssue {
                         severity: error_severity(options).await?,
                         request_type: "server relative import: not implemented yet".to_string(),
-                        request,
+                        request: relative.to_resolved().await?,
                         file_path: lookup_path.to_resolved().await?,
                         resolve_options: options.to_resolved().await?,
                         error_message: Some(
@@ -2767,9 +2767,9 @@ async fn resolved(
 }
 
 async fn handle_exports_imports_field(
-    package_path: ResolvedVc<FileSystemPath>,
+    package_path: Vc<FileSystemPath>,
     package_json_path: Vc<FileSystemPath>,
-    options: ResolvedVc<ResolveOptions>,
+    options: Vc<ResolveOptions>,
     exports_imports_field: &AliasMap<SubpathValue>,
     path: &str,
     conditions: &BTreeMap<RcStr, ConditionValue>,
@@ -2834,9 +2834,9 @@ async fn handle_exports_imports_field(
 /// static strings or conditions like `import` or `require` to handle ESM/CJS
 /// with differently compiled files.
 async fn resolve_package_internal_with_imports_field(
-    file_path: ResolvedVc<FileSystemPath>,
-    request: ResolvedVc<Request>,
-    resolve_options: ResolvedVc<ResolveOptions>,
+    file_path: Vc<FileSystemPath>,
+    request: Vc<Request>,
+    resolve_options: Vc<ResolveOptions>,
     pattern: &Pattern,
     conditions: &BTreeMap<RcStr, ConditionValue>,
     unspecified_conditions: &ConditionValue,
@@ -2848,10 +2848,10 @@ async fn resolve_package_internal_with_imports_field(
     if specifier == "#" || specifier.starts_with("#/") || specifier.ends_with('/') {
         ResolvingIssue {
             severity: error_severity(resolve_options).await?,
-            file_path,
+            file_path: file_path.to_resolved().await?,
             request_type: format!("package imports request: `{specifier}`"),
-            request,
-            resolve_options,
+            request: request.to_resolved().await?,
+            resolve_options: resolve_options.to_resolved().await?,
             error_message: None,
             source: None,
         }
@@ -2860,7 +2860,7 @@ async fn resolve_package_internal_with_imports_field(
         return Ok(ResolveResult::unresolvable().into());
     }
 
-    let imports_result = imports_field(*file_path).await?;
+    let imports_result = imports_field(file_path).await?;
     let (imports, package_json_path) = match &*imports_result {
         ImportsFieldResult::Some(i, p) => (i, *p),
         ImportsFieldResult::None => return Ok(ResolveResult::unresolvable().cell()),
