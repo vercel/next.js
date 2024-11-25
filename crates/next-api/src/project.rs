@@ -880,15 +880,15 @@ impl Project {
                             format!("App Router and Pages Router both match path: {}", pathname)
                                 .into(),
                         )
-                        .cell(),
+                        .resolved_cell(),
                         description: StyledString::Text(
                             "Next.js does not support having both App Router and Pages Router \
                              routes matching the same path. Please remove one of the conflicting \
                              routes."
                                 .into(),
                         )
-                        .cell(),
-                        severity: IssueSeverity::Error.cell(),
+                        .resolved_cell(),
+                        severity: IssueSeverity::Error.resolved_cell(),
                     }
                     .cell()
                     .emit();
