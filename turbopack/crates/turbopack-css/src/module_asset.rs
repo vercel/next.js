@@ -39,11 +39,11 @@ fn modifier() -> Vc<RcStr> {
     Vc::cell("css module".into())
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(resolved)]
 #[derive(Clone)]
 pub struct ModuleCssAsset {
-    pub source: Vc<Box<dyn Source>>,
-    pub asset_context: Vc<Box<dyn AssetContext>>,
+    pub source: ResolvedVc<Box<dyn Source>>,
+    pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -116,7 +116,7 @@ enum ModuleCssClass {
     },
     Import {
         original: String,
-        from: Vc<CssModuleComposeReference>,
+        from: ResolvedVc<CssModuleComposeReference>,
     },
 }
 
@@ -268,8 +268,8 @@ impl ResolveOrigin for ModuleCssAsset {
 
 #[turbo_tasks::value]
 struct ModuleChunkItem {
-    module: Vc<ModuleCssAsset>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
+    module: ResolvedVc<ModuleCssAsset>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
 
 #[turbo_tasks::value_impl]
