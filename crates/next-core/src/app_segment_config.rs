@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Ok, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use swc_core::{
@@ -323,7 +323,7 @@ async fn parse_config_value(
     eval_context: &EvalContext,
 ) -> Result<()> {
     let span = init.span();
-    let invalid_config = |detail: &str, value: &JsValue| {
+    let invalid_config = |detail: &str, value: &JsValue| async {
         let (explainer, hints) = value.explain(2, 0);
         NextSegmentConfigParsingIssue {
             ident: source.ident().to_resolved().await?,
@@ -333,29 +333,32 @@ async fn parse_config_value(
         }
         .cell()
         .emit();
+
+        Ok(())
     };
 
     match &*ident.sym {
         "dynamic" => {
             let value = eval_context.eval(init);
             let Some(val) = value.as_str() else {
-                invalid_config("`dynamic` needs to be a static string", &value);
-                return;
+                invalid_config("`dynamic` needs to be a static string", &value).await?;
+                return Ok(());
             };
 
             config.dynamic = match serde_json::from_value(Value::String(val.to_string())) {
                 Ok(dynamic) => Some(dynamic),
                 Err(err) => {
-                    invalid_config(&format!("`dynamic` has an invalid value: {}", err), &value);
-                    return;
+                    invalid_config(&format!("`dynamic` has an invalid value: {}", err), &value)
+                        .await?;
+                    return Ok(());
                 }
             };
         }
         "dynamicParams" => {
             let value = eval_context.eval(init);
             let Some(val) = value.as_bool() else {
-                invalid_config("`dynamicParams` needs to be a static boolean", &value);
-                return;
+                invalid_config("`dynamicParams` needs to be a static boolean", &value).await?;
+                return Ok(());
             };
 
             config.dynamic_params = Some(val);
@@ -383,8 +386,8 @@ async fn parse_config_value(
         "fetchCache" => {
             let value = eval_context.eval(init);
             let Some(val) = value.as_str() else {
-                invalid_config("`fetchCache` needs to be a static string", &value);
-                return;
+                invalid_config("`fetchCache` needs to be a static string", &value).await?;
+                return Ok(());
             };
 
             config.fetch_cache = match serde_json::from_value(Value::String(val.to_string())) {
@@ -393,23 +396,25 @@ async fn parse_config_value(
                     invalid_config(
                         &format!("`fetchCache` has an invalid value: {}", err),
                         &value,
-                    );
-                    return;
+                    )
+                    .await?;
+                    return Ok(());
                 }
             };
         }
         "runtime" => {
             let value = eval_context.eval(init);
             let Some(val) = value.as_str() else {
-                invalid_config("`runtime` needs to be a static string", &value);
-                return;
+                invalid_config("`runtime` needs to be a static string", &value).await?;
+                return Ok(());
             };
 
             config.runtime = match serde_json::from_value(Value::String(val.to_string())) {
                 Ok(runtime) => Some(runtime),
                 Err(err) => {
-                    invalid_config(&format!("`runtime` has an invalid value: {}", err), &value);
-                    return;
+                    invalid_config(&format!("`runtime` has an invalid value: {}", err), &value)
+                        .await?;
+                    return Ok(());
                 }
             };
         }
@@ -430,8 +435,9 @@ async fn parse_config_value(
                             invalid_config(
                                 "Values of the `preferredRegion` array need to static strings",
                                 &item,
-                            );
-                            return;
+                            )
+                            .await?;
+                            return Ok(());
                         }
                     }
                     regions
@@ -440,8 +446,9 @@ async fn parse_config_value(
                     invalid_config(
                         "`preferredRegion` needs to be a static string or array of static strings",
                         &value,
-                    );
-                    return;
+                    )
+                    .await?;
+                    return Ok(());
                 }
             };
 
@@ -458,8 +465,8 @@ async fn parse_config_value(
         "experimental_ppr" => {
             let value = eval_context.eval(init);
             let Some(val) = value.as_bool() else {
-                invalid_config("`experimental_ppr` needs to be a static boolean", &value);
-                return;
+                invalid_config("`experimental_ppr` needs to be a static boolean", &value).await?;
+                return Ok(());
             };
 
             config.experimental_ppr = Some(val);
