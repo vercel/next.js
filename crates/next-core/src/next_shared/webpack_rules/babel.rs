@@ -126,10 +126,10 @@ pub async fn is_babel_loader_available(project_path: Vc<FileSystemPath>) -> Resu
 
 #[turbo_tasks::value]
 struct BabelIssue {
-    path: Vc<FileSystemPath>,
-    title: Vc<StyledString>,
-    description: Vc<StyledString>,
-    severity: Vc<IssueSeverity>,
+    path: ResolvedVc<FileSystemPath>,
+    title: ResolvedVc<StyledString>,
+    description: ResolvedVc<StyledString>,
+    severity: ResolvedVc<IssueSeverity>,
 }
 
 #[turbo_tasks::value_impl]
