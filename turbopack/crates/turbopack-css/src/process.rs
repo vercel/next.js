@@ -118,14 +118,14 @@ pub struct UnresolvedUrlReferences(pub Vec<(String, Vc<UrlAssetReference>)>);
 #[turbo_tasks::value(shared, serialization = "none", eq = "manual", cell = "new")]
 pub enum ParseCssResult {
     Ok {
-        code: Vc<FileContent>,
+        code: ResolvedVc<FileContent>,
 
         #[turbo_tasks(trace_ignore)]
         stylesheet: StyleSheetLike<'static, 'static>,
 
-        references: Vc<ModuleReferences>,
+        references: ResolvedVc<ModuleReferences>,
 
-        url_references: Vc<UnresolvedUrlReferences>,
+        url_references: ResolvedVc<UnresolvedUrlReferences>,
 
         #[turbo_tasks(trace_ignore)]
         options: ParserOptions<'static, 'static>,
@@ -137,11 +137,11 @@ pub enum ParseCssResult {
 #[turbo_tasks::value(shared, serialization = "none", eq = "manual", cell = "new")]
 pub enum CssWithPlaceholderResult {
     Ok {
-        parse_result: Vc<ParseCssResult>,
+        parse_result: ResolvedVc<ParseCssResult>,
 
-        references: Vc<ModuleReferences>,
+        references: ResolvedVc<ModuleReferences>,
 
-        url_references: Vc<UnresolvedUrlReferences>,
+        url_references: ResolvedVc<UnresolvedUrlReferences>,
 
         #[turbo_tasks(trace_ignore)]
         exports: Option<FxIndexMap<String, CssModuleExport>>,
@@ -162,7 +162,7 @@ pub enum FinalCssResult {
         #[turbo_tasks(trace_ignore)]
         exports: Option<CssModuleExports>,
 
-        source_map: Vc<ParseCssResultSourceMap>,
+        source_map: ResolvedVc<ParseCssResultSourceMap>,
     },
     Unparseable,
     NotFound,
@@ -176,7 +176,7 @@ impl PartialEq for FinalCssResult {
 
 #[turbo_tasks::function]
 pub async fn process_css_with_placeholder(
-    parse_result: Vc<ParseCssResult>,
+    parse_result: ResolvedVc<ParseCssResult>,
 ) -> Result<Vc<CssWithPlaceholderResult>> {
     let result = parse_result.await?;
 
@@ -265,7 +265,7 @@ pub async fn finalize_css(
             Ok(FinalCssResult::Ok {
                 output_code: result.code,
                 exports: result.exports,
-                source_map: srcmap.unwrap().cell(),
+                source_map: srcmap.unwrap().resolved_cell(),
             }
             .into())
         }
@@ -395,7 +395,7 @@ async fn process_content(
                     ss.visit(&mut validator).unwrap();
 
                     for err in validator.errors {
-                        err.report(fs_path_vc);
+                        err.report(fs_path_vc.to_resolved().await?);
                     }
                 }
 
@@ -414,9 +414,12 @@ async fn process_content(
                             });
 
                             ParsingIssue {
-                                file: fs_path_vc,
-                                msg: Vc::cell(err.to_string().into()),
-                                source,
+                                file: fs_path_vc.to_resolved().await?,
+                                msg: ResolvedVc::cell(err.to_string().into()),
+                                source: match source {
+                                    Some(v) => Some(v.to_resolved().await?),
+                                    None => None,
+                                },
                             }
                             .cell()
                             .emit();
@@ -440,9 +443,12 @@ async fn process_content(
                     IssueSource::from_line_col(source, pos, pos)
                 });
                 ParsingIssue {
-                    file: fs_path_vc,
-                    msg: Vc::cell(e.to_string().into()),
-                    source,
+                    file: fs_path_vc.to_resolved().await?,
+                    msg: ResolvedVc::cell(e.to_string().into()),
+                    source: match source {
+                        Some(v) => Some(v.to_resolved().await?),
+                        None => None,
+                    },
                 }
                 .cell()
                 .emit();
@@ -458,10 +464,10 @@ async fn process_content(
         analyze_references(&mut stylesheet, source, origin, import_context)?;
 
     Ok(ParseCssResult::Ok {
-        code: content_vc,
+        code: content_vc.to_resolved().await?,
         stylesheet,
-        references: Vc::cell(references),
-        url_references: Vc::cell(url_references),
+        references: ResolvedVc::cell(references),
+        url_references: ResolvedVc::cell(url_references),
         options: config,
     }
     .cell())
@@ -485,12 +491,14 @@ enum CssError {
 }
 
 impl CssError {
-    fn report(self, file: Vc<FileSystemPath>) {
+    fn report(self, file: ResolvedVc<FileSystemPath>) {
         match self {
             CssError::LightningCssSelectorInModuleNotPure { selector } => {
                 ParsingIssue {
                     file,
-                    msg: Vc::cell(format!("{CSS_MODULE_ERROR}, (lightningcss, {selector})").into()),
+                    msg: ResolvedVc::cell(
+                        format!("{CSS_MODULE_ERROR}, (lightningcss, {selector})").into(),
+                    ),
                     source: None,
                 }
                 .cell()
@@ -655,7 +663,7 @@ struct ParsingIssue {
 impl Issue for ParsingIssue {
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        self.file
+        *self.file
     }
 
     #[turbo_tasks::function]
@@ -670,7 +678,7 @@ impl Issue for ParsingIssue {
 
     #[turbo_tasks::function]
     fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(self.source.map(|s| s.resolve_source_map(self.file)))
+        Vc::cell(self.source.map(|s| s.resolve_source_map(*self.file)))
     }
 
     #[turbo_tasks::function]

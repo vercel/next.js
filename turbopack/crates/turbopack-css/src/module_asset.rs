@@ -332,8 +332,8 @@ impl EcmascriptChunkItem for ModuleChunkItem {
 
                         let Some(resolved_module) = &*resolved_module else {
                             CssModuleComposesIssue {
-                                severity: IssueSeverity::Error.cell(),
-                                source: self.module.ident(),
+                                severity: IssueSeverity::Error.resolved_cell(),
+                                source: self.module.ident().to_resolved().await?,
                                 message: formatdoc! {
                                     r#"
                                         Module {from} referenced in `composes: ... from {from};` can't be resolved.
@@ -349,8 +349,8 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                                 .await?
                         else {
                             CssModuleComposesIssue {
-                                severity: IssueSeverity::Error.cell(),
-                                source: self.module.ident(),
+                                severity: IssueSeverity::Error.resolved_cell(),
+                                    source: self.module.ident().to_resolved().await?,
                                 message: formatdoc! {
                                     r#"
                                         Module {from} referenced in `composes: ... from {from};` is not a CSS module.
@@ -428,8 +428,8 @@ fn generate_minimal_source_map(filename: String, source: String) -> Vc<ParseResu
 
 #[turbo_tasks::value(shared)]
 struct CssModuleComposesIssue {
-    severity: Vc<IssueSeverity>,
-    source: Vc<AssetIdent>,
+    severity: ResolvedVc<IssueSeverity>,
+    source: ResolvedVc<AssetIdent>,
     message: RcStr,
 }
 
@@ -437,7 +437,7 @@ struct CssModuleComposesIssue {
 impl Issue for CssModuleComposesIssue {
     #[turbo_tasks::function]
     fn severity(&self) -> Vc<IssueSeverity> {
-        self.severity
+        *self.severity
     }
 
     #[turbo_tasks::function]
