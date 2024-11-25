@@ -1518,7 +1518,7 @@ pub async fn resolve_inline(
 #[turbo_tasks::function]
 pub async fn url_resolve(
     origin: Vc<Box<dyn ResolveOrigin>>,
-    request: ResolvedVc<Request>,
+    request: Vc<Request>,
     reference_type: Value<ReferenceType>,
     issue_source: Option<ResolvedVc<IssueSource>>,
     is_optional: bool,
