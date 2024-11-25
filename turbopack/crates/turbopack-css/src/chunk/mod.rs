@@ -377,18 +377,21 @@ pub trait CssChunkPlaceable: ChunkableModule + Module + Asset {}
 #[derive(Clone, Debug)]
 #[turbo_tasks::value(shared)]
 pub enum CssImport {
-    External(Vc<RcStr>),
-    Internal(ResolvedVc<ImportAssetReference>, Vc<Box<dyn CssChunkItem>>),
+    External(ResolvedVc<RcStr>),
+    Internal(
+        ResolvedVc<ImportAssetReference>,
+        ResolvedVc<Box<dyn CssChunkItem>>,
+    ),
     Composes(ResolvedVc<Box<dyn CssChunkItem>>),
 }
 
 #[derive(Debug)]
 #[turbo_tasks::value(shared)]
 pub struct CssChunkItemContent {
-    pub import_context: Option<Vc<ImportContext>>,
+    pub import_context: Option<ResolvedVc<ImportContext>>,
     pub imports: Vec<CssImport>,
     pub inner_code: Rope,
-    pub source_map: Option<Vc<ParseCssResultSourceMap>>,
+    pub source_map: Option<ResolvedVc<ParseCssResultSourceMap>>,
 }
 
 #[turbo_tasks::value_trait]
