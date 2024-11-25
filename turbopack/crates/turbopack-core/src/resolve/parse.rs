@@ -518,7 +518,7 @@ impl Request {
             } => {
                 let mut pat = Pattern::concat([path.clone(), suffix.into()]);
                 pat.normalize();
-                Self::raw(Value::new(pat), *query, *fragment, *force_in_lookup_dir)
+                Self::raw(Value::new(pat), **query, **fragment, *force_in_lookup_dir)
             }
             Request::Relative {
                 path,
@@ -528,7 +528,7 @@ impl Request {
             } => {
                 let mut pat = Pattern::concat([path.clone(), suffix.into()]);
                 pat.normalize();
-                Self::relative(Value::new(pat), *query, *fragment, *force_in_lookup_dir)
+                Self::relative(Value::new(pat), **query, **fragment, *force_in_lookup_dir)
             }
             Request::Module {
                 module,
