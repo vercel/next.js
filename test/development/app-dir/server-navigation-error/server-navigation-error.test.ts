@@ -85,12 +85,31 @@ describe('server-navigation-error', () => {
       expect(await getRedboxDescription(browser)).toMatch(
         `Next.js navigation API is not allowed to be used in Middleware.`
       )
-      // No trace for middleware as it's thrown in the early phase of the adapter
       const source = await getRedboxSource(browser)
       if (process.env.TURBOPACK) {
-        expect(source).toMatchInlineSnapshot(`null`)
+        expect(source).toMatchInlineSnapshot(`
+          "middleware.ts (8:12) @ middleware
+
+             6 |     notFound()
+             7 |   } else if (req.nextUrl.pathname === '/middleware/redirect') {
+          >  8 |     redirect('/')
+               |            ^
+             9 |   }
+            10 | }
+            11 |"
+        `)
       } else {
-        expect(source).toMatchInlineSnapshot(`null`)
+        expect(source).toMatchInlineSnapshot(`
+          "middleware.ts (8:14) @ middleware
+
+             6 |     notFound()
+             7 |   } else if (req.nextUrl.pathname === '/middleware/redirect') {
+          >  8 |     redirect('/')
+               |              ^
+             9 |   }
+            10 | }
+            11 |"
+        `)
       }
     })
 
@@ -102,11 +121,30 @@ describe('server-navigation-error', () => {
       )
       const source = await getRedboxSource(browser)
 
-      // No trace for middleware as it's thrown in the early phase of the adapter
       if (process.env.TURBOPACK) {
-        expect(source).toMatchInlineSnapshot(`null`)
+        expect(source).toMatchInlineSnapshot(`
+          "middleware.ts (6:12) @ middleware
+
+            4 | export default function middleware(req: NextRequest) {
+            5 |   if (req.nextUrl.pathname === '/middleware/not-found') {
+          > 6 |     notFound()
+              |            ^
+            7 |   } else if (req.nextUrl.pathname === '/middleware/redirect') {
+            8 |     redirect('/')
+            9 |   }"
+        `)
       } else {
-        expect(source).toMatchInlineSnapshot(`null`)
+        expect(source).toMatchInlineSnapshot(`
+          "middleware.ts (6:13) @ notFound
+
+            4 | export default function middleware(req: NextRequest) {
+            5 |   if (req.nextUrl.pathname === '/middleware/not-found') {
+          > 6 |     notFound()
+              |             ^
+            7 |   } else if (req.nextUrl.pathname === '/middleware/redirect') {
+            8 |     redirect('/')
+            9 |   }"
+        `)
       }
     })
   })
