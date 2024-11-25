@@ -1694,14 +1694,14 @@ async fn resolve_internal_inline(
                 _ => &[*request],
             };
             for request in request_parts {
-                let result = import_map.await?.lookup(*lookup_path, *request).await?;
+                let result = import_map.await?.lookup(lookup_path, *request).await?;
                 if !matches!(result, ImportMapResult::NoEntry) {
                     has_alias = true;
                     let resolved_result = resolve_import_map_result(
                         &result,
                         lookup_path,
                         lookup_path,
-                        request.to_resolved().await?,
+                        request,
                         options,
                         request.query(),
                     )
@@ -1743,7 +1743,7 @@ async fn resolve_internal_inline(
             } => {
                 let mut results = Vec::new();
                 let matches = read_matches(
-                    *lookup_path,
+                    lookup_path,
                     "".into(),
                     *force_in_lookup_dir,
                     Pattern::new(path.clone()).resolve().await?,
@@ -1756,12 +1756,12 @@ async fn resolve_internal_inline(
                             results.push(
                                 resolved(
                                     RequestKey::new(matched_pattern.clone()),
-                                    *path,
+                                    path,
                                     lookup_path,
                                     request,
                                     options_value,
-                                    *options,
-                                    *query,
+                                    options,
+                                    query,
                                     *fragment,
                                 )
                                 .await?,
@@ -2257,7 +2257,7 @@ async fn resolve_relative_request(
 #[tracing::instrument(level = Level::TRACE, skip_all)]
 async fn apply_in_package(
     lookup_path: ResolvedVc<FileSystemPath>,
-    options: ResolvedVc<ResolveOptions>,
+    options: Vc<ResolveOptions>,
     options_value: &ResolveOptions,
     get_request: impl Fn(&FileSystemPath) -> Option<RcStr>,
     query: Vc<RcStr>,
@@ -2403,8 +2403,8 @@ async fn resolve_module_request(
 ) -> Result<Vc<ResolveResult>> {
     // Check alias field for module aliases first
     if let Some(result) = apply_in_package(
-        *lookup_path,
-        *options,
+        lookup_path,
+        options,
         options_value,
         |_| {
             let full_pattern = Pattern::concat([RcStr::from(module).into(), path.clone()]);
@@ -2599,10 +2599,10 @@ async fn resolve_into_package(
 #[tracing::instrument(level = Level::TRACE, skip_all)]
 async fn resolve_import_map_result(
     result: &ImportMapResult,
-    lookup_path: ResolvedVc<FileSystemPath>,
+    lookup_path: Vc<FileSystemPath>,
     original_lookup_path: ResolvedVc<FileSystemPath>,
     original_request: ResolvedVc<Request>,
-    options: ResolvedVc<ResolveOptions>,
+    options: Vc<ResolveOptions>,
     query: Vc<RcStr>,
 ) -> Result<Option<Vc<ResolveResult>>> {
     Ok(match result {
