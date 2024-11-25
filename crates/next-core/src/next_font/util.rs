@@ -98,20 +98,20 @@ pub(crate) async fn can_use_next_font(
     let can_use = !document_re.is_match(&request.path);
     if !can_use {
         NextFontIssue {
-            path,
+            path: path.to_resolved().await?,
             title: StyledString::Line(vec![
                 StyledString::Code("next/font:".into()),
                 StyledString::Text(" error:".into()),
             ])
-            .cell(),
+            .resolved_cell(),
             description: StyledString::Line(vec![
                 StyledString::Text("Cannot be used within ".into()),
                 StyledString::Code(request.path),
             ])
-            .cell(),
-            severity: IssueSeverity::Error.into(),
+            .resolved_cell(),
+            severity: IssueSeverity::Error.resolved_cell(),
         }
-        .cell()
+        .resolved_cell()
         .emit();
     }
     Ok(can_use)
