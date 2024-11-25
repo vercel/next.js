@@ -2723,12 +2723,12 @@ async fn resolved(
 
     if let Some(resolved_map) = options_value.resolved_map {
         let result = resolved_map
-            .lookup(**path, *original_context, *original_request)
+            .lookup(**path, original_context, original_request)
             .await?;
 
         let resolved_result = resolve_import_map_result(
             &result,
-            path.parent().to_resolved().await?,
+            path.parent(),
             original_context,
             original_request,
             options,
