@@ -317,7 +317,7 @@ async fn parse_route_matcher_from_js_value(
                 matchers.push(MiddlewareMatcherKind::Str(matcher.to_string()));
             } else {
                 emit_invalid_config_warning(
-                    ident.to_resolved().await?,
+                    ident,
                     "The matcher property must be a string or array of strings",
                     value,
                 );
@@ -353,7 +353,7 @@ async fn parse_route_matcher_from_js_value(
                     matchers.push(MiddlewareMatcherKind::Matcher(matcher));
                 } else {
                     emit_invalid_config_warning(
-                        ident.to_resolved().await?,
+                        ident,
                         "The matcher property must be a string or array of strings",
                         value,
                     );
@@ -361,7 +361,7 @@ async fn parse_route_matcher_from_js_value(
             }
         }
         _ => emit_invalid_config_warning(
-            ident.to_resolved().await?,
+            ident,
             "The matcher property must be a string or array of strings",
             value,
         ),
@@ -521,7 +521,7 @@ fn parse_config_from_js_value(
                                     }
                                 } else {
                                     emit_invalid_config_warning(
-                                        module.ident().to_resolved().await?,
+                                        module.ident(),
                                         "The runtime property must be a constant string.",
                                         value,
                                     );
@@ -549,7 +549,7 @@ fn parse_config_from_js_value(
                                                 regions.push(str.to_string().into());
                                             } else {
                                                 emit_invalid_config_warning(
-                                                    module.ident().to_resolved().await?,
+                                                    module.ident(),
                                                     "Values of the `config.regions` array need to \
                                                      static strings",
                                                     item,
@@ -560,7 +560,7 @@ fn parse_config_from_js_value(
                                     }
                                     _ => {
                                         emit_invalid_config_warning(
-                                            module.ident().to_resolved().await?,
+                                            module.ident(),
                                             "`config.regions` needs to be a static string or \
                                              array of static strings",
                                             value,
@@ -573,7 +573,7 @@ fn parse_config_from_js_value(
                         }
                     } else {
                         emit_invalid_config_warning(
-                            module.ident().to_resolved().await?,
+                            module.ident(),
                             "The exported config object must not contain non-constant strings.",
                             key,
                         );
@@ -583,7 +583,7 @@ fn parse_config_from_js_value(
         }
     } else {
         emit_invalid_config_warning(
-            module.ident().to_resolved().await?,
+            module.ident(),
             "The exported config object must be a valid object literal.",
             value,
         );
