@@ -176,13 +176,17 @@ struct ProcessWebpackLoadersResult {
 }
 
 #[turbo_tasks::function]
-fn webpack_loaders_executor(evaluate_context: Vc<Box<dyn AssetContext>>) -> Vc<ProcessResult> {
-    evaluate_context.process(
+async fn webpack_loaders_executor(
+    evaluate_context: Vc<Box<dyn AssetContext>>,
+) -> Result<Vc<ProcessResult>> {
+    Ok(evaluate_context.process(
         Vc::upcast(FileSource::new(embed_file_path(
             "transforms/webpack-loaders.ts".into(),
         ))),
-        Value::new(ReferenceType::Internal(InnerAssets::empty())),
-    )
+        Value::new(ReferenceType::Internal(
+            InnerAssets::empty().to_resolved().await?,
+        )),
+    ))
 }
 
 #[turbo_tasks::value_impl]
