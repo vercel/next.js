@@ -238,7 +238,7 @@ pub async fn get_app_client_references_chunks(
                                 *ResolvedVc::upcast(ecmascript_client_reference_ref.client_module)
                             }
                             ClientReferenceType::CssClientReference(css_module) => {
-                                Vc::upcast(*css_module)
+                                ResolvedVc::upcast(*css_module)
                             }
                         })
                     })
