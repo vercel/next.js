@@ -20,7 +20,7 @@ pub struct SingleItemCssChunkSourceMapAsset {
 #[turbo_tasks::value_impl]
 impl SingleItemCssChunkSourceMapAsset {
     #[turbo_tasks::function]
-    pub fn new(chunk: Vc<SingleItemCssChunk>) -> Vc<Self> {
+    pub fn new(chunk: ResolvedVc<SingleItemCssChunk>) -> Vc<Self> {
         SingleItemCssChunkSourceMapAsset { chunk }.cell()
     }
 }
