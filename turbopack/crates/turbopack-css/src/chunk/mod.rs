@@ -91,7 +91,7 @@ impl CssChunk {
                     None => None,
                 }
             } else {
-                content.source_map.map(Vc::upcast)
+                content.source_map.map(ResolvedVc::upcast)
             };
 
             body.push_source(&content.inner_code, source_map);
