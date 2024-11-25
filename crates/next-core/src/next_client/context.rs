@@ -113,7 +113,7 @@ async fn next_client_free_vars(define_env: Vc<EnvMap>) -> Result<Vc<FreeVarRefer
 pub async fn get_client_compile_time_info(
     browserslist_query: RcStr,
     define_env: Vc<EnvMap>,
-) -> Vc<CompileTimeInfo> {
+) -> Result<Vc<CompileTimeInfo>> {
     CompileTimeInfo::builder(
         Environment::new(Value::new(ExecutionEnvironment::Browser(
             BrowserEnvironment {
