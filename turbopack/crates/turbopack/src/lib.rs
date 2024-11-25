@@ -246,7 +246,7 @@ async fn apply_module_type(
                 if let ReferenceType::Css(CssReferenceSubType::AtImport(import)) =
                     reference_type.into_value()
                 {
-                    import
+                    import.map(|v| *v)
                 } else {
                     None
                 },
@@ -639,7 +639,7 @@ async fn process_default_internal(
 #[turbo_tasks::function]
 async fn externals_tracing_module_context(ty: ExternalType) -> Result<Vc<ModuleAssetContext>> {
     let env = Environment::new(Value::new(ExecutionEnvironment::NodeJsLambda(
-        NodeJsEnvironment::default().cell(),
+        NodeJsEnvironment::default().resolved_cell(),
     )))
     .to_resolved()
     .await?;
