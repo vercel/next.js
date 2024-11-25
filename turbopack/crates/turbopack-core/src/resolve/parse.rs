@@ -346,7 +346,12 @@ impl Request {
                 Self::parse(Value::new(pat))
             }
             Request::Alternatives { requests } => {
-                let requests = requests.iter().copied().map(Request::as_relative).collect();
+                let requests = requests
+                    .iter()
+                    .copied()
+                    .map(|v| *v)
+                    .map(Request::as_relative)
+                    .collect();
                 Request::Alternatives { requests }.cell()
             }
         })

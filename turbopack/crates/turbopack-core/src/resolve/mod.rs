@@ -2900,7 +2900,7 @@ pub async fn handle_resolve_error(
                 .await?;
             }
 
-            *result
+            result
         }
         Err(err) => {
             emit_resolve_error_issue(
@@ -2994,7 +2994,7 @@ async fn emit_unresolvable_issue(
     is_optional: bool,
     origin_path: Vc<FileSystemPath>,
     reference_type: Value<ReferenceType>,
-    request: ResolvedVc<Request>,
+    request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
     source: Option<ResolvedVc<IssueSource>>,
 ) -> Result<()> {
@@ -3007,7 +3007,7 @@ async fn emit_unresolvable_issue(
         severity,
         file_path: origin_path.to_resolved().await?,
         request_type: format!("{} request", reference_type.into_value()),
-        request,
+        request: request.to_resolved().await?,
         resolve_options: resolve_options.to_resolved().await?,
         error_message: None,
         source,
