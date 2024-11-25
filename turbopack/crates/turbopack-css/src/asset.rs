@@ -234,7 +234,7 @@ impl CssChunkItem for CssModuleChunkItem {
                         {
                             imports.push(CssImport::Internal(
                                 import_ref.to_resolved().await?,
-                                css_item,
+                                css_item.to_resolved().await?,
                             ));
                         }
                     }
