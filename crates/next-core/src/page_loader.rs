@@ -138,7 +138,7 @@ impl OutputAsset for PageLoaderAsset {
         let root = self
             .rebase_prefix_path
             .await?
-            .map_or(self.server_root, |path| *path);
+            .map_or(*self.server_root, |path| *path);
         Ok(AssetIdent::from_path(
             root.join(
                 format!(
@@ -175,7 +175,7 @@ impl Asset for PageLoaderAsset {
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
         let this = &*self.await?;
 
-        let chunks_data = self.chunks_data(this.rebase_prefix_path).await?;
+        let chunks_data = self.chunks_data(*this.rebase_prefix_path).await?;
         let chunks_data = chunks_data.iter().try_join().await?;
         let chunks_data: Vec<_> = chunks_data
             .iter()
