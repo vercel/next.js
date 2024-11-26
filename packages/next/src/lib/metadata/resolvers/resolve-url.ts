@@ -21,11 +21,9 @@ function getProductionDeploymentUrl(): URL | undefined {
 
 // For deployment url for metadata routes, prefer to use the deployment url if possible
 // as these routes are unique to the deployments url.
-export function getSocialImageFallbackMetadataBase(metadataBase: URL | null): {
-  fallbackMetadataBase: URL
-  isMetadataBaseMissing: boolean
-} {
-  const isMetadataBaseMissing = !metadataBase
+export function getSocialImageFallbackMetadataBase(
+  metadataBase: URL | null
+): URL {
   const defaultMetadataBase = createLocalMetadataBase()
   const previewDeploymentUrl = getPreviewDeploymentUrl()
   const productionDeploymentUrl = getProductionDeploymentUrl()
@@ -42,10 +40,7 @@ export function getSocialImageFallbackMetadataBase(metadataBase: URL | null): {
         : metadataBase || productionDeploymentUrl || defaultMetadataBase
   }
 
-  return {
-    fallbackMetadataBase,
-    isMetadataBaseMissing,
-  }
+  return fallbackMetadataBase
 }
 
 function resolveUrl(url: null | undefined, metadataBase: URL | null): null
