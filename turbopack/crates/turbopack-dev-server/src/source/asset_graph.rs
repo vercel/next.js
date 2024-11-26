@@ -44,7 +44,7 @@ impl AssetGraphContentSource {
     ) -> Vc<Self> {
         Self::cell(AssetGraphContentSource {
             root_path,
-            root_assets: Vc::cell(fxindexset! { root_asset }),
+            root_assets: ResolvedVc::cell(fxindexset! { root_asset }),
             expanded: None,
         })
     }
@@ -58,7 +58,7 @@ impl AssetGraphContentSource {
     ) -> Vc<Self> {
         Self::cell(AssetGraphContentSource {
             root_path,
-            root_assets: Vc::cell(fxindexset! { root_asset }),
+            root_assets: ResolvedVc::cell(fxindexset! { root_asset }),
             expanded: Some(State::new(HashSet::new())),
         })
     }
