@@ -24,9 +24,9 @@ pub struct IssueFilePathContentSource {
 impl IssueFilePathContentSource {
     #[turbo_tasks::function]
     pub fn new_file_path(
-        file_path: Vc<FileSystemPath>,
+        file_path: ResolvedVc<FileSystemPath>,
         description: RcStr,
-        source: Vc<Box<dyn ContentSource>>,
+        source: ResolvedVc<Box<dyn ContentSource>>,
     ) -> Vc<Self> {
         IssueFilePathContentSource {
             file_path: Some(file_path),
@@ -37,7 +37,10 @@ impl IssueFilePathContentSource {
     }
 
     #[turbo_tasks::function]
-    pub fn new_description(description: RcStr, source: Vc<Box<dyn ContentSource>>) -> Vc<Self> {
+    pub fn new_description(
+        description: RcStr,
+        source: ResolvedVc<Box<dyn ContentSource>>,
+    ) -> Vc<Self> {
         IssueFilePathContentSource {
             file_path: None,
             description,
@@ -78,7 +81,7 @@ impl MapGetContentSourceContent for IssueContextContentSourceMapper {
     #[turbo_tasks::function]
     fn map_get_content(
         &self,
-        get_content: Vc<Box<dyn GetContentSourceContent>>,
+        get_content: ResolvedVc<Box<dyn GetContentSourceContent>>,
     ) -> Vc<Box<dyn GetContentSourceContent>> {
         Vc::upcast(
             IssueContextGetContentSourceContent {
