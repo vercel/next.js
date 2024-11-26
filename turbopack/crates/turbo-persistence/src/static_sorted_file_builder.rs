@@ -42,6 +42,7 @@ pub enum EntryValue<'l> {
 
 #[derive(Debug, Default)]
 pub struct StaticSortedFileBuilder {
+    family: u32,
     aqmf: Vec<u8>,
     key_compression_dictionary: Vec<u8>,
     value_compression_dictionary: Vec<u8>,
@@ -51,9 +52,15 @@ pub struct StaticSortedFileBuilder {
 }
 
 impl StaticSortedFileBuilder {
-    pub fn new<E: Entry>(entries: &[E], total_key_size: usize, total_value_size: usize) -> Self {
+    pub fn new<E: Entry>(
+        family: u32,
+        entries: &[E],
+        total_key_size: usize,
+        total_value_size: usize,
+    ) -> Self {
         debug_assert!(entries.iter().map(|e| e.key_hash()).is_sorted());
         let mut builder = Self::default();
+        builder.family = family;
         builder.min_hash = entries.first().map(|e| e.key_hash()).unwrap_or(u64::MAX);
         builder.max_hash = entries.last().map(|e| e.key_hash()).unwrap_or(0);
         builder.compute_aqmf(&entries);
@@ -294,6 +301,8 @@ impl StaticSortedFileBuilder {
         let mut file = BufWriter::new(File::create(file)?);
         // magic number and version
         file.write_u32::<BE>(0x53535401)?;
+        // family
+        file.write_u32::<BE>(self.family)?;
         // min hash
         file.write_u64::<BE>(self.min_hash)?;
         // max hash

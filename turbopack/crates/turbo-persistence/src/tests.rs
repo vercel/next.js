@@ -11,16 +11,16 @@ fn full_cycle() -> Result<()> {
     fn test_case(
         test_cases: &mut Vec<(
             &'static str,
-            Box<dyn Fn(&mut WriteBatch<Vec<u8>>) -> Result<()>>,
+            Box<dyn Fn(&mut WriteBatch<Vec<u8>, 16>) -> Result<()>>,
             Box<dyn Fn(&TurboPersistence) -> Result<()>>,
         )>,
         name: &'static str,
-        write: impl Fn(&mut WriteBatch<Vec<u8>>) -> Result<()> + 'static,
+        write: impl Fn(&mut WriteBatch<Vec<u8>, 16>) -> Result<()> + 'static,
         read: impl Fn(&TurboPersistence) -> Result<()> + 'static,
     ) {
         test_cases.push((
             name,
-            Box::new(write) as Box<dyn Fn(&mut WriteBatch<Vec<u8>>) -> Result<()>>,
+            Box::new(write) as Box<dyn Fn(&mut WriteBatch<Vec<u8>, 16>) -> Result<()>>,
             Box::new(read) as Box<dyn Fn(&TurboPersistence) -> Result<()>>,
         ));
     }
@@ -30,18 +30,39 @@ fn full_cycle() -> Result<()> {
         "Simple",
         |batch| {
             for i in 10..100u8 {
-                batch.put(vec![i], vec![i].into())?;
+                batch.put(0, vec![i], vec![i].into())?;
             }
             Ok(())
         },
         |db| {
-            let Some(value) = db.get(&[42u8])? else {
+            let Some(value) = db.get(0, &[42u8])? else {
                 panic!("Value not found");
             };
             assert_eq!(&*value, &[42]);
-            assert!(db.get(&[42u8, 42])?.is_none());
-            assert!(db.get(&[0u8])?.is_none());
-            assert!(db.get(&[255u8])?.is_none());
+            assert_eq!(db.get(0, &[42u8, 42])?, None);
+            assert_eq!(db.get(0, &[1u8])?, None);
+            assert_eq!(db.get(0, &[255u8])?, None);
+            Ok(())
+        },
+    );
+
+    test_case(
+        &mut test_cases,
+        "Families",
+        |batch| {
+            for i in 0..16u8 {
+                batch.put(i as usize, vec![i], vec![i].into())?;
+            }
+            Ok(())
+        },
+        |db| {
+            let Some(value) = db.get(8, &[8u8])? else {
+                panic!("Value not found");
+            };
+            assert_eq!(&*value, &[8]);
+            assert!(db.get(8, &[8u8, 8])?.is_none());
+            assert!(db.get(8, &[0u8])?.is_none());
+            assert!(db.get(8, &[255u8])?.is_none());
             Ok(())
         },
     );
@@ -51,13 +72,13 @@ fn full_cycle() -> Result<()> {
         "Medium keys and values",
         |batch| {
             for i in 0..200u8 {
-                batch.put(vec![i; 10 * 1024], vec![i; 100 * 1024].into())?;
+                batch.put(0, vec![i; 10 * 1024], vec![i; 100 * 1024].into())?;
             }
             Ok(())
         },
         |db| {
             for i in 0..200u8 {
-                let Some(value) = db.get(&vec![i; 10 * 1024])? else {
+                let Some(value) = db.get(0, &vec![i; 10 * 1024])? else {
                     panic!("Value not found");
                 };
                 assert_eq!(&*value, &vec![i; 100 * 1024]);
@@ -71,13 +92,17 @@ fn full_cycle() -> Result<()> {
         "Large keys and values (blob files)",
         |batch| {
             for i in 0..20u8 {
-                batch.put(vec![i; 10 * 1024 * 1024], vec![i; 10 * 1024 * 1024].into())?;
+                batch.put(
+                    0,
+                    vec![i; 10 * 1024 * 1024],
+                    vec![i; 10 * 1024 * 1024].into(),
+                )?;
             }
             Ok(())
         },
         |db| {
             for i in 0..20u8 {
-                let Some(value) = db.get(&vec![i; 10 * 1024 * 1024])? else {
+                let Some(value) = db.get(0, &vec![i; 10 * 1024 * 1024])? else {
                     panic!("Value not found");
                 };
                 assert_eq!(&*value, &vec![i; 10 * 1024 * 1024]);
@@ -91,13 +116,13 @@ fn full_cycle() -> Result<()> {
         "Different sizes keys and values",
         |batch| {
             for i in 100..200u8 {
-                batch.put(vec![i; i as usize], vec![i; i as usize].into())?;
+                batch.put(0, vec![i; i as usize], vec![i; i as usize].into())?;
             }
             Ok(())
         },
         |db| {
             for i in 100..200u8 {
-                let Some(value) = db.get(&vec![i; i as usize])? else {
+                let Some(value) = db.get(0, &vec![i; i as usize])? else {
                     panic!("Value not found");
                 };
                 assert_eq!(&*value, &vec![i; i as usize]);
@@ -111,14 +136,14 @@ fn full_cycle() -> Result<()> {
         "Many items (1% read)",
         |batch| {
             for i in 0..1000 * 1024u32 {
-                batch.put(i.to_be_bytes().into(), i.to_be_bytes().to_vec().into())?;
+                batch.put(0, i.to_be_bytes().into(), i.to_be_bytes().to_vec().into())?;
             }
             Ok(())
         },
         |db| {
             for i in 0..10 * 1024u32 {
                 let i = i * 100;
-                let Some(value) = db.get(&i.to_be_bytes())? else {
+                let Some(value) = db.get(0, &i.to_be_bytes())? else {
                     panic!("Value not found");
                 };
                 assert_eq!(&*value, &i.to_be_bytes());
@@ -133,7 +158,7 @@ fn full_cycle() -> Result<()> {
         |batch| {
             (0..10 * 1024 * 1024u32).into_par_iter().for_each(|i| {
                 batch
-                    .put(i.to_be_bytes().into(), i.to_be_bytes().to_vec().into())
+                    .put(0, i.to_be_bytes().into(), i.to_be_bytes().to_vec().into())
                     .unwrap();
             });
             Ok(())
@@ -141,7 +166,7 @@ fn full_cycle() -> Result<()> {
         |db| {
             (0..100 * 1024u32).into_par_iter().for_each(|i| {
                 let i = i * 100;
-                let Some(value) = db.get(&i.to_be_bytes()).unwrap() else {
+                let Some(value) = db.get(0, &i.to_be_bytes()).unwrap() else {
                     panic!("Value not found");
                 };
                 assert_eq!(&*value, &i.to_be_bytes());

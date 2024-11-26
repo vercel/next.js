@@ -31,6 +31,7 @@ Therefore there are there value types:
 
 * Headers
   * 4 bytes magic number and version
+  * 4 bytes key family
   * 8 bytes min hash
   * 8 bytes max hash
   * 3 bytes AQMF length

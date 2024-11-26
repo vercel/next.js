@@ -18,20 +18,21 @@ use crate::{
     key::StoreKey, static_sorted_file_builder::StaticSortedFileBuilder,
 };
 
-struct ThreadLocalState<K: StoreKey + Send> {
-    collector: Option<Collector<K>>,
+struct ThreadLocalState<K: StoreKey + Send, const FAMILIES: usize> {
+    collectors: [Option<Collector<K>>; FAMILIES],
     new_sst_files: Vec<(u32, File)>,
 }
 
-pub struct WriteBatch<K: StoreKey + Send> {
+pub struct WriteBatch<K: StoreKey + Send, const FAMILIES: usize> {
     path: PathBuf,
     current_sequence_number: AtomicU32,
-    thread_locals: ThreadLocal<UnsafeCell<ThreadLocalState<K>>>,
+    thread_locals: ThreadLocal<UnsafeCell<ThreadLocalState<K, FAMILIES>>>,
     idle_collectors: Vec<Collector<K>>,
 }
 
-impl<K: StoreKey + Send + Sync> WriteBatch<K> {
+impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
     pub fn new(path: PathBuf, current: u32) -> Self {
+        assert!(FAMILIES <= u32::MAX as usize);
         Self {
             path,
             current_sequence_number: AtomicU32::new(current),
@@ -45,26 +46,27 @@ impl<K: StoreKey + Send + Sync> WriteBatch<K> {
             .store(current, Ordering::SeqCst);
     }
 
-    fn collector_mut(&self) -> Result<&mut Collector<K>> {
+    fn collector_mut(&self, family: usize) -> Result<&mut Collector<K>> {
+        debug_assert!(family < FAMILIES);
         let cell = self.thread_locals.get_or(|| {
             UnsafeCell::new(ThreadLocalState {
-                collector: Some(Collector::new()),
+                collectors: [const { None }; FAMILIES],
                 new_sst_files: Vec::new(),
             })
         });
         // Safety: We know that the cell is only accessed from the current thread.
         let state = unsafe { &mut *cell.get() };
-        let collector = state.collector.get_or_insert_with(|| Collector::new());
+        let collector = state.collectors[family].get_or_insert_with(|| Collector::new());
         if collector.is_full() {
-            let sst = self.create_sst_file(collector.sorted())?;
+            let sst = self.create_sst_file(family, collector.sorted())?;
             collector.clear();
             state.new_sst_files.push(sst);
         }
-        Ok(state.collector.as_mut().unwrap())
+        Ok(collector)
     }
 
-    pub fn put(&self, key: K, value: Cow<'_, [u8]>) -> Result<()> {
-        let collector = self.collector_mut()?;
+    pub fn put(&self, family: usize, key: K, value: Cow<'_, [u8]>) -> Result<()> {
+        let collector = self.collector_mut(family)?;
         if value.len() <= MAX_MEDIUM_VALUE_SIZE {
             collector.put(key, value.into_owned());
         } else {
@@ -74,52 +76,70 @@ impl<K: StoreKey + Send + Sync> WriteBatch<K> {
         Ok(())
     }
 
-    pub fn delete(&self, key: K) -> Result<()> {
-        let collector = self.collector_mut()?;
+    pub fn delete(&self, family: usize, key: K) -> Result<()> {
+        let collector = self.collector_mut(family)?;
         collector.delete(key);
         Ok(())
     }
 
     pub fn finish(&mut self) -> Result<(u32, Vec<(u32, File)>)> {
-        let mut global_collector = Collector::new();
-        let mut global_collectors = Vec::new();
+        let mut global_collectors = [const { None }; FAMILIES];
+        let mut full_global_collectors = Vec::new();
         let mut new_sst_files = Vec::new();
         for cell in self.thread_locals.iter_mut() {
             let state = cell.get_mut();
             new_sst_files.append(&mut state.new_sst_files);
-            if let Some(mut collector) = state.collector.take() {
-                for entry in collector.drain() {
-                    if global_collector.is_full() {
-                        global_collectors.push(replace(
-                            &mut global_collector,
-                            self.idle_collectors
-                                .pop()
-                                .unwrap_or_else(|| Collector::new()),
-                        ));
+            for family in 0..FAMILIES {
+                if let Some(mut collector) = state.collectors[family].take() {
+                    let global_collector = global_collectors[family].get_or_insert_with(|| {
+                        self.idle_collectors
+                            .pop()
+                            .unwrap_or_else(|| Collector::new())
+                    });
+                    for entry in collector.drain() {
+                        if global_collector.is_full() {
+                            full_global_collectors.push((
+                                family,
+                                replace(
+                                    global_collector,
+                                    self.idle_collectors
+                                        .pop()
+                                        .unwrap_or_else(|| Collector::new()),
+                                ),
+                            ));
+                        }
+                        global_collector.add_entry(entry);
                     }
-                    global_collector.add_entry(entry);
+                    // Reuse the collector to avoid allocations.
+                    self.idle_collectors.push(collector);
                 }
-                // Reuse the collector to avoid allocations.
-                self.idle_collectors.push(collector);
             }
         }
-        if !global_collector.is_empty() {
-            global_collectors.push(global_collector);
+        for (family, global_collector) in global_collectors.into_iter().enumerate() {
+            if let Some(global_collector) = global_collector {
+                if !global_collector.is_empty() {
+                    full_global_collectors.push((family, global_collector));
+                }
+            }
         }
         new_sst_files.extend(
-            global_collectors
+            full_global_collectors
                 .par_iter_mut()
-                .map(|collector| {
-                    let result = self.create_sst_file(collector.sorted());
+                .map(|(family, collector)| {
+                    let result = self.create_sst_file(*family, collector.sorted());
                     collector.clear();
                     result
                 })
                 .collect::<Result<Vec<_>>>()?,
         );
-        self.idle_collectors.append(&mut global_collectors);
+        for (_, collector) in full_global_collectors {
+            self.idle_collectors.push(collector);
+        }
         for cell in self.thread_locals.iter_mut() {
             let state = cell.get_mut();
-            state.collector = self.idle_collectors.pop();
+            for i in 0..FAMILIES {
+                state.collectors[i] = self.idle_collectors.pop();
+            }
         }
         let seq = self.current_sequence_number.load(Ordering::SeqCst);
         new_sst_files.sort_by_key(|(seq, _)| *seq);
@@ -140,12 +160,14 @@ impl<K: StoreKey + Send + Sync> WriteBatch<K> {
 
     fn create_sst_file(
         &self,
+        family: usize,
         collector_data: (&[CollectorEntry<K>], usize, usize),
     ) -> Result<(u32, File)> {
         let (entries, total_key_size, total_value_size) = collector_data;
         let seq = self.current_sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
 
-        let builder = StaticSortedFileBuilder::new(entries, total_key_size, total_value_size);
+        let builder =
+            StaticSortedFileBuilder::new(family as u32, entries, total_key_size, total_value_size);
 
         let path = self.path.join(&format!("{:08}.sst", seq));
         let file = builder

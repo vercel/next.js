@@ -53,6 +53,7 @@ struct LocationInFile {
 }
 
 struct Header {
+    family: u32,
     min_hash: u64,
     max_hash: u64,
     aqmf: LocationInFile,
@@ -61,6 +62,24 @@ struct Header {
     block_offsets_start: usize,
     blocks_start: usize,
     block_count: u16,
+}
+
+#[derive(Clone, Copy)]
+pub struct StaticSortedFileRange {
+    pub family: u32,
+    pub min_hash: u64,
+    pub max_hash: u64,
+}
+
+impl StaticSortedFileRange {
+    pub fn spread(&self) -> u64 {
+        self.max_hash - self.min_hash
+    }
+
+    pub fn is_overlapping(&self, b: &StaticSortedFileRange) -> bool {
+        let a = self;
+        a.family == b.family && a.min_hash <= b.max_hash && a.max_hash >= b.min_hash
+    }
 }
 
 #[derive(Clone, Default)]
@@ -116,13 +135,14 @@ impl StaticSortedFile {
             if magic != 0x53535401 {
                 bail!("Invalid magic number or version");
             }
+            let family = file.read_u32::<BE>()?;
             let min_hash = file.read_u64::<BE>()?;
             let max_hash = file.read_u64::<BE>()?;
             let aqmf_length = file.read_u24::<BE>()? as usize;
             let key_compression_dictionary_length = file.read_u16::<BE>()? as usize;
             let value_compression_dictionary_length = file.read_u16::<BE>()? as usize;
             let block_count = file.read_u16::<BE>()?;
-            const HEADER_SIZE: usize = 29;
+            const HEADER_SIZE: usize = 33;
             let mut current_offset = HEADER_SIZE;
             let aqmf = LocationInFile {
                 start: current_offset,
@@ -143,6 +163,7 @@ impl StaticSortedFile {
             let blocks_start = block_offsets_start + block_count as usize * 4;
 
             Ok(Header {
+                family,
                 min_hash,
                 max_hash,
                 aqmf,
@@ -155,9 +176,17 @@ impl StaticSortedFile {
         })
     }
 
-    pub fn range(&self) -> Result<(u64, u64)> {
+    pub fn range(&self) -> Result<StaticSortedFileRange> {
         let header = self.header()?;
-        Ok((header.min_hash, header.max_hash))
+        Ok(StaticSortedFileRange {
+            family: header.family,
+            min_hash: header.min_hash,
+            max_hash: header.max_hash,
+        })
+    }
+
+    pub fn family(&self) -> Result<u32> {
+        Ok(self.header()?.family)
     }
 
     pub fn iter<'l>(
@@ -180,6 +209,7 @@ impl StaticSortedFile {
 
     pub fn lookup<K: QueryKey>(
         &self,
+        key_family: u32,
         key_hash: u64,
         key: &K,
         aqmf_cache: &AqmfCache,
@@ -188,7 +218,7 @@ impl StaticSortedFile {
         value_block_cache: &BlockCache,
     ) -> Result<LookupResult> {
         let header = self.header()?;
-        if key_hash < header.min_hash || key_hash > header.max_hash {
+        if key_family != header.family || key_hash < header.min_hash || key_hash > header.max_hash {
             return Ok(LookupResult::RangeMiss);
         }
 

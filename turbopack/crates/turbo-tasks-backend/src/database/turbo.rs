@@ -47,7 +47,7 @@ impl KeyValueDatabase for TurboKeyValueDatabase {
         key_space: KeySpace,
         key: &[u8],
     ) -> Result<Option<Self::ValueBuffer<'l>>> {
-        self.db.get(&(key, key_space as u8))
+        self.db.get(key_space as usize, &key)
     }
 
     type ConcurrentWriteBatch<'l>
@@ -70,7 +70,7 @@ impl KeyValueDatabase for TurboKeyValueDatabase {
 }
 
 pub struct TurboWriteBatch<'a> {
-    batch: turbo_persistence::WriteBatch<(Vec<u8>, u8)>,
+    batch: turbo_persistence::WriteBatch<Vec<u8>, 5>,
     db: &'a TurboPersistence,
 }
 
@@ -85,7 +85,7 @@ impl<'a> BaseWriteBatch<'a> for TurboWriteBatch<'a> {
     where
         'a: 'l,
     {
-        self.db.get(&(key, key_space as u8))
+        self.db.get(key_space as usize, &key)
     }
 
     fn commit(self) -> Result<()> {
@@ -100,10 +100,10 @@ impl<'a> BaseWriteBatch<'a> for TurboWriteBatch<'a> {
 
 impl<'a> ConcurrentWriteBatch<'a> for TurboWriteBatch<'a> {
     fn put(&self, key_space: KeySpace, key: Cow<[u8]>, value: Cow<[u8]>) -> Result<()> {
-        self.batch.put((key.into_owned(), key_space as u8), value)
+        self.batch.put(key_space as usize, key.into_owned(), value)
     }
 
     fn delete(&self, key_space: KeySpace, key: Cow<[u8]>) -> Result<()> {
-        self.batch.delete((key.into_owned(), key_space as u8))
+        self.batch.delete(key_space as usize, key.into_owned())
     }
 }

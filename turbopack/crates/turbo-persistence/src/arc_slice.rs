@@ -1,5 +1,6 @@
 use std::{
     borrow::Borrow,
+    fmt::{self, Debug, Formatter},
     hash::{Hash, Hasher},
     ops::{Deref, Range},
     sync::Arc,
@@ -52,6 +53,12 @@ impl<T: Hash> Hash for ArcSlice<T> {
 impl<T: PartialEq> PartialEq for ArcSlice<T> {
     fn eq(&self, other: &Self) -> bool {
         self.deref().eq(other.deref())
+    }
+}
+
+impl<T: Debug> Debug for ArcSlice<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        Debug::fmt(&**self, f)
     }
 }
 
