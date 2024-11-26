@@ -129,8 +129,8 @@ struct PrefixedRouterContentSourceMapper {
 impl MapGetContentSourceContent for PrefixedRouterContentSourceMapper {
     #[turbo_tasks::function]
     fn map_get_content(
-        self: Vc<Self>,
-        get_content: Vc<Box<dyn GetContentSourceContent>>,
+        self: ResolvedVc<Self>,
+        get_content: ResolvedVc<Box<dyn GetContentSourceContent>>,
     ) -> Vc<Box<dyn GetContentSourceContent>> {
         Vc::upcast(
             PrefixedRouterGetContentSourceContent {
