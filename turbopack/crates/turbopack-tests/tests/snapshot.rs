@@ -332,7 +332,7 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         Vc::cell("test".into()),
     ));
 
-    let runtime_entries = maybe_load_env(asset_context, project_path)
+    let runtime_entries = maybe_load_env(asset_context, *project_path)
         .await?
         .map(|asset| EvaluatableAssets::one(asset.to_evaluatable(asset_context)));
 
@@ -343,10 +343,10 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         Runtime::Browser => Vc::upcast(
             BrowserChunkingContext::builder(
                 *project_root,
-                path,
-                path,
-                chunk_root_path,
-                static_root_path,
+                *path,
+                *path,
+                *chunk_root_path,
+                *static_root_path,
                 *env,
                 options.runtime_type,
             )
