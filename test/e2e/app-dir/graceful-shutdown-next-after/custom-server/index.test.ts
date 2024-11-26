@@ -2,7 +2,7 @@ import { isNextDev, nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 describe('unstable_after during server shutdown - custom server', () => {
-  const { next } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
     startCommand: 'node server.mjs',
     serverReadyPattern: /Custom server started/,
@@ -14,6 +14,9 @@ describe('unstable_after during server shutdown - custom server', () => {
       DEBUG: '1',
     },
   })
+  if (skipped) {
+    return
+  }
 
   beforeEach(async () => {
     await next.start()
