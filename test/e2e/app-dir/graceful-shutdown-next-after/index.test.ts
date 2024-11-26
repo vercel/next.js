@@ -14,12 +14,16 @@ describe('unstable_after during server shutdown', () => {
     }
 
     beforeEach(async () => {
+      console.log('--------- starting... ---------')
       await next.start()
+      console.log('--------- started!    ---------')
     })
 
     afterEach(async () => {
+      console.log('--------- stopping... ---------')
       // if the test didn't manage to kill next, we should do it ourselves
       await next.stop()
+      console.log('--------- stopped!    ---------')
     })
 
     if (isNextDev) {
