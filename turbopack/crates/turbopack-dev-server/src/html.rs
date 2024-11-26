@@ -30,7 +30,7 @@ type DevHtmlEntry = (
 #[turbo_tasks::value(shared)]
 #[derive(Clone)]
 pub struct DevHtmlAsset {
-    path: Vc<FileSystemPath>,
+    path: ResolvedVc<FileSystemPath>,
     entries: Vec<DevHtmlEntry>,
     body: Option<RcStr>,
 }
