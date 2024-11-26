@@ -527,14 +527,14 @@ impl NapiRoute {
             } => NapiRoute {
                 pathname,
                 r#type: "page",
-                html_endpoint: convert_endpoint(html_endpoint),
-                data_endpoint: convert_endpoint(data_endpoint),
+                html_endpoint: convert_endpoint(*html_endpoint),
+                data_endpoint: convert_endpoint(*data_endpoint),
                 ..Default::default()
             },
             Route::PageApi { endpoint } => NapiRoute {
                 pathname,
                 r#type: "page-api",
-                endpoint: convert_endpoint(endpoint),
+                endpoint: convert_endpoint(*endpoint),
                 ..Default::default()
             },
             Route::AppPage(pages) => NapiRoute {
@@ -545,8 +545,8 @@ impl NapiRoute {
                         .into_iter()
                         .map(|page_route| AppPageNapiRoute {
                             original_name: Some(page_route.original_name),
-                            html_endpoint: convert_endpoint(page_route.html_endpoint),
-                            rsc_endpoint: convert_endpoint(page_route.rsc_endpoint),
+                            html_endpoint: convert_endpoint(*page_route.html_endpoint),
+                            rsc_endpoint: convert_endpoint(*page_route.rsc_endpoint),
                         })
                         .collect(),
                 ),
@@ -559,7 +559,7 @@ impl NapiRoute {
                 pathname,
                 original_name: Some(original_name),
                 r#type: "app-route",
-                endpoint: convert_endpoint(endpoint),
+                endpoint: convert_endpoint(*endpoint),
                 ..Default::default()
             },
             Route::Conflict => NapiRoute {
@@ -696,15 +696,15 @@ pub fn project_entrypoints_subscribe(
                         .transpose()?,
                     pages_document_endpoint: External::new(ExternalEndpoint(VcArc::new(
                         turbo_tasks.clone(),
-                        entrypoints.pages_document_endpoint,
+                        *entrypoints.pages_document_endpoint,
                     ))),
                     pages_app_endpoint: External::new(ExternalEndpoint(VcArc::new(
                         turbo_tasks.clone(),
-                        entrypoints.pages_app_endpoint,
+                        *entrypoints.pages_app_endpoint,
                     ))),
                     pages_error_endpoint: External::new(ExternalEndpoint(VcArc::new(
                         turbo_tasks.clone(),
-                        entrypoints.pages_error_endpoint,
+                        *entrypoints.pages_error_endpoint,
                     ))),
                 },
                 issues: issues
