@@ -284,11 +284,12 @@ impl TurboPersistence {
                     max_hash,
                 } = sst.range()?;
                 println!(
-                    "SST {}  {} {:016x} - {:016x}",
+                    "SST {}  {} {:016x} - {:016x}  {:016x}",
                     sst.sequence_number(),
                     family,
                     min_hash,
-                    max_hash
+                    max_hash,
+                    max_hash - min_hash
                 );
             }
         }
