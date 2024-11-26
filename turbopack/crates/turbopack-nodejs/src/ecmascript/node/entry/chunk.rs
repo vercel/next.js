@@ -34,11 +34,11 @@ impl EcmascriptBuildNodeEntryChunk {
     /// Creates a new [`Vc<EcmascriptBuildNodeEntryChunk>`].
     #[turbo_tasks::function]
     pub fn new(
-        path: Vc<FileSystemPath>,
-        chunking_context: Vc<NodeJsChunkingContext>,
-        other_chunks: Vc<OutputAssets>,
-        evaluatable_assets: Vc<EvaluatableAssets>,
-        exported_module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
+        path: ResolvedVc<FileSystemPath>,
+        chunking_context: ResolvedVc<NodeJsChunkingContext>,
+        other_chunks: ResolvedVc<OutputAssets>,
+        evaluatable_assets: ResolvedVc<EvaluatableAssets>,
+        exported_module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     ) -> Vc<Self> {
         EcmascriptBuildNodeEntryChunk {
             path,
@@ -113,7 +113,7 @@ impl EcmascriptBuildNodeEntryChunk {
                     .await?
             {
                 let runtime_module_id = placeable
-                    .as_chunk_item(Vc::upcast(this.chunking_context))
+                    .as_chunk_item(Vc::upcast(*this.chunking_context))
                     .id()
                     .await?;
 
@@ -129,7 +129,7 @@ impl EcmascriptBuildNodeEntryChunk {
 
         let runtime_module_id = this
             .exported_module
-            .as_chunk_item(Vc::upcast(this.chunking_context))
+            .as_chunk_item(Vc::upcast(*this.chunking_context))
             .id()
             .await?;
 
