@@ -741,7 +741,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 persisted_storage_meta_log,
                 persisted_storage_data_log,
             ) {
-                println!("Persisting failed: {}", err);
+                println!("Persisting failed: {:?}", err);
                 return None;
             }
         }
