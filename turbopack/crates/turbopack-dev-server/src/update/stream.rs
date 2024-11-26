@@ -6,7 +6,7 @@ use tokio::sync::mpsc::Sender;
 use tokio_stream::wrappers::ReceiverStream;
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{IntoTraitRef, ReadRef, TransientInstance, Vc};
+use turbo_tasks::{IntoTraitRef, ReadRef, ResolvedVc, TransientInstance, Vc};
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack_core::{
     error::PrettyPrintError,
@@ -282,7 +282,7 @@ pub enum UpdateStreamItem {
 
 #[turbo_tasks::value(serialization = "none")]
 struct FatalStreamIssue {
-    description: Vc<StyledString>,
+    description: ResolvedVc<StyledString>,
     resource: RcStr,
 }
 
