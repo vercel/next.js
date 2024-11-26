@@ -104,7 +104,7 @@ impl EcmascriptChunkPlaceable for RawWebAssemblyModuleAsset {
 #[turbo_tasks::value]
 struct RawModuleChunkItem {
     module: ResolvedVc<RawWebAssemblyModuleAsset>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     wasm_asset: ResolvedVc<WebAssemblyAsset>,
 }
 
@@ -118,7 +118,7 @@ impl ChunkItem for RawModuleChunkItem {
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
         Ok(Vc::cell(vec![Vc::upcast(SingleOutputAssetReference::new(
-            Vc::upcast(self.wasm_asset),
+            Vc::upcast(*self.wasm_asset),
             Vc::cell(format!("wasm(url) {}", self.wasm_asset.ident().to_string().await?).into()),
         ))]))
     }
