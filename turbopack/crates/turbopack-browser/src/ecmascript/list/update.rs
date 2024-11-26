@@ -94,7 +94,7 @@ pub(super) async fn update_chunk_list(
         if let Some(mergeable) =
             ResolvedVc::try_sidecast::<Box<dyn MergeableVersionedContent>>(*chunk_content).await?
         {
-            let merger = mergeable.get_merger().resolve().await?;
+            let merger = mergeable.get_merger().to_resolved().await?;
             by_merger.entry(merger).or_default().push(*chunk_content);
         } else {
             by_path.insert(chunk_path, chunk_content);
