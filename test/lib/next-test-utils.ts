@@ -1235,7 +1235,14 @@ export async function toggleCollapseComponentStack(
 }
 
 export async function hasRedboxCallStack(browser: BrowserInterface) {
-  return browser.hasElementByCssSelector('[data-nextjs-call-stack-frame]')
+  return browser.eval(() => {
+    const portal = [].slice
+      .call(document.querySelectorAll('nextjs-portal'))
+      .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-body]'))
+    const root = portal?.shadowRoot
+
+    return root?.querySelectorAll('[data-nextjs-call-stack-frame]').length > 0
+  })
 }
 
 export async function getRedboxCallStack(
