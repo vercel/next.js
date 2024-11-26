@@ -2,7 +2,7 @@ use std::iter::once;
 
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{TryJoinIterExt, Value, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, Vc};
 use turbopack_core::introspect::{Introspectable, IntrospectableChildren};
 
 use super::{
@@ -19,9 +19,9 @@ use crate::source::{route_tree::MapGetContentSourceContent, ContentSources};
 /// other subpaths, including if the request path does not include the prefix.
 #[turbo_tasks::value(shared)]
 pub struct PrefixedRouterContentSource {
-    pub prefix: Vc<RcStr>,
-    pub routes: Vec<(RcStr, Vc<Box<dyn ContentSource>>)>,
-    pub fallback: Vc<Box<dyn ContentSource>>,
+    pub prefix: ResolvedVc<RcStr>,
+    pub routes: Vec<(RcStr, ResolvedVc<Box<dyn ContentSource>>)>,
+    pub fallback: ResolvedVc<Box<dyn ContentSource>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -121,7 +121,7 @@ impl ContentSource for PrefixedRouterContentSource {
 
 #[turbo_tasks::value]
 struct PrefixedRouterContentSourceMapper {
-    prefix: Vc<RcStr>,
+    prefix: ResolvedVc<RcStr>,
     path: RcStr,
 }
 
@@ -144,8 +144,8 @@ impl MapGetContentSourceContent for PrefixedRouterContentSourceMapper {
 
 #[turbo_tasks::value]
 struct PrefixedRouterGetContentSourceContent {
-    mapper: Vc<PrefixedRouterContentSourceMapper>,
-    get_content: Vc<Box<dyn GetContentSourceContent>>,
+    mapper: ResolvedVc<PrefixedRouterContentSourceMapper>,
+    get_content: ResolvedVc<Box<dyn GetContentSourceContent>>,
 }
 
 #[turbo_tasks::value_impl]
