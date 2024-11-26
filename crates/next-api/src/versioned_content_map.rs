@@ -25,7 +25,7 @@ pub struct OutputAssetsOperation(ResolvedVc<OutputAssets>);
 #[derive(Clone, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Serialize, Deserialize, Debug)]
 struct MapEntry {
     // must not be resolved
-    assets_operation: Vc<OutputAssets>,
+    assets_operation: ResolvedVc<OutputAssets>,
     /// Precomputed map for quick access to output asset by filepath
     path_to_asset: HashMap<ResolvedVc<FileSystemPath>, ResolvedVc<Box<dyn OutputAsset>>>,
 }
@@ -105,19 +105,19 @@ impl VersionedContentMap {
         let assets = *assets_operation.await?;
         async fn get_entries(
             assets: Vc<OutputAssets>,
-        ) -> Result<Vec<(ResolvedVc<FileSystemPath>, Vc<Box<dyn OutputAsset>>)>> {
+        ) -> Result<Vec<(ResolvedVc<FileSystemPath>, ResolvedVc<Box<dyn OutputAsset>>)>> {
             let assets_ref = assets.await?;
             let entries = assets_ref
                 .iter()
                 .map(|&asset| async move {
                     let path = asset.ident().path().to_resolved().await?;
-                    Ok((path, *asset))
+                    Ok((path, asset))
                 })
                 .try_join()
                 .await?;
             Ok(entries)
         }
-        let entries = get_entries(assets).await.unwrap_or_default();
+        let entries = get_entries(*assets).await.unwrap_or_default();
 
         self.map_path_to_op.update_conditionally(|map| {
             let mut changed = false;
@@ -144,7 +144,7 @@ impl VersionedContentMap {
         });
 
         // Make sure all written client assets are up-to-date
-        let _ = emit_assets(assets, node_root, client_relative_path, client_output_path);
+        let _ = emit_assets(*assets, node_root, client_relative_path, client_output_path);
         let map_entry = Vc::cell(Some(MapEntry {
             assets_operation: assets,
             path_to_asset: entries.into_iter().collect(),
