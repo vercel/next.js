@@ -89,7 +89,10 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
-    pub fn module_id_strategy(mut self, module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>) -> Self {
+    pub fn module_id_strategy(
+        mut self,
+        module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
+    ) -> Self {
         self.chunking_context.module_id_strategy = module_id_strategy;
         self
     }
@@ -194,7 +197,7 @@ impl BrowserChunkingContext {
 
     /// Returns the asset base path.
     pub fn chunk_base_path(&self) -> Vc<Option<RcStr>> {
-        self.chunk_base_path
+        *self.chunk_base_path
     }
 
     /// Returns the minify type.
@@ -276,17 +279,17 @@ impl ChunkingContext for BrowserChunkingContext {
 
     #[turbo_tasks::function]
     fn context_path(&self) -> Vc<FileSystemPath> {
-        self.context_path
+        *self.context_path
     }
 
     #[turbo_tasks::function]
     fn output_root(&self) -> Vc<FileSystemPath> {
-        self.output_root
+        *self.output_root
     }
 
     #[turbo_tasks::function]
     fn environment(&self) -> Vc<Environment> {
-        self.environment
+        *self.environment
     }
 
     #[turbo_tasks::function]
@@ -296,7 +299,7 @@ impl ChunkingContext for BrowserChunkingContext {
         extension: RcStr,
     ) -> Result<Vc<FileSystemPath>> {
         let root_path = self.chunk_root_path;
-        let name = ident.output_name(self.context_path, extension).await?;
+        let name = ident.output_name(*self.context_path, extension).await?;
         Ok(root_path.join(name.clone_value()))
     }
 
