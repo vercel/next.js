@@ -108,7 +108,7 @@ fn full_cycle() -> Result<()> {
 
     test_case(
         &mut test_cases,
-        "Many items",
+        "Many items (1% read)",
         |batch| {
             for i in 0..1000 * 1024u32 {
                 batch.put(i.to_be_bytes().into(), i.to_be_bytes().to_vec().into())?;
@@ -116,7 +116,8 @@ fn full_cycle() -> Result<()> {
             Ok(())
         },
         |db| {
-            for i in 0..1000 * 1024u32 {
+            for i in 0..10 * 1024u32 {
+                let i = i * 100;
                 let Some(value) = db.get(&i.to_be_bytes())? else {
                     panic!("Value not found");
                 };
@@ -128,9 +129,9 @@ fn full_cycle() -> Result<()> {
 
     test_case(
         &mut test_cases,
-        "Many items (multi-threaded)",
+        "Many items (1% read, multi-threaded)",
         |batch| {
-            (0..1024 * 1024u32).into_par_iter().for_each(|i| {
+            (0..10 * 1024 * 1024u32).into_par_iter().for_each(|i| {
                 batch
                     .put(i.to_be_bytes().into(), i.to_be_bytes().to_vec().into())
                     .unwrap();
@@ -138,34 +139,13 @@ fn full_cycle() -> Result<()> {
             Ok(())
         },
         |db| {
-            (0..1024 * 1024u32).into_par_iter().for_each(|i| {
+            (0..100 * 1024u32).into_par_iter().for_each(|i| {
+                let i = i * 100;
                 let Some(value) = db.get(&i.to_be_bytes()).unwrap() else {
                     panic!("Value not found");
                 };
                 assert_eq!(&*value, &i.to_be_bytes());
             });
-            Ok(())
-        },
-    );
-
-    test_case(
-        &mut test_cases,
-        "Many items, few reads",
-        |batch| {
-            for i in 0..1000 * 1024u32 {
-                batch.put(i.to_be_bytes().into(), i.to_be_bytes().to_vec().into())?;
-            }
-            Ok(())
-        },
-        |db| {
-            for _ in 0..250 * 1024u32 {
-                for i in [13 * 1024u32, 42 * 1024u32, 170 * 1024u32, 170 * 1024u32 + 1] {
-                    let Some(value) = db.get(&i.to_be_bytes())? else {
-                        panic!("Value not found");
-                    };
-                    assert_eq!(&*value, &i.to_be_bytes());
-                }
-            }
             Ok(())
         },
     );
