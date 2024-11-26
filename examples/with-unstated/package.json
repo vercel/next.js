@@ -7,8 +7,13 @@
   },
   "dependencies": {
     "next": "latest",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "unstated-next": "1.1.0"
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "unstated-next": "^1.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "^18.3.12",
+    "typescript": "^5.7.2"
   }
 }

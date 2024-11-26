@@ -1,11 +1,12 @@
-import { useState, useEffect } from "react";
-import { createContainer } from "unstated-next";
+"use client";
 
-function useClock() {
+import { useState, useEffect } from "react";
+
+export function useClock() {
   const [data, setData] = useState({ lastUpdate: 0, light: false });
 
   useEffect(() => {
-    let interval = setInterval(() => {
+    const interval = setInterval(() => {
       setData({ lastUpdate: Date.now(), light: !data.light });
     }, 1000);
 
@@ -14,5 +15,3 @@ function useClock() {
 
   return data;
 }
-
-export default createContainer(useClock);

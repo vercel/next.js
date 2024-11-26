@@ -1,16 +1,16 @@
-import ClockContainer from "../containers/clock";
-
+"use client"
+import { useClock } from "../hooks/useClock";
 const pad = (n) => (n < 10 ? `0${n}` : n);
 
 const format = (t) =>
   `${pad(t.getUTCHours())}:${pad(t.getUTCMinutes())}:${pad(t.getUTCSeconds())}`;
 
 export default function Clock() {
-  const clock = ClockContainer.useContainer();
+  const { lastUpdate, light } = useClock(); 
 
   return (
-    <div className={clock.light ? "light" : ""}>
-      {format(new Date(clock.lastUpdate))}
+    <div className={light ? "light" : ""}>
+      {format(new Date(lastUpdate))}
       <style jsx>{`
         div {
           padding: 15px;
