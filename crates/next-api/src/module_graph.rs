@@ -68,11 +68,6 @@ impl SingleModuleGraph {
         let mut modules: HashMap<Vc<Box<dyn Module>>, NodeIndex<u32>> = HashMap::new();
         let mut stack: Vec<_> = entries.into_iter().map(|e| (None, e)).collect();
         while let Some((parent_idx, module)) = stack.pop() {
-            // println!(
-            //     "module: {:?} {:?}",
-            //     parent_idx,
-            //     module.ident().to_string().await?
-            // );
             if visited_modules.contains(&module) {
                 continue;
             }
