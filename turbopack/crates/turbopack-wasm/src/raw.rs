@@ -1,6 +1,6 @@
 use anyhow::{bail, Result};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
@@ -30,8 +30,8 @@ fn modifier() -> Vc<RcStr> {
 #[turbo_tasks::value]
 #[derive(Clone)]
 pub struct RawWebAssemblyModuleAsset {
-    source: Vc<WebAssemblySource>,
-    asset_context: Vc<Box<dyn AssetContext>>,
+    source: ResolvedVc<WebAssemblySource>,
+    asset_context: ResolvedVc<Box<dyn AssetContext>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -100,9 +100,9 @@ impl EcmascriptChunkPlaceable for RawWebAssemblyModuleAsset {
 
 #[turbo_tasks::value]
 struct RawModuleChunkItem {
-    module: Vc<RawWebAssemblyModuleAsset>,
+    module: ResolvedVc<RawWebAssemblyModuleAsset>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-    wasm_asset: Vc<WebAssemblyAsset>,
+    wasm_asset: ResolvedVc<WebAssemblyAsset>,
 }
 
 #[turbo_tasks::value_impl]
