@@ -990,8 +990,14 @@ pub async fn get_server_chunking_context_with_client_assets(
         project_path,
         node_root,
         client_root,
-        node_root.join("server/chunks/ssr".into()),
-        client_root.join("static/media".into()),
+        node_root
+            .join("server/chunks/ssr".into())
+            .to_resolved()
+            .await?,
+        client_root
+            .join("static/media".into())
+            .to_resolved()
+            .await?,
         environment,
         next_mode.runtime_type(),
     )
