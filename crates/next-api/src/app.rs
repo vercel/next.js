@@ -1,7 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    future::IntoFuture,
-};
+use std::future::IntoFuture;
 
 use anyhow::{Context, Result};
 use next_core::{
@@ -72,13 +69,10 @@ use turbopack_core::{
 use turbopack_ecmascript::resolve::cjs_resolve;
 
 use crate::{
-    dynamic_imports::{
-        collect_chunk_group, collect_evaluated_chunk_group, collect_next_dynamic_imports,
-        VisitedDynamicImportModules,
-    },
+    dynamic_imports::{collect_chunk_group, collect_evaluated_chunk_group},
     font::create_font_manifest,
     loadable_manifest::create_react_loadable_manifest,
-    module_graph::{get_module_graph_for_page, get_reduced_graphs_for_page, SingleModuleGraph},
+    module_graph::get_reduced_graphs_for_page,
     nft_json::NftJsonAsset,
     paths::{
         all_paths_in_root, all_server_paths, get_asset_paths_from_root, get_js_paths_from_root,
