@@ -6,6 +6,7 @@ describe('unstable_after during server shutdown - custom server', () => {
     files: __dirname,
     startCommand: 'node server.mjs',
     serverReadyPattern: /Custom server started/,
+    forcedPort: 'random',
     skipStart: true,
     skipDeployment: true, // the tests use cli logs and a custom server
     env: {
