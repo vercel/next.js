@@ -209,8 +209,15 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
 
     let relative_path = test_path.strip_prefix(&*REPO_ROOT)?;
     let relative_path: RcStr = sys_to_unix(relative_path.to_str().unwrap()).into();
-    let path = root_fs.root().join(relative_path.clone());
-    let project_path = project_root.join(relative_path.clone());
+    let path = root_fs
+        .root()
+        .join(relative_path.clone())
+        .to_resolved()
+        .await?;
+    let project_path = project_root
+        .join(relative_path.clone())
+        .to_resolved()
+        .await?;
 
     let entry_asset = project_path.join(options.entry.into());
 
@@ -325,21 +332,21 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         Vc::cell("test".into()),
     ));
 
-    let runtime_entries = maybe_load_env(asset_context, project_path)
+    let runtime_entries = maybe_load_env(asset_context, *project_path)
         .await?
         .map(|asset| EvaluatableAssets::one(asset.to_evaluatable(asset_context)));
 
-    let chunk_root_path = path.join("output".into());
-    let static_root_path = path.join("static".into());
+    let chunk_root_path = path.join("output".into()).to_resolved().await?;
+    let static_root_path = path.join("static".into()).to_resolved().await?;
 
     let chunking_context: Vc<Box<dyn ChunkingContext>> = match options.runtime {
         Runtime::Browser => Vc::upcast(
             BrowserChunkingContext::builder(
                 *project_root,
-                path,
-                path,
-                chunk_root_path,
-                static_root_path,
+                *path,
+                *path,
+                *chunk_root_path,
+                *static_root_path,
                 *env,
                 options.runtime_type,
             )
@@ -347,12 +354,12 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         ),
         Runtime::NodeJs => Vc::upcast(
             NodeJsChunkingContext::builder(
-                *project_root,
+                project_root,
                 path,
                 path,
-                chunk_root_path,
-                static_root_path,
-                *env,
+                chunk_root_path.to_resolved().await?,
+                static_root_path.to_resolved().await?,
+                env,
                 options.runtime_type,
             )
             .minify_type(options.minify_type)
@@ -360,9 +367,9 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         ),
     };
 
-    let expected_paths = expected(chunk_root_path)
+    let expected_paths = expected(*chunk_root_path)
         .await?
-        .union(&expected(static_root_path).await?)
+        .union(&expected(*static_root_path).await?)
         .copied()
         .collect();
 
@@ -446,7 +453,7 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         .await
         .context("Actual assets doesn't match with expected assets")?;
 
-    Ok(path)
+    Ok(*path)
 }
 
 async fn walk_asset(

@@ -974,12 +974,12 @@ pub fn get_server_runtime_entries(
 #[turbo_tasks::function]
 pub async fn get_server_chunking_context_with_client_assets(
     mode: Vc<NextMode>,
-    project_path: Vc<FileSystemPath>,
-    node_root: Vc<FileSystemPath>,
-    client_root: Vc<FileSystemPath>,
-    asset_prefix: Vc<Option<RcStr>>,
-    environment: Vc<Environment>,
-    module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
+    project_path: ResolvedVc<FileSystemPath>,
+    node_root: ResolvedVc<FileSystemPath>,
+    client_root: ResolvedVc<FileSystemPath>,
+    asset_prefix: ResolvedVc<Option<RcStr>>,
+    environment: ResolvedVc<Environment>,
+    module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
     turbo_minify: Vc<bool>,
 ) -> Result<Vc<NodeJsChunkingContext>> {
     let next_mode = mode.await?;
@@ -990,8 +990,14 @@ pub async fn get_server_chunking_context_with_client_assets(
         project_path,
         node_root,
         client_root,
-        node_root.join("server/chunks/ssr".into()),
-        client_root.join("static/media".into()),
+        node_root
+            .join("server/chunks/ssr".into())
+            .to_resolved()
+            .await?,
+        client_root
+            .join("static/media".into())
+            .to_resolved()
+            .await?,
         environment,
         next_mode.runtime_type(),
     )
@@ -1013,10 +1019,10 @@ pub async fn get_server_chunking_context_with_client_assets(
 #[turbo_tasks::function]
 pub async fn get_server_chunking_context(
     mode: Vc<NextMode>,
-    project_path: Vc<FileSystemPath>,
-    node_root: Vc<FileSystemPath>,
-    environment: Vc<Environment>,
-    module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
+    project_path: ResolvedVc<FileSystemPath>,
+    node_root: ResolvedVc<FileSystemPath>,
+    environment: ResolvedVc<Environment>,
+    module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
     turbo_minify: Vc<bool>,
 ) -> Result<Vc<NodeJsChunkingContext>> {
     let next_mode = mode.await?;
@@ -1027,8 +1033,8 @@ pub async fn get_server_chunking_context(
         project_path,
         node_root,
         node_root,
-        node_root.join("server/chunks".into()),
-        node_root.join("server/assets".into()),
+        node_root.join("server/chunks".into()).to_resolved().await?,
+        node_root.join("server/assets".into()).to_resolved().await?,
         environment,
         next_mode.runtime_type(),
     )

@@ -178,7 +178,9 @@ async fn build_internal(
             browserslist_query: browserslist_query.clone(),
         }
         .resolved_cell(),
-    )));
+    )))
+    .to_resolved()
+    .await?;
     let output_fs = output_fs(project_dir.clone());
     let project_fs = project_fs(root_dir.clone());
     let project_relative = project_dir.strip_prefix(&*root_dir).unwrap();
@@ -187,8 +189,12 @@ async fn build_internal(
         .unwrap_or(project_relative)
         .replace(MAIN_SEPARATOR, "/")
         .into();
-    let project_path = project_fs.root().join(project_relative);
-    let build_output_root = output_fs.root().join("dist".into());
+    let project_path = project_fs
+        .root()
+        .join(project_relative)
+        .to_resolved()
+        .await?;
+    let build_output_root = output_fs.root().join("dist".into()).to_resolved().await?;
 
     let node_env = NodeEnv::Production.cell();
 
@@ -211,9 +217,13 @@ async fn build_internal(
 
     let compile_time_info = get_client_compile_time_info(browserslist_query, node_env);
     let execution_context =
-        ExecutionContext::new(project_path, chunking_context, load_env(project_path));
-    let asset_context =
-        get_client_asset_context(project_path, execution_context, compile_time_info, node_env);
+        ExecutionContext::new(*project_path, chunking_context, load_env(*project_path));
+    let asset_context = get_client_asset_context(
+        *project_path,
+        execution_context,
+        compile_time_info,
+        node_env,
+    );
 
     let entry_requests = (*entry_requests
         .await?

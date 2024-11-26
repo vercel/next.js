@@ -267,8 +267,8 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
     let jest_entry_path = tests_path.join("js/jest-entry.ts".into());
     let test_path = project_path.join("input/index.js".into());
 
-    let chunk_root_path = path.join("output".into());
-    let static_root_path = path.join("static".into());
+    let chunk_root_path = path.join("output".into()).to_resolved().await?;
+    let static_root_path = path.join("static".into()).to_resolved().await?;
 
     let env = Environment::new(Value::new(ExecutionEnvironment::NodeJsBuildTime(
         NodeJsEnvironment::default().resolved_cell(),
@@ -357,12 +357,12 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
     ));
 
     let chunking_context = NodeJsChunkingContext::builder(
-        *project_root,
+        project_root,
         chunk_root_path,
         static_root_path,
         chunk_root_path,
         static_root_path,
-        *env,
+        env,
         RuntimeType::Development,
     )
     .build();
