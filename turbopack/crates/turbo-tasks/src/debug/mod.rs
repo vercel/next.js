@@ -1,6 +1,7 @@
 use std::fmt::{Debug, Display};
 
 use auto_hash_map::{AutoMap, AutoSet};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, FxIndexSet, Vc};
 pub use turbo_tasks_macros::ValueDebugFormat;
 
@@ -14,7 +15,7 @@ use internal::PassthroughDebug;
 
 /// The return type of [`ValueDebug::dbg`].
 ///
-/// We don't use [`Vc<RcStr>`][crate::RcStr] or [`String`] directly because we
+/// We don't use [`Vc<RcStr>`][turbo_rcstr::RcStr] or [`String`] directly because we
 /// don't want the [`Debug`]/[`Display`] representations to be escaped.
 #[turbo_tasks::value]
 pub struct ValueDebugString(String);
@@ -71,6 +72,12 @@ pub trait ValueDebugFormat {
 impl ValueDebugFormat for String {
     fn value_debug_format(&self, _depth: usize) -> ValueDebugFormatString {
         ValueDebugFormatString::Sync(format!("{:#?}", self))
+    }
+}
+
+impl ValueDebugFormat for RcStr {
+    fn value_debug_format(&self, _: usize) -> ValueDebugFormatString {
+        ValueDebugFormatString::Sync(self.to_string())
     }
 }
 

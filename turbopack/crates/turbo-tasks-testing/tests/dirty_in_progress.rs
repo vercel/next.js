@@ -5,7 +5,8 @@
 use std::time::Duration;
 
 use anyhow::{bail, Result};
-use turbo_tasks::{emit, CollectiblesSource, RcStr, State, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{emit, CollectiblesSource, State, ValueToString, Vc};
 use turbo_tasks_testing::{register, run, Registration};
 
 static REGISTRATION: Registration = register!();

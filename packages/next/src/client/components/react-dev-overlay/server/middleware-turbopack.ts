@@ -12,16 +12,20 @@ import {
 
 import fs, { constants as FS } from 'fs/promises'
 import path from 'path'
+import url from 'url'
 import { launchEditor } from '../internal/helpers/launchEditor'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import type { Project, TurbopackStackFrame } from '../../../../build/swc/types'
 import { getSourceMapFromFile } from '../internal/helpers/get-source-map-from-file'
+import { findSourceMap } from 'node:module'
+
+type IgnorableStackFrame = StackFrame & { ignored: boolean }
 
 const currentSourcesByFile: Map<string, Promise<string | null>> = new Map()
 export async function batchedTraceSource(
   project: Project,
   frame: TurbopackStackFrame
-): Promise<{ frame: StackFrame; source: string | null } | undefined> {
+): Promise<{ frame: IgnorableStackFrame; source: string | null } | undefined> {
   const file = frame.file ? decodeURIComponent(frame.file) : undefined
   if (!file) return
 
@@ -29,10 +33,15 @@ export async function batchedTraceSource(
   if (!sourceFrame) return
 
   let source = null
+  let ignored = true
   // Don't look up source for node_modules or internals. These can often be large bundled files.
   if (
     sourceFrame.file &&
-    !(sourceFrame.file.includes('node_modules') || sourceFrame.isInternal)
+    !(
+      sourceFrame.file.includes('node_modules') ||
+      // isInternal means resource starts with turbopack://[turbopack]
+      sourceFrame.isInternal
+    )
   ) {
     let sourcePromise = currentSourcesByFile.get(sourceFrame.file)
     if (!sourcePromise) {
@@ -44,18 +53,22 @@ export async function batchedTraceSource(
         currentSourcesByFile.delete(sourceFrame.file!)
       }, 100)
     }
-
+    ignored = false
     source = await sourcePromise
   }
 
+  // TODO: get ignoredList from turbopack source map
+  const ignorableFrame = {
+    file: sourceFrame.file,
+    lineNumber: sourceFrame.line ?? 0,
+    column: sourceFrame.column ?? 0,
+    methodName: sourceFrame.methodName ?? frame.methodName ?? '<unknown>',
+    ignored,
+    arguments: [],
+  }
+
   return {
-    frame: {
-      file: sourceFrame.file,
-      lineNumber: sourceFrame.line ?? 0,
-      column: sourceFrame.column ?? 0,
-      methodName: sourceFrame.methodName ?? frame.methodName ?? '<unknown>',
-      arguments: [],
-    },
+    frame: ignorableFrame,
     source,
   }
 }
@@ -151,7 +164,7 @@ export function getOverlayMiddleware(project: Project) {
   }
 }
 
-export function getSourceMapMiddleware(project: Project, distDir: string) {
+export function getSourceMapMiddleware(project: Project) {
   return async function (
     req: IncomingMessage,
     res: ServerResponse,
@@ -169,13 +182,25 @@ export function getSourceMapMiddleware(project: Project, distDir: string) {
       return badRequest(res)
     }
 
+    if (
+      filename.startsWith('webpack://') ||
+      filename.startsWith('webpack-internal:///')
+    ) {
+      const sourceMap = findSourceMap(filename)
+
+      if (sourceMap) {
+        return json(res, sourceMap.payload)
+      }
+
+      return noContent(res)
+    }
+
     try {
-      if (filename.startsWith('/_next/static')) {
-        filename = path.join(
-          distDir,
-          // /_next/static/chunks/%5Bproject%5D... => static/chunks/[project]...
-          decodeURIComponent(filename.replace(/^\/_next\//, ''))
-        )
+      // Turbopack chunk filenames might be URL-encoded.
+      filename = decodeURI(filename)
+
+      if (path.isAbsolute(filename)) {
+        filename = url.pathToFileURL(filename).href
       }
 
       const sourceMapString = await project.getSourceMap(filename)
@@ -184,7 +209,7 @@ export function getSourceMapMiddleware(project: Project, distDir: string) {
         return jsonString(res, sourceMapString)
       }
 
-      if (filename.startsWith('file:') || filename.startsWith(path.sep)) {
+      if (filename.startsWith('file:')) {
         const sourceMap = await getSourceMapFromFile(filename)
 
         if (sourceMap) {

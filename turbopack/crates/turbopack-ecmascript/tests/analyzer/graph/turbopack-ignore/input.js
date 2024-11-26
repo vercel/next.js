@@ -6,3 +6,5 @@ const w_r = require(/* webpackIgnore: true */ 'w_r_t')
 const w_r = require(/* webpackIgnore: false */ 'w_r_f')
 const t_r = require(/* turbopackIgnore: true */ 't_r_t')
 const t_r = require(/* turbopackIgnore: false */ 't_r_f')
+
+export const exported_t_r = require(/* turbopackIgnore: true */ "exported_t_r")

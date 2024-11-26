@@ -47,7 +47,7 @@ async fn enum_none_debug() {
 #[tokio::test]
 async fn enum_transparent_debug() {
     run(&REGISTRATION, || async {
-        let a: Vc<Enum> = Enum::Transparent(Transparent(42).cell()).cell();
+        let a: Vc<Enum> = Enum::Transparent(Transparent(42).resolved_cell()).cell();
         assert_eq!(
             format!("{:?}", a.dbg().await?),
             r#"Enum :: Transparent(
@@ -63,7 +63,7 @@ async fn enum_transparent_debug() {
 #[tokio::test]
 async fn enum_inner_vc_debug() {
     run(&REGISTRATION, || async {
-        let a: Vc<Enum> = Enum::Enum(Enum::None.cell()).cell();
+        let a: Vc<Enum> = Enum::Enum(Enum::None.resolved_cell()).cell();
         assert_eq!(
             format!("{:?}", a.dbg().await?),
             r#"Enum :: Enum(
@@ -91,7 +91,7 @@ async fn struct_unit_debug() {
 async fn struct_transparent_debug() {
     run(&REGISTRATION, || async {
         let a: Vc<StructWithTransparent> = StructWithTransparent {
-            transparent: Transparent(42).cell(),
+            transparent: Transparent(42).resolved_cell(),
         }
         .cell();
         assert_eq!(
@@ -118,7 +118,7 @@ async fn struct_vec_debug() {
         );
 
         let b: Vc<StructWithVec> = StructWithVec {
-            vec: vec![Transparent(42).cell()],
+            vec: vec![Transparent(42).resolved_cell()],
         }
         .cell();
         assert_eq!(
@@ -163,8 +163,8 @@ struct Transparent(u32);
 #[turbo_tasks::value(shared)]
 enum Enum {
     None,
-    Transparent(Vc<Transparent>),
-    Enum(Vc<Enum>),
+    Transparent(ResolvedVc<Transparent>),
+    Enum(ResolvedVc<Enum>),
 }
 
 #[turbo_tasks::value(shared)]
@@ -172,7 +172,7 @@ struct StructUnit;
 
 #[turbo_tasks::value(shared)]
 struct StructWithTransparent {
-    transparent: Vc<Transparent>,
+    transparent: ResolvedVc<Transparent>,
 }
 
 #[turbo_tasks::value(shared)]
@@ -182,7 +182,7 @@ struct StructWithOption {
 
 #[turbo_tasks::value(shared)]
 struct StructWithVec {
-    vec: Vec<Vc<Transparent>>,
+    vec: Vec<ResolvedVc<Transparent>>,
 }
 
 #[turbo_tasks::value(shared, eq = "manual")]

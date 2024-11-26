@@ -25,7 +25,8 @@ use swc_core::{
         atoms::{Atom, JsWord},
     },
 };
-use turbo_tasks::{FxIndexMap, FxIndexSet, RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, Vc};
 use turbopack_core::compile_time_info::{
     CompileTimeDefineValue, DefineableNameSegment, FreeVarReference,
 };
@@ -572,6 +573,9 @@ impl From<&FreeVarReference> for JsValue {
     fn from(v: &FreeVarReference) -> Self {
         match v {
             FreeVarReference::Value(v) => v.into(),
+            FreeVarReference::Ident(_) => {
+                JsValue::unknown_empty(false, "compile time injected ident")
+            }
             FreeVarReference::EcmaScriptModule { .. } => {
                 JsValue::unknown_empty(false, "compile time injected free var module")
             }
@@ -2075,18 +2079,15 @@ impl JsValue {
                 ObjectPart::KeyValue(k, v) => k.has_side_effects() || v.has_side_effects(),
                 ObjectPart::Spread(v) => v.has_side_effects(),
             }),
-            JsValue::New(_, callee, args) => {
-                callee.has_side_effects() || args.iter().any(JsValue::has_side_effects)
-            }
-            JsValue::Call(_, callee, args) => {
-                callee.has_side_effects() || args.iter().any(JsValue::has_side_effects)
-            }
-            JsValue::SuperCall(_, args) => args.iter().any(JsValue::has_side_effects),
-            JsValue::MemberCall(_, obj, prop, args) => {
-                obj.has_side_effects()
-                    || prop.has_side_effects()
-                    || args.iter().any(JsValue::has_side_effects)
-            }
+            // As function bodies aren't analyzed for side-effects, we have to assume every call can
+            // have sideeffects as well.
+            // Otherwise it would be
+            // `func_body(callee).has_side_effects() ||
+            //      callee.has_side_effects() || args.iter().any(JsValue::has_side_effects`
+            JsValue::New(_, _callee, _args) => true,
+            JsValue::Call(_, _callee, _args) => true,
+            JsValue::SuperCall(_, _args) => true,
+            JsValue::MemberCall(_, _obj, _prop, _args) => true,
             JsValue::Member(_, obj, prop) => obj.has_side_effects() || prop.has_side_effects(),
             JsValue::Function(_, _, _) => false,
             JsValue::Url(_, _) => false,
@@ -3788,9 +3789,9 @@ pub enum WellKnownFunctionKind {
     Require,
     RequireResolve,
     RequireContext,
-    RequireContextRequire(Vc<RequireContextValue>),
-    RequireContextRequireKeys(Vc<RequireContextValue>),
-    RequireContextRequireResolve(Vc<RequireContextValue>),
+    RequireContextRequire(ResolvedVc<RequireContextValue>),
+    RequireContextRequireKeys(ResolvedVc<RequireContextValue>),
+    RequireContextRequireResolve(ResolvedVc<RequireContextValue>),
     Define,
     FsReadMethod(JsWord),
     PathToFileUrl,
@@ -3837,7 +3838,7 @@ fn is_unresolved_id(i: &Id, unresolved_mark: Mark) -> bool {
 #[doc(hidden)]
 pub mod test_utils {
     use anyhow::Result;
-    use turbo_tasks::{FxIndexMap, Vc};
+    use turbo_tasks::{FxIndexMap, ResolvedVc, Vc};
     use turbopack_core::{compile_time_info::CompileTimeInfo, error::PrettyPrintError};
 
     use super::{
@@ -3845,7 +3846,11 @@ pub mod test_utils {
         JsValueUrlKind, ModuleValue, WellKnownFunctionKind, WellKnownObjectKind,
     };
     use crate::{
-        analyzer::{builtin::replace_builtin, imports::ImportAnnotations, parse_require_context},
+        analyzer::{
+            builtin::replace_builtin,
+            imports::{ImportAnnotations, ImportAttributes},
+            parse_require_context,
+        },
         utils::module_value_to_well_known_object,
     };
 
@@ -3859,7 +3864,9 @@ pub mod test_utils {
     pub async fn visitor(
         v: JsValue,
         compile_time_info: Vc<CompileTimeInfo>,
+        attributes: &ImportAttributes,
     ) -> Result<(JsValue, bool)> {
+        let ImportAttributes { ignore, .. } = *attributes;
         let mut new_value = match v {
             JsValue::Call(
                 _,
@@ -3893,7 +3900,7 @@ pub mod test_utils {
                     map.insert("./c".into(), format!("[context: {}]/c", options.dir).into());
 
                     JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContextRequire(
-                        Vc::cell(map),
+                        ResolvedVc::cell(map),
                     ))
                 }
                 Err(err) => v.into_unknown(true, PrettyPrintError(&err).to_string()),
@@ -3923,11 +3930,26 @@ pub mod test_utils {
                 "__dirname" => "__dirname".into(),
                 "__filename" => "__filename".into(),
 
-                "require" => JsValue::WellKnownFunction(WellKnownFunctionKind::Require),
-                "import" => JsValue::WellKnownFunction(WellKnownFunctionKind::Import),
+                "require" => JsValue::unknown_if(
+                    ignore,
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::Require),
+                    true,
+                    "ignored require",
+                ),
+                "import" => JsValue::unknown_if(
+                    ignore,
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::Import),
+                    true,
+                    "ignored import",
+                ),
+                "Worker" => JsValue::unknown_if(
+                    ignore,
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::WorkerConstructor),
+                    true,
+                    "ignored Worker constructor",
+                ),
                 "define" => JsValue::WellKnownFunction(WellKnownFunctionKind::Define),
                 "URL" => JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor),
-                "Worker" => JsValue::WellKnownFunction(WellKnownFunctionKind::WorkerConstructor),
                 "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess),
                 "Object" => JsValue::WellKnownObject(WellKnownObjectKind::GlobalObject),
                 "Buffer" => JsValue::WellKnownObject(WellKnownObjectKind::NodeBuffer),
@@ -3964,10 +3986,10 @@ mod tests {
         },
         testing::{fixture, run_test, NormalizedOutput},
     };
-    use turbo_tasks::{util::FormatDuration, Value};
+    use turbo_tasks::{util::FormatDuration, ResolvedVc, Value};
     use turbopack_core::{
         compile_time_info::CompileTimeInfo,
-        environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
+        environment::{Environment, ExecutionEnvironment, NodeJsEnvironment, NodeJsVersion},
         target::{Arch, CompileTarget, Endianness, Libc, Platform},
     };
 
@@ -3976,6 +3998,7 @@ mod tests {
         linker::link,
         JsValue,
     };
+    use crate::analyzer::imports::ImportAttributes;
 
     #[fixture("tests/analyzer/graph/**/input.js")]
     fn fixture(input: PathBuf) {
@@ -4064,10 +4087,11 @@ mod tests {
 
                     let start = Instant::now();
                     let mut resolved = Vec::new();
-                    for (id, val) in named_values.iter() {
-                        let val = val.clone();
+                    for (id, val) in named_values.iter().cloned() {
                         let start = Instant::now();
-                        let res = resolve(&var_graph, val).await;
+                        // Ideally this would use eval_context.imports.get_attributes(span), but the
+                        // span isn't available here
+                        let res = resolve(&var_graph, val, ImportAttributes::empty_ref()).await;
                         let time = start.elapsed();
                         if time.as_millis() > 1 {
                             println!(
@@ -4077,7 +4101,7 @@ mod tests {
                             );
                         }
 
-                        resolved.push((id.clone(), res));
+                        resolved.push((id, res));
                     }
                     let time = start.elapsed();
                     if time.as_millis() > 1 {
@@ -4124,10 +4148,16 @@ mod tests {
                             for arg in args {
                                 match arg {
                                     EffectArg::Value(v) => {
-                                        new_args.push(resolve(var_graph, v).await);
+                                        new_args.push(
+                                            resolve(var_graph, v, ImportAttributes::empty_ref())
+                                                .await,
+                                        );
                                     }
                                     EffectArg::Closure(v, effects) => {
-                                        new_args.push(resolve(var_graph, v).await);
+                                        new_args.push(
+                                            resolve(var_graph, v, ImportAttributes::empty_ref())
+                                                .await,
+                                        );
                                         queue.extend(
                                             effects.effects.into_iter().rev().map(|e| (i, e)),
                                         );
@@ -4143,7 +4173,9 @@ mod tests {
                             Effect::Conditional {
                                 condition, kind, ..
                             } => {
-                                let condition = resolve(&var_graph, condition).await;
+                                let condition =
+                                    resolve(&var_graph, condition, ImportAttributes::empty_ref())
+                                        .await;
                                 resolved.push((format!("{parent} -> {i} conditional"), condition));
                                 match *kind {
                                     ConditionalKind::If { then } => {
@@ -4184,9 +4216,18 @@ mod tests {
                                 };
                             }
                             Effect::Call {
-                                func, args, new, ..
+                                func,
+                                args,
+                                new,
+                                span,
+                                ..
                             } => {
-                                let func = resolve(&var_graph, func).await;
+                                let func = resolve(
+                                    &var_graph,
+                                    func,
+                                    eval_context.imports.get_attributes(span),
+                                )
+                                .await;
                                 let new_args = handle_args(args, &mut queue, &var_graph, i).await;
                                 resolved.push((
                                     format!("{parent} -> {i} call"),
@@ -4201,7 +4242,8 @@ mod tests {
                                 resolved.push((format!("{parent} -> {i} free var"), var));
                             }
                             Effect::TypeOf { arg, .. } => {
-                                let arg = resolve(&var_graph, arg).await;
+                                let arg =
+                                    resolve(&var_graph, arg, ImportAttributes::empty_ref()).await;
                                 resolved.push((
                                     format!("{parent} -> {i} typeof"),
                                     JsValue::type_of(Box::new(arg)),
@@ -4210,8 +4252,10 @@ mod tests {
                             Effect::MemberCall {
                                 obj, prop, args, ..
                             } => {
-                                let obj = resolve(&var_graph, obj).await;
-                                let prop = resolve(&var_graph, prop).await;
+                                let obj =
+                                    resolve(&var_graph, obj, ImportAttributes::empty_ref()).await;
+                                let prop =
+                                    resolve(&var_graph, prop, ImportAttributes::empty_ref()).await;
                                 let new_args = handle_args(args, &mut queue, &var_graph, i).await;
                                 resolved.push((
                                     format!("{parent} -> {i} member call"),
@@ -4268,10 +4312,10 @@ mod tests {
         .unwrap();
     }
 
-    async fn resolve(var_graph: &VarGraph, val: JsValue) -> JsValue {
+    async fn resolve(var_graph: &VarGraph, val: JsValue, attributes: &ImportAttributes) -> JsValue {
         turbo_tasks_testing::VcStorage::with(async {
-            let compile_time_info = CompileTimeInfo::builder(Environment::new(Value::new(
-                ExecutionEnvironment::NodeJsLambda(
+            let compile_time_info = CompileTimeInfo::builder(
+                Environment::new(Value::new(ExecutionEnvironment::NodeJsLambda(
                     NodeJsEnvironment {
                         compile_target: CompileTarget {
                             arch: Arch::X64,
@@ -4279,18 +4323,28 @@ mod tests {
                             endianness: Endianness::Little,
                             libc: Libc::Glibc,
                         }
-                        .into(),
-                        ..Default::default()
+                        .resolved_cell(),
+                        node_version: NodeJsVersion::default().resolved_cell(),
+                        cwd: ResolvedVc::cell(None),
                     }
-                    .into(),
-                ),
-            )))
-            .cell();
+                    .resolved_cell(),
+                )))
+                .to_resolved()
+                .await?,
+            )
+            .cell()
+            .await?;
             link(
                 var_graph,
                 val,
                 &super::test_utils::early_visitor,
-                &(|val| Box::pin(super::test_utils::visitor(val, compile_time_info))),
+                &(|val| {
+                    Box::pin(super::test_utils::visitor(
+                        val,
+                        compile_time_info,
+                        attributes,
+                    ))
+                }),
                 Default::default(),
             )
             .await

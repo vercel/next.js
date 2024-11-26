@@ -181,6 +181,8 @@ export const css = curry(async function css(
           // Since it's optional and not required, we'll disable it by default
           // to avoid the confusion.
           fibers: false,
+          // TODO: Remove this once we upgrade to sass-loader 16
+          silenceDeprecations: ['legacy-js-api'],
           ...sassOptions,
         },
         additionalData: sassPrependData || sassAdditionalData,

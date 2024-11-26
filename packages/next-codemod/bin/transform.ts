@@ -1,6 +1,7 @@
 import execa from 'execa'
 import globby from 'globby'
 import prompts from 'prompts'
+import stripAnsi from 'strip-ansi'
 import { join } from 'node:path'
 import { installPackages, uninstallPackage } from '../lib/handle-package'
 import {
@@ -79,6 +80,25 @@ export async function runTransform(
     transformer = res.transformer
   }
 
+  if (transformer === 'next-request-geo-ip') {
+    const { isAppDeployedToVercel } = await prompts(
+      {
+        type: 'confirm',
+        name: 'isAppDeployedToVercel',
+        message:
+          'Is your app deployed to Vercel? (Required to apply the selected codemod)',
+        initial: true,
+      },
+      { onCancel }
+    )
+    if (!isAppDeployedToVercel) {
+      console.log(
+        'Skipping codemod "next-request-geo-ip" as your app is not deployed to Vercel.'
+      )
+      return
+    }
+  }
+
   const filesExpanded = expandFilePathsIfNeeded([directory])
 
   if (!filesExpanded.length) {
@@ -126,22 +146,77 @@ export async function runTransform(
 
   console.log(`Executing command: jscodeshift ${args.join(' ')}`)
 
-  const result = execa.sync(jscodeshiftExecutable, args, {
-    stdio: 'inherit',
-    stripFinalNewline: false,
+  const execaChildProcess = execa(jscodeshiftExecutable, args, {
+    // include ANSI color codes
+    // Note: execa merges env with existing env by default.
+    env: process.stdout.isTTY ? { FORCE_COLOR: 'true' } : {},
   })
 
-  if (result.failed) {
-    throw new Error(`jscodeshift exited with code ${result.exitCode}`)
+  // "\n" + "a\n" + "b\n"
+  let lastThreeLineBreaks = ''
+
+  if (execaChildProcess.stdout) {
+    execaChildProcess.stdout.pipe(process.stdout)
+    execaChildProcess.stderr.pipe(process.stderr)
+
+    // The last two lines contain the successful transformation count as "N ok".
+    // To save memory, we "slide the window" to keep only the last three line breaks.
+    // We save three line breaks because the EOL is always "\n".
+    execaChildProcess.stdout.on('data', (chunk) => {
+      lastThreeLineBreaks += chunk.toString('utf-8')
+
+      let cutoff = lastThreeLineBreaks.length
+
+      // Note: the stdout ends with "\n".
+      // "foo\n" + "bar\n" + "baz\n" -> "\nbar\nbaz\n"
+      // "\n" + "foo\n" + "bar\n" -> "\nfoo\nbar\n"
+
+      for (let i = 0; i < 3; i++) {
+        cutoff = lastThreeLineBreaks.lastIndexOf('\n', cutoff) - 1
+      }
+
+      if (cutoff > 0 && cutoff < lastThreeLineBreaks.length) {
+        lastThreeLineBreaks = lastThreeLineBreaks.slice(cutoff + 1)
+      }
+    })
   }
 
-  if (!dry && transformer === 'built-in-next-font') {
-    const { uninstallNextFont } = await prompts({
-      type: 'confirm',
-      name: 'uninstallNextFont',
-      message: 'Do you want to uninstall `@next/font`?',
-      initial: true,
-    })
+  try {
+    const result = await execaChildProcess
+
+    if (result.failed) {
+      throw new Error(`jscodeshift exited with code ${result.exitCode}`)
+    }
+  } catch (error) {
+    throw error
+  }
+
+  // With ANSI color codes, it will be "\x1B[39m\x1B[32m0 ok".
+  // Without, it will be "0 ok".
+  const targetOkLine = lastThreeLineBreaks.split('\n').at(-3)
+
+  if (!targetOkLine.endsWith('ok')) {
+    throw new Error(
+      `Failed to parse the successful transformation count "${targetOkLine}". This is a bug in the codemod tool.`
+    )
+  }
+
+  const stripped = stripAnsi(targetOkLine)
+  // "N ok" -> "N"
+  const parsedNum = parseInt(stripped.split(' ')[0], 10)
+  const hasChanges = parsedNum > 0
+
+  if (!dry && transformer === 'built-in-next-font' && hasChanges) {
+    const { uninstallNextFont } = await prompts(
+      {
+        type: 'confirm',
+        name: 'uninstallNextFont',
+        message:
+          '`built-in-next-font` should have removed all usages of `@next/font`. Do you want to uninstall `@next/font`?',
+        initial: true,
+      },
+      { onCancel }
+    )
 
     if (uninstallNextFont) {
       console.log('Uninstalling `@next/font`')
@@ -149,17 +224,11 @@ export async function runTransform(
     }
   }
 
-  if (!dry && transformer === 'next-request-geo-ip') {
-    const { installVercelFunctions } = await prompts({
-      type: 'confirm',
-      name: 'installVercelFunctions',
-      message: 'Do you want to install `@vercel/functions`?',
-      initial: true,
-    })
-
-    if (installVercelFunctions) {
-      console.log('Installing `@vercel/functions`...')
-      installPackages(['@vercel/functions'])
-    }
+  // When has changes, it requires `@vercel/functions`, so skip prompt.
+  if (!dry && transformer === 'next-request-geo-ip' && hasChanges) {
+    console.log(
+      'Installing `@vercel/functions` because the `next-request-geo-ip` made changes.'
+    )
+    installPackages(['@vercel/functions'])
   }
 }

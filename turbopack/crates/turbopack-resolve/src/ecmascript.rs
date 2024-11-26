@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbopack_core::{
     issue::IssueSource,
     reference_type::{CommonJsReferenceSubType, EcmaScriptModulesReferenceSubType, ReferenceType},
@@ -80,7 +80,7 @@ pub async fn esm_resolve(
     request: Vc<Request>,
     ty: Value<EcmaScriptModulesReferenceSubType>,
     is_optional: bool,
-    issue_source: Option<Vc<IssueSource>>,
+    issue_source: Option<ResolvedVc<IssueSource>>,
 ) -> Result<Vc<ModuleResolveResult>> {
     let ty = Value::new(ReferenceType::EcmaScriptModules(ty.into_value()));
     let options = apply_esm_specific_options(origin.resolve_options(ty.clone()), ty.clone())
@@ -93,7 +93,7 @@ pub async fn esm_resolve(
 pub async fn cjs_resolve(
     origin: Vc<Box<dyn ResolveOrigin>>,
     request: Vc<Request>,
-    issue_source: Option<Vc<IssueSource>>,
+    issue_source: Option<ResolvedVc<IssueSource>>,
     is_optional: bool,
 ) -> Result<Vc<ModuleResolveResult>> {
     // TODO pass CommonJsReferenceSubType
@@ -106,9 +106,9 @@ pub async fn cjs_resolve(
 
 #[turbo_tasks::function]
 pub async fn cjs_resolve_source(
-    origin: Vc<Box<dyn ResolveOrigin>>,
-    request: Vc<Request>,
-    issue_source: Option<Vc<IssueSource>>,
+    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    request: ResolvedVc<Request>,
+    issue_source: Option<ResolvedVc<IssueSource>>,
     is_optional: bool,
 ) -> Result<Vc<ResolveResult>> {
     // TODO pass CommonJsReferenceSubType
@@ -119,7 +119,7 @@ pub async fn cjs_resolve_source(
     let result = resolve(
         origin.origin_path().parent().resolve().await?,
         ty.clone(),
-        request,
+        *request,
         options,
     );
 
@@ -127,7 +127,7 @@ pub async fn cjs_resolve_source(
         result,
         ty,
         origin.origin_path(),
-        request,
+        *request,
         options,
         is_optional,
         issue_source,
@@ -141,7 +141,7 @@ async fn specific_resolve(
     options: Vc<ResolveOptions>,
     reference_type: Value<ReferenceType>,
     is_optional: bool,
-    issue_source: Option<Vc<IssueSource>>,
+    issue_source: Option<ResolvedVc<IssueSource>>,
 ) -> Result<Vc<ModuleResolveResult>> {
     let result = origin.resolve_asset(request, options, reference_type.clone());
 

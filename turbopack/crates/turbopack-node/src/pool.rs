@@ -27,7 +27,8 @@ use tokio::{
     sync::{OwnedSemaphorePermit, Semaphore},
     time::{sleep, timeout},
 };
-use turbo_tasks::{duration_span, FxIndexSet, RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{duration_span, FxIndexSet, ResolvedVc, Vc};
 use turbo_tasks_fs::{json::parse_json_with_source_context, FileSystemPath};
 use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
 
@@ -69,9 +70,9 @@ impl FormattingMode {
 struct NodeJsPoolProcess {
     child: Option<Child>,
     connection: TcpStream,
-    assets_for_source_mapping: Vc<AssetsForSourceMapping>,
-    assets_root: Vc<FileSystemPath>,
-    project_dir: Vc<FileSystemPath>,
+    assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
+    assets_root: ResolvedVc<FileSystemPath>,
+    project_dir: ResolvedVc<FileSystemPath>,
     stdout_handler: OutputStreamHandler<ChildStdout, Stdout>,
     stderr_handler: OutputStreamHandler<ChildStderr, Stderr>,
     debug: bool,
@@ -88,9 +89,9 @@ impl NodeJsPoolProcess {
             Cow::Borrowed(text) => {
                 apply_source_mapping(
                     text,
-                    self.assets_for_source_mapping,
-                    self.assets_root,
-                    self.project_dir,
+                    *self.assets_for_source_mapping,
+                    *self.assets_root,
+                    *self.project_dir,
                     formatting_mode,
                 )
                 .await
@@ -98,9 +99,9 @@ impl NodeJsPoolProcess {
             Cow::Owned(ref text) => {
                 let cow = apply_source_mapping(
                     text,
-                    self.assets_for_source_mapping,
-                    self.assets_root,
-                    self.project_dir,
+                    *self.assets_for_source_mapping,
+                    *self.assets_root,
+                    *self.project_dir,
                     formatting_mode,
                 )
                 .await?;
@@ -127,9 +128,9 @@ static MARKER_STR: &str = "TURBOPACK_OUTPUT_";
 struct OutputStreamHandler<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> {
     stream: BufReader<R>,
     shared: SharedOutputSet,
-    assets_for_source_mapping: Vc<AssetsForSourceMapping>,
-    root: Vc<FileSystemPath>,
-    project_dir: Vc<FileSystemPath>,
+    assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
+    root: ResolvedVc<FileSystemPath>,
+    project_dir: ResolvedVc<FileSystemPath>,
     final_stream: W,
 }
 
@@ -266,9 +267,9 @@ impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> OutputStreamHandler<R, W> {
                             }
                             write_source_mapped_final(
                                 &entry.data,
-                                *assets_for_source_mapping,
-                                *root,
-                                *project_dir,
+                                **assets_for_source_mapping,
+                                **root,
+                                **project_dir,
                                 final_stream,
                             )
                             .await?;
@@ -293,9 +294,9 @@ impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> OutputStreamHandler<R, W> {
 
             write_source_mapped_final(
                 &buffer,
-                *assets_for_source_mapping,
-                *root,
-                *project_dir,
+                **assets_for_source_mapping,
+                **root,
+                **project_dir,
                 final_stream,
             )
             .await?;
@@ -310,9 +311,9 @@ impl NodeJsPoolProcess {
         cwd: &Path,
         env: &HashMap<RcStr, RcStr>,
         entrypoint: &Path,
-        assets_for_source_mapping: Vc<AssetsForSourceMapping>,
-        assets_root: Vc<FileSystemPath>,
-        project_dir: Vc<FileSystemPath>,
+        assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
+        assets_root: ResolvedVc<FileSystemPath>,
+        project_dir: ResolvedVc<FileSystemPath>,
         shared_stdout: SharedOutputSet,
         shared_stderr: SharedOutputSet,
         debug: bool,
@@ -688,9 +689,9 @@ pub struct NodeJsPool {
     cwd: PathBuf,
     entrypoint: PathBuf,
     env: HashMap<RcStr, RcStr>,
-    pub assets_for_source_mapping: Vc<AssetsForSourceMapping>,
-    pub assets_root: Vc<FileSystemPath>,
-    pub project_dir: Vc<FileSystemPath>,
+    pub assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
+    pub assets_root: ResolvedVc<FileSystemPath>,
+    pub project_dir: ResolvedVc<FileSystemPath>,
     #[turbo_tasks(trace_ignore, debug_ignore)]
     processes: Arc<Mutex<Vec<NodeJsPoolProcess>>>,
     /// Semaphore to limit the number of concurrent operations in general
@@ -719,9 +720,9 @@ impl NodeJsPool {
         cwd: PathBuf,
         entrypoint: PathBuf,
         env: HashMap<RcStr, RcStr>,
-        assets_for_source_mapping: Vc<AssetsForSourceMapping>,
-        assets_root: Vc<FileSystemPath>,
-        project_dir: Vc<FileSystemPath>,
+        assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
+        assets_root: ResolvedVc<FileSystemPath>,
+        project_dir: ResolvedVc<FileSystemPath>,
         concurrency: usize,
         debug: bool,
     ) -> Self {

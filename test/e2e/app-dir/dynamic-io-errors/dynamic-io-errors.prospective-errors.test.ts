@@ -6,6 +6,8 @@ describe(`Dynamic IO Prospective Render Errors - Debug Build`, () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname + '/fixtures/prospective-render-errors',
     env: { NEXT_DEBUG_BUILD: 'true' },
+    // Accessing cliOutput is only available on the deployment
+    skipDeployment: true,
   })
 
   if (skipped) {

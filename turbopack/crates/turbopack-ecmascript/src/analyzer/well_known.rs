@@ -1,7 +1,7 @@
 use std::mem::take;
 
 use anyhow::Result;
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::compile_time_info::CompileTimeInfo;
 use url::Url;
 
@@ -354,8 +354,8 @@ pub fn require(args: Vec<JsValue>) -> JsValue {
 }
 
 /// (try to) statically evaluate `require.context(...)()`
-pub async fn require_context_require(
-    val: Vc<RequireContextValue>,
+async fn require_context_require(
+    val: ResolvedVc<RequireContextValue>,
     args: Vec<JsValue>,
 ) -> Result<JsValue> {
     if args.is_empty() {
@@ -406,8 +406,8 @@ pub async fn require_context_require(
 }
 
 /// (try to) statically evaluate `require.context(...).keys()`
-pub async fn require_context_require_keys(
-    val: Vc<RequireContextValue>,
+async fn require_context_require_keys(
+    val: ResolvedVc<RequireContextValue>,
     args: Vec<JsValue>,
 ) -> Result<JsValue> {
     Ok(if args.is_empty() {
@@ -428,8 +428,8 @@ pub async fn require_context_require_keys(
 }
 
 /// (try to) statically evaluate `require.context(...).resolve()`
-pub async fn require_context_require_resolve(
-    val: Vc<RequireContextValue>,
+async fn require_context_require_resolve(
+    val: ResolvedVc<RequireContextValue>,
     args: Vec<JsValue>,
 ) -> Result<JsValue> {
     if args.len() != 1 {

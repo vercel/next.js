@@ -2,7 +2,8 @@ use std::mem::take;
 
 use anyhow::{anyhow, bail, Context, Result};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, RcStr, TryJoinIterExt, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{trace::TraceRawVcs, TryJoinIterExt, Vc};
 use unicode_segmentation::GraphemeCursor;
 
 #[derive(PartialEq, Eq, Debug, Clone, TraceRawVcs, Serialize, Deserialize)]

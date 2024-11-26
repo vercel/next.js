@@ -1,11 +1,14 @@
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import type { OriginalStackFrameResponse } from '../../server/shared'
-
+import {
+  isWebpackInternalResource,
+  formatFrameSourceFile,
+} from './webpack-module-path'
 export interface OriginalStackFrame extends OriginalStackFrameResponse {
   error: boolean
   reason: string | null
   external: boolean
-  expanded: boolean
+  ignored: boolean
   sourceStackFrame: StackFrame
 }
 
@@ -46,20 +49,15 @@ function getOriginalStackFrame(
       error: false,
       reason: null,
       external: false,
-      expanded: !Boolean(
-        /* collapsed */
-        (source.file?.includes('node_modules') ||
-          body.originalStackFrame?.file?.includes('node_modules') ||
-          body.originalStackFrame?.file?.startsWith('[turbopack]/')) ??
-          true
-      ),
       sourceStackFrame: source,
       originalStackFrame: body.originalStackFrame,
       originalCodeFrame: body.originalCodeFrame || null,
       sourcePackage: body.sourcePackage,
+      ignored: body.originalStackFrame?.ignored || false,
     }
   }
 
+  // TODO: merge this section into ignoredList handling
   if (
     source.file === '<anonymous>' ||
     source.file === 'file://' ||
@@ -70,11 +68,11 @@ function getOriginalStackFrame(
       error: false,
       reason: null,
       external: true,
-      expanded: false,
       sourceStackFrame: source,
       originalStackFrame: null,
       originalCodeFrame: null,
       sourcePackage: null,
+      ignored: true,
     })
   }
 
@@ -82,11 +80,11 @@ function getOriginalStackFrame(
     error: true,
     reason: err?.message ?? err?.toString() ?? 'Unknown Error',
     external: false,
-    expanded: false,
     sourceStackFrame: source,
     originalStackFrame: null,
     originalCodeFrame: null,
     sourcePackage: null,
+    ignored: false,
   }))
 }
 
@@ -103,46 +101,10 @@ export function getOriginalStackFrames(
   )
 }
 
-const webpackRegExes = [
-  /^(rsc:\/\/React\/[^/]+\/)?webpack-internal:\/\/\/(\.)?(\((\w+)\))?/,
-  /^(webpack:\/\/\/(\.)?|webpack:\/\/(_N_E\/)?)(\((\w+)\))?/,
-]
-
-const replacementRegExes = [
-  /^(rsc:\/\/React\/[^/]+\/)/,
-  /^webpack-internal:\/\/\/(\.)?(\((\w+)\))?/,
-  /^(webpack:\/\/\/(\.)?|webpack:\/\/(_N_E\/)?)(\((\w+)\))?/,
-  /\?\d+$/, // React's fakeFunctionIdx query param
-]
-
-function isWebpackBundled(file: string) {
-  return webpackRegExes.some((regEx) => regEx.test(file))
-}
-
-/**
- * Format the webpack internal id to original file path
- * webpack-internal:///./src/hello.tsx => ./src/hello.tsx
- * rsc://React/Server/webpack-internal:///(rsc)/./src/hello.tsx?42 => ./src/hello.tsx
- * webpack://_N_E/./src/hello.tsx => ./src/hello.tsx
- * webpack://./src/hello.tsx => ./src/hello.tsx
- * webpack:///./src/hello.tsx => ./src/hello.tsx
- *
- * <anonymous> => ''
- */
-function formatFrameSourceFile(file: string) {
-  if (file === '<anonymous>') return ''
-
-  for (const regex of replacementRegExes) {
-    file = file.replace(regex, '')
-  }
-
-  return file
-}
-
 export function getFrameSource(frame: StackFrame): string {
   if (!frame.file) return ''
 
-  const isWebpackFrame = isWebpackBundled(frame.file)
+  const isWebpackFrame = isWebpackInternalResource(frame.file)
 
   let str = ''
   // Skip URL parsing for webpack internal file paths.
@@ -173,11 +135,18 @@ export function getFrameSource(frame: StackFrame): string {
     }
   }
 
-  if (!isWebpackBundled(frame.file) && frame.lineNumber != null) {
-    if (frame.column != null) {
-      str += ` (${frame.lineNumber}:${frame.column})`
-    } else {
-      str += ` (${frame.lineNumber})`
+  if (!isWebpackInternalResource(frame.file) && frame.lineNumber != null) {
+    // If the method name is replayed from server, e.g. Page [Server],
+    // and it's formatted to empty string, recover it as <anonymous> to display it.
+    if (!str && frame.methodName.endsWith(' [Server]')) {
+      str = '<anonymous>'
+    }
+    if (str) {
+      if (frame.column != null) {
+        str += ` (${frame.lineNumber}:${frame.column})`
+      } else {
+        str += ` (${frame.lineNumber})`
+      }
     }
   }
   return str

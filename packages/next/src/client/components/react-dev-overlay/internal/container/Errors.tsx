@@ -31,7 +31,10 @@ import {
 } from '../helpers/hydration-error-info'
 import { NodejsInspectorCopyButton } from '../components/nodejs-inspector'
 import { CopyButton } from '../components/copy-button'
-import { ConsoleError } from '../helpers/console-error'
+import {
+  getUnhandledErrorType,
+  isUnhandledConsoleOrRejection,
+} from '../helpers/console-error'
 
 export type SupportedErrorEvent = {
   id: number
@@ -61,11 +64,29 @@ function ErrorDescription({
   error: Error
   hydrationWarning: string | null
 }) {
-  const isFromConsoleError = error instanceof ConsoleError
-  // If there's hydration warning or console error, skip displaying the error name
+  const isUnhandledOrReplayError = isUnhandledConsoleOrRejection(error)
+  const unhandledErrorType = isUnhandledOrReplayError
+    ? getUnhandledErrorType(error)
+    : null
+  const isConsoleErrorStringMessage = unhandledErrorType === 'string'
+  // If the error is:
+  // - hydration warning
+  // - captured console error or unhandled rejection
+  // skip displaying the error name
+  const title =
+    (isUnhandledOrReplayError && isConsoleErrorStringMessage) ||
+    hydrationWarning
+      ? ''
+      : error.name + ': '
+
+  // If it's replayed error, display the environment name
+  const environmentName =
+    'environmentName' in error ? error['environmentName'] : ''
+  const envPrefix = environmentName ? `[ ${environmentName} ] ` : ''
   return (
     <>
-      {isFromConsoleError || hydrationWarning ? '' : error.name + ': '}
+      {envPrefix}
+      {title}
       <HotlinkedText
         text={hydrationWarning || error.message}
         matcher={isNextjsLink}
@@ -257,8 +278,7 @@ export function Errors({
   const isServerError = ['server', 'edge-server'].includes(
     getErrorSource(error) || ''
   )
-  const isFromConsoleError = error instanceof ConsoleError
-
+  const isUnhandledError = isUnhandledConsoleOrRejection(error)
   const errorDetails: HydrationErrorState = (error as any).details || {}
   const notes = errorDetails.notes || ''
   const [warningTemplate, serverContent, clientContent] =
@@ -308,7 +328,7 @@ export function Errors({
               >
                 {isServerError
                   ? 'Server Error'
-                  : isFromConsoleError
+                  : isUnhandledError
                     ? 'Console Error'
                     : 'Unhandled Runtime Error'}
               </h1>

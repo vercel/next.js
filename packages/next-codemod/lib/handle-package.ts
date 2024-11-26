@@ -107,9 +107,13 @@ export function installPackages(
   }
 }
 
-export function runInstallation(packageManager: PackageManager) {
+export function runInstallation(
+  packageManager: PackageManager,
+  options: { cwd: string }
+) {
   try {
     execa.sync(packageManager, ['install'], {
+      cwd: options.cwd,
       stdio: 'inherit',
       shell: true,
     })

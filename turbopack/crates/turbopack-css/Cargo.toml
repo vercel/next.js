@@ -24,6 +24,7 @@ serde = { workspace = true }
 urlencoding = { workspace = true }
 
 tracing = { workspace = true }
+turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbo-tasks-hash = { workspace = true }
@@ -34,12 +35,6 @@ turbopack-swc-utils = { workspace = true }
 parcel_sourcemap = "2.1.1"
 smallvec = { workspace = true }
 swc_core = { workspace = true, features = [
-  "css_ast",
-  "css_codegen",
-  "css_compat",
-  "css_modules",
-  "css_parser",
-  "css_visit",
   "ecma_ast",
   "common",
   "common_concurrent",

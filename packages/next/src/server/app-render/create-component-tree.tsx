@@ -21,6 +21,7 @@ import { StaticGenBailoutError } from '../../client/components/static-generation
 import type { LoadingModuleData } from '../../shared/lib/app-router-context.shared-runtime'
 import type { Params } from '../request/params'
 import { workUnitAsyncStorage } from './work-unit-async-storage.external'
+import { OUTLET_BOUNDARY_NAME } from '../../lib/metadata/metadata-constants'
 
 /**
  * Use the provided loader tree to create the React Component tree.
@@ -38,6 +39,7 @@ export function createComponentTree(props: {
   ctx: AppRenderContext
   missingSlots?: Set<string>
   preloadCallbacks: PreloadCallbacks
+  authInterrupts: boolean
 }): Promise<CacheNodeSeedData> {
   return getTracer().trace(
     NextNodeServerSpan.createComponentTree,
@@ -52,8 +54,9 @@ function errorMissingDefaultExport(
   pagePath: string,
   convention: string
 ): never {
+  const normalizedPagePath = pagePath === '/' ? '' : pagePath
   throw new Error(
-    `The default export is not a React Component in "${pagePath}/${convention}"`
+    `The default export is not a React Component in "${normalizedPagePath}/${convention}"`
   )
 }
 
@@ -72,6 +75,7 @@ async function createComponentTreeInternal({
   ctx,
   missingSlots,
   preloadCallbacks,
+  authInterrupts,
 }: {
   createSegmentPath: CreateSegmentPath
   loaderTree: LoaderTree
@@ -85,12 +89,13 @@ async function createComponentTreeInternal({
   ctx: AppRenderContext
   missingSlots?: Set<string>
   preloadCallbacks: PreloadCallbacks
+  authInterrupts: boolean
 }): Promise<CacheNodeSeedData> {
   const {
     renderOpts: { nextConfigOutput, experimental },
     workStore,
     componentMod: {
-      NotFoundBoundary,
+      HTTPAccessFallbackBoundary,
       LayoutRouter,
       RenderFromTemplateContext,
       OutletBoundary,
@@ -112,7 +117,15 @@ async function createComponentTreeInternal({
   const { page, layoutOrPagePath, segment, modules, parallelRoutes } =
     parseLoaderTree(tree)
 
-  const { layout, template, error, loading, 'not-found': notFound } = modules
+  const {
+    layout,
+    template,
+    error,
+    loading,
+    'not-found': notFound,
+    forbidden,
+    unauthorized,
+  } = modules
 
   const injectedCSSWithCurrentLayout = new Set(injectedCSS)
   const injectedJSWithCurrentLayout = new Set(injectedJS)
@@ -192,6 +205,40 @@ async function createComponentTreeInternal({
         injectedJS: injectedJSWithCurrentLayout,
       })
     : []
+
+  const [Forbidden, forbiddenStyles] =
+    authInterrupts && forbidden
+      ? await createComponentStylesAndScripts({
+          ctx,
+          filePath: forbidden[1],
+          getComponent: forbidden[0],
+          injectedCSS: injectedCSSWithCurrentLayout,
+          injectedJS: injectedJSWithCurrentLayout,
+        })
+      : []
+  const forbiddenElement = Forbidden ? (
+    <>
+      {forbiddenStyles}
+      <Forbidden />
+    </>
+  ) : undefined
+
+  const [Unauthorized, unauthorizedStyles] =
+    authInterrupts && unauthorized
+      ? await createComponentStylesAndScripts({
+          ctx,
+          filePath: unauthorized[1],
+          getComponent: unauthorized[0],
+          injectedCSS: injectedCSSWithCurrentLayout,
+          injectedJS: injectedJSWithCurrentLayout,
+        })
+      : []
+  const unauthorizedElement = Unauthorized ? (
+    <>
+      {unauthorizedStyles}
+      <Unauthorized />
+    </>
+  ) : undefined
 
   let dynamic = layoutOrPageMod?.dynamic
 
@@ -312,6 +359,17 @@ async function createComponentTreeInternal({
     if (typeof NotFound !== 'undefined' && !isValidElementType(NotFound)) {
       errorMissingDefaultExport(pagePath, 'not-found')
     }
+
+    if (typeof Forbidden !== 'undefined' && !isValidElementType(Forbidden)) {
+      errorMissingDefaultExport(pagePath, 'forbidden')
+    }
+
+    if (
+      typeof Unauthorized !== 'undefined' &&
+      !isValidElementType(Unauthorized)
+    ) {
+      errorMissingDefaultExport(pagePath, 'unauthorized')
+    }
   }
 
   // Handle dynamic segment params.
@@ -345,7 +403,20 @@ async function createComponentTreeInternal({
         const parallelRoute = parallelRoutes[parallelRouteKey]
 
         const notFoundComponent =
-          NotFound && isChildrenRouteKey ? <NotFound /> : undefined
+          NotFound && isChildrenRouteKey ? (
+            <>
+              {notFoundStyles}
+              <NotFound />
+            </>
+          ) : undefined
+
+        const forbiddenComponent = isChildrenRouteKey
+          ? forbiddenElement
+          : undefined
+
+        const unauthorizedComponent = isChildrenRouteKey
+          ? unauthorizedElement
+          : undefined
 
         // if we're prefetching and that there's a Loading component, we bail out
         // otherwise we keep rendering for the prefetch.
@@ -419,6 +490,7 @@ async function createComponentTreeInternal({
             ctx,
             missingSlots,
             preloadCallbacks,
+            authInterrupts: authInterrupts,
           })
 
           childCacheNodeSeedData = seedData
@@ -442,7 +514,8 @@ async function createComponentTreeInternal({
             templateStyles={templateStyles}
             templateScripts={templateScripts}
             notFound={notFoundComponent}
-            notFoundStyles={notFoundStyles}
+            forbidden={forbiddenComponent}
+            unauthorized={unauthorizedComponent}
           />,
           childCacheNodeSeedData,
         ]
@@ -616,8 +689,11 @@ async function createComponentTreeInternal({
       }
 
       if (isRootLayoutWithChildrenSlotAndAtLeastOneMoreSlot) {
+        let notfoundClientSegment: React.ReactNode
+        let forbiddenClientSegment: React.ReactNode
+        let unauthorizedClientSegment: React.ReactNode
         // TODO-APP: This is a hack to support unmatched parallel routes, which will throw `notFound()`.
-        // This ensures that a `NotFoundBoundary` is available for when that happens,
+        // This ensures that a `HTTPAccessFallbackBoundary` is available for when that happens,
         // but it's not ideal, as it needlessly invokes the `NotFound` component and renders the `RootLayout` twice.
         // We should instead look into handling the fallback behavior differently in development mode so that it doesn't
         // rely on the `NotFound` behavior.
@@ -630,34 +706,69 @@ async function createComponentTreeInternal({
               </>
             ),
           }
-          const notfoundClientSegment = (
-            <ClientSegmentRoot
-              Component={SegmentComponent}
-              slots={notFoundParallelRouteProps}
-              params={currentParams}
-            />
+          notfoundClientSegment = (
+            <>
+              {layerAssets}
+              <ClientSegmentRoot
+                Component={SegmentComponent}
+                slots={notFoundParallelRouteProps}
+                params={currentParams}
+              />
+            </>
           )
-
+        }
+        if (Forbidden) {
+          const forbiddenParallelRouteProps = {
+            children: forbiddenElement,
+          }
+          forbiddenClientSegment = (
+            <>
+              {layerAssets}
+              <ClientSegmentRoot
+                Component={SegmentComponent}
+                slots={forbiddenParallelRouteProps}
+                params={currentParams}
+              />
+            </>
+          )
+        }
+        if (Unauthorized) {
+          const unauthorizedParallelRouteProps = {
+            children: unauthorizedElement,
+          }
+          unauthorizedClientSegment = (
+            <>
+              {layerAssets}
+              <ClientSegmentRoot
+                Component={SegmentComponent}
+                slots={unauthorizedParallelRouteProps}
+                params={currentParams}
+              />
+            </>
+          )
+        }
+        if (
+          notfoundClientSegment ||
+          forbiddenClientSegment ||
+          unauthorizedClientSegment
+        ) {
           segmentNode = (
-            <NotFoundBoundary
+            <HTTPAccessFallbackBoundary
               key={cacheNodeKey}
-              notFound={
-                <>
-                  {layerAssets}
-                  {notfoundClientSegment}
-                </>
-              }
+              notFound={notfoundClientSegment}
+              forbidden={forbiddenClientSegment}
+              unauthorized={unauthorizedClientSegment}
             >
               {layerAssets}
               {clientSegment}
-            </NotFoundBoundary>
+            </HTTPAccessFallbackBoundary>
           )
         } else {
           segmentNode = (
-            <NotFoundBoundary key={cacheNodeKey}>
+            <React.Fragment key={cacheNodeKey}>
               {layerAssets}
               {clientSegment}
-            </NotFoundBoundary>
+            </React.Fragment>
           )
         }
       } else {
@@ -680,12 +791,12 @@ async function createComponentTreeInternal({
 
       if (isRootLayoutWithChildrenSlotAndAtLeastOneMoreSlot) {
         // TODO-APP: This is a hack to support unmatched parallel routes, which will throw `notFound()`.
-        // This ensures that a `NotFoundBoundary` is available for when that happens,
+        // This ensures that a `HTTPAccessFallbackBoundary` is available for when that happens,
         // but it's not ideal, as it needlessly invokes the `NotFound` component and renders the `RootLayout` twice.
         // We should instead look into handling the fallback behavior differently in development mode so that it doesn't
         // rely on the `NotFound` behavior.
         segmentNode = (
-          <NotFoundBoundary
+          <HTTPAccessFallbackBoundary
             key={cacheNodeKey}
             notFound={
               NotFound ? (
@@ -701,7 +812,7 @@ async function createComponentTreeInternal({
           >
             {layerAssets}
             {serverSegment}
-          </NotFoundBoundary>
+          </HTTPAccessFallbackBoundary>
         )
       } else {
         segmentNode = (
@@ -736,3 +847,4 @@ async function MetadataOutlet({
   }
   return null
 }
+MetadataOutlet.displayName = OUTLET_BOUNDARY_NAME

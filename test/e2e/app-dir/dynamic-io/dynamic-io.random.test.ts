@@ -13,7 +13,7 @@ describe('dynamic-io', () => {
   }
 
   it('should not have route specific errors', async () => {
-    expect(next.cliOutput).not.toMatch('Error: Route /')
+    expect(next.cliOutput).not.toMatch('Error: Route "/')
     expect(next.cliOutput).not.toMatch('Error occurred prerendering page')
   })
 

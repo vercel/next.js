@@ -30,6 +30,8 @@ pnpm create next-app --example with-storybook-styled-jsx-scss with-storybook-sty
 npm run storybook
 # or
 yarn storybook
+# or
+pnpm storybook
 ```
 
 ### Build Static Storybook
@@ -38,6 +40,8 @@ yarn storybook
 npm run build-storybook
 # or
 yarn build-storybook
+# or
+pnpm build-storybook
 ```
 
 You can use [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) to deploy Storybook. Specify `storybook-static` as the output directory.

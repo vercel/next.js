@@ -1,4 +1,5 @@
-use turbo_tasks::{mark_session_dependent, FxIndexMap, RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{mark_session_dependent, FxIndexMap, Vc};
 
 use crate::{sorted_env_vars, EnvMap, ProcessEnv, GLOBAL_ENV_LOCK};
 

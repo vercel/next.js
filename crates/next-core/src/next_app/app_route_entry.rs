@@ -1,5 +1,6 @@
 use anyhow::Result;
-use turbo_tasks::{fxindexmap, RcStr, Value, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{fxindexmap, ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::ModuleAssetContext;
 use turbopack_core::{
@@ -94,7 +95,9 @@ pub async fn get_app_route_entry(
             source,
             Value::new(ReferenceType::Entry(EntryReferenceSubType::AppRoute)),
         )
-        .module();
+        .module()
+        .to_resolved()
+        .await?;
 
     let inner_assets = fxindexmap! {
         INNER.into() => userland_module
@@ -103,7 +106,7 @@ pub async fn get_app_route_entry(
     let mut rsc_entry = module_asset_context
         .process(
             Vc::upcast(virtual_source),
-            Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
+            Value::new(ReferenceType::Internal(ResolvedVc::cell(inner_assets))),
         )
         .module();
 
@@ -120,7 +123,7 @@ pub async fn get_app_route_entry(
     Ok(AppEntry {
         pathname,
         original_name,
-        rsc_entry,
+        rsc_entry: rsc_entry.to_resolved().await?,
         config,
     }
     .cell())
@@ -130,7 +133,7 @@ pub async fn get_app_route_entry(
 async fn wrap_edge_route(
     asset_context: Vc<Box<dyn AssetContext>>,
     project_root: Vc<FileSystemPath>,
-    entry: Vc<Box<dyn Module>>,
+    entry: ResolvedVc<Box<dyn Module>>,
     page: AppPage,
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<Box<dyn Module>>> {
@@ -159,7 +162,7 @@ async fn wrap_edge_route(
     let wrapped = asset_context
         .process(
             Vc::upcast(source),
-            Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
+            Value::new(ReferenceType::Internal(ResolvedVc::cell(inner_assets))),
         )
         .module();
 

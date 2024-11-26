@@ -1,3 +1,5 @@
+import { getNetworkHost } from '../../lib/get-network-host'
+
 if (performance.getEntriesByName('next-start').length === 0) {
   performance.mark('next-start')
 }
@@ -29,6 +31,7 @@ import { getStartServerInfo, logStartInfo } from './app-info-log'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
 import { type Span, trace, flushAllTraces } from '../../trace'
 import { isPostpone } from './router-utils/is-postpone'
+import { isIPv6 } from './is-ipv6'
 
 const debug = setupDebug('next:start-server')
 let startServerSpan: Span | undefined
@@ -234,12 +237,16 @@ export async function startServer(
 
       port = typeof addr === 'object' ? addr?.port || port : port
 
-      const networkUrl = hostname
-        ? `${selfSignedCertificate ? 'https' : 'http'}://${actualHostname}:${port}`
+      const networkHostname =
+        hostname ?? getNetworkHost(isIPv6(actualHostname) ? 'IPv6' : 'IPv4')
+
+      const protocol = selfSignedCertificate ? 'https' : 'http'
+
+      const networkUrl = networkHostname
+        ? `${protocol}://${formatHostname(networkHostname)}:${port}`
         : null
-      const appUrl = `${
-        selfSignedCertificate ? 'https' : 'http'
-      }://${formattedHostname}:${port}`
+
+      const appUrl = `${protocol}://${formattedHostname}:${port}`
 
       if (nodeDebugType) {
         const formattedDebugAddress = getFormattedDebugAddress()
@@ -248,8 +255,11 @@ export async function startServer(
         )
       }
 
-      // expose the main port to render workers
+      // Store the selected port to:
+      // - expose it to render workers
+      // - re-use it for automatic dev server restarts with a randomly selected port
       process.env.PORT = port + ''
+
       process.env.__NEXT_PRIVATE_ORIGIN = appUrl
 
       // Only load env and config in dev to for logging purposes
@@ -324,8 +334,8 @@ export async function startServer(
           keepAliveTimeout,
           experimentalHttpsServer: !!selfSignedCertificate,
         })
-        requestHandler = initResult[0]
-        upgradeHandler = initResult[1]
+        requestHandler = initResult.requestHandler
+        upgradeHandler = initResult.upgradeHandler
 
         const startServerProcessDuration =
           performance.mark('next-start-end') &&
@@ -413,7 +423,7 @@ if (process.env.NEXT_PRIVATE_WORKER && process.send) {
         'memory.heapUsed',
         String(memoryUsage.heapUsed)
       )
-      process.send({ nextServerReady: true })
+      process.send({ nextServerReady: true, port: process.env.PORT })
     }
   })
   process.send({ nextWorkerReady: true })

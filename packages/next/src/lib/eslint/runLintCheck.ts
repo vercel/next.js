@@ -52,7 +52,7 @@ async function cliPrompt(cwd: string): Promise<{ config?: any }> {
     bold(
       `${cyan(
         '?'
-      )} How would you like to configure ESLint? https://nextjs.org/docs/basic-features/eslint`
+      )} How would you like to configure ESLint? https://nextjs.org/docs/app/api-reference/config/eslint`
     )
   )
 
@@ -263,7 +263,7 @@ async function lint(
     } else {
       Log.warn('')
       Log.warn(
-        'The Next.js plugin was not detected in your ESLint configuration. See https://nextjs.org/docs/basic-features/eslint#migrating-existing-config'
+        'The Next.js plugin was not detected in your ESLint configuration. See https://nextjs.org/docs/app/api-reference/config/eslint#migrating-existing-config'
       )
     }
 
@@ -423,7 +423,7 @@ export async function runLintCheck(
         if (selectedConfig == null) {
           // Show a warning if no option is selected in prompt
           Log.warn(
-            'If you set up ESLint yourself, we recommend adding the Next.js ESLint plugin. See https://nextjs.org/docs/basic-features/eslint#migrating-existing-config'
+            'If you set up ESLint yourself, we recommend adding the Next.js ESLint plugin. See https://nextjs.org/docs/app/api-reference/config/eslint#migrating-existing-config'
           )
           return null
         } else {
@@ -432,8 +432,8 @@ export async function runLintCheck(
           if (deps.missing.length > 0) {
             deps.missing.forEach((dep) => {
               if (dep.pkg === 'eslint') {
-                // eslint v9 has breaking changes, so lock to 8 until dependency plugins fully support v9.
-                dep.pkg = 'eslint@^8'
+                // pin to v9 to avoid breaking changes
+                dep.pkg = 'eslint@^9'
               }
             })
 

@@ -2,8 +2,6 @@ import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { RSC_MOD_REF_PROXY_ALIAS } from '../../../../lib/constants'
 import {
   BARREL_OPTIMIZATION_PREFIX,
-  DEFAULT_RUNTIME_WEBPACK,
-  EDGE_RUNTIME_WEBPACK,
   RSC_MODULE_TYPES,
 } from '../../../../shared/lib/constants'
 import { warnOnce } from '../../../../shared/lib/utils/warn-once'
@@ -14,11 +12,6 @@ import type {
   javascript,
   LoaderContext,
 } from 'next/dist/compiled/webpack/webpack'
-import picomatch from 'next/dist/compiled/picomatch'
-
-export interface NextFlightLoaderOptions {
-  isEdgeServer: boolean
-}
 
 type SourceType = javascript.JavascriptParser['sourceType'] | 'commonjs'
 
@@ -26,10 +19,6 @@ const noopHeadPath = require.resolve('next/dist/client/components/noop-head')
 // For edge runtime it will be aliased to esm version by webpack
 const MODULE_PROXY_PATH =
   'next/dist/build/webpack/loaders/next-flight-loader/module-proxy'
-
-const isSharedRuntime = picomatch('**/next/dist/**/*.shared-runtime.js', {
-  dot: true, // required for .pnpm paths
-})
 
 export function getAssumedSourceType(
   mod: webpack.Module,
@@ -42,26 +31,28 @@ export function getAssumedSourceType(
   // It's tricky to detect the type of a client boundary, but we should always
   // use the `module` type when we can, to support `export *` and `export from`
   // syntax in other modules that import this client boundary.
-  let assumedSourceType = sourceType
-  if (assumedSourceType === 'auto' && detectedClientEntryType === 'auto') {
-    if (
-      clientRefs.length === 0 ||
-      (clientRefs.length === 1 && clientRefs[0] === '')
-    ) {
-      // If there's zero export detected in the client boundary, and it's the
-      // `auto` type, we can safely assume it's a CJS module because it doesn't
-      // have ESM exports.
-      assumedSourceType = 'commonjs'
-    } else if (!clientRefs.includes('*')) {
-      // Otherwise, we assume it's an ESM module.
-      assumedSourceType = 'module'
+
+  if (sourceType === 'auto') {
+    if (detectedClientEntryType === 'auto') {
+      if (clientRefs.length === 0) {
+        // If there's zero export detected in the client boundary, and it's the
+        // `auto` type, we can safely assume it's a CJS module because it doesn't
+        // have ESM exports.
+        return 'commonjs'
+      } else if (!clientRefs.includes('*')) {
+        // Otherwise, we assume it's an ESM module.
+        return 'module'
+      }
+    } else if (detectedClientEntryType === 'cjs') {
+      return 'commonjs'
     }
   }
-  return assumedSourceType
+
+  return sourceType
 }
 
 export default function transformSource(
-  this: LoaderContext<NextFlightLoaderOptions>,
+  this: LoaderContext<undefined>,
   source: string,
   sourceMap: any
 ) {
@@ -70,8 +61,6 @@ export default function transformSource(
     throw new Error('Expected source to have been transformed to a string.')
   }
 
-  const options = this.getOptions()
-  const { isEdgeServer } = options
   const module = this._module!
 
   // Assign the RSC meta information to buildInfo.
@@ -107,8 +96,13 @@ export default function transformSource(
     )
 
     const clientRefs = buildInfo.rsc.clientRefs!
+    const stringifiedResourceKey = JSON.stringify(resourceKey)
 
     if (assumedSourceType === 'module') {
+      if (clientRefs.length === 0) {
+        return this.callback(null, 'export {}')
+      }
+
       if (clientRefs.includes('*')) {
         this.callback(
           new Error(
@@ -118,46 +112,40 @@ export default function transformSource(
         return
       }
 
-      if (!isSharedRuntime(resourceKey)) {
-        // Prevent module concatenation, and prevent export names from being
-        // mangled, in production builds, so that exports of client reference
-        // modules can be resolved by React using the metadata from the client
-        // manifest.
-        this._compilation!.moduleGraph.getExportsInfo(
-          module
-        ).setUsedInUnknownWay(
-          isEdgeServer ? EDGE_RUNTIME_WEBPACK : DEFAULT_RUNTIME_WEBPACK
-        )
-      }
-
-      // `proxy` is the module proxy that we treat the module as a client boundary.
-      // For ESM, we access the property of the module proxy directly for each export.
-      // This is bit hacky that treating using a CJS like module proxy for ESM's exports,
-      // but this will avoid creating nested proxies for each export. It will be improved in the future.
-
-      // Explanation for: await createProxy(...)
-      // We need to await the module proxy creation because it can be async module for SSR layer
-      // due to having async dependencies.
-      // We only apply `the await` for Node.js as only Edge doesn't have external dependencies.
       let esmSource = `\
-import { createProxy } from "${MODULE_PROXY_PATH}"
-
-const proxy = ${isEdgeServer ? '' : 'await'} createProxy(String.raw\`${resourceKey}\`)
+import { registerClientReference } from "react-server-dom-webpack/server.edge";
 `
-      let cnt = 0
       for (const ref of clientRefs) {
-        if (ref === '') {
-          esmSource += `exports[''] = proxy['']\n`
-        } else if (ref === 'default') {
-          esmSource += `export default proxy.default;\n`
+        if (ref === 'default') {
+          esmSource += `export default registerClientReference(
+function() { throw new Error(${JSON.stringify(`Attempted to call the default \
+export of ${stringifiedResourceKey} from the server, but it's on the client. \
+It's not possible to invoke a client function from the server, it can only be \
+rendered as a Component or passed to props of a Client Component.`)}); },
+${stringifiedResourceKey},
+"default",
+);\n`
         } else {
-          esmSource += `const e${cnt} = proxy["${ref}"];\n`
-          esmSource += `export { e${cnt++} as ${ref} };\n`
+          esmSource += `export const ${ref} = registerClientReference(
+function() { throw new Error(${JSON.stringify(`Attempted to call ${ref}() from \
+the server but ${ref} is on the client. It's not possible to invoke a client \
+function from the server, it can only be rendered as a Component or passed to \
+props of a Client Component.`)}); },
+${stringifiedResourceKey},
+${JSON.stringify(ref)},
+);`
         }
       }
 
-      this.callback(null, esmSource, sourceMap)
-      return
+      return this.callback(null, esmSource, sourceMap)
+    } else if (assumedSourceType === 'commonjs') {
+      let cjsSource = `\
+const { createProxy } = require("${MODULE_PROXY_PATH}")
+
+module.exports = createProxy(${stringifiedResourceKey})
+`
+
+      return this.callback(null, cjsSource, sourceMap)
     }
   }
 

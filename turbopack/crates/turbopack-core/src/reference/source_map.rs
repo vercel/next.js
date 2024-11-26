@@ -1,5 +1,6 @@
 use anyhow::Result;
-use turbo_tasks::{RcStr, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{FileSystemEntryType, FileSystemPath};
 
 use super::ModuleReference;
@@ -12,14 +13,14 @@ use crate::{
 
 #[turbo_tasks::value]
 pub struct SourceMapReference {
-    from: Vc<FileSystemPath>,
-    file: Vc<FileSystemPath>,
+    from: ResolvedVc<FileSystemPath>,
+    file: ResolvedVc<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
 impl SourceMapReference {
     #[turbo_tasks::function]
-    pub fn new(from: Vc<FileSystemPath>, file: Vc<FileSystemPath>) -> Vc<Self> {
+    pub fn new(from: ResolvedVc<FileSystemPath>, file: ResolvedVc<FileSystemPath>) -> Vc<Self> {
         Self::cell(SourceMapReference { from, file })
     }
 }
@@ -29,7 +30,7 @@ impl SourceMapReference {
         let file_type = self.file.get_type().await;
         if let Ok(file_type_result) = file_type.as_ref() {
             if let FileSystemEntryType::File = &**file_type_result {
-                return Some(self.file);
+                return Some(*self.file);
             }
         }
         None
@@ -39,14 +40,16 @@ impl SourceMapReference {
 #[turbo_tasks::value_impl]
 impl ModuleReference for SourceMapReference {
     #[turbo_tasks::function]
-    async fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
+    async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         if let Some(file) = self.get_file().await {
-            return ModuleResolveResult::module(Vc::upcast(RawModule::new(Vc::upcast(
-                FileSource::new(file),
-            ))))
-            .cell();
+            return Ok(ModuleResolveResult::module(ResolvedVc::upcast(
+                RawModule::new(Vc::upcast(FileSource::new(file)))
+                    .to_resolved()
+                    .await?,
+            ))
+            .cell());
         }
-        ModuleResolveResult::unresolvable().into()
+        Ok(ModuleResolveResult::unresolvable().cell())
     }
 }
 

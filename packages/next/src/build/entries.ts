@@ -160,18 +160,6 @@ export async function getStaticInfoIncludingLayouts({
         pageType: isInsideAppDir ? PAGE_TYPES.APP : PAGE_TYPES.PAGES,
       })
 
-      if (layoutStaticInfo.unsupportedSegmentConfigs) {
-        // Merge unsupported segment configs from the layout into the page
-        // while deduping the list as it's possible for overlap
-        layoutStaticInfo.unsupportedSegmentConfigs =
-          layoutStaticInfo.unsupportedSegmentConfigs.concat(
-            pageStaticInfo.unsupportedSegmentConfigs || []
-          )
-        pageStaticInfo.unsupportedSegmentConfigs = [
-          ...new Set(layoutStaticInfo.unsupportedSegmentConfigs),
-        ]
-      }
-
       segments.unshift(layoutStaticInfo)
     }
   }

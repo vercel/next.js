@@ -104,7 +104,7 @@ pub(super) async fn update_chunk_list(
     let mut chunks = FxIndexMap::<_, _>::default();
 
     for (chunk_path, from_chunk_version) in &from.by_path {
-        if let Some(chunk_content) = by_path.remove(chunk_path) {
+        if let Some(chunk_content) = by_path.swap_remove(chunk_path) {
             let chunk_update = chunk_content
                 .update(TraitRef::cell(from_chunk_version.clone()))
                 .await?;

@@ -2,6 +2,7 @@ use std::{
     hash::{BuildHasherDefault, Hash},
     mem::take,
     ops::{Deref, DerefMut},
+    panic,
     thread::available_parallelism,
 };
 
@@ -223,6 +224,16 @@ where
         }
     }
 
+    fn index_map_mut(
+        &mut self,
+        index: <T::Key as Indexed>::Index,
+    ) -> Option<&mut AutoMap<T::Key, T::Value>> {
+        match self {
+            InnerStorage::Plain { map, .. } => Some(map),
+            InnerStorage::Indexed { map, .. } => map.get_mut(&index),
+        }
+    }
+
     pub fn add(&mut self, item: T) -> bool {
         let (key, value) = item.into_key_and_value();
         match self.get_or_create_map_mut(&key).entry(key) {
@@ -276,6 +287,35 @@ where
             InnerStorage::Plain { map, .. } => Either::Left(map.iter()),
             InnerStorage::Indexed { map, .. } => {
                 Either::Right(map.iter().flat_map(|(_, m)| m.iter()))
+            }
+        }
+    }
+
+    pub fn extract_if<'l, F>(
+        &'l mut self,
+        index: <T::Key as Indexed>::Index,
+        mut f: F,
+    ) -> impl Iterator<Item = T> + use<'l, T, F>
+    where
+        F: for<'a, 'b> FnMut(&'a T::Key, &'b T::Value) -> bool + 'l,
+    {
+        self.index_map_mut(index)
+            .map(move |m| m.extract_if(move |k, v| f(k, v)))
+            .into_iter()
+            .flatten()
+            .map(|(key, value)| T::from_key_and_value(key, value))
+    }
+
+    pub fn extract_if_all<'l, F>(&'l mut self, mut f: F) -> impl Iterator<Item = T> + use<'l, T, F>
+    where
+        F: for<'a, 'b> FnMut(&'a T::Key, &'b T::Value) -> bool + 'l,
+    {
+        match self {
+            InnerStorage::Plain { map, .. } => map
+                .extract_if(move |k, v| f(k, v))
+                .map(|(key, value)| T::from_key_and_value(key, value)),
+            InnerStorage::Indexed { .. } => {
+                panic!("Do not use extract_if_all with indexed storage")
             }
         }
     }
@@ -359,7 +399,7 @@ where
     T: KeyValuePair,
     T::Key: Indexed,
 {
-    inner: RefMut<'a, K, InnerStorage<T>, BuildHasherDefault<FxHasher>>,
+    inner: RefMut<'a, K, InnerStorage<T>>,
 }
 
 impl<K, T> Deref for StorageWriteGuard<'_, K, T>
@@ -469,30 +509,81 @@ macro_rules! update {
         #[allow(unused_imports)]
         use $crate::backend::operation::TaskGuard;
         #[allow(unused_mut)]
-        match $update {
-            mut update => $task.update(&$crate::data::CachedDataItemKey::$key $input, |old| {
-                update(old.and_then(|old| {
-                    if let $crate::data::CachedDataItemValue::$key { value } = old {
-                        Some(value)
-                    } else {
-                        None
-                    }
-                }))
-                .map(|new| $crate::data::CachedDataItemValue::$key { value: new })
-            })
-        }
+        let mut update = $update;
+        $task.update(&$crate::data::CachedDataItemKey::$key $input, |old| {
+            update(old.and_then(|old| {
+                if let $crate::data::CachedDataItemValue::$key { value } = old {
+                    Some(value)
+                } else {
+                    None
+                }
+            }))
+            .map(|new| $crate::data::CachedDataItemValue::$key { value: new })
+        })
     }};
     ($task:ident, $key:ident, $update:expr) => {
         $crate::backend::storage::update!($task, $key {}, $update)
     };
 }
 
+macro_rules! update_ucount_and_get {
+    ($task:ident, $key:ident $input:tt, -$update:expr) => {{
+        let update = $update;
+        let mut value = 0;
+        $crate::backend::storage::update!($task, $key $input, |old: Option<_>| {
+            if let Some(old) = old {
+                value = old - update;
+                (value != 0).then_some(value)
+            } else {
+                None
+            }
+        });
+        value
+    }};
+    ($task:ident, $key:ident $input:tt, $update:expr) => {{
+        let update = $update;
+        let mut value = 0;
+        $crate::backend::storage::update!($task, $key $input, |old: Option<_>| {
+            if let Some(old) = old {
+                value = old + update;
+                (value != 0).then_some(value)
+            } else {
+                value = update;
+                (update != 0).then_some(update)
+            }
+        });
+        value
+    }};
+    ($task:ident, $key:ident, -$update:expr) => {
+        $crate::backend::storage::update_ucount_and_get!($task, $key {}, -$update)
+    };
+    ($task:ident, $key:ident, $update:expr) => {
+        $crate::backend::storage::update_ucount_and_get!($task, $key {}, $update)
+    };
+}
+
 macro_rules! update_count {
+    ($task:ident, $key:ident $input:tt, -$update:expr) => {{
+        let update = $update;
+        let mut state_change = false;
+        $crate::backend::storage::update!($task, $key $input, |old: Option<_>| {
+            #[allow(unused_comparisons, reason = "type of update might be unsigned, where update < 0 is always false")]
+            if let Some(old) = old {
+                let new = old - update;
+                state_change = old <= 0 && new > 0 || old > 0 && new <= 0;
+                (new != 0).then_some(new)
+            } else {
+                state_change = update < 0;
+                (update != 0).then_some(-update)
+            }
+        });
+        state_change
+    }};
     ($task:ident, $key:ident $input:tt, $update:expr) => {
         match $update {
             update => {
                 let mut state_change = false;
-                $crate::backend::storage::update!($task, $key $input, |old: Option<i32>| {
+                $crate::backend::storage::update!($task, $key $input, |old: Option<_>| {
                     if let Some(old) = old {
                         let new = old + update;
                         state_change = old <= 0 && new > 0 || old > 0 && new <= 0;
@@ -506,7 +597,9 @@ macro_rules! update_count {
             }
         }
     };
-    ($task:ident, $key:ident, $update:expr) => {
+    ($task:ident, $key:ident, -$update:expr) => {
+        $crate::backend::storage::update_count!($task, $key {}, -$update)
+    };    ($task:ident, $key:ident, $update:expr) => {
         $crate::backend::storage::update_count!($task, $key {}, $update)
     };
 }
@@ -535,3 +628,4 @@ pub(crate) use iter_many;
 pub(crate) use remove;
 pub(crate) use update;
 pub(crate) use update_count;
+pub(crate) use update_ucount_and_get;

@@ -11,7 +11,7 @@ cd "$1" || exit 1
 # We're only interested in the changes the upgrade command does.
 git add -A .
 rm -rf node_modules
-pnpm install --ignore-workspace --no-lockfile
+pnpm install
 node "$NEXT_CODEMOD_BIN" upgrade "${@:2}"
 git --no-pager diff .
 git restore .

@@ -52,10 +52,6 @@ export class Span {
     this.name = name
     this.parentId = parentId ?? defaultParentSpanId
     this.attrs = attrs ? { ...attrs } : {}
-    if (this.parentId === undefined) {
-      // Attach additional information to root spans
-      this.attrs.isTurbopack = Boolean(process.env.TURBOPACK)
-    }
 
     this.status = SpanStatus.Started
     this.id = getId()

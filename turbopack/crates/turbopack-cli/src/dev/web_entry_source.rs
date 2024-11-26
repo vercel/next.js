@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Result};
-use turbo_tasks::{RcStr, TryJoinIterExt, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, Vc};
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_browser::{react_refresh::assert_can_resolve_react_refresh, BrowserChunkingContext};
@@ -46,34 +47,43 @@ pub fn get_client_chunking_context(
             RuntimeType::Development,
         )
         .hot_module_replacement()
+        .use_file_source_map_uris()
         .build(),
     )
 }
 
 #[turbo_tasks::function]
 pub async fn get_client_runtime_entries(
-    project_path: Vc<FileSystemPath>,
+    project_path: ResolvedVc<FileSystemPath>,
 ) -> Result<Vc<RuntimeEntries>> {
-    let resolve_options_context = get_client_resolve_options_context(project_path);
+    let resolve_options_context = get_client_resolve_options_context(*project_path);
 
     let mut runtime_entries = Vec::new();
 
     let enable_react_refresh =
-        assert_can_resolve_react_refresh(project_path, resolve_options_context)
+        assert_can_resolve_react_refresh(*project_path, resolve_options_context)
             .await?
             .as_request();
     // It's important that React Refresh come before the regular bootstrap file,
     // because the bootstrap contains JSX which requires Refresh's global
     // functions to be available.
     if let Some(request) = enable_react_refresh {
-        runtime_entries.push(RuntimeEntry::Request(request, project_path.join("_".into())).cell())
+        runtime_entries.push(
+            RuntimeEntry::Request(
+                request.to_resolved().await?,
+                project_path.join("_".into()).to_resolved().await?,
+            )
+            .resolved_cell(),
+        )
     };
 
     runtime_entries.push(
-        RuntimeEntry::Source(Vc::upcast(FileSource::new(embed_file_path(
-            "entry/bootstrap.ts".into(),
-        ))))
-        .cell(),
+        RuntimeEntry::Source(ResolvedVc::upcast(
+            FileSource::new(embed_file_path("entry/bootstrap.ts".into()))
+                .to_resolved()
+                .await?,
+        ))
+        .resolved_cell(),
     );
 
     Ok(Vc::cell(runtime_entries))
@@ -121,16 +131,16 @@ pub async fn create_web_entry_source(
         .flatten()
         .map(|module| async move {
             if let (Some(chnkable), Some(entry)) = (
-                Vc::try_resolve_sidecast::<Box<dyn ChunkableModule>>(module).await?,
-                Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(module).await?,
+                ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(module).await?,
+                ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(module).await?,
             ) {
                 Ok((
                     chnkable,
                     chunking_context,
-                    Some(runtime_entries.with_entry(entry)),
+                    Some(runtime_entries.with_entry(*entry)),
                 ))
             } else if let Some(chunkable) =
-                Vc::try_resolve_sidecast::<Box<dyn ChunkableModule>>(module).await?
+                ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(module).await?
             {
                 // TODO this is missing runtime code, so it's probably broken and we should also
                 // add an ecmascript chunk with the runtime code

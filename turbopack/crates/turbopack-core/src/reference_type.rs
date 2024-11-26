@@ -1,7 +1,8 @@
 use std::fmt::Display;
 
 use anyhow::Result;
-use turbo_tasks::{FxIndexMap, RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexMap, ResolvedVc, Vc};
 
 use crate::{module::Module, resolve::ModulePart};
 
@@ -10,7 +11,7 @@ use crate::{module::Module, resolve::ModulePart};
 ///
 /// Name is usually in UPPER_CASE to make it clear that this is an inner asset.
 #[turbo_tasks::value(transparent)]
-pub struct InnerAssets(FxIndexMap<RcStr, Vc<Box<dyn Module>>>);
+pub struct InnerAssets(FxIndexMap<RcStr, ResolvedVc<Box<dyn Module>>>);
 
 #[turbo_tasks::value_impl]
 impl InnerAssets {
@@ -42,7 +43,7 @@ pub enum ImportWithType {
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Debug, Default, Clone, Hash)]
 pub enum EcmaScriptModulesReferenceSubType {
-    ImportPart(Vc<ModulePart>),
+    ImportPart(ResolvedVc<ModulePart>),
     Import,
     ImportWithType(ImportWithType),
     DynamicImport,
@@ -165,7 +166,7 @@ impl ImportContext {
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Debug, Clone, Hash)]
 pub enum CssReferenceSubType {
-    AtImport(Option<Vc<ImportContext>>),
+    AtImport(Option<ResolvedVc<ImportContext>>),
     Compose,
     /// Reference from any asset to a CSS-parseable asset.
     ///
@@ -232,7 +233,7 @@ pub enum ReferenceType {
     Worker(WorkerReferenceSubType),
     Entry(EntryReferenceSubType),
     Runtime,
-    Internal(Vc<InnerAssets>),
+    Internal(ResolvedVc<InnerAssets>),
     Custom(u8),
     Undefined,
 }

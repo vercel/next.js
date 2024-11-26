@@ -1,5 +1,7 @@
 /* eslint-disable jest/no-standalone-expect */
 import { nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
+import { BrowserInterface } from 'next-webdriver'
 
 const WITH_PPR = !!process.env.__NEXT_EXPERIMENTAL_PPR
 
@@ -15,10 +17,65 @@ describe('dynamic-io', () => {
 
   const itSkipTurbopack = isTurbopack ? it.skip : it
 
+  if (isNextDev && !WITH_PPR) {
+    async function hasStaticIndicator(browser: BrowserInterface) {
+      const staticIndicatorPresent = await browser.eval(() =>
+        Boolean(
+          document
+            .querySelector('nextjs-portal')
+            .shadowRoot.querySelector('.nextjs-static-indicator-toast-wrapper')
+        )
+      )
+      return staticIndicatorPresent
+    }
+
+    it('should not have static indicator on dynamic method route', async () => {
+      const browser = await next.browser('/cases/dynamic_api_cookies')
+
+      await retry(async () => {
+        expect(await browser.eval('!!window.next.router ? "yes": "no"')).toBe(
+          'yes'
+        )
+      })
+
+      expect(await hasStaticIndicator(browser)).toBe(false)
+    })
+
+    it('should not have static indicator on dynamic IO route', async () => {
+      const browser = await next.browser('/cases/fetch_mixed')
+
+      await retry(async () => {
+        expect(await browser.eval('!!window.next.router ? "yes": "no"')).toBe(
+          'yes'
+        )
+      })
+
+      expect(await hasStaticIndicator(browser)).toBe(false)
+    })
+
+    it('should have static indicator on static route', async () => {
+      const browser = await next.browser('/cases/static')
+
+      await retry(async () => {
+        expect(await browser.eval('!!window.next.router ? "yes": "no"')).toBe(
+          'yes'
+        )
+      })
+
+      expect(await hasStaticIndicator(browser)).toBe(true)
+    })
+  }
+
   it('should not have route specific errors', async () => {
-    expect(next.cliOutput).not.toMatch('Error: Route /')
+    expect(next.cliOutput).not.toMatch('Error: Route "/')
     expect(next.cliOutput).not.toMatch('Error occurred prerendering page')
   })
+
+  if (!isNextDev) {
+    it('should not warn about potential memory leak for even listeners on AbortSignal', async () => {
+      expect(next.cliOutput).not.toMatch('MaxListenersExceededWarning')
+    })
+  }
 
   it('should prerender fully static pages', async () => {
     let $ = await next.render$('/cases/static', {})

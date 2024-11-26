@@ -69,11 +69,13 @@ import {
   getSourceMapFromCompilation,
   getSourceMapFromFile,
   parseStack,
-} from '../../../client/components/react-dev-overlay/server/middleware'
+  getIgnoredSources,
+} from '../../../client/components/react-dev-overlay/server/middleware-webpack'
 import {
   batchedTraceSource,
   createOriginalStackFrame as createOriginalTurboStackFrame,
 } from '../../../client/components/react-dev-overlay/server/middleware-turbopack'
+import type { OriginalStackFrameResponse } from '../../../client/components/react-dev-overlay/server/shared'
 import { devPageFiles } from '../../../build/webpack/plugins/next-types-plugin/shared'
 import type { LazyRenderServerInstance } from '../router-server'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../dev/hot-reloader-types'
@@ -491,28 +493,6 @@ async function startWatcher(opts: SetupOpts) {
             appFiles.add(pageName)
           }
 
-          if (nextConfig.experimental.dynamicIO) {
-            const staticInfo = await getStaticInfoIncludingLayouts({
-              pageFilePath: fileName,
-              config: nextConfig,
-              appDir: appDir,
-              page: rootFile,
-              isDev: true,
-              isInsideAppDir: isAppPath,
-              pageExtensions: nextConfig.pageExtensions,
-            })
-
-            if (
-              'unsupportedSegmentConfigs' in staticInfo &&
-              staticInfo.unsupportedSegmentConfigs?.length
-            ) {
-              pagesWithUnsupportedSegments.set(
-                pageName,
-                staticInfo.unsupportedSegmentConfigs
-              )
-            }
-          }
-
           if (routedPages.includes(pageName)) {
             continue
           }
@@ -545,30 +525,6 @@ async function startWatcher(opts: SetupOpts) {
         }
 
         routedPages.push(pageName)
-      }
-
-      // When dynamicIO is enabled, certain segment configs are not supported as they conflict with dynamicIO behavior.
-      // This will print all the pages along with the segment configs that were used.
-      if (nextConfig.experimental.dynamicIO) {
-        const pagesWithIncompatibleSegmentConfigs: string[] = []
-
-        pagesWithUnsupportedSegments.forEach(
-          (unsupportedSegmentConfigs, page) => {
-            if (
-              unsupportedSegmentConfigs &&
-              unsupportedSegmentConfigs.length > 0
-            ) {
-              const configs = unsupportedSegmentConfigs.join(', ')
-              pagesWithIncompatibleSegmentConfigs.push(`${page}: ${configs}`)
-            }
-          }
-        )
-
-        if (pagesWithIncompatibleSegmentConfigs.length > 0) {
-          const errorMessage = `The following pages used segment configs which are not supported with "experimental.dynamicIO" and must be removed to build your application:\n${pagesWithIncompatibleSegmentConfigs.join('\n')}\n`
-          Log.error(errorMessage)
-          hotReloader.setHmrServerError(new Error(errorMessage))
-        }
       }
 
       const numConflicting = conflictingAppPagePaths.size
@@ -628,9 +584,9 @@ async function startWatcher(opts: SetupOpts) {
 
       if (envChange || tsconfigChange) {
         if (envChange) {
-          const { parsedEnv } = loadEnvConfig(
+          const { loadedEnvFiles } = loadEnvConfig(
             dir,
-            true,
+            process.env.NODE_ENV === 'development',
             Log,
             true,
             (envFilePath) => {
@@ -642,7 +598,14 @@ async function startWatcher(opts: SetupOpts) {
             // do not await, this is not essential for further process
             createEnvDefinitions({
               distDir,
-              env: { ...parsedEnv, ...nextConfig.env },
+              loadedEnvFiles: [
+                ...loadedEnvFiles,
+                {
+                  path: nextConfig.configFileName,
+                  env: nextConfig.env,
+                  contents: '',
+                },
+              ],
             })
           }
 
@@ -1003,7 +966,8 @@ async function startWatcher(opts: SetupOpts) {
             !file?.includes('<anonymous>')
         )
 
-        let originalFrame, isEdgeCompiler
+        let originalFrame: OriginalStackFrameResponse | null = null
+        let isEdgeCompiler = false
         const frameFile = frame?.file
         if (frame?.lineNumber && frameFile) {
           if (hotReloader.turbopackProject) {
@@ -1049,6 +1013,7 @@ async function startWatcher(opts: SetupOpts) {
                     type: 'bundle',
                     sourceMap,
                     compilation,
+                    ignoredSources: getIgnoredSources(sourceMap),
                     moduleId,
                     modulePath,
                   },

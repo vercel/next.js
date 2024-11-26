@@ -5839,8 +5839,8 @@
               var type = node.type,
                 key = node.key;
               node = node.props;
-              var ref = node.ref;
-              ref = void 0 !== ref ? ref : null;
+              var refProp = node.ref;
+              refProp = void 0 !== refProp ? refProp : null;
               var debugTask = task.debugTask,
                 name = getComponentNameFromType(type);
               key = null == key ? (-1 === childIndex ? 0 : childIndex) : key;
@@ -5858,7 +5858,7 @@
                         childIndex,
                         type,
                         node,
-                        ref,
+                        refProp,
                         task.replay
                       )
                     )
@@ -5871,7 +5871,7 @@
                       childIndex,
                       type,
                       node,
-                      ref,
+                      refProp,
                       task.replay
                     )
                 : debugTask
@@ -5883,10 +5883,10 @@
                         keyPath,
                         type,
                         node,
-                        ref
+                        refProp
                       )
                     )
-                  : renderElement(request, task, keyPath, type, node, ref);
+                  : renderElement(request, task, keyPath, type, node, refProp);
               return;
             case REACT_PORTAL_TYPE:
               throw Error(
@@ -5961,17 +5961,17 @@
             thenableIndexCounter = 0;
             thenableState = key;
             key = [];
-            ref = !1;
+            refProp = !1;
             if (type === node)
               for (node = readPreviousThenableFromState(); void 0 !== node; ) {
                 if (node.done) {
-                  ref = !0;
+                  refProp = !0;
                   break;
                 }
                 key.push(node.value);
                 node = readPreviousThenableFromState();
               }
-            if (!ref)
+            if (!refProp)
               for (node = unwrapThenable(type.next()); !node.done; )
                 key.push(node.value), (node = unwrapThenable(type.next()));
             renderChildrenArray(request, task, key, childIndex);
@@ -9295,5 +9295,5 @@
         'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToReadableStream" which supports Suspense on the server'
       );
     };
-    exports.version = "19.0.0-experimental-65a56d0e-20241020";
+    exports.version = "19.0.0-experimental-b01722d5-20241114";
   })();

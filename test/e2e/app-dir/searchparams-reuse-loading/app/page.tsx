@@ -1,6 +1,7 @@
 import Link from 'next/link'
 
-export default function Page({ searchParams }) {
+export default async function Page(props) {
+  const searchParams = await props.searchParams
   return (
     <>
       <div id="root-params">{JSON.stringify(searchParams)}</div>

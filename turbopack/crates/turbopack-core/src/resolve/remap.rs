@@ -7,7 +7,8 @@ use std::{
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use turbo_tasks::{FxIndexMap, RcStr};
+use turbo_rcstr::RcStr;
+use turbo_tasks::FxIndexMap;
 
 use super::{
     alias_map::{AliasMap, AliasMapIter, AliasPattern, AliasTemplate},

@@ -111,7 +111,7 @@ describe('middleware can use wasm files', () => {
           expect.arrayContaining([
             expect.objectContaining({
               filePath: expect.stringMatching(
-                /^server\/edge\/chunks\/ssr\/.*\.wasm$/
+                /^server\/edge\/chunks\/.*\.wasm$/
               ),
               name: expect.stringMatching(/^wasm_/),
             }),
