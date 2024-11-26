@@ -1121,27 +1121,6 @@ impl AppEndpoint {
                     }
                 }
 
-                println!(
-                    "client_dynamic_imports {:?}",
-                    next_dynamic_imports
-                        .iter()
-                        .map(|(k, v)| async move {
-                            Ok(
-                                (
-                                    k.ident().to_string().await?,
-                                    v.iter()
-                                        .map(|(k, v)| async move {
-                                            Ok((k, v.ident().to_string().await?))
-                                        })
-                                        .try_join()
-                                        .await?,
-                                ),
-                            )
-                        })
-                        .try_join()
-                        .await?
-                );
-
                 (
                     Some(next_dynamic_imports),
                     Some(client_references_cell),
