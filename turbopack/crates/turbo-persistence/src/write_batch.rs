@@ -26,7 +26,7 @@ struct ThreadLocalState<K: StoreKey + Send> {
 pub struct WriteBatch<K: StoreKey + Send> {
     path: PathBuf,
     current_sequence_number: AtomicU32,
-    collectors: ThreadLocal<UnsafeCell<ThreadLocalState<K>>>,
+    thread_locals: ThreadLocal<UnsafeCell<ThreadLocalState<K>>>,
     idle_collectors: Vec<Collector<K>>,
 }
 
@@ -35,7 +35,7 @@ impl<K: StoreKey + Send + Sync> WriteBatch<K> {
         Self {
             path,
             current_sequence_number: AtomicU32::new(current),
-            collectors: ThreadLocal::new(),
+            thread_locals: ThreadLocal::new(),
             idle_collectors: Vec::new(),
         }
     }
@@ -46,7 +46,7 @@ impl<K: StoreKey + Send + Sync> WriteBatch<K> {
     }
 
     fn collector_mut(&self) -> Result<&mut Collector<K>> {
-        let cell = self.collectors.get_or(|| {
+        let cell = self.thread_locals.get_or(|| {
             UnsafeCell::new(ThreadLocalState {
                 collector: Some(Collector::new()),
                 new_sst_files: Vec::new(),
@@ -84,7 +84,7 @@ impl<K: StoreKey + Send + Sync> WriteBatch<K> {
         let mut global_collector = Collector::new();
         let mut global_collectors = Vec::new();
         let mut new_sst_files = Vec::new();
-        for cell in self.collectors.iter_mut() {
+        for cell in self.thread_locals.iter_mut() {
             let state = cell.get_mut();
             new_sst_files.append(&mut state.new_sst_files);
             if let Some(mut collector) = state.collector.take() {
@@ -117,7 +117,7 @@ impl<K: StoreKey + Send + Sync> WriteBatch<K> {
                 .collect::<Result<Vec<_>>>()?,
         );
         self.idle_collectors.append(&mut global_collectors);
-        for cell in self.collectors.iter_mut() {
+        for cell in self.thread_locals.iter_mut() {
             let state = cell.get_mut();
             state.collector = self.idle_collectors.pop();
         }
