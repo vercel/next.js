@@ -215,7 +215,7 @@ impl ChunkingContext for NodeJsChunkingContext {
 
     #[turbo_tasks::function]
     fn is_tracing_enabled(&self) -> Vc<bool> {
-        Vc::cell(*self.enable_file_tracing)
+        Vc::cell(self.enable_file_tracing)
     }
 
     #[turbo_tasks::function]
@@ -246,8 +246,8 @@ impl ChunkingContext for NodeJsChunkingContext {
         ident: Vc<AssetIdent>,
         extension: RcStr,
     ) -> Result<Vc<FileSystemPath>> {
-        let root_path = self.chunk_root_path;
-        let name = ident.output_name(self.context_path, extension).await?;
+        let root_path = *self.chunk_root_path;
+        let name = ident.output_name(*self.context_path, extension).await?;
         Ok(root_path.join(name.clone_value()))
     }
 
