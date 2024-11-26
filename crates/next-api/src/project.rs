@@ -1364,7 +1364,7 @@ async fn all_assets_from_entries_operation_inner(
 ) -> Result<Vc<OutputAssets>> {
     let assets = *operation.await?;
     Vc::connect(*assets);
-    all_assets_from_entries(*assets).to_resolved().await
+    Ok(all_assets_from_entries(*assets))
 }
 
 async fn all_assets_from_entries_operation(
