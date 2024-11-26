@@ -370,19 +370,19 @@ impl RouteTree {
         } = &mut this;
 
         for s in sources.iter_mut() {
-            *s = mapper.map_get_content(*s);
+            *s = mapper.map_get_content(**s).to_resolved().await?;
         }
         for s in catch_all_sources.iter_mut() {
-            *s = mapper.map_get_content(*s);
+            *s = mapper.map_get_content(**s).to_resolved().await?;
         }
         for s in fallback_sources.iter_mut() {
-            *s = mapper.map_get_content(*s);
+            *s = mapper.map_get_content(**s).to_resolved().await?;
         }
         for s in not_found_sources.iter_mut() {
-            *s = mapper.map_get_content(*s);
+            *s = mapper.map_get_content(**s).to_resolved().await?;
         }
         for r in static_segments.values_mut() {
-            *r = r.map_routes(mapper);
+            *r = r.map_routes(mapper).to_resolved().await?;
         }
         for r in dynamic_segments.iter_mut() {
             *r = r.map_routes(mapper).to_resolved().await?;
