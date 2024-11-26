@@ -18,8 +18,8 @@ use crate::NodeJsChunkingContext;
 /// Production Ecmascript chunk targeting Node.js.
 #[turbo_tasks::value(shared)]
 pub(crate) struct EcmascriptBuildNodeChunk {
-    chunking_context: Vc<NodeJsChunkingContext>,
-    chunk: Vc<EcmascriptChunk>,
+    chunking_context: ResolvedVc<NodeJsChunkingContext>,
+    chunk: ResolvedVc<EcmascriptChunk>,
 }
 
 #[turbo_tasks::value_impl]
