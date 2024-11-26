@@ -3,6 +3,7 @@ use std::{collections::BTreeMap, future::Future, io::Write, iter::once};
 use anyhow::{bail, Context, Result};
 use indexmap::map::Entry;
 use next_core::{
+    next_client_reference::EcmascriptClientReferenceModule,
     next_manifests::{
         ActionLayer, ActionManifestModuleId, ActionManifestWorkerEntry, ServerReferenceManifest,
     },
@@ -31,7 +32,7 @@ use turbopack_core::{
     chunk::{ChunkItem, ChunkItemExt, ChunkableModule, ChunkingContext, EvaluatableAsset},
     context::AssetContext,
     file_source::FileSource,
-    module::{Module, Modules},
+    module::Module,
     output::OutputAsset,
     reference::primary_referenced_modules,
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
@@ -60,7 +61,6 @@ pub(crate) struct ServerActionsManifest {
 #[turbo_tasks::function]
 pub(crate) async fn create_server_actions_manifest(
     rsc_entry: Vc<Box<dyn Module>>,
-    server_reference_modules: Vc<Modules>,
     project_path: Vc<FileSystemPath>,
     node_root: Vc<FileSystemPath>,
     page_name: RcStr,
@@ -68,7 +68,8 @@ pub(crate) async fn create_server_actions_manifest(
     asset_context: Vc<Box<dyn AssetContext>>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<Vc<ServerActionsManifest>> {
-    let actions = find_actions(rsc_entry, server_reference_modules, asset_context);
+    let actions = find_actions(rsc_entry, asset_context);
+
     let loader =
         build_server_actions_loader(project_path, page_name.clone(), actions, asset_context);
     let evaluable = Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(loader)
@@ -190,7 +191,6 @@ async fn build_manifest(
 #[turbo_tasks::function]
 async fn find_actions(
     rsc_entry: ResolvedVc<Box<dyn Module>>,
-    server_reference_modules: Vc<Modules>,
     asset_context: Vc<Box<dyn AssetContext>>,
 ) -> Result<Vc<AllActions>> {
     async move {
@@ -201,17 +201,7 @@ async fn find_actions(
                     ActionLayer::Rsc,
                     rsc_entry,
                     rsc_entry.ident().to_string().await?,
-                ))
-                .chain(
-                    server_reference_modules
-                        .await?
-                        .iter()
-                        .map(|m| async move {
-                            Ok((ActionLayer::ActionBrowser, *m, m.ident().to_string().await?))
-                        })
-                        .try_join()
-                        .await?,
-                ),
+                )),
                 FindActionsVisit {},
             )
             .await
@@ -284,11 +274,24 @@ impl turbo_tasks::graph::Visit<FindActionsNode> for FindActionsVisit {
 async fn get_referenced_modules(
     (layer, module, _): FindActionsNode,
 ) -> Result<impl Iterator<Item = FindActionsNode> + Send> {
+    if let Some(module) =
+        ResolvedVc::try_downcast_type::<EcmascriptClientReferenceModule>(module).await?
+    {
+        let module: ReadRef<EcmascriptClientReferenceModule> = module.await?;
+        return Ok(vec![(
+            ActionLayer::ActionBrowser,
+            ResolvedVc::upcast(module.client_module),
+            module.client_module.ident().to_string().await?,
+        )]
+        .into_iter());
+    }
+
     let modules = primary_referenced_modules(*module).await?;
 
     Ok(modules
         .into_iter()
-        .map(move |&m| async move { Ok((layer, m, m.ident().to_string().await?)) })
+        .copied()
+        .map(move |m| async move { Ok((layer, m, m.ident().to_string().await?)) })
         .try_join()
         .await?
         .into_iter())

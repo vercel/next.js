@@ -7,7 +7,7 @@ related:
     - app/api-reference/file-conventions/unauthorized
 ---
 
-The `unauthorized` function throws an error that renders a Next.js 401 error page. It is useful for handling authorization errors in your application. You can customize the UI using the [`unauthorized.js` file](/docs/app/api-reference/file-conventions/unauthorized).
+The `unauthorized` function throws an error that renders a Next.js 401 error page. It's useful for handling authorization errors in your application. You can customize the UI using the [`unauthorized.js` file](/docs/app/api-reference/file-conventions/unauthorized).
 
 To start using `unauthorized`, enable the experimental [`authInterrupts`](/docs/app/api-reference/config/next-config-js/authInterrupts) configuration option in your `next.config.js` file:
 
@@ -74,6 +74,10 @@ export default async function DashboardPage() {
   )
 }
 ```
+
+## Good to know
+
+- The `unauthorized` function cannot be called in the [root layout](/docs/app/building-your-application/routing/layouts-and-templates#root-layout-required).
 
 ## Examples
 

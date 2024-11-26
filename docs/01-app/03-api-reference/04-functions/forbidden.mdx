@@ -7,7 +7,7 @@ related:
     - app/api-reference/file-conventions/forbidden
 ---
 
-The `forbidden` function throws an error that renders a Next.js 403 error page. It is useful for handling authorization errors in your application. You can customize the UI using the [`forbidden.js` file](/docs/app/api-reference/file-conventions/forbidden).
+The `forbidden` function throws an error that renders a Next.js 403 error page. It's useful for handling authorization errors in your application. You can customize the UI using the [`forbidden.js` file](/docs/app/api-reference/file-conventions/forbidden).
 
 To start using `forbidden`, enable the experimental [`authInterrupts`](/docs/app/api-reference/config/next-config-js/authInterrupts) configuration option in your `next.config.js` file:
 
@@ -31,7 +31,7 @@ module.exports = {
 }
 ```
 
-`forbidden` can be used in [Server Components](/docs/app/building-your-application/rendering/server-components), [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations), and [Route Handlers](/docs/app/building-your-application/routing/route-handlers).
+`forbidden` can be invoked in [Server Components](/docs/app/building-your-application/rendering/server-components), [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations), and [Route Handlers](/docs/app/building-your-application/routing/route-handlers).
 
 ```tsx filename="app/auth/route.tsx" switcher
 import { verifySession } from '@/app/lib/dal'
@@ -67,7 +67,7 @@ export default async function AdminPage() {
 }
 ```
 
-## Good to know
+## Good to know
 
 - The `forbidden` function cannot be called in the [root layout](/docs/app/building-your-application/routing/layouts-and-templates#root-layout-required).
 
@@ -75,7 +75,7 @@ export default async function AdminPage() {
 
 ### Role-based route protection
 
-You can use the `forbidden` function to restrict access to certain routes based on user roles. This ensures that users who are authenticated but lack the required permissions cannot access the route.
+You can use `forbidden` to restrict access to certain routes based on user roles. This ensures that users who are authenticated but lack the required permissions cannot access the route.
 
 ```tsx filename="app/admin/page.tsx" switcher
 import { verifySession } from '@/app/lib/dal'
