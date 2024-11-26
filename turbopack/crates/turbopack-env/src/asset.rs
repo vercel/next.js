@@ -25,8 +25,11 @@ pub struct ProcessEnvAsset {
 #[turbo_tasks::value_impl]
 impl ProcessEnvAsset {
     #[turbo_tasks::function]
-    pub fn new(root: Vc<FileSystemPath>, env: Vc<Box<dyn ProcessEnv>>) -> Vc<Self> {
-        ProcessEnvAsset { root, env }.cell()
+    pub async fn new(
+        root: ResolvedVc<FileSystemPath>,
+        env: ResolvedVc<Box<dyn ProcessEnv>>,
+    ) -> Result<Vc<Self>> {
+        Ok(ProcessEnvAsset { root, env }.cell())
     }
 }
 
