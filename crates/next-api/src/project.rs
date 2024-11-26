@@ -1173,7 +1173,7 @@ impl Project {
     ) -> Result<()> {
         let span = tracing::info_span!("emitting");
         async move {
-            let all_output_assets = all_assets_from_entries_operation(output_assets);
+            let all_output_assets = all_assets_from_entries_operation(output_assets).await?;
 
             let client_relative_path = self.client_relative_path();
             let node_root = self.node_root();
@@ -1364,13 +1364,17 @@ async fn all_assets_from_entries_operation_inner(
 ) -> Result<Vc<OutputAssets>> {
     let assets = *operation.await?;
     Vc::connect(*assets);
-    Ok(all_assets_from_entries(*assets))
+    Ok(all_assets_from_entries(*assets).to_resolved().await?)
 }
 
-fn all_assets_from_entries_operation(
+async fn all_assets_from_entries_operation(
     operation: Vc<OutputAssetsOperation>,
-) -> Vc<OutputAssetsOperation> {
-    Vc::cell(all_assets_from_entries_operation_inner(operation))
+) -> Result<Vc<OutputAssetsOperation>> {
+    Ok(Vc::cell(
+        all_assets_from_entries_operation_inner(operation)
+            .to_resolved()
+            .await?,
+    ))
 }
 
 #[turbo_tasks::function]
