@@ -28,7 +28,7 @@ pub(crate) struct EcmascriptBuildNodeRuntimeChunk {
 impl EcmascriptBuildNodeRuntimeChunk {
     /// Creates a new [`Vc<EcmascriptBuildNodeRuntimeChunk>`].
     #[turbo_tasks::function]
-    pub fn new(chunking_context: Vc<NodeJsChunkingContext>) -> Vc<Self> {
+    pub fn new(chunking_context: ResolvedVc<NodeJsChunkingContext>) -> Vc<Self> {
         EcmascriptBuildNodeRuntimeChunk { chunking_context }.cell()
     }
 
