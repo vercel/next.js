@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{Completion, State, Value, Vc};
+use turbo_tasks::{Completion, ResolvedVc, State, Value, Vc};
 use turbopack_core::introspect::{Introspectable, IntrospectableChildren};
 
 use super::{
@@ -67,7 +67,7 @@ impl ContentSource for ConditionalContentSource {
 
 #[turbo_tasks::value]
 struct ConditionalContentSourceMapper {
-    source: Vc<ConditionalContentSource>,
+    source: ResolvedVc<ConditionalContentSource>,
 }
 
 #[turbo_tasks::value_impl]
@@ -152,8 +152,8 @@ impl Introspectable for ConditionalContentSource {
 
 #[turbo_tasks::value(serialization = "none", eq = "manual", cell = "new")]
 struct ActivateOnGetContentSource {
-    source: Vc<ConditionalContentSource>,
-    get_content: Vc<Box<dyn GetContentSourceContent>>,
+    source: ResolvedVc<ConditionalContentSource>,
+    get_content: ResolvedVc<Box<dyn GetContentSourceContent>>,
 }
 
 #[turbo_tasks::value_impl]
