@@ -971,8 +971,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             if !f.is_async {
                 emit_error(ServerActionsErrorKind::InlineSyncFunction {
                     span: f.span,
-                    directive: directive.clone(),
+                    directive,
                 });
+
+                return;
             }
 
             let has_errors = HANDLER.with(|handler| handler.has_errors());
@@ -1139,8 +1141,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             if !a.is_async {
                 emit_error(ServerActionsErrorKind::InlineSyncFunction {
                     span: a.span,
-                    directive: directive.clone(),
+                    directive,
                 });
+
+                return;
             }
 
             let has_errors = HANDLER.with(|handler| handler.has_errors());
