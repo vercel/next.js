@@ -58,7 +58,7 @@ async fn get_update_stream_item(
                 FatalStreamIssue {
                     resource,
                     description: StyledString::Text(format!("{}", PrettyPrintError(&e)).into())
-                        .cell(),
+                        .resolved_cell(),
                 }
                 .cell()
                 .into_plain(OptionIssueProcessingPathItems::none())
