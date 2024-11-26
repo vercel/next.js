@@ -2,7 +2,7 @@ use std::io::Write;
 
 use anyhow::Result;
 use indoc::writedoc;
-use turbo_tasks::{ReadRef, TryJoinIterExt, Vc};
+use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::File;
 use turbopack_core::{
     asset::AssetContent,
@@ -23,9 +23,9 @@ use crate::NodeJsChunkingContext;
 
 #[turbo_tasks::value]
 pub(super) struct EcmascriptBuildNodeChunkContent {
-    pub(super) content: Vc<EcmascriptChunkContent>,
-    pub(super) chunking_context: Vc<NodeJsChunkingContext>,
-    pub(super) chunk: Vc<EcmascriptBuildNodeChunk>,
+    pub(super) content: ResolvedVc<EcmascriptChunkContent>,
+    pub(super) chunking_context: ResolvedVc<NodeJsChunkingContext>,
+    pub(super) chunk: ResolvedVc<EcmascriptBuildNodeChunk>,
 }
 
 #[turbo_tasks::value_impl]
@@ -76,7 +76,7 @@ impl EcmascriptBuildNodeChunkContent {
             code,
             r#"
                 module.exports = {{
-    
+
             "#,
         )?;
 
