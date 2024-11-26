@@ -392,11 +392,11 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
 
     let res = evaluate(
         jest_entry_asset,
-        path.to_resolved().await?,
+        *path,
         Vc::upcast(CommandLineProcessEnv::new()),
         test_source.ident(),
         asset_context,
-        Vc::upcast(*chunking_context),
+        Vc::upcast(chunking_context),
         None,
         vec![],
         Completion::immutable(),
