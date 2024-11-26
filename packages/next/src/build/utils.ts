@@ -100,7 +100,7 @@ import type { AppSegmentConfig } from './segment-config/app/app-segment-config'
 import type { AppSegment } from './segment-config/app/app-segments'
 import { collectSegments } from './segment-config/app/app-segments'
 import { createIncrementalCache } from '../export/helpers/create-incremental-cache'
-import { InvariantError } from '../shared/lib/invariant-error'
+import { AfterRunner } from '../server/after/run-with-after'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -1215,6 +1215,7 @@ export async function buildAppStaticPaths({
   page,
   distDir,
   dynamicIO,
+  after,
   authInterrupts,
   configFileName,
   segments,
@@ -1232,6 +1233,7 @@ export async function buildAppStaticPaths({
   dir: string
   page: string
   dynamicIO: boolean
+  after: boolean
   authInterrupts: boolean
   configFileName: string
   segments: AppSegment[]
@@ -1302,6 +1304,8 @@ export async function buildAppStaticPaths({
     }
   }
 
+  const afterRunner = new AfterRunner()
+
   const store = createWorkStore({
     page,
     // We're discovering the parameters here, so we don't have any unknown
@@ -1313,17 +1317,13 @@ export async function buildAppStaticPaths({
       supportsDynamicResponse: true,
       isRevalidate: false,
       experimental: {
-        after: false,
+        after,
         dynamicIO,
         authInterrupts,
       },
-      waitUntil: undefined,
-      onClose: () => {
-        throw new InvariantError(
-          'unexpected onClose call in buildAppStaticPaths'
-        )
-      },
-      onAfterTaskError: undefined,
+      waitUntil: afterRunner.context.waitUntil,
+      onClose: afterRunner.context.onClose,
+      onAfterTaskError: afterRunner.context.onTaskError,
       buildId,
     },
   })
@@ -1466,6 +1466,8 @@ export async function buildAppStaticPaths({
     })
   }
 
+  await afterRunner.executeAfter()
+
   return result
 }
 
@@ -1498,6 +1500,7 @@ export async function isPageStatic({
   edgeInfo,
   pageType,
   dynamicIO,
+  after,
   authInterrupts,
   originalAppPath,
   isrFlushToDisk,
@@ -1513,6 +1516,7 @@ export async function isPageStatic({
   page: string
   distDir: string
   dynamicIO: boolean
+  after: boolean
   authInterrupts: boolean
   configFileName: string
   runtimeEnvConfig: any
@@ -1655,6 +1659,7 @@ export async function isPageStatic({
               dir,
               page,
               dynamicIO,
+              after,
               authInterrupts,
               configFileName,
               segments,
