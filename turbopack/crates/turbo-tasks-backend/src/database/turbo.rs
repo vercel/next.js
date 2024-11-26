@@ -89,7 +89,12 @@ impl<'a> BaseWriteBatch<'a> for TurboWriteBatch<'a> {
     }
 
     fn commit(self) -> Result<()> {
-        self.db.commit_write_batch(self.batch)
+        let fresh = self.db.is_empty();
+        self.db.commit_write_batch(self.batch)?;
+        if !fresh {
+            self.db.compact(0.5, 8)?;
+        }
+        Ok(())
     }
 }
 
