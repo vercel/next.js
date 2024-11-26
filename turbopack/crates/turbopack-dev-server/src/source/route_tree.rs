@@ -41,7 +41,7 @@ impl BaseSegment {
 /// lead to creating new tasks over and over. A celled list leads to task reuse
 /// and faster operation.
 #[turbo_tasks::value(transparent)]
-pub struct RouteTrees(Vec<Vc<RouteTree>>);
+pub struct RouteTrees(Vec<ResolvedVc<RouteTree>>);
 
 #[turbo_tasks::value_impl]
 impl RouteTrees {
@@ -101,12 +101,12 @@ impl RouteTrees {
 #[derive(Default, Clone, Debug)]
 pub struct RouteTree {
     base: Vec<BaseSegment>,
-    sources: Vec<Vc<Box<dyn GetContentSourceContent>>>,
-    static_segments: FxIndexMap<RcStr, Vc<RouteTree>>,
+    sources: Vec<ResolvedVc<Box<dyn GetContentSourceContent>>>,
+    static_segments: FxIndexMap<RcStr, ResolvedVc<RouteTree>>,
     dynamic_segments: Vec<ResolvedVc<RouteTree>>,
-    catch_all_sources: Vec<Vc<Box<dyn GetContentSourceContent>>>,
-    fallback_sources: Vec<Vc<Box<dyn GetContentSourceContent>>>,
-    not_found_sources: Vec<Vc<Box<dyn GetContentSourceContent>>>,
+    catch_all_sources: Vec<ResolvedVc<Box<dyn GetContentSourceContent>>>,
+    fallback_sources: Vec<ResolvedVc<Box<dyn GetContentSourceContent>>>,
+    not_found_sources: Vec<ResolvedVc<Box<dyn GetContentSourceContent>>>,
 }
 
 impl RouteTree {
