@@ -200,12 +200,12 @@ pub async fn get_edge_resolve_options_context(
 #[turbo_tasks::function]
 pub async fn get_edge_chunking_context_with_client_assets(
     mode: Vc<NextMode>,
-    project_path: Vc<FileSystemPath>,
-    node_root: Vc<FileSystemPath>,
-    client_root: Vc<FileSystemPath>,
-    asset_prefix: Vc<Option<RcStr>>,
-    environment: Vc<Environment>,
-    module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
+    project_path: ResolvedVc<FileSystemPath>,
+    node_root: ResolvedVc<FileSystemPath>,
+    client_root: ResolvedVc<FileSystemPath>,
+    asset_prefix: ResolvedVc<Option<RcStr>>,
+    environment: ResolvedVc<Environment>,
+    module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
     turbo_minify: Vc<bool>,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
     let output_root = node_root.join("server/edge".into());
