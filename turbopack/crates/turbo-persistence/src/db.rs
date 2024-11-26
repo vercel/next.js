@@ -1,5 +1,6 @@
 use std::{
     any::{Any, TypeId},
+    collections::HashSet,
     fs::{self, File, OpenOptions, ReadDir},
     io::Write,
     mem::{transmute, MaybeUninit},
@@ -208,6 +209,7 @@ impl TurboPersistence {
         let current = current_file.read_u32::<BE>()?;
         drop(current_file);
 
+        let mut deleted_files = HashSet::new();
         for entry in entries {
             let entry = entry?;
             let path = entry.path();
@@ -218,6 +220,9 @@ impl TurboPersistence {
                     .to_str()
                     .context("File stem is not valid utf-8")?
                     .parse()?;
+                if deleted_files.contains(&seq) {
+                    continue;
+                }
                 if seq > current {
                     fs::remove_file(&path)?;
                 } else {
@@ -226,7 +231,23 @@ impl TurboPersistence {
                             sst_files.push(seq);
                         }
                         "del" => {
-                            // TODO delete files
+                            let mut content = &*fs::read(&path)?;
+                            let mut no_existing_files = true;
+                            while !content.is_empty() {
+                                let seq = content.read_u32::<BE>()?;
+                                deleted_files.insert(seq);
+                                let sst_file = self.path.join(&format!("{:08}.sst", seq));
+                                let blob_file = self.path.join(&format!("{:08}.blob", seq));
+                                for path in [sst_file, blob_file] {
+                                    if fs::exists(&path)? {
+                                        let _ = fs::remove_file(path)?;
+                                        no_existing_files = false;
+                                    }
+                                }
+                            }
+                            if no_existing_files {
+                                fs::remove_file(&path)?;
+                            }
                         }
                         "blob" => {
                             // ignore blobs, they are read when needed
@@ -248,6 +269,7 @@ impl TurboPersistence {
             }
         }
 
+        sst_files.retain(|seq| !deleted_files.contains(seq));
         sst_files.sort();
         let sst_files = sst_files
             .into_iter()
