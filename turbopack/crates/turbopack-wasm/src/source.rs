@@ -41,7 +41,7 @@ pub struct WebAssemblySource {
 #[turbo_tasks::value_impl]
 impl WebAssemblySource {
     #[turbo_tasks::function]
-    pub fn new(source: Vc<Box<dyn Source>>, source_ty: WebAssemblySourceType) -> Vc<Self> {
+    pub fn new(source: ResolvedVc<Box<dyn Source>>, source_ty: WebAssemblySourceType) -> Vc<Self> {
         Self::cell(WebAssemblySource { source, source_ty })
     }
 }
