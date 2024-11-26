@@ -75,13 +75,13 @@ pub trait GetContentSourceContent {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct GetContentSourceContents(Vec<Vc<Box<dyn GetContentSourceContent>>>);
+pub struct GetContentSourceContents(Vec<ResolvedVc<Box<dyn GetContentSourceContent>>>);
 
 #[turbo_tasks::value]
 pub struct StaticContent {
-    pub content: Vc<Box<dyn VersionedContent>>,
+    pub content: ResolvedVc<Box<dyn VersionedContent>>,
     pub status_code: u16,
-    pub headers: Vc<HeaderList>,
+    pub headers: ResolvedVc<HeaderList>,
 }
 
 #[turbo_tasks::value(shared)]
@@ -200,7 +200,7 @@ pub struct ContentSourceData {
     /// requested.
     pub raw_headers: Option<Vec<(RcStr, RcStr)>>,
     /// Request body, if requested.
-    pub body: Option<Vc<Body>>,
+    pub body: Option<ResolvedVc<Body>>,
     /// See [ContentSourceDataVary::cache_buster].
     pub cache_buster: u64,
 }
@@ -443,7 +443,7 @@ where
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct ContentSources(Vec<Vc<Box<dyn ContentSource>>>);
+pub struct ContentSources(Vec<ResolvedVc<Box<dyn ContentSource>>>);
 
 #[turbo_tasks::value_impl]
 impl ContentSources {
