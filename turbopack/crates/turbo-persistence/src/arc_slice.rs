@@ -1,5 +1,6 @@
 use std::{
     borrow::Borrow,
+    hash::{Hash, Hasher},
     ops::{Deref, Range},
     sync::Arc,
 };
@@ -42,7 +43,29 @@ impl<T> Borrow<[T]> for ArcSlice<T> {
     }
 }
 
+impl<T: Hash> Hash for ArcSlice<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.deref().hash(state)
+    }
+}
+
+impl<T: PartialEq> PartialEq for ArcSlice<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.deref().eq(other.deref())
+    }
+}
+
+impl<T: Eq> Eq for ArcSlice<T> {}
+
 impl<T> ArcSlice<T> {
+    pub unsafe fn new_unchecked(data: *const [T], arc: Arc<[T]>) -> Self {
+        Self { data, arc }
+    }
+
+    pub fn full_arc(this: &ArcSlice<T>) -> Arc<[T]> {
+        this.arc.clone()
+    }
+
     pub fn slice(self, range: Range<usize>) -> ArcSlice<T> {
         let data = &*self;
         let data = &data[range] as *const [T];
