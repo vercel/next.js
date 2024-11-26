@@ -84,7 +84,7 @@ impl ChunkableModule for RawWebAssemblyModuleAsset {
                 module: self,
                 chunking_context,
                 wasm_asset: self
-                    .wasm_asset(Vc::upcast(chunking_context))
+                    .wasm_asset(Vc::upcast(*chunking_context))
                     .to_resolved()
                     .await?,
             }
@@ -125,7 +125,7 @@ impl ChunkItem for RawModuleChunkItem {
 
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        Vc::upcast(self.chunking_context)
+        Vc::upcast(*self.chunking_context)
     }
 
     #[turbo_tasks::function]

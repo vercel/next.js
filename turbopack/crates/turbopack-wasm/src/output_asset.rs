@@ -27,8 +27,8 @@ pub(crate) struct WebAssemblyAsset {
 impl WebAssemblyAsset {
     #[turbo_tasks::function]
     pub(crate) fn new(
-        source: Vc<WebAssemblySource>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        source: ResolvedVc<WebAssemblySource>,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Self> {
         Self::cell(WebAssemblyAsset {
             source,
