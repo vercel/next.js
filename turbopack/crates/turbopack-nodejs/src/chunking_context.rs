@@ -35,7 +35,7 @@ pub struct NodeJsChunkingContextBuilder {
 }
 
 impl NodeJsChunkingContextBuilder {
-    pub fn asset_prefix(mut self, asset_prefix: Vc<Option<RcStr>>) -> Self {
+    pub fn asset_prefix(mut self, asset_prefix: ResolvedVc<Option<RcStr>>) -> Self {
         self.chunking_context.asset_prefix = asset_prefix;
         self
     }
@@ -65,7 +65,10 @@ impl NodeJsChunkingContextBuilder {
         self
     }
 
-    pub fn module_id_strategy(mut self, module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>) -> Self {
+    pub fn module_id_strategy(
+        mut self,
+        module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
+    ) -> Self {
         self.chunking_context.module_id_strategy = module_id_strategy;
         self
     }
@@ -112,12 +115,12 @@ pub struct NodeJsChunkingContext {
 impl NodeJsChunkingContext {
     /// Creates a new chunking context builder.
     pub fn builder(
-        context_path: Vc<FileSystemPath>,
-        output_root: Vc<FileSystemPath>,
-        client_root: Vc<FileSystemPath>,
-        chunk_root_path: Vc<FileSystemPath>,
-        asset_root_path: Vc<FileSystemPath>,
-        environment: Vc<Environment>,
+        context_path: ResolvedVc<FileSystemPath>,
+        output_root: ResolvedVc<FileSystemPath>,
+        client_root: ResolvedVc<FileSystemPath>,
+        chunk_root_path: ResolvedVc<FileSystemPath>,
+        asset_root_path: ResolvedVc<FileSystemPath>,
+        environment: ResolvedVc<Environment>,
         runtime_type: RuntimeType,
     ) -> NodeJsChunkingContextBuilder {
         NodeJsChunkingContextBuilder {
@@ -127,14 +130,14 @@ impl NodeJsChunkingContext {
                 client_root,
                 chunk_root_path,
                 asset_root_path,
-                asset_prefix: Default::default(),
+                asset_prefix: ResolvedVc::cell(None),
                 enable_file_tracing: false,
                 environment,
                 runtime_type,
                 minify_type: MinifyType::NoMinify,
                 manifest_chunks: false,
                 should_use_file_source_map_uris: false,
-                module_id_strategy: Vc::upcast(DevModuleIdStrategy::new()),
+                module_id_strategy: ResolvedVc::upcast(DevModuleIdStrategy::new_resolved()),
             },
         }
     }
@@ -164,7 +167,7 @@ impl NodeJsChunkingContext {
 
     #[turbo_tasks::function]
     pub fn asset_prefix(&self) -> Vc<Option<RcStr>> {
-        self.asset_prefix
+        *self.asset_prefix
     }
 
     #[turbo_tasks::function]
