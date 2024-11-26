@@ -208,7 +208,7 @@ impl ProjectContainer {
             name,
             // we only need to enable versioning in dev mode, since build
             // is assumed to be operating over a static snapshot
-            versioned_content_map: match dev.then(VersionedContentMap::new).await? {
+            versioned_content_map: match dev.then(VersionedContentMap::new) {
                 Some(map) => Some(map.to_resolved().await?),
                 None => None,
             },
@@ -379,13 +379,13 @@ impl ProjectContainer {
             next_config: next_config.to_resolved().await?,
             js_config: js_config.to_resolved().await?,
             dist_dir,
-            env: Vc::upcast(env_map.to_resolved().await?),
+            env: ResolvedVc::upcast(env_map.to_resolved().await?),
             define_env: define_env.to_resolved().await?,
             browserslist_query,
             mode: if dev {
-                NextMode::Development.cell()
+                NextMode::Development.resolved_cell()
             } else {
-                NextMode::Build.cell()
+                NextMode::Build.resolved_cell()
             },
             versioned_content_map: self.versioned_content_map,
             build_id,
@@ -512,12 +512,12 @@ impl Issue for ConflictIssue {
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        self.path
+        *self.path
     }
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        self.title
+        *self.title
     }
 
     #[turbo_tasks::function]
@@ -610,7 +610,7 @@ impl Project {
 
     #[turbo_tasks::function]
     pub(super) fn env(&self) -> Vc<Box<dyn ProcessEnv>> {
-        self.env
+        *self.env
     }
 
     #[turbo_tasks::function]
@@ -878,7 +878,7 @@ impl Project {
             match routes.entry(pathname.clone()) {
                 Entry::Occupied(mut entry) => {
                     ConflictIssue {
-                        path: self.project_path(),
+                        path: self.project_path().to_resolved().await?,
                         title: StyledString::Text(
                             format!("App Router and Pages Router both match path: {}", pathname)
                                 .into(),
@@ -1189,7 +1189,7 @@ impl Project {
                 Ok(())
             } else {
                 let _ = emit_assets(
-                    *all_output_assets.await?,
+                    **all_output_assets.await?,
                     node_root,
                     client_relative_path,
                     node_root,
