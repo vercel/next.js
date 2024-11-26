@@ -86,13 +86,13 @@ impl Introspectable for CombinedContentSource {
                 .iter()
                 .copied()
                 .map(|s| async move {
-                    Ok(Vc::try_resolve_sidecast::<Box<dyn Introspectable>>(s).await?)
+                    Ok(ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(s).await?)
                 })
                 .try_join()
                 .await?
                 .into_iter()
                 .flatten()
-                .map(|i| (source, i))
+                .map(|i| (source, *i))
                 .collect(),
         ))
     }
