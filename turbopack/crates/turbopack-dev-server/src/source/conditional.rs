@@ -139,10 +139,10 @@ impl Introspectable for ConditionalContentSource {
     async fn children(&self) -> Result<Vc<IntrospectableChildren>> {
         Ok(Vc::cell(
             [
-                Vc::try_resolve_sidecast::<Box<dyn Introspectable>>(self.activator)
+                ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(self.activator)
                     .await?
                     .map(|i| (activator_key(), i)),
-                Vc::try_resolve_sidecast::<Box<dyn Introspectable>>(self.action)
+                ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(self.action)
                     .await?
                     .map(|i| (action_key(), i)),
             ]
