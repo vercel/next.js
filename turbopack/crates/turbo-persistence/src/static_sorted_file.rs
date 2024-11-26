@@ -14,7 +14,11 @@ use memmap2::Mmap;
 use quick_cache::sync::GuardResult;
 use rustc_hash::FxHasher;
 
-use crate::{arc_slice::ArcSlice, QueryKey};
+use crate::{
+    arc_slice::ArcSlice,
+    lookup_entry::{LookupEntry, LookupValue},
+    QueryKey,
+};
 
 pub const BLOCK_TYPE_INDEX: u8 = 0;
 pub const BLOCK_TYPE_KEY: u8 = 1;
@@ -31,6 +35,16 @@ pub enum LookupResult {
     RangeMiss,
     QuickFilterMiss,
     KeyMiss,
+}
+
+impl From<LookupValue> for LookupResult {
+    fn from(value: LookupValue) -> Self {
+        match value {
+            LookupValue::Deleted => LookupResult::Deleted,
+            LookupValue::Small { value } => LookupResult::Small { value },
+            LookupValue::Blob { sequence_number } => LookupResult::Blob { sequence_number },
+        }
+    }
 }
 
 struct LocationInFile {
@@ -80,6 +94,10 @@ pub struct StaticSortedFile {
 }
 
 impl StaticSortedFile {
+    pub fn sequence_number(&self) -> u32 {
+        self.sequence_number
+    }
+
     pub fn open(sequence_number: u32, path: PathBuf) -> Result<Self> {
         let mmap = unsafe { Mmap::map(&File::open(&path)?)? };
         let file = Self {
@@ -137,6 +155,29 @@ impl StaticSortedFile {
         })
     }
 
+    pub fn range(&self) -> Result<(u64, u64)> {
+        let header = self.header()?;
+        Ok((header.min_hash, header.max_hash))
+    }
+
+    pub fn iter<'l>(
+        &'l self,
+        key_block_cache: &'l BlockCache,
+        value_block_cache: &'l BlockCache,
+    ) -> Result<StaticSortedFileIter<'l>> {
+        let header = self.header()?;
+        let mut iter = StaticSortedFileIter {
+            this: self,
+            key_block_cache,
+            value_block_cache,
+            header,
+            stack: Vec::new(),
+            current_key_block: None,
+        };
+        iter.enter_block(header.block_count - 1)?;
+        Ok(iter)
+    }
+
     pub fn lookup<K: QueryKey>(
         &self,
         key_hash: u64,
@@ -151,7 +192,7 @@ impl StaticSortedFile {
             return Ok(LookupResult::RangeMiss);
         }
 
-        let use_aqmf_cache = false;
+        let use_aqmf_cache = header.max_hash - header.min_hash < 1 << 62;
         if use_aqmf_cache {
             let aqmf = match aqmf_cache.get_value_or_guard(&self.sequence_number, None) {
                 GuardResult::Value(aqmf) => aqmf,
@@ -176,22 +217,10 @@ impl StaticSortedFile {
             }
         }
         let mut current_block = header.block_count - 1;
+        let mut cache = index_block_cache;
         loop {
-            let cache = if current_block == 0 {
-                index_block_cache
-            } else {
-                key_block_cache
-            };
-            let block = match cache.get_value_or_guard(&(self.sequence_number, current_block), None)
-            {
-                GuardResult::Value(block) => block,
-                GuardResult::Guard(guard) => {
-                    let block = self.read_key_block(header, current_block)?;
-                    let _ = guard.insert(block.clone());
-                    block
-                }
-                GuardResult::Timeout => unreachable!(),
-            };
+            let block = self.get_key_block(header, current_block, cache)?;
+            cache = key_block_cache;
             let mut block = &block[..];
             let block_type = block.read_u8()?;
             match block_type {
@@ -211,6 +240,9 @@ impl StaticSortedFile {
     fn lookup_index_block(&self, mut block: &[u8], hash: u64) -> Result<u16> {
         let first_block = block.read_u16::<BE>()?;
         let entry_count = block.len() / 10;
+        if entry_count == 0 {
+            return Ok(first_block);
+        }
         let entries = block;
         fn get_hash<'l>(entries: &'l [u8], index: usize) -> Result<u64> {
             Ok((&entries[index * 10..]).read_u64::<BE>()?)
@@ -261,74 +293,26 @@ impl StaticSortedFile {
         let entry_count = block.read_u24::<BE>()? as usize;
         let offsets = &block[..entry_count * 4];
         let entries = &block[entry_count * 4..];
-        struct GetEntryResult<'l> {
-            hash: u64,
-            key: &'l [u8],
-            ty: u8,
-            val: &'l [u8],
-        }
-        fn get_entry<'l>(
-            offsets: &[u8],
-            entries: &'l [u8],
-            entry_count: usize,
-            index: usize,
-        ) -> Result<GetEntryResult<'l>> {
-            let mut offset = &offsets[index * 4..];
-            let ty = offset.read_u8()?;
-            let start = offset.read_u24::<BE>()? as usize;
-            let end = if index == entry_count - 1 {
-                entries.len()
-            } else {
-                (&offsets[(index + 1) * 4 + 1..]).read_u24::<BE>()? as usize
-            };
-            let hash = (&entries[start..start + 8]).read_u64::<BE>()?;
-            Ok(match ty {
-                KEY_BLOCK_ENTRY_TYPE_SMALL => GetEntryResult {
-                    hash,
-                    key: &entries[start + 8..end - 8],
-                    ty,
-                    val: &entries[end - 8..end],
-                },
-                KEY_BLOCK_ENTRY_TYPE_MEDIUM => GetEntryResult {
-                    hash,
-                    key: &entries[start + 8..end - 2],
-                    ty,
-                    val: &entries[end - 2..end],
-                },
-                KEY_BLOCK_ENTRY_TYPE_BLOB => GetEntryResult {
-                    hash,
-                    key: &entries[start + 8..end - 4],
-                    ty,
-                    val: &entries[end - 4..end],
-                },
-                KEY_BLOCK_ENTRY_TYPE_DELETED => GetEntryResult {
-                    hash,
-                    key: &entries[start + 8..end],
-                    ty,
-                    val: &[],
-                },
-                _ => {
-                    bail!("Invalid key block entry type");
-                }
-            })
-        }
+
         let mut l = 0;
         let mut r = entry_count;
         // binary search for the key
         while l < r {
             let m = (l + r) / 2;
-            let GetEntryResult {
+            let GetKeyEntryResult {
                 hash: mid_hash,
                 key: mid_key,
                 ty,
                 val: mid_val,
-            } = get_entry(&offsets, &entries, entry_count, m)?;
+            } = get_key_entry(&offsets, &entries, entry_count, m)?;
             match key_hash.cmp(&mid_hash).then_with(|| key.cmp(mid_key)) {
                 Ordering::Less => {
                     r = m;
                 }
                 Ordering::Equal => {
-                    return self.handle_key_match(ty, mid_val, header, value_block_cache);
+                    return Ok(self
+                        .handle_key_match(ty, mid_val, header, value_block_cache)?
+                        .into());
                 }
                 Ordering::Greater => {
                     l = m + 1;
@@ -344,7 +328,7 @@ impl StaticSortedFile {
         mut val: &[u8],
         header: &Header,
         value_block_cache: &BlockCache,
-    ) -> Result<LookupResult> {
+    ) -> Result<LookupValue> {
         Ok(match ty {
             KEY_BLOCK_ENTRY_TYPE_SMALL => {
                 let block = val.read_u16::<BE>()?;
@@ -353,22 +337,41 @@ impl StaticSortedFile {
                 let value = self
                     .get_value_block(header, block, value_block_cache)?
                     .slice(position..position + size);
-                LookupResult::Small { value }
+                LookupValue::Small { value }
             }
             KEY_BLOCK_ENTRY_TYPE_MEDIUM => {
                 let block = val.read_u16::<BE>()?;
                 let value = self.read_value_block(header, block)?;
-                LookupResult::Small { value }
+                LookupValue::Small { value }
             }
             KEY_BLOCK_ENTRY_TYPE_BLOB => {
                 let sequence_number = val.read_u32::<BE>()?;
-                LookupResult::Blob { sequence_number }
+                LookupValue::Blob { sequence_number }
             }
-            KEY_BLOCK_ENTRY_TYPE_DELETED => LookupResult::Deleted,
+            KEY_BLOCK_ENTRY_TYPE_DELETED => LookupValue::Deleted,
             _ => {
                 bail!("Invalid key block entry type");
             }
         })
+    }
+
+    fn get_key_block(
+        &self,
+        header: &Header,
+        block: u16,
+        key_block_cache: &BlockCache,
+    ) -> Result<ArcSlice<u8>, anyhow::Error> {
+        Ok(
+            match key_block_cache.get_value_or_guard(&(self.sequence_number, block), None) {
+                GuardResult::Value(block) => block,
+                GuardResult::Guard(guard) => {
+                    let block = self.read_key_block(header, block)?;
+                    let _ = guard.insert(block.clone());
+                    block
+                }
+                GuardResult::Timeout => unreachable!(),
+            },
+        )
     }
 
     fn get_value_block(
@@ -473,4 +476,177 @@ impl StaticSortedFile {
         decompress_with_dict(&block, decompressed, compression_dictionary)?;
         Ok(ArcSlice::from(buffer))
     }
+}
+
+pub struct StaticSortedFileIter<'l> {
+    this: &'l StaticSortedFile,
+    key_block_cache: &'l BlockCache,
+    value_block_cache: &'l BlockCache,
+    header: &'l Header,
+
+    stack: Vec<CurrentIndexBlock>,
+    current_key_block: Option<CurrentKeyBlock>,
+}
+
+struct CurrentKeyBlock {
+    offsets: ArcSlice<u8>,
+    entries: ArcSlice<u8>,
+    entry_count: usize,
+    index: usize,
+}
+
+struct CurrentIndexBlock {
+    entries: ArcSlice<u8>,
+    block_indicies_count: usize,
+    index: usize,
+}
+
+impl<'l> Iterator for StaticSortedFileIter<'l> {
+    type Item = Result<LookupEntry>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.next_internal().transpose()
+    }
+}
+
+impl<'l> StaticSortedFileIter<'l> {
+    fn enter_block(&mut self, block_index: u16) -> Result<()> {
+        let block_arc = self
+            .this
+            .get_key_block(self.header, block_index, &self.key_block_cache)?;
+        let mut block = &*block_arc;
+        let block_type = block.read_u8()?;
+        match block_type {
+            BLOCK_TYPE_INDEX => {
+                let block_indicies_count = (block.len() + 8) / 10;
+                let range = 1..block_arc.len();
+                self.stack.push(CurrentIndexBlock {
+                    entries: block_arc.slice(range),
+                    block_indicies_count,
+                    index: 0,
+                });
+            }
+            BLOCK_TYPE_KEY => {
+                let entry_count = block.read_u24::<BE>()? as usize;
+                let offsets_range = 4..4 + entry_count * 4;
+                let entries_range = 4 + entry_count * 4..block_arc.len();
+                let offsets = block_arc.clone().slice(offsets_range);
+                let entries = block_arc.slice(entries_range);
+                self.current_key_block = Some(CurrentKeyBlock {
+                    offsets,
+                    entries,
+                    entry_count,
+                    index: 0,
+                });
+            }
+            _ => {
+                bail!("Invalid block type");
+            }
+        }
+        Ok(())
+    }
+
+    fn next_internal(&mut self) -> Result<Option<LookupEntry>> {
+        loop {
+            if let Some(CurrentKeyBlock {
+                offsets,
+                entries,
+                entry_count,
+                index,
+            }) = self.current_key_block.take()
+            {
+                let GetKeyEntryResult { hash, key, ty, val } =
+                    get_key_entry(&offsets, &entries, entry_count, index)?;
+                let value =
+                    self.this
+                        .handle_key_match(ty, val, self.header, self.value_block_cache)?;
+                let entry = LookupEntry {
+                    hash,
+                    // Safety: The key is a valid slice of the entries.
+                    key: unsafe { ArcSlice::new_unchecked(key, ArcSlice::full_arc(&entries)) },
+                    value,
+                };
+                if index + 1 < entry_count {
+                    self.current_key_block = Some(CurrentKeyBlock {
+                        offsets,
+                        entries,
+                        entry_count,
+                        index: index + 1,
+                    });
+                }
+                return Ok(Some(entry));
+            }
+            if let Some(CurrentIndexBlock {
+                entries,
+                block_indicies_count,
+                index,
+            }) = self.stack.pop()
+            {
+                let block_index = (&entries[index * 10..]).read_u16::<BE>()?;
+                if index + 1 < block_indicies_count {
+                    self.stack.push(CurrentIndexBlock {
+                        entries,
+                        block_indicies_count,
+                        index: index + 1,
+                    });
+                }
+                self.enter_block(block_index)?;
+            } else {
+                return Ok(None);
+            }
+        }
+    }
+}
+
+struct GetKeyEntryResult<'l> {
+    hash: u64,
+    key: &'l [u8],
+    ty: u8,
+    val: &'l [u8],
+}
+
+fn get_key_entry<'l>(
+    offsets: &[u8],
+    entries: &'l [u8],
+    entry_count: usize,
+    index: usize,
+) -> Result<GetKeyEntryResult<'l>> {
+    let mut offset = &offsets[index * 4..];
+    let ty = offset.read_u8()?;
+    let start = offset.read_u24::<BE>()? as usize;
+    let end = if index == entry_count - 1 {
+        entries.len()
+    } else {
+        (&offsets[(index + 1) * 4 + 1..]).read_u24::<BE>()? as usize
+    };
+    let hash = (&entries[start..start + 8]).read_u64::<BE>()?;
+    Ok(match ty {
+        KEY_BLOCK_ENTRY_TYPE_SMALL => GetKeyEntryResult {
+            hash,
+            key: &entries[start + 8..end - 8],
+            ty,
+            val: &entries[end - 8..end],
+        },
+        KEY_BLOCK_ENTRY_TYPE_MEDIUM => GetKeyEntryResult {
+            hash,
+            key: &entries[start + 8..end - 2],
+            ty,
+            val: &entries[end - 2..end],
+        },
+        KEY_BLOCK_ENTRY_TYPE_BLOB => GetKeyEntryResult {
+            hash,
+            key: &entries[start + 8..end - 4],
+            ty,
+            val: &entries[end - 4..end],
+        },
+        KEY_BLOCK_ENTRY_TYPE_DELETED => GetKeyEntryResult {
+            hash,
+            key: &entries[start + 8..end],
+            ty,
+            val: &[],
+        },
+        _ => {
+            bail!("Invalid key block entry type");
+        }
+    })
 }

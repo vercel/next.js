@@ -4,10 +4,12 @@
 
 mod arc_slice;
 mod collector;
+mod collector_entry;
 mod constants;
 mod db;
-mod entry;
 mod key;
+mod lookup_entry;
+mod merge_iter;
 mod static_sorted_file;
 mod static_sorted_file_builder;
 mod write_batch;

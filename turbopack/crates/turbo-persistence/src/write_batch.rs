@@ -14,8 +14,8 @@ use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use thread_local::ThreadLocal;
 
 use crate::{
-    collector::Collector, constants::MAX_MEDIUM_VALUE_SIZE, entry::Entry, key::StoreKey,
-    static_sorted_file_builder::StaticSortedFileBuilder,
+    collector::Collector, collector_entry::CollectorEntry, constants::MAX_MEDIUM_VALUE_SIZE,
+    key::StoreKey, static_sorted_file_builder::StaticSortedFileBuilder,
 };
 
 struct ThreadLocalState<K: StoreKey + Send> {
@@ -114,7 +114,7 @@ impl<K: StoreKey + Send> WriteBatch<K> {
 
     fn create_sst_file(
         &self,
-        collector_data: (Vec<Entry<K>>, usize, usize),
+        collector_data: (Vec<CollectorEntry<K>>, usize, usize),
     ) -> Result<(u32, File)> {
         let (entries, total_key_size, total_value_size) = collector_data;
         let seq = self.current_sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
@@ -131,7 +131,7 @@ impl<K: StoreKey + Send> WriteBatch<K> {
             use core::panic;
 
             use crate::{
-                entry::EntryValue,
+                collector_entry::CollectorEntryValue,
                 key::hash_key,
                 static_sorted_file::{AqmfCache, BlockCache, LookupResult, StaticSortedFile},
             };

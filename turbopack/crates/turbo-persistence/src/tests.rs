@@ -197,8 +197,37 @@ fn full_cycle() -> Result<()> {
             let start = Instant::now();
             read(&db)?;
             println!("{name} read time after read: {:?}", start.elapsed());
+
             #[cfg(feature = "stats")]
             println!("{name} stats: {:#?}", db.statistics());
+
+            let start = Instant::now();
+            db.full_compact()?;
+            println!("{name} compact time: {:?}", start.elapsed());
+
+            let start = Instant::now();
+            read(&db)?;
+            println!("{name} read time after compact: {:?}", start.elapsed());
+        }
+        {
+            let start = Instant::now();
+            let db = TurboPersistence::open(path.to_path_buf())?;
+            println!("{name} restore time after compact: {:?}", start.elapsed());
+            let start = Instant::now();
+            read(&db)?;
+            println!(
+                "{name} read time after compact + restore: {:?}",
+                start.elapsed()
+            );
+            let start = Instant::now();
+            read(&db)?;
+            println!(
+                "{name} read time after compact + restore + read: {:?}",
+                start.elapsed()
+            );
+
+            #[cfg(feature = "stats")]
+            println!("{name} stats (compacted): {:#?}", db.statistics());
         }
     }
 
@@ -239,6 +268,42 @@ fn full_cycle() -> Result<()> {
             }
             #[cfg(feature = "stats")]
             println!("All stats: {:#?}", db.statistics());
+
+            let start = Instant::now();
+            db.full_compact()?;
+            println!("All compact time: {:?}", start.elapsed());
+
+            for (name, _, read) in test_cases.iter() {
+                let start = Instant::now();
+                read(&db)?;
+                println!("{name} read time after compact: {:?}", start.elapsed());
+            }
+        }
+
+        {
+            let start = Instant::now();
+            let db = TurboPersistence::open(path.to_path_buf())?;
+            println!("All restore time after compact: {:?}", start.elapsed());
+
+            for (name, _, read) in test_cases.iter() {
+                let start = Instant::now();
+                read(&db)?;
+                println!(
+                    "{name} read time after compact + restore: {:?}",
+                    start.elapsed()
+                );
+            }
+            for (name, _, read) in test_cases.iter() {
+                let start = Instant::now();
+                read(&db)?;
+                println!(
+                    "{name} read time after compact + restore + read: {:?}",
+                    start.elapsed()
+                );
+            }
+
+            #[cfg(feature = "stats")]
+            println!("All stats (compacted): {:#?}", db.statistics());
         }
     }
     Ok(())
