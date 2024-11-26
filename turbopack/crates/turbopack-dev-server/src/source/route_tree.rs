@@ -172,7 +172,7 @@ impl RouteTree {
                         if value.len() == 1 {
                             value.into_iter().next().unwrap()
                         } else {
-                            Vc::<RouteTrees>::cell(value).merge().resolve().await?
+                            Vc::<RouteTrees>::cell(value).merge().to_resolved().await?
                         },
                     ))
                 })

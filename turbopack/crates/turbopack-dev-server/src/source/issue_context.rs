@@ -50,12 +50,12 @@ impl IssueFilePathContentSource {
 #[turbo_tasks::value_impl]
 impl ContentSource for IssueFilePathContentSource {
     #[turbo_tasks::function]
-    async fn get_routes(self: Vc<Self>) -> Result<Vc<RouteTree>> {
+    async fn get_routes(self: ResolvedVc<Self>) -> Result<Vc<RouteTree>> {
         let this = self.await?;
         let routes = this
             .source
             .get_routes()
-            .issue_file_path(this.file_path, &*this.description)
+            .issue_file_path(*this.file_path, &*this.description)
             .await?;
         Ok(routes.map_routes(Vc::upcast(
             IssueContextContentSourceMapper { source: self }.cell(),
