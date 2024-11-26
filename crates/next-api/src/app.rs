@@ -1648,7 +1648,6 @@ impl Endpoint for AppEndpoint {
             {
                 let node_root = this.app_project.project().node_root();
                 let server_paths = all_server_paths(*output_assets, node_root)
-                    .to_resolved()
                     .await?
                     .clone_value();
 
