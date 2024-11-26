@@ -59,6 +59,7 @@ describe('unstable_after during server shutdown', () => {
       startCommand: 'node server.mjs',
       serverReadyPattern: /Custom server started/,
       skipStart: true,
+      skipDeployment: true, // the tests use cli logs and a custom server
       env: {
         NODE_ENV: isNextDev ? 'development' : 'production',
         DEBUG: '1',
