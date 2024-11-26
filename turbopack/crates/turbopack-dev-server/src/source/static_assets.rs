@@ -97,7 +97,7 @@ impl StaticAssetsContentSourceItem {
 impl GetContentSourceContent for StaticAssetsContentSourceItem {
     #[turbo_tasks::function]
     fn get(&self, _path: RcStr, _data: Value<ContentSourceData>) -> Vc<ContentSourceContent> {
-        let content = Vc::upcast::<Box<dyn Asset>>(FileSource::new(self.path)).content();
+        let content = Vc::upcast::<Box<dyn Asset>>(FileSource::new(*self.path)).content();
         ContentSourceContent::static_content(content.versioned())
     }
 }
