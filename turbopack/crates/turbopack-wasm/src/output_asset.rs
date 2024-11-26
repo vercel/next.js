@@ -1,5 +1,5 @@
 use turbo_rcstr::RcStr;
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::ChunkingContext,
@@ -19,8 +19,8 @@ fn modifier() -> Vc<RcStr> {
 /// [ChunkingContext].
 #[turbo_tasks::value]
 pub(crate) struct WebAssemblyAsset {
-    source: Vc<WebAssemblySource>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
+    source: ResolvedVc<WebAssemblySource>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
 
 #[turbo_tasks::value_impl]
