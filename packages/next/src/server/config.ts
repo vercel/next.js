@@ -122,7 +122,7 @@ function warnCustomizedOption(
 
   if (!silent && current !== defaultValue) {
     Log.warn(
-      `The "${key}" option has been modified. ${customMessage ? customMessage + '. ' : ''}Please update your ${configFileName}.`
+      `The "${key}" option has been modified. ${customMessage ? customMessage + '. ' : ''}It should be removed from your ${configFileName}.`
     )
   }
 }
@@ -227,19 +227,8 @@ function assignDefaults(
       `\`experimental.ppr\` has been defaulted to \`true\` because \`__NEXT_EXPERIMENTAL_PPR\` was set to \`true\` during testing.`
     )
   }
-  if (defaultConfig.experimental?.pprFallbacks) {
-    Log.warn(
-      `\`experimental.pprFallbacks\` has been defaulted to \`true\` because \`__NEXT_EXPERIMENTAL_PPR\` was set to \`true\` during testing.`
-    )
-  }
 
   const result = { ...defaultConfig, ...config }
-
-  if (result.experimental?.pprFallbacks && !result.experimental?.ppr) {
-    throw new Error(
-      `The experimental.pprFallbacks option requires experimental.ppr to be set to \`true\` or \`"incremental"\`.`
-    )
-  }
 
   if (
     result.experimental?.allowDevelopmentBuild &&
@@ -248,6 +237,20 @@ function assignDefaults(
     throw new Error(
       `The experimental.allowDevelopmentBuild option requires NODE_ENV to be explicitly set to 'development'.`
     )
+  }
+
+  if (
+    !process.env.__NEXT_VERSION?.includes('canary') &&
+    !process.env.__NEXT_TEST_MODE
+  ) {
+    // Prevents usage of certain experimental features outside of canary
+    if (result.experimental?.ppr) {
+      throw new CanaryOnlyError('experimental.ppr')
+    } else if (result.experimental?.dynamicIO) {
+      throw new CanaryOnlyError('experimental.dynamicIO')
+    } else if (result.experimental?.turbo?.unstablePersistentCaching) {
+      throw new CanaryOnlyError('experimental.turbo.unstablePersistentCaching')
+    }
   }
 
   if (result.output === 'export') {
@@ -327,6 +330,26 @@ function assignDefaults(
       )
     }
 
+    if (images.localPatterns) {
+      if (!Array.isArray(images.localPatterns)) {
+        throw new Error(
+          `Specified images.localPatterns should be an Array received ${typeof images.localPatterns}.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+        )
+      }
+      // avoid double-pushing the same pattern if it already exists
+      const hasMatch = images.localPatterns.some(
+        (pattern) =>
+          pattern.pathname === '/_next/static/media/**' && pattern.search === ''
+      )
+      if (!hasMatch) {
+        // static import images are automatically allowed
+        images.localPatterns.push({
+          pathname: '/_next/static/media/**',
+          search: '',
+        })
+      }
+    }
+
     if (images.remotePatterns) {
       if (!Array.isArray(images.remotePatterns)) {
         throw new Error(
@@ -344,9 +367,9 @@ function assignDefaults(
             matchRemotePattern(pattern, url)
           )
 
-          // avoid double-pushing the same remote if it already can be matched
+          // avoid double-pushing the same pattern if it already can be matched
           if (!hasMatchForAssetPrefix) {
-            images.remotePatterns?.push({
+            images.remotePatterns.push({
               hostname: url.hostname,
               protocol: url.protocol.replace(/:$/, '') as 'http' | 'https',
               port: url.port,
@@ -483,7 +506,7 @@ function assignDefaults(
   warnOptionHasBeenMovedOutOfExperimental(
     result,
     'swrDelta',
-    'swrDelta',
+    'expireTime',
     configFileName,
     silent
   )
@@ -787,6 +810,83 @@ function assignDefaults(
     }
   }
 
+  if (result.experimental?.cacheLife) {
+    const defaultDefault = defaultConfig.experimental?.cacheLife?.['default']
+    if (
+      !defaultDefault ||
+      defaultDefault.revalidate === undefined ||
+      defaultDefault.expire === undefined ||
+      !defaultConfig.experimental?.staleTimes?.static
+    ) {
+      throw new Error('No default cacheLife profile.')
+    }
+    const defaultCacheLifeProfile = result.experimental.cacheLife['default']
+    if (!defaultCacheLifeProfile) {
+      result.experimental.cacheLife['default'] = defaultDefault
+    } else {
+      if (defaultCacheLifeProfile.stale === undefined) {
+        const staticStaleTime = result.experimental.staleTimes?.static
+        defaultCacheLifeProfile.stale =
+          staticStaleTime ?? defaultConfig.experimental?.staleTimes?.static
+      }
+      if (defaultCacheLifeProfile.revalidate === undefined) {
+        defaultCacheLifeProfile.revalidate = defaultDefault.revalidate
+      }
+      if (defaultCacheLifeProfile.expire === undefined) {
+        defaultCacheLifeProfile.expire =
+          result.expireTime ?? defaultDefault.expire
+      }
+    }
+    // This is the most dynamic cache life profile.
+    const secondsCacheLifeProfile = result.experimental.cacheLife['seconds']
+    if (
+      secondsCacheLifeProfile &&
+      secondsCacheLifeProfile.stale === undefined
+    ) {
+      // We default this to whatever stale time you had configured for dynamic content.
+      // Since this is basically a dynamic cache life profile.
+      const dynamicStaleTime = result.experimental.staleTimes?.dynamic
+      secondsCacheLifeProfile.stale =
+        dynamicStaleTime ?? defaultConfig.experimental?.staleTimes?.dynamic
+    }
+  }
+
+  if (result.experimental?.cacheHandlers) {
+    const allowedHandlerNameRegex = /[a-z-]/
+
+    if (typeof result.experimental.cacheHandlers !== 'object') {
+      throw new Error(
+        `Invalid "experimental.cacheHandlers" provided, expected an object e.g. { default: '/my-handler.js' }, received ${JSON.stringify(result.experimental.cacheHandlers)}`
+      )
+    }
+
+    const handlerKeys = Object.keys(result.experimental.cacheHandlers)
+    const invalidHandlerItems: Array<{ key: string; reason: string }> = []
+
+    for (const key of handlerKeys) {
+      if (!allowedHandlerNameRegex.test(key)) {
+        invalidHandlerItems.push({
+          key,
+          reason: 'key must only use characters a-z and -',
+        })
+      } else {
+        const handlerPath = result.experimental.cacheHandlers[key]
+
+        if (handlerPath && !existsSync(handlerPath)) {
+          invalidHandlerItems.push({
+            key,
+            reason: `cache handler path provided does not exist, received ${handlerPath}`,
+          })
+        }
+      }
+      if (invalidHandlerItems.length) {
+        throw new Error(
+          `Invalid handler fields configured for "experimental.cacheHandler":\n${invalidHandlerItems.map((item) => `${key}: ${item.reason}`).join('\n')}`
+        )
+      }
+    }
+  }
+
   const userProvidedModularizeImports = result.modularizeImports
   // Unfortunately these packages end up re-exporting 10600 modules, for example: https://unpkg.com/browse/@mui/icons-material@5.11.16/esm/index.js.
   // Leveraging modularizeImports tremendously reduces compile times for these.
@@ -985,9 +1085,6 @@ export default async function loadConfig(
           nextConfigPath: path,
           cwd: dir,
         })
-        curLog.warn(
-          `Configuration with ${configFileName} is currently an experimental feature, use with caution.`
-        )
       } else {
         userConfigModule = await import(pathToFileURL(path).href)
       }
@@ -1174,4 +1271,12 @@ export function getEnabledExperimentalFeatures(
     }
   }
   return enabledExperiments
+}
+
+class CanaryOnlyError extends Error {
+  constructor(feature: string) {
+    super(
+      `The experimental feature "${feature}" can only be enabled when using the latest canary version of Next.js.`
+    )
+  }
 }

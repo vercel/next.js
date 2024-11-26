@@ -40,11 +40,11 @@ These features are currently not supported:
 - [`webpack()`](/docs/app/api-reference/next-config-js/webpack) configuration in `next.config.js`
   - Turbopack replaces Webpack, this means that webpack configuration is not supported.
   - To configure Turbopack, [see the documentation](/docs/app/api-reference/next-config-js/turbo).
-  - A subset of [Webpack loaders](/docs/app/api-reference/next-config-js/turbo#webpack-loaders) are supported in Turbopack.
+  - A subset of [Webpack loaders](/docs/app/api-reference/next-config-js/turbo#configuring-webpack-loaders) are supported in Turbopack.
 - Babel (`.babelrc`)
   - Turbopack leverages the [SWC](/docs/architecture/nextjs-compiler#why-swc) compiler for all transpilation and optimizations. This means that Babel is not included by default.
   - If you have a `.babelrc` file, you might no longer need it because Next.js includes common Babel plugins as SWC transforms that can be enabled. You can read more about this in the [compiler documentation](docs/architecture/nextjs-compiler#supported-features).
-  - If you still need to use Babel after verifying your particular use case is not covered, you can leverage Turbopack's [support for custom webpack loaders](/docs/app/api-reference/next-config-js/turbo#webpack-loaders) to include `babel-loader`.
+  - If you still need to use Babel after verifying your particular use case is not covered, you can leverage Turbopack's [support for custom webpack loaders](/docs/app/api-reference/next-config-js/turbo#configuring-webpack-loaders) to include `babel-loader`.
 - Creating a root layout automatically in App Router.
   - This behavior is currently not supported since it changes input files, instead, an error will be shown for you to manually add a root layout in the desired location.
 - `@next/font` (legacy font support).
@@ -54,7 +54,7 @@ These features are currently not supported:
 - Blocking `.css` imports in `pages/_document.tsx`
   - Currently with webpack Next.js blocks importing `.css` files in `pages/_document.tsx`
   - We are planning to implement this warning in the future.
-- [`experimental.typedRoutes](https://nextjs.org/docs/app/api-reference/next-config-js/typedRoutes)
+- [`experimental.typedRoutes`](https://nextjs.org/docs/app/api-reference/next-config-js/typedRoutes)
   - We are planning to implement this in the future.
 - `experimental.nextScriptWorkers`
   - We are planning to implement this in the future.

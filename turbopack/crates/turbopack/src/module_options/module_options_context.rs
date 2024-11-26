@@ -1,8 +1,8 @@
-use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, RcStr, ValueDefault, Vc};
+use turbo_tasks::{trace::TraceRawVcs, FxIndexMap, RcStr, ValueDefault, Vc};
 use turbopack_core::{
-    condition::ContextCondition, environment::Environment, resolve::options::ImportMapping,
+    chunk::MinifyType, condition::ContextCondition, environment::Environment,
+    resolve::options::ImportMapping,
 };
 use turbopack_ecmascript::{references::esm::UrlRewriteBehavior, TreeShakingMode};
 pub use turbopack_mdx::MdxTransformOptions;
@@ -21,7 +21,7 @@ pub struct LoaderRuleItem {
 
 #[derive(Default)]
 #[turbo_tasks::value(transparent)]
-pub struct WebpackRules(IndexMap<RcStr, LoaderRuleItem>);
+pub struct WebpackRules(FxIndexMap<RcStr, LoaderRuleItem>);
 
 #[derive(Default)]
 #[turbo_tasks::value(transparent)]
@@ -33,10 +33,6 @@ pub struct WebpackLoadersOptions {
     pub rules: Vc<WebpackRules>,
     pub loader_runner_package: Option<Vc<ImportMapping>>,
 }
-
-#[derive(Default)]
-#[turbo_tasks::value(transparent)]
-pub struct OptionWebpackLoadersOptions(Option<Vc<WebpackLoadersOptions>>);
 
 /// The kind of decorators transform to use.
 /// [TODO]: might need bikeshed for the name (Ecma)
@@ -54,6 +50,7 @@ pub enum TypeofWindow {
 }
 
 /// Configuration options for the decorators transform.
+///
 /// This is not part of Typescript transform: while there are typescript
 /// specific transforms (legay decorators), there is an ecma decorator transform
 /// as well for the JS.
@@ -127,8 +124,6 @@ pub struct ModuleOptionsContext {
     pub side_effect_free_packages: Vec<RcStr>,
     pub tree_shaking_mode: Option<TreeShakingMode>,
 
-    pub special_exports: Option<Vc<Vec<RcStr>>>,
-
     /// Custom rules to be applied after all default rules.
     pub module_rules: Vec<ModuleRule>,
     /// A list of rules to use a different module option context for certain
@@ -171,6 +166,8 @@ pub struct CssOptionsContext {
     /// the module graph, but neither asset types can be emitted directly.
     pub enable_raw_css: bool,
     pub use_swc_css: bool,
+
+    pub minify_type: MinifyType,
 
     pub placeholder_for_future_extensions: (),
 }

@@ -52,16 +52,9 @@ describe('Custom Properties: Pass-Through IE11', () => {
           .trim()
 
         if (process.env.TURBOPACK) {
-          expect(cssContent.replace(/\/\*.*?\*\//g, '').trim())
-            .toMatchInlineSnapshot(`
-            ":root {
-              --color: red;
-            }
-
-            h1 {
-              color: var(--color);
-            }"
-          `)
+          expect(
+            cssContent.replace(/\/\*.*?\*\//g, '').trim()
+          ).toMatchInlineSnapshot(`":root{--color:red}h1{color:var(--color)}"`)
         } else {
           expect(
             cssContent.replace(/\/\*.*?\*\//g, '').trim()
@@ -109,16 +102,9 @@ describe('Custom Properties: Pass-Through Modern', () => {
           .trim()
 
         if (process.env.TURBOPACK) {
-          expect(cssContent.replace(/\/\*.*?\*\//g, '').trim())
-            .toMatchInlineSnapshot(`
-            ":root {
-              --color: red;
-            }
-
-            h1 {
-              color: var(--color);
-            }"
-          `)
+          expect(
+            cssContent.replace(/\/\*.*?\*\//g, '').trim()
+          ).toMatchInlineSnapshot(`":root{--color:red}h1{color:var(--color)}"`)
         } else {
           expect(
             cssContent.replace(/\/\*.*?\*\//g, '').trim()

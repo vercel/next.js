@@ -4,6 +4,7 @@ import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
 import {
   describeStringPropertyAccess,
   describeHasCheckingStringProperty,
+  wellKnownProperties,
 } from './utils'
 
 export function createRenderSearchParamsFromClient(
@@ -29,56 +30,61 @@ function makeUntrackedExoticSearchParamsWithDevWarnings(
     return cachedSearchParams
   }
 
+  const proxiedProperties = new Set<string>()
+  const unproxiedProperties: Array<string> = []
+
   const promise = Promise.resolve(underlyingSearchParams)
-  Object.defineProperties(promise, {
-    status: {
-      value: 'fulfilled',
-    },
-    value: {
-      value: underlyingSearchParams,
-    },
-  })
 
   Object.keys(underlyingSearchParams).forEach((prop) => {
-    if (Reflect.has(promise, prop)) {
-      // We can't assign a value over a property on the promise. The only way to
-      // access this is if you await the promise and recover the underlying searchParams object.
+    if (wellKnownProperties.has(prop)) {
+      // These properties cannot be shadowed because they need to be the
+      // true underlying value for Promises to work correctly at runtime
+      unproxiedProperties.push(prop)
     } else {
-      Object.defineProperty(promise, prop, {
-        value: underlyingSearchParams[prop],
-        writable: false,
-        enumerable: true,
-      })
+      proxiedProperties.add(prop)
+      ;(promise as any)[prop] = underlyingSearchParams[prop]
     }
   })
 
   const proxiedPromise = new Proxy(promise, {
     get(target, prop, receiver) {
-      if (Reflect.has(target, prop)) {
-        return ReflectAdapter.get(target, prop, receiver)
-      } else if (typeof prop === 'symbol') {
-        return undefined
-      } else {
-        const expression = describeStringPropertyAccess('searchParams', prop)
-        warnForSyncAccess(expression)
-        return underlyingSearchParams[prop]
+      if (typeof prop === 'string') {
+        if (
+          !wellKnownProperties.has(prop) &&
+          (proxiedProperties.has(prop) ||
+            // We are accessing a property that doesn't exist on the promise nor
+            // the underlying searchParams.
+            Reflect.has(target, prop) === false)
+        ) {
+          const expression = describeStringPropertyAccess('searchParams', prop)
+          warnForSyncAccess(expression)
+        }
       }
+      return ReflectAdapter.get(target, prop, receiver)
+    },
+    set(target, prop, value, receiver) {
+      if (typeof prop === 'string') {
+        proxiedProperties.delete(prop)
+      }
+      return Reflect.set(target, prop, value, receiver)
     },
     has(target, prop) {
-      if (Reflect.has(target, prop)) {
-        return true
-      } else if (typeof prop === 'symbol') {
-        // searchParams never has symbol properties containing searchParam data
-        // and we didn't match above so we just return false here.
-        return false
-      } else {
-        const expression = describeHasCheckingStringProperty(
-          'searchParams',
-          prop
-        )
-        warnForSyncAccess(expression)
-        return Reflect.has(underlyingSearchParams, prop)
+      if (typeof prop === 'string') {
+        if (
+          !wellKnownProperties.has(prop) &&
+          (proxiedProperties.has(prop) ||
+            // We are accessing a property that doesn't exist on the promise nor
+            // the underlying searchParams.
+            Reflect.has(target, prop) === false)
+        ) {
+          const expression = describeHasCheckingStringProperty(
+            'searchParams',
+            prop
+          )
+          warnForSyncAccess(expression)
+        }
       }
+      return Reflect.has(target, prop)
     },
     ownKeys(target) {
       warnForSyncSpread()
@@ -93,40 +99,55 @@ function makeUntrackedExoticSearchParamsWithDevWarnings(
 function makeUntrackedExoticSearchParams(
   underlyingSearchParams: SearchParams
 ): Promise<SearchParams> {
+  const cachedSearchParams = CachedSearchParams.get(underlyingSearchParams)
+  if (cachedSearchParams) {
+    return cachedSearchParams
+  }
+
+  // We don't use makeResolvedReactPromise here because searchParams
+  // supports copying with spread and we don't want to unnecessarily
+  // instrument the promise with spreadable properties of ReactPromise.
   const promise = Promise.resolve(underlyingSearchParams)
-  Object.defineProperties(promise, {
-    status: {
-      value: 'fulfilled',
-    },
-    value: {
-      value: underlyingSearchParams,
-    },
-  })
+  CachedSearchParams.set(underlyingSearchParams, promise)
 
   Object.keys(underlyingSearchParams).forEach((prop) => {
-    if (Reflect.has(promise, prop)) {
-      // We can't assign a value over a property on the promise. The only way to
-      // access this is if you await the promise and recover the underlying searchParams object.
+    if (wellKnownProperties.has(prop)) {
+      // These properties cannot be shadowed because they need to be the
+      // true underlying value for Promises to work correctly at runtime
     } else {
-      Object.defineProperty(promise, prop, {
-        value: underlyingSearchParams[prop],
-        writable: false,
-        enumerable: true,
-      })
+      ;(promise as any)[prop] = underlyingSearchParams[prop]
     }
   })
 
   return promise
 }
 
-function warnForSyncAccess(expression: string) {
-  console.error(
-    `A searchParam property was accessed directly with ${expression}. \`searchParams\` is now a Promise and should be awaited before accessing properties of the underlying searchParams object. In this version of Next.js direct access to searchParam properties is still supported to facilitate migration but in a future version you will be required to await \`searchParams\`. If this use is inside an async function await it. If this use is inside a synchronous function then convert the function to async or await it from outside this function and pass the result in.`
-  )
-}
+const noop = () => {}
 
-function warnForSyncSpread() {
-  console.error(
-    `the keys of \`searchParams\` were accessed through something like \`Object.keys(searchParams)\` or \`{...searchParams}\`. \`searchParams\` is now a Promise and should be awaited before accessing properties of the underlying searchParams object. In this version of Next.js direct access to searchParam properties is still supported to facilitate migration but in a future version you will be required to await \`searchParams\`. If this use is inside an async function await it. If this use is inside a synchronous function then convert the function to async or await it from outside this function and pass the result in.`
-  )
-}
+const warnForSyncAccess = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
+  ? noop
+  : function warnForSyncAccess(expression: string) {
+      if (process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS) {
+        return
+      }
+
+      console.error(
+        `A searchParam property was accessed directly with ${expression}. ` +
+          `\`searchParams\` should be unwrapped with \`React.use()\` before accessing its properties. ` +
+          `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+      )
+    }
+
+const warnForSyncSpread = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
+  ? noop
+  : function warnForSyncSpread() {
+      if (process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS) {
+        return
+      }
+
+      console.error(
+        `The keys of \`searchParams\` were accessed directly. ` +
+          `\`searchParams\` should be unwrapped with \`React.use()\` before accessing its properties. ` +
+          `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+      )
+    }

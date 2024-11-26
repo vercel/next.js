@@ -1,8 +1,9 @@
-import { unstable_after as after } from 'next/server'
+import { unstable_after as after, connection } from 'next/server'
 import { revalidateTimestampPage } from '../../timestamp/revalidate'
 import { pathPrefix } from '../../path-prefix'
 
-export default function Page() {
+export default async function Page() {
+  await connection()
   after(async () => {
     await revalidateTimestampPage(pathPrefix + `/dynamic-page`)
   })

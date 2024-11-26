@@ -11,6 +11,7 @@ import {
   waitForAndOpenRuntimeError,
   getRedboxDescriptionWarning,
   toggleCollapseComponentStack,
+  getRedboxErrorLink,
 } from './next-test-utils'
 import webdriver, { WebdriverOptions } from './next-webdriver'
 import { NextInstance } from './next-modes/base'
@@ -130,6 +131,9 @@ export async function sandbox(
       },
       async getRedboxDescriptionWarning() {
         return getRedboxDescriptionWarning(browser)
+      },
+      async getRedboxErrorLink() {
+        return getRedboxErrorLink(browser)
       },
       async getRedboxSource(includeHeader = false) {
         const header = includeHeader ? await getRedboxHeader(browser) : ''

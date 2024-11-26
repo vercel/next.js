@@ -23,7 +23,6 @@ var { r: __turbopack_require__, f: __turbopack_module_context__, i: __turbopack_
 {
 __turbopack_esm__({});
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$cssmodules$2f$relative$2d$uri$2d$import$2f$input$2f$index$2e$module$2e$css__$5b$test$5d$__$28$css__module$29$__ = __turbopack_import__("[project]/turbopack/crates/turbopack-tests/tests/snapshot/cssmodules/relative-uri-import/input/index.module.css [test] (css module)");
-"__TURBOPACK__ecmascript__hoisting__location__";
 ;
 }}),
 }]);

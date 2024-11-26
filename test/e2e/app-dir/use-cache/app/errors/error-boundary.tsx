@@ -1,6 +1,6 @@
 'use client'
 
-import { Component } from 'react'
+import { Component, Suspense } from 'react'
 
 export default class ErrorBoundary extends Component<
   { id: string; children: React.ReactNode },
@@ -11,9 +11,16 @@ export default class ErrorBoundary extends Component<
     return { message: error.message }
   }
   render() {
+    let content
     if (this.state.message !== null) {
-      return <p id={this.props.id}>{this.state.message}</p>
+      content = this.state.message
+    } else {
+      content = this.props.children
     }
-    return this.props.children
+    return (
+      <p id={this.props.id}>
+        <Suspense>{content}</Suspense>
+      </p>
+    )
   }
 }

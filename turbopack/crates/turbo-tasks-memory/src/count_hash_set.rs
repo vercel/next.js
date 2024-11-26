@@ -1,8 +1,7 @@
 use std::{
     borrow::Borrow,
-    collections::hash_map::RandomState,
     fmt::{Debug, Formatter},
-    hash::{BuildHasher, Hash},
+    hash::{BuildHasher, BuildHasherDefault, Hash},
     iter::FilterMap,
 };
 
@@ -10,9 +9,10 @@ use auto_hash_map::{
     map::{Entry, Iter, RawEntry},
     AutoMap,
 };
+use rustc_hash::FxHasher;
 
 #[derive(Clone)]
-pub struct CountHashSet<T, H = RandomState> {
+pub struct CountHashSet<T, H = BuildHasherDefault<FxHasher>> {
     inner: AutoMap<T, isize, H>,
     negative_entries: usize,
 }
@@ -173,13 +173,6 @@ impl<T: Eq + Hash, H: BuildHasher + Default> CountHashSet<T, H> {
         }
     }
 
-    pub fn get_count(&self, item: &T) -> isize {
-        match self.inner.get(item) {
-            Some(value) => *value,
-            None => 0,
-        }
-    }
-
     /// Frees unused memory
     pub fn shrink_to_fit(&mut self) {
         self.inner.shrink_to_fit();
@@ -232,6 +225,7 @@ impl<T: Eq + Hash + Clone, H: BuildHasher + Default> CountHashSet<T, H> {
         self.add_clonable_count(item, 1)
     }
 
+    #[allow(dead_code)]
     /// Returns true when the value is no longer visible from outside
     pub fn remove_clonable_count(&mut self, item: &T, count: usize) -> bool {
         if count == 0 {

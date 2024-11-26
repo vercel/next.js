@@ -20,11 +20,15 @@ use swc_core::{
     },
 };
 
-use crate::transforms::{
-    cjs_finder::contains_cjs,
-    dynamic::{next_dynamic, NextDynamicMode},
-    fonts::next_font_loaders,
-    react_server_components,
+use crate::{
+    linter::linter,
+    transforms::{
+        cjs_finder::contains_cjs,
+        dynamic::{next_dynamic, NextDynamicMode},
+        fonts::next_font_loaders,
+        lint_codemod_comments::lint_codemod_comments,
+        react_server_components,
+    },
 };
 
 #[derive(Clone, Debug, Deserialize)]
@@ -111,6 +115,9 @@ pub struct TransformOptions {
 
     #[serde(default)]
     pub debug_function_name: bool,
+
+    #[serde(default)]
+    pub lint_codemod_comments: bool,
 }
 
 pub fn custom_before_pass<'a, C>(
@@ -307,7 +314,11 @@ where
             crate::transforms::debug_fn_name::debug_fn_name(),
             opts.debug_function_name
         ),
-        as_folder(crate::transforms::pure::pure_magic(comments)),
+        as_folder(crate::transforms::pure::pure_magic(comments.clone())),
+        Optional::new(
+            linter(lint_codemod_comments(comments)),
+            opts.lint_codemod_comments
+        ),
     )
 }
 

@@ -1,11 +1,10 @@
 use std::{fmt::Write, sync::Arc};
 
 use anyhow::{bail, Context, Result};
-use indexmap::IndexMap;
 use indoc::formatdoc;
 use lightningcss::css_modules::CssModuleReference;
 use swc_core::common::{BytePos, FileName, LineCol, SourceMap};
-use turbo_tasks::{RcStr, Value, ValueToString, Vc};
+use turbo_tasks::{FxIndexMap, RcStr, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -144,7 +143,7 @@ enum ModuleCssClass {
 /// 3. class3: [Local("exported_class3), Import("class4", "./other.module.css")]
 #[turbo_tasks::value(transparent)]
 #[derive(Debug, Clone)]
-struct ModuleCssClasses(IndexMap<String, Vec<ModuleCssClass>>);
+struct ModuleCssClasses(FxIndexMap<String, Vec<ModuleCssClass>>);
 
 #[turbo_tasks::value_impl]
 impl ModuleCssAsset {
@@ -165,7 +164,7 @@ impl ModuleCssAsset {
             .context("inner asset should be CSS processable")?;
 
         let result = inner.get_css_with_placeholder().await?;
-        let mut classes = IndexMap::default();
+        let mut classes = FxIndexMap::default();
 
         // TODO(alexkirsz) Should we report an error on parse error here?
         if let CssWithPlaceholderResult::Ok {

@@ -12,7 +12,7 @@ pub struct FontFunctionsCollector<'a> {
     pub state: &'a mut super::State,
 }
 
-impl<'a> Visit for FontFunctionsCollector<'a> {
+impl Visit for FontFunctionsCollector<'_> {
     noop_visit_type!();
 
     fn visit_import_decl(&mut self, import_decl: &ImportDecl) {

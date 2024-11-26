@@ -47,25 +47,13 @@ describe.each([
 
         if (process.env.TURBOPACK) {
           if (dependencies.sass) {
-            expect(cssContentWithoutSourceMap).toMatchInlineSnapshot(`
-              ".redText ::placeholder {
-                color: red;
-              }
-
-              .flex-parsing {
-                flex: 0 0 calc(50% - var(--vertical-gutter));
-              }"
-            `)
+            expect(cssContentWithoutSourceMap).toMatchInlineSnapshot(
+              `".redText ::placeholder{color:red}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}"`
+            )
           } else {
-            expect(cssContentWithoutSourceMap).toMatchInlineSnapshot(`
-              ".redText ::placeholder {
-                color: red;
-              }
-
-              .flex-parsing {
-                flex: 0 0 calc(50% - var(--vertical-gutter));
-              }"
-            `)
+            expect(cssContentWithoutSourceMap).toMatchInlineSnapshot(
+              `".redText ::placeholder{color:red}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}"`
+            )
           }
         } else {
           if (dependencies.sass) {
@@ -103,7 +91,7 @@ describe.each([
                 "sections": [
                   {
                     "map": {
-                      "mappings": "AAAA;;;;AAAiC",
+                      "mappings": "AAAA,iCAAiC",
                       "names": [],
                       "sources": [
                         "turbopack://[project]/styles/global.scss.css",
@@ -126,8 +114,8 @@ describe.each([
                       "version": 3,
                     },
                     "offset": {
-                      "column": 0,
-                      "line": 8,
+                      "column": 91,
+                      "line": 1,
                     },
                   },
                 ],
@@ -140,7 +128,7 @@ describe.each([
                 "sections": [
                   {
                     "map": {
-                      "mappings": "AAAA;;;;AAAiC",
+                      "mappings": "AAAA,iCAAiC",
                       "names": [],
                       "sources": [
                         "turbopack://[project]/styles/global.scss.css",
@@ -163,8 +151,8 @@ describe.each([
                       "version": 3,
                     },
                     "offset": {
-                      "column": 0,
-                      "line": 8,
+                      "column": 91,
+                      "line": 1,
                     },
                   },
                 ],

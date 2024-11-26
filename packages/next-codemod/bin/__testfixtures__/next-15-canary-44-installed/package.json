@@ -1,0 +1,11 @@
+{
+  "name": "next-15-canary-44-installed",
+  "scripts": {
+    "dev": "next dev"
+  },
+  "dependencies": {
+    "next": "15.0.0-canary.44",
+    "react": "18.2.0",
+    "react-dom": "18.2.0"
+  }
+}

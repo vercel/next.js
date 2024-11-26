@@ -27,25 +27,68 @@ const styles = css`
   }
 
   .nextjs-static-indicator-toast-wrapper {
-    padding: 8px 16px;
+    width: 30px;
+    height: 30px;
+    overflow: hidden;
+    border: 0;
     border-radius: var(--size-gap-triple);
     background: var(--color-background);
     color: var(--color-font);
+    transition: all 0.3s ease-in-out;
+    box-shadow:
+      inset 0 0 0 1px var(--color-border-shadow),
+      0 11px 40px 0 rgba(0, 0, 0, 0.25),
+      0 2px 10px 0 rgba(0, 0, 0, 0.12);
   }
 
-  .nextjs-static-indicator-toast-wrapper div {
+  .nextjs-static-indicator-toast-wrapper:hover {
+    width: 140px;
+  }
+
+  .nextjs-static-indicator-toast-icon {
     display: flex;
-    flex-direction: row;
     align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
   }
 
-  .nextjs-static-indicator-toast-wrapper span {
-    padding: 4px;
-    margin: 0;
+  .nextjs-static-indicator-toast-text {
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    white-space: nowrap;
+    transition: opacity 0.3s ease-in-out;
+    line-height: 30px;
+    position: absolute;
+    left: 30px;
+    top: 0;
+  }
+
+  .nextjs-static-indicator-toast-wrapper:hover
+    .nextjs-static-indicator-toast-text {
+    opacity: 1;
   }
 
   .nextjs-static-indicator-toast-wrapper button {
     color: var(--color-font);
+    opacity: 0.8;
+    background: none;
+    border: none;
+    margin-left: 6px;
+    margin-top: -2px;
+    outline: 0;
+  }
+
+  .nextjs-static-indicator-toast-wrapper button:focus {
+    opacity: 1;
+  }
+
+  .nextjs-static-indicator-toast-wrapper button > svg {
+    width: 16px;
+    height: 16px;
   }
 `
 

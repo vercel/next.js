@@ -169,7 +169,8 @@ export class NextServer {
   ): Promise<Server> {
     let ServerImplementation: typeof Server
     if (options.dev) {
-      ServerImplementation = require('./dev/next-dev-server').default
+      ServerImplementation = require('./dev/next-dev-server')
+        .default as typeof import('./dev/next-dev-server').default
     } else {
       ServerImplementation = await getServerImpl()
     }

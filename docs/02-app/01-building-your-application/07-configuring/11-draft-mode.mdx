@@ -34,7 +34,8 @@ Then, import the [`draftMode`](/docs/app/api-reference/functions/draft-mode) fun
 import { draftMode } from 'next/headers'
 
 export async function GET(request: Request) {
-  draftMode().enable()
+  const draft = await draftMode()
+  draft.enable()
   return new Response('Draft mode is enabled')
 }
 ```
@@ -43,7 +44,8 @@ export async function GET(request: Request) {
 import { draftMode } from 'next/headers'
 
 export async function GET(request) {
-  draftMode().enable()
+  const draft = await draftMode()
+  draft.enable()
   return new Response('Draft mode is enabled')
 }
 ```
@@ -84,7 +86,7 @@ export async function GET(request: Request) {
   const slug = searchParams.get('slug')
 
   // Check the secret and next parameters
-  // This secret should only be known to this route handler and the CMS
+  // This secret should only be known to this Route Handler and the CMS
   if (secret !== 'MY_SECRET_TOKEN' || !slug) {
     return new Response('Invalid token', { status: 401 })
   }
@@ -99,7 +101,8 @@ export async function GET(request: Request) {
   }
 
   // Enable Draft Mode by setting the cookie
-  draftMode().enable()
+  const draft = await draftMode()
+  draft.enable()
 
   // Redirect to the path from the fetched post
   // We don't redirect to searchParams.slug as that might lead to open redirect vulnerabilities
@@ -118,7 +121,7 @@ export async function GET(request) {
   const slug = searchParams.get('slug')
 
   // Check the secret and next parameters
-  // This secret should only be known to this route handler and the CMS
+  // This secret should only be known to this Route Handler and the CMS
   if (secret !== 'MY_SECRET_TOKEN' || !slug) {
     return new Response('Invalid token', { status: 401 })
   }
@@ -133,7 +136,8 @@ export async function GET(request) {
   }
 
   // Enable Draft Mode by setting the cookie
-  draftMode().enable()
+  const draft = await draftMode()
+  draft.enable()
 
   // Redirect to the path from the fetched post
   // We don't redirect to searchParams.slug as that might lead to open redirect vulnerabilities
@@ -156,7 +160,7 @@ Furthermore, the value of `isEnabled` will be `true`.
 import { draftMode } from 'next/headers'
 
 async function getData() {
-  const { isEnabled } = draftMode()
+  const { isEnabled } = await draftMode()
 
   const url = isEnabled
     ? 'https://draft.example.com'
@@ -184,7 +188,7 @@ export default async function Page() {
 import { draftMode } from 'next/headers'
 
 async function getData() {
-  const { isEnabled } = draftMode()
+  const { isEnabled } = await draftMode()
 
   const url = isEnabled
     ? 'https://draft.example.com'

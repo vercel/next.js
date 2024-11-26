@@ -143,6 +143,25 @@ function defaultLoader({
       )
     }
 
+    if (src.startsWith('/') && config.localPatterns) {
+      if (
+        process.env.NODE_ENV !== 'test' &&
+        // micromatch isn't compatible with edge runtime
+        process.env.NEXT_RUNTIME !== 'edge'
+      ) {
+        // We use dynamic require because this should only error in development
+        const {
+          hasLocalMatch,
+        } = require('../../shared/lib/match-local-pattern')
+        if (!hasLocalMatch(config.localPatterns, src)) {
+          throw new Error(
+            `Invalid src prop (${src}) on \`next/image\` does not match \`images.localPatterns\` configured in your \`next.config.js\`\n` +
+              `See more info: https://nextjs.org/docs/messages/next-image-unconfigured-localpatterns`
+          )
+        }
+      }
+    }
+
     if (!src.startsWith('/') && (config.domains || config.remotePatterns)) {
       let parsedSrc: URL
       try {
@@ -160,8 +179,10 @@ function defaultLoader({
         process.env.NEXT_RUNTIME !== 'edge'
       ) {
         // We use dynamic require because this should only error in development
-        const { hasMatch } = require('../../shared/lib/match-remote-pattern')
-        if (!hasMatch(config.domains, config.remotePatterns, parsedSrc)) {
+        const {
+          hasRemoteMatch,
+        } = require('../../shared/lib/match-remote-pattern')
+        if (!hasRemoteMatch(config.domains, config.remotePatterns, parsedSrc)) {
           throw new Error(
             `Invalid src prop (${src}) on \`next/image\`, hostname "${parsedSrc.hostname}" is not configured under images in your \`next.config.js\`\n` +
               `See more info: https://nextjs.org/docs/messages/next-image-unconfigured-host`

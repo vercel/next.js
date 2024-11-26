@@ -7,7 +7,6 @@ var { r: __turbopack_require__, f: __turbopack_module_context__, i: __turbopack_
 {
 __turbopack_esm__({});
 var __TURBOPACK__url__external__node$3a$fs__ = __turbopack_external_require__("node:fs", true);
-"__TURBOPACK__ecmascript__hoisting__location__";
 ;
 }}),
 }]);

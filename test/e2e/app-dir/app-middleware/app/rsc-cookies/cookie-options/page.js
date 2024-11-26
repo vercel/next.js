@@ -6,7 +6,9 @@ export default async function Page() {
   return (
     <div>
       <p id="total-cookies">Total Cookie Length: {(await cookies()).size}</p>
-      <Link href="/rsc-cookies-delete">To Delete Cookies Route</Link>
+      <Link href="/rsc-cookies-delete" prefetch={false}>
+        To Delete Cookies Route
+      </Link>
 
       <Form
         action={async () => {

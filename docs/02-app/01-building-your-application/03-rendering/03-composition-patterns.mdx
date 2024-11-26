@@ -358,7 +358,7 @@ To reduce the Client JavaScript bundle size, we recommend moving Client Componen
 
 For example, you may have a Layout that has static elements (e.g. logo, links, etc) and an interactive search bar that uses state.
 
-Instead of making the whole layout a Client Component, move the interactive logic to a Client Component (e.g. `<SearchBar />`) and keep your layout as a Server Component. This means you don't have to send all the component Javascript of the layout to the client.
+Instead of making the whole layout a Client Component, move the interactive logic to a Client Component (e.g. `<SearchBar />`) and keep your layout as a Server Component. This means you don't have to send all the component JavaScript of the layout to the client.
 
 ```tsx filename="app/layout.tsx" switcher
 // SearchBar is a Client Component

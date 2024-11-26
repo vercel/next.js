@@ -26,17 +26,17 @@ export function ClientPageRoot({
   promises?: Array<Promise<any>>
 }) {
   if (typeof window === 'undefined') {
-    const { staticGenerationAsyncStorage } =
-      require('./static-generation-async-storage.external') as typeof import('./static-generation-async-storage.external')
+    const { workAsyncStorage } =
+      require('../../server/app-render/work-async-storage.external') as typeof import('../../server/app-render/work-async-storage.external')
 
     let clientSearchParams: Promise<ParsedUrlQuery>
     let clientParams: Promise<Params>
     // We are going to instrument the searchParams prop with tracking for the
     // appropriate context. We wrap differently in prerendering vs rendering
-    const store = staticGenerationAsyncStorage.getStore()
+    const store = workAsyncStorage.getStore()
     if (!store) {
       throw new InvariantError(
-        'Expected staticGenerationStore to exist when handling searchParams in a client Page.'
+        'Expected workStore to exist when handling searchParams in a client Page.'
       )
     }
 

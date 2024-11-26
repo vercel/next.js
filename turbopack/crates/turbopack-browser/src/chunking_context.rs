@@ -89,6 +89,7 @@ impl BrowserChunkingContextBuilder {
 }
 
 /// A chunking context for development mode.
+///
 /// It uses readable filenames and module ids to improve development.
 /// It also uses a chunking heuristic that is incremental and cacheable.
 /// It splits "node_modules" separately as these are less likely to change

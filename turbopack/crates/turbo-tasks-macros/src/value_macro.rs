@@ -339,9 +339,9 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
 
     let into = if let IntoMode::New | IntoMode::Shared = into_mode {
         quote! {
-            impl Into<turbo_tasks::Vc<#ident>> for #ident {
-                fn into(self) -> turbo_tasks::Vc<#ident> {
-                    self.cell()
+            impl ::std::convert::From<#ident> for turbo_tasks::Vc<#ident> {
+                fn from(value: #ident) -> Self {
+                    value.cell()
                 }
             }
         }

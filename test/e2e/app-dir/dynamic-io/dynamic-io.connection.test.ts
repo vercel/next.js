@@ -24,32 +24,10 @@ describe('dynamic-io', () => {
         expect($('#page').text()).toBe('at buildtime')
         expect($('#foo').text()).toBe('foo')
       }
-
-      $ = await next.render$('/connection/static-behavior/root', {})
-      if (isNextDev) {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-        expect($('#foo').text()).toBe('foo')
-      } else {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-        expect($('#foo').text()).toBe('foo')
-      }
     })
   } else {
     it('should produce dynamic pages when using connection', async () => {
       let $ = await next.render$('/connection/static-behavior/boundary', {})
-      if (isNextDev) {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-        expect($('#foo').text()).toBe('foo')
-      } else {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-        expect($('#foo').text()).toBe('foo')
-      }
-
-      $ = await next.render$('/connection/static-behavior/root', {})
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#page').text()).toBe('at runtime')

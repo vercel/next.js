@@ -132,7 +132,7 @@ describe('app dir - metadata', () => {
 
       await matchMultiDom('meta', 'name', 'content', {
         'apple-itunes-app': 'app-id=myAppStoreID, app-argument=myAppArgument',
-        'apple-mobile-web-app-capable': 'yes',
+        'mobile-web-app-capable': 'yes',
         'apple-mobile-web-app-title': 'Apple Web App',
         'apple-mobile-web-app-status-bar-style': 'black-translucent',
       })

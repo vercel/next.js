@@ -1,20 +1,23 @@
 'use client'
 
+import { use } from 'react'
+
 import { UnsafeUnwrappedParams } from 'next/server'
 
 import { getSentinelValue } from '../../../../../../../getSentinelValue'
 
-export default async function Page({
+import { createWaiter } from '../../../../../../../client-utils'
+const waiter = createWaiter()
+
+export default function Page({
   params,
   children,
 }: {
   params: Promise<{ lowcard: string; highcard: string }>
   children: React.ReactNode
 }) {
-  // We wait an extra microtask to avoid erroring before some sibling branches have completed.
-  // In a future update we will make this a build error and explicitly test it but to keep the spirit of
-  // this test in tact we contrive a slightly delayed sync access
-  await 1
+  use(waiter.wait())
+  waiter.cleanup()
   const syncParams = params as unknown as UnsafeUnwrappedParams<typeof params>
   return (
     <section>

@@ -13,7 +13,7 @@ use turbopack_core::{
     reference_type::EcmaScriptModulesReferenceSubType,
     resolve::{origin::ResolveOrigin, parse::Request, ModuleResolveResult},
 };
-use turbopack_resolve::ecmascript::{esm_resolve, try_to_severity};
+use turbopack_resolve::ecmascript::esm_resolve;
 
 use super::super::pattern_mapping::{PatternMapping, ResolveType};
 use crate::{
@@ -63,7 +63,7 @@ impl ModuleReference for EsmAsyncAssetReference {
             self.origin,
             self.request,
             Value::new(EcmaScriptModulesReferenceSubType::DynamicImport),
-            try_to_severity(self.in_try),
+            self.in_try,
             Some(self.issue_source),
         )
     }
@@ -102,7 +102,7 @@ impl CodeGenerateable for EsmAsyncAssetReference {
                 self.origin,
                 self.request,
                 Value::new(EcmaScriptModulesReferenceSubType::DynamicImport),
-                try_to_severity(self.in_try),
+                self.in_try,
                 Some(self.issue_source),
             ),
             if matches!(
@@ -153,9 +153,6 @@ impl CodeGenerateable for EsmAsyncAssetReference {
             });
         });
 
-        Ok(CodeGeneration {
-            visitors: vec![visitor],
-        }
-        .into())
+        Ok(CodeGeneration::visitors(vec![visitor]))
     }
 }

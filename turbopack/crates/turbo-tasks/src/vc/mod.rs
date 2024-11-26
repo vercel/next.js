@@ -323,18 +323,6 @@ where
         vc.node
     }
 
-    /// Creates a `Vc` from a `RawVc`.
-    ///
-    /// # Safety
-    ///
-    /// The caller must ensure that `RawVc` points to a value of type `T`.
-    pub(crate) unsafe fn from_raw(vc: RawVc) -> Self {
-        Vc {
-            node: vc,
-            _t: std::marker::PhantomData,
-        }
-    }
-
     /// Upcasts the given `Vc<T>` to a `Vc<Box<dyn K>>`.
     ///
     /// This is also available as an `Into`/`From` conversion.

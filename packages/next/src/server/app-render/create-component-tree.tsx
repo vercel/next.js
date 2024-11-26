@@ -20,6 +20,7 @@ import { NextNodeServerSpan } from '../lib/trace/constants'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import type { LoadingModuleData } from '../../shared/lib/app-router-context.shared-runtime'
 import type { Params } from '../request/params'
+import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 
 /**
  * Use the provided loader tree to create the React Component tree.
@@ -87,11 +88,12 @@ async function createComponentTreeInternal({
 }): Promise<CacheNodeSeedData> {
   const {
     renderOpts: { nextConfigOutput, experimental },
-    staticGenerationStore,
+    workStore,
     componentMod: {
       NotFoundBoundary,
       LayoutRouter,
       RenderFromTemplateContext,
+      OutletBoundary,
       ClientPageRoot,
       ClientSegmentRoot,
       createServerSearchParamsForServerPage,
@@ -209,69 +211,73 @@ async function createComponentTreeInternal({
     // if it's configured above any parent that configured
     // otherwise
     if (dynamic === 'error') {
-      staticGenerationStore.dynamicShouldError = true
+      workStore.dynamicShouldError = true
     } else if (dynamic === 'force-dynamic') {
-      staticGenerationStore.forceDynamic = true
+      workStore.forceDynamic = true
 
       // TODO: (PPR) remove this bailout once PPR is the default
-      if (
-        staticGenerationStore.isStaticGeneration &&
-        !experimental.isRoutePPREnabled
-      ) {
+      if (workStore.isStaticGeneration && !experimental.isRoutePPREnabled) {
         // If the postpone API isn't available, we can't postpone the render and
         // therefore we can't use the dynamic API.
         const err = new DynamicServerError(
           `Page with \`dynamic = "force-dynamic"\` won't be rendered statically.`
         )
-        staticGenerationStore.dynamicUsageDescription = err.message
-        staticGenerationStore.dynamicUsageStack = err.stack
+        workStore.dynamicUsageDescription = err.message
+        workStore.dynamicUsageStack = err.stack
         throw err
       }
     } else {
-      staticGenerationStore.dynamicShouldError = false
-      staticGenerationStore.forceStatic = dynamic === 'force-static'
+      workStore.dynamicShouldError = false
+      workStore.forceStatic = dynamic === 'force-static'
     }
   }
 
   if (typeof layoutOrPageMod?.fetchCache === 'string') {
-    staticGenerationStore.fetchCache = layoutOrPageMod?.fetchCache
+    workStore.fetchCache = layoutOrPageMod?.fetchCache
   }
 
   if (typeof layoutOrPageMod?.revalidate !== 'undefined') {
-    validateRevalidate(layoutOrPageMod?.revalidate, staticGenerationStore.route)
+    validateRevalidate(layoutOrPageMod?.revalidate, workStore.route)
   }
 
   if (typeof layoutOrPageMod?.revalidate === 'number') {
-    ctx.defaultRevalidate = layoutOrPageMod.revalidate as number
+    const defaultRevalidate = layoutOrPageMod.revalidate as number
 
-    if (
-      typeof staticGenerationStore.revalidate === 'undefined' ||
-      (typeof staticGenerationStore.revalidate === 'number' &&
-        staticGenerationStore.revalidate > ctx.defaultRevalidate)
-    ) {
-      staticGenerationStore.revalidate = ctx.defaultRevalidate
+    const workUnitStore = workUnitAsyncStorage.getStore()
+
+    if (workUnitStore) {
+      if (
+        workUnitStore.type === 'prerender' ||
+        workUnitStore.type === 'prerender-legacy' ||
+        workUnitStore.type === 'prerender-ppr' ||
+        workUnitStore.type === 'cache'
+      ) {
+        if (workUnitStore.revalidate > defaultRevalidate) {
+          workUnitStore.revalidate = defaultRevalidate
+        }
+      }
     }
 
     if (
-      !staticGenerationStore.forceStatic &&
-      staticGenerationStore.isStaticGeneration &&
-      ctx.defaultRevalidate === 0 &&
+      !workStore.forceStatic &&
+      workStore.isStaticGeneration &&
+      defaultRevalidate === 0 &&
       // If the postpone API isn't available, we can't postpone the render and
       // therefore we can't use the dynamic API.
       !experimental.isRoutePPREnabled
     ) {
       const dynamicUsageDescription = `revalidate: 0 configured ${segment}`
-      staticGenerationStore.dynamicUsageDescription = dynamicUsageDescription
+      workStore.dynamicUsageDescription = dynamicUsageDescription
 
       throw new DynamicServerError(dynamicUsageDescription)
     }
   }
 
-  const isStaticGeneration = staticGenerationStore.isStaticGeneration
+  const isStaticGeneration = workStore.isStaticGeneration
 
   // If there's a dynamic usage error attached to the store, throw it.
-  if (staticGenerationStore.dynamicUsageErr) {
-    throw staticGenerationStore.dynamicUsageErr
+  if (workStore.dynamicUsageErr) {
+    throw workStore.dynamicUsageErr
   }
 
   const LayoutOrPage: React.ComponentType<any> | undefined = layoutOrPageMod
@@ -463,15 +469,10 @@ async function createComponentTreeInternal({
   if (!MaybeComponent) {
     return [
       actualSegment,
-      <Segment
-        key={cacheNodeKey}
-        isDynamicIO={experimental.dynamicIO}
-        isStaticGeneration={isStaticGeneration}
-        ready={getMetadataReady}
-      >
+      <React.Fragment key={cacheNodeKey}>
         {layerAssets}
         {parallelRouteProps.children}
-      </Segment>,
+      </React.Fragment>,
       parallelRouteCacheNodeSeedData,
       loadingData,
     ]
@@ -491,24 +492,19 @@ async function createComponentTreeInternal({
   // render force-dynamic. We should refactor this function so that we can correctly track which segments
   // need to be dynamic
   if (
-    staticGenerationStore.isStaticGeneration &&
-    staticGenerationStore.forceDynamic &&
+    workStore.isStaticGeneration &&
+    workStore.forceDynamic &&
     experimental.isRoutePPREnabled
   ) {
     return [
       actualSegment,
-      <Segment
-        isDynamicIO={experimental.dynamicIO}
-        key={cacheNodeKey}
-        isStaticGeneration={isStaticGeneration}
-        ready={getMetadataReady}
-      >
+      <React.Fragment key={cacheNodeKey}>
         <Postpone
           reason='dynamic = "force-dynamic" was used'
-          route={staticGenerationStore.route}
+          route={workStore.route}
         />
         {layerAssets}
-      </Segment>,
+      </React.Fragment>,
       parallelRouteCacheNodeSeedData,
       loadingData,
     ]
@@ -534,11 +530,10 @@ async function createComponentTreeInternal({
       if (isStaticGeneration) {
         const promiseOfParams = createPrerenderParamsForClientSegment(
           currentParams,
-          staticGenerationStore
+          workStore
         )
-        const promiseOfSearchParams = createPrerenderSearchParamsForClientPage(
-          staticGenerationStore
-        )
+        const promiseOfSearchParams =
+          createPrerenderSearchParamsForClientPage(workStore)
         pageElement = (
           <ClientPageRoot
             Component={PageComponent}
@@ -561,11 +556,11 @@ async function createComponentTreeInternal({
       // the current render mode tracks dynamic API usage.
       const params = createServerParamsForServerSegment(
         currentParams,
-        staticGenerationStore
+        workStore
       )
       const searchParams = createServerSearchParamsForServerPage(
         query,
-        staticGenerationStore
+        workStore
       )
       pageElement = (
         <PageComponent params={params} searchParams={searchParams} />
@@ -574,15 +569,11 @@ async function createComponentTreeInternal({
     return [
       actualSegment,
       <React.Fragment key={cacheNodeKey}>
-        <MetadataOutlet ready={getMetadataReady} />
-        <Segment
-          isDynamicIO={experimental.dynamicIO}
-          isStaticGeneration={isStaticGeneration}
-          ready={getMetadataReady}
-        >
-          {pageElement}
-          {layerAssets}
-        </Segment>
+        {pageElement}
+        {layerAssets}
+        <OutletBoundary>
+          <MetadataOutlet ready={getMetadataReady} />
+        </OutletBoundary>
       </React.Fragment>,
       parallelRouteCacheNodeSeedData,
       loadingData,
@@ -603,7 +594,7 @@ async function createComponentTreeInternal({
       if (isStaticGeneration) {
         const promiseOfParams = createPrerenderParamsForClientSegment(
           currentParams,
-          staticGenerationStore
+          workStore
         )
 
         clientSegment = (
@@ -648,55 +639,39 @@ async function createComponentTreeInternal({
           )
 
           segmentNode = (
-            <Segment
-              isDynamicIO={experimental.dynamicIO}
-              isStaticGeneration={isStaticGeneration}
-              ready={getMetadataReady}
+            <NotFoundBoundary
+              key={cacheNodeKey}
+              notFound={
+                <>
+                  {layerAssets}
+                  {notfoundClientSegment}
+                </>
+              }
             >
-              <NotFoundBoundary
-                notFound={
-                  <>
-                    {layerAssets}
-                    {notfoundClientSegment}
-                  </>
-                }
-              >
-                {layerAssets}
-                {clientSegment}
-              </NotFoundBoundary>
-            </Segment>
+              {layerAssets}
+              {clientSegment}
+            </NotFoundBoundary>
           )
         } else {
           segmentNode = (
-            <Segment
-              isDynamicIO={experimental.dynamicIO}
-              isStaticGeneration={isStaticGeneration}
-              ready={getMetadataReady}
-            >
-              <NotFoundBoundary>
-                {layerAssets}
-                {clientSegment}
-              </NotFoundBoundary>
-            </Segment>
+            <NotFoundBoundary key={cacheNodeKey}>
+              {layerAssets}
+              {clientSegment}
+            </NotFoundBoundary>
           )
         }
       } else {
         segmentNode = (
-          <Segment
-            key={cacheNodeKey}
-            isDynamicIO={experimental.dynamicIO}
-            isStaticGeneration={isStaticGeneration}
-            ready={getMetadataReady}
-          >
+          <React.Fragment key={cacheNodeKey}>
             {layerAssets}
             {clientSegment}
-          </Segment>
+          </React.Fragment>
         )
       }
     } else {
       const params = createServerParamsForServerSegment(
         currentParams,
-        staticGenerationStore
+        workStore
       )
 
       let serverSegment = (
@@ -710,40 +685,30 @@ async function createComponentTreeInternal({
         // We should instead look into handling the fallback behavior differently in development mode so that it doesn't
         // rely on the `NotFound` behavior.
         segmentNode = (
-          <Segment
-            isDynamicIO={experimental.dynamicIO}
-            isStaticGeneration={isStaticGeneration}
-            ready={getMetadataReady}
-          >
-            <NotFoundBoundary
-              notFound={
-                NotFound ? (
-                  <>
-                    {layerAssets}
-                    <SegmentComponent params={params}>
-                      {notFoundStyles}
-                      <NotFound />
-                    </SegmentComponent>
-                  </>
-                ) : undefined
-              }
-            >
-              {layerAssets}
-              {serverSegment}
-            </NotFoundBoundary>
-          </Segment>
-        )
-      } else {
-        segmentNode = (
-          <Segment
+          <NotFoundBoundary
             key={cacheNodeKey}
-            isDynamicIO={experimental.dynamicIO}
-            isStaticGeneration={isStaticGeneration}
-            ready={getMetadataReady}
+            notFound={
+              NotFound ? (
+                <>
+                  {layerAssets}
+                  <SegmentComponent params={params}>
+                    {notFoundStyles}
+                    <NotFound />
+                  </SegmentComponent>
+                </>
+              ) : undefined
+            }
           >
             {layerAssets}
             {serverSegment}
-          </Segment>
+          </NotFoundBoundary>
+        )
+      } else {
+        segmentNode = (
+          <React.Fragment key={cacheNodeKey}>
+            {layerAssets}
+            {serverSegment}
+          </React.Fragment>
         )
       }
     }
@@ -770,29 +735,4 @@ async function MetadataOutlet({
     await r
   }
   return null
-}
-
-async function Segment({
-  isDynamicIO,
-  isStaticGeneration,
-  ready,
-  children,
-}: {
-  isDynamicIO: boolean
-  isStaticGeneration: boolean
-  ready?: () => Promise<void>
-  children: React.ReactNode
-}) {
-  if (isDynamicIO && isStaticGeneration && ready) {
-    // During static generation we wait for metadata to complete before rendering segments.
-    // This is slower but it allows us to ensure that metadata is finished before we start
-    // rendering the segment which can synchronously abort the render in certain circumstances
-    try {
-      await ready()
-    } catch {
-      // we'll let the MetadataOutlet component render with the page error to let the right
-      // error boundary catch this error
-    }
-  }
-  return children
 }

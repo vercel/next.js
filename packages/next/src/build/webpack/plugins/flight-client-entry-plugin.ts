@@ -41,6 +41,7 @@ import { getProxiedPluginState } from '../../build-context'
 import { PAGE_TYPES } from '../../../lib/page-types'
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getAssumedSourceType } from '../loaders/next-flight-loader'
+import { isAppRouteRoute } from '../../../lib/is-app-route-route'
 
 interface Options {
   dev: boolean
@@ -93,6 +94,9 @@ const pluginState = getProxiedPluginState({
   // Mapping of resource path to module id for server/edge server.
   serverModuleIds: {} as Record<string, string | number>,
   edgeServerModuleIds: {} as Record<string, string | number>,
+
+  rscModuleIds: {} as Record<string, string | number>,
+  edgeRscModuleIds: {} as Record<string, string | number>,
 
   injectedClientEntries: {} as Record<string, string>,
 })
@@ -208,6 +212,20 @@ export class FlightClientEntryPlugin {
             ? formatBarrelOptimizedResource(mod.resource, modPath)
             : modPath + modQuery
           : mod.resource
+
+        if (typeof modId !== 'undefined' && modResource) {
+          if (mod.layer === WEBPACK_LAYERS.reactServerComponents) {
+            const key = path
+              .relative(compiler.context, modResource)
+              .replace(/\/next\/dist\/esm\//, '/next/dist/')
+
+            if (this.isEdgeServer) {
+              pluginState.edgeRscModuleIds[key] = modId
+            } else {
+              pluginState.rscModuleIds[key] = modId
+            }
+          }
+        }
 
         if (mod.layer !== WEBPACK_LAYERS.serverSideRendering) {
           return
@@ -377,16 +395,18 @@ export class FlightClientEntryPlugin {
         addClientEntryAndSSRModulesList.push(injected)
       }
 
-      // Create internal app
-      addClientEntryAndSSRModulesList.push(
-        this.injectClientEntryAndSSRModules({
-          compiler,
-          compilation,
-          entryName: name,
-          clientImports: { ...internalClientComponentEntryImports },
-          bundlePath: APP_CLIENT_INTERNALS,
-        })
-      )
+      if (!isAppRouteRoute(name)) {
+        // Create internal app
+        addClientEntryAndSSRModulesList.push(
+          this.injectClientEntryAndSSRModules({
+            compiler,
+            compilation,
+            entryName: name,
+            clientImports: { ...internalClientComponentEntryImports },
+            bundlePath: APP_CLIENT_INTERNALS,
+          })
+        )
+      }
 
       if (actionEntryImports.size > 0) {
         if (!actionMapsPerEntry[name]) {

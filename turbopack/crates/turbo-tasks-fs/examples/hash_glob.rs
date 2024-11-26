@@ -1,4 +1,5 @@
 #![feature(trivial_bounds)]
+#![allow(clippy::needless_return)] // clippy false positive
 
 use std::{
     collections::BTreeMap,
@@ -28,7 +29,7 @@ async fn main() -> Result<()> {
         Box::pin(async {
             let root = current_dir().unwrap().to_str().unwrap().into();
             let disk_fs = DiskFileSystem::new("project".into(), root, vec![]);
-            disk_fs.await?.start_watching()?;
+            disk_fs.await?.start_watching(None).await?;
 
             // Smart Pointer cast
             let fs: Vc<Box<dyn FileSystem>> = Vc::upcast(disk_fs);
@@ -72,11 +73,11 @@ async fn hash_glob_result(result: Vc<ReadGlobResult>) -> Result<Vc<RcStr>> {
     let mut hashes = BTreeMap::new();
     for (name, entry) in result.results.iter() {
         if let DirectoryEntry::File(path) = entry {
-            hashes.insert(name, hash_file(*path).await?.clone_value());
+            hashes.insert(name, hash_file(**path).await?.clone_value());
         }
     }
     for (name, result) in result.inner.iter() {
-        let hash = hash_glob_result(*result).await?;
+        let hash = hash_glob_result(**result).await?;
         if !hash.is_empty() {
             hashes.insert(name, hash.clone_value());
         }

@@ -1,9 +1,10 @@
 use std::{fmt::Write, mem::replace};
 
 use anyhow::Result;
-use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, RcStr, TaskInput, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{
+    fxindexmap, trace::TraceRawVcs, FxIndexMap, RcStr, TaskInput, TryJoinIterExt, ValueToString, Vc,
+};
 
 use super::{GetContentSourceContent, GetContentSourceContents};
 
@@ -33,6 +34,7 @@ impl BaseSegment {
 }
 
 /// This struct allows to cell a list of RouteTrees and merge them into one.
+///
 /// This can't be a single method `fn merge(Vec<Vc<RouteTree>>)` as this would
 /// lead to creating new tasks over and over. A celled list leads to task reuse
 /// and faster operation.
@@ -98,7 +100,7 @@ impl RouteTrees {
 pub struct RouteTree {
     base: Vec<BaseSegment>,
     sources: Vec<Vc<Box<dyn GetContentSourceContent>>>,
-    static_segments: IndexMap<RcStr, Vc<RouteTree>>,
+    static_segments: FxIndexMap<RcStr, Vc<RouteTree>>,
     dynamic_segments: Vec<Vc<RouteTree>>,
     catch_all_sources: Vec<Vc<Box<dyn GetContentSourceContent>>>,
     fallback_sources: Vec<Vc<Box<dyn GetContentSourceContent>>>,
@@ -137,7 +139,7 @@ impl RouteTree {
     }
 
     async fn flat_merge(&mut self, others: impl IntoIterator<Item = &Self> + '_) -> Result<()> {
-        let mut static_segments = IndexMap::new();
+        let mut static_segments = FxIndexMap::default();
         for other in others {
             debug_assert_eq!(self.base, other.base);
             self.sources.extend(other.sources.iter().copied());
@@ -331,7 +333,7 @@ impl RouteTree {
             match selector_segment {
                 BaseSegment::Static(value) => Ok(RouteTree {
                     base,
-                    static_segments: IndexMap::from([(value, inner.cell())]),
+                    static_segments: fxindexmap! { value => inner.cell() },
                     ..Default::default()
                 }
                 .cell()),

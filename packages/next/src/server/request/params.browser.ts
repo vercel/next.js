@@ -2,7 +2,7 @@ import type { Params } from './params'
 
 import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
 import { InvariantError } from '../../shared/lib/invariant-error'
-import { describeStringPropertyAccess } from './utils'
+import { describeStringPropertyAccess, wellKnownProperties } from './utils'
 
 export function createRenderParamsFromClient(underlyingParams: Params) {
   if (process.env.NODE_ENV === 'development') {
@@ -24,29 +24,12 @@ function makeUntrackedExoticParams(underlyingParams: Params): Promise<Params> {
   const promise = Promise.resolve(underlyingParams)
   CachedParams.set(underlyingParams, promise)
 
-  Object.defineProperties(promise, {
-    status: {
-      value: 'fulfilled',
-      writable: true,
-    },
-    value: {
-      value: underlyingParams,
-      writable: true,
-    },
-  })
-
   Object.keys(underlyingParams).forEach((prop) => {
-    switch (prop) {
-      case 'then':
-      case 'value':
-      case 'status': {
-        // These properties cannot be shadowed with a search param because they
-        // are necessary for ReactPromise's to work correctly with `use`
-        break
-      }
-      default: {
-        ;(promise as any)[prop] = underlyingParams[prop]
-      }
+    if (wellKnownProperties.has(prop)) {
+      // These properties cannot be shadowed because they need to be the
+      // true underlying value for Promises to work correctly at runtime
+    } else {
+      ;(promise as any)[prop] = underlyingParams[prop]
     }
   })
 
@@ -61,36 +44,21 @@ function makeDynamicallyTrackedExoticParamsWithDevWarnings(
     return cachedParams
   }
 
+  // We don't use makeResolvedReactPromise here because params
+  // supports copying with spread and we don't want to unnecessarily
+  // instrument the promise with spreadable properties of ReactPromise.
   const promise = Promise.resolve(underlyingParams)
-
-  Object.defineProperties(promise, {
-    status: {
-      value: 'fulfilled',
-      writable: true,
-    },
-    value: {
-      value: underlyingParams,
-      writable: true,
-    },
-  })
 
   const proxiedProperties = new Set<string>()
   const unproxiedProperties: Array<string> = []
 
   Object.keys(underlyingParams).forEach((prop) => {
-    switch (prop) {
-      case 'then':
-      case 'value':
-      case 'status': {
-        // These properties cannot be shadowed with a search param because they
-        // are necessary for ReactPromise's to work correctly with `use`
-        unproxiedProperties.push(prop)
-        break
-      }
-      default: {
-        proxiedProperties.add(prop)
-        ;(promise as any)[prop] = underlyingParams[prop]
-      }
+    if (wellKnownProperties.has(prop)) {
+      // These properties cannot be shadowed because they need to be the
+      // true underlying value for Promises to work correctly at runtime
+    } else {
+      proxiedProperties.add(prop)
+      ;(promise as any)[prop] = underlyingParams[prop]
     }
   })
 
@@ -99,15 +67,19 @@ function makeDynamicallyTrackedExoticParamsWithDevWarnings(
       if (typeof prop === 'string') {
         if (
           // We are accessing a property that was proxied to the promise instance
-          proxiedProperties.has(prop) ||
-          // We are accessing a property that doesn't exist on the promise nor the underlying
-          Reflect.has(target, prop) === false
+          proxiedProperties.has(prop)
         ) {
           const expression = describeStringPropertyAccess('params', prop)
           warnForSyncAccess(expression)
         }
       }
       return ReflectAdapter.get(target, prop, receiver)
+    },
+    set(target, prop, value, receiver) {
+      if (typeof prop === 'string') {
+        proxiedProperties.delete(prop)
+      }
+      return ReflectAdapter.set(target, prop, value, receiver)
     },
     ownKeys(target) {
       warnForEnumeration(unproxiedProperties)
@@ -119,25 +91,43 @@ function makeDynamicallyTrackedExoticParamsWithDevWarnings(
   return proxiedPromise
 }
 
-function warnForSyncAccess(expression: string) {
-  console.error(
-    `A param property was accessed directly with ${expression}. \`params\` is now a Promise and should be awaited before accessing properties of the underlying params object. In this version of Next.js direct access to param properties is still supported to facilitate migration but in a future version you will be required to await \`params\`. If this use is inside an async function await it. If this use is inside a synchronous function then convert the function to async or await it from outside this function and pass the result in.`
-  )
-}
+const noop = () => {}
 
-function warnForEnumeration(missingProperties: Array<string>) {
-  if (missingProperties.length) {
-    const describedMissingProperties =
-      describeListOfPropertyNames(missingProperties)
-    console.error(
-      `params are being enumerated incompletely with \`{...params}\`, \`Object.keys(params)\`, or similar. The following properties were not copied: ${describedMissingProperties}. \`params\` is now a Promise, however in the current version of Next.js direct access to the underlying params object is still supported to facilitate migration to the new type. param names that conflict with Promise properties cannot be accessed directly and must be accessed by first awaiting the \`params\` promise.`
-    )
-  } else {
-    console.error(
-      `params are being enumerated with \`{...params}\`, \`Object.keys(params)\`, or similar. \`params\` is now a Promise, however in the current version of Next.js direct access to the underlying params object is still supported to facilitate migration to the new type. You should update your code to await \`params\` before accessing its properties.`
-    )
-  }
-}
+const warnForSyncAccess = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
+  ? noop
+  : function warnForSyncAccess(expression: string) {
+      if (process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS) {
+        return
+      }
+
+      console.error(
+        `A param property was accessed directly with ${expression}. \`params\` is now a Promise and should be unwrapped with \`React.use()\` before accessing properties of the underlying params object. In this version of Next.js direct access to param properties is still supported to facilitate migration but in a future version you will be required to unwrap \`params\` with \`React.use()\`.`
+      )
+    }
+
+const warnForEnumeration = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
+  ? noop
+  : function warnForEnumeration(missingProperties: Array<string>) {
+      if (process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS) {
+        return
+      }
+
+      if (missingProperties.length) {
+        const describedMissingProperties =
+          describeListOfPropertyNames(missingProperties)
+        console.error(
+          `params are being enumerated incompletely missing these properties: ${describedMissingProperties}. ` +
+            `\`params\` should be unwrapped with \`React.use()\` before using its value. ` +
+            `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+        )
+      } else {
+        console.error(
+          `params are being enumerated. ` +
+            `\`params\` should be unwrapped with \`React.use()\` before using its value. ` +
+            `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+        )
+      }
+    }
 
 function describeListOfPropertyNames(properties: Array<string>) {
   switch (properties.length) {

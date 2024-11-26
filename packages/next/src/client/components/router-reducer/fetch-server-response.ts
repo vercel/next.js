@@ -23,10 +23,11 @@ import {
   RSC_HEADER,
   RSC_CONTENT_TYPE_HEADER,
   NEXT_HMR_REFRESH_HEADER,
-  NEXT_IS_PRERENDER_HEADER,
   NEXT_DID_POSTPONE_HEADER,
+  NEXT_ROUTER_STALE_TIME_HEADER,
 } from '../app-router-headers'
 import { callServer } from '../../app-call-server'
+import { findSourceMapURL } from '../../app-find-source-map-url'
 import { PrefetchKind } from './router-reducer-types'
 import { hexHash } from '../../../shared/lib/hash'
 import {
@@ -46,8 +47,9 @@ export type FetchServerResponseResult = {
   flightData: NormalizedFlightData[] | string
   canonicalUrl: URL | undefined
   couldBeIntercepted: boolean
-  isPrerender: boolean
+  prerendered: boolean
   postponed: boolean
+  staleTime: number
 }
 
 function urlToUrlWithoutFlightMarker(url: string): URL {
@@ -72,8 +74,9 @@ function doMpaNavigation(url: string): FetchServerResponseResult {
     flightData: urlToUrlWithoutFlightMarker(url).toString(),
     canonicalUrl: undefined,
     couldBeIntercepted: false,
-    isPrerender: false,
+    prerendered: false,
     postponed: false,
+    staleTime: -1,
   }
 }
 
@@ -176,8 +179,10 @@ export async function fetchServerResponse(
 
     const contentType = res.headers.get('content-type') || ''
     const interception = !!res.headers.get('vary')?.includes(NEXT_URL)
-    const isPrerender = !!res.headers.get(NEXT_IS_PRERENDER_HEADER)
     const postponed = !!res.headers.get(NEXT_DID_POSTPONE_HEADER)
+    const staleTimeHeader = res.headers.get(NEXT_ROUTER_STALE_TIME_HEADER)
+    const staleTime =
+      staleTimeHeader !== null ? parseInt(staleTimeHeader, 10) : -1
     let isFlightResponse = contentType.startsWith(RSC_CONTENT_TYPE_HEADER)
 
     if (process.env.NODE_ENV === 'production') {
@@ -210,9 +215,7 @@ export async function fetchServerResponse(
     // Handle the `fetch` readable stream that can be unwrapped by `React.use`.
     const response: NavigationFlightResponse = await createFromFetch(
       Promise.resolve(res),
-      {
-        callServer,
-      }
+      { callServer, findSourceMapURL }
     )
 
     if (buildId !== response.b) {
@@ -223,8 +226,9 @@ export async function fetchServerResponse(
       flightData: normalizeFlightData(response.f),
       canonicalUrl: canonicalUrl,
       couldBeIntercepted: interception,
-      isPrerender: isPrerender,
+      prerendered: response.S,
       postponed,
+      staleTime,
     }
   } catch (err) {
     console.error(
@@ -238,8 +242,9 @@ export async function fetchServerResponse(
       flightData: url.toString(),
       canonicalUrl: undefined,
       couldBeIntercepted: false,
-      isPrerender: false,
+      prerendered: false,
       postponed: false,
+      staleTime: -1,
     }
   }
 }

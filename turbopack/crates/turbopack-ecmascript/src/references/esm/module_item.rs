@@ -103,6 +103,6 @@ impl CodeGenerateable for EsmModuleItem {
             }),
         );
 
-        Ok(CodeGeneration { visitors }.into())
+        Ok(CodeGeneration::visitors(visitors))
     }
 }

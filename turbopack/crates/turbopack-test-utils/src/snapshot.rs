@@ -91,7 +91,7 @@ pub async fn expected(dir: Vc<FileSystemPath>) -> Result<HashSet<Vc<FileSystemPa
         for (file, entry) in entries {
             match entry {
                 DirectoryEntry::File(file) => {
-                    expected.insert(*file);
+                    expected.insert(**file);
                 }
                 _ => bail!(
                     "expected file at {}, found {:?}",

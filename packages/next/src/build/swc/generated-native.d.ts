@@ -4,6 +4,7 @@ import type { TurbopackResult } from './types'
 
 export type TurboTasks = { readonly __tag: unique symbol }
 export type ExternalEndpoint = { readonly __tag: unique symbol }
+export type NextTurboTasks = { readonly __tag: unique symbol }
 export type RefCell = { readonly __tag: unique symbol }
 export type NapiRouteHas = {
   type: string
@@ -82,6 +83,15 @@ export interface NapiDraftModeOptions {
   previewModeEncryptionKey: string
   previewModeSigningKey: string
 }
+export interface NapiWatchOptions {
+  /** Whether to watch the filesystem for file changes. */
+  enable: boolean
+  /**
+   * Enable polling at a certain interval if the native file watching doesn't work (e.g.
+   * docker).
+   */
+  pollIntervalMs?: number
+}
 export interface NapiProjectOptions {
   /**
    * A root path from which all files must be nested under. Trying to access
@@ -94,9 +104,9 @@ export interface NapiProjectOptions {
    * next.config's distDir. Project initialization occurs eariler than
    * deserializing next.config, so passing it as separate option.
    */
-  distDir?: string
-  /** Whether to watch he filesystem for file changes. */
-  watch: boolean
+  distDir: string
+  /** Filesystem watcher options. */
+  watch: NapiWatchOptions
   /** The contents of next.config.js, serialized to JSON. */
   nextConfig: string
   /** The contents of ts/config read by load-jsconfig, serialized to JSON. */
@@ -133,8 +143,8 @@ export interface NapiPartialProjectOptions {
    * deserializing next.config, so passing it as separate option.
    */
   distDir?: string | undefined | null
-  /** Whether to watch he filesystem for file changes. */
-  watch?: boolean
+  /** Filesystem watcher options. */
+  watch?: NapiWatchOptions
   /** The contents of next.config.js, serialized to JSON. */
   nextConfig?: string
   /** The contents of ts/config read by load-jsconfig, serialized to JSON. */
@@ -163,6 +173,8 @@ export interface NapiDefineEnv {
   nodejs: Array<NapiEnvVar>
 }
 export interface NapiTurboEngineOptions {
+  /** Use the new backend with persistent caching enabled. */
+  persistentCaching?: boolean
   /** An upper bound of memory that turbopack will attempt to stay under. */
   memoryLimit?: number
 }
@@ -237,6 +249,7 @@ export interface NapiUpdateInfo {
 }
 /**
  * Subscribes to lifecycle events of the compilation.
+ *
  * Emits an [UpdateMessage::Start] event when any computation starts.
  * Emits an [UpdateMessage::End] event when there was no computation for the
  * specified time (`aggregation_ms`). The [UpdateMessage::End] event contains
@@ -265,6 +278,10 @@ export function projectTraceSource(
   frame: StackFrame
 ): Promise<StackFrame | null>
 export function projectGetSourceForAsset(
+  project: { __napiType: 'Project' },
+  filePath: string
+): Promise<string | null>
+export function projectGetSourceMap(
   project: { __napiType: 'Project' },
   filePath: string
 ): Promise<string | null>
@@ -354,11 +371,13 @@ export interface NapiRewrite {
   missing?: Array<NapiRouteHas>
 }
 export function createTurboTasks(
+  outputPath: string,
+  persistentCaching: boolean,
   memoryLimit?: number | undefined | null
-): ExternalObject<TurboTasks>
+): ExternalObject<NextTurboTasks>
 export function runTurboTracing(
   options: Buffer,
-  turboTasks?: ExternalObject<TurboTasks> | undefined | null
+  turboTasks: ExternalObject<NextTurboTasks>
 ): Promise<Array<string>>
 export function getTargetTriple(): string
 export function initHeapProfiler(): ExternalObject<RefCell>

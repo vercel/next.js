@@ -25,9 +25,6 @@ pub enum EmotionLabelKind {
     Never,
 }
 
-#[turbo_tasks::value(transparent)]
-pub struct OptionEmotionTransformConfig(Option<Vc<EmotionTransformConfig>>);
-
 //[TODO]: need to support importmap, there are type mismatch between
 //next.config.js to swc's emotion options
 #[turbo_tasks::value(shared)]

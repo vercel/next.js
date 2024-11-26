@@ -1,8 +1,7 @@
 use std::fmt::{Debug, Display};
 
 use auto_hash_map::{AutoMap, AutoSet};
-use indexmap::{IndexMap, IndexSet};
-use turbo_tasks::Vc;
+use turbo_tasks::{FxIndexMap, FxIndexSet, Vc};
 pub use turbo_tasks_macros::ValueDebugFormat;
 
 use crate::{self as turbo_tasks};
@@ -256,7 +255,7 @@ where
     }
 }
 
-impl<T> ValueDebugFormat for IndexSet<T>
+impl<T> ValueDebugFormat for FxIndexSet<T>
 where
     T: ValueDebugFormat,
 {
@@ -271,7 +270,7 @@ where
             .collect::<Vec<_>>();
 
         ValueDebugFormatString::Async(Box::pin(async move {
-            let mut values_string = IndexSet::new();
+            let mut values_string = FxIndexSet::default();
             for value in values {
                 let value = match value {
                     ValueDebugFormatString::Sync(string) => string,
@@ -284,7 +283,7 @@ where
     }
 }
 
-impl<K, V> ValueDebugFormat for IndexMap<K, V>
+impl<K, V> ValueDebugFormat for FxIndexMap<K, V>
 where
     K: ValueDebugFormat,
     V: ValueDebugFormat,
@@ -305,7 +304,7 @@ where
             .collect::<Vec<_>>();
 
         ValueDebugFormatString::Async(Box::pin(async move {
-            let mut values_string = IndexMap::new();
+            let mut values_string = FxIndexMap::default();
             for (key, value) in values {
                 let key = match key {
                     ValueDebugFormatString::Sync(string) => string,

@@ -7,8 +7,7 @@
 export interface DeprecatedMetadataFields {
   /**
    * Deprecated options that have a preferred method
-   * @deprecated Use appWebApp to configure apple-mobile-web-app-capable which provides
-   * @see https://www.appsloveworld.com/coding/iphone/11/difference-between-apple-mobile-web-app-capable-and-apple-touch-fullscreen-ipho
+   * @deprecated Use appWebApp to configure mobile-web-app-capable which provides
    */
   'apple-touch-fullscreen'?: never
 

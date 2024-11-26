@@ -177,8 +177,8 @@ You can now read the nonce from a [Server Component](/docs/app/building-your-app
 import { headers } from 'next/headers'
 import Script from 'next/script'
 
-export default function Page() {
-  const nonce = headers().get('x-nonce')
+export default async function Page() {
+  const nonce = (await headers()).get('x-nonce')
 
   return (
     <Script
@@ -194,8 +194,8 @@ export default function Page() {
 import { headers } from 'next/headers'
 import Script from 'next/script'
 
-export default function Page() {
-  const nonce = headers().get('x-nonce')
+export default async function Page() {
+  const nonce = (await headers()).get('x-nonce')
 
   return (
     <Script

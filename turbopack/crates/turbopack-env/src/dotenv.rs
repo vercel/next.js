@@ -1,6 +1,5 @@
 use anyhow::Result;
-use indexmap::indexmap;
-use turbo_tasks::Vc;
+use turbo_tasks::{fxindexmap, Vc};
 use turbo_tasks_env::{CommandLineProcessEnv, CustomProcessEnv, ProcessEnv};
 use turbo_tasks_fs::FileSystemPath;
 
@@ -17,7 +16,7 @@ pub async fn load_env(project_path: Vc<FileSystemPath>) -> Result<Vc<Box<dyn Pro
 
     let env = Vc::upcast(CustomProcessEnv::new(
         env,
-        Vc::cell(indexmap! {
+        Vc::cell(fxindexmap! {
             "NODE_ENV".into() => node_env.into(),
         }),
     ));

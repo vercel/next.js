@@ -1,5 +1,7 @@
 #![cfg(test)]
 #![feature(arbitrary_self_types)]
+#![feature(arbitrary_self_types_pointers)]
+#![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
 mod util;
 
@@ -7,11 +9,10 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 use dunce::canonicalize;
-use indexmap::indexmap;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, Completion, RcStr, TryJoinIterExt, TurboTasks,
-    Value, Vc,
+    debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs, Completion, RcStr, TryJoinIterExt,
+    TurboTasks, Value, Vc,
 };
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::CommandLineProcessEnv;
@@ -345,7 +346,7 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
     let jest_entry_asset = asset_context
         .process(
             Vc::upcast(jest_entry_source),
-            Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
+            Value::new(ReferenceType::Internal(Vc::cell(fxindexmap! {
                 "TESTS".into() => test_asset,
             }))),
         )

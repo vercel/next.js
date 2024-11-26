@@ -1,5 +1,6 @@
 import { findPort, waitFor } from 'next-test-utils'
 import http from 'http'
+import url from 'url'
 import { outdent } from 'outdent'
 import { isNextDev, isNextStart, nextTestSetup } from 'e2e-utils'
 
@@ -9,12 +10,21 @@ describe('app-fetch-deduping', () => {
       const { next } = nextTestSetup({ files: __dirname, skipStart: true })
       let externalServerPort: number
       let externalServer: http.Server
-      let requests = []
+      let successfulRequests = []
 
       beforeAll(async () => {
         externalServerPort = await findPort()
         externalServer = http.createServer((req, res) => {
-          requests.push(req.url)
+          const parsedUrl = url.parse(req.url, true)
+          const overrideStatus = parsedUrl.query.status
+
+          // if the requested url has a "status" search param, override the response status
+          if (overrideStatus) {
+            res.statusCode = Number(overrideStatus)
+          } else {
+            successfulRequests.push(req.url)
+          }
+
           res.end(`Request ${req.url} received at ${Date.now()}`)
         })
 
@@ -30,7 +40,7 @@ describe('app-fetch-deduping', () => {
       })
 
       beforeEach(() => {
-        requests = []
+        successfulRequests = []
       })
 
       afterAll(() => externalServer.close())
@@ -43,7 +53,7 @@ describe('app-fetch-deduping', () => {
           }`
         )
         await next.build()
-        expect(requests.length).toBe(1)
+        expect(successfulRequests.length).toBe(1)
       })
     })
   } else if (isNextDev) {

@@ -21,6 +21,7 @@ const filesReferencingReactPeerDependencyVersion = [
   'test/lib/next-modes/base.ts',
 ]
 const appManifestsInstallingNextjsPeerDependencies = [
+  'packages/third-parties/package.json',
   'examples/reproduction-template/package.json',
   'test/.stats-app/package.json',
   // TODO: These should use the usual test helpers that automatically install the right React version
@@ -344,8 +345,12 @@ Or, run this command with no arguments to use the most recently published versio
     const packageJsonPath = path.join(cwd, fileName)
     const packageJson = await fsp.readFile(packageJsonPath, 'utf-8')
     const manifest = JSON.parse(packageJson)
-    manifest.dependencies['react'] = newVersionStr
-    manifest.dependencies['react-dom'] = newVersionStr
+    if (manifest.dependencies['react']) {
+      manifest.dependencies['react'] = newVersionStr
+    }
+    if (manifest.dependencies['react-dom']) {
+      manifest.dependencies['react-dom'] = newVersionStr
+    }
     await fsp.writeFile(
       packageJsonPath,
       JSON.stringify(manifest, null, 2) +

@@ -17,7 +17,6 @@ use turbopack_core::{
         origin::ResolveOrigin, parse::Request, url_resolve, ExternalType, ModuleResolveResult,
     },
 };
-use turbopack_resolve::ecmascript::try_to_severity;
 
 use super::base::ReferencedAsset;
 use crate::{
@@ -96,7 +95,7 @@ impl ModuleReference for UrlAssetReference {
             self.request,
             Value::new(ReferenceType::Url(UrlReferenceSubType::EcmaScriptNewUrl)),
             Some(self.issue_source),
-            try_to_severity(self.in_try),
+            self.in_try,
         )
     }
 }
@@ -206,7 +205,7 @@ impl CodeGenerateable for UrlAssetReference {
                             request
                         )
                     }
-                    ReferencedAsset::None => {}
+                    ReferencedAsset::None | ReferencedAsset::Unresolvable => {}
                 }
             }
             UrlRewriteBehavior::Full => {
@@ -294,7 +293,7 @@ impl CodeGenerateable for UrlAssetReference {
                             request
                         )
                     }
-                    ReferencedAsset::None => {}
+                    ReferencedAsset::None | ReferencedAsset::Unresolvable => {}
                 }
             }
             UrlRewriteBehavior::None => {
@@ -302,6 +301,6 @@ impl CodeGenerateable for UrlAssetReference {
             }
         };
 
-        Ok(CodeGeneration { visitors }.into())
+        Ok(CodeGeneration::visitors(visitors))
     }
 }

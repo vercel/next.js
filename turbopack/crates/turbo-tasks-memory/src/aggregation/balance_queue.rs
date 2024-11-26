@@ -1,19 +1,19 @@
 use std::{hash::Hash, mem::take};
 
-use indexmap::IndexSet;
+use turbo_tasks::FxIndexSet;
 
 use super::{balance_edge, AggregationContext};
 
 /// Enqueued edges that need to be balanced. Deduplicates edges and keeps track
 /// of aggregation numbers read during balancing.
 pub struct BalanceQueue<I> {
-    queue: IndexSet<(I, I)>,
+    queue: FxIndexSet<(I, I)>,
 }
 
 impl<I: Hash + Eq + Clone> BalanceQueue<I> {
     pub fn new() -> Self {
         Self {
-            queue: IndexSet::default(),
+            queue: FxIndexSet::default(),
         }
     }
 

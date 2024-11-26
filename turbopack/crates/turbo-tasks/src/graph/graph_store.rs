@@ -1,4 +1,6 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, hash::Hash};
+
+use super::VisitedNodes;
 
 /// A graph store is a data structure that will be built up during a graph
 /// traversal. It is used to store the results of the traversal.
@@ -41,7 +43,9 @@ impl<Node> GraphNode<Node> {
 }
 
 /// A [`GraphStore`] wrapper that skips nodes that have already been
-/// visited. This is necessary to avoid repeated work when traversing non-tree
+/// visited.
+///
+/// This is necessary to avoid repeated work when traversing non-tree
 /// graphs (i.e. where a node can have more than one incoming edge).
 #[derive(Debug)]
 pub struct SkipDuplicates<StoreImpl>
@@ -61,6 +65,10 @@ where
             store,
             visited: Default::default(),
         }
+    }
+
+    pub fn new_with_visited_nodes(store: StoreImpl, visited: HashSet<StoreImpl::Node>) -> Self {
+        Self { store, visited }
     }
 }
 
@@ -97,5 +105,10 @@ where
     /// Consumes the wrapper and returns the underlying store.
     pub fn into_inner(self) -> StoreImpl {
         self.store
+    }
+
+    /// Consumes the wrapper and returns the underlying store along with the visited nodes.
+    pub fn into_inner_with_visited(self) -> (StoreImpl, VisitedNodes<StoreImpl::Node>) {
+        (self.store, VisitedNodes(self.visited))
     }
 }

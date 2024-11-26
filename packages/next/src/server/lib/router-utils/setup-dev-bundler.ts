@@ -66,7 +66,8 @@ import {
 } from '../../../build/utils'
 import {
   createOriginalStackFrame,
-  getSourceById,
+  getSourceMapFromCompilation,
+  getSourceMapFromFile,
   parseStack,
 } from '../../../client/components/react-dev-overlay/server/middleware'
 import {
@@ -85,7 +86,7 @@ import {
   ModuleBuildError,
   TurbopackInternalError,
 } from '../../dev/turbopack-utils'
-import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
+import { isMetadataRouteFile } from '../../../lib/metadata/is-metadata-route'
 import { normalizeMetadataPageToRoute } from '../../../lib/metadata/get-metadata-route'
 import { createEnvDefinitions } from '../experimental/create-env-definitions'
 import { JsConfigPathsPlugin } from '../../../build/webpack/plugins/jsconfig-paths-plugin'
@@ -123,7 +124,7 @@ export type ServerFields = {
   interceptionRoutes?: ReturnType<
     typeof import('./filesystem').buildCustomRoute
   >[]
-  setAppIsrStatus?: (key: string, value: false | number | null) => void
+  setAppIsrStatus?: (key: string, value: boolean) => void
   resetFetch?: () => void
 }
 
@@ -297,6 +298,7 @@ async function startWatcher(opts: SetupOpts) {
       const conflictingAppPagePaths = new Set<string>()
       const appPageFilePaths = new Map<string, string>()
       const pagesPageFilePaths = new Map<string, string>()
+      const pagesWithUnsupportedSegments = new Map<string, string[]>()
 
       let envChange = false
       let tsconfigChange = false
@@ -308,6 +310,7 @@ async function startWatcher(opts: SetupOpts) {
       appFiles.clear()
       pageFiles.clear()
       devPageFiles.clear()
+      pagesWithUnsupportedSegments.clear()
 
       const sortedKnownFiles: string[] = [...knownFiles.keys()].sort(
         sortByPageExts(nextConfig.pageExtensions)
@@ -428,7 +431,15 @@ async function startWatcher(opts: SetupOpts) {
           pagesType: isAppPath ? PAGE_TYPES.APP : PAGE_TYPES.PAGES,
         })
 
-        if (isAppPath && isMetadataRoute(pageName)) {
+        if (
+          isAppPath &&
+          appDir &&
+          isMetadataRouteFile(
+            fileName.replace(appDir, ''),
+            nextConfig.pageExtensions,
+            true
+          )
+        ) {
           const staticInfo = await getPageStaticInfo({
             pageFilePath: fileName,
             nextConfig: {},
@@ -480,6 +491,28 @@ async function startWatcher(opts: SetupOpts) {
             appFiles.add(pageName)
           }
 
+          if (nextConfig.experimental.dynamicIO) {
+            const staticInfo = await getStaticInfoIncludingLayouts({
+              pageFilePath: fileName,
+              config: nextConfig,
+              appDir: appDir,
+              page: rootFile,
+              isDev: true,
+              isInsideAppDir: isAppPath,
+              pageExtensions: nextConfig.pageExtensions,
+            })
+
+            if (
+              'unsupportedSegmentConfigs' in staticInfo &&
+              staticInfo.unsupportedSegmentConfigs?.length
+            ) {
+              pagesWithUnsupportedSegments.set(
+                pageName,
+                staticInfo.unsupportedSegmentConfigs
+              )
+            }
+          }
+
           if (routedPages.includes(pageName)) {
             continue
           }
@@ -512,6 +545,30 @@ async function startWatcher(opts: SetupOpts) {
         }
 
         routedPages.push(pageName)
+      }
+
+      // When dynamicIO is enabled, certain segment configs are not supported as they conflict with dynamicIO behavior.
+      // This will print all the pages along with the segment configs that were used.
+      if (nextConfig.experimental.dynamicIO) {
+        const pagesWithIncompatibleSegmentConfigs: string[] = []
+
+        pagesWithUnsupportedSegments.forEach(
+          (unsupportedSegmentConfigs, page) => {
+            if (
+              unsupportedSegmentConfigs &&
+              unsupportedSegmentConfigs.length > 0
+            ) {
+              const configs = unsupportedSegmentConfigs.join(', ')
+              pagesWithIncompatibleSegmentConfigs.push(`${page}: ${configs}`)
+            }
+          }
+        )
+
+        if (pagesWithIncompatibleSegmentConfigs.length > 0) {
+          const errorMessage = `The following pages used segment configs which are not supported with "experimental.dynamicIO" and must be removed to build your application:\n${pagesWithIncompatibleSegmentConfigs.join('\n')}\n`
+          Log.error(errorMessage)
+          hotReloader.setHmrServerError(new Error(errorMessage))
+        }
       }
 
       const numConflicting = conflictingAppPagePaths.size
@@ -601,7 +658,7 @@ async function startWatcher(opts: SetupOpts) {
           try {
             tsconfigResult = await loadJsConfig(dir, nextConfig)
           } catch (_) {
-            /* do we want to log if there are syntax errors in tsconfig  while editing? */
+            /* do we want to log if there are syntax errors in tsconfig while editing? */
           }
         }
 
@@ -980,26 +1037,27 @@ async function startWatcher(opts: SetupOpts) {
                 : hotReloader.serverStats?.compilation
             )!
 
-            const source = await getSourceById(
-              !!frame.file?.startsWith(path.sep) ||
-                !!frame.file?.startsWith('file:'),
-              moduleId,
-              compilation
-            )
+            const sourceMap = await (frame.file?.startsWith(path.sep) ||
+            frame.file?.startsWith('file:')
+              ? getSourceMapFromFile(frame.file)
+              : getSourceMapFromCompilation(moduleId, compilation))
 
-            try {
-              originalFrame = await createOriginalStackFrame({
-                source,
-                frame,
-                moduleId,
-                modulePath,
-                rootDirectory: opts.dir,
-                errorMessage: err.message,
-                compilation: isEdgeCompiler
-                  ? hotReloader.edgeServerStats?.compilation
-                  : hotReloader.serverStats?.compilation,
-              })
-            } catch {}
+            if (sourceMap) {
+              try {
+                originalFrame = await createOriginalStackFrame({
+                  source: {
+                    type: 'bundle',
+                    sourceMap,
+                    compilation,
+                    moduleId,
+                    modulePath,
+                  },
+                  frame,
+                  rootDirectory: opts.dir,
+                  errorMessage: err.message,
+                })
+              } catch {}
+            }
           }
 
           if (

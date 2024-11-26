@@ -6,10 +6,7 @@ import type { OutgoingHttpHeaders } from 'http'
 import type AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
 import type { ExportPathMap, NextConfigComplete } from '../server/config-shared'
 import type { Revalidate } from '../server/lib/revalidate'
-import type {
-  NextEnabledDirectories,
-  RequestLifecycleOpts,
-} from '../server/base-server'
+import type { NextEnabledDirectories } from '../server/base-server'
 import type {
   SerializableTurborepoAccessTraceResult,
   TurborepoAccessTraceResult,
@@ -116,7 +113,6 @@ export type WorkerRenderOptsPartial = PagesRenderOptsPartial &
   AppRenderOptsPartial
 
 export type WorkerRenderOpts = WorkerRenderOptsPartial &
-  RequestLifecycleOpts &
   LoadComponentsReturnType
 
 export interface ExportAppOptions {

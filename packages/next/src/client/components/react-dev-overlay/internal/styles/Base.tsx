@@ -20,6 +20,7 @@ export function Base() {
           --color-background: white;
           --color-font: #757575;
           --color-backdrop: rgba(17, 17, 17, 0.2);
+          --color-border-shadow: rgba(0, 0, 0, 0.145);
 
           --color-title-color: #1f1f1f;
           --color-stack-h6: #222;
@@ -65,6 +66,7 @@ export function Base() {
             --color-background: rgb(28, 28, 30);
             --color-font: white;
             --color-backdrop: rgb(44, 44, 46);
+            --color-border-shadow: rgba(255, 255, 255, 0.145);
 
             --color-title-color: #fafafa;
             --color-stack-h6: rgb(200, 200, 204);

@@ -86,7 +86,7 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
   }
 
   sessionSpan.stop()
-  await flushAllTraces()
+  await flushAllTraces({ end: true })
 
   try {
     const { eventCliSessionStopped } =

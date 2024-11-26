@@ -1,9 +1,11 @@
-use indexmap::IndexMap;
-use turbo_tasks::{RcStr, Vc};
+use turbo_tasks::{fxindexmap, RcStr, Vc};
 use turbopack_core::diagnostics::{Diagnostic, DiagnosticPayload};
 
 /// A structure that keeps track of whether a particular Next.js feature is
-/// enabled for the telemetry. The original implementation code can be found at the following [link](https://github.com/vercel/next.js/blob/9da305fe320b89ee2f8c3cfb7ecbf48856368913/packages/next/src/build/webpack-config.ts#L2516).
+/// enabled for the telemetry.
+///
+/// The original implementation code can be found
+/// [here](https://github.com/vercel/next.js/blob/9da305fe320b89ee2f8c3cfb7ecbf48856368913/packages/next/src/build/webpack-config.ts#L2516).
 #[turbo_tasks::value(shared)]
 pub struct NextFeatureTelemetry {
     pub event_name: RcStr,
@@ -35,10 +37,10 @@ impl Diagnostic for NextFeatureTelemetry {
 
     #[turbo_tasks::function]
     fn payload(&self) -> Vc<DiagnosticPayload> {
-        Vc::cell(IndexMap::from([(
-            self.feature_name.clone(),
+        Vc::cell(fxindexmap! {
+            self.feature_name.clone() =>
             self.enabled.to_string().into(),
-        )]))
+        })
     }
 }
 
@@ -75,9 +77,9 @@ impl Diagnostic for ModuleFeatureTelemetry {
 
     #[turbo_tasks::function]
     fn payload(&self) -> Vc<DiagnosticPayload> {
-        Vc::cell(IndexMap::from([(
-            self.feature_name.clone(),
+        Vc::cell(fxindexmap! {
+            self.feature_name.clone() =>
             self.invocation_count.to_string().into(),
-        )]))
+        })
     }
 }

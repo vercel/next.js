@@ -9,7 +9,6 @@ import type { NodeFileTraceReasons } from 'next/dist/compiled/@vercel/nft'
 import {
   CLIENT_REFERENCE_MANIFEST,
   TRACE_OUTPUT_VERSION,
-  UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
   type CompilerNameValues,
 } from '../../../shared/lib/constants'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
@@ -24,6 +23,7 @@ import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getPageFilePath } from '../../entries'
 import { resolveExternal } from '../../handle-externals'
 import swcLoader from '../loaders/next-swc-loader'
+import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
 
 const PLUGIN_NAME = 'TraceEntryPointsPlugin'
 export const TRACE_IGNORES = [
@@ -278,22 +278,21 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
         )
 
         if (entrypoint.name.startsWith('app/')) {
-          // include the client reference manifest
-          const clientManifestsForPage =
-            entrypoint.name.endsWith('/page') ||
-            entrypoint.name === UNDERSCORE_NOT_FOUND_ROUTE_ENTRY
-              ? nodePath.join(
-                  outputPath,
-                  outputPrefix,
-                  entrypoint.name.replace(/%5F/g, '_') +
-                    '_' +
-                    CLIENT_REFERENCE_MANIFEST +
-                    '.js'
-                )
-              : null
+          // Include the client reference manifest for pages and route handlers,
+          // excluding metadata route handlers.
+          const clientManifestsForEntrypoint = isMetadataRoute(entrypoint.name)
+            ? null
+            : nodePath.join(
+                outputPath,
+                outputPrefix,
+                entrypoint.name.replace(/%5F/g, '_') +
+                  '_' +
+                  CLIENT_REFERENCE_MANIFEST +
+                  '.js'
+              )
 
-          if (clientManifestsForPage !== null) {
-            entryFiles.add(clientManifestsForPage)
+          if (clientManifestsForEntrypoint !== null) {
+            entryFiles.add(clientManifestsForEntrypoint)
           }
         }
 

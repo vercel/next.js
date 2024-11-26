@@ -1,6 +1,5 @@
 use anyhow::Result;
-use indexmap::indexmap;
-use turbo_tasks::{RcStr, Value, ValueToString, Vc};
+use turbo_tasks::{fxindexmap, RcStr, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::ModuleAssetContext;
 use turbopack_core::{
@@ -74,7 +73,7 @@ pub async fn get_app_route_entry(
     let virtual_source = load_next_js_template(
         "app-route.js",
         project_root,
-        indexmap! {
+        fxindexmap! {
             "VAR_DEFINITION_PAGE" => page.to_string().into(),
             "VAR_DEFINITION_PATHNAME" => pathname.clone(),
             "VAR_DEFINITION_FILENAME" => path.file_stem().await?.as_ref().unwrap().as_str().into(),
@@ -83,10 +82,10 @@ pub async fn get_app_route_entry(
             "VAR_RESOLVED_PAGE_PATH" => path.to_string().await?.clone_value(),
             "VAR_USERLAND" => INNER.into(),
         },
-        indexmap! {
+        fxindexmap! {
             "nextConfigOutput" => output_type
         },
-        indexmap! {},
+        fxindexmap! {},
     )
     .await?;
 
@@ -97,7 +96,7 @@ pub async fn get_app_route_entry(
         )
         .module();
 
-    let inner_assets = indexmap! {
+    let inner_assets = fxindexmap! {
         INNER.into() => userland_module
     };
 
@@ -113,7 +112,8 @@ pub async fn get_app_route_entry(
             Vc::upcast(module_asset_context),
             project_root,
             rsc_entry,
-            pathname.clone(),
+            page,
+            next_config,
         );
     }
 
@@ -131,22 +131,28 @@ async fn wrap_edge_route(
     asset_context: Vc<Box<dyn AssetContext>>,
     project_root: Vc<FileSystemPath>,
     entry: Vc<Box<dyn Module>>,
-    pathname: RcStr,
+    page: AppPage,
+    next_config: Vc<NextConfig>,
 ) -> Result<Vc<Box<dyn Module>>> {
     const INNER: &str = "INNER_ROUTE_ENTRY";
+
+    let next_config = &*next_config.await?;
 
     let source = load_next_js_template(
         "edge-app-route.js",
         project_root,
-        indexmap! {
+        fxindexmap! {
             "VAR_USERLAND" => INNER.into(),
+            "VAR_PAGE" => page.to_string().into(),
         },
-        indexmap! {},
-        indexmap! {},
+        fxindexmap! {
+            "nextConfig" => serde_json::to_string(next_config)?.into(),
+        },
+        fxindexmap! {},
     )
     .await?;
 
-    let inner_assets = indexmap! {
+    let inner_assets = fxindexmap! {
         INNER.into() => entry
     };
 
@@ -161,6 +167,6 @@ async fn wrap_edge_route(
         asset_context,
         project_root,
         wrapped,
-        pathname,
+        AppPath::from(page).to_string().into(),
     ))
 }

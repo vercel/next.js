@@ -4,11 +4,10 @@ use std::{
 };
 
 use anyhow::Result;
-use indexmap::IndexMap;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use tracing::Level;
-use turbo_tasks::{RcStr, ReadRef, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{FxIndexMap, RcStr, ReadRef, TryJoinIterExt, ValueToString, Vc};
 
 use super::{
     AsyncModuleInfo, Chunk, ChunkItem, ChunkItemsWithAsyncModuleInfo, ChunkType, ChunkingContext,
@@ -58,7 +57,7 @@ pub async fn make_chunks(
         })
         .try_join()
         .await?;
-    let mut map = IndexMap::<_, Vec<_>>::new();
+    let mut map = FxIndexMap::<_, Vec<_>>::default();
     for (chunk_item, async_info, chunk_item_info) in chunk_items {
         map.entry(chunk_item_info.ty)
             .or_default()
@@ -228,7 +227,7 @@ async fn package_name_split(
     mut name: String,
     split_context: &mut SplitContext<'_>,
 ) -> Result<()> {
-    let mut map = IndexMap::<_, Vec<ChunkItemWithInfo>>::new();
+    let mut map = FxIndexMap::<_, Vec<ChunkItemWithInfo>>::default();
     for item in chunk_items {
         let (_, _, _, asset_ident) = &item;
         let package_name = package_name(asset_ident);
@@ -261,7 +260,7 @@ async fn folder_split(
     name: Cow<'_, str>,
     split_context: &mut SplitContext<'_>,
 ) -> Result<()> {
-    let mut map = IndexMap::<_, (_, Vec<ChunkItemWithInfo>)>::new();
+    let mut map = FxIndexMap::<_, (_, Vec<ChunkItemWithInfo>)>::default();
     loop {
         for item in chunk_items {
             let (_, _, _, asset_ident) = &item;
@@ -278,7 +277,7 @@ async fn folder_split(
             if let Some(new_location) = new_location {
                 chunk_items = list;
                 location = new_location;
-                map = IndexMap::new();
+                map = FxIndexMap::default();
                 continue;
             } else {
                 let mut key = format!("{}-{}", name, folder_name);

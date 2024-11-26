@@ -5,7 +5,6 @@ related:
   title: Learn more about Instrumentation
   links:
     - app/api-reference/file-conventions/instrumentation
-    - app/api-reference/next-config-js/instrumentationHook
 ---
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
@@ -40,7 +39,6 @@ See the [Next.js with OpenTelemetry example](https://github.com/vercel/next.js/t
 
 > **Good to know**:
 >
-> - This feature is **experimental**. To use it, you must explicitly opt in by defining [`experimental.instrumentationHook = true;`](/docs/app/api-reference/next-config-js/instrumentationHook) in your `next.config.js`.
 > - The `instrumentation` file should be in the root of your project and not inside the `app` or `pages` directory. If you're using the `src` folder, then place the file inside `src` alongside `pages` and `app`.
 > - If you use the [`pageExtensions` config option](/docs/app/api-reference/next-config-js/pageExtensions) to add a suffix, you will also need to update the `instrumentation` filename to match.
 

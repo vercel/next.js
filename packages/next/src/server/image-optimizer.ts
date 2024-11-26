@@ -10,7 +10,8 @@ import nodeUrl, { type UrlWithParsedQuery } from 'url'
 
 import { getImageBlurSvg } from '../shared/lib/image-blur-svg'
 import type { ImageConfigComplete } from '../shared/lib/image-config'
-import { hasMatch } from '../shared/lib/match-remote-pattern'
+import { hasLocalMatch } from '../shared/lib/match-local-pattern'
+import { hasRemoteMatch } from '../shared/lib/match-remote-pattern'
 import type { NextConfigComplete } from './config-shared'
 import { createRequestResponseMocks } from './lib/mock-request'
 import type { NextUrlWithParsedQuery } from './request-meta'
@@ -213,6 +214,7 @@ export class ImageOptimizerCache {
       formats = ['image/webp'],
     } = imageData
     const remotePatterns = nextConfig.images?.remotePatterns || []
+    const localPatterns = nextConfig.images?.localPatterns
     const { url, w, q } = query
     let href: string
 
@@ -252,6 +254,9 @@ export class ImageOptimizerCache {
           errorMessage: '"url" parameter cannot be recursive',
         }
       }
+      if (!hasLocalMatch(localPatterns, url)) {
+        return { errorMessage: '"url" parameter is not allowed' }
+      }
     } else {
       let hrefParsed: URL
 
@@ -267,7 +272,7 @@ export class ImageOptimizerCache {
         return { errorMessage: '"url" parameter is invalid' }
       }
 
-      if (!hasMatch(domains, remotePatterns, hrefParsed)) {
+      if (!hasRemoteMatch(domains, remotePatterns, hrefParsed)) {
         return { errorMessage: '"url" parameter is not allowed' }
       }
     }

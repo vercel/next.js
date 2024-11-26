@@ -1,6 +1,5 @@
 use anyhow::Result;
-use indexmap::IndexMap;
-use turbo_tasks::{RcStr, Value, Vc};
+use turbo_tasks::{FxIndexMap, RcStr, Value, Vc};
 use turbo_tasks_env::EnvMap;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::resolve_options_context::ResolveOptionsContext;
@@ -29,8 +28,8 @@ use crate::{
     util::{foreign_code_context_condition, NextRuntime},
 };
 
-fn defines(define_env: &IndexMap<RcStr, RcStr>) -> CompileTimeDefines {
-    let mut defines = IndexMap::new();
+fn defines(define_env: &FxIndexMap<RcStr, RcStr>) -> CompileTimeDefines {
+    let mut defines = FxIndexMap::default();
 
     for (k, v) in define_env {
         defines

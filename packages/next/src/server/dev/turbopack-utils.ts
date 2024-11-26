@@ -82,13 +82,23 @@ export function isWellKnownError(issue: Issue): boolean {
 const onceErrorSet = new Set()
 /**
  * Check if given issue is a warning to be display only once.
- * This miimics behavior of get-page-static-info's warnOnce.
+ * This mimics behavior of get-page-static-info's warnOnce.
  * @param issue
  * @returns
  */
 function shouldEmitOnceWarning(issue: Issue): boolean {
-  const { severity, title } = issue
+  const { severity, title, stage } = issue
   if (severity === 'warning' && title.value === 'Invalid page configuration') {
+    if (onceErrorSet.has(issue)) {
+      return false
+    }
+    onceErrorSet.add(issue)
+  }
+  if (
+    severity === 'warning' &&
+    stage === 'config' &&
+    renderStyledStringToErrorAnsi(issue.title).includes("can't be external")
+  ) {
     if (onceErrorSet.has(issue)) {
       return false
     }
@@ -107,6 +117,16 @@ export function printNonFatalIssue(issue: Issue) {
 }
 
 function isNodeModulesIssue(issue: Issue): boolean {
+  if (issue.severity === 'warning' && issue.stage === 'config') {
+    // Override for the externalize issue
+    // `Package foo (serverExternalPackages or default list) can't be external`
+    if (
+      renderStyledStringToErrorAnsi(issue.title).includes("can't be external")
+    ) {
+      return false
+    }
+  }
+
   return (
     issue.severity === 'warning' &&
     issue.filePath.match(/^(?:.*[\\/])?node_modules(?:[\\/].*)?$/) !== null
@@ -240,14 +260,16 @@ export function processIssues(
       continue
 
     const issueKey = getIssueKey(issue)
-    const formatted = formatIssue(issue)
     newIssues.set(issueKey, issue)
 
     if (issue.severity !== 'warning') {
-      relevantIssues.add(formatted)
-
+      if (throwIssue) {
+        const formatted = formatIssue(issue)
+        relevantIssues.add(formatted)
+      }
       // if we throw the issue it will most likely get handed and logged elsewhere
-      if (logErrors && !throwIssue && isWellKnownError(issue)) {
+      else if (logErrors && isWellKnownError(issue)) {
+        const formatted = formatIssue(issue)
         Log.error(formatted)
       }
     }
@@ -368,6 +390,8 @@ export async function handleRouteType({
 
   hooks?: HandleRouteTypeHooks // dev
 }) {
+  const shouldCreateWebpackStats = process.env.TURBOPACK_STATS != null
+
   switch (route.type) {
     case 'page': {
       const clientKey = getEntryKey('pages', 'client', page)
@@ -421,6 +445,10 @@ export async function handleRouteType({
         await manifestLoader.loadFontManifest('/_app', 'pages')
         await manifestLoader.loadFontManifest(page, 'pages')
         await manifestLoader.loadLoadableManifest(page, 'pages')
+
+        if (shouldCreateWebpackStats) {
+          await manifestLoader.loadWebpackStats(page, 'pages')
+        }
 
         await manifestLoader.writeManifests({
           devRewrites,
@@ -559,6 +587,11 @@ export async function handleRouteType({
       await manifestLoader.loadActionManifest(page)
       await manifestLoader.loadLoadableManifest(page, 'app')
       await manifestLoader.loadFontManifest(page, 'app')
+
+      if (shouldCreateWebpackStats) {
+        await manifestLoader.loadWebpackStats(page, 'app')
+      }
+
       await manifestLoader.writeManifests({
         devRewrites,
         productionRewrites,
@@ -1145,4 +1178,16 @@ export function normalizedPageToTurbopackStructureRoute(
     entrypointKey = entrypointKey + '/route'
   }
   return entrypointKey
+}
+
+export function isPersistentCachingEnabled(
+  config: NextConfigComplete
+): boolean {
+  const unstableValue = config.experimental.turbo?.unstablePersistentCaching
+  if (typeof unstableValue === 'number' && unstableValue > 1) {
+    throw new Error(
+      'Persistent caching in this version of Turbopack is not as stable as expected. Upgrade to a newer version of Turbopack to use this feature with the expected stability.'
+    )
+  }
+  return !!unstableValue
 }

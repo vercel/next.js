@@ -4,13 +4,13 @@ use std::{
 };
 
 use anyhow::Result;
-use indexmap::IndexMap;
 use turbopack_trace_utils::tracing::TraceRow;
 
 use super::TraceFormat;
 use crate::{
     span::SpanIndex,
     store_container::{StoreContainer, StoreWriteGuard},
+    FxIndexMap,
 };
 
 #[derive(Default)]
@@ -180,7 +180,7 @@ impl TurbopackFormat {
                 } else {
                     None
                 };
-                let mut values = values.into_iter().collect::<IndexMap<_, _>>();
+                let mut values = values.into_iter().collect::<FxIndexMap<_, _>>();
                 let duration = values
                     .remove("duration")
                     .and_then(|v| v.as_u64())
@@ -207,6 +207,7 @@ impl TurbopackFormat {
                     ts,
                     &mut self.outdated_spans,
                 );
+                store.complete_span(id);
             }
             TraceRow::Allocation {
                 ts: _,

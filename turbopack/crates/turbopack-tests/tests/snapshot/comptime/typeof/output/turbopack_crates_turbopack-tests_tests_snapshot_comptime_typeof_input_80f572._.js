@@ -9,7 +9,6 @@ const __TURBOPACK__import$2e$meta__ = {
         return `file://${__turbopack_resolve_absolute_path__("turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/cjs.js")}`;
     }
 };
-"__TURBOPACK__ecmascript__hoisting__location__";
 console.log("typeof require", ("TURBOPACK compile-time value", "function"));
 console.log("typeof import.meta", ("TURBOPACK compile-time value", "object"));
 // CJS, should be `object`
@@ -33,7 +32,6 @@ const __TURBOPACK__import$2e$meta__ = {
         return `file://${__turbopack_resolve_absolute_path__("turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/esm-automatic.js")}`;
     }
 };
-"__TURBOPACK__ecmascript__hoisting__location__";
 ;
 console.log("typeof require", ("TURBOPACK compile-time value", "function"));
 console.log("typeof import.meta", ("TURBOPACK compile-time value", "object"));
@@ -52,7 +50,6 @@ const __TURBOPACK__import$2e$meta__ = {
         return `file://${__turbopack_resolve_absolute_path__("turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/esm-specified.mjs")}`;
     }
 };
-"__TURBOPACK__ecmascript__hoisting__location__";
 console.log("typeof require", ("TURBOPACK compile-time value", "function"));
 console.log("typeof import.meta", ("TURBOPACK compile-time value", "object"));
 // ESM, should be `undefined`
@@ -68,7 +65,6 @@ __turbopack_esm__({});
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$comptime$2f$typeof$2f$input$2f$cjs$2e$js__$5b$test$5d$__$28$ecmascript$29$__ = __turbopack_import__("[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/cjs.js [test] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$comptime$2f$typeof$2f$input$2f$esm$2d$automatic$2e$js__$5b$test$5d$__$28$ecmascript$29$__ = __turbopack_import__("[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/esm-automatic.js [test] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$comptime$2f$typeof$2f$input$2f$esm$2d$specified$2e$mjs__$5b$test$5d$__$28$ecmascript$29$__ = __turbopack_import__("[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/esm-specified.mjs [test] (ecmascript)");
-"__TURBOPACK__ecmascript__hoisting__location__";
 ;
 ;
 ;

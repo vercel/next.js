@@ -205,6 +205,7 @@ export type PrefetchCacheEntry = {
   data: Promise<FetchServerResponseResult>
   kind: PrefetchKind
   prefetchTime: number
+  staleTime: number
   lastUsedTime: number | null
   key: string
   status: PrefetchCacheEntryStatus

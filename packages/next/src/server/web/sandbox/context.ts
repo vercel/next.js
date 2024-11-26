@@ -21,6 +21,7 @@ import AssertImplementation from 'node:assert'
 import UtilImplementation from 'node:util'
 import AsyncHooksImplementation from 'node:async_hooks'
 import { intervalsManager, timeoutsManager } from './resource-managers'
+import { createLocalRequestContext } from '../../after/builtin-request-context'
 
 interface ModuleContext {
   runtime: EdgeRuntime
@@ -243,6 +244,8 @@ export const requestStore = new AsyncLocalStorage<{
   headers: Headers
 }>()
 
+export const edgeSandboxNextRequestContext = createLocalRequestContext()
+
 /**
  * Create a module cache specific for the provided parameters. It includes
  * a runtime context, require cache and paths cache.
@@ -451,6 +454,16 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
       // @ts-ignore the timeouts have weird types in the edge runtime
       context.clearTimeout = (timeout: number) =>
         timeoutsManager.remove(timeout)
+
+      // Duplicated from packages/next/src/server/after/builtin-request-context.ts
+      // because we need to use the sandboxed `Symbol.for`, not the one from the outside
+      const NEXT_REQUEST_CONTEXT_SYMBOL = context.Symbol.for(
+        '@next/request-context'
+      )
+      Object.defineProperty(context, NEXT_REQUEST_CONTEXT_SYMBOL, {
+        enumerable: false,
+        value: edgeSandboxNextRequestContext,
+      })
 
       return context
     },

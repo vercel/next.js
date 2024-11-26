@@ -37,6 +37,7 @@
         "${input:nextCommand}",
         "${input:appDirname}"
       ],
+      "console": "integratedTerminal",
       "skipFiles": ["<node_internals>/**"],
       "sourceMapPathOverrides": {
         "webpack:///./*": "${workspaceFolder}/${input:appDirname}/*",
@@ -70,6 +71,7 @@
         "${input:nextCommand}",
         "${fileDirname}"
       ],
+      "console": "integratedTerminal",
       "skipFiles": ["<node_internals>/**"],
       "sourceMapPathOverrides": {
         "webpack:///./*": "${workspaceFolder}/${fileDirname}/*",

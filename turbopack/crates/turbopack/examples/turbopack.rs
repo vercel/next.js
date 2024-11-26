@@ -1,4 +1,5 @@
 #![feature(trivial_bounds)]
+#![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
 use std::{
     env::current_dir,
@@ -33,7 +34,7 @@ async fn main() -> Result<()> {
         Box::pin(async {
             let root: RcStr = current_dir().unwrap().to_str().unwrap().into();
             let disk_fs = DiskFileSystem::new(PROJECT_FILESYSTEM_NAME.into(), root, vec![]);
-            disk_fs.await?.start_watching()?;
+            disk_fs.await?.start_watching(None).await?;
 
             // Smart Pointer cast
             let fs: Vc<Box<dyn FileSystem>> = Vc::upcast(disk_fs);

@@ -840,7 +840,6 @@ impl ReactServerComponentValidator {
     /// dynamic(() => import(...), { ssr: true }) // ✅
     /// dynamic(() => import(...), { ssr: false }) // ❌
     /// ```
-
     fn check_for_next_ssr_false(&self, node: &CallExpr) -> Option<()> {
         if !self.is_callee_next_dynamic(&node.callee) {
             return None;
@@ -934,8 +933,10 @@ impl Visit for ReactServerComponentValidator {
 
 /// Returns a visitor to assert react server components without any transform.
 /// This is for the Turbopack which have its own transform phase for the server
-/// components proxy. Also this returns a visitor instead of fold, performs
-/// better than running whole transform as a folder.
+/// components proxy.
+///
+/// This also returns a visitor instead of fold and performs better than running
+/// whole transform as a folder.
 pub fn server_components_assert(
     filename: FileName,
     config: Config,

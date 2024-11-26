@@ -669,30 +669,27 @@ impl EvalContext {
                 JsValue::array(arr)
             }
 
-            Expr::Object(obj) => {
-                return JsValue::object(
-                    obj.props
-                        .iter()
-                        .map(|prop| match prop {
-                            PropOrSpread::Spread(SpreadElement { expr, .. }) => {
-                                ObjectPart::Spread(self.eval(expr))
-                            }
-                            PropOrSpread::Prop(box Prop::KeyValue(KeyValueProp {
-                                key,
-                                box value,
-                            })) => ObjectPart::KeyValue(self.eval_prop_name(key), self.eval(value)),
-                            PropOrSpread::Prop(box Prop::Shorthand(ident)) => ObjectPart::KeyValue(
-                                ident.sym.clone().into(),
-                                self.eval(&Expr::Ident(ident.clone())),
-                            ),
-                            _ => ObjectPart::Spread(JsValue::unknown_empty(
-                                true,
-                                "unsupported object part",
-                            )),
-                        })
-                        .collect(),
-                )
-            }
+            Expr::Object(obj) => JsValue::object(
+                obj.props
+                    .iter()
+                    .map(|prop| match prop {
+                        PropOrSpread::Spread(SpreadElement { expr, .. }) => {
+                            ObjectPart::Spread(self.eval(expr))
+                        }
+                        PropOrSpread::Prop(box Prop::KeyValue(KeyValueProp { key, box value })) => {
+                            ObjectPart::KeyValue(self.eval_prop_name(key), self.eval(value))
+                        }
+                        PropOrSpread::Prop(box Prop::Shorthand(ident)) => ObjectPart::KeyValue(
+                            ident.sym.clone().into(),
+                            self.eval(&Expr::Ident(ident.clone())),
+                        ),
+                        _ => ObjectPart::Spread(JsValue::unknown_empty(
+                            true,
+                            "unsupported object part",
+                        )),
+                    })
+                    .collect(),
+            ),
 
             Expr::MetaProp(MetaPropExpr {
                 kind: MetaPropKind::ImportMeta,
@@ -1354,13 +1351,15 @@ impl VisitAstPath for Analyzer<'_> {
                 if let Some(require_var_id) = extract_var_from_umd_factory(callee, &n.args) {
                     self.add_value(
                         require_var_id,
-                        JsValue::WellKnownFunction(WellKnownFunctionKind::Require {
-                            ignore: self
-                                .eval_context
+                        JsValue::unknown_if(
+                            self.eval_context
                                 .imports
-                                .get_overrides(n.callee.span())
+                                .get_attributes(n.callee.span())
                                 .ignore,
-                        }),
+                            JsValue::WellKnownFunction(WellKnownFunctionKind::Require),
+                            true,
+                            "ignored require",
+                        ),
                     );
                 }
             }
@@ -2062,7 +2061,7 @@ impl VisitAstPath for Analyzer<'_> {
     }
 }
 
-impl<'a> Analyzer<'a> {
+impl Analyzer<'_> {
     fn add_conditional_if_effect_with_early_return(
         &mut self,
         test: &Expr,

@@ -27,22 +27,25 @@ use crate::{
     TraitTypeId, ValueTypeId, VcRead, VcValueTrait, VcValueType,
 };
 
-type TransientTaskRoot =
+pub type TransientTaskRoot =
     Box<dyn Fn() -> Pin<Box<dyn Future<Output = Result<RawVc>> + Send>> + Send + Sync>;
 
 pub enum TransientTaskType {
     /// A root task that will track dependencies and re-execute when
     /// dependencies change. Task will eventually settle to the correct
     /// execution.
+    ///
     /// Always active. Automatically scheduled.
     Root(TransientTaskRoot),
 
     // TODO implement these strongly consistency
     /// A single root task execution. It won't track dependencies.
+    ///
     /// Task will definitely include all invalidations that happened before the
     /// start of the task. It may or may not include invalidations that
     /// happened after that. It may see these invalidations partially
     /// applied.
+    ///
     /// Active until done. Automatically scheduled.
     Once(Pin<Box<dyn Future<Output = Result<RawVc>> + Send + 'static>>),
 }
@@ -92,12 +95,92 @@ impl Display for CachedTaskType {
 }
 
 mod ser {
+    use std::any::Any;
+
     use serde::{
+        de::{self},
         ser::{SerializeSeq, SerializeTuple},
         Deserialize, Deserializer, Serialize, Serializer,
     };
 
     use super::*;
+
+    impl Serialize for TypedCellContent {
+        fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+        where
+            S: Serializer,
+        {
+            let value_type = registry::get_value_type(self.0);
+            let serializable = if let Some(value) = &self.1 .0 {
+                value_type.any_as_serializable(&value.0)
+            } else {
+                None
+            };
+            let mut state = serializer.serialize_tuple(3)?;
+            state.serialize_element(registry::get_value_type_global_name(self.0))?;
+            if let Some(serializable) = serializable {
+                state.serialize_element(&true)?;
+                state.serialize_element(serializable)?;
+            } else {
+                state.serialize_element(&false)?;
+                state.serialize_element(&())?;
+            }
+            state.end()
+        }
+    }
+
+    impl<'de> Deserialize<'de> for TypedCellContent {
+        fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+        where
+            D: Deserializer<'de>,
+        {
+            struct Visitor;
+
+            impl<'de> serde::de::Visitor<'de> for Visitor {
+                type Value = TypedCellContent;
+
+                fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                    write!(formatter, "a valid TypedCellContent")
+                }
+
+                fn visit_seq<A>(self, mut seq: A) -> std::result::Result<Self::Value, A::Error>
+                where
+                    A: de::SeqAccess<'de>,
+                {
+                    let value_type = seq
+                        .next_element()?
+                        .ok_or_else(|| de::Error::invalid_length(0, &self))?;
+                    let value_type = registry::get_value_type_id_by_global_name(value_type)
+                        .ok_or_else(|| de::Error::custom("Unknown value type"))?;
+                    let has_value: bool = seq
+                        .next_element()?
+                        .ok_or_else(|| de::Error::invalid_length(1, &self))?;
+                    if has_value {
+                        let seed = registry::get_value_type(value_type)
+                            .get_any_deserialize_seed()
+                            .ok_or_else(|| {
+                                de::Error::custom("Value type doesn't support deserialization")
+                            })?;
+                        let value = seq
+                            .next_element_seed(seed)?
+                            .ok_or_else(|| de::Error::invalid_length(2, &self))?;
+                        let arc = triomphe::Arc::<dyn Any + Send + Sync>::from(value);
+                        Ok(TypedCellContent(
+                            value_type,
+                            CellContent(Some(SharedReference(arc))),
+                        ))
+                    } else {
+                        let () = seq
+                            .next_element()?
+                            .ok_or_else(|| de::Error::invalid_length(2, &self))?;
+                        Ok(TypedCellContent(value_type, CellContent(None)))
+                    }
+                }
+            }
+
+            deserializer.deserialize_tuple(2, Visitor)
+        }
+    }
 
     enum FunctionAndArg<'a> {
         Owned {
@@ -110,7 +193,7 @@ mod ser {
         },
     }
 
-    impl<'a> Serialize for FunctionAndArg<'a> {
+    impl Serialize for FunctionAndArg<'_> {
         fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
         where
             S: Serializer,
@@ -446,9 +529,13 @@ pub trait Backend: Sync + Send {
 
     #[allow(unused_variables)]
     fn stop(&self, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {}
+    #[allow(unused_variables)]
+    fn stopping(&self, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {}
 
     #[allow(unused_variables)]
     fn idle_start(&self, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {}
+    #[allow(unused_variables)]
+    fn idle_end(&self, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {}
 
     fn invalidate_task(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi<Self>);
 
@@ -630,7 +717,7 @@ pub trait Backend: Sync + Send {
         // Do nothing by default
     }
 
-    fn mark_own_task_as_dirty_when_persisted(
+    fn mark_own_task_as_session_dependent(
         &self,
         _task: TaskId,
         _turbo_tasks: &dyn TurboTasksBackendApi<Self>,

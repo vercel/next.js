@@ -21,10 +21,10 @@ pub async fn get_react_remove_properties_transform_rule(
     let enable_mdx_rs = next_config.mdx_rs().await?.is_some();
 
     let module_rule = next_config
+        .compiler()
         .await?
-        .compiler
+        .react_remove_properties
         .as_ref()
-        .and_then(|value| value.react_remove_properties.as_ref())
         .and_then(|config| match config {
             ReactRemoveProperties::Boolean(false) => None,
             ReactRemoveProperties::Boolean(true) => {

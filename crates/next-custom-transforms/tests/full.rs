@@ -32,6 +32,7 @@ fn test(input: &Path, minify: bool) {
             let fm = cm.load_file(input).expect("failed to load file");
 
             let options = TransformOptions {
+                lint_codemod_comments: true,
                 swc: swc_core::base::config::Options {
                     swcrc: true,
                     output_path: Some(output.clone()),

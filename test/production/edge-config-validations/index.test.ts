@@ -32,7 +32,7 @@ describe('Edge config validations', () => {
       await expect(next.start()).rejects.toThrow('next build failed')
       // eslint-disable-next-line jest/no-standalone-expect
       expect(next.cliOutput).toMatch(
-        `/middleware exported 'config.unstable_allowDynamic' contains invalid pattern 'true': Expected pattern to be a non-empty string`
+        '/middleware contains invalid middleware config: Expected string, received boolean at "unstable_allowDynamic", or Expected array, received boolean at "unstable_allowDynamic"'
       )
     }
   )

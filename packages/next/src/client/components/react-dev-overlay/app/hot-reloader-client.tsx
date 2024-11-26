@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { useCallback, useEffect, startTransition, useMemo, useRef } from 'react'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import formatWebpackMessages from '../internal/helpers/format-webpack-messages'
-import { usePathname, useRouter } from '../../navigation'
+import { useRouter } from '../../navigation'
 import {
   ACTION_BEFORE_REFRESH,
   ACTION_BUILD_ERROR,
@@ -15,7 +15,7 @@ import {
   ACTION_VERSION_INFO,
   useErrorOverlayReducer,
 } from '../shared'
-import { parseStack } from '../internal/helpers/parseStack'
+import { parseStack } from '../internal/helpers/parse-stack'
 import ReactDevOverlay from './ReactDevOverlay'
 import { useErrorHandler } from '../internal/helpers/use-error-handler'
 import { RuntimeErrorHandler } from '../internal/helpers/runtime-error-handler'
@@ -36,6 +36,7 @@ import { extractModulesFromTurbopackMessage } from '../../../../server/dev/extra
 import { REACT_REFRESH_FULL_RELOAD_FROM_ERROR } from '../shared'
 import type { HydrationErrorState } from '../internal/helpers/hydration-error-info'
 import type { DebugInfo } from '../types'
+import { useUntrackedPathname } from '../../navigation-untracked'
 
 export interface Dispatcher {
   onBuildOk(): void
@@ -333,7 +334,20 @@ function processMessage(
           // as we'll receive the updated manifest before usePathname
           // triggers for new value
           if ((pathnameRef.current as string) in obj.data) {
-            dispatcher.onStaticIndicator(true)
+            // the indicator can be hidden for an hour.
+            // check if it's still hidden
+            const indicatorHiddenAt = Number(
+              localStorage?.getItem('__NEXT_DISMISS_PRERENDER_INDICATOR')
+            )
+
+            const isHidden =
+              indicatorHiddenAt &&
+              !isNaN(indicatorHiddenAt) &&
+              Date.now() < indicatorHiddenAt
+
+            if (!isHidden) {
+              dispatcher.onStaticIndicator(true)
+            }
           } else {
             dispatcher.onStaticIndicator(false)
           }
@@ -552,7 +566,7 @@ export default function HotReload({
       dispatch({
         type: ACTION_UNHANDLED_ERROR,
         reason: error,
-        frames: parseStack(error.stack!),
+        frames: parseStack(error.stack),
         componentStackFrames:
           typeof componentStackTrace === 'string'
             ? parseComponentStack(componentStackTrace)
@@ -585,7 +599,10 @@ export default function HotReload({
   )
 
   const router = useRouter()
-  const pathname = usePathname()
+
+  // We don't want access of the pathname for the dev tools to trigger a dynamic
+  // access (as the dev overlay will never be present in production).
+  const pathname = useUntrackedPathname()
   const appIsrManifestRef = useRef<Record<string, false | number>>({})
   const pathnameRef = useRef(pathname)
 
@@ -599,8 +616,19 @@ export default function HotReload({
       const appIsrManifest = appIsrManifestRef.current
 
       if (appIsrManifest) {
-        if (pathname in appIsrManifest) {
-          dispatcher.onStaticIndicator(true)
+        if (pathname && pathname in appIsrManifest) {
+          const indicatorHiddenAt = Number(
+            localStorage?.getItem('__NEXT_DISMISS_PRERENDER_INDICATOR')
+          )
+
+          const isHidden =
+            indicatorHiddenAt &&
+            !isNaN(indicatorHiddenAt) &&
+            Date.now() < indicatorHiddenAt
+
+          if (!isHidden) {
+            dispatcher.onStaticIndicator(true)
+          }
         } else {
           dispatcher.onStaticIndicator(false)
         }

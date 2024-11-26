@@ -85,8 +85,9 @@ pub fn normalize_path(str: &str) -> Option<String> {
 }
 
 /// Normalizes a /-separated request into a form that contains no leading /, no
-/// double /, and no "." or ".." segments in the middle of the request. A
-/// request might only start with a single "." segment and no ".." segments, or
+/// double /, and no "." or ".." segments in the middle of the request.
+///
+/// A request might only start with a single "." segment and no ".." segments, or
 /// any positive number of ".." segments but no "." segment.
 pub fn normalize_request(str: &str) -> String {
     let mut segments = vec!["."];

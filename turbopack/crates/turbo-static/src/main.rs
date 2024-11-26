@@ -1,5 +1,3 @@
-#![feature(entry_insert)]
-
 use std::{
     collections::{HashMap, HashSet},
     error::Error,

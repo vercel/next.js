@@ -4,8 +4,7 @@ use std::{
 };
 
 use anyhow::Result;
-use indexmap::IndexMap;
-use turbo_tasks::{RcStr, Vc};
+use turbo_tasks::{FxIndexMap, RcStr, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::{transition::Transition, ModuleAssetContext};
 use turbopack_core::{file_source::FileSource, module::Module};
@@ -389,7 +388,7 @@ impl AppPageLoaderTreeBuilder {
 pub struct AppPageLoaderTreeModule {
     pub imports: Vec<RcStr>,
     pub loader_tree_code: RcStr,
-    pub inner_assets: IndexMap<RcStr, Vc<Box<dyn Module>>>,
+    pub inner_assets: FxIndexMap<RcStr, Vc<Box<dyn Module>>>,
     pub pages: Vec<Vc<FileSystemPath>>,
 }
 

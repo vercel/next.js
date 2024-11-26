@@ -13,6 +13,7 @@ Route groups are useful for:
 - Enabling [nested layouts](/docs/app/building-your-application/routing/layouts-and-templates) in the same route segment level:
   - [Creating multiple nested layouts in the same segment, including multiple root layouts](#creating-multiple-root-layouts)
   - [Adding a layout to a subset of routes in a common segment](#opting-specific-segments-into-a-layout)
+- [Adding a loading skeleton to specific route in a common segment](#opting-for-loading-skeletons-on-a-specific-route)
 
 ## Convention
 
@@ -53,6 +54,20 @@ To opt specific routes into a layout, create a new route group (e.g. `(shop)`) a
   width="1600"
   height="930"
 />
+
+### Opting for loading skeletons on a specific route
+
+To apply a [loading skeleton](/docs/app/building-your-application/routing/loading-ui-and-streaming) via a `loading.js` file to a specific route, create a new route group (e.g., `/(overview)`) and then move your `loading.tsx` inside that route group.
+
+<Image
+  alt="Folder structure showing a loading.tsx and a page.tsx inside the route group"
+  srcLight="/docs/light/route-group-loading.png"
+  srcDark="/docs/dark/route-group-loading.png"
+  width="1600"
+  height="444"
+/>
+
+Now, the `loading.tsx` file will only apply to your dashboard → overview page instead of all your dashboard pages without affecting the URL path structure.
 
 ### Creating multiple root layouts
 

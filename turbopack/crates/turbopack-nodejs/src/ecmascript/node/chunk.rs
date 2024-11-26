@@ -1,6 +1,5 @@
 use anyhow::Result;
-use indexmap::IndexSet;
-use turbo_tasks::{RcStr, ValueToString, Vc};
+use turbo_tasks::{FxIndexSet, RcStr, ValueToString, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{Chunk, ChunkingContext},
@@ -145,7 +144,7 @@ impl Introspectable for EcmascriptBuildNodeChunk {
 
     #[turbo_tasks::function]
     async fn children(&self) -> Result<Vc<IntrospectableChildren>> {
-        let mut children = IndexSet::new();
+        let mut children = FxIndexSet::default();
         let introspectable_chunk = Vc::upcast::<Box<dyn Introspectable>>(self.chunk)
             .resolve()
             .await?;

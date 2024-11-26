@@ -90,6 +90,6 @@ impl CodeGenerateable for EsmModuleIdAssetReference {
             );
         }
 
-        Ok(CodeGeneration { visitors }.into())
+        Ok(CodeGeneration::visitors(visitors))
     }
 }

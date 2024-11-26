@@ -13,7 +13,7 @@ use turbopack_core::chunk::ChunkingContext;
 use crate::{
     code_gen::{CodeGenerateable, CodeGeneration},
     create_visitor, magic_identifier,
-    references::{as_abs_path, esm::base::insert_hoisted_stmt, AstPath},
+    references::{as_abs_path, AstPath},
 };
 
 /// Responsible for initializing the `import.meta` object binding, so that it
@@ -58,21 +58,16 @@ impl CodeGenerateable for ImportMetaBinding {
             },
         );
 
-        let visitor = create_visitor!(visit_mut_program(program: &mut Program) {
-            // [NOTE] url property is lazy-evaluated, as it should be computed once turbopack_runtime injects a function
-            // to calculate an absolute path.
-            let meta = quote!(
+        Ok(CodeGeneration::hoisted_stmt(
+            "import.meta".into(),
+            // [NOTE] url property is lazy-evaluated, as it should be computed once
+            // turbopack_runtime injects a function to calculate an absolute path.
+            quote!(
                 "const $name = { get url() { return $path } };" as Stmt,
                 name = meta_ident(),
                 path: Expr = path.clone(),
-            );
-            insert_hoisted_stmt(program, meta);
-        });
-
-        Ok(CodeGeneration {
-            visitors: vec![visitor],
-        }
-        .into())
+            ),
+        ))
     }
 }
 
@@ -107,10 +102,7 @@ impl CodeGenerateable for ImportMetaRef {
             *expr = Expr::Ident(meta_ident());
         });
 
-        Ok(CodeGeneration {
-            visitors: vec![visitor],
-        }
-        .into())
+        Ok(CodeGeneration::visitors(vec![visitor]))
     }
 }
 

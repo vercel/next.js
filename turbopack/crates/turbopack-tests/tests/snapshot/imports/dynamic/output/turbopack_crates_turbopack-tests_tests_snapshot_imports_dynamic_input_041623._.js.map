@@ -1,9 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 6, "column": 0}, "map": {"version":3,"sources":["turbopack://[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/dynamic/input/vercel.cjs"],"sourcesContent":["module.exports = \"turbopack\";\n"],"names":[],"mappings":"AAAA,OAAO,OAAO,GAAG"}},
-    {"offset": {"line": 7, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
-    {"offset": {"line": 12, "column": 0}, "map": {"version":3,"sources":["turbopack://[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/dynamic/input/index.js"],"sourcesContent":["import(\"./vercel.mjs\").then(console.log);\nimport(/* webpackIgnore: false */ \"./vercel.mjs\").then(console.log);\nconsole.log(require(\"./vercel.cjs\"));\n\n// turbopack shouldn't attempt to bundle these, and they should be preserved as dynamic esm imports\n// in the output\nimport(/* webpackIgnore: true */ \"./ignore.mjs\");\nimport(/* turbopackIgnore: true */ \"./ignore.mjs\");\n\n// this should work for cjs requires too\nimport(\"./vercel.mjs\").then(console.log);\nrequire(/* webpackIgnore: true */ \"./ignore.cjs\");\nrequire(/* turbopackIgnore: true */ \"./ignore.cjs\");\n"],"names":[],"mappings":"AAAA,4KAAuB,IAAI,CAAC,QAAQ,GAAG;AACvC,4KAAkD,IAAI,CAAC,QAAQ,GAAG;AAClE,QAAQ,GAAG;AAEX,mGAAmG;AACnG,gBAAgB;AAChB,MAAM,CAAC,uBAAuB,GAAG;AACjC,MAAM,CAAC,yBAAyB,GAAG;AAEnC,wCAAwC;AACxC,4KAAuB,IAAI,CAAC,QAAQ,GAAG;AACvC,QAAQ,uBAAuB,GAAG;AAClC,QAAQ,yBAAyB,GAAG"}},
-    {"offset": {"line": 23, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
-}

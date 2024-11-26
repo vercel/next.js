@@ -5,6 +5,7 @@
 #![feature(iter_intersperse)]
 #![feature(int_roundings)]
 #![feature(arbitrary_self_types)]
+#![feature(arbitrary_self_types_pointers)]
 #![recursion_limit = "256"]
 
 pub mod analyzer;
@@ -37,7 +38,7 @@ use std::fmt::{Display, Formatter};
 
 use anyhow::Result;
 use chunk::EcmascriptChunkItem;
-use code_gen::CodeGenerateable;
+use code_gen::{CodeGenerateable, CodeGeneration, CodeGenerationHoistedStmt};
 pub use parse::ParseResultSourceMap;
 use parse::{parse, ParseResult};
 use path_visitor::ApplyVisitors;
@@ -46,18 +47,20 @@ pub use references::{AnalyzeEcmascriptModuleResult, TURBOPACK_HELPER};
 use serde::{Deserialize, Serialize};
 pub use static_code::StaticEcmascriptCode;
 use swc_core::{
-    common::GLOBALS,
+    common::{Globals, Mark, GLOBALS},
     ecma::{
+        ast::{self, ModuleItem, Program, Script},
         codegen::{text_writer::JsWriter, Emitter},
         visit::{VisitMutWith, VisitMutWithAstPath},
     },
 };
 pub use transform::{
-    CustomTransformer, EcmascriptInputTransform, EcmascriptInputTransforms, OptionTransformPlugin,
-    TransformContext, TransformPlugin, UnsupportedServerActionIssue,
+    CustomTransformer, EcmascriptInputTransform, EcmascriptInputTransforms, TransformContext,
+    TransformPlugin, UnsupportedServerActionIssue,
 };
 use turbo_tasks::{
-    trace::TraceRawVcs, RcStr, ReadRef, TaskInput, TryJoinIterExt, Value, ValueToString, Vc,
+    trace::TraceRawVcs, FxIndexMap, RcStr, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Value,
+    ValueToString, Vc,
 };
 use turbo_tasks_fs::{rope::Rope, FileJsonContent, FileSystemPath};
 use turbopack_core::{
@@ -83,7 +86,7 @@ pub use turbopack_resolve::ecmascript as resolve;
 
 use self::{
     chunk::{EcmascriptChunkItemContent, EcmascriptChunkType, EcmascriptExports},
-    code_gen::{CodeGen, CodeGenerateableWithAsyncModuleInfo, CodeGenerateables, VisitorFactory},
+    code_gen::{CodeGen, CodeGenerateableWithAsyncModuleInfo, CodeGenerateables},
 };
 use crate::{
     chunk::EcmascriptChunkPlaceable,
@@ -143,14 +146,6 @@ pub struct EcmascriptOptions {
     /// If false, they will reference the whole directory. If true, they won't
     /// reference anything and lead to an runtime error instead.
     pub ignore_dynamic_requests: bool,
-    /// The list of export names that should make tree shaking bail off. This is
-    /// required because tree shaking can split imports like `export const
-    /// runtime = 'edge'` as a separate module.
-    ///
-    /// Currently the analysis of these exports are statically verified by `NextPageStaticInfo`,
-    /// which is a `CustomTransformer` implementation and we don't have a way to apply it after
-    /// tree shaking.
-    pub special_exports: Vc<Vec<RcStr>>,
 }
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
@@ -247,7 +242,7 @@ pub struct EcmascriptModuleAsset {
     pub transforms: Vc<EcmascriptInputTransforms>,
     pub options: Vc<EcmascriptOptions>,
     pub compile_time_info: Vc<CompileTimeInfo>,
-    pub inner_assets: Option<Vc<InnerAssets>>,
+    pub inner_assets: Option<ResolvedVc<InnerAssets>>,
     #[turbo_tasks(debug_ignore)]
     last_successful_parse: turbo_tasks::TransientState<ReadRef<ParseResult>>,
 }
@@ -276,14 +271,6 @@ pub trait EcmascriptAnalyzable {
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<EcmascriptModuleContent>>;
 }
-
-/// An optional [EcmascriptModuleAsset]
-#[turbo_tasks::value(transparent)]
-pub struct OptionEcmascriptModuleAsset(Option<Vc<EcmascriptModuleAsset>>);
-
-/// A list of [EcmascriptModuleAsset]s
-#[turbo_tasks::value(transparent)]
-pub struct EcmascriptModuleAssets(Vec<Vc<EcmascriptModuleAsset>>);
 
 impl EcmascriptModuleAsset {
     pub fn builder(
@@ -446,7 +433,7 @@ impl EcmascriptModuleAsset {
         transforms: Vc<EcmascriptInputTransforms>,
         options: Vc<EcmascriptOptions>,
         compile_time_info: Vc<CompileTimeInfo>,
-        inner_assets: Vc<InnerAssets>,
+        inner_assets: ResolvedVc<InnerAssets>,
     ) -> Vc<Self> {
         Self::cell(EcmascriptModuleAsset {
             source,
@@ -771,27 +758,9 @@ impl EcmascriptModuleContent {
         // need to keep that around to allow references into that
         let code_gens = code_gens.into_iter().try_join().await?;
         let code_gens = code_gens.iter().map(|cg| &**cg).collect::<Vec<_>>();
-        let mut visitors = Vec::new();
-        let mut root_visitors = Vec::new();
-        for code_gen in code_gens {
-            for (path, visitor) in code_gen.visitors.iter() {
-                if path.is_empty() {
-                    root_visitors.push(&**visitor);
-                } else {
-                    visitors.push((path, &**visitor));
-                }
-            }
-        }
 
-        gen_content_with_visitors(
-            parsed,
-            ident,
-            specified_module_type,
-            visitors,
-            root_visitors,
-            source_map,
-        )
-        .await
+        gen_content_with_code_gens(parsed, ident, specified_module_type, &code_gens, source_map)
+            .await
     }
 
     /// Creates a new [`Vc<EcmascriptModuleContent>`] without an analysis pass.
@@ -801,27 +770,22 @@ impl EcmascriptModuleContent {
         ident: Vc<AssetIdent>,
         specified_module_type: SpecifiedModuleType,
     ) -> Result<Vc<Self>> {
-        gen_content_with_visitors(
+        gen_content_with_code_gens(
             parsed,
             ident,
             specified_module_type,
-            Vec::new(),
-            Vec::new(),
+            &[],
             OptionSourceMap::none(),
         )
         .await
     }
 }
 
-async fn gen_content_with_visitors(
+async fn gen_content_with_code_gens(
     parsed: Vc<ParseResult>,
     ident: Vc<AssetIdent>,
     specified_module_type: SpecifiedModuleType,
-    visitors: Vec<(
-        &Vec<swc_core::ecma::visit::AstParentKind>,
-        &dyn VisitorFactory,
-    )>,
-    root_visitors: Vec<&dyn VisitorFactory>,
+    code_gens: &[&CodeGeneration],
     original_src_map: Vc<OptionSourceMap>,
 ) -> Result<Vc<EcmascriptModuleContent>> {
     let parsed = parsed.await?;
@@ -837,30 +801,12 @@ async fn gen_content_with_visitors(
         } => {
             let mut program = program.clone();
 
-            GLOBALS.set(globals, || {
-                if !visitors.is_empty() {
-                    program.visit_mut_with_ast_path(
-                        &mut ApplyVisitors::new(visitors),
-                        &mut Default::default(),
-                    );
-                }
-                for visitor in root_visitors {
-                    program.visit_mut_with(&mut visitor.create());
-                }
-                program.visit_mut_with(
-                    &mut swc_core::ecma::transforms::base::hygiene::hygiene_with_config(
-                        swc_core::ecma::transforms::base::hygiene::Config {
-                            top_level_mark: eval_context.top_level_mark,
-                            ..Default::default()
-                        },
-                    ),
-                );
-                program.visit_mut_with(&mut swc_core::ecma::transforms::base::fixer::fixer(None));
-
-                // we need to remove any shebang before bundling as it's only valid as the first
-                // line in a js file (not in a chunk item wrapped in the runtime)
-                remove_shebang(&mut program);
-            });
+            process_content_with_code_gens(
+                &mut program,
+                globals,
+                Some(eval_context.top_level_mark),
+                code_gens,
+            );
 
             let mut bytes: Vec<u8> = vec![];
             // TODO: Insert this as a sourceless segment so that sourcemaps aren't affected.
@@ -916,6 +862,78 @@ async fn gen_content_with_visitors(
         }
         .cell()),
     }
+}
+
+fn process_content_with_code_gens(
+    program: &mut Program,
+    globals: &Globals,
+    top_level_mark: Option<Mark>,
+    code_gens: &[&CodeGeneration],
+) {
+    let mut visitors = Vec::new();
+    let mut root_visitors = Vec::new();
+    let mut early_hoisted_stmts = FxIndexMap::default();
+    let mut hoisted_stmts = FxIndexMap::default();
+    for code_gen in code_gens {
+        for CodeGenerationHoistedStmt { key, stmt } in &code_gen.hoisted_stmts {
+            hoisted_stmts.entry(key.clone()).or_insert(stmt.clone());
+        }
+        for CodeGenerationHoistedStmt { key, stmt } in &code_gen.early_hoisted_stmts {
+            early_hoisted_stmts.insert(key.clone(), stmt.clone());
+        }
+        for (path, visitor) in &code_gen.visitors {
+            if path.is_empty() {
+                root_visitors.push(&**visitor);
+            } else {
+                visitors.push((path, &**visitor));
+            }
+        }
+    }
+
+    GLOBALS.set(globals, || {
+        if !visitors.is_empty() {
+            program.visit_mut_with_ast_path(
+                &mut ApplyVisitors::new(visitors),
+                &mut Default::default(),
+            );
+        }
+        for visitor in root_visitors {
+            program.visit_mut_with(&mut visitor.create());
+        }
+        program.visit_mut_with(
+            &mut swc_core::ecma::transforms::base::hygiene::hygiene_with_config(
+                swc_core::ecma::transforms::base::hygiene::Config {
+                    top_level_mark: top_level_mark.unwrap_or_default(),
+                    ..Default::default()
+                },
+            ),
+        );
+        program.visit_mut_with(&mut swc_core::ecma::transforms::base::fixer::fixer(None));
+
+        // we need to remove any shebang before bundling as it's only valid as the first
+        // line in a js file (not in a chunk item wrapped in the runtime)
+        remove_shebang(program);
+    });
+
+    match program {
+        Program::Module(ast::Module { body, .. }) => {
+            body.splice(
+                0..0,
+                early_hoisted_stmts
+                    .into_values()
+                    .chain(hoisted_stmts.into_values())
+                    .map(ModuleItem::Stmt),
+            );
+        }
+        Program::Script(Script { body, .. }) => {
+            body.splice(
+                0..0,
+                early_hoisted_stmts
+                    .into_values()
+                    .chain(hoisted_stmts.into_values()),
+            );
+        }
+    };
 }
 
 pub fn register() {

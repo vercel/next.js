@@ -1,6 +1,5 @@
 use anyhow::Result;
-use indexmap::IndexSet;
-use turbo_tasks::{RcStr, TryJoinIterExt, Value, ValueToString, Vc};
+use turbo_tasks::{FxIndexSet, RcStr, TryJoinIterExt, Value, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -250,7 +249,7 @@ impl Introspectable for ChunkGroupFilesAsset {
 
     #[turbo_tasks::function]
     fn children(&self) -> Vc<IntrospectableChildren> {
-        let mut children = IndexSet::new();
+        let mut children = FxIndexSet::default();
         children.insert((
             Vc::cell("inner asset".into()),
             IntrospectableModule::new(Vc::upcast(self.module)),

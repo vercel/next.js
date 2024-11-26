@@ -1,15 +1,14 @@
 use std::cmp::Ordering;
 
 use anyhow::{anyhow, bail, Context, Result};
-use indexmap::{indexset, IndexSet};
-use turbo_tasks::RcStr;
+use turbo_tasks::{fxindexset, FxIndexSet, RcStr};
 
 use super::options::{FontData, FontWeights};
 
 #[derive(Debug, PartialEq)]
 pub(super) struct FontAxes {
-    pub(super) wght: IndexSet<RcStr>,
-    pub(super) ital: IndexSet<FontStyle>,
+    pub(super) wght: FxIndexSet<RcStr>,
+    pub(super) ital: FxIndexSet<FontStyle>,
     pub(super) variable_axes: Option<Vec<(RcStr, RcStr)>>,
 }
 
@@ -35,7 +34,7 @@ pub(super) fn get_font_axes(
     let ital = {
         let has_italic = styles.contains(&"italic".into());
         let has_normal = styles.contains(&"normal".into());
-        let mut set = IndexSet::new();
+        let mut set = FxIndexSet::default();
         if has_normal {
             set.insert(FontStyle::Normal);
         }
@@ -86,9 +85,9 @@ pub(super) fn get_font_axes(
 
             let wght = match weight_axis {
                 Some(weight_axis) => {
-                    indexset! {weight_axis}
+                    fxindexset! {weight_axis}
                 }
-                None => indexset! {},
+                None => fxindexset! {},
             };
 
             Ok(FontAxes {
@@ -99,7 +98,7 @@ pub(super) fn get_font_axes(
         }
 
         FontWeights::Fixed(weights) => Ok(FontAxes {
-            wght: IndexSet::from_iter(weights.iter().map(|w| w.to_string().into())),
+            wght: FxIndexSet::from_iter(weights.iter().map(|w| w.to_string().into())),
             ital,
             variable_axes: None,
         }),
@@ -233,7 +232,7 @@ pub(super) fn get_stylesheet_url(
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use indexmap::indexset;
+    use turbo_tasks::fxindexset;
     use turbo_tasks_fs::json::parse_json_with_source_context;
 
     use super::get_font_axes;
@@ -326,8 +325,8 @@ mod tests {
                 &Some(vec!["slnt".into()]),
             )?,
             FontAxes {
-                wght: indexset! {"100..900".into()},
-                ital: indexset! {},
+                wght: fxindexset! {"100..900".into()},
+                ital: fxindexset! {},
                 variable_axes: Some(vec![("slnt".into(), "-10..0".into())])
             }
         );
@@ -367,8 +366,8 @@ mod tests {
                 &Some(vec!["slnt".into()]),
             )?,
             FontAxes {
-                wght: indexset! {},
-                ital: indexset! {},
+                wght: fxindexset! {},
+                ital: fxindexset! {},
                 variable_axes: Some(vec![("slnt".into(), "-10..0".into())])
             }
         );
@@ -399,8 +398,8 @@ mod tests {
         assert_eq!(
             get_font_axes(&data, "Hind", &FontWeights::Fixed(vec![500]), &[], &None)?,
             FontAxes {
-                wght: indexset! {"500".into()},
-                ital: indexset! {},
+                wght: fxindexset! {"500".into()},
+                ital: fxindexset! {},
                 variable_axes: None
             }
         );
@@ -414,8 +413,8 @@ mod tests {
                 GOOGLE_FONTS_STYLESHEET_URL,
                 "Roboto Mono",
                 &FontAxes {
-                    wght: indexset! {"500".into()},
-                    ital: indexset! {FontStyle::Normal},
+                    wght: fxindexset! {"500".into()},
+                    ital: fxindexset! {FontStyle::Normal},
                     variable_axes: None
                 },
                 "optional"
@@ -433,8 +432,8 @@ mod tests {
                 GOOGLE_FONTS_STYLESHEET_URL,
                 "Roboto Serif",
                 &FontAxes {
-                    wght: indexset! {"500".into()},
-                    ital: indexset! {FontStyle::Normal},
+                    wght: fxindexset! {"500".into()},
+                    ital: fxindexset! {FontStyle::Normal},
                     variable_axes: Some(vec![
                         ("GRAD".into(), "-50..100".into()),
                         ("opsz".into(), "8..144".into()),
@@ -456,8 +455,8 @@ mod tests {
                 GOOGLE_FONTS_STYLESHEET_URL,
                 "Roboto Serif",
                 &FontAxes {
-                    wght: indexset! {"500".into(), "300".into()},
-                    ital: indexset! {FontStyle::Normal, FontStyle::Italic},
+                    wght: fxindexset! {"500".into(), "300".into()},
+                    ital: fxindexset! {FontStyle::Normal, FontStyle::Italic},
                     variable_axes: Some(vec![
                         ("GRAD".into(), "-50..100".into()),
                         ("opsz".into(), "8..144".into()),
@@ -480,8 +479,8 @@ mod tests {
                 GOOGLE_FONTS_STYLESHEET_URL,
                 "Nabla",
                 &FontAxes {
-                    wght: indexset! {},
-                    ital: indexset! {},
+                    wght: fxindexset! {},
+                    ital: fxindexset! {},
                     variable_axes: Some(vec![
                         ("EDPT".into(), "0..200".into()),
                         ("EHLT".into(), "0..24".into()),
@@ -502,8 +501,8 @@ mod tests {
                 GOOGLE_FONTS_STYLESHEET_URL,
                 "Nabla",
                 &FontAxes {
-                    wght: indexset! {},
-                    ital: indexset! {},
+                    wght: fxindexset! {},
+                    ital: fxindexset! {},
                     variable_axes: None,
                 },
                 "swap"
@@ -521,8 +520,8 @@ mod tests {
                 GOOGLE_FONTS_STYLESHEET_URL,
                 "Nabla",
                 &FontAxes {
-                    wght: indexset! {},
-                    ital: indexset! {},
+                    wght: fxindexset! {},
+                    ital: fxindexset! {},
                     variable_axes: Some(vec![]),
                 },
                 "swap"
@@ -540,8 +539,8 @@ mod tests {
                 GOOGLE_FONTS_STYLESHEET_URL,
                 "Hind",
                 &FontAxes {
-                    wght: indexset! {"500".into()},
-                    ital: indexset! {},
+                    wght: fxindexset! {"500".into()},
+                    ital: fxindexset! {},
                     variable_axes: None
                 },
                 "optional"

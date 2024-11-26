@@ -556,54 +556,6 @@ describe('Next Lint', () => {
     }
   })
 
-  test('format flag "compact" creates a file respecting the chosen format', async () => {
-    const filePath = `${__dirname}/output/output.txt`
-    const { stdout, stderr } = await nextLint(
-      dirFileLinting,
-      ['--format', 'compact', '--output-file', filePath],
-      {
-        stdout: true,
-        stderr: true,
-      }
-    )
-
-    const cliOutput = stdout + stderr
-    const fileOutput = fs.readFileSync(filePath, 'utf8')
-
-    expect(cliOutput).toContain(`The output file has been created: ${filePath}`)
-
-    expect(fileOutput).toContain('file-linting/pages/bar.js')
-    expect(fileOutput).toContain(
-      'img elements must have an alt prop, either with meaningful text, or an empty string for decorative images.'
-    )
-    expect(fileOutput).toContain(
-      'Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element'
-    )
-
-    expect(fileOutput).toContain('file-linting/pages/index.js')
-    expect(fileOutput).toContain(
-      'Synchronous scripts should not be used. See: https://nextjs.org/docs/messages/no-sync-scripts'
-    )
-  })
-
-  test('show error message when the file path is a directory', async () => {
-    const filePath = `${__dirname}`
-    const { stdout, stderr } = await nextLint(
-      dirFileLinting,
-      ['--format', 'compact', '--output-file', filePath],
-      {
-        stdout: true,
-        stderr: true,
-      }
-    )
-
-    const cliOutput = stdout + stderr
-
-    expect(cliOutput).toContain(
-      `Cannot write to output file path, it is a directory: ${filePath}`
-    )
-  })
-
   test('lint files with cjs and mjs file extension', async () => {
     const { stdout, stderr } = await nextLint(mjsCjsLinting, [], {
       stdout: true,

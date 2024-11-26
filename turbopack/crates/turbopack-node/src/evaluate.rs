@@ -8,13 +8,12 @@ use futures::{
     pin_mut, SinkExt, StreamExt,
 };
 use futures_retry::{FutureRetry, RetryPolicy};
-use indexmap::indexmap;
 use parking_lot::Mutex;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use turbo_tasks::{
-    duration_span, mark_finished, prevent_gc, util::SharedError, Completion, RawVc, TaskInput,
-    TryJoinIterExt, Value, Vc,
+    duration_span, fxindexmap, mark_finished, prevent_gc, util::SharedError, Completion, RawVc,
+    TaskInput, TryJoinIterExt, Value, Vc,
 };
 use turbo_tasks_bytes::{Bytes, Stream};
 use turbo_tasks_env::ProcessEnv;
@@ -116,7 +115,7 @@ pub async fn get_evaluate_pool(
                     File::from("import { run } from 'RUNTIME'; run(() => import('INNER'))").into(),
                 ),
             )),
-            Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
+            Value::new(ReferenceType::Internal(Vc::cell(fxindexmap! {
                 "INNER".into() => module_asset,
                 "RUNTIME".into() => runtime_asset
             }))),

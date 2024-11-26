@@ -6,8 +6,8 @@ import type {
   Module,
   ModuleGraph,
 } from 'webpack'
-import { isAppRouteRoute } from '../../lib/is-app-route-route'
 import type { ModuleGraphConnection } from 'webpack'
+import { isMetadataRoute } from '../../lib/metadata/is-metadata-route'
 
 export function traverseModules(
   compilation: Compilation,
@@ -50,8 +50,8 @@ export function forEachEntryModule(
     // Skip for entries under pages/
     if (
       name.startsWith('pages/') ||
-      // Skip for route.js entries
-      (name.startsWith('app/') && isAppRouteRoute(name))
+      // Skip for metadata route handlers
+      (name.startsWith('app/') && isMetadataRoute(name))
     ) {
       continue
     }
@@ -65,6 +65,7 @@ export function forEachEntryModule(
 
     if (
       !request.startsWith('next-edge-ssr-loader?') &&
+      !request.startsWith('next-edge-app-route-loader?') &&
       !request.startsWith('next-app-loader?')
     )
       continue
@@ -72,7 +73,10 @@ export function forEachEntryModule(
     let entryModule: NormalModule =
       compilation.moduleGraph.getResolvedModule(entryDependency)
 
-    if (request.startsWith('next-edge-ssr-loader?')) {
+    if (
+      request.startsWith('next-edge-ssr-loader?') ||
+      request.startsWith('next-edge-app-route-loader?')
+    ) {
       entryModule.dependencies.forEach((dependency) => {
         const modRequest: string | undefined = (dependency as any).request
         if (modRequest?.includes('next-app-loader')) {

@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use indexmap::IndexMap;
 use modularize_imports::{modularize_imports, Config, PackageConfig};
 use serde::{Deserialize, Serialize};
 use swc_core::{
@@ -12,7 +11,7 @@ use swc_core::{
         visit::FoldWith,
     },
 };
-use turbo_tasks::trace::TraceRawVcs;
+use turbo_tasks::{trace::TraceRawVcs, FxIndexMap};
 use turbopack_ecmascript::{CustomTransformer, TransformContext};
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
@@ -31,7 +30,7 @@ pub struct ModularizeImportsTransformer {
 }
 
 impl ModularizeImportsTransformer {
-    pub fn new(packages: &IndexMap<String, ModularizeImportPackageConfig>) -> Self {
+    pub fn new(packages: &FxIndexMap<String, ModularizeImportPackageConfig>) -> Self {
         Self {
             packages: packages
                 .iter()

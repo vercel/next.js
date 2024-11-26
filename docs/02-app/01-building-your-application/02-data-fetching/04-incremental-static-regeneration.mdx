@@ -49,6 +49,38 @@ export async function generateStaticParams() {
 }
 
 export default async function Page({ params }: { params: { id: string } }) {
+  const post: Post = await fetch(
+    `https://api.vercel.app/blog/${params.id}`
+  ).then((res) => res.json())
+  return (
+    <main>
+      <h1>{post.title}</h1>
+      <p>{post.content}</p>
+    </main>
+  )
+}
+```
+
+```jsx filename="app/blog/[id]/page.js" switcher
+// Next.js will invalidate the cache when a
+// request comes in, at most once every 60 seconds.
+export const revalidate = 60
+
+// We'll prerender only the params from `generateStaticParams` at build time.
+// If a request comes in for a path that hasn't been generated,
+// Next.js will server-render the page on-demand.
+export const dynamicParams = true // or false, to 404 on unknown paths
+
+export async function generateStaticParams() {
+  const posts = await fetch('https://api.vercel.app/blog').then((res) =>
+    res.json()
+  )
+  return posts.map((post) => ({
+    id: String(post.id),
+  }))
+}
+
+export default async function Page({ params }) {
   const post = await fetch(`https://api.vercel.app/blog/${params.id}`).then(
     (res) => res.json()
   )
@@ -61,40 +93,12 @@ export default async function Page({ params }: { params: { id: string } }) {
 }
 ```
 
-```jsx filename="app/blog/[id]/page.jsx" switcher
-// Next.js will invalidate the cache when a
-// request comes in, at most once every 60 seconds.
-export const revalidate = 60;
-
-// We'll prerender only the params from `generateStaticParams` at build time.
-// If a request comes in for a path that hasn't been generated,
-// Next.js will server-render the page on-demand.
-export const dynamicParams = true // or false, to 404 on unknown paths
-
-export async function generateStaticParams() {
-  const posts: Post[] = await fetch('https://api.vercel.app/blog').then((res) => res.json());
-  return posts.map((post) => ({
-    id: String(post.id),
-  }));
-}
-
-export default async function Page({ params }) {
-  const post = await fetch(`https://api.vercel.app/blog/${params.id}`).then((res) => res.json());
-  return (
-    <main>
-      <h1>{post.title}</h1>
-      <p>{post.content}</p>
-    </main>
-  );
-}
-```
-
 </AppOnly>
 
 <PagesOnly>
 
 ```tsx filename="pages/blog/[id].tsx" switcher
-import { GetStaticPaths, GetStaticProps } from 'next'
+import type { GetStaticPaths, GetStaticProps } from 'next'
 
 interface Post {
   id: string
@@ -125,7 +129,7 @@ export const getStaticProps: GetStaticProps<Props> = async ({
 }: {
   params: { id: string }
 }) => {
-  let post = await fetch(`https://api.vercel.app/blog/${params.id}`).then(
+  const post = await fetch(`https://api.vercel.app/blog/${params.id}`).then(
     (res) => res.json()
   )
 
@@ -228,7 +232,32 @@ Here's how this example works:
 
 This fetches and displays a list of blog posts on `/blog`. After an hour, the cache for this page is invalidated on the next visit to the page. Then, in the background, a new version of the page is generated with the latest blog posts.
 
-```jsx
+```tsx filename="app/blog/page.tsx" switcher
+interface Post {
+  id: string
+  title: string
+  content: string
+}
+
+export const revalidate = 3600 // invalidate every hour
+
+export default async function Page() {
+  const data = await fetch('https://api.vercel.app/blog')
+  const posts: Post[] = await data.json()
+  return (
+    <main>
+      <h1>Blog Posts</h1>
+      <ul>
+        {posts.map((post) => (
+          <li key={post.id}>{post.title}</li>
+        ))}
+      </ul>
+    </main>
+  )
+}
+```
+
+```jsx filename="app/blog/page.js" switcher
 export const revalidate = 3600 // invalidate every hour
 
 export default async function Page() {
@@ -255,7 +284,18 @@ For a more precise method of revalidation, invalidate pages on-demand with the `
 
 For example, this Server Action would get called after adding a new post. Regardless of how you retrieve your data in your Server Component, either using `fetch` or connecting to a database, this will clear the cache for the entire route and allow the Server Component to fetch fresh data.
 
-```jsx
+```ts filename="app/actions.ts" switcher
+'use server'
+
+import { revalidatePath } from 'next/cache'
+
+export async function createPost() {
+  // Invalidate the /posts route in the cache
+  revalidatePath('/posts')
+}
+```
+
+```js filename="app/actions.js" switcher
 'use server'
 
 import { revalidatePath } from 'next/cache'
@@ -272,7 +312,17 @@ export async function createPost() {
 
 For most use cases, prefer revalidating entire paths. If you need more granular control, you can use the `revalidateTag` function. For example, you can tag individual `fetch` calls:
 
-```jsx
+```tsx filename="app/blog/page.tsx" switcher
+export default async function Page() {
+  const data = await fetch('https://api.vercel.app/blog', {
+    next: { tags: ['posts'] },
+  })
+  const posts = await data.json()
+  // ...
+}
+```
+
+```jsx filename="app/blog/page.js" switcher
 export default async function Page() {
   const data = await fetch('https://api.vercel.app/blog', {
     next: { tags: ['posts'] },
@@ -284,7 +334,25 @@ export default async function Page() {
 
 If you are using an ORM or connecting to a database, you can use `unstable_cache`:
 
-```jsx
+```tsx filename="app/blog/page.tsx" switcher
+import { unstable_cache } from 'next/cache'
+import { db, posts } from '@/lib/db'
+
+const getCachedPosts = unstable_cache(
+  async () => {
+    return await db.select().from(posts)
+  },
+  ['posts'],
+  { revalidate: 3600, tags: ['posts'] }
+)
+
+export default async function Page() {
+  const posts = getCachedPosts()
+  // ...
+}
+```
+
+```jsx filename="app/blog/page.js" switcher
 import { unstable_cache } from 'next/cache'
 import { db, posts } from '@/lib/db'
 
@@ -304,7 +372,18 @@ export default async function Page() {
 
 You can then use `revalidateTag` in a [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) or [Route Handler](/docs/app/building-your-application/routing/route-handlers):
 
-```jsx
+```ts filename="app/actions.ts" switcher
+'use server'
+
+import { revalidateTag } from 'next/cache'
+
+export async function createPost() {
+  // Invalidate all data tagged with 'posts' in the cache
+  revalidateTag('posts')
+}
+```
+
+```js filename="app/actions.js" switcher
 'use server'
 
 import { revalidateTag } from 'next/cache'
@@ -325,13 +404,33 @@ For a more precise method of revalidation, use `res.revalidate` to generate a ne
 
 For example, this API Route can be called at `/api/revalidate?secret=<token>` to revalidate a given blog post. Create a secret token only known by your Next.js app. This secret will be used to prevent unauthorized access to the revalidation API Route.
 
-```ts filename="pages/api/revalidate.ts"
-import { NextApiRequest, NextApiResponse } from 'next'
+```ts filename="pages/api/revalidate.ts" switcher
+import type { NextApiRequest, NextApiResponse } from 'next'
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
+  // Check for secret to confirm this is a valid request
+  if (req.query.secret !== process.env.MY_SECRET_TOKEN) {
+    return res.status(401).json({ message: 'Invalid token' })
+  }
+
+  try {
+    // This should be the actual path not a rewritten path
+    // e.g. for "/posts/[id]" this should be "/posts/1"
+    await res.revalidate('/posts/1')
+    return res.json({ revalidated: true })
+  } catch (err) {
+    // If there was an error, Next.js will continue
+    // to show the last successfully generated page
+    return res.status(500).send('Error revalidating')
+  }
+}
+```
+
+```js filename="pages/api/revalidate.js" switcher
+export default async function handler(req, res) {
   // Check for secret to confirm this is a valid request
   if (req.query.secret !== process.env.MY_SECRET_TOKEN) {
     return res.status(401).json({ message: 'Invalid token' })
@@ -366,13 +465,53 @@ If an error is thrown while attempting to revalidate data, the last successfully
 
 If there is an error inside `getStaticProps` when handling background regeneration, or you manually throw an error, the last successfully generated page will continue to show. On the next subsequent request, Next.js will retry calling `getStaticProps`.
 
+```tsx filename="pages/blog/[id].tsx" switcher
+import type { GetStaticProps } from 'next'
+
+interface Post {
+  id: string
+  title: string
+  content: string
+}
+
+interface Props {
+  post: Post
+}
+
+export const getStaticProps: GetStaticProps<Props> = async ({
+  params,
+}: {
+  params: { id: string }
+}) => {
+  // If this request throws an uncaught error, Next.js will
+  // not invalidate the currently shown page and
+  // retry getStaticProps on the next request.
+  const res = await fetch(`https://api.vercel.app/blog/${params.id}`)
+  const post: Post = await res.json()
+
+  if (!res.ok) {
+    // If there is a server error, you might want to
+    // throw an error instead of returning so that the cache is not updated
+    // until the next successful request.
+    throw new Error(`Failed to fetch posts, received status ${res.status}`)
+  }
+
+  return {
+    props: { post },
+    // Next.js will invalidate the cache when a
+    // request comes in, at most once every 60 seconds.
+    revalidate: 60,
+  }
+}
+```
+
 ```jsx filename="pages/blog/[id].jsx" switcher
 export async function getStaticProps({ params }) {
   // If this request throws an uncaught error, Next.js will
   // not invalidate the currently shown page and
   // retry getStaticProps on the next request.
   const res = await fetch(`https://api.vercel.app/blog/${params.id}`)
-  const posts = await res.json()
+  const post = await res.json()
 
   if (!res.ok) {
     // If there is a server error, you might want to

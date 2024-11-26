@@ -1,6 +1,4 @@
-import Server, { connection } from 'next/server'
-
-console.log('Server', Server)
+import { connection } from 'next/server'
 
 export const dynamic = 'error'
 

@@ -80,7 +80,7 @@ impl ModuleReference for TsReferencePathAssetReference {
                     .origin
                     .asset_context()
                     .process(
-                        Vc::upcast(FileSource::new(*path)),
+                        Vc::upcast(FileSource::new(**path)),
                         Value::new(ReferenceType::TypeScript(
                             TypeScriptReferenceSubType::Undefined,
                         )),
@@ -88,7 +88,7 @@ impl ModuleReference for TsReferencePathAssetReference {
                     .module();
                 ModuleResolveResult::module(module).cell()
             } else {
-                ModuleResolveResult::unresolveable().cell()
+                ModuleResolveResult::unresolvable().cell()
             },
         )
     }

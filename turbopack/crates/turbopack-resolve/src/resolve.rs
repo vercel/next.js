@@ -259,6 +259,7 @@ async fn base_resolve_options(
         resolved_map: opt.resolved_map,
         plugins,
         before_resolve_plugins: opt.before_resolve_plugins.clone(),
+        loose_errors: opt.loose_errors,
         ..Default::default()
     }
     .into())

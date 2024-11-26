@@ -82,7 +82,7 @@ pub async fn dynamic_image_metadata_source(
             const imageModule = {{ {exported_fields_excluding_default} }}
 
             export default async function (props) {{
-                const {{ __metadata_id__: _, ...params }} = props.params
+                const {{ __metadata_id__: _, ...params }} = await props.params
                 const imageUrl = fillMetadataSegment({pathname_prefix}, params, {page_segment})
 
                 const {{ generateImageMetadata }} = imageModule

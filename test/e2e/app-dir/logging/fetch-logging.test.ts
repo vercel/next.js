@@ -242,7 +242,8 @@ describe('app-dir - logging', () => {
                 const logs = stripAnsi(next.cliOutput.slice(outputIndex))
                 expect(logs).toInclude(' GET /fetch-no-store')
                 expect(logs).not.toInclude(` │ GET `)
-              })
+                // TODO: remove custom duration in case we increase the default.
+              }, 5000)
           )
         })
 
@@ -285,7 +286,8 @@ describe('app-dir - logging', () => {
                   expect(logs).toInclude(
                     ` │ GET ${expectedUrl}?request-input 200 in 1ms (HMR cache)`
                   )
-                })
+                  // TODO: remove custom duration in case we increase the default.
+                }, 5000)
               }
             )
           })

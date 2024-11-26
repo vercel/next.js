@@ -1,6 +1,5 @@
 use anyhow::Result;
-use indexmap::IndexMap;
-use turbo_tasks::{RcStr, Vc};
+use turbo_tasks::{FxIndexMap, RcStr, Vc};
 
 use crate::{EnvMap, ProcessEnv};
 
@@ -32,7 +31,7 @@ impl ProcessEnv for FilterProcessEnv {
     #[turbo_tasks::function]
     async fn read_all(&self) -> Result<Vc<EnvMap>> {
         let prior = self.prior.read_all().await?;
-        let mut filtered = IndexMap::new();
+        let mut filtered = FxIndexMap::default();
         for (key, value) in &*prior {
             let uppercase = key.to_uppercase();
             for filter in &self.filters {

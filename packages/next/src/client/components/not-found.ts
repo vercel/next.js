@@ -1,6 +1,6 @@
 const NOT_FOUND_ERROR_CODE = 'NEXT_NOT_FOUND'
 
-type NotFoundError = Error & { digest: typeof NOT_FOUND_ERROR_CODE }
+export type NotFoundError = Error & { digest: typeof NOT_FOUND_ERROR_CODE }
 
 /**
  * This function allows you to render the [not-found.js file](https://nextjs.org/docs/app/api-reference/file-conventions/not-found)

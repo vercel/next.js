@@ -9,6 +9,7 @@ export default async function Page({
   params: Promise<{ dyn: string; then: string; value: string; status: string }>
   children: React.ReactNode
 }) {
+  await new Promise((r) => process.nextTick(r))
   const syncParams = params as unknown as UnsafeUnwrappedParams<typeof params>
   const copied = { ...syncParams }
   return (

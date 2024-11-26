@@ -161,7 +161,7 @@ impl CodeGenerateable for EsmBindings {
             item.to_visitors(&mut visitors).await?;
         }
 
-        Ok(CodeGeneration { visitors }.into())
+        Ok(CodeGeneration::visitors(visitors))
     }
 }
 

@@ -1,12 +1,11 @@
 use std::collections::{HashMap, HashSet};
 
 use anyhow::{bail, Result};
-use indexmap::IndexSet;
 use next_core::emit_assets;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, Completion, RcStr, State, TryFlatJoinIterExt,
-    TryJoinIterExt, ValueDefault, ValueToString, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, Completion, FxIndexSet, RcStr, State,
+    TryFlatJoinIterExt, TryJoinIterExt, ValueDefault, ValueToString, Vc,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -33,13 +32,13 @@ struct MapEntry {
 #[turbo_tasks::value(transparent)]
 struct OptionMapEntry(Option<MapEntry>);
 
-type PathToOutputOperation = HashMap<Vc<FileSystemPath>, IndexSet<Vc<OutputAssets>>>;
+type PathToOutputOperation = HashMap<Vc<FileSystemPath>, FxIndexSet<Vc<OutputAssets>>>;
 // A precomputed map for quick access to output asset by filepath
 type OutputOperationToComputeEntry = HashMap<Vc<OutputAssets>, Vc<OptionMapEntry>>;
 
 #[turbo_tasks::value]
 pub struct VersionedContentMap {
-    // TODO: turn into a bi-directional multimap, OutputAssets -> IndexSet<FileSystemPath>
+    // TODO: turn into a bi-directional multimap, OutputAssets -> FxIndexSet<FileSystemPath>
     map_path_to_op: State<PathToOutputOperation>,
     map_op_to_compute_entry: State<OutputOperationToComputeEntry>,
 }

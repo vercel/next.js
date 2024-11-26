@@ -36,7 +36,7 @@ import type { NextFontManifest } from '../build/webpack/plugins/next-font-manife
 import type { PagesModule } from './route-modules/pages/module'
 import type { ComponentsEnhancer } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
-import type { Revalidate, SwrDelta } from './lib/revalidate'
+import type { Revalidate, ExpireTime } from './lib/revalidate'
 import type { COMPILER_NAMES } from '../shared/lib/constants'
 
 import React, { type JSX } from 'react'
@@ -284,7 +284,7 @@ export type RenderOptsPartial = {
   isServerAction?: boolean
   isExperimentalCompile?: boolean
   isPrefetch?: boolean
-  swrDelta?: SwrDelta
+  expireTime?: ExpireTime
   experimental: {
     clientTraceMetadata?: string[]
   }
@@ -456,7 +456,7 @@ export async function renderToHTMLImpl(
     images,
     runtime: globalRuntime,
     isExperimentalCompile,
-    swrDelta,
+    expireTime,
   } = renderOpts
   const { App } = extra
 
@@ -517,7 +517,7 @@ export async function renderToHTMLImpl(
       'Cache-Control',
       formatRevalidate({
         revalidate: false,
-        swrDelta,
+        expireTime,
       })
     )
     isAutoExport = false
@@ -1391,7 +1391,7 @@ export async function renderToHTMLImpl(
     }
   }
 
-  getTracer().getRootSpanAttributes()?.set('next.route', renderOpts.page)
+  getTracer().setRootSpanAttribute('next.route', renderOpts.page)
   const documentResult = await getTracer().trace(
     RenderSpan.renderDocument,
     {

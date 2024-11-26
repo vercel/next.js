@@ -2,6 +2,7 @@ import type {
   EdgeFunctionDefinition,
   MiddlewareManifest,
 } from '../../../build/webpack/plugins/middleware-plugin'
+import type { StatsAsset, StatsChunk, StatsChunkGroup, StatsModule, StatsCompilation as WebpackStats } from 'webpack'
 import type { BuildManifest } from '../../get-page-files'
 import type { AppBuildManifest } from '../../../build/webpack/plugins/app-build-manifest-plugin'
 import type { PagesManifest } from '../../../build/webpack/plugins/pages-manifest-plugin'
@@ -22,6 +23,7 @@ import {
   REACT_LOADABLE_MANIFEST,
   SERVER_REFERENCE_MANIFEST,
   TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST,
+  WEBPACK_STATS,
 } from '../../../shared/lib/constants'
 import { join, posix } from 'path'
 import { readFile } from 'fs/promises'
@@ -53,22 +55,7 @@ type TurbopackMiddlewareManifest = MiddlewareManifest & {
   instrumentation?: InstrumentationDefinition
 }
 
-async function readPartialManifest<T>(
-  distDir: string,
-  name:
-    | typeof MIDDLEWARE_MANIFEST
-    | typeof BUILD_MANIFEST
-    | typeof APP_BUILD_MANIFEST
-    | typeof PAGES_MANIFEST
-    | typeof APP_PATHS_MANIFEST
-    | `${typeof SERVER_REFERENCE_MANIFEST}.json`
-    | `${typeof NEXT_FONT_MANIFEST}.json`
-    | typeof REACT_LOADABLE_MANIFEST,
-  pageName: string,
-  type: 'pages' | 'app' | 'middleware' | 'instrumentation' = 'pages'
-): Promise<T> {
-  const page = pageName.replace(/\/sitemap\/route$/, '/sitemap.xml/route')
-
+const getManifestPath = (page: string, distDir: string, name: string, type: string) => {
   let manifestPath = posix.join(
     distDir,
     `server`,
@@ -80,21 +67,37 @@ async function readPartialManifest<T>(
         : getAssetPathFromRoute(page),
     name
   )
+  return manifestPath
+}
+
+async function readPartialManifest<T>(
+  distDir: string,
+  name:
+    | typeof MIDDLEWARE_MANIFEST
+    | typeof BUILD_MANIFEST
+    | typeof APP_BUILD_MANIFEST
+    | typeof PAGES_MANIFEST
+    | typeof WEBPACK_STATS
+    | typeof APP_PATHS_MANIFEST
+    | `${typeof SERVER_REFERENCE_MANIFEST}.json`
+    | `${typeof NEXT_FONT_MANIFEST}.json`
+    | typeof REACT_LOADABLE_MANIFEST,
+  pageName: string,
+  type: 'pages' | 'app' | 'middleware' | 'instrumentation' = 'pages'
+): Promise<T> {
+  const page = pageName
+  const isSitemapRoute = /[\\/]sitemap(.xml)?\/route$/.test(page)
+  let manifestPath = getManifestPath(page, distDir, name, type)
+
+  // Check the ambiguity of /sitemap and /sitemap.xml
+  if (isSitemapRoute && !existsSync(manifestPath)) {
+    manifestPath = getManifestPath(pageName.replace(/\/sitemap\/route$/, '/sitemap.xml/route'), distDir, name, type)
+  }
   // existsSync is faster than using the async version
   if(!existsSync(manifestPath) && page.endsWith('/route')) {
     // TODO: Improve implementation of metadata routes, currently it requires this extra check for the variants of the files that can be written.
-    const metadataPage = addRouteSuffix(addMetadataIdToRoute(removeRouteSuffix(page.replace(/\/sitemap\.xml\/route$/, '/sitemap/route'))))
-    manifestPath = posix.join(
-      distDir,
-      `server`,
-      type,
-      type === 'middleware' || type === 'instrumentation'
-        ? ''
-        : type === 'app'
-          ? metadataPage
-          : getAssetPathFromRoute(metadataPage),
-      name
-    )
+    let metadataPage = addRouteSuffix(addMetadataIdToRoute(removeRouteSuffix(page)))
+    manifestPath = getManifestPath(metadataPage, distDir, name, type)
   }
   return JSON.parse(await readFile(posix.join(manifestPath), 'utf-8')) as T
 }
@@ -109,6 +112,7 @@ export class TurbopackManifestLoader {
   private middlewareManifests: Map<EntryKey, TurbopackMiddlewareManifest> =
     new Map()
   private pagesManifests: Map<string, PagesManifest> = new Map()
+  private webpackStats: Map<EntryKey, WebpackStats> = new Map()
   private encryptionKey: string
 
   private readonly distDir: string
@@ -137,6 +141,7 @@ export class TurbopackManifestLoader {
     this.loadableManifests.delete(key)
     this.middlewareManifests.delete(key)
     this.pagesManifests.delete(key)
+    this.webpackStats.delete(key)
   }
 
   async loadActionManifest(pageName: string): Promise<void> {
@@ -267,6 +272,21 @@ export class TurbopackManifestLoader {
     )
   }
 
+  private async writeWebpackStats(): Promise<void> {
+    const webpackStats = this.mergeWebpackStats(
+      this.webpackStats.values()
+    )
+    const path = join(
+      this.distDir,
+      'server',
+      WEBPACK_STATS
+    )
+    deleteCache(path)
+    await writeFileAtomic(
+      path,
+      JSON.stringify(webpackStats, null, 2)
+    )
+  }
 
   async loadBuildManifest(
     pageName: string,
@@ -276,6 +296,77 @@ export class TurbopackManifestLoader {
       getEntryKey(type, 'server', pageName),
       await readPartialManifest(this.distDir, BUILD_MANIFEST, pageName, type)
     )
+  }
+
+  async loadWebpackStats(
+    pageName: string,
+    type: 'app' | 'pages' = 'pages'
+  ): Promise<void> {
+    this.webpackStats.set(
+      getEntryKey(type, 'client', pageName),
+      await readPartialManifest(this.distDir, WEBPACK_STATS, pageName, type)
+    )
+  }
+
+  private mergeWebpackStats(statsFiles: Iterable<WebpackStats>): WebpackStats {
+    const entrypoints: Record<string, StatsChunkGroup> = {};
+    const assets: Map<string, StatsAsset> = new Map()
+    const chunks: Map<string, StatsChunk> = new Map()
+    const modules: Map<string | number, StatsModule> = new Map()
+
+    for (const statsFile of statsFiles) {
+      if (statsFile.entrypoints) {
+        for (const [k, v] of Object.entries(
+          statsFile.entrypoints
+        )) {
+          if (!entrypoints[k]) {
+            entrypoints[k] = v
+          }
+        }
+      }
+
+      if (statsFile.assets) {
+        for (const asset of statsFile.assets) {
+          if (!assets.has(asset.name)) {
+            assets.set(asset.name, asset)
+          }
+        }
+      }
+
+      if (statsFile.chunks) {
+        for (const chunk of statsFile.chunks) {
+          if (!chunks.has(chunk.name)) {
+            chunks.set(chunk.name, chunk)
+          }
+        }
+      }
+
+      if (statsFile.modules) {
+        for (const module of statsFile.modules) {
+          const id = module.id;
+          if (id != null) {
+            // Merge the chunk list for the module. This can vary across endpoints.
+            const existing = modules.get(id);
+            if (existing == null) {
+              modules.set(id, module)
+            } else if (module.chunks != null && existing.chunks != null) {
+              for (const chunk of module.chunks) {
+                if (!existing.chunks.includes(chunk)) {
+                  existing.chunks.push(chunk)
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return {
+      entrypoints,
+      assets: [...assets.values()],
+      chunks: [...chunks.values()],
+      modules: [...modules.values()],
+    }
   }
 
   private mergeBuildManifests(manifests: Iterable<BuildManifest>) {
@@ -673,5 +764,9 @@ export class TurbopackManifestLoader {
     await this.writeClientMiddlewareManifest()
     await this.writeNextFontManifest()
     await this.writePagesManifest()
+
+    if (process.env.TURBOPACK_STATS != null) {
+      await this.writeWebpackStats()
+    }
   }
 }

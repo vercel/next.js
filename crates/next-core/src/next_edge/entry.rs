@@ -1,6 +1,5 @@
-use indexmap::indexmap;
 use indoc::formatdoc;
-use turbo_tasks::{RcStr, Value, Vc};
+use turbo_tasks::{fxindexmap, RcStr, Value, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent, context::AssetContext, module::Module, reference_type::ReferenceType,
@@ -33,7 +32,7 @@ pub async fn wrap_edge_entry(
         AssetContent::file(file.into()),
     );
 
-    let inner_assets = indexmap! {
+    let inner_assets = fxindexmap! {
         "MODULE".into() => entry
     };
 

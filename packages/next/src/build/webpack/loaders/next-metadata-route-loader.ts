@@ -82,6 +82,16 @@ async function getStaticAssetRouteCode(
       : process.env.NODE_ENV !== 'production'
         ? cacheHeader.none
         : cacheHeader.longCache
+
+  const isTwitter = fileBaseName === 'twitter-image'
+  const isOpenGraph = fileBaseName === 'opengraph-image'
+  // Twitter image file size limit is 5MB.
+  // General Open Graph image file size limit is 8MB.
+  // x-ref: https://developer.x.com/en/docs/x-for-websites/cards/overview/summary
+  // x-ref(facebook): https://developers.facebook.com/docs/sharing/webmasters/images
+  const fileSizeLimit = isTwitter ? 5 : 8
+  const imgName = isTwitter ? 'Twitter' : 'Open Graph'
+
   const code = `\
 /* static asset route */
 import { NextResponse } from 'next/server'
@@ -91,6 +101,16 @@ const buffer = Buffer.from(${JSON.stringify(
     (await fs.promises.readFile(resourcePath)).toString('base64')
   )}, 'base64'
   )
+
+if (${isTwitter || isOpenGraph}) {
+  const fileSizeInMB = buffer.byteLength / 1024 / 1024
+  if (fileSizeInMB > ${fileSizeLimit}) {
+    throw new Error('File size for ${imgName} image "${resourcePath}" exceeds ${fileSizeLimit}MB. ' +
+    \`(Current: \${fileSizeInMB.toFixed(2)}MB)\n\` +
+    'Read more: https://nextjs.org/docs/app/api-reference/file-conventions/metadata/opengraph-image#image-files-jpg-png-gif'
+    )
+  }
+}
 
 export function GET() {
   return new NextResponse(buffer, {
@@ -155,12 +175,14 @@ ${errorOnBadHandler(resourcePath)}
 ${await createReExportsCode(resourcePath, loaderContext)}
 
 export async function GET(_, ctx) {
-  const { __metadata_id__, ...params } = ctx.params || {}
+  const params = await ctx.params
+  const { __metadata_id__, ...rest } = params || {}
+  const restParams = params ? rest : undefined
   const targetId = __metadata_id__
   let id = undefined
   
   if (generateImageMetadata) {
-    const imageMetadata = await generateImageMetadata({ params })
+    const imageMetadata = await generateImageMetadata({ params: restParams })
     id = imageMetadata.find((item) => {
       if (process.env.NODE_ENV !== 'production') {
         if (item?.id == null) {
@@ -176,7 +198,7 @@ export async function GET(_, ctx) {
     }
   }
 
-  return handler({ params: ctx.params ? params : undefined, id })
+  return handler({ params: restParams, id })
 }
 `
 }
@@ -223,7 +245,7 @@ ${errorOnBadHandler(resourcePath)}
 ${await createReExportsCode(resourcePath, loaderContext)}
 
 export async function GET(_, ctx) {
-  const { __metadata_id__: id, ...params } = ctx.params || {}
+  const { __metadata_id__: id, ...params } = await ctx.params || {}
   const hasXmlExtension = id ? id.endsWith('.xml') : false
 
   if (id && !hasXmlExtension) {

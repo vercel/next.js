@@ -8,7 +8,7 @@ import {
   buildStaticPaths,
   reduceAppConfig,
 } from '../../build/utils'
-import { collectSegments } from '../../build/app-segments/collect-app-segments'
+import { collectSegments } from '../../build/segment-config/app/app-segments'
 import type { PartialStaticPathsResult } from '../../build/utils'
 import { loadComponents } from '../load-components'
 import { setHttpClientAndAgentOptions } from '../setup-http-agent-env'
@@ -46,8 +46,8 @@ export async function loadStaticPaths({
   maxMemoryCacheSize,
   requestHeaders,
   cacheHandler,
+  cacheLifeProfiles,
   nextConfigOutput,
-  isAppPPRFallbacksEnabled,
   buildId,
 }: {
   dir: string
@@ -64,8 +64,10 @@ export async function loadStaticPaths({
   maxMemoryCacheSize?: number
   requestHeaders: IncrementalCache['requestHeaders']
   cacheHandler?: string
+  cacheLifeProfiles?: {
+    [profile: string]: import('../../server/use-cache/cache-life').CacheLife
+  }
   nextConfigOutput: 'standalone' | 'export' | undefined
-  isAppPPRFallbacksEnabled: boolean | undefined
   buildId: string
 }): Promise<PartialStaticPathsResult> {
   // update work memory runtime-config
@@ -97,13 +99,13 @@ export async function loadStaticPaths({
       distDir,
       requestHeaders,
       cacheHandler,
+      cacheLifeProfiles,
       isrFlushToDisk,
       fetchCacheKeyPrefix,
       maxMemoryCacheSize,
       ComponentMod: components.ComponentMod,
       nextConfigOutput,
       isRoutePPREnabled,
-      isAppPPRFallbacksEnabled,
       buildId,
     })
   } else if (!components.getStaticPaths) {

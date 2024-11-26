@@ -15694,10 +15694,10 @@
       "runtimeError": false
     },
     "test/production/app-dir/actions-tree-shaking/client-actions-tree-shaking/client-actions-tree-shaking.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "app-dir - client-actions-tree-shaking should not bundle unused server reference id in client bundles"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -15773,13 +15773,12 @@
     "test/production/app-dir/client-components-tree-shaking/index.test.ts": {
       "passed": [
         "app-dir client-components-tree-shaking should able to resolve the client module entry with mixing rexports",
-        "app-dir client-components-tree-shaking should handle mixing namespace imports and named imports from client components"
-      ],
-      "failed": [
+        "app-dir client-components-tree-shaking should handle mixing namespace imports and named imports from client components",
         "app-dir client-components-tree-shaking should only include imported components 3rd party package in browser bundle with direct imports",
         "app-dir client-components-tree-shaking should only include imported relative components in browser bundle with direct imports",
         "app-dir client-components-tree-shaking should only include the imported identifier of CJS module in browser bundle"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false

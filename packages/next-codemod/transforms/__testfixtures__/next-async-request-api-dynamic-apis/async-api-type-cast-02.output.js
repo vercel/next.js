@@ -6,7 +6,7 @@ import {
 } from 'next/headers'
 
 export function MyDraftComponent() {
-if (/* TODO: please manually await this call, if it's a server component, you can turn it to async function */
+if (/* @next-codemod-error Manually await this call and refactor the function to be async */
 draftMode().isEnabled) {
     return null
   }
@@ -15,13 +15,13 @@ draftMode().isEnabled) {
 }
 
 export function MyCookiesComponent() {
-  const c = /* TODO: please manually await this call, if it's a server component, you can turn it to async function */
+  const c = /* @next-codemod-error Manually await this call and refactor the function to be async */
   cookies()
   return c.get('name')
 }
 
 export function MyHeadersComponent() {
-  const h = /* TODO: please manually await this call, if it's a server component, you can turn it to async function */
+  const h = /* @next-codemod-error Manually await this call and refactor the function to be async */
   headers()
   return (
     <p>{h.get('x-foo')}</p>

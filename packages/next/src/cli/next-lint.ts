@@ -23,21 +23,23 @@ export type NextLintOptions = {
   config?: string
   dir?: string[]
   errorOnUnmatchedPattern?: boolean
-  ext: string[]
   file?: string[]
   fix?: boolean
   fixType?: string
   format?: string
   ignore: boolean
-  ignorePath?: string
-  inlineConfig: boolean
-  maxWarnings: number
   outputFile?: string
   quiet?: boolean
+  strict?: boolean
+  // TODO(jiwon): ESLint v9 unsupported options
+  // we currently delete them at `runLintCheck` when used in v9
+  ext: string[]
+  ignorePath?: string
   reportUnusedDisableDirectivesSeverity: 'error' | 'off' | 'warn'
   resolvePluginsRelativeTo?: string
   rulesdir?: string
-  strict?: boolean
+  inlineConfig: boolean
+  maxWarnings: number
 }
 
 const eslintOptions = (

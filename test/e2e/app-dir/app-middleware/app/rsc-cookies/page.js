@@ -11,7 +11,9 @@ export default async function Page() {
       <p id="rsc-cookie-1">Cookie 1: {rscCookie1}</p>
       <p id="rsc-cookie-2">Cookie 2: {rscCookie2}</p>
       <p id="total-cookies">Total Cookie Length: {(await cookies()).size}</p>
-      <Link href="/rsc-cookies-delete">To Delete Cookies Route</Link>
+      <Link href="/rsc-cookies-delete" prefetch={false}>
+        To Delete Cookies Route
+      </Link>
       <Form
         action={async () => {
           'use server'

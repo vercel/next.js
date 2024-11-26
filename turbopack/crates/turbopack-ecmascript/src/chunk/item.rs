@@ -264,9 +264,3 @@ async fn module_factory_with_code_generation_issue(
         },
     )
 }
-
-#[turbo_tasks::value(transparent)]
-pub struct EcmascriptChunkItemsChunk(Vec<Vc<Box<dyn EcmascriptChunkItem>>>);
-
-#[turbo_tasks::value(transparent)]
-pub struct EcmascriptChunkItems(pub(super) Vec<Vc<Box<dyn EcmascriptChunkItem>>>);

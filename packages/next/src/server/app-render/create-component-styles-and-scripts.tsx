@@ -47,19 +47,20 @@ export async function createComponentStylesAndScripts({
             // @ts-ignore
             precedence={precedence}
             crossOrigin={ctx.renderOpts.crossOrigin}
-            key={index}
+            key={`style-${index}`}
           />
         )
       })
     : null
 
   const scripts = jsHrefs
-    ? jsHrefs.map((href) => (
+    ? jsHrefs.map((href, index) => (
         <script
           src={`${ctx.assetPrefix}/_next/${encodeURIPath(
             href
           )}${getAssetQueryString(ctx, true)}`}
           async={true}
+          key={`script-${index}`}
         />
       ))
     : null

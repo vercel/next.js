@@ -82,7 +82,7 @@ pub struct StringifyJs<'a, T>(pub &'a T)
 where
     T: ?Sized;
 
-impl<'a, T> std::fmt::Display for StringifyJs<'a, T>
+impl<T> std::fmt::Display for StringifyJs<'_, T>
 where
     T: Serialize + ?Sized,
 {
@@ -93,7 +93,7 @@ where
             f: &'a mut std::fmt::Formatter<'b>,
         }
 
-        impl<'a, 'b> std::io::Write for DisplayWriter<'a, 'b> {
+        impl std::io::Write for DisplayWriter<'_, '_> {
             fn write(&mut self, bytes: &[u8]) -> std::result::Result<usize, std::io::Error> {
                 self.f
                     .write_str(

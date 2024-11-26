@@ -261,7 +261,7 @@ describe('app dir - middleware with middleware in src dir', () => {
     },
   })
 
-  it('works without crashing when using requestAsyncStorage', async () => {
+  it('works without crashing when using RequestStore', async () => {
     const browser = await next.browser('/')
     await browser.addCookie({
       name: 'test-cookie',

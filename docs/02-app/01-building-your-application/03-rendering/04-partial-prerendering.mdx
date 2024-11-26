@@ -127,15 +127,15 @@ module.exports = nextConfig
 
 ## Dynamic Components
 
-When creating the prerender for your route during `next build`, Next.js requires that dynamic functions are wrapped with React Suspense. The `fallback` is then included in the prerender.
+When creating the prerender for your route during `next build`, Next.js requires that Dynamic APIs are wrapped with React Suspense. The `fallback` is then included in the prerender.
 
-For example, using functions like `cookies()` or `headers()`:
+For example, using functions like `cookies` or `headers`:
 
 ```jsx filename="app/user.js" switcher
 import { cookies } from 'next/headers'
 
-export function User() {
-  const session = cookies().get('session')?.value
+export async function User() {
+  const session = (await cookies()).get('session')?.value
   return '...'
 }
 ```
@@ -143,8 +143,8 @@ export function User() {
 ```tsx filename="app/user.tsx" switcher
 import { cookies } from 'next/headers'
 
-export function User() {
-  const session = cookies().get('session')?.value
+export async function User() {
+  const session = (await cookies()).get('session')?.value
   return '...'
 }
 ```
@@ -224,17 +224,21 @@ export default function Page({ searchParams }) {
 Inside of the table component, accessing the value from `searchParams` will make the component run dynamically:
 
 ```tsx filename="app/table.tsx" switcher
-export function Table({ searchParams }: { searchParams: { sort: string } }) {
-  const sort = searchParams.sort === 'true'
+export async function Table({
+  searchParams,
+}: {
+  searchParams: Promise<{ sort: string }>
+}) {
+  const sort = (await searchParams).sort === 'true'
   return '...'
 }
 ```
 
 ```jsx filename="app/table.js" switcher
-export function Table({ searchParams }: {
-  searchParams: { sort: string }
+export async function Table({ searchParams }: {
+  searchParams: Promise<{ sort: string }>
 }) {
-  const sort = searchParams.sort === 'true';
+  const sort = (await searchParams).sort === 'true';
   return '...'
 }
 ```

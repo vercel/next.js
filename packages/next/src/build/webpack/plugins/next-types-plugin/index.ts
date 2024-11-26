@@ -17,6 +17,7 @@ import { getPageFromPath } from '../../../entries'
 import type { PageExtensions } from '../../../page-extensions-type'
 import { devPageFiles } from './shared'
 import { getProxiedPluginState } from '../../../build-context'
+import type { CacheLife } from '../../../../server/use-cache/cache-life'
 
 const PLUGIN_NAME = 'NextTypesPlugin'
 
@@ -34,6 +35,7 @@ interface Options {
   isEdgeServer: boolean
   pageExtensions: PageExtensions
   typedRoutes: boolean
+  cacheLifeConfig: undefined | { [profile: string]: CacheLife }
   originalRewrites: Rewrites | undefined
   originalRedirects: Redirect[] | undefined
 }
@@ -55,6 +57,10 @@ ${
 }
 
 type TEntry = typeof import('${relativePath}.js')
+
+type SegmentParams<T extends Object = any> = T extends Record<string, any>
+  ? { [K in keyof T]: T[K] extends string ? string | string[] | undefined : never }
+  : T
 
 // Check that the entry is a valid entry
 checkFields<Diff<{
@@ -163,7 +169,6 @@ if ('generateStaticParams' in entry) {
   checkFields<Diff<{ __tag__: 'generateStaticParams', __return_type__: any[] | Promise<any[]> }, { __tag__: 'generateStaticParams', __return_type__: ReturnType<MaybeField<TEntry, 'generateStaticParams'>> }>>()
 }
 
-type SegmentParams = {[param: string]: string | string[] | undefined}
 export interface PageProps {
   params?: Promise<SegmentParams>
   searchParams?: Promise<any>
@@ -522,6 +527,40 @@ declare module 'next/form' {
 `
 }
 
+function createCustomCacheLifeDefinitions(cacheLife: {
+  [profile: string]: CacheLife
+}) {
+  const profiles = Object.keys(cacheLife)
+  if (!profiles.includes('default')) {
+    profiles.push('default')
+  }
+  for (let i = 0; i < profiles.length; i++) {
+    profiles[i] = JSON.stringify(profiles[i])
+  }
+
+  // TODO: Annotate each option with their expanded values for IDE support.
+  const profilesEnum = profiles.join(' | ')
+
+  // Redefine the cacheLife() accepted arguments.
+  return `// Type definitions for Next.js cacheLife configs
+
+declare module 'next/cache' {
+  export { unstable_cache } from 'next/dist/server/web/spec-extension/unstable-cache'
+  export {
+    revalidateTag,
+    revalidatePath,
+  } from 'next/dist/server/web/spec-extension/revalidate'
+  export { unstable_noStore } from 'next/dist/server/web/spec-extension/unstable-no-store'
+
+  import type { CacheLife } from 'next/dist/server/use-cache/cache-life'
+
+  export function unstable_cacheLife(profile: ${profilesEnum} | CacheLife): void
+
+  export { cacheTag as unstable_cacheTag } from 'next/dist/server/use-cache/cache-tag'
+}
+`
+}
+
 const appTypesBasePath = path.join('types', 'app')
 
 export class NextTypesPlugin {
@@ -533,6 +572,7 @@ export class NextTypesPlugin {
   pageExtensions: string[]
   pagesDir: string
   typedRoutes: boolean
+  cacheLifeConfig: undefined | { [profile: string]: CacheLife }
   distDirAbsolutePath: string
 
   constructor(options: Options) {
@@ -544,6 +584,7 @@ export class NextTypesPlugin {
     this.pageExtensions = options.pageExtensions
     this.pagesDir = path.join(this.appDir, '..', 'pages')
     this.typedRoutes = options.typedRoutes
+    this.cacheLifeConfig = options.cacheLifeConfig
     this.distDirAbsolutePath = path.join(this.dir, this.distDir)
     if (this.typedRoutes && !redirectsRewritesTypesProcessed) {
       redirectsRewritesTypesProcessed = true
@@ -774,6 +815,17 @@ export class NextTypesPlugin {
 
             assets[linkAssetPath] = new sources.RawSource(
               createRouteDefinitions()
+            ) as unknown as webpack.sources.RawSource
+          }
+
+          if (this.cacheLifeConfig) {
+            const cacheLifeAssetPath = path.join(
+              assetDirRelative,
+              'types/cache-life.d.ts'
+            )
+
+            assets[cacheLifeAssetPath] = new sources.RawSource(
+              createCustomCacheLifeDefinitions(this.cacheLifeConfig)
             ) as unknown as webpack.sources.RawSource
           }
 

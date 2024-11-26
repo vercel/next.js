@@ -1,6 +1,6 @@
 use anyhow::Result;
 use indoc::formatdoc;
-use turbo_tasks::{RcStr, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{RcStr, TryJoinIterExt, Value, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
@@ -8,7 +8,7 @@ use turbopack_core::{
         availability_info::AvailabilityInfo, ChunkItem, ChunkItemExt, ChunkableModule,
         ChunkingContext, ModuleId as TurbopackModuleId,
     },
-    output::OutputAsset,
+    output::{OutputAsset, OutputAssets},
     virtual_output::VirtualOutputAsset,
 };
 use turbopack_ecmascript::utils::StringifyJs;
@@ -30,6 +30,8 @@ impl ClientReferenceManifest {
         entry_name: RcStr,
         client_references: Vc<ClientReferenceGraphResult>,
         client_references_chunks: Vc<ClientReferencesChunks>,
+        rsc_app_entry_chunks: Vc<OutputAssets>,
+        rsc_app_entry_chunks_availability: Value<AvailabilityInfo>,
         client_chunking_context: Vc<Box<dyn ChunkingContext>>,
         ssr_chunking_context: Option<Vc<Box<dyn ChunkingContext>>>,
         next_config: Vc<NextConfig>,
@@ -51,21 +53,20 @@ impl ClientReferenceManifest {
         let client_references_chunks = client_references_chunks.await?;
         let client_relative_path = client_relative_path.await?;
         let node_root_ref = node_root.await?;
+        let rsc_app_entry_chunks = rsc_app_entry_chunks.await?;
 
         for app_client_reference in client_references.await?.client_references.iter() {
             let app_client_reference_ty = app_client_reference.ty();
 
             // An client component need to be emitted into the client reference manifest
-            if let ClientReferenceType::EcmascriptClientReference(ecmascript_client_reference) =
-                app_client_reference_ty
+            if let ClientReferenceType::EcmascriptClientReference {
+                parent_module,
+                module: ecmascript_client_reference,
+            } = app_client_reference_ty
             {
                 let ecmascript_client_reference = ecmascript_client_reference.await?;
 
-                let server_path = ecmascript_client_reference
-                    .server_ident
-                    .path()
-                    .to_string()
-                    .await?;
+                let server_path = ecmascript_client_reference.server_ident.to_string().await?;
 
                 let client_chunk_item = ecmascript_client_reference
                     .client_module
@@ -104,22 +105,15 @@ impl ClientReferenceManifest {
                         (Vec::new(), false)
                     };
 
-                entry_manifest.client_modules.module_exports.insert(
-                    get_client_reference_module_key(&server_path, "*"),
-                    ManifestNodeEntry {
-                        name: "*".into(),
-                        id: (&*client_module_id).into(),
-                        chunks: client_chunks_paths,
-                        r#async: client_is_async,
-                    },
-                );
-
                 if let Some(ssr_chunking_context) = ssr_chunking_context {
                     let ssr_chunk_item = ecmascript_client_reference
                         .ssr_module
                         .as_chunk_item(Vc::upcast(ssr_chunking_context));
-
                     let ssr_module_id = ssr_chunk_item.id().await?;
+
+                    let rsc_chunk_item: Vc<Box<dyn ChunkItem>> =
+                        parent_module.as_chunk_item(Vc::upcast(ssr_chunking_context));
+                    let rsc_module_id = rsc_chunk_item.id().await?;
 
                     let (ssr_chunks_paths, ssr_is_async) = if runtime == NextRuntime::Edge {
                         // the chunks get added to the middleware-manifest.json instead
@@ -154,6 +148,46 @@ impl ClientReferenceManifest {
                         (Vec::new(), false)
                     };
 
+                    let (rsc_chunks_paths, rsc_is_async) = if runtime == NextRuntime::Edge {
+                        // the chunks get added to the middleware-manifest.json instead
+                        // of this file because the
+                        // edge runtime doesn't support dynamically
+                        // loading chunks.
+                        (Vec::new(), false)
+                    } else {
+                        let rsc_chunks_paths = rsc_app_entry_chunks
+                            .iter()
+                            .map(|chunk| chunk.ident().path())
+                            .try_join()
+                            .await?;
+
+                        let chunk_paths = rsc_chunks_paths
+                            .iter()
+                            .filter_map(|chunk_path| node_root_ref.get_path_to(chunk_path))
+                            .map(ToString::to_string)
+                            .map(RcStr::from)
+                            .collect::<Vec<_>>();
+
+                        let is_async =
+                            is_item_async(&rsc_app_entry_chunks_availability, rsc_chunk_item)
+                                .await?;
+
+                        (chunk_paths, is_async)
+                    };
+
+                    entry_manifest.client_modules.module_exports.insert(
+                        get_client_reference_module_key(&server_path, "*"),
+                        ManifestNodeEntry {
+                            name: "*".into(),
+                            id: (&*client_module_id).into(),
+                            chunks: client_chunks_paths,
+                            // This should of course be client_is_async, but SSR can become async
+                            // due to ESM externals, and the ssr_manifest_node is currently ignored
+                            // by React.
+                            r#async: client_is_async || ssr_is_async,
+                        },
+                    );
+
                     let mut ssr_manifest_node = ManifestNode::default();
                     ssr_manifest_node.module_exports.insert(
                         "*".into(),
@@ -161,7 +195,19 @@ impl ClientReferenceManifest {
                             name: "*".into(),
                             id: (&*ssr_module_id).into(),
                             chunks: ssr_chunks_paths,
-                            r#async: ssr_is_async,
+                            // See above
+                            r#async: client_is_async || ssr_is_async,
+                        },
+                    );
+
+                    let mut rsc_manifest_node = ManifestNode::default();
+                    rsc_manifest_node.module_exports.insert(
+                        "*".into(),
+                        ManifestNodeEntry {
+                            name: "*".into(),
+                            id: (&*rsc_module_id).into(),
+                            chunks: rsc_chunks_paths,
+                            r#async: rsc_is_async,
                         },
                     );
 
@@ -170,11 +216,17 @@ impl ClientReferenceManifest {
                             entry_manifest
                                 .ssr_module_mapping
                                 .insert((&*client_module_id).into(), ssr_manifest_node);
+                            entry_manifest
+                                .rsc_module_mapping
+                                .insert((&*client_module_id).into(), rsc_manifest_node);
                         }
                         NextRuntime::Edge => {
                             entry_manifest
                                 .edge_ssr_module_mapping
                                 .insert((&*client_module_id).into(), ssr_manifest_node);
+                            entry_manifest
+                                .edge_rsc_module_mapping
+                                .insert((&*client_module_id).into(), rsc_manifest_node);
                         }
                     }
                 }

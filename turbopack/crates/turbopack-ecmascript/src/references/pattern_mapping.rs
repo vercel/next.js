@@ -1,7 +1,6 @@
 use std::{borrow::Cow, collections::HashSet};
 
 use anyhow::Result;
-use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use swc_core::{
     common::DUMMY_SP,
@@ -11,7 +10,9 @@ use swc_core::{
     },
     quote, quote_expr,
 };
-use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, RcStr, TryJoinIterExt, Value, Vc};
+use turbo_tasks::{
+    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, RcStr, TryJoinIterExt, Value, Vc,
+};
 use turbopack_core::{
     chunk::{ChunkItemExt, ChunkableModule, ChunkingContext, ModuleId},
     issue::{code_gen::CodeGenerationIssue, IssueExt, IssueSeverity, StyledString},
@@ -28,8 +29,8 @@ use crate::{references::util::throw_module_not_found_error_expr, utils::module_i
 pub(crate) enum SinglePatternMapping {
     /// Invalid request.
     Invalid,
-    /// Unresolveable request.
-    Unresolveable(String),
+    /// Unresolvable request.
+    Unresolvable(String),
     /// Ignored request.
     Ignored,
     /// Constant request that always maps to the same module.
@@ -70,7 +71,7 @@ pub(crate) enum PatternMapping {
     /// ```js
     /// require(`./images/${name}.png`)
     /// ```
-    Map(IndexMap<String, SinglePatternMapping>),
+    Map(FxIndexMap<String, SinglePatternMapping>),
 }
 
 #[derive(Hash, Debug, Copy, Clone)]
@@ -89,7 +90,7 @@ impl SinglePatternMapping {
                     arg: Expr = key_expr.into_owned()
                 )
             }
-            Self::Unresolveable(request) => throw_module_not_found_expr(request),
+            Self::Unresolvable(request) => throw_module_not_found_expr(request),
             Self::Ignored => {
                 quote!("undefined" as Expr)
             }
@@ -101,7 +102,7 @@ impl SinglePatternMapping {
     pub fn create_require(&self, key_expr: Cow<'_, Expr>) -> Expr {
         match self {
             Self::Invalid => self.create_id(key_expr),
-            Self::Unresolveable(request) => throw_module_not_found_expr(request),
+            Self::Unresolvable(request) => throw_module_not_found_expr(request),
             Self::Ignored => {
                 quote!("{}" as Expr)
             }
@@ -147,7 +148,7 @@ impl SinglePatternMapping {
                     ..Default::default()
                 })
             }
-            Self::Unresolveable(_) => self.create_id(key_expr),
+            Self::Unresolvable(_) => self.create_id(key_expr),
             Self::External(_, ExternalType::EcmaScriptModule) => {
                 if import_externals {
                     Expr::Call(CallExpr {
@@ -231,7 +232,7 @@ enum ImportMode {
 }
 
 fn create_context_map(
-    map: &IndexMap<String, SinglePatternMapping>,
+    map: &FxIndexMap<String, SinglePatternMapping>,
     key_expr: &Expr,
     import_mode: ImportMode,
 ) -> Expr {
@@ -385,7 +386,7 @@ impl PatternMapping {
         let resolve_type = resolve_type.into_value();
         let result = resolve_result.await?;
         match result.primary.len() {
-            0 => Ok(PatternMapping::Single(SinglePatternMapping::Unresolveable(
+            0 => Ok(PatternMapping::Single(SinglePatternMapping::Unresolvable(
                 request_to_string(request).await?.to_string(),
             ))
             .cell()),

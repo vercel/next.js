@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
-use swc_core::ecma::visit::{AstParentKind, VisitMut};
-use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, Vc};
+use swc_core::ecma::{
+    ast::Stmt,
+    visit::{AstParentKind, VisitMut},
+};
+use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, RcStr, Vc};
 use turbopack_core::chunk::{AsyncModuleInfo, ChunkingContext};
 
 /// impl of code generation inferred from a ModuleReference.
@@ -12,10 +15,73 @@ use turbopack_core::chunk::{AsyncModuleInfo, ChunkingContext};
     into = "new",
     cell = "new"
 )]
+#[derive(Default)]
 pub struct CodeGeneration {
     /// ast nodes matching the span will be visitor by the visitor
     #[turbo_tasks(debug_ignore, trace_ignore)]
     pub visitors: Vec<(Vec<AstParentKind>, Box<dyn VisitorFactory>)>,
+    pub hoisted_stmts: Vec<CodeGenerationHoistedStmt>,
+    pub early_hoisted_stmts: Vec<CodeGenerationHoistedStmt>,
+}
+
+impl CodeGeneration {
+    pub fn empty() -> Vc<Self> {
+        CodeGeneration {
+            ..Default::default()
+        }
+        .cell()
+    }
+
+    pub fn new(
+        visitors: Vec<(Vec<AstParentKind>, Box<dyn VisitorFactory>)>,
+        hoisted_stmts: Vec<CodeGenerationHoistedStmt>,
+        early_hoisted_stmts: Vec<CodeGenerationHoistedStmt>,
+    ) -> Vc<Self> {
+        CodeGeneration {
+            visitors,
+            hoisted_stmts,
+            early_hoisted_stmts,
+        }
+        .cell()
+    }
+
+    pub fn visitors(visitors: Vec<(Vec<AstParentKind>, Box<dyn VisitorFactory>)>) -> Vc<Self> {
+        CodeGeneration {
+            visitors,
+            ..Default::default()
+        }
+        .cell()
+    }
+
+    pub fn hoisted_stmt(key: RcStr, stmt: Stmt) -> Vc<Self> {
+        CodeGeneration {
+            hoisted_stmts: vec![CodeGenerationHoistedStmt::new(key, stmt)],
+            ..Default::default()
+        }
+        .cell()
+    }
+
+    pub fn hoisted_stmts(hoisted_stmts: Vec<CodeGenerationHoistedStmt>) -> Vc<Self> {
+        CodeGeneration {
+            hoisted_stmts,
+            ..Default::default()
+        }
+        .cell()
+    }
+}
+
+#[turbo_tasks::value(shared)]
+#[derive(Clone)]
+pub struct CodeGenerationHoistedStmt {
+    pub key: RcStr,
+    #[turbo_tasks(trace_ignore)]
+    pub stmt: Stmt,
+}
+
+impl CodeGenerationHoistedStmt {
+    pub fn new(key: RcStr, stmt: Stmt) -> Self {
+        CodeGenerationHoistedStmt { key, stmt }
+    }
 }
 
 pub trait VisitorFactory: Send + Sync {

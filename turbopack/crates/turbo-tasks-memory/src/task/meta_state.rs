@@ -80,7 +80,8 @@ impl TaskMetaState {
 }
 
 pub(super) type TaskMetaStateAsFull = for<'a> fn(&'a TaskMetaState) -> Option<&'a TaskState>;
-pub(super) type TaskMetaStateAsPartial = for<'a> fn(&'a TaskMetaState) -> Option<&PartialTaskState>;
+pub(super) type TaskMetaStateAsPartial =
+    for<'a> fn(&'a TaskMetaState) -> Option<&'a PartialTaskState>;
 pub(super) type TaskMetaStateAsUnloaded =
     for<'a> fn(&'a TaskMetaState) -> Option<&'a UnloadedTaskState>;
 pub(super) type TaskMetaStateAsFullMut =
@@ -159,7 +160,7 @@ impl<'a> From<RwLockWriteGuard<'a, TaskMetaState>> for TaskMetaStateWriteGuard<'
     }
 }
 
-impl<'a> TaskMetaStateReadGuard<'a> {
+impl TaskMetaStateReadGuard<'_> {
     pub(super) fn as_full(&mut self) -> Option<&TaskState> {
         match self {
             TaskMetaStateReadGuard::Full(state) => Some(&**state),

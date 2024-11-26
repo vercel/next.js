@@ -87,7 +87,7 @@ export default async function Page() {
 }
 ```
 
-If you are not using any [dynamic functions](/docs/app/building-your-application/rendering/server-components#dynamic-rendering) anywhere else in this route, it will be prerendered during `next build` to a static page. The data can then be updated using [Incremental Static Regeneration](/docs/app/building-your-application/data-fetching/incremental-static-regeneration).
+If you are not using any [Dynamic APIs](/docs/app/building-your-application/rendering/server-components#dynamic-rendering) anywhere else in this route, it will be prerendered during `next build` to a static page. The data can then be updated using [Incremental Static Regeneration](/docs/app/building-your-application/data-fetching/incremental-static-regeneration).
 
 If you do _not_ want to cache the response from `fetch`, you can do the following:
 
@@ -129,7 +129,7 @@ export default async function Page() {
 }
 ```
 
-If you are not using any [dynamic functions](/docs/app/building-your-application/rendering/server-components#dynamic-rendering) anywhere else in this route, it will be prerendered during `next build` to a static page. The data can then be updated using [Incremental Static Regeneration](/docs/app/building-your-application/data-fetching/incremental-static-regeneration).
+If you are not using any [Dynamic APIs](/docs/app/building-your-application/rendering/server-components#dynamic-rendering) anywhere else in this route, it will be prerendered during `next build` to a static page. The data can then be updated using [Incremental Static Regeneration](/docs/app/building-your-application/data-fetching/incremental-static-regeneration).
 
 To prevent the page from prerendering, you can add the following to your file:
 
@@ -137,7 +137,7 @@ To prevent the page from prerendering, you can add the following to your file:
 export const dynamic = 'force-dynamic'
 ```
 
-However, you will commonly use functions like `cookies()`, `headers()`, or reading the incoming `searchParams` from the page props, which will automatically make the page render dynamically. In this case, you do _not_ need to explicitly use `force-dynamic`.
+However, you will commonly use functions like `cookies`, `headers`, or reading the incoming `searchParams` from the page props, which will automatically make the page render dynamically. In this case, you do _not_ need to explicitly use `force-dynamic`.
 
 ### Fetching data on the client
 

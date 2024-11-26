@@ -1,6 +1,6 @@
 import * as React from 'react'
 
-export type ToastProps = {
+export type ToastProps = React.HTMLProps<HTMLDivElement> & {
   children?: React.ReactNode
   onClick?: () => void
   className?: string

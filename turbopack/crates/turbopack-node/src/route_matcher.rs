@@ -1,5 +1,4 @@
-use indexmap::IndexMap;
-use turbo_tasks::{RcStr, Vc};
+use turbo_tasks::{FxIndexMap, RcStr, Vc};
 
 #[turbo_tasks::value]
 #[derive(Debug, Clone)]
@@ -11,7 +10,7 @@ pub enum Param {
 
 #[turbo_tasks::value(transparent)]
 #[derive(Debug, Clone)]
-pub struct Params(pub Option<IndexMap<RcStr, Param>>);
+pub struct Params(pub Option<FxIndexMap<RcStr, Param>>);
 
 /// Extracts parameters from a URL path.
 pub trait RouteMatcherRef {

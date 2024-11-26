@@ -1,9 +1,9 @@
 use anyhow::{bail, Context, Result};
-use indexmap::indexmap;
 use indoc::formatdoc;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    trace::TraceRawVcs, Completion, Completions, RcStr, TaskInput, TryFlatJoinIterExt, Value, Vc,
+    fxindexmap, trace::TraceRawVcs, Completion, Completions, RcStr, TaskInput, TryFlatJoinIterExt,
+    Value, Vc,
 };
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_fs::{
@@ -373,7 +373,7 @@ fn postcss_executor(
             postcss_config_path.join("transform.ts".into()),
             AssetContent::File(embed_file("transforms/postcss.ts".into())).cell(),
         )),
-        Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
+        Value::new(ReferenceType::Internal(Vc::cell(fxindexmap! {
             "CONFIG".into() => config_asset
         }))),
     )
