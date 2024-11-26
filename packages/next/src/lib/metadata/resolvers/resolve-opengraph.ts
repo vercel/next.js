@@ -42,8 +42,7 @@ const OgTypeFields = {
 function resolveAndValidateImage(
   item: FlattenArray<OpenGraph['images'] | Twitter['images']>,
   metadataBase: NonNullable<ResolvedMetadataBase>,
-  isMetadataBaseMissing: boolean,
-  isStandaloneMode: boolean
+  isMetadataBaseMissing: boolean
 ) {
   if (!item) return undefined
   const isItemUrl = isStringOrURL(item)
@@ -58,10 +57,11 @@ function resolveAndValidateImage(
   // detect in the build environment if the deployment is a Vercel deployment or not.
   //
   // x-ref: https://vercel.com/docs/projects/environment-variables/system-environment-variables#system-environment-variables
-  const isNonVercelDeployment =
-    !process.env.VERCEL && process.env.NODE_ENV === 'production'
-  // Validate url in self-host standalone mode or non-Vercel deployment
-  if (isStandaloneMode || isNonVercelDeployment) {
+  const isNonVercelDeployment = !process.env.VERCEL
+  // When not deployed to Vercel, we aren't able to determine a fallback value for `metadataBase`
+  // since it's derived from injected environment variables. For self-hosted setups, we want to warn
+  // about this since the only fallback we'll be able to generate is `localhost`.
+  if (isNonVercelDeployment) {
     validateResolvedImageUrl(inputUrl, metadataBase, isMetadataBaseMissing)
   }
 
@@ -78,18 +78,15 @@ function resolveAndValidateImage(
 
 export function resolveImages(
   images: Twitter['images'],
-  metadataBase: ResolvedMetadataBase,
-  isStandaloneMode: boolean
+  metadataBase: ResolvedMetadataBase
 ): NonNullable<ResolvedMetadata['twitter']>['images']
 export function resolveImages(
   images: OpenGraph['images'],
-  metadataBase: ResolvedMetadataBase,
-  isStandaloneMode: boolean
+  metadataBase: ResolvedMetadataBase
 ): NonNullable<ResolvedMetadata['openGraph']>['images']
 export function resolveImages(
   images: OpenGraph['images'] | Twitter['images'],
-  metadataBase: ResolvedMetadataBase,
-  isStandaloneMode: boolean
+  metadataBase: ResolvedMetadataBase
 ):
   | NonNullable<ResolvedMetadata['twitter']>['images']
   | NonNullable<ResolvedMetadata['openGraph']>['images'] {
@@ -103,8 +100,7 @@ export function resolveImages(
     const resolvedItem = resolveAndValidateImage(
       item,
       fallbackMetadataBase,
-      isMetadataBaseMissing,
-      isStandaloneMode
+      isMetadataBaseMissing
     )
     if (!resolvedItem) continue
 
@@ -164,11 +160,7 @@ export const resolveOpenGraph: FieldResolverExtraArgs<
         ;(target as any)[key] = value ? resolveArray(value) : null
       }
     }
-    target.images = resolveImages(
-      og.images,
-      metadataBase,
-      metadataContext.isStandaloneMode
-    )
+    target.images = resolveImages(og.images, metadataBase)
   }
 
   const resolved = {
@@ -199,7 +191,9 @@ const TwitterBasicInfoKeys = [
 export const resolveTwitter: FieldResolverExtraArgs<
   'twitter',
   [ResolvedMetadataBase, MetadataContext, string | null]
-> = (twitter, metadataBase, metadataContext, titleTemplate) => {
+  // TODO: metadataContext is not currently in use here, but will be added back
+  // in a subsequent PR
+> = (twitter, metadataBase, _metadataContext, titleTemplate) => {
   if (!twitter) return null
   let card = 'card' in twitter ? twitter.card : undefined
   const resolved = {
@@ -210,11 +204,7 @@ export const resolveTwitter: FieldResolverExtraArgs<
     resolved[infoKey] = twitter[infoKey] || null
   }
 
-  resolved.images = resolveImages(
-    twitter.images,
-    metadataBase,
-    metadataContext.isStandaloneMode
-  )
+  resolved.images = resolveImages(twitter.images, metadataBase)
 
   card = card || (resolved.images?.length ? 'summary_large_image' : 'summary')
   resolved.card = card

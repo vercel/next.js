@@ -7,7 +7,7 @@ describe('resolveImages', () => {
   it(`should resolve images`, () => {
     const images = [image1, { url: image2, alt: 'Image2' }]
 
-    expect(resolveImages(images, null, false)).toEqual([
+    expect(resolveImages(images, null)).toEqual([
       { url: new URL(image1) },
       { url: new URL(image2), alt: 'Image2' },
     ])
@@ -16,7 +16,7 @@ describe('resolveImages', () => {
   it('should not mutate passed images', () => {
     const images = [image1, { url: image2, alt: 'Image2' }]
 
-    resolveImages(images, null, false)
+    resolveImages(images, null)
 
     expect(images).toEqual([image1, { url: image2, alt: 'Image2' }])
   })
@@ -44,7 +44,7 @@ describe('resolveOpenGraph', () => {
         // pass authors as empty string
         { type: 'article', authors: '' },
         null,
-        { isStandaloneMode: false, trailingSlash: false, pathname: '' },
+        { trailingSlash: false, pathname: '' },
         ''
       )
     ).toEqual({
@@ -63,7 +63,7 @@ describe('resolveOpenGraph', () => {
       resolveOpenGraph(
         { type: 'article', authors: null },
         null,
-        { isStandaloneMode: false, trailingSlash: false, pathname: '' },
+        { trailingSlash: false, pathname: '' },
         ''
       )
     ).toEqual({
