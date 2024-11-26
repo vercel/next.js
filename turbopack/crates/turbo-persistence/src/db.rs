@@ -278,8 +278,18 @@ impl TurboPersistence {
         #[cfg(feature = "stats")]
         {
             for sst in sst_files.iter() {
-                let (min, max) = sst.range()?;
-                println!("SST {}  {:016x} - {:016x}", sst.sequence_number(), min, max);
+                let crate::static_sorted_file::StaticSortedFileRange {
+                    family,
+                    min_hash,
+                    max_hash,
+                } = sst.range()?;
+                println!(
+                    "SST {}  {} {:016x} - {:016x}",
+                    sst.sequence_number(),
+                    family,
+                    min_hash,
+                    max_hash
+                );
             }
         }
         let inner = self.inner.get_mut();
@@ -314,7 +324,9 @@ impl TurboPersistence {
         self.inner.read().static_sorted_files.is_empty()
     }
 
-    pub fn write_batch<K: StoreKey + Send + Sync + 'static>(&self) -> Result<WriteBatch<K>> {
+    pub fn write_batch<K: StoreKey + Send + Sync + 'static, const FAMILIES: usize>(
+        &self,
+    ) -> Result<WriteBatch<K, FAMILIES>> {
         if self
             .active_write_operation
             .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
@@ -327,8 +339,8 @@ impl TurboPersistence {
         }
         let current = self.inner.read().current_sequence_number;
         if let Some((ty, any)) = self.idle_write_batch.lock().take() {
-            if ty == TypeId::of::<WriteBatch<K>>() {
-                let mut write_batch = *any.downcast::<WriteBatch<K>>().unwrap();
+            if ty == TypeId::of::<WriteBatch<K, FAMILIES>>() {
+                let mut write_batch = *any.downcast::<WriteBatch<K, FAMILIES>>().unwrap();
                 write_batch.reset(current);
                 return Ok(write_batch);
             }
@@ -336,16 +348,17 @@ impl TurboPersistence {
         Ok(WriteBatch::new(self.path.clone(), current))
     }
 
-    pub fn commit_write_batch<K: StoreKey + Send + Sync + 'static>(
+    pub fn commit_write_batch<K: StoreKey + Send + Sync + 'static, const FAMILIES: usize>(
         &self,
-        mut write_batch: WriteBatch<K>,
+        mut write_batch: WriteBatch<K, FAMILIES>,
     ) -> Result<()> {
         let (seq, new_sst_files) = write_batch.finish()?;
         self.commit(new_sst_files, vec![], seq)?;
         self.active_write_operation.store(false, Ordering::Release);
-        self.idle_write_batch
-            .lock()
-            .replace((TypeId::of::<WriteBatch<K>>(), Box::new(write_batch)));
+        self.idle_write_batch.lock().replace((
+            TypeId::of::<WriteBatch<K, FAMILIES>>(),
+            Box::new(write_batch),
+        ));
         Ok(())
     }
 
@@ -483,24 +496,21 @@ impl TurboPersistence {
 
             // Find the biggest spread
             let Some(mut selected_range) =
-                ranges.iter().max_by_key(|range| range.1 - range.0).copied()
+                ranges.iter().max_by_key(|range| range.spread()).copied()
             else {
                 // No SST files to compact
                 break;
             };
 
-            fn is_overlapping(a: &(u64, u64), b: &(u64, u64)) -> bool {
-                a.0 <= b.1 && a.1 >= b.0
-            }
-
             // Extend range to include overlapping ranges
             'outer: loop {
                 for range in ranges.iter() {
-                    if is_overlapping(&selected_range, range)
-                        && (selected_range.0 > range.0 || selected_range.1 < range.1)
+                    if selected_range.is_overlapping(&range)
+                        && (selected_range.min_hash > range.min_hash
+                            || selected_range.max_hash < range.max_hash)
                     {
-                        selected_range.0 = selected_range.0.min(range.0);
-                        selected_range.1 = selected_range.1.max(range.1);
+                        selected_range.min_hash = selected_range.min_hash.min(range.min_hash);
+                        selected_range.max_hash = selected_range.max_hash.max(range.max_hash);
                         continue 'outer;
                     }
                 }
@@ -515,7 +525,7 @@ impl TurboPersistence {
                     if let Some(sst) = &slot {
                         if let Some(range) = sst.range().ok() {
                             // Ranges have overlap
-                            if range.0 <= selected_range.1 && range.1 >= selected_range.0 {
+                            if selected_range.is_overlapping(&range) {
                                 return slot.take().map(|sst| (i, sst, false));
                             }
                         }
@@ -526,12 +536,11 @@ impl TurboPersistence {
 
             if selected_files.len() > 1 {
                 // Target spread is
-                let target_spread = (((selected_range.1 - selected_range.0)
-                    / selected_files.len().min(max_chain) as u64)
-                    as f32
-                    / sharding_factor)
-                    .min(u64::MAX as f32) as u64
-                    + 1;
+                let target_spread =
+                    (((selected_range.spread() / selected_files.len().min(max_chain) as u64) as f32
+                        / sharding_factor)
+                        .min(u64::MAX as f32) as u64)
+                        .saturating_add(1);
 
                 // Check if we need to compact
                 let ssts_with_target_spread = selected_files
@@ -540,7 +549,7 @@ impl TurboPersistence {
                         *in_target_range = sst
                             .range()
                             .ok()
-                            .map_or(false, |range| range.1 - range.0 <= target_spread);
+                            .map_or(false, |range| range.spread() <= target_spread);
                         *in_target_range
                     })
                     .filter(|in_target_range| *in_target_range)
@@ -589,16 +598,23 @@ impl TurboPersistence {
                     selected_files.split_at(selected_files.len() - in_range_at_end);
 
                 fn create_sst_file(
+                    family: u32,
                     entries: &[LookupEntry],
                     total_key_size: usize,
                     total_value_size: usize,
                     path: &Path,
                     seq: u32,
                 ) -> Result<(u32, File)> {
-                    let builder =
-                        StaticSortedFileBuilder::new(&entries, total_key_size, total_value_size);
+                    let builder = StaticSortedFileBuilder::new(
+                        family,
+                        &entries,
+                        total_key_size,
+                        total_value_size,
+                    );
                     Ok((seq, builder.write(&path.join(format!("{:08}.sst", seq)))?))
                 }
+
+                let family = selected_files_mid[0].1.family()?;
 
                 // Iterate all middle files
                 let iters = selected_files_mid
@@ -629,6 +645,7 @@ impl TurboPersistence {
                                 let seq = sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
 
                                 new_sst_files.push(create_sst_file(
+                                    family,
                                     &entries,
                                     total_key_size - key_size,
                                     total_value_size - value_size,
@@ -657,6 +674,7 @@ impl TurboPersistence {
                     let seq = sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
 
                     new_sst_files.push(create_sst_file(
+                        family,
                         &entries,
                         total_key_size,
                         total_value_size,
@@ -687,11 +705,12 @@ impl TurboPersistence {
         Ok(true)
     }
 
-    pub fn get<K: QueryKey>(&self, key: &K) -> Result<Option<ArcSlice<u8>>> {
+    pub fn get<K: QueryKey>(&self, family: usize, key: &K) -> Result<Option<ArcSlice<u8>>> {
         let hash = hash_key(key);
         let inner = self.inner.read();
         for sst in inner.static_sorted_files.iter().rev() {
             match sst.lookup(
+                family as u32,
                 hash,
                 key,
                 &self.aqmf_cache,
