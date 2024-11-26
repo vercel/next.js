@@ -20,7 +20,7 @@ impl TryDotenvProcessEnv {
         prior: ResolvedVc<Box<dyn ProcessEnv>>,
         path: ResolvedVc<FileSystemPath>,
     ) -> Result<Vc<Self>> {
-        let dotenv = DotenvProcessEnv::new(Some(prior), path)
+        let dotenv = DotenvProcessEnv::new(Some(*prior), *path)
             .to_resolved()
             .await?;
         Ok(TryDotenvProcessEnv {
@@ -55,7 +55,8 @@ impl ProcessEnv for TryDotenvProcessEnv {
                     // read_all_with_prior will wrap a current error with a context containing the
                     // failing file, which we don't really care about (we report the filepath as the
                     // Issue context, not the description). So extract the real error.
-                    description: StyledString::Text(e.root_cause().to_string().into()).cell(),
+                    description: StyledString::Text(e.root_cause().to_string().into())
+                        .resolved_cell(),
                 }
                 .cell()
                 .emit();
