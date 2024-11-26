@@ -366,7 +366,7 @@ impl TurboPersistence {
     fn commit(
         &self,
         new_sst_files: Vec<(u32, File)>,
-        indicies_to_delete: Vec<usize>,
+        mut indicies_to_delete: Vec<usize>,
         mut seq: u32,
     ) -> Result<(), anyhow::Error> {
         let mut new_sst_files = new_sst_files
@@ -386,14 +386,16 @@ impl TurboPersistence {
         {
             let mut inner = self.inner.write();
             inner.current_sequence_number = seq;
+            indicies_to_delete.sort();
             removed_ssts = remove_indicies(&mut inner.static_sorted_files, &indicies_to_delete);
             inner.static_sorted_files.append(&mut new_sst_files);
         }
 
-        let removed_ssts = removed_ssts
+        let mut removed_ssts = removed_ssts
             .into_iter()
             .map(|sst| sst.sequence_number())
             .collect::<Vec<_>>();
+        removed_ssts.sort();
 
         if !indicies_to_delete.is_empty() {
             // Write *.del file, marking the selected files as to delete
@@ -814,6 +816,10 @@ mod tests {
         let sorted_indicies = vec![1, 3, 5, 7];
         let removed = remove_indicies(&mut list, &sorted_indicies);
         assert_eq!(list, vec![1, 3, 5, 7, 9]);
+        assert!(removed.contains(&2));
+        assert!(removed.contains(&4));
+        assert!(removed.contains(&6));
+        assert!(removed.contains(&8));
         assert_eq!(removed, vec![2, 4, 6, 8]);
     }
 }
