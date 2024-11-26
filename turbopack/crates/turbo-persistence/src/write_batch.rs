@@ -2,7 +2,7 @@ use std::{
     borrow::Cow,
     cell::UnsafeCell,
     fs::File,
-    mem::{replace, take},
+    mem::replace,
     path::PathBuf,
     sync::atomic::{AtomicU32, Ordering},
 };
@@ -10,7 +10,7 @@ use std::{
 use anyhow::{Context, Result};
 use byteorder::{WriteBytesExt, BE};
 use lzzzz::lz4::{self, ACC_LEVEL_DEFAULT};
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 use thread_local::ThreadLocal;
 
 use crate::{
@@ -19,7 +19,7 @@ use crate::{
 };
 
 struct ThreadLocalState<K: StoreKey + Send> {
-    collector: Collector<K>,
+    collector: Option<Collector<K>>,
     new_sst_files: Vec<(u32, File)>,
 }
 
@@ -27,32 +27,40 @@ pub struct WriteBatch<K: StoreKey + Send> {
     path: PathBuf,
     current_sequence_number: AtomicU32,
     collectors: ThreadLocal<UnsafeCell<ThreadLocalState<K>>>,
+    idle_collectors: Vec<Collector<K>>,
 }
 
-impl<K: StoreKey + Send> WriteBatch<K> {
+impl<K: StoreKey + Send + Sync> WriteBatch<K> {
     pub fn new(path: PathBuf, current: u32) -> Self {
         Self {
             path,
             current_sequence_number: AtomicU32::new(current),
             collectors: ThreadLocal::new(),
+            idle_collectors: Vec::new(),
         }
+    }
+
+    pub fn reset(&mut self, current: u32) {
+        self.current_sequence_number
+            .store(current, Ordering::SeqCst);
     }
 
     fn collector_mut(&self) -> Result<&mut Collector<K>> {
         let cell = self.collectors.get_or(|| {
             UnsafeCell::new(ThreadLocalState {
-                collector: Collector::new(),
+                collector: Some(Collector::new()),
                 new_sst_files: Vec::new(),
             })
         });
         // Safety: We know that the cell is only accessed from the current thread.
         let state = unsafe { &mut *cell.get() };
-        if state.collector.is_full() {
-            state
-                .new_sst_files
-                .push(self.create_sst_file(state.collector.drain_sorted())?);
+        let collector = state.collector.get_or_insert_with(|| Collector::new());
+        if collector.is_full() {
+            let sst = self.create_sst_file(collector.sorted())?;
+            collector.clear();
+            state.new_sst_files.push(sst);
         }
-        Ok(&mut state.collector)
+        Ok(state.collector.as_mut().unwrap())
     }
 
     pub fn put(&self, key: K, value: Cow<'_, [u8]>) -> Result<()> {
@@ -72,18 +80,27 @@ impl<K: StoreKey + Send> WriteBatch<K> {
         Ok(())
     }
 
-    pub fn finish(mut self) -> Result<(u32, Vec<(u32, File)>)> {
+    pub fn finish(&mut self) -> Result<(u32, Vec<(u32, File)>)> {
         let mut global_collector = Collector::new();
         let mut global_collectors = Vec::new();
         let mut new_sst_files = Vec::new();
-        for cell in take(&mut self.collectors).into_iter() {
-            let mut state = cell.into_inner();
+        for cell in self.collectors.iter_mut() {
+            let state = cell.get_mut();
             new_sst_files.append(&mut state.new_sst_files);
-            for entry in state.collector.into_entries() {
-                if global_collector.is_full() {
-                    global_collectors.push(replace(&mut global_collector, Collector::new()));
+            if let Some(mut collector) = state.collector.take() {
+                for entry in collector.drain() {
+                    if global_collector.is_full() {
+                        global_collectors.push(replace(
+                            &mut global_collector,
+                            self.idle_collectors
+                                .pop()
+                                .unwrap_or_else(|| Collector::new()),
+                        ));
+                    }
+                    global_collector.add_entry(entry);
                 }
-                global_collector.add_entry(entry);
+                // Reuse the collector to avoid allocations.
+                self.idle_collectors.push(collector);
             }
         }
         if !global_collector.is_empty() {
@@ -91,10 +108,19 @@ impl<K: StoreKey + Send> WriteBatch<K> {
         }
         new_sst_files.extend(
             global_collectors
-                .into_par_iter()
-                .map(|mut collector| self.create_sst_file(collector.drain_sorted()))
+                .par_iter_mut()
+                .map(|collector| {
+                    let result = self.create_sst_file(collector.sorted());
+                    collector.clear();
+                    result
+                })
                 .collect::<Result<Vec<_>>>()?,
         );
+        self.idle_collectors.append(&mut global_collectors);
+        for cell in self.collectors.iter_mut() {
+            let state = cell.get_mut();
+            state.collector = self.idle_collectors.pop();
+        }
         let seq = self.current_sequence_number.load(Ordering::SeqCst);
         new_sst_files.sort_by_key(|(seq, _)| *seq);
         Ok((seq, new_sst_files))
@@ -114,12 +140,12 @@ impl<K: StoreKey + Send> WriteBatch<K> {
 
     fn create_sst_file(
         &self,
-        collector_data: (Vec<CollectorEntry<K>>, usize, usize),
+        collector_data: (&[CollectorEntry<K>], usize, usize),
     ) -> Result<(u32, File)> {
         let (entries, total_key_size, total_value_size) = collector_data;
         let seq = self.current_sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
 
-        let builder = StaticSortedFileBuilder::new(&entries, total_key_size, total_value_size);
+        let builder = StaticSortedFileBuilder::new(entries, total_key_size, total_value_size);
 
         let path = self.path.join(&format!("{:08}.sst", seq));
         let file = builder
