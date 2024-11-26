@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemPath};
 use turbopack_core::{
     asset::Asset,
@@ -16,8 +16,8 @@ use super::{
 
 #[turbo_tasks::value(shared)]
 pub struct StaticAssetsContentSource {
-    pub prefix: Vc<RcStr>,
-    pub dir: Vc<FileSystemPath>,
+    pub prefix: ResolvedVc<RcStr>,
+    pub dir: ResolvedVc<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
@@ -82,7 +82,7 @@ impl ContentSource for StaticAssetsContentSource {
 
 #[turbo_tasks::value]
 struct StaticAssetsContentSourceItem {
-    path: Vc<FileSystemPath>,
+    path: ResolvedVc<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
