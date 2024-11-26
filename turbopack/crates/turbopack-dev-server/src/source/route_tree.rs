@@ -335,7 +335,7 @@ impl RouteTree {
             match selector_segment {
                 BaseSegment::Static(value) => Ok(RouteTree {
                     base,
-                    static_segments: fxindexmap! { value => inner.cell() },
+                    static_segments: fxindexmap! { value => inner.resolved_cell() },
                     ..Default::default()
                 }
                 .cell()),
