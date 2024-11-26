@@ -18,7 +18,7 @@ pub const DATA_THRESHOLD_PER_INITIAL_FILE: usize = 1024 * 1024 * 1024;
 pub const DATA_THRESHOLD_PER_COMPACTED_FILE: usize = 1024 * 1024 * 1024;
 
 /// Maximum RAM bytes for AQMF cache
-pub const AQMF_CACHE_SIZE: u64 = 10 * 1024 * 1024;
+pub const AQMF_CACHE_SIZE: u64 = 300 * 1024 * 1024;
 pub const AQMF_AVG_SIZE: usize = 37399;
 
 /// Maximum RAM bytes for index block cache
