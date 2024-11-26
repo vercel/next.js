@@ -22,11 +22,11 @@ use crate::NodeJsChunkingContext;
 /// runtime entries.
 #[turbo_tasks::value(shared)]
 pub(crate) struct EcmascriptBuildNodeEntryChunk {
-    path: Vc<FileSystemPath>,
-    chunking_context: Vc<NodeJsChunkingContext>,
-    other_chunks: Vc<OutputAssets>,
-    evaluatable_assets: Vc<EvaluatableAssets>,
-    exported_module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
+    path: ResolvedVc<FileSystemPath>,
+    chunking_context: ResolvedVc<NodeJsChunkingContext>,
+    other_chunks: ResolvedVc<OutputAssets>,
+    evaluatable_assets: ResolvedVc<EvaluatableAssets>,
+    exported_module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
 }
 
 #[turbo_tasks::value_impl]
