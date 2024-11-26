@@ -208,15 +208,18 @@ pub async fn get_edge_chunking_context_with_client_assets(
     module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
     turbo_minify: Vc<bool>,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
-    let output_root = node_root.join("server/edge".into());
+    let output_root = node_root.join("server/edge".into()).to_resolved().await?;
     let next_mode = mode.await?;
     Ok(Vc::upcast(
         BrowserChunkingContext::builder(
             project_path,
             output_root,
             client_root,
-            output_root.join("chunks/ssr".into()),
-            client_root.join("static/media".into()),
+            output_root.join("chunks/ssr".into()).to_resolved().await?,
+            client_root
+                .join("static/media".into())
+                .to_resolved()
+                .await?,
             environment,
             next_mode.runtime_type(),
         )
@@ -234,21 +237,21 @@ pub async fn get_edge_chunking_context_with_client_assets(
 #[turbo_tasks::function]
 pub async fn get_edge_chunking_context(
     mode: Vc<NextMode>,
-    project_path: Vc<FileSystemPath>,
-    node_root: Vc<FileSystemPath>,
-    environment: Vc<Environment>,
-    module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
+    project_path: ResolvedVc<FileSystemPath>,
+    node_root: ResolvedVc<FileSystemPath>,
+    environment: ResolvedVc<Environment>,
+    module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
     turbo_minify: Vc<bool>,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
-    let output_root = node_root.join("server/edge".into());
+    let output_root = node_root.join("server/edge".into()).to_resolved().await?;
     let next_mode = mode.await?;
     Ok(Vc::upcast(
         BrowserChunkingContext::builder(
             project_path,
             output_root,
             output_root,
-            output_root.join("chunks".into()),
-            output_root.join("assets".into()),
+            output_root.join("chunks".into()).to_resolved().await?,
+            output_root.join("assets".into()).to_resolved().await?,
             environment,
             next_mode.runtime_type(),
         )
