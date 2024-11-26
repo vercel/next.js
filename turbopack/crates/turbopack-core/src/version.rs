@@ -3,7 +3,8 @@ use std::sync::Arc;
 use anyhow::{anyhow, Result};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, IntoTraitRef, ReadRef, State, TraitRef, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, IntoTraitRef, ReadRef, ResolvedVc, State,
+    TraitRef, Vc,
 };
 use turbo_tasks_fs::{FileContent, LinkType};
 use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
@@ -146,7 +147,7 @@ pub trait VersionedContentMerger {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct VersionedContents(Vec<Vc<Box<dyn VersionedContent>>>);
+pub struct VersionedContents(Vec<ResolvedVc<Box<dyn VersionedContent>>>);
 
 #[turbo_tasks::value]
 pub struct NotFoundVersion;
