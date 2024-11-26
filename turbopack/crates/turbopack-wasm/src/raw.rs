@@ -38,8 +38,8 @@ pub struct RawWebAssemblyModuleAsset {
 impl RawWebAssemblyModuleAsset {
     #[turbo_tasks::function]
     pub fn new(
-        source: Vc<WebAssemblySource>,
-        asset_context: Vc<Box<dyn AssetContext>>,
+        source: ResolvedVc<WebAssemblySource>,
+        asset_context: ResolvedVc<Box<dyn AssetContext>>,
     ) -> Vc<Self> {
         Self::cell(RawWebAssemblyModuleAsset {
             source,
@@ -48,8 +48,11 @@ impl RawWebAssemblyModuleAsset {
     }
 
     #[turbo_tasks::function]
-    fn wasm_asset(&self, chunking_context: Vc<Box<dyn ChunkingContext>>) -> Vc<WebAssemblyAsset> {
-        WebAssemblyAsset::new(self.source, chunking_context)
+    fn wasm_asset(
+        &self,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    ) -> Vc<WebAssemblyAsset> {
+        WebAssemblyAsset::new(*self.source, chunking_context)
     }
 }
 
