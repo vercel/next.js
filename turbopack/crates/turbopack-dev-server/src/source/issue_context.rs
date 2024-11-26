@@ -119,7 +119,7 @@ impl GetContentSourceContent for IssueContextGetContentSourceContent {
         let result = self
             .get_content
             .get(path, data)
-            .issue_file_path(source.file_path, &*source.description)
+            .issue_file_path(*source.file_path, &*source.description)
             .await?;
         Ok(result)
     }
@@ -131,7 +131,7 @@ impl Introspectable for IssueFilePathContentSource {
     async fn ty(&self) -> Result<Vc<RcStr>> {
         Ok(
             if let Some(source) =
-                Vc::try_resolve_sidecast::<Box<dyn Introspectable>>(self.source).await?
+                ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(self.source).await?
             {
                 source.ty()
             } else {
@@ -144,7 +144,7 @@ impl Introspectable for IssueFilePathContentSource {
     async fn title(&self) -> Result<Vc<RcStr>> {
         Ok(
             if let Some(source) =
-                Vc::try_resolve_sidecast::<Box<dyn Introspectable>>(self.source).await?
+                ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(self.source).await?
             {
                 let title = source.title().await?;
                 Vc::cell(format!("{}: {}", self.description, title).into())
@@ -158,7 +158,7 @@ impl Introspectable for IssueFilePathContentSource {
     async fn details(&self) -> Result<Vc<RcStr>> {
         Ok(
             if let Some(source) =
-                Vc::try_resolve_sidecast::<Box<dyn Introspectable>>(self.source).await?
+                ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(self.source).await?
             {
                 source.details()
             } else {
@@ -171,7 +171,7 @@ impl Introspectable for IssueFilePathContentSource {
     async fn children(&self) -> Result<Vc<IntrospectableChildren>> {
         Ok(
             if let Some(source) =
-                Vc::try_resolve_sidecast::<Box<dyn Introspectable>>(self.source).await?
+                ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(self.source).await?
             {
                 source.children()
             } else {
