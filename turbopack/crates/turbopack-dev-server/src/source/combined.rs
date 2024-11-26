@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{TryJoinIterExt, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::introspect::{Introspectable, IntrospectableChildren};
 
 use super::{
@@ -15,7 +15,7 @@ use crate::source::ContentSources;
 /// not a [ContentSourceContent::NotFound]) will be returned.
 #[turbo_tasks::value(shared)]
 pub struct CombinedContentSource {
-    pub sources: Vec<Vc<Box<dyn ContentSource>>>,
+    pub sources: Vec<ResolvedVc<Box<dyn ContentSource>>>,
 }
 
 impl CombinedContentSource {
