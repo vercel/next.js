@@ -220,11 +220,6 @@ async fn find_actions(
         // in both layers) and preferring the RSC layer's action.
         let mut all_actions: HashToLayerNameModule = FxIndexMap::default();
         for ((layer, module, _), actions_map) in actions.iter() {
-            println!(
-                "all actions {:?} {}",
-                layer,
-                module.ident().to_string().await?
-            );
             let module = if *layer == ActionLayer::Rsc {
                 *module
             } else {
