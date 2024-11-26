@@ -610,7 +610,7 @@ impl TurboPersistence {
                         &entries,
                         total_key_size,
                         total_value_size,
-                    )?;
+                    );
                     Ok((seq, builder.write(&path.join(format!("{:08}.sst", seq)))?))
                 }
 
