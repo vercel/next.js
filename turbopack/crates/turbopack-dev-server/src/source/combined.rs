@@ -19,7 +19,7 @@ pub struct CombinedContentSource {
 }
 
 impl CombinedContentSource {
-    pub fn new(sources: Vec<Vc<Box<dyn ContentSource>>>) -> Vc<Self> {
+    pub fn new(sources: Vec<ResolvedVc<Box<dyn ContentSource>>>) -> Vc<Self> {
         CombinedContentSource { sources }.cell()
     }
 }
