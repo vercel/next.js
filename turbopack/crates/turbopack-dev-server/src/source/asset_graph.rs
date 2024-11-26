@@ -246,9 +246,9 @@ struct AssetGraphGetContentSourceContent {
 impl AssetGraphGetContentSourceContent {
     #[turbo_tasks::function]
     pub fn new(
-        source: Vc<AssetGraphContentSource>,
+        source: ResolvedVc<AssetGraphContentSource>,
         path: RcStr,
-        asset: Vc<Box<dyn OutputAsset>>,
+        asset: ResolvedVc<Box<dyn OutputAsset>>,
     ) -> Vc<Self> {
         Self::cell(AssetGraphGetContentSourceContent {
             source,
