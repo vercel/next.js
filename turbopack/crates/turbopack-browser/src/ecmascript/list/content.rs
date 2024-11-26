@@ -92,7 +92,7 @@ impl EcmascriptDevChunkListContent {
             .into_iter()
             .map(|(merger, contents)| async move {
                 Ok((
-                    merger,
+                    merger.to_resolved().await?,
                     merger
                         .merge(Vc::cell(contents))
                         .version()
