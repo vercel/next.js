@@ -237,7 +237,7 @@ impl VersionedContentMap {
             return Vc::cell(None);
         };
         // Need to reconnect the operation to the map
-        Vc::connect(assets);
+        Vc::connect(*assets);
 
         let compute_entry = {
             let map = self.map_op_to_compute_entry.get();
@@ -249,6 +249,6 @@ impl VersionedContentMap {
         // Need to reconnect the operation to the map
         Vc::connect(*compute_entry);
 
-        compute_entry
+        *compute_entry
     }
 }
