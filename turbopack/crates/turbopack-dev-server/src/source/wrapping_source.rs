@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, Vc};
 
 use super::{
     ContentSourceContent, ContentSourceData, ContentSourceDataVary, GetContentSourceContent,
@@ -68,12 +68,16 @@ impl GetContentSourceContent for WrappedGetContentSourceContent {
                                     .await?
                                     .iter()
                                     .map(|s| {
-                                        Vc::upcast(WrappedGetContentSourceContent::new(
-                                            *s,
-                                            self.processor,
-                                        ))
+                                        Vc::upcast::<Box<dyn GetContentSourceContent>>(
+                                            WrappedGetContentSourceContent::new(
+                                                **s,
+                                                *self.processor,
+                                            ),
+                                        )
                                     })
-                                    .collect(),
+                                    .map(|v| async move { v.to_resolved().await })
+                                    .try_join()
+                                    .await?,
                             ),
                         },
                     },
