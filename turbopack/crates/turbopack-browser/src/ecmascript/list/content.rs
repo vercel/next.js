@@ -75,7 +75,7 @@ impl EcmascriptDevChunkListContent {
 
         for (chunk_path, chunk_content) in &self.chunks_contents {
             if let Some(mergeable) =
-                Vc::try_resolve_sidecast::<Box<dyn MergeableVersionedContent>>(*chunk_content)
+                ResolvedVc::try_sidecast::<Box<dyn MergeableVersionedContent>>(*chunk_content)
                     .await?
             {
                 let merger = mergeable.get_merger().resolve().await?;
