@@ -429,7 +429,9 @@ fn node_file_trace<B: Backend + 'static>(
                     // binary. TODO These test cases should move into the
                     // `node-file-trace` crate and use the same config.
                     CompileTimeInfo::new(Environment::new(Value::new(
-                        ExecutionEnvironment::NodeJsLambda(NodeJsEnvironment::default().into()),
+                        ExecutionEnvironment::NodeJsLambda(
+                            NodeJsEnvironment::default().resolved_cell(),
+                        ),
                     ))),
                     ModuleOptionsContext {
                         ecmascript: EcmascriptOptionsContext {

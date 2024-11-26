@@ -10,7 +10,7 @@ use crate::{asset_context::get_runtime_asset_context, embed_js::embed_static_cod
 /// Returns the code for the Node.js production ECMAScript runtime.
 #[turbo_tasks::function]
 pub async fn get_nodejs_runtime_code(environment: Vc<Environment>) -> Result<Vc<Code>> {
-    let asset_context = get_runtime_asset_context(environment);
+    let asset_context = get_runtime_asset_context(environment).await?;
 
     let shared_runtime_utils_code =
         embed_static_code(asset_context, "shared/runtime-utils.ts".into());

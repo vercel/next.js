@@ -89,7 +89,9 @@ pub async fn bootstrap(
                     .into(),
                 ),
             )),
-            Value::new(ReferenceType::Internal(InnerAssets::empty())),
+            Value::new(ReferenceType::Internal(
+                InnerAssets::empty().to_resolved().await?,
+            )),
         )
         .module()
         .to_resolved()
@@ -102,7 +104,7 @@ pub async fn bootstrap(
     let asset = asset_context
         .process(
             bootstrap_asset,
-            Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
+            Value::new(ReferenceType::Internal(ResolvedVc::cell(inner_assets))),
         )
         .module()
         .to_resolved()

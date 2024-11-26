@@ -224,16 +224,18 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                     service_worker: false,
                     browserslist_query: options.browserslist.into(),
                 }
-                .into(),
+                .resolved_cell(),
             )
         }
         SnapshotEnvironment::NodeJs => {
             ExecutionEnvironment::NodeJsBuildTime(
                 // TODO: load more from options.json
-                NodeJsEnvironment::default().into(),
+                NodeJsEnvironment::default().resolved_cell(),
             )
         }
-    }));
+    }))
+    .to_resolved()
+    .await?;
 
     let defines = compile_time_defines!(
         process.turbopack = true,
@@ -245,9 +247,10 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
     );
 
     let compile_time_info = CompileTimeInfo::builder(env)
-        .defines(defines.clone().cell())
-        .free_var_references(free_var_references!(..defines.into_iter()).cell())
-        .cell();
+        .defines(defines.clone().resolved_cell())
+        .free_var_references(free_var_references!(..defines.into_iter()).resolved_cell())
+        .cell()
+        .await?;
 
     let conditions = RuleCondition::any(vec![
         RuleCondition::ResourcePathEndsWith(".js".into()),
@@ -337,7 +340,7 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 path,
                 chunk_root_path,
                 static_root_path,
-                env,
+                *env,
                 options.runtime_type,
             )
             .build(),
@@ -349,7 +352,7 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 path,
                 chunk_root_path,
                 static_root_path,
-                env,
+                *env,
                 options.runtime_type,
             )
             .minify_type(options.minify_type)

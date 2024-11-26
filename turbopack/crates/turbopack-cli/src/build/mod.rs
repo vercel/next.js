@@ -177,7 +177,7 @@ async fn build_internal(
             service_worker: false,
             browserslist_query: browserslist_query.clone(),
         }
-        .into(),
+        .resolved_cell(),
     )));
     let output_fs = output_fs(project_dir.clone());
     let project_fs = project_fs(root_dir.clone());
