@@ -82,19 +82,19 @@ impl NodeJsChunkingContextBuilder {
 pub struct NodeJsChunkingContext {
     /// This path get stripped off of chunk paths before generating output asset
     /// paths.
-    context_path: Vc<FileSystemPath>,
+    context_path: ResolvedVc<FileSystemPath>,
     /// This path is used to compute the url to request chunks or assets from
-    output_root: Vc<FileSystemPath>,
+    output_root: ResolvedVc<FileSystemPath>,
     /// This path is used to compute the url to request chunks or assets from
-    client_root: Vc<FileSystemPath>,
+    client_root: ResolvedVc<FileSystemPath>,
     /// Chunks are placed at this path
-    chunk_root_path: Vc<FileSystemPath>,
+    chunk_root_path: ResolvedVc<FileSystemPath>,
     /// Static assets are placed at this path
-    asset_root_path: Vc<FileSystemPath>,
+    asset_root_path: ResolvedVc<FileSystemPath>,
     /// Static assets requested from this url base
-    asset_prefix: Vc<Option<RcStr>>,
+    asset_prefix: ResolvedVc<Option<RcStr>>,
     /// The environment chunks will be evaluated in.
-    environment: Vc<Environment>,
+    environment: ResolvedVc<Environment>,
     /// The kind of runtime to include in the output.
     runtime_type: RuntimeType,
     /// Enable tracing for this chunking
@@ -104,7 +104,7 @@ pub struct NodeJsChunkingContext {
     /// Whether to use manifest chunks for lazy compilation
     manifest_chunks: bool,
     /// The strategy to use for generating module ids
-    module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
+    module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
     /// Whether to use file:// uris for source map sources
     should_use_file_source_map_uris: bool,
 }
