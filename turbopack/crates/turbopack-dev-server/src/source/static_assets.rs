@@ -30,8 +30,8 @@ impl StaticAssetsContentSource {
 
     #[turbo_tasks::function]
     pub async fn with_prefix(
-        prefix: Vc<RcStr>,
-        dir: Vc<FileSystemPath>,
+        prefix: ResolvedVc<RcStr>,
+        dir: ResolvedVc<FileSystemPath>,
     ) -> Result<Vc<StaticAssetsContentSource>> {
         if cfg!(debug_assertions) {
             let prefix_string = prefix.await?;
