@@ -236,7 +236,7 @@ pub struct NodeJsEnvironment {
 impl Default for NodeJsEnvironment {
     fn default() -> Self {
         NodeJsEnvironment {
-            compile_target: CompileTarget::default().resolved_cell(),
+            compile_target: CompileTarget::current_raw().resolved_cell(),
             node_version: NodeJsVersion::default().resolved_cell(),
             cwd: ResolvedVc::cell(None),
         }
