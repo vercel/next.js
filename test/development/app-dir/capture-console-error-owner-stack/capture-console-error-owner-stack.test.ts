@@ -42,7 +42,8 @@ describe('app-dir - capture-console-error-owner-stack', () => {
     if (process.env.TURBOPACK) {
       expect(result).toMatchInlineSnapshot(`
         {
-          "callStacks": "",
+          "callStacks": "Page
+        app/browser/event/page.js (5:5)",
           "count": 1,
           "description": "trigger an console <error>",
           "source": "app/browser/event/page.js (7:17) @ onClick
@@ -60,7 +61,8 @@ describe('app-dir - capture-console-error-owner-stack', () => {
     } else {
       expect(result).toMatchInlineSnapshot(`
         {
-          "callStacks": "",
+          "callStacks": "button
+        app/browser/event/page.js (5:6)",
           "count": 1,
           "description": "trigger an console <error>",
           "source": "app/browser/event/page.js (7:17) @ error
