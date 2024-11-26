@@ -200,22 +200,22 @@ impl ChunkingContext for NodeJsChunkingContext {
 
     #[turbo_tasks::function]
     fn context_path(&self) -> Vc<FileSystemPath> {
-        self.context_path
+        *self.context_path
     }
 
     #[turbo_tasks::function]
     fn output_root(&self) -> Vc<FileSystemPath> {
-        self.output_root
+        *self.output_root
     }
 
     #[turbo_tasks::function]
     fn environment(&self) -> Vc<Environment> {
-        self.environment
+        *self.environment
     }
 
     #[turbo_tasks::function]
     fn is_tracing_enabled(&self) -> Vc<bool> {
-        Vc::cell(self.enable_file_tracing)
+        Vc::cell(*self.enable_file_tracing)
     }
 
     #[turbo_tasks::function]
