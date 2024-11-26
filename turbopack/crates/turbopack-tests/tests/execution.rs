@@ -392,11 +392,11 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
 
     let res = evaluate(
         jest_entry_asset,
-        path,
+        path.to_resolved().await?,
         Vc::upcast(CommandLineProcessEnv::new()),
         test_source.ident(),
         asset_context,
-        Vc::upcast(chunking_context),
+        Vc::upcast(*chunking_context),
         None,
         vec![],
         Completion::immutable(),
@@ -418,14 +418,14 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
                     test_results: vec![],
                 },
             }
-            .cell(),
+            .resolved_cell(),
             path,
         }
         .cell());
     };
 
     Ok(RunTestResult {
-        js_result: JsResult::cell(parse_json_with_source_context(bytes.to_str()?)?),
+        js_result: JsResult::resolved_cell(parse_json_with_source_context(bytes.to_str()?)?),
         path,
     }
     .cell())
