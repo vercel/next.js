@@ -190,7 +190,7 @@ async fn run_inner(
         snapshot_issues(prepared_test, run_result).await?;
     }
 
-    Ok(run_result.await?.js_result)
+    Ok(*run_result.await?.js_result)
 }
 
 #[derive(PartialEq, Eq, Debug, Default, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat)]
@@ -245,10 +245,10 @@ async fn prepare_test(resource: RcStr) -> Result<Vc<PreparedTest>> {
     }
 
     Ok(PreparedTest {
-        path,
-        project_path,
-        tests_path,
-        project_root,
+        path: path.to_resolved().await?,
+        project_path: project_path.to_resolved().await?,
+        tests_path: tests_path.to_resolved().await?,
+        project_root: project_root.to_resolved().await?,
         options,
     }
     .cell())
