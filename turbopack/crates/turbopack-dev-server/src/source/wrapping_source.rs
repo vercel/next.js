@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{ResolvedVc, Value, Vc};
 
 use super::{
     ContentSourceContent, ContentSourceData, ContentSourceDataVary, GetContentSourceContent,
@@ -25,8 +25,8 @@ pub trait ContentSourceProcessor {
 
 #[turbo_tasks::value]
 pub struct WrappedGetContentSourceContent {
-    inner: Vc<Box<dyn GetContentSourceContent>>,
-    processor: Vc<Box<dyn ContentSourceProcessor>>,
+    inner: ResolvedVc<Box<dyn GetContentSourceContent>>,
+    processor: ResolvedVc<Box<dyn ContentSourceProcessor>>,
 }
 
 #[turbo_tasks::value_impl]
