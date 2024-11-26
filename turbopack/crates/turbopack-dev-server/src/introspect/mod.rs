@@ -89,7 +89,7 @@ impl ContentSource for IntrospectionSource {
 impl GetContentSourceContent for IntrospectionSource {
     #[turbo_tasks::function]
     async fn get(
-        self: Vc<Self>,
+        self: ResolvedVc<Self>,
         path: RcStr,
         _data: turbo_tasks::Value<ContentSourceData>,
     ) -> Result<Vc<ContentSourceContent>> {
@@ -100,12 +100,12 @@ impl GetContentSourceContent for IntrospectionSource {
             if roots.len() == 1 {
                 *roots.iter().next().unwrap()
             } else {
-                Vc::upcast(self)
+                ResolvedVc::upcast(self)
             }
         } else {
             parse_json_with_source_context(path)?
         };
-        let internal_ty = Vc::debug_identifier(introspectable).await?;
+        let internal_ty = Vc::debug_identifier(*introspectable).await?;
         fn str_or_err(s: &Result<ReadRef<RcStr>>) -> Cow<'_, str> {
             s.as_ref().map_or_else(
                 |e| Cow::<'_, str>::Owned(format!("ERROR: {:?}", e)),
