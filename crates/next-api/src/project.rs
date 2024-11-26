@@ -638,12 +638,12 @@ impl Project {
 
         let node_execution_chunking_context = Vc::upcast(
             NodeJsChunkingContext::builder(
-                self.project_path(),
+                self.project_path().to_resolved().await?,
                 node_root,
                 node_root,
                 node_root.join("build/chunks".into()).to_resolved().await?,
                 node_root.join("build/assets".into()).to_resolved().await?,
-                node_build_environment(),
+                node_build_environment().to_resolved().await?,
                 next_mode.runtime_type(),
             )
             .build(),

@@ -304,7 +304,7 @@ async fn source(
     );
     let static_source = Vc::upcast(StaticAssetsContentSource::new(
         Default::default(),
-        project_path.join("public".into()).to_resolved().await?,
+        project_path.join("public".into()),
     ));
     let main_source = CombinedContentSource::new(vec![static_source, web_source]);
     let introspect = Vc::upcast(
@@ -314,11 +314,11 @@ async fn source(
         .cell(),
     );
     let main_source = Vc::upcast(main_source);
-    Vc::upcast(PrefixedRouterContentSource::new(
+    Ok(Vc::upcast(PrefixedRouterContentSource::new(
         Default::default(),
         vec![("__turbopack__".into(), introspect)],
         main_source,
-    ))
+    )))
 }
 
 pub fn register() {
