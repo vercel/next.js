@@ -16,14 +16,19 @@ pub struct TryDotenvProcessEnv {
 #[turbo_tasks::value_impl]
 impl TryDotenvProcessEnv {
     #[turbo_tasks::function]
-    pub fn new(prior: Vc<Box<dyn ProcessEnv>>, path: Vc<FileSystemPath>) -> Vc<Self> {
-        let dotenv = DotenvProcessEnv::new(Some(prior), path);
-        TryDotenvProcessEnv {
+    pub async fn new(
+        prior: ResolvedVc<Box<dyn ProcessEnv>>,
+        path: ResolvedVc<FileSystemPath>,
+    ) -> Result<Vc<Self>> {
+        let dotenv = DotenvProcessEnv::new(Some(prior), path)
+            .to_resolved()
+            .await?;
+        Ok(TryDotenvProcessEnv {
             dotenv,
             prior,
             path,
         }
-        .cell()
+        .cell())
     }
 }
 
