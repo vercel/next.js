@@ -3,11 +3,11 @@ title: Turbopack
 description: Turbopack is an incremental bundler optimized for JavaScript and TypeScript, written in Rust, and built into Next.js.
 ---
 
-[Turbopack](https://turbo.build/pack) is an incremental bundler optimized for JavaScript and TypeScript, written in Rust, and built into Next.js.
+{/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
 
-## Usage
+[Turbopack](https://turbo.build/pack) is an incremental bundler optimized for JavaScript and TypeScript, written in Rust, and built into Next.js. Turbopack can be used in Next.js in both the `pages` and `app` directories for faster local development.
 
-Turbopack can be used in Next.js in both the `pages` and `app` directories for faster local development. To enable Turbopack, use the `--turbopack` flag when running the Next.js development server.
+To enable Turbopack, use the `--turbopack` flag when running the Next.js development server.
 
 ```json filename="package.json" highlight={3}
 {
@@ -20,11 +20,13 @@ Turbopack can be used in Next.js in both the `pages` and `app` directories for f
 }
 ```
 
-## Supported features
+## Reference
+
+### Supported features
 
 Turbopack in Next.js requires zero-configuration for most users and can be extended for more advanced use cases. To learn more about the currently supported features for Turbopack, view the [API Reference](/docs/app/api-reference/config/next-config-js/turbo).
 
-## Unsupported features
+### Unsupported features
 
 Turbopack currently only supports `next dev` and does not support `next build`. We are currently working on support for builds as we move closer towards stability.
 
@@ -74,7 +76,9 @@ These features are currently not supported:
   - We are currently not planning to support `:import` and `:export` ICSS rules in Next.js with Turbopack as [Lightning CSS](https://lightningcss.dev/css-modules.html) the CSS parser Turbopack uses does not support these rules.
 - `unstable_allowDynamic` configuration in edge runtime
 
-## Generating Trace Files
+## Examples
+
+### Generating Trace Files
 
 Trace files allow the Next.js team to investigate and improve performance metrics and memory usage. To generate a trace file, append `NEXT_TURBOPACK_TRACING=1` to the `next dev --turbopack` command, this will generate a `.next/trace.log` file.
 
