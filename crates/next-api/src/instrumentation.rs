@@ -248,15 +248,13 @@ impl Endpoint for InstrumentationEndpoint {
         let span = tracing::info_span!("instrumentation endpoint");
         async move {
             let this = self.await?;
-            let output_assets = self.output_assets();
+            let output_assets = self.output_assets().to_resolved().await?;
             let _ = output_assets.resolve().await?;
-            let _ = this
-                .project
-                .emit_all_output_assets(ResolvedVc::cell(output_assets));
+            let _ = this.project.emit_all_output_assets(Vc::cell(output_assets));
 
             let server_paths = if this.project.next_mode().await?.is_development() {
                 let node_root = this.project.node_root();
-                all_server_paths(output_assets, node_root)
+                all_server_paths(*output_assets, node_root)
                     .await?
                     .clone_value()
             } else {
