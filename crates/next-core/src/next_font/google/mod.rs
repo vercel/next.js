@@ -188,8 +188,8 @@ pub struct NextFontGoogleCssModuleReplacer {
 impl NextFontGoogleCssModuleReplacer {
     #[turbo_tasks::function]
     pub fn new(
-        project_path: Vc<FileSystemPath>,
-        execution_context: Vc<ExecutionContext>,
+        project_path: ResolvedVc<FileSystemPath>,
+        execution_context: ResolvedVc<ExecutionContext>,
     ) -> Vc<Self> {
         Self::cell(NextFontGoogleCssModuleReplacer {
             project_path,
