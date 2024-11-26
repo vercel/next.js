@@ -29,8 +29,8 @@ type ExpandedState = State<HashSet<RcStr>>;
 
 #[turbo_tasks::value(serialization = "none", eq = "manual", cell = "new")]
 pub struct AssetGraphContentSource {
-    root_path: Vc<FileSystemPath>,
-    root_assets: Vc<OutputAssetsSet>,
+    root_path: ResolvedVc<FileSystemPath>,
+    root_assets: ResolvedVc<OutputAssetsSet>,
     expanded: Option<ExpandedState>,
 }
 
@@ -237,9 +237,9 @@ impl ContentSource for AssetGraphContentSource {
 
 #[turbo_tasks::value]
 struct AssetGraphGetContentSourceContent {
-    source: Vc<AssetGraphContentSource>,
+    source: ResolvedVc<AssetGraphContentSource>,
     path: RcStr,
-    asset: Vc<Box<dyn OutputAsset>>,
+    asset: ResolvedVc<Box<dyn OutputAsset>>,
 }
 
 #[turbo_tasks::value_impl]
