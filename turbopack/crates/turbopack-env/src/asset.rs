@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use anyhow::Result;
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::{rope::RopeBuilder, File, FileSystemPath};
 use turbopack_core::{
@@ -16,10 +16,10 @@ use turbopack_ecmascript::utils::StringifyJs;
 #[turbo_tasks::value]
 pub struct ProcessEnvAsset {
     /// The root path which we can construct our env asset path.
-    root: Vc<FileSystemPath>,
+    root: ResolvedVc<FileSystemPath>,
 
     /// A HashMap filled with the env key/values.
-    env: Vc<Box<dyn ProcessEnv>>,
+    env: ResolvedVc<Box<dyn ProcessEnv>>,
 }
 
 #[turbo_tasks::value_impl]
