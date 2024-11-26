@@ -66,9 +66,9 @@ impl WebAssemblyModuleAsset {
         let query = &*this.source.ident().query().await?;
 
         let loader_source = if query == "?module" {
-            compiling_loader_source(this.source)
+            compiling_loader_source(*this.source)
         } else {
-            instantiating_loader_source(this.source)
+            instantiating_loader_source(*this.source)
         };
 
         let module = this.asset_context.process(
