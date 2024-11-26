@@ -33,7 +33,7 @@ impl VersionedContentMerger for EcmascriptDevChunkContentMerger {
                 if let Some(content) =
                     Vc::try_resolve_downcast_type::<EcmascriptDevChunkContent>(*content).await?
                 {
-                    Ok(content)
+                    Ok(content.to_resolved().await?)
                 } else {
                     bail!("expected Vc<EcmascriptDevChunkContent>")
                 }
