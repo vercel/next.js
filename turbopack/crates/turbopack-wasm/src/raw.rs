@@ -48,10 +48,7 @@ impl RawWebAssemblyModuleAsset {
     }
 
     #[turbo_tasks::function]
-    fn wasm_asset(
-        &self,
-        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    ) -> Vc<WebAssemblyAsset> {
+    fn wasm_asset(&self, chunking_context: Vc<Box<dyn ChunkingContext>>) -> Vc<WebAssemblyAsset> {
         WebAssemblyAsset::new(*self.source, chunking_context)
     }
 }
@@ -78,18 +75,21 @@ impl Asset for RawWebAssemblyModuleAsset {
 #[turbo_tasks::value_impl]
 impl ChunkableModule for RawWebAssemblyModuleAsset {
     #[turbo_tasks::function]
-    fn as_chunk_item(
-        self: Vc<Self>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
-        Vc::upcast(
+    async fn as_chunk_item(
+        self: ResolvedVc<Self>,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
+        Ok(Vc::upcast(
             RawModuleChunkItem {
                 module: self,
                 chunking_context,
-                wasm_asset: self.wasm_asset(Vc::upcast(chunking_context)),
+                wasm_asset: self
+                    .wasm_asset(Vc::upcast(chunking_context))
+                    .to_resolved()
+                    .await?,
             }
             .cell(),
-        )
+        ))
     }
 }
 
