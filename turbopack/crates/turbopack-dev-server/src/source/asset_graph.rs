@@ -39,7 +39,7 @@ impl AssetGraphContentSource {
     /// Serves all assets references by root_asset.
     #[turbo_tasks::function]
     pub fn new_eager(
-        root_path: Vc<FileSystemPath>,
+        root_path: ResolvedVc<FileSystemPath>,
         root_asset: ResolvedVc<Box<dyn OutputAsset>>,
     ) -> Vc<Self> {
         Self::cell(AssetGraphContentSource {
@@ -53,7 +53,7 @@ impl AssetGraphContentSource {
     /// asset when it has served its content before.
     #[turbo_tasks::function]
     pub fn new_lazy(
-        root_path: Vc<FileSystemPath>,
+        root_path: ResolvedVc<FileSystemPath>,
         root_asset: ResolvedVc<Box<dyn OutputAsset>>,
     ) -> Vc<Self> {
         Self::cell(AssetGraphContentSource {
@@ -66,8 +66,8 @@ impl AssetGraphContentSource {
     /// Serves all assets references by all root_assets.
     #[turbo_tasks::function]
     pub fn new_eager_multiple(
-        root_path: Vc<FileSystemPath>,
-        root_assets: Vc<OutputAssetsSet>,
+        root_path: ResolvedVc<FileSystemPath>,
+        root_assets: ResolvedVc<OutputAssetsSet>,
     ) -> Vc<Self> {
         Self::cell(AssetGraphContentSource {
             root_path,
@@ -80,8 +80,8 @@ impl AssetGraphContentSource {
     /// of an asset when it has served its content before.
     #[turbo_tasks::function]
     pub fn new_lazy_multiple(
-        root_path: Vc<FileSystemPath>,
-        root_assets: Vc<OutputAssetsSet>,
+        root_path: ResolvedVc<FileSystemPath>,
+        root_assets: ResolvedVc<OutputAssetsSet>,
     ) -> Vc<Self> {
         Self::cell(AssetGraphContentSource {
             root_path,
