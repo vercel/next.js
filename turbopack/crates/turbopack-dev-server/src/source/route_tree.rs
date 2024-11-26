@@ -114,7 +114,7 @@ impl RouteTree {
     pub fn new_route_ref(
         base_segments: Vec<BaseSegment>,
         route_type: RouteType,
-        source: Vc<Box<dyn GetContentSourceContent>>,
+        source: ResolvedVc<Box<dyn GetContentSourceContent>>,
     ) -> Self {
         match route_type {
             RouteType::Exact => Self {
@@ -250,7 +250,7 @@ impl RouteTree {
     pub fn new_route(
         base_segments: Vec<BaseSegment>,
         route_type: RouteType,
-        source: Vc<Box<dyn GetContentSourceContent>>,
+        source: ResolvedVc<Box<dyn GetContentSourceContent>>,
     ) -> Vc<Self> {
         RouteTree::new_route_ref(base_segments, route_type, source).cell()
     }
