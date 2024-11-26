@@ -2,7 +2,7 @@ use std::{borrow::Cow, collections::HashSet, fmt::Display};
 
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ReadRef, TryJoinIterExt, Vc};
+use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{json::parse_json_with_source_context, File};
 use turbopack_core::{
     asset::AssetContent,
@@ -18,7 +18,7 @@ use crate::source::{
 
 #[turbo_tasks::value(shared)]
 pub struct IntrospectionSource {
-    pub roots: HashSet<Vc<Box<dyn Introspectable>>>,
+    pub roots: HashSet<ResolvedVc<Box<dyn Introspectable>>>,
 }
 
 #[turbo_tasks::value_impl]
