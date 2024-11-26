@@ -52,8 +52,8 @@ use crate::util::REPO_ROOT;
 
 #[turbo_tasks::value]
 struct RunTestResult {
-    js_result: Vc<JsResult>,
-    path: Vc<FileSystemPath>,
+    js_result: ResolvedVc<JsResult>,
+    path: ResolvedVc<FileSystemPath>,
 }
 
 #[turbo_tasks::value]
@@ -190,7 +190,7 @@ async fn run_inner(
         snapshot_issues(prepared_test, run_result).await?;
     }
 
-    Ok(run_result.await?.js_result)
+    Ok(*run_result.await?.js_result)
 }
 
 #[derive(PartialEq, Eq, Debug, Default, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat)]
@@ -201,9 +201,9 @@ struct TestOptions {
 
 #[turbo_tasks::value]
 struct PreparedTest {
-    path: Vc<FileSystemPath>,
-    project_path: Vc<FileSystemPath>,
-    tests_path: Vc<FileSystemPath>,
+    path: ResolvedVc<FileSystemPath>,
+    project_path: ResolvedVc<FileSystemPath>,
+    tests_path: ResolvedVc<FileSystemPath>,
     project_root: ResolvedVc<FileSystemPath>,
     options: TestOptions,
 }
@@ -245,10 +245,10 @@ async fn prepare_test(resource: RcStr) -> Result<Vc<PreparedTest>> {
     }
 
     Ok(PreparedTest {
-        path,
-        project_path,
-        tests_path,
-        project_root,
+        path: path.to_resolved().await?,
+        project_path: project_path.to_resolved().await?,
+        tests_path: tests_path.to_resolved().await?,
+        project_root: project_root.to_resolved().await?,
         options,
     }
     .cell())
@@ -392,7 +392,7 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
 
     let res = evaluate(
         jest_entry_asset,
-        path,
+        *path,
         Vc::upcast(CommandLineProcessEnv::new()),
         test_source.ident(),
         asset_context,
@@ -418,14 +418,14 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
                     test_results: vec![],
                 },
             }
-            .cell(),
+            .resolved_cell(),
             path,
         }
         .cell());
     };
 
     Ok(RunTestResult {
-        js_result: JsResult::cell(parse_json_with_source_context(bytes.to_str()?)?),
+        js_result: JsResult::resolved_cell(parse_json_with_source_context(bytes.to_str()?)?),
         path,
     }
     .cell())
