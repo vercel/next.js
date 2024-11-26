@@ -16,13 +16,13 @@ pub fn register() {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct FetchResult(Result<Vc<HttpResponse>, Vc<FetchError>>);
+pub struct FetchResult(Result<ResolvedVc<HttpResponse>, ResolvedVc<FetchError>>);
 
 #[turbo_tasks::value(shared)]
 #[derive(Debug)]
 pub struct HttpResponse {
     pub status: u16,
-    pub body: Vc<HttpResponseBody>,
+    pub body: ResolvedVc<HttpResponseBody>,
 }
 
 #[turbo_tasks::value(shared)]
@@ -105,8 +105,8 @@ pub enum FetchErrorKind {
 #[turbo_tasks::value(shared)]
 pub struct FetchError {
     pub url: ResolvedVc<RcStr>,
-    pub kind: Vc<FetchErrorKind>,
-    pub detail: Vc<StyledString>,
+    pub kind: ResolvedVc<FetchErrorKind>,
+    pub detail: ResolvedVc<StyledString>,
 }
 
 impl FetchError {
@@ -141,7 +141,7 @@ impl FetchError {
         Ok(FetchIssue {
             issue_context,
             severity,
-            url: *this.url,
+            url: this.url,
             kind: this.kind,
             detail: this.detail,
         }
@@ -153,9 +153,9 @@ impl FetchError {
 pub struct FetchIssue {
     pub issue_context: ResolvedVc<FileSystemPath>,
     pub severity: ResolvedVc<IssueSeverity>,
-    pub url: Vc<RcStr>,
-    pub kind: Vc<FetchErrorKind>,
-    pub detail: Vc<StyledString>,
+    pub url: ResolvedVc<RcStr>,
+    pub kind: ResolvedVc<FetchErrorKind>,
+    pub detail: ResolvedVc<StyledString>,
 }
 
 #[turbo_tasks::value_impl]
