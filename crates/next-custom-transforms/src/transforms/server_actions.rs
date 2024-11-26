@@ -1114,7 +1114,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         }
 
         let declared_idents_until = self.declared_idents.len();
-        let current_names = take(&mut self.names);
+        let old_names = take(&mut self.names);
 
         {
             // Visit children
@@ -1135,27 +1135,26 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             self.in_default_export_decl = old_in_default_export_decl;
         }
 
-        if !self.config.is_react_server_layer {
-            return;
-        }
-
-        let mut child_names = if self.should_track_names {
-            let names = take(&mut self.names);
-            self.names = current_names;
-            self.names.extend(names.iter().cloned());
-            names
-        } else {
-            take(&mut self.names)
-        };
-
         if let Some(directive) = directive {
             if !a.is_async {
                 emit_error(ServerActionsErrorKind::InlineSyncFunction {
                     span: a.span,
-                    directive,
+                    directive: directive.clone(),
                 });
+            }
 
+            let has_errors = HANDLER.with(|handler| handler.has_errors());
+
+            // Don't hoist an arrow expression if 1) an error was emitted, or 2) we're in the client
+            // layer.
+            if has_errors || !self.config.is_react_server_layer {
                 return;
+            }
+
+            let mut child_names = take(&mut self.names);
+
+            if self.should_track_names {
+                self.names = [old_names, child_names.clone()].concat();
             }
 
             // Collect all the identifiers defined inside the closure and used
