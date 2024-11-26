@@ -146,7 +146,7 @@ impl EcmascriptBuildNodeEntryChunk {
 
     #[turbo_tasks::function]
     fn runtime_chunk(&self) -> Vc<EcmascriptBuildNodeRuntimeChunk> {
-        EcmascriptBuildNodeRuntimeChunk::new(self.chunking_context)
+        EcmascriptBuildNodeRuntimeChunk::new(*self.chunking_context)
     }
 }
 
@@ -172,7 +172,7 @@ fn chunk_reference_description() -> Vc<RcStr> {
 impl OutputAsset for EcmascriptBuildNodeEntryChunk {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        AssetIdent::from_path(self.path)
+        AssetIdent::from_path(*self.path)
     }
 
     #[turbo_tasks::function]
