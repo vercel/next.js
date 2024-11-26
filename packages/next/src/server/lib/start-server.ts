@@ -33,6 +33,7 @@ import { type Span, trace, flushAllTraces } from '../../trace'
 import { isPostpone } from './router-utils/is-postpone'
 import { isIPv6 } from './is-ipv6'
 import { AsyncCallbackSet } from './async-callback-set'
+import type { NextServer } from '../next'
 
 const debug = setupDebug('next:start-server')
 let startServerSpan: Span | undefined
@@ -133,6 +134,7 @@ export async function startServer(
     }
     throw new Error('Invariant upgrade handler was not setup')
   }
+  let nextServer: NextServer
 
   // setup server listener as fast as possible
   if (selfSignedCertificate && !isDev) {
@@ -219,10 +221,7 @@ export async function startServer(
     }
   })
 
-  const cleanupListeners = new AsyncCallbackSet()
-  const onCleanup = cleanupListeners.add.bind(cleanupListeners)
-
-  onCleanup(() => new Promise<void>((res) => server.close(() => res())))
+  let cleanupListeners = isDev ? new AsyncCallbackSet() : undefined
 
   await new Promise<void>((resolve) => {
     server.on('listening', async () => {
@@ -299,7 +298,22 @@ export async function startServer(
           cleanupStarted = true
           ;(async () => {
             debug('start-server process cleanup')
-            await cleanupListeners.runAll()
+
+            // first, stop accepting new connections and finish pending requests,
+            // because they might affect `nextServer.close()` (e.g. by scheduling an `after`)
+            await new Promise<void>((res) =>
+              server.close((err) => {
+                if (err) console.error(err)
+                res()
+              })
+            )
+
+            // now that no new requests can come in, clean up the rest
+            await Promise.all([
+              nextServer.close().catch(console.error),
+              cleanupListeners?.runAll().catch(console.error),
+            ])
+
             debug('start-server process cleanup finished')
             process.exit(0)
           })()
@@ -332,7 +346,9 @@ export async function startServer(
           dir,
           port,
           isDev,
-          onDevServerCleanup: isDev ? onCleanup : undefined,
+          onDevServerCleanup: cleanupListeners
+            ? cleanupListeners.add.bind(cleanupListeners)
+            : undefined,
           server,
           hostname,
           minimalMode,
@@ -341,9 +357,7 @@ export async function startServer(
         })
         requestHandler = initResult.requestHandler
         upgradeHandler = initResult.upgradeHandler
-        const nextServer = initResult.server
-
-        onCleanup(() => nextServer.close())
+        nextServer = initResult.server
 
         const startServerProcessDuration =
           performance.mark('next-start-end') &&
