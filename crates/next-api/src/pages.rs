@@ -768,7 +768,7 @@ impl PageEndpoint {
                 Vc::upcast(edge_module_context),
                 self.source(),
                 *this.original_name,
-                this.pages_structure,
+                *this.pages_structure,
                 config.runtime,
                 this.pages_project.project().next_config(),
             )
@@ -836,11 +836,14 @@ impl PageEndpoint {
                     .context("could not process page loader entry module")?;
                 evaluatable_assets.push(evaluatable);
 
-                let edge_files = edge_chunking_context.evaluated_chunk_group_assets(
-                    ssr_module.ident(),
-                    Vc::cell(evaluatable_assets),
-                    Value::new(AvailabilityInfo::Root),
-                );
+                let edge_files = edge_chunking_context
+                    .evaluated_chunk_group_assets(
+                        ssr_module.ident(),
+                        Vc::cell(evaluatable_assets),
+                        Value::new(AvailabilityInfo::Root),
+                    )
+                    .to_resolved()
+                    .await?;
 
                 let client_chunking_context =
                     this.pages_project.project().client_chunking_context();
@@ -852,7 +855,7 @@ impl PageEndpoint {
 
                 Ok(SsrChunk::Edge {
                     files: edge_files,
-                    dynamic_import_entries,
+                    dynamic_import_entries: dynamic_import_entries.to_resolved().await?,
                 }
                 .cell())
             } else {
@@ -1284,12 +1287,12 @@ impl Endpoint for PageEndpoint {
                 .await?
                 .is_development()
             {
-                let server_paths = all_server_paths(output_assets, node_root)
+                let server_paths = all_server_paths(*output_assets, node_root)
                     .await?
                     .clone_value();
 
                 let client_relative_root = this.pages_project.project().client_relative_path();
-                let client_paths = all_paths_in_root(output_assets, client_relative_root)
+                let client_paths = all_paths_in_root(*output_assets, client_relative_root)
                     .into_future()
                     .instrument(tracing::info_span!("client_paths"))
                     .await?
@@ -1389,7 +1392,7 @@ impl PageEndpointOutput {
     pub fn server_assets(&self) -> Vc<OutputAssets> {
         match *self {
             PageEndpointOutput::NodeJs { server_assets, .. }
-            | PageEndpointOutput::Edge { server_assets, .. } => server_assets,
+            | PageEndpointOutput::Edge { server_assets, .. } => *server_assets,
         }
     }
 
@@ -1397,7 +1400,7 @@ impl PageEndpointOutput {
     pub fn client_assets(&self) -> Vc<OutputAssets> {
         match *self {
             PageEndpointOutput::NodeJs { client_assets, .. }
-            | PageEndpointOutput::Edge { client_assets, .. } => client_assets,
+            | PageEndpointOutput::Edge { client_assets, .. } => *client_assets,
         }
     }
 }
