@@ -449,7 +449,9 @@ impl TurboPersistence {
             // Extend range to include overlapping ranges
             'outer: loop {
                 for range in ranges.iter() {
-                    if is_overlapping(&selected_range, range) && *range != selected_range {
+                    if is_overlapping(&selected_range, range)
+                        && (selected_range.0 > range.0 || selected_range.1 < range.1)
+                    {
                         selected_range.0 = selected_range.0.min(range.0);
                         selected_range.1 = selected_range.1.max(range.1);
                         continue 'outer;
@@ -486,10 +488,10 @@ impl TurboPersistence {
                 // Check if we need to compact
                 let ssts_with_target_spread = selected_files
                     .iter()
-                    .map(|(_, sst)| {
+                    .filter(|(_, sst)| {
                         sst.range()
                             .ok()
-                            .map_or(false, |range| range.1 - range.0 > target_spread)
+                            .map_or(false, |range| range.1 - range.0 <= target_spread)
                     })
                     .count();
                 let target_number = (selected_files.len() as f32 * sharding_factor) as usize;
@@ -585,9 +587,9 @@ impl TurboPersistence {
                 anyhow::Ok((new_sst_files, indicies_to_delete))
             })
             .collect::<Result<Vec<_>>>()?;
-        for (mut inner_new_sst_files, mut inner_indicies_to_delete) in result {
+        for (mut inner_new_sst_files, inner_indicies_to_delete) in result {
             new_sst_files.append(&mut inner_new_sst_files);
-            indicies_to_delete.extend(&mut inner_indicies_to_delete);
+            indicies_to_delete.extend(inner_indicies_to_delete);
         }
 
         Ok(true)
