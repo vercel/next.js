@@ -2,7 +2,8 @@ use std::collections::BTreeMap;
 
 use anyhow::{bail, Result};
 use indoc::formatdoc;
-use turbo_tasks::{RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -66,15 +67,19 @@ impl Module for NextServerComponentModule {
     }
 
     #[turbo_tasks::function]
-    fn additional_layers_modules(self: Vc<Self>) -> Vc<Modules> {
+    async fn additional_layers_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
         let base_ident = self.ident();
-        let ssr_entry_module = Vc::upcast(IncludeIdentModule::new(
-            base_ident.with_modifier(client_modules_ssr_modifier()),
-        ));
-        let client_entry_module = Vc::upcast(IncludeIdentModule::new(
-            base_ident.with_modifier(client_modules_modifier()),
-        ));
-        Vc::cell(vec![ssr_entry_module, client_entry_module])
+        let ssr_entry_module = ResolvedVc::upcast(
+            IncludeIdentModule::new(base_ident.with_modifier(client_modules_ssr_modifier()))
+                .to_resolved()
+                .await?,
+        );
+        let client_entry_module = ResolvedVc::upcast(
+            IncludeIdentModule::new(base_ident.with_modifier(client_modules_modifier()))
+                .to_resolved()
+                .await?,
+        );
+        Ok(Vc::cell(vec![ssr_entry_module, client_entry_module]))
     }
 }
 
@@ -122,7 +127,7 @@ impl EcmascriptChunkPlaceable for NextServerComponentModule {
                 exports,
                 star_exports: vec![module_reference],
             }
-            .cell(),
+            .resolved_cell(),
         )
         .cell()
     }

@@ -14,7 +14,8 @@ import {
 } from '../lib/constants'
 import type { NextConfigComplete } from '../server/config-shared'
 import { defaultOverrides } from '../server/require-hook'
-import { NEXT_PROJECT_ROOT, hasExternalOtelApiPackage } from './webpack-config'
+import { hasExternalOtelApiPackage } from './webpack-config'
+import { NEXT_PROJECT_ROOT } from './next-dir-paths'
 import { WEBPACK_LAYERS } from '../lib/constants'
 import { isWebpackServerOnlyLayer } from './utils'
 
@@ -236,6 +237,7 @@ export function createAppRouterApiAliases(isServerOnlyLayer: boolean) {
   const mapping: Record<string, string> = {
     head: 'next/dist/client/components/noop-head',
     dynamic: 'next/dist/api/app-dynamic',
+    link: 'next/dist/client/app-dir/link',
   }
 
   if (isServerOnlyLayer) {

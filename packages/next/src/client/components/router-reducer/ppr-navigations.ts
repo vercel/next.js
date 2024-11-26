@@ -63,13 +63,13 @@ export function updateCacheNodeOnNavigation(
   oldCacheNode: CacheNode,
   oldRouterState: FlightRouterState,
   newRouterState: FlightRouterState,
-  prefetchData: CacheNodeSeedData,
-  prefetchHead: React.ReactNode
+  prefetchData: CacheNodeSeedData | null,
+  prefetchHead: React.ReactNode | null
 ): Task | null {
   // Diff the old and new trees to reuse the shared layouts.
   const oldRouterStateChildren = oldRouterState[1]
   const newRouterStateChildren = newRouterState[1]
-  const prefetchDataChildren = prefetchData[2]
+  const prefetchDataChildren = prefetchData !== null ? prefetchData[2] : null
 
   const oldParallelRoutes = oldCacheNode.parallelRoutes
 
@@ -113,7 +113,9 @@ export function updateCacheNodeOnNavigation(
       oldRouterStateChildren[parallelRouteKey]
     const oldSegmentMapChild = oldParallelRoutes.get(parallelRouteKey)
     const prefetchDataChild: CacheNodeSeedData | void | null =
-      prefetchDataChildren[parallelRouteKey]
+      prefetchDataChildren !== null
+        ? prefetchDataChildren[parallelRouteKey]
+        : null
 
     const newSegmentChild = newRouterStateChild[0]
     const newSegmentKeyChild = createRouterCacheKey(newSegmentChild)
@@ -156,24 +158,15 @@ export function updateCacheNodeOnNavigation(
         oldCacheNodeChild !== undefined &&
         oldRouterStateChild !== undefined
       ) {
-        // This segment exists in both the old and new trees.
-        if (prefetchDataChild !== undefined && prefetchDataChild !== null) {
-          // Recursively update the children.
-          taskChild = updateCacheNodeOnNavigation(
-            oldCacheNodeChild,
-            oldRouterStateChild,
-            newRouterStateChild,
-            prefetchDataChild,
-            prefetchHead
-          )
-        } else {
-          // The server didn't send any prefetch data for this segment. This
-          // shouldn't happen because the Route Tree and the Seed Data tree
-          // should always be the same shape, but until we unify those types
-          // it's still possible. For now we're going to deopt and trigger a
-          // lazy fetch during render.
-          taskChild = spawnTaskForMissingData(newRouterStateChild)
-        }
+        // This segment exists in both the old and new trees. Recursively update
+        // the children.
+        taskChild = updateCacheNodeOnNavigation(
+          oldCacheNodeChild,
+          oldRouterStateChild,
+          newRouterStateChild,
+          prefetchDataChild,
+          prefetchHead
+        )
       } else {
         // Either there's no existing Cache Node for this segment, or this
         // segment doesn't exist in the old Router State tree. Switch to the
@@ -278,7 +271,7 @@ function patchRouterStateWithNewChildren(
 function spawnPendingTask(
   routerState: FlightRouterState,
   prefetchData: CacheNodeSeedData | null,
-  prefetchHead: React.ReactNode
+  prefetchHead: React.ReactNode | null
 ): Task {
   // Create a task that will later be fulfilled by data from the server.
   const pendingCacheNode = createPendingCacheNode(
@@ -299,18 +292,6 @@ function spawnReusedTask(reusedRouterState: FlightRouterState): Task {
   return {
     route: reusedRouterState,
     node: null,
-    children: null,
-  }
-}
-
-function spawnTaskForMissingData(routerState: FlightRouterState): Task {
-  // Create a task for a new subtree that wasn't prefetched by the server.
-  // This shouldn't really ever happen but it's here just in case the Seed Data
-  // Tree and the Router State Tree disagree unexpectedly.
-  const pendingCacheNode = createPendingCacheNode(routerState, null, null)
-  return {
-    route: routerState,
-    node: pendingCacheNode,
     children: null,
   }
 }
@@ -336,14 +317,13 @@ export function listenForDynamicRequest(
 ) {
   responsePromise.then(
     ({ flightData }: FetchServerResponseResult) => {
+      if (typeof flightData === 'string') {
+        // Happens when navigating to page in `pages` from `app`. We shouldn't
+        // get here because should have already handled this during
+        // the prefetch.
+        return
+      }
       for (const normalizedFlightData of flightData) {
-        if (typeof normalizedFlightData === 'string') {
-          // Happens when navigating to page in `pages` from `app`. We shouldn't
-          // get here because should have already handled this during
-          // the prefetch.
-          continue
-        }
-
         const {
           segmentPath,
           tree: serverRouterState,
@@ -492,7 +472,7 @@ function finishTaskUsingDynamicDataPayload(
 function createPendingCacheNode(
   routerState: FlightRouterState,
   prefetchData: CacheNodeSeedData | null,
-  prefetchHead: React.ReactNode
+  prefetchHead: React.ReactNode | null
 ): ReadyCacheNode {
   const routerStateChildren = routerState[1]
   const prefetchDataChildren = prefetchData !== null ? prefetchData[2] : null

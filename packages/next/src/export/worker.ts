@@ -46,8 +46,8 @@ import {
   type FallbackRouteParams,
 } from '../server/request/fallback-params'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
-import { runWithCacheScope } from '../server/async-storage/cache-scope.external'
 import type { AppRouteRouteModule } from '../server/route-modules/app-route/module.compiled'
+import { isStaticGenBailoutError } from '../client/components/static-generation-bailout'
 
 const envConfig = require('../shared/lib/runtime-config.external')
 
@@ -158,12 +158,6 @@ async function exportPageImpl(
     const normalizedPage = isAppDir ? normalizeAppPath(page) : page
 
     params = getParams(normalizedPage, updatedPath)
-    if (params) {
-      query = {
-        ...query,
-        ...params,
-      }
-    }
   }
 
   const { req, res } = createRequestResponseMocks({ url: updatedPath })
@@ -315,6 +309,7 @@ async function exportPageImpl(
     path,
     page,
     query,
+    params,
     htmlFilepath,
     htmlFilename,
     ampPath,
@@ -433,16 +428,17 @@ export async function exportPages(
         if (attempt >= maxAttempts - 1) {
           // Log a message if we've reached the maximum number of attempts.
           // We only care to do this if maxAttempts was configured.
-          if (maxAttempts > 0) {
+          if (maxAttempts > 1) {
             console.info(
               `Failed to build ${pageKey} after ${maxAttempts} attempts.`
             )
           }
           // If prerenderEarlyExit is enabled, we'll exit the build immediately.
           if (nextConfig.experimental.prerenderEarlyExit) {
-            throw new ExportPageError(
+            console.error(
               `Export encountered an error on ${pageKey}, exiting the build.`
             )
+            process.exit(1)
           } else {
             // Otherwise, this is a no-op. The build will continue, and a summary of failed pages will be displayed at the end.
           }
@@ -466,26 +462,21 @@ export async function exportPages(
 
     return { result, path, pageKey }
   }
-  // for each build worker we share one dynamic IO cache scope
-  // this is only leveraged if the flag is enabled
-  const dynamicIOCacheScope = new Map()
 
-  await runWithCacheScope({ cache: dynamicIOCacheScope }, async () => {
-    for (let i = 0; i < paths.length; i += maxConcurrency) {
-      const subset = paths.slice(i, i + maxConcurrency)
+  for (let i = 0; i < paths.length; i += maxConcurrency) {
+    const subset = paths.slice(i, i + maxConcurrency)
 
-      const subsetResults = await Promise.all(
-        subset.map((path) =>
-          exportPageWithRetry(
-            path,
-            nextConfig.experimental.staticGenerationRetryCount ?? 1
-          )
+    const subsetResults = await Promise.all(
+      subset.map((path) =>
+        exportPageWithRetry(
+          path,
+          nextConfig.experimental.staticGenerationRetryCount ?? 1
         )
       )
+    )
 
-      results.push(...subsetResults)
-    }
-  })
+    results.push(...subsetResults)
+  }
 
   return results
 }
@@ -537,11 +528,24 @@ async function exportPage(
     }
   } catch (err) {
     console.error(
-      `\nError occurred prerendering page "${input.path}". Read more: https://nextjs.org/docs/messages/prerender-error\n`
+      `Error occurred prerendering page "${input.path}". Read more: https://nextjs.org/docs/messages/prerender-error`
     )
 
+    // bailoutToCSRError errors should not leak to the user as they are not actionable; they're
+    // a framework signal
     if (!isBailoutToCSRError(err)) {
-      console.error(isError(err) && err.stack ? err.stack : err)
+      // A static generation bailout error is a framework signal to fail static generation but
+      // and will encode a reason in the error message. If there is a message, we'll print it.
+      // Otherwise there's nothing to show as we don't want to leak an error internal error stack to the user.
+      if (isStaticGenBailoutError(err)) {
+        if (err.message) {
+          console.error(`Error: ${err.message}`)
+        }
+      } else if (isError(err) && err.stack) {
+        console.error(err.stack)
+      } else {
+        console.error(err)
+      }
     }
 
     return { error: true, duration: Date.now() - start, files: [] }

@@ -17,7 +17,8 @@ async function main() {
     .boolean('flake-detection').argv
 
   let testMode = argv.mode
-  const attempts = argv['flake-detection'] ? 3 : 1
+  const isFlakeDetectionMode = argv['flake-detection']
+  const attempts = isFlakeDetectionMode ? 3 : 1
 
   if (testMode && !['dev', 'deploy', 'start'].includes(testMode)) {
     throw new Error(
@@ -126,7 +127,7 @@ async function main() {
   }
 
   for (let i = 0; i < attempts; i++) {
-    console.log(`\n\nRun ${i + 1}/${attempts} for ${testMode} tests`)
+    console.log(`\n\nRun ${i + 1}/${attempts} for ${testMode} tests (Webpack)`)
     await execa('node', [...RUN_TESTS_ARGS, ...currentTests], {
       ...EXECA_OPTS_STDIO,
       env: {
@@ -137,6 +138,28 @@ async function main() {
           testMode === 'deploy' ? 'test/deploy-tests-manifest.json' : undefined,
       },
     })
+  }
+
+  if (isFlakeDetectionMode && testMode !== 'deploy') {
+    for (let i = 0; i < attempts; i++) {
+      console.log(
+        `\n\nRun ${i + 1}/${attempts} for ${testMode} tests (Turbopack)`
+      )
+      await execa('node', [...RUN_TESTS_ARGS, ...currentTests], {
+        ...EXECA_OPTS_STDIO,
+        env: {
+          ...process.env,
+          NEXT_TEST_MODE: testMode,
+          NEXT_TEST_VERSION: nextTestVersion,
+          TURBOPACK: '1',
+          TURBOPACK_BUILD: testMode === 'start' ? '1' : undefined,
+          NEXT_EXTERNAL_TESTS_FILTERS:
+            testMode === 'dev'
+              ? 'test/turbopack-dev-tests-manifest.json'
+              : 'test/turbopack-build-tests-manifest.json',
+        },
+      })
+    }
   }
 }
 

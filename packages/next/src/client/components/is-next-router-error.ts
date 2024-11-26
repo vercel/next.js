@@ -1,5 +1,8 @@
-import { isNotFoundError, type NotFoundError } from './not-found'
-import { isRedirectError, type RedirectError } from './redirect'
+import {
+  isHTTPAccessFallbackError,
+  type HTTPAccessFallbackError,
+} from './http-access-fallback/http-access-fallback'
+import { isRedirectError, type RedirectError } from './redirect-error'
 
 /**
  * Returns true if the error is a navigation signal error. These errors are
@@ -8,6 +11,6 @@ import { isRedirectError, type RedirectError } from './redirect'
  */
 export function isNextRouterError(
   error: unknown
-): error is RedirectError | NotFoundError {
-  return isRedirectError(error) || isNotFoundError(error)
+): error is RedirectError | HTTPAccessFallbackError {
+  return isRedirectError(error) || isHTTPAccessFallbackError(error)
 }

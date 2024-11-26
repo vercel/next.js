@@ -2,9 +2,10 @@ use std::future::Future;
 
 use anyhow::Result;
 use tracing::Instrument;
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
-    RcStr, ReadRef, TryJoinIterExt, ValueToString, Vc,
+    ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
 };
 use turbopack_core::{
     module::{Module, Modules},
@@ -29,7 +30,10 @@ impl NextDynamicEntries {
                         .iter()
                         .copied()
                         .map(|m| async move {
-                            Ok(VisitDynamicNode::Internal(m, m.ident().to_string().await?))
+                            Ok(VisitDynamicNode::Internal(
+                                m.to_resolved().await?,
+                                m.ident().to_string().await?,
+                            ))
                         })
                         .try_join()
                         .await?,
@@ -50,7 +54,7 @@ impl NextDynamicEntries {
                         // traversal.
                     }
                     VisitDynamicNode::Dynamic(dynamic_asset, _) => {
-                        next_dynamics.push(dynamic_asset);
+                        next_dynamics.push(*dynamic_asset);
                     }
                 }
             }
@@ -66,8 +70,8 @@ struct VisitDynamic;
 
 #[derive(Clone, Eq, PartialEq, Hash)]
 enum VisitDynamicNode {
-    Dynamic(Vc<NextDynamicEntryModule>, ReadRef<RcStr>),
-    Internal(Vc<Box<dyn Module>>, ReadRef<RcStr>),
+    Dynamic(ResolvedVc<NextDynamicEntryModule>, ReadRef<RcStr>),
+    Internal(ResolvedVc<Box<dyn Module>>, ReadRef<RcStr>),
 }
 
 impl Visit<VisitDynamicNode> for VisitDynamic {
@@ -85,16 +89,16 @@ impl Visit<VisitDynamicNode> for VisitDynamic {
         let node = node.clone();
         async move {
             let module = match node {
-                VisitDynamicNode::Dynamic(dynamic_module, _) => Vc::upcast(dynamic_module),
+                VisitDynamicNode::Dynamic(dynamic_module, _) => ResolvedVc::upcast(dynamic_module),
                 VisitDynamicNode::Internal(module, _) => module,
             };
 
-            let referenced_modules = primary_referenced_modules(module).await?;
+            let referenced_modules = primary_referenced_modules(*module).await?;
 
             let referenced_modules = referenced_modules.iter().map(|module| async move {
-                let module = module.resolve().await?;
+                let module = module.to_resolved().await?;
                 if let Some(next_dynamic_module) =
-                    Vc::try_resolve_downcast_type::<NextDynamicEntryModule>(module).await?
+                    ResolvedVc::try_downcast_type::<NextDynamicEntryModule>(module).await?
                 {
                     return Ok(VisitDynamicNode::Dynamic(
                         next_dynamic_module,

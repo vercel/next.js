@@ -10,7 +10,9 @@ use hyper::{
 };
 use mime::Mime;
 use tokio_util::io::{ReaderStream, StreamReader};
-use turbo_tasks::{util::SharedError, CollectiblesSource, ReadRef, TransientInstance, Vc};
+use turbo_tasks::{
+    apply_effects, util::SharedError, CollectiblesSource, ReadRef, TransientInstance, Vc,
+};
 use turbo_tasks_bytes::Bytes;
 use turbo_tasks_fs::FileContent;
 use turbopack_core::{
@@ -80,6 +82,7 @@ pub async fn process_request_with_content_source(
     let request = http_request_to_source_request(request).await?;
     let result = get_from_source(source, TransientInstance::new(request));
     let resolved_result = result.resolve_strongly_consistent().await?;
+    apply_effects(result).await?;
     let side_effects: AutoSet<Vc<Box<dyn ContentSourceSideEffect>>> = result.peek_collectibles();
     handle_issues(
         result,
@@ -143,7 +146,7 @@ pub async fn process_request_with_content_source(
                     let guess = mime_guess::from_path(&original_path).first_or_octet_stream();
                     should_compress = should_compress_predicate(&guess);
                     // If a text type, application/javascript, or application/json was
-                    // guessed, use a utf-8 charset as  we most likely generated it as
+                    // guessed, use a utf-8 charset as we most likely generated it as
                     // such.
                     entry.insert(hyper::header::HeaderValue::try_from(
                         if (guess.type_() == mime::TEXT

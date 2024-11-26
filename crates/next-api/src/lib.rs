@@ -12,6 +12,7 @@ pub mod global_module_id_strategy;
 mod instrumentation;
 mod loadable_manifest;
 mod middleware;
+mod nft_json;
 mod pages;
 pub mod paths;
 pub mod project;

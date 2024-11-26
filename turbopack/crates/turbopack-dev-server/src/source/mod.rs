@@ -17,9 +17,9 @@ use std::collections::BTreeSet;
 use anyhow::Result;
 use futures::{stream::Stream as StreamTrait, TryStreamExt};
 use serde::{Deserialize, Serialize};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, util::SharedError, Completion, RcStr, ResolvedVc, Upcast, Value,
-    ValueDefault, Vc,
+    trace::TraceRawVcs, util::SharedError, Completion, ResolvedVc, Upcast, Value, ValueDefault, Vc,
 };
 use turbo_tasks_bytes::{Bytes, Stream, StreamRead};
 use turbo_tasks_fs::FileSystemPath;
@@ -89,9 +89,9 @@ pub struct StaticContent {
 /// The content of a result that is returned by a content source.
 pub enum ContentSourceContent {
     NotFound,
-    Static(Vc<StaticContent>),
-    HttpProxy(Vc<ProxyResult>),
-    Rewrite(Vc<Rewrite>),
+    Static(ResolvedVc<StaticContent>),
+    HttpProxy(ResolvedVc<ProxyResult>),
+    Rewrite(ResolvedVc<Rewrite>),
     /// Continue with the next route
     Next,
 }
@@ -119,31 +119,33 @@ impl GetContentSourceContent for ContentSourceContent {
 #[turbo_tasks::value_impl]
 impl ContentSourceContent {
     #[turbo_tasks::function]
-    pub fn static_content(content: Vc<Box<dyn VersionedContent>>) -> Vc<ContentSourceContent> {
+    pub fn static_content(
+        content: ResolvedVc<Box<dyn VersionedContent>>,
+    ) -> Vc<ContentSourceContent> {
         ContentSourceContent::Static(
             StaticContent {
-                content,
+                content: *content,
                 status_code: 200,
                 headers: HeaderList::empty(),
             }
-            .cell(),
+            .resolved_cell(),
         )
         .cell()
     }
 
     #[turbo_tasks::function]
     pub fn static_with_headers(
-        content: Vc<Box<dyn VersionedContent>>,
+        content: ResolvedVc<Box<dyn VersionedContent>>,
         status_code: u16,
-        headers: Vc<HeaderList>,
+        headers: ResolvedVc<HeaderList>,
     ) -> Vc<ContentSourceContent> {
         ContentSourceContent::Static(
             StaticContent {
-                content,
+                content: *content,
                 status_code,
-                headers,
+                headers: *headers,
             }
-            .cell(),
+            .resolved_cell(),
         )
         .cell()
     }
@@ -415,7 +417,7 @@ pub trait ContentSource {
     }
 }
 
-pub trait ContentSourceExt: Send {
+pub trait ContentSourceExt {
     fn issue_file_path(
         self: Vc<Self>,
         file_path: Vc<FileSystemPath>,

@@ -1,11 +1,15 @@
 import { useEffect } from 'react'
-import { isHydrationError } from '../../../is-hydration-error'
 import { attachHydrationErrorState } from './attach-hydration-error-state'
 import { isNextRouterError } from '../../../is-next-router-error'
 import { storeHydrationErrorStateFromConsoleArgs } from './hydration-error-info'
 import { formatConsoleArgs } from '../../../../lib/console'
 import isError from '../../../../../lib/is-error'
-import { ConsoleError } from './console-error'
+import { createUnhandledError } from './console-error'
+import { enqueueConsecutiveDedupedError } from './enqueue-client-error'
+import { getReactStitchedError } from './stitched-error'
+
+const queueMicroTask =
+  globalThis.queueMicrotask || ((cb: () => void) => Promise.resolve().then(cb))
 
 export type ErrorHandler = (error: Error) => void
 
@@ -16,30 +20,31 @@ const rejectionHandlers: Array<ErrorHandler> = []
 
 export function handleClientError(
   originError: unknown,
-  consoleErrorArgs: any[]
+  consoleErrorArgs: any[],
+  capturedFromConsole: boolean = false
 ) {
   let error: Error
   if (!originError || !isError(originError)) {
     // If it's not an error, format the args into an error
     const formattedErrorMessage = formatConsoleArgs(consoleErrorArgs)
-    error = new ConsoleError(formattedErrorMessage)
+    error = createUnhandledError(formattedErrorMessage)
   } else {
-    error = originError
+    error = capturedFromConsole
+      ? createUnhandledError(originError)
+      : originError
   }
+  error = getReactStitchedError(error)
 
   storeHydrationErrorStateFromConsoleArgs(...consoleErrorArgs)
   attachHydrationErrorState(error)
 
-  // TODO: change all to push error into errorQueue,
-  // currently there's a async api error is always erroring while hydration error showing up.
-  // Move hydration error to the front of the queue to unblock.
-  if (isHydrationError(error)) {
-    errorQueue.unshift(error)
-  } else {
-    errorQueue.push(error)
-  }
+  enqueueConsecutiveDedupedError(errorQueue, error)
   for (const handler of errorHandlers) {
-    handler(error)
+    // Delayed the error being passed to React Dev Overlay,
+    // avoid the state being synchronously updated in the component.
+    queueMicroTask(() => {
+      handler(error)
+    })
   }
 }
 
@@ -67,6 +72,32 @@ export function useErrorHandler(
   }, [handleOnUnhandledError, handleOnUnhandledRejection])
 }
 
+function onUnhandledError(event: WindowEventMap['error']): void | boolean {
+  if (isNextRouterError(event.error)) {
+    event.preventDefault()
+    return false
+  }
+  handleClientError(event.error, [])
+}
+
+function onUnhandledRejection(ev: WindowEventMap['unhandledrejection']): void {
+  const reason = ev?.reason
+  if (isNextRouterError(reason)) {
+    ev.preventDefault()
+    return
+  }
+
+  let error = reason
+  if (error && !isError(error)) {
+    error = createUnhandledError(error + '')
+  }
+
+  rejectionQueue.push(error)
+  for (const handler of rejectionHandlers) {
+    handler(error)
+  }
+}
+
 export function handleGlobalErrors() {
   if (typeof window !== 'undefined') {
     try {
@@ -74,41 +105,7 @@ export function handleGlobalErrors() {
       Error.stackTraceLimit = 50
     } catch {}
 
-    window.addEventListener(
-      'error',
-      (event: WindowEventMap['error']): void | boolean => {
-        if (isNextRouterError(event.error)) {
-          event.preventDefault()
-          return false
-        }
-        handleClientError(event.error, [])
-      }
-    )
-
-    window.addEventListener(
-      'unhandledrejection',
-      (ev: WindowEventMap['unhandledrejection']): void => {
-        const reason = ev?.reason
-        if (isNextRouterError(reason)) {
-          ev.preventDefault()
-          return
-        }
-
-        if (
-          !reason ||
-          !(reason instanceof Error) ||
-          typeof reason.stack !== 'string'
-        ) {
-          // A non-error was thrown, we don't have anything to show. :-(
-          return
-        }
-
-        const e = reason
-        rejectionQueue.push(e)
-        for (const handler of rejectionHandlers) {
-          handler(e)
-        }
-      }
-    )
+    window.addEventListener('error', onUnhandledError)
+    window.addEventListener('unhandledrejection', onUnhandledRejection)
   }
 }

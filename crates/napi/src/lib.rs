@@ -60,8 +60,6 @@ pub mod transform;
 pub mod turbo_trace_server;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod turbopack;
-#[cfg(not(target_arch = "wasm32"))]
-pub mod turbotrace;
 pub mod util;
 
 // Declare build-time information variables generated in build.rs

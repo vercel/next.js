@@ -3,7 +3,7 @@ import { unstable_cache as cache } from 'next/cache'
 
 const cachedConnection = cache(async () => connection())
 
-export default async function Page({ searchParams }) {
+export default async function Page(props) {
   await cachedConnection()
   return (
     <div>

@@ -338,7 +338,26 @@ function castTypesOrAddComment(
     )
     // Replace the original expression with the new cast expression,
     // also wrap () around the new cast expression.
-    j(path).replaceWith(j.parenthesizedExpression(newCastExpression))
+    const parent = path.parent.value
+    const wrappedExpression = j.parenthesizedExpression(newCastExpression)
+    path.replace(wrappedExpression)
+
+    // If the wrapped expression `(<expression>)` is the beginning of an expression statement,
+    // add a void operator to separate the statement, to avoid syntax error that being treated as part of previous statement.
+    // example:
+    // input:
+    // <expression>
+    // <expression>
+    // output:
+    // (<expression> as ...)
+    // void (<expression> as ...)
+    if (
+      j.ExpressionStatement.check(parent) &&
+      parent.expression === path.node
+    ) {
+      // append a semicolon to the start of the expression statement
+      parent.expression = j.unaryExpression('void', parent.expression)
+    }
     modified = true
 
     // If cast types are not imported, add them to the import list

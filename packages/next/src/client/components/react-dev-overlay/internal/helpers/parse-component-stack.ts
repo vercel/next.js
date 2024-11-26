@@ -72,6 +72,7 @@ export function parseComponentStack(
 ): ComponentStackFrame[] {
   const componentStackFrames: ComponentStackFrame[] = []
   for (const line of componentStack.trim().split('\n')) {
+    // TODO: support safari stack trace
     // Get component and file from the component stack line
     const match = /at ([^ ]+)( \((.*)\))?/.exec(line)
     if (match?.[1]) {

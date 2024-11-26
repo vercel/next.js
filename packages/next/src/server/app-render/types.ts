@@ -16,6 +16,7 @@ import type { InstrumentationOnRequestError } from '../instrumentation/types'
 import type { NextRequestHint } from '../web/adapter'
 import type { BaseNextRequest } from '../base-http'
 import type { IncomingMessage } from 'http'
+import type { RenderResumeDataCache } from '../resume-data-cache/resume-data-cache'
 
 export type DynamicParamTypes =
   | 'catchall'
@@ -95,7 +96,7 @@ export type CacheNodeSeedData = [
   parallelRoutes: {
     [parallelRouterKey: string]: CacheNodeSeedData | null
   },
-  loading: LoadingModuleData,
+  loading: LoadingModuleData | Promise<LoadingModuleData>,
 ]
 
 export type FlightDataSegment = [
@@ -171,7 +172,6 @@ export interface RenderOptsPartial {
   }
   params?: ParsedUrlQuery
   isPrefetch?: boolean
-  isDevWarmup?: boolean
   experimental: {
     /**
      * When true, it indicates that the current page supports partial
@@ -182,8 +182,17 @@ export interface RenderOptsPartial {
     clientTraceMetadata: string[] | undefined
     after: boolean
     dynamicIO: boolean
+    inlineCss: boolean
+    authInterrupts: boolean
   }
   postponed?: string
+
+  /**
+   * The resume data cache that was generated for this partially prerendered
+   * page during dev warmup.
+   */
+  devRenderResumeDataCache?: RenderResumeDataCache
+
   /**
    * When true, only the static shell of the page will be rendered. This will
    * also enable other debugging features such as logging in development.
@@ -226,7 +235,7 @@ export type InitialRSCPayload = {
   /** missingSlots */
   m: Set<string> | undefined
   /** GlobalError */
-  G: React.ComponentType<any>
+  G: [React.ComponentType<any>, React.ReactNode | undefined]
   /** postponed */
   s: boolean
   /** prerendered */

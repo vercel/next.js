@@ -172,16 +172,16 @@ async function loadComponentsImpl<N = any>({
       : null,
   ])
 
-  // Before requring the actual page module, we have to set the reference manifests
-  // to our global store so Server Action's encryption util can access to them
-  // at the top level of the page module.
+  // Before requiring the actual page module, we have to set the reference
+  // manifests to our global store so Server Action's encryption util can access
+  // to them at the top level of the page module.
   if (serverActionsManifest && clientReferenceManifest) {
     setReferenceManifestsSingleton({
+      page,
       clientReferenceManifest,
       serverActionsManifest,
       serverModuleMap: createServerModuleMap({
         serverActionsManifest,
-        pageName: page,
       }),
     })
   }

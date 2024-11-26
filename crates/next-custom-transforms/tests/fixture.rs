@@ -1,5 +1,6 @@
 use std::{
     env::current_dir,
+    iter::FromIterator,
     path::{Path, PathBuf},
 };
 
@@ -21,19 +22,20 @@ use next_custom_transforms::transforms::{
     strip_page_exports::{next_transform_strip_page_exports, ExportFilter},
     warn_for_edge_runtime::warn_for_edge_runtime,
 };
+use rustc_hash::FxHashSet;
 use serde::de::DeserializeOwned;
 use swc_core::{
-    common::{chain, comments::SingleThreadedComments, FileName, Mark, SyntaxContext},
+    common::{comments::SingleThreadedComments, FileName, Mark, SyntaxContext},
     ecma::{
-        ast::{Module, Script},
+        ast::Pass,
         parser::{EsSyntax, Syntax},
         transforms::{
             base::resolver,
             react::jsx,
-            testing::{test, test_fixture, FixtureTestConfig},
+            testing::{test_fixture, FixtureTestConfig},
         },
         utils::ExprCtx,
-        visit::{as_folder, noop_fold_type, Fold, Visit},
+        visit::{visit_mut_pass, visit_pass, Visit},
     },
 };
 use swc_relay::{relay, RelayLanguageConfig};
@@ -220,10 +222,10 @@ fn next_ssg_fixture(input: PathBuf) {
                 top_level_mark,
                 unresolved_mark,
             );
-            chain!(
+            (
                 resolver(unresolved_mark, top_level_mark, true),
                 next_ssg(Default::default()),
-                jsx
+                jsx,
             )
         },
         &input,
@@ -321,6 +323,7 @@ fn react_server_components_typescript(input: PathBuf) {
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
                 Config::WithOptions(Options {
                     is_react_server_layer: true,
+                    dynamic_io_enabled: false,
                 }),
                 tr.comments.as_ref().clone(),
                 None,
@@ -328,7 +331,10 @@ fn react_server_components_typescript(input: PathBuf) {
         },
         &input,
         &output,
-        Default::default(),
+        FixtureTestConfig {
+            module: Some(true),
+            ..Default::default()
+        },
     );
 }
 
@@ -343,6 +349,7 @@ fn react_server_components_server_graph_fixture(input: PathBuf) {
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
                 Config::WithOptions(Options {
                     is_react_server_layer: true,
+                    dynamic_io_enabled: false,
                 }),
                 tr.comments.as_ref().clone(),
                 None,
@@ -350,7 +357,10 @@ fn react_server_components_server_graph_fixture(input: PathBuf) {
         },
         &input,
         &output,
-        Default::default(),
+        FixtureTestConfig {
+            module: Some(true),
+            ..Default::default()
+        },
     );
 }
 
@@ -365,6 +375,7 @@ fn react_server_components_client_graph_fixture(input: PathBuf) {
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
                 Config::WithOptions(Options {
                     is_react_server_layer: false,
+                    dynamic_io_enabled: false,
                 }),
                 tr.comments.as_ref().clone(),
                 None,
@@ -399,17 +410,51 @@ fn server_actions_server_fixture(input: PathBuf) {
     test_fixture(
         syntax(),
         &|_tr| {
-            chain!(
+            (
                 resolver(Mark::new(), Mark::new(), false),
                 server_actions(
                     &FileName::Real("/app/item.js".into()),
                     server_actions::Config {
                         is_react_server_layer: true,
-                        enabled: true,
-                        hash_salt: "".into()
+                        dynamic_io_enabled: true,
+                        hash_salt: "".into(),
+                        cache_kinds: FxHashSet::from_iter(["x".into()]),
                     },
                     _tr.comments.as_ref().clone(),
-                )
+                ),
+            )
+        },
+        &input,
+        &output,
+        FixtureTestConfig {
+            module: Some(true),
+            ..Default::default()
+        },
+    );
+}
+
+#[fixture("tests/fixture/next-font-with-directive/**/input.js")]
+fn next_font_with_directive_fixture(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|_tr| {
+            (
+                resolver(Mark::new(), Mark::new(), false),
+                next_font_loaders(FontLoaderConfig {
+                    relative_file_path_from_root: "app/test.tsx".into(),
+                    font_loaders: vec!["@next/font/google".into()],
+                }),
+                server_actions(
+                    &FileName::Real("/app/test.tsx".into()),
+                    server_actions::Config {
+                        is_react_server_layer: true,
+                        dynamic_io_enabled: true,
+                        hash_salt: "".into(),
+                        cache_kinds: FxHashSet::default(),
+                    },
+                    _tr.comments.as_ref().clone(),
+                ),
             )
         },
         &input,
@@ -424,22 +469,26 @@ fn server_actions_client_fixture(input: PathBuf) {
     test_fixture(
         syntax(),
         &|_tr| {
-            chain!(
+            (
                 resolver(Mark::new(), Mark::new(), false),
                 server_actions(
                     &FileName::Real("/app/item.js".into()),
                     server_actions::Config {
                         is_react_server_layer: false,
-                        enabled: true,
-                        hash_salt: "".into()
+                        dynamic_io_enabled: true,
+                        hash_salt: "".into(),
+                        cache_kinds: FxHashSet::default(),
                     },
                     _tr.comments.as_ref().clone(),
-                )
+                ),
             )
         },
         &input,
         &output,
-        Default::default(),
+        FixtureTestConfig {
+            module: Some(true),
+            ..Default::default()
+        },
     );
 }
 
@@ -454,9 +503,9 @@ fn cjs_optimize_fixture(input: PathBuf) {
 
             let unresolved_ctxt = SyntaxContext::empty().apply_mark(unresolved_mark);
 
-            chain!(
+            (
                 resolver(unresolved_mark, top_level_mark, false),
-                as_folder(cjs_optimizer(
+                visit_mut_pass(cjs_optimizer(
                     json(
                         r#"
                         {
@@ -468,15 +517,18 @@ fn cjs_optimize_fixture(input: PathBuf) {
                                 }
                             }
                         }
-                        "#
+                        "#,
                     ),
-                    unresolved_ctxt
-                ))
+                    unresolved_ctxt,
+                )),
             )
         },
         &input,
         &output,
-        Default::default(),
+        FixtureTestConfig {
+            module: Some(true),
+            ..Default::default()
+        },
     );
 }
 
@@ -489,15 +541,15 @@ fn named_import_transform_fixture(input: PathBuf) {
             let unresolved_mark = Mark::new();
             let top_level_mark = Mark::new();
 
-            chain!(
+            (
                 resolver(unresolved_mark, top_level_mark, false),
                 named_import_transform(json(
                     r#"
                     {
                         "packages": ["foo", "bar"]
                     }
-                    "#
-                ))
+                    "#,
+                )),
             )
         },
         &input,
@@ -515,15 +567,15 @@ fn optimize_barrel_fixture(input: PathBuf) {
             let unresolved_mark = Mark::new();
             let top_level_mark = Mark::new();
 
-            chain!(
+            (
                 resolver(unresolved_mark, top_level_mark, false),
                 optimize_barrel(json(
                     r#"
                         {
                             "wildcard": false
                         }
-                    "#
-                ))
+                    "#,
+                )),
             )
         },
         &input,
@@ -541,15 +593,15 @@ fn optimize_barrel_wildcard_fixture(input: PathBuf) {
             let unresolved_mark = Mark::new();
             let top_level_mark = Mark::new();
 
-            chain!(
+            (
                 resolver(unresolved_mark, top_level_mark, false),
                 optimize_barrel(json(
                     r#"
                         {
                             "wildcard": true
                         }
-                    "#
-                ))
+                    "#,
+                )),
             )
         },
         &input,
@@ -567,11 +619,11 @@ fn optimize_server_react_fixture(input: PathBuf) {
             let unresolved_mark = Mark::new();
             let top_level_mark = Mark::new();
 
-            chain!(
+            (
                 resolver(unresolved_mark, top_level_mark, false),
                 optimize_server_react(optimize_server_react::Config {
-                    optimize_use_state: true
-                })
+                    optimize_use_state: true,
+                }),
             )
         },
         &input,
@@ -596,9 +648,9 @@ fn pure(input: PathBuf) {
             let unresolved_mark = Mark::new();
             let top_level_mark = Mark::new();
 
-            chain!(
+            (
                 resolver(unresolved_mark, top_level_mark, false),
-                as_folder(pure_magic(tr.comments.clone()))
+                visit_mut_pass(pure_magic(tr.comments.clone())),
             )
         },
         &input,
@@ -629,15 +681,18 @@ fn run_stip_page_exports_test(input: &Path, output: &Path, mode: ExportFilter) {
                 top_level_mark,
                 unresolved_mark,
             );
-            chain!(
+            (
                 swc_core::ecma::transforms::base::resolver(unresolved_mark, top_level_mark, true),
                 next_transform_strip_page_exports(mode, Default::default()),
-                jsx
+                jsx,
             )
         },
         input,
         output,
-        Default::default(),
+        FixtureTestConfig {
+            module: Some(true),
+            ..Default::default()
+        },
     );
 }
 
@@ -665,9 +720,9 @@ fn test_debug_name(input: PathBuf) {
             let top_level_mark = Mark::fresh(Mark::root());
             let unresolved_mark = Mark::fresh(Mark::root());
 
-            chain!(
+            (
                 swc_core::ecma::transforms::base::resolver(unresolved_mark, top_level_mark, true),
-                debug_fn_name()
+                debug_fn_name(),
             )
         },
         &input,
@@ -686,56 +741,33 @@ fn test_edge_assert(input: PathBuf) {
             let top_level_mark = Mark::fresh(Mark::root());
             let unresolved_mark = Mark::fresh(Mark::root());
 
-            chain!(
+            (
                 swc_core::ecma::transforms::base::resolver(unresolved_mark, top_level_mark, true),
                 lint_to_fold(warn_for_edge_runtime(
                     t.cm.clone(),
                     ExprCtx {
                         is_unresolved_ref_safe: false,
                         unresolved_ctxt: SyntaxContext::empty().apply_mark(unresolved_mark),
+                        in_strict: false,
                     },
                     true,
-                    true
-                ))
+                    true,
+                )),
             )
         },
         &input,
         &output,
         FixtureTestConfig {
             allow_error: true,
+            module: Some(true),
             ..Default::default()
         },
     );
 }
 
-fn lint_to_fold<R>(r: R) -> impl Fold
+fn lint_to_fold<R>(r: R) -> impl Pass
 where
     R: Visit,
 {
-    LintFolder(r)
-}
-
-struct LintFolder<R>(R)
-where
-    R: Visit;
-
-impl<R> Fold for LintFolder<R>
-where
-    R: Visit,
-{
-    noop_fold_type!();
-
-    #[inline(always)]
-    fn fold_module(&mut self, program: Module) -> Module {
-        self.0.visit_module(&program);
-
-        program
-    }
-
-    #[inline(always)]
-    fn fold_script(&mut self, program: Script) -> Script {
-        self.0.visit_script(&program);
-
-        program
-    }
+    visit_pass(r)
 }

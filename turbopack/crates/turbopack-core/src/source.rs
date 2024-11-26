@@ -1,4 +1,4 @@
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 
 use crate::{asset::Asset, ident::AssetIdent};
 
@@ -12,9 +12,9 @@ pub trait Source: Asset {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct OptionSource(Option<Vc<Box<dyn Source>>>);
+pub struct OptionSource(Option<ResolvedVc<Box<dyn Source>>>);
 
 #[turbo_tasks::value(transparent)]
-pub struct Sources(Vec<Vc<Box<dyn Source>>>);
+pub struct Sources(Vec<ResolvedVc<Box<dyn Source>>>);
 
 // TODO All Vc::try_resolve_downcast::<Box<dyn Source>> calls should be removed

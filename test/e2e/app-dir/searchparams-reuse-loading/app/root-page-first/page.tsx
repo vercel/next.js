@@ -1,6 +1,7 @@
 import Link from 'next/link'
 
-export default async function Home({ searchParams }) {
+export default async function Home(props) {
+  const searchParams = await props.searchParams
   return (
     <div>
       <h1>

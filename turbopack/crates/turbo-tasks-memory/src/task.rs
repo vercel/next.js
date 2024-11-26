@@ -773,7 +773,7 @@ impl Task {
                     arg,
                 } => {
                     let func = registry::get_function(*native_fn_id);
-                    let span = func.span();
+                    let span = func.span(self.id);
                     let entered = span.enter();
                     let future = func.execute(*this, &**arg);
                     drop(entered);
@@ -785,7 +785,7 @@ impl Task {
                     arg,
                 } => {
                     let func = registry::get_function(*native_fn_id);
-                    let span = func.resolve_span();
+                    let span = func.resolve_span(self.id);
                     let entered = span.enter();
                     let future = Box::pin(CachedTaskType::run_resolve_native(
                         *native_fn_id,
@@ -894,9 +894,7 @@ impl Task {
             InProgress(..) => match result {
                 Ok(Ok(result)) => {
                     if state.output != result {
-                        if cfg!(feature = "print_task_invalidation")
-                            && state.output.content.is_some()
-                        {
+                        if backend.print_task_invalidation && state.output.content.is_some() {
                             println!(
                                 "Task {{ id: {}, name: {} }} invalidates:",
                                 *self.id, self.ty
@@ -1146,7 +1144,7 @@ impl Task {
                         drop(state);
                         change_job.apply(&aggregation_context);
 
-                        if cfg!(feature = "print_task_invalidation") {
+                        if backend.print_task_invalidation {
                             println!("invalidated Task {{ id: {}, name: {} }}", *self.id, self.ty);
                         }
                         turbo_tasks.schedule(self.id);

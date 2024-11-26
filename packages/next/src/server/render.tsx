@@ -844,9 +844,7 @@ export async function renderToHTMLImpl(
         },
         () =>
           getStaticProps({
-            ...(pageIsDynamic
-              ? { params: query as ParsedUrlQuery }
-              : undefined),
+            ...(pageIsDynamic ? { params } : undefined),
             ...(isPreview
               ? { draftMode: true, preview: true, previewData: previewData }
               : undefined),
@@ -1069,9 +1067,7 @@ export async function renderToHTMLImpl(
             res: resOrProxy,
             query,
             resolvedUrl: renderOpts.resolvedUrl as string,
-            ...(pageIsDynamic
-              ? { params: params as ParsedUrlQuery }
-              : undefined),
+            ...(pageIsDynamic ? { params } : undefined),
             ...(previewData !== false
               ? { draftMode: true, preview: true, previewData: previewData }
               : undefined),

@@ -101,6 +101,32 @@ describe('required server files app router', () => {
     if (server) await killApp(server)
   })
 
+  it('should send the right cache headers for an app route', async () => {
+    const res = await fetchViaHTTP(appPort, '/api/test/123', undefined, {
+      headers: {
+        'x-matched-path': '/api/test/[slug]',
+        'x-now-route-matches': '1=123&nxtPslug=123',
+      },
+    })
+    expect(res.status).toBe(200)
+    expect(res.headers.get('cache-control')).toBe(
+      's-maxage=31536000, stale-while-revalidate'
+    )
+  })
+
+  it('should send the right cache headers for an app page', async () => {
+    const res = await fetchViaHTTP(appPort, '/test/123', undefined, {
+      headers: {
+        'x-matched-path': '/test/[slug]',
+        'x-now-route-matches': '1=123&nxtPslug=123',
+      },
+    })
+    expect(res.status).toBe(200)
+    expect(res.headers.get('cache-control')).toBe(
+      's-maxage=3600, stale-while-revalidate'
+    )
+  })
+
   it('should not fail caching', async () => {
     expect(next.cliOutput).not.toContain('ERR_INVALID_URL')
   })

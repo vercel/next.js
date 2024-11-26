@@ -17,9 +17,9 @@ import { ensureInstrumentationRegistered } from './globals'
 import { createRequestStoreForAPI } from '../async-storage/request-store'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import {
-  withWorkStore,
+  createWorkStore,
   type WorkStoreContext,
-} from '../async-storage/with-work-store'
+} from '../async-storage/work-store'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { NEXT_ROUTER_PREFETCH_HEADER } from '../../client/components/app-router-headers'
 import { getTracer } from '../lib/trace/tracer'
@@ -31,7 +31,7 @@ import { getBuiltinRequestContext } from '../after/builtin-request-context'
 
 export class NextRequestHint extends NextRequest {
   sourcePage: string
-  fetchMetrics?: FetchEventResult['fetchMetrics']
+  fetchMetrics: FetchEventResult['fetchMetrics'] | undefined
 
   constructor(params: {
     init: RequestInit
@@ -261,38 +261,39 @@ export async function adapter(
               previewProps
             )
 
-            return await withWorkStore(
-              workAsyncStorage,
-              {
-                page: '/', // Fake Work
-                fallbackRouteParams: null,
-                renderOpts: {
-                  cacheLifeProfiles:
-                    params.request.nextConfig?.experimental?.cacheLife,
-                  experimental: {
-                    after: isAfterEnabled,
-                    isRoutePPREnabled: false,
-                    dynamicIO: false,
-                  },
-                  buildId: buildId ?? '',
-                  supportsDynamicResponse: true,
-                  waitUntil,
-                  onClose: closeController
-                    ? closeController.onClose.bind(closeController)
-                    : undefined,
+            const workStore = createWorkStore({
+              page: '/', // Fake Work
+              fallbackRouteParams: null,
+              renderOpts: {
+                cacheLifeProfiles:
+                  params.request.nextConfig?.experimental?.cacheLife,
+                experimental: {
+                  after: isAfterEnabled,
+                  isRoutePPREnabled: false,
+                  dynamicIO: false,
+                  authInterrupts:
+                    !!params.request.nextConfig?.experimental?.authInterrupts,
                 },
-                requestEndedState: { ended: false },
-                isPrefetchRequest: request.headers.has(
-                  NEXT_ROUTER_PREFETCH_HEADER
-                ),
+                buildId: buildId ?? '',
+                supportsDynamicResponse: true,
+                waitUntil,
+                onClose: closeController
+                  ? closeController.onClose.bind(closeController)
+                  : undefined,
               },
-              () =>
-                workUnitAsyncStorage.run(
-                  requestStore,
-                  params.handler,
-                  request,
-                  event
-                )
+              requestEndedState: { ended: false },
+              isPrefetchRequest: request.headers.has(
+                NEXT_ROUTER_PREFETCH_HEADER
+              ),
+            })
+
+            return await workAsyncStorage.run(workStore, () =>
+              workUnitAsyncStorage.run(
+                requestStore,
+                params.handler,
+                request,
+                event
+              )
             )
           } finally {
             // middleware cannot stream, so we can consider the response closed

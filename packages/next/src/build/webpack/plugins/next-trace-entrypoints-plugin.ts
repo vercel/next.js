@@ -17,13 +17,13 @@ import {
   NODE_RESOLVE_OPTIONS,
 } from '../../webpack-config'
 import type { NextConfigComplete } from '../../../server/config-shared'
-import { loadBindings } from '../../swc'
 import picomatch from 'next/dist/compiled/picomatch'
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getPageFilePath } from '../../entries'
 import { resolveExternal } from '../../handle-externals'
 import swcLoader from '../loaders/next-swc-loader'
 import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
+import { isClientComponentEntryModule } from '../loaders/utils'
 
 const PLUGIN_NAME = 'TraceEntryPointsPlugin'
 export const TRACE_IGNORES = [
@@ -109,9 +109,6 @@ export interface TurbotraceAction {
   input: string[]
   contextDirectory: string
   processCwd: string
-  logLevel?: NonNullable<
-    NextConfigComplete['experimental']['turbotrace']
-  >['logLevel']
   showAll?: boolean
   memoryLimit?: number
 }
@@ -147,7 +144,6 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
   private entryTraces: Map<string, Map<string, { bundled: boolean }>>
   private traceIgnores: string[]
   private esmExternals?: NextConfigComplete['experimental']['esmExternals']
-  private turbotrace?: NextConfigComplete['experimental']['turbotrace']
   private traceHashes: Map<string, string>
   private flyingShuttle?: boolean
   private compilerType: CompilerNameValues
@@ -166,7 +162,6 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
     traceIgnores,
     esmExternals,
     outputFileTracingRoot,
-    turbotrace,
     flyingShuttle,
     swcLoaderConfig,
   }: {
@@ -180,7 +175,6 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
     traceIgnores?: string[]
     outputFileTracingRoot?: string
     esmExternals?: NextConfigComplete['experimental']['esmExternals']
-    turbotrace?: NextConfigComplete['experimental']['turbotrace']
     swcLoaderConfig: TraceEntryPointsPlugin['swcLoaderConfig']
   }) {
     this.rootDir = rootDir
@@ -191,7 +185,6 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
     this.appDirEnabled = appDirEnabled
     this.traceIgnores = traceIgnores || []
     this.tracingRoot = outputFileTracingRoot || rootDir
-    this.turbotrace = turbotrace
     this.optOutBundlingPackages = optOutBundlingPackages
     this.flyingShuttle = flyingShuttle
     this.traceHashes = new Map()
@@ -248,11 +241,8 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
         action: {
           action: 'annotate',
           input: [...chunksToTrace],
-          contextDirectory:
-            this.turbotrace?.contextDirectory ?? this.tracingRoot,
-          processCwd: this.turbotrace?.processCwd ?? this.rootDir,
-          showAll: this.turbotrace?.logAll,
-          logLevel: this.turbotrace?.logLevel,
+          contextDirectory: this.tracingRoot,
+          processCwd: this.rootDir,
         },
         outputPath,
         entryNameFilesMap: Object.fromEntries(entryNameFilesMap),
@@ -533,10 +523,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
                 // fallback to reading raw source file, this may fail
                 // due to unsupported syntax but best effort attempt
                 let usingOriginalSource = false
-                if (
-                  !source ||
-                  source.toString().includes('next-flight-loader/module-proxy')
-                ) {
+                if (!source || isClientComponentEntryModule(mod)) {
                   source = await readOriginalSource(path)
                   usingOriginalSource = true
                 }
@@ -626,8 +613,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
               }
             }
 
-            const contextDirectory =
-              this.turbotrace?.contextDirectory ?? this.tracingRoot
+            const contextDirectory = this.tracingRoot
             const chunks = [...entriesToTrace]
 
             this.buildTraceContext.entriesTrace = {
@@ -635,27 +621,12 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
                 action: 'print',
                 input: chunks,
                 contextDirectory,
-                processCwd: this.turbotrace?.processCwd ?? this.rootDir,
-                logLevel: this.turbotrace?.logLevel,
-                showAll: this.turbotrace?.logAll,
+                processCwd: this.rootDir,
               },
               appDir: this.rootDir,
               depModArray: Array.from(depModMap.keys()),
               entryNameMap: Object.fromEntries(entryNameMap),
               outputPath: compilation.outputOptions.path!,
-            }
-
-            // if we're using turbotrace we can skip tracing
-            // loader contents as it should be able to capture
-            // fs usage in final chunks instead
-            if (this.turbotrace) {
-              let binding = await loadBindings()
-              if (
-                !binding?.isWasm &&
-                typeof binding.turbo.startTrace === 'function'
-              ) {
-                return
-              }
             }
 
             let fileList: Set<string>

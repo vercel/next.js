@@ -164,6 +164,7 @@ describe.each([
           if (dependencies.sass) {
             expect(sourceMapContentParsed).toMatchInlineSnapshot(`
               {
+                "ignoreList": [],
                 "mappings": "AAEE,uBACE,SAHE,CAON,cACE,2CAAA",
                 "names": [],
                 "sourceRoot": "",
@@ -186,6 +187,7 @@ describe.each([
           } else {
             expect(sourceMapContentParsed).toMatchInlineSnapshot(`
               {
+                "ignoreList": [],
                 "mappings": "AAEE,uBACE,SAHE,CAON,cACE,2CAAA",
                 "names": [],
                 "sourceRoot": "",

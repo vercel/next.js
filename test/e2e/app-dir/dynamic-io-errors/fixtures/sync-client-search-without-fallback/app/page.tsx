@@ -6,15 +6,13 @@ import { type UnsafeUnwrappedSearchParams } from 'next/server'
 import { IndirectionOne, IndirectionTwo, IndirectionThree } from './indirection'
 
 type SearchParams = { foo: string | string[] | undefined }
-export default async function Page(props: {
-  searchParams: Promise<SearchParams>
-}) {
+export default function Page(props: { searchParams: Promise<SearchParams> }) {
   return (
     <>
       <p>
-        This page accesses searchParams synchronously but it does so late enough
-        in the render that all unfinished sub-trees have a defined Suspense
-        boundary. This is fine and doesn't need to error the build.
+        This page accesses searchParams synchronously and it does it early
+        enough that some sibling component trees are not finished and they do
+        not have a parent Suspense boundary above them.
       </p>
       <Suspense fallback={<Fallback />}>
         <IndirectionOne>

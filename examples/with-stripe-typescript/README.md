@@ -88,6 +88,9 @@ npm run dev
 # or
 yarn
 yarn dev
+# or
+pnpm install
+pnpm dev
 ```
 
 ### Forward webhooks to your local dev server

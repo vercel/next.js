@@ -6,7 +6,7 @@ use swc_core::{
         visit::{Visit, VisitWith},
     },
 };
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbopack_core::{
     reference::{ModuleReference, ModuleReferences},
     source::Source,
@@ -21,14 +21,14 @@ use crate::{
 
 #[turbo_tasks::function]
 pub async fn module_references(
-    source: Vc<Box<dyn Source>>,
+    source: ResolvedVc<Box<dyn Source>>,
     runtime: Vc<WebpackRuntime>,
-    transforms: Vc<EcmascriptInputTransforms>,
+    transforms: ResolvedVc<EcmascriptInputTransforms>,
 ) -> Result<Vc<ModuleReferences>> {
     let parsed = parse(
-        source,
+        *source,
         Value::new(EcmascriptModuleAssetType::Ecmascript),
-        transforms,
+        *transforms,
     )
     .await?;
     match &*parsed {
@@ -64,7 +64,7 @@ pub async fn module_references(
 struct ModuleReferencesVisitor<'a> {
     runtime: Vc<WebpackRuntime>,
     references: &'a mut Vec<Vc<Box<dyn ModuleReference>>>,
-    transforms: Vc<EcmascriptInputTransforms>,
+    transforms: ResolvedVc<EcmascriptInputTransforms>,
 }
 
 impl Visit for ModuleReferencesVisitor<'_> {

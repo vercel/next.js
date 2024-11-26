@@ -1,20 +1,10 @@
 import type { NextConfigComplete } from '../../server/config-shared'
 import type { __ApiPreviewProps } from '../../server/api-utils'
-import type {
-  ExternalObject,
-  NextTurboTasks,
-  RefCell,
-} from './generated-native'
+import type { ExternalObject, RefCell } from './generated-native'
 
 export interface Binding {
   isWasm: boolean
   turbo: {
-    startTrace(options: any, turboTasks: ExternalObject<NextTurboTasks>): any
-    createTurboTasks(
-      outputPath: string,
-      persistentCaching: boolean,
-      memoryLimit?: number
-    ): ExternalObject<NextTurboTasks>
     createProject(
       options: ProjectOptions,
       turboEngineOptions?: TurboEngineOptions

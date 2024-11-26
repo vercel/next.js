@@ -38,7 +38,6 @@ import {
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route'
 import { RSCPathnameNormalizer } from '../../normalizers/request/rsc'
-import { PostponedPathnameNormalizer } from '../../normalizers/request/postponed'
 import { PrefetchRSCPathnameNormalizer } from '../../normalizers/request/prefetch-rsc'
 import { encodeURIPath } from '../../../shared/lib/encode-uri-path'
 
@@ -381,9 +380,6 @@ export async function setupFsCheck(opts: {
     prefetchRSC: opts.config.experimental.ppr
       ? new PrefetchRSCPathnameNormalizer()
       : undefined,
-    postponed: opts.config.experimental.ppr
-      ? new PostponedPathnameNormalizer()
-      : undefined,
   }
 
   return {
@@ -442,8 +438,6 @@ export async function setupFsCheck(opts: {
           itemPath = normalizers.prefetchRSC.normalize(itemPath, true)
         } else if (normalizers.rsc.match(itemPath)) {
           itemPath = normalizers.rsc.normalize(itemPath, true)
-        } else if (normalizers.postponed?.match(itemPath)) {
-          itemPath = normalizers.postponed.normalize(itemPath, true)
         }
       }
 

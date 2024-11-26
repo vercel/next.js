@@ -4,7 +4,8 @@ use anyhow::{bail, Context, Result};
 use futures::FutureExt;
 use indoc::formatdoc;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{Completion, FxIndexMap, RcStr, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{Completion, FxIndexMap, ResolvedVc, Value, Vc};
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::{CommandLineProcessEnv, ProcessEnv};
 use turbo_tasks_fetch::{fetch, HttpResponseBody};
@@ -132,9 +133,12 @@ impl NextFontGoogleReplacer {
                 )
                 .into(),
             )
-            .into()),
-        );
-        Ok(ImportMapResult::Result(ResolveResult::source(Vc::upcast(js_asset)).into()).into())
+            .cell()),
+        ).to_resolved().await?;
+        Ok(ImportMapResult::Result(
+            ResolveResult::source(ResolvedVc::upcast(js_asset)).resolved_cell(),
+        )
+        .cell())
     }
 }
 
@@ -166,7 +170,7 @@ impl ImportMappingReplacement for NextFontGoogleReplacer {
         };
 
         let this = &*self.await?;
-        if can_use_next_font(this.project_path, *query).await? {
+        if can_use_next_font(this.project_path, **query).await? {
             Ok(self.import_map_result(query.await?.as_str().into()))
         } else {
             Ok(ImportMapResult::NoEntry.into())
@@ -257,13 +261,16 @@ impl NextFontGoogleCssModuleReplacer {
                     .await?
                     .into(),
                 )
-                .into(),
+                .cell(),
             ),
         )
-        .resolve()
+        .to_resolved()
         .await?;
 
-        Ok(ImportMapResult::Result(ResolveResult::source(Vc::upcast(css_asset)).into()).into())
+        Ok(ImportMapResult::Result(
+            ResolveResult::source(ResolvedVc::upcast(css_asset)).resolved_cell(),
+        )
+        .cell())
     }
 }
 
@@ -292,10 +299,10 @@ impl ImportMappingReplacement for NextFontGoogleCssModuleReplacer {
             fragment: _,
         } = request
         else {
-            return Ok(ImportMapResult::NoEntry.into());
+            return Ok(ImportMapResult::NoEntry.cell());
         };
 
-        Ok(self.import_map_result(query_vc.await?.to_string().into()))
+        Ok(self.import_map_result(query_vc.await?.clone_value()))
     }
 }
 
@@ -323,7 +330,7 @@ impl NextFontGoogleFontFileReplacer {
 impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
     #[turbo_tasks::function]
     fn replace(&self, _capture: Vc<Pattern>) -> Vc<ReplacedImportMapping> {
-        ReplacedImportMapping::Ignore.into()
+        ReplacedImportMapping::Ignore.cell()
     }
 
     /// Intercepts requests for the font made by the CSS
@@ -343,14 +350,14 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
             fragment: _,
         } = request
         else {
-            return Ok(ImportMapResult::NoEntry.into());
+            return Ok(ImportMapResult::NoEntry.cell());
         };
 
         let NextFontGoogleFontFileOptions {
             url,
             preload,
             has_size_adjust: size_adjust,
-        } = font_file_options_from_query_map(*query_vc).await?;
+        } = font_file_options_from_query_map(**query_vc).await?;
 
         let (filename, ext) = split_extension(&url);
         let ext = ext.with_context(|| format!("font url {} is missing an extension", &url))?;
@@ -372,20 +379,27 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
         // really matter either.
         let Some(font) = fetch_from_google_fonts(Vc::cell(url.into()), font_virtual_path).await?
         else {
-            return Ok(ImportMapResult::Result(ResolveResult::unresolvable().into()).into());
+            return Ok(
+                ImportMapResult::Result(ResolveResult::unresolvable().resolved_cell()).cell(),
+            );
         };
 
         let font_source = VirtualSource::new(
             font_virtual_path,
-            AssetContent::file(FileContent::Content(font.await?.0.as_slice().into()).into()),
-        );
+            AssetContent::file(FileContent::Content(font.await?.0.as_slice().into()).cell()),
+        )
+        .to_resolved()
+        .await?;
 
-        Ok(ImportMapResult::Result(ResolveResult::source(Vc::upcast(font_source)).into()).into())
+        Ok(ImportMapResult::Result(
+            ResolveResult::source(ResolvedVc::upcast(font_source)).resolved_cell(),
+        )
+        .cell())
     }
 }
 
 #[turbo_tasks::function]
-async fn load_font_data(project_root: Vc<FileSystemPath>) -> Result<Vc<FontData>> {
+async fn load_font_data(project_root: ResolvedVc<FileSystemPath>) -> Result<Vc<FontData>> {
     let data: FontData = load_next_js_templateon(
         project_root,
         "dist/compiled/@next/font/dist/google/font-data.json".into(),
@@ -671,7 +685,9 @@ async fn get_mock_stylesheet(
                     .into(),
                 ),
             )),
-            Value::new(ReferenceType::Internal(InnerAssets::empty())),
+            Value::new(ReferenceType::Internal(
+                InnerAssets::empty().to_resolved().await?,
+            )),
         )
         .module();
 
@@ -679,10 +695,10 @@ async fn get_mock_stylesheet(
     let val = evaluate(
         mocked_response_asset,
         root,
-        env,
+        *env,
         AssetIdent::from_path(loader_path),
         asset_context,
-        chunking_context,
+        *chunking_context,
         None,
         vec![],
         Completion::immutable(),

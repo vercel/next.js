@@ -10,7 +10,7 @@ When Partial Prerendering (PPR) is enabled, using APIs that opt into Dynamic Ren
 
 - Ensure that you are not wrapping Next.js APIs that opt into dynamic rendering in a `try/catch` block.
 - If you do wrap these APIs in a try/catch, make sure you re-throw the original error so it can be caught by Next.js.
-- Alternatively, insert [`unstable_noStore()`](docs/app/api-reference/functions/unstable_noStore) before the try/catch.
+- Alternatively, insert [`unstable_noStore()`](/docs/app/api-reference/functions/unstable_noStore) before the try/catch.
 
 ```js
 import { unstable_noStore } from 'next/cache'
