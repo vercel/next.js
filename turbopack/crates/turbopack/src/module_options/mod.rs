@@ -18,7 +18,9 @@ use turbopack_core::{
     resolve::options::{ImportMap, ImportMapping},
 };
 use turbopack_css::CssModuleAssetType;
-use turbopack_ecmascript::{EcmascriptInputTransform, EcmascriptOptions, SpecifiedModuleType};
+use turbopack_ecmascript::{
+    EcmascriptInputTransform, EcmascriptInputTransforms, EcmascriptOptions, SpecifiedModuleType,
+};
 use turbopack_mdx::MdxTransform;
 use turbopack_node::transforms::{postcss::PostCssTransform, webpack::WebpackLoaders};
 use turbopack_wasm::source::WebAssemblySourceType;
@@ -174,14 +176,14 @@ impl ModuleOptions {
             None
         };
 
-        let vendor_transforms = Vc::cell(vec![]);
+        let vendor_transforms = Vc::<EcmascriptInputTransforms>::cell(vec![]);
         let ts_app_transforms = if let Some(transform) = &ts_transform {
             let base_transforms = if let Some(decorators_transform) = &decorators_transform {
                 vec![decorators_transform.clone(), transform.clone()]
             } else {
                 vec![transform.clone()]
             };
-            Vc::cell(
+            Vc::<EcmascriptInputTransforms>::cell(
                 base_transforms
                     .iter()
                     .cloned()
@@ -200,7 +202,7 @@ impl ModuleOptions {
         // Since typescript transform (`ts_app_transforms`) needs to apply decorators
         // _before_ stripping types, we create ts_app_transforms first in a
         // specific order with typescript, then apply decorators to app_transforms.
-        let app_transforms = Vc::cell(
+        let app_transforms = Vc::<EcmascriptInputTransforms>::cell(
             if let Some(decorators_transform) = &decorators_transform {
                 vec![decorators_transform.clone()]
             } else {
@@ -223,14 +225,14 @@ impl ModuleOptions {
                     RuleCondition::ResourcePathEndsWith(".jsx".to_string()),
                 ]),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript {
-                    transforms: app_transforms,
+                    transforms: app_transforms.to_resolved().await?,
                     options: ecmascript_options_vc,
                 })],
             ),
             ModuleRule::new_all(
                 RuleCondition::ResourcePathEndsWith(".mjs".to_string()),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript {
-                    transforms: app_transforms,
+                    transforms: app_transforms.to_resolved().await?,
                     options: EcmascriptOptions {
                         specified_module_type: SpecifiedModuleType::EcmaScript,
                         ..ecmascript_options
@@ -241,7 +243,7 @@ impl ModuleOptions {
             ModuleRule::new_all(
                 RuleCondition::ResourcePathEndsWith(".cjs".to_string()),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript {
-                    transforms: app_transforms,
+                    transforms: app_transforms.to_resolved().await?,
                     options: EcmascriptOptions {
                         specified_module_type: SpecifiedModuleType::CommonJs,
                         ..ecmascript_options
@@ -252,7 +254,7 @@ impl ModuleOptions {
             ModuleRule::new_all(
                 RuleCondition::ResourcePathEndsWith(".ts".to_string()),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Typescript {
-                    transforms: ts_app_transforms,
+                    transforms: ts_app_transforms.to_resolved().await?,
                     tsx: false,
                     analyze_types: enable_types,
                     options: ecmascript_options_vc,
@@ -261,7 +263,7 @@ impl ModuleOptions {
             ModuleRule::new_all(
                 RuleCondition::ResourcePathEndsWith(".tsx".to_string()),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Typescript {
-                    transforms: ts_app_transforms,
+                    transforms: ts_app_transforms.to_resolved().await?,
                     tsx: true,
                     analyze_types: enable_types,
                     options: ecmascript_options_vc,
@@ -270,7 +272,7 @@ impl ModuleOptions {
             ModuleRule::new_all(
                 RuleCondition::ResourcePathEndsWith(".mts".to_string()),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Typescript {
-                    transforms: ts_app_transforms,
+                    transforms: ts_app_transforms.to_resolved().await?,
                     tsx: false,
                     analyze_types: enable_types,
                     options: EcmascriptOptions {
@@ -283,7 +285,7 @@ impl ModuleOptions {
             ModuleRule::new_all(
                 RuleCondition::ResourcePathEndsWith(".mtsx".to_string()),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Typescript {
-                    transforms: ts_app_transforms,
+                    transforms: ts_app_transforms.to_resolved().await?,
                     tsx: true,
                     analyze_types: enable_types,
                     options: EcmascriptOptions {
@@ -296,7 +298,7 @@ impl ModuleOptions {
             ModuleRule::new_all(
                 RuleCondition::ResourcePathEndsWith(".cts".to_string()),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Typescript {
-                    transforms: ts_app_transforms,
+                    transforms: ts_app_transforms.to_resolved().await?,
                     tsx: false,
                     analyze_types: enable_types,
                     options: EcmascriptOptions {
@@ -309,7 +311,7 @@ impl ModuleOptions {
             ModuleRule::new_all(
                 RuleCondition::ResourcePathEndsWith(".ctsx".to_string()),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Typescript {
-                    transforms: ts_app_transforms,
+                    transforms: ts_app_transforms.to_resolved().await?,
                     tsx: true,
                     analyze_types: enable_types,
                     options: EcmascriptOptions {
@@ -323,7 +325,7 @@ impl ModuleOptions {
                 RuleCondition::ResourcePathEndsWith(".d.ts".to_string()),
                 vec![ModuleRuleEffect::ModuleType(
                     ModuleType::TypescriptDeclaration {
-                        transforms: vendor_transforms,
+                        transforms: vendor_transforms.to_resolved().await?,
                         options: ecmascript_options_vc,
                     },
                 )],
