@@ -146,7 +146,7 @@ impl PagesProject {
         if let Some(api) = *api {
             add_dir_to_routes(&mut routes, *api, |pathname, original_name, page| {
                 Route::PageApi {
-                    endpoint: Vc::upcast(PageEndpoint::new(
+                    endpoint: ResolvedVc::upcast(PageEndpoint::new(
                         PageEndpointType::Api,
                         self,
                         pathname,
@@ -160,7 +160,7 @@ impl PagesProject {
         }
 
         let make_page_route = |pathname, original_name, page| Route::Page {
-            html_endpoint: Vc::upcast(PageEndpoint::new(
+            html_endpoint: ResolvedVc::upcast(PageEndpoint::new(
                 PageEndpointType::Html,
                 self,
                 pathname,
@@ -168,7 +168,7 @@ impl PagesProject {
                 page,
                 pages_structure,
             )),
-            data_endpoint: Vc::upcast(PageEndpoint::new(
+            data_endpoint: ResolvedVc::upcast(PageEndpoint::new(
                 PageEndpointType::Data,
                 self,
                 pathname,
