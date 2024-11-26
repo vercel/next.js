@@ -78,7 +78,7 @@ pub(crate) struct NextFontGoogleReplacer {
 #[turbo_tasks::value_impl]
 impl NextFontGoogleReplacer {
     #[turbo_tasks::function]
-    pub fn new(project_path: Vc<FileSystemPath>) -> Vc<Self> {
+    pub fn new(project_path: ResolvedVc<FileSystemPath>) -> Vc<Self> {
         Self::cell(NextFontGoogleReplacer { project_path })
     }
 
@@ -89,10 +89,10 @@ impl NextFontGoogleReplacer {
 
         let query_vc = Vc::cell(query);
 
-        let font_data = load_font_data(self.project_path);
+        let font_data = load_font_data(*self.project_path);
         let options = font_options_from_query_map(query_vc, font_data);
 
-        let fallback = get_font_fallback(self.project_path, options);
+        let fallback = get_font_fallback(*self.project_path, options);
         let properties = get_font_css_properties(options, fallback).await?;
         let js_asset = VirtualSource::new(
             next_js_file_path("internal/font/google".into())
@@ -170,7 +170,7 @@ impl ImportMappingReplacement for NextFontGoogleReplacer {
         };
 
         let this = &*self.await?;
-        if can_use_next_font(this.project_path, **query).await? {
+        if can_use_next_font(*this.project_path, **query).await? {
             Ok(self.import_map_result(query.await?.as_str().into()))
         } else {
             Ok(ImportMapResult::NoEntry.into())
