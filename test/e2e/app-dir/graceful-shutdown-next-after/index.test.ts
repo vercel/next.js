@@ -23,6 +23,8 @@ describe('unstable_after during server shutdown', () => {
     })
 
     if (isNextDev) {
+      // `next dev` shuts down the child process that runs the server without waiting for cleanups,
+      // so `after` callbacks won't have the chance to complete
       it.each(['SIGINT', 'SIGTERM'] as const)(
         'does not wait for unstable_after callbacks when the server receives %s',
         async (signal) => {
@@ -72,32 +74,18 @@ describe('unstable_after during server shutdown', () => {
       await next.stop()
     })
 
-    if (isNextDev) {
-      it.each(['SIGINT', 'SIGTERM'] as const)(
-        'does not wait for unstable_after callbacks when the server receives %s',
-        async (signal) => {
-          await next.browser('/')
-          await retry(async () => {
-            expect(next.cliOutput).toInclude('[after] starting sleep')
-          })
-          await next.stop(signal)
-          expect(next.cliOutput).not.toInclude('[after] finished sleep')
-        }
-      )
-    }
-
-    if (!isNextDev) {
-      it.each(['SIGINT', 'SIGTERM'] as const)(
-        'waits for unstable_after callbacks when the server receives %s',
-        async (signal) => {
-          await next.browser('/')
-          await retry(async () => {
-            expect(next.cliOutput).toInclude('[after] starting sleep')
-          })
-          await next.stop(signal)
-          expect(next.cliOutput).toInclude('[after] finished sleep')
-        }
-      )
-    }
+    // unlike the above test for `next dev`, NextCustomServer has no logic that'd cause it to skip cleanups in dev mode,
+    // so this is the same in both modes
+    it.each(['SIGINT', 'SIGTERM'] as const)(
+      'waits for unstable_after callbacks when the server receives %s',
+      async (signal) => {
+        await next.browser('/')
+        await retry(async () => {
+          expect(next.cliOutput).toInclude('[after] starting sleep')
+        })
+        await next.stop(signal)
+        expect(next.cliOutput).toInclude('[after] finished sleep')
+      }
+    )
   })
 })
