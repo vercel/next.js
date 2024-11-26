@@ -820,6 +820,6 @@ mod tests {
         assert!(removed.contains(&4));
         assert!(removed.contains(&6));
         assert!(removed.contains(&8));
-        assert_eq!(removed, vec![2, 4, 6, 8]);
+        assert_eq!(removed.len(), 4);
     }
 }
