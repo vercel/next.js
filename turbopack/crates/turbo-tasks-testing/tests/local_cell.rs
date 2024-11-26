@@ -111,7 +111,7 @@ async fn test_get_task_id() -> Result<()> {
 struct Untracked {
     #[turbo_tasks(debug_ignore, trace_ignore)]
     #[serde(skip)]
-    cell: Vc<u32>,
+    cell: ResolvedVc<u32>,
 }
 
 unsafe impl ResolvedValue for Untracked {}
