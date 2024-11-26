@@ -58,7 +58,7 @@ pub(crate) struct NextFontLocalResolvePlugin {
 #[turbo_tasks::value_impl]
 impl NextFontLocalResolvePlugin {
     #[turbo_tasks::function]
-    pub fn new(root: Vc<FileSystemPath>) -> Vc<Self> {
+    pub fn new(root: ResolvedVc<FileSystemPath>) -> Vc<Self> {
         NextFontLocalResolvePlugin { root }.cell()
     }
 }
@@ -98,7 +98,7 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
 
         match request_key.as_str() {
             "next/font/local/target.css" => {
-                if !can_use_next_font(this.root, **query_vc).await? {
+                if !can_use_next_font(*this.root, **query_vc).await? {
                     return Ok(ResolveResultOption::none());
                 }
 
