@@ -6,7 +6,7 @@ use swc_core::common::{
     SourceMap,
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::ResolvedVc;
 use turbopack_core::{
     issue::{analyze::AnalyzeIssue, IssueExt, IssueSeverity, IssueSource, StyledString},
     source::Source,
@@ -67,7 +67,7 @@ impl Emitter for IssueEmitter {
                 Level::FailureNote => IssueSeverity::Note,
             }
         })
-        .cell();
+        .resolved_cell();
 
         let title;
         if let Some(t) = self.title.as_ref() {
@@ -86,8 +86,8 @@ impl Emitter for IssueEmitter {
         let issue = AnalyzeIssue {
             severity,
             source_ident: self.source.ident(),
-            title: Vc::cell(title),
-            message: StyledString::Text(message.into()).cell(),
+            title: ResolvedVc::cell(title),
+            message: StyledString::Text(message.into()).resolved_cell(),
             code,
             source,
         }

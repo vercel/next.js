@@ -142,7 +142,7 @@ pub async fn create_page_ssr_entry_module(
     let mut ssr_module = ssr_module_context
         .process(
             source,
-            Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
+            Value::new(ReferenceType::Internal(ResolvedVc::cell(inner_assets))),
         )
         .module();
 
@@ -262,7 +262,7 @@ async fn wrap_edge_page(
     let wrapped = asset_context
         .process(
             Vc::upcast(source),
-            Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
+            Value::new(ReferenceType::Internal(ResolvedVc::cell(inner_assets))),
         )
         .module();
 

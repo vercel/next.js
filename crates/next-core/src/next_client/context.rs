@@ -110,22 +110,27 @@ async fn next_client_free_vars(define_env: Vc<EnvMap>) -> Result<Vc<FreeVarRefer
 }
 
 #[turbo_tasks::function]
-pub fn get_client_compile_time_info(
+pub async fn get_client_compile_time_info(
     browserslist_query: RcStr,
     define_env: Vc<EnvMap>,
-) -> Vc<CompileTimeInfo> {
-    CompileTimeInfo::builder(Environment::new(Value::new(ExecutionEnvironment::Browser(
-        BrowserEnvironment {
-            dom: true,
-            web_worker: false,
-            service_worker: false,
-            browserslist_query: browserslist_query.to_owned(),
-        }
-        .into(),
-    ))))
-    .defines(next_client_defines(define_env))
-    .free_var_references(next_client_free_vars(define_env))
+) -> Result<Vc<CompileTimeInfo>> {
+    CompileTimeInfo::builder(
+        Environment::new(Value::new(ExecutionEnvironment::Browser(
+            BrowserEnvironment {
+                dom: true,
+                web_worker: false,
+                service_worker: false,
+                browserslist_query: browserslist_query.to_owned(),
+            }
+            .resolved_cell(),
+        )))
+        .to_resolved()
+        .await?,
+    )
+    .defines(next_client_defines(define_env).to_resolved().await?)
+    .free_var_references(next_client_free_vars(define_env).to_resolved().await?)
     .cell()
+    .await
 }
 
 #[turbo_tasks::value(shared, serialization = "auto_for_input")]

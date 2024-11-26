@@ -170,7 +170,7 @@ impl ImportMappingReplacement for NextFontGoogleReplacer {
         };
 
         let this = &*self.await?;
-        if can_use_next_font(this.project_path, *query).await? {
+        if can_use_next_font(this.project_path, **query).await? {
             Ok(self.import_map_result(query.await?.as_str().into()))
         } else {
             Ok(ImportMapResult::NoEntry.into())
@@ -357,7 +357,7 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
             url,
             preload,
             has_size_adjust: size_adjust,
-        } = font_file_options_from_query_map(*query_vc).await?;
+        } = font_file_options_from_query_map(**query_vc).await?;
 
         let (filename, ext) = split_extension(&url);
         let ext = ext.with_context(|| format!("font url {} is missing an extension", &url))?;
@@ -685,7 +685,9 @@ async fn get_mock_stylesheet(
                     .into(),
                 ),
             )),
-            Value::new(ReferenceType::Internal(InnerAssets::empty())),
+            Value::new(ReferenceType::Internal(
+                InnerAssets::empty().to_resolved().await?,
+            )),
         )
         .module();
 
