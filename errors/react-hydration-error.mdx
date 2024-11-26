@@ -21,9 +21,9 @@ Hydration errors can occur from:
 3. Using browser-only APIs like `window` or `localStorage` in your rendering logic
 4. Using time-dependent APIs such as the `Date()` constructor in your rendering logic
 5. [Browser extensions](https://github.com/facebook/react/issues/24430) modifying the HTML
-6. Incorrectly configured [CSS-in-JS libraries](https://nextjs.org/docs/app/building-your-application/styling/css-in-js)
+6. Incorrectly configured [CSS-in-JS libraries](/docs/app/building-your-application/styling/css-in-js)
    1. Ensure your code is following [our official examples](https://github.com/vercel/next.js/tree/canary/examples)
-7. Incorrectly configured Edge/CDN that attempts to modify the html response, such as Cloudflare [Auto Minify](https://developers.cloudflare.com/speed/optimization/content/auto-minify/)
+7. Incorrectly configured Edge/CDN that attempts to modify the html response, such as Cloudflare [Auto Minify](https://developers.cloudflare.com/speed/optimization/content/troubleshooting/disable-auto-minify/)
 
 ## Possible Ways to Fix It
 
@@ -51,7 +51,7 @@ During React hydration, `useEffect` is called. This means browser APIs like `win
 
 ### Solution 2: Disabling SSR on specific components
 
-Next.js allows you to [disable prerendering](https://nextjs.org/docs/app/building-your-application/optimizing/lazy-loading#skipping-ssr) on specific components, which can prevent hydration mismatches.
+Next.js allows you to [disable prerendering](/docs/app/building-your-application/optimizing/lazy-loading#skipping-ssr) on specific components, which can prevent hydration mismatches.
 
 ```jsx
 import dynamic from 'next/dynamic'

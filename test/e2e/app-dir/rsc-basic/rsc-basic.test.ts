@@ -231,8 +231,7 @@ describe('app dir - rsc basics', () => {
     expect(html).toContain('dynamic data!')
   })
 
-  // TODO: TLA in client references are currently broken with Webpack on Edge
-  describe.each(process.env.TURBOPACK ? ['node', 'edge'] : ['node'])(
+  describe.each(['node', 'edge'])(
     'client references with TLA (%s)',
     (runtime) => {
       let url = `/async-client${runtime === 'edge' ? '/edge' : ''}`

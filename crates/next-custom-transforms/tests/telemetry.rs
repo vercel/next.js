@@ -6,7 +6,7 @@ use once_cell::sync::Lazy;
 use swc_core::{
     base::{try_with_handler, Compiler},
     common::{comments::SingleThreadedComments, FileName, FilePathMapping, SourceMap, GLOBALS},
-    ecma::transforms::base::pass::noop,
+    ecma::ast::noop_pass,
 };
 
 static COMPILER: Lazy<Arc<Compiler>> = Lazy::new(|| {
@@ -47,7 +47,7 @@ export function getServerSideProps() {
                     &Default::default(),
                     comments,
                     |_| next_ssg(eliminated_packages.clone()),
-                    |_| noop(),
+                    |_| noop_pass(),
                 )
             })
         })

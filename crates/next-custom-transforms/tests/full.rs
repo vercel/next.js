@@ -6,8 +6,8 @@ use swc_core::{
     base::Compiler,
     common::{comments::SingleThreadedComments, Mark},
     ecma::{
+        ast::noop_pass,
         parser::{Syntax, TsSyntax},
-        transforms::base::pass::noop,
     },
 };
 use testing::{NormalizedOutput, Tester};
@@ -104,7 +104,7 @@ fn test(input: &Path, minify: bool) {
                         unresolved_mark,
                     )
                 },
-                |_| noop(),
+                |_| noop_pass(),
             ) {
                 Ok(v) => {
                     NormalizedOutput::from(v.code)

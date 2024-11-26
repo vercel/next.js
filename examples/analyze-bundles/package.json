@@ -4,7 +4,7 @@
     "dev": "next",
     "build": "next build",
     "start": "next start",
-    "analyze": "cross-env ANALYZE=true yarn build",
+    "analyze": "cross-env ANALYZE=true next build",
     "serve": "serve .next/analyze"
   },
   "dependencies": {

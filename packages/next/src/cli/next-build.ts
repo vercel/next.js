@@ -24,8 +24,8 @@ export type NextBuildOptions = {
 }
 
 const nextBuild = (options: NextBuildOptions, directory?: string) => {
-  process.on('SIGTERM', () => process.exit(0))
-  process.on('SIGINT', () => process.exit(0))
+  process.on('SIGTERM', () => process.exit(143))
+  process.on('SIGINT', () => process.exit(130))
 
   const {
     debug,

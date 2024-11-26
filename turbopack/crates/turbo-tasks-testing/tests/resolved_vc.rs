@@ -61,3 +61,19 @@ async fn test_resolved_vc_as_arg() -> Result<()> {
     })
     .await
 }
+
+#[tokio::test]
+async fn test_into_future() -> Result<()> {
+    run(&REGISTRATION, || async {
+        let mut resolved = ResolvedVc::cell(42);
+        let _: ReadRef<u32> = resolved.await?;
+        let _: ReadRef<u32> = (&resolved).await?;
+        let _: ReadRef<u32> = (&mut resolved).await?;
+        let mut unresolved = Vc::cell(42);
+        let _: ReadRef<u32> = unresolved.await?;
+        let _: ReadRef<u32> = (&unresolved).await?;
+        let _: ReadRef<u32> = (&mut unresolved).await?;
+        Ok(())
+    })
+    .await
+}

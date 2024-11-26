@@ -1,4 +1,4 @@
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 
 use crate::{asset::Asset, ident::AssetIdent, reference::ModuleReferences};
 
@@ -22,10 +22,10 @@ pub trait Module: Asset {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct OptionModule(Option<Vc<Box<dyn Module>>>);
+pub struct OptionModule(Option<ResolvedVc<Box<dyn Module>>>);
 
 #[turbo_tasks::value(transparent)]
-pub struct Modules(Vec<Vc<Box<dyn Module>>>);
+pub struct Modules(Vec<ResolvedVc<Box<dyn Module>>>);
 
 #[turbo_tasks::value_impl]
 impl Modules {

@@ -2,7 +2,6 @@
 import type { WorkerRequestHandler, WorkerUpgradeHandler } from './types'
 import type { DevBundler, ServerFields } from './router-utils/setup-dev-bundler'
 import type { NextUrlWithParsedQuery, RequestMeta } from '../request-meta'
-import type { NextServer } from '../next'
 
 // This is required before other imports to ensure the require hook is setup.
 import '../node-environment'
@@ -47,6 +46,7 @@ import {
 } from '../dev/hot-reloader-types'
 import { normalizedAssetPrefix } from '../../shared/lib/normalized-asset-prefix'
 import { NEXT_PATCH_SYMBOL } from './patch-fetch'
+import type { ServerInitResult } from './render-server'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
@@ -79,7 +79,7 @@ export async function initialize(opts: {
   experimentalHttpsServer?: boolean
   startServerSpan?: Span
   quiet?: boolean
-}): Promise<[WorkerRequestHandler, WorkerUpgradeHandler, NextServer]> {
+}): Promise<ServerInitResult> {
   if (!process.env.NODE_ENV) {
     // @ts-ignore not readonly
     process.env.NODE_ENV = opts.dev ? 'development' : 'production'
@@ -739,5 +739,5 @@ export async function initialize(opts: {
     }
   }
 
-  return [requestHandler, upgradeHandler, handlers.app]
+  return { requestHandler, upgradeHandler, server: handlers.server }
 }

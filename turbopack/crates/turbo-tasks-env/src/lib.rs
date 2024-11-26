@@ -9,7 +9,8 @@ mod filter;
 use std::{env, sync::Mutex};
 
 use anyhow::Result;
-use turbo_tasks::{FxIndexMap, RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexMap, Vc};
 
 pub use self::{
     command_line::CommandLineProcessEnv, custom::CustomProcessEnv, dotenv::DotenvProcessEnv,

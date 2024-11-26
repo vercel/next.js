@@ -47,7 +47,7 @@ const BLUR_QUALITY = 70 // should match `next-image-loader`
 
 let _sharp: typeof import('sharp')
 
-function getSharp() {
+function getSharp(concurrency: number | null | undefined) {
   if (_sharp) {
     return _sharp
   }
@@ -59,7 +59,7 @@ function getSharp() {
       // https://sharp.pixelplumbing.com/api-utility#concurrency
       const divisor = process.env.NODE_ENV === 'development' ? 4 : 2
       _sharp.concurrency(
-        Math.floor(Math.max(_sharp.concurrency() / divisor, 1))
+        concurrency ?? Math.floor(Math.max(_sharp.concurrency() / divisor, 1))
       )
     }
   } catch (e: unknown) {
@@ -512,15 +512,30 @@ export async function optimizeImage({
   quality,
   width,
   height,
+  concurrency,
+  limitInputPixels,
+  sequentialRead,
+  timeoutInSeconds,
 }: {
   buffer: Buffer
   contentType: string
   quality: number
   width: number
   height?: number
+  concurrency?: number | null
+  limitInputPixels?: number
+  sequentialRead?: boolean | null
+  timeoutInSeconds?: number
 }): Promise<Buffer> {
-  const sharp = getSharp()
-  const transformer = sharp(buffer).timeout({ seconds: 7 }).rotate()
+  const sharp = getSharp(concurrency)
+  const transformer = sharp(buffer, {
+    limitInputPixels,
+    sequentialRead: sequentialRead ?? undefined,
+  })
+    .timeout({
+      seconds: timeoutInSeconds ?? 7,
+    })
+    .rotate()
 
   if (height) {
     transformer.resize(width, height)
@@ -531,9 +546,9 @@ export async function optimizeImage({
   }
 
   if (contentType === AVIF) {
-    const avifQuality = quality - 20
     transformer.avif({
-      quality: Math.max(avifQuality, 1),
+      quality: Math.max(quality - 20, 1),
+      effort: 3,
     })
   } else if (contentType === WEBP) {
     transformer.webp({ quality })
@@ -631,6 +646,13 @@ export async function imageOptimizer(
     'href' | 'width' | 'quality' | 'mimeType'
   >,
   nextConfig: {
+    experimental: Pick<
+      NextConfigComplete['experimental'],
+      | 'imgOptConcurrency'
+      | 'imgOptMaxInputPixels'
+      | 'imgOptSequentialRead'
+      | 'imgOptTimeoutInSeconds'
+    >
     images: Pick<
       NextConfigComplete['images'],
       'dangerouslyAllowSVG' | 'minimumCacheTTL'
@@ -735,6 +757,10 @@ export async function imageOptimizer(
       contentType,
       quality,
       width,
+      concurrency: nextConfig.experimental.imgOptConcurrency,
+      limitInputPixels: nextConfig.experimental.imgOptMaxInputPixels,
+      sequentialRead: nextConfig.experimental.imgOptSequentialRead,
+      timeoutInSeconds: nextConfig.experimental.imgOptTimeoutInSeconds,
     })
     if (optimizedBuffer) {
       if (isDev && width <= BLUR_IMG_SIZE && quality === BLUR_QUALITY) {

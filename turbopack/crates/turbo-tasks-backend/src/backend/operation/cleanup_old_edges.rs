@@ -1,7 +1,7 @@
 use std::mem::take;
 
 use serde::{Deserialize, Serialize};
-use turbo_tasks::TaskId;
+use turbo_tasks::{TaskId, ValueTypeId};
 
 use crate::{
     backend::{
@@ -10,10 +10,10 @@ use crate::{
                 get_aggregation_number, get_uppers, is_aggregating_node, AggregationUpdateJob,
                 AggregationUpdateQueue,
             },
-            invalidate::make_task_dirty,
+            invalidate::{make_task_dirty, TaskDirtyCause},
             AggregatedDataUpdate, ExecuteContext, Operation, TaskGuard,
         },
-        storage::{update, update_count},
+        storage::{update_count, update_ucount_and_get},
         TaskDataCategory,
     },
     data::{CachedDataItemKey, CellRef, CollectibleRef, CollectiblesRef},
@@ -41,7 +41,7 @@ pub enum OutdatedEdge {
     CellDependency(CellRef),
     OutputDependency(TaskId),
     CollectiblesDependency(CollectiblesRef),
-    RemovedCellDependent(TaskId),
+    RemovedCellDependent(TaskId, ValueTypeId),
 }
 
 impl CleanupOldEdgesOperation {
@@ -83,11 +83,7 @@ impl Operation for CleanupOldEdgesOperation {
                                     task.remove(&CachedDataItemKey::Child { task: child_id });
                                 }
                                 let remove_children_count = u32::try_from(children.len()).unwrap();
-                                update!(task, ChildrenCount, |count: Option<u32>| {
-                                    // If this underflows, we messed up counting somewhere
-                                    let count = count.unwrap_or_default() - remove_children_count;
-                                    (count != 0).then_some(count)
-                                });
+                                update_ucount_and_get!(task, ChildrenCount, -remove_children_count);
                                 if is_aggregating_node(get_aggregation_number(&task)) {
                                     queue.push(AggregationUpdateJob::InnerOfUpperLostFollowers {
                                         upper_id: task_id,
@@ -103,7 +99,7 @@ impl Operation for CleanupOldEdgesOperation {
                             }
                             OutdatedEdge::Collectible(collectible, count) => {
                                 let mut collectibles = Vec::new();
-                                collectibles.push((collectible, count));
+                                collectibles.push((collectible, -count));
                                 outdated.retain(|e| match e {
                                     OutdatedEdge::Collectible(collectible, count) => {
                                         collectibles.push((*collectible, -*count));
@@ -112,8 +108,14 @@ impl Operation for CleanupOldEdgesOperation {
                                     _ => true,
                                 });
                                 let mut task = ctx.task(task_id, TaskDataCategory::All);
-                                for &(collectible, count) in collectibles.iter() {
-                                    update_count!(task, Collectible { collectible }, -count);
+                                for (collectible, count) in collectibles.iter_mut() {
+                                    update_count!(
+                                        task,
+                                        Collectible {
+                                            collectible: *collectible
+                                        },
+                                        *count
+                                    );
                                 }
                                 queue.extend(AggregationUpdateJob::data_update(
                                     &mut task,
@@ -177,8 +179,13 @@ impl Operation for CleanupOldEdgesOperation {
                                     });
                                 }
                             }
-                            OutdatedEdge::RemovedCellDependent(task_id) => {
-                                make_task_dirty(task_id, queue, ctx);
+                            OutdatedEdge::RemovedCellDependent(task_id, value_type) => {
+                                make_task_dirty(
+                                    task_id,
+                                    TaskDirtyCause::CellRemoved { value_type },
+                                    queue,
+                                    ctx,
+                                );
                             }
                         }
                     }

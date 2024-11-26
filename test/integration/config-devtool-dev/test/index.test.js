@@ -2,11 +2,11 @@
 
 import {
   assertHasRedbox,
-  check,
   findPort,
   getRedboxSource,
   killApp,
   launchApp,
+  retry,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
@@ -28,11 +28,9 @@ const appDir = join(__dirname, '../')
         },
       })
 
-      const found = await check(
-        () => stderr,
-        /Reverting webpack devtool to /,
-        false
-      )
+      await retry(async () => {
+        expect(stderr).toMatch(/Reverting webpack devtool to /)
+      })
 
       const browser = await webdriver(appPort, '/')
       await assertHasRedbox(browser)
@@ -40,7 +38,7 @@ const appDir = join(__dirname, '../')
         // TODO: add win32 snapshot
       } else {
         expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
-          "pages/index.js (5:11) @ eval
+          "pages/index.js (5:11) @ Index.useEffect
 
             3 | export default function Index(props) {
             4 |   useEffect(() => {
@@ -54,7 +52,6 @@ const appDir = join(__dirname, '../')
       await browser.close()
 
       await killApp(app)
-      expect(found).toBeTruthy()
     })
   }
 )

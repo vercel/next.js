@@ -1,27 +1,16 @@
 import { nextTestSetup } from 'e2e-utils'
-import {
-  assertHasRedbox,
-  shouldRunTurboDevTest,
-  getRedboxSource,
-} from 'next-test-utils'
+import { assertHasRedbox, getRedboxSource } from 'next-test-utils'
 import { outdent } from 'outdent'
+
+const isReactExperimental = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+
+function normalizeStackTrace(trace) {
+  return trace.replace(/ \(.*\)/g, '')
+}
 
 describe('app dir - dynamic error trace', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
-    dependencies: {
-      swr: 'latest',
-    },
-    packageJson: {
-      scripts: {
-        build: 'next build',
-        dev: `next ${shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'}`,
-        start: 'next start',
-      },
-    },
-    installCommand: 'pnpm install',
-    startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
-    buildCommand: 'pnpm build',
     skipDeployment: true,
   })
   if (skipped) return
@@ -40,20 +29,15 @@ describe('app dir - dynamic error trace', () => {
     const stackFrameElements = await browser.elementsByCss(
       '[data-nextjs-call-stack-frame]'
     )
-    const stackFrames = await Promise.all(
-      // TODO: Why is this text empty?
-      stackFrameElements.map((f) => f.innerText())
-    )
-    expect(stackFrames).toEqual(
-      // TODO: Show useful stack
-      [
-        // Internal frames of React.
-        // Feel free to adjust until we show useful stacks.
-        '',
-        '',
-        '',
-        '',
-      ]
+    const stackFramesContent = // TODO: Why is this text empty?
+      (await Promise.all(stackFrameElements.map((f) => f.innerText())))
+        // Filter out the frames having code snippet but without methodName and source
+        .filter(Boolean)
+        .join('\n')
+
+    // TODO: Show useful stack
+    expect(normalizeStackTrace(stackFramesContent)).toMatchInlineSnapshot(
+      isReactExperimental ? `""` : `""`
     )
 
     const codeframe = await getRedboxSource(browser)

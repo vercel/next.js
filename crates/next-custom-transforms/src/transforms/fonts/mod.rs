@@ -3,9 +3,9 @@ use serde::Deserialize;
 use swc_core::{
     common::{collections::AHashMap, BytePos, Spanned},
     ecma::{
-        ast::{Id, ModuleItem},
+        ast::{Id, ModuleItem, Pass},
         atoms::JsWord,
-        visit::{as_folder, noop_visit_mut_type, Fold, VisitMut, VisitWith},
+        visit::{noop_visit_mut_type, visit_mut_pass, VisitMut, VisitWith},
     },
 };
 
@@ -20,8 +20,8 @@ pub struct Config {
     pub relative_file_path_from_root: JsWord,
 }
 
-pub fn next_font_loaders(config: Config) -> impl Fold + VisitMut {
-    as_folder(NextFontLoaders {
+pub fn next_font_loaders(config: Config) -> impl Pass + VisitMut {
+    visit_mut_pass(NextFontLoaders {
         config,
         state: State {
             ..Default::default()
@@ -74,15 +74,24 @@ impl VisitMut for NextFontLoaders {
                 };
             items.visit_with(&mut wrong_scope);
 
+            fn is_removable(ctx: &NextFontLoaders, item: &ModuleItem) -> bool {
+                ctx.state.removeable_module_items.contains(&item.span_lo())
+            }
+
+            let first_removable_index = items
+                .iter()
+                .position(|item| is_removable(self, item))
+                .unwrap();
+
             // Remove marked module items
-            items.retain(|item| !self.state.removeable_module_items.contains(&item.span_lo()));
+            items.retain(|item| !is_removable(self, item));
 
             // Add font imports and exports
-            let mut new_items = Vec::new();
-            new_items.append(&mut self.state.font_imports);
-            new_items.append(items);
-            new_items.append(&mut self.state.font_exports);
-            *items = new_items;
+            items.splice(
+                first_removable_index..first_removable_index,
+                std::mem::take(&mut self.state.font_imports),
+            );
+            items.append(&mut self.state.font_exports);
         }
     }
 }

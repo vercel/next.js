@@ -5,9 +5,10 @@ use indexmap::map::{Entry, OccupiedEntry};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs, FxIndexMap, RcStr, ResolvedVc,
-    TaskInput, TryJoinIterExt, ValueDefault, ValueToString, Vc,
+    debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs, FxIndexMap, ResolvedVc, TaskInput,
+    TryJoinIterExt, ValueDefault, ValueToString, Vc,
 };
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath};
 use turbopack_core::issue::{
@@ -36,17 +37,21 @@ pub struct AppDirModules {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<Vc<FileSystemPath>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub global_error: Option<Vc<FileSystemPath>>,
+    pub global_error: Option<ResolvedVc<FileSystemPath>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub loading: Option<Vc<FileSystemPath>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub template: Option<Vc<FileSystemPath>>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub forbidden: Option<Vc<FileSystemPath>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub unauthorized: Option<Vc<FileSystemPath>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub not_found: Option<Vc<FileSystemPath>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub default: Option<Vc<FileSystemPath>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub route: Option<Vc<FileSystemPath>>,
+    pub route: Option<ResolvedVc<FileSystemPath>>,
     #[serde(skip_serializing_if = "Metadata::is_empty", default)]
     pub metadata: Metadata,
 }
@@ -61,6 +66,8 @@ impl AppDirModules {
             loading: self.loading,
             template: self.template,
             not_found: self.not_found,
+            forbidden: self.forbidden,
+            unauthorized: self.unauthorized,
             default: None,
             route: None,
             metadata: self.metadata.clone(),
@@ -199,7 +206,7 @@ impl GlobalMetadata {
 #[derive(Debug)]
 pub struct DirectoryTree {
     /// key is e.g. "dashboard", "(dashboard)", "@slot"
-    pub subdirectories: BTreeMap<RcStr, Vc<DirectoryTree>>,
+    pub subdirectories: BTreeMap<RcStr, ResolvedVc<DirectoryTree>>,
     pub modules: AppDirModules,
 }
 
@@ -230,7 +237,7 @@ impl DirectoryTree {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct OptionAppDir(Option<Vc<FileSystemPath>>);
+pub struct OptionAppDir(Option<ResolvedVc<FileSystemPath>>);
 
 /// Finds and returns the [DirectoryTree] of the app directory if existing.
 #[turbo_tasks::function]
@@ -244,7 +251,7 @@ pub async fn find_app_dir(project_path: Vc<FileSystemPath>) -> Result<Vc<OptionA
     } else {
         return Ok(Vc::cell(None));
     }
-    .resolve()
+    .to_resolved()
     .await?;
 
     Ok(Vc::cell(Some(app_dir)))
@@ -302,12 +309,14 @@ async fn get_directory_tree_internal(
                             "page" => modules.page = Some(*file),
                             "layout" => modules.layout = Some(*file),
                             "error" => modules.error = Some(*file),
-                            "global-error" => modules.global_error = Some(*file),
+                            "global-error" => modules.global_error = Some(file),
                             "loading" => modules.loading = Some(*file),
                             "template" => modules.template = Some(*file),
+                            "forbidden" => modules.forbidden = Some(*file),
+                            "unauthorized" => modules.unauthorized = Some(*file),
                             "not-found" => modules.not_found = Some(*file),
                             "default" => modules.default = Some(*file),
-                            "route" => modules.route = Some(*file),
+                            "route" => modules.route = Some(file),
                             _ => {}
                         }
                     }
@@ -363,7 +372,9 @@ async fn get_directory_tree_internal(
             DirectoryEntry::Directory(dir) => {
                 // appDir ignores paths starting with an underscore
                 if !basename.starts_with('_') {
-                    let result = get_directory_tree(*dir, page_extensions);
+                    let result = get_directory_tree(*dir, page_extensions)
+                        .to_resolved()
+                        .await?;
                     subdirectories.insert(basename.clone(), result);
                 }
             }
@@ -854,10 +865,23 @@ fn directory_tree_to_loader_tree_internal(
     // the path).
     let is_root_layout = app_path.is_root() && modules.layout.is_some();
 
-    if (is_root_directory || is_root_layout) && modules.not_found.is_none() {
-        modules.not_found = Some(
-            get_next_package(app_dir).join("dist/client/components/not-found-error.js".into()),
-        );
+    if is_root_directory || is_root_layout {
+        if modules.not_found.is_none() {
+            modules.not_found = Some(
+                get_next_package(app_dir).join("dist/client/components/not-found-error.js".into()),
+            );
+        }
+        if modules.forbidden.is_none() {
+            modules.forbidden = Some(
+                get_next_package(app_dir).join("dist/client/components/forbidden-error.js".into()),
+            );
+        }
+        if modules.unauthorized.is_none() {
+            modules.unauthorized = Some(
+                get_next_package(app_dir)
+                    .join("dist/client/components/unauthorized-error.js".into()),
+            );
+        }
     }
 
     let mut tree = AppPageLoaderTree {
@@ -1232,7 +1256,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                 app_dir,
                 global_metadata,
                 subdir_name.clone(),
-                subdirectory,
+                *subdirectory,
                 child_app_page.clone(),
                 *root_layouts,
             )

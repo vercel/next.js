@@ -11,6 +11,7 @@ use std::{
     mem::{take, transmute},
 };
 
+use either::Either;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{KeyValuePair, SessionId, TaskId, TurboTasksBackendApi};
 
@@ -84,6 +85,9 @@ pub trait ExecuteContext<'e>: Sized {
         run: impl FnOnce(&mut ExecuteContextImpl<'_, '_, Self::Backend>),
     );
     fn get_task_desc_fn(&self, task_id: TaskId) -> impl Fn() -> String + Send + Sync + 'static;
+    fn get_task_description(&self, task_id: TaskId) -> String;
+    fn should_track_children(&self) -> bool;
+    fn should_track_dependencies(&self) -> bool;
 }
 
 pub struct ParentRef<'a> {
@@ -333,6 +337,18 @@ where
     fn get_task_desc_fn(&self, task_id: TaskId) -> impl Fn() -> String + Send + Sync + 'static {
         self.backend.get_task_desc_fn(task_id)
     }
+
+    fn get_task_description(&self, task_id: TaskId) -> String {
+        self.backend.get_task_description(task_id)
+    }
+
+    fn should_track_children(&self) -> bool {
+        self.backend.should_track_children()
+    }
+
+    fn should_track_dependencies(&self) -> bool {
+        self.backend.should_track_dependencies()
+    }
 }
 
 pub trait TaskGuard: Debug {
@@ -355,6 +371,16 @@ pub trait TaskGuard: Debug {
         index: CachedDataItemIndex,
     ) -> impl Iterator<Item = (&CachedDataItemKey, &CachedDataItemValue)>;
     fn iter_all(&self) -> impl Iterator<Item = (&CachedDataItemKey, &CachedDataItemValue)>;
+    fn extract_if<'l, F>(
+        &'l mut self,
+        index: CachedDataItemIndex,
+        f: F,
+    ) -> impl Iterator<Item = CachedDataItem>
+    where
+        F: for<'a, 'b> FnMut(&'a CachedDataItemKey, &'b CachedDataItemValue) -> bool + 'l;
+    fn extract_if_all<'l, F>(&'l mut self, f: F) -> impl Iterator<Item = CachedDataItem>
+    where
+        F: for<'a, 'b> FnMut(&'a CachedDataItemKey, &'b CachedDataItemValue) -> bool + 'l;
     fn invalidate_serialization(&mut self);
 }
 
@@ -385,13 +411,14 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
 
     #[must_use]
     fn add(&mut self, item: CachedDataItem) -> bool {
-        if self.task_id.is_transient() || !item.is_persistent() {
+        if !self.backend.should_persist() || self.task_id.is_transient() || !item.is_persistent() {
             self.task.add(item)
         } else if self.task.add(item.clone()) {
             let (key, value) = item.into_key_and_value();
             self.task.persistance_state_mut().add_persisting_item();
             self.backend
                 .persisted_storage_log(key.category())
+                .unwrap()
                 .lock(self.task_id)
                 .push(CachedDataUpdate {
                     key,
@@ -412,7 +439,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
 
     fn insert(&mut self, item: CachedDataItem) -> Option<CachedDataItemValue> {
         let (key, value) = item.into_key_and_value();
-        if self.task_id.is_transient() || !key.is_persistent() {
+        if !self.backend.should_persist() || self.task_id.is_transient() || !key.is_persistent() {
             self.task
                 .insert(CachedDataItem::from_key_and_value(key, value))
         } else if value.is_persistent() {
@@ -423,6 +450,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
             self.task.persistance_state_mut().add_persisting_item();
             self.backend
                 .persisted_storage_log(key.category())
+                .unwrap()
                 .lock(self.task_id)
                 .push(CachedDataUpdate {
                     key,
@@ -440,6 +468,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
                     self.task.persistance_state_mut().add_persisting_item();
                     self.backend
                         .persisted_storage_log(key.category())
+                        .unwrap()
                         .lock(self.task_id)
                         .push(CachedDataUpdate {
                             key,
@@ -460,7 +489,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         key: &CachedDataItemKey,
         update: impl FnOnce(Option<CachedDataItemValue>) -> Option<CachedDataItemValue>,
     ) {
-        if self.task_id.is_transient() || !key.is_persistent() {
+        if !self.backend.should_persist() || self.task_id.is_transient() || !key.is_persistent() {
             self.task.update(key, update);
             return;
         }
@@ -483,6 +512,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
                     add_persisting_item = true;
                     backend
                         .persisted_storage_log(key.category())
+                        .unwrap()
                         .lock(*task_id)
                         .push(CachedDataUpdate {
                             key: key.clone(),
@@ -495,6 +525,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
                     add_persisting_item = true;
                     backend
                         .persisted_storage_log(key.category())
+                        .unwrap()
                         .lock(*task_id)
                         .push(CachedDataUpdate {
                             key: key.clone(),
@@ -515,11 +546,16 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
     fn remove(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValue> {
         let old_value = self.task.remove(key);
         if let Some(value) = old_value {
-            if !self.task_id.is_transient() && key.is_persistent() && value.is_persistent() {
+            if self.backend.should_persist()
+                && !self.task_id.is_transient()
+                && key.is_persistent()
+                && value.is_persistent()
+            {
                 let key = key.clone();
                 self.task.persistance_state_mut().add_persisting_item();
                 self.backend
                     .persisted_storage_log(key.category())
+                    .unwrap()
                     .lock(self.task_id)
                     .push(CachedDataUpdate {
                         key,
@@ -561,7 +597,64 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         self.task.iter_all()
     }
 
+    fn extract_if<'l, F>(
+        &'l mut self,
+        index: CachedDataItemIndex,
+        f: F,
+    ) -> impl Iterator<Item = CachedDataItem>
+    where
+        F: for<'a, 'b> FnMut(&'a CachedDataItemKey, &'b CachedDataItemValue) -> bool + 'l,
+    {
+        if !self.backend.should_persist() || self.task_id.is_transient() {
+            return Either::Left(self.task.extract_if(Some(index), f));
+        }
+        Either::Right(self.task.extract_if(Some(index), f).inspect(|item| {
+            if item.is_persistent() {
+                let key = item.key();
+                let value = item.value();
+                self.backend
+                    .persisted_storage_log(key.category())
+                    .unwrap()
+                    .lock(self.task_id)
+                    .push(CachedDataUpdate {
+                        key,
+                        task: self.task_id,
+                        value: None,
+                        old_value: Some(value),
+                    });
+            }
+        }))
+    }
+
+    fn extract_if_all<'l, F>(&'l mut self, f: F) -> impl Iterator<Item = CachedDataItem>
+    where
+        F: for<'a, 'b> FnMut(&'a CachedDataItemKey, &'b CachedDataItemValue) -> bool + 'l,
+    {
+        if !self.backend.should_persist() || self.task_id.is_transient() {
+            return Either::Left(self.task.extract_if_all(f));
+        }
+        Either::Right(self.task.extract_if_all(f).inspect(|item| {
+            if item.is_persistent() {
+                let key = item.key();
+                let value = item.value();
+                self.backend
+                    .persisted_storage_log(key.category())
+                    .unwrap()
+                    .lock(self.task_id)
+                    .push(CachedDataUpdate {
+                        key,
+                        task: self.task_id,
+                        value: None,
+                        old_value: Some(value),
+                    });
+            }
+        }))
+    }
+
     fn invalidate_serialization(&mut self) {
+        if !self.backend.should_persist() {
+            return;
+        }
         let mut count = 0;
         let cell_data = self
             .iter(CachedDataItemIndex::CellData)
@@ -583,6 +676,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
             let mut guard = self
                 .backend
                 .persisted_storage_log(TaskDataCategory::Data)
+                .unwrap()
                 .lock(self.task_id);
             guard.extend(cell_data);
             self.task
@@ -653,6 +747,7 @@ pub use self::{
         get_aggregation_number, is_root_node, AggregatedDataUpdate, AggregationUpdateJob,
     },
     cleanup_old_edges::OutdatedEdge,
+    invalidate::TaskDirtyCause,
     update_cell::UpdateCellOperation,
     update_collectible::UpdateCollectibleOperation,
 };

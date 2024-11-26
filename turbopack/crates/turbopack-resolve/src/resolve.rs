@@ -7,7 +7,7 @@ use turbopack_core::resolve::{
         ConditionValue, ImportMap, ImportMapping, ResolutionConditions, ResolveInPackage,
         ResolveIntoPackage, ResolveModules, ResolveOptions,
     },
-    AliasMap, AliasPattern, ExternalType, FindContextFileResult,
+    AliasMap, AliasPattern, ExternalTraced, ExternalType, FindContextFileResult,
 };
 
 use crate::{
@@ -106,11 +106,13 @@ async fn base_resolve_options(
         for req in NODE_EXTERNALS {
             direct_mappings.insert(
                 AliasPattern::exact(req),
-                ImportMapping::External(None, ExternalType::CommonJs).into(),
+                ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Untraced)
+                    .resolved_cell(),
             );
             direct_mappings.insert(
                 AliasPattern::exact(format!("node:{req}")),
-                ImportMapping::External(None, ExternalType::CommonJs).into(),
+                ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Untraced)
+                    .resolved_cell(),
             );
         }
     }
@@ -118,12 +120,17 @@ async fn base_resolve_options(
         for req in EDGE_NODE_EXTERNALS {
             direct_mappings.insert(
                 AliasPattern::exact(req),
-                ImportMapping::External(Some(format!("node:{req}").into()), ExternalType::CommonJs)
-                    .into(),
+                ImportMapping::External(
+                    Some(format!("node:{req}").into()),
+                    ExternalType::CommonJs,
+                    ExternalTraced::Untraced,
+                )
+                .resolved_cell(),
             );
             direct_mappings.insert(
                 AliasPattern::exact(format!("node:{req}")),
-                ImportMapping::External(None, ExternalType::CommonJs).into(),
+                ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Untraced)
+                    .resolved_cell(),
             );
         }
     }
@@ -133,7 +140,7 @@ async fn base_resolve_options(
         let additional_import_map = additional_import_map.await?;
         import_map.extend_ref(&additional_import_map);
     }
-    let import_map = import_map.cell();
+    let import_map = import_map.resolved_cell();
 
     let plugins = opt.after_resolve_plugins.clone();
 
@@ -213,14 +220,20 @@ async fn base_resolve_options(
         extensions,
         modules: if let Some(environment) = emulating {
             if *environment.resolve_node_modules().await? {
-                vec![ResolveModules::Nested(root, vec!["node_modules".into()])]
+                vec![ResolveModules::Nested(
+                    root.to_resolved().await?,
+                    vec!["node_modules".into()],
+                )]
             } else {
                 Vec::new()
             }
         } else {
             let mut mods = Vec::new();
             if let Some(dir) = opt.enable_node_modules {
-                mods.push(ResolveModules::Nested(dir, vec!["node_modules".into()]));
+                mods.push(ResolveModules::Nested(
+                    dir.to_resolved().await?,
+                    vec!["node_modules".into()],
+                ));
             }
             mods
         },
@@ -275,7 +288,7 @@ pub async fn resolve_options(
         let context_value = &*resolve_path.await?;
         for (condition, new_options_context) in options_context_value.rules.iter() {
             if condition.matches(context_value).await? {
-                return Ok(resolve_options(resolve_path, *new_options_context));
+                return Ok(resolve_options(resolve_path, **new_options_context));
             }
         }
     }
@@ -286,7 +299,7 @@ pub async fn resolve_options(
         let tsconfig = find_context_file(resolve_path, tsconfig()).await?;
         match *tsconfig {
             FindContextFileResult::Found(path, _) => {
-                apply_tsconfig_resolve_options(resolve_options, tsconfig_resolve_options(path))
+                apply_tsconfig_resolve_options(resolve_options, tsconfig_resolve_options(*path))
             }
             FindContextFileResult::NotFound(_) => resolve_options,
         }
@@ -298,13 +311,13 @@ pub async fn resolve_options(
     // overwrites any other mappings.
     let resolve_options = options_context_value
         .import_map
-        .map(|import_map| resolve_options.with_extended_import_map(import_map))
+        .map(|import_map| resolve_options.with_extended_import_map(*import_map))
         .unwrap_or(resolve_options);
     // And the same for the fallback_import_map
     let resolve_options = options_context_value
         .fallback_import_map
         .map(|fallback_import_map| {
-            resolve_options.with_extended_fallback_import_map(fallback_import_map)
+            resolve_options.with_extended_fallback_import_map(*fallback_import_map)
         })
         .unwrap_or(resolve_options);
 

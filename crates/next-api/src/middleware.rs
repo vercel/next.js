@@ -1,3 +1,5 @@
+use std::future::IntoFuture;
+
 use anyhow::{bail, Context, Result};
 use next_core::{
     all_assets_from_entries,
@@ -8,7 +10,8 @@ use next_core::{
     util::{parse_config_from_source, MiddlewareMatcherKind},
 };
 use tracing::Instrument;
-use turbo_tasks::{Completion, RcStr, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{Completion, ResolvedVc, Value, Vc};
 use turbo_tasks_fs::{self, File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
@@ -24,7 +27,7 @@ use turbopack_ecmascript::chunk::EcmascriptChunkPlaceable;
 
 use crate::{
     paths::{
-        all_paths_in_root, all_server_paths, get_js_paths_from_root, get_paths_from_root,
+        all_paths_in_root, all_server_paths, get_asset_paths_from_root, get_js_paths_from_root,
         get_wasm_paths_from_root, paths_to_bindings, wasm_paths_to_bindings,
     },
     project::Project,
@@ -36,8 +39,8 @@ pub struct MiddlewareEndpoint {
     project: Vc<Project>,
     asset_context: Vc<Box<dyn AssetContext>>,
     source: Vc<Box<dyn Source>>,
-    app_dir: Option<Vc<FileSystemPath>>,
-    ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
+    app_dir: Option<ResolvedVc<FileSystemPath>>,
+    ecmascript_client_reference_transition_name: Option<ResolvedVc<RcStr>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -47,8 +50,8 @@ impl MiddlewareEndpoint {
         project: Vc<Project>,
         asset_context: Vc<Box<dyn AssetContext>>,
         source: Vc<Box<dyn Source>>,
-        app_dir: Option<Vc<FileSystemPath>>,
-        ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
+        app_dir: Option<ResolvedVc<FileSystemPath>>,
+        ecmascript_client_reference_transition_name: Option<ResolvedVc<RcStr>>,
     ) -> Vc<Self> {
         Self {
             project,
@@ -87,7 +90,9 @@ impl MiddlewareEndpoint {
             Value::new(ServerContextType::Middleware {
                 app_dir: self.app_dir,
                 ecmascript_client_reference_transition_name: self
-                    .ecmascript_client_reference_transition_name,
+                    .ecmascript_client_reference_transition_name
+                    .as_deref()
+                    .copied(),
             }),
             self.project.next_mode(),
         )
@@ -106,7 +111,7 @@ impl MiddlewareEndpoint {
             .context("Entry module must be evaluatable")?;
         evaluatable_assets.push(evaluatable);
 
-        let edge_chunking_context = self.project.edge_chunking_context(true);
+        let edge_chunking_context = self.project.edge_chunking_context(false);
 
         let edge_files = edge_chunking_context.evaluated_chunk_group_assets(
             module.ident(),
@@ -138,8 +143,7 @@ impl MiddlewareEndpoint {
         let wasm_paths_from_root =
             get_wasm_paths_from_root(&node_root_value, &all_output_assets).await?;
 
-        let all_assets =
-            get_paths_from_root(&node_root_value, &all_output_assets, |_asset| true).await?;
+        let all_assets = get_asset_paths_from_root(&node_root_value, &all_output_assets).await?;
 
         // Awaited later for parallelism
         let config = config.await?;
@@ -196,7 +200,7 @@ impl MiddlewareEndpoint {
                         }
                         source.push_str("/?index|/?index\\\\.json)?")
                     } else {
-                        source.push_str("(.json)?")
+                        source.push_str("{(\\\\.json)}?")
                     };
 
                     source.insert_str(0, "/:nextData(_next/data/[^/]{1,})?");
@@ -237,7 +241,7 @@ impl MiddlewareEndpoint {
                 .collect(),
             ..Default::default()
         };
-        let middleware_manifest_v2 = Vc::upcast(VirtualOutputAsset::new(
+        let middleware_manifest_v2 = VirtualOutputAsset::new(
             node_root.join("server/middleware/middleware-manifest.json".into()),
             AssetContent::file(
                 FileContent::Content(File::from(serde_json::to_string_pretty(
@@ -245,8 +249,10 @@ impl MiddlewareEndpoint {
                 )?))
                 .cell(),
             ),
-        ));
-        output_assets.push(middleware_manifest_v2);
+        )
+        .to_resolved()
+        .await?;
+        output_assets.push(ResolvedVc::upcast(middleware_manifest_v2));
 
         Ok(Vc::cell(output_assets))
     }
@@ -271,20 +277,25 @@ impl Endpoint for MiddlewareEndpoint {
             let this = self.await?;
             let output_assets = self.output_assets();
             let _ = output_assets.resolve().await?;
-            this.project
-                .emit_all_output_assets(Vc::cell(output_assets))
-                .await?;
+            let _ = this.project.emit_all_output_assets(Vc::cell(output_assets));
 
-            let node_root = this.project.node_root();
-            let server_paths = all_server_paths(output_assets, node_root)
-                .await?
-                .clone_value();
+            let (server_paths, client_paths) = if this.project.next_mode().await?.is_development() {
+                let node_root = this.project.node_root();
+                let server_paths = all_server_paths(output_assets, node_root)
+                    .await?
+                    .clone_value();
 
-            // Middleware could in theory have a client path (e.g. `new URL`).
-            let client_relative_root = this.project.client_relative_path();
-            let client_paths = all_paths_in_root(output_assets, client_relative_root)
-                .await?
-                .clone_value();
+                // Middleware could in theory have a client path (e.g. `new URL`).
+                let client_relative_root = this.project.client_relative_path();
+                let client_paths = all_paths_in_root(output_assets, client_relative_root)
+                    .into_future()
+                    .instrument(tracing::info_span!("client_paths"))
+                    .await?
+                    .clone_value();
+                (server_paths, client_paths)
+            } else {
+                (vec![], vec![])
+            };
 
             Ok(WrittenEndpoint::Edge {
                 server_paths,
@@ -307,7 +318,7 @@ impl Endpoint for MiddlewareEndpoint {
     }
 
     #[turbo_tasks::function]
-    fn root_modules(self: Vc<Self>) -> Vc<Modules> {
-        Vc::cell(vec![self.userland_module()])
+    async fn root_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
+        Ok(Vc::cell(vec![self.userland_module().to_resolved().await?]))
     }
 }

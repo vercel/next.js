@@ -1,6 +1,7 @@
 use anyhow::Result;
 use tracing::Instrument;
-use turbo_tasks::{RcStr, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{
     DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath, FileSystemPathOption,
 };
@@ -12,7 +13,7 @@ use crate::next_import_map::get_next_package;
 pub struct PagesStructureItem {
     pub base_path: Vc<FileSystemPath>,
     pub extensions: Vc<Vec<RcStr>>,
-    pub fallback_path: Option<Vc<FileSystemPath>>,
+    pub fallback_path: Option<ResolvedVc<FileSystemPath>>,
 
     /// Pathname of this item in the Next.js router.
     pub next_router_path: Vc<FileSystemPath>,
@@ -29,7 +30,7 @@ impl PagesStructureItem {
     fn new(
         base_path: Vc<FileSystemPath>,
         extensions: Vc<Vec<RcStr>>,
-        fallback_path: Option<Vc<FileSystemPath>>,
+        fallback_path: Option<ResolvedVc<FileSystemPath>>,
         next_router_path: Vc<FileSystemPath>,
         original_path: Vc<FileSystemPath>,
     ) -> Vc<Self> {
@@ -53,7 +54,7 @@ impl PagesStructureItem {
             }
         }
         if let Some(fallback_path) = self.fallback_path {
-            Ok(fallback_path)
+            Ok(*fallback_path)
         } else {
             Ok(self.base_path)
         }
@@ -67,8 +68,8 @@ pub struct PagesStructure {
     pub app: Vc<PagesStructureItem>,
     pub document: Vc<PagesStructureItem>,
     pub error: Vc<PagesStructureItem>,
-    pub api: Option<Vc<PagesDirectoryStructure>>,
-    pub pages: Option<Vc<PagesDirectoryStructure>>,
+    pub api: Option<ResolvedVc<PagesDirectoryStructure>>,
+    pub pages: Option<ResolvedVc<PagesDirectoryStructure>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -197,12 +198,16 @@ async fn get_pages_structure_for_root_directory(
                     }
                     DirectoryEntry::Directory(dir_project_path) => match name.as_str() {
                         "api" => {
-                            api_directory = Some(get_pages_structure_for_directory(
-                                *dir_project_path,
-                                next_router_path.join(name.clone()),
-                                1,
-                                page_extensions,
-                            ));
+                            api_directory = Some(
+                                get_pages_structure_for_directory(
+                                    *dir_project_path,
+                                    next_router_path.join(name.clone()),
+                                    1,
+                                    page_extensions,
+                                )
+                                .to_resolved()
+                                .await?,
+                            );
                         }
                         _ => {
                             children.push((
@@ -232,7 +237,7 @@ async fn get_pages_structure_for_root_directory(
                 items: items.into_iter().map(|(_, v)| v).collect(),
                 children: children.into_iter().map(|(_, v)| v).collect(),
             }
-            .cell(),
+            .resolved_cell(),
         )
     } else {
         None

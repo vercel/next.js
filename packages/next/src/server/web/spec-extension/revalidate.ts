@@ -12,20 +12,40 @@ import { workUnitAsyncStorage } from '../../app-render/work-unit-async-storage.e
 import { DynamicServerError } from '../../../client/components/hooks-server-context'
 
 /**
+ * @deprecated this function has been deprecated in favor of expireTag()
  * This function allows you to purge [cached data](https://nextjs.org/docs/app/building-your-application/caching) on-demand for a specific cache tag.
  *
  * Read more: [Next.js Docs: `revalidateTag`](https://nextjs.org/docs/app/api-reference/functions/revalidateTag)
  */
 export function revalidateTag(tag: string) {
-  return revalidate(tag, `revalidateTag ${tag}`)
+  return revalidate([tag], `revalidateTag ${tag}`)
 }
 
 /**
+ * @deprecated this function has been deprecated in favor of expirePath()
  * This function allows you to purge [cached data](https://nextjs.org/docs/app/building-your-application/caching) on-demand for a specific path.
  *
  * Read more: [Next.js Docs: `revalidatePath`](https://nextjs.org/docs/app/api-reference/functions/revalidatePath)
  */
 export function revalidatePath(originalPath: string, type?: 'layout' | 'page') {
+  return expirePath(originalPath, type)
+}
+
+/**
+ * This function allows you to purge [cached data](https://nextjs.org/docs/app/building-your-application/caching) on-demand for a specific cache tag.
+ *
+ * Read more: [Next.js Docs: `expireTag`](https://nextjs.org/docs/app/api-reference/functions/expireTag)
+ */
+export function expireTag(...tags: string[]) {
+  return revalidate(tags, `expireTag ${tags.join(', ')}`)
+}
+
+/**
+ * This function allows you to purge [cached data](https://nextjs.org/docs/app/building-your-application/caching) on-demand for a specific path.
+ *
+ * Read more: [Next.js Docs: `expirePath`](https://nextjs.org/docs/app/api-reference/functions/expirePath)
+ */
+export function expirePath(originalPath: string, type?: 'layout' | 'page') {
   if (originalPath.length > NEXT_CACHE_SOFT_TAG_MAX_LENGTH) {
     console.warn(
       `Warning: revalidatePath received "${originalPath}" which exceeded max length of ${NEXT_CACHE_SOFT_TAG_MAX_LENGTH}. See more info here https://nextjs.org/docs/app/api-reference/functions/revalidatePath`
@@ -42,10 +62,10 @@ export function revalidatePath(originalPath: string, type?: 'layout' | 'page') {
       `Warning: a dynamic page path "${originalPath}" was passed to "revalidatePath", but the "type" parameter is missing. This has no effect by default, see more info here https://nextjs.org/docs/app/api-reference/functions/revalidatePath`
     )
   }
-  return revalidate(normalizedPath, `revalidatePath ${originalPath}`)
+  return revalidate([normalizedPath], `revalidatePath ${originalPath}`)
 }
 
-function revalidate(tag: string, expression: string) {
+function revalidate(tags: string[], expression: string) {
   const store = workAsyncStorage.getStore()
   if (!store || !store.incrementalCache) {
     throw new Error(
@@ -111,8 +131,11 @@ function revalidate(tag: string, expression: string) {
   if (!store.revalidatedTags) {
     store.revalidatedTags = []
   }
-  if (!store.revalidatedTags.includes(tag)) {
-    store.revalidatedTags.push(tag)
+
+  for (const tag of tags) {
+    if (!store.revalidatedTags.includes(tag)) {
+      store.revalidatedTags.push(tag)
+    }
   }
 
   // TODO: only revalidate if the path matches

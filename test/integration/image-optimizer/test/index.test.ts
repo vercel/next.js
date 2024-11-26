@@ -734,6 +734,37 @@ describe('Image Optimizer', () => {
     })
   })
 
+  describe('experimental.imgOptMaxInputPixels in next.config.js', () => {
+    let app
+    let appPort
+
+    beforeAll(async () => {
+      nextConfig.replace(
+        '{ /* replaceme */ }',
+        JSON.stringify({
+          experimental: {
+            imgOptMaxInputPixels: 100,
+          },
+        })
+      )
+      await cleanImagesDir({ imagesDir })
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+      nextConfig.restore()
+    })
+    it('should fallback to source image when input exceeds imgOptMaxInputPixels', async () => {
+      const size = 256 // defaults defined in lib/image-config.ts
+      const query = { w: size, q: 75, url: '/test.jpg' }
+      const opts = { headers: { accept: 'image/webp' } }
+      const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+      expect(res.status).toBe(200)
+      expect(res.headers.get('Content-Type')).toBe('image/jpeg')
+    })
+  })
+
   describe('External rewrite support with for serving static content in images', () => {
     ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',

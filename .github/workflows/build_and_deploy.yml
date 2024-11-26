@@ -146,10 +146,6 @@ jobs:
             # --env-mode loose is a breaking change required with turbo 2.x since Strict mode is now the default
             # TODO: we should add the relevant envs later to to switch to strict mode
             build: |
-              export CC=$(xcrun -f clang);
-              export CXX=$(xcrun -f clang++);
-              SYSROOT=$(xcrun --sdk macosx --show-sdk-path);
-              export CFLAGS="-isysroot $SYSROOT -isystem $SYSROOT";
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && corepack enable
               turbo run build-native-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target aarch64-apple-darwin
               strip -x packages/next-swc/native/next-swc.*.node
@@ -555,6 +551,37 @@ jobs:
         with:
           name: npm-publish-logs
           path: /home/runner/.npm/_logs/*
+
+  publish-turbopack-npm-packages:
+    # Matches the commit message written by turbopack/xtask/src/publish.rs:377
+    if: "${{(github.ref == 'refs/heads/canary') && startsWith(github.event.head_commit.message, 'chore: release turbopack npm packages')}}"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_LTS_VERSION }}
+          check-latest: true
+      - run: corepack enable
+
+      - uses: ./.github/actions/setup-rust
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpx turbo@canary run build --only --filter='./turbopack/packages/*'
+
+      - name: Write NPM_TOKEN
+        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN_ELEVATED }}" > ~/.npmrc
+
+      - name: Publish
+        run: cargo xtask workspace --publish
 
   deployExamples:
     if: ${{ needs.deploy-target.outputs.value != 'automated-preview' }}

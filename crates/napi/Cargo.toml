@@ -37,13 +37,6 @@ __internal_dhat-heap = ["dhat"]
 # effectively does nothing.
 __internal_dhat-ad-hoc = ["dhat"]
 
-# Enable specific tls features per-target.
-[target.'cfg(all(target_os = "windows", target_arch = "aarch64"))'.dependencies]
-next-core = { workspace = true, features = ["native-tls"] }
-
-[target.'cfg(not(any(all(target_os = "windows", target_arch = "aarch64"), target_arch="wasm32")))'.dependencies]
-next-core = { workspace = true, features = ["rustls-tls"] }
-
 [lints]
 workspace = true
 
@@ -103,6 +96,7 @@ swc_core = { workspace = true, features = [
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 lightningcss-napi = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
+turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-memory = { workspace = true }
 turbo-tasks-backend = { workspace = true }
@@ -111,7 +105,6 @@ next-api = { workspace = true }
 next-build = { workspace = true }
 next-core = { workspace = true }
 
-node-file-trace = { workspace = true, features = ["node-api"] }
 mdxjs = { workspace = true, features = ["serializable"] }
 
 turbo-tasks-malloc = { workspace = true, default-features = false, features = [

@@ -1,8 +1,8 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, TryFlatJoinIterExt, TryJoinIterExt,
-    ValueToString, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, ResolvedVc, TryFlatJoinIterExt,
+    TryJoinIterExt, ValueToString, Vc,
 };
 use turbo_tasks_hash::Xxh3Hash64Hasher;
 
@@ -17,21 +17,23 @@ pub struct AvailableChunkItemInfo {
 pub struct OptionAvailableChunkItemInfo(Option<AvailableChunkItemInfo>);
 
 #[turbo_tasks::value(transparent)]
-pub struct AvailableChunkItemInfoMap(FxIndexMap<Vc<Box<dyn ChunkItem>>, AvailableChunkItemInfo>);
+pub struct AvailableChunkItemInfoMap(
+    FxIndexMap<ResolvedVc<Box<dyn ChunkItem>>, AvailableChunkItemInfo>,
+);
 
 /// Allows to gather information about which assets are already available.
 /// Adding more roots will form a linked list like structure to allow caching
 /// `include` queries.
 #[turbo_tasks::value]
 pub struct AvailableChunkItems {
-    parent: Option<Vc<AvailableChunkItems>>,
-    chunk_items: Vc<AvailableChunkItemInfoMap>,
+    parent: Option<ResolvedVc<AvailableChunkItems>>,
+    chunk_items: ResolvedVc<AvailableChunkItemInfoMap>,
 }
 
 #[turbo_tasks::value_impl]
 impl AvailableChunkItems {
     #[turbo_tasks::function]
-    pub fn new(chunk_items: Vc<AvailableChunkItemInfoMap>) -> Vc<Self> {
+    pub fn new(chunk_items: ResolvedVc<AvailableChunkItemInfoMap>) -> Vc<Self> {
         AvailableChunkItems {
             parent: None,
             chunk_items,
@@ -41,15 +43,15 @@ impl AvailableChunkItems {
 
     #[turbo_tasks::function]
     pub async fn with_chunk_items(
-        self: Vc<Self>,
-        chunk_items: Vc<AvailableChunkItemInfoMap>,
+        self: ResolvedVc<Self>,
+        chunk_items: ResolvedVc<AvailableChunkItemInfoMap>,
     ) -> Result<Vc<Self>> {
         let chunk_items = chunk_items
             .await?
             .into_iter()
             .map(|(&chunk_item, &info)| async move {
                 Ok(self
-                    .get(chunk_item)
+                    .get(*chunk_item)
                     .await?
                     .is_none()
                     .then_some((chunk_item, info)))
@@ -58,7 +60,7 @@ impl AvailableChunkItems {
             .await?;
         Ok(AvailableChunkItems {
             parent: Some(self),
-            chunk_items: Vc::cell(chunk_items.into_iter().collect()),
+            chunk_items: ResolvedVc::cell(chunk_items.into_iter().collect()),
         }
         .cell())
     }
@@ -87,13 +89,13 @@ impl AvailableChunkItems {
     #[turbo_tasks::function]
     pub async fn get(
         &self,
-        chunk_item: Vc<Box<dyn ChunkItem>>,
+        chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
     ) -> Result<Vc<OptionAvailableChunkItemInfo>> {
         if let Some(&info) = self.chunk_items.await?.get(&chunk_item) {
             return Ok(Vc::cell(Some(info)));
         };
         if let Some(parent) = self.parent {
-            return Ok(parent.get(chunk_item));
+            return Ok(parent.get(*chunk_item));
         }
         Ok(Vc::cell(None))
     }

@@ -25,15 +25,15 @@
     function resolveClientReference(bundlerConfig, metadata) {
       if (bundlerConfig) {
         var moduleExports = bundlerConfig[metadata[0]];
-        if ((bundlerConfig = moduleExports[metadata[2]]))
+        if ((bundlerConfig = moduleExports && moduleExports[metadata[2]]))
           moduleExports = bundlerConfig.name;
         else {
-          bundlerConfig = moduleExports["*"];
+          bundlerConfig = moduleExports && moduleExports["*"];
           if (!bundlerConfig)
             throw Error(
               'Could not find the module "' +
                 metadata[0] +
-                '" in the React SSR Manifest. This is probably a bug in the React Server Components bundler.'
+                '" in the React Server Consumer Manifest. This is probably a bug in the React Server Components bundler.'
             );
           moduleExports = metadata[2];
         }
@@ -59,7 +59,9 @@
               '" in the React Server Manifest. This is probably a bug in the React Server Components bundler.'
           );
       }
-      return [resolvedModuleData.id, resolvedModuleData.chunks, name];
+      return resolvedModuleData.async
+        ? [resolvedModuleData.id, resolvedModuleData.chunks, name, 1]
+        : [resolvedModuleData.id, resolvedModuleData.chunks, name];
     }
     function requireAsyncModule(id) {
       var promise = __webpack_require__(id);
@@ -1867,11 +1869,13 @@
             "\n//# sourceURL=rsc://React/" +
             encodeURIComponent(environmentName) +
             "/" +
-            filename +
+            encodeURI(filename) +
             "?" +
             fakeFunctionIdx++),
           (col += "\n//# sourceMappingURL=" + sourceMap))
-        : filename && (col += "\n//# sourceURL=" + filename);
+        : (col = filename
+            ? col + ("\n//# sourceURL=" + encodeURI(filename))
+            : col + "\n//# sourceURL=<anonymous>");
       try {
         var fn = (0, eval)(col)[name];
       } catch (x) {
@@ -2461,10 +2465,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.0.0-rc-65a56d0e-20241020",
+      version: "19.0.0-rc-b01722d5-20241114",
       rendererPackageName: "react-server-dom-webpack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.0.0-rc-65a56d0e-20241020",
+      reconcilerVersion: "19.0.0-rc-b01722d5-20241114",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }

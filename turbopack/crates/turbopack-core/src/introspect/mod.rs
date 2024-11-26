@@ -3,7 +3,8 @@ pub mod output_asset;
 pub mod source;
 pub mod utils;
 
-use turbo_tasks::{FxIndexSet, RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexSet, Vc};
 
 type VcDynIntrospectable = Vc<Box<dyn Introspectable>>;
 

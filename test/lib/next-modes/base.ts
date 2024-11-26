@@ -37,6 +37,7 @@ export interface NextInstanceOpts {
   turbo?: boolean
   forcedPort?: string
   serverReadyPattern?: RegExp
+  patchFileDelay?: number
 }
 
 /**
@@ -51,7 +52,7 @@ type OmitFirstArgument<F> = F extends (
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.0.0-rc-65a56d0e-20241020";
+const nextjsReactPeerVersion = "19.0.0-rc-b01722d5-20241114";
 
 export class NextInstance {
   protected files: FileRef | { [filename: string]: string | FileRef }
@@ -74,6 +75,7 @@ export class NextInstance {
   public forcedPort?: string
   public dirSuffix: string = ''
   public serverReadyPattern?: RegExp = / ✓ Ready in /
+  patchFileDelay: number = 0
 
   constructor(opts: NextInstanceOpts) {
     this.env = {}
@@ -171,9 +173,7 @@ export class NextInstance {
           'react-dom': reactVersion,
           '@types/react': 'latest',
           '@types/react-dom': 'latest',
-          // TODO: fix the TS error with the TS 5.6
-          // x-ref: https://github.com/vercel/next.js/actions/runs/10777104696/job/29887663970?pr=69784
-          typescript: '5.5.4',
+          typescript: 'latest',
           '@types/node': 'latest',
           ...this.dependencies,
           ...this.packageJson?.dependencies,
@@ -511,7 +511,10 @@ export class NextInstance {
 
     await fs.writeFile(
       outputPath,
-      typeof content === 'function' ? content(previousContent) : content
+      typeof content === 'function' ? content(previousContent) : content,
+      {
+        flush: true,
+      }
     )
 
     if (runWithTempContent) {
@@ -521,17 +524,14 @@ export class NextInstance {
         if (previousContent === undefined) {
           await fs.rm(outputPath)
         } else {
-          await fs.writeFile(outputPath, previousContent)
+          await fs.writeFile(outputPath, previousContent, {
+            flush: true,
+          })
         }
       }
     }
 
     return { newFile }
-  }
-
-  public async patchFileFast(filename: string, content: string) {
-    const outputPath = path.join(this.testDir, filename)
-    await fs.writeFile(outputPath, content)
   }
 
   public async renameFile(filename: string, newFilename: string) {
@@ -612,5 +612,12 @@ export class NextInstance {
     this.events[event]?.forEach((cb) => {
       cb(...args)
     })
+  }
+
+  public getCliOutputFromHere() {
+    const length = this.cliOutput.length
+    return () => {
+      return this.cliOutput.slice(length)
+    }
   }
 }

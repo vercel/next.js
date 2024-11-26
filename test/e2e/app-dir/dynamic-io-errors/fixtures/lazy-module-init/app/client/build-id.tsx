@@ -5,7 +5,9 @@ export function BuildID() {
   return (
     <dl>
       <dt>Build ID</dt>
-      <dd id="id">{buildID}</dd>
+      <dd id="id" suppressHydrationWarning={true}>
+        {buildID}
+      </dd>
     </dl>
   )
 }

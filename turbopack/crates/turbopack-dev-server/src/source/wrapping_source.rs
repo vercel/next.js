@@ -1,5 +1,6 @@
 use anyhow::Result;
-use turbo_tasks::{RcStr, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{Value, Vc};
 
 use super::{
     ContentSourceContent, ContentSourceData, ContentSourceDataVary, GetContentSourceContent,
@@ -79,7 +80,7 @@ impl GetContentSourceContent for WrappedGetContentSourceContent {
                     response_headers: rewrite.response_headers,
                     request_headers: rewrite.request_headers,
                 }
-                .cell(),
+                .resolved_cell(),
             )
             .cell());
         }

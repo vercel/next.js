@@ -42,7 +42,7 @@ use once_cell::sync::Lazy;
 use swc_core::{
     base::{try_with_handler, Compiler, TransformOutput},
     common::{comments::SingleThreadedComments, errors::ColorConfig, FileName, Mark, GLOBALS},
-    ecma::transforms::base::pass::noop,
+    ecma::ast::noop_pass,
 };
 
 use crate::{complete_output, get_compiler, util::MapErr};
@@ -145,7 +145,7 @@ impl Task for TransformTask {
                                         unresolved_mark,
                                     )
                                 },
-                                |_| noop(),
+                                |_| noop_pass(),
                             )
                         })
                     },

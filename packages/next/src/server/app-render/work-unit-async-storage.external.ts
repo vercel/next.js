@@ -9,6 +9,10 @@ import type { DynamicTrackingState } from './dynamic-rendering'
 // Share the instance module in the next-shared layer
 import { workUnitAsyncStorage } from './work-unit-async-storage-instance' with { 'turbopack-transition': 'next-shared' }
 import type { ServerComponentsHmrCache } from '../response-cache'
+import type {
+  RenderResumeDataCache,
+  PrerenderResumeDataCache,
+} from '../resume-data-cache/resume-data-cache'
 
 type WorkUnitPhase = 'action' | 'render' | 'after'
 
@@ -49,9 +53,14 @@ export type RequestStore = {
 
   readonly implicitTags: string[]
 
+  /**
+   * The resume data cache for this request. This will be a immutable cache.
+   */
+  renderResumeDataCache: RenderResumeDataCache | null
+
   // DEV-only
   usedDynamic?: boolean
-  environment?: 'Prerender' | 'Server'
+  prerenderPhase?: boolean
 } & PhasePartial
 
 /**
@@ -67,22 +76,24 @@ export type RequestStore = {
 export type PrerenderStoreModern = {
   type: 'prerender'
   readonly implicitTags: string[]
+
   /**
-   * This is the AbortController passed to React. It can be used to abort the prerender
-   * if we encounter conditions that do not require further rendering
+   * This signal is aborted when the React render is complete. (i.e. it is the same signal passed to react)
    */
-  readonly controller: null | AbortController
+  readonly renderSignal: AbortSignal
+  /**
+   * This is the AbortController which represents the boundary between Prerender and dynamic. In some renders it is
+   * the same as the controller for the renderSignal but in others it is a separate controller. It should be aborted
+   * whenever the we are no longer in the prerender phase of rendering. Typically this is after one task or when you call
+   * a sync API which requires the prerender to end immediately
+   */
+  readonly controller: AbortController
 
   /**
    * when not null this signal is used to track cache reads during prerendering and
    * to await all cache reads completing before aborting the prerender.
    */
   readonly cacheSignal: null | CacheSignal
-
-  /**
-   * This signal is used to clean up the prerender once it is complete.
-   */
-  readonly renderSignal: AbortSignal
 
   /**
    * During some prerenders we want to track dynamic access.
@@ -94,6 +105,17 @@ export type PrerenderStoreModern = {
   expire: number // server expiration time
   stale: number // client expiration time
   tags: null | string[]
+
+  /**
+   * The resume data cache for this prerender.
+   */
+  prerenderResumeDataCache: PrerenderResumeDataCache | null
+
+  // DEV ONLY
+  // When used this flag informs certain APIs to skip logging because we're
+  // not part of the primary render path and are just prerendering to produce
+  // validation results
+  validating?: boolean
 } & PhasePartial
 
 export type PrerenderStorePPR = {
@@ -105,6 +127,11 @@ export type PrerenderStorePPR = {
   expire: number // server expiration time
   stale: number // client expiration time
   tags: null | string[]
+
+  /**
+   * The resume data cache for this prerender.
+   */
+  prerenderResumeDataCache: PrerenderResumeDataCache
 } & PhasePartial
 
 export type PrerenderStoreLegacy = {
@@ -182,4 +209,37 @@ export function getExpectedRequestStore(
   throw new Error(
     `\`${callingExpression}\` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
   )
+}
+
+export function getPrerenderResumeDataCache(
+  workUnitStore: WorkUnitStore
+): PrerenderResumeDataCache | null {
+  if (
+    workUnitStore.type === 'prerender' ||
+    workUnitStore.type === 'prerender-ppr'
+  ) {
+    return workUnitStore.prerenderResumeDataCache
+  }
+
+  return null
+}
+
+export function getRenderResumeDataCache(
+  workUnitStore: WorkUnitStore
+): RenderResumeDataCache | null {
+  if (
+    workUnitStore.type !== 'prerender-legacy' &&
+    workUnitStore.type !== 'cache' &&
+    workUnitStore.type !== 'unstable-cache'
+  ) {
+    if (workUnitStore.type === 'request') {
+      return workUnitStore.renderResumeDataCache
+    }
+
+    // We return the mutable resume data cache here as an immutable version of
+    // the cache as it can also be used for reading.
+    return workUnitStore.prerenderResumeDataCache
+  }
+
+  return null
 }

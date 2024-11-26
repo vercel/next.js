@@ -8,7 +8,7 @@ import { headers as nextHeaders, draftMode } from 'next/headers'
 export async function middleware(request) {
   const headersFromRequest = new Headers(request.headers)
   // It should be able to import and use `headers` inside middleware
-  const headersFromNext = nextHeaders()
+  const headersFromNext = await nextHeaders()
   headersFromRequest.set('x-from-middleware', 'hello-from-middleware')
 
   // make sure headers() from `next/headers` is behaving properly

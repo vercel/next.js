@@ -8,6 +8,6 @@ export function myFun() {
 
 export function myFun2() {
   return function () {
-    (headers() as unknown as UnsafeUnwrappedHeaders)
+    void (headers() as unknown as UnsafeUnwrappedHeaders)
   };
 }

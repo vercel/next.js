@@ -115,7 +115,7 @@ export type TurboRuleConfigItem =
 
 export interface ExperimentalTurboOptions {
   /**
-   * (`next --turbo` only) A mapping of aliased imports to modules to load in their place.
+   * (`next --turbopack` only) A mapping of aliased imports to modules to load in their place.
    *
    * @see [Resolve Alias](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#resolve-alias)
    */
@@ -125,30 +125,25 @@ export interface ExperimentalTurboOptions {
   >
 
   /**
-   * (`next --turbo` only) A list of extensions to resolve when importing files.
+   * (`next --turbopack` only) A list of extensions to resolve when importing files.
    *
    * @see [Resolve Extensions](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#resolve-extensions)
    */
   resolveExtensions?: string[]
 
   /**
-   * (`next --turbo` only) A list of webpack loaders to apply when running with Turbopack.
+   * (`next --turbopack` only) A list of webpack loaders to apply when running with Turbopack.
    *
    * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
    */
   loaders?: Record<string, TurboLoaderItem[]>
 
   /**
-   * (`next --turbo` only) A list of webpack loaders to apply when running with Turbopack.
+   * (`next --turbopack` only) A list of webpack loaders to apply when running with Turbopack.
    *
    * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
    */
   rules?: Record<string, TurboRuleConfigItemOrShortcut>
-
-  /**
-   * Use swc_css instead of lightningcss for Turbopack
-   */
-  useSwcCss?: boolean
 
   /**
    * A target memory limit for turbo, in bytes.
@@ -157,10 +152,8 @@ export interface ExperimentalTurboOptions {
 
   /**
    * Enable persistent caching for the turbopack dev server and build.
-   * Need to provide the expected level of stability, otherwise it will fail.
-   * Currently stability level: 1
    */
-  unstablePersistentCaching?: number | false
+  unstablePersistentCaching?: boolean
 
   /**
    * Enable tree shaking for the turbopack dev server and build.
@@ -179,6 +172,11 @@ export interface ExperimentalTurboOptions {
    * directory can be resolved by turbopack.
    */
   root?: string
+
+  /**
+   * Enable minification. Defaults to true in build mode and false in dev mode.
+   */
+  minify?: boolean
 }
 
 export interface WebpackConfigContext {
@@ -249,6 +247,7 @@ export interface ExperimentalConfig {
   prerenderEarlyExit?: boolean
   linkNoTouchStart?: boolean
   caseSensitiveRoutes?: boolean
+  clientSegmentCache?: boolean
   appDocumentPreloading?: boolean
   preloadEntriesOnStart?: boolean
   /** @default true */
@@ -286,6 +285,10 @@ export interface ExperimentalConfig {
   extensionAlias?: Record<string, any>
   allowedRevalidateHeaderKeys?: string[]
   fetchCacheKeyPrefix?: string
+  imgOptConcurrency?: number | null
+  imgOptTimeoutInSeconds?: number
+  imgOptMaxInputPixels?: number
+  imgOptSequentialRead?: boolean | null
   optimisticClientCache?: boolean
   /**
    * @deprecated use config.expireTime instead
@@ -352,23 +355,6 @@ export interface ExperimentalConfig {
   optimizeServerReact?: boolean
 
   turbo?: ExperimentalTurboOptions
-  turbotrace?: {
-    logLevel?:
-      | 'bug'
-      | 'fatal'
-      | 'error'
-      | 'warning'
-      | 'hint'
-      | 'note'
-      | 'suggestions'
-      | 'info'
-    logDetail?: boolean
-    logAll?: boolean
-    contextDirectory?: string
-    processCwd?: string
-    /** in `MB` */
-    memoryLimit?: number
-  }
 
   /**
    * For use with `@next/mdx`. Compile MDX files using the new Rust compiler.
@@ -461,6 +447,12 @@ export interface ExperimentalConfig {
    * Using this feature will enable the `react@experimental` for the `app` directory.
    */
   taint?: boolean
+
+  /**
+   * Enables leveraging experimental captureOwnerStack API in React,
+   * to create a better stack trace for React errors.
+   */
+  reactOwnerStack?: boolean
 
   serverActions?: {
     /**
@@ -564,6 +556,18 @@ export interface ExperimentalConfig {
    * unless explicitly cached.
    */
   dynamicIO?: boolean
+
+  /**
+   * Render <style> tags inline in the HTML for imported CSS assets.
+   * Supports app-router in production mode only.
+   */
+  inlineCss?: boolean
+
+  // TODO: Remove this config when the API is stable.
+  /**
+   * This config allows you to enable the experimental navigation API `forbidden` and `unauthorized`.
+   */
+  authInterrupts?: boolean
 }
 
 export type ExportPathMap = {
@@ -633,12 +637,12 @@ export interface NextConfig extends Record<string, any> {
 
   /**
    * @since version 11
-   * @see [ESLint configuration](https://nextjs.org/docs/basic-features/eslint)
+   * @see [ESLint configuration](https://nextjs.org/docs/app/api-reference/config/eslint)
    */
   eslint?: ESLintConfig
 
   /**
-   * @see [Next.js TypeScript documentation](https://nextjs.org/docs/basic-features/typescript)
+   * @see [Next.js TypeScript documentation](https://nextjs.org/docs/app/api-reference/config/typescript)
    */
   typescript?: TypeScriptConfig
 
@@ -755,7 +759,7 @@ export interface NextConfig extends Record<string, any> {
   /** @see [Disabling x-powered-by](https://nextjs.org/docs/api-reference/next.config.js/disabling-x-powered-by) */
   poweredByHeader?: boolean
 
-  /** @see [Using the Image Component](https://nextjs.org/docs/basic-features/image-optimization#using-the-image-component) */
+  /** @see [Using the Image Component](https://nextjs.org/docs/app/api-reference/next-config-js/images) */
   images?: ImageConfig
 
   /** Configure indicators in development environment */
@@ -902,6 +906,12 @@ export interface NextConfig extends Record<string, any> {
       | {
           useLightningcss?: boolean
         }
+
+    /**
+     * Replaces variables in your code during compile time. Each key will be
+     * replaced with the respective values.
+     */
+    define?: Record<string, string>
   }
 
   /**
@@ -1047,7 +1057,7 @@ export const defaultConfig: NextConfig = {
       seconds: {
         stale: undefined, // defaults to staleTimes.dynamic
         revalidate: 1, // 1 second
-        expire: 1, // 1 minute
+        expire: 60, // 1 minute
       },
       minutes: {
         stale: 60 * 5, // 5 minutes
@@ -1092,6 +1102,7 @@ export const defaultConfig: NextConfig = {
     serverSourceMaps: false,
     linkNoTouchStart: false,
     caseSensitiveRoutes: false,
+    clientSegmentCache: false,
     appDocumentPreloading: undefined,
     preloadEntriesOnStart: true,
     clientRouterFilter: true,
@@ -1106,6 +1117,10 @@ export const defaultConfig: NextConfig = {
         (os.cpus() || { length: 1 }).length) - 1
     ),
     memoryBasedWorkersCount: false,
+    imgOptConcurrency: null,
+    imgOptTimeoutInSeconds: 7,
+    imgOptMaxInputPixels: 268_402_689, // https://sharp.pixelplumbing.com/api-constructor#:~:text=%5Boptions.limitInputPixels%5D
+    imgOptSequentialRead: null,
     isrFlushToDisk: true,
     workerThreads: false,
     proxyTimeout: undefined,
@@ -1126,7 +1141,6 @@ export const defaultConfig: NextConfig = {
     amp: undefined,
     urlImports: undefined,
     turbo: undefined,
-    turbotrace: undefined,
     typedRoutes: false,
     typedEnv: false,
     clientTraceMetadata: undefined,
@@ -1141,6 +1155,8 @@ export const defaultConfig: NextConfig = {
         process.env.__NEXT_TEST_MODE &&
         process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
       ),
+    authInterrupts: false,
+    reactOwnerStack: false,
     webpackBuildWorker: undefined,
     webpackMemoryOptimizations: false,
     optimizeServerReact: true,
@@ -1157,6 +1173,7 @@ export const defaultConfig: NextConfig = {
     staticGenerationMaxConcurrency: 8,
     staticGenerationMinPagesPerWorker: 25,
     dynamicIO: false,
+    inlineCss: false,
   },
   bundlePagesRouterDependencies: false,
 }

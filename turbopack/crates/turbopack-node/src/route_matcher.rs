@@ -1,4 +1,5 @@
-use turbo_tasks::{FxIndexMap, RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexMap, Vc};
 
 #[turbo_tasks::value]
 #[derive(Debug, Clone)]

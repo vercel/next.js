@@ -1,7 +1,8 @@
 use std::iter::once;
 
 use anyhow::Result;
-use turbo_tasks::{RcStr, TryJoinIterExt, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{TryJoinIterExt, Value, Vc};
 use turbopack_core::introspect::{Introspectable, IntrospectableChildren};
 
 use super::{

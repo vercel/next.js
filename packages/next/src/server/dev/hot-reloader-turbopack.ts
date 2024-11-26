@@ -484,6 +484,7 @@ export async function createHotReloaderTurbopack(
       // reload, only this client is out of date.
       const reloadAction: ReloadPageAction = {
         action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE,
+        data: `error in HMR event subscription for ${id}: ${e}`,
       }
       sendToClient(client, reloadAction)
       client.close()
@@ -568,7 +569,7 @@ export async function createHotReloaderTurbopack(
 
   const middlewares = [
     getOverlayMiddleware(project),
-    getSourceMapMiddleware(project, distDir),
+    getSourceMapMiddleware(project),
   ]
 
   const versionInfoPromise = getVersionInfo(

@@ -14,3 +14,7 @@ require(/* turbopackIgnore: true */ "./ignore.cjs");
 // and for workers
 new Worker(/* webpackIgnore: true */ "./ignore.mjs");
 new Worker(/* turbopackIgnore: true */ "./ignore.cjs");
+
+export function foo(plugin) {
+  return require(/* turbopackIgnore: true */ plugin)
+}

@@ -7,7 +7,11 @@
 .yarn/install-state.gz
 
 # testing
+/blob-report/
 /coverage
+/playwright/.cache/
+/playwright-report/
+/test-results/
 
 # next.js
 /.next/

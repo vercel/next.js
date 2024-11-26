@@ -3790,9 +3790,14 @@ var currentResumableState = null,
     getCacheForType: function () {
       throw Error("Not implemented.");
     }
-  },
-  prefix,
-  suffix;
+  };
+function prepareStackTrace(error, structuredStackTrace) {
+  error = (error.name || "Error") + ": " + (error.message || "");
+  for (var i = 0; i < structuredStackTrace.length; i++)
+    error += "\n    at " + structuredStackTrace[i].toString();
+  return error;
+}
+var prefix, suffix;
 function describeBuiltInComponentFrame(name) {
   if (void 0 === prefix)
     try {
@@ -3814,7 +3819,7 @@ function describeNativeComponentFrame(fn, construct) {
   if (!fn || reentry) return "";
   reentry = !0;
   var previousPrepareStackTrace = Error.prepareStackTrace;
-  Error.prepareStackTrace = void 0;
+  Error.prepareStackTrace = prepareStackTrace;
   try {
     var RunInRootFrame = {
       DetermineComponentFrameRoot: function () {
@@ -4980,8 +4985,8 @@ function retryNode(request, task) {
             key = node.key,
             props = node.props;
           node = props.ref;
-          var ref = void 0 !== node ? node : null;
-          var name = getComponentNameFromType(type),
+          var ref = void 0 !== node ? node : null,
+            name = getComponentNameFromType(type),
             keyOrIndex =
               null == key ? (-1 === childIndex ? 0 : childIndex) : key;
           key = [task.keyPath, name, keyOrIndex];
@@ -6691,11 +6696,11 @@ function getPostponedState(request) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.0.0-experimental-65a56d0e-20241020" !== isomorphicReactPackageVersion)
+  if ("19.0.0-experimental-b01722d5-20241114" !== isomorphicReactPackageVersion)
     throw Error(
       'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
         (isomorphicReactPackageVersion +
-          "\n  - react-dom:  19.0.0-experimental-65a56d0e-20241020\nLearn more: https://react.dev/warnings/version-mismatch")
+          "\n  - react-dom:  19.0.0-experimental-b01722d5-20241114\nLearn more: https://react.dev/warnings/version-mismatch")
     );
 }
 ensureCorrectIsomorphicReactVersion();
@@ -6960,4 +6965,4 @@ const setTimeoutOrImmediate =
     ? globalThis['set' + 'Immediate']
     : setTimeout;
 
-exports.version = "19.0.0-experimental-65a56d0e-20241020";
+exports.version = "19.0.0-experimental-b01722d5-20241114";
