@@ -14,8 +14,8 @@ pub struct EmbeddableProcessEnv {
 #[turbo_tasks::value_impl]
 impl EmbeddableProcessEnv {
     #[turbo_tasks::function]
-    pub fn new(prior: Vc<Box<dyn ProcessEnv>>) -> Vc<Self> {
-        EmbeddableProcessEnv { prior }.cell()
+    pub fn new(prior: ResolvedVc<Box<dyn ProcessEnv>>) -> Result<Vc<Self>> {
+        Ok(EmbeddableProcessEnv { prior }.cell())
     }
 }
 
