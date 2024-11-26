@@ -1,6 +1,7 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{fxindexset, trace::TraceRawVcs, FxIndexMap, FxIndexSet, RcStr, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{fxindexset, trace::TraceRawVcs, FxIndexMap, FxIndexSet, Value, Vc};
 
 use super::request::{NextFontRequest, OneOrManyStrings};
 
@@ -72,9 +73,7 @@ pub(super) fn options_from_request(
     data: &FxIndexMap<RcStr, FontDataEntry>,
 ) -> Result<NextFontGoogleOptions> {
     if request.arguments.len() > 1 {
-        return Err(anyhow!(
-            "Only zero or one arguments to font functions are currently supported"
-        ));
+        anyhow::bail!("Only zero or one arguments to font functions are currently supported")
     }
     // Invariant enforced above: either None or Some(the only item in the vec)
     let argument = request.arguments.last().cloned().unwrap_or_default();
@@ -102,33 +101,33 @@ pub(super) fn options_from_request(
     let supports_variable_weight = font_data.weights.iter().any(|el| el == "variable");
     let weights = if requested_weights.is_empty() {
         if !supports_variable_weight {
-            return Err(anyhow!(
+            anyhow::bail!(
                 "Missing weight for {}. Available weights: {}",
                 font_family,
                 font_data.weights.join(", ")
-            ));
+            )
         }
 
         FontWeights::Variable
     } else if requested_weights.contains("variable") {
         if requested_weights.len() > 1 {
-            return Err(anyhow!(
+            anyhow::bail!(
                 "Unexpected `variable` in weight array for font {}. You only need `variable`, it \
                  includes all available weights.",
                 font_family
-            ));
+            )
         }
 
         FontWeights::Variable
     } else {
         for requested_weight in &requested_weights {
             if !font_data.weights.contains(requested_weight) {
-                return Err(anyhow!(
+                anyhow::bail!(
                     "Unknown weight {} for font {}.\nAvailable weights: {}",
                     requested_weight,
                     font_family,
                     font_data.weights.join(", ")
-                ));
+                )
             }
         }
 
@@ -150,37 +149,37 @@ pub(super) fn options_from_request(
 
     for requested_style in &styles {
         if !font_data.styles.contains(requested_style) {
-            return Err(anyhow!(
+            anyhow::bail!(
                 "Unknown style {} for font {}.\nAvailable styles: {}",
                 requested_style,
                 font_family,
                 font_data.styles.join(", ")
-            ));
+            )
         }
     }
 
     let display = argument.display.unwrap_or_else(|| "swap".into());
 
     if !ALLOWED_DISPLAY_VALUES.contains(&display.as_str()) {
-        return Err(anyhow!(
+        anyhow::bail!(
             "Invalid display value {} for font {}.\nAvailable display values: {}",
             display,
             font_family,
             ALLOWED_DISPLAY_VALUES.join(", ")
-        ));
+        )
     }
 
     if let Some(axes) = argument.axes.as_ref() {
         if !axes.is_empty() {
             if !supports_variable_weight {
-                return Err(anyhow!("Axes can only be defined for variable fonts."));
+                anyhow::bail!("Axes can only be defined for variable fonts.")
             }
 
             if weights != FontWeights::Variable {
-                return Err(anyhow!(
+                anyhow::bail!(
                     "Axes can only be defined for variable fonts when the weight property is \
                      nonexistent or set to `variable`."
-                ));
+                )
             }
         }
     }
@@ -202,7 +201,8 @@ pub(super) fn options_from_request(
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use turbo_tasks::{FxIndexMap, RcStr};
+    use turbo_rcstr::RcStr;
+    use turbo_tasks::FxIndexMap;
     use turbo_tasks_fs::json::parse_json_with_source_context;
 
     use super::{options_from_request, FontDataEntry, NextFontGoogleOptions};

@@ -1,5 +1,6 @@
 use anyhow::Result;
-use turbo_tasks::{RcStr, ReadRef, TryJoinIterExt, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::{
@@ -13,7 +14,7 @@ pub struct ChunkData {
     pub included: Vec<ReadRef<ModuleId>>,
     pub excluded: Vec<ReadRef<ModuleId>>,
     pub module_chunks: Vec<String>,
-    pub references: Vc<OutputAssets>,
+    pub references: ResolvedVc<OutputAssets>,
 }
 
 #[turbo_tasks::value(transparent)]
@@ -56,7 +57,7 @@ impl ChunkData {
                     included: Vec::new(),
                     excluded: Vec::new(),
                     module_chunks: Vec::new(),
-                    references: OutputAssets::empty(),
+                    references: OutputAssets::empty().to_resolved().await?,
                 }
                 .cell(),
             )));
@@ -111,7 +112,7 @@ impl ChunkData {
                 included,
                 excluded,
                 module_chunks,
-                references: Vc::cell(module_chunks_references),
+                references: ResolvedVc::cell(module_chunks_references),
             }
             .cell(),
         )))
@@ -138,6 +139,6 @@ impl ChunkData {
     /// Returns [`OutputAsset`]s that this chunk data references.
     #[turbo_tasks::function]
     pub fn references(&self) -> Vc<OutputAssets> {
-        self.references
+        *self.references
     }
 }

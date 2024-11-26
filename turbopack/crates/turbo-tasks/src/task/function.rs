@@ -369,8 +369,10 @@ task_inputs_impl! { A1 A2 A3 A4 A5 A6 A7 A8 A9 A10 A11 A12 A13 }
 
 #[cfg(test)]
 mod tests {
+    use turbo_rcstr::RcStr;
+
     use super::*;
-    use crate::{RcStr, ShrinkToFit, VcCellNewMode, VcDefaultRead};
+    use crate::{ShrinkToFit, VcCellNewMode, VcDefaultRead};
 
     #[test]
     fn test_task_fn() {

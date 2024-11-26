@@ -33,7 +33,7 @@ export type WorkStoreContext = {
     pendingWaitUntil?: Promise<any>
     experimental: Pick<
       RenderOpts['experimental'],
-      'isRoutePPREnabled' | 'after' | 'dynamicIO'
+      'isRoutePPREnabled' | 'after' | 'dynamicIO' | 'authInterrupts'
     >
 
     /**

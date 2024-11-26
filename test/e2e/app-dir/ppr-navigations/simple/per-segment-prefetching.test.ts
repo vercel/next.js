@@ -51,15 +51,11 @@ describe('per segment prefetching', () => {
     const frResponseText = await frResponse.text()
     expect(enResponseText).toEqual(frResponseText)
 
-    // Now use both the tree response and the root segment data to construct a
-    // request for the child segment.
-    const childSegmentPath = routeTree.tree.slots.children.key
-    const childToken =
-      extractPseudoJSONFromFlightResponse(enResponseText).slots.children
+    // Now use the route tree to construct a request for the child segment.
+    const child = routeTree.tree.slots.children
 
-    // The access token, which we extracted from the response for its parent
-    // segment, is appended to the end of the segment path.
-    const fullChildSegmentPath = `${childSegmentPath}.${childToken}`
+    // The access token is appended to the end of the segment path.
+    const fullChildSegmentPath = `${child.path}.${child.token}`
     const childResponse = await prefetch('/en', fullChildSegmentPath)
     const childResponseText = await childResponse.text()
 

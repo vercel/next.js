@@ -10,7 +10,7 @@ import { webpack, StringXor } from 'next/dist/compiled/webpack/webpack'
 import {
   getOverlayMiddleware,
   getSourceMapMiddleware,
-} from '../../client/components/react-dev-overlay/server/middleware'
+} from '../../client/components/react-dev-overlay/server/middleware-webpack'
 import { WebpackHotMiddleware } from './hot-middleware'
 import { join, relative, isAbsolute, posix } from 'path'
 import {
@@ -1507,20 +1507,14 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       }),
     })
 
-    const assetPrefix = this.config.assetPrefix.replace(/\/$/, '')
-
     this.middlewares = [
       getOverlayMiddleware({
-        assetPrefix,
-        distDirectory: this.distDir,
         rootDirectory: this.dir,
         clientStats: () => this.clientStats,
         serverStats: () => this.serverStats,
         edgeServerStats: () => this.edgeServerStats,
       }),
       getSourceMapMiddleware({
-        assetPrefix,
-        distDirectory: this.distDir,
         clientStats: () => this.clientStats,
         serverStats: () => this.serverStats,
         edgeServerStats: () => this.edgeServerStats,

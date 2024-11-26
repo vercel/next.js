@@ -271,7 +271,7 @@ If you are using `fetch`, requests can be [memoized](/docs/app/building-your-app
 >
 > - In previous versions of Next.js, using `fetch` would have a default `cache` value of `force-cache`. This changed in version 15, to a default of `cache: no-store`.
 
-```tsx filename="app/page.tsx" switcher
+```tsx filename="app/blog/[id]/page.tsx" switcher
 import { notFound } from 'next/navigation'
 
 interface Post {
@@ -281,34 +281,44 @@ interface Post {
 }
 
 async function getPost(id: string) {
-  let res = await fetch(`https://api.vercel.app/blog/${id}`, {
+  const res = await fetch(`https://api.vercel.app/blog/${id}`, {
     cache: 'force-cache',
   })
-  let post: Post = await res.json()
+  const post: Post = await res.json()
   if (!post) notFound()
   return post
 }
 
 export async function generateStaticParams() {
-  let posts = await fetch('https://api.vercel.app/blog', {
+  const posts = await fetch('https://api.vercel.app/blog', {
     cache: 'force-cache',
   }).then((res) => res.json())
 
   return posts.map((post: Post) => ({
-    id: post.id,
+    id: String(post.id),
   }))
 }
 
-export async function generateMetadata({ params }: { params: { id: string } }) {
-  let post = await getPost(params.id)
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const { id } = await params
+  const post = await getPost(id)
 
   return {
     title: post.title,
   }
 }
 
-export default async function Page({ params }: { params: { id: string } }) {
-  let post = await getPost(params.id)
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const { id } = await params
+  const post = await getPost(id)
 
   return (
     <article>
@@ -319,28 +329,29 @@ export default async function Page({ params }: { params: { id: string } }) {
 }
 ```
 
-```jsx filename="app/page.js" switcher
+```jsx filename="app/blog/[id]/page.js" switcher
 import { notFound } from 'next/navigation'
 
 async function getPost(id) {
-  let res = await fetch(`https://api.vercel.app/blog/${id}`)
-  let post = await res.json()
+  const res = await fetch(`https://api.vercel.app/blog/${id}`)
+  const post = await res.json()
   if (!post) notFound()
   return post
 }
 
 export async function generateStaticParams() {
-  let posts = await fetch('https://api.vercel.app/blog').then((res) =>
+  const posts = await fetch('https://api.vercel.app/blog').then((res) =>
     res.json()
   )
 
   return posts.map((post) => ({
-    id: post.id,
+    id: String(post.id),
   }))
 }
 
 export async function generateMetadata({ params }) {
-  let post = await getPost(params.id)
+  const { id } = await params
+  const post = await getPost(id)
 
   return {
     title: post.title,
@@ -348,7 +359,8 @@ export async function generateMetadata({ params }) {
 }
 
 export default async function Page({ params }) {
-  let post = await getPost(params.id)
+  const { id } = await params
+  const post = await getPost(id)
 
   return (
     <article>
@@ -407,7 +419,7 @@ There may be cases where you want this pattern because one fetch depends on the 
 export default async function Page({
   params: { username },
 }: {
-  params: { username: string }
+  params: Promise<{ username: string }>
 }) {
   // Get artist information
   const artist = await getArtist(username)
@@ -499,7 +511,7 @@ async function getAlbums(username: string) {
 export default async function Page({
   params: { username },
 }: {
-  params: { username: string }
+  params: Promise<{ username: string }>
 }) {
   const artistData = getArtist(username)
   const albumsData = getAlbums(username)
@@ -587,7 +599,7 @@ import Item, { preload, checkIsAvailable } from '@/components/Item'
 export default async function Page({
   params: { id },
 }: {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
   // starting loading item data
   preload(id)

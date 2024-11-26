@@ -12,6 +12,7 @@ import {
   normalizeRegEx,
   renderViaHTTP,
   waitFor,
+  assertHasRedbox,
 } from 'next-test-utils'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
@@ -758,8 +759,8 @@ const runTests = (isDev = false, isDeploy = false) => {
       const browser = await webdriver(next.url, '/')
       await browser.elementByCss('#non-json').click()
 
-      await check(
-        () => getRedboxHeader(browser),
+      await assertHasRedbox(browser)
+      await expect(getRedboxHeader(browser)).resolves.toMatch(
         /Error serializing `.time` returned from `getServerSideProps`/
       )
     })
@@ -871,6 +872,7 @@ describe('getServerSideProps', () => {
         'world.txt': new FileRef(join(appDir, 'world.txt')),
         'next.config.js': new FileRef(join(appDir, 'next.config.js')),
       },
+      patchFileDelay: 500,
     })
     buildId = next.buildId
   })

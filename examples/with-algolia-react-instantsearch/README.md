@@ -25,7 +25,7 @@ pnpm create next-app --example with-algolia-react-instantsearch with-algolia-rea
 ```
 
 ```bash
-bun create next-app --example with-algolia-react-instantsearch with-algolia-react-instantsearch-app
+bunx create-next-app --example with-algolia-react-instantsearch with-algolia-react-instantsearch-app
 ```
 
 This example is already configured with an e-commerce index, but you can easily customize it by:

@@ -1,5 +1,7 @@
 use std::{
     collections::{hash_map::Entry, HashMap, HashSet},
+    mem::transmute,
+    ops::{Deref, DerefMut},
     sync::Arc,
 };
 
@@ -294,8 +296,15 @@ impl TurbopackFormat {
 }
 
 impl TraceFormat for TurbopackFormat {
-    fn read(&mut self, mut buffer: &[u8]) -> Result<usize> {
-        let mut rows = Vec::new();
+    type Reused = Vec<TraceRow<'static>>;
+
+    fn read(&mut self, mut buffer: &[u8], reuse: &mut Self::Reused) -> Result<usize> {
+        reuse.clear();
+        let mut reuse = ClearOnDrop(reuse);
+        // Safety: The Vec is empty and is cleared on leaving this scope, so it's safe to cast the
+        // lifetime of data, since there is no data and data can't leave this function.
+        let rows =
+            unsafe { transmute::<&mut Vec<TraceRow<'_>>, &mut Vec<TraceRow<'_>>>(&mut *reuse) };
         let mut bytes_read = 0;
         loop {
             match postcard::take_from_bytes(buffer) {
@@ -314,7 +323,7 @@ impl TraceFormat for TurbopackFormat {
         }
         if !rows.is_empty() {
             let store = self.store.clone();
-            let mut iter = rows.into_iter();
+            let mut iter = rows.drain(..);
             {
                 let mut store = store.write();
                 for row in iter.by_ref() {
@@ -325,5 +334,27 @@ impl TraceFormat for TurbopackFormat {
             }
         }
         Ok(bytes_read)
+    }
+}
+
+struct ClearOnDrop<'l, T>(&'l mut Vec<T>);
+
+impl<T> Drop for ClearOnDrop<'_, T> {
+    fn drop(&mut self) {
+        self.0.clear();
+    }
+}
+
+impl<T> Deref for ClearOnDrop<'_, T> {
+    type Target = Vec<T>;
+
+    fn deref(&self) -> &Self::Target {
+        self.0
+    }
+}
+
+impl<T> DerefMut for ClearOnDrop<'_, T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.0
     }
 }

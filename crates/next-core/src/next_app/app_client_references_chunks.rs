@@ -1,11 +1,12 @@
 use anyhow::Result;
 use tracing::Instrument;
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexMap, RcStr, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, ValueToString, Vc,
+    FxIndexMap, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, ValueToString, Vc,
 };
 use turbopack_core::{
     chunk::{availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt},
-    module::{Module, Modules},
+    module::Module,
     output::OutputAssets,
 };
 
@@ -13,7 +14,6 @@ use super::include_modules_module::IncludeModulesModule;
 use crate::{
     next_client_reference::{
         visit_client_reference::ClientReferenceGraphResult, ClientReferenceType,
-        ClientReferenceTypes,
     },
     next_server_component::server_component_module::NextServerComponentModule,
 };
@@ -314,36 +314,4 @@ pub async fn get_app_client_references_chunks(
     }
     .instrument(tracing::info_span!("process client references"))
     .await
-}
-
-/// Crawls all modules emitted in the client transition, returning a list of all
-/// client JS modules.
-#[turbo_tasks::function]
-pub async fn get_app_server_reference_modules(
-    app_client_reference_types: Vc<ClientReferenceTypes>,
-) -> Result<Vc<Modules>> {
-    Ok(Vc::cell(
-        app_client_reference_types
-            .await?
-            .iter()
-            .map(|client_reference_ty| async move {
-                Ok(match client_reference_ty {
-                    ClientReferenceType::EcmascriptClientReference {
-                        module: ecmascript_client_reference,
-                        ..
-                    } => {
-                        let ecmascript_client_reference_ref = ecmascript_client_reference.await?;
-                        Some(ResolvedVc::upcast(
-                            ecmascript_client_reference_ref
-                                .client_module
-                                .to_resolved()
-                                .await?,
-                        ))
-                    }
-                    _ => None,
-                })
-            })
-            .try_flat_join()
-            .await?,
-    ))
 }

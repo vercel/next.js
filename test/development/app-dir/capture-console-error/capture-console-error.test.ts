@@ -1,21 +1,21 @@
 import { nextTestSetup } from 'e2e-utils'
 import {
-  assertHasRedbox,
   getRedboxCallStack,
   getRedboxDescription,
+  getRedboxTitle,
   getRedboxSource,
   getRedboxTotalErrorCount,
-  waitForAndOpenRuntimeError,
+  openRedbox,
 } from 'next-test-utils'
 
-const isReactExperimental = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
-
 async function getRedboxResult(browser: any) {
+  const title = await getRedboxTitle(browser)
   const description = await getRedboxDescription(browser)
   const callStacks = await getRedboxCallStack(browser)
   const count = await getRedboxTotalErrorCount(browser)
   const source = await getRedboxSource(browser)
   const result = {
+    title,
     count,
     source,
     description,
@@ -29,12 +29,18 @@ describe('app-dir - capture-console-error', () => {
     files: __dirname,
   })
 
+  if (process.env.__NEXT_EXPERIMENTAL_PPR === 'true') {
+    it('skip test for experimental PPR', () => {
+      // Cover these tests in the owner stack tests suite
+    })
+    return
+  }
+
   it('should capture browser console error and format the error message', async () => {
     const browser = await next.browser('/browser/event')
     await browser.elementByCss('button').click()
 
-    await waitForAndOpenRuntimeError(browser)
-    await assertHasRedbox(browser)
+    await openRedbox(browser)
 
     const result = await getRedboxResult(browser)
 
@@ -53,17 +59,13 @@ describe('app-dir - capture-console-error', () => {
            8 |       }}
            9 |     >
           10 |       click to error",
+          "title": "Console Error",
         }
       `)
     } else {
       expect(result).toMatchInlineSnapshot(`
         {
-          "callStacks": ${
-            isReactExperimental
-              ? `"button
-        app/browser/event/page.js (5:6)"`
-              : `""`
-          },
+          "callStacks": "",
           "count": 1,
           "description": "trigger an console <error>",
           "source": "app/browser/event/page.js (7:17) @ error
@@ -75,6 +77,7 @@ describe('app-dir - capture-console-error', () => {
            8 |       }}
            9 |     >
           10 |       click to error",
+          "title": "Console Error",
         }
       `)
     }
@@ -83,8 +86,7 @@ describe('app-dir - capture-console-error', () => {
   it('should capture browser console error in render and dedupe if necessary', async () => {
     const browser = await next.browser('/browser/render')
 
-    await waitForAndOpenRuntimeError(browser)
-    await assertHasRedbox(browser)
+    await openRedbox(browser)
 
     const result = await getRedboxResult(browser)
 
@@ -92,7 +94,7 @@ describe('app-dir - capture-console-error', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "callStacks": "",
-          "count": ${isReactExperimental ? 1 : 2},
+          "count": 2,
           "description": "trigger an console.error in render",
           "source": "app/browser/render/page.js (4:11) @ Page
 
@@ -103,13 +105,14 @@ describe('app-dir - capture-console-error', () => {
           5 |   return <p>render</p>
           6 | }
           7 |",
+          "title": "Console Error",
         }
       `)
     } else {
       expect(result).toMatchInlineSnapshot(`
         {
           "callStacks": "",
-          "count": ${isReactExperimental ? 1 : 2},
+          "count": 2,
           "description": "trigger an console.error in render",
           "source": "app/browser/render/page.js (4:11) @ error
 
@@ -120,6 +123,7 @@ describe('app-dir - capture-console-error', () => {
           5 |   return <p>render</p>
           6 | }
           7 |",
+          "title": "Console Error",
         }
       `)
     }
@@ -128,8 +132,7 @@ describe('app-dir - capture-console-error', () => {
   it('should capture browser console error in render and dedupe when multi same errors logged', async () => {
     const browser = await next.browser('/browser/render')
 
-    await waitForAndOpenRuntimeError(browser)
-    await assertHasRedbox(browser)
+    await openRedbox(browser)
 
     const result = await getRedboxResult(browser)
 
@@ -137,7 +140,7 @@ describe('app-dir - capture-console-error', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "callStacks": "",
-          "count": ${isReactExperimental ? 1 : 2},
+          "count": 2,
           "description": "trigger an console.error in render",
           "source": "app/browser/render/page.js (4:11) @ Page
 
@@ -148,13 +151,14 @@ describe('app-dir - capture-console-error', () => {
           5 |   return <p>render</p>
           6 | }
           7 |",
+          "title": "Console Error",
         }
       `)
     } else {
       expect(result).toMatchInlineSnapshot(`
         {
           "callStacks": "",
-          "count": ${isReactExperimental ? 1 : 2},
+          "count": 2,
           "description": "trigger an console.error in render",
           "source": "app/browser/render/page.js (4:11) @ error
 
@@ -165,16 +169,16 @@ describe('app-dir - capture-console-error', () => {
           5 |   return <p>render</p>
           6 | }
           7 |",
+          "title": "Console Error",
         }
       `)
     }
   })
 
-  it('should capture server replay console error', async () => {
+  it('should capture server replay string error from console error', async () => {
     const browser = await next.browser('/ssr')
 
-    await waitForAndOpenRuntimeError(browser)
-    await assertHasRedbox(browser)
+    await openRedbox(browser)
 
     const result = await getRedboxResult(browser)
 
@@ -182,7 +186,7 @@ describe('app-dir - capture-console-error', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "callStacks": "",
-          "count": ${isReactExperimental ? 1 : 2},
+          "count": 2,
           "description": "ssr console error:client",
           "source": "app/ssr/page.js (4:11) @ Page
 
@@ -192,14 +196,15 @@ describe('app-dir - capture-console-error', () => {
             |           ^
           5 |     'ssr console error:' + (typeof window === 'undefined' ? 'server' : 'client')
           6 |   )
-          7 |   if (typeof window === 'undefined') {",
+          7 |   return <p>ssr</p>",
+          "title": "Console Error",
         }
       `)
     } else {
       expect(result).toMatchInlineSnapshot(`
         {
           "callStacks": "",
-          "count": ${isReactExperimental ? 1 : 2},
+          "count": 2,
           "description": "ssr console error:client",
           "source": "app/ssr/page.js (4:11) @ error
 
@@ -209,7 +214,54 @@ describe('app-dir - capture-console-error', () => {
             |           ^
           5 |     'ssr console error:' + (typeof window === 'undefined' ? 'server' : 'client')
           6 |   )
-          7 |   if (typeof window === 'undefined') {",
+          7 |   return <p>ssr</p>",
+          "title": "Console Error",
+        }
+      `)
+    }
+  })
+
+  it('should capture server replay error instance from console error', async () => {
+    const browser = await next.browser('/ssr-error-instance')
+
+    await openRedbox(browser)
+
+    const result = await getRedboxResult(browser)
+
+    if (process.env.TURBOPACK) {
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "callStacks": "",
+          "count": 2,
+          "description": "Error: page error",
+          "source": "app/ssr-error-instance/page.js (4:17) @ Page
+
+          2 |
+          3 | export default function Page() {
+        > 4 |   console.error(new Error('page error'))
+            |                 ^
+          5 |   return <p>ssr</p>
+          6 | }
+          7 |",
+          "title": "Console Error",
+        }
+      `)
+    } else {
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "callStacks": "",
+          "count": 2,
+          "description": "Error: page error",
+          "source": "app/ssr-error-instance/page.js (4:17) @ Page
+
+          2 |
+          3 | export default function Page() {
+        > 4 |   console.error(new Error('page error'))
+            |                 ^
+          5 |   return <p>ssr</p>
+          6 | }
+          7 |",
+          "title": "Console Error",
         }
       `)
     }
@@ -218,8 +270,7 @@ describe('app-dir - capture-console-error', () => {
   it('should be able to capture rsc logged error', async () => {
     const browser = await next.browser('/rsc')
 
-    await waitForAndOpenRuntimeError(browser)
-    await assertHasRedbox(browser)
+    await openRedbox(browser)
 
     const result = await getRedboxResult(browser)
 
@@ -237,6 +288,7 @@ describe('app-dir - capture-console-error', () => {
           3 |   return <p>rsc</p>
           4 | }
           5 |",
+          "title": "Console Error",
         }
       `)
     } else {
@@ -253,6 +305,7 @@ describe('app-dir - capture-console-error', () => {
           3 |   return <p>rsc</p>
           4 | }
           5 |",
+          "title": "Console Error",
         }
       `)
     }

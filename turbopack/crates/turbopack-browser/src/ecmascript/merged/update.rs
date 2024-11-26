@@ -245,7 +245,7 @@ pub(super) async fn update_ecmascript_merged_chunk(
 
                 if merged_module_map.get(id) != Some(hash) {
                     let entry =
-                        EcmascriptModuleEntry::from_code(id, entry.code, chunk_path).await?;
+                        EcmascriptModuleEntry::from_code(id, *entry.code, chunk_path).await?;
                     merged_update.entries.insert(id.clone(), entry);
                 }
             }

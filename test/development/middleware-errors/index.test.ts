@@ -12,6 +12,7 @@ describe('middleware - development errors', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
     env: { __NEXT_TEST_WITH_DEVTOOL: '1' },
+    patchFileDelay: 500,
   })
   beforeEach(async () => {
     await next.stop()
@@ -158,8 +159,16 @@ describe('middleware - development errors', () => {
     it('renders the error correctly and recovers', async () => {
       const browser = await next.browser('/')
       await assertHasRedbox(browser)
+
+      const lengthOfLogs = next.cliOutput.length
+
       expect(await getRedboxSource(browser)).toContain(`eval('test')`)
       await next.patchFile('middleware.js', `export default function () {}`)
+
+      retry(() => {
+        expect(next.cliOutput.slice(lengthOfLogs)).toContain('✓ Compiled')
+      }, 10000) // middleware rebuild takes a while in CI
+
       await assertNoRedbox(browser)
     })
   })

@@ -12,7 +12,8 @@ use swc_core::{
         visit::{Visit, VisitWith},
     },
 };
-use turbo_tasks::{FxIndexMap, FxIndexSet, RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexMap, FxIndexSet, Vc};
 use turbopack_core::{issue::IssueSource, source::Source};
 
 use super::{top_level_await::has_top_level_await, JsValue, ModuleValue};

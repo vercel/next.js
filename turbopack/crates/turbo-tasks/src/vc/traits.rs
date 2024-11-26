@@ -23,8 +23,8 @@ pub unsafe trait VcValueType: ShrinkToFit + Sized + Send + Sync + 'static {
 }
 
 /// A trait implemented on all values trait object references that can be put
-/// into a Value Cell ([`Vc<&dyn Trait>`][crate::Vc]).
-pub trait VcValueTrait {
+/// into a Value Cell ([`Vc<Box<dyn Trait>>`][crate::Vc]).
+pub trait VcValueTrait: Send + Sync + 'static {
     fn get_trait_type_id() -> TraitTypeId;
 }
 
@@ -35,9 +35,9 @@ pub trait VcValueTrait {
 ///
 /// The implementor of this trait must ensure that `Self` implements the
 /// trait `T`.
-pub unsafe trait Upcast<T>: Send
+pub unsafe trait Upcast<T>
 where
-    T: VcValueTrait + ?Sized + Send,
+    T: VcValueTrait + ?Sized,
 {
 }
 
@@ -48,9 +48,9 @@ where
 ///
 /// The implementor of this trait must ensure that `Self` implements the
 /// trait `T`.
-pub unsafe trait Dynamic<T>: Send
+pub unsafe trait Dynamic<T>
 where
-    T: VcValueTrait + ?Sized + Send,
+    T: VcValueTrait + ?Sized,
 {
 }
 

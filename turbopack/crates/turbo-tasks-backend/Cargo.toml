@@ -13,11 +13,9 @@ bench = false
 workspace = true
 
 [features]
-default = ["rocksdb"]
+default = []
 verify_serialization = []
 trace_aggregation_update = []
-lmdb = ["dep:lmdb-rkv"]
-rocksdb = ["dep:rocksdb"]
 
 [dependencies]
 anyhow = { workspace = true }
@@ -29,13 +27,12 @@ dashmap = { workspace = true, features = ["raw-api"]}
 either = { workspace = true }
 hashbrown = { workspace = true, features = ["raw"] }
 indexmap = { workspace = true }
-lmdb-rkv = { version = "0.14.0", optional = true }
+lmdb-rkv = "0.14.0"
 once_cell = { workspace = true }
 parking_lot = { workspace = true }
 pot = "3.0.0"
 rand = { workspace = true }
 rayon = { workspace = true }
-rocksdb = { version = "0.22.0", optional = true}
 rustc-hash = { workspace = true }
 serde = { workspace = true }
 serde_path_to_error = { workspace = true }
@@ -45,12 +42,20 @@ tokio-scoped = "0.2.0"
 tracing = { workspace = true }
 thread_local = { workspace = true }
 turbo-prehash = { workspace = true }
+turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-hash = { workspace = true }
 turbo-tasks-malloc = { workspace = true, default-features = false }
 turbo-tasks-testing = { workspace = true }
 
+[dev-dependencies]
+criterion = { workspace = true, features = ["async_tokio"] }
+
 [build-dependencies]
 anyhow = { workspace = true }
 turbo-tasks-build = { workspace = true }
 vergen-gitcl = { version = "1.0.1" }
+
+[[bench]]
+name = "mod"
+harness = false

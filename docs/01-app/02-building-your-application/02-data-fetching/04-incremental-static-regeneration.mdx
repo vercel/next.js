@@ -48,10 +48,15 @@ export async function generateStaticParams() {
   }))
 }
 
-export default async function Page({ params }: { params: { id: string } }) {
-  const post: Post = await fetch(
-    `https://api.vercel.app/blog/${params.id}`
-  ).then((res) => res.json())
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const id = (await params).id
+  const post: Post = await fetch(`https://api.vercel.app/blog/${id}`).then(
+    (res) => res.json()
+  )
   return (
     <main>
       <h1>{post.title}</h1>
@@ -81,8 +86,9 @@ export async function generateStaticParams() {
 }
 
 export default async function Page({ params }) {
-  const post = await fetch(`https://api.vercel.app/blog/${params.id}`).then(
-    (res) => res.json()
+  const { id } = await params
+  const post = await fetch(`https://api.vercel.app/blog/${id}`).then((res) =>
+    res.json()
   )
   return (
     <main>
@@ -543,7 +549,7 @@ You can configure the Next.js cache location if you want to persist cached pages
 
 ### Debugging cached data in local development
 
-If you are using the `fetch` API, you can add additional logging to understand which requests are cached or uncached. [Learn more about the `logging` option](/docs/app/api-reference/next-config-js/logging).
+If you are using the `fetch` API, you can add additional logging to understand which requests are cached or uncached. [Learn more about the `logging` option](/docs/app/api-reference/config/next-config-js/logging).
 
 ```jsx filename="next.config.js"
 module.exports = {

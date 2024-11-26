@@ -20,16 +20,20 @@ const rejectionHandlers: Array<ErrorHandler> = []
 
 export function handleClientError(
   originError: unknown,
-  consoleErrorArgs: any[]
+  consoleErrorArgs: any[],
+  capturedFromConsole: boolean = false
 ) {
   let error: Error
   if (!originError || !isError(originError)) {
     // If it's not an error, format the args into an error
     const formattedErrorMessage = formatConsoleArgs(consoleErrorArgs)
-    error = getReactStitchedError(createUnhandledError(formattedErrorMessage))
+    error = createUnhandledError(formattedErrorMessage)
   } else {
-    error = originError
+    error = capturedFromConsole
+      ? createUnhandledError(originError)
+      : originError
   }
+  error = getReactStitchedError(error)
 
   storeHydrationErrorStateFromConsoleArgs(...consoleErrorArgs)
   attachHydrationErrorState(error)

@@ -27,7 +27,7 @@ export const NEXT_RESUME_HEADER = 'next-resume'
 
 // if these change make sure we update the related
 // documentation as well
-export const NEXT_CACHE_TAG_MAX_ITEMS = 64
+export const NEXT_CACHE_TAG_MAX_ITEMS = 128
 export const NEXT_CACHE_TAG_MAX_LENGTH = 256
 export const NEXT_CACHE_SOFT_TAG_MAX_LENGTH = 1024
 export const NEXT_CACHE_IMPLICIT_TAG_ID = '_N_T_'

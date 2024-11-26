@@ -1,7 +1,8 @@
 use anyhow::{bail, Context, Result};
 use indoc::formatdoc;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{RcStr, ResolvedVc, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbo_tasks_fs::{
     glob::Glob, json::parse_json_with_source_context, FileContent, FileSystemPath,
 };
@@ -97,14 +98,14 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
 
         match request_key.as_str() {
             "next/font/local/target.css" => {
-                if !can_use_next_font(this.root, *query_vc).await? {
+                if !can_use_next_font(this.root, **query_vc).await? {
                     return Ok(ResolveResultOption::none());
                 }
 
                 let query = query_vc.await?.to_string();
                 let request_hash = get_request_hash(&query).await?;
                 let qstr = qstring::QString::from(query.as_str());
-                let options_vc = font_options_from_query_map(*query_vc);
+                let options_vc = font_options_from_query_map(**query_vc);
                 let font_fallbacks = get_font_fallbacks(lookup_path, options_vc);
                 let properties = get_font_css_properties(options_vc, font_fallbacks).await;
 
@@ -185,7 +186,7 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
             "@vercel/turbopack-next/internal/font/local/cssmodule.module.css" => {
                 let query = query_vc.await?.to_string();
                 let request_hash = get_request_hash(&query).await?;
-                let options = font_options_from_query_map(*query_vc);
+                let options = font_options_from_query_map(**query_vc);
                 let css_virtual_path = lookup_path.join(
                     format!(
                         "/{}.module.css",
@@ -196,7 +197,7 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
                 let fallback = get_font_fallbacks(lookup_path, options);
 
                 let stylesheet = build_stylesheet(
-                    font_options_from_query_map(*query_vc),
+                    font_options_from_query_map(**query_vc),
                     fallback,
                     get_font_css_properties(options, fallback),
                 )
@@ -218,7 +219,7 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
                     path,
                     preload,
                     has_size_adjust: size_adjust,
-                } = font_file_options_from_query_map(*query_vc).await?;
+                } = font_file_options_from_query_map(**query_vc).await?;
 
                 let (filename, ext) = split_extension(&path);
                 let ext = ext.with_context(|| format!("font {} needs an extension", &path))?;

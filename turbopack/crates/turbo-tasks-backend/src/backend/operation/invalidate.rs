@@ -80,6 +80,7 @@ pub enum TaskDirtyCause {
     CellRemoved { value_type: ValueTypeId },
     OutputChange,
     CollectiblesChange { collectible_type: TraitTypeId },
+    Invalidator,
     Unknown,
 }
 
@@ -109,6 +110,7 @@ impl Display for TaskDirtyCause {
                     registry::get_trait(*collectible_type).name
                 )
             }
+            TaskDirtyCause::Invalidator => write!(f, "invalidator"),
             TaskDirtyCause::Unknown => write!(f, "unknown"),
         }
     }
@@ -176,23 +178,30 @@ pub fn make_task_dirty_internal(
         }
         _ => unreachable!(),
     };
+
     let _span = tracing::trace_span!(
         "make task dirty",
         name = ctx.get_task_description(task_id),
         cause = cause.to_string()
     )
     .entered();
-    let aggregated_update = dirty_container.update_with_dirty_state(&DirtyState {
-        clean_in_session: None,
-    });
-    if !aggregated_update.is_zero() {
-        queue.extend(AggregationUpdateJob::data_update(
-            task,
-            AggregatedDataUpdate::new().dirty_container_update(task_id, aggregated_update),
-        ));
-    }
-    let root = task.has_key(&CachedDataItemKey::AggregateRoot {});
-    if root {
+
+    let should_schedule = if ctx.should_track_children() {
+        let aggregated_update = dirty_container.update_with_dirty_state(&DirtyState {
+            clean_in_session: None,
+        });
+        if !aggregated_update.is_zero() {
+            queue.extend(AggregationUpdateJob::data_update(
+                task,
+                AggregatedDataUpdate::new().dirty_container_update(task_id, aggregated_update),
+            ));
+        }
+        task.has_key(&CachedDataItemKey::AggregateRoot {})
+    } else {
+        true
+    };
+
+    if should_schedule {
         let description = ctx.get_task_desc_fn(task_id);
         if task.add(CachedDataItem::new_scheduled(description)) {
             ctx.schedule(task_id);

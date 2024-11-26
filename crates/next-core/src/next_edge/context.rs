@@ -1,5 +1,6 @@
 use anyhow::Result;
-use turbo_tasks::{FxIndexMap, RcStr, ResolvedVc, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexMap, ResolvedVc, Value, Vc};
 use turbo_tasks_env::EnvMap;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::resolve_options_context::ResolveOptionsContext;
@@ -75,35 +76,44 @@ async fn next_edge_free_vars(
 }
 
 #[turbo_tasks::function]
-pub fn get_edge_compile_time_info(
+pub async fn get_edge_compile_time_info(
     project_path: Vc<FileSystemPath>,
     define_env: Vc<EnvMap>,
-) -> Vc<CompileTimeInfo> {
-    CompileTimeInfo::builder(Environment::new(Value::new(
-        ExecutionEnvironment::EdgeWorker(EdgeWorkerEnvironment {}.into()),
-    )))
-    .defines(next_edge_defines(define_env))
-    .free_var_references(next_edge_free_vars(project_path, define_env))
+) -> Result<Vc<CompileTimeInfo>> {
+    CompileTimeInfo::builder(
+        Environment::new(Value::new(ExecutionEnvironment::EdgeWorker(
+            EdgeWorkerEnvironment {}.resolved_cell(),
+        )))
+        .to_resolved()
+        .await?,
+    )
+    .defines(next_edge_defines(define_env).to_resolved().await?)
+    .free_var_references(
+        next_edge_free_vars(project_path, define_env)
+            .to_resolved()
+            .await?,
+    )
     .cell()
+    .await
 }
 
 #[turbo_tasks::function]
 pub async fn get_edge_resolve_options_context(
-    project_path: Vc<FileSystemPath>,
+    project_path: ResolvedVc<FileSystemPath>,
     ty: Value<ServerContextType>,
     mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<ResolveOptionsContext>> {
     let next_edge_import_map =
-        get_next_edge_import_map(project_path, ty, next_config, execution_context)
+        get_next_edge_import_map(*project_path, ty, next_config, execution_context)
             .to_resolved()
             .await?;
 
     let ty: ServerContextType = ty.into_value();
 
     let mut before_resolve_plugins = vec![ResolvedVc::upcast(
-        ModuleFeatureReportResolvePlugin::new(project_path)
+        ModuleFeatureReportResolvePlugin::new(*project_path)
             .to_resolved()
             .await?,
     )];
@@ -114,7 +124,7 @@ pub async fn get_edge_resolve_options_context(
             | ServerContextType::AppRSC { .. }
     ) {
         before_resolve_plugins.push(ResolvedVc::upcast(
-            NextFontLocalResolvePlugin::new(project_path)
+            NextFontLocalResolvePlugin::new(*project_path)
                 .to_resolved()
                 .await?,
         ));
@@ -141,7 +151,7 @@ pub async fn get_edge_resolve_options_context(
     }
 
     let after_resolve_plugins = vec![ResolvedVc::upcast(
-        NextSharedRuntimeResolvePlugin::new(project_path)
+        NextSharedRuntimeResolvePlugin::new(*project_path)
             .to_resolved()
             .await?,
     )];

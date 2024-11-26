@@ -2,16 +2,18 @@ use std::collections::{HashMap, HashSet};
 
 use anyhow::{bail, Result};
 use futures::Future;
+use next_core::next_client_reference::EcmascriptClientReferenceModule;
 use serde::{Deserialize, Serialize};
 use swc_core::ecma::{
     ast::{CallExpr, Callee, Expr, Ident, Lit},
     visit::{Visit, VisitWith},
 };
 use tracing::{Instrument, Level};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
     graph::{GraphTraversal, NonDeterministic, VisitControlFlow, VisitedNodes},
     trace::TraceRawVcs,
-    FxIndexMap, RcStr, ReadRef, ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc,
+    FxIndexMap, ReadRef, ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc,
 };
 use turbopack_core::{
     chunk::{
@@ -222,17 +224,26 @@ async fn get_next_dynamic_edges(
     module: Vc<Box<dyn Module>>,
 ) -> Result<Vc<NextDynamicVisitEntries>> {
     let dynamic_imports_map = build_dynamic_imports_map_for_module(client_asset_context, module);
-    let mut edges = primary_referenced_modules(module)
+
+    let mut edges = if Vc::try_resolve_downcast_type::<EcmascriptClientReferenceModule>(module)
         .await?
-        .iter()
-        .map(|&referenced_module| async move {
-            Ok(NextDynamicVisitEntry::Module(
-                referenced_module.to_resolved().await?,
-                referenced_module.ident().to_string().await?,
-            ))
-        })
-        .try_join()
-        .await?;
+        .is_some()
+    {
+        vec![]
+    } else {
+        primary_referenced_modules(module)
+            .await?
+            .iter()
+            .map(|&referenced_module| async move {
+                Ok(NextDynamicVisitEntry::Module(
+                    referenced_module.to_resolved().await?,
+                    referenced_module.ident().to_string().await?,
+                ))
+            })
+            .try_join()
+            .await?
+    };
+
     if let Some(dynamic_imports_map) = *dynamic_imports_map.await? {
         edges.reserve_exact(1);
         edges.push(NextDynamicVisitEntry::DynamicImportsMap(

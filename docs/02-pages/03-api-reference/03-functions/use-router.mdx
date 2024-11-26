@@ -40,7 +40,7 @@ The following is the definition of the `router` object returned by both [`useRou
 - `query`: `Object` - The query string parsed to an object, including [dynamic route](/docs/pages/building-your-application/routing/dynamic-routes) parameters. It will be an empty object during prerendering if the page doesn't use [Server-side Rendering](/docs/pages/building-your-application/data-fetching/get-server-side-props). Defaults to `{}`
 - `asPath`: `String` - The path as shown in the browser including the search params and respecting the `trailingSlash` configuration. `basePath` and `locale` are not included.
 - `isFallback`: `boolean` - Whether the current page is in [fallback mode](/docs/pages/api-reference/functions/get-static-paths#fallback-true).
-- `basePath`: `String` - The active [basePath](/docs/app/api-reference/next-config-js/basePath) (if enabled).
+- `basePath`: `String` - The active [basePath](/docs/app/api-reference/config/next-config-js/basePath) (if enabled).
 - `locale`: `String` - The active locale (if enabled).
 - `locales`: `String[]` - All supported locales (if enabled).
 - `defaultLocale`: `String` - The current default locale (if enabled).
@@ -276,7 +276,7 @@ export default function Login() {
 
 ### router.beforePopState
 
-In some cases (for example, if using a [Custom Server](/docs/pages/building-your-application/configuring/custom-server)), you may wish to listen to [popstate](https://developer.mozilla.org/docs/Web/Events/popstate) and do something before the router acts on it.
+In some cases (for example, if using a [Custom Server](/docs/pages/building-your-application/configuring/custom-server)), you may wish to listen to [popstate](https://developer.mozilla.org/docs/Web/API/Window/popstate_event) and do something before the router acts on it.
 
 ```js
 router.beforePopState(cb)
@@ -363,7 +363,7 @@ You can listen to different events happening inside the Next.js Router. Here's a
 - `hashChangeStart(url, { shallow })` - Fires when the hash will change but not the page
 - `hashChangeComplete(url, { shallow })` - Fires when the hash has changed but not the page
 
-> **Good to know**: Here `url` is the URL shown in the browser, including the [`basePath`](/docs/app/api-reference/next-config-js/basePath).
+> **Good to know**: Here `url` is the URL shown in the browser, including the [`basePath`](/docs/app/api-reference/config/next-config-js/basePath).
 
 For example, to listen to the router event `routeChangeStart`, open or create `pages/_app.js` and subscribe to the event, like so:
 

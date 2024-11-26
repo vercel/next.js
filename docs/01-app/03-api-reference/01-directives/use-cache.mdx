@@ -6,8 +6,8 @@ related:
   title: Related
   description: View related API references.
   links:
-    - app/api-reference/next-config-js/dynamicIO
-    - app/api-reference/next-config-js/cacheLife
+    - app/api-reference/config/next-config-js/dynamicIO
+    - app/api-reference/config/next-config-js/cacheLife
     - app/api-reference/functions/cacheTag
     - app/api-reference/functions/cacheLife
     - app/api-reference/functions/revalidateTag
@@ -17,7 +17,7 @@ The `use cache` directive designates a component and/or a function to be cached.
 
 ## Usage
 
-Enable support for the `use cache` directive with the [`dynamicIO`](/docs/app/api-reference/next-config-js/dynamicIO) flag in your `next.config.ts` file:
+Enable support for the `use cache` directive with the [`dynamicIO`](/docs/app/api-reference/config/next-config-js/dynamicIO) flag in your `next.config.ts` file:
 
 ```ts filename="next.config.ts"
 import type { NextConfig } from 'next'
@@ -64,7 +64,7 @@ export async function getData() {
 - The return value of the cacheable function must also be serializable. This ensures that the cached data can be stored and retrieved correctly.
 - Functions that use the `use cache` directive must not have any side-effects, such as modifying state, directly manipulating the DOM, or setting timers to execute code at intervals.
 - If used alongside [Partial Prerendering](/docs/app/building-your-application/rendering/partial-prerendering), segments that have `use cache` will be prerendered as part of the static HTML shell.
-- The `use cache` directive will be available separately from the [`dynamicIO`](/docs/app/api-reference/next-config-js/dynamicIO) flag in the future.
+- The `use cache` directive will be available separately from the [`dynamicIO`](/docs/app/api-reference/config/next-config-js/dynamicIO) flag in the future.
 - Unlike [`unstable_cache`](/docs/app/api-reference/functions/unstable_cache) which only supports JSON data, `use cache` can cache any serializable data React can render, including the render output of components.
 
 ## Examples
@@ -74,19 +74,19 @@ export async function getData() {
 To prerender an entire route, add `use cache` to the top **both** the `layout` and `page` files. Each of these segments are treated as separate entry points in your application, and will be cached independently.
 
 ```tsx filename="app/layout.tsx" switcher
-"use cache"
+'use cache'
 import { unstable_cacheLife as cacheLife } from 'next/cache'
 
-export default Layout({children}: {children: ReactNode}) {
+export default function Layout({ children }: { children: ReactNode }) {
   return <div>{children}</div>
 }
 ```
 
 ```jsx filename="app/page.tsx" switcher
-"use cache"
+'use cache'
 import { unstable_cacheLife as cacheLife } from 'next/cache'
 
-export default Layout({ children }) {
+export default function Layout({ children }) {
   return <div>{children}</div>
 }
 ```
@@ -94,36 +94,36 @@ export default Layout({ children }) {
 Any components imported and nested in `page` file will inherit the cache behavior of `page`.
 
 ```tsx filename="app/page.tsx" switcher
-"use cache"
+'use cache'
 import { unstable_cacheLife as cacheLife } from 'next/cache'
 
 async function Users() {
-  const users = await fetch('/api/users');
+  const users = await fetch('/api/users')
   // loop through users
 }
 
-export default Page() {
+export default function Page() {
   return (
     <main>
-      <Users/>
+      <Users />
     </main>
   )
 }
 ```
 
 ```jsx filename="app/page.js" switcher
-"use cache"
+'use cache'
 import { unstable_cacheLife as cacheLife } from 'next/cache'
 
 async function Users() {
-  const users = await fetch('/api/users');
+  const users = await fetch('/api/users')
   // loop through users
 }
 
-export default Page() {
+export default function Page() {
   return (
     <main>
-      <Users/>
+      <Users />
     </main>
   )
 }
@@ -203,7 +203,7 @@ See the [`cacheLife`](/docs/app/api-reference/functions/cacheLife) and [`cacheTa
 If you need to pass non-serializable arguments to a cacheable function, you can pass them as `children`. This means the `children` reference can change without affecting the cache entry.
 
 ```tsx filename="app/page.tsx" switcher
-async function Page() {
+export default async function Page() {
   const uncachedData = await getData()
   return (
     <CacheComponent>
@@ -229,7 +229,7 @@ You can also pass Server Actions through cached components to Client Components 
 ```tsx filename="app/page.tsx" switcher
 import ClientComponent from './ClientComponent';
 
-async function Page() {
+export default async function Page() {
   const performUpdate = async () => {
     "use server"
     // Perform some server-side update
@@ -249,7 +249,7 @@ async function CachedComponent({ performUpdate }) {
 ```jsx filename="app/page.js" switcher
 import ClientComponent from './ClientComponent';
 
-async function Page() {
+export default async function Page() {
   const performUpdate = async () => {
     "use server"
     // Perform some server-side update

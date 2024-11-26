@@ -1,5 +1,5 @@
 import React from 'react'
-import { revalidatePath, revalidateTag } from 'next/cache'
+import { expirePath, expireTag } from 'next/cache'
 
 export function RevalidateButtons() {
   return (
@@ -8,7 +8,7 @@ export function RevalidateButtons() {
         id="revalidate-a"
         formAction={async () => {
           'use server'
-          revalidateTag('a')
+          expireTag('a')
         }}
       >
         revalidate a
@@ -17,7 +17,7 @@ export function RevalidateButtons() {
         id="revalidate-b"
         formAction={async () => {
           'use server'
-          revalidateTag('b')
+          expireTag('b')
         }}
       >
         revalidate b
@@ -26,7 +26,7 @@ export function RevalidateButtons() {
         id="revalidate-c"
         formAction={async () => {
           'use server'
-          revalidateTag('c')
+          expireTag('c')
         }}
       >
         revalidate c
@@ -35,7 +35,7 @@ export function RevalidateButtons() {
         id="revalidate-f"
         formAction={async () => {
           'use server'
-          revalidateTag('f')
+          expireTag('f')
         }}
       >
         revalidate f
@@ -44,7 +44,7 @@ export function RevalidateButtons() {
         id="revalidate-r"
         formAction={async () => {
           'use server'
-          revalidateTag('r')
+          expireTag('r')
         }}
       >
         revalidate r
@@ -53,7 +53,7 @@ export function RevalidateButtons() {
         id="revalidate-path"
         formAction={async () => {
           'use server'
-          revalidatePath('/cache-tag')
+          expirePath('/cache-tag')
         }}
       >
         revalidate path

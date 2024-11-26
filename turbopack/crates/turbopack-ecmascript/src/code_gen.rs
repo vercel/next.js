@@ -3,7 +3,8 @@ use swc_core::ecma::{
     ast::Stmt,
     visit::{AstParentKind, VisitMut},
 };
-use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, RcStr, ResolvedVc, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, ResolvedVc, Vc};
 use turbopack_core::chunk::{AsyncModuleInfo, ChunkingContext};
 
 /// impl of code generation inferred from a ModuleReference.

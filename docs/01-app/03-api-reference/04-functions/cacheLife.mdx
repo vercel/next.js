@@ -6,7 +6,7 @@ related:
   title: Related
   description: View related API references.
   links:
-    - app/api-reference/next-config-js/dynamicIO
+    - app/api-reference/config/next-config-js/dynamicIO
     - app/api-reference/directives/use-cache
     - app/api-reference/functions/revalidateTag
     - app/api-reference/functions/cacheTag
@@ -16,7 +16,7 @@ The `cacheLife` function is used to set the cache lifetime of a function or comp
 
 ## Usage
 
-To use `cacheLife`, enable the [`dynamicIO` flag](/docs/app/api-reference/next-config-js/dynamicIO) in your `next.config.js` file:
+To use `cacheLife`, enable the [`dynamicIO` flag](/docs/app/api-reference/config/next-config-js/dynamicIO) in your `next.config.js` file:
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
@@ -84,7 +84,7 @@ The string values used to reference cache profiles don't carry inherent meaning;
 
 ### Custom cache profiles
 
-You can configure custom cache profiles by adding them to the [`cacheLife`](/docs/app/api-reference/next-config-js/cacheLife) option in your `next.config.ts` file.
+You can configure custom cache profiles by adding them to the [`cacheLife`](/docs/app/api-reference/config/next-config-js/cacheLife) option in your `next.config.ts` file.
 
 Cache profiles are objects that contain the following properties:
 
@@ -94,7 +94,7 @@ Cache profiles are objects that contain the following properties:
 | `revalidate` | `number`  | Frequency at which the cache should refresh on the server; stale values may be served while revalidating.                   | Optional                                    |
 | `expire`     | `number`  | Maximum duration for which a value can remain stale before switching to dynamic fetching; must be longer than `revalidate`. | Optional - Must be longer than `revalidate` |
 
-The "stale" property differs from the [`staleTimes`](/docs/app/api-reference/next-config-js/staleTimes) setting in that it specifically controls client-side router caching. While `staleTimes` is a global setting that affects all instances of both dynamic and static data, the `cacheLife` configuration allows you to define "stale" times on a per-function or per-route basis.
+The "stale" property differs from the [`staleTimes`](/docs/app/api-reference/config/next-config-js/staleTimes) setting in that it specifically controls client-side router caching. While `staleTimes` is a global setting that affects all instances of both dynamic and static data, the `cacheLife` configuration allows you to define "stale" times on a per-function or per-route basis.
 
 > **Good to know**: The “stale” property does not set the `Cache-control: max-age` header. It instead controls the client-side router cache.
 

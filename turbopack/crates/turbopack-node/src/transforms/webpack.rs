@@ -6,9 +6,9 @@ use either::Either;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value as JsonValue};
 use serde_with::serde_as;
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, Completion, RcStr, ResolvedVc, TaskInput, TryJoinIterExt, Value,
-    ValueToString, Vc,
+    trace::TraceRawVcs, Completion, ResolvedVc, TaskInput, TryJoinIterExt, Value, ValueToString, Vc,
 };
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::ProcessEnv;
@@ -176,13 +176,17 @@ struct ProcessWebpackLoadersResult {
 }
 
 #[turbo_tasks::function]
-fn webpack_loaders_executor(evaluate_context: Vc<Box<dyn AssetContext>>) -> Vc<ProcessResult> {
-    evaluate_context.process(
+async fn webpack_loaders_executor(
+    evaluate_context: Vc<Box<dyn AssetContext>>,
+) -> Result<Vc<ProcessResult>> {
+    Ok(evaluate_context.process(
         Vc::upcast(FileSource::new(embed_file_path(
             "transforms/webpack-loaders.ts".into(),
         ))),
-        Value::new(ReferenceType::Internal(InnerAssets::empty())),
-    )
+        Value::new(ReferenceType::Internal(
+            InnerAssets::empty().to_resolved().await?,
+        )),
+    ))
 }
 
 #[turbo_tasks::value_impl]

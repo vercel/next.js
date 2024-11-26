@@ -1,7 +1,8 @@
 use std::fmt::Display;
 
 use anyhow::Result;
-use turbo_tasks::{FxIndexMap, RcStr, ResolvedVc, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexMap, ResolvedVc, Vc};
 
 use crate::{module::Module, resolve::ModulePart};
 
@@ -165,7 +166,7 @@ impl ImportContext {
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Debug, Clone, Hash)]
 pub enum CssReferenceSubType {
-    AtImport(Option<Vc<ImportContext>>),
+    AtImport(Option<ResolvedVc<ImportContext>>),
     Compose,
     /// Reference from any asset to a CSS-parseable asset.
     ///
@@ -232,7 +233,7 @@ pub enum ReferenceType {
     Worker(WorkerReferenceSubType),
     Entry(EntryReferenceSubType),
     Runtime,
-    Internal(Vc<InnerAssets>),
+    Internal(ResolvedVc<InnerAssets>),
     Custom(u8),
     Undefined,
 }

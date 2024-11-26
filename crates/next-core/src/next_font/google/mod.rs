@@ -4,7 +4,8 @@ use anyhow::{bail, Context, Result};
 use futures::FutureExt;
 use indoc::formatdoc;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{Completion, FxIndexMap, RcStr, ResolvedVc, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{Completion, FxIndexMap, ResolvedVc, Value, Vc};
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::{CommandLineProcessEnv, ProcessEnv};
 use turbo_tasks_fetch::{fetch, HttpResponseBody};
@@ -169,7 +170,7 @@ impl ImportMappingReplacement for NextFontGoogleReplacer {
         };
 
         let this = &*self.await?;
-        if can_use_next_font(this.project_path, *query).await? {
+        if can_use_next_font(this.project_path, **query).await? {
             Ok(self.import_map_result(query.await?.as_str().into()))
         } else {
             Ok(ImportMapResult::NoEntry.into())
@@ -356,7 +357,7 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
             url,
             preload,
             has_size_adjust: size_adjust,
-        } = font_file_options_from_query_map(*query_vc).await?;
+        } = font_file_options_from_query_map(**query_vc).await?;
 
         let (filename, ext) = split_extension(&url);
         let ext = ext.with_context(|| format!("font url {} is missing an extension", &url))?;
@@ -398,7 +399,7 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
 }
 
 #[turbo_tasks::function]
-async fn load_font_data(project_root: Vc<FileSystemPath>) -> Result<Vc<FontData>> {
+async fn load_font_data(project_root: ResolvedVc<FileSystemPath>) -> Result<Vc<FontData>> {
     let data: FontData = load_next_js_templateon(
         project_root,
         "dist/compiled/@next/font/dist/google/font-data.json".into(),
@@ -684,7 +685,9 @@ async fn get_mock_stylesheet(
                     .into(),
                 ),
             )),
-            Value::new(ReferenceType::Internal(InnerAssets::empty())),
+            Value::new(ReferenceType::Internal(
+                InnerAssets::empty().to_resolved().await?,
+            )),
         )
         .module();
 

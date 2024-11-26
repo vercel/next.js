@@ -24,6 +24,7 @@ import AppRouter from './components/app-router'
 import type { InitialRSCPayload } from '../server/app-render/types'
 import { createInitialRouterState } from './components/router-reducer/create-initial-router-state'
 import { MissingSlotContext } from '../shared/lib/app-router-context.shared-runtime'
+import { setAppBuildId } from './app-build-id'
 
 /// <reference types="react-dom/experimental" />
 
@@ -156,10 +157,13 @@ const pendingActionQueue: Promise<AppRouterActionQueue> = new Promise(
   (resolve, reject) => {
     initialServerResponse.then(
       (initialRSCPayload) => {
+        // setAppBuildId should be called only once, during JS initialization
+        // and before any components have hydrated.
+        setAppBuildId(initialRSCPayload.b)
+
         resolve(
           createMutableActionQueue(
             createInitialRouterState({
-              buildId: initialRSCPayload.b,
               initialFlightData: initialRSCPayload.f,
               initialCanonicalUrlParts: initialRSCPayload.c,
               initialParallelRoutes: new Map(),

@@ -2823,7 +2823,7 @@ export async function release(task) {
 export async function next_bundle_app_turbo(task, opts) {
   await task.source('dist').webpack({
     watch: opts.dev,
-    config: require('./webpack.config')({
+    config: require('./next-runtime.webpack-config')({
       turbo: true,
       bundleType: 'app',
     }),
@@ -2834,7 +2834,7 @@ export async function next_bundle_app_turbo(task, opts) {
 export async function next_bundle_app_prod(task, opts) {
   await task.source('dist').webpack({
     watch: opts.dev,
-    config: require('./webpack.config')({
+    config: require('./next-runtime.webpack-config')({
       dev: false,
       bundleType: 'app',
     }),
@@ -2845,7 +2845,7 @@ export async function next_bundle_app_prod(task, opts) {
 export async function next_bundle_app_dev(task, opts) {
   await task.source('dist').webpack({
     watch: opts.dev,
-    config: require('./webpack.config')({
+    config: require('./next-runtime.webpack-config')({
       dev: true,
       bundleType: 'app',
     }),
@@ -2856,7 +2856,7 @@ export async function next_bundle_app_dev(task, opts) {
 export async function next_bundle_app_turbo_experimental(task, opts) {
   await task.source('dist').webpack({
     watch: opts.dev,
-    config: require('./webpack.config')({
+    config: require('./next-runtime.webpack-config')({
       turbo: true,
       bundleType: 'app',
       experimental: true,
@@ -2868,7 +2868,7 @@ export async function next_bundle_app_turbo_experimental(task, opts) {
 export async function next_bundle_app_prod_experimental(task, opts) {
   await task.source('dist').webpack({
     watch: opts.dev,
-    config: require('./webpack.config')({
+    config: require('./next-runtime.webpack-config')({
       dev: false,
       bundleType: 'app',
       experimental: true,
@@ -2880,7 +2880,7 @@ export async function next_bundle_app_prod_experimental(task, opts) {
 export async function next_bundle_app_dev_experimental(task, opts) {
   await task.source('dist').webpack({
     watch: opts.dev,
-    config: require('./webpack.config')({
+    config: require('./next-runtime.webpack-config')({
       dev: true,
       bundleType: 'app',
       experimental: true,
@@ -2892,7 +2892,7 @@ export async function next_bundle_app_dev_experimental(task, opts) {
 export async function next_bundle_pages_prod(task, opts) {
   await task.source('dist').webpack({
     watch: opts.dev,
-    config: require('./webpack.config')({
+    config: require('./next-runtime.webpack-config')({
       dev: false,
       bundleType: 'pages',
     }),
@@ -2903,7 +2903,7 @@ export async function next_bundle_pages_prod(task, opts) {
 export async function next_bundle_pages_dev(task, opts) {
   await task.source('dist').webpack({
     watch: opts.dev,
-    config: require('./webpack.config')({
+    config: require('./next-runtime.webpack-config')({
       dev: true,
       bundleType: 'pages',
     }),
@@ -2914,7 +2914,7 @@ export async function next_bundle_pages_dev(task, opts) {
 export async function next_bundle_pages_turbo(task, opts) {
   await task.source('dist').webpack({
     watch: opts.dev,
-    config: require('./webpack.config')({
+    config: require('./next-runtime.webpack-config')({
       turbo: true,
       bundleType: 'pages',
     }),
@@ -2925,7 +2925,7 @@ export async function next_bundle_pages_turbo(task, opts) {
 export async function next_bundle_server(task, opts) {
   await task.source('dist').webpack({
     watch: opts.dev,
-    config: require('./webpack.config')({
+    config: require('./next-runtime.webpack-config')({
       dev: false,
       bundleType: 'server',
     }),

@@ -1,5 +1,6 @@
 use anyhow::Result;
-use turbo_tasks::{fxindexmap, FxIndexMap, RcStr, ResolvedVc, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{fxindexmap, FxIndexMap, ResolvedVc, Value, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{context::AssetContext, module::Module, reference_type::ReferenceType};
 
@@ -48,7 +49,7 @@ pub async fn get_middleware_module(
     let module = asset_context
         .process(
             source,
-            Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
+            Value::new(ReferenceType::Internal(ResolvedVc::cell(inner_assets))),
         )
         .module();
 

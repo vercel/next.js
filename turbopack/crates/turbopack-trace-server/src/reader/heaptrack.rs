@@ -181,7 +181,9 @@ impl TraceFormat for HeaptrackFormat {
         )
     }
 
-    fn read(&mut self, mut buffer: &[u8]) -> anyhow::Result<usize> {
+    type Reused = ();
+
+    fn read(&mut self, mut buffer: &[u8], _reuse: &mut Self::Reused) -> anyhow::Result<usize> {
         let mut bytes_read = 0;
         let mut outdated_spans = HashSet::new();
         let mut store = self.store.write();

@@ -1,7 +1,11 @@
 'use client'
 
 import { startTransition } from 'react'
-import { absoluteRedirect, relativeRedirect } from '../actions'
+import {
+  absoluteRedirect,
+  multiRelativeRedirect,
+  relativeRedirect,
+} from '../actions'
 
 export default function Page() {
   return (
@@ -16,6 +20,16 @@ export default function Page() {
         id="relative-subdir-redirect"
       >
         relative redirect
+      </button>
+      <button
+        onClick={async () => {
+          startTransition(async () => {
+            await multiRelativeRedirect()
+          })
+        }}
+        id="multi-relative-subdir-redirect"
+      >
+        multi-level relative redirect
       </button>
       <button
         onClick={async () => {

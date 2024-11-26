@@ -2,11 +2,12 @@ use anyhow::Result;
 use async_trait::async_trait;
 use next_custom_transforms::transforms::server_actions::{server_actions, Config};
 use swc_core::{common::FileName, ecma::ast::Program};
-use turbo_tasks::Vc;
+use turbo_tasks::ResolvedVc;
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
 use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext};
 
 use super::module_rule_match_js_no_url;
+use crate::next_config::CacheKinds;
 
 #[derive(Debug)]
 pub enum ActionsTransform {
@@ -18,14 +19,20 @@ pub enum ActionsTransform {
 pub fn get_server_actions_transform_rule(
     transform: ActionsTransform,
     enable_mdx_rs: bool,
+    dynamic_io_enabled: bool,
+    cache_kinds: ResolvedVc<CacheKinds>,
 ) -> ModuleRule {
     let transformer =
-        EcmascriptInputTransform::Plugin(Vc::cell(Box::new(NextServerActions { transform }) as _));
+        EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(NextServerActions {
+            transform,
+            dynamic_io_enabled,
+            cache_kinds,
+        }) as _));
     ModuleRule::new(
         module_rule_match_js_no_url(enable_mdx_rs),
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
-            prepend: Vc::cell(vec![]),
-            append: Vc::cell(vec![transformer]),
+            prepend: ResolvedVc::cell(vec![]),
+            append: ResolvedVc::cell(vec![transformer]),
         }],
     )
 }
@@ -33,6 +40,8 @@ pub fn get_server_actions_transform_rule(
 #[derive(Debug)]
 struct NextServerActions {
     transform: ActionsTransform,
+    dynamic_io_enabled: bool,
+    cache_kinds: ResolvedVc<CacheKinds>,
 }
 
 #[async_trait]
@@ -43,8 +52,9 @@ impl CustomTransformer for NextServerActions {
             &FileName::Real(ctx.file_path_str.into()),
             Config {
                 is_react_server_layer: matches!(self.transform, ActionsTransform::Server),
-                enabled: true,
+                dynamic_io_enabled: self.dynamic_io_enabled,
                 hash_salt: "".into(),
+                cache_kinds: self.cache_kinds.await?.clone_value(),
             },
             ctx.comments.clone(),
         );

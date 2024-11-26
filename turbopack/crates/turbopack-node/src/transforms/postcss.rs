@@ -1,8 +1,9 @@
 use anyhow::{bail, Context, Result};
 use indoc::formatdoc;
 use serde::{Deserialize, Serialize};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    fxindexmap, trace::TraceRawVcs, Completion, Completions, RcStr, ResolvedVc, TaskInput,
+    fxindexmap, trace::TraceRawVcs, Completion, Completions, ResolvedVc, TaskInput,
     TryFlatJoinIterExt, Value, Vc,
 };
 use turbo_tasks_bytes::stream::SingleValue;
@@ -171,19 +172,21 @@ struct ProcessPostCssResult {
 async fn config_changed(
     asset_context: Vc<Box<dyn AssetContext>>,
     postcss_config_path: Vc<FileSystemPath>,
-) -> Vc<Completion> {
+) -> Result<Vc<Completion>> {
     let config_asset = asset_context
         .process(
             Vc::upcast(FileSource::new(postcss_config_path)),
-            Value::new(ReferenceType::Internal(InnerAssets::empty())),
+            Value::new(ReferenceType::Internal(
+                InnerAssets::empty().to_resolved().await?,
+            )),
         )
         .module();
 
-    Vc::<Completions>::cell(vec![
+    Ok(Vc::<Completions>::cell(vec![
         any_content_changed_of_module(config_asset),
         extra_configs_changed(asset_context, postcss_config_path),
     ])
-    .completed()
+    .completed())
 }
 
 #[turbo_tasks::function]
@@ -195,6 +198,7 @@ async fn extra_configs_changed(
 
     let config_paths = [
         parent_path.join("tailwind.config.js".into()),
+        parent_path.join("tailwind.config.mjs".into()),
         parent_path.join("tailwind.config.ts".into()),
     ];
 
@@ -206,13 +210,13 @@ async fn extra_configs_changed(
                     asset_context
                         .process(
                             Vc::upcast(FileSource::new(path)),
-                            Value::new(ReferenceType::Internal(InnerAssets::empty())),
+                            Value::new(ReferenceType::Internal(
+                                InnerAssets::empty().to_resolved().await?,
+                            )),
                         )
                         .try_into_module()
                         .await?
-                        .as_deref()
-                        .copied()
-                        .map(any_content_changed_of_module)
+                        .map(|rvc| any_content_changed_of_module(*rvc))
                 } else {
                     None
                 },
@@ -279,7 +283,7 @@ impl Asset for JsonSource {
                 let value = match &*self.key.await? {
                     Some(key) => {
                         let Some(value) = json.get(&**key) else {
-                            return Err(anyhow::anyhow!("Invalid file type {:?}", file_type));
+                            anyhow::bail!("Invalid file type {:?}", file_type)
                         };
                         value
                     }
@@ -383,7 +387,7 @@ async fn postcss_executor(
             )
             .cell(),
         )),
-        Value::new(ReferenceType::Internal(Vc::cell(fxindexmap! {
+        Value::new(ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
             "CONFIG".into() => config_asset
         }))),
     ))

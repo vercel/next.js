@@ -2,7 +2,8 @@ use std::collections::BTreeMap;
 
 use anyhow::{bail, Result};
 use indoc::formatdoc;
-use turbo_tasks::{RcStr, ResolvedVc, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::{Asset, AssetContent},

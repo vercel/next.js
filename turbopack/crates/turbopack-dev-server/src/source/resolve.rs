@@ -8,7 +8,8 @@ use hyper::{
     header::{HeaderName as HyperHeaderName, HeaderValue as HyperHeaderValue},
     Uri,
 };
-use turbo_tasks::{RcStr, ResolvedVc, TransientInstance, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, TransientInstance, Value, Vc};
 
 use super::{
     headers::{HeaderValue, Headers},

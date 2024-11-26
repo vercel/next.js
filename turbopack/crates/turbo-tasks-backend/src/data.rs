@@ -583,6 +583,7 @@ impl CachedDataItemKey {
 #[allow(non_upper_case_globals, dead_code)]
 pub mod allow_mut_access {
     pub const InProgress: () = ();
+    pub const AggregateRoot: () = ();
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -599,6 +600,7 @@ pub enum CachedDataItemIndex {
     OutputDependent,
     CollectiblesDependent,
     Dependencies,
+    InProgressCell,
 }
 
 #[allow(non_upper_case_globals, dead_code)]
@@ -630,6 +632,7 @@ pub mod indicies {
         CachedDataItemIndex::Dependencies;
     pub const OutdatedCollectibleDependency: CachedDataItemIndex =
         CachedDataItemIndex::Dependencies;
+    pub const InProgressCell: CachedDataItemIndex = CachedDataItemIndex::InProgressCell;
 }
 
 impl Indexed for CachedDataItemKey {
@@ -671,6 +674,7 @@ impl Indexed for CachedDataItemKey {
             CachedDataItemKey::OutdatedCollectiblesDependency { .. } => {
                 Some(CachedDataItemIndex::Dependencies)
             }
+            CachedDataItemKey::InProgressCell { .. } => Some(CachedDataItemIndex::InProgressCell),
             _ => None,
         }
     }

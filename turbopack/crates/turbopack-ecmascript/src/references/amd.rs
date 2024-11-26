@@ -10,8 +10,9 @@ use swc_core::{
     },
     quote, quote_expr,
 };
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, RcStr, ReadRef, TryJoinIterExt, Value,
+    debug::ValueDebugFormat, trace::TraceRawVcs, ReadRef, ResolvedVc, TryJoinIterExt, Value,
     ValueToString, Vc,
 };
 use turbopack_core::{
@@ -32,9 +33,9 @@ use crate::{
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct AmdDefineAssetReference {
-    origin: Vc<Box<dyn ResolveOrigin>>,
-    request: Vc<Request>,
-    issue_source: Vc<IssueSource>,
+    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    request: ResolvedVc<Request>,
+    issue_source: ResolvedVc<IssueSource>,
     in_try: bool,
 }
 
@@ -42,9 +43,9 @@ pub struct AmdDefineAssetReference {
 impl AmdDefineAssetReference {
     #[turbo_tasks::function]
     pub fn new(
-        origin: Vc<Box<dyn ResolveOrigin>>,
-        request: Vc<Request>,
-        issue_source: Vc<IssueSource>,
+        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+        request: ResolvedVc<Request>,
+        issue_source: ResolvedVc<IssueSource>,
         in_try: bool,
     ) -> Vc<Self> {
         Self::cell(AmdDefineAssetReference {
@@ -61,9 +62,9 @@ impl ModuleReference for AmdDefineAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
         cjs_resolve(
-            self.origin,
-            self.request,
-            Some(self.issue_source),
+            *self.origin,
+            *self.request,
+            Some(*self.issue_source),
             self.in_try,
         )
     }
@@ -107,7 +108,7 @@ pub enum AmdDefineFactoryType {
 pub struct AmdDefineWithDependenciesCodeGen {
     dependencies_requests: Vec<AmdDefineDependencyElement>,
     origin: Vc<Box<dyn ResolveOrigin>>,
-    path: Vc<AstPath>,
+    path: ResolvedVc<AstPath>,
     factory_type: AmdDefineFactoryType,
     issue_source: Vc<IssueSource>,
     in_try: bool,
@@ -117,7 +118,7 @@ impl AmdDefineWithDependenciesCodeGen {
     pub fn new(
         dependencies_requests: Vec<AmdDefineDependencyElement>,
         origin: Vc<Box<dyn ResolveOrigin>>,
-        path: Vc<AstPath>,
+        path: ResolvedVc<AstPath>,
         factory_type: AmdDefineFactoryType,
         issue_source: Vc<IssueSource>,
         in_try: bool,

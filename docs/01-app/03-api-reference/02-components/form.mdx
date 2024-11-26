@@ -152,7 +152,7 @@ When `action` is a function, the `<Form>` component supports the following prop:
 <AppOnly>
 
 - **`formAction`**: Can be used in a `<button>` or `<input type="submit">` fields to override the `action` prop. Next.js will perform a client-side navigation, however, this approach doesn't support prefetching.
-  - When using [`basePath`](/docs/app/api-reference/next-config-js/basePath), you must also include it in the `formAction` path. e.g. `formAction="/base-path/search"`.
+  - When using [`basePath`](/docs/app/api-reference/config/next-config-js/basePath), you must also include it in the `formAction` path. e.g. `formAction="/base-path/search"`.
 - **`key`**: Passing a `key` prop to a string `action` is not supported. If you'd like to trigger a re-render or perform a mutation, consider using a function `action` instead.
 
 </AppOnly>

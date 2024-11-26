@@ -4,7 +4,8 @@ use std::{
 };
 
 use anyhow::Result;
-use turbo_tasks::{FxIndexMap, RcStr, ResolvedVc, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexMap, ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::{transition::Transition, ModuleAssetContext};
 use turbopack_core::{file_source::FileSource, module::Module};
@@ -319,6 +320,8 @@ impl AppPageLoaderTreeBuilder {
             template,
             not_found,
             metadata,
+            forbidden,
+            unauthorized,
             route: _,
         } = &modules;
 
@@ -341,6 +344,10 @@ impl AppPageLoaderTreeBuilder {
         self.write_modules_entry(AppDirModuleType::Template, *template)
             .await?;
         self.write_modules_entry(AppDirModuleType::NotFound, *not_found)
+            .await?;
+        self.write_modules_entry(AppDirModuleType::Forbidden, *forbidden)
+            .await?;
+        self.write_modules_entry(AppDirModuleType::Unauthorized, *unauthorized)
             .await?;
         self.write_modules_entry(AppDirModuleType::Page, *page)
             .await?;

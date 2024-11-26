@@ -128,9 +128,10 @@ pub fn create_turbo_tasks(
 ) -> Result<NextTurboTasks> {
     Ok(if persistent_caching {
         NextTurboTasks::PersistentCaching(TurboTasks::new(
-            turbo_tasks_backend::TurboTasksBackend::new(default_backing_storage(
-                &output_path.join("cache/turbopack"),
-            )?),
+            turbo_tasks_backend::TurboTasksBackend::new(
+                turbo_tasks_backend::BackendOptions::default(),
+                default_backing_storage(&output_path.join("cache/turbopack"))?,
+            ),
         ))
     } else {
         let mut backend = turbo_tasks_memory::MemoryBackend::new(memory_limit);

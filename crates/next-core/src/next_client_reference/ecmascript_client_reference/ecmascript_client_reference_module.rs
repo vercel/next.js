@@ -1,10 +1,12 @@
 #![allow(rustdoc::private_intra_doc_links)]
 use anyhow::{bail, Result};
-use turbo_tasks::{RcStr, ResolvedVc, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     ident::AssetIdent,
-    module::{Module, Modules},
+    module::Module,
+    reference::{ModuleReferences, SingleModuleReference},
 };
 use turbopack_ecmascript::chunk::EcmascriptChunkPlaceable;
 
@@ -45,7 +47,17 @@ impl EcmascriptClientReferenceModule {
 
 #[turbo_tasks::function]
 fn ecmascript_client_reference_modifier() -> Vc<RcStr> {
-    Vc::cell("ecmascript client reference".into())
+    Vc::cell("ecmascript client reference module".into())
+}
+
+#[turbo_tasks::function]
+fn ecmascript_client_reference_client_ref_modifier() -> Vc<RcStr> {
+    Vc::cell("ecmascript client reference to client".into())
+}
+
+#[turbo_tasks::function]
+fn ecmascript_client_reference_ssr_ref_modifier() -> Vc<RcStr> {
+    Vc::cell("ecmascript client reference to ssr".into())
 }
 
 #[turbo_tasks::value_impl]
@@ -57,10 +69,19 @@ impl Module for EcmascriptClientReferenceModule {
     }
 
     #[turbo_tasks::function]
-    fn additional_layers_modules(&self) -> Vc<Modules> {
+    fn references(&self) -> Vc<ModuleReferences> {
         let client_module = ResolvedVc::upcast(self.client_module);
         let ssr_module = ResolvedVc::upcast(self.ssr_module);
-        Vc::cell(vec![client_module, ssr_module])
+        Vc::cell(vec![
+            Vc::upcast(SingleModuleReference::new(
+                *client_module,
+                ecmascript_client_reference_client_ref_modifier(),
+            )),
+            Vc::upcast(SingleModuleReference::new(
+                *ssr_module,
+                ecmascript_client_reference_ssr_ref_modifier(),
+            )),
+        ])
     }
 }
 

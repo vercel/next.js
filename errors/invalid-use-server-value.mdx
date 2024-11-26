@@ -6,7 +6,7 @@ title: 'Invalid "use server" Value'
 
 This error occurs when a `"use server"` file exports a value that is not an async function. It might happen when you unintentionally export something like a configuration object, an arbitrary value, or missed the `async` keyword in the exported function declaration.
 
-These functions are required to be defined as async, because `"use server"` marks them as [Server Actions](https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions-and-mutations) and they can be invoked directly from the client through a network request.
+These functions are required to be defined as async, because `"use server"` marks them as [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) and they can be invoked directly from the client through a network request.
 
 Examples of incorrect code:
 
@@ -39,5 +39,5 @@ Check all exported values in the `"use server"` file (including `export *`) and 
 
 ## Useful Links
 
-- [Server Actions and Mutations - Next.js](https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions-and-mutations)
+- [Server Actions and Mutations - Next.js](/docs/app/building-your-application/data-fetching/server-actions-and-mutations)
 - ['use server' directive - React](https://react.dev/reference/react/use-server)

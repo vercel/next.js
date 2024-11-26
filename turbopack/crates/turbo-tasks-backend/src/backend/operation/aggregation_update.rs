@@ -146,7 +146,7 @@ impl AggregatedDataUpdate {
         let aggregation = get_aggregation_number(task);
         let mut dirty_container_count = Default::default();
         let mut collectibles_update: Vec<_> =
-            get_many!(task, Collectible { collectible } => (*collectible, 1));
+            get_many!(task, Collectible { collectible } count => (*collectible, *count));
         if is_aggregating_node(aggregation) {
             dirty_container_count = get!(task, AggregatedDirtyContainerCount)
                 .cloned()
@@ -552,6 +552,7 @@ impl AggregationUpdateQueue {
     }
 
     pub fn run(job: AggregationUpdateJob, ctx: &mut impl ExecuteContext) {
+        debug_assert!(ctx.should_track_children());
         let mut queue = Self::new();
         queue.push(job);
         queue.execute(ctx);

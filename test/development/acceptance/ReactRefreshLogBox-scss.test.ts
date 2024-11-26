@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import { sandbox } from 'development-sandbox'
+import { createSandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
 
@@ -15,7 +15,8 @@ describe.skip('ReactRefreshLogBox scss', () => {
   })
 
   test('scss syntax errors', async () => {
-    const { session, cleanup } = await sandbox(next)
+    await using sandbox = await createSandbox(next)
+    const { session } = sandbox
 
     await session.write('index.module.scss', `.button { font-size: 5px; }`)
     await session.patch(
@@ -39,12 +40,11 @@ describe.skip('ReactRefreshLogBox scss', () => {
     await session.assertHasRedbox()
     const source = await session.getRedboxSource()
     expect(source).toMatchSnapshot()
-
-    await cleanup()
   })
 
   test('scss module pure selector error', async () => {
-    const { session, cleanup } = await sandbox(next)
+    await using sandbox = await createSandbox(next)
+    const { session } = sandbox
 
     await session.write('index.module.scss', `.button { font-size: 5px; }`)
     await session.patch(
@@ -67,7 +67,5 @@ describe.skip('ReactRefreshLogBox scss', () => {
     await session.assertHasRedbox()
     const source2 = await session.getRedboxSource()
     expect(source2).toMatchSnapshot()
-
-    await cleanup()
   })
 })

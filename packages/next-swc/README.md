@@ -36,16 +36,15 @@ pnpm build-wasm
 Due to platform differences napi bindings selectively enables supported features.
 See below tables for the currently enabled features.
 
-| arch\platform | Linux(gnu) | Linux(musl) | Darwin    | Win32     |
+| arch\platform | Linux(gnu) | Linux(musl) | Darwin    | Windows   |
 | ------------- | ---------- | ----------- | --------- | --------- |
-| ia32          |            |             |           | a,b,d,e   |
 | x64           | a,b,d,e,f  | a,b,d,e,f   | a,b,d,e,f | a,b,d,e,f |
 | aarch64       | a,d,e,f    | a,d,e,f     | a,b,d,e,f | a,b,c,e   |
 
-- a: `turbo_tasks_malloc`,
-- b: `turbo_tasks_malloc_custom_allocator`,
-- c: `native-tls`,
-- d: `rustls-tls`,
+- a: `turbo_tasks_malloc`
+- b: `turbo_tasks_malloc_custom_allocator`
+- c: `native-tls` (via `turbo-tasks-fetch`)
+- d: `rustls-tls` (via `turbo-tasks-fetch`)
 - e: `image-extended` (webp)
 - f: `plugin`
 

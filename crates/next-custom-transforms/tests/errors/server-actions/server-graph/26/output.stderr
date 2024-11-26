@@ -1,0 +1,16 @@
+  x "use cache" functions cannot use `arguments`.
+  | 
+    ,-[input.js:9:1]
+  8 |     // arguments is not allowed here
+  9 |     console.log(arguments)
+    :                 ^^^^^^^^^
+ 10 |     // this is not allowed here
+    `----
+  x "use cache" functions cannot use `this`.
+  | 
+    ,-[input.js:11:1]
+ 10 |     // this is not allowed here
+ 11 |     return this.foo()
+    :            ^^^^
+ 12 |   }
+    `----

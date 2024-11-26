@@ -2,9 +2,10 @@ use std::{any::Any, fmt::Debug, future::Future, hash::Hash, time::Duration};
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use turbo_rcstr::RcStr;
 
 use crate::{
-    MagicAny, RcStr, ResolvedVc, TaskId, TransientInstance, TransientValue, Value, ValueTypeId, Vc,
+    MagicAny, ResolvedVc, TaskId, TransientInstance, TransientValue, Value, ValueTypeId, Vc,
 };
 
 /// Trait to implement in order for a type to be accepted as a
@@ -95,7 +96,7 @@ where
 
 impl<T> TaskInput for Vc<T>
 where
-    T: Send,
+    T: Send + Sync + ?Sized,
 {
     fn is_resolved(&self) -> bool {
         Vc::is_resolved(*self)
@@ -114,7 +115,7 @@ where
 // `Vc`, but it is useful for structs that contain `ResolvedVc` and want to derive `TaskInput`.
 impl<T> TaskInput for ResolvedVc<T>
 where
-    T: Send,
+    T: Send + Sync + ?Sized,
 {
     fn is_resolved(&self) -> bool {
         true

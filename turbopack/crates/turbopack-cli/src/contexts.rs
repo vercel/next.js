@@ -1,13 +1,14 @@
 use std::fmt;
 
 use anyhow::Result;
-use turbo_tasks::{RcStr, ResolvedVc, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack::{
     ecmascript::{EcmascriptInputTransform, TreeShakingMode},
     module_options::{
         EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext, ModuleRule,
-        ModuleRuleEffect, RuleCondition,
+        ModuleRuleEffect, RuleCondition, TypescriptTransformOptions,
     },
     ModuleAssetContext,
 };
@@ -128,7 +129,7 @@ async fn get_client_module_options_context(
             react_refresh: enable_react_refresh,
             ..Default::default()
         }
-        .cell(),
+        .resolved_cell(),
     );
 
     let versions = *env.runtime_versions().await?;
@@ -143,33 +144,34 @@ async fn get_client_module_options_context(
     let module_rules = ModuleRule::new(
         conditions,
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
-            prepend: Vc::cell(vec![
-                EcmascriptInputTransform::Plugin(Vc::cell(Box::new(
+            prepend: ResolvedVc::cell(vec![
+                EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(
                     EmotionTransformer::new(&EmotionTransformConfig::default())
                         .expect("Should be able to create emotion transformer"),
                 ) as _)),
-                EcmascriptInputTransform::Plugin(Vc::cell(Box::new(
+                EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(
                     StyledComponentsTransformer::new(&StyledComponentsTransformConfig::default()),
                 ) as _)),
-                EcmascriptInputTransform::Plugin(Vc::cell(Box::new(StyledJsxTransformer::new(
-                    !module_options_context.css.use_swc_css,
-                    versions,
-                )) as _)),
+                EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(
+                    StyledJsxTransformer::new(versions),
+                ) as _)),
             ]),
-            append: Vc::cell(vec![]),
+            append: ResolvedVc::cell(vec![]),
         }],
     );
 
     let module_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
             enable_jsx,
-            enable_typescript_transform: Some(Default::default()),
+            enable_typescript_transform: Some(
+                TypescriptTransformOptions::default().resolved_cell(),
+            ),
             ..Default::default()
         },
-        enable_postcss_transform: Some(PostCssTransformOptions::default().cell()),
+        enable_postcss_transform: Some(PostCssTransformOptions::default().resolved_cell()),
         rules: vec![(
             foreign_code_context_condition().await?,
-            module_options_context.clone().cell(),
+            module_options_context.clone().resolved_cell(),
         )],
         module_rules: vec![module_rules],
         ..module_options_context
@@ -219,17 +221,20 @@ pub async fn get_client_compile_time_info(
     browserslist_query: RcStr,
     node_env: Vc<NodeEnv>,
 ) -> Result<Vc<CompileTimeInfo>> {
-    Ok(
-        CompileTimeInfo::builder(Environment::new(Value::new(ExecutionEnvironment::Browser(
+    CompileTimeInfo::builder(
+        Environment::new(Value::new(ExecutionEnvironment::Browser(
             BrowserEnvironment {
                 dom: true,
                 web_worker: false,
                 service_worker: false,
                 browserslist_query,
             }
-            .into(),
-        ))))
-        .defines(client_defines(&*node_env.await?))
-        .cell(),
+            .resolved_cell(),
+        )))
+        .to_resolved()
+        .await?,
     )
+    .defines(client_defines(&*node_env.await?).to_resolved().await?)
+    .cell()
+    .await
 }

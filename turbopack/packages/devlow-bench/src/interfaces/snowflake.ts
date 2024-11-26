@@ -39,9 +39,8 @@ export default function createInterface({
   const records: DevlowMetric[] = []
   const iface: Interface = {
     measurement: async (scenario, props, name, value, unit, relativeTo) => {
-      const ts = Math.round(Date.now() / 1000);
       records.push({
-        event_time: ts,
+        event_time: Date.now(),
         scenario,
         props,
         metric: name,

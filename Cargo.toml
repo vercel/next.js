@@ -42,13 +42,14 @@ next-custom-transforms = { path = "crates/next-custom-transforms" }
 auto-hash-map = { path = "turbopack/crates/turbo-tasks-auto-hash-map" }
 swc-ast-explorer = { path = "turbopack/crates/turbopack-swc-ast-explorer" }
 turbo-prehash = { path = "turbopack/crates/turbo-prehash" }
+turbo-rcstr = { path = "turbopack/crates/turbo-rcstr" }
 turbo-tasks-malloc = { path = "turbopack/crates/turbo-tasks-malloc", default-features = false }
 turbo-tasks = { path = "turbopack/crates/turbo-tasks" }
 turbo-tasks-backend = { path = "turbopack/crates/turbo-tasks-backend" }
 turbo-tasks-build = { path = "turbopack/crates/turbo-tasks-build" }
 turbo-tasks-bytes = { path = "turbopack/crates/turbo-tasks-bytes" }
 turbo-tasks-env = { path = "turbopack/crates/turbo-tasks-env" }
-turbo-tasks-fetch = { path = "turbopack/crates/turbo-tasks-fetch", default-features = false }
+turbo-tasks-fetch = { path = "turbopack/crates/turbo-tasks-fetch" }
 turbo-tasks-fs = { path = "turbopack/crates/turbo-tasks-fs" }
 turbo-tasks-hash = { path = "turbopack/crates/turbo-tasks-hash" }
 turbo-tasks-macros = { path = "turbopack/crates/turbo-tasks-macros" }
@@ -85,7 +86,7 @@ turbopack-trace-utils = { path = "turbopack/crates/turbopack-trace-utils" }
 turbopack-wasm = { path = "turbopack/crates/turbopack-wasm" }
 
 # SWC crates
-swc_core = { version = "5.0.1", features = [
+swc_core = { version = "5.0.4", features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
 ] }
@@ -102,13 +103,6 @@ swc_emotion = { version = "0.72.28" }
 swc_relay = { version = "0.44.30" }
 
 # General Deps
-
-# Be careful when selecting tls backend, including change default tls backend.
-# If you changed, must verify with ALL build targets with next-swc to ensure
-# it works. next-swc have various platforms, some doesn't support native (using openssl-sys)
-# and some aren't buildable with rustls.
-reqwest = { version = "=0.11.17", default-features = false }
-
 chromiumoxide = { version = "0.5.4", features = [
   "tokio-runtime",
 ], default-features = false }
@@ -152,7 +146,7 @@ indoc = "2.0.0"
 itertools = "0.10.5"
 lazy_static = "1.4.0"
 log = "0.4.17"
-lightningcss = { version = "1.0.0-alpha.60", features = [
+lightningcss = { version = "1.0.0-alpha.61", features = [
   "serde",
   "visitor",
   "into_owned",
@@ -180,6 +174,7 @@ quote = "1.0.23"
 rand = "0.8.5"
 rayon = "1.10.0"
 regex = "1.10.6"
+reqwest = { version = "=0.11.17", default-features = false }
 rstest = "0.16.0"
 rustc-hash = "1.1.0"
 semver = "1.0.16"

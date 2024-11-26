@@ -2,9 +2,10 @@ use std::future::Future;
 
 use anyhow::Result;
 use tracing::Instrument;
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
-    RcStr, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
+    ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
 };
 use turbopack_core::{
     module::{Module, Modules},

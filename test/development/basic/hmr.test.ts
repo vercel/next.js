@@ -31,6 +31,7 @@ describe.each([
     next = await createNext({
       files: join(__dirname, 'hmr'),
       nextConfig,
+      patchFileDelay: 500,
     })
   })
   afterAll(() => next.destroy())

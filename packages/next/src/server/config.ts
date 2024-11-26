@@ -251,6 +251,8 @@ function assignDefaults(
       throw new CanaryOnlyError('experimental.dynamicIO')
     } else if (result.experimental?.turbo?.unstablePersistentCaching) {
       throw new CanaryOnlyError('experimental.turbo.unstablePersistentCaching')
+    } else if (result.experimental?.inlineCss) {
+      throw new CanaryOnlyError('experimental.inlineCss')
     }
   }
 
@@ -1069,6 +1071,14 @@ export default async function loadConfig(
 
   const path = await findUp(CONFIG_FILES, { cwd: dir })
 
+  if (process.env.__NEXT_TEST_MODE) {
+    if (path) {
+      Log.info(`Loading config from ${path}`)
+    } else {
+      Log.info('No config file found')
+    }
+  }
+
   // If config file was found
   if (path?.length) {
     configFileName = basename(path)
@@ -1283,5 +1293,8 @@ class CanaryOnlyError extends Error {
     super(
       `The experimental feature "${feature}" can only be enabled when using the latest canary version of Next.js.`
     )
+    // This error is meant to interrupt the server start/build process
+    // but the stack trace isn't meaningful, as it points to internal code.
+    this.stack = undefined
   }
 }

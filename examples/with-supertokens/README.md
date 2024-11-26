@@ -20,16 +20,20 @@ yarn create next-app --example with-supertokens with-supertokens-app
 pnpm create next-app --example with-supertokens with-supertokens-app
 ```
 
-- Run `yarn install`
-
-- Run `npm run dev` to start the application on `http://localhost:3000`.
-
 ### Using `create-supertokens-app`
 
 - Run the following command
 
 ```bash
 npx create-supertokens-app@latest --frontend=next
+```
+
+```bash
+yarn create-supertokens-app@latest --frontend=next
+```
+
+```bash
+pnpm create-supertokens-app@latest --frontend=next
 ```
 
 - Select the option to use the app directory

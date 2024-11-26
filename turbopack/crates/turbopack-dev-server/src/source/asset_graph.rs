@@ -4,9 +4,10 @@ use std::{
 };
 
 use anyhow::Result;
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    fxindexset, Completion, FxIndexMap, FxIndexSet, RcStr, ResolvedVc, State, TryJoinIterExt,
-    Value, ValueToString, Vc,
+    fxindexset, Completion, FxIndexMap, FxIndexSet, ResolvedVc, State, TryJoinIterExt, Value,
+    ValueToString, Vc,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
