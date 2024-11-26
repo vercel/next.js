@@ -23,10 +23,13 @@ export function revalidateTag(tag: string) {
 /**
  * This function allows you to purge [cached data](https://nextjs.org/docs/app/building-your-application/caching) on-demand for a specific path.
  *
- * Read more: [Next.js Docs: `revalidatePath`](https://nextjs.org/docs/app/api-reference/functions/revalidatePath)
+ * Read more: [Next.js Docs: `unstable_expirePath`](https://nextjs.org/docs/app/api-reference/functions/unstable_expirePath)
  */
-export function revalidatePath(originalPath: string, type?: 'layout' | 'page') {
-  return unstable_expirePath(originalPath, type)
+export function unstable_expirePath(
+  originalPath: string,
+  type?: 'layout' | 'page'
+) {
+  return revalidatePath(originalPath, type)
 }
 
 /**
@@ -41,12 +44,9 @@ export function unstable_expireTag(...tags: string[]) {
 /**
  * This function allows you to purge [cached data](https://nextjs.org/docs/app/building-your-application/caching) on-demand for a specific path.
  *
- * Read more: [Next.js Docs: `unstable_expirePath`](https://nextjs.org/docs/app/api-reference/functions/unstable_expirePath)
+ * Read more: [Next.js Docs: `revalidatePath`](https://nextjs.org/docs/app/api-reference/functions/revalidatePath)
  */
-export function unstable_expirePath(
-  originalPath: string,
-  type?: 'layout' | 'page'
-) {
+export function revalidatePath(originalPath: string, type?: 'layout' | 'page') {
   if (originalPath.length > NEXT_CACHE_SOFT_TAG_MAX_LENGTH) {
     console.warn(
       `Warning: revalidatePath received "${originalPath}" which exceeded max length of ${NEXT_CACHE_SOFT_TAG_MAX_LENGTH}. See more info here https://nextjs.org/docs/app/api-reference/functions/revalidatePath`
