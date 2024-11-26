@@ -13,7 +13,7 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{
     graph::{GraphTraversal, NonDeterministic, VisitControlFlow, VisitedNodes},
     trace::TraceRawVcs,
-    FxIndexMap, ReadRef, ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc,
+    FxIndexMap, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, ValueToString, Vc,
 };
 use turbopack_core::{
     chunk::{
@@ -28,6 +28,8 @@ use turbopack_core::{
     resolve::{origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
 };
 use turbopack_ecmascript::{parse::ParseResult, resolve::esm_resolve, EcmascriptParsable};
+
+use crate::module_graph::SingleModuleGraph;
 
 async fn collect_chunk_group_inner<F, Fu>(
     dynamic_import_entries: FxIndexMap<ResolvedVc<Box<dyn Module>>, DynamicImportedModules>,
@@ -291,7 +293,7 @@ impl turbo_tasks::graph::Visit<NextDynamicVisitEntry> for NextDynamicVisit {
 }
 
 #[turbo_tasks::function]
-async fn build_dynamic_imports_map_for_module(
+pub async fn build_dynamic_imports_map_for_module(
     client_asset_context: Vc<Box<dyn AssetContext>>,
     server_module: ResolvedVc<Box<dyn Module>>,
 ) -> Result<Vc<OptionDynamicImportsMap>> {
@@ -439,3 +441,41 @@ pub struct OptionDynamicImportsMap(Option<ResolvedVc<DynamicImportsMap>>);
 pub struct DynamicImportedChunks(
     pub FxIndexMap<ResolvedVc<Box<dyn Module>>, DynamicImportedOutputAssets>,
 );
+
+#[turbo_tasks::value(transparent)]
+pub struct DynamicImportsHashMap(pub HashMap<ResolvedVc<Box<dyn Module>>, DynamicImportedModules>);
+
+#[turbo_tasks::function]
+pub async fn map_next_dynamic(
+    graph: Vc<SingleModuleGraph>,
+    client_asset_context: Vc<Box<dyn AssetContext>>,
+) -> Result<Vc<DynamicImportsHashMap>> {
+    let graph = &graph.await?.graph;
+    let data = graph
+        .node_indices()
+        .map(|idx| {
+            let module = *graph.node_weight(idx).unwrap();
+            async move {
+                let is_ssr = match module.ident().await?.layer {
+                    Some(layer) => {
+                        // TODO: compare module contexts instead?
+                        let layer = &*layer.await?;
+                        layer == "app-rsc" || layer == "app-ssr"
+                    }
+                    None => false,
+                };
+                if is_ssr {
+                    if let Some(v) =
+                        &*build_dynamic_imports_map_for_module(client_asset_context, module).await?
+                    {
+                        return Ok(Some(v.await?.clone_value()));
+                    }
+                }
+                Ok(None)
+            }
+        })
+        .try_flat_join()
+        .await?;
+
+    Ok(Vc::cell(data.into_iter().collect()))
+}

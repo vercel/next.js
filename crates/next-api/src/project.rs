@@ -1324,14 +1324,16 @@ impl Project {
 
     #[turbo_tasks::function]
     pub async fn get_module_graph(self: Vc<Self>) -> Result<Vc<()>> {
-        let mut _single_module_graph = SingleModuleGraph::new();
-        for client_main_module in self.client_main_modules().await?.iter() {
-            _single_module_graph
-                .add_module_subgraph(**client_main_module)
-                .await?;
-        }
+        let mut _single_module_graph = SingleModuleGraph::new_with_entries(
+            self.client_main_modules()
+                .await?
+                .iter()
+                .map(|m| **m)
+                .collect(),
+        )
+        .await?;
 
-        dbg!(_single_module_graph);
+        // dbg!(_single_module_graph);
 
         Ok(Vc::cell(()))
     }

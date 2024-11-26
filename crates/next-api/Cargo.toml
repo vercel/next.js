@@ -17,7 +17,7 @@ anyhow = { workspace = true, features = ["backtrace"] }
 futures = { workspace = true }
 indexmap = { workspace = true }
 next-core = { workspace = true }
-petgraph = { workspace = true }
+petgraph = { workspace = true, features = ["serde-1"]}
 regex = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
