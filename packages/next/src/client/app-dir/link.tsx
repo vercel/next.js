@@ -220,7 +220,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       href: hrefProp,
       as: asProp,
       children: childrenProp,
-      prefetch: prefetchProp = null,
+      prefetch: prefetchProp = false,
       passHref,
       replace,
       shallow,
@@ -246,7 +246,6 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
     const prefetchEnabled = prefetchProp !== false
     /**
      * The possible states for prefetch are:
-     * - null: this is the default "auto" mode, where we will prefetch partially if the link is in the viewport
      * - true: we will prefetch if the link is visible and prefetch the full page, not just partially
      * - false: we will not prefetch if in the viewport at all
      */
