@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_env::{DotenvProcessEnv, EnvMap, ProcessEnv};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::issue::{IssueExt, StyledString};
@@ -8,9 +8,9 @@ use crate::ProcessEnvIssue;
 
 #[turbo_tasks::value]
 pub struct TryDotenvProcessEnv {
-    dotenv: Vc<DotenvProcessEnv>,
-    prior: Vc<Box<dyn ProcessEnv>>,
-    path: Vc<FileSystemPath>,
+    dotenv: ResolvedVc<DotenvProcessEnv>,
+    prior: ResolvedVc<Box<dyn ProcessEnv>>,
+    path: ResolvedVc<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
