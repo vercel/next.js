@@ -233,7 +233,7 @@ async fn source(
     entry_requests: TransientInstance<Vec<EntryRequest>>,
     eager_compile: bool,
     browserslist_query: RcStr,
-) -> Vc<Box<dyn ContentSource>> {
+) -> Result<Vc<Box<dyn ContentSource>>> {
     let project_relative = project_dir.strip_prefix(&*root_dir).unwrap();
     let project_relative: RcStr = project_relative
         .strip_prefix(MAIN_SEPARATOR)
@@ -243,24 +243,34 @@ async fn source(
 
     let output_fs = output_fs(project_dir);
     let fs = project_fs(root_dir);
-    let project_path: Vc<turbo_tasks_fs::FileSystemPath> = fs.root().join(project_relative);
+    let project_path = fs.root().join(project_relative).to_resolved().await?;
 
-    let env = load_env(project_path);
-    let build_output_root = output_fs.root().join(".turbopack/build".into());
+    let env = load_env(*project_path);
+    let build_output_root = output_fs
+        .root()
+        .join(".turbopack/build".into())
+        .to_resolved()
+        .await?;
 
     let build_chunking_context = NodeJsChunkingContext::builder(
         project_path,
         build_output_root,
         build_output_root,
-        build_output_root.join("chunks".into()),
-        build_output_root.join("assets".into()),
-        node_build_environment(),
+        build_output_root
+            .join("chunks".into())
+            .to_resolved()
+            .await?,
+        build_output_root
+            .join("assets".into())
+            .to_resolved()
+            .await?,
+        node_build_environment().to_resolved().await?,
         RuntimeType::Development,
     )
     .build();
 
     let execution_context =
-        ExecutionContext::new(project_path, Vc::upcast(build_chunking_context), env);
+        ExecutionContext::new(*project_path, Vc::upcast(build_chunking_context), env);
 
     let server_fs = Vc::upcast::<Box<dyn FileSystem>>(ServerFileSystem::new());
     let server_root = server_fs.root();
@@ -283,7 +293,7 @@ async fn source(
         .collect();
 
     let web_source = create_web_entry_source(
-        project_path,
+        *project_path,
         execution_context,
         entry_requests,
         server_root,
@@ -304,11 +314,11 @@ async fn source(
         .cell(),
     );
     let main_source = Vc::upcast(main_source);
-    Vc::upcast(PrefixedRouterContentSource::new(
+    Ok(Vc::upcast(PrefixedRouterContentSource::new(
         Default::default(),
         vec![("__turbopack__".into(), introspect)],
         main_source,
-    ))
+    )))
 }
 
 pub fn register() {

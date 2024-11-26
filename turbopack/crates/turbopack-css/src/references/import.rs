@@ -118,6 +118,8 @@ impl ModuleReference for ImportAssetReference {
             let own_attrs = (*self.attributes.await?).as_reference_import_attributes();
             self.import_context
                 .add_attributes(own_attrs.layer, own_attrs.media, own_attrs.supports)
+                .to_resolved()
+                .await?
         };
 
         Ok(css_resolve(

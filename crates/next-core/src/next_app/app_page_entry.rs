@@ -114,7 +114,7 @@ pub async fn get_app_page_entry(
     let mut rsc_entry = module_asset_context
         .process(
             Vc::upcast(source),
-            Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
+            Value::new(ReferenceType::Internal(ResolvedVc::cell(inner_assets))),
         )
         .module();
 
@@ -194,7 +194,7 @@ async fn wrap_edge_page(
     let wrapped = asset_context
         .process(
             Vc::upcast(source),
-            Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
+            Value::new(ReferenceType::Internal(ResolvedVc::cell(inner_assets))),
         )
         .module();
 
