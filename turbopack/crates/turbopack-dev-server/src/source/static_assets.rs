@@ -76,7 +76,7 @@ impl ContentSource for StaticAssetsContentSource {
     async fn get_routes(&self) -> Result<Vc<RouteTree>> {
         let prefix = self.prefix.await?;
         let prefix = BaseSegment::from_static_pathname(prefix.as_str()).collect::<Vec<_>>();
-        Ok(get_routes_from_directory(self.dir).with_prepended_base(prefix))
+        Ok(get_routes_from_directory(*self.dir).with_prepended_base(prefix))
     }
 }
 
@@ -88,7 +88,7 @@ struct StaticAssetsContentSourceItem {
 #[turbo_tasks::value_impl]
 impl StaticAssetsContentSourceItem {
     #[turbo_tasks::function]
-    pub fn new(path: Vc<FileSystemPath>) -> Vc<StaticAssetsContentSourceItem> {
+    pub fn new(path: ResolvedVc<FileSystemPath>) -> Vc<StaticAssetsContentSourceItem> {
         StaticAssetsContentSourceItem { path }.cell()
     }
 }

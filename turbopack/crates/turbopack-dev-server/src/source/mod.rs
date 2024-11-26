@@ -124,7 +124,7 @@ impl ContentSourceContent {
     ) -> Vc<ContentSourceContent> {
         ContentSourceContent::Static(
             StaticContent {
-                content: *content,
+                content,
                 status_code: 200,
                 headers: HeaderList::empty(),
             }
