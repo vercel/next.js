@@ -5,6 +5,7 @@ use std::{
     path::Path,
 };
 
+use anyhow::{Context, Result};
 use byteorder::{ByteOrder, WriteBytesExt, BE};
 use lzzzz::lz4::{max_compressed_size, ACC_LEVEL_DEFAULT};
 
@@ -57,16 +58,16 @@ impl StaticSortedFileBuilder {
         entries: &[E],
         total_key_size: usize,
         total_value_size: usize,
-    ) -> Self {
+    ) -> Result<Self> {
         debug_assert!(entries.iter().map(|e| e.key_hash()).is_sorted());
         let mut builder = Self::default();
         builder.family = family;
         builder.min_hash = entries.first().map(|e| e.key_hash()).unwrap_or(u64::MAX);
         builder.max_hash = entries.last().map(|e| e.key_hash()).unwrap_or(0);
         builder.compute_aqmf(&entries);
-        builder.compute_compression_dictionary(entries, total_key_size, total_value_size);
+        builder.compute_compression_dictionary(entries, total_key_size, total_value_size)?;
         builder.compute_blocks(entries);
-        builder
+        Ok(builder)
     }
 
     fn compute_aqmf<E: Entry>(&mut self, entries: &[E]) {
@@ -87,22 +88,22 @@ impl StaticSortedFileBuilder {
         entries: &[E],
         total_key_size: usize,
         total_value_size: usize,
-    ) {
+    ) -> Result<()> {
         // TODO actually train the dictionary
         let key_compression_dictionary_size =
             min(KEY_COMPRESSION_DICTIONARY_SIZE, total_key_size / 10);
         let value_compression_dictionary_size =
             min(VALUE_COMPRESSION_DICTIONARY_SIZE, total_value_size / 10);
-        self.value_compression_dictionary = Vec::with_capacity(value_compression_dictionary_size);
-        self.key_compression_dictionary = Vec::with_capacity(key_compression_dictionary_size);
+        let mut value_samples = Vec::with_capacity(value_compression_dictionary_size);
+        let mut value_sample_sizes = Vec::new();
+        let mut key_samples = Vec::with_capacity(key_compression_dictionary_size);
+        let mut key_sample_sizes = Vec::new();
         let mut i = 12345678 % entries.len();
         let mut j = 0;
         loop {
             let entry = &entries[i];
-            let value_remaining =
-                value_compression_dictionary_size - self.value_compression_dictionary.len();
-            let key_remaining =
-                key_compression_dictionary_size - self.key_compression_dictionary.len();
+            let value_remaining = value_compression_dictionary_size - value_samples.len();
+            let key_remaining = key_compression_dictionary_size - key_samples.len();
             if value_remaining > 0 {
                 if let EntryValue::Small { value } | EntryValue::Medium { value } = entry.value() {
                     let value = if value.len() <= COMPRESSION_DICTIONARY_SAMPLE_PER_ENTRY {
@@ -113,25 +114,27 @@ impl StaticSortedFileBuilder {
                         &value[j..j + COMPRESSION_DICTIONARY_SAMPLE_PER_ENTRY]
                     };
                     if value.len() <= value_remaining {
-                        self.value_compression_dictionary.extend_from_slice(value);
+                        value_sample_sizes.push(value.len());
+                        value_samples.extend_from_slice(value);
                     } else {
-                        self.value_compression_dictionary
-                            .extend_from_slice(&value[..value_remaining]);
+                        value_sample_sizes.push(value_remaining);
+                        value_samples.extend_from_slice(&value[..value_remaining]);
                     }
                 }
             }
             if key_remaining > 0 {
                 let used_len = min(key_remaining, COMPRESSION_DICTIONARY_SAMPLE_PER_ENTRY);
                 if entry.key_len() <= used_len {
-                    entry.write_key_to(&mut self.key_compression_dictionary);
+                    key_sample_sizes.push(entry.key_len());
+                    entry.write_key_to(&mut key_samples);
                 } else {
                     let mut temp = Vec::with_capacity(entry.key_len());
                     entry.write_key_to(&mut temp);
                     debug_assert!(temp.len() == entry.key_len());
 
                     j = (j + 12345678) % (temp.len() - used_len);
-                    self.key_compression_dictionary
-                        .extend_from_slice(&temp[j..j + used_len]);
+                    key_sample_sizes.push(used_len);
+                    key_samples.extend_from_slice(&temp[j..j + used_len]);
                 }
             }
             if key_remaining == 0 && value_remaining == 0 {
@@ -139,6 +142,19 @@ impl StaticSortedFileBuilder {
             }
             i = (i + 12345678) % entries.len();
         }
+        self.key_compression_dictionary = zstd::dict::from_continuous(
+            &key_samples,
+            &key_sample_sizes,
+            KEY_COMPRESSION_DICTIONARY_SIZE,
+        )
+        .context("Key dictionary creation failed")?;
+        self.value_compression_dictionary = zstd::dict::from_continuous(
+            &value_samples,
+            &value_sample_sizes,
+            VALUE_COMPRESSION_DICTIONARY_SIZE,
+        )
+        .context("Value dictionary creation failed")?;
+        Ok(())
     }
 
     fn compute_blocks<E: Entry>(&mut self, entries: &[E]) {
