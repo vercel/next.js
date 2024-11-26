@@ -38,8 +38,8 @@ fn modifier() -> Vc<RcStr> {
 #[turbo_tasks::value]
 #[derive(Clone)]
 pub struct WebAssemblyModuleAsset {
-    source: Vc<WebAssemblySource>,
-    asset_context: Vc<Box<dyn AssetContext>>,
+    source: ResolvedVc<WebAssemblySource>,
+    asset_context: ResolvedVc<Box<dyn AssetContext>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -180,8 +180,8 @@ impl ResolveOrigin for WebAssemblyModuleAsset {
 
 #[turbo_tasks::value]
 struct ModuleChunkItem {
-    module: Vc<WebAssemblyModuleAsset>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
+    module: ResolvedVc<WebAssemblyModuleAsset>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
 
 #[turbo_tasks::value_impl]
