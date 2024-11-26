@@ -253,6 +253,13 @@ impl TurboPersistence {
             .into_iter()
             .map(|seq| self.open_sst(seq))
             .collect::<Result<Vec<StaticSortedFile>>>()?;
+        #[cfg(feature = "stats")]
+        {
+            for sst in sst_files.iter() {
+                let (min, max) = sst.range()?;
+                println!("SST {}  {:016x} - {:016x}", sst.sequence_number(), min, max);
+            }
+        }
         let inner = self.inner.get_mut();
         inner.static_sorted_files = sst_files;
         inner.current_sequence_number = current;
@@ -379,11 +386,11 @@ impl TurboPersistence {
     }
 
     pub fn full_compact(&self) -> Result<()> {
-        self.compact(1.0)?;
+        self.compact(1.0, usize::MAX)?;
         Ok(())
     }
 
-    pub fn compact(&self, sharding_factor: f32) -> Result<()> {
+    pub fn compact(&self, sharding_factor: f32, max_chain: usize) -> Result<()> {
         if self
             .active_write_operation
             .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
@@ -413,6 +420,7 @@ impl TurboPersistence {
                 &mut new_sst_files,
                 &mut indicies_to_delete,
                 sharding_factor,
+                max_chain,
             )?;
         }
 
@@ -434,6 +442,7 @@ impl TurboPersistence {
         new_sst_files: &mut Vec<(u32, File)>,
         indicies_to_delete: &mut Vec<usize>,
         sharding_factor: f32,
+        max_chain: usize,
     ) -> Result<bool> {
         let mut compaction_jobs = Vec::new();
 
@@ -477,7 +486,7 @@ impl TurboPersistence {
             }
 
             // Find all SST files that overlap with the selected range
-            let selected_files = static_sorted_files
+            let mut selected_files = static_sorted_files
                 .iter_mut()
                 .enumerate()
                 .flat_map(|(i, slot)| {
@@ -485,7 +494,7 @@ impl TurboPersistence {
                         if let Some(range) = sst.range().ok() {
                             // Ranges have overlap
                             if range.0 <= selected_range.1 && range.1 >= selected_range.0 {
-                                return slot.take().map(|sst| (i, sst));
+                                return slot.take().map(|sst| (i, sst, false));
                             }
                         }
                     }
@@ -496,19 +505,23 @@ impl TurboPersistence {
             if selected_files.len() > 1 {
                 // Target spread is
                 let target_spread = (((selected_range.1 - selected_range.0)
-                    / selected_files.len() as u64) as f32
+                    / selected_files.len().min(max_chain) as u64)
+                    as f32
                     / sharding_factor)
                     .min(u64::MAX as f32) as u64
                     + 1;
 
                 // Check if we need to compact
                 let ssts_with_target_spread = selected_files
-                    .iter()
-                    .filter(|(_, sst)| {
-                        sst.range()
+                    .iter_mut()
+                    .map(|(_, sst, in_target_range)| {
+                        *in_target_range = sst
+                            .range()
                             .ok()
-                            .map_or(false, |range| range.1 - range.0 <= target_spread)
+                            .map_or(false, |range| range.1 - range.0 <= target_spread);
+                        *in_target_range
                     })
+                    .filter(|in_target_range| *in_target_range)
                     .count();
                 let target_number = (selected_files.len() as f32 * sharding_factor) as usize;
                 if ssts_with_target_spread < target_number {
@@ -523,11 +536,35 @@ impl TurboPersistence {
         let result = compaction_jobs
             .into_par_iter()
             .map(|selected_files| {
-                // Iterate all files
-                let iters = selected_files
+                let in_range_at_start = selected_files
                     .iter()
-                    .map(|(_, sst)| sst.iter(&key_block_cache, &value_block_cache))
-                    .collect::<Result<Vec<_>>>()?;
+                    .take_while(|(_, _, in_target_range)| *in_target_range)
+                    .count();
+                let mut in_range_at_end = selected_files
+                    .iter()
+                    .rev()
+                    .take_while(|(_, _, in_target_range)| *in_target_range)
+                    .count();
+                if selected_files.len() - in_range_at_start - in_range_at_end > max_chain {
+                    in_range_at_end = selected_files.len() - max_chain - in_range_at_start;
+                }
+
+                let mut new_sst_files = Vec::new();
+
+                // Split the selected files into the start, middle and end files
+
+                // The selected_files_start can be kept on disk as they are
+                let (_selected_files_start, selected_files) =
+                    selected_files.split_at(in_range_at_start);
+
+                // Later we will remove the mid and end files as they are updated
+                let indicies_to_delete = selected_files
+                    .iter()
+                    .map(|(i, _, _)| *i)
+                    .collect::<Vec<_>>();
+
+                let (selected_files_mid, selected_files_end) =
+                    selected_files.split_at(selected_files.len() - in_range_at_end);
 
                 fn create_sst_file(
                     entries: &[LookupEntry],
@@ -541,7 +578,12 @@ impl TurboPersistence {
                     Ok((seq, builder.write(&path.join(format!("{:08}.sst", seq)))?))
                 }
 
-                let mut new_sst_files = Vec::new();
+                // Iterate all middle files
+                let iters = selected_files_mid
+                    .iter()
+                    .map(|(_, sst, _)| sst.iter(&key_block_cache, &value_block_cache))
+                    .collect::<Result<Vec<_>>>()?;
+
                 let iter = MergeIter::new(iters.into_iter())?;
 
                 let mut total_key_size = 0;
@@ -601,14 +643,23 @@ impl TurboPersistence {
                     )?);
                 }
 
-                let indicies_to_delete = selected_files.into_iter().map(|(i, _)| i);
+                // Move files at the end of the range
+                for (_, sst, _) in selected_files_end.iter() {
+                    let seq = sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
+                    let src_path = self.path.join(&format!("{:08}.sst", sst.sequence_number()));
+                    let dst_path = self.path.join(&format!("{:08}.sst", seq));
+                    if fs::hard_link(&src_path, &dst_path).is_err() {
+                        fs::copy(src_path, &dst_path)?;
+                    }
+                    new_sst_files.push((seq, File::open(dst_path)?));
+                }
 
                 anyhow::Ok((new_sst_files, indicies_to_delete))
             })
             .collect::<Result<Vec<_>>>()?;
-        for (mut inner_new_sst_files, inner_indicies_to_delete) in result {
+        for (mut inner_new_sst_files, mut inner_indicies_to_delete) in result {
             new_sst_files.append(&mut inner_new_sst_files);
-            indicies_to_delete.extend(inner_indicies_to_delete);
+            indicies_to_delete.append(&mut inner_indicies_to_delete);
         }
 
         Ok(true)
