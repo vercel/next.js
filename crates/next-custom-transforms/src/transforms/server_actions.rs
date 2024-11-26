@@ -2141,6 +2141,16 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         }
     }
 
+    fn visit_mut_super(&mut self, n: &mut Super) {
+        if let ThisStatus::Forbidden { directive } = &self.this_status {
+            emit_error(ServerActionsErrorKind::ForbiddenExpression {
+                span: n.span,
+                expr: "super".into(),
+                directive: directive.clone(),
+            });
+        }
+    }
+
     fn visit_mut_ident(&mut self, n: &mut Ident) {
         if n.sym == *"arguments" {
             if let ThisStatus::Forbidden { directive } = &self.this_status {
