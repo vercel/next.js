@@ -943,7 +943,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     fn visit_mut_function(&mut self, f: &mut Function) {
         let directive = self.get_directive_for_function(f.body.as_mut());
         let declared_idents_until = self.declared_idents.len();
-        let current_names = take(&mut self.names);
+        let old_names = take(&mut self.names);
 
         if let Some(directive) = &directive {
             self.this_status = ThisStatus::Forbidden {
@@ -968,15 +968,6 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         }
 
         if let Some(directive) = directive {
-            let mut child_names = if self.should_track_names {
-                let names = take(&mut self.names);
-                self.names = current_names;
-                self.names.extend(names.iter().cloned());
-                names
-            } else {
-                take(&mut self.names)
-            };
-
             if !f.is_async {
                 emit_error(ServerActionsErrorKind::InlineSyncFunction {
                     span: f.span,
@@ -989,6 +980,12 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             // Don't hoist a function if 1) an error was emitted, or 2) we're in the client layer.
             if has_errors || !self.config.is_react_server_layer {
                 return;
+            }
+
+            let mut child_names = take(&mut self.names);
+
+            if self.should_track_names {
+                self.names = [old_names, child_names.clone()].concat();
             }
 
             if let Directive::UseCache { cache_kind } = directive {
