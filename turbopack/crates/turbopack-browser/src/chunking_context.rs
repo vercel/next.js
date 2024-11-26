@@ -54,12 +54,12 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
-    pub fn asset_base_path(mut self, asset_base_path: Vc<Option<RcStr>>) -> Self {
+    pub fn asset_base_path(mut self, asset_base_path: ResolvedVc<Option<RcStr>>) -> Self {
         self.chunking_context.asset_base_path = asset_base_path;
         self
     }
 
-    pub fn chunk_base_path(mut self, chunk_base_path: Vc<Option<RcStr>>) -> Self {
+    pub fn chunk_base_path(mut self, chunk_base_path: ResolvedVc<Option<RcStr>>) -> Self {
         self.chunking_context.chunk_base_path = chunk_base_path;
         self
     }
@@ -150,12 +150,12 @@ pub struct BrowserChunkingContext {
 
 impl BrowserChunkingContext {
     pub fn builder(
-        context_path: Vc<FileSystemPath>,
-        output_root: Vc<FileSystemPath>,
-        client_root: Vc<FileSystemPath>,
-        chunk_root_path: Vc<FileSystemPath>,
-        asset_root_path: Vc<FileSystemPath>,
-        environment: Vc<Environment>,
+        context_path: ResolvedVc<FileSystemPath>,
+        output_root: ResolvedVc<FileSystemPath>,
+        client_root: ResolvedVc<FileSystemPath>,
+        chunk_root_path: ResolvedVc<FileSystemPath>,
+        asset_root_path: ResolvedVc<FileSystemPath>,
+        environment: ResolvedVc<Environment>,
         runtime_type: RuntimeType,
     ) -> BrowserChunkingContextBuilder {
         BrowserChunkingContextBuilder {
@@ -169,15 +169,15 @@ impl BrowserChunkingContext {
                 reference_chunk_source_maps: true,
                 reference_css_chunk_source_maps: true,
                 asset_root_path,
-                chunk_base_path: Default::default(),
-                asset_base_path: Default::default(),
+                chunk_base_path: ResolvedVc::cell(None),
+                asset_base_path: ResolvedVc::cell(None),
                 enable_hot_module_replacement: false,
                 enable_tracing: false,
                 environment,
                 runtime_type,
                 minify_type: MinifyType::NoMinify,
                 manifest_chunks: false,
-                module_id_strategy: Vc::upcast(DevModuleIdStrategy::new()),
+                module_id_strategy: ResolvedVc::upcast(DevModuleIdStrategy::new_resolved()),
             },
         }
     }
