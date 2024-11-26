@@ -42,8 +42,8 @@ impl PrefixedRouterContentSource {
 }
 
 fn get_children(
-    routes: &[(RcStr, Vc<Box<dyn ContentSource>>)],
-    fallback: &Vc<Box<dyn ContentSource>>,
+    routes: &[(RcStr, ResolvedVc<Box<dyn ContentSource>>)],
+    fallback: &ResolvedVc<Box<dyn ContentSource>>,
 ) -> Vc<ContentSources> {
     Vc::cell(
         routes
@@ -55,8 +55,8 @@ fn get_children(
 }
 
 async fn get_introspection_children(
-    routes: &[(RcStr, Vc<Box<dyn ContentSource>>)],
-    fallback: &Vc<Box<dyn ContentSource>>,
+    routes: &[(RcStr, ResolvedVc<Box<dyn ContentSource>>)],
+    fallback: &ResolvedVc<Box<dyn ContentSource>>,
 ) -> Result<Vc<IntrospectableChildren>> {
     Ok(Vc::cell(
         routes
