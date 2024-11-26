@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, Vc};
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemPath};
 use turbopack_core::{
     asset::Asset,
@@ -66,7 +66,9 @@ async fn get_routes_from_directory(dir: Vc<FileSystemPath>) -> Result<Vc<RouteTr
             ),
             _ => None,
         })
-        .collect();
+        .map(|v| async move { v.to_resolved().await })
+        .try_join()
+        .await?;
     Ok(Vc::<RouteTrees>::cell(routes).merge())
 }
 
