@@ -24,7 +24,7 @@ describe('unstable_after during server shutdown', () => {
       // if the test didn't manage to kill next, we should do it ourselves
       await next.stop()
       console.log('--------- stopped!    ---------')
-    })
+    }, 10_000)
 
     if (isNextDev) {
       // `next dev` shuts down the child process that runs the server without waiting for cleanups,
@@ -71,13 +71,17 @@ describe('unstable_after during server shutdown', () => {
     })
 
     beforeEach(async () => {
+      console.log('--------- starting... ---------')
       await next.start()
+      console.log('--------- started!    ---------')
     })
 
     afterEach(async () => {
+      console.log('--------- stopping... ---------')
       // if the test didn't manage to kill next, we should do it ourselves
       await next.stop()
-    })
+      console.log('--------- stopped!    ---------')
+    }, 10_000)
 
     // unlike the above test for `next dev`, NextCustomServer has no logic that'd cause it to skip cleanups in dev mode,
     // so this is the same in both modes
