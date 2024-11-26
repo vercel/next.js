@@ -30,7 +30,7 @@ describe('unstable_after during server shutdown - next start', () => {
     it.each(['SIGINT', 'SIGTERM'] as const)(
       'does not wait for unstable_after callbacks when the server receives %s',
       async (signal) => {
-        await next.browser('/')
+        await next.render('/')
         await retry(async () => {
           expect(next.cliOutput).toInclude('[after] starting sleep')
         })
@@ -44,7 +44,7 @@ describe('unstable_after during server shutdown - next start', () => {
     it.each(['SIGINT', 'SIGTERM'] as const)(
       'waits for unstable_after callbacks when the server receives %s',
       async (signal) => {
-        await next.browser('/')
+        await next.render('/')
         await retry(async () => {
           expect(next.cliOutput).toInclude('[after] starting sleep')
         })
