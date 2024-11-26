@@ -52,8 +52,8 @@ use crate::util::REPO_ROOT;
 
 #[turbo_tasks::value]
 struct RunTestResult {
-    js_result: Vc<JsResult>,
-    path: Vc<FileSystemPath>,
+    js_result: ResolvedVc<JsResult>,
+    path: ResolvedVc<FileSystemPath>,
 }
 
 #[turbo_tasks::value]
@@ -201,9 +201,9 @@ struct TestOptions {
 
 #[turbo_tasks::value]
 struct PreparedTest {
-    path: Vc<FileSystemPath>,
-    project_path: Vc<FileSystemPath>,
-    tests_path: Vc<FileSystemPath>,
+    path: ResolvedVc<FileSystemPath>,
+    project_path: ResolvedVc<FileSystemPath>,
+    tests_path: ResolvedVc<FileSystemPath>,
     project_root: ResolvedVc<FileSystemPath>,
     options: TestOptions,
 }
