@@ -370,7 +370,7 @@ impl ModuleOptions {
             ModuleRule::new(
                 RuleCondition::ResourcePathHasNoExtension,
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript {
-                    transforms: vendor_transforms,
+                    transforms: vendor_transforms.to_resolved().await?,
                     options: ecmascript_options_vc,
                 })],
             ),

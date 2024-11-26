@@ -571,7 +571,7 @@ async fn process_default_internal(
                                 options,
                             }) => Some(ModuleType::Ecmascript {
                                 transforms: prepend
-                                    .extend(transforms)
+                                    .extend(*transforms)
                                     .extend(**append)
                                     .to_resolved()
                                     .await?,
@@ -584,7 +584,7 @@ async fn process_default_internal(
                                 options,
                             }) => Some(ModuleType::Typescript {
                                 transforms: prepend
-                                    .extend(transforms)
+                                    .extend(*transforms)
                                     .extend(**append)
                                     .to_resolved()
                                     .await?,
