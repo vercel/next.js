@@ -23,8 +23,8 @@ use crate::source::{ContentSourceContent, ContentSources};
 /// served once.
 #[turbo_tasks::value(serialization = "none", eq = "manual", cell = "new")]
 pub struct ConditionalContentSource {
-    activator: Vc<Box<dyn ContentSource>>,
-    action: Vc<Box<dyn ContentSource>>,
+    activator: ResolvedVc<Box<dyn ContentSource>>,
+    action: ResolvedVc<Box<dyn ContentSource>>,
     activated: State<bool>,
 }
 
@@ -32,8 +32,8 @@ pub struct ConditionalContentSource {
 impl ConditionalContentSource {
     #[turbo_tasks::function]
     pub fn new(
-        activator: Vc<Box<dyn ContentSource>>,
-        action: Vc<Box<dyn ContentSource>>,
+        activator: ResolvedVc<Box<dyn ContentSource>>,
+        action: ResolvedVc<Box<dyn ContentSource>>,
     ) -> Vc<Self> {
         ConditionalContentSource {
             activator,
