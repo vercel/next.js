@@ -197,9 +197,6 @@ async fn find_actions(
         let actions = NonDeterministic::new()
             .skip_duplicates()
             .visit(
-                // First visit the actions (for ActionLayer::ActionBrowser), then later the rsc
-                // entry (which may revisit the client references but with ActionLayer::Rsc).
-                // This will be refactored later anyway.
                 once((
                     ActionLayer::Rsc,
                     rsc_entry,
