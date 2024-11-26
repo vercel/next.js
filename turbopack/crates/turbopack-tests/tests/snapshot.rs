@@ -354,12 +354,12 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         ),
         Runtime::NodeJs => Vc::upcast(
             NodeJsChunkingContext::builder(
-                *project_root,
+                project_root,
                 path,
                 path,
                 chunk_root_path.to_resolved().await?,
                 static_root_path.to_resolved().await?,
-                *env,
+                env,
                 options.runtime_type,
             )
             .minify_type(options.minify_type)
@@ -367,9 +367,9 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         ),
     };
 
-    let expected_paths = expected(chunk_root_path)
+    let expected_paths = expected(*chunk_root_path)
         .await?
-        .union(&expected(static_root_path).await?)
+        .union(&expected(*static_root_path).await?)
         .copied()
         .collect();
 
@@ -453,7 +453,7 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         .await
         .context("Actual assets doesn't match with expected assets")?;
 
-    Ok(path)
+    Ok(*path)
 }
 
 async fn walk_asset(
