@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     introspect::{Introspectable, IntrospectableChildren},
@@ -15,9 +15,9 @@ use super::{
 
 #[turbo_tasks::value]
 pub struct IssueFilePathContentSource {
-    file_path: Option<Vc<FileSystemPath>>,
+    file_path: Option<ResolvedVc<FileSystemPath>>,
     description: RcStr,
-    source: Vc<Box<dyn ContentSource>>,
+    source: ResolvedVc<Box<dyn ContentSource>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -70,7 +70,7 @@ impl ContentSource for IssueFilePathContentSource {
 
 #[turbo_tasks::value]
 struct IssueContextContentSourceMapper {
-    source: Vc<IssueFilePathContentSource>,
+    source: ResolvedVc<IssueFilePathContentSource>,
 }
 
 #[turbo_tasks::value_impl]
@@ -92,8 +92,8 @@ impl MapGetContentSourceContent for IssueContextContentSourceMapper {
 
 #[turbo_tasks::value]
 struct IssueContextGetContentSourceContent {
-    get_content: Vc<Box<dyn GetContentSourceContent>>,
-    source: Vc<IssueFilePathContentSource>,
+    get_content: ResolvedVc<Box<dyn GetContentSourceContent>>,
+    source: ResolvedVc<IssueFilePathContentSource>,
 }
 
 #[turbo_tasks::value_impl]
