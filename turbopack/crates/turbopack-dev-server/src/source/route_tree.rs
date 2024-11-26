@@ -53,7 +53,7 @@ impl RouteTrees {
             return Ok(RouteTree::default().cell());
         }
         if trees.len() == 1 {
-            return Ok(*trees.iter().next().unwrap());
+            return Ok(**trees.iter().next().unwrap());
         }
 
         // Find common base
@@ -81,7 +81,7 @@ impl RouteTrees {
                 if tree_values[i].base.len() > common_base {
                     tree.with_base_len(common_base)
                 } else {
-                    *tree
+                    **tree
                 }
             })
             .collect::<Vec<_>>();
