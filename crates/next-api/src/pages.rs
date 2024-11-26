@@ -657,7 +657,7 @@ impl PageEndpoint {
         let page_loader = create_page_loader_entry_module(
             this.pages_project.client_module_context(),
             self.source(),
-            this.pathname,
+            *this.pathname,
         );
         if matches!(
             *this.pages_project.project().next_mode().await?,
@@ -762,12 +762,12 @@ impl PageEndpoint {
 
         let ssr_module = if is_edge {
             create_page_ssr_entry_module(
-                this.pathname,
+                *this.pathname,
                 reference_type,
                 project_root,
                 Vc::upcast(edge_module_context),
                 self.source(),
-                this.original_name,
+                *this.original_name,
                 this.pages_structure,
                 config.runtime,
                 this.pages_project.project().next_config(),
@@ -1268,7 +1268,7 @@ impl Endpoint for PageEndpoint {
             let output = self.output().await?;
             // Must use self.output_assets() instead of output.output_assets() to make it a
             // single operation
-            let output_assets = self.output_assets();
+            let output_assets = self.output_assets().to_resolved().await?;
 
             let _ = this
                 .pages_project
