@@ -3,7 +3,7 @@ use std::io::Write;
 use anyhow::{Context, Result};
 use indoc::writedoc;
 use serde::Serialize;
-use turbo_tasks::{FxIndexMap, IntoTraitRef, TryJoinIterExt, Vc};
+use turbo_tasks::{FxIndexMap, IntoTraitRef, ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::File;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -26,7 +26,7 @@ use super::{
 #[turbo_tasks::value]
 pub(super) struct EcmascriptDevChunkListContent {
     chunk_list_path: String,
-    pub(super) chunks_contents: FxIndexMap<String, Vc<Box<dyn VersionedContent>>>,
+    pub(super) chunks_contents: FxIndexMap<String, ResolvedVc<Box<dyn VersionedContent>>>,
     source: EcmascriptDevChunkListSource,
 }
 
