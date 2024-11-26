@@ -1276,7 +1276,7 @@ describe('app-dir action handling', () => {
       }, 5000)
     })
 
-    it('should handle expirePath', async () => {
+    it('should handle unstable_expirePath', async () => {
       const browser = await next.browser('/revalidate')
       const randomNumber = await browser.elementByCss('#random-number').text()
       const justPutIt = await browser.elementByCss('#justputit').text()
@@ -1299,7 +1299,7 @@ describe('app-dir action handling', () => {
       })
     })
 
-    it('should handle expireTag', async () => {
+    it('should handle unstable_expireTag', async () => {
       const browser = await next.browser('/revalidate')
       const randomNumber = await browser.elementByCss('#random-number').text()
       const justPutIt = await browser.elementByCss('#justputit').text()
@@ -1323,7 +1323,7 @@ describe('app-dir action handling', () => {
     })
 
     // TODO: investigate flakey behavior with revalidate
-    it.skip('should handle expireTag + redirect', async () => {
+    it.skip('should handle unstable_expireTag + redirect', async () => {
       const browser = await next.browser('/revalidate')
       const randomNumber = await browser.elementByCss('#random-number').text()
       const justPutIt = await browser.elementByCss('#justputit').text()
