@@ -1043,7 +1043,7 @@ pub async fn get_server_chunking_context(
     } else {
         MinifyType::NoMinify
     })
-    .module_id_strategy(*module_id_strategy)
+    .module_id_strategy(module_id_strategy)
     .file_tracing(next_mode.is_production());
 
     if next_mode.is_development() {
