@@ -721,7 +721,7 @@ impl PageEndpoint {
         let client_relative_path = self.client_relative_path();
         let page_loader = PageLoaderAsset::new(
             node_root,
-            this.pathname,
+            *this.pathname,
             client_relative_path,
             client_chunks,
         );
