@@ -53,7 +53,7 @@ impl EcmascriptDevChunkListContent {
                             output_root
                                 .get_path_to(&*chunk.ident().path().await?)
                                 .map(|path| path.to_string()),
-                            chunk.versioned_content(),
+                            chunk.versioned_content().to_resolved().await?,
                         ))
                     }
                 })
