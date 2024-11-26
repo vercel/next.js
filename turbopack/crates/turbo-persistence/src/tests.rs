@@ -186,6 +186,10 @@ fn full_cycle() -> Result<()> {
             let start = Instant::now();
             read(&db)?;
             println!("{name} read time: {:?}", start.elapsed());
+
+            let start = Instant::now();
+            drop(db);
+            println!("{name} drop time: {:?}", start.elapsed());
         }
         {
             let start = Instant::now();
@@ -208,6 +212,10 @@ fn full_cycle() -> Result<()> {
             let start = Instant::now();
             read(&db)?;
             println!("{name} read time after compact: {:?}", start.elapsed());
+
+            let start = Instant::now();
+            drop(db);
+            println!("{name} drop time after compact: {:?}", start.elapsed());
         }
         {
             let start = Instant::now();
@@ -228,6 +236,13 @@ fn full_cycle() -> Result<()> {
 
             #[cfg(feature = "stats")]
             println!("{name} stats (compacted): {:#?}", db.statistics());
+
+            let start = Instant::now();
+            drop(db);
+            println!(
+                "{name} drop time after compact + restore: {:?}",
+                start.elapsed()
+            );
         }
     }
 
@@ -251,6 +266,10 @@ fn full_cycle() -> Result<()> {
                 read(&db)?;
                 println!("{name} read time: {:?}", start.elapsed());
             }
+
+            let start = Instant::now();
+            drop(db);
+            println!("All drop time: {:?}", start.elapsed());
         }
         {
             let start = Instant::now();
@@ -278,6 +297,10 @@ fn full_cycle() -> Result<()> {
                 read(&db)?;
                 println!("{name} read time after compact: {:?}", start.elapsed());
             }
+
+            let start = Instant::now();
+            drop(db);
+            println!("All drop time after compact: {:?}", start.elapsed());
         }
 
         {
@@ -304,6 +327,13 @@ fn full_cycle() -> Result<()> {
 
             #[cfg(feature = "stats")]
             println!("All stats (compacted): {:#?}", db.statistics());
+
+            let start = Instant::now();
+            drop(db);
+            println!(
+                "All drop time after compact + restore: {:?}",
+                start.elapsed()
+            );
         }
     }
     Ok(())

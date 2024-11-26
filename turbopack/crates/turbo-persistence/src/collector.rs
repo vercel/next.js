@@ -1,5 +1,3 @@
-use std::mem::replace;
-
 use crate::{
     collector_entry::{CollectorEntry, CollectorEntryValue, EntryKey},
     constants::{
@@ -77,18 +75,20 @@ impl<K: StoreKey> Collector<K> {
         self.entries.push(entry);
     }
 
-    pub fn drain_sorted(&mut self) -> (Vec<CollectorEntry<K>>, usize, usize) {
+    pub fn sorted(&mut self) -> (&[CollectorEntry<K>], usize, usize) {
         self.entries.sort_by(|a, b| a.key.cmp(&b.key));
-        let entries = replace(
-            &mut self.entries,
-            Vec::with_capacity(MAX_ENTRIES_PER_INITIAL_FILE),
-        );
-        let key_size = replace(&mut self.total_key_size, 0);
-        let value_size = replace(&mut self.total_value_size, 0);
-        (entries, key_size, value_size)
+        (&self.entries, self.total_key_size, self.total_value_size)
     }
 
-    pub fn into_entries(self) -> Vec<CollectorEntry<K>> {
-        self.entries
+    pub fn clear(&mut self) {
+        self.entries.clear();
+        self.total_key_size = 0;
+        self.total_value_size = 0;
+    }
+
+    pub fn drain(&mut self) -> impl Iterator<Item = CollectorEntry<K>> + '_ {
+        self.total_key_size = 0;
+        self.total_value_size = 0;
+        self.entries.drain(..)
     }
 }

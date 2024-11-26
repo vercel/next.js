@@ -1,4 +1,5 @@
 use std::{
+    any::{Any, TypeId},
     fs::{self, File, OpenOptions, ReadDir},
     io::Write,
     mem::{transmute, MaybeUninit},
@@ -12,7 +13,7 @@ use std::{
 use anyhow::{bail, Context, Result};
 use byteorder::{ReadBytesExt, WriteBytesExt, BE};
 use lzzzz::lz4::decompress;
-use parking_lot::RwLock;
+use parking_lot::{Mutex, RwLock};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 use crate::{
@@ -96,6 +97,7 @@ struct TrackedStats {
 pub struct TurboPersistence {
     path: PathBuf,
     inner: RwLock<Inner>,
+    idle_write_batch: Mutex<Option<(TypeId, Box<dyn Any + Send + Sync>)>>,
     active_write_operation: AtomicBool,
     aqmf_cache: AqmfCache,
     index_block_cache: BlockCache,
@@ -118,6 +120,7 @@ impl TurboPersistence {
                 static_sorted_files: Vec::new(),
                 current_sequence_number: 0,
             }),
+            idle_write_batch: Mutex::new(None),
             active_write_operation: AtomicBool::new(false),
             aqmf_cache: AqmfCache::with(
                 AQMF_CACHE_SIZE as usize / AQMF_AVG_SIZE,
@@ -282,7 +285,7 @@ impl TurboPersistence {
         self.inner.read().static_sorted_files.is_empty()
     }
 
-    pub fn write_batch<K: StoreKey + Send>(&self) -> Result<WriteBatch<K>> {
+    pub fn write_batch<K: StoreKey + Send + Sync + 'static>(&self) -> Result<WriteBatch<K>> {
         if self
             .active_write_operation
             .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
@@ -294,13 +297,26 @@ impl TurboPersistence {
             );
         }
         let current = self.inner.read().current_sequence_number;
+        if let Some((ty, any)) = self.idle_write_batch.lock().take() {
+            if ty == TypeId::of::<WriteBatch<K>>() {
+                let mut write_batch = *any.downcast::<WriteBatch<K>>().unwrap();
+                write_batch.reset(current);
+                return Ok(write_batch);
+            }
+        }
         Ok(WriteBatch::new(self.path.clone(), current))
     }
 
-    pub fn commit_write_batch<K: StoreKey + Send>(&self, write_batch: WriteBatch<K>) -> Result<()> {
+    pub fn commit_write_batch<K: StoreKey + Send + Sync + 'static>(
+        &self,
+        mut write_batch: WriteBatch<K>,
+    ) -> Result<()> {
         let (seq, new_sst_files) = write_batch.finish()?;
         self.commit(new_sst_files, vec![], seq)?;
         self.active_write_operation.store(false, Ordering::Release);
+        self.idle_write_batch
+            .lock()
+            .replace((TypeId::of::<WriteBatch<K>>(), Box::new(write_batch)));
         Ok(())
     }
 
@@ -501,13 +517,16 @@ impl TurboPersistence {
             }
         }
 
+        let key_block_cache = &self.key_block_cache;
+        let value_block_cache = &self.value_block_cache;
+        let path = &self.path;
         let result = compaction_jobs
             .into_par_iter()
             .map(|selected_files| {
                 // Iterate all files
                 let iters = selected_files
                     .iter()
-                    .map(|(_, sst)| sst.iter(&self.key_block_cache, &self.value_block_cache))
+                    .map(|(_, sst)| sst.iter(&key_block_cache, &value_block_cache))
                     .collect::<Result<Vec<_>>>()?;
 
                 fn create_sst_file(
@@ -549,7 +568,7 @@ impl TurboPersistence {
                                     &entries,
                                     total_key_size - key_size,
                                     total_value_size - value_size,
-                                    &self.path,
+                                    &path,
                                     seq,
                                 )?);
 
@@ -577,7 +596,7 @@ impl TurboPersistence {
                         &entries,
                         total_key_size,
                         total_value_size,
-                        &self.path,
+                        &path,
                         seq,
                     )?);
                 }
