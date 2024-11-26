@@ -47,15 +47,18 @@ impl ConditionalContentSource {
 #[turbo_tasks::value_impl]
 impl ContentSource for ConditionalContentSource {
     #[turbo_tasks::function]
-    async fn get_routes(self: Vc<Self>) -> Result<Vc<RouteTree>> {
+    async fn get_routes(self: ResolvedVc<Self>) -> Result<Vc<RouteTree>> {
         let this = self.await?;
         Ok(if !*this.activated.get() {
             this.activator.get_routes().map_routes(Vc::upcast(
                 ConditionalContentSourceMapper { source: self }.cell(),
             ))
         } else {
-            Vc::<RouteTrees>::cell(vec![this.activator.get_routes(), this.action.get_routes()])
-                .merge()
+            Vc::<RouteTrees>::cell(vec![
+                this.activator.get_routes().to_resolved().await?,
+                this.action.get_routes().to_resolved().await?,
+            ])
+            .merge()
         })
     }
 
@@ -75,7 +78,7 @@ impl MapGetContentSourceContent for ConditionalContentSourceMapper {
     #[turbo_tasks::function]
     fn map_get_content(
         &self,
-        get_content: Vc<Box<dyn GetContentSourceContent>>,
+        get_content: ResolvedVc<Box<dyn GetContentSourceContent>>,
     ) -> Vc<Box<dyn GetContentSourceContent>> {
         Vc::upcast(
             ActivateOnGetContentSource {
