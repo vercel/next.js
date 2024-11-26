@@ -243,9 +243,9 @@ async fn source(
 
     let output_fs = output_fs(project_dir);
     let fs = project_fs(root_dir);
-    let project_path: Vc<turbo_tasks_fs::FileSystemPath> = fs.root().join(project_relative);
+    let project_path = fs.root().join(project_relative).to_resolved().await?;
 
-    let env = load_env(project_path);
+    let env = load_env(*project_path);
     let build_output_root = output_fs
         .root()
         .join(".turbopack/build".into())
@@ -264,13 +264,13 @@ async fn source(
             .join("assets".into())
             .to_resolved()
             .await?,
-        node_build_environment(),
+        node_build_environment().to_resolved().await?,
         RuntimeType::Development,
     )
     .build();
 
     let execution_context =
-        ExecutionContext::new(project_path, Vc::upcast(build_chunking_context), env);
+        ExecutionContext::new(*project_path, Vc::upcast(build_chunking_context), env);
 
     let server_fs = Vc::upcast::<Box<dyn FileSystem>>(ServerFileSystem::new());
     let server_root = server_fs.root();
@@ -293,7 +293,7 @@ async fn source(
         .collect();
 
     let web_source = create_web_entry_source(
-        project_path,
+        *project_path,
         execution_context,
         entry_requests,
         server_root,
@@ -304,7 +304,7 @@ async fn source(
     );
     let static_source = Vc::upcast(StaticAssetsContentSource::new(
         Default::default(),
-        project_path.join("public".into()),
+        project_path.join("public".into()).to_resolved().await?,
     ));
     let main_source = CombinedContentSource::new(vec![static_source, web_source]);
     let introspect = Vc::upcast(
