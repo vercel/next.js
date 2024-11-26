@@ -31,7 +31,7 @@ export function unstable_expirePath(
 ) {
   if (originalPath.length > NEXT_CACHE_SOFT_TAG_MAX_LENGTH) {
     console.warn(
-      `Warning: revalidatePath received "${originalPath}" which exceeded max length of ${NEXT_CACHE_SOFT_TAG_MAX_LENGTH}. See more info here https://nextjs.org/docs/app/api-reference/functions/revalidatePath`
+      `Warning: expirePath received "${originalPath}" which exceeded max length of ${NEXT_CACHE_SOFT_TAG_MAX_LENGTH}. See more info here https://nextjs.org/docs/app/api-reference/functions/unstable_expirePath`
     )
     return
   }
@@ -42,7 +42,7 @@ export function unstable_expirePath(
     normalizedPath += `${normalizedPath.endsWith('/') ? '' : '/'}${type}`
   } else if (isDynamicRoute(originalPath)) {
     console.warn(
-      `Warning: a dynamic page path "${originalPath}" was passed to "revalidatePath", but the "type" parameter is missing. This has no effect by default, see more info here https://nextjs.org/docs/app/api-reference/functions/revalidatePath`
+      `Warning: a dynamic page path "${originalPath}" was passed to "expirePath", but the "type" parameter is missing. This has no effect by default, see more info here https://nextjs.org/docs/app/api-reference/functions/unstable_expirePath`
     )
   }
   return revalidate([normalizedPath], `unstable_expirePath ${originalPath}`)
