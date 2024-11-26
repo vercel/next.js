@@ -233,7 +233,7 @@ async fn source(
     entry_requests: TransientInstance<Vec<EntryRequest>>,
     eager_compile: bool,
     browserslist_query: RcStr,
-) -> Vc<Box<dyn ContentSource>> {
+) -> Result<Vc<Box<dyn ContentSource>>> {
     let project_relative = project_dir.strip_prefix(&*root_dir).unwrap();
     let project_relative: RcStr = project_relative
         .strip_prefix(MAIN_SEPARATOR)
@@ -246,14 +246,24 @@ async fn source(
     let project_path: Vc<turbo_tasks_fs::FileSystemPath> = fs.root().join(project_relative);
 
     let env = load_env(project_path);
-    let build_output_root = output_fs.root().join(".turbopack/build".into());
+    let build_output_root = output_fs
+        .root()
+        .join(".turbopack/build".into())
+        .to_resolved()
+        .await?;
 
     let build_chunking_context = NodeJsChunkingContext::builder(
         project_path,
         build_output_root,
         build_output_root,
-        build_output_root.join("chunks".into()),
-        build_output_root.join("assets".into()),
+        build_output_root
+            .join("chunks".into())
+            .to_resolved()
+            .await?,
+        build_output_root
+            .join("assets".into())
+            .to_resolved()
+            .await?,
         node_build_environment(),
         RuntimeType::Development,
     )
