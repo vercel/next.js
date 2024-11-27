@@ -40,7 +40,7 @@ impl<T> Deref for ArcSlice<T> {
 
 impl<T> Borrow<[T]> for ArcSlice<T> {
     fn borrow(&self) -> &[T] {
-        &*self
+        self
     }
 }
 
@@ -65,14 +65,22 @@ impl<T: Debug> Debug for ArcSlice<T> {
 impl<T: Eq> Eq for ArcSlice<T> {}
 
 impl<T> ArcSlice<T> {
+    /// Creates a new `ArcSlice` from a pointer to a slice and an `Arc`.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure that the pointer is pointing to a valid slice that is kept alive by
+    /// the `Arc`.
     pub unsafe fn new_unchecked(data: *const [T], arc: Arc<[T]>) -> Self {
         Self { data, arc }
     }
 
+    /// Get the backing arc
     pub fn full_arc(this: &ArcSlice<T>) -> Arc<[T]> {
         this.arc.clone()
     }
 
+    /// Returns a new `ArcSlice` that points to a slice of the current slice.
     pub fn slice(self, range: Range<usize>) -> ArcSlice<T> {
         let data = &*self;
         let data = &data[range] as *const [T];

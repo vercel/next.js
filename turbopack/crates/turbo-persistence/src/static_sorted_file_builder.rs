@@ -59,11 +59,13 @@ impl StaticSortedFileBuilder {
         total_value_size: usize,
     ) -> Self {
         debug_assert!(entries.iter().map(|e| e.key_hash()).is_sorted());
-        let mut builder = Self::default();
-        builder.family = family;
-        builder.min_hash = entries.first().map(|e| e.key_hash()).unwrap_or(u64::MAX);
-        builder.max_hash = entries.last().map(|e| e.key_hash()).unwrap_or(0);
-        builder.compute_aqmf(&entries);
+        let mut builder = Self {
+            family,
+            min_hash: entries.first().map(|e| e.key_hash()).unwrap_or(u64::MAX),
+            max_hash: entries.last().map(|e| e.key_hash()).unwrap_or(0),
+            ..Default::default()
+        };
+        builder.compute_aqmf(entries);
         builder.compute_compression_dictionary(entries, total_key_size, total_value_size);
         builder.compute_blocks(entries);
         builder
@@ -106,7 +108,7 @@ impl StaticSortedFileBuilder {
             if value_remaining > 0 {
                 if let EntryValue::Small { value } | EntryValue::Medium { value } = entry.value() {
                     let value = if value.len() <= COMPRESSION_DICTIONARY_SAMPLE_PER_ENTRY {
-                        &value
+                        value
                     } else {
                         j = (j + 12345678)
                             % (value.len() - COMPRESSION_DICTIONARY_SAMPLE_PER_ENTRY);

@@ -12,7 +12,7 @@ struct ActiveIterator<T: Iterator<Item = Result<LookupEntry>>> {
 
 impl<T: Iterator<Item = Result<LookupEntry>>> PartialEq for ActiveIterator<T> {
     fn eq(&self, other: &Self) -> bool {
-        self.entry.hash == other.entry.hash && &*self.entry.key == &*other.entry.key
+        self.entry.hash == other.entry.hash && *self.entry.key == *other.entry.key
     }
 }
 
@@ -29,7 +29,7 @@ impl<T: Iterator<Item = Result<LookupEntry>>> Ord for ActiveIterator<T> {
         self.entry
             .hash
             .cmp(&other.entry.hash)
-            .then_with(|| (&*self.entry.key).cmp(&other.entry.key))
+            .then_with(|| (*self.entry.key).cmp(&other.entry.key))
             .then_with(|| self.order.cmp(&other.order))
             .reverse()
     }

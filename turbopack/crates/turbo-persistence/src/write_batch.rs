@@ -97,10 +97,10 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
         for cell in self.thread_locals.iter_mut() {
             let state = cell.get_mut();
             new_sst_files.append(&mut state.new_sst_files);
-            for family in 0..FAMILIES {
+            for (family, global_collector) in all_collectors.iter_mut().enumerate() {
                 if let Some(collector) = state.collectors[family].take() {
                     if !collector.is_empty() {
-                        all_collectors[family].push(Some(collector));
+                        global_collector.push(Some(collector));
                     }
                 }
             }
@@ -125,7 +125,6 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
                         }
                         Err(err) => {
                             *shared_error.lock() = Err(err);
-                            return;
                         }
                     },
                 );
@@ -182,7 +181,6 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
                     }
                 });
         });
-        drop(shared_new_sst_files);
         shared_error.into_inner()?;
         let seq = self.current_sequence_number.load(Ordering::SeqCst);
         new_sst_files.sort_by_key(|(seq, _)| *seq);
@@ -196,7 +194,7 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
         lz4::compress_to_vec(value, &mut buffer, ACC_LEVEL_DEFAULT)
             .context("Compression of value for blob file failed")?;
 
-        let file = self.path.join(&format!("{:08}.blob", seq));
+        let file = self.path.join(format!("{:08}.blob", seq));
         std::fs::write(file, &buffer).context("Unable to write blob file")?;
         Ok(seq)
     }
@@ -212,7 +210,7 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
         let builder =
             StaticSortedFileBuilder::new(family as u32, entries, total_key_size, total_value_size);
 
-        let path = self.path.join(&format!("{:08}.sst", seq));
+        let path = self.path.join(format!("{:08}.sst", seq));
         let file = builder
             .write(&path)
             .with_context(|| format!("Unable to write SST file {:08}.sst", seq))?;
