@@ -436,6 +436,13 @@ export async function handleRouteType({
 
         const writtenEndpoint = await route.htmlEndpoint.writeToDisk()
         hooks?.handleWrittenEndpoint(serverKey, writtenEndpoint)
+        processIssues(
+          currentEntryIssues,
+          serverKey,
+          writtenEndpoint,
+          dev,
+          logErrors
+        )
 
         const type = writtenEndpoint?.type
 
@@ -459,14 +466,6 @@ export async function handleRouteType({
           productionRewrites,
           entrypoints,
         })
-
-        processIssues(
-          currentEntryIssues,
-          serverKey,
-          writtenEndpoint,
-          dev,
-          logErrors
-        )
       } finally {
         if (dev) {
           // TODO subscriptions should only be caused by the WebSocket connections
@@ -535,6 +534,7 @@ export async function handleRouteType({
 
       const writtenEndpoint = await route.endpoint.writeToDisk()
       hooks?.handleWrittenEndpoint(key, writtenEndpoint)
+      processIssues(currentEntryIssues, key, writtenEndpoint, dev, logErrors)
 
       const type = writtenEndpoint.type
 
@@ -551,8 +551,6 @@ export async function handleRouteType({
         productionRewrites,
         entrypoints,
       })
-
-      processIssues(currentEntryIssues, key, writtenEndpoint, dev, logErrors)
 
       break
     }
@@ -588,6 +586,7 @@ export async function handleRouteType({
           }
         )
       }
+      processIssues(currentEntryIssues, key, writtenEndpoint, dev, logErrors)
 
       const type = writtenEndpoint.type
 
@@ -614,8 +613,6 @@ export async function handleRouteType({
         entrypoints,
       })
 
-      processIssues(currentEntryIssues, key, writtenEndpoint, dev, logErrors)
-
       break
     }
     case 'app-route': {
@@ -623,6 +620,7 @@ export async function handleRouteType({
 
       const writtenEndpoint = await route.endpoint.writeToDisk()
       hooks?.handleWrittenEndpoint(key, writtenEndpoint)
+      processIssues(currentEntryIssues, key, writtenEndpoint, dev, logErrors)
 
       const type = writtenEndpoint.type
 
@@ -639,7 +637,6 @@ export async function handleRouteType({
         productionRewrites,
         entrypoints,
       })
-      processIssues(currentEntryIssues, key, writtenEndpoint, dev, logErrors)
 
       break
     }
