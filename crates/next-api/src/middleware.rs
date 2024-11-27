@@ -96,7 +96,7 @@ impl MiddlewareEndpoint {
             }),
             self.project.next_mode(),
         )
-        .resolve_entries(self.asset_context)
+        .resolve_entries(*self.asset_context)
         .await?
         .clone_value();
 
@@ -261,7 +261,7 @@ impl MiddlewareEndpoint {
     fn userland_module(&self) -> Vc<Box<dyn Module>> {
         self.asset_context
             .process(
-                self.source,
+                *self.source,
                 Value::new(ReferenceType::Entry(EntryReferenceSubType::Middleware)),
             )
             .module()
