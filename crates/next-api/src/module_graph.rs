@@ -26,6 +26,10 @@ use crate::{
 pub struct SingleModuleGraph {
     #[turbo_tasks(trace_ignore)]
     pub graph: DiGraph<ResolvedVc<Box<dyn Module>>, ()>,
+    // NodeIndex isn't necessarily stable, but these are first nodes in the graph, so shouldn't
+    // ever be involved in a swap_remove operation
+    #[turbo_tasks(trace_ignore)]
+    pub entries: HashMap<ResolvedVc<Box<dyn Module>>, NodeIndex>,
 }
 
 #[turbo_tasks::value(transparent)]
@@ -64,7 +68,14 @@ impl SingleModuleGraph {
                 stack.push((Some(idx), *reference));
             }
         }
-        Ok(SingleModuleGraph { graph }.cell())
+        Ok(SingleModuleGraph {
+            graph,
+            entries: entries
+                .iter()
+                .map(|e| (*e, *modules.get(e).unwrap()))
+                .collect(),
+        }
+        .cell())
     }
 }
 
@@ -143,8 +154,9 @@ impl NextDynamicGraph {
     ) -> Result<Vc<Self>> {
         let mapped = map_next_dynamic(*graph, client_asset_context);
 
-        // TODO shrink graph here, using the information from `mapped` (which lists the relevant
-        // nodes)
+        // TODO shrink graph here, using the information from
+        //  - `mapped` (which lists the relevant nodes)
+        //  - `graph.entries` (which lists the page/route/... entries we need to keep)
 
         // This would clone the graph and allow changing the node weights. We can probably get away
         // with keeping the sidecar information separate from the graph itself, though.
@@ -183,17 +195,13 @@ impl NextDynamicGraph {
             // No need to traverse and collect (filter) just the imports for that single page
             Ok(*self.data)
         } else {
-            let graph = &self.graph.await?.graph;
+            let SingleModuleGraph { graph, entries } = &*self.graph.await?;
             let data = &self.data.await?;
 
-            // TODO store a map for the entries somewhere
-            let rsc_entry_node = graph
-                .node_indices()
-                .find(|idx| *graph.node_weight(*idx).unwrap() == rsc_entry)
-                .unwrap();
-            let mut dfs = Dfs::new(&graph, rsc_entry_node);
-
             let mut result = HashMap::new();
+
+            let rsc_entry_node = *entries.get(&rsc_entry).unwrap();
+            let mut dfs = Dfs::new(&graph, rsc_entry_node);
             while let Some(nx) = dfs.next(&graph) {
                 let weight = *graph.node_weight(nx).unwrap();
                 if let Some(node_data) = data.get(&weight) {
