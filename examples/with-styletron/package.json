@@ -6,7 +6,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "next": "^15.0.3",
+    "next": "latest",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "styletron-engine-atomic": "^1.6.2",
