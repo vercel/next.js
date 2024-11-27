@@ -3,6 +3,7 @@ use std::mem::take;
 use anyhow::{bail, Context, Result};
 use async_trait::async_trait;
 use either::Either;
+use futures::future::try_join_all;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value as JsonValue};
 use serde_with::serde_as;
@@ -172,7 +173,7 @@ impl GenerateSourceMap for WebpackLoadersProcessedAsset {
 struct ProcessWebpackLoadersResult {
     content: ResolvedVc<AssetContent>,
     source_map: Option<ResolvedVc<SourceMap>>,
-    assets: Vec<Vc<VirtualSource>>,
+    assets: Vec<ResolvedVc<VirtualSource>>,
 }
 
 #[turbo_tasks::function]
@@ -242,11 +243,11 @@ impl WebpackLoadersProcessedAsset {
             chunking_context,
             resolve_options_context: Some(transform.resolve_options_context),
             args: vec![
-                Vc::cell(content.into()),
+                ResolvedVc::cell(content.into()),
                 // We need to pass the query string to the loader
-                Vc::cell(resource_path.to_string().into()),
-                Vc::cell(this.source.ident().query().await?.to_string().into()),
-                Vc::cell(json!(*loaders)),
+                ResolvedVc::cell(resource_path.to_string().into()),
+                ResolvedVc::cell(this.source.ident().query().await?.to_string().into()),
+                ResolvedVc::cell(json!(*loaders)),
             ],
             additional_invalidation: Completion::immutable().to_resolved().await?,
         })
@@ -278,11 +279,14 @@ impl WebpackLoadersProcessedAsset {
             Either::Left(str) => File::from(str),
             Either::Right(bytes) => File::from(bytes.binary),
         };
-        let assets = emitted_assets_to_virtual_sources(processed.assets)
-            .await?
-            .into_iter()
-            .map(|asset| *asset)
-            .collect();
+        let assets = try_join_all(
+            emitted_assets_to_virtual_sources(processed.assets)
+                .await?
+                .into_iter()
+                .map(|v| v.to_resolved()),
+        )
+        .await?;
+
         let content =
             AssetContent::File(FileContent::Content(file).resolved_cell()).resolved_cell();
         Ok(ProcessWebpackLoadersResult {
@@ -397,7 +401,7 @@ pub struct WebpackLoaderContext {
     pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
     pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     pub resolve_options_context: Option<ResolvedVc<ResolveOptionsContext>>,
-    pub args: Vec<Vc<JsonValue>>,
+    pub args: Vec<ResolvedVc<JsonValue>>,
     pub additional_invalidation: ResolvedVc<Completion>,
 }
 
@@ -425,7 +429,7 @@ impl EvaluateContext for WebpackLoaderContext {
         )
     }
 
-    fn args(&self) -> &[Vc<serde_json::Value>] {
+    fn args(&self) -> &[ResolvedVc<serde_json::Value>] {
         &self.args
     }
 
