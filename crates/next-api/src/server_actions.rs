@@ -47,7 +47,7 @@ use turbopack_ecmascript::{
 
 #[turbo_tasks::value]
 pub(crate) struct ServerActionsManifest {
-    pub loader: Vc<Box<dyn EvaluatableAsset>>,
+    pub loader: ResolvedVc<Box<dyn EvaluatableAsset>>,
     pub manifest: ResolvedVc<Box<dyn OutputAsset>>,
 }
 

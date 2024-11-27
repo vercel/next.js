@@ -440,24 +440,24 @@ pub struct Project {
     watch: WatchOptions,
 
     /// Next config.
-    next_config: Vc<NextConfig>,
+    next_config: ResolvedVc<NextConfig>,
 
     /// Js/Tsconfig read by load-jsconfig
-    js_config: Vc<JsConfig>,
+    js_config: ResolvedVc<JsConfig>,
 
     /// A map of environment variables to use when compiling code.
-    env: Vc<Box<dyn ProcessEnv>>,
+    env: ResolvedVc<Box<dyn ProcessEnv>>,
 
     /// A map of environment variables which should get injected at compile
     /// time.
-    define_env: Vc<ProjectDefineEnv>,
+    define_env: ResolvedVc<ProjectDefineEnv>,
 
     /// The browserslist query to use for targeting browsers.
     browserslist_query: RcStr,
 
-    mode: Vc<NextMode>,
+    mode: ResolvedVc<NextMode>,
 
-    versioned_content_map: Option<Vc<VersionedContentMap>>,
+    versioned_content_map: Option<ResolvedVc<VersionedContentMap>>,
 
     build_id: RcStr,
 
@@ -468,9 +468,9 @@ pub struct Project {
 
 #[turbo_tasks::value]
 pub struct ProjectDefineEnv {
-    client: Vc<EnvMap>,
-    edge: Vc<EnvMap>,
-    nodejs: Vc<EnvMap>,
+    client: ResolvedVc<EnvMap>,
+    edge: ResolvedVc<EnvMap>,
+    nodejs: ResolvedVc<EnvMap>,
 }
 
 #[turbo_tasks::value_impl]
