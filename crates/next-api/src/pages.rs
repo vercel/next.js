@@ -86,7 +86,7 @@ pub struct PagesProject {
 #[turbo_tasks::value_impl]
 impl PagesProject {
     #[turbo_tasks::function]
-    pub fn new(project: Vc<Project>) -> Vc<Self> {
+    pub fn new(project: ResolvedVc<Project>) -> Vc<Self> {
         PagesProject { project }.cell()
     }
 
@@ -234,7 +234,7 @@ impl PagesProject {
 
     #[turbo_tasks::function]
     fn project(&self) -> Vc<Project> {
-        self.project
+        *self.project
     }
 
     #[turbo_tasks::function]
