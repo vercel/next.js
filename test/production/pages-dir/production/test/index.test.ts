@@ -180,7 +180,7 @@ describe('Production Usage', () => {
       {
         page: '/_app',
         tests: [
-          /webpack-runtime\.js/,
+          /(webpack-runtime\.js|\[turbopack\]_runtime\.js)/,
           /node_modules\/react\/index\.js/,
           /node_modules\/react\/package\.json/,
           isReact18
@@ -192,7 +192,7 @@ describe('Production Usage', () => {
       {
         page: '/client-error',
         tests: [
-          /webpack-runtime\.js/,
+          /(webpack-runtime\.js|\[turbopack\]_runtime\.js)/,
           /chunks\/.*?\.js/,
           /node_modules\/react\/index\.js/,
           /node_modules\/react\/package\.json/,
@@ -206,7 +206,7 @@ describe('Production Usage', () => {
       {
         page: '/index',
         tests: [
-          /webpack-runtime\.js/,
+          /(webpack-runtime\.js|\[turbopack\]_runtime\.js)/,
           /chunks\/.*?\.js/,
           /node_modules\/react\/index\.js/,
           /node_modules\/react\/package\.json/,
@@ -223,7 +223,7 @@ describe('Production Usage', () => {
       {
         page: '/next-import',
         tests: [
-          /webpack-runtime\.js/,
+          /(webpack-runtime\.js|\[turbopack\]_runtime\.js)/,
           /chunks\/.*?\.js/,
           /node_modules\/react\/index\.js/,
           /node_modules\/react\/package\.json/,
@@ -242,7 +242,10 @@ describe('Production Usage', () => {
       },
       {
         page: '/api',
-        tests: [/webpack-runtime\.js/, /\/logo\.module\.css/],
+        tests: [
+          /(webpack-runtime\.js|\[turbopack\]_runtime\.js)/,
+          /\/logo\.module\.css/,
+        ],
         notTests: [
           /next\/dist\/server\/next\.js/,
           /next\/dist\/bin/,

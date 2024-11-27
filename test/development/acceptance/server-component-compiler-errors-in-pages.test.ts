@@ -1,6 +1,5 @@
 /* eslint-env jest */
 import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
 import { createSandbox } from 'development-sandbox'
 import { outdent } from 'outdent'
 
@@ -46,8 +45,7 @@ describe('Error Overlay for server components compiler errors in pages', () => {
     )
 
     await session.assertHasRedbox()
-    await check(
-      () => session.getRedboxSource(),
+    await expect(session.getRedboxSource()).resolves.toMatch(
       /That only works in a Server Component/
     )
 
@@ -103,8 +101,7 @@ describe('Error Overlay for server components compiler errors in pages', () => {
     )
 
     await session.assertHasRedbox()
-    await check(
-      () => session.getRedboxSource(),
+    await expect(session.getRedboxSource()).resolves.toMatch(
       /That only works in a Server Component/
     )
 
@@ -162,8 +159,7 @@ describe('Error Overlay for server components compiler errors in pages', () => {
     )
 
     await session.assertHasRedbox()
-    await check(
-      () => session.getRedboxSource(),
+    await expect(session.getRedboxSource()).resolves.toMatch(
       /That only works in a Server Component/
     )
 

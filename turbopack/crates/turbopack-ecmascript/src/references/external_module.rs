@@ -10,7 +10,7 @@ use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
     ident::AssetIdent,
     module::Module,
-    reference::ModuleReferences,
+    reference::{ModuleReference, ModuleReferences},
 };
 
 use crate::{
@@ -51,15 +51,21 @@ impl Display for CachedExternalType {
 pub struct CachedExternalModule {
     pub request: RcStr,
     pub external_type: CachedExternalType,
+    pub additional_references: Vec<ResolvedVc<Box<dyn ModuleReference>>>,
 }
 
 #[turbo_tasks::value_impl]
 impl CachedExternalModule {
     #[turbo_tasks::function]
-    pub fn new(request: RcStr, external_type: CachedExternalType) -> Vc<Self> {
+    pub fn new(
+        request: RcStr,
+        external_type: CachedExternalType,
+        additional_references: Vec<ResolvedVc<Box<dyn ModuleReference>>>,
+    ) -> Vc<Self> {
         Self::cell(CachedExternalModule {
             request,
             external_type,
+            additional_references,
         })
     }
 
@@ -76,7 +82,8 @@ impl CachedExternalModule {
         } else {
             writeln!(
                 code,
-                "const mod = __turbopack_external_require__({});",
+                "const mod = __turbopack_external_require__({}, () => require({}));",
+                StringifyJs(&self.request),
                 StringifyJs(&self.request)
             )?;
         }
@@ -104,7 +111,7 @@ impl Module for CachedExternalModule {
     fn ident(&self) -> Vc<AssetIdent> {
         let fs = VirtualFileSystem::new_with_name("externals".into());
 
-        AssetIdent::from_path(fs.root())
+        AssetIdent::from_path(fs.root().join(self.request.clone()))
             .with_layer(layer())
             .with_modifier(Vc::cell(self.request.clone()))
             .with_modifier(Vc::cell(self.external_type.to_string().into()))
@@ -180,6 +187,12 @@ pub struct CachedExternalModuleChunkItem {
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
 
+// Without this wrapper, VirtualFileSystem::new_with_name always returns a new filesystem
+#[turbo_tasks::function]
+fn external_fs() -> Vc<VirtualFileSystem> {
+    VirtualFileSystem::new_with_name("externals".into())
+}
+
 #[turbo_tasks::value_impl]
 impl ChunkItem for CachedExternalModuleChunkItem {
     #[turbo_tasks::function]
@@ -188,8 +201,15 @@ impl ChunkItem for CachedExternalModuleChunkItem {
     }
 
     #[turbo_tasks::function]
-    fn references(&self) -> Vc<ModuleReferences> {
-        self.module.references()
+    async fn references(&self) -> Result<Vc<ModuleReferences>> {
+        let additional_references = &self.module.await?.additional_references;
+        if !additional_references.is_empty() {
+            let mut module_references = self.module.references().await?.clone_value();
+            module_references.extend(additional_references.iter().map(|rvc| **rvc));
+            Ok(Vc::cell(module_references))
+        } else {
+            Ok(self.module.references())
+        }
     }
 
     #[turbo_tasks::function]

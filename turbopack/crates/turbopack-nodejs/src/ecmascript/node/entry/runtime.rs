@@ -21,14 +21,14 @@ use crate::NodeJsChunkingContext;
 /// An Ecmascript chunk that contains the Node.js runtime code.
 #[turbo_tasks::value(shared)]
 pub(crate) struct EcmascriptBuildNodeRuntimeChunk {
-    chunking_context: Vc<NodeJsChunkingContext>,
+    chunking_context: ResolvedVc<NodeJsChunkingContext>,
 }
 
 #[turbo_tasks::value_impl]
 impl EcmascriptBuildNodeRuntimeChunk {
     /// Creates a new [`Vc<EcmascriptBuildNodeRuntimeChunk>`].
     #[turbo_tasks::function]
-    pub fn new(chunking_context: Vc<NodeJsChunkingContext>) -> Vc<Self> {
+    pub fn new(chunking_context: ResolvedVc<NodeJsChunkingContext>) -> Vc<Self> {
         EcmascriptBuildNodeRuntimeChunk { chunking_context }.cell()
     }
 

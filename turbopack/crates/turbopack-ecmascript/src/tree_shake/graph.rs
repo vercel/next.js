@@ -34,11 +34,12 @@ use super::{
 };
 use crate::{magic_identifier, tree_shake::optimizations::GraphOptimizer};
 
+const FLAG_DISABLE_EXPORT_MERGING: &str = "TURBOPACK_DISABLE_EXPORT_MERGING";
 /// The id of an item
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(crate) enum ItemId {
-    Group(ItemIdGroupKind),
     Item { index: usize, kind: ItemIdItemKind },
+    Group(ItemIdGroupKind),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -126,6 +127,9 @@ pub(crate) struct ItemData {
     /// See https://github.com/vercel/next.js/pull/71234#issuecomment-2409810084 for the problematic
     /// test case.
     pub explicit_deps: Vec<ItemId>,
+
+    /// Server actions breaks when we merge exports.
+    pub disable_export_merging: bool,
 }
 
 impl fmt::Debug for ItemData {
@@ -160,6 +164,7 @@ impl Default for ItemData {
             export: Default::default(),
             binding_source: Default::default(),
             explicit_deps: Default::default(),
+            disable_export_merging: Default::default(),
         }
     }
 }
@@ -706,6 +711,7 @@ impl DepGraph {
 
         let optimizer = GraphOptimizer {
             graph_ix: &self.g.graph_ix,
+            data,
         };
         loop {
             if !optimizer.merge_single_incoming_nodes(&mut condensed) {
@@ -794,13 +800,23 @@ impl DepGraph {
                 match item {
                     ModuleDecl::ExportDecl(item) => match &item.decl {
                         Decl::Fn(FnDecl { ident, .. }) | Decl::Class(ClassDecl { ident, .. }) => {
-                            exports.push((ident.to_id(), ident.sym.clone()));
+                            exports.push((
+                                ident.to_id(),
+                                ident.sym.clone(),
+                                comments.has_flag(ident.span().lo, FLAG_DISABLE_EXPORT_MERGING),
+                            ));
                         }
                         Decl::Var(v) => {
                             for decl in &v.decls {
+                                let disable_export_merging = comments
+                                    .has_flag(decl.name.span().lo, FLAG_DISABLE_EXPORT_MERGING)
+                                    || decl.init.as_deref().map_or(false, |e| {
+                                        comments.has_flag(e.span().lo, FLAG_DISABLE_EXPORT_MERGING)
+                                    });
+
                                 let ids: Vec<Id> = find_pat_ids(&decl.name);
                                 for id in ids {
-                                    exports.push((id.clone(), id.0));
+                                    exports.push((id.clone(), id.0, disable_export_merging));
                                 }
                             }
                         }
@@ -871,7 +887,7 @@ impl DepGraph {
                                 local = local.into_private();
                             }
 
-                            exports.push((local.to_id(), exported.atom().clone()));
+                            exports.push((local.to_id(), exported.atom().clone(), false));
 
                             if let Some(src) = &item.src {
                                 let id = ItemId::Item {
@@ -988,7 +1004,7 @@ impl DepGraph {
                             items.insert(id, data);
                         }
 
-                        exports.push((default_var.to_id(), "default".into()));
+                        exports.push((default_var.to_id(), "default".into(), false));
                     }
                     ModuleDecl::ExportDefaultExpr(export) => {
                         let default_var =
@@ -1047,7 +1063,7 @@ impl DepGraph {
                         {
                             // For export default __TURBOPACK__default__export__
 
-                            exports.push((default_var.to_id(), "default".into()));
+                            exports.push((default_var.to_id(), "default".into(), false));
                         }
                     }
 
@@ -1243,6 +1259,7 @@ impl DepGraph {
                         });
                         vars.write.extend(decl_ids.iter().cloned());
                         let content = ModuleItem::Stmt(Stmt::Decl(Decl::Var(var_decl)));
+
                         items.insert(
                             id,
                             ItemData {
@@ -1365,7 +1382,7 @@ impl DepGraph {
             );
         }
 
-        for (local, export_name) in exports {
+        for (local, export_name, disable_export_merging) in exports {
             let id = ItemId::Group(ItemIdGroupKind::Export(local.clone(), export_name.clone()));
             ids.push(id.clone());
             items.insert(
@@ -1389,6 +1406,7 @@ impl DepGraph {
                     })),
                     read_vars: [local.clone()].into_iter().collect(),
                     export: Some(export_name),
+                    disable_export_merging,
                     ..Default::default()
                 },
             );

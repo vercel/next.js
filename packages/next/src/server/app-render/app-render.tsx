@@ -59,12 +59,16 @@ import {
 } from '../../lib/metadata/metadata-context'
 import { createRequestStoreForRender } from '../async-storage/request-store'
 import { createWorkStore } from '../async-storage/work-store'
-import { isNotFoundError } from '../../client/components/not-found'
+import {
+  getAccessFallbackErrorTypeByStatus,
+  getAccessFallbackHTTPStatus,
+  isHTTPAccessFallbackError,
+} from '../../client/components/http-access-fallback/http-access-fallback'
 import {
   getURLFromRedirectError,
-  isRedirectError,
   getRedirectStatusCodeFromError,
 } from '../../client/components/redirect'
+import { isRedirectError } from '../../client/components/redirect-error'
 import { getImplicitTags } from '../lib/implicit-tags'
 import { AppRenderSpan, NextNodeServerSpan } from '../lib/trace/constants'
 import { getTracer } from '../lib/trace/tracer'
@@ -175,6 +179,7 @@ import {
   createPrerenderResumeDataCache,
   createRenderResumeDataCache,
 } from '../resume-data-cache/resume-data-cache'
+import type { MetadataErrorType } from '../../lib/metadata/resolve-metadata'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -755,6 +760,7 @@ async function getRSCPayload(
     getMetadataReady,
     missingSlots,
     preloadCallbacks,
+    authInterrupts: ctx.renderOpts.experimental.authInterrupts,
   })
 
   // When the `vary` response header is present with `Next-URL`, that means there's a chance
@@ -804,7 +810,7 @@ function Preloads({ preloadCallbacks }: { preloadCallbacks: Function[] }) {
 async function getErrorRSCPayload(
   tree: LoaderTree,
   ctx: AppRenderContext,
-  errorType: 'not-found' | 'redirect' | undefined
+  errorType: MetadataErrorType | 'redirect' | undefined
 ) {
   const {
     getDynamicParamFromSegment,
@@ -1839,11 +1845,11 @@ async function renderToStream(
       throw err
     }
 
-    let errorType: 'not-found' | 'redirect' | undefined
+    let errorType: MetadataErrorType | 'redirect' | undefined
 
-    if (isNotFoundError(err)) {
-      errorType = 'not-found'
-      res.statusCode = 404
+    if (isHTTPAccessFallbackError(err)) {
+      res.statusCode = getAccessFallbackHTTPStatus(err)
+      errorType = getAccessFallbackErrorTypeByStatus(res.statusCode)
     } else if (isRedirectError(err)) {
       errorType = 'redirect'
       res.statusCode = getRedirectStatusCodeFromError(err)
@@ -1958,7 +1964,10 @@ async function renderToStream(
         validateRootLayout,
       })
     } catch (finalErr: any) {
-      if (process.env.NODE_ENV === 'development' && isNotFoundError(finalErr)) {
+      if (
+        process.env.NODE_ENV === 'development' &&
+        isHTTPAccessFallbackError(finalErr)
+      ) {
         const { bailOnRootNotFound } =
           require('../../client/components/dev-root-http-access-fallback-boundary') as typeof import('../../client/components/dev-root-http-access-fallback-boundary')
         bailOnRootNotFound()
@@ -3636,11 +3645,11 @@ async function prerenderToStream(
       throw err
     }
 
-    let errorType: 'not-found' | 'redirect' | undefined
+    let errorType: MetadataErrorType | 'redirect' | undefined
 
-    if (isNotFoundError(err)) {
-      errorType = 'not-found'
-      res.statusCode = 404
+    if (isHTTPAccessFallbackError(err)) {
+      res.statusCode = getAccessFallbackHTTPStatus(err)
+      errorType = getAccessFallbackErrorTypeByStatus(res.statusCode)
     } else if (isRedirectError(err)) {
       errorType = 'redirect'
       res.statusCode = getRedirectStatusCodeFromError(err)
@@ -3760,7 +3769,10 @@ async function prerenderToStream(
         collectedTags: prerenderStore !== null ? prerenderStore.tags : null,
       }
     } catch (finalErr: any) {
-      if (process.env.NODE_ENV === 'development' && isNotFoundError(finalErr)) {
+      if (
+        process.env.NODE_ENV === 'development' &&
+        isHTTPAccessFallbackError(finalErr)
+      ) {
         const { bailOnRootNotFound } =
           require('../../client/components/dev-root-http-access-fallback-boundary') as typeof import('../../client/components/dev-root-http-access-fallback-boundary')
         bailOnRootNotFound()

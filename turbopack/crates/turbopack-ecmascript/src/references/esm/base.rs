@@ -80,7 +80,9 @@ impl ReferencedAsset {
         }
         for (_, result) in result.primary.iter() {
             match result {
-                ModuleResolveResultItem::External(request, ty) => {
+                ModuleResolveResultItem::External {
+                    name: request, ty, ..
+                } => {
                     return Ok(ReferencedAsset::External(request.clone(), *ty).cell());
                 }
                 &ModuleResolveResultItem::Module(module) => {
@@ -320,7 +322,7 @@ impl CodeGenerateable for EsmAssetReference {
                                     )
                                 } else {
                                     quote!(
-                                        "var $name = __turbopack_external_require__($id, true);" as Stmt,
+                                        "var $name = __turbopack_external_require__($id, () => require($id), true);" as Stmt,
                                         name = Ident::new(ident.clone().into(), DUMMY_SP, Default::default()),
                                         id: Expr = Expr::Lit(request.clone().to_string().into())
                                     )
@@ -349,7 +351,7 @@ impl CodeGenerateable for EsmAssetReference {
                             ident.clone().into(),
                             var_decl_with_span(
                                 quote!(
-                                    "var $name = __turbopack_external_require__($id, true);" as Stmt,
+                                    "var $name = __turbopack_external_require__($id, () => require($id), true);" as Stmt,
                                     name = Ident::new(ident.clone().into(), DUMMY_SP, Default::default()),
                                     id: Expr = Expr::Lit(request.clone().to_string().into())
                                 ),
@@ -357,6 +359,7 @@ impl CodeGenerateable for EsmAssetReference {
                             ),
                         ))
                     }
+                    // fallback in case we introduce a new `ExternalType`
                     #[allow(unreachable_patterns)]
                     ReferencedAsset::External(request, ty) => {
                         bail!(

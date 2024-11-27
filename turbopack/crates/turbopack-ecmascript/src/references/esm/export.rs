@@ -128,10 +128,12 @@ pub async fn follow_reexports(
     module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
     export_name: RcStr,
     side_effect_free_packages: Vc<Glob>,
+    ignore_side_effect_of_entry: bool,
 ) -> Result<Vc<FollowExportsResult>> {
-    if !*module
-        .is_marked_as_side_effect_free(side_effect_free_packages)
-        .await?
+    if !ignore_side_effect_of_entry
+        && !*module
+            .is_marked_as_side_effect_free(side_effect_free_packages)
+            .await?
     {
         return Ok(FollowExportsResult::cell(FollowExportsResult {
             module,
@@ -401,11 +403,11 @@ pub async fn expand_star_exports(
 fn emit_star_exports_issue(source_ident: Vc<AssetIdent>, message: RcStr) {
     AnalyzeIssue {
         code: None,
-        message: StyledString::Text(message).cell(),
+        message: StyledString::Text(message).resolved_cell(),
         source_ident,
-        severity: IssueSeverity::Warning.into(),
+        severity: IssueSeverity::Warning.resolved_cell(),
         source: None,
-        title: Vc::cell("unexpected export *".into()),
+        title: ResolvedVc::cell("unexpected export *".into()),
     }
     .cell()
     .emit();

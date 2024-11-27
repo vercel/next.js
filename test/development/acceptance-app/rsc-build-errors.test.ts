@@ -1,5 +1,4 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
 import path from 'path'
 import { createSandbox } from 'development-sandbox'
 import { outdent } from 'outdent'
@@ -307,8 +306,7 @@ describe('Error overlay - RSC build errors', () => {
     )
 
     await session.assertHasRedbox()
-    await check(
-      () => session.getRedboxSource(),
+    await expect(session.getRedboxSource()).resolves.toMatch(
       /must be a Client \n| Component/
     )
     if (process.env.TURBOPACK) {
@@ -323,7 +321,9 @@ describe('Error overlay - RSC build errors', () => {
         Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client"
       `)
     } else {
-      await check(() => session.getRedboxSource(), /Add the "use client"/)
+      await expect(session.getRedboxSource()).resolves.toMatch(
+        /Add the "use client"/
+      )
 
       // TODO: investigate flakey snapshot due to spacing below
       // expect(next.normalizeTestDirContent(await session.getRedboxSource()))
@@ -356,7 +356,9 @@ describe('Error overlay - RSC build errors', () => {
     await session.patch('app/server-with-errors/error-file/error.js', '')
 
     await session.assertHasRedbox()
-    await check(() => session.getRedboxSource(), /Add the "use client"/)
+    await expect(session.getRedboxSource()).resolves.toMatch(
+      /Add the "use client"/
+    )
 
     // TODO: investigate flakey snapshot due to spacing below
     // expect(next.normalizeTestDirContent(await session.getRedboxSource()))
