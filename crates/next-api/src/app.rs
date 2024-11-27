@@ -970,7 +970,7 @@ impl AppEndpoint {
                         .values()
                     {
                         let result = collect_next_dynamic_imports(
-                            refs.clone(),
+                            refs.iter().map(|v| **v).collect(),
                             Vc::upcast(this.app_project.client_module_context()),
                             visited_modules,
                         )
@@ -1496,7 +1496,7 @@ impl AppEndpoint {
                             let utils_module = IncludeModulesModule::new(
                                 AssetIdent::from_path(this.app_project.project().project_path())
                                     .with_modifier(server_utils_modifier()),
-                                client_references.server_utils.clone(),
+                                client_references.server_utils.iter().map(|v| **v).collect(),
                             );
 
                             let chunk_group = chunking_context
