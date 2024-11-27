@@ -1,5 +1,6 @@
+"use client"
 import { useState } from "react";
-import Page from "../components/Page";
+import Page from "../_components/Page";
 import { usePlausible } from "next-plausible";
 
 export default function Contact() {
