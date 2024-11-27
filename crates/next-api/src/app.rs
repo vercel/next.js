@@ -940,7 +940,7 @@ impl AppEndpoint {
                     } = &*find_server_entries(*rsc_entry).await?;
 
                     let mut client_references = client_reference_graph(
-                        server_utils.clone(),
+                        server_utils.iter().map(|&v| *v).collect(),
                         VisitedClientReferenceGraphNodes::empty(),
                     )
                     .await?
@@ -948,11 +948,11 @@ impl AppEndpoint {
 
                     for module in server_component_entries
                         .iter()
-                        .map(|m| Vc::upcast::<Box<dyn Module>>(*m))
-                        .chain(std::iter::once(*rsc_entry))
+                        .map(|m| ResolvedVc::upcast::<Box<dyn Module>>(*m))
+                        .chain(std::iter::once(rsc_entry))
                     {
                         let current_client_references =
-                            client_reference_graph(vec![module], client_references.visited_nodes)
+                            client_reference_graph(vec![*module], *client_references.visited_nodes)
                                 .await?;
 
                         client_references.extend(&current_client_references);
@@ -1536,7 +1536,7 @@ impl AppEndpoint {
                                 let chunk_group = chunking_context
                                     .chunk_group(
                                         server_component.ident(),
-                                        Vc::upcast(server_component),
+                                        *ResolvedVc::upcast(server_component),
                                         Value::new(current_availability_info),
                                     )
                                     .await?;
