@@ -22,6 +22,7 @@ import {
   trackPrefetchRequestBandwidth,
   pingPrefetchTask,
   type PrefetchTask,
+  spawnPrefetchSubtask,
 } from './scheduler'
 import { getAppBuildId } from '../../app-build-id'
 import { createHrefFromUrl } from '../router-reducer/create-href-from-url'
@@ -61,6 +62,7 @@ export const enum EntryStatus {
 
 type PendingRouteCacheEntry = RouteCacheEntryShared & {
   status: EntryStatus.Pending
+  blockedTasks: Set<PrefetchTask> | null
   canonicalUrl: null
   tree: null
   head: null
@@ -68,6 +70,7 @@ type PendingRouteCacheEntry = RouteCacheEntryShared & {
 
 type RejectedRouteCacheEntry = RouteCacheEntryShared & {
   status: EntryStatus.Rejected
+  blockedTasks: Set<PrefetchTask> | null
   canonicalUrl: null
   tree: null
   head: null
@@ -75,6 +78,7 @@ type RejectedRouteCacheEntry = RouteCacheEntryShared & {
 
 export type FulfilledRouteCacheEntry = RouteCacheEntryShared & {
   status: EntryStatus.Fulfilled
+  blockedTasks: null
   canonicalUrl: string
   tree: TreePrefetch
   head: React.ReactNode | null
@@ -186,6 +190,7 @@ export function requestRouteCacheEntryFromCache(
   const pendingEntry: PendingRouteCacheEntry = {
     canonicalUrl: null,
     status: EntryStatus.Pending,
+    blockedTasks: null,
     tree: null,
     head: null,
     // If the request takes longer than a minute, a subsequent request should
@@ -197,8 +202,7 @@ export function requestRouteCacheEntryFromCache(
     couldBeIntercepted: false,
   }
   const key = task.key
-  const requestPromise = fetchRouteOnCacheMiss(pendingEntry, key)
-  trackPrefetchRequestBandwidth(requestPromise)
+  spawnPrefetchSubtask(fetchRouteOnCacheMiss(pendingEntry, task))
   routeCache.set(key.id, pendingEntry)
   return pendingEntry
 }
@@ -227,7 +231,7 @@ export function requestSegmentEntryFromCache(
     staleAt: route.staleAt,
     promise: null,
   }
-  trackPrefetchRequestBandwidth(
+  spawnPrefetchSubtask(
     fetchSegmentEntryOnCacheMiss(
       route,
       pendingEntry,
@@ -275,6 +279,13 @@ function fulfillRouteCacheEntry(
   fulfilledEntry.staleAt = staleAt
   fulfilledEntry.couldBeIntercepted = couldBeIntercepted
   fulfilledEntry.canonicalUrl = canonicalUrl
+  const blockedTasks = entry.blockedTasks
+  if (blockedTasks !== null) {
+    for (const task of blockedTasks) {
+      pingPrefetchTask(task)
+    }
+    fulfilledEntry.blockedTasks = null
+  }
 }
 
 function fulfillSegmentCacheEntry(
@@ -303,6 +314,13 @@ function rejectRouteCacheEntry(
   const rejectedEntry: RejectedRouteCacheEntry = entry as any
   rejectedEntry.status = EntryStatus.Rejected
   rejectedEntry.staleAt = staleAt
+  const blockedTasks = entry.blockedTasks
+  if (blockedTasks !== null) {
+    for (const task of blockedTasks) {
+      pingPrefetchTask(task)
+    }
+    rejectedEntry.blockedTasks = null
+  }
 }
 
 function rejectSegmentCacheEntry(
@@ -322,12 +340,13 @@ function rejectSegmentCacheEntry(
 
 async function fetchRouteOnCacheMiss(
   entry: PendingRouteCacheEntry,
-  key: RouteCacheKey
+  task: PrefetchTask
 ): Promise<void> {
   // This function is allowed to use async/await because it contains the actual
   // fetch that gets issued on a cache miss. Notice though that it does not
   // return anything; it writes the result to the cache entry directly, then
   // pings the scheduler to unblock the corresponding prefetch task.
+  const key = task.key
   const href = key.href
   try {
     const response = await fetchSegmentPrefetchResponse(href, '/_tree')
@@ -373,13 +392,6 @@ async function fetchRouteOnCacheMiss(
     // Either the connection itself failed, or something bad happened while
     // decoding the response.
     rejectRouteCacheEntry(entry, Date.now() + 10 * 1000)
-    pingPrefetchTask(key)
-  } finally {
-    // The request for the route tree is was blocking this task from prefetching
-    // the segments. Now that the route tree is ready, notify the scheduler to
-    // unblock the prefetch task. We do this even if the request failed, so the
-    // scheduler can dispose of the task.
-    pingPrefetchTask(key)
   }
 }
 
@@ -449,7 +461,9 @@ async function fetchSegmentPrefetchResponse(
     [NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]: segmentPath,
   }
   const fetchPriority = 'low'
-  const response = await createFetch(new URL(href), headers, fetchPriority)
+  const responsePromise = createFetch(new URL(href), headers, fetchPriority)
+  trackPrefetchRequestBandwidth(responsePromise)
+  const response = await responsePromise
   const contentType = response.headers.get('content-type')
   const isFlightResponse =
     contentType && contentType.startsWith(RSC_CONTENT_TYPE_HEADER)
