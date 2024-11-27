@@ -32,6 +32,10 @@ impl KeyValueDatabase for TurboKeyValueDatabase {
         tx
     }
 
+    fn is_empty(&self) -> bool {
+        self.db.is_empty()
+    }
+
     fn begin_read_transaction(&self) -> Result<Self::ReadTransaction<'_>> {
         Ok(())
     }
