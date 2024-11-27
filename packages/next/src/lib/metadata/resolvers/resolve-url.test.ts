@@ -53,7 +53,6 @@ describe('resolveAbsoluteUrlWithPathname', () => {
     const opts = {
       trailingSlash: false,
       pathname: '/',
-      isStandaloneMode: false,
     }
     const resolver = (url: string | URL) =>
       resolveAbsoluteUrlWithPathname(url, metadataBase, opts)
@@ -69,7 +68,6 @@ describe('resolveAbsoluteUrlWithPathname', () => {
     const opts = {
       trailingSlash: true,
       pathname: '/',
-      isStandaloneMode: false,
     }
     const resolver = (url: string | URL) =>
       resolveAbsoluteUrlWithPathname(url, metadataBase, opts)
@@ -128,7 +126,7 @@ describe('getSocialImageFallbackMetadataBase', () => {
   describe('fallbackMetadataBase when metadataBase is not present', () => {
     let originalEnv: NodeJS.ProcessEnv
     function getSocialImageFallbackMetadataBaseHelper(): string {
-      return getSocialImageFallbackMetadataBase(null).fallbackMetadataBase.href
+      return getSocialImageFallbackMetadataBase(null).href
     }
 
     beforeEach(() => {

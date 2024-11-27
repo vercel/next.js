@@ -41,14 +41,14 @@ const OgTypeFields = {
 
 function resolveAndValidateImage(
   item: FlattenArray<OpenGraph['images'] | Twitter['images']>,
-  metadataBase: NonNullable<ResolvedMetadataBase>,
-  isMetadataBaseMissing: boolean,
-  isStandaloneMode: boolean
+  metadataBase: ResolvedMetadataBase
 ) {
   if (!item) return undefined
   const isItemUrl = isStringOrURL(item)
   const inputUrl = isItemUrl ? item : item.url
   if (!inputUrl) return undefined
+
+  const fallbackMetadataBase = getSocialImageFallbackMetadataBase(metadataBase)
 
   // process.env.VERCEL is set to "1" when System Environment Variables are
   // exposed. When exposed, validation is not necessary since we are falling back to
@@ -58,12 +58,25 @@ function resolveAndValidateImage(
   // detect in the build environment if the deployment is a Vercel deployment or not.
   //
   // x-ref: https://vercel.com/docs/projects/environment-variables/system-environment-variables#system-environment-variables
-  const isNonVercelDeployment =
-    !process.env.VERCEL && process.env.NODE_ENV === 'production'
-  // Validate url in self-host standalone mode or non-Vercel deployment
-  if (isStandaloneMode || isNonVercelDeployment) {
-    validateResolvedImageUrl(inputUrl, metadataBase, isMetadataBaseMissing)
+  const isNonVercelDeployment = !process.env.VERCEL
+  // When not deployed to Vercel, we aren't able to determine a fallback value for `metadataBase`
+  // since it's derived from injected environment variables. For self-hosted setups, we want to warn
+  // about this since the only fallback we'll be able to generate is `localhost`.
+  if (isNonVercelDeployment) {
+    if (
+      typeof inputUrl === 'string' &&
+      !isFullStringUrl(inputUrl) &&
+      !metadataBase
+    ) {
+      warnOnce(
+        `metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "${fallbackMetadataBase.origin}". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase`
+      )
+    }
   }
+
+  // This is technically a bug. We shouldn't always be overriding the user-provided metadataBase with the fallback.
+  // But to match existing behavior, this keeps the logic in place, and it will be addressed in a follow-up PR.
+  metadataBase = fallbackMetadataBase
 
   return isItemUrl
     ? {
@@ -78,34 +91,24 @@ function resolveAndValidateImage(
 
 export function resolveImages(
   images: Twitter['images'],
-  metadataBase: ResolvedMetadataBase,
-  isStandaloneMode: boolean
+  metadataBase: ResolvedMetadataBase
 ): NonNullable<ResolvedMetadata['twitter']>['images']
 export function resolveImages(
   images: OpenGraph['images'],
-  metadataBase: ResolvedMetadataBase,
-  isStandaloneMode: boolean
+  metadataBase: ResolvedMetadataBase
 ): NonNullable<ResolvedMetadata['openGraph']>['images']
 export function resolveImages(
   images: OpenGraph['images'] | Twitter['images'],
-  metadataBase: ResolvedMetadataBase,
-  isStandaloneMode: boolean
+  metadataBase: ResolvedMetadataBase
 ):
   | NonNullable<ResolvedMetadata['twitter']>['images']
   | NonNullable<ResolvedMetadata['openGraph']>['images'] {
   const resolvedImages = resolveAsArrayOrUndefined(images)
   if (!resolvedImages) return resolvedImages
 
-  const { isMetadataBaseMissing, fallbackMetadataBase } =
-    getSocialImageFallbackMetadataBase(metadataBase)
   const nonNullableImages = []
   for (const item of resolvedImages) {
-    const resolvedItem = resolveAndValidateImage(
-      item,
-      fallbackMetadataBase,
-      isMetadataBaseMissing,
-      isStandaloneMode
-    )
+    const resolvedItem = resolveAndValidateImage(item, metadataBase)
     if (!resolvedItem) continue
 
     nonNullableImages.push(resolvedItem)
@@ -130,23 +133,6 @@ function getFieldsByOgType(ogType: OpenGraphType | undefined) {
   return ogTypeToFields[ogType].concat(OgTypeFields.basic)
 }
 
-function validateResolvedImageUrl(
-  inputUrl: string | URL,
-  fallbackMetadataBase: NonNullable<ResolvedMetadataBase>,
-  isMetadataBaseMissing: boolean
-): void {
-  // Only warn on the image url that needs to be resolved with metadataBase
-  if (
-    typeof inputUrl === 'string' &&
-    !isFullStringUrl(inputUrl) &&
-    isMetadataBaseMissing
-  ) {
-    warnOnce(
-      `metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "${fallbackMetadataBase.origin}". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase`
-    )
-  }
-}
-
 export const resolveOpenGraph: FieldResolverExtraArgs<
   'openGraph',
   [ResolvedMetadataBase, MetadataContext, string | null]
@@ -164,11 +150,7 @@ export const resolveOpenGraph: FieldResolverExtraArgs<
         ;(target as any)[key] = value ? resolveArray(value) : null
       }
     }
-    target.images = resolveImages(
-      og.images,
-      metadataBase,
-      metadataContext.isStandaloneMode
-    )
+    target.images = resolveImages(og.images, metadataBase)
   }
 
   const resolved = {
@@ -199,7 +181,9 @@ const TwitterBasicInfoKeys = [
 export const resolveTwitter: FieldResolverExtraArgs<
   'twitter',
   [ResolvedMetadataBase, MetadataContext, string | null]
-> = (twitter, metadataBase, metadataContext, titleTemplate) => {
+  // TODO: metadataContext is not currently in use here, but will be added back
+  // in a subsequent PR
+> = (twitter, metadataBase, _metadataContext, titleTemplate) => {
   if (!twitter) return null
   let card = 'card' in twitter ? twitter.card : undefined
   const resolved = {
@@ -210,11 +194,7 @@ export const resolveTwitter: FieldResolverExtraArgs<
     resolved[infoKey] = twitter[infoKey] || null
   }
 
-  resolved.images = resolveImages(
-    twitter.images,
-    metadataBase,
-    metadataContext.isStandaloneMode
-  )
+  resolved.images = resolveImages(twitter.images, metadataBase)
 
   card = card || (resolved.images?.length ? 'summary_large_image' : 'summary')
   resolved.card = card

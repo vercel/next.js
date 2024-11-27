@@ -17,7 +17,6 @@ function accumulateMetadata(metadataItems: MetadataItems) {
   return originAccumulateMetadata(fullMetadataItems, {
     pathname: '/test',
     trailingSlash: false,
-    isStandaloneMode: false,
   })
 }
 
