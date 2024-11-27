@@ -13,10 +13,10 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use turbo_tasks::{
     apply_effects, duration_span, fxindexmap, mark_finished, prevent_gc, util::SharedError,
-    Completion, RawVc, ResolvedVc, TaskInput, TryJoinIterExt, Value, Vc,
+    Completion, FxIndexMap, RawVc, ResolvedVc, TaskInput, TryJoinIterExt, Value, Vc,
 };
 use turbo_tasks_bytes::{Bytes, Stream};
-use turbo_tasks_env::ProcessEnv;
+use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{to_sys_path, File, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
@@ -190,6 +190,12 @@ async fn emit_evaluate_pool_assets_with_effects(
     Ok(result)
 }
 
+#[derive(Clone, Copy, Hash, Debug, PartialEq, Eq, Serialize, Deserialize, TaskInput)]
+pub enum EnvVarTracking {
+    WholeEnvTracked,
+    Untracked,
+}
+
 #[turbo_tasks::function]
 /// Pass the file you cared as `runtime_entries` to invalidate and reload the
 /// evaluated result automatically.
@@ -202,7 +208,7 @@ pub async fn get_evaluate_pool(
     runtime_entries: Option<Vc<EvaluatableAssets>>,
     additional_invalidation: Vc<Completion>,
     debug: bool,
-    untracked_env_vars: bool,
+    env_var_tracking: EnvVarTracking,
 ) -> Result<Vc<NodeJsPool>> {
     let EmittedEvaluatePoolAssets {
         bootstrap,
@@ -227,17 +233,22 @@ pub async fn get_evaluate_pool(
     let assets_for_source_mapping = internal_assets_for_source_mapping(*bootstrap, *output_root)
         .to_resolved()
         .await?;
+    let env = match env_var_tracking {
+        EnvVarTracking::WholeEnvTracked => env.read_all().await?,
+        EnvVarTracking::Untracked => {
+            // We always depend on some known env vars that are used by Node.js
+            common_node_env(env).await?;
+            for name in ["FORCE_COLOR", "NO_COLOR", "OPENSSL_CONF", "TZ"] {
+                env.read(name.into()).await?;
+            }
+
+            env.read_all().untracked().await?
+        }
+    };
     let pool = NodeJsPool::new(
         cwd,
         entrypoint,
-        if untracked_env_vars {
-            env.read_all().untracked().await?
-        } else {
-            env.read_all().await?
-        }
-        .iter()
-        .map(|(k, v)| (k.clone(), v.clone()))
-        .collect(),
+        env.iter().map(|(k, v)| (k.clone(), v.clone())).collect(),
         assets_for_source_mapping,
         output_root,
         chunking_context.context_path().root().to_resolved().await?,
@@ -246,6 +257,22 @@ pub async fn get_evaluate_pool(
     );
     additional_invalidation.await?;
     Ok(pool.cell())
+}
+
+#[turbo_tasks::function]
+async fn common_node_env(env: Vc<Box<dyn ProcessEnv>>) -> Result<Vc<EnvMap>> {
+    let mut filtered = FxIndexMap::default();
+    let env = env.read_all().await?;
+    for (key, value) in &*env {
+        let uppercase = key.to_uppercase();
+        for filter in &["NODE_", "UV_", "SSL_"] {
+            if uppercase.starts_with(filter) {
+                filtered.insert(key.clone(), value.clone());
+                break;
+            }
+        }
+    }
+    Ok(Vc::cell(filtered))
 }
 
 struct PoolErrorHandler;
@@ -563,7 +590,7 @@ impl EvaluateContext for BasicEvaluateContext {
             self.runtime_entries.map(|r| *r),
             *self.additional_invalidation,
             self.debug,
-            false,
+            EnvVarTracking::WholeEnvTracked,
         )
     }
 

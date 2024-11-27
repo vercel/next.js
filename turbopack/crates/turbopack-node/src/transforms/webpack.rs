@@ -47,8 +47,8 @@ use crate::{
     debug::should_debug,
     embed_js::embed_file_path,
     evaluate::{
-        compute, custom_evaluate, get_evaluate_pool, EvaluateContext, EvaluationIssue,
-        JavaScriptEvaluation, JavaScriptStreamSender,
+        compute, custom_evaluate, get_evaluate_pool, EnvVarTracking, EvaluateContext,
+        EvaluationIssue, JavaScriptEvaluation, JavaScriptStreamSender,
     },
     execution_context::ExecutionContext,
     pool::{FormattingMode, NodeJsPool},
@@ -432,7 +432,7 @@ impl EvaluateContext for WebpackLoaderContext {
             // Env vars are read untracked, since we want a more granular dependency on certain env
             // vars only. So the runtime code tracks which env vars are read and send a dependency
             // message for them.
-            true,
+            EnvVarTracking::Untracked,
         )
     }
 
