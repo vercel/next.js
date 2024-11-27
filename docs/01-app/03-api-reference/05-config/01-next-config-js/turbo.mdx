@@ -45,14 +45,18 @@ module.exports = nextConfig
 
 The following options are available for the `turbo` configuration:
 
-| Option              | Description                                                               |
-| ------------------- | ------------------------------------------------------------------------- |
-| `rules`             | List of unsupported webpack loaders to apply when running with Turbopack. |
-| `resolveAlias`      | Map aliased imports to modules to load in their place.                    |
-| `resolveExtensions` | List of extensions to resolve when importing files.                       |
-| `moduleIdStrategy`  | Assign module IDs                                                         |
-| `treeShaking`       | Enable tree shaking for the turbopack dev server and build.               |
-| `memoryLimit`       | A target memory limit for turbo, in bytes.                                |
+| Option                    | Description                                                                |
+| ------------------------- | -------------------------------------------------------------------------- |
+| `loaders`                 | List of webpack loaders to apply when running with Turbopack.              |
+| `memoryLimit`             | A target memory limit for turbo, in bytes.                                 |
+| `moduleIdStrategy`        | Assign module IDs                                                          |
+| `minify`                  | Enable minification. Defaults to true in build mode and false in dev mode. |
+| `resolveAlias`            | Map aliased imports to modules to load in their place.                     |
+| `resolveExtensions`       | List of extensions to resolve when importing files.                        |
+| `rules`                   | List of unsupported webpack loaders to apply when running with Turbopack.  |
+| `root`                    | The repo root directory.                                                   |
+| `treeShaking`             | Enable tree shaking for the turbopack dev server and build.                |
+| `unstablePersistentCache` | Enable the persistent cache for turbopack dev and build servers.           |
 
 ### Supported loaders
 
