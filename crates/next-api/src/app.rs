@@ -1337,8 +1337,10 @@ impl AppEndpoint {
                 }
 
                 AppEndpointOutput::Edge {
-                    files: *app_entry_chunks,
-                    server_assets: Vc::cell(server_assets.iter().cloned().collect::<Vec<_>>()),
+                    files: app_entry_chunks,
+                    server_assets: ResolvedVc::cell(
+                        server_assets.iter().cloned().collect::<Vec<_>>(),
+                    ),
                     client_assets,
                 }
             }
@@ -1413,7 +1415,9 @@ impl AppEndpoint {
 
                 AppEndpointOutput::NodeJs {
                     rsc_chunk,
-                    server_assets: Vc::cell(server_assets.iter().cloned().collect::<Vec<_>>()),
+                    server_assets: ResolvedVc::cell(
+                        server_assets.iter().cloned().collect::<Vec<_>>(),
+                    ),
                     client_assets,
                 }
             }
