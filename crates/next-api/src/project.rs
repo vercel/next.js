@@ -477,17 +477,17 @@ pub struct ProjectDefineEnv {
 impl ProjectDefineEnv {
     #[turbo_tasks::function]
     pub fn client(&self) -> Vc<EnvMap> {
-        self.client
+        *self.client
     }
 
     #[turbo_tasks::function]
     pub fn edge(&self) -> Vc<EnvMap> {
-        self.edge
+        *self.edge
     }
 
     #[turbo_tasks::function]
     pub fn nodejs(&self) -> Vc<EnvMap> {
-        self.nodejs
+        *self.nodejs
     }
 }
 
@@ -610,22 +610,22 @@ impl Project {
 
     #[turbo_tasks::function]
     pub(super) fn env(&self) -> Vc<Box<dyn ProcessEnv>> {
-        self.env
+        *self.env
     }
 
     #[turbo_tasks::function]
     pub(super) fn next_config(&self) -> Vc<NextConfig> {
-        self.next_config
+        *self.next_config
     }
 
     #[turbo_tasks::function]
     pub(super) fn next_mode(&self) -> Vc<NextMode> {
-        self.mode
+        *self.mode
     }
 
     #[turbo_tasks::function]
     pub(super) fn js_config(&self) -> Vc<JsConfig> {
-        self.js_config
+        *self.js_config
     }
 
     #[turbo_tasks::function]
