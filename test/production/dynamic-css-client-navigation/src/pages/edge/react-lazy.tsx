@@ -1,7 +1,7 @@
 import React, { lazy, Suspense } from 'react'
 
 const ReactLazyRedButton = lazy(() =>
-  import('../components/red-button').then((module) => ({
+  import('../../components/red-button').then((module) => ({
     default: module.RedButton,
   }))
 )
