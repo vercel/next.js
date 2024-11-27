@@ -765,6 +765,7 @@ export default class DevServer extends Server {
             publicRuntimeConfig,
             serverRuntimeConfig,
             dynamicIO: Boolean(this.nextConfig.experimental.dynamicIO),
+            after: Boolean(this.nextConfig.experimental.after),
           },
           httpAgentOptions,
           locales,
