@@ -2,7 +2,6 @@ use std::collections::HashSet;
 
 use anyhow::Result;
 use auto_hash_map::AutoSet;
-use futures::future::try_join_all;
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, Vc,
 };
@@ -152,15 +151,18 @@ pub async fn make_chunk_group(
         .await?
         .clone_value();
 
-    let rebased_modules = try_join_all(traced_modules.into_iter().map(|module| {
-        RebasedAsset::new(
-            *module,
-            module.ident().path().root(),
-            module.ident().path().root(),
-        )
-        .to_resolved()
-    }))
-    .await?;
+    let rebased_modules = traced_modules
+        .into_iter()
+        .map(|module| {
+            RebasedAsset::new(
+                *module,
+                module.ident().path().root(),
+                module.ident().path().root(),
+            )
+            .to_resolved()
+        })
+        .try_join()
+        .await?;
 
     referenced_output_assets.extend(rebased_modules.into_iter().map(ResolvedVc::upcast));
 

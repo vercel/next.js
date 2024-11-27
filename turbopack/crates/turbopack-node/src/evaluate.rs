@@ -295,7 +295,7 @@ pub trait EvaluateContext {
     fn keep_alive(&self) -> bool {
         false
     }
-    fn args(&self) -> &[Vc<JsonValue>];
+    fn args(&self) -> &[ResolvedVc<JsonValue>];
     fn cwd(&self) -> Vc<FileSystemPath>;
     async fn emit_error(&self, error: StructuredError, pool: &NodeJsPool) -> Result<()>;
     async fn info(
@@ -370,7 +370,7 @@ pub fn evaluate(
     asset_context: ResolvedVc<Box<dyn AssetContext>>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     runtime_entries: Option<ResolvedVc<EvaluatableAssets>>,
-    args: Vec<Vc<JsonValue>>,
+    args: Vec<ResolvedVc<JsonValue>>,
     additional_invalidation: ResolvedVc<Completion>,
     debug: bool,
 ) -> Vc<JavaScriptEvaluation> {
@@ -551,7 +551,7 @@ struct BasicEvaluateContext {
     asset_context: ResolvedVc<Box<dyn AssetContext>>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     runtime_entries: Option<ResolvedVc<EvaluatableAssets>>,
-    args: Vec<Vc<JsonValue>>,
+    args: Vec<ResolvedVc<JsonValue>>,
     additional_invalidation: ResolvedVc<Completion>,
     debug: bool,
 }
@@ -580,7 +580,7 @@ impl EvaluateContext for BasicEvaluateContext {
         )
     }
 
-    fn args(&self) -> &[Vc<serde_json::Value>] {
+    fn args(&self) -> &[ResolvedVc<serde_json::Value>] {
         &self.args
     }
 
