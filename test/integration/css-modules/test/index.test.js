@@ -771,7 +771,6 @@ describe('global() function usage', () => {
         const cssSheet = $('link[rel="stylesheet"]')
         expect(cssSheet.length).toBe(2)
         const stylesheet = cssSheet[1].attribs['href']
-        console.log('stylesheet = ', stylesheet)
 
         const cssContent = await fetchViaHTTP(appPort, stylesheet).then((res) =>
           res.text()
