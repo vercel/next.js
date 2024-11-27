@@ -665,7 +665,7 @@ impl AppProject {
 
 #[turbo_tasks::function]
 pub fn app_entry_point_to_route(
-    app_project: Vc<AppProject>,
+    app_project: ResolvedVc<AppProject>,
     entrypoint: AppEntrypoint,
 ) -> Vc<Route> {
     match entrypoint {
@@ -1168,7 +1168,9 @@ impl AppEndpoint {
         let app_entry_chunks_ref = app_entry_chunks.await?;
         server_assets.extend(app_entry_chunks_ref.iter().copied());
 
-        let client_assets = OutputAssets::new(client_assets.iter().map(|asset| **asset).collect());
+        let client_assets = OutputAssets::new(client_assets.iter().map(|asset| **asset).collect())
+            .to_resolved()
+            .await?;
 
         // these references are important for turbotrace
         let mut client_reference_manifest = None;
@@ -1207,7 +1209,7 @@ impl AppEndpoint {
                 &app_entry.original_name,
                 &app_entry.original_name,
                 &app_entry.original_name,
-                client_assets,
+                *client_assets,
                 true,
             )
             .await?;
