@@ -107,7 +107,7 @@ export type SetupOpts = {
   >
   nextConfig: NextConfigComplete
   port: number
-  onCleanup: (listener: () => Promise<void>) => void
+  onDevServerCleanup: ((listener: () => Promise<void>) => void) | undefined
   resetFetch: () => void
 }
 

@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, Vc};
 
 use super::{
     ContentSourceContent, ContentSourceData, ContentSourceDataVary, GetContentSourceContent,
@@ -25,16 +25,16 @@ pub trait ContentSourceProcessor {
 
 #[turbo_tasks::value]
 pub struct WrappedGetContentSourceContent {
-    inner: Vc<Box<dyn GetContentSourceContent>>,
-    processor: Vc<Box<dyn ContentSourceProcessor>>,
+    inner: ResolvedVc<Box<dyn GetContentSourceContent>>,
+    processor: ResolvedVc<Box<dyn ContentSourceProcessor>>,
 }
 
 #[turbo_tasks::value_impl]
 impl WrappedGetContentSourceContent {
     #[turbo_tasks::function]
     pub fn new(
-        inner: Vc<Box<dyn GetContentSourceContent>>,
-        processor: Vc<Box<dyn ContentSourceProcessor>>,
+        inner: ResolvedVc<Box<dyn GetContentSourceContent>>,
+        processor: ResolvedVc<Box<dyn ContentSourceProcessor>>,
     ) -> Vc<Self> {
         WrappedGetContentSourceContent { inner, processor }.cell()
     }
@@ -68,12 +68,16 @@ impl GetContentSourceContent for WrappedGetContentSourceContent {
                                     .await?
                                     .iter()
                                     .map(|s| {
-                                        Vc::upcast(WrappedGetContentSourceContent::new(
-                                            *s,
-                                            self.processor,
-                                        ))
+                                        Vc::upcast::<Box<dyn GetContentSourceContent>>(
+                                            WrappedGetContentSourceContent::new(
+                                                **s,
+                                                *self.processor,
+                                            ),
+                                        )
                                     })
-                                    .collect(),
+                                    .map(|v| async move { v.to_resolved().await })
+                                    .try_join()
+                                    .await?,
                             ),
                         },
                     },

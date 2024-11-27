@@ -1270,6 +1270,7 @@ export default async function build(
       )
 
       const isAppDynamicIOEnabled = Boolean(config.experimental.dynamicIO)
+      const isAfterEnabled = Boolean(config.experimental.after)
       const isAuthInterruptsEnabled = Boolean(
         config.experimental.authInterrupts
       )
@@ -2002,6 +2003,7 @@ export default async function build(
               configFileName,
               runtimeEnvConfig,
               dynamicIO: isAppDynamicIOEnabled,
+              after: isAfterEnabled,
               authInterrupts: isAuthInterruptsEnabled,
               httpAgentOptions: config.httpAgentOptions,
               locales: config.i18n?.locales,
@@ -2226,6 +2228,7 @@ export default async function build(
                             edgeInfo,
                             pageType,
                             dynamicIO: isAppDynamicIOEnabled,
+                            after: isAfterEnabled,
                             authInterrupts: isAuthInterruptsEnabled,
                             cacheHandler: config.cacheHandler,
                             cacheHandlers: config.experimental.cacheHandlers,

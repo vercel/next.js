@@ -627,7 +627,7 @@ async fn fetch_from_google_fonts(
     .await?;
 
     Ok(match &*result {
-        Ok(r) => Some(r.await?.body),
+        Ok(r) => Some(*r.await?.body),
         Err(err) => {
             // Inform the user of the failure to retreive the stylesheet / font, but don't
             // propagate this error. We don't want e.g. offline connections to prevent page

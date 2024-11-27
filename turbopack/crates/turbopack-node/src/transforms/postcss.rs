@@ -511,7 +511,10 @@ impl PostCssTransformedAsset {
             asset_context: evaluate_context,
             chunking_context: *chunking_context,
             resolve_options_context: None,
-            args: vec![Vc::cell(content.into()), Vc::cell(css_path.into())],
+            args: vec![
+                ResolvedVc::cell(content.into()),
+                ResolvedVc::cell(css_path.into()),
+            ],
             additional_invalidation: config_changed,
         })
         .await?;
