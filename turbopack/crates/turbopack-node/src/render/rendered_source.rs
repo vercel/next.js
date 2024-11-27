@@ -68,12 +68,12 @@ pub fn create_node_rendered_source(
         render_data,
         debug,
     }
-    .cell();
+    .resolved_cell();
     Vc::upcast(ConditionalContentSource::new(
-        Vc::upcast(source),
+        Vc::upcast(*source),
         Vc::upcast(
             LazyInstantiatedContentSource {
-                get_source: Vc::upcast(source),
+                get_source: ResolvedVc::upcast(source),
             }
             .cell(),
         ),

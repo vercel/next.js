@@ -75,13 +75,13 @@ pub trait GetContentSourceContent {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct GetContentSourceContents(Vec<Vc<Box<dyn GetContentSourceContent>>>);
+pub struct GetContentSourceContents(Vec<ResolvedVc<Box<dyn GetContentSourceContent>>>);
 
 #[turbo_tasks::value]
 pub struct StaticContent {
-    pub content: Vc<Box<dyn VersionedContent>>,
+    pub content: ResolvedVc<Box<dyn VersionedContent>>,
     pub status_code: u16,
-    pub headers: Vc<HeaderList>,
+    pub headers: ResolvedVc<HeaderList>,
 }
 
 #[turbo_tasks::value(shared)]
@@ -119,18 +119,18 @@ impl GetContentSourceContent for ContentSourceContent {
 #[turbo_tasks::value_impl]
 impl ContentSourceContent {
     #[turbo_tasks::function]
-    pub fn static_content(
+    pub async fn static_content(
         content: ResolvedVc<Box<dyn VersionedContent>>,
-    ) -> Vc<ContentSourceContent> {
-        ContentSourceContent::Static(
+    ) -> Result<Vc<ContentSourceContent>> {
+        Ok(ContentSourceContent::Static(
             StaticContent {
-                content: *content,
+                content,
                 status_code: 200,
-                headers: HeaderList::empty(),
+                headers: HeaderList::empty().to_resolved().await?,
             }
             .resolved_cell(),
         )
-        .cell()
+        .cell())
     }
 
     #[turbo_tasks::function]
@@ -141,9 +141,9 @@ impl ContentSourceContent {
     ) -> Vc<ContentSourceContent> {
         ContentSourceContent::Static(
             StaticContent {
-                content: *content,
+                content,
                 status_code,
-                headers: *headers,
+                headers,
             }
             .resolved_cell(),
         )
@@ -200,7 +200,7 @@ pub struct ContentSourceData {
     /// requested.
     pub raw_headers: Option<Vec<(RcStr, RcStr)>>,
     /// Request body, if requested.
-    pub body: Option<Vc<Body>>,
+    pub body: Option<ResolvedVc<Body>>,
     /// See [ContentSourceDataVary::cache_buster].
     pub cache_buster: u64,
 }
@@ -443,7 +443,7 @@ where
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct ContentSources(Vec<Vc<Box<dyn ContentSource>>>);
+pub struct ContentSources(Vec<ResolvedVc<Box<dyn ContentSource>>>);
 
 #[turbo_tasks::value_impl]
 impl ContentSources {
