@@ -1633,10 +1633,10 @@ impl Endpoint for AppEndpoint {
 
             let node_root_ref = &node_root.await?;
 
-            let _ = this
-                .app_project
+            this.app_project
                 .project()
-                .emit_all_output_assets(Vc::cell(output_assets));
+                .emit_all_output_assets(Vc::cell(output_assets))
+                .await?;
 
             let (server_paths, client_paths) = if this
                 .app_project

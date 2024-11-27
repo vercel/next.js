@@ -1269,10 +1269,10 @@ impl Endpoint for PageEndpoint {
             // single operation
             let output_assets = self.output_assets();
 
-            let _ = this
-                .pages_project
+            this.pages_project
                 .project()
-                .emit_all_output_assets(Vc::cell(output_assets));
+                .emit_all_output_assets(Vc::cell(output_assets))
+                .await?;
 
             let node_root = this.pages_project.project().node_root();
 
