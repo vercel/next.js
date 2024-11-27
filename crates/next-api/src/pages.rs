@@ -629,11 +629,11 @@ impl PageEndpoint {
     #[turbo_tasks::function]
     fn new(
         ty: PageEndpointType,
-        pages_project: Vc<PagesProject>,
-        pathname: Vc<RcStr>,
-        original_name: Vc<RcStr>,
-        page: Vc<PagesStructureItem>,
-        pages_structure: Vc<PagesStructure>,
+        pages_project: ResolvedVc<PagesProject>,
+        pathname: ResolvedVc<RcStr>,
+        original_name: ResolvedVc<RcStr>,
+        page: ResolvedVc<PagesStructureItem>,
+        pages_structure: ResolvedVc<PagesStructure>,
     ) -> Vc<Self> {
         PageEndpoint {
             ty,
@@ -657,7 +657,7 @@ impl PageEndpoint {
         let page_loader = create_page_loader_entry_module(
             this.pages_project.client_module_context(),
             self.source(),
-            this.pathname,
+            *this.pathname,
         );
         if matches!(
             *this.pages_project.project().next_mode().await?,
@@ -721,7 +721,7 @@ impl PageEndpoint {
         let client_relative_path = self.client_relative_path();
         let page_loader = PageLoaderAsset::new(
             node_root,
-            this.pathname,
+            *this.pathname,
             client_relative_path,
             client_chunks,
         );
@@ -762,13 +762,13 @@ impl PageEndpoint {
 
         let ssr_module = if is_edge {
             create_page_ssr_entry_module(
-                this.pathname,
+                *this.pathname,
                 reference_type,
                 project_root,
                 Vc::upcast(edge_module_context),
                 self.source(),
-                this.original_name,
-                this.pages_structure,
+                *this.original_name,
+                *this.pages_structure,
                 config.runtime,
                 this.pages_project.project().next_config(),
             )
@@ -781,13 +781,13 @@ impl PageEndpoint {
                 ssr_module
             } else {
                 create_page_ssr_entry_module(
-                    this.pathname,
+                    *this.pathname,
                     reference_type,
                     project_root,
                     Vc::upcast(module_context),
                     self.source(),
-                    this.original_name,
-                    this.pages_structure,
+                    *this.original_name,
+                    *this.pages_structure,
                     config.runtime,
                     this.pages_project.project().next_config(),
                 )
@@ -836,11 +836,14 @@ impl PageEndpoint {
                     .context("could not process page loader entry module")?;
                 evaluatable_assets.push(evaluatable);
 
-                let edge_files = edge_chunking_context.evaluated_chunk_group_assets(
-                    ssr_module.ident(),
-                    Vc::cell(evaluatable_assets),
-                    Value::new(AvailabilityInfo::Root),
-                );
+                let edge_files = edge_chunking_context
+                    .evaluated_chunk_group_assets(
+                        ssr_module.ident(),
+                        Vc::cell(evaluatable_assets),
+                        Value::new(AvailabilityInfo::Root),
+                    )
+                    .to_resolved()
+                    .await?;
 
                 let client_chunking_context =
                     this.pages_project.project().client_chunking_context();
@@ -848,6 +851,8 @@ impl PageEndpoint {
                     Vc::upcast(client_chunking_context),
                     dynamic_import_modules,
                 )
+                .await?
+                .to_resolved()
                 .await?;
 
                 Ok(SsrChunk::Edge {
