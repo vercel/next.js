@@ -10,7 +10,6 @@ export function createMetadataContext(
   return {
     pathname,
     trailingSlash: renderOpts.trailingSlash,
-    isStandaloneMode: renderOpts.nextConfigOutput === 'standalone',
   }
 }
 
