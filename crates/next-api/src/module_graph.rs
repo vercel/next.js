@@ -32,49 +32,15 @@ pub struct SingleModuleGraph {
 #[derive(Clone, Debug)]
 pub struct ModuleSet(pub HashSet<ResolvedVc<Box<dyn Module>>>);
 
-#[turbo_tasks::value_impl]
 impl SingleModuleGraph {
-    #[turbo_tasks::function]
-    pub async fn new_with_entries(entries: Vc<Modules>) -> Result<Vc<Self>> {
-        let mut graph = DiGraph::new();
-
-        let mut modules: HashMap<Vc<Box<dyn Module>>, NodeIndex<u32>> = HashMap::new();
-        let mut stack: Vec<_> = entries.await?.iter().map(|e| (None, *e)).collect();
-        while let Some((parent_idx, module)) = stack.pop() {
-            if let Some(idx) = modules.get(&module) {
-                if let Some(parent_idx) = parent_idx {
-                    graph.add_edge(parent_idx, *idx, ());
-                }
-                continue;
-            }
-
-            let idx = graph.add_node(module);
-            modules.insert(*module, idx);
-            if let Some(parent_idx) = parent_idx {
-                graph.add_edge(parent_idx, idx, ());
-            }
-
-            // TODO this includes
-            // [project]/packages/next/dist/shared/lib/lazy-dynamic/loadable.js.map
-            for reference in primary_referenced_modules(*module).await?.iter() {
-                stack.push((Some(idx), *reference));
-            }
-        }
-
-        Ok(SingleModuleGraph { graph }.cell())
-    }
-
-    #[turbo_tasks::function]
-    pub async fn new_with_entries_visited(
-        entries: Vec<ResolvedVc<Box<dyn Module>>>,
-        visited_modules: Vc<ModuleSet>,
+    async fn new_inner(
+        entries: &Vec<ResolvedVc<Box<dyn Module>>>,
+        visited_modules: &HashSet<ResolvedVc<Box<dyn Module>>>,
     ) -> Result<Vc<Self>> {
-        let visited_modules = visited_modules.await?;
-
         let mut graph = DiGraph::new();
 
         let mut modules: HashMap<ResolvedVc<Box<dyn Module>>, NodeIndex<u32>> = HashMap::new();
-        let mut stack: Vec<_> = entries.into_iter().map(|e| (None, e)).collect();
+        let mut stack: Vec<_> = entries.iter().map(|e| (None, *e)).collect();
         while let Some((parent_idx, module)) = stack.pop() {
             if visited_modules.contains(&module) {
                 continue;
@@ -98,8 +64,24 @@ impl SingleModuleGraph {
                 stack.push((Some(idx), *reference));
             }
         }
-
         Ok(SingleModuleGraph { graph }.cell())
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl SingleModuleGraph {
+    #[turbo_tasks::function]
+    pub async fn new_with_entries(entries: Vc<Modules>) -> Result<Vc<Self>> {
+        SingleModuleGraph::new_inner(&*entries.await?, &Default::default()).await
+    }
+
+    #[turbo_tasks::function]
+    pub async fn new_with_entries_visited(
+        // This must not be a Vc<Vec<_>> to ensure layout segment optimization hits the cache
+        entries: Vec<ResolvedVc<Box<dyn Module>>>,
+        visited_modules: Vc<ModuleSet>,
+    ) -> Result<Vc<Self>> {
+        SingleModuleGraph::new_inner(&entries, &*visited_modules.await?).await
     }
 }
 
