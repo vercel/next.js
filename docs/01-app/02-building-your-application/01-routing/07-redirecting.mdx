@@ -506,7 +506,7 @@ export async function middleware(request) {
 
 Then, in the Route Handler:
 
-```ts filename="app/redirects/route.ts" switcher
+```ts filename="app/api/redirects/route.ts" switcher
 import { NextRequest, NextResponse } from 'next/server'
 import redirects from '@/app/redirects/redirects.json'
 
@@ -534,7 +534,7 @@ export function GET(request: NextRequest) {
 }
 ```
 
-```js filename="app/redirects/route.js" switcher
+```js filename="app/api/redirects/route.js" switcher
 import { NextResponse } from 'next/server'
 import redirects from '@/app/redirects/redirects.json'
 

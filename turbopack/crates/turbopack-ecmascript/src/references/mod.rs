@@ -586,7 +586,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     let handler = Handler::with_emitter(
         true,
         false,
-        Box::new(IssueEmitter::new(*source, source_map.clone(), None)),
+        Box::new(IssueEmitter::new(source, source_map.clone(), None)),
     );
 
     let mut var_graph =
@@ -832,11 +832,11 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         AnalyzeIssue {
             code: None,
             message: StyledString::Text("top level await is only supported in ESM modules.".into())
-                .cell(),
+                .resolved_cell(),
             source_ident: source.ident(),
-            severity: IssueSeverity::Error.into(),
+            severity: IssueSeverity::Error.resolved_cell(),
             source: Some(issue_source(*source, span)),
-            title: Vc::cell("unexpected top level await".into()),
+            title: ResolvedVc::cell("unexpected top level await".into()),
         }
         .cell()
         .emit();
@@ -1288,7 +1288,7 @@ async fn compile_time_info_for_module_type(
     Ok(CompileTimeInfo {
         environment: compile_time_info.environment,
         defines: compile_time_info.defines,
-        free_var_references: FreeVarReferences(free_var_references).cell(),
+        free_var_references: FreeVarReferences(free_var_references).resolved_cell(),
     }
     .cell())
 }

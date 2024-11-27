@@ -227,7 +227,7 @@ impl VersionedContentMap {
     fn raw_get(&self, path: ResolvedVc<FileSystemPath>) -> Vc<OptionMapEntry> {
         let assets = {
             let map = self.map_path_to_op.get();
-            map.get(&path).and_then(|m| m.iter().last().copied())
+            map.get(&path).and_then(|m| m.iter().next().copied())
         };
         let Some(assets) = assets else {
             return Vc::cell(None);

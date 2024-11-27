@@ -77,10 +77,19 @@ async function fetchTeam(id: string) {
   return res.json()
 }
 
-export default async function Profile({ params }: { params: { id: string } }) {
-  const team = await fetchTeam(params.id)
-  if (!team) {
+export default async function Profile({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const id = (await params).id
+  if (!id) {
     redirect('/login')
+  }
+
+  const team = await fetchTeam(id)
+  if (!team) {
+    redirect('/join')
   }
 
   // ...
@@ -97,9 +106,14 @@ async function fetchTeam(id) {
 }
 
 export default async function Profile({ params }) {
-  const team = await fetchTeam(params.id)
-  if (!team) {
+  const id = (await params).id
+  if (!id) {
     redirect('/login')
+  }
+
+  const team = await fetchTeam(id)
+  if (!team) {
+    redirect('/join')
   }
 
   // ...

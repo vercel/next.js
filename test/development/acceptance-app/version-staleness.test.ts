@@ -45,7 +45,7 @@ describe('Error Overlay version staleness', () => {
       `
     )
 
-    await session.waitForAndOpenRuntimeError()
+    await session.openRedbox()
 
     if (process.env.TURBOPACK) {
       expect(await getStaleness(browser)).toMatchInlineSnapshot(

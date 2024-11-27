@@ -202,6 +202,10 @@ pub async fn get_next_client_import_map(
                 "next/dynamic",
                 request_to_import_mapping(project_path, "next/dist/shared/lib/app-dynamic"),
             );
+            import_map.insert_exact_alias(
+                "next/link",
+                request_to_import_mapping(project_path, "next/dist/client/app-dir/link"),
+            );
         }
         ClientContextType::Fallback => {}
         ClientContextType::Other => {}
@@ -365,6 +369,10 @@ pub async fn get_next_server_import_map(
                 "next/dynamic",
                 request_to_import_mapping(project_path, "next/dist/shared/lib/app-dynamic"),
             );
+            import_map.insert_exact_alias(
+                "next/link",
+                request_to_import_mapping(project_path, "next/dist/client/app-dir/link"),
+            )
         }
         ServerContextType::Middleware { .. } | ServerContextType::Instrumentation { .. } => {}
     }
@@ -469,6 +477,10 @@ pub async fn get_next_edge_import_map(
                 "next/dynamic",
                 request_to_import_mapping(project_path, "next/dist/shared/lib/app-dynamic"),
             );
+            import_map.insert_exact_alias(
+                "next/link",
+                request_to_import_mapping(project_path, "next/dist/client/app-dir/link"),
+            )
         }
     }
 

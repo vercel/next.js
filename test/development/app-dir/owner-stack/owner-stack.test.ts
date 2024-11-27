@@ -2,7 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import {
   assertHasRedbox,
   assertNoRedbox,
-  waitForAndOpenRuntimeError,
+  openRedbox,
   getRedboxDescription,
 } from 'next-test-utils'
 
@@ -123,7 +123,7 @@ describe('app-dir - owner-stack', () => {
       return log.message.includes('Error: browser error')
     }).message
 
-    await waitForAndOpenRuntimeError(browser)
+    await openRedbox(browser)
 
     const stackFramesContent = await getStackFramesContent(browser)
 
@@ -209,8 +209,7 @@ describe('app-dir - owner-stack', () => {
   it('should capture unhandled promise rejections', async () => {
     const browser = await next.browser('/browser/reject-promise')
 
-    await waitForAndOpenRuntimeError(browser)
-    await assertHasRedbox(browser)
+    await openRedbox(browser)
 
     const description = await getRedboxDescription(browser)
     expect(description).toMatchInlineSnapshot(`"string in rejected promise"`)

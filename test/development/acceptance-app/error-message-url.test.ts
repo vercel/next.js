@@ -49,7 +49,7 @@ describe('Error overlay - error message urls', () => {
       ])
     )
     const { session, browser } = sandbox
-    await session.waitForAndOpenRuntimeError()
+    await session.openRedbox()
 
     const link = await browser.elementByCss('#nextjs__container_errors__link a')
     const text = await link.text()

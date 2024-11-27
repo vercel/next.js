@@ -142,7 +142,7 @@ pub async fn create_page_ssr_entry_module(
     let mut ssr_module = ssr_module_context
         .process(
             source,
-            Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
+            Value::new(ReferenceType::Internal(ResolvedVc::cell(inner_assets))),
         )
         .module();
 
@@ -198,15 +198,15 @@ async fn wrap_edge_page(
     const INNER_APP: &str = "INNER_APP";
     const INNER_ERROR: &str = "INNER_ERROR";
 
-    let next_config = &*next_config.await?;
+    let next_config_val = &*next_config.await?;
 
     // TODO(WEB-1824): add build support
     let dev = true;
 
     let sri_enabled = !dev
         && next_config
-            .experimental
-            .sri
+            .experimental_sri()
+            .await?
             .as_ref()
             .map(|sri| sri.algorithm.as_ref())
             .is_some();
@@ -224,7 +224,9 @@ async fn wrap_edge_page(
         fxindexmap! {
             "pagesType" => StringifyJs("pages").to_string().into(),
             "sriEnabled" => serde_json::Value::Bool(sri_enabled).to_string().into(),
-            "nextConfig" => serde_json::to_string(next_config)?.into(),
+            // TODO do we really need to pass the entire next config here?
+            // This is bad for invalidation as any config change will invalidate this
+            "nextConfig" => serde_json::to_string(next_config_val)?.into(),
             "dev" => serde_json::Value::Bool(dev).to_string().into(),
             "pageRouteModuleOptions" => serde_json::to_string(&get_route_module_options(page.clone(), pathname.clone()))?.into(),
             "errorRouteModuleOptions" => serde_json::to_string(&get_route_module_options("/_error".into(), "/_error".into()))?.into(),
@@ -260,7 +262,7 @@ async fn wrap_edge_page(
     let wrapped = asset_context
         .process(
             Vc::upcast(source),
-            Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
+            Value::new(ReferenceType::Internal(ResolvedVc::cell(inner_assets))),
         )
         .module();
 

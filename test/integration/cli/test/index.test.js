@@ -656,7 +656,6 @@ describe('CLI Usage', () => {
       expect(stdout).not.toMatch(/ready/i)
       expect(stdout).not.toMatch('started')
       expect(stdout).not.toMatch(`${port}`)
-      expect(stripAnsi(stdout).trim()).toBeFalsy()
     })
 
     test('Allow retry if default port is already in use', async () => {

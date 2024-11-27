@@ -96,7 +96,9 @@ async fn emit_evaluate_pool_assets(
     let runtime_asset = asset_context
         .process(
             Vc::upcast(FileSource::new(embed_file_path("ipc/evaluate.ts".into()))),
-            Value::new(ReferenceType::Internal(InnerAssets::empty())),
+            Value::new(ReferenceType::Internal(
+                InnerAssets::empty().to_resolved().await?,
+            )),
         )
         .module()
         .to_resolved()
@@ -120,7 +122,7 @@ async fn emit_evaluate_pool_assets(
                     File::from("import { run } from 'RUNTIME'; run(() => import('INNER'))").into(),
                 ),
             )),
-            Value::new(ReferenceType::Internal(Vc::cell(fxindexmap! {
+            Value::new(ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
                 "INNER".into() => module_asset,
                 "RUNTIME".into() => runtime_asset
             }))),
@@ -131,7 +133,9 @@ async fn emit_evaluate_pool_assets(
         let globals_module = asset_context
             .process(
                 Vc::upcast(FileSource::new(embed_file_path("globals.ts".into()))),
-                Value::new(ReferenceType::Internal(InnerAssets::empty())),
+                Value::new(ReferenceType::Internal(
+                    InnerAssets::empty().to_resolved().await?,
+                )),
             )
             .module();
 

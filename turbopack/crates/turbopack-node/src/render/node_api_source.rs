@@ -150,7 +150,7 @@ impl GetContentSourceContent for NodeApiContentSource {
                     data: Some(self.render_data.await?),
                 }
                 .cell(),
-                *body,
+                **body,
                 self.debug,
             )
             .to_resolved()

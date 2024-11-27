@@ -594,6 +594,7 @@ export default abstract class Server<
         after: this.nextConfig.experimental.after ?? false,
         dynamicIO: this.nextConfig.experimental.dynamicIO ?? false,
         inlineCss: this.nextConfig.experimental.inlineCss ?? false,
+        authInterrupts: !!this.nextConfig.experimental.authInterrupts,
       },
       onInstrumentationRequestError:
         this.instrumentationOnRequestError.bind(this),
@@ -2481,6 +2482,7 @@ export default abstract class Server<
               experimental: {
                 after: renderOpts.experimental.after,
                 dynamicIO: renderOpts.experimental.dynamicIO,
+                authInterrupts: renderOpts.experimental.authInterrupts,
               },
               supportsDynamicResponse,
               incrementalCache,

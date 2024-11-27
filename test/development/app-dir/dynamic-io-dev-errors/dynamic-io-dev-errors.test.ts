@@ -7,7 +7,7 @@ import {
   getRedboxDescription,
   hasErrorToast,
   retry,
-  waitForAndOpenRuntimeError,
+  openRedbox,
   getRedboxSource,
 } from 'next-test-utils'
 import { createSandbox } from 'development-sandbox'
@@ -21,15 +21,11 @@ describe('Dynamic IO Dev Errors', () => {
   it('should show a red box error on the SSR render', async () => {
     const browser = await next.browser('/error')
 
-    await retry(async () => {
-      expect(await hasErrorToast(browser)).toBe(true)
+    await openRedbox(browser)
 
-      await waitForAndOpenRuntimeError(browser)
-
-      expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
-        `"[ Server ] Error: Route "/error" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random"`
-      )
-    })
+    expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
+      `"[ Server ] Error: Route "/error" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random"`
+    )
   })
 
   it('should show a red box error on client navigations', async () => {
@@ -39,15 +35,11 @@ describe('Dynamic IO Dev Errors', () => {
 
     await browser.elementByCss("[href='/error']").click()
 
-    await retry(async () => {
-      expect(await hasErrorToast(browser)).toBe(true)
+    await openRedbox(browser)
 
-      await waitForAndOpenRuntimeError(browser)
-
-      expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
-        `"[ Server ] Error: Route "/error" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random"`
-      )
-    })
+    expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
+      `"[ Server ] Error: Route "/error" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random"`
+    )
   })
 
   // NOTE: when update this snapshot, use `pnpm build` in packages/next to avoid next source code get mapped to source.
@@ -55,11 +47,7 @@ describe('Dynamic IO Dev Errors', () => {
     const outputIndex = next.cliOutput.length
     const browser = await next.browser('/no-accessed-data')
 
-    await retry(async () => {
-      expect(await hasErrorToast(browser)).toBe(true)
-      await waitForAndOpenRuntimeError(browser)
-      await assertHasRedbox(browser)
-    })
+    await openRedbox(browser)
 
     expect(stripAnsi(next.cliOutput.slice(outputIndex))).toContain(
       `\nError: Route "/no-accessed-data": ` +

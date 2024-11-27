@@ -62,7 +62,11 @@ describe(`app-dir-hmr`, () => {
       await browser.eval('window.__TEST_NO_RELOAD = true')
 
       expect(await browser.elementByCss('p').text()).toBe('mac')
+
+      const getCliOutput = next.getCliOutputFromHere()
       await next.patchFile(envFile, 'MY_DEVICE="ipad"', async () => {
+        await waitFor(() => getCliOutput().includes('Reload env'))
+
         await retry(async () => {
           expect(await browser.elementByCss('p').text()).toBe('ipad')
         })

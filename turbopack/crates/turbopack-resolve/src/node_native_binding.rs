@@ -33,18 +33,18 @@ struct NodePreGypConfig {
 #[turbo_tasks::value]
 #[derive(Hash, Clone, Debug)]
 pub struct NodePreGypConfigReference {
-    pub context_dir: Vc<FileSystemPath>,
-    pub config_file_pattern: Vc<Pattern>,
-    pub compile_target: Vc<CompileTarget>,
+    pub context_dir: ResolvedVc<FileSystemPath>,
+    pub config_file_pattern: ResolvedVc<Pattern>,
+    pub compile_target: ResolvedVc<CompileTarget>,
 }
 
 #[turbo_tasks::value_impl]
 impl NodePreGypConfigReference {
     #[turbo_tasks::function]
     pub fn new(
-        context_dir: Vc<FileSystemPath>,
-        config_file_pattern: Vc<Pattern>,
-        compile_target: Vc<CompileTarget>,
+        context_dir: ResolvedVc<FileSystemPath>,
+        config_file_pattern: ResolvedVc<Pattern>,
+        compile_target: ResolvedVc<CompileTarget>,
     ) -> Vc<Self> {
         Self::cell(NodePreGypConfigReference {
             context_dir,
@@ -59,9 +59,9 @@ impl ModuleReference for NodePreGypConfigReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
         resolve_node_pre_gyp_files(
-            self.context_dir,
-            self.config_file_pattern,
-            self.compile_target,
+            *self.context_dir,
+            *self.config_file_pattern,
+            *self.compile_target,
         )
     }
 }
@@ -226,17 +226,20 @@ pub async fn resolve_node_pre_gyp_files(
 #[turbo_tasks::value]
 #[derive(Hash, Clone, Debug)]
 pub struct NodeGypBuildReference {
-    pub context_dir: Vc<FileSystemPath>,
-    pub compile_target: Vc<CompileTarget>,
+    pub context_dir: ResolvedVc<FileSystemPath>,
+    pub compile_target: ResolvedVc<CompileTarget>,
 }
 
 #[turbo_tasks::value_impl]
 impl NodeGypBuildReference {
     #[turbo_tasks::function]
-    pub fn new(context_dir: Vc<FileSystemPath>, target: Vc<CompileTarget>) -> Vc<Self> {
+    pub fn new(
+        context_dir: ResolvedVc<FileSystemPath>,
+        compile_target: ResolvedVc<CompileTarget>,
+    ) -> Vc<Self> {
         Self::cell(NodeGypBuildReference {
             context_dir,
-            compile_target: target,
+            compile_target,
         })
     }
 }
@@ -245,7 +248,7 @@ impl NodeGypBuildReference {
 impl ModuleReference for NodeGypBuildReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        resolve_node_gyp_build_files(self.context_dir, self.compile_target)
+        resolve_node_gyp_build_files(*self.context_dir, *self.compile_target)
     }
 }
 
@@ -346,14 +349,14 @@ pub async fn resolve_node_gyp_build_files(
 #[turbo_tasks::value]
 #[derive(Hash, Clone, Debug)]
 pub struct NodeBindingsReference {
-    pub context_dir: Vc<FileSystemPath>,
+    pub context_dir: ResolvedVc<FileSystemPath>,
     pub file_name: RcStr,
 }
 
 #[turbo_tasks::value_impl]
 impl NodeBindingsReference {
     #[turbo_tasks::function]
-    pub fn new(context_dir: Vc<FileSystemPath>, file_name: RcStr) -> Vc<Self> {
+    pub fn new(context_dir: ResolvedVc<FileSystemPath>, file_name: RcStr) -> Vc<Self> {
         Self::cell(NodeBindingsReference {
             context_dir,
             file_name,
@@ -365,7 +368,7 @@ impl NodeBindingsReference {
 impl ModuleReference for NodeBindingsReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        resolve_node_bindings_files(self.context_dir, self.file_name.clone())
+        resolve_node_bindings_files(*self.context_dir, self.file_name.clone())
     }
 }
 

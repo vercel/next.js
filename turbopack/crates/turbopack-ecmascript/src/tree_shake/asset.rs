@@ -86,15 +86,34 @@ impl EcmascriptModulePartAsset {
     /// of a pointer to the full module and the [ModulePart] pointing the part
     /// of the module.
     #[turbo_tasks::function]
-    pub fn new(
+    pub async fn new(
         module: ResolvedVc<EcmascriptModuleAsset>,
         part: ResolvedVc<ModulePart>,
-    ) -> Vc<Self> {
-        EcmascriptModulePartAsset {
-            full_module: module,
-            part,
+    ) -> Result<Vc<Self>> {
+        if matches!(
+            &*part.await?,
+            ModulePart::Internal(..)
+                | ModulePart::InternalEvaluation(..)
+                | ModulePart::Facade
+                | ModulePart::Exports
+                | ModulePart::Evaluation
+        ) {
+            return Ok(EcmascriptModulePartAsset {
+                full_module: module,
+                part,
+            }
+            .cell());
         }
-        .cell()
+
+        // This is a workaround to avoid creating duplicate assets for internal parts.
+        let split_result = split_module(*module).await?;
+        let part_id = get_part_id(&split_result, *part).await?;
+
+        Ok(EcmascriptModulePartAsset {
+            full_module: module,
+            part: ModulePart::internal(part_id).to_resolved().await?,
+        }
+        .cell())
     }
 
     #[turbo_tasks::function]

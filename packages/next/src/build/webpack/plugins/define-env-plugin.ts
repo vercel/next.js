@@ -276,6 +276,8 @@ export function getDefineEnv({
       // Internal only so untyped to avoid discovery
       (config.experimental as any).internal_disableSyncDynamicAPIWarnings ??
       false,
+    'process.env.__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS':
+      !!config.experimental.authInterrupts,
     ...(isNodeOrEdgeCompilation
       ? {
           // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)

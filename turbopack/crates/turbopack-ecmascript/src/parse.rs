@@ -262,14 +262,14 @@ async fn parse_file_content(
         true,
         false,
         Box::new(IssueEmitter::new(
-            *source,
+            source,
             source_map.clone(),
             Some("Ecmascript file had an error".into()),
         )),
     );
 
     let emitter = Box::new(IssueEmitter::new(
-        *source,
+        source,
         source_map.clone(),
         Some("Parsing ecmascript source code failed".into()),
     ));

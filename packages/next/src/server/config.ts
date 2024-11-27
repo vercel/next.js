@@ -1071,6 +1071,14 @@ export default async function loadConfig(
 
   const path = await findUp(CONFIG_FILES, { cwd: dir })
 
+  if (process.env.__NEXT_TEST_MODE) {
+    if (path) {
+      Log.info(`Loading config from ${path}`)
+    } else {
+      Log.info('No config file found')
+    }
+  }
+
   // If config file was found
   if (path?.length) {
     configFileName = basename(path)
