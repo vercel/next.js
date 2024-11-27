@@ -56,7 +56,7 @@ The following options are available for the `turbo` configuration:
 | `rules`                   | `Record<string, TurboRuleConfigItemOrShortcut>` | List of unsupported webpack loaders to apply when running with Turbopack.  |
 | `root`                    | `string`                                        | The repo root directory.                                                   |
 | `treeShaking`             | `boolean`                                       | Enable tree shaking for the turbopack dev server and build.                |
-| `unstablePersistentCache` | `boolean`                                       | Enable the persistent cache for turbopack dev and build servers.           |
+| `unstablePersistentCaching` | `boolean`                                       | Enable the persistent cache for Turbopack dev server and build.           |
 
 ### Supported loaders
 
@@ -76,7 +76,7 @@ The following loaders have been tested to work with Turbopack's webpack loader i
 
 Turbopack's Persistent Caching allows compilation work to persist across restarts of the development server or builds, reducing cold start times for all applications by caching previously compiled work, and only recompiling what has changed.
 
-To enable persistent caching, set the `unstablePersistentCache` option to `true` in `next.config.js`:
+To enable persistent caching, set the `unstablePersistentCaching` option to `true` in `next.config.js`:
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
@@ -84,7 +84,7 @@ import type { NextConfig } from 'next'
 const nextConfig: NextConfig = {
   experimental: {
     turbo: {
-      unstablePersistentCache: true,
+      unstablePersistentCaching: true,
     },
   },
 }
@@ -96,7 +96,7 @@ export default nextConfig
 module.exports = {
   experimental: {
     turbo: {
-      unstablePersistentCache: true,
+      unstablePersistentCaching: true,
     },
   },
 }
