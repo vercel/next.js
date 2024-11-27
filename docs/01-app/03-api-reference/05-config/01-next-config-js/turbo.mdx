@@ -45,18 +45,16 @@ module.exports = nextConfig
 
 The following options are available for the `turbo` configuration:
 
-| Option                    | Type                                            | Description                                                                |
-| ------------------------- | ----------------------------------------------- | -------------------------------------------------------------------------- |
-| `loaders`                 | `Record<string, TurboLoaderItem[]>`             | List of webpack loaders to apply when running with Turbopack.              |
-| `memoryLimit`             | `number`                                        | A target memory limit for turbo, in bytes.                                 |
-| `moduleIdStrategy`        | `'named'` or `'deterministic'`                  | Assign module IDs                                                          |
-| `minify`                  | `boolean`                                       | Enable minification. Defaults to true in build mode and false in dev mode. |
-| `resolveAlias`            | `Record<string>`                                | Map aliased imports to modules to load in their place.                     |
-| `resolveExtensions`       | `string[]`                                      | List of extensions to resolve when importing files.                        |
-| `rules`                   | `Record<string, TurboRuleConfigItemOrShortcut>` | List of unsupported webpack loaders to apply when running with Turbopack.  |
-| `root`                    | `string`                                        | The repo root directory.                                                   |
-| `treeShaking`             | `boolean`                                       | Enable tree shaking for the turbopack dev server and build.                |
-| `unstablePersistentCaching` | `boolean`                                       | Enable the persistent cache for Turbopack dev server and build.           |
+| Option                      | Type                                            | Description                                                                |
+| --------------------------- | ----------------------------------------------- | -------------------------------------------------------------------------- |
+| `moduleIdStrategy`          | `'named'` or `'deterministic'`                  | The module ID strategy to use.                                             |
+| `minify`                    | `boolean`                                       | Enable minification. Defaults to true in build mode and false in dev mode. |
+| `resolveAlias`              | `Record<string>`                                | Map aliased imports to modules to load in their place.                     |
+| `resolveExtensions`         | `string[]`                                      | List of extensions to resolve when importing files.                        |
+| `rules`                     | `Record<string, TurboRuleConfigItemOrShortcut>` | List of unsupported webpack loaders to apply when running with Turbopack.  |
+| `root`                      | `string`                                        | The repo root directory.                                                   |
+| `treeShaking`               | `boolean`                                       | Enable tree shaking for the turbopack dev server and build.                |
+| `unstablePersistentCaching` | `boolean`                                       | Enable the persistent cache for Turbopack dev server and build.            |
 
 ### Supported loaders
 
