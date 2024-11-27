@@ -43,8 +43,9 @@ impl SingleModuleGraph {
         let mut stack: Vec<_> = entries.await?.iter().map(|e| (None, *e)).collect();
         while let Some((parent_idx, module)) = stack.pop() {
             if let Some(idx) = modules.get(&module) {
-                let parent_idx = parent_idx.context("Existing module without parent")?;
-                graph.add_edge(parent_idx, *idx, ());
+                if let Some(parent_idx) = parent_idx {
+                    graph.add_edge(parent_idx, *idx, ());
+                }
                 continue;
             }
 
