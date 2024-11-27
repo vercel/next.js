@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use next_core::{
     mode::NextMode,
     next_client_reference::{find_server_entries, ServerEntries},
