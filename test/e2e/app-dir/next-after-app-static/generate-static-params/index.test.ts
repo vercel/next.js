@@ -1,12 +1,10 @@
 /* eslint-env jest */
-import { isNextDev, nextTestSetup } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import * as Log from './utils/log'
+import { assertNoRedbox, retry } from '../../../../lib/next-test-utils'
 
-// This test relies on next.build() so it can't work in dev mode.
-const _describe = isNextDev ? describe.skip : describe
-
-_describe('unstable_after() in generateStaticParams', () => {
-  const { next, skipped } = nextTestSetup({
+describe('unstable_after() in generateStaticParams', () => {
+  const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true, // reading CLI logs to observe after
     skipStart: true,
@@ -27,19 +25,43 @@ _describe('unstable_after() in generateStaticParams', () => {
     return next.cliOutput.slice(currentCliOutputIndex)
   }
 
-  it('runs unstable_after callbacks for each page during build', async () => {
-    const buildResult = await next.build()
-    expect(buildResult?.exitCode).toBe(0)
+  if (isNextDev) {
+    it('runs unstable_after callbacks when visiting a page in dev', async () => {
+      await next.start()
+      const browser = await next.browser('/one/a')
 
-    {
-      // after should run at build time
-      const logsFromAfter = Log.readCliLogs(getLogs())
-      expect(logsFromAfter).toContainEqual({
-        source: '[generateStaticParams] /one/[myParam]',
+      expect(await browser.elementByCss('body').text()).toBe('Param: a')
+      await assertNoRedbox(browser)
+      await retry(async () => {
+        expect(Log.readCliLogs(getLogs())).toContainEqual({
+          source: '[generateStaticParams] /one/[myParam]',
+        })
       })
-      expect(logsFromAfter).toContainEqual({
-        source: '[generateStaticParams] /two/[myParam]',
+
+      await browser.get(new URL('/two/d', next.url).href)
+      expect(await browser.elementByCss('body').text()).toBe('Param: d')
+      await assertNoRedbox(browser)
+      await retry(async () => {
+        expect(Log.readCliLogs(getLogs())).toContainEqual({
+          source: '[generateStaticParams] /two/[myParam]',
+        })
       })
-    }
-  })
+    })
+  } else {
+    it('runs unstable_after callbacks for each page during build', async () => {
+      const buildResult = await next.build()
+      expect(buildResult?.exitCode).toBe(0)
+
+      {
+        // after should run at build time
+        const logsFromAfter = Log.readCliLogs(getLogs())
+        expect(logsFromAfter).toContainEqual({
+          source: '[generateStaticParams] /one/[myParam]',
+        })
+        expect(logsFromAfter).toContainEqual({
+          source: '[generateStaticParams] /two/[myParam]',
+        })
+      }
+    })
+  }
 })

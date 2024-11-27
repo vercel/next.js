@@ -1,11 +1,12 @@
 /* eslint-env jest */
-import { isNextDev, nextTestSetup } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
+import {
+  assertHasRedbox,
+  getRedboxDescription,
+} from '../../../../lib/next-test-utils'
 
-// This test relies on next.build() so it can't work in dev mode.
-const _describe = isNextDev ? describe.skip : describe
-
-_describe('unstable_after() in generateStaticParams - thrown errors', () => {
-  const { next, skipped } = nextTestSetup({
+describe('unstable_after() in generateStaticParams - thrown errors', () => {
+  const { next, skipped, isNextDev } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     skipDeployment: true, // can't access build errors in deploy tests
@@ -13,18 +14,28 @@ _describe('unstable_after() in generateStaticParams - thrown errors', () => {
 
   if (skipped) return
 
-  it('fails the build if an error is thrown inside unstable_after', async () => {
-    const buildResult = await next.build()
-    expect(buildResult?.exitCode).toBe(1)
+  if (isNextDev) {
+    it('shows the error overlay if an error is thrown inside unstable_after', async () => {
+      await next.start()
+      const browser = await next.browser('/callback/1')
+      await assertHasRedbox(browser)
+      const route = '/callback/[myParam]'
+      expect(await getRedboxDescription(browser)).toContain(
+        `My cool error thrown inside unstable_after on route "${route}"`
+      )
+    })
+  } else {
+    it('fails the build if an error is thrown inside unstable_after', async () => {
+      const buildResult = await next.build()
+      expect(buildResult?.exitCode).toBe(1)
 
-    {
-      const path = '/callback/[myParam]'
+      const route = '/callback/[myParam]'
       expect(next.cliOutput).toContain(
-        `Failed to collect page data for ${path}`
+        `Failed to collect page data for ${route}`
       )
       expect(next.cliOutput).toContain(
-        `My cool error thrown inside unstable_after on route "${path}"`
+        `My cool error thrown inside unstable_after on route "${route}"`
       )
-    }
-  })
+    })
+  }
 })
