@@ -1120,8 +1120,21 @@ impl AppEndpoint {
             };
 
         let server_action_manifest_loader = if process_client_components {
+            let reduced_graphs = get_reduced_graphs_for_page(
+                this.app_project.project(),
+                *rsc_entry,
+                Vc::upcast(this.app_project.client_module_context()),
+            );
+            let actions = reduced_graphs.get_server_actions_for_page(
+                *rsc_entry,
+                match runtime {
+                    NextRuntime::Edge => Vc::upcast(this.app_project.edge_rsc_module_context()),
+                    NextRuntime::NodeJs => Vc::upcast(this.app_project.rsc_module_context()),
+                },
+            );
+
             let server_action_manifest = create_server_actions_manifest(
-                *ResolvedVc::upcast(app_entry.rsc_entry),
+                actions,
                 this.app_project.project().project_path(),
                 node_root,
                 app_entry.original_name.clone(),
