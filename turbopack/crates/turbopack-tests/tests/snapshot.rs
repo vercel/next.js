@@ -15,8 +15,7 @@ use serde::Deserialize;
 use serde_json::json;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    apply_effects, ReadConsistency, ReadRef, ResolvedVc, TryJoinIterExt, TurboTasks, Value,
-    ValueToString, Vc,
+    ReadConsistency, ReadRef, ResolvedVc, TryJoinIterExt, TurboTasks, Value, ValueToString, Vc,
 };
 use turbo_tasks_env::DotenvProcessEnv;
 use turbo_tasks_fs::{
@@ -157,33 +156,23 @@ async fn run(resource: PathBuf) -> Result<()> {
 
     let tt = TurboTasks::new(MemoryBackend::default());
     let task = tt.spawn_once_task(async move {
-        let emit = run_inner(resource.to_str().unwrap().into());
-        emit.strongly_consistent().await?;
-        apply_effects(emit).await?;
+        let out = run_test(resource.to_str().unwrap().into());
+        let _ = out.resolve_strongly_consistent().await?;
+        let captured_issues = out.peek_issues_with_path().await?;
 
+        let plain_issues = captured_issues
+            .iter_with_shortest_path()
+            .map(|(issue_vc, path)| async move { issue_vc.into_plain(path).await })
+            .try_join()
+            .await?;
+
+        snapshot_issues(plain_issues, out.join("issues".into()), &REPO_ROOT)
+            .await
+            .context("Unable to handle issues")?;
         Ok(Vc::<()>::default())
     });
     tt.wait_task_completion(task, ReadConsistency::Strong)
         .await?;
-
-    Ok(())
-}
-
-#[turbo_tasks::function]
-async fn run_inner(resource: RcStr) -> Result<()> {
-    let out = run_test(resource);
-    let _ = out.resolve_strongly_consistent().await?;
-    let captured_issues = out.peek_issues_with_path().await?;
-
-    let plain_issues = captured_issues
-        .iter_with_shortest_path()
-        .map(|(issue_vc, path)| async move { issue_vc.into_plain(path).await })
-        .try_join()
-        .await?;
-
-    snapshot_issues(plain_issues, out.join("issues".into()), &REPO_ROOT)
-        .await
-        .context("Unable to handle issues")?;
 
     Ok(())
 }

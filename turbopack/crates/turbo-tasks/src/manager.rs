@@ -1672,13 +1672,6 @@ pub fn turbo_tasks_scope<T>(tt: Arc<dyn TurboTasksApi>, f: impl FnOnce() -> T) -
     TURBO_TASKS.sync_scope(tt, f)
 }
 
-pub fn turbo_tasks_future_scope<T>(
-    tt: Arc<dyn TurboTasksApi>,
-    f: impl Future<Output = T>,
-) -> impl Future<Output = T> {
-    TURBO_TASKS.scope(tt, f)
-}
-
 pub fn with_turbo_tasks_for_testing<T>(
     tt: Arc<dyn TurboTasksApi>,
     current_task: TaskId,

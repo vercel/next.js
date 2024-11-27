@@ -30,7 +30,7 @@ use graph::{aggregate, AggregatedGraph, AggregatedGraphNodeContent};
 use module_options::{ModuleOptions, ModuleOptionsContext, ModuleRuleEffect, ModuleType};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{Completion, ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 pub use turbopack_core::condition;
 use turbopack_core::{
@@ -899,49 +899,54 @@ impl AssetContext for ModuleAssetContext {
 }
 
 #[turbo_tasks::function]
-pub fn emit_with_completion(asset: Vc<Box<dyn OutputAsset>>, output_dir: Vc<FileSystemPath>) {
-    let _ = emit_assets_aggregated(asset, output_dir);
+pub fn emit_with_completion(
+    asset: Vc<Box<dyn OutputAsset>>,
+    output_dir: Vc<FileSystemPath>,
+) -> Vc<Completion> {
+    emit_assets_aggregated(asset, output_dir)
 }
 
 #[turbo_tasks::function]
-fn emit_assets_aggregated(asset: Vc<Box<dyn OutputAsset>>, output_dir: Vc<FileSystemPath>) {
+fn emit_assets_aggregated(
+    asset: Vc<Box<dyn OutputAsset>>,
+    output_dir: Vc<FileSystemPath>,
+) -> Vc<Completion> {
     let aggregated = aggregate(asset);
-    let _ = emit_aggregated_assets(aggregated, output_dir);
+    emit_aggregated_assets(aggregated, output_dir)
 }
 
 #[turbo_tasks::function]
 async fn emit_aggregated_assets(
     aggregated: Vc<AggregatedGraph>,
     output_dir: Vc<FileSystemPath>,
-) -> Result<()> {
-    match &*aggregated.content().await? {
-        AggregatedGraphNodeContent::Asset(asset) => {
-            let _ = emit_asset_into_dir(**asset, output_dir);
-        }
+) -> Result<Vc<Completion>> {
+    Ok(match &*aggregated.content().await? {
+        AggregatedGraphNodeContent::Asset(asset) => emit_asset_into_dir(**asset, output_dir),
         AggregatedGraphNodeContent::Children(children) => {
             for aggregated in children {
-                let _ = emit_aggregated_assets(**aggregated, output_dir);
+                emit_aggregated_assets(**aggregated, output_dir).await?;
             }
+            Completion::new()
         }
-    }
-    Ok(())
+    })
 }
 
 #[turbo_tasks::function]
-pub fn emit_asset(asset: Vc<Box<dyn OutputAsset>>) {
-    let _ = asset.content().write(asset.ident().path());
+pub fn emit_asset(asset: Vc<Box<dyn OutputAsset>>) -> Vc<Completion> {
+    asset.content().write(asset.ident().path())
 }
 
 #[turbo_tasks::function]
 pub async fn emit_asset_into_dir(
     asset: Vc<Box<dyn OutputAsset>>,
     output_dir: Vc<FileSystemPath>,
-) -> Result<()> {
+) -> Result<Vc<Completion>> {
     let dir = &*output_dir.await?;
-    if asset.ident().path().await?.is_inside_ref(dir) {
-        let _ = emit_asset(asset);
-    }
-    Ok(())
+    Ok(if asset.ident().path().await?.is_inside_ref(dir) {
+        emit_asset(asset)
+    } else {
+        Completion::new()
+    })
 }
 
 type OutputAssetSet = HashSet<Vc<Box<dyn OutputAsset>>>;
