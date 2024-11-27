@@ -1460,11 +1460,14 @@ impl AppEndpoint {
                 {
                     let _span = tracing::info_span!("Server Components");
                     Vc::cell((
-                        chunking_context.evaluated_chunk_group_assets(
-                            app_entry.rsc_entry.ident(),
-                            Vc::cell(evaluatable_assets.clone()),
-                            Value::new(AvailabilityInfo::Root),
-                        ),
+                        chunking_context
+                            .evaluated_chunk_group_assets(
+                                app_entry.rsc_entry.ident(),
+                                Vc::cell(evaluatable_assets.clone()),
+                                Value::new(AvailabilityInfo::Root),
+                            )
+                            .to_resolved()
+                            .await?,
                         AvailabilityInfo::Untracked,
                     ))
                 }
@@ -1565,7 +1568,7 @@ impl AppEndpoint {
                 }
                 .instrument(tracing::trace_span!("server node entrypoint"))
                 .await?);
-                Vc::cell((Vc::cell(vec![rsc_chunk]), availability_info))
+                Vc::cell((ResolvedVc::cell(vec![rsc_chunk]), availability_info))
             }
         })
     }
