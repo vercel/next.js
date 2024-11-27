@@ -510,7 +510,7 @@ export function Thread({ messages }: { messages: Message[] }) {
     string
   >(messages, (state, newMessage) => [...state, { message: newMessage }])
 
-  const formAction = async (formData) => {
+  const formAction = async (formData: FormData) => {
     const message = formData.get('message') as string
     addOptimisticMessage(message)
     await send(message)

@@ -633,17 +633,17 @@ impl Project {
 
     #[turbo_tasks::function]
     pub(super) async fn execution_context(self: Vc<Self>) -> Result<Vc<ExecutionContext>> {
-        let node_root = self.node_root();
+        let node_root = self.node_root().to_resolved().await?;
         let next_mode = self.next_mode().await?;
 
         let node_execution_chunking_context = Vc::upcast(
             NodeJsChunkingContext::builder(
-                self.project_path(),
+                self.project_path().to_resolved().await?,
                 node_root,
                 node_root,
-                node_root.join("build/chunks".into()),
-                node_root.join("build/assets".into()),
-                node_build_environment(),
+                node_root.join("build/chunks".into()).to_resolved().await?,
+                node_root.join("build/assets".into()).to_resolved().await?,
+                node_build_environment().to_resolved().await?,
                 next_mode.runtime_type(),
             )
             .build(),

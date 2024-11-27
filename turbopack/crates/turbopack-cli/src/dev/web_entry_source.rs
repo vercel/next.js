@@ -157,7 +157,7 @@ pub async fn create_web_entry_source(
         .await?;
 
     let entry_asset = Vc::upcast(DevHtmlAsset::new(
-        server_root.join("index.html".into()),
+        server_root.join("index.html".into()).to_resolved().await?,
         entries,
     ));
 

@@ -83,10 +83,15 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
                 let output_dir = output_fs.root();
 
                 let source = FileSource::new(input);
-                let compile_time_info = CompileTimeInfo::builder(Environment::new(Value::new(
-                    ExecutionEnvironment::NodeJsLambda(NodeJsEnvironment::default().into()),
-                )))
-                .cell();
+                let compile_time_info = CompileTimeInfo::builder(
+                    Environment::new(Value::new(ExecutionEnvironment::NodeJsLambda(
+                        NodeJsEnvironment::default().resolved_cell(),
+                    )))
+                    .to_resolved()
+                    .await?,
+                )
+                .cell()
+                .await?;
                 let module_asset_context = ModuleAssetContext::new(
                     Default::default(),
                     compile_time_info,

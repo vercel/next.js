@@ -47,7 +47,8 @@ import {
   normalizeFlightData,
   type NormalizedFlightData,
 } from '../../../flight-data-helpers'
-import { getRedirectError, RedirectType } from '../../redirect'
+import { getRedirectError } from '../../redirect'
+import { RedirectType } from '../../redirect-error'
 import { createSeededPrefetchCacheEntry } from '../prefetch-cache-utils'
 import { removeBasePath } from '../../../remove-base-path'
 import { hasBasePath } from '../../../has-base-path'

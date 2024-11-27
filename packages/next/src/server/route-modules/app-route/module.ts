@@ -71,9 +71,11 @@ import type { AppSegment } from '../../../build/segment-config/app/app-segments'
 import {
   getRedirectStatusCodeFromError,
   getURLFromRedirectError,
+} from '../../../client/components/redirect'
+import {
   isRedirectError,
   type RedirectError,
-} from '../../../client/components/redirect'
+} from '../../../client/components/redirect-error'
 import {
   getAccessFallbackHTTPStatus,
   isHTTPAccessFallbackError,

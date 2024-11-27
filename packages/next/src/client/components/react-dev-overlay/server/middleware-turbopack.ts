@@ -32,6 +32,14 @@ function shouldIgnorePath(modulePath: string): boolean {
   )
 }
 
+function shouldIgnorePath(modulePath: string): boolean {
+  return (
+    modulePath.includes('node_modules') ||
+    // Only relevant for when Next.js is symlinked e.g. in the Next.js monorepo
+    modulePath.includes('next/dist')
+  )
+}
+
 type IgnorableStackFrame = StackFrame & { ignored: boolean }
 
 const currentSourcesByFile: Map<string, Promise<string | null>> = new Map()
