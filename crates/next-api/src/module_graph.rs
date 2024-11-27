@@ -97,12 +97,12 @@ impl SingleModuleGraph {
 }
 
 async fn get_module_graph_for_page(
-    rsc_entry: Vc<Box<dyn Module>>,
+    entry: Vc<Box<dyn Module>>,
 ) -> Result<Vec<ResolvedVc<SingleModuleGraph>>> {
     let ServerEntries {
         server_utils,
         server_component_entries,
-    } = &*find_server_entries(rsc_entry).await?;
+    } = &*find_server_entries(entry).await?;
 
     let graph = SingleModuleGraph::new_with_entries_visited(
         server_utils.clone(),
@@ -116,7 +116,7 @@ async fn get_module_graph_for_page(
     for module in server_component_entries
         .iter()
         .map(|m| Vc::upcast::<Box<dyn Module>>(*m))
-        .chain(std::iter::once(rsc_entry))
+        .chain(std::iter::once(entry))
     {
         let graph = SingleModuleGraph::new_with_entries_visited(
             vec![module],
@@ -189,7 +189,7 @@ impl NextDynamicGraph {
     #[turbo_tasks::function]
     pub async fn get_next_dynamic_imports_for_page(
         &self,
-        rsc_entry: ResolvedVc<Box<dyn Module>>,
+        entry: ResolvedVc<Box<dyn Module>>,
     ) -> Result<Vc<DynamicImportsHashMap>> {
         if self.is_single_page {
             // No need to traverse and collect (filter) just the imports for that single page
@@ -200,8 +200,8 @@ impl NextDynamicGraph {
 
             let mut result = HashMap::new();
 
-            let rsc_entry_node = *entries.get(&rsc_entry).unwrap();
-            let mut dfs = Dfs::new(&graph, rsc_entry_node);
+            let entry_node = *entries.get(&entry).unwrap();
+            let mut dfs = Dfs::new(&graph, entry_node);
             while let Some(nx) = dfs.next(&graph) {
                 let weight = *graph.node_weight(nx).unwrap();
                 if let Some(node_data) = data.get(&weight) {
@@ -227,14 +227,14 @@ impl ReducedGraphs {
     #[turbo_tasks::function]
     pub async fn get_next_dynamic_imports_for_page(
         &self,
-        rsc_entry: Vc<Box<dyn Module>>,
+        entry: Vc<Box<dyn Module>>,
     ) -> Result<Vc<DynamicImportsHashMap>> {
         let result = self
             .next_dynamic
             .iter()
             .map(|graph| async move {
                 Ok(graph
-                    .get_next_dynamic_imports_for_page(rsc_entry)
+                    .get_next_dynamic_imports_for_page(entry)
                     .await?
                     .iter()
                     .map(|(k, v)| (*k, v.clone()))
@@ -250,13 +250,13 @@ impl ReducedGraphs {
 
 #[turbo_tasks::function]
 pub async fn get_reduced_graphs_for_page(
-    rsc_entry: Vc<Box<dyn Module>>,
+    entry: Vc<Box<dyn Module>>,
     // TODO instead do that later on per-page traversal
     client_asset_context: Vc<Box<dyn AssetContext>>,
     project: Vc<Project>,
 ) -> Result<Vc<ReducedGraphs>> {
     let (is_single_page, graphs) = match &*project.next_mode().await? {
-        NextMode::Development => (true, get_module_graph_for_page(rsc_entry).await?),
+        NextMode::Development => (true, get_module_graph_for_page(entry).await?),
         NextMode::Build => (
             false,
             vec![
