@@ -76,12 +76,16 @@ impl<T: Display> Display for HtmlStringEscaped<T> {
 #[turbo_tasks::value_impl]
 impl ContentSource for IntrospectionSource {
     #[turbo_tasks::function]
-    fn get_routes(self: Vc<Self>) -> Vc<RouteTree> {
-        Vc::<RouteTrees>::cell(vec![
-            RouteTree::new_route(Vec::new(), RouteType::Exact, Vc::upcast(self)),
-            RouteTree::new_route(Vec::new(), RouteType::CatchAll, Vc::upcast(self)),
+    async fn get_routes(self: Vc<Self>) -> Result<Vc<RouteTree>> {
+        Ok(Vc::<RouteTrees>::cell(vec![
+            RouteTree::new_route(Vec::new(), RouteType::Exact, Vc::upcast(self))
+                .to_resolved()
+                .await?,
+            RouteTree::new_route(Vec::new(), RouteType::CatchAll, Vc::upcast(self))
+                .to_resolved()
+                .await?,
         ])
-        .merge()
+        .merge())
     }
 }
 
