@@ -936,8 +936,6 @@ impl AppEndpoint {
                     *rsc_entry,
                     Vc::upcast(this.app_project.client_module_context()),
                 );
-                // "app/client.js [app-ssr] (ecmascript)" ->
-                //      [("./dynamic", "app/dynamic.js [app-client] (ecmascript)")])]
                 let next_dynamic_imports: FxIndexMap<_, _> = reduced_graphs
                     .get_next_dynamic_imports_for_page(*rsc_entry)
                     .await?
