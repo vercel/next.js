@@ -45,7 +45,7 @@ where
     for (origin_module, dynamic_imports) in dynamic_import_entries {
         for (imported_raw_str, imported_module) in dynamic_imports {
             let chunk = if let Some(chunk) = chunks_hash.get(&imported_raw_str) {
-                chunk
+                *chunk
             } else {
                 let Some(module) =
                     ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(imported_module).await?
@@ -201,7 +201,7 @@ pub(crate) async fn collect_next_dynamic_imports(
 
         Ok(NextDynamicImportsResult {
             client_dynamic_imports: import_mappings,
-            visited_modules: VisitedDynamicImportModules(visited_modules.0).cell(),
+            visited_modules: VisitedDynamicImportModules(visited_modules.0).resolved_cell(),
         }
         .cell())
     }
@@ -338,7 +338,10 @@ async fn build_dynamic_imports_map_for_module(
         }
     }
 
-    Ok(Vc::cell(Some(Vc::cell((server_module, import_sources)))))
+    Ok(Vc::cell(Some(ResolvedVc::cell((
+        server_module,
+        import_sources,
+    )))))
 }
 
 /// A visitor to check if there's import to `next/dynamic`, then collecting the
