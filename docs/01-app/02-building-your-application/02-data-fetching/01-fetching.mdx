@@ -417,10 +417,11 @@ There may be cases where you want this pattern because one fetch depends on the 
 
 ```tsx filename="app/artist/[username]/page.tsx" switcher
 export default async function Page({
-  params: { username },
+  params,
 }: {
   params: Promise<{ username: string }>
 }) {
+  const { username } = await params
   // Get artist information
   const artist = await getArtist(username)
 
@@ -451,7 +452,8 @@ async function Playlists({ artistID }: { artistID: string }) {
 ```
 
 ```jsx filename="app/artist/[username]/page.js" switcher
-export default async function Page({ params: { username } }) {
+export default async function Page({ params }) {
+  const { username } = await params
   // Get artist information
   const artist = await getArtist(username)
 
@@ -509,10 +511,11 @@ async function getAlbums(username: string) {
 }
 
 export default async function Page({
-  params: { username },
+  params,
 }: {
   params: Promise<{ username: string }>
 }) {
+  const { username } = await params
   const artistData = getArtist(username)
   const albumsData = getAlbums(username)
 
@@ -541,7 +544,8 @@ async function getAlbums(username) {
   return res.json()
 }
 
-export default async function Page({ params: { username } }) {
+export default async function Page({ params }) {
+  const { username } = await params
   const artistData = getArtist(username)
   const albumsData = getAlbums(username)
 
@@ -597,10 +601,11 @@ export default async function Item({ id }) {
 import Item, { preload, checkIsAvailable } from '@/components/Item'
 
 export default async function Page({
-  params: { id },
+  params,
 }: {
   params: Promise<{ id: string }>
 }) {
+  const { id } = await params
   // starting loading item data
   preload(id)
   // perform another asynchronous task
@@ -613,7 +618,8 @@ export default async function Page({
 ```jsx filename="app/item/[id]/page.js" switcher
 import Item, { preload, checkIsAvailable } from '@/components/Item'
 
-export default async function Page({ params: { id } }) {
+export default async function Page({ params }) {
+  const { id } = await params
   // starting loading item data
   preload(id)
   // perform another asynchronous task

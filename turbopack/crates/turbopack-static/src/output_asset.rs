@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileContent;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -10,16 +10,16 @@ use turbopack_core::{
 };
 #[turbo_tasks::value]
 pub struct StaticAsset {
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
-    source: Vc<Box<dyn Source>>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    source: ResolvedVc<Box<dyn Source>>,
 }
 
 #[turbo_tasks::value_impl]
 impl StaticAsset {
     #[turbo_tasks::function]
     pub fn new(
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-        source: Vc<Box<dyn Source>>,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+        source: ResolvedVc<Box<dyn Source>>,
     ) -> Vc<Self> {
         Self::cell(StaticAsset {
             chunking_context,

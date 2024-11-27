@@ -16,10 +16,7 @@ import { FLIGHT_HEADERS } from '../../client/components/app-router-headers'
 import { ensureInstrumentationRegistered } from './globals'
 import { createRequestStoreForAPI } from '../async-storage/request-store'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
-import {
-  createWorkStore,
-  type WorkStoreContext,
-} from '../async-storage/work-store'
+import { createWorkStore } from '../async-storage/work-store'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { NEXT_ROUTER_PREFETCH_HEADER } from '../../client/components/app-router-headers'
 import { getTracer } from '../lib/trace/tracer'
@@ -229,13 +226,8 @@ export async function adapter(
         params.request.nextConfig?.experimental?.after ??
         !!process.env.__NEXT_AFTER
 
-      let waitUntil: WorkStoreContext['renderOpts']['waitUntil'] = undefined
-      let closeController: CloseController | undefined = undefined
-
-      if (isAfterEnabled) {
-        waitUntil = event.waitUntil.bind(event)
-        closeController = new CloseController()
-      }
+      const waitUntil = event.waitUntil.bind(event)
+      const closeController = new CloseController()
 
       return getTracer().trace(
         MiddlewareSpan.execute,
@@ -277,9 +269,8 @@ export async function adapter(
                 buildId: buildId ?? '',
                 supportsDynamicResponse: true,
                 waitUntil,
-                onClose: closeController
-                  ? closeController.onClose.bind(closeController)
-                  : undefined,
+                onClose: closeController.onClose.bind(closeController),
+                onAfterTaskError: undefined,
               },
               requestEndedState: { ended: false },
               isPrefetchRequest: request.headers.has(
