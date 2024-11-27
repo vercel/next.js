@@ -67,7 +67,7 @@ use crate::{
     global_module_id_strategy::GlobalModuleIdStrategyBuilder,
     instrumentation::InstrumentationEndpoint,
     middleware::MiddlewareEndpoint,
-    module_graph::{SingleModuleGraph, UnresolvedModules},
+    module_graph::SingleModuleGraph,
     pages::PagesProject,
     route::{Endpoint, Route},
     versioned_content_map::{OutputAssetsOperation, VersionedContentMap},
@@ -663,24 +663,23 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub async fn get_all_entries(self: Vc<Self>) -> Result<Vc<UnresolvedModules>> {
+    pub async fn get_all_entries(self: Vc<Self>) -> Result<Vc<Modules>> {
         let mut modules = Vec::new();
 
         async fn add_endpoint(
             endpoint: Vc<Box<dyn Endpoint>>,
-            modules: &mut Vec<Vc<Box<dyn Module>>>,
+            modules: &mut Vec<ResolvedVc<Box<dyn Module>>>,
         ) -> Result<()> {
             let root_modules = endpoint.root_modules().await?;
-            modules.extend(root_modules.iter().map(|m| **m));
+            modules.extend(root_modules.iter().copied());
             Ok(())
         }
 
-        modules.extend(self.client_main_modules().await?.iter().map(|m| **m));
-        // modules.extend(&*self.client_main_modules().await?);
+        modules.extend(self.client_main_modules().await?.iter().copied());
 
         let entrypoints = self.entrypoints().await?;
 
-        modules.extend(self.client_main_modules().await?.iter().map(|m| **m));
+        modules.extend(self.client_main_modules().await?.iter().copied());
         add_endpoint(entrypoints.pages_error_endpoint, &mut modules).await?;
         add_endpoint(entrypoints.pages_app_endpoint, &mut modules).await?;
         add_endpoint(entrypoints.pages_document_endpoint, &mut modules).await?;
@@ -1370,14 +1369,8 @@ impl Project {
 
     #[turbo_tasks::function]
     pub async fn get_module_graph(self: Vc<Self>) -> Result<Vc<()>> {
-        let mut _single_module_graph = SingleModuleGraph::new_with_entries(
-            self.client_main_modules()
-                .await?
-                .iter()
-                .map(|m| **m)
-                .collect(),
-        )
-        .await?;
+        let mut _single_module_graph =
+            SingleModuleGraph::new_with_entries(self.client_main_modules()).await?;
 
         // dbg!(_single_module_graph);
 
