@@ -1,14 +1,20 @@
 use std::collections::{HashMap, HashSet};
 
 use anyhow::{Context, Result};
-use next_core::next_client_reference::{find_server_entries, ServerEntries};
+use next_core::{
+    mode::NextMode,
+    next_client_reference::{find_server_entries, ServerEntries},
+};
 use petgraph::graph::{DiGraph, NodeIndex};
 use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 use turbopack_core::{
     context::AssetContext, module::Module, reference::primary_referenced_modules,
 };
 
-use crate::dynamic_imports::{map_next_dynamic, DynamicImportsHashMap};
+use crate::{
+    dynamic_imports::{map_next_dynamic, DynamicImportsHashMap},
+    project::Project,
+};
 
 #[turbo_tasks::value(cell = "new", eq = "manual", into = "new")]
 #[derive(Clone, Debug, Default)]
@@ -24,6 +30,10 @@ pub struct SingleModuleGraphs(pub Vec<Vc<SingleModuleGraph>>);
 #[turbo_tasks::value(transparent)]
 #[derive(Clone, Debug)]
 pub struct ModuleSet(pub HashSet<Vc<Box<dyn Module>>>);
+
+#[turbo_tasks::value(transparent)]
+#[derive(Clone, Debug)]
+pub struct UnresolvedModules(pub Vec<Vc<Box<dyn Module>>>);
 
 #[turbo_tasks::value_impl]
 impl SingleModuleGraph {
@@ -227,14 +237,17 @@ pub async fn get_reduced_graphs_for_page(
     rsc_entry: Vc<Box<dyn Module>>,
     // TODO instead do that later on per-page traversal
     client_asset_context: Vc<Box<dyn AssetContext>>,
+    project: Vc<Project>,
 ) -> Result<Vc<ReducedGraphs>> {
+    let graphs = match &*project.next_mode().await? {
+        NextMode::Development => get_module_graph_for_page(rsc_entry).await?.0,
+        NextMode::Build => vec![create_module_graph_for_entries(project.get_all_entries())],
+    };
     // if production
     //   // ignore rsc_entry
     //   let graphs = create_module_graph_for_entries(project.get_all_entries())
     // else
     //
-    let graphs = get_module_graph_for_page(rsc_entry).await?.0;
-
     let next_dynamic = graphs
         .iter()
         .map(|graph| NextDynamicGraph::new_with_entries(*graph, client_asset_context).to_resolved())
@@ -242,4 +255,12 @@ pub async fn get_reduced_graphs_for_page(
         .await?;
 
     Ok(ReducedGraphs { next_dynamic }.cell())
+}
+
+#[turbo_tasks::function]
+pub async fn create_module_graph_for_entries(
+    entries: Vc<UnresolvedModules>,
+) -> Result<Vc<SingleModuleGraph>> {
+    let entries = (*entries.await?).clone();
+    Ok(SingleModuleGraph::new_with_entries(entries))
 }

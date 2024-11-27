@@ -47,7 +47,7 @@ use turbopack_core::{
     diagnostics::DiagnosticExt,
     file_source::FileSource,
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
-    module::Modules,
+    module::{Module, Modules},
     output::{OutputAsset, OutputAssets},
     resolve::{find_context_file, FindContextFileResult},
     source_map::OptionSourceMap,
@@ -67,7 +67,7 @@ use crate::{
     global_module_id_strategy::GlobalModuleIdStrategyBuilder,
     instrumentation::InstrumentationEndpoint,
     middleware::MiddlewareEndpoint,
-    module_graph::SingleModuleGraph,
+    module_graph::{SingleModuleGraph, UnresolvedModules},
     pages::PagesProject,
     route::{Endpoint, Route},
     versioned_content_map::{OutputAssetsOperation, VersionedContentMap},
@@ -660,6 +660,73 @@ impl Project {
     #[turbo_tasks::function]
     pub(super) fn client_compile_time_info(&self) -> Vc<CompileTimeInfo> {
         get_client_compile_time_info(self.browserslist_query.clone(), self.define_env.client())
+    }
+
+    #[turbo_tasks::function]
+    pub async fn get_all_entries(self: Vc<Self>) -> Result<Vc<UnresolvedModules>> {
+        let mut modules = Vec::new();
+
+        async fn add_endpoint(
+            endpoint: Vc<Box<dyn Endpoint>>,
+            modules: &mut Vec<Vc<Box<dyn Module>>>,
+        ) -> Result<()> {
+            let root_modules = endpoint.root_modules().await?;
+            modules.extend(root_modules.iter().map(|m| **m));
+            Ok(())
+        }
+
+        modules.extend(self.client_main_modules().await?.iter().map(|m| **m));
+        // modules.extend(&*self.client_main_modules().await?);
+
+        let entrypoints = self.entrypoints().await?;
+
+        modules.extend(self.client_main_modules().await?.iter().map(|m| **m));
+        add_endpoint(entrypoints.pages_error_endpoint, &mut modules).await?;
+        add_endpoint(entrypoints.pages_app_endpoint, &mut modules).await?;
+        add_endpoint(entrypoints.pages_document_endpoint, &mut modules).await?;
+
+        if let Some(middleware) = &entrypoints.middleware {
+            add_endpoint(middleware.endpoint, &mut modules).await?;
+        }
+
+        if let Some(instrumentation) = &entrypoints.instrumentation {
+            let node_js = instrumentation.node_js;
+            let edge = instrumentation.edge;
+            add_endpoint(node_js, &mut modules).await?;
+            add_endpoint(edge, &mut modules).await?;
+        }
+
+        for (_, route) in entrypoints.routes.iter() {
+            match route {
+                Route::Page {
+                    html_endpoint,
+                    data_endpoint,
+                } => {
+                    add_endpoint(*html_endpoint, &mut modules).await?;
+                    add_endpoint(*data_endpoint, &mut modules).await?;
+                }
+                Route::PageApi { endpoint } => {
+                    add_endpoint(*endpoint, &mut modules).await?;
+                }
+                Route::AppPage(page_routes) => {
+                    for page_route in page_routes {
+                        add_endpoint(page_route.html_endpoint, &mut modules).await?;
+                        add_endpoint(page_route.rsc_endpoint, &mut modules).await?;
+                    }
+                }
+                Route::AppRoute {
+                    original_name: _,
+                    endpoint,
+                } => {
+                    add_endpoint(*endpoint, &mut modules).await?;
+                }
+                Route::Conflict => {
+                    tracing::info!("WARN: conflict");
+                }
+            }
+        }
+
+        Ok(Vc::cell(modules))
     }
 
     #[turbo_tasks::function]
