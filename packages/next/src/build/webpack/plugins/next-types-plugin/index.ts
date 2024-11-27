@@ -689,8 +689,8 @@ declare module 'next/cache' {
   export {
     revalidateTag,
     revalidatePath,
-    expireTag,
-    expirePath,
+    unstable_expireTag,
+    unstable_expirePath,
   } from 'next/dist/server/web/spec-extension/revalidate'
   export { unstable_noStore } from 'next/dist/server/web/spec-extension/unstable-no-store'
 
