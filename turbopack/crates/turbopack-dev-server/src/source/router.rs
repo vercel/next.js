@@ -66,7 +66,7 @@ async fn get_introspection_children(
             .map(|(path, source)| async move {
                 Ok(ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(source)
                     .await?
-                    .map(|i| (Vc::cell(path), i)))
+                    .map(|i| (Vc::cell(path), *i)))
             })
             .try_join()
             .await?
@@ -108,7 +108,9 @@ impl ContentSource for PrefixedRouterContentSource {
         Ok(Vc::<RouteTrees>::cell(
             inner_trees
                 .chain(once(self.fallback.get_routes()))
-                .collect(),
+                .map(|v| async move { v.to_resolved().await })
+                .try_join()
+                .await?,
         )
         .merge())
     }
