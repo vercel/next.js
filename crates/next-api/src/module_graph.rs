@@ -5,7 +5,10 @@ use next_core::{
     mode::NextMode,
     next_client_reference::{find_server_entries, ServerEntries},
 };
-use petgraph::graph::{DiGraph, NodeIndex};
+use petgraph::{
+    graph::{DiGraph, NodeIndex},
+    visit::Dfs,
+};
 use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 use turbopack_core::{
     context::AssetContext,
@@ -24,10 +27,6 @@ pub struct SingleModuleGraph {
     #[turbo_tasks(trace_ignore)]
     pub graph: DiGraph<ResolvedVc<Box<dyn Module>>, ()>,
 }
-
-#[turbo_tasks::value(transparent)]
-#[derive(Clone, Debug)]
-pub struct SingleModuleGraphs(pub Vec<ResolvedVc<SingleModuleGraph>>);
 
 #[turbo_tasks::value(transparent)]
 #[derive(Clone, Debug)]
@@ -104,14 +103,9 @@ impl SingleModuleGraph {
     }
 }
 
-pub async fn get_module_graph_for_page(
+async fn get_module_graph_for_page(
     rsc_entry: Vc<Box<dyn Module>>,
-) -> Result<SingleModuleGraphs> {
-    // TODO
-    // if is_production() {
-    //    return the one graph for the whole app
-    // }
-
+) -> Result<Vec<ResolvedVc<SingleModuleGraph>>> {
     let ServerEntries {
         server_utils,
         server_component_entries,
@@ -141,20 +135,28 @@ pub async fn get_module_graph_for_page(
         graphs.push(graph);
     }
 
-    Ok(SingleModuleGraphs(graphs))
+    Ok(graphs)
+}
+
+#[turbo_tasks::function]
+async fn get_module_graph_for_app(entries: Vc<Modules>) -> Vc<SingleModuleGraph> {
+    SingleModuleGraph::new_with_entries(entries)
 }
 
 #[turbo_tasks::value]
 pub struct NextDynamicGraph {
+    is_single_page: bool,
     graph: ResolvedVc<SingleModuleGraph>,
     /// RSC/SSR importer -> dynamic imports (specifier and client module)
     data: ResolvedVc<DynamicImportsHashMap>,
 }
+
 #[turbo_tasks::value_impl]
 impl NextDynamicGraph {
     #[turbo_tasks::function]
     pub async fn new_with_entries(
         graph: ResolvedVc<SingleModuleGraph>,
+        is_single_page: bool,
         client_asset_context: Vc<Box<dyn AssetContext>>,
     ) -> Result<Vc<Self>> {
         let mapped = map_next_dynamic(*graph, client_asset_context);
@@ -183,21 +185,42 @@ impl NextDynamicGraph {
         // }
 
         Ok(NextDynamicGraph {
+            is_single_page,
             graph,
             data: mapped.to_resolved().await?,
         }
         .cell())
     }
+
     #[turbo_tasks::function]
     pub async fn get_next_dynamic_imports_for_page(
         &self,
-        _rsc_entry: Vc<Box<dyn Module>>,
+        rsc_entry: ResolvedVc<Box<dyn Module>>,
     ) -> Result<Vc<DynamicImportsHashMap>> {
-        // TODO
-        // if production {
-        //    return walk graph and return relevant nodes to this page
-        // }
-        Ok(*self.data)
+        if self.is_single_page {
+            // No need to traverse and collect (filter) just the imports for that single page
+            Ok(*self.data)
+        } else {
+            let graph = &self.graph.await?.graph;
+            let data = &self.data.await?;
+
+            // TODO store a map for the entries somewhere
+            let rsc_entry_node = graph
+                .node_indices()
+                .find(|idx| *graph.node_weight(*idx).unwrap() == rsc_entry)
+                .unwrap();
+            let mut dfs = Dfs::new(&graph, rsc_entry_node);
+
+            let mut result = HashMap::new();
+            while let Some(nx) = dfs.next(&graph) {
+                let weight = *graph.node_weight(nx).unwrap();
+                if let Some(node_data) = data.get(&weight) {
+                    result.insert(weight, node_data.clone());
+                }
+            }
+
+            Ok(Vc::cell(result))
+        }
     }
 }
 
@@ -205,7 +228,7 @@ impl NextDynamicGraph {
 // In prod, a graph contaning everything in the whole app
 #[turbo_tasks::value]
 pub struct ReducedGraphs {
-    pub next_dynamic: Vec<ResolvedVc<NextDynamicGraph>>,
+    next_dynamic: Vec<ResolvedVc<NextDynamicGraph>>,
     // TODO add other graphs
 }
 
@@ -242,33 +265,26 @@ pub async fn get_reduced_graphs_for_page(
     client_asset_context: Vc<Box<dyn AssetContext>>,
     project: Vc<Project>,
 ) -> Result<Vc<ReducedGraphs>> {
-    let graphs = match &*project.next_mode().await? {
-        NextMode::Development => get_module_graph_for_page(rsc_entry).await?.0,
-        NextMode::Build => vec![
-            create_module_graph_for_entries(project.get_all_entries())
-                .to_resolved()
-                .await?,
-        ],
+    let (is_single_page, graphs) = match &*project.next_mode().await? {
+        NextMode::Development => (true, get_module_graph_for_page(rsc_entry).await?),
+        NextMode::Build => (
+            false,
+            vec![
+                get_module_graph_for_app(project.get_all_entries())
+                    .to_resolved()
+                    .await?,
+            ],
+        ),
     };
-    // if production
-    //   // ignore rsc_entry
-    //   let graphs = create_module_graph_for_entries(project.get_all_entries())
-    // else
-    //
+
     let next_dynamic = graphs
         .iter()
         .map(|graph| {
-            NextDynamicGraph::new_with_entries(**graph, client_asset_context).to_resolved()
+            NextDynamicGraph::new_with_entries(**graph, is_single_page, client_asset_context)
+                .to_resolved()
         })
         .try_join()
         .await?;
 
     Ok(ReducedGraphs { next_dynamic }.cell())
-}
-
-#[turbo_tasks::function]
-pub async fn create_module_graph_for_entries(
-    entries: Vc<Modules>,
-) -> Result<Vc<SingleModuleGraph>> {
-    Ok(SingleModuleGraph::new_with_entries(entries))
 }
