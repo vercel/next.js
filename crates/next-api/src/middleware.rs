@@ -36,9 +36,9 @@ use crate::{
 
 #[turbo_tasks::value]
 pub struct MiddlewareEndpoint {
-    project: Vc<Project>,
-    asset_context: Vc<Box<dyn AssetContext>>,
-    source: Vc<Box<dyn Source>>,
+    project: ResolvedVc<Project>,
+    asset_context: ResolvedVc<Box<dyn AssetContext>>,
+    source: ResolvedVc<Box<dyn Source>>,
     app_dir: Option<ResolvedVc<FileSystemPath>>,
     ecmascript_client_reference_transition_name: Option<ResolvedVc<RcStr>>,
 }
