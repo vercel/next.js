@@ -1216,12 +1216,13 @@ impl PageEndpoint {
                     server_assets.push(ResolvedVc::upcast(middleware_manifest_v2));
                 }
 
-                let loadable_manifest_output = self.react_loadable_manifest(dynamic_import_entries);
+                let loadable_manifest_output =
+                    self.react_loadable_manifest(*dynamic_import_entries);
                 server_assets.extend(loadable_manifest_output.await?.iter().copied());
 
                 PageEndpointOutput::Edge {
                     files,
-                    server_assets: Vc::cell(server_assets),
+                    server_assets: ResolvedVc::cell(server_assets),
                     client_assets,
                 }
             }
@@ -1395,7 +1396,7 @@ impl PageEndpointOutput {
     pub fn server_assets(&self) -> Vc<OutputAssets> {
         match *self {
             PageEndpointOutput::NodeJs { server_assets, .. }
-            | PageEndpointOutput::Edge { server_assets, .. } => server_assets,
+            | PageEndpointOutput::Edge { server_assets, .. } => *server_assets,
         }
     }
 
@@ -1403,7 +1404,7 @@ impl PageEndpointOutput {
     pub fn client_assets(&self) -> Vc<OutputAssets> {
         match *self {
             PageEndpointOutput::NodeJs { client_assets, .. }
-            | PageEndpointOutput::Edge { client_assets, .. } => client_assets,
+            | PageEndpointOutput::Edge { client_assets, .. } => *client_assets,
         }
     }
 }
