@@ -755,11 +755,11 @@ enum AppPageEndpointType {
 enum AppEndpointType {
     Page {
         ty: AppPageEndpointType,
-        loader_tree: Vc<AppPageLoaderTree>,
+        loader_tree: ResolvedVc<AppPageLoaderTree>,
     },
     Route {
-        path: Vc<FileSystemPath>,
-        root_layouts: Vc<FileSystemPathVec>,
+        path: ResolvedVc<FileSystemPath>,
+        root_layouts: ResolvedVc<FileSystemPathVec>,
     },
     Metadata {
         metadata: MetadataItem,
