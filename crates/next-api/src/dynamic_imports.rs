@@ -284,15 +284,16 @@ pub async fn map_next_dynamic(
         .enumerate_nodes()
         .map(|(_, module)| {
             async move {
-                let is_ssr = match module.ident().await?.layer {
+                let is_browser = match module.ident().await?.layer {
                     Some(layer) => {
                         // TODO: compare module contexts instead?
                         let layer = &*layer.await?;
-                        layer == "app-rsc" || layer == "app-ssr"
+                        layer == "app-client" || layer == "client"
                     }
                     None => false,
                 };
-                if is_ssr {
+                // Only collect in RSC and SSR
+                if !is_browser {
                     if let Some(v) =
                         &*build_dynamic_imports_map_for_module(client_asset_context, *module)
                             .await?
