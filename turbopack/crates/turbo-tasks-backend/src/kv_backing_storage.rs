@@ -604,6 +604,7 @@ fn process_task_data<'a, B: ConcurrentWriteBatch<'a> + Send + Sync>(
                 // Restore the old task data, apply the updates and serialize the new data
                 let mut tasks = Vec::with_capacity(task_updates.len());
                 let mut map = FxHashMap::with_capacity_and_hasher(128, Default::default());
+                let mut data = Vec::with_capacity(128);
                 for (task, updates) in task_updates {
                     // Restore the old task data
                     if let Some(old_data) =
@@ -622,27 +623,43 @@ fn process_task_data<'a, B: ConcurrentWriteBatch<'a> + Send + Sync>(
                                 anyhow!("Unable to deserialize old value of {task}: {old_data:?}")
                             })?,
                         };
+
+                        // Reserve capacity to avoid rehashing later
+                        let needed_capacity = old_data.len() + updates.len();
+                        if map.capacity() < needed_capacity {
+                            map.reserve(needed_capacity - map.capacity());
+                        }
                         map.extend(old_data.into_iter().map(|item| item.into_key_and_value()));
                         restored_tasks += 1;
                     }
 
-                    // Apply update
-                    for (key, (_, value)) in updates {
-                        if let Some(value) = value {
-                            map.insert(key, value);
-                        } else {
-                            map.remove(&key);
+                    // Fast path when we don't need to merge updates
+                    if !map.is_empty() {
+                        updates
+                            .into_iter()
+                            .flat_map(|(key, (_, value))| {
+                                value.map(|value| CachedDataItem::from_key_and_value(key, value))
+                            })
+                            .collect_into(&mut data);
+                    } else {
+                        // Apply update
+                        for (key, (_, value)) in updates {
+                            if let Some(value) = value {
+                                map.insert(key, value);
+                            } else {
+                                map.remove(&key);
+                            }
                         }
+
+                        // Get new data
+                        map.drain()
+                            .map(|(key, value)| CachedDataItem::from_key_and_value(key, value))
+                            .collect_into(&mut data);
                     }
 
-                    // Get new data
-                    let data = map
-                        .drain()
-                        .map(|(key, value)| CachedDataItem::from_key_and_value(key, value))
-                        .collect::<Vec<_>>();
-
                     // Serialize new data
-                    let value = serialize(task, data)?;
+                    let value = serialize(task, &mut data)?;
+                    data.clear();
 
                     if let Some(batch) = batch {
                         batch.put(
@@ -663,7 +680,7 @@ fn process_task_data<'a, B: ConcurrentWriteBatch<'a> + Send + Sync>(
         .collect::<Result<Vec<_>>>()
 }
 
-fn serialize(task: TaskId, mut data: Vec<CachedDataItem>) -> Result<Vec<u8>> {
+fn serialize(task: TaskId, data: &mut Vec<CachedDataItem>) -> Result<Vec<u8>> {
     Ok(match POT_CONFIG.serialize(&data) {
         #[cfg(not(feature = "verify_serialization"))]
         Ok(value) => value,
