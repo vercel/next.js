@@ -197,7 +197,7 @@ pub struct Instrumentation {
 pub struct ProjectContainer {
     name: RcStr,
     options_state: State<Option<ProjectOptions>>,
-    versioned_content_map: Option<Vc<VersionedContentMap>>,
+    versioned_content_map: Option<ResolvedVc<VersionedContentMap>>,
 }
 
 #[turbo_tasks::value_impl]

@@ -80,7 +80,7 @@ use crate::{
 
 #[turbo_tasks::value]
 pub struct PagesProject {
-    project: Vc<Project>,
+    project: ResolvedVc<Project>,
 }
 
 #[turbo_tasks::value_impl]
@@ -598,11 +598,11 @@ impl PagesProject {
 #[turbo_tasks::value]
 struct PageEndpoint {
     ty: PageEndpointType,
-    pages_project: Vc<PagesProject>,
-    pathname: Vc<RcStr>,
-    original_name: Vc<RcStr>,
-    page: Vc<PagesStructureItem>,
-    pages_structure: Vc<PagesStructure>,
+    pages_project: ResolvedVc<PagesProject>,
+    pathname: ResolvedVc<RcStr>,
+    original_name: ResolvedVc<RcStr>,
+    page: ResolvedVc<PagesStructureItem>,
+    pages_structure: ResolvedVc<PagesStructure>,
 }
 
 #[derive(
@@ -1359,13 +1359,13 @@ impl Endpoint for PageEndpoint {
 enum PageEndpointOutput {
     NodeJs {
         entry_chunk: ResolvedVc<Box<dyn OutputAsset>>,
-        server_assets: Vc<OutputAssets>,
-        client_assets: Vc<OutputAssets>,
+        server_assets: ResolvedVc<OutputAssets>,
+        client_assets: ResolvedVc<OutputAssets>,
     },
     Edge {
-        files: Vc<OutputAssets>,
-        server_assets: Vc<OutputAssets>,
-        client_assets: Vc<OutputAssets>,
+        files: ResolvedVc<OutputAssets>,
+        server_assets: ResolvedVc<OutputAssets>,
+        client_assets: ResolvedVc<OutputAssets>,
     },
 }
 
@@ -1405,11 +1405,11 @@ impl PageEndpointOutput {
 pub enum SsrChunk {
     NodeJs {
         entry: ResolvedVc<Box<dyn OutputAsset>>,
-        dynamic_import_entries: Vc<DynamicImportedChunks>,
+        dynamic_import_entries: ResolvedVc<DynamicImportedChunks>,
         server_asset_trace_file: ResolvedVc<OptionOutputAsset>,
     },
     Edge {
-        files: Vc<OutputAssets>,
-        dynamic_import_entries: Vc<DynamicImportedChunks>,
+        files: ResolvedVc<OutputAssets>,
+        dynamic_import_entries: ResolvedVc<DynamicImportedChunks>,
     },
 }
