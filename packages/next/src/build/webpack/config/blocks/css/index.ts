@@ -256,18 +256,22 @@ export const css = curry(async function css(
   const shouldIncludeExternalCSSImports =
     !!ctx.experimental.craCompat || !!ctx.transpilePackages
 
-  // CSS modules & SASS modules support. They are allowed to be imported in anywhere.
+  /**
+   * CSS modules & SASS modules support.
+   * They are allowed to be imported in anywhere.
+   * CSS Modules must NOT be restricted by package.json `sideEffects` due to a webpack bug.
+   * See https://github.com/webpack/webpack/issues/7094.
+   * Allows for unused stylesheets to be excluded from production builds.
+   */
   fns.push(
-    // CSS Modules should never have side effects. This setting will
-    // allow unused CSS to be removed from the production build.
-    // We ensure this by disallowing `:global()` CSS at the top-level
-    // via the `pure` mode in `css-loader`.
+    /**
+     * CSS Modules
+     */
     loader({
       oneOf: [
         // For app dir, we need to match the specific app layer.
         ctx.hasAppDir
           ? markRemovable({
-              sideEffects: true,
               test: regexCssModules,
               issuerLayer: APP_LAYER_RULE,
               use: [
@@ -287,7 +291,6 @@ export const css = curry(async function css(
             })
           : null,
         markRemovable({
-          sideEffects: true,
           test: regexCssModules,
           issuerLayer: PAGES_LAYER_RULE,
           use: getCssModuleLoader(
@@ -297,17 +300,14 @@ export const css = curry(async function css(
         }),
       ].filter(nonNullable),
     }),
-    // Opt-in support for Sass (using .scss or .sass extensions).
-    // Sass Modules should never have side effects. This setting will
-    // allow unused Sass to be removed from the production build.
-    // We ensure this by disallowing `:global()` Sass at the top-level
-    // via the `pure` mode in `css-loader`.
+    /**
+     * Sass Modules (.scss or .sass)
+     */
     loader({
       oneOf: [
         // For app dir, we need to match the specific app layer.
         ctx.hasAppDir
           ? markRemovable({
-              sideEffects: true,
               test: regexSassModules,
               issuerLayer: APP_LAYER_RULE,
               use: [
@@ -328,7 +328,6 @@ export const css = curry(async function css(
             })
           : null,
         markRemovable({
-          sideEffects: true,
           test: regexSassModules,
           issuerLayer: PAGES_LAYER_RULE,
           use: getCssModuleLoader(

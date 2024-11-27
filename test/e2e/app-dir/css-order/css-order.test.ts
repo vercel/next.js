@@ -136,7 +136,6 @@ const PAGES: Record<
     selector: '#hello3',
     color: 'rgb(0, 128, 128)',
   },
-
   'pages-interleaved-a': {
     group: 'pages-interleaved',
     brokenLoadingDev: true,
@@ -205,6 +204,210 @@ const PAGES: Record<
   },
 }
 
+const SIDE_EFFECTS_PAGES: Record<
+  string,
+  {
+    url: string
+    selector: string
+    color: string
+    background?: string
+    skip?: Array<'turbo' | 'loose' | 'strict'>
+  }
+> = {
+  'vendor-side-effects-array': {
+    url: '/vendor/a',
+    selector: '#vendor-side-effects-array',
+    background: 'rgb(0, 254, 0)',
+    color: 'rgb(254, 0, 0)',
+    /**
+     * TURBOPACK: This should be supported by turbo but does not appear to be today,
+     * because the emitted rules are not in the correct order when this is set.
+     * Results are inconsistent so we cannot reliably test against without
+     * removing this skip...
+     */
+    skip: ['turbo'],
+  },
+  'vendor-side-effects-array-client': {
+    url: '/vendor/e',
+    selector: '#vendor-side-effects-array-client',
+    background: 'rgb(254, 254, 0)',
+    color: 'rgb(254, 254, 0)',
+    /**
+     * TURBOPACK: This should be supported by turbo but does not appear to be today,
+     * because the emitted rules are not in the correct order when this is set.
+     * Results are inconsistent so we cannot reliably test against without
+     * removing this skip...
+     */
+    skip: ['turbo'],
+  },
+  'vendor-side-effects-array-server-client': {
+    url: '/vendor/f',
+    selector: '#vendor-side-effects-array-server-client-subcomponent',
+    background: 'rgb(0, 254, 0)',
+    color: 'rgb(254, 0, 0)',
+    /**
+     * TURBOPACK: This should be supported by turbo but does not appear to be today,
+     * because the emitted rules are not in the correct order when this is set.
+     * Results are inconsistent so we cannot reliably test against without
+     * removing this skip...
+     */
+    skip: ['turbo'],
+  },
+  'vendor-side-effects-true': {
+    url: '/vendor/b',
+    selector: '#vendor-side-effects-true',
+    background: 'rgb(0, 253, 0)',
+    color: 'rgb(253, 0, 0)',
+  },
+  'vendor-side-effects-true-client': {
+    url: '/vendor/g',
+    selector: '#vendor-side-effects-true-client',
+    background: 'rgb(253, 253, 0)',
+    color: 'rgb(253, 253, 0)',
+  },
+  'vendor-side-effects-true-server-client': {
+    url: '/vendor/h',
+    selector: '#vendor-side-effects-true-server-client-subcomponent',
+    background: 'rgb(0, 253, 0)',
+    color: 'rgb(253, 0, 0)',
+  },
+  'vendor-side-effects-false': {
+    url: '/vendor/c',
+    selector: '#vendor-side-effects-false',
+    background: 'rgb(0, 252, 0)',
+    color: 'rgb(252, 0, 0)',
+    /**
+     * Turbopack has buttoned up a webpack bug.
+     * Packages *should* side-effect css modules, but webpack doesn't retain
+     * the proper import order context of css modules in libraries within
+     * node_modules when side-effects is set to true.
+     * Related webpack bug: https://github.com/webpack/webpack/issues/7094
+     */
+    skip: ['turbo'],
+  },
+  'vendor-side-effects-false-client': {
+    url: '/vendor/i',
+    selector: '#vendor-side-effects-false-client',
+    background: 'rgb(252, 252, 0)',
+    color: 'rgb(252, 252, 0)',
+    /**
+     * Turbopack has buttoned up a webpack bug.
+     * Packages *should* side-effect css modules, but webpack doesn't retain
+     * the proper import order context of css modules in libraries within
+     * node_modules when side-effects is set to true.
+     * Related webpack bug: https://github.com/webpack/webpack/issues/7094
+     */
+    skip: ['turbo'],
+  },
+  'vendor-side-effects-false-server-client': {
+    url: '/vendor/j',
+    selector: '#vendor-side-effects-false-server-client-subcomponent',
+    background: 'rgb(0, 253, 0)',
+    color: 'rgb(253, 0, 0)',
+    /**
+     * Turbopack has buttoned up a webpack bug.
+     * Packages *should* side-effect css modules, but webpack doesn't retain
+     * the proper import order context of css modules in libraries within
+     * node_modules when side-effects is set to true.
+     * Related webpack bug: https://github.com/webpack/webpack/issues/7094
+     */
+    skip: ['turbo'],
+  },
+  'vendor-side-effects-global-array': {
+    url: '/vendor/d',
+    selector: '#vendor-side-effects-global-array',
+    background: 'rgb(0, 250, 0)',
+    color: 'rgb(250, 0, 0)',
+    /**
+     * TURBOPACK: This should be supported by turbo but does not appear to be today,
+     * because the emitted rules are not in the correct order when this is set.
+     * Results are inconsistent so we cannot reliably test against without
+     * removing this skip...
+     */
+    skip: ['turbo'],
+  },
+  'vendor-side-effects-global-array-client': {
+    url: '/vendor/k',
+    selector: '#vendor-side-effects-global-array-client',
+    background: 'rgb(250, 250, 0)',
+    color: 'rgb(250, 250, 0)',
+    /**
+     * TURBOPACK: This should be supported by turbo but does not appear to be today,
+     * because the emitted rules are not in the correct order when this is set.
+     * Results are inconsistent so we cannot reliably test against without
+     * removing this skip...
+     */
+    skip: ['turbo'],
+  },
+  'vendor-side-effects-global-array-server-client': {
+    url: '/vendor/k',
+    selector: '#vendor-side-effects-global-array-server-client',
+    background: 'rgb(0, 250, 0)',
+    color: 'rgb(250, 0, 0)',
+    /**
+     * TURBOPACK: This should be supported by turbo but does not appear to be today,
+     * because the emitted rules are not in the correct order when this is set.
+     * Results are inconsistent so we cannot reliably test against without
+     * removing this skip...
+     */
+    skip: ['turbo'],
+  },
+  'pages-vendor-side-effects-array': {
+    url: 'pages/vendor/a',
+    selector: '#vendor-side-effects-array',
+    background: 'rgb(0, 254, 0)',
+    color: 'rgb(254, 0, 0)',
+    /**
+     * TURBOPACK: This should be supported by turbo but does not appear to be today,
+     * because the emitted rules are not in the correct order when this is set.
+     * Results are inconsistent so we cannot reliably test against without
+     * removing this skip...
+     *
+     * WEBPACK: css modules are inconsistent when included as sideEffects
+     * when not Boolean `true` or `false`
+     */
+    skip: ['turbo', 'loose', 'strict'],
+  },
+  'pages-vendor-side-effects-true': {
+    url: 'pages/vendor/b',
+    selector: '#vendor-side-effects-true',
+    background: 'rgb(0, 253, 0)',
+    color: 'rgb(253, 0, 0)',
+  },
+  'pages-vendor-side-effects-false': {
+    url: 'pages/vendor/c',
+    selector: '#vendor-side-effects-false',
+    /**
+     * with side-effects=false set in a library, global css no longer loads
+     * in the correct order.
+     * `background` assertions will be unstable in turbo AND webpack
+     */
+    // background: 'rgb(0, 252, 0),
+    color: 'rgb(252, 0, 0)',
+    /**
+     * Turbopack has buttoned up a webpack bug.
+     * Packages *should* side-effect css modules, but webpack doesn't retain
+     * the proper import order context of css modules in libraries within
+     * node_modules when side-effects is set to true.
+     * Related webpack bug: https://github.com/webpack/webpack/issues/7094
+     */
+    skip: ['turbo'],
+  },
+  'pages-vendor-side-effects-global-array': {
+    url: '/vendor/d',
+    selector: '#vendor-side-effects-global-array',
+    background: 'rgb(0, 250, 0)',
+    color: 'rgb(250, 0, 0)',
+    /**
+     * TURBOPACK: This should be supported by turbo but does not appear to be today,
+     * because the emitted rules are not in the correct order when this is set.
+     * Results are inconsistent so we cannot reliably test against without
+     * removing this skip...
+     */
+    skip: ['turbo'],
+  },
+}
+
 const allPairs = getPairs(Object.keys(PAGES))
 
 const options = (mode: string) => ({
@@ -226,6 +429,7 @@ const options = (mode: string) => ({
   },
   skipDeployment: true,
 })
+
 describe.each(process.env.TURBOPACK ? ['turbo'] : ['strict', 'loose'])(
   'css-order %s',
   (mode: string) => {
@@ -320,6 +524,14 @@ describe.each(process.env.TURBOPACK ? ['turbo'] : ['strict', 'loose'])(
               .waitForElementByCss(pageInfo.selector)
               .getComputedCss('color')
           ).toBe(pageInfo.color)
+
+          if (pageInfo.background) {
+            expect(
+              await browser
+                .waitForElementByCss(pageInfo.selector)
+                .getComputedCss('background-color')
+            ).toBe(pageInfo.background)
+          }
         }
         const navigate = async (page) => {
           await browser.waitForElementByCss('#' + page).click()
@@ -351,6 +563,43 @@ describe.each(process.env.TURBOPACK ? ['turbo'] : ['strict', 'loose'])(
             .waitForElementByCss(pageInfo.selector)
             .getComputedCss('color')
         ).toBe(pageInfo.color)
+        if (pageInfo.background) {
+          expect(
+            await browser
+              .waitForElementByCss(pageInfo.selector)
+              .getComputedCss('background-color')
+          ).toBe(pageInfo.background)
+        }
+        await browser.close()
+      })
+    }
+  }
+)
+
+describe.each(process.env.TURBOPACK ? ['turbo'] : ['strict', 'loose'])(
+  'css-order %s',
+  (mode: 'turbo' | 'strict' | 'loose') => {
+    const { next } = nextTestSetup(options(mode))
+    for (const [page, pageInfo] of Object.entries(SIDE_EFFECTS_PAGES)) {
+      const name = `should load correct styles on ${page}`
+      if (pageInfo.skip?.includes(mode)) {
+        // Allow skip for valid (and documented) reasons.
+        continue
+      }
+      it(name, async () => {
+        const browser = await next.browser(pageInfo.url)
+        expect(
+          await browser
+            .waitForElementByCss(pageInfo.selector)
+            .getComputedCss('color')
+        ).toBe(pageInfo.color)
+        if (pageInfo.background) {
+          expect(
+            await browser
+              .waitForElementByCss(pageInfo.selector)
+              .getComputedCss('background-color')
+          ).toBe(pageInfo.background)
+        }
         await browser.close()
       })
     }
