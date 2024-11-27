@@ -769,7 +769,7 @@ enum AppEndpointType {
 #[turbo_tasks::value]
 struct AppEndpoint {
     ty: AppEndpointType,
-    app_project: Vc<AppProject>,
+    app_project: ResolvedVc<AppProject>,
     page: AppPage,
 }
 
@@ -1708,13 +1708,13 @@ impl Endpoint for AppEndpoint {
 enum AppEndpointOutput {
     NodeJs {
         rsc_chunk: ResolvedVc<Box<dyn OutputAsset>>,
-        server_assets: Vc<OutputAssets>,
-        client_assets: Vc<OutputAssets>,
+        server_assets: ResolvedVc<OutputAssets>,
+        client_assets: ResolvedVc<OutputAssets>,
     },
     Edge {
-        files: Vc<OutputAssets>,
-        server_assets: Vc<OutputAssets>,
-        client_assets: Vc<OutputAssets>,
+        files: ResolvedVc<OutputAssets>,
+        server_assets: ResolvedVc<OutputAssets>,
+        client_assets: ResolvedVc<OutputAssets>,
     },
 }
 
