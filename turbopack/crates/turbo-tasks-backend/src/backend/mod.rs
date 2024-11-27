@@ -1,5 +1,6 @@
 pub mod indexed;
 mod operation;
+mod persisted_storage_log;
 mod storage;
 
 use std::{
@@ -43,6 +44,7 @@ use crate::{
             AggregationUpdateQueue, CleanupOldEdgesOperation, ConnectChildOperation,
             ExecuteContext, ExecuteContextImpl, Operation, OutdatedEdge, TaskDirtyCause, TaskGuard,
         },
+        persisted_storage_log::PersistedStorageLog,
         storage::{get, get_many, get_mut, iter_many, remove, Storage},
     },
     backing_storage::BackingStorage,
@@ -133,7 +135,6 @@ impl Default for BackendOptions {
 pub struct TurboTasksBackend<B: BackingStorage>(Arc<TurboTasksBackendInner<B>>);
 
 type TaskCacheLog = Sharded<ChunkedVec<(Arc<CachedTaskType>, TaskId)>>;
-type StorageLog = Sharded<ChunkedVec<CachedDataUpdate>>;
 
 struct TurboTasksBackendInner<B: BackingStorage> {
     options: BackendOptions,
@@ -148,8 +149,8 @@ struct TurboTasksBackendInner<B: BackingStorage> {
     task_cache: BiMap<Arc<CachedTaskType>, TaskId>,
     transient_tasks: DashMap<TaskId, Arc<TransientTask>, BuildHasherDefault<FxHasher>>,
 
-    persisted_storage_data_log: Option<StorageLog>,
-    persisted_storage_meta_log: Option<StorageLog>,
+    persisted_storage_data_log: Option<PersistedStorageLog>,
+    persisted_storage_meta_log: Option<PersistedStorageLog>,
     storage: Storage<TaskId, CachedDataItem>,
 
     /// Number of executing operations + Highest bit is set when snapshot is
@@ -207,8 +208,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             persisted_task_cache_log: need_log.then(|| Sharded::new(shard_amount)),
             task_cache: BiMap::new(),
             transient_tasks: DashMap::default(),
-            persisted_storage_data_log: need_log.then(|| Sharded::new(shard_amount)),
-            persisted_storage_meta_log: need_log.then(|| Sharded::new(shard_amount)),
+            persisted_storage_data_log: need_log.then(|| PersistedStorageLog::new(shard_amount)),
+            persisted_storage_meta_log: need_log.then(|| PersistedStorageLog::new(shard_amount)),
             storage: Storage::new(),
             in_progress_operations: AtomicUsize::new(0),
             snapshot_request: Mutex::new(SnapshotRequest::new()),
@@ -312,10 +313,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
     }
 
-    fn persisted_storage_log(
-        &self,
-        category: TaskDataCategory,
-    ) -> Option<&Sharded<ChunkedVec<CachedDataUpdate>>> {
+    fn persisted_storage_log(&self, category: TaskDataCategory) -> Option<&PersistedStorageLog> {
         match category {
             TaskDataCategory::Data => &self.persisted_storage_data_log,
             TaskDataCategory::Meta => &self.persisted_storage_meta_log,
@@ -696,12 +694,16 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             .map(|op| op.arc().clone())
             .collect::<Vec<_>>();
         drop(snapshot_request);
-        fn take_from_log<T: Default>(log: &Option<Sharded<T>>) -> Vec<T> {
+        fn take_from_log(log: &Option<PersistedStorageLog>) -> Vec<ChunkedVec<CachedDataUpdate>> {
             log.as_ref().map(|l| l.take()).unwrap_or_default()
         }
         let persisted_storage_meta_log = take_from_log(&self.persisted_storage_meta_log);
         let persisted_storage_data_log = take_from_log(&self.persisted_storage_data_log);
-        let persisted_task_cache_log = take_from_log(&self.persisted_task_cache_log);
+        let persisted_task_cache_log = self
+            .persisted_task_cache_log
+            .as_ref()
+            .map(|l| l.take())
+            .unwrap_or_default();
         let mut snapshot_request = self.snapshot_request.lock();
         snapshot_request.snapshot_requested = false;
         self.in_progress_operations
