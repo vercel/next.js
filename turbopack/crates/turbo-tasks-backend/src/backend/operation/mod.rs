@@ -623,13 +623,10 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
             .filter_map(|(key, value)| match (key, value) {
                 (CachedDataItemKey::CellData { cell }, CachedDataItemValue::CellData { value }) => {
                     count += 1;
-                    Some((
-                        CachedDataItemKey::CellData { cell: *cell },
-                        None,
-                        Some(CachedDataItemValue::CellData {
-                            value: value.clone(),
-                        }),
-                    ))
+                    Some(CachedDataItem::CellData {
+                        cell: *cell,
+                        value: value.clone(),
+                    })
                 }
                 _ => None,
             });
@@ -637,7 +634,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
             self.backend
                 .persisted_storage_log(TaskDataCategory::Data)
                 .unwrap()
-                .push_batch(self.task_id, cell_data);
+                .push_batch_insert(self.task_id, cell_data);
             self.task
                 .persistance_state_mut()
                 .add_persisting_items(count);

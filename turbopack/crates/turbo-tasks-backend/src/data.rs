@@ -693,10 +693,15 @@ impl CachedDataItemValue {
 }
 
 #[derive(Debug)]
-pub struct CachedDataUpdate {
-    pub task: TaskId,
-    // TODO generate CachedDataItemUpdate to avoid repeating the variant field 3 times
-    pub key: CachedDataItemKey,
-    pub value: Option<CachedDataItemValue>,
-    pub old_value: Option<CachedDataItemValue>,
+pub enum CachedDataUpdate {
+    /// Sets the current task id.
+    Task { task: TaskId },
+    /// An item was added. There was no old value.
+    New { item: CachedDataItem },
+    /// An item was removed.
+    Removed { old_item: CachedDataItem },
+    /// An item was replaced. This is step 1 and tells about the key and the old value
+    Replace1 { old_item: CachedDataItem },
+    /// An item was replaced. This is step 2 and tells about the new value.
+    Replace2 { value: CachedDataItemValue },
 }

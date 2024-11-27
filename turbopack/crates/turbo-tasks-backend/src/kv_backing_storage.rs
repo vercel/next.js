@@ -555,21 +555,86 @@ fn process_task_data<'a, B: ConcurrentWriteBatch<'a> + Send + Sync>(
                     )
                     .entered();
 
+                    // The store the last task data and the last value as pointers to avoid looking
+                    // them up in the map again. Everytime we modify the map the pointers are
+                    // updated, so we never have a dangling pointer.
+                    let mut current_task_data: Option<
+                        *mut FxHashMap<
+                            CachedDataItemKey,
+                            (Option<CachedDataItemValue>, Option<CachedDataItemValue>),
+                        >,
+                    > = None;
+                    let mut last_value: Option<*mut (
+                        Option<CachedDataItemValue>,
+                        Option<CachedDataItemValue>,
+                    )> = None;
+
                     // Organize the updates by task
-                    for CachedDataUpdate {
-                        task,
-                        key,
-                        value,
-                        old_value,
-                    } in updates.into_iter()
-                    {
-                        let data = task_updates.entry(task).or_default();
-                        match data.entry(key) {
-                            Entry::Occupied(mut entry) => {
-                                entry.get_mut().1 = value;
+                    for update in updates.into_iter() {
+                        match update {
+                            CachedDataUpdate::Task { task } => {
+                                current_task_data = Some(task_updates.entry(task).or_default())
                             }
-                            Entry::Vacant(entry) => {
-                                entry.insert((old_value, value));
+                            CachedDataUpdate::New { item } => {
+                                let data = current_task_data
+                                    .expect("Task update must be before data updates");
+                                // Safety: task_updates are not modified while we hold this pointer.
+                                // We update the pointer every time we update the map.
+                                let data = unsafe { &mut *data };
+                                let (key, new_value) = item.into_key_and_value();
+                                match data.entry(key) {
+                                    Entry::Occupied(mut entry) => {
+                                        let entry = entry.get_mut();
+                                        entry.1 = Some(new_value);
+                                        last_value = Some(entry);
+                                    }
+                                    Entry::Vacant(entry) => {
+                                        last_value = Some(entry.insert((None, Some(new_value))));
+                                    }
+                                }
+                            }
+                            CachedDataUpdate::Removed { old_item } => {
+                                let data = current_task_data
+                                    .expect("Task update must be before data updates");
+                                // Safety: task_updates are not modified while we hold this pointer.
+                                // We update the pointer every time we update the map.
+                                let data = unsafe { &mut *data };
+                                let (key, old_value) = old_item.into_key_and_value();
+                                match data.entry(key) {
+                                    Entry::Occupied(mut entry) => {
+                                        let entry = entry.get_mut();
+                                        entry.1 = None;
+                                        last_value = Some(entry);
+                                    }
+                                    Entry::Vacant(entry) => {
+                                        last_value = Some(entry.insert((Some(old_value), None)));
+                                    }
+                                }
+                            }
+                            CachedDataUpdate::Replace1 { old_item } => {
+                                let data = current_task_data
+                                    .expect("Task update must be before data updates");
+                                // Safety: task_updates are not modified while we hold this pointer.
+                                // We update the pointer every time we update the map.
+                                let data = unsafe { &mut *data };
+                                let (key, old_value) = old_item.into_key_and_value();
+                                match data.entry(key) {
+                                    Entry::Occupied(mut entry) => {
+                                        last_value = Some(entry.get_mut());
+                                    }
+                                    Entry::Vacant(entry) => {
+                                        last_value = Some(entry.insert((Some(old_value), None)));
+                                    }
+                                }
+                            }
+                            CachedDataUpdate::Replace2 { value: new_value } => {
+                                let last_value =
+                                    last_value.expect("Task update must be before data updates");
+                                // Safety: the inner map of task_updates is not modified while we
+                                // hold this pointer. We update the
+                                // pointer every time we update the map.
+                                let last_value = unsafe { &mut *last_value };
+                                last_value.1 = Some(new_value);
                             }
                         }
                     }

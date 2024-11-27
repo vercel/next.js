@@ -702,7 +702,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let persisted_task_cache_log = self
             .persisted_task_cache_log
             .as_ref()
-            .map(|l| l.take())
+            .map(|l| l.take(|i| i))
             .unwrap_or_default();
         let mut snapshot_request = self.snapshot_request.lock();
         snapshot_request.snapshot_requested = false;
