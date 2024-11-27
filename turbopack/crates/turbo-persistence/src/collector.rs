@@ -91,4 +91,8 @@ impl<K: StoreKey> Collector<K> {
         self.total_value_size = 0;
         self.entries.drain(..)
     }
+
+    pub fn len(&self) -> usize {
+        self.entries.len()
+    }
 }

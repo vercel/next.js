@@ -2,7 +2,7 @@ use std::{
     borrow::Cow,
     cell::UnsafeCell,
     fs::File,
-    mem::replace,
+    mem::{replace, swap},
     path::PathBuf,
     sync::atomic::{AtomicU32, Ordering},
 };
@@ -10,7 +10,11 @@ use std::{
 use anyhow::{Context, Result};
 use byteorder::{WriteBytesExt, BE};
 use lzzzz::lz4::{self, ACC_LEVEL_DEFAULT};
-use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
+use parking_lot::Mutex;
+use rayon::{
+    iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator},
+    scope, Scope,
+};
 use thread_local::ThreadLocal;
 
 use crate::{
@@ -27,7 +31,7 @@ pub struct WriteBatch<K: StoreKey + Send, const FAMILIES: usize> {
     path: PathBuf,
     current_sequence_number: AtomicU32,
     thread_locals: ThreadLocal<UnsafeCell<ThreadLocalState<K, FAMILIES>>>,
-    idle_collectors: Vec<Collector<K>>,
+    idle_collectors: Mutex<Vec<Collector<K>>>,
 }
 
 impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
@@ -37,7 +41,7 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
             path,
             current_sequence_number: AtomicU32::new(current),
             thread_locals: ThreadLocal::new(),
-            idle_collectors: Vec::new(),
+            idle_collectors: Mutex::new(Vec::new()),
         }
     }
 
@@ -56,7 +60,12 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
         });
         // Safety: We know that the cell is only accessed from the current thread.
         let state = unsafe { &mut *cell.get() };
-        let collector = state.collectors[family].get_or_insert_with(|| Collector::new());
+        let collector = state.collectors[family].get_or_insert_with(|| {
+            self.idle_collectors
+                .lock()
+                .pop()
+                .unwrap_or_else(|| Collector::new())
+        });
         if collector.is_full() {
             let sst = self.create_sst_file(family, collector.sorted())?;
             collector.clear();
@@ -83,64 +92,98 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
     }
 
     pub fn finish(&mut self) -> Result<(u32, Vec<(u32, File)>)> {
-        let mut global_collectors = [const { None }; FAMILIES];
-        let mut full_global_collectors = Vec::new();
         let mut new_sst_files = Vec::new();
+        let mut all_collectors = [(); FAMILIES].map(|_| Vec::new());
         for cell in self.thread_locals.iter_mut() {
             let state = cell.get_mut();
             new_sst_files.append(&mut state.new_sst_files);
             for family in 0..FAMILIES {
-                if let Some(mut collector) = state.collectors[family].take() {
-                    let global_collector = global_collectors[family].get_or_insert_with(|| {
-                        self.idle_collectors
-                            .pop()
-                            .unwrap_or_else(|| Collector::new())
-                    });
-                    for entry in collector.drain() {
-                        if global_collector.is_full() {
-                            full_global_collectors.push((
-                                family,
-                                replace(
-                                    global_collector,
-                                    self.idle_collectors
-                                        .pop()
-                                        .unwrap_or_else(|| Collector::new()),
-                                ),
-                            ));
-                        }
-                        global_collector.add_entry(entry);
+                if let Some(collector) = state.collectors[family].take() {
+                    if !collector.is_empty() {
+                        all_collectors[family].push(Some(collector));
                     }
-                    // Reuse the collector to avoid allocations.
-                    self.idle_collectors.push(collector);
                 }
             }
         }
-        for (family, global_collector) in global_collectors.into_iter().enumerate() {
-            if let Some(global_collector) = global_collector {
-                if !global_collector.is_empty() {
-                    full_global_collectors.push((family, global_collector));
-                }
+        let shared_new_sst_files = Mutex::new(&mut new_sst_files);
+        let shared_error = Mutex::new(Ok(()));
+        scope(|scope| {
+            fn handle_done_collector<'scope, K: StoreKey + Send + Sync, const FAMILIES: usize>(
+                this: &'scope WriteBatch<K, FAMILIES>,
+                scope: &Scope<'scope>,
+                family: usize,
+                mut collector: Collector<K>,
+                shared_new_sst_files: &'scope Mutex<&mut Vec<(u32, File)>>,
+                shared_error: &'scope Mutex<Result<()>>,
+            ) {
+                scope.spawn(
+                    move |_| match this.create_sst_file(family, collector.sorted()) {
+                        Ok(sst) => {
+                            collector.clear();
+                            this.idle_collectors.lock().push(collector);
+                            shared_new_sst_files.lock().push(sst);
+                        }
+                        Err(err) => {
+                            *shared_error.lock() = Err(err);
+                            return;
+                        }
+                    },
+                );
             }
-        }
-        new_sst_files.extend(
-            full_global_collectors
-                .par_iter_mut()
-                .map(|(family, collector)| {
-                    let result = self.create_sst_file(*family, collector.sorted());
-                    collector.clear();
-                    result
-                })
-                .collect::<Result<Vec<_>>>()?,
-        );
-        for (_, collector) in full_global_collectors {
-            self.idle_collectors.push(collector);
-        }
-        for cell in self.thread_locals.iter_mut() {
-            let state = cell.get_mut();
-            for i in 0..FAMILIES {
-                state.collectors[i] = self.idle_collectors.pop();
-            }
-        }
+
+            all_collectors
+                .into_par_iter()
+                .enumerate()
+                .for_each(|(family, collectors)| {
+                    let final_collector = collectors.into_par_iter().reduce(
+                        || None,
+                        |a, b| match (a, b) {
+                            (Some(mut a), Some(mut b)) => {
+                                if a.len() < b.len() {
+                                    swap(&mut a, &mut b);
+                                }
+                                for entry in b.drain() {
+                                    if a.is_full() {
+                                        let full_collector = replace(
+                                            &mut a,
+                                            self.idle_collectors
+                                                .lock()
+                                                .pop()
+                                                .unwrap_or_else(|| Collector::new()),
+                                        );
+                                        handle_done_collector(
+                                            self,
+                                            scope,
+                                            family,
+                                            full_collector,
+                                            &shared_new_sst_files,
+                                            &shared_error,
+                                        );
+                                    }
+                                    a.add_entry(entry);
+                                }
+                                self.idle_collectors.lock().push(b);
+                                Some(a)
+                            }
+                            (Some(a), None) => Some(a),
+                            (None, Some(b)) => Some(b),
+                            (None, None) => None,
+                        },
+                    );
+                    if let Some(collector) = final_collector {
+                        handle_done_collector(
+                            self,
+                            scope,
+                            family,
+                            collector,
+                            &shared_new_sst_files,
+                            &shared_error,
+                        );
+                    }
+                });
+        });
+        drop(shared_new_sst_files);
+        shared_error.into_inner()?;
         let seq = self.current_sequence_number.load(Ordering::SeqCst);
         new_sst_files.sort_by_key(|(seq, _)| *seq);
         Ok((seq, new_sst_files))
