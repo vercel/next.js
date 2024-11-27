@@ -1121,8 +1121,14 @@ pub async fn project_trace_source(
                 uri_from_file(project.container.project().project_path(), None).await? + "/";
             let (source_file, is_internal) =
                 if let Some(source_file) = original_file.strip_prefix(&project_path_uri) {
-                    // Client code uses file://
-                    (source_file, false)
+                    let original_file_path = original_file.as_str();
+                    // If the original file is not under of the project, we treat it as internal
+                    if !original_file_path.starts_with(&project_path_uri) {
+                        (original_file_path, true)
+                    } else {
+                        // Client code uses file://
+                        (source_file, false)
+                    }
                 } else if let Some(source_file) =
                     original_file.strip_prefix(&*SOURCE_MAP_PREFIX_PROJECT)
                 {
