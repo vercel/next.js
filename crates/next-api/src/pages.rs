@@ -1082,7 +1082,7 @@ impl PageEndpoint {
             original_name,
             &manifest_path_prefix,
             &pathname,
-            client_assets,
+            *client_assets,
             false,
         )
         .await?;
@@ -1164,7 +1164,7 @@ impl PageEndpoint {
                     file_paths_from_root
                         .extend(get_js_paths_from_root(&node_root_value, &files_value).await?);
 
-                    let all_output_assets = all_assets_from_entries(files).await?;
+                    let all_output_assets = all_assets_from_entries(*files).await?;
 
                     wasm_paths_from_root.extend(
                         get_wasm_paths_from_root(&node_root_value, &all_output_assets).await?,
