@@ -3,7 +3,6 @@ use std::mem::take;
 use anyhow::{bail, Context, Result};
 use async_trait::async_trait;
 use either::Either;
-use futures::future::try_join_all;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value as JsonValue};
 use serde_with::serde_as;
@@ -279,13 +278,12 @@ impl WebpackLoadersProcessedAsset {
             Either::Left(str) => File::from(str),
             Either::Right(bytes) => File::from(bytes.binary),
         };
-        let assets = try_join_all(
-            emitted_assets_to_virtual_sources(processed.assets)
-                .await?
-                .into_iter()
-                .map(|v| v.to_resolved()),
-        )
-        .await?;
+        let assets = emitted_assets_to_virtual_sources(processed.assets)
+            .await?
+            .into_iter()
+            .map(|v| v.to_resolved())
+            .try_join()
+            .await?;
 
         let content =
             AssetContent::File(FileContent::Content(file).resolved_cell()).resolved_cell();
