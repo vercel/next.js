@@ -230,7 +230,7 @@ impl ContentSource for AssetGraphContentSource {
                     )),
                 )
             })
-            .map(|v| async move { v.await })
+            .map(|v| async move { v.to_resolved().await })
             .try_join()
             .await?;
         Ok(Vc::<RouteTrees>::cell(routes).merge())
