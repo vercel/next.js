@@ -2,7 +2,7 @@ use either::Either;
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{quote, quote_spanned};
-use syn::{parse_macro_input, spanned::Spanned, Data, DeriveInput, Generics};
+use syn::{Data, DeriveInput, Generics, parse_macro_input, spanned::Spanned};
 
 use crate::derive::trace_raw_vcs_macro::filter_field;
 

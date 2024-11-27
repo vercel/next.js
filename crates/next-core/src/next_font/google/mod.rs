@@ -1,6 +1,6 @@
 use std::{collections::HashMap, path::Path};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use futures::FutureExt;
 use indoc::formatdoc;
 use serde::{Deserialize, Serialize};
@@ -8,10 +8,10 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{Completion, FxIndexMap, ResolvedVc, Value, Vc};
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::{CommandLineProcessEnv, ProcessEnv};
-use turbo_tasks_fetch::{fetch, HttpResponseBody};
+use turbo_tasks_fetch::{HttpResponseBody, fetch};
 use turbo_tasks_fs::{
-    json::parse_json_with_source_context, DiskFileSystem, File, FileContent, FileSystem,
-    FileSystemPath,
+    DiskFileSystem, File, FileContent, FileSystem, FileSystemPath,
+    json::parse_json_with_source_context,
 };
 use turbopack::evaluate_context::node_evaluate_asset_context;
 use turbopack_core::{
@@ -21,10 +21,10 @@ use turbopack_core::{
     issue::{IssueExt, IssueSeverity},
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
+        ResolveResult,
         options::{ImportMapResult, ImportMappingReplacement, ReplacedImportMapping},
         parse::Request,
         pattern::Pattern,
-        ResolveResult,
     },
     virtual_source::VirtualSource,
 };
@@ -34,15 +34,15 @@ use turbopack_node::{
 
 use self::{
     font_fallback::get_font_fallback,
-    options::{options_from_request, FontDataEntry, FontWeights, NextFontGoogleOptions},
+    options::{FontDataEntry, FontWeights, NextFontGoogleOptions, options_from_request},
     stylesheet::build_stylesheet,
     util::{get_font_axes, get_stylesheet_url},
 };
 use super::{
     font_fallback::FontFallback,
     util::{
-        can_use_next_font, get_request_hash, get_request_id, get_scoped_font_family,
-        FontCssProperties, FontFamilyType,
+        FontCssProperties, FontFamilyType, can_use_next_font, get_request_hash, get_request_id,
+        get_scoped_font_family,
     },
 };
 use crate::{

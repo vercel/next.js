@@ -14,10 +14,8 @@ pub mod route;
 pub static STATIC_LOCAL_METADATA: Lazy<HashMap<&'static str, &'static [&'static str]>> =
     Lazy::new(|| {
         HashMap::from([
-            (
-                "icon",
-                &["ico", "jpg", "jpeg", "png", "svg"] as &'static [&'static str],
-            ),
+            ("icon", &["ico", "jpg", "jpeg", "png", "svg"]
+                as &'static [&'static str]),
             ("apple-icon", &["jpg", "jpeg", "png"]),
             ("opengraph-image", &["jpg", "jpeg", "png", "gif"]),
             ("twitter-image", &["jpg", "jpeg", "png", "gif"]),

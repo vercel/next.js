@@ -1,7 +1,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use swc_core::quote;
-use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, ResolvedVc, Vc};
+use turbo_tasks::{ResolvedVc, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
 use turbopack_core::chunk::ChunkingContext;
 
 use super::AstPath;

@@ -12,14 +12,14 @@ use swc_core::{
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, ReadRef, ResolvedVc, TryJoinIterExt, Value,
-    ValueToString, Vc,
+    ReadRef, ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc, debug::ValueDebugFormat,
+    trace::TraceRawVcs,
 };
 use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext},
     issue::IssueSource,
     reference::ModuleReference,
-    resolve::{origin::ResolveOrigin, parse::Request, ModuleResolveResult},
+    resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request},
 };
 use turbopack_resolve::ecmascript::cjs_resolve;
 

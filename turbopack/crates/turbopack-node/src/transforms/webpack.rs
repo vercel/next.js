@@ -1,21 +1,21 @@
 use std::mem::take;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use async_trait::async_trait;
 use either::Either;
 use futures::future::try_join_all;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value as JsonValue};
+use serde_json::{Value as JsonValue, json};
 use serde_with::serde_as;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, Completion, ResolvedVc, TaskInput, TryJoinIterExt, Value, ValueToString, Vc,
+    Completion, ResolvedVc, TaskInput, TryJoinIterExt, Value, ValueToString, Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::{
-    glob::Glob, json::parse_json_with_source_context, DirectoryEntry, File, FileContent,
-    FileSystemPath, ReadGlobResult,
+    DirectoryEntry, File, FileContent, FileSystemPath, ReadGlobResult, glob::Glob,
+    json::parse_json_with_source_context,
 };
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -42,18 +42,18 @@ use turbopack_resolve::{
     resolve_options_context::ResolveOptionsContext,
 };
 
-use super::util::{emitted_assets_to_virtual_sources, EmittedAsset};
+use super::util::{EmittedAsset, emitted_assets_to_virtual_sources};
 use crate::{
+    AssetsForSourceMapping,
     debug::should_debug,
     embed_js::embed_file_path,
     evaluate::{
-        compute, custom_evaluate, get_evaluate_pool, EvaluateContext, EvaluationIssue,
-        JavaScriptEvaluation, JavaScriptStreamSender,
+        EvaluateContext, EvaluationIssue, JavaScriptEvaluation, JavaScriptStreamSender, compute,
+        custom_evaluate, get_evaluate_pool,
     },
     execution_context::ExecutionContext,
     pool::{FormattingMode, NodeJsPool},
     source_map::{StackFrame, StructuredError},
-    AssetsForSourceMapping,
 };
 
 #[serde_as]

@@ -1,15 +1,15 @@
 use std::{
     collections::HashSet,
     env::current_dir,
-    path::{PathBuf, MAIN_SEPARATOR},
+    path::{MAIN_SEPARATOR, PathBuf},
     sync::Arc,
 };
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    apply_effects, ReadConsistency, ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasks,
-    Value, Vc,
+    ReadConsistency, ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasks, Value, Vc,
+    apply_effects,
 };
 use turbo_tasks_fs::FileSystem;
 use turbo_tasks_memory::MemoryBackend;
@@ -17,11 +17,11 @@ use turbopack_cli_utils::issue::{ConsoleUi, LogOptions};
 use turbopack_core::{
     asset::Asset,
     chunk::{
-        availability_info::AvailabilityInfo, ChunkableModule, ChunkingContext, ChunkingContextExt,
-        EvaluatableAsset, EvaluatableAssets, MinifyType,
+        ChunkableModule, ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssets,
+        MinifyType, availability_info::AvailabilityInfo,
     },
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment},
-    issue::{handle_issues, IssueReporter, IssueSeverity},
+    issue::{IssueReporter, IssueSeverity, handle_issues},
     module::Module,
     output::{OutputAsset, OutputAssets},
     reference::all_assets_from_entries,
@@ -38,10 +38,10 @@ use turbopack_nodejs::NodeJsChunkingContext;
 
 use crate::{
     arguments::BuildArguments,
-    contexts::{get_client_asset_context, get_client_compile_time_info, NodeEnv},
+    contexts::{NodeEnv, get_client_asset_context, get_client_compile_time_info},
     util::{
-        normalize_dirs, normalize_entries, output_fs, project_fs, EntryRequest, EntryRequests,
-        NormalizedDirs,
+        EntryRequest, EntryRequests, NormalizedDirs, normalize_dirs, normalize_entries, output_fs,
+        project_fs,
     },
 };
 

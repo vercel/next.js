@@ -11,7 +11,7 @@
 
 use std::fmt::Write;
 
-use anyhow::{bail, Error, Result};
+use anyhow::{Error, Result, bail};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, FileJsonContent};

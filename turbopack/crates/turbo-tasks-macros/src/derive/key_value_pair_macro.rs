@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, Ident, ItemEnum};
+use syn::{Ident, ItemEnum, parse_macro_input};
 
 pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemEnum);

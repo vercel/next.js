@@ -2,7 +2,7 @@ use std::{fs, path::PathBuf, sync::Arc, time::Duration};
 
 use criterion::{Bencher, BenchmarkId, Criterion};
 use swc_core::{
-    common::{FilePathMapping, Mark, SourceMap, GLOBALS},
+    common::{FilePathMapping, GLOBALS, Mark, SourceMap},
     ecma::{
         ast::{EsVersion, Program},
         parser::parse_file_as_program,
@@ -18,7 +18,7 @@ use turbopack_core::{
     target::CompileTarget,
 };
 use turbopack_ecmascript::analyzer::{
-    graph::{create_graph, EvalContext, VarGraph},
+    graph::{EvalContext, VarGraph, create_graph},
     imports::ImportAttributes,
     linker::link,
     test_utils::{early_visitor, visitor},

@@ -1,8 +1,8 @@
 use std::{hash::Hash, mem::take};
 
 use super::{
-    balance_queue::BalanceQueue, AggegatingNode, AggregationContext, AggregationNode,
-    AggregationNodeGuard, PreparedInternalOperation, PreparedOperation, StackVec,
+    AggegatingNode, AggregationContext, AggregationNode, AggregationNodeGuard,
+    PreparedInternalOperation, PreparedOperation, StackVec, balance_queue::BalanceQueue,
 };
 pub(super) const LEAF_NUMBER: u32 = 16;
 

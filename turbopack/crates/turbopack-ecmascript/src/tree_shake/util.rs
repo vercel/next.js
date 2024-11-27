@@ -8,7 +8,7 @@ use swc_core::{
             Function, Id, Ident, ImportSpecifier, MemberExpr, MemberProp, NamedExport, Param, Pat,
             Prop, PropName, VarDeclarator, *,
         },
-        visit::{noop_visit_type, Visit, VisitWith},
+        visit::{Visit, VisitWith, noop_visit_type},
     },
 };
 use turbo_tasks::FxIndexSet;

@@ -6,15 +6,15 @@
 
 use std::{collections::HashMap, iter::once, thread::available_parallelism};
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 pub use node_entry::{NodeEntry, NodeRenderingEntries, NodeRenderingEntry};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    graph::{AdjacencyMap, GraphTraversal},
     FxIndexSet, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
+    graph::{AdjacencyMap, GraphTraversal},
 };
 use turbo_tasks_env::ProcessEnv;
-use turbo_tasks_fs::{to_sys_path, File, FileSystemPath};
+use turbo_tasks_fs::{File, FileSystemPath, to_sys_path};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     changed::content_changed,

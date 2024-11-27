@@ -6,22 +6,22 @@ use std::{
     iter::once,
 };
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
 use tracing::{Instrument, Level};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    fxindexmap, trace::TraceRawVcs, FxIndexMap, FxIndexSet, ResolvedVc, TaskInput, TryJoinIterExt,
-    Value, ValueToString, Vc,
+    FxIndexMap, FxIndexSet, ResolvedVc, TaskInput, TryJoinIterExt, Value, ValueToString, Vc,
+    fxindexmap, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{
-    util::normalize_request, FileSystemEntryType, FileSystemPath, RealPathResult,
+    FileSystemEntryType, FileSystemPath, RealPathResult, util::normalize_request,
 };
 
 use self::{
     options::{
-        resolve_modules_options, ConditionValue, ImportMapResult, ResolveInPackage,
-        ResolveIntoPackage, ResolveModules, ResolveModulesOptions, ResolveOptions,
+        ConditionValue, ImportMapResult, ResolveInPackage, ResolveIntoPackage, ResolveModules,
+        ResolveModulesOptions, ResolveOptions, resolve_modules_options,
     },
     origin::{ResolveOrigin, ResolveOriginExt},
     parse::Request,
@@ -33,16 +33,16 @@ use crate::{
     context::AssetContext,
     file_source::FileSource,
     issue::{
-        module::emit_unknown_module_type_error, resolve::ResolvingIssue, IssueExt, IssueSource,
+        IssueExt, IssueSource, module::emit_unknown_module_type_error, resolve::ResolvingIssue,
     },
     module::{Module, Modules, OptionModule},
     output::{OutputAsset, OutputAssets},
-    package_json::{read_package_json, PackageJsonIssue},
+    package_json::{PackageJsonIssue, read_package_json},
     raw_module::RawModule,
     reference_type::ReferenceType,
     resolve::{
         node::{node_cjs_resolve_options, node_esm_resolve_options},
-        pattern::{read_matches, PatternMatch},
+        pattern::{PatternMatch, read_matches},
         plugin::AfterResolvePlugin,
     },
     source::{OptionSource, Source, Sources},
@@ -694,31 +694,26 @@ impl ResolveResult {
                     let request = request.clone();
                     let item = item.clone();
                     async move {
-                        Ok((
-                            request,
-                            match item {
-                                ResolveResultItem::Source(source) => asset_fn(source).await?,
-                                ResolveResultItem::External { name, ty, traced } => {
-                                    if traced == ExternalTraced::Traced {
-                                        // Should use map_primary_items instead
-                                        bail!("map_module doesn't handle traced externals");
-                                    }
-                                    ModuleResolveResultItem::External {
-                                        name,
-                                        ty,
-                                        traced: None,
-                                    }
+                        Ok((request, match item {
+                            ResolveResultItem::Source(source) => asset_fn(source).await?,
+                            ResolveResultItem::External { name, ty, traced } => {
+                                if traced == ExternalTraced::Traced {
+                                    // Should use map_primary_items instead
+                                    bail!("map_module doesn't handle traced externals");
                                 }
-                                ResolveResultItem::Ignore => ModuleResolveResultItem::Ignore,
-                                ResolveResultItem::Empty => ModuleResolveResultItem::Empty,
-                                ResolveResultItem::Error(e) => {
-                                    ModuleResolveResultItem::Error(e.to_resolved().await?)
+                                ModuleResolveResultItem::External {
+                                    name,
+                                    ty,
+                                    traced: None,
                                 }
-                                ResolveResultItem::Custom(u8) => {
-                                    ModuleResolveResultItem::Custom(u8)
-                                }
-                            },
-                        ))
+                            }
+                            ResolveResultItem::Ignore => ModuleResolveResultItem::Ignore,
+                            ResolveResultItem::Empty => ModuleResolveResultItem::Empty,
+                            ResolveResultItem::Error(e) => {
+                                ModuleResolveResultItem::Error(e.to_resolved().await?)
+                            }
+                            ResolveResultItem::Custom(u8) => ModuleResolveResultItem::Custom(u8),
+                        }))
                     }
                 })
                 .try_join()
@@ -2102,28 +2097,19 @@ async fn resolve_relative_request(
     if options_value.enable_typescript_with_output_extension {
         new_path.replace_final_constants(&|c: &RcStr| -> Option<Pattern> {
             let (base, replacement) = match c.rsplit_once(".") {
-                Some((base, "js")) => (
-                    base,
-                    vec![
-                        Pattern::Constant(".ts".into()),
-                        Pattern::Constant(".tsx".into()),
-                        Pattern::Constant(".js".into()),
-                    ],
-                ),
-                Some((base, "mjs")) => (
-                    base,
-                    vec![
-                        Pattern::Constant(".mts".into()),
-                        Pattern::Constant(".mjs".into()),
-                    ],
-                ),
-                Some((base, "cjs")) => (
-                    base,
-                    vec![
-                        Pattern::Constant(".cts".into()),
-                        Pattern::Constant(".cjs".into()),
-                    ],
-                ),
+                Some((base, "js")) => (base, vec![
+                    Pattern::Constant(".ts".into()),
+                    Pattern::Constant(".tsx".into()),
+                    Pattern::Constant(".js".into()),
+                ]),
+                Some((base, "mjs")) => (base, vec![
+                    Pattern::Constant(".mts".into()),
+                    Pattern::Constant(".mjs".into()),
+                ]),
+                Some((base, "cjs")) => (base, vec![
+                    Pattern::Constant(".cts".into()),
+                    Pattern::Constant(".cjs".into()),
+                ]),
                 _ => {
                     return None;
                 }
@@ -2641,10 +2627,8 @@ async fn resolve_import_map_result(
             {
                 None
             } else {
-                let is_external_resolvable = !resolve_internal(
-                    **alias_lookup_path,
-                    request,
-                    match ty {
+                let is_external_resolvable =
+                    !resolve_internal(**alias_lookup_path, request, match ty {
                         ExternalType::Url => options,
                         // TODO is that root correct?
                         ExternalType::CommonJs => {
@@ -2653,10 +2637,9 @@ async fn resolve_import_map_result(
                         ExternalType::EcmaScriptModule => {
                             node_esm_resolve_options(alias_lookup_path.root())
                         }
-                    },
-                )
-                .await?
-                .is_unresolvable_ref();
+                    })
+                    .await?
+                    .is_unresolvable_ref();
                 if is_external_resolvable {
                     Some(
                         ResolveResult::primary(ResolveResultItem::External {

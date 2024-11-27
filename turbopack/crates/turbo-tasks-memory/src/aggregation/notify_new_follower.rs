@@ -1,6 +1,7 @@
 use std::{cmp::Ordering, hash::Hash};
 
 use super::{
+    AggregationContext, AggregationNode, PreparedInternalOperation, StackVec,
     balance_queue::BalanceQueue,
     followers::add_follower,
     in_progress::{finish_in_progress_without_node, start_in_progress},
@@ -8,7 +9,6 @@ use super::{
     increase_aggregation_number_internal,
     optimize::optimize_aggregation_number_for_uppers,
     uppers::add_upper,
-    AggregationContext, AggregationNode, PreparedInternalOperation, StackVec,
 };
 
 const MAX_AFFECTED_NODES: usize = 4096;

@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use dashmap::{mapref::entry::Entry, DashMap};
+use dashmap::{DashMap, mapref::entry::Entry};
 
 pub struct OnceConcurrentlyMap<K: Hash + Eq + Ord + Send + Sync + 'static, V: Clone + Send + Sync> {
     inner: DashMap<&'static K, Arc<Mutex<Option<V>>>>,

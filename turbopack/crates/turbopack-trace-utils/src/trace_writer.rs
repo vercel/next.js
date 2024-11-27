@@ -1,6 +1,6 @@
 use std::{debug_assert, io::Write, thread::JoinHandle};
 
-use crossbeam_channel::{bounded, unbounded, Receiver, Sender, TryRecvError};
+use crossbeam_channel::{Receiver, Sender, TryRecvError, bounded, unbounded};
 
 #[derive(Clone, Debug)]
 pub struct TraceWriter {

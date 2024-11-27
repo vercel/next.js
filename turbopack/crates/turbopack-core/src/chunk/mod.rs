@@ -16,17 +16,17 @@ use std::{
     hash::Hash,
 };
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use auto_hash_map::AutoSet;
 use serde::{Deserialize, Serialize};
-use tracing::{info_span, Span};
+use tracing::{Span, info_span};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
+    FxIndexMap, FxIndexSet, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt, TryJoinIterExt,
+    Upcast, ValueToString, Vc,
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal, GraphTraversalResult, Visit, VisitControlFlow},
     trace::TraceRawVcs,
-    FxIndexMap, FxIndexSet, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt, TryJoinIterExt,
-    Upcast, ValueToString, Vc,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::DeterministicHash;

@@ -3,7 +3,7 @@ use next_core::{all_assets_from_entries, next_manifests::AssetBinding};
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{trace::TraceRawVcs, ResolvedVc, TryFlatJoinIterExt, Vc};
+use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -145,11 +145,7 @@ fn get_file_stem(path: &str) -> &str {
     };
 
     if let Some((stem, _)) = file_name.split_once('.') {
-        if stem.is_empty() {
-            file_name
-        } else {
-            stem
-        }
+        if stem.is_empty() { file_name } else { stem }
     } else {
         file_name
     }

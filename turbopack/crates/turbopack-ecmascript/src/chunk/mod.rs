@@ -6,7 +6,7 @@ pub(crate) mod placeable;
 
 use std::fmt::Write;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystem;
@@ -15,9 +15,9 @@ use turbopack_core::{
     chunk::{Chunk, ChunkItem, ChunkItems, ChunkingContext, ModuleIds},
     ident::AssetIdent,
     introspect::{
+        Introspectable, IntrospectableChildren,
         module::IntrospectableModule,
         utils::{children_from_output_assets, content_to_details},
-        Introspectable, IntrospectableChildren,
     },
     output::OutputAssets,
     server_fs::ServerFileSystem,

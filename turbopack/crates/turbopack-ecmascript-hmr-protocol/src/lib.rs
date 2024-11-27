@@ -2,7 +2,7 @@ use std::{collections::BTreeMap, fmt::Display, ops::Deref, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use turbopack_cli_utils::issue::{format_issue, LogOptions};
+use turbopack_cli_utils::issue::{LogOptions, format_issue};
 use turbopack_core::{
     issue::{IssueSeverity, IssueStage, PlainIssue, StyledString},
     source_pos::SourcePos,
@@ -174,17 +174,13 @@ impl<'a> From<&'a PlainIssue> for Issue<'a> {
             // TODO(WEB-691) formatting the issue should be handled by the error overlay.
             // The browser could handle error formatting in a better way than the text only
             // formatting here
-            formatted: format_issue(
-                plain,
-                None,
-                &LogOptions {
-                    current_dir: PathBuf::new(),
-                    project_dir: PathBuf::new(),
-                    show_all: true,
-                    log_detail: true,
-                    log_level: IssueSeverity::Info,
-                },
-            ),
+            formatted: format_issue(plain, None, &LogOptions {
+                current_dir: PathBuf::new(),
+                project_dir: PathBuf::new(),
+                show_all: true,
+                log_detail: true,
+                log_level: IssueSeverity::Info,
+            }),
         }
     }
 }

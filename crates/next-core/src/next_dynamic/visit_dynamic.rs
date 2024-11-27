@@ -4,8 +4,8 @@ use anyhow::Result;
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
     ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
+    graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
 };
 use turbopack_core::{
     module::{Module, Modules},

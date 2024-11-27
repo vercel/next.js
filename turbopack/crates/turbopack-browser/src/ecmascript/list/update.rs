@@ -114,12 +114,9 @@ pub(super) async fn update_chunk_list(
                     chunks.insert(chunk_path.as_ref(), ChunkUpdate::Total);
                 }
                 Update::Partial(partial) => {
-                    chunks.insert(
-                        chunk_path.as_ref(),
-                        ChunkUpdate::Partial {
-                            instruction: partial.instruction.clone(),
-                        },
-                    );
+                    chunks.insert(chunk_path.as_ref(), ChunkUpdate::Partial {
+                        instruction: partial.instruction.clone(),
+                    });
                 }
                 Update::Missing | Update::None => {}
             }

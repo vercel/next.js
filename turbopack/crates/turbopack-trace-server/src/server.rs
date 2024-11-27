@@ -4,9 +4,9 @@ use std::{
     thread::spawn,
 };
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
-use tungstenite::{accept, Message};
+use tungstenite::{Message, accept};
 
 use crate::{
     store::SpanId,

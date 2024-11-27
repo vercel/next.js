@@ -1,12 +1,12 @@
 use std::collections::{HashMap, HashSet};
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use next_core::emit_assets;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexSet, ResolvedVc, State, TryFlatJoinIterExt,
-    TryJoinIterExt, ValueDefault, ValueToString, Vc,
+    FxIndexSet, ResolvedVc, State, TryFlatJoinIterExt, TryJoinIterExt, ValueDefault, ValueToString,
+    Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{

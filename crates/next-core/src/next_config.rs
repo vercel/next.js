@@ -1,17 +1,17 @@
 use std::collections::HashSet;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value as JsonValue;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, ResolvedVc, TaskInput, Vc,
+    FxIndexMap, ResolvedVc, TaskInput, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbo_tasks_env::EnvMap;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{
-    module_options_context::MdxTransformOptions, LoaderRuleItem, OptionWebpackRules,
+    LoaderRuleItem, OptionWebpackRules, module_options_context::MdxTransformOptions,
 };
 use turbopack_core::{
     issue::{Issue, IssueSeverity, IssueStage, OptionStyledString, StyledString},
@@ -621,14 +621,11 @@ fn test_cache_life_profiles() {
     let config: ExperimentalConfig = serde_json::from_value(json).unwrap();
     let mut expected_cache_life = FxIndexMap::default();
 
-    expected_cache_life.insert(
-        "frequent".to_string(),
-        CacheLifeProfile {
-            stale: Some(19),
-            revalidate: Some(100),
-            expire: None,
-        },
-    );
+    expected_cache_life.insert("frequent".to_string(), CacheLifeProfile {
+        stale: Some(19),
+        revalidate: Some(100),
+        expire: None,
+    });
 
     assert_eq!(config.cache_life, Some(expected_cache_life));
 }
@@ -1015,25 +1012,19 @@ impl NextConfig {
             }
             match rule {
                 RuleConfigItemOrShortcut::Loaders(loaders) => {
-                    rules.insert(
-                        ext.clone(),
-                        LoaderRuleItem {
-                            loaders: transform_loaders(loaders),
-                            rename_as: None,
-                        },
-                    );
+                    rules.insert(ext.clone(), LoaderRuleItem {
+                        loaders: transform_loaders(loaders),
+                        rename_as: None,
+                    });
                 }
                 RuleConfigItemOrShortcut::Advanced(rule) => {
                     if let FindRuleResult::Found(RuleConfigItemOptions { loaders, rename_as }) =
                         find_rule(rule, &active_conditions)
                     {
-                        rules.insert(
-                            ext.clone(),
-                            LoaderRuleItem {
-                                loaders: transform_loaders(loaders),
-                                rename_as: rename_as.clone(),
-                            },
-                        );
+                        rules.insert(ext.clone(), LoaderRuleItem {
+                            loaders: transform_loaders(loaders),
+                            rename_as: rename_as.clone(),
+                        });
                     }
                 }
             }

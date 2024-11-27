@@ -40,17 +40,17 @@ use anyhow::Result;
 use chunk::EcmascriptChunkItem;
 use code_gen::{CodeGenerateable, CodeGeneration, CodeGenerationHoistedStmt};
 pub use parse::ParseResultSourceMap;
-use parse::{parse, ParseResult};
+use parse::{ParseResult, parse};
 use path_visitor::ApplyVisitors;
 use references::esm::UrlRewriteBehavior;
 pub use references::{AnalyzeEcmascriptModuleResult, TURBOPACK_HELPER};
 use serde::{Deserialize, Serialize};
 pub use static_code::StaticEcmascriptCode;
 use swc_core::{
-    common::{Globals, Mark, GLOBALS},
+    common::{GLOBALS, Globals, Mark},
     ecma::{
         ast::{self, ModuleItem, Program, Script},
-        codegen::{text_writer::JsWriter, Emitter},
+        codegen::{Emitter, text_writer::JsWriter},
         visit::{VisitMutWith, VisitMutWithAstPath},
     },
 };
@@ -60,10 +60,10 @@ pub use transform::{
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, FxIndexMap, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Value,
-    ValueToString, Vc,
+    FxIndexMap, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Value, ValueToString, Vc,
+    trace::TraceRawVcs,
 };
-use turbo_tasks_fs::{rope::Rope, FileJsonContent, FileSystemPath};
+use turbo_tasks_fs::{FileJsonContent, FileSystemPath, rope::Rope};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
@@ -76,8 +76,8 @@ use turbopack_core::{
     reference::ModuleReferences,
     reference_type::InnerAssets,
     resolve::{
-        find_context_file, origin::ResolveOrigin, package_json, parse::Request,
-        FindContextFileResult,
+        FindContextFileResult, find_context_file, origin::ResolveOrigin, package_json,
+        parse::Request,
     },
     source::Source,
     source_map::{GenerateSourceMap, OptionSourceMap},
@@ -264,7 +264,7 @@ pub trait EcmascriptAnalyzable {
     /// Generates module contents without an analysis pass. This is useful for
     /// transforming code that is not a module, e.g. runtime code.
     async fn module_content_without_analysis(self: Vc<Self>)
-        -> Result<Vc<EcmascriptModuleContent>>;
+    -> Result<Vc<EcmascriptModuleContent>>;
 
     async fn module_content(
         self: Vc<Self>,
@@ -474,10 +474,10 @@ impl EcmascriptModuleAsset {
 
         match this.options.await?.specified_module_type {
             SpecifiedModuleType::EcmaScript => {
-                return Ok(ModuleTypeResult::new(SpecifiedModuleType::EcmaScript))
+                return Ok(ModuleTypeResult::new(SpecifiedModuleType::EcmaScript));
             }
             SpecifiedModuleType::CommonJs => {
-                return Ok(ModuleTypeResult::new(SpecifiedModuleType::CommonJs))
+                return Ok(ModuleTypeResult::new(SpecifiedModuleType::CommonJs));
             }
             SpecifiedModuleType::Automatic => {}
         }

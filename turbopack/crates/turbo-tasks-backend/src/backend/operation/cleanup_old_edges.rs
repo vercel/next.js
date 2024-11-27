@@ -5,16 +5,16 @@ use turbo_tasks::{TaskId, ValueTypeId};
 
 use crate::{
     backend::{
+        TaskDataCategory,
         operation::{
-            aggregation_update::{
-                get_aggregation_number, get_uppers, is_aggregating_node, AggregationUpdateJob,
-                AggregationUpdateQueue,
-            },
-            invalidate::{make_task_dirty, TaskDirtyCause},
             AggregatedDataUpdate, ExecuteContext, Operation, TaskGuard,
+            aggregation_update::{
+                AggregationUpdateJob, AggregationUpdateQueue, get_aggregation_number, get_uppers,
+                is_aggregating_node,
+            },
+            invalidate::{TaskDirtyCause, make_task_dirty},
         },
         storage::{update_count, update_ucount_and_get},
-        TaskDataCategory,
     },
     data::{CachedDataItemKey, CellRef, CollectibleRef, CollectiblesRef},
 };

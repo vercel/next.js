@@ -1,6 +1,6 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use next_custom_transforms::transforms::shake_exports::{shake_exports, Config};
+use next_custom_transforms::transforms::shake_exports::{Config, shake_exports};
 use swc_core::ecma::ast::*;
 use turbo_tasks::ResolvedVc;
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
@@ -13,13 +13,12 @@ pub fn get_next_shake_exports_rule(enable_mdx_rs: bool, ignore: Vec<String>) -> 
     let transformer = EcmascriptInputTransform::Plugin(ResolvedVc::cell(
         Box::new(NextShakeExports { ignore }) as _,
     ));
-    ModuleRule::new(
-        module_rule_match_js_no_url(enable_mdx_rs),
-        vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
+    ModuleRule::new(module_rule_match_js_no_url(enable_mdx_rs), vec![
+        ModuleRuleEffect::ExtendEcmascriptTransforms {
             prepend: ResolvedVc::cell(vec![]),
             append: ResolvedVc::cell(vec![transformer]),
-        }],
-    )
+        },
+    ])
 }
 
 #[derive(Debug)]

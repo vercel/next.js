@@ -5,15 +5,16 @@ use turbo_tasks::TaskId;
 
 use crate::{
     backend::{
+        TaskDataCategory,
         operation::{
+            ExecuteContext, Operation, TaskGuard,
             aggregation_update::{
-                get_uppers, is_aggregating_node, AggregationUpdateJob, AggregationUpdateQueue,
-                LEAF_NUMBER,
+                AggregationUpdateJob, AggregationUpdateQueue, LEAF_NUMBER, get_uppers,
+                is_aggregating_node,
             },
-            is_root_node, ExecuteContext, Operation, TaskGuard,
+            is_root_node,
         },
         storage::{get, update_ucount_and_get},
-        TaskDataCategory,
     },
     data::{CachedDataItem, CachedDataItemKey},
 };

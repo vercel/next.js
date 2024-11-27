@@ -4,8 +4,8 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    debug::{ValueDebugFormat, ValueDebugString},
     ReadRef, SharedReference,
+    debug::{ValueDebugFormat, ValueDebugString},
 };
 
 /// Pass a value by value (`Value<Xxx>`) instead of by reference (`Vc<Xxx>`).

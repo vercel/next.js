@@ -1,5 +1,5 @@
 use std::{
-    collections::{hash_map::Entry, HashMap, HashSet},
+    collections::{HashMap, HashSet, hash_map::Entry},
     mem::transmute,
     ops::{Deref, DerefMut},
     sync::Arc,
@@ -10,9 +10,9 @@ use turbopack_trace_utils::tracing::TraceRow;
 
 use super::TraceFormat;
 use crate::{
+    FxIndexMap,
     span::SpanIndex,
     store_container::{StoreContainer, StoreWriteGuard},
-    FxIndexMap,
 };
 
 #[derive(Default)]

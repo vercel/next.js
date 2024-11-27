@@ -12,13 +12,13 @@ use std::{
     ops::Deref,
 };
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{trace::TraceRawVcs, TaskInput};
+use turbo_tasks::{TaskInput, trace::TraceRawVcs};
 
 pub use crate::next_app::{
-    app_client_references_chunks::{get_app_client_references_chunks, ClientReferencesChunks},
+    app_client_references_chunks::{ClientReferencesChunks, get_app_client_references_chunks},
     app_client_shared_chunks::get_app_client_shared_chunk_group,
     app_entry::AppEntry,
     app_page_entry::get_app_page_entry,

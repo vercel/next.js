@@ -1,7 +1,7 @@
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
-use syn::{parse_macro_input, Data, DeriveInput, FieldsNamed, FieldsUnnamed};
+use syn::{Data, DeriveInput, FieldsNamed, FieldsUnnamed, parse_macro_input};
 use turbo_tasks_macros_shared::{generate_exhaustive_destructuring, match_expansion};
 
 /// This macro generates the implementation of the `DeterministicHash` trait for
@@ -37,28 +37,22 @@ pub fn derive_deterministic_hash(input: TokenStream) -> TokenStream {
 /// bar: u32 }`, `Foo::Bar { baz: u32 }`).
 fn hash_named(_ident: TokenStream2, fields: &FieldsNamed) -> (TokenStream2, TokenStream2) {
     let (captures, fields_idents) = generate_exhaustive_destructuring(fields.named.iter());
-    (
-        captures,
-        quote! {
-            {#(
-                #fields_idents.deterministic_hash(__state__);
-            )*}
-        },
-    )
+    (captures, quote! {
+        {#(
+            #fields_idents.deterministic_hash(__state__);
+        )*}
+    })
 }
 
 /// Hashes a struct or enum variant with unnamed fields (e.g. `struct
 /// Foo(u32)`, `Foo::Bar(u32)`).
 fn hash_unnamed(_ident: TokenStream2, fields: &FieldsUnnamed) -> (TokenStream2, TokenStream2) {
     let (captures, fields_idents) = generate_exhaustive_destructuring(fields.unnamed.iter());
-    (
-        captures,
-        quote! {
-            {#(
-                #fields_idents.deterministic_hash(__state__);
-            )*}
-        },
-    )
+    (captures, quote! {
+        {#(
+            #fields_idents.deterministic_hash(__state__);
+        )*}
+    })
 }
 
 /// Hashes a unit struct or enum variant (e.g. `struct Foo;`, `Foo::Bar`).

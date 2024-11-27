@@ -1,7 +1,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, Completion, FxIndexMap, Vc};
+use turbo_tasks::{Completion, FxIndexMap, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
 use turbopack_core::module::Modules;
 
 use crate::paths::ServerPath;

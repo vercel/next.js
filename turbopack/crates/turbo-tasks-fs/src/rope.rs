@@ -1,6 +1,6 @@
 use std::{
     borrow::Cow,
-    cmp::{min, Ordering},
+    cmp::{Ordering, min},
     fmt,
     io::{BufRead, Read, Result as IoResult, Write},
     mem,
@@ -10,6 +10,7 @@ use std::{
     task::{Context as TaskContext, Poll},
 };
 
+use RopeElem::{Local, Shared};
 use anyhow::{Context, Result};
 use bytes::{Buf, Bytes};
 use futures::Stream;
@@ -17,7 +18,6 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_bytes::ByteBuf;
 use tokio::io::{AsyncRead, ReadBuf};
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher};
-use RopeElem::{Local, Shared};
 
 static EMPTY_BUF: &[u8] = &[];
 
@@ -361,7 +361,7 @@ impl<'de> Deserialize<'de> for Rope {
 }
 
 pub mod ser_as_string {
-    use serde::{ser::Error, Serializer};
+    use serde::{Serializer, ser::Error};
 
     use super::Rope;
 
@@ -962,16 +962,13 @@ mod test {
             chunks.push(Vec::from(&buf[0..amt]));
         }
 
-        assert_eq!(
-            chunks,
-            vec![
-                Vec::from(*b"ab"),
-                Vec::from(*b"cd"),
-                Vec::from(*b"ef"),
-                Vec::from(*b"gh"),
-                Vec::from(*b"i")
-            ]
-        );
+        assert_eq!(chunks, vec![
+            Vec::from(*b"ab"),
+            Vec::from(*b"cd"),
+            Vec::from(*b"ef"),
+            Vec::from(*b"gh"),
+            Vec::from(*b"i")
+        ]);
     }
 
     #[test]

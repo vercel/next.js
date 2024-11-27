@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
@@ -14,12 +14,12 @@ use turbopack_core::{
 
 use super::chunk_item::EcmascriptModuleLocalsChunkItem;
 use crate::{
+    EcmascriptModuleAsset,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     references::{
         async_module::OptionAsyncModule,
         esm::{EsmExport, EsmExports},
     },
-    EcmascriptModuleAsset,
 };
 
 /// A module derived from an original ecmascript module that only contains the

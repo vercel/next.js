@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use swc_core::{
     ecma::ast::{Expr, ExprOrSpread, NewExpr},
     quote,
@@ -15,7 +15,7 @@ use turbopack_core::{
     reference::ModuleReference,
     reference_type::{ReferenceType, UrlReferenceSubType},
     resolve::{
-        origin::ResolveOrigin, parse::Request, url_resolve, ExternalType, ModuleResolveResult,
+        ExternalType, ModuleResolveResult, origin::ResolveOrigin, parse::Request, url_resolve,
     },
 };
 

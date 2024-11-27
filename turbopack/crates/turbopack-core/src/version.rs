@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, IntoTraitRef, ReadRef, State, TraitRef, Vc,
+    IntoTraitRef, ReadRef, State, TraitRef, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{FileContent, LinkType};
 use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};

@@ -1,8 +1,8 @@
 use allsorts::{
-    font_data::{DynamicFontTableProvider, FontData},
     Font,
+    font_data::{DynamicFontTableProvider, FontData},
 };
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use turbo_tasks::Vc;
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 
@@ -12,11 +12,11 @@ use super::{
 };
 use crate::next_font::{
     font_fallback::{
-        AutomaticFontFallback, DefaultFallbackFont, FontAdjustment, FontFallback, FontFallbacks,
-        DEFAULT_SANS_SERIF_FONT, DEFAULT_SERIF_FONT,
+        AutomaticFontFallback, DEFAULT_SANS_SERIF_FONT, DEFAULT_SERIF_FONT, DefaultFallbackFont,
+        FontAdjustment, FontFallback, FontFallbacks,
     },
     local::errors::FontError,
-    util::{get_scoped_font_family, FontFamilyType},
+    util::{FontFamilyType, get_scoped_font_family},
 };
 
 // From

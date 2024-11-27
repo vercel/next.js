@@ -1,6 +1,6 @@
 use std::{borrow::Cow, collections::HashSet, future::Future, panic, pin::Pin};
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use auto_hash_map::AutoSet;
 use parking_lot::Mutex;
 use tokio::task::JoinHandle;
@@ -8,8 +8,8 @@ use tracing::{Instrument, Span};
 use turbo_tasks_macros::{TraceRawVcs, ValueDebugFormat};
 
 use crate::{
-    self as turbo_tasks, emit, manager::turbo_tasks_future_scope, CollectiblesSource, ReadRef,
-    TryJoinIterExt, Vc,
+    self as turbo_tasks, CollectiblesSource, ReadRef, TryJoinIterExt, Vc, emit,
+    manager::turbo_tasks_future_scope,
 };
 
 /// A trait to emit a task effect as collectible. This trait only has one
@@ -218,7 +218,7 @@ async fn apply_effect(
 
 #[cfg(test)]
 mod tests {
-    use crate::{apply_effects, get_effects, CollectiblesSource};
+    use crate::{CollectiblesSource, apply_effects, get_effects};
 
     #[test]
     #[allow(dead_code)]

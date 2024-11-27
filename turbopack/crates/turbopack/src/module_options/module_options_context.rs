@@ -1,12 +1,12 @@
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{trace::TraceRawVcs, FxIndexMap, ResolvedVc, ValueDefault, Vc};
+use turbo_tasks::{FxIndexMap, ResolvedVc, ValueDefault, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::MinifyType, condition::ContextCondition, environment::Environment,
     resolve::options::ImportMapping,
 };
-use turbopack_ecmascript::{references::esm::UrlRewriteBehavior, TreeShakingMode};
+use turbopack_ecmascript::{TreeShakingMode, references::esm::UrlRewriteBehavior};
 pub use turbopack_mdx::MdxTransformOptions;
 use turbopack_node::{
     execution_context::ExecutionContext,

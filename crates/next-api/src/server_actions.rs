@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, future::Future, io::Write, iter::once};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use indexmap::map::Entry;
 use next_core::{
     next_client_reference::EcmascriptClientReferenceModule,
@@ -23,10 +23,10 @@ use swc_core::{
 use tracing::{Instrument, Level};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    graph::{GraphTraversal, NonDeterministic, VisitControlFlow},
     FxIndexMap, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, ValueToString, Vc,
+    graph::{GraphTraversal, NonDeterministic, VisitControlFlow},
 };
-use turbo_tasks_fs::{self, rope::RopeBuilder, File, FileSystemPath};
+use turbo_tasks_fs::{self, File, FileSystemPath, rope::RopeBuilder};
 use turbopack_core::{
     asset::AssetContent,
     chunk::{ChunkItem, ChunkItemExt, ChunkableModule, ChunkingContext, EvaluatableAsset},
@@ -41,8 +41,8 @@ use turbopack_core::{
     virtual_source::VirtualSource,
 };
 use turbopack_ecmascript::{
-    chunk::EcmascriptChunkPlaceable, parse::ParseResult,
-    tree_shake::asset::EcmascriptModulePartAsset, EcmascriptParsable,
+    EcmascriptParsable, chunk::EcmascriptChunkPlaceable, parse::ParseResult,
+    tree_shake::asset::EcmascriptModulePartAsset,
 };
 
 #[turbo_tasks::value]
@@ -165,13 +165,10 @@ async fn build_manifest(
 
     for (hash_id, (layer, _name, _module)) in actions_value {
         let entry = mapping.entry(hash_id.as_str()).or_default();
-        entry.workers.insert(
-            &key,
-            ActionManifestWorkerEntry {
-                module_id: ActionManifestModuleId::String(loader_id.as_str()),
-                is_async: *chunk_item.is_self_async().await?,
-            },
-        );
+        entry.workers.insert(&key, ActionManifestWorkerEntry {
+            module_id: ActionManifestModuleId::String(loader_id.as_str()),
+            is_async: *chunk_item.is_self_async().await?,
+        });
         entry.layer.insert(&key, *layer);
     }
 

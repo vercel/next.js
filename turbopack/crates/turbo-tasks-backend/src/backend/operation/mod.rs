@@ -17,8 +17,8 @@ use turbo_tasks::{KeyValuePair, SessionId, TaskId, TurboTasksBackendApi};
 
 use crate::{
     backend::{
-        storage::StorageWriteGuard, OperationGuard, TaskDataCategory, TransientTask,
-        TurboTasksBackend, TurboTasksBackendInner,
+        OperationGuard, TaskDataCategory, TransientTask, TurboTasksBackend, TurboTasksBackendInner,
+        storage::StorageWriteGuard,
     },
     backing_storage::BackingStorage,
     data::{
@@ -744,7 +744,7 @@ impl_operation!(AggregationUpdate aggregation_update::AggregationUpdateQueue);
 
 pub use self::{
     aggregation_update::{
-        get_aggregation_number, is_root_node, AggregatedDataUpdate, AggregationUpdateJob,
+        AggregatedDataUpdate, AggregationUpdateJob, get_aggregation_number, is_root_node,
     },
     cleanup_old_edges::OutdatedEdge,
     invalidate::TaskDirtyCause,

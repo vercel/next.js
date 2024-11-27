@@ -1,8 +1,8 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, ResolvedVc, TryFlatJoinIterExt,
-    TryJoinIterExt, ValueToString, Vc,
+    FxIndexMap, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbo_tasks_hash::Xxh3Hash64Hasher;
 

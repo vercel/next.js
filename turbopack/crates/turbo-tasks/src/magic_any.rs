@@ -7,7 +7,7 @@ use std::{
     sync::Arc,
 };
 
-use serde::{de::DeserializeSeed, Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::DeserializeSeed};
 
 pub trait MagicAny: mopa::Any + Send + Sync {
     fn magic_any_arc(self: Arc<Self>) -> Arc<dyn Any + Sync + Send>;

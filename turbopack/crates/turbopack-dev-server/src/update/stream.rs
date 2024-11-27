@@ -21,7 +21,7 @@ use turbopack_core::{
     },
 };
 
-use crate::source::{resolve::ResolveSourceRequestResult, ProxyResult};
+use crate::source::{ProxyResult, resolve::ResolveSourceRequestResult};
 
 type GetContentFn = Box<dyn Fn() -> Vc<ResolveSourceRequestResult> + Send + Sync>;
 

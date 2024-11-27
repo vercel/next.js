@@ -1,7 +1,7 @@
 use turbo_tasks::{Result, Vc};
 use turbopack::{
-    module_options::{EcmascriptOptionsContext, ModuleOptionsContext, TypescriptTransformOptions},
     ModuleAssetContext,
+    module_options::{EcmascriptOptionsContext, ModuleOptionsContext, TypescriptTransformOptions},
 };
 use turbopack_core::{
     compile_time_info::CompileTimeInfo, context::AssetContext, environment::Environment,

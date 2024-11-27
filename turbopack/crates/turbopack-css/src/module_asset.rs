@@ -1,6 +1,6 @@
 use std::{fmt::Write, sync::Arc};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use indoc::formatdoc;
 use lightningcss::css_modules::CssModuleReference;
 use swc_core::common::{BytePos, FileName, LineCol, SourceMap};
@@ -21,12 +21,12 @@ use turbopack_core::{
     source_map::OptionSourceMap,
 };
 use turbopack_ecmascript::{
+    ParseResultSourceMap,
     chunk::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
         EcmascriptChunkType, EcmascriptExports,
     },
     utils::StringifyJs,
-    ParseResultSourceMap,
 };
 
 use crate::{
@@ -411,13 +411,10 @@ fn generate_minimal_source_map(filename: String, source: String) -> Vc<ParseResu
     // Start from 1 because 0 is reserved for dummy spans in SWC.
     let mut pos = 1;
     for (index, line) in source.split_inclusive('\n').enumerate() {
-        mappings.push((
-            BytePos(pos),
-            LineCol {
-                line: index as u32,
-                col: 0,
-            },
-        ));
+        mappings.push((BytePos(pos), LineCol {
+            line: index as u32,
+            col: 0,
+        }));
         pos += line.len() as u32;
     }
     let sm: Arc<SourceMap> = Default::default();

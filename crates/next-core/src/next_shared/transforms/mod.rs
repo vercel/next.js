@@ -25,7 +25,7 @@ pub(crate) mod styled_jsx;
 pub(crate) mod swc_ecma_transform_plugins;
 
 use anyhow::Result;
-pub use modularize_imports::{get_next_modularize_imports_rule, ModularizeImportPackageConfig};
+pub use modularize_imports::{ModularizeImportPackageConfig, get_next_modularize_imports_rule};
 pub use next_dynamic::get_next_dynamic_transform_rule;
 pub use next_font::get_next_font_transform_rule;
 pub use next_lint::get_next_lint_transform_rule;
@@ -37,7 +37,7 @@ use turbopack::module_options::{ModuleRule, ModuleRuleEffect, ModuleType, RuleCo
 use turbopack_core::reference_type::{ReferenceType, UrlReferenceSubType};
 use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform};
 
-use crate::next_image::{module::BlurPlaceholderMode, StructuredImageModuleType};
+use crate::next_image::{StructuredImageModuleType, module::BlurPlaceholderMode};
 
 pub async fn get_next_image_rule() -> Result<ModuleRule> {
     Ok(ModuleRule::new(
@@ -149,8 +149,7 @@ pub(crate) fn get_ecma_transform_rule(
         )
     };
 
-    ModuleRule::new(
-        module_rule_match_js_no_url(enable_mdx_rs),
-        vec![ModuleRuleEffect::ExtendEcmascriptTransforms { prepend, append }],
-    )
+    ModuleRule::new(module_rule_match_js_no_url(enable_mdx_rs), vec![
+        ModuleRuleEffect::ExtendEcmascriptTransforms { prepend, append },
+    ])
 }

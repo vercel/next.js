@@ -2,7 +2,7 @@ use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
 
-use crate::{case_insensitive_read, EnvMap, ProcessEnv};
+use crate::{EnvMap, ProcessEnv, case_insensitive_read};
 
 /// Allows providing any custom env values that you'd like, deferring the prior
 /// envs if a key is not overridden.

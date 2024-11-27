@@ -4,7 +4,7 @@
 use std::{collections::VecDeque, ops::Add};
 
 use lsp_types::Range;
-use syn::{visit::Visit, Expr, Meta};
+use syn::{Expr, Meta, visit::Visit};
 
 use crate::identifier::Identifier;
 

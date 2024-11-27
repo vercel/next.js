@@ -9,11 +9,11 @@ use std::{
     ops::Deref,
     path::{Path, PathBuf},
     sync::{
-        atomic::{
-            AtomicBool, AtomicI16, AtomicI32, AtomicI64, AtomicI8, AtomicU16, AtomicU32, AtomicU64,
-            AtomicU8, AtomicUsize,
-        },
         Arc, Mutex,
+        atomic::{
+            AtomicBool, AtomicI8, AtomicI16, AtomicI32, AtomicI64, AtomicU8, AtomicU16, AtomicU32,
+            AtomicU64, AtomicUsize,
+        },
     },
     time::Duration,
 };
@@ -24,10 +24,10 @@ use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 
 use crate::{
+    ResolveTypeError, Upcast, VcRead, VcTransparentRead, VcValueTrait, VcValueType,
     debug::{ValueDebug, ValueDebugFormat, ValueDebugFormatString},
     trace::{TraceRawVcs, TraceRawVcsContext},
     vc::Vc,
-    ResolveTypeError, Upcast, VcRead, VcTransparentRead, VcValueTrait, VcValueType,
 };
 
 #[derive(Serialize, Deserialize)]
@@ -255,7 +255,9 @@ macro_rules! impl_resolved {
     }
 }
 
-impl_resolved!(i8, u8, i16, u16, i32, u32, i64, u64, f32, f64, char, bool, usize);
+impl_resolved!(
+    i8, u8, i16, u16, i32, u32, i64, u64, f32, f64, char, bool, usize
+);
 impl_resolved!(
     AtomicI8,
     AtomicU8,

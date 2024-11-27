@@ -26,29 +26,29 @@ mod watcher;
 
 use std::{
     borrow::Cow,
-    cmp::{min, Ordering},
+    cmp::{Ordering, min},
     collections::HashSet,
     fmt::{self, Debug, Display, Formatter, Write as _},
     fs::FileType,
     io::{self, BufRead, ErrorKind},
     mem::take,
-    path::{Path, PathBuf, MAIN_SEPARATOR},
+    path::{MAIN_SEPARATOR, Path, PathBuf},
     sync::Arc,
     time::Duration,
 };
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use auto_hash_map::AutoMap;
 use bitflags::bitflags;
 use dunce::simplified;
 use glob::Glob;
 use invalidation::InvalidateFilesystem;
 use invalidator_map::InvalidatorMap;
-use jsonc_parser::{parse_to_serde_value, ParseOptions};
+use jsonc_parser::{ParseOptions, parse_to_serde_value};
 use mime::Mime;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
-use read_glob::read_glob;
 pub use read_glob::ReadGlobResult;
+use read_glob::read_glob;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::{
@@ -59,11 +59,11 @@ use tokio::{
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, effect, mark_session_dependent, mark_stateful, trace::TraceRawVcs,
-    Completion, Invalidator, ReadRef, ResolvedVc, ValueToString, Vc,
+    Completion, Invalidator, ReadRef, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat,
+    effect, mark_session_dependent, mark_stateful, trace::TraceRawVcs,
 };
 use turbo_tasks_hash::{
-    hash_xxh3_hash128, hash_xxh3_hash64, DeterministicHash, DeterministicHasher,
+    DeterministicHash, DeterministicHasher, hash_xxh3_hash64, hash_xxh3_hash128,
 };
 use util::{extract_disk_access, join_path, normalize_path, sys_to_unix, unix_to_sys};
 pub use virtual_fs::VirtualFileSystem;
@@ -1857,7 +1857,7 @@ mod mime_option_serde {
     use std::{fmt, str::FromStr};
 
     use mime::Mime;
-    use serde::{de, Deserializer, Serializer};
+    use serde::{Deserializer, Serializer, de};
 
     pub fn serialize<S>(mime: &Option<Mime>, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -1980,14 +1980,11 @@ impl FileContent {
     pub fn parse_json_with_comments_ref(&self) -> FileJsonContent {
         match self {
             FileContent::Content(file) => match file.content.to_str() {
-                Ok(string) => match parse_to_serde_value(
-                    &string,
-                    &ParseOptions {
-                        allow_comments: true,
-                        allow_trailing_commas: true,
-                        allow_loose_object_property_names: false,
-                    },
-                ) {
+                Ok(string) => match parse_to_serde_value(&string, &ParseOptions {
+                    allow_comments: true,
+                    allow_trailing_commas: true,
+                    allow_loose_object_property_names: false,
+                }) {
                     Ok(data) => match data {
                         Some(value) => FileJsonContent::Content(value),
                         None => FileJsonContent::unparseable(
@@ -2007,14 +2004,11 @@ impl FileContent {
     pub fn parse_json5_ref(&self) -> FileJsonContent {
         match self {
             FileContent::Content(file) => match file.content.to_str() {
-                Ok(string) => match parse_to_serde_value(
-                    &string,
-                    &ParseOptions {
-                        allow_comments: true,
-                        allow_trailing_commas: true,
-                        allow_loose_object_property_names: true,
-                    },
-                ) {
+                Ok(string) => match parse_to_serde_value(&string, &ParseOptions {
+                    allow_comments: true,
+                    allow_trailing_commas: true,
+                    allow_loose_object_property_names: true,
+                }) {
                     Ok(data) => match data {
                         Some(value) => FileJsonContent::Content(value),
                         None => FileJsonContent::unparseable(

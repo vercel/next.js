@@ -1,6 +1,6 @@
 use std::{hash::BuildHasherDefault, mem::replace};
 
-use auto_hash_map::{map::Entry, AutoMap, AutoSet};
+use auto_hash_map::{AutoMap, AutoSet, map::Entry};
 use either::Either;
 use rustc_hash::FxHasher;
 use smallvec::SmallVec;

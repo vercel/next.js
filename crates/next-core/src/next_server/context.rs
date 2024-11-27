@@ -1,6 +1,6 @@
 use std::iter::once;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, ResolvedVc, Value, Vc};
 use turbo_tasks_env::{EnvMap, ProcessEnv};
@@ -14,7 +14,7 @@ use turbopack::{
     transition::Transition,
 };
 use turbopack_core::{
-    chunk::{module_id_strategies::ModuleIdStrategy, MinifyType},
+    chunk::{MinifyType, module_id_strategies::ModuleIdStrategy},
     compile_time_info::{
         CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefineableNameSegment,
         FreeVarReferences,
@@ -51,9 +51,9 @@ use crate::{
     next_server::resolve::ExternalPredicate,
     next_shared::{
         resolve::{
-            get_invalid_client_only_resolve_plugin, get_invalid_styled_jsx_resolve_plugin,
             ModuleFeatureReportResolvePlugin, NextExternalResolvePlugin,
-            NextNodeSharedRuntimeResolvePlugin,
+            NextNodeSharedRuntimeResolvePlugin, get_invalid_client_only_resolve_plugin,
+            get_invalid_styled_jsx_resolve_plugin,
         },
         transforms::{
             emotion::get_emotion_transform_rule, get_ecma_transform_rule,
@@ -71,8 +71,8 @@ use crate::{
         get_typescript_transform_options,
     },
     util::{
-        foreign_code_context_condition, get_transpiled_packages, load_next_js_templateon,
-        NextRuntime,
+        NextRuntime, foreign_code_context_condition, get_transpiled_packages,
+        load_next_js_templateon,
     },
 };
 

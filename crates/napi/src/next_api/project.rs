@@ -1,10 +1,10 @@
 use std::{path::PathBuf, sync::Arc, thread, time::Duration};
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use napi::{
+    JsFunction, Status,
     bindgen_prelude::External,
     threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode},
-    JsFunction, Status,
 };
 use next_api::{
     entrypoints::Entrypoints,
@@ -15,26 +15,26 @@ use next_api::{
     route::{Endpoint, Route},
 };
 use next_core::tracing_presets::{
-    TRACING_NEXT_OVERVIEW_TARGETS, TRACING_NEXT_TARGETS, TRACING_NEXT_TURBOPACK_TARGETS,
-    TRACING_NEXT_TURBO_TASKS_TARGETS,
+    TRACING_NEXT_OVERVIEW_TARGETS, TRACING_NEXT_TARGETS, TRACING_NEXT_TURBO_TASKS_TARGETS,
+    TRACING_NEXT_TURBOPACK_TARGETS,
 };
 use once_cell::sync::Lazy;
 use rand::Rng;
 use tokio::{io::AsyncWriteExt, time::Instant};
 use tracing::Instrument;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
+use tracing_subscriber::{EnvFilter, Registry, layer::SubscriberExt, util::SubscriberInitExt};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{get_effects, Completion, Effects, ReadRef, TransientInstance, UpdateInfo, Vc};
+use turbo_tasks::{Completion, Effects, ReadRef, TransientInstance, UpdateInfo, Vc, get_effects};
 use turbo_tasks_fs::{
-    util::uri_from_file, DiskFileSystem, FileContent, FileSystem, FileSystemPath,
+    DiskFileSystem, FileContent, FileSystem, FileSystemPath, util::uri_from_file,
 };
 use turbopack_core::{
+    SOURCE_MAP_PREFIX,
     diagnostics::PlainDiagnostic,
     error::PrettyPrintError,
     issue::PlainIssue,
     source_map::{SourceMap, Token},
     version::{PartialUpdate, TotalUpdate, Update, VersionState},
-    SOURCE_MAP_PREFIX,
 };
 use turbopack_ecmascript_hmr_protocol::{ClientUpdateInstruction, ResourceIdentifier};
 use turbopack_trace_utils::{
@@ -47,8 +47,8 @@ use url::Url;
 use super::{
     endpoint::ExternalEndpoint,
     utils::{
-        create_turbo_tasks, get_diagnostics, get_issues, subscribe, NapiDiagnostic, NapiIssue,
-        NextTurboTasks, RootTask, TurbopackResult, VcArc,
+        NapiDiagnostic, NapiIssue, NextTurboTasks, RootTask, TurbopackResult, VcArc,
+        create_turbo_tasks, get_diagnostics, get_issues, subscribe,
     },
 };
 use crate::register;
@@ -1029,13 +1029,10 @@ pub async fn get_source_map(
             "file" => {
                 let path = urlencoding::decode(url.path())?.to_string();
                 let module = url.query_pairs().find(|(k, _)| k == "id");
-                (
-                    path,
-                    match module {
-                        Some(module) => Some(urlencoding::decode(&module.1)?.into_owned().into()),
-                        None => None,
-                    },
-                )
+                (path, match module {
+                    Some(module) => Some(urlencoding::decode(&module.1)?.into_owned().into()),
+                    None => None,
+                })
             }
             _ => bail!("Unknown url scheme"),
         },

@@ -5,7 +5,7 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{trace::TraceRawVcs, ResolvedVc, Vc};
+use turbo_tasks::{ResolvedVc, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::issue::{IssueExt, IssueSeverity, StyledString};
 
@@ -13,11 +13,11 @@ use super::options::NextFontGoogleOptions;
 use crate::{
     next_font::{
         font_fallback::{
-            AutomaticFontFallback, FontAdjustment, FontFallback, DEFAULT_SANS_SERIF_FONT,
-            DEFAULT_SERIF_FONT,
+            AutomaticFontFallback, DEFAULT_SANS_SERIF_FONT, DEFAULT_SERIF_FONT, FontAdjustment,
+            FontFallback,
         },
         issue::NextFontIssue,
-        util::{get_scoped_font_family, FontFamilyType},
+        util::{FontFamilyType, get_scoped_font_family},
     },
     util::load_next_js_templateon,
 };
@@ -174,7 +174,7 @@ mod tests {
     use turbo_tasks_fs::json::parse_json_with_source_context;
 
     use super::{FontAdjustment, FontMetricsMap};
-    use crate::next_font::google::font_fallback::{lookup_fallback, Fallback};
+    use crate::next_font::google::font_fallback::{Fallback, lookup_fallback};
 
     #[test]
     fn test_fallback_from_metrics_sans_serif() -> Result<()> {
@@ -207,18 +207,15 @@ mod tests {
         "#,
         )?;
 
-        assert_eq!(
-            lookup_fallback("Inter", font_metrics, true)?,
-            Fallback {
-                font_family: "Arial".into(),
-                adjustment: Some(FontAdjustment {
-                    ascent: 0.901_989_700_374_532,
-                    descent: -0.224_836_142_322_097_4,
-                    line_gap: 0.0,
-                    size_adjust: 1.074_014_481_094_127
-                })
-            }
-        );
+        assert_eq!(lookup_fallback("Inter", font_metrics, true)?, Fallback {
+            font_family: "Arial".into(),
+            adjustment: Some(FontAdjustment {
+                ascent: 0.901_989_700_374_532,
+                descent: -0.224_836_142_322_097_4,
+                line_gap: 0.0,
+                size_adjust: 1.074_014_481_094_127
+            })
+        });
         Ok(())
     }
 

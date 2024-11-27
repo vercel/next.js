@@ -1,8 +1,8 @@
 use std::{borrow::Cow, fmt::Debug, mem::take};
 
-use anyhow::{anyhow, Error, Result};
+use anyhow::{Error, Result, anyhow};
 use turbo_tasks::{
-    util::SharedError, OutputContent, RawVc, TaskId, TaskIdSet, TurboTasksBackendApi,
+    OutputContent, RawVc, TaskId, TaskIdSet, TurboTasksBackendApi, util::SharedError,
 };
 
 use crate::MemoryBackend;

@@ -16,13 +16,13 @@ use swc_core::{
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, FxIndexMap, ResolvedVc, TryFlatJoinIterExt, ValueToString, Vc,
+    FxIndexMap, ResolvedVc, TryFlatJoinIterExt, ValueToString, Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
     chunk::ChunkingContext,
     ident::AssetIdent,
-    issue::{analyze::AnalyzeIssue, IssueExt, IssueSeverity, StyledString},
+    issue::{IssueExt, IssueSeverity, StyledString, analyze::AnalyzeIssue},
     module::Module,
     reference::ModuleReference,
 };

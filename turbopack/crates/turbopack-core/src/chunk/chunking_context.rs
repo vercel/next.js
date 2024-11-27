@@ -1,11 +1,11 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{trace::TraceRawVcs, ResolvedVc, TaskInput, Upcast, Value, Vc};
+use turbo_tasks::{ResolvedVc, TaskInput, Upcast, Value, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::DeterministicHash;
 
-use super::{availability_info::AvailabilityInfo, ChunkableModule, EvaluatableAssets};
+use super::{ChunkableModule, EvaluatableAssets, availability_info::AvailabilityInfo};
 use crate::{
     chunk::{ChunkItem, ModuleId},
     environment::Environment,

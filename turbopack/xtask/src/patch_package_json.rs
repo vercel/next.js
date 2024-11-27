@@ -132,10 +132,10 @@ fn patch_workspace_package_json_map(
     // add `@next/swc` to `dependencies`, without this next might fall back to downloading the
     // binary blob from the release version, which isn't what we want.
     let deps_map = get_mut_or_insert_default_object(package_json_map, "dependencies")?;
-    insert_map_entries(
-        deps_map,
-        &[("@next/swc", &*format!("file:{}", args.next_swc_tarball))],
-    );
+    insert_map_entries(deps_map, &[(
+        "@next/swc",
+        &*format!("file:{}", args.next_swc_tarball),
+    )]);
 
     // npm requires that any direct dependencies in the workspace file match the version specified
     // in the overrides:

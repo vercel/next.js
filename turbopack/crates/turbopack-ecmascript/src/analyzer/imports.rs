@@ -5,10 +5,10 @@ use std::{
 
 use once_cell::sync::Lazy;
 use swc_core::{
-    common::{comments::Comments, source_map::SmallPos, BytePos, Span, Spanned},
+    common::{BytePos, Span, Spanned, comments::Comments, source_map::SmallPos},
     ecma::{
         ast::*,
-        atoms::{js_word, JsWord},
+        atoms::{JsWord, js_word},
         visit::{Visit, VisitWith},
     },
 };
@@ -16,10 +16,10 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, FxIndexSet, Vc};
 use turbopack_core::{issue::IssueSource, source::Source};
 
-use super::{top_level_await::has_top_level_await, JsValue, ModuleValue};
+use super::{JsValue, ModuleValue, top_level_await::has_top_level_await};
 use crate::{
-    tree_shake::{find_turbopack_part_id_in_asserts, PartId},
     SpecifiedModuleType,
+    tree_shake::{PartId, find_turbopack_part_id_in_asserts},
 };
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
@@ -448,30 +448,21 @@ impl Visit for Analyzer<'_> {
 
             match spec {
                 ExportSpecifier::Namespace(n) => {
-                    self.data.reexports.push((
-                        i,
-                        Reexport::Namespace {
-                            exported: to_word(&n.name),
-                        },
-                    ));
+                    self.data.reexports.push((i, Reexport::Namespace {
+                        exported: to_word(&n.name),
+                    }));
                 }
                 ExportSpecifier::Default(d) => {
-                    self.data.reexports.push((
-                        i,
-                        Reexport::Named {
-                            imported: js_word!("default"),
-                            exported: d.exported.sym.clone(),
-                        },
-                    ));
+                    self.data.reexports.push((i, Reexport::Named {
+                        imported: js_word!("default"),
+                        exported: d.exported.sym.clone(),
+                    }));
                 }
                 ExportSpecifier::Named(n) => {
-                    self.data.reexports.push((
-                        i,
-                        Reexport::Named {
-                            imported: to_word(&n.orig),
-                            exported: to_word(n.exported.as_ref().unwrap_or(&n.orig)),
-                        },
-                    ));
+                    self.data.reexports.push((i, Reexport::Named {
+                        imported: to_word(&n.orig),
+                        exported: to_word(n.exported.as_ref().unwrap_or(&n.orig)),
+                    }));
                 }
             }
         }
@@ -541,12 +532,11 @@ impl Visit for Analyzer<'_> {
             let ignore_directive = parse_ignore_directive(comments, n.args.first());
 
             if let Some((callee_span, ignore_directive)) = callee_span.zip(ignore_directive) {
-                self.data.attributes.insert(
-                    callee_span.lo,
-                    ImportAttributes {
+                self.data
+                    .attributes
+                    .insert(callee_span.lo, ImportAttributes {
                         ignore: ignore_directive,
-                    },
-                );
+                    });
             };
         }
 
@@ -564,12 +554,11 @@ impl Visit for Analyzer<'_> {
             let ignore_directive = parse_ignore_directive(comments, n.args.iter().flatten().next());
 
             if let Some((callee_span, ignore_directive)) = callee_span.zip(ignore_directive) {
-                self.data.attributes.insert(
-                    callee_span.lo,
-                    ImportAttributes {
+                self.data
+                    .attributes
+                    .insert(callee_span.lo, ImportAttributes {
                         ignore: ignore_directive,
-                    },
-                );
+                    });
             };
         }
 

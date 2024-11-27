@@ -8,13 +8,13 @@ use swc_core::{
             PropName, SeqExpr, SimpleAssignTarget, Str,
         },
         visit::{
-            fields::{CalleeField, PropField},
             AstParentKind,
+            fields::{CalleeField, PropField},
         },
     },
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{trace::TraceRawVcs, ResolvedVc, TaskInput, Vc};
+use turbo_tasks::{ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
 use turbopack_core::chunk::ChunkingContext;
 
 use super::EsmAssetReference;

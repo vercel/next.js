@@ -3,7 +3,7 @@ use std::{
     env::{self, current_dir},
     fmt::{Display, Write},
     fs::read_dir,
-    path::{PathBuf, MAIN_SEPARATOR as PATH_SEP},
+    path::{MAIN_SEPARATOR as PATH_SEP, PathBuf},
     sync::Arc,
 };
 
@@ -11,14 +11,14 @@ use anyhow::{Context, Result};
 use glob::glob;
 use quote::ToTokens;
 use syn::{
-    parse_quote, Attribute, Ident, Item, ItemEnum, ItemFn, ItemImpl, ItemMacro, ItemMod,
-    ItemStruct, ItemTrait, TraitItem, TraitItemMethod,
+    Attribute, Ident, Item, ItemEnum, ItemFn, ItemImpl, ItemMacro, ItemMod, ItemStruct, ItemTrait,
+    TraitItem, TraitItemMethod, parse_quote,
 };
 use turbo_tasks_macros_shared::{
-    get_impl_function_ident, get_native_function_ident, get_path_ident,
-    get_register_trait_methods_ident, get_register_value_type_ident,
+    GenericTypeInput, PrimitiveInput, get_impl_function_ident, get_native_function_ident,
+    get_path_ident, get_register_trait_methods_ident, get_register_value_type_ident,
     get_trait_default_impl_function_ident, get_trait_impl_function_ident, get_trait_type_ident,
-    get_type_ident, GenericTypeInput, PrimitiveInput,
+    get_type_ident,
 };
 
 pub fn generate_register() {

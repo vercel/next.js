@@ -2,24 +2,25 @@ use std::{
     borrow::Cow, ops::ControlFlow, sync::Arc, thread::available_parallelism, time::Duration,
 };
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use async_stream::try_stream as generator;
 use async_trait::async_trait;
 use futures::{
-    channel::mpsc::{unbounded, UnboundedSender},
-    pin_mut, SinkExt, StreamExt,
+    SinkExt, StreamExt,
+    channel::mpsc::{UnboundedSender, unbounded},
+    pin_mut,
 };
 use futures_retry::{FutureRetry, RetryPolicy};
 use parking_lot::Mutex;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::Value as JsonValue;
 use turbo_tasks::{
-    duration_span, fxindexmap, get_effects, mark_finished, prevent_gc, util::SharedError,
-    Completion, Effects, RawVc, ResolvedVc, TaskInput, TryJoinIterExt, Value, Vc,
+    Completion, Effects, RawVc, ResolvedVc, TaskInput, TryJoinIterExt, Value, Vc, duration_span,
+    fxindexmap, get_effects, mark_finished, prevent_gc, util::SharedError,
 };
 use turbo_tasks_bytes::{Bytes, Stream};
 use turbo_tasks_env::ProcessEnv;
-use turbo_tasks_fs::{to_sys_path, File, FileSystemPath};
+use turbo_tasks_fs::{File, FileSystemPath, to_sys_path};
 use turbopack_core::{
     asset::AssetContent,
     changed::content_changed,
@@ -36,11 +37,11 @@ use turbopack_core::{
 };
 
 use crate::{
+    AssetsForSourceMapping,
     embed_js::embed_file_path,
     emit, emit_package_json, internal_assets_for_source_mapping,
     pool::{FormattingMode, NodeJsOperation, NodeJsPool},
     source_map::StructuredError,
-    AssetsForSourceMapping,
 };
 
 #[derive(Serialize)]

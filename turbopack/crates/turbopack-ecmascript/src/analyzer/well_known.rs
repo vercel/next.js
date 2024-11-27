@@ -6,8 +6,8 @@ use turbopack_core::compile_time_info::CompileTimeInfo;
 use url::Url;
 
 use super::{
-    imports::ImportAnnotations, ConstantValue, JsValue, JsValueUrlKind, ModuleValue,
-    WellKnownFunctionKind, WellKnownObjectKind,
+    ConstantValue, JsValue, JsValueUrlKind, ModuleValue, WellKnownFunctionKind,
+    WellKnownObjectKind, imports::ImportAnnotations,
 };
 use crate::analyzer::RequireContextValue;
 
@@ -550,7 +550,7 @@ pub fn well_known_function_member(kind: WellKnownFunctionKind, prop: JsValue) ->
             return (
                 JsValue::member(Box::new(JsValue::WellKnownFunction(kind)), Box::new(prop)),
                 false,
-            )
+            );
         }
     };
     (new_value, true)
@@ -587,7 +587,7 @@ pub async fn well_known_object_member(
             return Ok((
                 JsValue::member(Box::new(JsValue::WellKnownObject(kind)), Box::new(prop)),
                 false,
-            ))
+            ));
         }
     };
     Ok((new_value, true))
@@ -644,10 +644,10 @@ pub fn fs_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
                 ));
             }
             (WellKnownObjectKind::FsModule | WellKnownObjectKind::FsModuleDefault, "promises") => {
-                return JsValue::WellKnownObject(WellKnownObjectKind::FsModulePromises)
+                return JsValue::WellKnownObject(WellKnownObjectKind::FsModulePromises);
             }
             (WellKnownObjectKind::FsModule, "default") => {
-                return JsValue::WellKnownObject(WellKnownObjectKind::FsModuleDefault)
+                return JsValue::WellKnownObject(WellKnownObjectKind::FsModuleDefault);
             }
             _ => {}
         }

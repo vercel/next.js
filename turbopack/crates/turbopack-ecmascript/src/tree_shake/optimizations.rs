@@ -1,6 +1,6 @@
 use std::ops::Index;
 
-use petgraph::{visit::EdgeRef, Direction, Graph};
+use petgraph::{Direction, Graph, visit::EdgeRef};
 use rustc_hash::FxHashMap;
 use turbo_tasks::FxIndexSet;
 
@@ -33,13 +33,10 @@ impl GraphOptimizer<'_> {
         // imports for import bindings so the static code analysis pass can detect imports like
         // 'next/dynamic'.
 
-        (matches!(
-            item_id,
-            ItemId::Item {
-                kind: ItemIdItemKind::ImportBinding(..),
-                ..
-            }
-        )) || (matches!(item_id, ItemId::Group(ItemIdGroupKind::Export(..)))
+        (matches!(item_id, ItemId::Item {
+            kind: ItemIdItemKind::ImportBinding(..),
+            ..
+        })) || (matches!(item_id, ItemId::Group(ItemIdGroupKind::Export(..)))
             && self.data[item_id].disable_export_merging)
     }
 

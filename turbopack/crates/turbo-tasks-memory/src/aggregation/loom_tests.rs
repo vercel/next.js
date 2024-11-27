@@ -2,20 +2,20 @@ use std::{
     fmt::Debug,
     hash::Hash,
     ops::{Deref, DerefMut},
-    sync::{atomic::AtomicU32, Arc},
+    sync::{Arc, atomic::AtomicU32},
 };
 
 use loom::{
     sync::{Mutex, MutexGuard},
     thread,
 };
-use rand::{rngs::SmallRng, Rng, SeedableRng};
+use rand::{Rng, SeedableRng, rngs::SmallRng};
 use ref_cast::RefCast;
 use rstest::*;
 
 use super::{
-    aggregation_data, handle_new_edge, AggregationContext, AggregationNode, AggregationNodeGuard,
-    PreparedOperation,
+    AggregationContext, AggregationNode, AggregationNodeGuard, PreparedOperation, aggregation_data,
+    handle_new_edge,
 };
 
 struct Node {

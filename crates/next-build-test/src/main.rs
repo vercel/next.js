@@ -1,12 +1,12 @@
 use std::{convert::Infallible, str::FromStr, time::Instant};
 
 use next_api::project::{DefineEnv, ProjectOptions};
-use next_build_test::{main_inner, Strategy};
+use next_build_test::{Strategy, main_inner};
 use next_core::tracing_presets::{
-    TRACING_NEXT_OVERVIEW_TARGETS, TRACING_NEXT_TARGETS, TRACING_NEXT_TURBOPACK_TARGETS,
-    TRACING_NEXT_TURBO_TASKS_TARGETS,
+    TRACING_NEXT_OVERVIEW_TARGETS, TRACING_NEXT_TARGETS, TRACING_NEXT_TURBO_TASKS_TARGETS,
+    TRACING_NEXT_TURBOPACK_TARGETS,
 };
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
+use tracing_subscriber::{EnvFilter, Registry, layer::SubscriberExt, util::SubscriberInitExt};
 use turbo_tasks::TurboTasks;
 use turbo_tasks_malloc::TurboMalloc;
 use turbo_tasks_memory::MemoryBackend;

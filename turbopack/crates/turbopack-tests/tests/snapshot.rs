@@ -9,35 +9,35 @@ use std::{
     path::PathBuf,
 };
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use dunce::canonicalize;
 use serde::Deserialize;
 use serde_json::json;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    apply_effects, ReadConsistency, ReadRef, ResolvedVc, TryJoinIterExt, TurboTasks, Value,
-    ValueToString, Vc,
+    ReadConsistency, ReadRef, ResolvedVc, TryJoinIterExt, TurboTasks, Value, ValueToString, Vc,
+    apply_effects,
 };
 use turbo_tasks_env::DotenvProcessEnv;
 use turbo_tasks_fs::{
-    json::parse_json_with_source_context, util::sys_to_unix, DiskFileSystem, FileSystem,
-    FileSystemPath,
+    DiskFileSystem, FileSystem, FileSystemPath, json::parse_json_with_source_context,
+    util::sys_to_unix,
 };
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
+    ModuleAssetContext,
     ecmascript::{EcmascriptInputTransform, TreeShakingMode},
     module_options::{
         CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext,
         ModuleRule, ModuleRuleEffect, RuleCondition,
     },
-    ModuleAssetContext,
 };
 use turbopack_browser::BrowserChunkingContext;
 use turbopack_core::{
     asset::Asset,
     chunk::{
-        availability_info::AvailabilityInfo, ChunkableModule, ChunkingContext, ChunkingContextExt,
-        EvaluatableAsset, EvaluatableAssetExt, EvaluatableAssets, MinifyType,
+        ChunkableModule, ChunkingContext, ChunkingContextExt, EvaluatableAsset,
+        EvaluatableAssetExt, EvaluatableAssets, MinifyType, availability_info::AvailabilityInfo,
     },
     compile_time_defines,
     compile_time_info::CompileTimeInfo,
@@ -266,9 +266,8 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         RuleCondition::ResourcePathEndsWith(".tsx".into()),
     ]);
 
-    let module_rules = ModuleRule::new(
-        conditions,
-        vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
+    let module_rules = ModuleRule::new(conditions, vec![
+        ModuleRuleEffect::ExtendEcmascriptTransforms {
             prepend: ResolvedVc::cell(vec![
                 EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(
                     EmotionTransformer::new(&EmotionTransformConfig::default())
@@ -279,8 +278,8 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 ) as _)),
             ]),
             append: ResolvedVc::cell(vec![]),
-        }],
-    );
+        },
+    ]);
     let asset_context: Vc<Box<dyn AssetContext>> = Vc::upcast(ModuleAssetContext::new(
         Default::default(),
         compile_time_info,

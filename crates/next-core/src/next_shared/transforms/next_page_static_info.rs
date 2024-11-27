@@ -1,7 +1,7 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use next_custom_transforms::transforms::page_static_info::{
-    collect_exports, extract_exported_const_values, Const,
+    Const, collect_exports, extract_exported_const_values,
 };
 use serde_json::Value;
 use swc_core::ecma::ast::Program;
@@ -30,13 +30,12 @@ pub fn get_next_page_static_info_assert_rule(
             server_context,
             client_context,
         }) as _));
-    ModuleRule::new(
-        module_rule_match_js_no_url(enable_mdx_rs),
-        vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
+    ModuleRule::new(module_rule_match_js_no_url(enable_mdx_rs), vec![
+        ModuleRuleEffect::ExtendEcmascriptTransforms {
             prepend: ResolvedVc::cell(vec![transformer]),
             append: ResolvedVc::cell(vec![]),
-        }],
-    )
+        },
+    ])
 }
 
 #[derive(Debug)]

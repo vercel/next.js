@@ -11,7 +11,7 @@ use turbopack_core::{
     resolve::ModuleResolveResult,
 };
 
-use super::{base::ReferencedAsset, EsmAssetReference};
+use super::{EsmAssetReference, base::ReferencedAsset};
 use crate::{
     code_gen::{CodeGenerateable, CodeGeneration},
     create_visitor,

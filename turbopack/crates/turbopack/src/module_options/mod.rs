@@ -12,7 +12,7 @@ pub use module_rule::*;
 pub use rule_condition::*;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::{glob::Glob, FileSystemPath};
+use turbo_tasks_fs::{FileSystemPath, glob::Glob};
 use turbopack_core::{
     reference_type::{CssReferenceSubType, ReferenceType, UrlReferenceSubType},
     resolve::options::{ImportMap, ImportMapping},
@@ -367,13 +367,12 @@ impl ModuleOptions {
                     source_ty: WebAssemblySourceType::Text,
                 })],
             ),
-            ModuleRule::new(
-                RuleCondition::ResourcePathHasNoExtension,
-                vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript {
+            ModuleRule::new(RuleCondition::ResourcePathHasNoExtension, vec![
+                ModuleRuleEffect::ModuleType(ModuleType::Ecmascript {
                     transforms: vendor_transforms.to_resolved().await?,
                     options: ecmascript_options_vc,
-                })],
-            ),
+                }),
+            ]),
             ModuleRule::new(
                 RuleCondition::ReferenceType(ReferenceType::Url(UrlReferenceSubType::Undefined)),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Static)],

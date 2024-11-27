@@ -6,14 +6,13 @@ use serde::{Deserialize, Serialize};
 use tracing::Span;
 
 use crate::{
-    self as turbo_tasks,
+    self as turbo_tasks, RawVc, TaskId, TaskInput,
     magic_any::{MagicAny, MagicAnyDeserializeSeed, MagicAnySerializeSeed},
     registry::register_function,
     task::{
-        function::{IntoTaskFnWithThis, NativeTaskFuture},
         IntoTaskFn, TaskFn,
+        function::{IntoTaskFnWithThis, NativeTaskFuture},
     },
-    RawVc, TaskId, TaskInput,
 };
 
 type ResolveFunctor =

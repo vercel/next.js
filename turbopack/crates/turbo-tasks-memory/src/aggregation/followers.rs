@@ -1,9 +1,9 @@
 use super::{
+    AggregationContext, AggregationNode, StackVec,
     balance_queue::BalanceQueue,
     in_progress::start_in_progress_all,
     notify_new_follower,
-    optimize::{optimize_aggregation_number_for_followers, MAX_FOLLOWERS},
-    AggregationContext, AggregationNode, StackVec,
+    optimize::{MAX_FOLLOWERS, optimize_aggregation_number_for_followers},
 };
 
 /// Add a follower to a node. Followers will be propagated to the uppers of the

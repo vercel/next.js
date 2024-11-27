@@ -5,7 +5,7 @@ use std::{
     time::Duration,
 };
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use regex::Regex;
 
 use super::RenderType;
@@ -72,10 +72,10 @@ impl Bundler for NextJs {
     }
 
     fn prepare(&self, install_dir: &Path) -> Result<()> {
-        npm::install(
-            install_dir,
-            &[NpmPackage::new("next", self.version.version())],
-        )
+        npm::install(install_dir, &[NpmPackage::new(
+            "next",
+            self.version.version(),
+        )])
         .context("failed to install `next` module")?;
 
         if self.version.app_dir() {

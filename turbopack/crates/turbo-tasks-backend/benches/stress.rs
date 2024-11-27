@@ -1,7 +1,7 @@
 use anyhow::Result;
 use criterion::{BenchmarkId, Criterion};
 use turbo_tasks::{ReadConsistency, TryJoinIterExt, TurboTasks, Vc};
-use turbo_tasks_backend::{noop_backing_storage, BackendOptions, TurboTasksBackend};
+use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
 use super::register;
 

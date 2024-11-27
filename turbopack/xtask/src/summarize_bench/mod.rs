@@ -1,13 +1,13 @@
 pub(crate) mod data;
 
 use std::{
-    collections::{hash_map::Entry, BTreeMap, HashMap},
+    collections::{BTreeMap, HashMap, hash_map::Entry},
     fs::File,
     path::{Path, PathBuf},
     time::{Duration, UNIX_EPOCH},
 };
 
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use chrono::{DateTime, Utc};
 use indexmap::IndexSet;
 use walkdir::WalkDir;

@@ -5,7 +5,7 @@ use std::{
 };
 
 use anyhow::Result;
-use turbo_tasks::{run_once, trace::TraceRawVcs, TurboTasksApi};
+use turbo_tasks::{TurboTasksApi, run_once, trace::TraceRawVcs};
 
 pub struct Registration {
     execution_lock: OnceLock<()>,

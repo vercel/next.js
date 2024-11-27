@@ -8,9 +8,9 @@ use turbo_tasks::{
 };
 
 use super::{
+    AsyncModuleInfo, Chunk, ChunkContentResult, ChunkItem, ChunkingContext,
     availability_info::AvailabilityInfo, available_chunk_items::AvailableChunkItemInfo,
-    chunk_content, chunking::make_chunks, AsyncModuleInfo, Chunk, ChunkContentResult, ChunkItem,
-    ChunkingContext,
+    chunk_content, chunking::make_chunks,
 };
 use crate::{
     module::Module, output::OutputAssets, rebase::RebasedAsset, reference::ModuleReference,
@@ -111,12 +111,9 @@ pub async fn make_chunk_group(
         let map = chunk_items
             .iter()
             .map(|(&chunk_item, async_info)| async move {
-                Ok((
-                    chunk_item.to_resolved().await?,
-                    AvailableChunkItemInfo {
-                        is_async: async_info.is_some(),
-                    },
-                ))
+                Ok((chunk_item.to_resolved().await?, AvailableChunkItemInfo {
+                    is_async: async_info.is_some(),
+                }))
             })
             .try_join()
             .await?

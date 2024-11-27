@@ -1,13 +1,13 @@
 use std::{ops::Deref, sync::Arc};
 
 use anyhow::Result;
-use napi::{bindgen_prelude::External, JsFunction};
+use napi::{JsFunction, bindgen_prelude::External};
 use next_api::{
     paths::ServerPath,
     route::{Endpoint, WrittenEndpoint},
 };
 use tracing::Instrument;
-use turbo_tasks::{get_effects, Completion, Effects, ReadRef, Vc, VcValueType};
+use turbo_tasks::{Completion, Effects, ReadRef, Vc, VcValueType, get_effects};
 use turbopack_core::{
     diagnostics::PlainDiagnostic,
     error::PrettyPrintError,
@@ -15,8 +15,8 @@ use turbopack_core::{
 };
 
 use super::utils::{
-    get_diagnostics, get_issues, subscribe, NapiDiagnostic, NapiIssue, RootTask, TurbopackResult,
-    VcArc,
+    NapiDiagnostic, NapiIssue, RootTask, TurbopackResult, VcArc, get_diagnostics, get_issues,
+    subscribe,
 };
 
 #[napi(object)]

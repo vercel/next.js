@@ -2,8 +2,8 @@ use std::{
     ptr::null_mut,
     slice::from_raw_parts_mut,
     sync::{
-        atomic::{AtomicPtr, Ordering},
         Mutex,
+        atomic::{AtomicPtr, Ordering},
     },
 };
 

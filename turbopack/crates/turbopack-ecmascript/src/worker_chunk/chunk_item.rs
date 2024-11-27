@@ -1,11 +1,11 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use indoc::formatdoc;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc};
 use turbopack_core::{
     chunk::{
-        availability_info::AvailabilityInfo, ChunkData, ChunkItem, ChunkType, ChunkingContext,
-        ChunkingContextExt, ChunksData, EvaluatableAsset, EvaluatableAssets,
+        ChunkData, ChunkItem, ChunkType, ChunkingContext, ChunkingContextExt, ChunksData,
+        EvaluatableAsset, EvaluatableAssets, availability_info::AvailabilityInfo,
     },
     ident::AssetIdent,
     module::Module,
@@ -16,8 +16,8 @@ use turbopack_core::{
 use super::module::WorkerLoaderModule;
 use crate::{
     chunk::{
-        data::EcmascriptChunkData, EcmascriptChunkItem, EcmascriptChunkItemContent,
-        EcmascriptChunkType,
+        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkType,
+        data::EcmascriptChunkData,
     },
     utils::StringifyJs,
 };

@@ -6,7 +6,7 @@ use std::{
 
 use swc_core::{
     atoms::Atom,
-    common::{comments::Comments, pass::AstNodePath, Mark, Span, Spanned, SyntaxContext, GLOBALS},
+    common::{GLOBALS, Mark, Span, Spanned, SyntaxContext, comments::Comments, pass::AstNodePath},
     ecma::{
         ast::*,
         atoms::js_word,
@@ -18,13 +18,13 @@ use turbo_tasks::Vc;
 use turbopack_core::source::Source;
 
 use super::{
-    is_unresolved_id, ConstantNumber, ConstantValue, ImportMap, JsValue, ObjectPart,
-    WellKnownFunctionKind,
+    ConstantNumber, ConstantValue, ImportMap, JsValue, ObjectPart, WellKnownFunctionKind,
+    is_unresolved_id,
 };
 use crate::{
-    analyzer::{is_unresolved, WellKnownObjectKind},
-    utils::{unparen, AstPathRange},
     SpecifiedModuleType,
+    analyzer::{WellKnownObjectKind, is_unresolved},
+    utils::{AstPathRange, unparen},
 };
 
 #[derive(Debug, Clone)]
@@ -1079,13 +1079,10 @@ impl Analyzer<'_> {
                         let old_effects = take(&mut self.effects);
                         arg.visit_with_ast_path(self, &mut ast_path);
                         let effects = replace(&mut self.effects, old_effects);
-                        EffectArg::Closure(
-                            value,
-                            EffectsBlock {
-                                effects,
-                                range: AstPathRange::Exact(path),
-                            },
-                        )
+                        EffectArg::Closure(value, EffectsBlock {
+                            effects,
+                            range: AstPathRange::Exact(path),
+                        })
                     } else {
                         arg.visit_with_ast_path(self, &mut ast_path);
                         EffectArg::Value(value)

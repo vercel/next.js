@@ -4,7 +4,7 @@ use std::{
     ops::Deref,
 };
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use turbo_rcstr::RcStr;

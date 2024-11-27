@@ -1,7 +1,7 @@
 use std::ops::{Deref, DerefMut};
 
 use super::{
-    increase_aggregation_number_internal, AggregationContext, AggregationNode, AggregationNodeGuard,
+    AggregationContext, AggregationNode, AggregationNodeGuard, increase_aggregation_number_internal,
 };
 use crate::aggregation::{balance_queue::BalanceQueue, increase::IncreaseReason};
 

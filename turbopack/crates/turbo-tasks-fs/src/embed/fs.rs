@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use auto_hash_map::AutoMap;
 use include_dir::{Dir, DirEntry};
 use turbo_rcstr::RcStr;
@@ -58,13 +58,10 @@ impl FileSystem for EmbeddedFileSystem {
                 .into();
             let entry_path = path.join(entry_name.clone()).to_resolved().await?;
 
-            converted_entries.insert(
-                entry_name,
-                match e {
-                    DirEntry::Dir(_) => DirectoryEntry::Directory(entry_path),
-                    DirEntry::File(_) => DirectoryEntry::File(entry_path),
-                },
-            );
+            converted_entries.insert(entry_name, match e {
+                DirEntry::Dir(_) => DirectoryEntry::Directory(entry_path),
+                DirEntry::File(_) => DirectoryEntry::File(entry_path),
+            });
         }
 
         Ok(DirectoryContent::new(converted_entries))

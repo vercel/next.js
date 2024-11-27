@@ -150,7 +150,7 @@ impl Strategy {
 }
 
 pub fn shuffle<'a, T: 'a>(items: impl Iterator<Item = T>) -> impl Iterator<Item = T> {
-    use rand::{seq::SliceRandom, SeedableRng};
+    use rand::{SeedableRng, seq::SliceRandom};
     let mut rng = rand::rngs::SmallRng::from_seed([0; 32]);
     let mut input = items.collect::<Vec<_>>();
     input.shuffle(&mut rng);

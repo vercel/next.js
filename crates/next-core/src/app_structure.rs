@@ -1,14 +1,14 @@
 use std::collections::BTreeMap;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use indexmap::map::{Entry, OccupiedEntry};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs, FxIndexMap, ResolvedVc, TaskInput,
-    TryJoinIterExt, ValueDefault, ValueToString, Vc,
+    FxIndexMap, ResolvedVc, TaskInput, TryJoinIterExt, ValueDefault, ValueToString, Vc,
+    debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath};
 use turbopack_core::issue::{
@@ -17,11 +17,11 @@ use turbopack_core::issue::{
 
 use crate::{
     next_app::{
-        metadata::{
-            match_global_metadata_file, match_local_metadata_file, normalize_metadata_route,
-            GlobalMetadataFileMatch, MetadataFileMatch,
-        },
         AppPage, AppPath, PageSegment, PageType,
+        metadata::{
+            GlobalMetadataFileMatch, MetadataFileMatch, match_global_metadata_file,
+            match_local_metadata_file, normalize_metadata_route,
+        },
     },
     next_import_map::get_next_package,
 };
@@ -361,13 +361,10 @@ async fn get_directory_tree_internal(
                 let alt_path = matches!(&*alt_path.get_type().await?, FileSystemEntryType::File)
                     .then_some(alt_path);
 
-                entry.push((
-                    number,
-                    MetadataWithAltItem::Static {
-                        path: *file,
-                        alt_path,
-                    },
-                ));
+                entry.push((number, MetadataWithAltItem::Static {
+                    path: *file,
+                    alt_path,
+                }));
             }
             DirectoryEntry::Directory(dir) => {
                 // appDir ignores paths starting with an underscore
@@ -902,9 +899,8 @@ fn directory_tree_to_loader_tree_internal(
         .then_some(modules.page)
         .flatten()
     {
-        tree.parallel_routes.insert(
-            "children".into(),
-            AppPageLoaderTree {
+        tree.parallel_routes
+            .insert("children".into(), AppPageLoaderTree {
                 page: app_page.clone(),
                 segment: "__PAGE__".into(),
                 parallel_routes: FxIndexMap::default(),
@@ -914,8 +910,7 @@ fn directory_tree_to_loader_tree_internal(
                     ..Default::default()
                 },
                 global_metadata,
-            },
-        );
+            });
 
         if current_level_is_parallel_route {
             tree.segment = "page$".into();

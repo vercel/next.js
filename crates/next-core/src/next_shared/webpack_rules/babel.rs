@@ -91,13 +91,10 @@ pub async fn maybe_add_babel_loader(
                     loaders.push(loader);
                     rule.loaders = ResolvedVc::cell(loaders);
                 } else {
-                    rules.insert(
-                        pattern.into(),
-                        LoaderRuleItem {
-                            loaders: ResolvedVc::cell(vec![loader]),
-                            rename_as: Some("*".into()),
-                        },
-                    );
+                    rules.insert(pattern.into(), LoaderRuleItem {
+                        loaders: ResolvedVc::cell(vec![loader]),
+                        rename_as: Some("*".into()),
+                    });
                 }
                 has_changed = true;
             }

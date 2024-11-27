@@ -1,6 +1,6 @@
 use std::{path::MAIN_SEPARATOR, time::Duration};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use indexmap::map::Entry;
 use next_core::{
     all_assets_from_entries,
@@ -13,9 +13,9 @@ use next_core::{
     next_client::{get_client_chunking_context, get_client_compile_time_info},
     next_config::{JsConfig, ModuleIdStrategy as ModuleIdStrategyConfig, NextConfig},
     next_server::{
-        get_server_chunking_context, get_server_chunking_context_with_client_assets,
-        get_server_compile_time_info, get_server_module_options_context,
-        get_server_resolve_options_context, ServerContextType,
+        ServerContextType, get_server_chunking_context,
+        get_server_chunking_context_with_client_assets, get_server_compile_time_info,
+        get_server_module_options_context, get_server_resolve_options_context,
     },
     next_telemetry::NextFeatureTelemetry,
     util::NextRuntime,
@@ -24,23 +24,24 @@ use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
+    Completion, Completions, FxIndexMap, IntoTraitRef, ReadRef, ResolvedVc, State, TaskInput,
+    TransientInstance, TryFlatJoinIterExt, Value, Vc,
     debug::ValueDebugFormat,
     fxindexmap,
     graph::{AdjacencyMap, GraphTraversal},
     trace::TraceRawVcs,
-    Completion, Completions, FxIndexMap, IntoTraitRef, ReadRef, ResolvedVc, State, TaskInput,
-    TransientInstance, TryFlatJoinIterExt, Value, Vc,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath, VirtualFileSystem};
 use turbopack::{
-    evaluate_context::node_build_environment, transition::TransitionOptions, ModuleAssetContext,
+    ModuleAssetContext, evaluate_context::node_build_environment, transition::TransitionOptions,
 };
 use turbopack_core::{
+    PROJECT_FILESYSTEM_NAME,
     changed::content_changed,
     chunk::{
-        module_id_strategies::{DevModuleIdStrategy, ModuleIdStrategy},
         ChunkingContext,
+        module_id_strategies::{DevModuleIdStrategy, ModuleIdStrategy},
     },
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
@@ -49,18 +50,17 @@ use turbopack_core::{
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     module::Modules,
     output::{OutputAsset, OutputAssets},
-    resolve::{find_context_file, FindContextFileResult},
+    resolve::{FindContextFileResult, find_context_file},
     source_map::OptionSourceMap,
     version::{
         NotFoundVersion, OptionVersionedContent, Update, Version, VersionState, VersionedContent,
     },
-    PROJECT_FILESYSTEM_NAME,
 };
 use turbopack_node::execution_context::ExecutionContext;
 use turbopack_nodejs::NodeJsChunkingContext;
 
 use crate::{
-    app::{AppProject, OptionAppProject, ECMASCRIPT_CLIENT_TRANSITION_NAME},
+    app::{AppProject, ECMASCRIPT_CLIENT_TRANSITION_NAME, OptionAppProject},
     build,
     empty::EmptyEndpoint,
     entrypoints::Entrypoints,

@@ -110,7 +110,7 @@ mod tests {
     use serde::Deserialize;
 
     use super::{
-        default_adjust_font_fallback, deserialize_adjust_font_fallback, AdjustFontFallback,
+        AdjustFontFallback, default_adjust_font_fallback, deserialize_adjust_font_fallback,
     };
 
     #[derive(Debug, Deserialize, PartialEq)]

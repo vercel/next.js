@@ -18,27 +18,27 @@ use std::{
     mem::swap,
 };
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use css::{CssModuleAsset, ModuleCssAsset};
 use ecmascript::{
-    chunk::EcmascriptChunkPlaceable,
-    references::{follow_reexports, FollowExportsResult},
-    side_effect_optimization::facade::module::EcmascriptModuleFacadeModule,
     EcmascriptModuleAsset, EcmascriptModuleAssetType, TreeShakingMode,
+    chunk::EcmascriptChunkPlaceable,
+    references::{FollowExportsResult, follow_reexports},
+    side_effect_optimization::facade::module::EcmascriptModuleFacadeModule,
 };
-use graph::{aggregate, AggregatedGraph, AggregatedGraphNodeContent};
+use graph::{AggregatedGraph, AggregatedGraphNodeContent, aggregate};
 use module_options::{ModuleOptions, ModuleOptionsContext, ModuleRuleEffect, ModuleType};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
-use turbo_tasks_fs::{glob::Glob, FileSystemPath};
+use turbo_tasks_fs::{FileSystemPath, glob::Glob};
 pub use turbopack_core::condition;
 use turbopack_core::{
     asset::Asset,
     compile_time_info::CompileTimeInfo,
     context::{AssetContext, ProcessResult},
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
-    issue::{module::ModuleIssue, IssueExt, StyledString},
+    issue::{IssueExt, StyledString, module::ModuleIssue},
     module::Module,
     output::OutputAsset,
     raw_module::RawModule,
@@ -48,9 +48,9 @@ use turbopack_core::{
         ReferenceType,
     },
     resolve::{
-        options::ResolveOptions, origin::PlainResolveOrigin, parse::Request, resolve,
         ExternalTraced, ExternalType, ModulePart, ModuleResolveResult, ModuleResolveResultItem,
-        ResolveResult, ResolveResultItem,
+        ResolveResult, ResolveResultItem, options::ResolveOptions, origin::PlainResolveOrigin,
+        parse::Request, resolve,
     },
     source::Source,
 };
@@ -226,7 +226,7 @@ async fn apply_module_type(
             return Ok(module_asset_context.process(
                 source,
                 Value::new(ReferenceType::Css(CssReferenceSubType::Internal)),
-            ))
+            ));
         }
         ModuleType::CssModule => ResolvedVc::upcast(
             ModuleCssAsset::new(source, Vc::upcast(module_asset_context))

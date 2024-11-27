@@ -24,12 +24,12 @@ mod tests;
 mod uppers;
 mod util;
 
-pub use aggregation_data::{aggregation_data, AggregationDataGuard};
+pub use aggregation_data::{AggregationDataGuard, aggregation_data};
 use balance_edge::balance_edge;
 use increase::increase_aggregation_number_internal;
 pub use new_edge::handle_new_edge;
 use notify_new_follower::notify_new_follower;
-pub use root_query::{query_root_info, RootQuery};
+pub use root_query::{RootQuery, query_root_info};
 
 use self::balance_queue::BalanceQueue;
 
@@ -195,10 +195,10 @@ impl<C: AggregationContext, T: PreparedInternalOperation<C>, const N: usize>
 pub trait AggregationContext {
     type NodeRef: Clone + Eq + Hash + Debug + 'static;
     type Guard<'l>: AggregationNodeGuard<
-        NodeRef = Self::NodeRef,
-        Data = Self::Data,
-        DataChange = Self::DataChange,
-    >
+            NodeRef = Self::NodeRef,
+            Data = Self::Data,
+            DataChange = Self::DataChange,
+        >
     where
         Self: 'l;
     type Data: 'static;

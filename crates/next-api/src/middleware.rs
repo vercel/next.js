@@ -1,13 +1,13 @@
 use std::future::IntoFuture;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use next_core::{
     all_assets_from_entries,
     middleware::get_middleware_module,
     next_edge::entry::wrap_edge_entry,
     next_manifests::{EdgeFunctionDefinition, MiddlewareMatcher, MiddlewaresManifestV2, Regions},
-    next_server::{get_server_runtime_entries, ServerContextType},
-    util::{parse_config_from_source, MiddlewareMatcherKind},
+    next_server::{ServerContextType, get_server_runtime_entries},
+    util::{MiddlewareMatcherKind, parse_config_from_source},
 };
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
@@ -15,7 +15,7 @@ use turbo_tasks::{Completion, ResolvedVc, Value, Vc};
 use turbo_tasks_fs::{self, File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
-    chunk::{availability_info::AvailabilityInfo, ChunkingContextExt},
+    chunk::{ChunkingContextExt, availability_info::AvailabilityInfo},
     context::AssetContext,
     module::{Module, Modules},
     output::OutputAssets,

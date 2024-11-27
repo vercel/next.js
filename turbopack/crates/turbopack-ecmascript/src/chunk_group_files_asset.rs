@@ -5,13 +5,13 @@ use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        availability_info::AvailabilityInfo, ChunkItem, ChunkType, ChunkableModule,
-        ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssets,
+        ChunkItem, ChunkType, ChunkableModule, ChunkingContext, ChunkingContextExt,
+        EvaluatableAsset, EvaluatableAssets, availability_info::AvailabilityInfo,
     },
     ident::AssetIdent,
     introspect::{
-        module::IntrospectableModule, utils::content_to_details, Introspectable,
-        IntrospectableChildren,
+        Introspectable, IntrospectableChildren, module::IntrospectableModule,
+        utils::content_to_details,
     },
     module::Module,
     output::{OutputAsset, OutputAssets},

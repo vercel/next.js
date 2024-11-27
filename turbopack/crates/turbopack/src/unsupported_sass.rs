@@ -2,14 +2,14 @@
 
 use anyhow::Result;
 use turbo_tasks::{ResolvedVc, Value, Vc};
-use turbo_tasks_fs::{glob::Glob, FileSystemPath};
+use turbo_tasks_fs::{FileSystemPath, glob::Glob};
 use turbopack_core::{
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     reference_type::ReferenceType,
     resolve::{
+        ResolveResultOption,
         parse::Request,
         plugin::{AfterResolvePlugin, AfterResolvePluginCondition},
-        ResolveResultOption,
     },
 };
 

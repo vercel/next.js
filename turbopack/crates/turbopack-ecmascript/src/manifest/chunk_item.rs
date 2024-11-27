@@ -11,8 +11,8 @@ use turbopack_core::{
 use super::chunk_asset::ManifestAsyncModule;
 use crate::{
     chunk::{
-        data::EcmascriptChunkData, EcmascriptChunkItem, EcmascriptChunkItemContent,
-        EcmascriptChunkType,
+        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkType,
+        data::EcmascriptChunkData,
     },
     utils::StringifyJs,
 };

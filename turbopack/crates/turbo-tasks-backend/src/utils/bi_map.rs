@@ -3,7 +3,7 @@ use std::{
     hash::{BuildHasherDefault, Hash},
 };
 
-use dashmap::{mapref::entry::Entry, DashMap};
+use dashmap::{DashMap, mapref::entry::Entry};
 use rustc_hash::FxHasher;
 
 /// A bidirectional [`DashMap`] that allows lookup by key or value.

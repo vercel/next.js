@@ -5,12 +5,12 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack::{
+    ModuleAssetContext,
     ecmascript::{EcmascriptInputTransform, TreeShakingMode},
     module_options::{
         EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext, ModuleRule,
         ModuleRuleEffect, RuleCondition, TypescriptTransformOptions,
     },
-    ModuleAssetContext,
 };
 use turbopack_browser::react_refresh::assert_can_resolve_react_refresh;
 use turbopack_core::{
@@ -141,9 +141,8 @@ async fn get_client_module_options_context(
         RuleCondition::ResourcePathEndsWith(".tsx".to_string()),
     ]);
 
-    let module_rules = ModuleRule::new(
-        conditions,
-        vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
+    let module_rules = ModuleRule::new(conditions, vec![
+        ModuleRuleEffect::ExtendEcmascriptTransforms {
             prepend: ResolvedVc::cell(vec![
                 EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(
                     EmotionTransformer::new(&EmotionTransformConfig::default())
@@ -157,8 +156,8 @@ async fn get_client_module_options_context(
                 ) as _)),
             ]),
             append: ResolvedVc::cell(vec![]),
-        }],
-    );
+        },
+    ]);
 
     let module_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {

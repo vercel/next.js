@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use swc_core::{
     atoms::Atom,
     base::SwcComments,
-    common::{collections::AHashMap, comments::Comments, util::take::Take, Mark, SourceMap},
+    common::{Mark, SourceMap, collections::AHashMap, comments::Comments, util::take::Take},
     ecma::{
         ast::{Module, ModuleItem, Program, Script},
         preset_env::{self, Targets},
@@ -154,7 +154,7 @@ impl EcmascriptInputTransform {
                             return Err(anyhow::anyhow!(
                                 "Invalid value for swc.jsc.transform.react.runtime: {}",
                                 runtime
-                            ))
+                            ));
                         }
                     }
                 } else {
@@ -275,7 +275,7 @@ impl EcmascriptInputTransform {
                 // TODO(WEB-1213)
                 use_define_for_class_fields: _use_define_for_class_fields,
             } => {
-                use swc_core::ecma::transforms::proposal::decorators::{decorators, Config};
+                use swc_core::ecma::transforms::proposal::decorators::{Config, decorators};
                 let config = Config {
                     legacy: *is_legacy,
                     emit_metadata: *emit_decorators_metadata,

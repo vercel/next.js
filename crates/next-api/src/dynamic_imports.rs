@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use futures::Future;
 use next_core::next_client_reference::EcmascriptClientReferenceModule;
 use serde::{Deserialize, Serialize};
@@ -11,14 +11,14 @@ use swc_core::ecma::{
 use tracing::{Instrument, Level};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
+    FxIndexMap, ReadRef, ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc,
     graph::{GraphTraversal, NonDeterministic, VisitControlFlow, VisitedNodes},
     trace::TraceRawVcs,
-    FxIndexMap, ReadRef, ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc,
 };
 use turbopack_core::{
     chunk::{
-        availability_info::AvailabilityInfo, ChunkableModule, ChunkingContext, ChunkingContextExt,
-        EvaluatableAsset,
+        ChunkableModule, ChunkingContext, ChunkingContextExt, EvaluatableAsset,
+        availability_info::AvailabilityInfo,
     },
     context::AssetContext,
     module::Module,
@@ -27,7 +27,7 @@ use turbopack_core::{
     reference_type::EcmaScriptModulesReferenceSubType,
     resolve::{origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
 };
-use turbopack_ecmascript::{parse::ParseResult, resolve::esm_resolve, EcmascriptParsable};
+use turbopack_ecmascript::{EcmascriptParsable, parse::ParseResult, resolve::esm_resolve};
 
 async fn collect_chunk_group_inner<F, Fu>(
     dynamic_import_entries: FxIndexMap<ResolvedVc<Box<dyn Module>>, DynamicImportedModules>,

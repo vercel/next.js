@@ -8,8 +8,8 @@ use anyhow::Result;
 use auto_hash_map::AutoSet;
 use tokio::time::sleep;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{emit, CollectiblesSource, ValueToString, Vc};
-use turbo_tasks_testing::{register, run, Registration};
+use turbo_tasks::{CollectiblesSource, ValueToString, Vc, emit};
+use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
 

@@ -44,19 +44,16 @@ impl RouteMatcherRef for PathRegex {
                         return None;
                     }
                     let value = capture.get(idx + 1)?;
-                    Some((
-                        param.name.as_str().into(),
-                        match param.kind {
-                            NamedParamKind::Single => Param::Single(value.as_str().into()),
-                            NamedParamKind::Multi => Param::Multi(
-                                value
-                                    .as_str()
-                                    .split('/')
-                                    .map(|segment| segment.into())
-                                    .collect(),
-                            ),
-                        },
-                    ))
+                    Some((param.name.as_str().into(), match param.kind {
+                        NamedParamKind::Single => Param::Single(value.as_str().into()),
+                        NamedParamKind::Multi => Param::Multi(
+                            value
+                                .as_str()
+                                .split('/')
+                                .map(|segment| segment.into())
+                                .collect(),
+                        ),
+                    }))
                 })
                 .collect()
         }))

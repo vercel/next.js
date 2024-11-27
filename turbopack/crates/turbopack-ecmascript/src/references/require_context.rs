@@ -1,6 +1,6 @@
 use std::{borrow::Cow, collections::VecDeque, sync::Arc};
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use swc_core::{
     common::DUMMY_SP,
     ecma::{
@@ -8,12 +8,12 @@ use swc_core::{
             Expr, ExprStmt, KeyValueProp, Lit, ModuleItem, ObjectLit, Prop, PropName, PropOrSpread,
             Stmt, {self},
         },
-        codegen::{text_writer::JsWriter, Emitter},
+        codegen::{Emitter, text_writer::JsWriter},
     },
     quote, quote_expr,
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{primitives::Regex, FxIndexMap, ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{FxIndexMap, ResolvedVc, Value, ValueToString, Vc, primitives::Regex};
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -25,23 +25,23 @@ use turbopack_core::{
     issue::IssueSource,
     module::Module,
     reference::{ModuleReference, ModuleReferences},
-    resolve::{origin::ResolveOrigin, parse::Request, ModuleResolveResult},
+    resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request},
     source::Source,
 };
 use turbopack_resolve::ecmascript::cjs_resolve;
 
 use crate::{
+    CodeGenerateable, EcmascriptChunkPlaceable,
     chunk::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkType, EcmascriptExports,
     },
     code_gen::CodeGeneration,
     create_visitor,
     references::{
-        pattern_mapping::{PatternMapping, ResolveType},
         AstPath,
+        pattern_mapping::{PatternMapping, ResolveType},
     },
     utils::module_id_to_lit,
-    CodeGenerateable, EcmascriptChunkPlaceable,
 };
 
 #[turbo_tasks::value]
@@ -184,14 +184,11 @@ impl RequireContextMap {
                     .to_resolved()
                     .await?;
 
-                map.insert(
-                    context_relative.clone(),
-                    RequireContextMapEntry {
-                        origin_relative,
-                        request,
-                        result,
-                    },
-                );
+                map.insert(context_relative.clone(), RequireContextMapEntry {
+                    origin_relative,
+                    request,
+                    result,
+                });
             } else {
                 bail!("invariant error: this was already checked in `list_dir`");
             }

@@ -8,7 +8,7 @@ use std::{
 use serde::Deserialize;
 
 use super::TraceFormat;
-use crate::{span::SpanIndex, store_container::StoreContainer, FxIndexMap};
+use crate::{FxIndexMap, span::SpanIndex, store_container::StoreContainer};
 
 pub struct NextJsFormat {
     store: Arc<StoreContainer>,

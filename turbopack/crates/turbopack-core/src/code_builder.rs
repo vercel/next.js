@@ -8,16 +8,16 @@ use anyhow::{Context, Result};
 use indexmap::{IndexMap, IndexSet};
 use turbo_tasks::Vc;
 use turbo_tasks_fs::{
+    DiskFileSystem, FileSystemPath,
     rope::{Rope, RopeBuilder},
     util::uri_from_file,
-    DiskFileSystem, FileSystemPath,
 };
 use turbo_tasks_hash::hash_xxh3_hash64;
 
 use crate::{
+    SOURCE_MAP_PREFIX,
     source_map::{GenerateSourceMap, OptionSourceMap, SourceMap, SourceMapSection},
     source_pos::SourcePos,
-    SOURCE_MAP_PREFIX,
 };
 
 /// A mapping of byte-offset in the code string to an associated source map.

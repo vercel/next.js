@@ -16,9 +16,9 @@ use turbopack_node::execution_context::ExecutionContext;
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
 use crate::{
+    ModuleAssetContext,
     module_options::{EcmascriptOptionsContext, ModuleOptionsContext, TypescriptTransformOptions},
     transition::TransitionOptions,
-    ModuleAssetContext,
 };
 
 #[turbo_tasks::function]

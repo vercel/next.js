@@ -4,7 +4,7 @@ use std::{
     path::Path,
 };
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use turbo_tasks::Vc;
 
 use crate::{DiskFileSystem, FileSystemPath};

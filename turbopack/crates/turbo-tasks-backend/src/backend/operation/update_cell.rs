@@ -1,10 +1,10 @@
-use turbo_tasks::{backend::CellContent, CellId, TaskId};
+use turbo_tasks::{CellId, TaskId, backend::CellContent};
 
 use crate::{
     backend::{
-        operation::{invalidate::TaskDirtyCause, ExecuteContext, InvalidateOperation, TaskGuard},
-        storage::{get_many, remove},
         TaskDataCategory,
+        operation::{ExecuteContext, InvalidateOperation, TaskGuard, invalidate::TaskDirtyCause},
+        storage::{get_many, remove},
     },
     data::{CachedDataItem, CachedDataItemKey},
 };

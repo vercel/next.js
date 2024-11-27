@@ -1,7 +1,7 @@
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
-use syn::{parse_macro_input, DeriveInput, FieldsNamed, FieldsUnnamed};
+use syn::{DeriveInput, FieldsNamed, FieldsUnnamed, parse_macro_input};
 use turbo_tasks_macros_shared::{generate_exhaustive_destructuring, match_expansion};
 
 pub fn derive_shrink_to_fit(input: TokenStream) -> TokenStream {
@@ -22,30 +22,24 @@ pub fn derive_shrink_to_fit(input: TokenStream) -> TokenStream {
 
 fn shrink_named(_ident: TokenStream2, fields: &FieldsNamed) -> (TokenStream2, TokenStream2) {
     let (captures, fields_idents) = generate_exhaustive_destructuring(fields.named.iter());
-    (
-        captures,
-        quote! {
-            {#(
-                turbo_tasks::macro_helpers::ShrinkToFitDerefSpecialization::new(
-                    #fields_idents,
-                ).shrink_to_fit();
-            )*}
-        },
-    )
+    (captures, quote! {
+        {#(
+            turbo_tasks::macro_helpers::ShrinkToFitDerefSpecialization::new(
+                #fields_idents,
+            ).shrink_to_fit();
+        )*}
+    })
 }
 
 fn shrink_unnamed(_ident: TokenStream2, fields: &FieldsUnnamed) -> (TokenStream2, TokenStream2) {
     let (captures, fields_idents) = generate_exhaustive_destructuring(fields.unnamed.iter());
-    (
-        captures,
-        quote! {
-            {#(
-                turbo_tasks::macro_helpers::ShrinkToFitDerefSpecialization::new(
-                    #fields_idents,
-                ).shrink_to_fit();
-            )*}
-        },
-    )
+    (captures, quote! {
+        {#(
+            turbo_tasks::macro_helpers::ShrinkToFitDerefSpecialization::new(
+                #fields_idents,
+            ).shrink_to_fit();
+        )*}
+    })
 }
 
 fn shrink_unit(_ident: TokenStream2) -> TokenStream2 {

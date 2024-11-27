@@ -1,21 +1,21 @@
 use std::{io::Write, sync::Arc};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use swc_core::{
-    base::{try_with_handler, Compiler},
+    base::{Compiler, try_with_handler},
     common::{
+        BytePos, FileName, FilePathMapping, GLOBALS, LineCol, Mark, SourceMap as SwcSourceMap,
         comments::{Comments, SingleThreadedComments},
-        BytePos, FileName, FilePathMapping, LineCol, Mark, SourceMap as SwcSourceMap, GLOBALS,
     },
     ecma::{
         self,
         ast::{EsVersion, Program},
         codegen::{
-            text_writer::{self, JsWriter, WriteJs},
             Emitter,
+            text_writer::{self, JsWriter, WriteJs},
         },
         minifier::option::{ExtraOptions, MangleOptions, MinifyOptions},
-        parser::{lexer::Lexer, Parser, StringInput, Syntax},
+        parser::{Parser, StringInput, Syntax, lexer::Lexer},
         transforms::base::fixer::paren_remover,
     },
 };

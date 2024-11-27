@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{fxindexset, trace::TraceRawVcs, FxIndexMap, FxIndexSet, Value, Vc};
+use turbo_tasks::{FxIndexMap, FxIndexSet, Value, Vc, fxindexset, trace::TraceRawVcs};
 
 use super::request::{NextFontRequest, OneOrManyStrings};
 
@@ -205,7 +205,7 @@ mod tests {
     use turbo_tasks::FxIndexMap;
     use turbo_tasks_fs::json::parse_json_with_source_context;
 
-    use super::{options_from_request, FontDataEntry, NextFontGoogleOptions};
+    use super::{FontDataEntry, NextFontGoogleOptions, options_from_request};
     use crate::next_font::google::{options::FontWeights, request::NextFontRequest};
 
     #[test]

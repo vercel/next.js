@@ -5,12 +5,12 @@ use std::{
     sync::Arc,
 };
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use indexmap::map::Entry;
 use rustc_demangle::demangle;
 
 use super::TraceFormat;
-use crate::{span::SpanIndex, store_container::StoreContainer, FxIndexMap};
+use crate::{FxIndexMap, span::SpanIndex, store_container::StoreContainer};
 
 #[derive(Debug, Clone, Copy)]
 struct TraceNode {

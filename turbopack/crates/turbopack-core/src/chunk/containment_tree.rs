@@ -240,38 +240,35 @@ mod tests {
 
         let tree = ContainmentTree::<TestKey, &str>::build(input).await?;
 
-        assert_eq!(
-            tree,
-            ContainmentTree {
-                key: None,
-                values: None,
-                children: vec![
-                    ContainmentTree {
-                        key: Some(TestKey(0, 0)),
-                        values: Some(vec!["value1"]),
+        assert_eq!(tree, ContainmentTree {
+            key: None,
+            values: None,
+            children: vec![
+                ContainmentTree {
+                    key: Some(TestKey(0, 0)),
+                    values: Some(vec!["value1"]),
+                    children: vec![ContainmentTree {
+                        key: Some(TestKey(0, 1)),
+                        values: Some(vec!["value2"]),
                         children: vec![ContainmentTree {
-                            key: Some(TestKey(0, 1)),
-                            values: Some(vec!["value2"]),
-                            children: vec![ContainmentTree {
-                                key: Some(TestKey(0, 2)),
-                                values: Some(vec!["value3"]),
-                                children: vec![]
-                            }]
+                            key: Some(TestKey(0, 2)),
+                            values: Some(vec!["value3"]),
+                            children: vec![]
                         }]
-                    },
-                    ContainmentTree {
-                        key: Some(TestKey(1, 2)),
-                        values: Some(vec!["value4"]),
-                        children: vec![]
-                    },
-                    ContainmentTree {
-                        key: None,
-                        values: Some(vec!["value0"]),
-                        children: vec![]
-                    },
-                ]
-            }
-        );
+                    }]
+                },
+                ContainmentTree {
+                    key: Some(TestKey(1, 2)),
+                    values: Some(vec!["value4"]),
+                    children: vec![]
+                },
+                ContainmentTree {
+                    key: None,
+                    values: Some(vec!["value0"]),
+                    children: vec![]
+                },
+            ]
+        });
 
         Ok(())
     }

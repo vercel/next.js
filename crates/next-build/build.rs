@@ -1,5 +1,5 @@
 use turbo_tasks_build::generate_register;
-use vergen::{vergen, Config};
+use vergen::{Config, vergen};
 
 fn main() {
     generate_register();

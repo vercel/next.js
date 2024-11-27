@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use anyhow::Result;
 use async_trait::async_trait;
 use swc_core::{
-    common::{comments::NoopComments, FileName},
+    common::{FileName, comments::NoopComments},
     ecma::{ast::Program, atoms::JsWord, visit::VisitMutWith},
 };
 use turbo_tasks::{ValueDefault, Vc};

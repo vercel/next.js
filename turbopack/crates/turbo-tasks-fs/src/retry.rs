@@ -9,12 +9,9 @@ where
     F: FnMut() -> Fut + Unpin,
     Fut: Future<Output = io::Result<R>> + 'a,
 {
-    match FutureRetry::new(
-        func,
-        FsRetryHandler {
-            max_attempts: MAX_RETRY_ATTEMPTS,
-        },
-    )
+    match FutureRetry::new(func, FsRetryHandler {
+        max_attempts: MAX_RETRY_ATTEMPTS,
+    })
     .await
     {
         Ok((r, _attempts)) => Ok(r),

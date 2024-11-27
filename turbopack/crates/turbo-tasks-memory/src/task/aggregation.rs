@@ -6,25 +6,25 @@ use std::{
     sync::atomic::AtomicU32,
 };
 
-use auto_hash_map::{map::Entry, AutoMap};
+use auto_hash_map::{AutoMap, map::Entry};
 use either::Either;
 use parking_lot::Mutex;
 use rustc_hash::FxHasher;
 use turbo_tasks::{
-    backend::TaskCollectiblesMap, event::Event, RawVc, TaskId, TaskIdSet, TraitTypeId,
-    TurboTasksBackendApi,
+    RawVc, TaskId, TaskIdSet, TraitTypeId, TurboTasksBackendApi, backend::TaskCollectiblesMap,
+    event::Event,
 };
 
 use super::{
-    meta_state::{FullTaskWriteGuard, TaskMetaStateWriteGuard},
     InProgressState, TaskStateType,
+    meta_state::{FullTaskWriteGuard, TaskMetaStateWriteGuard},
 };
 use crate::{
-    aggregation::{
-        aggregation_data, AggregationContext, AggregationDataGuard, AggregationNode,
-        AggregationNodeGuard, RootQuery,
-    },
     MemoryBackend,
+    aggregation::{
+        AggregationContext, AggregationDataGuard, AggregationNode, AggregationNodeGuard, RootQuery,
+        aggregation_data,
+    },
 };
 
 pub enum RootType {

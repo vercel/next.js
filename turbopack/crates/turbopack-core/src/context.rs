@@ -1,14 +1,14 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Value, Vc};
-use turbo_tasks_fs::{glob::Glob, FileSystemPath};
+use turbo_tasks_fs::{FileSystemPath, glob::Glob};
 
 use crate::{
     compile_time_info::CompileTimeInfo,
     issue::module::emit_unknown_module_type_error,
     module::{Module, OptionModule},
     reference_type::ReferenceType,
-    resolve::{options::ResolveOptions, parse::Request, ModuleResolveResult, ResolveResult},
+    resolve::{ModuleResolveResult, ResolveResult, options::ResolveOptions, parse::Request},
     source::Source,
 };
 

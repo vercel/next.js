@@ -1,13 +1,13 @@
 use std::io::Write as _;
 
 use anyhow::Result;
-use tracing::{info_span, Instrument};
+use tracing::{Instrument, info_span};
 use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkItem, ChunkItemExt, ModuleId},
     code_builder::{Code, CodeBuilder},
     error::PrettyPrintError,
-    issue::{code_gen::CodeGenerationIssue, IssueExt, IssueSeverity, StyledString},
+    issue::{IssueExt, IssueSeverity, StyledString, code_gen::CodeGenerationIssue},
 };
 use turbopack_ecmascript::chunk::{
     EcmascriptChunkContent, EcmascriptChunkItem, EcmascriptChunkItemExt,

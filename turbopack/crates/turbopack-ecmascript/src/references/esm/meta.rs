@@ -13,7 +13,7 @@ use turbopack_core::chunk::ChunkingContext;
 use crate::{
     code_gen::{CodeGenerateable, CodeGeneration},
     create_visitor, magic_identifier,
-    references::{as_abs_path, AstPath},
+    references::{AstPath, as_abs_path},
 };
 
 /// Responsible for initializing the `import.meta` object binding, so that it

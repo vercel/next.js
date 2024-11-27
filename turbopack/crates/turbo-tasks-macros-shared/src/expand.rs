@@ -1,8 +1,8 @@
 use proc_macro2::{Ident, TokenStream};
 use quote::quote;
 use syn::{
-    spanned::Spanned, Data, DataEnum, DataStruct, DeriveInput, Field, Fields, FieldsNamed,
-    FieldsUnnamed,
+    Data, DataEnum, DataStruct, DeriveInput, Field, Fields, FieldsNamed, FieldsUnnamed,
+    spanned::Spanned,
 };
 
 /// Handles the expansion of a struct/enum into a match statement that accesses

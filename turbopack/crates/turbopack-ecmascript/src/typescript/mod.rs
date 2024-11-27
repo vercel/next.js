@@ -11,9 +11,9 @@ use turbopack_core::{
     reference::{ModuleReference, ModuleReferences},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{
+        ModuleResolveResult,
         origin::{ResolveOrigin, ResolveOriginExt},
         parse::Request,
-        ModuleResolveResult,
     },
     source::Source,
 };

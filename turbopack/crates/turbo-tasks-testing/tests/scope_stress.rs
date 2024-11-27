@@ -3,8 +3,8 @@
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
 use anyhow::Result;
-use turbo_tasks::{run_once, Completion, TryJoinIterExt, Vc};
-use turbo_tasks_testing::{register, run_with_tt, Registration};
+use turbo_tasks::{Completion, TryJoinIterExt, Vc, run_once};
+use turbo_tasks_testing::{Registration, register, run_with_tt};
 
 static REGISTRATION: Registration = register!();
 

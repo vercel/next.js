@@ -15,14 +15,14 @@ use turbopack_core::{
 };
 
 use crate::{
+    CssModuleAssetType,
     chunk::{CssChunkItem, CssChunkItemContent, CssChunkPlaceable, CssChunkType, CssImport},
     code_gen::CodeGenerateable,
     process::{
-        finalize_css, parse_css, process_css_with_placeholder, CssWithPlaceholderResult,
-        FinalCssResult, ParseCss, ParseCssResult, ProcessCss,
+        CssWithPlaceholderResult, FinalCssResult, ParseCss, ParseCssResult, ProcessCss,
+        finalize_css, parse_css, process_css_with_placeholder,
     },
     references::{compose::CssModuleComposeReference, import::ImportAssetReference},
-    CssModuleAssetType,
 };
 
 #[turbo_tasks::function]

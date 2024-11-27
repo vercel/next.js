@@ -1,6 +1,6 @@
 use std::mem::take;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use serde_json::Value as JsonValue;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack::module_options::{LoaderRuleItem, OptionWebpackRules, WebpackRules};
@@ -78,13 +78,10 @@ pub async fn maybe_add_sass_loader(
             loaders.push(sass_loader);
             rule.loaders = ResolvedVc::cell(loaders);
         } else {
-            rules.insert(
-                pattern.into(),
-                LoaderRuleItem {
-                    loaders: ResolvedVc::cell(vec![resolve_url_loader, sass_loader]),
-                    rename_as: Some(format!("*{rename}").into()),
-                },
-            );
+            rules.insert(pattern.into(), LoaderRuleItem {
+                loaders: ResolvedVc::cell(vec![resolve_url_loader, sass_loader]),
+                rename_as: Some(format!("*{rename}").into()),
+            });
         }
     }
 

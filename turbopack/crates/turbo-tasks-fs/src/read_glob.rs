@@ -4,7 +4,7 @@ use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
 
-use crate::{glob::Glob, DirectoryContent, DirectoryEntry, FileSystemPath};
+use crate::{DirectoryContent, DirectoryEntry, FileSystemPath, glob::Glob};
 
 #[turbo_tasks::value]
 #[derive(Default, Debug)]

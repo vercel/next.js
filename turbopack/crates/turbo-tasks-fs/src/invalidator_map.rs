@@ -4,7 +4,7 @@ use std::{
 };
 
 use concurrent_queue::ConcurrentQueue;
-use serde::{de::Visitor, Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::Visitor};
 use turbo_tasks::Invalidator;
 
 pub struct InvalidatorMap {

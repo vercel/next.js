@@ -1,17 +1,17 @@
 use std::{borrow::Cow, mem::take};
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{util::SharedError, RawVc, TaskId};
+use turbo_tasks::{RawVc, TaskId, util::SharedError};
 
 use crate::{
     backend::{
+        TaskDataCategory,
         operation::{
-            invalidate::{make_task_dirty, make_task_dirty_internal, TaskDirtyCause},
             AggregationUpdateQueue, ExecuteContext, Operation, TaskGuard,
+            invalidate::{TaskDirtyCause, make_task_dirty, make_task_dirty_internal},
         },
         storage::{get, get_many},
-        TaskDataCategory,
     },
     data::{
         CachedDataItem, CachedDataItemKey, CachedDataItemValue, CellRef, InProgressState,

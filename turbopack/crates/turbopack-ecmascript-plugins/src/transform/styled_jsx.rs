@@ -1,7 +1,7 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use swc_core::{
-    common::{util::take::Take, FileName},
+    common::{FileName, util::take::Take},
     ecma::{
         ast::{Module, Program},
         preset_env::Versions,

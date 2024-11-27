@@ -1,10 +1,11 @@
 use std::{borrow::Cow, fmt::Write, marker::PhantomData, thread, time::Instant};
 
 use tracing::{
-    field::{display, Visit},
-    span, Subscriber,
+    Subscriber,
+    field::{Visit, display},
+    span,
 };
-use tracing_subscriber::{registry::LookupSpan, Layer};
+use tracing_subscriber::{Layer, registry::LookupSpan};
 use turbo_tasks_malloc::TurboMalloc;
 
 use crate::{

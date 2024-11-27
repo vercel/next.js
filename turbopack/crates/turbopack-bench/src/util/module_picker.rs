@@ -1,6 +1,6 @@
 use std::{collections::HashMap, path::PathBuf};
 
-use rand::{rngs::StdRng, seq::SliceRandom, SeedableRng};
+use rand::{SeedableRng, rngs::StdRng, seq::SliceRandom};
 
 /// Picks modules at random, but with a fixed seed so runs are somewhat
 /// reproducible.

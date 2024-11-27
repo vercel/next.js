@@ -12,20 +12,20 @@ use dunce::canonicalize;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    apply_effects, debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs, Completion, ResolvedVc,
-    TryJoinIterExt, TurboTasks, Value, Vc,
+    Completion, ResolvedVc, TryJoinIterExt, TurboTasks, Value, Vc, apply_effects,
+    debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs,
 };
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::CommandLineProcessEnv;
 use turbo_tasks_fs::{
-    json::parse_json_with_source_context, util::sys_to_unix, DiskFileSystem, FileContent,
-    FileSystem, FileSystemEntryType, FileSystemPath,
+    DiskFileSystem, FileContent, FileSystem, FileSystemEntryType, FileSystemPath,
+    json::parse_json_with_source_context, util::sys_to_unix,
 };
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
+    ModuleAssetContext,
     ecmascript::TreeShakingMode,
     module_options::{EcmascriptOptionsContext, ModuleOptionsContext, TypescriptTransformOptions},
-    ModuleAssetContext,
 };
 use turbopack_core::{
     compile_time_defines,
@@ -37,8 +37,8 @@ use turbopack_core::{
     issue::{Issue, IssueDescriptionExt},
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
-        options::{ImportMap, ImportMapping},
         ExternalTraced, ExternalType,
+        options::{ImportMap, ImportMapping},
     },
     source::Source,
 };

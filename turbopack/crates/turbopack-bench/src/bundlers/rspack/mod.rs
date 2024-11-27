@@ -4,7 +4,7 @@ use std::{
     process::{Child, Command, Stdio},
 };
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use regex::Regex;
 
 use crate::{
@@ -24,13 +24,10 @@ impl Bundler for Rspack {
     }
 
     fn prepare(&self, install_dir: &Path) -> Result<()> {
-        npm::install(
-            install_dir,
-            &[
-                NpmPackage::new("react-refresh", "^0.14.0"),
-                NpmPackage::new("@rspack/cli", "0.1.9"),
-            ],
-        )
+        npm::install(install_dir, &[
+            NpmPackage::new("react-refresh", "^0.14.0"),
+            NpmPackage::new("@rspack/cli", "0.1.9"),
+        ])
         .context("failed to install from npm")?;
 
         fs::write(

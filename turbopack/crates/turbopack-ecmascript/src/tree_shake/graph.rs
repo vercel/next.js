@@ -1,36 +1,36 @@
 use std::{fmt, hash::Hash};
 
 use petgraph::{
+    Direction, Graph,
     algo::{condensation, has_path_connecting},
     graph::NodeIndex,
     graphmap::GraphMap,
     prelude::DiGraphMap,
     visit::EdgeRef,
-    Direction, Graph,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
-    common::{comments::Comments, util::take::Take, Spanned, SyntaxContext, DUMMY_SP},
+    common::{DUMMY_SP, Spanned, SyntaxContext, comments::Comments, util::take::Take},
     ecma::{
         ast::{
-            op, ClassDecl, Decl, DefaultDecl, EsReserved, ExportAll, ExportDecl,
-            ExportNamedSpecifier, ExportSpecifier, Expr, ExprStmt, FnDecl, Id, Ident, IdentName,
-            ImportDecl, ImportNamedSpecifier, ImportSpecifier, ImportStarAsSpecifier, KeyValueProp,
-            Lit, Module, ModuleDecl, ModuleExportName, ModuleItem, NamedExport, ObjectLit, Prop,
-            PropName, PropOrSpread, Stmt, Str, VarDecl, VarDeclKind, VarDeclarator,
+            ClassDecl, Decl, DefaultDecl, EsReserved, ExportAll, ExportDecl, ExportNamedSpecifier,
+            ExportSpecifier, Expr, ExprStmt, FnDecl, Id, Ident, IdentName, ImportDecl,
+            ImportNamedSpecifier, ImportSpecifier, ImportStarAsSpecifier, KeyValueProp, Lit,
+            Module, ModuleDecl, ModuleExportName, ModuleItem, NamedExport, ObjectLit, Prop,
+            PropName, PropOrSpread, Stmt, Str, VarDecl, VarDeclKind, VarDeclarator, op,
         },
         atoms::JsWord,
-        utils::{find_pat_ids, private_ident, quote_ident, ExprCtx, ExprExt},
+        utils::{ExprCtx, ExprExt, find_pat_ids, private_ident, quote_ident},
     },
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::FxIndexSet;
 
 use super::{
-    util::{
-        collect_top_level_decls, ids_captured_by, ids_used_by, ids_used_by_ignoring_nested, Vars,
-    },
     Key, TURBOPACK_PART_IMPORT_SOURCE,
+    util::{
+        Vars, collect_top_level_decls, ids_captured_by, ids_used_by, ids_used_by_ignoring_nested,
+    },
 };
 use crate::{magic_identifier, tree_shake::optimizations::GraphOptimizer};
 
@@ -830,21 +830,16 @@ impl DepGraph {
                                 kind: ItemIdItemKind::ImportOfModule,
                             };
                             ids.push(import_id.clone());
-                            items.insert(
-                                import_id.clone(),
-                                ItemData {
-                                    is_hoisted: true,
-                                    side_effects: true,
-                                    content: ModuleItem::ModuleDecl(ModuleDecl::Import(
-                                        ImportDecl {
-                                            specifiers: Default::default(),
-                                            src: src.clone(),
-                                            ..ImportDecl::dummy()
-                                        },
-                                    )),
-                                    ..Default::default()
-                                },
-                            );
+                            items.insert(import_id.clone(), ItemData {
+                                is_hoisted: true,
+                                side_effects: true,
+                                content: ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                                    specifiers: Default::default(),
+                                    src: src.clone(),
+                                    ..ImportDecl::dummy()
+                                })),
+                                ..Default::default()
+                            });
 
                             Some(import_id)
                         } else {
@@ -910,26 +905,23 @@ impl DepGraph {
                                         is_type_only: false,
                                     }),
                                 };
-                                items.insert(
-                                    id,
-                                    ItemData {
-                                        is_hoisted: true,
-                                        var_decls: [local.to_id()].into_iter().collect(),
-                                        pure: true,
-                                        content: ModuleItem::ModuleDecl(ModuleDecl::Import(
-                                            ImportDecl {
-                                                span: DUMMY_SP,
-                                                specifiers: vec![import],
-                                                src: src.clone(),
-                                                type_only: false,
-                                                with: None,
-                                                phase: Default::default(),
-                                            },
-                                        )),
-                                        explicit_deps: vec![import_id.clone().unwrap()],
-                                        ..Default::default()
-                                    },
-                                );
+                                items.insert(id, ItemData {
+                                    is_hoisted: true,
+                                    var_decls: [local.to_id()].into_iter().collect(),
+                                    pure: true,
+                                    content: ModuleItem::ModuleDecl(ModuleDecl::Import(
+                                        ImportDecl {
+                                            span: DUMMY_SP,
+                                            specifiers: vec![import],
+                                            src: src.clone(),
+                                            type_only: false,
+                                            with: None,
+                                            phase: Default::default(),
+                                        },
+                                    )),
+                                    explicit_deps: vec![import_id.clone().unwrap()],
+                                    ..Default::default()
+                                });
                             }
                         }
                     }
@@ -1074,17 +1066,12 @@ impl DepGraph {
                             kind: ItemIdItemKind::ImportOfModule,
                         };
                         ids.push(id.clone());
-                        items.insert(
-                            id,
-                            ItemData {
-                                is_hoisted: true,
-                                side_effects: true,
-                                content: ModuleItem::ModuleDecl(ModuleDecl::ExportAll(
-                                    item.clone(),
-                                )),
-                                ..Default::default()
-                            },
-                        );
+                        items.insert(id, ItemData {
+                            is_hoisted: true,
+                            side_effects: true,
+                            content: ModuleItem::ModuleDecl(ModuleDecl::ExportAll(item.clone())),
+                            ..Default::default()
+                        });
                     }
                     _ => {}
                 }
@@ -1100,18 +1087,15 @@ impl DepGraph {
                         kind: ItemIdItemKind::ImportOfModule,
                     };
                     ids.push(import_id.clone());
-                    items.insert(
-                        import_id.clone(),
-                        ItemData {
-                            is_hoisted: true,
-                            side_effects: true,
-                            content: ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-                                specifiers: Default::default(),
-                                ..item.clone()
-                            })),
-                            ..Default::default()
-                        },
-                    );
+                    items.insert(import_id.clone(), ItemData {
+                        is_hoisted: true,
+                        side_effects: true,
+                        content: ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                            specifiers: Default::default(),
+                            ..item.clone()
+                        })),
+                        ..Default::default()
+                    });
 
                     // One per binding
                     for (si, s) in item.specifiers.iter().enumerate() {
@@ -1121,26 +1105,23 @@ impl DepGraph {
                         };
                         ids.push(id.clone());
                         let local = s.local().to_id();
-                        items.insert(
-                            id,
-                            ItemData {
-                                is_hoisted: true,
-                                var_decls: [local].into_iter().collect(),
-                                pure: true,
-                                content: ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-                                    specifiers: vec![s.clone()],
-                                    ..item.clone()
-                                })),
-                                binding_source: if item.with.is_none() {
-                                    // Optimize by directly binding to the source
-                                    Some((*item.src.clone(), s.clone()))
-                                } else {
-                                    None
-                                },
-                                explicit_deps: vec![import_id.clone()],
-                                ..Default::default()
+                        items.insert(id, ItemData {
+                            is_hoisted: true,
+                            var_decls: [local].into_iter().collect(),
+                            pure: true,
+                            content: ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                                specifiers: vec![s.clone()],
+                                ..item.clone()
+                            })),
+                            binding_source: if item.with.is_none() {
+                                // Optimize by directly binding to the source
+                                Some((*item.src.clone(), s.clone()))
+                            } else {
+                                None
                             },
-                        );
+                            explicit_deps: vec![import_id.clone()],
+                            ..Default::default()
+                        });
                     }
                 }
 
@@ -1166,18 +1147,15 @@ impl DepGraph {
                         v.insert(f.ident.to_id());
                         v
                     };
-                    items.insert(
-                        id,
-                        ItemData {
-                            is_hoisted: true,
-                            eventual_read_vars: vars.read,
-                            eventual_write_vars: vars.write,
-                            write_vars: var_decls.clone(),
-                            var_decls,
-                            content: ModuleItem::Stmt(Stmt::Decl(Decl::Fn(f.clone()))),
-                            ..Default::default()
-                        },
-                    );
+                    items.insert(id, ItemData {
+                        is_hoisted: true,
+                        eventual_read_vars: vars.read,
+                        eventual_write_vars: vars.write,
+                        write_vars: var_decls.clone(),
+                        var_decls,
+                        content: ModuleItem::Stmt(Stmt::Decl(Decl::Fn(f.clone()))),
+                        ..Default::default()
+                    });
                 }
                 ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
                     decl: Decl::Class(c),
@@ -1198,16 +1176,13 @@ impl DepGraph {
                         v
                     };
                     vars.write.insert(c.ident.to_id());
-                    items.insert(
-                        id,
-                        ItemData {
-                            read_vars: vars.read,
-                            write_vars: vars.write,
-                            var_decls,
-                            content: ModuleItem::Stmt(Stmt::Decl(Decl::Class(c.clone()))),
-                            ..Default::default()
-                        },
-                    );
+                    items.insert(id, ItemData {
+                        read_vars: vars.read,
+                        write_vars: vars.write,
+                        var_decls,
+                        content: ModuleItem::Stmt(Stmt::Decl(Decl::Class(c.clone()))),
+                        ..Default::default()
+                    });
                 }
                 ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
                     decl: Decl::Var(v),
@@ -1260,24 +1235,21 @@ impl DepGraph {
                         vars.write.extend(decl_ids.iter().cloned());
                         let content = ModuleItem::Stmt(Stmt::Decl(Decl::Var(var_decl)));
 
-                        items.insert(
-                            id,
-                            ItemData {
-                                pure: has_explicit_pure,
-                                var_decls: decl_ids.clone().into_iter().collect(),
-                                read_vars: vars.read,
-                                write_vars: if has_explicit_pure {
-                                    Default::default()
-                                } else {
-                                    vars.write
-                                },
-                                eventual_read_vars: eventual_vars.read,
-                                eventual_write_vars: eventual_vars.write,
-                                content,
-                                side_effects,
-                                ..Default::default()
+                        items.insert(id, ItemData {
+                            pure: has_explicit_pure,
+                            var_decls: decl_ids.clone().into_iter().collect(),
+                            read_vars: vars.read,
+                            write_vars: if has_explicit_pure {
+                                Default::default()
+                            } else {
+                                vars.write
                             },
-                        );
+                            eventual_read_vars: eventual_vars.read,
+                            eventual_write_vars: eventual_vars.write,
+                            content,
+                            side_effects,
+                            ..Default::default()
+                        });
                     }
                 }
 
@@ -1370,46 +1342,40 @@ impl DepGraph {
             // `module evaluation side effects` Node
             let id = ItemId::Group(ItemIdGroupKind::ModuleEvaluation);
             ids.push(id.clone());
-            items.insert(
-                id,
-                ItemData {
-                    content: ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-                        span: DUMMY_SP,
-                        expr: "module evaluation".into(),
-                    })),
-                    ..Default::default()
-                },
-            );
+            items.insert(id, ItemData {
+                content: ModuleItem::Stmt(Stmt::Expr(ExprStmt {
+                    span: DUMMY_SP,
+                    expr: "module evaluation".into(),
+                })),
+                ..Default::default()
+            });
         }
 
         for (local, export_name, disable_export_merging) in exports {
             let id = ItemId::Group(ItemIdGroupKind::Export(local.clone(), export_name.clone()));
             ids.push(id.clone());
-            items.insert(
-                id.clone(),
-                ItemData {
-                    content: ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(NamedExport {
+            items.insert(id.clone(), ItemData {
+                content: ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(NamedExport {
+                    span: DUMMY_SP,
+                    specifiers: vec![ExportSpecifier::Named(ExportNamedSpecifier {
                         span: DUMMY_SP,
-                        specifiers: vec![ExportSpecifier::Named(ExportNamedSpecifier {
-                            span: DUMMY_SP,
-                            orig: ModuleExportName::Ident(local.clone().into()),
-                            exported: if local.0 == export_name {
-                                None
-                            } else {
-                                Some(ModuleExportName::Ident(export_name.clone().into()))
-                            },
-                            is_type_only: false,
-                        })],
-                        src: None,
-                        type_only: false,
-                        with: None,
-                    })),
-                    read_vars: [local.clone()].into_iter().collect(),
-                    export: Some(export_name),
-                    disable_export_merging,
-                    ..Default::default()
-                },
-            );
+                        orig: ModuleExportName::Ident(local.clone().into()),
+                        exported: if local.0 == export_name {
+                            None
+                        } else {
+                            Some(ModuleExportName::Ident(export_name.clone().into()))
+                        },
+                        is_type_only: false,
+                    })],
+                    src: None,
+                    type_only: false,
+                    with: None,
+                })),
+                read_vars: [local.clone()].into_iter().collect(),
+                export: Some(export_name),
+                disable_export_merging,
+                ..Default::default()
+            });
         }
 
         (ids, items)
@@ -1602,11 +1568,7 @@ pub(crate) fn create_turbopack_part_id_assert(dep: PartId) -> ObjectLit {
                 PartId::Export(e) => format!("export {e}").into(),
                 PartId::Internal(dep, is_for_eval) => {
                     let v = dep as f64;
-                    if is_for_eval {
-                        v
-                    } else {
-                        -v
-                    }
+                    if is_for_eval { v } else { -v }
                 }
                 .into(),
             },

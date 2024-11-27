@@ -1,4 +1,4 @@
-use swc_core::common::{source_map::SourceMapGenConfig, FileName};
+use swc_core::common::{FileName, source_map::SourceMapGenConfig};
 use turbopack_core::SOURCE_MAP_PREFIX;
 
 /// A config to generate a source map which includes the source content of every

@@ -5,7 +5,7 @@ use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::Vc;
 
-use crate::{embed::EmbeddedFileSystem, DiskFileSystem, FileSystem};
+use crate::{DiskFileSystem, FileSystem, embed::EmbeddedFileSystem};
 
 #[turbo_tasks::function]
 pub async fn directory_from_relative_path(

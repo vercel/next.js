@@ -66,19 +66,16 @@ where
     }
 
     let mut entrypoints = FxIndexMap::default();
-    entrypoints.insert(
-        entry_name.clone(),
-        WebpackStatsEntrypoint {
-            name: entry_name.clone(),
-            chunks: chunks.iter().map(|c| c.id.clone()).collect(),
-            assets: assets
-                .iter()
-                .map(|a| WebpackStatsEntrypointAssets {
-                    name: a.name.clone(),
-                })
-                .collect(),
-        },
-    );
+    entrypoints.insert(entry_name.clone(), WebpackStatsEntrypoint {
+        name: entry_name.clone(),
+        chunks: chunks.iter().map(|c| c.id.clone()).collect(),
+        assets: assets
+            .iter()
+            .map(|a| WebpackStatsEntrypointAssets {
+                name: a.name.clone(),
+            })
+            .collect(),
+    });
 
     Ok(WebpackStats {
         assets,

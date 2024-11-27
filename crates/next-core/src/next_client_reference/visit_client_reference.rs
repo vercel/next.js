@@ -5,10 +5,10 @@ use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
+    FxIndexMap, FxIndexSet, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow, VisitedNodes},
     trace::TraceRawVcs,
-    FxIndexMap, FxIndexSet, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::css::CssModuleAsset;

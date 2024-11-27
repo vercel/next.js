@@ -5,7 +5,7 @@ use turbo_tasks::{
     FxIndexMap, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, ValueToString, Vc,
 };
 use turbopack_core::{
-    chunk::{availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt},
+    chunk::{ChunkingContext, ChunkingContextExt, availability_info::AvailabilityInfo},
     module::Module,
     output::OutputAssets,
 };
@@ -13,7 +13,7 @@ use turbopack_core::{
 use super::include_modules_module::IncludeModulesModule;
 use crate::{
     next_client_reference::{
-        visit_client_reference::ClientReferenceGraphResult, ClientReferenceType,
+        ClientReferenceType, visit_client_reference::ClientReferenceGraphResult,
     },
     next_server_component::server_component_module::NextServerComponentModule,
 };
@@ -58,58 +58,55 @@ pub async fn get_app_client_references_chunks(
                 .iter()
                 .map(|client_reference| async move {
                     let client_reference_ty = client_reference.ty();
-                    Ok((
-                        client_reference_ty,
-                        match client_reference_ty {
-                            ClientReferenceType::EcmascriptClientReference {
-                                module: ecmascript_client_reference,
-                                ..
-                            } => {
-                                let ecmascript_client_reference_ref =
-                                    ecmascript_client_reference.await?;
+                    Ok((client_reference_ty, match client_reference_ty {
+                        ClientReferenceType::EcmascriptClientReference {
+                            module: ecmascript_client_reference,
+                            ..
+                        } => {
+                            let ecmascript_client_reference_ref =
+                                ecmascript_client_reference.await?;
 
-                                let client_chunk_group = client_chunking_context
-                                    .root_chunk_group(*ResolvedVc::upcast(
-                                        ecmascript_client_reference_ref.client_module,
-                                    ))
-                                    .await?;
+                            let client_chunk_group = client_chunking_context
+                                .root_chunk_group(*ResolvedVc::upcast(
+                                    ecmascript_client_reference_ref.client_module,
+                                ))
+                                .await?;
 
+                            (
                                 (
-                                    (
-                                        client_chunk_group.assets,
-                                        client_chunk_group.availability_info,
-                                    ),
-                                    if let Some(ssr_chunking_context) = ssr_chunking_context {
-                                        let ssr_chunk_group = ssr_chunking_context
-                                            .root_chunk_group(*ResolvedVc::upcast(
-                                                ecmascript_client_reference_ref.ssr_module,
-                                            ))
-                                            .await?;
-
-                                        Some((
-                                            ssr_chunk_group.assets,
-                                            ssr_chunk_group.availability_info,
+                                    client_chunk_group.assets,
+                                    client_chunk_group.availability_info,
+                                ),
+                                if let Some(ssr_chunking_context) = ssr_chunking_context {
+                                    let ssr_chunk_group = ssr_chunking_context
+                                        .root_chunk_group(*ResolvedVc::upcast(
+                                            ecmascript_client_reference_ref.ssr_module,
                                         ))
-                                    } else {
-                                        None
-                                    },
-                                )
-                            }
-                            ClientReferenceType::CssClientReference(css_module) => {
-                                let client_chunk_group = client_chunking_context
-                                    .root_chunk_group(Vc::upcast(css_module))
-                                    .await?;
+                                        .await?;
 
+                                    Some((
+                                        ssr_chunk_group.assets,
+                                        ssr_chunk_group.availability_info,
+                                    ))
+                                } else {
+                                    None
+                                },
+                            )
+                        }
+                        ClientReferenceType::CssClientReference(css_module) => {
+                            let client_chunk_group = client_chunking_context
+                                .root_chunk_group(Vc::upcast(css_module))
+                                .await?;
+
+                            (
                                 (
-                                    (
-                                        client_chunk_group.assets,
-                                        client_chunk_group.availability_info,
-                                    ),
-                                    None,
-                                )
-                            }
-                        },
-                    ))
+                                    client_chunk_group.assets,
+                                    client_chunk_group.availability_info,
+                                ),
+                                None,
+                            )
+                        }
+                    }))
                 })
                 .try_join()
                 .await?;

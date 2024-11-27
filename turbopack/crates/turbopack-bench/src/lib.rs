@@ -3,16 +3,16 @@ use std::{
     panic::AssertUnwindSafe,
     path::Path,
     sync::{
-        atomic::{AtomicUsize, Ordering},
         Arc,
+        atomic::{AtomicUsize, Ordering},
     },
     time::Duration,
 };
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use criterion::{
-    measurement::{Measurement, WallTime},
     BenchmarkGroup, BenchmarkId, Criterion,
+    measurement::{Measurement, WallTime},
 };
 use once_cell::sync::Lazy;
 use tokio::{
@@ -21,10 +21,9 @@ use tokio::{
 };
 use turbo_tasks::util::FormatDuration;
 use util::{
-    build_test, create_browser,
+    AsyncBencherExtension, BINDING_NAME, PreparedApp, build_test, create_browser,
     env::{read_env, read_env_bool, read_env_list},
     module_picker::ModulePicker,
-    AsyncBencherExtension, PreparedApp, BINDING_NAME,
 };
 
 use self::{bundlers::RenderType, util::resume_on_error};

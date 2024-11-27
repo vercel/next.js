@@ -1,5 +1,5 @@
 use std::{
-    cmp::{max, Reverse},
+    cmp::{Reverse, max},
     collections::{HashMap, HashSet},
 };
 
@@ -174,11 +174,7 @@ impl ValueMode {
 ///
 /// cases where count per time is very low is probably not important
 fn value_over_time(value: u64, time: u64) -> u64 {
-    if time == 0 {
-        0
-    } else {
-        value / time
-    }
+    if time == 0 { 0 } else { value / time }
 }
 
 #[derive(Clone, Copy, Debug)]

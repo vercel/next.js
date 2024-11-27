@@ -1,5 +1,5 @@
 use std::{
-    any::{type_name, Any},
+    any::{Any, type_name},
     borrow::Cow,
     fmt::{
         Debug, Display, Formatter, {self},
@@ -13,12 +13,12 @@ use serde::{Deserialize, Serialize};
 use tracing::Span;
 
 use crate::{
+    RawVc, VcValueType,
     id::{FunctionId, TraitTypeId},
     magic_any::{AnyDeserializeSeed, MagicAny, MagicAnyDeserializeSeed, MagicAnySerializeSeed},
     registry::{register_trait_type, register_value_type},
     task::shared_reference::TypedSharedReference,
     vc::VcCellMode,
-    RawVc, VcValueType,
 };
 
 type MagicSerializationFn = fn(&dyn MagicAny) -> &dyn erased_serde::Serialize;
@@ -267,14 +267,11 @@ impl TraitType {
     where
         T: Serialize + for<'de> Deserialize<'de> + Debug + Eq + Hash + Send + Sync + 'static,
     {
-        self.methods.insert(
-            name,
-            TraitMethod {
-                default_method: None,
-                arg_serializer: MagicAnySerializeSeed::new::<T>(),
-                arg_deserializer: MagicAnyDeserializeSeed::new::<T>(),
-            },
-        );
+        self.methods.insert(name, TraitMethod {
+            default_method: None,
+            arg_serializer: MagicAnySerializeSeed::new::<T>(),
+            arg_deserializer: MagicAnyDeserializeSeed::new::<T>(),
+        });
     }
 
     pub fn register_default_trait_method<T>(
@@ -284,14 +281,11 @@ impl TraitType {
     ) where
         T: Serialize + for<'de> Deserialize<'de> + Debug + Eq + Hash + Send + Sync + 'static,
     {
-        self.methods.insert(
-            name,
-            TraitMethod {
-                default_method: Some(native_fn),
-                arg_serializer: MagicAnySerializeSeed::new::<T>(),
-                arg_deserializer: MagicAnyDeserializeSeed::new::<T>(),
-            },
-        );
+        self.methods.insert(name, TraitMethod {
+            default_method: Some(native_fn),
+            arg_serializer: MagicAnySerializeSeed::new::<T>(),
+            arg_deserializer: MagicAnyDeserializeSeed::new::<T>(),
+        });
     }
 
     pub fn register(&'static self, global_name: &'static str) {

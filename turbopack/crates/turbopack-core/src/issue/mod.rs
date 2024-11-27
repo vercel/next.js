@@ -4,18 +4,18 @@ pub mod module;
 pub mod resolve;
 
 use std::{
-    cmp::{min, Ordering},
+    cmp::{Ordering, min},
     fmt::{Display, Formatter},
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use async_trait::async_trait;
 use auto_hash_map::AutoSet;
 use serde::Serialize;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    emit, CollectiblesSource, RawVc, ReadRef, ResolvedVc, TransientInstance, TransientValue,
-    TryJoinIterExt, Upcast, ValueToString, Vc,
+    CollectiblesSource, RawVc, ReadRef, ResolvedVc, TransientInstance, TransientValue,
+    TryJoinIterExt, Upcast, ValueToString, Vc, emit,
 };
 use turbo_tasks_fs::{FileContent, FileLine, FileLinesContent, FileSystemPath};
 use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher};
@@ -23,7 +23,7 @@ use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher};
 use crate::{
     asset::{Asset, AssetContent},
     source::Source,
-    source_map::{convert_to_turbopack_source_map, GenerateSourceMap, TokenWithSource},
+    source_map::{GenerateSourceMap, TokenWithSource, convert_to_turbopack_source_map},
     source_pos::SourcePos,
 };
 

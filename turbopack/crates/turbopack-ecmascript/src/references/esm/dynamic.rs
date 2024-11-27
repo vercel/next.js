@@ -1,6 +1,6 @@
 use anyhow::Result;
 use swc_core::{
-    common::{util::take::Take, DUMMY_SP},
+    common::{DUMMY_SP, util::take::Take},
     ecma::ast::{CallExpr, Callee, Expr, ExprOrSpread, Lit},
     quote_expr,
 };
@@ -12,7 +12,7 @@ use turbopack_core::{
     issue::IssueSource,
     reference::ModuleReference,
     reference_type::EcmaScriptModulesReferenceSubType,
-    resolve::{origin::ResolveOrigin, parse::Request, ModuleResolveResult},
+    resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request},
 };
 use turbopack_resolve::ecmascript::esm_resolve;
 

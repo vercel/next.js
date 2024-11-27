@@ -2,13 +2,13 @@ use std::cmp::Ordering;
 
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
+    CellId, KeyValuePair, SessionId, TaskId, TraitTypeId, TypedSharedReference, ValueTypeId,
     event::{Event, EventListener},
     registry,
     util::SharedError,
-    CellId, KeyValuePair, SessionId, TaskId, TraitTypeId, TypedSharedReference, ValueTypeId,
 };
 
-use crate::backend::{indexed::Indexed, TaskDataCategory};
+use crate::backend::{TaskDataCategory, indexed::Indexed};
 
 // this traits are needed for the transient variants of `CachedDataItem`
 // transient variants are never cloned or compared

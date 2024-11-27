@@ -6,7 +6,7 @@ use swc_core::{
     quote,
 };
 use turbo_tasks::{
-    trace::TraceRawVcs, FxIndexSet, ReadRef, TryFlatJoinIterExt, TryJoinIterExt, Vc,
+    FxIndexSet, ReadRef, TryFlatJoinIterExt, TryJoinIterExt, Vc, trace::TraceRawVcs,
 };
 use turbopack_core::{
     chunk::{

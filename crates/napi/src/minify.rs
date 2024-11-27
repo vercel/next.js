@@ -31,11 +31,11 @@ use fxhash::FxHashMap;
 use napi::bindgen_prelude::*;
 use serde::Deserialize;
 use swc_core::{
-    base::{config::JsMinifyOptions, try_with_handler, BoolOrDataConfig, TransformOutput},
-    common::{errors::ColorConfig, sync::Lrc, FileName, SourceFile, SourceMap, GLOBALS},
+    base::{BoolOrDataConfig, TransformOutput, config::JsMinifyOptions, try_with_handler},
+    common::{FileName, GLOBALS, SourceFile, SourceMap, errors::ColorConfig, sync::Lrc},
     ecma::minifier::option::{
-        terser::{TerserCompressorOptions, TerserInlineOption},
         MangleOptions,
+        terser::{TerserCompressorOptions, TerserInlineOption},
     },
 };
 

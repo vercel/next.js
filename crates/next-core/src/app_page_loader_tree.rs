@@ -7,19 +7,19 @@ use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
-use turbopack::{transition::Transition, ModuleAssetContext};
+use turbopack::{ModuleAssetContext, transition::Transition};
 use turbopack_core::{file_source::FileSource, module::Module};
 use turbopack_ecmascript::{magic_identifier, text::TextContentFileSource, utils::StringifyJs};
 
 use crate::{
     app_structure::{
-        get_metadata_route_name, AppDirModules, AppPageLoaderTree, GlobalMetadata, Metadata,
-        MetadataItem, MetadataWithAltItem,
+        AppDirModules, AppPageLoaderTree, GlobalMetadata, Metadata, MetadataItem,
+        MetadataWithAltItem, get_metadata_route_name,
     },
     base_loader_tree::{AppDirModuleType, BaseLoaderTreeBuilder},
     next_app::{
-        metadata::{get_content_type, image::dynamic_image_metadata_source},
         AppPage,
+        metadata::{get_content_type, image::dynamic_image_metadata_source},
     },
     next_image::module::{BlurPlaceholderMode, StructuredImageModuleType},
 };

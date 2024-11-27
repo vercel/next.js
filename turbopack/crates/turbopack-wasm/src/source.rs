@@ -1,6 +1,6 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, ResolvedVc, TaskInput, Vc};
+use turbo_tasks::{ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::{File, FileContent};
 use turbopack_core::{
     asset::{Asset, AssetContent},

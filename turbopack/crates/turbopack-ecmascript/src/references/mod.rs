@@ -24,7 +24,7 @@ use std::{
     sync::Arc,
 };
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use constant_condition::{ConstantCondition, ConstantConditionValue};
 use constant_value::ConstantValue;
 use lazy_static::lazy_static;
@@ -36,17 +36,17 @@ use sourcemap::decode_data_url;
 use swc_core::{
     atoms::JsWord,
     common::{
+        GLOBALS, Globals, Span, Spanned,
         comments::{CommentKind, Comments},
-        errors::{DiagnosticId, Handler, HANDLER},
+        errors::{DiagnosticId, HANDLER, Handler},
         pass::AstNodePath,
         source_map::SmallPos,
-        Globals, Span, Spanned, GLOBALS,
     },
     ecma::{
         ast::*,
         visit::{
-            fields::{AssignExprField, AssignTargetField, SimpleAssignTargetField},
             AstParentKind, AstParentNodeRef, VisitAstPath, VisitWithAstPath,
+            fields::{AssignExprField, AssignTargetField, SimpleAssignTargetField},
         },
     },
 };
@@ -60,19 +60,19 @@ use turbopack_core::{
     },
     environment::Rendering,
     error::PrettyPrintError,
-    issue::{analyze::AnalyzeIssue, IssueExt, IssueSeverity, IssueSource, StyledString},
+    issue::{IssueExt, IssueSeverity, IssueSource, StyledString, analyze::AnalyzeIssue},
     module::Module,
     reference::{ModuleReference, ModuleReferences, SourceMapReference},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{
-        find_context_file,
+        FindContextFileResult, ModulePart, find_context_file,
         origin::{PlainResolveOrigin, ResolveOrigin, ResolveOriginExt},
         parse::Request,
         pattern::Pattern,
-        resolve, FindContextFileResult, ModulePart,
+        resolve,
     },
     source::Source,
-    source_map::{convert_to_turbopack_source_map, GenerateSourceMap, OptionSourceMap, SourceMap},
+    source_map::{GenerateSourceMap, OptionSourceMap, SourceMap, convert_to_turbopack_source_map},
 };
 use turbopack_resolve::{
     ecmascript::{apply_cjs_specific_options, cjs_resolve_source},
@@ -89,41 +89,43 @@ use self::{
     },
     cjs::CjsAssetReference,
     esm::{
-        binding::EsmBindings, export::EsmExport, EsmAssetReference, EsmAsyncAssetReference,
-        EsmExports, EsmModuleItem, ImportMetaBinding, ImportMetaRef, UrlAssetReference,
+        EsmAssetReference, EsmAsyncAssetReference, EsmExports, EsmModuleItem, ImportMetaBinding,
+        ImportMetaRef, UrlAssetReference, binding::EsmBindings, export::EsmExport,
     },
     node::DirAssetReference,
     raw::FileSourceReference,
     typescript::{TsConfigReference, TsReferencePathAssetReference, TsReferenceTypeAssetReference},
 };
 use super::{
+    EcmascriptModuleAssetType, ModuleTypeResult,
     analyzer::{
-        builtin::replace_builtin,
-        graph::{create_graph, Effect},
-        linker::link,
-        well_known::replace_well_known,
         ConstantValue as JsConstantValue, JsValue, ObjectPart, WellKnownFunctionKind,
         WellKnownObjectKind,
+        builtin::replace_builtin,
+        graph::{Effect, create_graph},
+        linker::link,
+        well_known::replace_well_known,
     },
     errors,
     parse::ParseResult,
     special_cases::special_cases,
     utils::js_value_to_pattern,
     webpack::{
-        parse::{webpack_runtime, WebpackRuntime},
         WebpackChunkAssetReference, WebpackEntryAssetReference, WebpackRuntimeAssetReference,
+        parse::{WebpackRuntime, webpack_runtime},
     },
-    EcmascriptModuleAssetType, ModuleTypeResult,
 };
-pub use crate::references::esm::export::{follow_reexports, FollowExportsResult};
+pub use crate::references::esm::export::{FollowExportsResult, follow_reexports};
 use crate::{
+    EcmascriptInputTransforms, EcmascriptModuleAsset, EcmascriptParsable, SpecifiedModuleType,
+    TreeShakingMode,
     analyzer::{
+        ConstantNumber, ConstantString, JsValueUrlKind, RequireContextValue,
         builtin::early_replace_builtin,
         graph::{ConditionalKind, EffectArg, EvalContext, VarGraph},
         imports::{ImportAnnotations, ImportAttributes, ImportedSymbol, Reexport},
         parse_require_context,
         top_level_await::has_top_level_await,
-        ConstantNumber, ConstantString, JsValueUrlKind, RequireContextValue,
     },
     chunk::EcmascriptExports,
     code_gen::{CodeGen, CodeGenerateable, CodeGenerateableWithAsyncModuleInfo, CodeGenerateables},
@@ -133,16 +135,14 @@ use crate::{
         async_module::{AsyncModule, OptionAsyncModule},
         cjs::{CjsRequireAssetReference, CjsRequireCacheAccess, CjsRequireResolveAssetReference},
         dynamic_expression::DynamicExpression,
-        esm::{module_id::EsmModuleIdAssetReference, EsmBinding, UrlRewriteBehavior},
+        esm::{EsmBinding, UrlRewriteBehavior, module_id::EsmModuleIdAssetReference},
         ident::IdentReplacement,
         node::PackageJsonReference,
         require_context::{RequireContextAssetReference, RequireContextMap},
         type_issue::SpecifiedModuleTypeIssue,
     },
     tree_shake::{find_turbopack_part_id_in_asserts, part_of_module, split},
-    utils::{module_value_to_well_known_object, AstPathRange},
-    EcmascriptInputTransforms, EcmascriptModuleAsset, EcmascriptParsable, SpecifiedModuleType,
-    TreeShakingMode,
+    utils::{AstPathRange, module_value_to_well_known_object},
 };
 
 #[turbo_tasks::value(shared)]
@@ -1343,11 +1343,14 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
         match func {
             JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor) => {
                 let args = linked_args(args).await?;
-                if let [url, JsValue::Member(
-                    _,
-                    box JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta),
-                    box JsValue::Constant(super::analyzer::ConstantValue::Str(meta_prop)),
-                )] = &args[..]
+                if let [
+                    url,
+                    JsValue::Member(
+                        _,
+                        box JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta),
+                        box JsValue::Constant(super::analyzer::ConstantValue::Str(meta_prop)),
+                    ),
+                ] = &args[..]
                 {
                     if meta_prop.as_str() == "url" {
                         let pat = js_value_to_pattern(url);
@@ -2188,15 +2191,12 @@ async fn handle_free_var_reference(
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
 ) -> Result<bool> {
     // We don't want to replace assignments as this would lead to invalid code.
-    if matches!(
-        ast_path,
-        [
-            ..,
-            AstParentKind::AssignExpr(AssignExprField::Left),
-            AstParentKind::AssignTarget(AssignTargetField::Simple),
-            AstParentKind::SimpleAssignTarget(SimpleAssignTargetField::Member),
-        ]
-    ) {
+    if matches!(ast_path, [
+        ..,
+        AstParentKind::AssignExpr(AssignExprField::Left),
+        AstParentKind::AssignTarget(AssignTargetField::Simple),
+        AstParentKind::SimpleAssignTarget(SimpleAssignTargetField::Member),
+    ]) {
         return Ok(false);
     }
 
@@ -2540,11 +2540,14 @@ async fn value_visitor_inner(
             box JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor),
             ref args,
         ) => {
-            if let [JsValue::Constant(super::analyzer::ConstantValue::Str(url)), JsValue::Member(
-                _,
-                box JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta),
-                box JsValue::Constant(super::analyzer::ConstantValue::Str(prop)),
-            )] = &args[..]
+            if let [
+                JsValue::Constant(super::analyzer::ConstantValue::Str(url)),
+                JsValue::Member(
+                    _,
+                    box JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta),
+                    box JsValue::Constant(super::analyzer::ConstantValue::Str(prop)),
+                ),
+            ] = &args[..]
             {
                 if prop.as_str() == "url" {
                     // TODO avoid clone
@@ -2668,7 +2671,7 @@ async fn require_context_visitor(
                 ),
                 true,
                 PrettyPrintError(&err).to_string(),
-            ))
+            ));
         }
     };
 
@@ -2995,14 +2998,11 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
                     if !named.is_type_only {
                         self.old_analyser.imports.insert(
                             named.local.sym.to_string(),
-                            (
-                                src.clone(),
-                                vec![match &named.imported {
-                                    Some(ModuleExportName::Ident(ident)) => ident.sym.to_string(),
-                                    Some(ModuleExportName::Str(str)) => str.value.to_string(),
-                                    None => named.local.sym.to_string(),
-                                }],
-                            ),
+                            (src.clone(), vec![match &named.imported {
+                                Some(ModuleExportName::Ident(ident)) => ident.sym.to_string(),
+                                Some(ModuleExportName::Str(str)) => str.value.to_string(),
+                                None => named.local.sym.to_string(),
+                            }]),
                         );
                     }
                 }
@@ -3067,10 +3067,14 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
                     [webpack_require, property]
                         if webpack_require == "__webpack_require__" && property == "X" =>
                     {
-                        if let [_, ExprOrSpread {
-                            spread: None,
-                            expr: chunk_ids,
-                        }, _] = &call.args[..]
+                        if let [
+                            _,
+                            ExprOrSpread {
+                                spread: None,
+                                expr: chunk_ids,
+                            },
+                            _,
+                        ] = &call.args[..]
                         {
                             if let Some(array) = chunk_ids.as_array() {
                                 for elem in array.elems.iter().flatten() {
@@ -3142,7 +3146,7 @@ enum DetectedDynamicExportType {
 }
 
 fn detect_dynamic_export(p: &Program) -> DetectedDynamicExportType {
-    use swc_core::ecma::visit::{visit_obj_and_computed, Visit, VisitWith};
+    use swc_core::ecma::visit::{Visit, VisitWith, visit_obj_and_computed};
 
     if let Program::Module(m) = p {
         // Check for imports/exports

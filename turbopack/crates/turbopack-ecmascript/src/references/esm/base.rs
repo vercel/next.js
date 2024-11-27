@@ -1,7 +1,7 @@
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use strsim::jaro;
 use swc_core::{
-    common::{BytePos, Span, DUMMY_SP},
+    common::{BytePos, DUMMY_SP, Span},
     ecma::ast::{Decl, Expr, ExprStmt, Ident, Stmt},
     quote,
 };
@@ -21,9 +21,9 @@ use turbopack_core::{
     reference::ModuleReference,
     reference_type::{EcmaScriptModulesReferenceSubType, ImportWithType},
     resolve::{
+        ExternalType, ModulePart, ModuleResolveResult, ModuleResolveResultItem,
         origin::{ResolveOrigin, ResolveOriginExt},
         parse::Request,
-        ExternalType, ModulePart, ModuleResolveResult, ModuleResolveResultItem,
     },
 };
 use turbopack_resolve::ecmascript::esm_resolve;
@@ -35,7 +35,7 @@ use crate::{
     code_gen::{CodeGenerateable, CodeGeneration},
     magic_identifier,
     references::util::{request_to_string, throw_module_not_found_expr},
-    tree_shake::{asset::EcmascriptModulePartAsset, TURBOPACK_PART_IMPORT_SOURCE},
+    tree_shake::{TURBOPACK_PART_IMPORT_SOURCE, asset::EcmascriptModulePartAsset},
     utils::module_id_to_lit,
 };
 

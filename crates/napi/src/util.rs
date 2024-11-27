@@ -41,7 +41,7 @@ use napi::bindgen_prelude::{External, Status};
 use once_cell::sync::Lazy;
 use owo_colors::OwoColorize;
 use tracing_chrome::{ChromeLayerBuilder, FlushGuard};
-use tracing_subscriber::{filter, prelude::*, util::SubscriberInitExt, Layer};
+use tracing_subscriber::{Layer, filter, prelude::*, util::SubscriberInitExt};
 
 static LOG_THROTTLE: Mutex<Option<Instant>> = Mutex::new(None);
 static LOG_DIVIDER: &str = "---------------------------";

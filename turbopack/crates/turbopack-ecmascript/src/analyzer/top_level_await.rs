@@ -2,7 +2,7 @@ use swc_core::{
     common::Span,
     ecma::{
         ast::*,
-        visit::{noop_visit_type, Visit, VisitWith},
+        visit::{Visit, VisitWith, noop_visit_type},
     },
 };
 

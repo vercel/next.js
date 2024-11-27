@@ -28,49 +28,43 @@ pub static TRACING_OVERVIEW_TARGETS: Lazy<Vec<&str>> = Lazy::new(|| {
     ]
 });
 pub static TRACING_TURBOPACK_TARGETS: Lazy<Vec<&str>> = Lazy::new(|| {
-    [
-        &TRACING_OVERVIEW_TARGETS[..],
-        &[
-            "turbopack=trace",
-            "turbopack_binding=trace",
-            "turbopack_nodejs=trace",
-            "turbopack_cli=trace",
-            "turbopack_cli_utils=trace",
-            "turbopack_core=trace",
-            "turbopack_css=trace",
-            "turbopack_browser=trace",
-            "turbopack_dev_server=trace",
-            "turbopack_ecmascript=trace",
-            "turbopack_ecmascript_hmr_protocol=trace",
-            "turbopack_ecmascript_plugins=trace",
-            "turbopack_ecmascript_runtime=trace",
-            "turbopack_env=trace",
-            "turbopack_image=trace",
-            "turbopack_json=trace",
-            "turbopack_mdx=trace",
-            "turbopack_node=trace",
-            "turbopack_static=trace",
-            "turbopack_swc_utils=trace",
-            "turbopack_wasm=trace",
-        ],
-    ]
+    [&TRACING_OVERVIEW_TARGETS[..], &[
+        "turbopack=trace",
+        "turbopack_binding=trace",
+        "turbopack_nodejs=trace",
+        "turbopack_cli=trace",
+        "turbopack_cli_utils=trace",
+        "turbopack_core=trace",
+        "turbopack_css=trace",
+        "turbopack_browser=trace",
+        "turbopack_dev_server=trace",
+        "turbopack_ecmascript=trace",
+        "turbopack_ecmascript_hmr_protocol=trace",
+        "turbopack_ecmascript_plugins=trace",
+        "turbopack_ecmascript_runtime=trace",
+        "turbopack_env=trace",
+        "turbopack_image=trace",
+        "turbopack_json=trace",
+        "turbopack_mdx=trace",
+        "turbopack_node=trace",
+        "turbopack_static=trace",
+        "turbopack_swc_utils=trace",
+        "turbopack_wasm=trace",
+    ]]
     .concat()
 });
 pub static TRACING_TURBO_TASKS_TARGETS: Lazy<Vec<&str>> = Lazy::new(|| {
-    [
-        &TRACING_TURBOPACK_TARGETS[..],
-        &[
-            "turbo_tasks=trace",
-            "turbo_tasks_auto_hash_map=trace",
-            "turbo_tasks_build=trace",
-            "turbo_tasks_bytes=trace",
-            "turbo_tasks_env=trace",
-            "turbo_tasks_fetch=trace",
-            "turbo_tasks_fs=trace",
-            "turbo_tasks_hash=trace",
-            "turbo_tasks_memory=trace",
-            "turbo_tasks_backend=trace",
-        ],
-    ]
+    [&TRACING_TURBOPACK_TARGETS[..], &[
+        "turbo_tasks=trace",
+        "turbo_tasks_auto_hash_map=trace",
+        "turbo_tasks_build=trace",
+        "turbo_tasks_bytes=trace",
+        "turbo_tasks_env=trace",
+        "turbo_tasks_fetch=trace",
+        "turbo_tasks_fs=trace",
+        "turbo_tasks_hash=trace",
+        "turbo_tasks_memory=trace",
+        "turbo_tasks_backend=trace",
+    ]]
     .concat()
 });

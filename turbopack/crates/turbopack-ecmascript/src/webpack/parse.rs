@@ -17,10 +17,10 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::source::Source;
 
 use crate::{
-    analyzer::{graph::EvalContext, JsValue},
-    parse::{parse, ParseResult},
-    utils::unparen,
     EcmascriptInputTransforms, EcmascriptModuleAssetType,
+    analyzer::{JsValue, graph::EvalContext},
+    parse::{ParseResult, parse},
+    utils::unparen,
 };
 
 #[turbo_tasks::value(shared, serialization = "none")]

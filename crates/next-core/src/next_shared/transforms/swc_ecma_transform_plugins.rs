@@ -35,7 +35,7 @@ pub async fn get_swc_ecma_transform_rule_impl(
     plugin_configs: &[(RcStr, serde_json::Value)],
     enable_mdx_rs: bool,
 ) -> Result<Option<ModuleRule>> {
-    use anyhow::{bail, Context};
+    use anyhow::{Context, bail};
     use turbo_tasks::Value;
     use turbo_tasks_fs::FileContent;
     use turbopack::{resolve_options, resolve_options_context::ResolveOptionsContext};

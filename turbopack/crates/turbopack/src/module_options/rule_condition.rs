@@ -1,7 +1,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{primitives::Regex, trace::TraceRawVcs, ReadRef, Vc};
-use turbo_tasks_fs::{glob::Glob, FileSystemPath};
+use turbo_tasks::{ReadRef, Vc, primitives::Regex, trace::TraceRawVcs};
+use turbo_tasks_fs::{FileSystemPath, glob::Glob};
 use turbopack_core::{
     reference_type::ReferenceType, source::Source, virtual_source::VirtualSource,
 };

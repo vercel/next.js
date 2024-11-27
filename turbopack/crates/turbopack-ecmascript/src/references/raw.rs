@@ -3,7 +3,7 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
     reference::ModuleReference,
-    resolve::{pattern::Pattern, resolve_raw, ModuleResolveResult},
+    resolve::{ModuleResolveResult, pattern::Pattern, resolve_raw},
     source::Source,
 };
 

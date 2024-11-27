@@ -4,7 +4,7 @@ use turbo_tasks::{FxIndexSet, ResolvedVc, Vc};
 use turbo_tasks_fs::FileContent;
 
 use super::{
-    module::IntrospectableModule, output_asset::IntrospectableOutputAsset, IntrospectableChildren,
+    IntrospectableChildren, module::IntrospectableModule, output_asset::IntrospectableOutputAsset,
 };
 use crate::{
     asset::AssetContent,

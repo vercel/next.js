@@ -2,17 +2,17 @@ use std::{
     collections::HashMap, env, future::Future, ops::Deref, path::PathBuf, sync::Arc, time::Duration,
 };
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use napi::{
+    JsFunction, JsObject, JsUnknown, NapiRaw, NapiValue, Status,
     bindgen_prelude::{External, ToNapiValue},
     threadsafe_function::{ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode},
-    JsFunction, JsObject, JsUnknown, NapiRaw, NapiValue, Status,
 };
 use serde::Serialize;
 use turbo_tasks::{
-    trace::TraceRawVcs, ReadRef, TaskId, TryJoinIterExt, TurboTasks, UpdateInfo, Vc,
+    ReadRef, TaskId, TryJoinIterExt, TurboTasks, UpdateInfo, Vc, trace::TraceRawVcs,
 };
-use turbo_tasks_backend::{default_backing_storage, DefaultBackingStorage};
+use turbo_tasks_backend::{DefaultBackingStorage, default_backing_storage};
 use turbo_tasks_fs::FileContent;
 use turbopack_core::{
     diagnostics::{Diagnostic, DiagnosticContextExt, PlainDiagnostic},

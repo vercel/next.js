@@ -15,11 +15,11 @@ pub mod wrapping_source;
 use std::collections::BTreeSet;
 
 use anyhow::Result;
-use futures::{stream::Stream as StreamTrait, TryStreamExt};
+use futures::{TryStreamExt, stream::Stream as StreamTrait};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, util::SharedError, Completion, ResolvedVc, Upcast, Value, ValueDefault, Vc,
+    Completion, ResolvedVc, Upcast, Value, ValueDefault, Vc, trace::TraceRawVcs, util::SharedError,
 };
 use turbo_tasks_bytes::{Bytes, Stream, StreamRead};
 use turbo_tasks_fs::FileSystemPath;
@@ -71,7 +71,7 @@ pub trait GetContentSourceContent {
 
     /// Get the content
     fn get(self: Vc<Self>, path: RcStr, data: Value<ContentSourceData>)
-        -> Vc<ContentSourceContent>;
+    -> Vc<ContentSourceContent>;
 }
 
 #[turbo_tasks::value(transparent)]

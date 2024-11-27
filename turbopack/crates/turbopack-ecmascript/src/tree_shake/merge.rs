@@ -5,7 +5,7 @@ use swc_core::ecma::{
     atoms::JsWord,
 };
 
-use super::{graph::find_turbopack_part_id_in_asserts, PartId};
+use super::{PartId, graph::find_turbopack_part_id_in_asserts};
 
 /// A loader used to merge module items after splitting.
 pub trait Load {

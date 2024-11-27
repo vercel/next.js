@@ -101,14 +101,11 @@ fn get_parametrized_route(route: &str) -> (String, HashMap<String, Group>) {
                     optional,
                     repeat,
                 } = parse_parameter(&matches[1]);
-                groups.insert(
-                    key,
-                    Group {
-                        pos: group_index,
-                        repeat,
-                        optional,
-                    },
-                );
+                groups.insert(key, Group {
+                    pos: group_index,
+                    repeat,
+                    optional,
+                });
                 group_index += 1;
                 if let Some(marker) = marker_match {
                     return format!("/{}([^/]+?)", escape_string_regexp(marker));

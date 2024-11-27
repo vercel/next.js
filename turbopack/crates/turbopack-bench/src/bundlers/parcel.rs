@@ -3,7 +3,7 @@ use std::{
     process::{Child, Command, Stdio},
 };
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use regex::Regex;
 
 use crate::{
@@ -23,15 +23,12 @@ impl Bundler for Parcel {
     }
 
     fn prepare(&self, install_dir: &Path) -> Result<()> {
-        npm::install(
-            install_dir,
-            &[
-                NpmPackage::new("parcel", "^2.8.0"),
-                // `process` would otherwise be auto-installed by Parcel. Do this in advance as
-                // to not influence the benchmark.
-                NpmPackage::new("process", "^0.11.10"),
-            ],
-        )
+        npm::install(install_dir, &[
+            NpmPackage::new("parcel", "^2.8.0"),
+            // `process` would otherwise be auto-installed by Parcel. Do this in advance as
+            // to not influence the benchmark.
+            NpmPackage::new("process", "^0.11.10"),
+        ])
         .context("failed to install from npm")?;
 
         Ok(())

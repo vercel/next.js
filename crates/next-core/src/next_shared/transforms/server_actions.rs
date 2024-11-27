@@ -1,6 +1,6 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use next_custom_transforms::transforms::server_actions::{server_actions, Config};
+use next_custom_transforms::transforms::server_actions::{Config, server_actions};
 use swc_core::{common::FileName, ecma::ast::Program};
 use turbo_tasks::ResolvedVc;
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
@@ -28,13 +28,12 @@ pub fn get_server_actions_transform_rule(
             dynamic_io_enabled,
             cache_kinds,
         }) as _));
-    ModuleRule::new(
-        module_rule_match_js_no_url(enable_mdx_rs),
-        vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
+    ModuleRule::new(module_rule_match_js_no_url(enable_mdx_rs), vec![
+        ModuleRuleEffect::ExtendEcmascriptTransforms {
             prepend: ResolvedVc::cell(vec![]),
             append: ResolvedVc::cell(vec![transformer]),
-        }],
-    )
+        },
+    ])
 }
 
 #[derive(Debug)]

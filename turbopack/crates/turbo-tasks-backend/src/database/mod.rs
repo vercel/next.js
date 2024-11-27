@@ -9,7 +9,7 @@ mod startup_cache;
 pub mod write_batch;
 
 pub use db_versioning::handle_db_versioning;
-pub use fresh_db_optimization::{is_fresh, FreshDbOptimization};
+pub use fresh_db_optimization::{FreshDbOptimization, is_fresh};
 #[allow(unused_imports)]
 pub use noop_kv::NoopKvDb;
 pub use read_transaction_cache::ReadTransactionCache;

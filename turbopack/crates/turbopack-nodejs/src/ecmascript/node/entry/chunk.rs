@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use indoc::writedoc;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};

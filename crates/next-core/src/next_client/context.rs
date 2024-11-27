@@ -7,14 +7,14 @@ use turbo_tasks_env::EnvMap;
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack::{
     module_options::{
-        module_options_context::ModuleOptionsContext, CssOptionsContext, EcmascriptOptionsContext,
-        JsxTransformOptions, ModuleRule, TypeofWindow, TypescriptTransformOptions,
+        CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions, ModuleRule, TypeofWindow,
+        TypescriptTransformOptions, module_options_context::ModuleOptionsContext,
     },
     resolve_options_context::ResolveOptionsContext,
 };
-use turbopack_browser::{react_refresh::assert_can_resolve_react_refresh, BrowserChunkingContext};
+use turbopack_browser::{BrowserChunkingContext, react_refresh::assert_can_resolve_react_refresh};
 use turbopack_core::{
-    chunk::{module_id_strategies::ModuleIdStrategy, ChunkingContext, MinifyType},
+    chunk::{ChunkingContext, MinifyType, module_id_strategies::ModuleIdStrategy},
     compile_time_info::{
         CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefineableNameSegment,
         FreeVarReference, FreeVarReferences,
@@ -43,8 +43,8 @@ use crate::{
     },
     next_shared::{
         resolve::{
-            get_invalid_server_only_resolve_plugin, ModuleFeatureReportResolvePlugin,
-            NextSharedRuntimeResolvePlugin,
+            ModuleFeatureReportResolvePlugin, NextSharedRuntimeResolvePlugin,
+            get_invalid_server_only_resolve_plugin,
         },
         transforms::{
             emotion::get_emotion_transform_rule,

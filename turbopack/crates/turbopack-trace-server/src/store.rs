@@ -4,7 +4,7 @@ use std::{
     env,
     mem::replace,
     num::NonZeroUsize,
-    sync::{atomic::AtomicU64, OnceLock},
+    sync::{OnceLock, atomic::AtomicU64},
 };
 
 use crate::{

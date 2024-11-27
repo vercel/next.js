@@ -11,8 +11,8 @@ pub use super::{
     manager::{find_cell_by_type, notify_scheduled_tasks, spawn_detached_for_testing},
 };
 use crate::{
-    debug::ValueDebugFormatString, shrink_to_fit::ShrinkToFit, task::TaskOutput, RawVc,
-    ResolvedValue, TaskInput, TaskPersistence, Vc,
+    RawVc, ResolvedValue, TaskInput, TaskPersistence, Vc, debug::ValueDebugFormatString,
+    shrink_to_fit::ShrinkToFit, task::TaskOutput,
 };
 
 #[inline(never)]

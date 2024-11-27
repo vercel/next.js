@@ -1,4 +1,4 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use turbo_tasks::{FxIndexMap, ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
@@ -59,11 +59,7 @@ pub async fn bootstrap(
         );
     };
     let path = if let Some((name, ext)) = path.rsplit_once('.') {
-        if !ext.contains('/') {
-            name
-        } else {
-            path
-        }
+        if !ext.contains('/') { name } else { path }
     } else {
         path
     };

@@ -14,7 +14,7 @@ use swc_core::{
         visit::FoldWith,
     },
 };
-use turbo_tasks::{trace::TraceRawVcs, ValueDefault, Vc};
+use turbo_tasks::{ValueDefault, Vc, trace::TraceRawVcs};
 use turbopack_ecmascript::{CustomTransformer, TransformContext};
 
 #[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize)]

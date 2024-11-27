@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, spanned::Spanned, DeriveInput};
+use syn::{DeriveInput, parse_macro_input, spanned::Spanned};
 use turbo_tasks_macros_shared::{generate_exhaustive_destructuring, match_expansion};
 
 pub fn derive_task_input(input: TokenStream) -> TokenStream {
@@ -55,25 +55,19 @@ pub fn derive_task_input(input: TokenStream) -> TokenStream {
         &derive_input,
         &|_ident, fields| {
             let (capture, fields) = generate_exhaustive_destructuring(fields.named.iter());
-            (
-                capture,
-                quote! {
-                    {#(
-                        turbo_tasks::TaskInput::is_resolved(#fields) &&
-                    )* true}
-                },
-            )
+            (capture, quote! {
+                {#(
+                    turbo_tasks::TaskInput::is_resolved(#fields) &&
+                )* true}
+            })
         },
         &|_ident, fields| {
             let (capture, fields) = generate_exhaustive_destructuring(fields.unnamed.iter());
-            (
-                capture,
-                quote! {
-                    {#(
-                        turbo_tasks::TaskInput::is_resolved(#fields) &&
-                    )* true}
-                },
-            )
+            (capture, quote! {
+                {#(
+                    turbo_tasks::TaskInput::is_resolved(#fields) &&
+                )* true}
+            })
         },
         &|_ident| quote! {true},
     );
@@ -81,25 +75,19 @@ pub fn derive_task_input(input: TokenStream) -> TokenStream {
         &derive_input,
         &|_ident, fields| {
             let (capture, fields) = generate_exhaustive_destructuring(fields.named.iter());
-            (
-                capture,
-                quote! {
-                    {#(
-                        turbo_tasks::TaskInput::is_transient(#fields) ||
-                    )* false}
-                },
-            )
+            (capture, quote! {
+                {#(
+                    turbo_tasks::TaskInput::is_transient(#fields) ||
+                )* false}
+            })
         },
         &|_ident, fields| {
             let (capture, fields) = generate_exhaustive_destructuring(fields.unnamed.iter());
-            (
-                capture,
-                quote! {
-                    {#(
-                        turbo_tasks::TaskInput::is_transient(#fields) ||
-                    )* false}
-                },
-            )
+            (capture, quote! {
+                {#(
+                    turbo_tasks::TaskInput::is_transient(#fields) ||
+                )* false}
+            })
         },
         &|_ident| quote! {false},
     );
@@ -107,31 +95,25 @@ pub fn derive_task_input(input: TokenStream) -> TokenStream {
         &derive_input,
         &|ident, fields| {
             let (capture, fields) = generate_exhaustive_destructuring(fields.named.iter());
-            (
-                capture,
-                quote! {
-                    {
-                        #(
-                            let #fields = turbo_tasks::TaskInput::resolve(#fields).await?;
-                        )*
-                        Ok(#ident { #(#fields),* })
-                    }
-                },
-            )
+            (capture, quote! {
+                {
+                    #(
+                        let #fields = turbo_tasks::TaskInput::resolve(#fields).await?;
+                    )*
+                    Ok(#ident { #(#fields),* })
+                }
+            })
         },
         &|ident, fields| {
             let (capture, fields) = generate_exhaustive_destructuring(fields.unnamed.iter());
-            (
-                capture,
-                quote! {
-                    {
-                        #(
-                            let #fields = turbo_tasks::TaskInput::resolve(#fields).await?;
-                        )*
-                        Ok(#ident(#(#fields),*))
-                    }
-                },
-            )
+            (capture, quote! {
+                {
+                    #(
+                        let #fields = turbo_tasks::TaskInput::resolve(#fields).await?;
+                    )*
+                    Ok(#ident(#(#fields),*))
+                }
+            })
         },
         &|ident| quote! {Ok(#ident)},
     );

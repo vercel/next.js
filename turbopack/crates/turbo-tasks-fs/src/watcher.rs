@@ -3,26 +3,26 @@ use std::{
     mem::take,
     path::{Path, PathBuf},
     sync::{
-        mpsc::{channel, Receiver, TryRecvError},
         Arc, Mutex,
+        mpsc::{Receiver, TryRecvError, channel},
     },
     time::Duration,
 };
 
 use anyhow::Result;
 use notify::{
-    event::{MetadataKind, ModifyKind, RenameMode},
     Config, EventKind, PollWatcher, RecommendedWatcher, RecursiveMode, Watcher,
+    event::{MetadataKind, ModifyKind, RenameMode},
 };
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
-use turbo_tasks::{spawn_thread, Invalidator};
+use turbo_tasks::{Invalidator, spawn_thread};
 
 use crate::{
-    format_absolute_fs_path,
+    DiskFileSystemInner, format_absolute_fs_path,
     invalidation::{WatchChange, WatchStart},
-    path_to_key, DiskFileSystemInner,
+    path_to_key,
 };
 
 enum DiskWatcherInternal {

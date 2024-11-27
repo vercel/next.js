@@ -10,13 +10,13 @@ use sourcemap::{DecodedMap, SourceMap as RegularMap, SourceMapBuilder, SourceMap
 use turbo_rcstr::RcStr;
 use turbo_tasks::{TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::{
-    rope::{Rope, RopeBuilder},
     File, FileContent, FileSystem, FileSystemPath, VirtualFileSystem,
+    rope::{Rope, RopeBuilder},
 };
 
 use crate::{
-    asset::AssetContent, source::Source, source_pos::SourcePos, virtual_source::VirtualSource,
-    SOURCE_MAP_PREFIX,
+    SOURCE_MAP_PREFIX, asset::AssetContent, source::Source, source_pos::SourcePos,
+    virtual_source::VirtualSource,
 };
 
 pub(crate) mod source_map_asset;

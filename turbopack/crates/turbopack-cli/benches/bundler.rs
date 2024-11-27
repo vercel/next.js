@@ -4,7 +4,7 @@ use std::{
     time::Duration,
 };
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use regex::Regex;
 use turbopack_bench::{
     bundlers::{Bundler, RenderType},
@@ -38,14 +38,11 @@ impl Bundler for Turbopack {
     }
 
     fn prepare(&self, install_dir: &Path) -> Result<()> {
-        npm::install(
-            install_dir,
-            &[
-                NpmPackage::new("react-refresh", "^0.14.0"),
-                NpmPackage::new("@next/react-refresh-utils", "^13.3.0"),
-                NpmPackage::new("@swc/helpers", "0.4.11"),
-            ],
-        )
+        npm::install(install_dir, &[
+            NpmPackage::new("react-refresh", "^0.14.0"),
+            NpmPackage::new("@next/react-refresh-utils", "^13.3.0"),
+            NpmPackage::new("@swc/helpers", "0.4.11"),
+        ])
         .context("failed to install from npm")?;
 
         Ok(())

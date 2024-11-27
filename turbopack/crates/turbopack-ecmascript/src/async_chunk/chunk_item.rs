@@ -16,8 +16,8 @@ use turbopack_core::{
 use crate::{
     async_chunk::module::AsyncLoaderModule,
     chunk::{
-        data::EcmascriptChunkData, EcmascriptChunkItem, EcmascriptChunkItemContent,
-        EcmascriptChunkPlaceable, EcmascriptChunkType,
+        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
+        EcmascriptChunkType, data::EcmascriptChunkData,
     },
     utils::StringifyJs,
 };

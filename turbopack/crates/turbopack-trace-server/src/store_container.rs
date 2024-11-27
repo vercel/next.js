@@ -1,8 +1,8 @@
 use std::{
     ops::{Deref, DerefMut},
     sync::{
-        atomic::{AtomicBool, Ordering},
         RwLock, RwLockReadGuard, RwLockWriteGuard,
+        atomic::{AtomicBool, Ordering},
     },
 };
 

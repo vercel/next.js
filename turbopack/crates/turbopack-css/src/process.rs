@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use lightningcss::{
     css_modules::{CssModuleExport, CssModuleExports, Pattern, Segment},
     stylesheet::{ParserOptions, PrinterOptions, StyleSheet, ToCssResult},
@@ -22,6 +22,7 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
+    SOURCE_MAP_PREFIX,
     asset::{Asset, AssetContent},
     chunk::{ChunkingContext, MinifyType},
     issue::{
@@ -34,17 +35,16 @@ use turbopack_core::{
     source::Source,
     source_map::{GenerateSourceMap, OptionSourceMap},
     source_pos::SourcePos,
-    SOURCE_MAP_PREFIX,
 };
 
 use crate::{
+    CssModuleAssetType,
     lifetime_util::stylesheet_into_static,
     parse::InlineSourcesContentConfig,
     references::{
         analyze_references,
-        url::{replace_url_references, resolve_url_reference, UrlAssetReference},
+        url::{UrlAssetReference, replace_url_references, resolve_url_reference},
     },
-    CssModuleAssetType,
 };
 
 #[derive(Debug)]
@@ -382,13 +382,10 @@ async fn process_content(
     let stylesheet = StyleSheetLike({
         let warnings: Arc<RwLock<_>> = Default::default();
 
-        match StyleSheet::parse(
-            &code,
-            ParserOptions {
-                warnings: Some(warnings.clone()),
-                ..config.clone()
-            },
-        ) {
+        match StyleSheet::parse(&code, ParserOptions {
+            warnings: Some(warnings.clone()),
+            ..config.clone()
+        }) {
             Ok(mut ss) => {
                 if matches!(ty, CssModuleAssetType::Module) {
                     let mut validator = CssValidator { errors: Vec::new() };
@@ -692,19 +689,16 @@ mod tests {
     use super::{CssError, CssValidator};
 
     fn lint_lightningcss(code: &str) -> Vec<CssError> {
-        let mut ss = StyleSheet::parse(
-            code,
-            ParserOptions {
-                css_modules: Some(lightningcss::css_modules::Config {
-                    pattern: Pattern::default(),
-                    dashed_idents: false,
-                    grid: false,
-                    container: false,
-                    ..Default::default()
-                }),
+        let mut ss = StyleSheet::parse(code, ParserOptions {
+            css_modules: Some(lightningcss::css_modules::Config {
+                pattern: Pattern::default(),
+                dashed_idents: false,
+                grid: false,
+                container: false,
                 ..Default::default()
-            },
-        )
+            }),
+            ..Default::default()
+        })
         .unwrap();
 
         let mut validator = CssValidator { errors: Vec::new() };

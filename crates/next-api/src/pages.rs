@@ -1,14 +1,14 @@
 use std::future::IntoFuture;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use next_core::{
-    all_assets_from_entries, create_page_loader_entry_module, get_asset_path_from_pathname,
-    get_edge_resolve_options_context,
+    PageLoaderAsset, all_assets_from_entries, create_page_loader_entry_module,
+    get_asset_path_from_pathname, get_edge_resolve_options_context,
     hmr_entry::HmrEntryModule,
     mode::NextMode,
     next_client::{
-        get_client_module_options_context, get_client_resolve_options_context,
-        get_client_runtime_entries, ClientContextType, RuntimeEntries,
+        ClientContextType, RuntimeEntries, get_client_module_options_context,
+        get_client_resolve_options_context, get_client_runtime_entries,
     },
     next_dynamic::NextDynamicTransition,
     next_edge::route_regex::get_named_middleware_regex,
@@ -18,35 +18,34 @@ use next_core::{
     },
     next_pages::create_page_ssr_entry_module,
     next_server::{
-        get_server_module_options_context, get_server_resolve_options_context,
-        get_server_runtime_entries, ServerContextType,
+        ServerContextType, get_server_module_options_context, get_server_resolve_options_context,
+        get_server_runtime_entries,
     },
     pages_structure::{
-        find_pages_structure, PagesDirectoryStructure, PagesStructure, PagesStructureItem,
+        PagesDirectoryStructure, PagesStructure, PagesStructureItem, find_pages_structure,
     },
-    util::{get_asset_prefix_from_pathname, parse_config_from_source, NextRuntime},
-    PageLoaderAsset,
+    util::{NextRuntime, get_asset_prefix_from_pathname, parse_config_from_source},
 };
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    fxindexmap, trace::TraceRawVcs, Completion, FxIndexMap, ResolvedVc, TaskInput, Value, Vc,
+    Completion, FxIndexMap, ResolvedVc, TaskInput, Value, Vc, fxindexmap, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{
     self, File, FileContent, FileSystem, FileSystemPath, FileSystemPathOption, VirtualFileSystem,
 };
 use turbopack::{
+    ModuleAssetContext,
     module_options::ModuleOptionsContext,
     resolve_options_context::ResolveOptionsContext,
     transition::{ContextTransition, TransitionOptions},
-    ModuleAssetContext,
 };
 use turbopack_core::{
     asset::AssetContent,
     chunk::{
-        availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt,
-        EntryChunkGroupResult, EvaluatableAsset, EvaluatableAssets,
+        ChunkingContext, ChunkingContextExt, EntryChunkGroupResult, EvaluatableAsset,
+        EvaluatableAssets, availability_info::AvailabilityInfo,
     },
     context::AssetContext,
     file_source::FileSource,
@@ -63,8 +62,8 @@ use turbopack_nodejs::NodeJsChunkingContext;
 
 use crate::{
     dynamic_imports::{
-        collect_chunk_group, collect_evaluated_chunk_group, collect_next_dynamic_imports,
-        DynamicImportedChunks, VisitedDynamicImportModules,
+        DynamicImportedChunks, VisitedDynamicImportModules, collect_chunk_group,
+        collect_evaluated_chunk_group, collect_next_dynamic_imports,
     },
     font::create_font_manifest,
     loadable_manifest::create_react_loadable_manifest,

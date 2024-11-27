@@ -1,9 +1,9 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbopack::{
-    transition::{ContextTransition, Transition},
     ModuleAssetContext,
+    transition::{ContextTransition, Transition},
 };
 use turbopack_core::{
     context::ProcessResult,

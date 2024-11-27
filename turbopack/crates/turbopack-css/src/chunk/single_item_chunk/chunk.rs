@@ -15,7 +15,7 @@ use turbopack_core::{
 };
 
 use super::source_map::SingleItemCssChunkSourceMapAsset;
-use crate::chunk::{write_import_context, CssChunkItem};
+use crate::chunk::{CssChunkItem, write_import_context};
 
 /// A CSS chunk that only contains a single item. This is used for selectively
 /// loading CSS modules that are part of a larger chunk in development mode, and

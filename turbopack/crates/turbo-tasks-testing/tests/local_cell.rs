@@ -4,9 +4,9 @@
 
 use anyhow::Result;
 use turbo_tasks::{
-    debug::ValueDebug, test_helpers::current_task_for_testing, ResolvedValue, ValueDefault, Vc,
+    ResolvedValue, ValueDefault, Vc, debug::ValueDebug, test_helpers::current_task_for_testing,
 };
-use turbo_tasks_testing::{register, run, Registration};
+use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
 

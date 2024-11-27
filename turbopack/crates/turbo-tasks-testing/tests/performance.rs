@@ -5,7 +5,7 @@
 use std::time::Duration;
 
 use turbo_tasks::Vc;
-use turbo_tasks_testing::{register, run, Registration};
+use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
 

@@ -8,7 +8,7 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, FxIndexMap, FxIndexSet, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Vc,
+    FxIndexMap, FxIndexSet, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{

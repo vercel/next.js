@@ -4,7 +4,7 @@ use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        availability_info::AvailabilityInfo, ChunkableModule, ChunkingContext, ChunkingContextExt,
+        ChunkableModule, ChunkingContext, ChunkingContextExt, availability_info::AvailabilityInfo,
     },
     ident::AssetIdent,
     module::Module,

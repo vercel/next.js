@@ -1,6 +1,6 @@
 use anyhow::Result;
 use swc_core::{
-    common::{util::take::Take, DUMMY_SP},
+    common::{DUMMY_SP, util::take::Take},
     ecma::ast::{CallExpr, Expr, ExprOrSpread, Ident, Lit},
     quote,
 };
@@ -10,7 +10,7 @@ use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext},
     issue::IssueSource,
     reference::ModuleReference,
-    resolve::{origin::ResolveOrigin, parse::Request, ModuleResolveResult},
+    resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request},
 };
 use turbopack_resolve::ecmascript::cjs_resolve;
 

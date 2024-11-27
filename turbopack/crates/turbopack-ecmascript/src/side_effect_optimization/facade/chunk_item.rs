@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use swc_core::{
-    common::{util::take::Take, Globals},
+    common::{Globals, util::take::Take},
     ecma::{
         ast::Program,
-        codegen::{text_writer::JsWriter, Emitter},
+        codegen::{Emitter, text_writer::JsWriter},
     },
 };
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};

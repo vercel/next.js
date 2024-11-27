@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, parse_quote, ItemFn};
+use syn::{ItemFn, parse_macro_input, parse_quote};
 use turbo_tasks_macros_shared::{get_native_function_id_ident, get_native_function_ident};
 
 use crate::func::{DefinitionContext, FunctionArguments, NativeFn, TurboFn};

@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use swc_core::{
     ecma::ast::{Expr, ExprOrSpread, Lit, NewExpr},
     quote_expr,
@@ -7,11 +7,11 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
 use turbopack_core::{
     chunk::{ChunkableModule, ChunkableModuleReference, ChunkingContext},
-    issue::{code_gen::CodeGenerationIssue, IssueExt, IssueSeverity, IssueSource, StyledString},
+    issue::{IssueExt, IssueSeverity, IssueSource, StyledString, code_gen::CodeGenerationIssue},
     module::Module,
     reference::ModuleReference,
     reference_type::{ReferenceType, WorkerReferenceSubType},
-    resolve::{origin::ResolveOrigin, parse::Request, url_resolve, ModuleResolveResult},
+    resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request, url_resolve},
 };
 
 use crate::{

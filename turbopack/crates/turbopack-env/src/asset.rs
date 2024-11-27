@@ -3,7 +3,7 @@ use std::io::Write;
 use anyhow::Result;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_env::ProcessEnv;
-use turbo_tasks_fs::{rope::RopeBuilder, File, FileSystemPath};
+use turbo_tasks_fs::{File, FileSystemPath, rope::RopeBuilder};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     ident::AssetIdent,

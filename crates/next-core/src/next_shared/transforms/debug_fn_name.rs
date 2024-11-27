@@ -13,13 +13,12 @@ pub fn get_debug_fn_name_rule(enable_mdx_rs: bool) -> ModuleRule {
         DebugFnNameTransformer {},
     ) as _));
 
-    ModuleRule::new(
-        module_rule_match_js_no_url(enable_mdx_rs),
-        vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
+    ModuleRule::new(module_rule_match_js_no_url(enable_mdx_rs), vec![
+        ModuleRuleEffect::ExtendEcmascriptTransforms {
             prepend: ResolvedVc::cell(vec![]),
             append: ResolvedVc::cell(vec![debug_fn_name_transform]),
-        }],
-    )
+        },
+    ])
 }
 
 #[derive(Debug)]

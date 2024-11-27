@@ -6,7 +6,7 @@ use std::{
 };
 
 use anyhow::Result;
-use clap::{arg, Command, CommandFactory, FromArgMatches};
+use clap::{Command, CommandFactory, FromArgMatches, arg};
 
 mod command;
 mod nft_bench;

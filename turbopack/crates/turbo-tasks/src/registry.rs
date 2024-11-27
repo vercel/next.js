@@ -5,15 +5,15 @@ use std::{
     ops::Deref,
 };
 
-use dashmap::{mapref::entry::Entry, DashMap};
+use dashmap::{DashMap, mapref::entry::Entry};
 use once_cell::sync::Lazy;
 use rustc_hash::FxHasher;
 
 use crate::{
+    NativeFunction, TraitType, ValueType,
     id::{FunctionId, TraitTypeId, ValueTypeId},
     id_factory::IdFactory,
     no_move_vec::NoMoveVec,
-    NativeFunction, TraitType, ValueType,
 };
 
 type FxDashMap<K, V> = DashMap<K, V, BuildHasherDefault<FxHasher>>;

@@ -3,12 +3,12 @@ use mime_guess::mime::TEXT_HTML_UTF_8;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, Value, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
-use turbo_tasks_hash::{encode_hex, Xxh3Hash64Hasher};
+use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_hex};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        availability_info::AvailabilityInfo, ChunkableModule, ChunkingContext, ChunkingContextExt,
-        EvaluatableAssets,
+        ChunkableModule, ChunkingContext, ChunkingContextExt, EvaluatableAssets,
+        availability_info::AvailabilityInfo,
     },
     ident::AssetIdent,
     module::Module,

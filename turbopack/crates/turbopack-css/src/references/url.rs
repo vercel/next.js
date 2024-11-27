@@ -1,13 +1,13 @@
 use std::{collections::HashMap, convert::Infallible};
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use lightningcss::{
     values::url::Url,
     visit_types,
     visitor::{Visit, Visitor},
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{debug::ValueDebug, ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc, debug::ValueDebug};
 use turbopack_core::{
     chunk::{
         ChunkableModule, ChunkableModuleReference, ChunkingContext, ChunkingType,
@@ -18,10 +18,10 @@ use turbopack_core::{
     output::OutputAsset,
     reference::ModuleReference,
     reference_type::{ReferenceType, UrlReferenceSubType},
-    resolve::{origin::ResolveOrigin, parse::Request, url_resolve, ModuleResolveResult},
+    resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request, url_resolve},
 };
 
-use crate::{embed::CssEmbed, StyleSheetLike};
+use crate::{StyleSheetLike, embed::CssEmbed};
 
 #[turbo_tasks::value(into = "new")]
 pub enum ReferencedAsset {

@@ -5,22 +5,22 @@ use next_core::{
     all_assets_from_entries,
     app_segment_config::NextSegmentConfig,
     app_structure::{
-        get_entrypoints, AppPageLoaderTree, Entrypoint as AppEntrypoint,
-        Entrypoints as AppEntrypoints, FileSystemPathVec, MetadataItem,
+        AppPageLoaderTree, Entrypoint as AppEntrypoint, Entrypoints as AppEntrypoints,
+        FileSystemPathVec, MetadataItem, get_entrypoints,
     },
     get_edge_resolve_options_context, get_next_package,
     next_app::{
-        get_app_client_references_chunks, get_app_client_shared_chunk_group, get_app_page_entry,
-        get_app_route_entry, include_modules_module::IncludeModulesModule,
-        metadata::route::get_app_metadata_route_entry, AppEntry, AppPage,
+        AppEntry, AppPage, get_app_client_references_chunks, get_app_client_shared_chunk_group,
+        get_app_page_entry, get_app_route_entry, include_modules_module::IncludeModulesModule,
+        metadata::route::get_app_metadata_route_entry,
     },
     next_client::{
-        get_client_module_options_context, get_client_resolve_options_context,
-        get_client_runtime_entries, ClientContextType, RuntimeEntries,
+        ClientContextType, RuntimeEntries, get_client_module_options_context,
+        get_client_resolve_options_context, get_client_runtime_entries,
     },
     next_client_reference::{
-        client_reference_graph, find_server_entries, ClientReferenceGraphResult,
-        NextEcmascriptClientReferenceTransition, ServerEntries, VisitedClientReferenceGraphNodes,
+        ClientReferenceGraphResult, NextEcmascriptClientReferenceTransition, ServerEntries,
+        VisitedClientReferenceGraphNodes, client_reference_graph, find_server_entries,
     },
     next_config::NextConfig,
     next_dynamic::NextDynamicTransition,
@@ -30,8 +30,8 @@ use next_core::{
         EdgeFunctionDefinition, MiddlewareMatcher, MiddlewaresManifestV2, PagesManifest, Regions,
     },
     next_server::{
-        get_server_module_options_context, get_server_resolve_options_context,
-        get_server_runtime_entries, ServerContextType,
+        ServerContextType, get_server_module_options_context, get_server_resolve_options_context,
+        get_server_runtime_entries,
     },
     parse_segment_config_from_source,
     util::NextRuntime,
@@ -40,22 +40,22 @@ use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    fxindexmap, fxindexset, trace::TraceRawVcs, Completion, FxIndexMap, FxIndexSet, ResolvedVc,
-    TryJoinIterExt, Value, ValueToString, Vc,
+    Completion, FxIndexMap, FxIndexSet, ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc,
+    fxindexmap, fxindexset, trace::TraceRawVcs,
 };
 use turbo_tasks_env::{CustomProcessEnv, ProcessEnv};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack::{
-    module_options::{transition_rule::TransitionRule, ModuleOptionsContext, RuleCondition},
+    ModuleAssetContext,
+    module_options::{ModuleOptionsContext, RuleCondition, transition_rule::TransitionRule},
     resolve_options_context::ResolveOptionsContext,
     transition::{ContextTransition, FullContextTransition, Transition, TransitionOptions},
-    ModuleAssetContext,
 };
 use turbopack_core::{
     asset::AssetContent,
     chunk::{
-        availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt,
-        EntryChunkGroupResult, EvaluatableAsset, EvaluatableAssets,
+        ChunkingContext, ChunkingContextExt, EntryChunkGroupResult, EvaluatableAsset,
+        EvaluatableAssets, availability_info::AvailabilityInfo,
     },
     file_source::FileSource,
     ident::AssetIdent,
@@ -70,8 +70,8 @@ use turbopack_ecmascript::resolve::cjs_resolve;
 
 use crate::{
     dynamic_imports::{
-        collect_chunk_group, collect_evaluated_chunk_group, collect_next_dynamic_imports,
-        VisitedDynamicImportModules,
+        VisitedDynamicImportModules, collect_chunk_group, collect_evaluated_chunk_group,
+        collect_next_dynamic_imports,
     },
     font::create_font_manifest,
     loadable_manifest::create_react_loadable_manifest,

@@ -5,7 +5,7 @@
 
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{Completion, ReadRef, TaskInput, Vc};
-use turbo_tasks_testing::{register, run, Registration};
+use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
 

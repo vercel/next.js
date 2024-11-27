@@ -4,7 +4,7 @@ use std::{
     path::PathBuf,
 };
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use similar::TextDiff;
@@ -15,7 +15,7 @@ use turbo_tasks_fs::{
     FileSystemPath,
 };
 use turbo_tasks_hash::encode_hex;
-use turbopack_cli_utils::issue::{format_issue, LogOptions};
+use turbopack_cli_utils::issue::{LogOptions, format_issue};
 use turbopack_core::{
     asset::AssetContent,
     issue::{IssueSeverity, PlainIssue, StyledString},
@@ -54,17 +54,13 @@ pub async fn snapshot_issues<I: IntoIterator<Item = ReadRef<PlainIssue>>>(
             continue;
         }
 
-        let formatted = format_issue(
-            &plain_issue,
-            None,
-            &LogOptions {
-                current_dir: PathBuf::new(),
-                project_dir: PathBuf::new(),
-                show_all: true,
-                log_detail: true,
-                log_level: IssueSeverity::Info,
-            },
-        );
+        let formatted = format_issue(&plain_issue, None, &LogOptions {
+            current_dir: PathBuf::new(),
+            project_dir: PathBuf::new(),
+            show_all: true,
+            log_detail: true,
+            log_level: IssueSeverity::Info,
+        });
 
         // Annoyingly, the PlainIssue.source -> PlainIssueSource.asset ->
         // PlainSource.path -> FileSystemPath.fs -> DiskFileSystem.root changes

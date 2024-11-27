@@ -1,18 +1,18 @@
 use std::{
     borrow::Cow,
     cmp::min,
-    collections::{hash_map::Entry, HashMap, HashSet},
+    collections::{HashMap, HashSet, hash_map::Entry},
     fmt::Write as _,
     path::{Path, PathBuf},
     str::FromStr,
     sync::{Arc, Mutex},
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use crossterm::style::{StyledContent, Stylize};
 use owo_colors::{OwoColorize as _, Style};
 use turbo_tasks::{RawVc, ReadRef, TransientInstance, TransientValue, TryJoinIterExt, Vc};
-use turbo_tasks_fs::{source_context::get_source_context, FileLinesContent};
+use turbo_tasks_fs::{FileLinesContent, source_context::get_source_context};
 use turbopack_core::issue::{
     CapturedIssues, Issue, IssueReporter, IssueSeverity, PlainIssue, PlainIssueProcessingPathItem,
     PlainIssueSource, StyledString,

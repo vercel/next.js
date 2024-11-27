@@ -1,6 +1,6 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, ResolvedVc, Vc};
+use turbo_tasks::{ResolvedVc, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     reference_type::ReferenceType, source::Source, source_transform::SourceTransforms,
@@ -9,7 +9,7 @@ use turbopack_css::CssModuleAssetType;
 use turbopack_ecmascript::{EcmascriptInputTransforms, EcmascriptOptions};
 use turbopack_wasm::source::WebAssemblySourceType;
 
-use super::{match_mode::MatchMode, CustomModuleType, RuleCondition};
+use super::{CustomModuleType, RuleCondition, match_mode::MatchMode};
 
 #[derive(Debug, Clone, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq)]
 pub struct ModuleRule {

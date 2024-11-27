@@ -361,14 +361,11 @@ mod test {
             FreeVarReferences(FxIndexMap::from_iter(vec![
                 (vec!["FOO".into()], FreeVarReference::Value("bar".into())),
                 (vec!["FOO".into()], FreeVarReference::Value(false.into())),
-                (
-                    vec!["Buffer".into()],
-                    FreeVarReference::EcmaScriptModule {
-                        request: "node:buffer".into(),
-                        lookup_path: None,
-                        export: Some("Buffer".into()),
-                    }
-                ),
+                (vec!["Buffer".into()], FreeVarReference::EcmaScriptModule {
+                    request: "node:buffer".into(),
+                    lookup_path: None,
+                    export: Some("Buffer".into()),
+                }),
             ]))
         );
     }

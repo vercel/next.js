@@ -1,14 +1,14 @@
 use std::sync::Arc;
 
 use swc_core::common::{
+    SourceMap,
     errors::{DiagnosticBuilder, DiagnosticId, Emitter, Level},
     source_map::SmallPos,
-    SourceMap,
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::ResolvedVc;
 use turbopack_core::{
-    issue::{analyze::AnalyzeIssue, IssueExt, IssueSeverity, IssueSource, StyledString},
+    issue::{IssueExt, IssueSeverity, IssueSource, StyledString, analyze::AnalyzeIssue},
     source::Source,
 };
 

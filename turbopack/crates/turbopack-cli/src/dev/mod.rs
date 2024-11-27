@@ -1,10 +1,10 @@
 use std::{
     collections::HashSet,
     env::current_dir,
-    future::{join, Future},
-    io::{stdout, Write},
+    future::{Future, join},
+    io::{Write, stdout},
     net::{IpAddr, SocketAddr},
-    path::{PathBuf, MAIN_SEPARATOR},
+    path::{MAIN_SEPARATOR, PathBuf},
     sync::Arc,
     time::{Duration, Instant},
 };
@@ -13,8 +13,8 @@ use anyhow::{Context, Result};
 use owo_colors::OwoColorize;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    util::{FormatBytes, FormatDuration},
     ResolvedVc, TransientInstance, TurboTasks, UpdateInfo, Value, Vc,
+    util::{FormatBytes, FormatDuration},
 };
 use turbo_tasks_fs::FileSystem;
 use turbo_tasks_malloc::TurboMalloc;
@@ -27,12 +27,12 @@ use turbopack_core::{
     server_fs::ServerFileSystem,
 };
 use turbopack_dev_server::{
+    DevServer, DevServerBuilder,
     introspect::IntrospectionSource,
     source::{
-        combined::CombinedContentSource, router::PrefixedRouterContentSource,
-        static_assets::StaticAssetsContentSource, ContentSource,
+        ContentSource, combined::CombinedContentSource, router::PrefixedRouterContentSource,
+        static_assets::StaticAssetsContentSource,
     },
-    DevServer, DevServerBuilder,
 };
 use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_env::dotenv::load_env;
@@ -44,7 +44,7 @@ use crate::{
     arguments::DevArguments,
     contexts::NodeEnv,
     util::{
-        normalize_dirs, normalize_entries, output_fs, project_fs, EntryRequest, NormalizedDirs,
+        EntryRequest, NormalizedDirs, normalize_dirs, normalize_entries, output_fs, project_fs,
     },
 };
 

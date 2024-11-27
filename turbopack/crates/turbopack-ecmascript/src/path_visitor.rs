@@ -162,13 +162,13 @@ mod tests {
     use std::sync::Arc;
 
     use swc_core::{
-        common::{errors::HANDLER, FileName, Mark, SourceFile, SourceMap},
+        common::{FileName, Mark, SourceFile, SourceMap, errors::HANDLER},
         ecma::{
             ast::*,
-            codegen::{text_writer::JsWriter, Emitter},
+            codegen::{Emitter, text_writer::JsWriter},
             parser::parse_file_as_module,
             transforms::base::resolver,
-            visit::{fields::*, AstParentKind, VisitMut, VisitMutWith, VisitMutWithAstPath},
+            visit::{AstParentKind, VisitMut, VisitMutWith, VisitMutWithAstPath, fields::*},
         },
         testing::run_test,
     };

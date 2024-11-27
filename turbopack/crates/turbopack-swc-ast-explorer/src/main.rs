@@ -5,8 +5,8 @@ use clap::Parser;
 use owo_colors::OwoColorize;
 use regex::{NoExpand, Regex};
 use swc_core::{
-    base::{config::IsModule, try_with_handler, Compiler, HandlerOpts},
-    common::{errors::ColorConfig, source_map::FileName, Globals, SourceMap, GLOBALS},
+    base::{Compiler, HandlerOpts, config::IsModule, try_with_handler},
+    common::{GLOBALS, Globals, SourceMap, errors::ColorConfig, source_map::FileName},
     ecma::{
         ast::EsVersion,
         parser::{Syntax, TsSyntax},

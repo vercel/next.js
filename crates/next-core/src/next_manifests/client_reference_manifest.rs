@@ -6,8 +6,8 @@ use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        availability_info::AvailabilityInfo, ChunkItem, ChunkItemExt, ChunkableModule,
-        ChunkingContext, ModuleId as TurbopackModuleId,
+        ChunkItem, ChunkItemExt, ChunkableModule, ChunkingContext, ModuleId as TurbopackModuleId,
+        availability_info::AvailabilityInfo,
     },
     output::{OutputAsset, OutputAssets},
     virtual_output::VirtualOutputAsset,
@@ -195,27 +195,25 @@ impl ClientReferenceManifest {
                     );
 
                     let mut ssr_manifest_node = ManifestNode::default();
-                    ssr_manifest_node.module_exports.insert(
-                        "*".into(),
-                        ManifestNodeEntry {
+                    ssr_manifest_node
+                        .module_exports
+                        .insert("*".into(), ManifestNodeEntry {
                             name: "*".into(),
                             id: (&*ssr_module_id).into(),
                             chunks: ssr_chunks_paths,
                             // See above
                             r#async: client_is_async || ssr_is_async,
-                        },
-                    );
+                        });
 
                     let mut rsc_manifest_node = ManifestNode::default();
-                    rsc_manifest_node.module_exports.insert(
-                        "*".into(),
-                        ManifestNodeEntry {
+                    rsc_manifest_node
+                        .module_exports
+                        .insert("*".into(), ManifestNodeEntry {
                             name: "*".into(),
                             id: (&*rsc_module_id).into(),
                             chunks: rsc_chunks_paths,
                             r#async: rsc_is_async,
-                        },
-                    );
+                        });
 
                     match runtime {
                         NextRuntime::NodeJs => {

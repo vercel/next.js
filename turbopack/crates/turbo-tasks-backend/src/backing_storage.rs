@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use turbo_tasks::{backend::CachedTaskType, SessionId, TaskId};
+use turbo_tasks::{SessionId, TaskId, backend::CachedTaskType};
 
 use crate::{
     backend::{AnyOperation, TaskDataCategory},

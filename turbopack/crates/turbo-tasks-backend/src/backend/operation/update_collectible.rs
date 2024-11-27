@@ -4,12 +4,12 @@ use turbo_tasks::TaskId;
 
 use crate::{
     backend::{
+        TaskDataCategory,
         operation::{
             AggregatedDataUpdate, AggregationUpdateJob, AggregationUpdateQueue, ExecuteContext,
             Operation,
         },
         storage::{get, update_count},
-        TaskDataCategory,
     },
     data::CollectibleRef,
 };

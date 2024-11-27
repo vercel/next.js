@@ -1,20 +1,20 @@
 use std::{future::Future, sync::Arc};
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use swc_core::{
     base::SwcComments,
     common::{
-        errors::{Handler, HANDLER},
+        BytePos, FileName, GLOBALS, Globals, LineCol, Mark, SyntaxContext,
+        errors::{HANDLER, Handler},
         input::StringInput,
         source_map::SourceMapGenConfig,
-        BytePos, FileName, Globals, LineCol, Mark, SyntaxContext, GLOBALS,
     },
     ecma::{
         ast::{EsVersion, Program},
         lints::{config::LintConfig, rules::LintParams},
-        parser::{lexer::Lexer, EsSyntax, Parser, Syntax, TsSyntax},
+        parser::{EsSyntax, Parser, Syntax, TsSyntax, lexer::Lexer},
         transforms::base::{
-            helpers::{Helpers, HELPERS},
+            helpers::{HELPERS, Helpers},
             resolver,
         },
         visit::VisitMutWith,
@@ -22,25 +22,25 @@ use swc_core::{
 };
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{util::WrapFuture, ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc, util::WrapFuture};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
+    SOURCE_MAP_PREFIX,
     asset::{Asset, AssetContent},
     error::PrettyPrintError,
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     source::Source,
     source_map::{GenerateSourceMap, OptionSourceMap, SourceMap},
-    SOURCE_MAP_PREFIX,
 };
 use turbopack_swc_utils::emitter::IssueEmitter;
 
 use super::EcmascriptModuleAssetType;
 use crate::{
+    EcmascriptInputTransform,
     analyzer::graph::EvalContext,
     swc_comments::ImmutableComments,
     transform::{EcmascriptInputTransforms, TransformContext},
-    EcmascriptInputTransform,
 };
 
 #[turbo_tasks::value(shared, serialization = "none", eq = "manual")]

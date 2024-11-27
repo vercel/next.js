@@ -13,7 +13,7 @@ use regex::Regex;
 use serde_json::json;
 use turbo_tasks::{TurboTasks, Vc};
 use turbo_tasks_memory::MemoryBackend;
-use turbo_tasks_testing::{register, Registration};
+use turbo_tasks_testing::{Registration, register};
 
 static REGISTRATION: Registration = register!();
 

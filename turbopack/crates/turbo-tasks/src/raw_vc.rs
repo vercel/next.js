@@ -13,16 +13,17 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::{
+    CollectiblesSource, ReadConsistency, TaskId, TraitTypeId, ValueType, ValueTypeId, Vc,
+    VcValueTrait,
     backend::{CellContent, TypedCellContent},
     event::EventListener,
     id::{ExecutionId, LocalCellId, LocalTaskId},
     manager::{
-        assert_execution_id, current_task, read_local_cell, read_local_output, read_task_cell,
-        read_task_output, TurboTasksApi,
+        TurboTasksApi, assert_execution_id, current_task, read_local_cell, read_local_output,
+        read_task_cell, read_task_output,
     },
     registry::{self, get_value_type},
-    turbo_tasks, CollectiblesSource, ReadConsistency, TaskId, TraitTypeId, ValueType, ValueTypeId,
-    Vc, VcValueTrait,
+    turbo_tasks,
 };
 
 #[derive(Error, Debug)]

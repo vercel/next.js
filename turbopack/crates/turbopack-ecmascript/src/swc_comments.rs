@@ -3,8 +3,8 @@ use std::{cell::RefCell, collections::HashMap, mem::take};
 use swc_core::{
     base::SwcComments,
     common::{
-        comments::{Comment, CommentKind, Comments},
         BytePos,
+        comments::{Comment, CommentKind, Comments},
     },
 };
 

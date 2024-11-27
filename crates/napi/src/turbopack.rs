@@ -3,8 +3,8 @@ use std::path::PathBuf;
 use anyhow::Context;
 use napi::bindgen_prelude::*;
 use next_build::{
-    build_options::{BuildContext, DefineEnv},
     BuildOptions as NextBuildOptions,
+    build_options::{BuildContext, DefineEnv},
 };
 use next_core::next_config::{Rewrite, Rewrites, RouteHas};
 
@@ -181,7 +181,7 @@ impl FromNapiValue for NapiRouteHas {
                 return Err(napi::Error::new(
                     Status::GenericFailure,
                     format!("invalid type for RouteHas: {}", type_),
-                ))
+                ));
             }
         })
     }

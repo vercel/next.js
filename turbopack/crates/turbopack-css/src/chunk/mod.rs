@@ -3,22 +3,23 @@ pub mod source_map;
 
 use std::fmt::Write;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexSet, ResolvedVc, TryJoinIterExt, Value, ValueDefault, ValueToString, Vc};
-use turbo_tasks_fs::{rope::Rope, File, FileSystem};
+use turbo_tasks_fs::{File, FileSystem, rope::Rope};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        round_chunk_item_size, AsyncModuleInfo, Chunk, ChunkItem, ChunkItemWithAsyncModuleInfo,
-        ChunkType, ChunkableModule, ChunkingContext, ModuleId, OutputChunk, OutputChunkRuntimeInfo,
+        AsyncModuleInfo, Chunk, ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkType,
+        ChunkableModule, ChunkingContext, ModuleId, OutputChunk, OutputChunkRuntimeInfo,
+        round_chunk_item_size,
     },
-    code_builder::{fileify_source_map, Code, CodeBuilder},
+    code_builder::{Code, CodeBuilder, fileify_source_map},
     ident::AssetIdent,
     introspect::{
+        Introspectable, IntrospectableChildren,
         module::IntrospectableModule,
         utils::{children_from_output_assets, content_to_details},
-        Introspectable, IntrospectableChildren,
     },
     module::Module,
     output::{OutputAsset, OutputAssets},
@@ -28,7 +29,7 @@ use turbopack_core::{
 };
 
 use self::{single_item_chunk::chunk::SingleItemCssChunk, source_map::CssChunkSourceMapAsset};
-use crate::{process::ParseCssResultSourceMap, util::stringify_js, ImportAssetReference};
+use crate::{ImportAssetReference, process::ParseCssResultSourceMap, util::stringify_js};
 
 #[turbo_tasks::value]
 pub struct CssChunk {

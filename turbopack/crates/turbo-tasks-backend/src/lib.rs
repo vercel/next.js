@@ -17,8 +17,8 @@ pub use self::{
     kv_backing_storage::KeyValueDatabaseBackingStorage,
 };
 use crate::database::{
-    handle_db_versioning, is_fresh, lmdb::LmbdKeyValueDatabase, FreshDbOptimization, NoopKvDb,
-    ReadTransactionCache, StartupCacheLayer,
+    FreshDbOptimization, NoopKvDb, ReadTransactionCache, StartupCacheLayer, handle_db_versioning,
+    is_fresh, lmdb::LmbdKeyValueDatabase,
 };
 
 pub type LmdbBackingStorage = KeyValueDatabaseBackingStorage<

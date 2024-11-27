@@ -5,8 +5,8 @@ use std::{
 
 use dashmap::DashMap;
 use rustc_hash::FxHasher;
-use serde::{ser::SerializeMap, Serialize, Serializer};
-use turbo_tasks::{registry, FunctionId};
+use serde::{Serialize, Serializer, ser::SerializeMap};
+use turbo_tasks::{FunctionId, registry};
 
 /// An API for optionally enabling, updating, and reading aggregated statistics.
 #[derive(Default)]

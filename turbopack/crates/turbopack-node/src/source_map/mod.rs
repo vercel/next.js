@@ -1,7 +1,7 @@
 use std::{
     borrow::Cow,
     fmt::Write,
-    path::{Path, MAIN_SEPARATOR},
+    path::{MAIN_SEPARATOR, Path},
 };
 
 use anyhow::Result;
@@ -9,18 +9,18 @@ use const_format::concatcp;
 use once_cell::sync::Lazy;
 use regex::Regex;
 pub use trace::{SourceMapTrace, StackFrame, TraceResult};
-use tracing::{instrument, Level};
+use tracing::{Level, instrument};
 use turbo_tasks::{ReadRef, Vc};
 use turbo_tasks_fs::{
-    source_context::get_source_context, to_sys_path, FileLinesContent, FileSystemPath,
+    FileLinesContent, FileSystemPath, source_context::get_source_context, to_sys_path,
 };
 use turbopack_cli_utils::source_context::format_source_context_lines;
 use turbopack_core::{
-    output::OutputAsset, source_map::GenerateSourceMap, PROJECT_FILESYSTEM_NAME, SOURCE_MAP_PREFIX,
+    PROJECT_FILESYSTEM_NAME, SOURCE_MAP_PREFIX, output::OutputAsset, source_map::GenerateSourceMap,
 };
 use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
 
-use crate::{internal_assets_for_source_mapping, pool::FormattingMode, AssetsForSourceMapping};
+use crate::{AssetsForSourceMapping, internal_assets_for_source_mapping, pool::FormattingMode};
 
 pub mod trace;
 

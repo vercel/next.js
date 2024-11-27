@@ -4,13 +4,13 @@ use std::{
 };
 
 use anyhow::{Context as _, Error, Result};
-use futures::{prelude::*, ready, stream::FusedStream, SinkExt};
-use hyper::{upgrade::Upgraded, HeaderMap, Uri};
-use hyper_tungstenite::{tungstenite::Message, HyperWebsocket, WebSocketStream};
+use futures::{SinkExt, prelude::*, ready, stream::FusedStream};
+use hyper::{HeaderMap, Uri, upgrade::Upgraded};
+use hyper_tungstenite::{HyperWebsocket, WebSocketStream, tungstenite::Message};
 use pin_project_lite::pin_project;
 use tokio::select;
 use tokio_stream::StreamMap;
-use tracing::{instrument, Level};
+use tracing::{Level, instrument};
 use turbo_tasks::{TransientInstance, TurboTasksApi, Vc};
 use turbo_tasks_fs::json::parse_json_with_source_context;
 use turbopack_core::{error::PrettyPrintError, issue::IssueReporter, version::Update};
@@ -20,9 +20,9 @@ use turbopack_ecmascript_hmr_protocol::{
 
 use super::stream::UpdateStream;
 use crate::{
-    source::{request::SourceRequest, resolve::resolve_source_request, Body},
-    update::stream::UpdateStreamItem,
     SourceProvider,
+    source::{Body, request::SourceRequest, resolve::resolve_source_request},
+    update::stream::UpdateStreamItem,
 };
 
 /// A server that listens for updates and sends them to connected clients.

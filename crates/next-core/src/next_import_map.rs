@@ -2,30 +2,31 @@ use std::collections::{BTreeMap, HashMap};
 
 use anyhow::{Context, Result};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{fxindexmap, FxIndexMap, ResolvedVc, Value, Vc};
+use turbo_tasks::{FxIndexMap, ResolvedVc, Value, Vc, fxindexmap};
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack_core::{
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{
+        AliasPattern, ExternalTraced, ExternalType, ResolveAliasMap, SubpathValue,
         node::node_cjs_resolve_options,
         options::{ConditionValue, ImportMap, ImportMapping, ResolvedMap},
         parse::Request,
         pattern::Pattern,
-        resolve, AliasPattern, ExternalTraced, ExternalType, ResolveAliasMap, SubpathValue,
+        resolve,
     },
     source::Source,
 };
 use turbopack_node::execution_context::ExecutionContext;
 
 use crate::{
-    embed_js::{next_js_fs, VIRTUAL_PACKAGE_NAME},
+    embed_js::{VIRTUAL_PACKAGE_NAME, next_js_fs},
     mode::NextMode,
     next_client::context::ClientContextType,
     next_config::NextConfig,
     next_edge::unsupported::NextEdgeUnsupportedModuleReplacer,
     next_font::google::{
-        NextFontGoogleCssModuleReplacer, NextFontGoogleFontFileReplacer, NextFontGoogleReplacer,
-        GOOGLE_FONTS_INTERNAL_PREFIX,
+        GOOGLE_FONTS_INTERNAL_PREFIX, NextFontGoogleCssModuleReplacer,
+        NextFontGoogleFontFileReplacer, NextFontGoogleReplacer,
     },
     next_server::context::ServerContextType,
     util::NextRuntime,
@@ -212,16 +213,12 @@ pub async fn get_next_client_import_map(
     }
 
     // see https://github.com/vercel/next.js/blob/8013ef7372fc545d49dbd060461224ceb563b454/packages/next/src/build/webpack-config.ts#L1449-L1531
-    insert_exact_alias_map(
-        &mut import_map,
-        project_path,
-        fxindexmap! {
-            "server-only" => "next/dist/compiled/server-only/index".to_string(),
-            "client-only" => "next/dist/compiled/client-only/index".to_string(),
-            "next/dist/compiled/server-only" => "next/dist/compiled/server-only/index".to_string(),
-            "next/dist/compiled/client-only" => "next/dist/compiled/client-only/index".to_string(),
-        },
-    );
+    insert_exact_alias_map(&mut import_map, project_path, fxindexmap! {
+        "server-only" => "next/dist/compiled/server-only/index".to_string(),
+        "client-only" => "next/dist/compiled/client-only/index".to_string(),
+        "next/dist/compiled/server-only" => "next/dist/compiled/server-only/index".to_string(),
+        "next/dist/compiled/client-only" => "next/dist/compiled/client-only/index".to_string(),
+    });
 
     match ty.into_value() {
         ClientContextType::Pages { .. }
@@ -402,43 +399,35 @@ pub async fn get_next_edge_import_map(
     // https://github.com/vercel/next.js/blob/786ef25e529e1fb2dda398aebd02ccbc8d0fb673/packages/next/src/build/webpack-config.ts#L815-L861
 
     // Alias next/dist imports to next/dist/esm assets
-    insert_wildcard_alias_map(
-        &mut import_map,
-        project_path,
-        fxindexmap! {
-            "next/dist/build/" => "next/dist/esm/build/*".to_string(),
-            "next/dist/client/" => "next/dist/esm/client/*".to_string(),
-            "next/dist/shared/" => "next/dist/esm/shared/*".to_string(),
-            "next/dist/pages/" => "next/dist/esm/pages/*".to_string(),
-            "next/dist/lib/" => "next/dist/esm/lib/*".to_string(),
-            "next/dist/server/" => "next/dist/esm/server/*".to_string(),
-            "next/dist/api/" => "next/dist/esm/api/*".to_string(),
-        },
-    );
+    insert_wildcard_alias_map(&mut import_map, project_path, fxindexmap! {
+        "next/dist/build/" => "next/dist/esm/build/*".to_string(),
+        "next/dist/client/" => "next/dist/esm/client/*".to_string(),
+        "next/dist/shared/" => "next/dist/esm/shared/*".to_string(),
+        "next/dist/pages/" => "next/dist/esm/pages/*".to_string(),
+        "next/dist/lib/" => "next/dist/esm/lib/*".to_string(),
+        "next/dist/server/" => "next/dist/esm/server/*".to_string(),
+        "next/dist/api/" => "next/dist/esm/api/*".to_string(),
+    });
 
     // Alias the usage of next public APIs
-    insert_exact_alias_map(
-        &mut import_map,
-        project_path,
-        fxindexmap! {
-            "next/app" => "next/dist/api/app".to_string(),
-            "next/document" => "next/dist/api/document".to_string(),
-            "next/dynamic" => "next/dist/api/dynamic".to_string(),
-            "next/form" => "next/dist/api/form".to_string(),
-            "next/head" => "next/dist/api/head".to_string(),
-            "next/headers" => "next/dist/api/headers".to_string(),
-            "next/image" => "next/dist/api/image".to_string(),
-            "next/link" => "next/dist/api/link".to_string(),
-            "next/navigation" => "next/dist/api/navigation".to_string(),
-            "next/router" => "next/dist/api/router".to_string(),
-            "next/script" => "next/dist/api/script".to_string(),
-            "next/server" => "next/dist/api/server".to_string(),
-            "next/og" => "next/dist/api/og".to_string(),
+    insert_exact_alias_map(&mut import_map, project_path, fxindexmap! {
+        "next/app" => "next/dist/api/app".to_string(),
+        "next/document" => "next/dist/api/document".to_string(),
+        "next/dynamic" => "next/dist/api/dynamic".to_string(),
+        "next/form" => "next/dist/api/form".to_string(),
+        "next/head" => "next/dist/api/head".to_string(),
+        "next/headers" => "next/dist/api/headers".to_string(),
+        "next/image" => "next/dist/api/image".to_string(),
+        "next/link" => "next/dist/api/link".to_string(),
+        "next/navigation" => "next/dist/api/navigation".to_string(),
+        "next/router" => "next/dist/api/router".to_string(),
+        "next/script" => "next/dist/api/script".to_string(),
+        "next/server" => "next/dist/api/server".to_string(),
+        "next/og" => "next/dist/api/og".to_string(),
 
-            // Alias built-in @vercel/og to edge bundle for edge runtime
-            "next/dist/compiled/@vercel/og/index.node.js" => "next/dist/compiled/@vercel/og/index.edge.js".to_string(),
-        },
-    );
+        // Alias built-in @vercel/og to edge bundle for edge runtime
+        "next/dist/compiled/@vercel/og/index.node.js" => "next/dist/compiled/@vercel/og/index.edge.js".to_string(),
+    });
 
     insert_next_shared_aliases(
         &mut import_map,
@@ -648,16 +637,12 @@ async fn insert_next_server_special_aliases(
     // build-time error as well, refer https://github.com/vercel/next.js/blob/0060de1c4905593ea875fa7250d4b5d5ce10897d/packages/next-swc/crates/next-core/src/next_server/context.rs#L103
     match ty {
         ServerContextType::Pages { .. } => {
-            insert_exact_alias_map(
-                import_map,
-                project_path,
-                fxindexmap! {
-                    "server-only" => "next/dist/compiled/server-only/empty".to_string(),
-                    "client-only" => "next/dist/compiled/client-only/index".to_string(),
-                    "next/dist/compiled/server-only" => "next/dist/compiled/server-only/empty".to_string(),
-                    "next/dist/compiled/client-only" => "next/dist/compiled/client-only/index".to_string(),
-                },
-            );
+            insert_exact_alias_map(import_map, project_path, fxindexmap! {
+                "server-only" => "next/dist/compiled/server-only/empty".to_string(),
+                "client-only" => "next/dist/compiled/client-only/index".to_string(),
+                "next/dist/compiled/server-only" => "next/dist/compiled/server-only/empty".to_string(),
+                "next/dist/compiled/client-only" => "next/dist/compiled/client-only/index".to_string(),
+            });
         }
         ServerContextType::PagesData { .. }
         | ServerContextType::PagesApi { .. }
@@ -665,28 +650,20 @@ async fn insert_next_server_special_aliases(
         | ServerContextType::AppRoute { .. }
         | ServerContextType::Middleware { .. }
         | ServerContextType::Instrumentation { .. } => {
-            insert_exact_alias_map(
-                import_map,
-                project_path,
-                fxindexmap! {
-                    "server-only" => "next/dist/compiled/server-only/empty".to_string(),
-                    "client-only" => "next/dist/compiled/client-only/error".to_string(),
-                    "next/dist/compiled/server-only" => "next/dist/compiled/server-only/empty".to_string(),
-                    "next/dist/compiled/client-only" => "next/dist/compiled/client-only/error".to_string(),
-                },
-            );
+            insert_exact_alias_map(import_map, project_path, fxindexmap! {
+                "server-only" => "next/dist/compiled/server-only/empty".to_string(),
+                "client-only" => "next/dist/compiled/client-only/error".to_string(),
+                "next/dist/compiled/server-only" => "next/dist/compiled/server-only/empty".to_string(),
+                "next/dist/compiled/client-only" => "next/dist/compiled/client-only/error".to_string(),
+            });
         }
         ServerContextType::AppSSR { .. } => {
-            insert_exact_alias_map(
-                import_map,
-                project_path,
-                fxindexmap! {
-                    "server-only" => "next/dist/compiled/server-only/index".to_string(),
-                    "client-only" => "next/dist/compiled/client-only/index".to_string(),
-                    "next/dist/compiled/server-only" => "next/dist/compiled/server-only/index".to_string(),
-                    "next/dist/compiled/client-only" => "next/dist/compiled/client-only/index".to_string(),
-                },
-            );
+            insert_exact_alias_map(import_map, project_path, fxindexmap! {
+                "server-only" => "next/dist/compiled/server-only/index".to_string(),
+                "client-only" => "next/dist/compiled/client-only/index".to_string(),
+                "next/dist/compiled/server-only" => "next/dist/compiled/server-only/index".to_string(),
+                "next/dist/compiled/client-only" => "next/dist/compiled/client-only/index".to_string(),
+            });
         }
     }
 
@@ -835,22 +812,18 @@ async fn insert_optimized_module_aliases(
     import_map: &mut ImportMap,
     project_path: ResolvedVc<FileSystemPath>,
 ) -> Result<()> {
-    insert_exact_alias_map(
-        import_map,
-        project_path,
-        fxindexmap! {
-            "unfetch" => "next/dist/build/polyfills/fetch/index.js".to_string(),
-            "isomorphic-unfetch" => "next/dist/build/polyfills/fetch/index.js".to_string(),
-            "whatwg-fetch" => "next/dist/build/polyfills/fetch/whatwg-fetch.js".to_string(),
-            "object-assign" => "next/dist/build/polyfills/object-assign.js".to_string(),
-            "object.assign/auto" => "next/dist/build/polyfills/object.assign/auto.js".to_string(),
-            "object.assign/implementation" => "next/dist/build/polyfills/object.assign/implementation.js".to_string(),
-            "object.assign/polyfill" => "next/dist/build/polyfills/object.assign/polyfill.js".to_string(),
-            "object.assign/shim" => "next/dist/build/polyfills/object.assign/shim.js".to_string(),
-            "url" => "next/dist/compiled/native-url".to_string(),
-            "node:url" => "next/dist/compiled/native-url".to_string(),
-        },
-    );
+    insert_exact_alias_map(import_map, project_path, fxindexmap! {
+        "unfetch" => "next/dist/build/polyfills/fetch/index.js".to_string(),
+        "isomorphic-unfetch" => "next/dist/build/polyfills/fetch/index.js".to_string(),
+        "whatwg-fetch" => "next/dist/build/polyfills/fetch/whatwg-fetch.js".to_string(),
+        "object-assign" => "next/dist/build/polyfills/object-assign.js".to_string(),
+        "object.assign/auto" => "next/dist/build/polyfills/object.assign/auto.js".to_string(),
+        "object.assign/implementation" => "next/dist/build/polyfills/object.assign/implementation.js".to_string(),
+        "object.assign/polyfill" => "next/dist/build/polyfills/object.assign/polyfill.js".to_string(),
+        "object.assign/shim" => "next/dist/build/polyfills/object.assign/shim.js".to_string(),
+        "url" => "next/dist/compiled/native-url".to_string(),
+        "node:url" => "next/dist/compiled/native-url".to_string(),
+    });
     Ok(())
 }
 
@@ -864,15 +837,11 @@ async fn insert_next_shared_aliases(
 ) -> Result<()> {
     let package_root = next_js_fs().root().to_resolved().await?;
 
-    insert_alias_to_alternatives(
-        import_map,
-        mdx_import_source_file(),
-        vec![
-            request_to_import_mapping(project_path, "./mdx-components"),
-            request_to_import_mapping(project_path, "./src/mdx-components"),
-            request_to_import_mapping(project_path, "@mdx-js/react"),
-        ],
-    );
+    insert_alias_to_alternatives(import_map, mdx_import_source_file(), vec![
+        request_to_import_mapping(project_path, "./mdx-components"),
+        request_to_import_mapping(project_path, "./src/mdx-components"),
+        request_to_import_mapping(project_path, "@mdx-js/react"),
+    ]);
 
     insert_package_alias(
         import_map,

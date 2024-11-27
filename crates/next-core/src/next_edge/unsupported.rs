@@ -5,10 +5,10 @@ use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
     resolve::{
+        ResolveResult,
         options::{ImportMapResult, ImportMappingReplacement, ReplacedImportMapping},
         parse::Request,
         pattern::Pattern,
-        ResolveResult,
     },
     virtual_source::VirtualSource,
 };

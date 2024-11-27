@@ -4,19 +4,19 @@ use anyhow::Result;
 use lazy_static::lazy_static;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Value, Vc};
-use turbo_tasks_fs::{glob::Glob, FileSystemPath};
+use turbo_tasks_fs::{FileSystemPath, glob::Glob};
 use turbopack_core::{
     diagnostics::DiagnosticExt,
     file_source::FileSource,
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     reference_type::ReferenceType,
     resolve::{
+        ExternalTraced, ExternalType, ResolveResult, ResolveResultItem, ResolveResultOption,
         parse::Request,
         plugin::{
             AfterResolvePlugin, AfterResolvePluginCondition, BeforeResolvePlugin,
             BeforeResolvePluginCondition,
         },
-        ExternalTraced, ExternalType, ResolveResult, ResolveResultItem, ResolveResultOption,
     },
 };
 
@@ -156,15 +156,11 @@ impl BeforeResolvePlugin for InvalidImportResolvePlugin {
 pub(crate) fn get_invalid_client_only_resolve_plugin(
     root: ResolvedVc<FileSystemPath>,
 ) -> Vc<InvalidImportResolvePlugin> {
-    InvalidImportResolvePlugin::new(
-        *root,
-        "client-only".into(),
-        vec![
-            "'client-only' cannot be imported from a Server Component module. It should only be \
-             used from a Client Component."
-                .into(),
-        ],
-    )
+    InvalidImportResolvePlugin::new(*root, "client-only".into(), vec![
+        "'client-only' cannot be imported from a Server Component module. It should only be used \
+         from a Client Component."
+            .into(),
+    ])
 }
 
 /// Returns a resolve plugin if context have imports to `server-only`.
@@ -173,34 +169,25 @@ pub(crate) fn get_invalid_client_only_resolve_plugin(
 pub(crate) fn get_invalid_server_only_resolve_plugin(
     root: ResolvedVc<FileSystemPath>,
 ) -> Vc<InvalidImportResolvePlugin> {
-    InvalidImportResolvePlugin::new(
-        *root,
-        "server-only".into(),
-        vec![
-            "'server-only' cannot be imported from a Client Component module. It should only be \
-             used from a Server Component."
-                .into(),
-        ],
-    )
+    InvalidImportResolvePlugin::new(*root, "server-only".into(), vec![
+        "'server-only' cannot be imported from a Client Component module. It should only be used \
+         from a Server Component."
+            .into(),
+    ])
 }
 
 /// Returns a resolve plugin if context have imports to `styled-jsx`.
 pub(crate) fn get_invalid_styled_jsx_resolve_plugin(
     root: ResolvedVc<FileSystemPath>,
 ) -> Vc<InvalidImportResolvePlugin> {
-    InvalidImportResolvePlugin::new(
-        *root,
-        "styled-jsx".into(),
-        vec![
-            "'client-only' cannot be imported from a Server Component module. It should only be \
-             used from a Client Component."
-                .into(),
-            "The error was caused by using 'styled-jsx'. It only works in a Client Component but \
-             none of its parents are marked with \"use client\", so they're Server Components by \
-             default."
-                .into(),
-        ],
-    )
+    InvalidImportResolvePlugin::new(*root, "styled-jsx".into(), vec![
+        "'client-only' cannot be imported from a Server Component module. It should only be used \
+         from a Client Component."
+            .into(),
+        "The error was caused by using 'styled-jsx'. It only works in a Client Component but none \
+         of its parents are marked with \"use client\", so they're Server Components by default."
+            .into(),
+    ])
 }
 
 #[turbo_tasks::value]

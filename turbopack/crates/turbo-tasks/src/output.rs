@@ -5,7 +5,7 @@ use std::{
 
 use anyhow::anyhow;
 
-use crate::{util::SharedError, RawVc};
+use crate::{RawVc, util::SharedError};
 
 /// A helper type representing the output of a resolved task.
 #[derive(Clone, Debug)]

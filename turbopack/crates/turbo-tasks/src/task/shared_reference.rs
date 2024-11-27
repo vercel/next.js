@@ -6,13 +6,12 @@ use std::{
 };
 
 use anyhow::Result;
-use serde::{ser::SerializeTuple, Deserialize, Serialize};
+use serde::{Deserialize, Serialize, ser::SerializeTuple};
 use unsize::CoerceUnsize;
 
 use crate::{
-    registry,
+    ValueTypeId, registry,
     triomphe_utils::{coerce_to_any_send_sync, downcast_triomphe_arc},
-    ValueTypeId,
 };
 
 /// A reference to a piece of data

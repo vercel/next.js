@@ -1,12 +1,12 @@
 use std::{collections::HashSet, future::Future, pin::Pin};
 
 use anyhow::Result;
-use futures::{stream::FuturesUnordered, Stream};
+use futures::{Stream, stream::FuturesUnordered};
 
 use super::{
+    SkipDuplicates, Visit, VisitControlFlow,
     graph_store::{GraphNode, GraphStore},
     with_future::With,
-    SkipDuplicates, Visit, VisitControlFlow,
 };
 
 /// A list of modules that were already visited and should be skipped (including their subgraphs).

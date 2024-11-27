@@ -1,6 +1,6 @@
 use std::{
-    cmp::{max, Ordering, Reverse},
-    collections::{hash_map::Entry as HashMapEntry, VecDeque},
+    cmp::{Ordering, Reverse, max},
+    collections::{VecDeque, hash_map::Entry as HashMapEntry},
     hash::Hash,
     num::NonZeroU32,
 };
@@ -15,12 +15,12 @@ use turbo_tasks::{FxIndexMap, SessionId, TaskId, TraitTypeId};
 
 use crate::{
     backend::{
+        TaskDataCategory,
         operation::{
-            invalidate::{make_task_dirty, TaskDirtyCause},
             ExecuteContext, Operation, TaskGuard,
+            invalidate::{TaskDirtyCause, make_task_dirty},
         },
         storage::{get, get_many, iter_many, remove, update, update_count, update_ucount_and_get},
-        TaskDataCategory,
     },
     data::{
         ActiveType, AggregationNumber, CachedDataItem, CachedDataItemKey, CollectibleRef,
@@ -173,13 +173,10 @@ impl AggregatedDataUpdate {
                 count,
                 count_in_session,
             } = dirty_container_count;
-            result = result.dirty_container_update(
-                task.id(),
-                DirtyContainerCount {
-                    count: if count > 0 { 1 } else { 0 },
-                    count_in_session: count_in_session.map(|(s, c)| (s, if c > 0 { 1 } else { 0 })),
-                },
-            );
+            result = result.dirty_container_update(task.id(), DirtyContainerCount {
+                count: if count > 0 { 1 } else { 0 },
+                count_in_session: count_in_session.map(|(s, c)| (s, if c > 0 { 1 } else { 0 })),
+            });
         }
         result
     }
@@ -702,15 +699,13 @@ impl AggregationUpdateQueue {
                 {
                     #[cfg(feature = "trace_aggregation_update")]
                     let _guard = span.map(|s| s.entered());
-                    self.done_number_updates.insert(
-                        task_id,
-                        AggregationNumberUpdate {
+                    self.done_number_updates
+                        .insert(task_id, AggregationNumberUpdate {
                             base_aggregation_number,
                             distance,
                             #[cfg(feature = "trace_aggregation_update")]
                             span: None,
-                        },
-                    );
+                        });
                     self.update_aggregation_number(ctx, task_id, distance, base_aggregation_number);
                     remaining -= 1;
                 } else {
