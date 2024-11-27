@@ -724,3 +724,73 @@ describe('Catch-all Route CSS Module Usage', () => {
     }
   )
 })
+
+describe('global() function usage', () => {
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      const appDir = join(fixturesDir, 'global-function')
+
+      let stdout
+      let code
+      let app
+      let appPort
+
+      beforeAll(async () => {
+        await remove(join(appDir, '.next'))
+        ;({ code, stdout } = await nextBuild(appDir, [], {
+          stdout: true,
+        }))
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+
+      afterAll(() => killApp(app))
+
+      it('should have compiled successfully', () => {
+        expect(code).toBe(0)
+        expect(stdout).toMatch(/Compiled successfully/)
+      })
+
+      it('should apply styles correctly', async () => {
+        const browser = await webdriver(appPort, '/')
+
+        const animation = await browser
+          .elementByCss('#my-div')
+          .getComputedCss('animation')
+
+        expect(animation).toMatch(
+          /0.5s ease-in 0s 1 normal none running fadeIn/
+        )
+      })
+
+      it(`should've emitted two CSS files`, async () => {
+        const content = await renderViaHTTP(appPort, '/')
+        const $ = cheerio.load(content)
+
+        const cssSheet = $('link[rel="stylesheet"]')
+        expect(cssSheet.length).toBe(2)
+        const stylesheet = cssSheet[1].attribs['href']
+        console.log('stylesheet = ', stylesheet)
+
+        const cssContent = await fetchViaHTTP(appPort, stylesheet).then((res) =>
+          res.text()
+        )
+
+        if (process.env.TURBOPACK) {
+          expect(
+            cssContent.replace(/\/\*.*?\*\//g, '').trim()
+          ).toMatchInlineSnapshot(
+            `"home-module__txgM7a__home{animation:fadeIn .5s ease-in}"`
+          )
+        } else {
+          expect(
+            cssContent.replace(/\/\*.*?\*\//g, '').trim()
+          ).toMatchInlineSnapshot(
+            `".home_home__kcaw_{animation:fadeIn .5s ease-in}"`
+          )
+        }
+      })
+    }
+  )
+})
