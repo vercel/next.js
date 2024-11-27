@@ -100,6 +100,7 @@ import type { AppSegmentConfig } from './segment-config/app/app-segment-config'
 import type { AppSegment } from './segment-config/app/app-segments'
 import { collectSegments } from './segment-config/app/app-segments'
 import { createIncrementalCache } from '../export/helpers/create-incremental-cache'
+import { InvariantError } from '../shared/lib/invariant-error'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -1316,6 +1317,13 @@ export async function buildAppStaticPaths({
         dynamicIO,
         authInterrupts,
       },
+      waitUntil: undefined,
+      onClose: () => {
+        throw new InvariantError(
+          'unexpected onClose call in buildAppStaticPaths'
+        )
+      },
+      onAfterTaskError: undefined,
       buildId,
     },
   })
