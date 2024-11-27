@@ -466,7 +466,8 @@ pub async fn map_next_dynamic(
                 };
                 if is_ssr {
                     if let Some(v) =
-                        &*build_dynamic_imports_map_for_module(client_asset_context, module).await?
+                        &*build_dynamic_imports_map_for_module(client_asset_context, *module)
+                            .await?
                     {
                         return Ok(Some(v.await?.clone_value()));
                     }

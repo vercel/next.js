@@ -1,55 +1,64 @@
 use std::collections::{HashMap, HashSet};
 
-use anyhow::{Context, Result};
-use next_core::next_client_reference::{find_server_entries, ServerEntries};
+use anyhow::Result;
+use next_core::{
+    mode::NextMode,
+    next_client_reference::{find_server_entries, ServerEntries},
+};
 use petgraph::graph::{DiGraph, NodeIndex};
 use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 use turbopack_core::{
-    context::AssetContext, module::Module, reference::primary_referenced_modules,
+    context::AssetContext,
+    module::{Module, Modules},
+    reference::primary_referenced_modules,
 };
 
-use crate::dynamic_imports::{map_next_dynamic, DynamicImportsHashMap};
+use crate::{
+    dynamic_imports::{map_next_dynamic, DynamicImportsHashMap},
+    project::Project,
+};
 
 #[turbo_tasks::value(cell = "new", eq = "manual", into = "new")]
 #[derive(Clone, Debug, Default)]
 pub struct SingleModuleGraph {
     #[turbo_tasks(trace_ignore)]
-    pub graph: DiGraph<Vc<Box<dyn Module>>, ()>,
+    pub graph: DiGraph<ResolvedVc<Box<dyn Module>>, ()>,
 }
 
 #[turbo_tasks::value(transparent)]
 #[derive(Clone, Debug)]
-pub struct SingleModuleGraphs(pub Vec<Vc<SingleModuleGraph>>);
+pub struct SingleModuleGraphs(pub Vec<ResolvedVc<SingleModuleGraph>>);
 
 #[turbo_tasks::value(transparent)]
 #[derive(Clone, Debug)]
-pub struct ModuleSet(pub HashSet<Vc<Box<dyn Module>>>);
+pub struct ModuleSet(pub HashSet<ResolvedVc<Box<dyn Module>>>);
 
 #[turbo_tasks::value_impl]
 impl SingleModuleGraph {
     #[turbo_tasks::function]
-    pub async fn new_with_entries(entries: Vec<Vc<Box<dyn Module>>>) -> Result<Vc<Self>> {
+    pub async fn new_with_entries(entries: Vc<Modules>) -> Result<Vc<Self>> {
         let mut graph = DiGraph::new();
 
         let mut modules: HashMap<Vc<Box<dyn Module>>, NodeIndex<u32>> = HashMap::new();
-        let mut stack: Vec<_> = entries.into_iter().map(|e| (None, e)).collect();
+        let mut stack: Vec<_> = entries.await?.iter().map(|e| (None, *e)).collect();
         while let Some((parent_idx, module)) = stack.pop() {
             if let Some(idx) = modules.get(&module) {
-                let parent_idx = parent_idx.context("Existing module without parent")?;
-                graph.add_edge(parent_idx, *idx, ());
+                if let Some(parent_idx) = parent_idx {
+                    graph.add_edge(parent_idx, *idx, ());
+                }
                 continue;
             }
 
             let idx = graph.add_node(module);
-            modules.insert(module, idx);
+            modules.insert(*module, idx);
             if let Some(parent_idx) = parent_idx {
                 graph.add_edge(parent_idx, idx, ());
             }
 
             // TODO this includes
             // [project]/packages/next/dist/shared/lib/lazy-dynamic/loadable.js.map
-            for reference in primary_referenced_modules(module).await?.iter() {
-                stack.push((Some(idx), **reference));
+            for reference in primary_referenced_modules(*module).await?.iter() {
+                stack.push((Some(idx), *reference));
             }
         }
 
@@ -58,14 +67,14 @@ impl SingleModuleGraph {
 
     #[turbo_tasks::function]
     pub async fn new_with_entries_visited(
-        entries: Vec<Vc<Box<dyn Module>>>,
+        entries: Vec<ResolvedVc<Box<dyn Module>>>,
         visited_modules: Vc<ModuleSet>,
     ) -> Result<Vc<Self>> {
         let visited_modules = visited_modules.await?;
 
         let mut graph = DiGraph::new();
 
-        let mut modules: HashMap<Vc<Box<dyn Module>>, NodeIndex<u32>> = HashMap::new();
+        let mut modules: HashMap<ResolvedVc<Box<dyn Module>>, NodeIndex<u32>> = HashMap::new();
         let mut stack: Vec<_> = entries.into_iter().map(|e| (None, e)).collect();
         while let Some((parent_idx, module)) = stack.pop() {
             if visited_modules.contains(&module) {
@@ -86,8 +95,8 @@ impl SingleModuleGraph {
 
             // TODO this includes
             // [project]/packages/next/dist/shared/lib/lazy-dynamic/loadable.js.map
-            for reference in primary_referenced_modules(module).await?.iter() {
-                stack.push((Some(idx), **reference));
+            for reference in primary_referenced_modules(*module).await?.iter() {
+                stack.push((Some(idx), *reference));
             }
         }
 
@@ -111,7 +120,9 @@ pub async fn get_module_graph_for_page(
     let graph = SingleModuleGraph::new_with_entries_visited(
         server_utils.clone(),
         Vc::cell(Default::default()),
-    );
+    )
+    .to_resolved()
+    .await?;
     let mut visited_modules: HashSet<_> = graph.await?.graph.node_weights().copied().collect();
 
     let mut graphs = vec![graph];
@@ -123,7 +134,9 @@ pub async fn get_module_graph_for_page(
         let graph = SingleModuleGraph::new_with_entries_visited(
             vec![module],
             Vc::cell(visited_modules.clone()),
-        );
+        )
+        .to_resolved()
+        .await?;
         visited_modules.extend(graph.await?.graph.node_weights().copied());
         graphs.push(graph);
     }
@@ -227,19 +240,35 @@ pub async fn get_reduced_graphs_for_page(
     rsc_entry: Vc<Box<dyn Module>>,
     // TODO instead do that later on per-page traversal
     client_asset_context: Vc<Box<dyn AssetContext>>,
+    project: Vc<Project>,
 ) -> Result<Vc<ReducedGraphs>> {
+    let graphs = match &*project.next_mode().await? {
+        NextMode::Development => get_module_graph_for_page(rsc_entry).await?.0,
+        NextMode::Build => vec![
+            create_module_graph_for_entries(project.get_all_entries())
+                .to_resolved()
+                .await?,
+        ],
+    };
     // if production
     //   // ignore rsc_entry
     //   let graphs = create_module_graph_for_entries(project.get_all_entries())
     // else
     //
-    let graphs = get_module_graph_for_page(rsc_entry).await?.0;
-
     let next_dynamic = graphs
         .iter()
-        .map(|graph| NextDynamicGraph::new_with_entries(*graph, client_asset_context).to_resolved())
+        .map(|graph| {
+            NextDynamicGraph::new_with_entries(**graph, client_asset_context).to_resolved()
+        })
         .try_join()
         .await?;
 
     Ok(ReducedGraphs { next_dynamic }.cell())
+}
+
+#[turbo_tasks::function]
+pub async fn create_module_graph_for_entries(
+    entries: Vc<Modules>,
+) -> Result<Vc<SingleModuleGraph>> {
+    Ok(SingleModuleGraph::new_with_entries(entries))
 }
