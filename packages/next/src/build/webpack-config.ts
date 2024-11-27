@@ -1927,6 +1927,7 @@ export default async function getBaseWebpackConfig(
         }),
       !dev &&
         isClient &&
+        config.experimental.cssChunking !== 'disabled' &&
         new CssChunkingPlugin(config.experimental.cssChunking === 'strict'),
       !dev &&
         isClient &&
