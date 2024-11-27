@@ -119,18 +119,18 @@ impl GetContentSourceContent for ContentSourceContent {
 #[turbo_tasks::value_impl]
 impl ContentSourceContent {
     #[turbo_tasks::function]
-    pub fn static_content(
+    pub async fn static_content(
         content: ResolvedVc<Box<dyn VersionedContent>>,
-    ) -> Vc<ContentSourceContent> {
-        ContentSourceContent::Static(
+    ) -> Result<Vc<ContentSourceContent>> {
+        Ok(ContentSourceContent::Static(
             StaticContent {
                 content,
                 status_code: 200,
-                headers: HeaderList::empty(),
+                headers: HeaderList::empty().to_resolved().await?,
             }
             .resolved_cell(),
         )
-        .cell()
+        .cell())
     }
 
     #[turbo_tasks::function]
