@@ -393,9 +393,9 @@ function createRouteDefinitions() {
     dynamicRouteTypes += pluginState.routeTypes[type].dynamic
   }
 
-  // If both StaticRoutes and DynamicRoutes are empty, fallback to type 'string'.
+  // If both StaticRoutes and DynamicRoutes are empty, fallback to type 'string & {}'.
   const routeTypesFallback =
-    !staticRouteTypes && !dynamicRouteTypes ? 'string' : ''
+    !staticRouteTypes && !dynamicRouteTypes ? 'string & {}' : ''
 
   return `// Type definitions for Next.js routes
 
