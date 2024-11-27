@@ -1149,7 +1149,7 @@ impl AppEndpoint {
             )
             .await?;
             server_assets.insert(server_action_manifest.manifest);
-            Some(server_action_manifest.loader)
+            Some(server_action_manifest.loader.to_resolved().await?)
         } else {
             None
         };
@@ -1157,7 +1157,7 @@ impl AppEndpoint {
         let (app_entry_chunks, app_entry_chunks_availability) = &*self
             .app_entry_chunks(
                 client_references,
-                server_action_manifest_loader,
+                server_action_manifest_loader.map(|v| *v),
                 server_path,
                 process_client_assets,
             )
