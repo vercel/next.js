@@ -429,7 +429,7 @@ export class Head extends React.Component<HeadProps> {
       assetPrefix,
       assetQueryString,
       dynamicImports,
-      allDynamicCssFiles,
+      dynamicCssManifest,
       crossOrigin,
       optimizeCss,
     } = this.context
@@ -455,7 +455,7 @@ export class Head extends React.Component<HeadProps> {
     cssFiles.forEach((file) => {
       const isSharedFile = sharedFiles.has(file)
       const isUnmanagedFile = unmanagedFiles.has(file)
-      const isFileInDynamicCssFiles = allDynamicCssFiles.has(file)
+      const isFileInDynamicCssManifest = dynamicCssManifest.has(file)
 
       if (!optimizeCss) {
         cssLinkElements.push(
@@ -483,7 +483,7 @@ export class Head extends React.Component<HeadProps> {
           crossOrigin={this.props.crossOrigin || crossOrigin}
           data-n-g={isUnmanagedFile ? undefined : isSharedFile ? '' : undefined}
           data-n-p={
-            isSharedFile || isUnmanagedFile || isFileInDynamicCssFiles
+            isSharedFile || isUnmanagedFile || isFileInDynamicCssManifest
               ? undefined
               : ''
           }

@@ -1416,17 +1416,6 @@ export async function renderToHTMLImpl(
     }
   }
 
-  const allDynamicCssFiles = new Set<string>()
-  Object.values(reactLoadableManifest).forEach(({ files }) => {
-    if (files) {
-      files.forEach((file) => {
-        if (file.endsWith('.css')) {
-          allDynamicCssFiles.add(file)
-        }
-      })
-    }
-  })
-
   const hybridAmp = ampState.hybrid
   const docComponentsRendered: DocumentProps['docComponentsRendered'] = {}
 
@@ -1483,7 +1472,7 @@ export async function renderToHTMLImpl(
     isDevelopment: !!dev,
     hybridAmp,
     dynamicImports: Array.from(dynamicImports),
-    allDynamicCssFiles,
+    dynamicCssManifest: new Set(renderOpts.dynamicCssManifest || []),
     assetPrefix,
     // Only enabled in production as development mode has features relying on HMR (style injection for example)
     unstable_runtimeJS:
