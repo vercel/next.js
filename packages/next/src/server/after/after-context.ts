@@ -66,12 +66,9 @@ export class AfterContext {
     }
 
     const workUnitStore = workUnitAsyncStorage.getStore()
-    if (!workUnitStore) {
-      throw new InvariantError(
-        'Missing workUnitStore in AfterContext.addCallback'
-      )
+    if (workUnitStore) {
+      this.workUnitStores.add(workUnitStore)
     }
-    this.workUnitStores.add(workUnitStore)
 
     // this should only happen once.
     if (!this.runCallbacksOnClosePromise) {
