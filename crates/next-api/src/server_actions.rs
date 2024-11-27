@@ -405,7 +405,7 @@ pub async fn map_server_actions(graph: Vc<SingleModuleGraph>) -> Result<Vc<AllMo
                         // TODO: compare module contexts instead?
                         let layer = &**layer.await?;
                         match layer {
-                            "app-rsc" => ActionLayer::Rsc,
+                            "app-rsc" | "app-edge-rsc" => ActionLayer::Rsc,
                             "app-client" => ActionLayer::ActionBrowser,
                             // TODO really ignore SSR?
                             _ => return Ok(None),
@@ -413,8 +413,8 @@ pub async fn map_server_actions(graph: Vc<SingleModuleGraph>) -> Result<Vc<AllMo
                     }
                     None => return Ok(None),
                 };
-                // TODO old implementation did parse_actions(to_rsc_context(module))
-                // is really necessary?
+                // TODO the old implementation did parse_actions(to_rsc_context(module))
+                // is that really necessary?
                 Ok(match &*parse_actions(*module).await? {
                     Some(action_map) => Some((module, (layer, action_map.to_resolved().await?))),
                     None => None,
