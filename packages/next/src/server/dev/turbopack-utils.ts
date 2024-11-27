@@ -411,7 +411,7 @@ export async function handleRouteType({
             currentEntryIssues,
             key,
             writtenEndpoint,
-            dev,
+            false,
             logErrors
           )
         }
@@ -428,7 +428,7 @@ export async function handleRouteType({
             currentEntryIssues,
             key,
             writtenEndpoint,
-            dev,
+            false,
             logErrors
           )
         }
@@ -440,7 +440,7 @@ export async function handleRouteType({
           currentEntryIssues,
           serverKey,
           writtenEndpoint,
-          dev,
+          false,
           logErrors
         )
 
@@ -534,7 +534,7 @@ export async function handleRouteType({
 
       const writtenEndpoint = await route.endpoint.writeToDisk()
       hooks?.handleWrittenEndpoint(key, writtenEndpoint)
-      processIssues(currentEntryIssues, key, writtenEndpoint, dev, logErrors)
+      processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
 
       const type = writtenEndpoint.type
 
@@ -586,7 +586,7 @@ export async function handleRouteType({
           }
         )
       }
-      processIssues(currentEntryIssues, key, writtenEndpoint, dev, logErrors)
+      processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
 
       const type = writtenEndpoint.type
 
@@ -620,7 +620,7 @@ export async function handleRouteType({
 
       const writtenEndpoint = await route.endpoint.writeToDisk()
       hooks?.handleWrittenEndpoint(key, writtenEndpoint)
-      processIssues(currentEntryIssues, key, writtenEndpoint, dev, logErrors)
+      processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
 
       const type = writtenEndpoint.type
 
@@ -1093,7 +1093,7 @@ export async function handlePagesErrorRoute({
         }
       )
     }
-    processIssues(currentEntryIssues, key, writtenEndpoint, dev, logErrors)
+    processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
   }
   await manifestLoader.loadBuildManifest('_app')
   await manifestLoader.loadPagesManifest('_app')
@@ -1123,7 +1123,7 @@ export async function handlePagesErrorRoute({
         }
       )
     }
-    processIssues(currentEntryIssues, key, writtenEndpoint, dev, logErrors)
+    processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
   }
   await manifestLoader.loadPagesManifest('_document')
 
@@ -1150,7 +1150,7 @@ export async function handlePagesErrorRoute({
         }
       )
     }
-    processIssues(currentEntryIssues, key, writtenEndpoint, dev, logErrors)
+    processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
   }
   await manifestLoader.loadBuildManifest('_error')
   await manifestLoader.loadPagesManifest('_error')
