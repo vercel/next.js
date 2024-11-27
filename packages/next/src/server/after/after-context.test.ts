@@ -53,6 +53,7 @@ describe('AfterContext', () => {
     })
 
     const afterContext = new AfterContext({
+      isEnabled: true,
       waitUntil,
       onClose,
       onTaskError: undefined,
@@ -120,6 +121,7 @@ describe('AfterContext', () => {
     })
 
     const afterContext = new AfterContext({
+      isEnabled: true,
       waitUntil,
       onClose,
       onTaskError: undefined,
@@ -168,6 +170,7 @@ describe('AfterContext', () => {
     })
 
     const afterContext = new AfterContext({
+      isEnabled: true,
       waitUntil,
       onClose,
       onTaskError: undefined,
@@ -259,6 +262,7 @@ describe('AfterContext', () => {
     })
 
     const afterContext = new AfterContext({
+      isEnabled: true,
       waitUntil,
       onClose,
       onTaskError: undefined,
@@ -319,6 +323,7 @@ describe('AfterContext', () => {
     })
 
     const afterContext = new AfterContext({
+      isEnabled: true,
       waitUntil,
       onClose,
       onTaskError: undefined,
@@ -359,6 +364,7 @@ describe('AfterContext', () => {
     const onTaskError = jest.fn()
 
     const afterContext = new AfterContext({
+      isEnabled: true,
       waitUntil,
       onClose,
       onTaskError,
@@ -422,6 +428,7 @@ describe('AfterContext', () => {
     const onClose = jest.fn()
 
     const afterContext = new AfterContext({
+      isEnabled: true,
       waitUntil,
       onClose,
       onTaskError: undefined,
@@ -445,36 +452,6 @@ describe('AfterContext', () => {
     expect(afterCallback1).not.toHaveBeenCalled()
   })
 
-  it('throws from after() if onClose is not provided', async () => {
-    const waitUntilPromises: Promise<unknown>[] = []
-    const waitUntil = jest.fn((promise) => waitUntilPromises.push(promise))
-
-    const onClose = undefined
-
-    const afterContext = new AfterContext({
-      waitUntil,
-      onClose,
-      onTaskError: undefined,
-    })
-
-    const workStore = createMockWorkStore(afterContext)
-
-    const run = createRun(afterContext, workStore)
-
-    // ==================================
-
-    const afterCallback1 = jest.fn()
-
-    expect(() =>
-      run(() => {
-        after(afterCallback1)
-      })
-    ).toThrow(/Missing `onClose` implementation/)
-
-    expect(waitUntil).not.toHaveBeenCalled()
-    expect(afterCallback1).not.toHaveBeenCalled()
-  })
-
   it('does NOT shadow workAsyncStorage within after callbacks', async () => {
     const waitUntil = jest.fn()
 
@@ -484,6 +461,7 @@ describe('AfterContext', () => {
     })
 
     const afterContext = new AfterContext({
+      isEnabled: true,
       waitUntil,
       onClose,
       onTaskError: undefined,
@@ -529,6 +507,7 @@ describe('AfterContext', () => {
     })
 
     const afterContext = new AfterContext({
+      isEnabled: true,
       waitUntil,
       onClose,
       onTaskError: undefined,

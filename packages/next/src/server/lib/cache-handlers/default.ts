@@ -103,7 +103,7 @@ const DefaultCacheHandler: CacheHandler = {
     }
   },
 
-  async expireTags(...tags) {
+  async unstable_expireTags(...tags) {
     for (const tag of tags) {
       if (!tagsManifest.items[tag]) {
         tagsManifest.items[tag] = {}
@@ -114,7 +114,7 @@ const DefaultCacheHandler: CacheHandler = {
   },
 
   async receiveExpiredTags(...tags): Promise<void> {
-    return this.expireTags(...tags)
+    return this.unstable_expireTags(...tags)
   },
 }
 
