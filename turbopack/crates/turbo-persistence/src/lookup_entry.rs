@@ -44,9 +44,9 @@ impl Entry for LookupEntry {
             LookupValue::Deleted => EntryValue::Deleted,
             LookupValue::Small { value } => {
                 if value.len() > MAX_SMALL_VALUE_SIZE {
-                    EntryValue::Medium { value: &value }
+                    EntryValue::Medium { value }
                 } else {
-                    EntryValue::Small { value: &value }
+                    EntryValue::Small { value }
                 }
             }
             LookupValue::Blob { sequence_number } => EntryValue::Large {

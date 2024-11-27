@@ -87,7 +87,7 @@ pub struct AqmfWeighter;
 
 impl quick_cache::Weighter<u32, Arc<qfilter::Filter>> for AqmfWeighter {
     fn weight(&self, _key: &u32, filter: &Arc<qfilter::Filter>) -> u64 {
-        filter.capacity() as u64 + 1
+        filter.capacity() + 1
     }
 }
 
@@ -274,19 +274,19 @@ impl StaticSortedFile {
             return Ok(first_block);
         }
         let entries = block;
-        fn get_hash<'l>(entries: &'l [u8], index: usize) -> Result<u64> {
+        fn get_hash(entries: &[u8], index: usize) -> Result<u64> {
             Ok((&entries[index * 10..]).read_u64::<BE>()?)
         }
         fn get_block(entries: &[u8], index: usize) -> Result<u16> {
             Ok((&entries[index * 10 + 8..]).read_u16::<BE>()?)
         }
-        let first_hash = get_hash(&entries, 0)?;
+        let first_hash = get_hash(entries, 0)?;
         match hash.cmp(&first_hash) {
             Ordering::Less => {
                 return Ok(first_block);
             }
             Ordering::Equal => {
-                return Ok(get_block(&entries, 0)?);
+                return get_block(entries, 0);
             }
             Ordering::Greater => {}
         }
@@ -296,20 +296,20 @@ impl StaticSortedFile {
         // binary search for the range
         while l < r {
             let m = (l + r) / 2;
-            let mid_hash = get_hash(&entries, m)?;
+            let mid_hash = get_hash(entries, m)?;
             match hash.cmp(&mid_hash) {
                 Ordering::Less => {
                     r = m;
                 }
                 Ordering::Equal => {
-                    return Ok(get_block(&entries, m)?);
+                    return get_block(entries, m);
                 }
                 Ordering::Greater => {
                     l = m + 1;
                 }
             }
         }
-        Ok(get_block(&entries, l - 1)?)
+        get_block(entries, l - 1)
     }
 
     fn lookup_key_block<K: QueryKey>(
@@ -334,7 +334,7 @@ impl StaticSortedFile {
                 key: mid_key,
                 ty,
                 val: mid_val,
-            } = get_key_entry(&offsets, &entries, entry_count, m)?;
+            } = get_key_entry(offsets, entries, entry_count, m)?;
             match key_hash.cmp(&mid_hash).then_with(|| key.cmp(mid_key)) {
                 Ordering::Less => {
                     r = m;
@@ -531,7 +531,7 @@ struct CurrentIndexBlock {
     index: usize,
 }
 
-impl<'l> Iterator for StaticSortedFileIter<'l> {
+impl Iterator for StaticSortedFileIter<'_> {
     type Item = Result<LookupEntry>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -539,11 +539,11 @@ impl<'l> Iterator for StaticSortedFileIter<'l> {
     }
 }
 
-impl<'l> StaticSortedFileIter<'l> {
+impl StaticSortedFileIter<'_> {
     fn enter_block(&mut self, block_index: u16) -> Result<()> {
         let block_arc = self
             .this
-            .get_key_block(self.header, block_index, &self.key_block_cache)?;
+            .get_key_block(self.header, block_index, self.key_block_cache)?;
         let mut block = &*block_arc;
         let block_type = block.read_u8()?;
         match block_type {

@@ -196,7 +196,7 @@ impl TurboPersistence {
 
     fn load_directory(&mut self, entries: ReadDir) -> Result<bool> {
         let mut sst_files = Vec::new();
-        let mut current_file = match File::open(&self.path.join("CURRENT")) {
+        let mut current_file = match File::open(self.path.join("CURRENT")) {
             Ok(file) => file,
             Err(e) => {
                 if e.kind() == std::io::ErrorKind::NotFound {
@@ -236,11 +236,11 @@ impl TurboPersistence {
                             while !content.is_empty() {
                                 let seq = content.read_u32::<BE>()?;
                                 deleted_files.insert(seq);
-                                let sst_file = self.path.join(&format!("{:08}.sst", seq));
-                                let blob_file = self.path.join(&format!("{:08}.blob", seq));
+                                let sst_file = self.path.join(format!("{:08}.sst", seq));
+                                let blob_file = self.path.join(format!("{:08}.blob", seq));
                                 for path in [sst_file, blob_file] {
                                     if fs::exists(&path)? {
-                                        let _ = fs::remove_file(path)?;
+                                        fs::remove_file(path)?;
                                         no_existing_files = false;
                                     }
                                 }
@@ -373,7 +373,7 @@ impl TurboPersistence {
             .into_iter()
             .map(|(seq, file)| {
                 file.sync_all()?;
-                Ok(self.open_sst(seq)?)
+                self.open_sst(seq)
             })
             .collect::<Result<Vec<_>>>()?;
 
@@ -417,7 +417,7 @@ impl TurboPersistence {
         current_file.sync_all()?;
 
         for seq in removed_ssts {
-            fs::remove_file(self.path.join(&format!("{seq:08}.sst")))?;
+            fs::remove_file(self.path.join(format!("{seq:08}.sst")))?;
         }
 
         Ok(())
@@ -449,7 +449,7 @@ impl TurboPersistence {
             let mut uncompacted_files = inner
                 .static_sorted_files
                 .iter()
-                .map(|sst| Some(sst))
+                .map(Some)
                 .collect::<Vec<_>>();
             sequence_number = AtomicU32::new(inner.current_sequence_number);
             self.compact_internal(
@@ -473,9 +473,9 @@ impl TurboPersistence {
         Ok(())
     }
 
-    fn compact_internal<'l>(
+    fn compact_internal(
         &self,
-        static_sorted_files: &mut Vec<Option<&'l StaticSortedFile>>,
+        static_sorted_files: &mut Vec<Option<&StaticSortedFile>>,
         sequence_number: &AtomicU32,
         new_sst_files: &mut Vec<(u32, File)>,
         indicies_to_delete: &mut Vec<usize>,
@@ -508,7 +508,7 @@ impl TurboPersistence {
             // Extend range to include overlapping ranges
             'outer: loop {
                 for range in ranges.iter() {
-                    if selected_range.is_overlapping(&range)
+                    if selected_range.is_overlapping(range)
                         && (selected_range.min_hash > range.min_hash
                             || selected_range.max_hash < range.max_hash)
                     {
@@ -526,7 +526,7 @@ impl TurboPersistence {
                 .enumerate()
                 .flat_map(|(i, slot)| {
                     if let Some(sst) = &slot {
-                        if let Some(range) = sst.range().ok() {
+                        if let Ok(range) = sst.range() {
                             // Ranges have overlap
                             if selected_range.is_overlapping(&range) {
                                 return slot.take().map(|sst| (i, sst, false));
@@ -610,7 +610,7 @@ impl TurboPersistence {
                 ) -> Result<(u32, File)> {
                     let builder = StaticSortedFileBuilder::new(
                         family,
-                        &entries,
+                        entries,
                         total_key_size,
                         total_value_size,
                     );
@@ -622,7 +622,7 @@ impl TurboPersistence {
                 // Iterate all middle files
                 let iters = selected_files_mid
                     .iter()
-                    .map(|(_, sst, _)| sst.iter(&key_block_cache, &value_block_cache))
+                    .map(|(_, sst, _)| sst.iter(key_block_cache, value_block_cache))
                     .collect::<Result<Vec<_>>>()?;
 
                 let iter = MergeIter::new(iters.into_iter())?;
@@ -652,7 +652,7 @@ impl TurboPersistence {
                                     &entries,
                                     total_key_size - key_size,
                                     total_value_size - value_size,
-                                    &path,
+                                    path,
                                     seq,
                                 )?);
 
@@ -681,7 +681,7 @@ impl TurboPersistence {
                         &entries,
                         total_key_size,
                         total_value_size,
-                        &path,
+                        path,
                         seq,
                     )?);
                 }
@@ -689,8 +689,8 @@ impl TurboPersistence {
                 // Move files at the end of the range
                 for (_, sst, _) in selected_files_end.iter() {
                     let seq = sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
-                    let src_path = self.path.join(&format!("{:08}.sst", sst.sequence_number()));
-                    let dst_path = self.path.join(&format!("{:08}.sst", seq));
+                    let src_path = self.path.join(format!("{:08}.sst", sst.sequence_number()));
+                    let dst_path = self.path.join(format!("{:08}.sst", seq));
                     if fs::hard_link(&src_path, &dst_path).is_err() {
                         fs::copy(src_path, &dst_path)?;
                     }

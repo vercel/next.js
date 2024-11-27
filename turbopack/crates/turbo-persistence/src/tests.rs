@@ -8,12 +8,14 @@ use crate::{db::TurboPersistence, write_batch::WriteBatch};
 #[test]
 fn full_cycle() -> Result<()> {
     let mut test_cases = Vec::new();
+    type TestCases = Vec<(
+        &'static str,
+        Box<dyn Fn(&mut WriteBatch<Vec<u8>, 16>) -> Result<()>>,
+        Box<dyn Fn(&TurboPersistence) -> Result<()>>,
+    )>;
+
     fn test_case(
-        test_cases: &mut Vec<(
-            &'static str,
-            Box<dyn Fn(&mut WriteBatch<Vec<u8>, 16>) -> Result<()>>,
-            Box<dyn Fn(&TurboPersistence) -> Result<()>>,
-        )>,
+        test_cases: &mut TestCases,
         name: &'static str,
         write: impl Fn(&mut WriteBatch<Vec<u8>, 16>) -> Result<()> + 'static,
         read: impl Fn(&TurboPersistence) -> Result<()> + 'static,
