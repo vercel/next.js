@@ -350,9 +350,9 @@ impl ProjectContainer {
                 .context("ProjectContainer need to be initialized with initialize()")?;
             env_map = Vc::cell(options.env.iter().cloned().collect());
             define_env = ProjectDefineEnv {
-                client: Vc::cell(options.define_env.client.iter().cloned().collect()),
-                edge: Vc::cell(options.define_env.edge.iter().cloned().collect()),
-                nodejs: Vc::cell(options.define_env.nodejs.iter().cloned().collect()),
+                client: ResolvedVc::cell(options.define_env.client.iter().cloned().collect()),
+                edge: ResolvedVc::cell(options.define_env.edge.iter().cloned().collect()),
+                nodejs: ResolvedVc::cell(options.define_env.nodejs.iter().cloned().collect()),
             }
             .cell();
             next_config = NextConfig::from_string(Vc::cell(options.next_config.clone()));
@@ -377,18 +377,18 @@ impl ProjectContainer {
             root_path,
             project_path,
             watch,
-            next_config,
-            js_config,
+            next_config: next_config.to_resolved().await?,
+            js_config: js_config.to_resolved().await?,
             dist_dir,
-            env: Vc::upcast(env_map),
-            define_env,
+            env: ResolvedVc::upcast(env_map.to_resolved().await?),
+            define_env: define_env.to_resolved().await?,
             browserslist_query,
             mode: if dev {
-                NextMode::Development.cell()
+                NextMode::Development.resolved_cell()
             } else {
-                NextMode::Build.cell()
+                NextMode::Build.resolved_cell()
             },
-            versioned_content_map: self.versioned_content_map.map(|v| *v),
+            versioned_content_map: self.versioned_content_map,
             build_id,
             encryption_key,
             preview_props,
