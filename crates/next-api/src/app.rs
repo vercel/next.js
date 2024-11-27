@@ -665,7 +665,7 @@ impl AppProject {
 
 #[turbo_tasks::function]
 pub fn app_entry_point_to_route(
-    app_project: Vc<AppProject>,
+    app_project: ResolvedVc<AppProject>,
     entrypoint: AppEntrypoint,
 ) -> Vc<Route> {
     match entrypoint {
@@ -678,7 +678,7 @@ pub fn app_entry_point_to_route(
                         AppEndpoint {
                             ty: AppEndpointType::Page {
                                 ty: AppPageEndpointType::Html,
-                                loader_tree: *loader_tree,
+                                loader_tree,
                             },
                             app_project,
                             page: page.clone(),
@@ -689,7 +689,7 @@ pub fn app_entry_point_to_route(
                         AppEndpoint {
                             ty: AppEndpointType::Page {
                                 ty: AppPageEndpointType::Rsc,
-                                loader_tree: *loader_tree,
+                                loader_tree,
                             },
                             app_project,
                             page,
@@ -707,10 +707,7 @@ pub fn app_entry_point_to_route(
             original_name: page.to_string(),
             endpoint: Vc::upcast(
                 AppEndpoint {
-                    ty: AppEndpointType::Route {
-                        path: *path,
-                        root_layouts: *root_layouts,
-                    },
+                    ty: AppEndpointType::Route { path, root_layouts },
                     app_project,
                     page,
                 }
@@ -755,11 +752,11 @@ enum AppPageEndpointType {
 enum AppEndpointType {
     Page {
         ty: AppPageEndpointType,
-        loader_tree: Vc<AppPageLoaderTree>,
+        loader_tree: ResolvedVc<AppPageLoaderTree>,
     },
     Route {
-        path: Vc<FileSystemPath>,
-        root_layouts: Vc<FileSystemPathVec>,
+        path: ResolvedVc<FileSystemPath>,
+        root_layouts: ResolvedVc<FileSystemPathVec>,
     },
     Metadata {
         metadata: MetadataItem,
@@ -769,7 +766,7 @@ enum AppEndpointType {
 #[turbo_tasks::value]
 struct AppEndpoint {
     ty: AppEndpointType,
-    app_project: Vc<AppProject>,
+    app_project: ResolvedVc<AppProject>,
     page: AppPage,
 }
 
@@ -843,9 +840,9 @@ impl AppEndpoint {
 
         let next_config = self.await?.app_project.project().next_config();
         let app_entry = match this.ty {
-            AppEndpointType::Page { loader_tree, .. } => self.app_page_entry(loader_tree),
+            AppEndpointType::Page { loader_tree, .. } => self.app_page_entry(*loader_tree),
             AppEndpointType::Route { path, root_layouts } => {
-                self.app_route_entry(path, root_layouts, next_config)
+                self.app_route_entry(*path, *root_layouts, next_config)
             }
             AppEndpointType::Metadata { metadata } => {
                 self.app_metadata_entry(metadata, next_config)
@@ -1168,7 +1165,9 @@ impl AppEndpoint {
         let app_entry_chunks_ref = app_entry_chunks.await?;
         server_assets.extend(app_entry_chunks_ref.iter().copied());
 
-        let client_assets = OutputAssets::new(client_assets.iter().map(|asset| **asset).collect());
+        let client_assets = OutputAssets::new(client_assets.iter().map(|asset| **asset).collect())
+            .to_resolved()
+            .await?;
 
         // these references are important for turbotrace
         let mut client_reference_manifest = None;
@@ -1207,7 +1206,7 @@ impl AppEndpoint {
                 &app_entry.original_name,
                 &app_entry.original_name,
                 &app_entry.original_name,
-                client_assets,
+                *client_assets,
                 true,
             )
             .await?;
@@ -1335,8 +1334,10 @@ impl AppEndpoint {
                 }
 
                 AppEndpointOutput::Edge {
-                    files: *app_entry_chunks,
-                    server_assets: Vc::cell(server_assets.iter().cloned().collect::<Vec<_>>()),
+                    files: app_entry_chunks.to_resolved().await?,
+                    server_assets: ResolvedVc::cell(
+                        server_assets.iter().cloned().collect::<Vec<_>>(),
+                    ),
                     client_assets,
                 }
             }
@@ -1411,7 +1412,9 @@ impl AppEndpoint {
 
                 AppEndpointOutput::NodeJs {
                     rsc_chunk,
-                    server_assets: Vc::cell(server_assets.iter().cloned().collect::<Vec<_>>()),
+                    server_assets: ResolvedVc::cell(
+                        server_assets.iter().cloned().collect::<Vec<_>>(),
+                    ),
                     client_assets,
                 }
             }
@@ -1708,13 +1711,13 @@ impl Endpoint for AppEndpoint {
 enum AppEndpointOutput {
     NodeJs {
         rsc_chunk: ResolvedVc<Box<dyn OutputAsset>>,
-        server_assets: Vc<OutputAssets>,
-        client_assets: Vc<OutputAssets>,
+        server_assets: ResolvedVc<OutputAssets>,
+        client_assets: ResolvedVc<OutputAssets>,
     },
     Edge {
-        files: Vc<OutputAssets>,
-        server_assets: Vc<OutputAssets>,
-        client_assets: Vc<OutputAssets>,
+        files: ResolvedVc<OutputAssets>,
+        server_assets: ResolvedVc<OutputAssets>,
+        client_assets: ResolvedVc<OutputAssets>,
     },
 }
 
@@ -1737,7 +1740,7 @@ impl AppEndpointOutput {
     pub fn server_assets(&self) -> Vc<OutputAssets> {
         match *self {
             AppEndpointOutput::NodeJs { server_assets, .. }
-            | AppEndpointOutput::Edge { server_assets, .. } => server_assets,
+            | AppEndpointOutput::Edge { server_assets, .. } => *server_assets,
         }
     }
 
@@ -1745,7 +1748,7 @@ impl AppEndpointOutput {
     pub fn client_assets(&self) -> Vc<OutputAssets> {
         match *self {
             AppEndpointOutput::NodeJs { client_assets, .. }
-            | AppEndpointOutput::Edge { client_assets, .. } => client_assets,
+            | AppEndpointOutput::Edge { client_assets, .. } => *client_assets,
         }
     }
 }

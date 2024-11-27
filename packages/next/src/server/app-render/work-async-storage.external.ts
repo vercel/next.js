@@ -45,7 +45,7 @@ export interface WorkStore {
   dynamicShouldError?: boolean
   pendingRevalidates?: Record<string, Promise<any>>
   pendingRevalidateWrites?: Array<Promise<void>> // This is like pendingRevalidates but isn't used for deduping.
-  readonly afterContext: AfterContext | undefined
+  readonly afterContext: AfterContext
 
   dynamicUsageDescription?: string
   dynamicUsageStack?: string
