@@ -551,6 +551,13 @@ where
     pub fn strongly_consistent(self) -> ReadVcFuture<T> {
         self.node.into_strongly_consistent_read().into()
     }
+
+    /// Returns a untracked read of the value. This will not invalidate the current function when
+    /// the read value changed.
+    #[must_use]
+    pub fn untracked(self) -> ReadVcFuture<T> {
+        self.node.into_read_untracked().into()
+    }
 }
 
 impl<T> Unpin for Vc<T> where T: ?Sized {}
