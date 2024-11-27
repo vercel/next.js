@@ -932,9 +932,9 @@ impl AppEndpoint {
                 let client_shared_availability_info = client_shared_chunk_group.availability_info;
 
                 let reduced_graphs = get_reduced_graphs_for_page(
+                    this.app_project.project(),
                     *rsc_entry,
                     Vc::upcast(this.app_project.client_module_context()),
-                    this.app_project.project(),
                 );
                 // "app/client.js [app-ssr] (ecmascript)" ->
                 //      [("./dynamic", "app/dynamic.js [app-client] (ecmascript)")])]

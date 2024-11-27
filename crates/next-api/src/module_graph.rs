@@ -25,18 +25,20 @@ use crate::{
 #[derive(Clone, Debug, Default)]
 pub struct SingleModuleGraph {
     #[turbo_tasks(trace_ignore)]
-    pub graph: DiGraph<ResolvedVc<Box<dyn Module>>, ()>,
+    graph: DiGraph<ResolvedVc<Box<dyn Module>>, ()>,
     // NodeIndex isn't necessarily stable, but these are first nodes in the graph, so shouldn't
     // ever be involved in a swap_remove operation
     #[turbo_tasks(trace_ignore)]
-    pub entries: HashMap<ResolvedVc<Box<dyn Module>>, NodeIndex>,
+    entries: HashMap<ResolvedVc<Box<dyn Module>>, NodeIndex>,
 }
 
 #[turbo_tasks::value(transparent)]
 #[derive(Clone, Debug)]
-pub struct ModuleSet(pub HashSet<ResolvedVc<Box<dyn Module>>>);
+struct ModuleSet(pub HashSet<ResolvedVc<Box<dyn Module>>>);
 
 impl SingleModuleGraph {
+    /// Walks the graph starting from the given entries and collects all reachable nodes, skipping
+    /// nodes listed in `visited_modules`
     async fn new_inner(
         entries: &Vec<ResolvedVc<Box<dyn Module>>>,
         visited_modules: &HashSet<ResolvedVc<Box<dyn Module>>>,
@@ -77,17 +79,25 @@ impl SingleModuleGraph {
         }
         .cell())
     }
+
+    pub fn enumerate_nodes(
+        &self,
+    ) -> impl Iterator<Item = (NodeIndex, ResolvedVc<Box<dyn Module>>)> + '_ {
+        self.graph
+            .node_indices()
+            .map(move |idx| (idx, *self.graph.node_weight(idx).unwrap()))
+    }
 }
 
 #[turbo_tasks::value_impl]
 impl SingleModuleGraph {
     #[turbo_tasks::function]
-    pub async fn new_with_entries(entries: Vc<Modules>) -> Result<Vc<Self>> {
+    async fn new_with_entries(entries: Vc<Modules>) -> Result<Vc<Self>> {
         SingleModuleGraph::new_inner(&*entries.await?, &Default::default()).await
     }
 
     #[turbo_tasks::function]
-    pub async fn new_with_entries_visited(
+    async fn new_with_entries_visited(
         // This must not be a Vc<Vec<_>> to ensure layout segment optimization hits the cache
         entries: Vec<ResolvedVc<Box<dyn Module>>>,
         visited_modules: Vc<ModuleSet>,
@@ -96,6 +106,7 @@ impl SingleModuleGraph {
     }
 }
 
+/// Implements layout segment optimization to compute a graph "chain" for each layout segment
 async fn get_module_graph_for_page(
     entry: Vc<Box<dyn Module>>,
 ) -> Result<Vec<ResolvedVc<SingleModuleGraph>>> {
@@ -129,11 +140,6 @@ async fn get_module_graph_for_page(
     }
 
     Ok(graphs)
-}
-
-#[turbo_tasks::function]
-async fn get_module_graph_for_app(entries: Vc<Modules>) -> Vc<SingleModuleGraph> {
-    SingleModuleGraph::new_with_entries(entries)
 }
 
 #[turbo_tasks::value]
@@ -192,9 +198,10 @@ impl NextDynamicGraph {
         entry: ResolvedVc<Box<dyn Module>>,
     ) -> Result<Vc<DynamicImportsHashMap>> {
         if self.is_single_page {
-            // No need to traverse and collect (filter) just the imports for that single page
+            // The graph contains the page (= `entry`) only, no need to filter.
             Ok(*self.data)
         } else {
+            // The graph contains the whole app, traverse and collect all reachable imports.
             let SingleModuleGraph { graph, entries } = &*self.graph.await?;
             let data = &self.data.await?;
 
@@ -214,8 +221,10 @@ impl NextDynamicGraph {
     }
 }
 
-// In dev, a graph containing the modules of the current page
-// In prod, a graph contaning everything in the whole app
+/// The consumers of this shoudln't need to care about the exact contents since it's abstracted away
+/// by the accessor functions, but
+/// - In dev, contains information about the modules of the current page only
+/// - In prod, there is a single `ReducedGraphs` for the whole app, containing all pages
 #[turbo_tasks::value]
 pub struct ReducedGraphs {
     next_dynamic: Vec<ResolvedVc<NextDynamicGraph>>,
@@ -224,43 +233,52 @@ pub struct ReducedGraphs {
 
 #[turbo_tasks::value_impl]
 impl ReducedGraphs {
+    /// Returns the dynamic imports in RSC and SSR modules for the given page.
     #[turbo_tasks::function]
     pub async fn get_next_dynamic_imports_for_page(
         &self,
         entry: Vc<Box<dyn Module>>,
     ) -> Result<Vc<DynamicImportsHashMap>> {
-        let result = self
-            .next_dynamic
-            .iter()
-            .map(|graph| async move {
-                Ok(graph
-                    .get_next_dynamic_imports_for_page(entry)
-                    .await?
-                    .iter()
-                    .map(|(k, v)| (*k, v.clone()))
-                    // TODO remove this collect and return an iterator instead
-                    .collect::<Vec<_>>())
-            })
-            .try_flat_join()
-            .await?;
+        if let [graph] = &self.next_dynamic[..] {
+            // Just a single graph, no need to merge results
+            Ok(graph.get_next_dynamic_imports_for_page(entry))
+        } else {
+            let result = self
+                .next_dynamic
+                .iter()
+                .map(|graph| async move {
+                    Ok(graph
+                        .get_next_dynamic_imports_for_page(entry)
+                        .await?
+                        .iter()
+                        .map(|(k, v)| (*k, v.clone()))
+                        // TODO remove this collect and return an iterator instead
+                        .collect::<Vec<_>>())
+                })
+                .try_flat_join()
+                .await?;
 
-        Ok(DynamicImportsHashMap(result.into_iter().collect()).cell())
+            Ok(DynamicImportsHashMap(result.into_iter().collect()).cell())
+        }
     }
 }
 
+/// Generates a [ReducedGraph] for the given project and page containing information that is either
+/// global (module ids, chunking) or computed globally as a performance optimization (client
+/// references, etc).
 #[turbo_tasks::function]
 pub async fn get_reduced_graphs_for_page(
-    entry: Vc<Box<dyn Module>>,
-    // TODO instead do that later on per-page traversal
-    client_asset_context: Vc<Box<dyn AssetContext>>,
     project: Vc<Project>,
+    entry: Vc<Box<dyn Module>>,
+    // TODO should this happen globally or per page? Do they all have the same context?
+    client_asset_context: Vc<Box<dyn AssetContext>>,
 ) -> Result<Vc<ReducedGraphs>> {
     let (is_single_page, graphs) = match &*project.next_mode().await? {
         NextMode::Development => (true, get_module_graph_for_page(entry).await?),
         NextMode::Build => (
             false,
             vec![
-                get_module_graph_for_app(project.get_all_entries())
+                SingleModuleGraph::new_with_entries(project.get_all_entries())
                     .to_resolved()
                     .await?,
             ],

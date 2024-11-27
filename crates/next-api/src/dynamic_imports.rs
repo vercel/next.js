@@ -450,11 +450,10 @@ pub async fn map_next_dynamic(
     graph: Vc<SingleModuleGraph>,
     client_asset_context: Vc<Box<dyn AssetContext>>,
 ) -> Result<Vc<DynamicImportsHashMap>> {
-    let graph = &graph.await?.graph;
     let data = graph
-        .node_indices()
-        .map(|idx| {
-            let module = *graph.node_weight(idx).unwrap();
+        .await?
+        .enumerate_nodes()
+        .map(|(_, module)| {
             async move {
                 let is_ssr = match module.ident().await?.layer {
                     Some(layer) => {
