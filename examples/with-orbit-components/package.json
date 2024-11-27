@@ -18,6 +18,8 @@
     "@types/react": "^18.3.12",
     "@types/styled-components": "^5.1.34",
     "babel-plugin-styled-components": "^2.1.4",
+    "prettier": "^3.4.1",
+    "prettier-check": "^2.0.0",
     "typescript": "^5.7.2"
   }
 }
