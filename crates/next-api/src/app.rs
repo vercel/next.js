@@ -678,7 +678,7 @@ pub fn app_entry_point_to_route(
                         AppEndpoint {
                             ty: AppEndpointType::Page {
                                 ty: AppPageEndpointType::Html,
-                                loader_tree: *loader_tree,
+                                loader_tree,
                             },
                             app_project,
                             page: page.clone(),
@@ -689,7 +689,7 @@ pub fn app_entry_point_to_route(
                         AppEndpoint {
                             ty: AppEndpointType::Page {
                                 ty: AppPageEndpointType::Rsc,
-                                loader_tree: *loader_tree,
+                                loader_tree,
                             },
                             app_project,
                             page,
@@ -707,10 +707,7 @@ pub fn app_entry_point_to_route(
             original_name: page.to_string(),
             endpoint: Vc::upcast(
                 AppEndpoint {
-                    ty: AppEndpointType::Route {
-                        path: *path,
-                        root_layouts: *root_layouts,
-                    },
+                    ty: AppEndpointType::Route { path, root_layouts },
                     app_project,
                     page,
                 }
@@ -843,9 +840,9 @@ impl AppEndpoint {
 
         let next_config = self.await?.app_project.project().next_config();
         let app_entry = match this.ty {
-            AppEndpointType::Page { loader_tree, .. } => self.app_page_entry(loader_tree),
+            AppEndpointType::Page { loader_tree, .. } => self.app_page_entry(*loader_tree),
             AppEndpointType::Route { path, root_layouts } => {
-                self.app_route_entry(path, root_layouts, next_config)
+                self.app_route_entry(*path, *root_layouts, next_config)
             }
             AppEndpointType::Metadata { metadata } => {
                 self.app_metadata_entry(metadata, next_config)
