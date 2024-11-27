@@ -1,24 +1,24 @@
 ---
-title: expirePath
-description: API Reference for the expirePath function.
-version: canary
+title: unstable_expirePath
+description: API Reference for the unstable_expirePath function.
+version: unstable
 ---
 
-`expirePath` allows you to purge [cached data](/docs/app/building-your-application/caching) on-demand for a specific path.
+`unstable_expirePath` allows you to purge [cached data](/docs/app/building-your-application/caching) on-demand for a specific path.
 
 > **Good to know**:
 >
-> - `expirePath` is available in both [Node.js and Edge runtimes](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes).
-> - `expirePath` only invalidates the cache when the included path is next visited. This means calling `expirePath` with a dynamic route segment will not immediately trigger many expirations at once. The invalidation only happens when the path is next visited.
-> - Currently, `expirePath` invalidates all the routes in the [client-side Router Cache](/docs/app/building-your-application/caching#client-side-router-cache) when used in a server action. This behavior is temporary and will be updated in the future to apply only to the specific path.
-> - Using `expirePath` invalidates **only the specific path** in the [server-side Route Cache](/docs/app/building-your-application/caching#full-route-cache).
+> - `unstable_expirePath` is available in both [Node.js and Edge runtimes](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes).
+> - `unstable_expirePath` only invalidates the cache when the included path is next visited. This means calling `unstable_expirePath` with a dynamic route segment will not immediately trigger many expirations at once. The invalidation only happens when the path is next visited.
+> - Currently, `unstable_expirePath` invalidates all the routes in the [client-side Router Cache](/docs/app/building-your-application/caching#client-side-router-cache) when used in a server action. This behavior is temporary and will be updated in the future to apply only to the specific path.
+> - Using `unstable_expirePath` invalidates **only the specific path** in the [server-side Route Cache](/docs/app/building-your-application/caching#full-route-cache).
 
 ## Reference
 
 ### Parameters
 
 ```tsx
-expirePath(path: string, type?: 'page' | 'layout'): void;
+unstable_expirePath(path: string, type?: 'page' | 'layout'): void;
 ```
 
 - `path`: Either a string representing the filesystem path associated with the data you want to expire (for example, `/product/[slug]/page`), or the literal route segment (for example, `/product/123`). Must be less than 1024 characters. This value is case-sensitive.
@@ -26,15 +26,15 @@ expirePath(path: string, type?: 'page' | 'layout'): void;
 
 ### Returns
 
-`expirePath` does not return a value.
+`unstable_expirePath` does not return a value.
 
 ## Examples
 
 ### Expiring a specific URL
 
 ```ts
-import { expirePath } from 'next/cache'
-expirePath('/blog/post-1')
+import { unstable_expirePath } from 'next/cache'
+unstable_expirePath('/blog/post-1')
 ```
 
 This will purge the cache for one specific URL on the next page visit.
@@ -42,10 +42,10 @@ This will purge the cache for one specific URL on the next page visit.
 ### Expiring a page path
 
 ```ts
-import { expirePath } from 'next/cache'
-expirePath('/blog/[slug]', 'page')
+import { unstable_expirePath } from 'next/cache'
+unstable_expirePath('/blog/[slug]', 'page')
 // or with route groups
-expirePath('/(main)/blog/[slug]', 'page')
+unstable_expirePath('/(main)/blog/[slug]', 'page')
 ```
 
 This will purge the cache any URL that matches the provided `page` file on the next page visit. This will _not_ invalidate pages beneath the specific page. For example, `/blog/[slug]` won't invalidate `/blog/[slug]/[author]`.
@@ -53,10 +53,10 @@ This will purge the cache any URL that matches the provided `page` file on the n
 ### Expiring a layout path
 
 ```ts
-import { expirePath } from 'next/cache'
-expirePath('/blog/[slug]', 'layout')
+import { unstable_expirePath } from 'next/cache'
+unstable_expirePath('/blog/[slug]', 'layout')
 // or with route groups
-expirePath('/(main)/post/[slug]', 'layout')
+unstable_expirePath('/(main)/post/[slug]', 'layout')
 ```
 
 This will purge the cache on any URL that matches the provided `layout` file on the next page visit. This will cause pages beneath with the same layout to revalidate on the next visit. For example, in the above case, `/blog/[slug]/[another]` would also revalidate on the next visit.
@@ -64,41 +64,41 @@ This will purge the cache on any URL that matches the provided `layout` file on 
 ### Expiring all data
 
 ```ts
-import { expirePath } from 'next/cache'
+import { unstable_expirePath } from 'next/cache'
 
-expirePath('/', 'layout')
+unstable_expirePath('/', 'layout')
 ```
 
 This will purge the Data Cache on the next page visit.
 
 ### Server Action
 
-You can call `expirePath` in a Server Action:
+You can call `unstable_expirePath` in a Server Action:
 
 ```ts filename="app/actions.ts" switcher
 'use server'
 
-import { expirePath } from 'next/cache'
+import { unstable_expirePath } from 'next/cache'
 
 export default async function submit() {
   await submitForm()
-  expirePath('/')
+  unstable_expirePath('/')
 }
 ```
 
 ### Route Handler
 
-You can call `expirePath` in a Route Handler:
+You can call `unstable_expirePath` in a Route Handler:
 
 ```ts filename="app/api/expire/route.ts" switcher
-import { expirePath } from 'next/cache'
+import { unstable_expirePath } from 'next/cache'
 import type { NextRequest } from 'next/server'
 
 export async function GET(request: NextRequest) {
   const path = request.nextUrl.searchParams.get('path')
 
   if (path) {
-    expirePath(path)
+    unstable_expirePath(path)
     return Response.json({ revalidated: true, now: Date.now() })
   }
 
@@ -111,13 +111,13 @@ export async function GET(request: NextRequest) {
 ```
 
 ```js filename="app/api/expire/route.js" switcher
-import { expirePath } from 'next/cache'
+import { unstable_expirePath } from 'next/cache'
 
 export async function GET(request) {
   const path = request.nextUrl.searchParams.get('path')
 
   if (path) {
-    expirePath(path)
+    unstable_expirePath(path)
     return Response.json({ expired: true, now: Date.now() })
   }
 
