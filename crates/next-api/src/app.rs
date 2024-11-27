@@ -978,7 +978,7 @@ impl AppEndpoint {
                                 .iter()
                                 .map(|(k, v)| (*k, v.clone())),
                         );
-                        visited_modules = result.visited_modules;
+                        visited_modules = *result.visited_modules;
                     }
 
                     client_dynamic_imports
