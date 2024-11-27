@@ -411,7 +411,7 @@ export async function handleRouteType({
             currentEntryIssues,
             key,
             writtenEndpoint,
-            false,
+            dev,
             logErrors
           )
         }
@@ -428,7 +428,7 @@ export async function handleRouteType({
             currentEntryIssues,
             key,
             writtenEndpoint,
-            false,
+            dev,
             logErrors
           )
         }
@@ -464,7 +464,7 @@ export async function handleRouteType({
           currentEntryIssues,
           serverKey,
           writtenEndpoint,
-          false,
+          dev,
           logErrors
         )
       } finally {
@@ -552,7 +552,7 @@ export async function handleRouteType({
         entrypoints,
       })
 
-      processIssues(currentEntryIssues, key, writtenEndpoint, true, logErrors)
+      processIssues(currentEntryIssues, key, writtenEndpoint, dev, logErrors)
 
       break
     }
@@ -639,7 +639,7 @@ export async function handleRouteType({
         productionRewrites,
         entrypoints,
       })
-      processIssues(currentEntryIssues, key, writtenEndpoint, true, logErrors)
+      processIssues(currentEntryIssues, key, writtenEndpoint, dev, logErrors)
 
       break
     }
@@ -1096,7 +1096,7 @@ export async function handlePagesErrorRoute({
         }
       )
     }
-    processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
+    processIssues(currentEntryIssues, key, writtenEndpoint, dev, logErrors)
   }
   await manifestLoader.loadBuildManifest('_app')
   await manifestLoader.loadPagesManifest('_app')
@@ -1126,7 +1126,7 @@ export async function handlePagesErrorRoute({
         }
       )
     }
-    processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
+    processIssues(currentEntryIssues, key, writtenEndpoint, dev, logErrors)
   }
   await manifestLoader.loadPagesManifest('_document')
 
@@ -1153,7 +1153,7 @@ export async function handlePagesErrorRoute({
         }
       )
     }
-    processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
+    processIssues(currentEntryIssues, key, writtenEndpoint, dev, logErrors)
   }
   await manifestLoader.loadBuildManifest('_error')
   await manifestLoader.loadPagesManifest('_error')
