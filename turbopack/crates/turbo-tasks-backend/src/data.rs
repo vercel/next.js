@@ -475,10 +475,6 @@ impl CachedDataItem {
         }
     }
 
-    pub fn is_optional(&self) -> bool {
-        matches!(self, CachedDataItem::CellData { .. })
-    }
-
     pub fn new_scheduled(description: impl Fn() -> String + Sync + Send + 'static) -> Self {
         CachedDataItem::InProgress {
             value: InProgressState::Scheduled {
@@ -539,6 +535,10 @@ impl CachedDataItemKey {
             CachedDataItemKey::OutdatedChild { .. } => false,
             CachedDataItemKey::Error { .. } => false,
         }
+    }
+
+    pub fn is_optional(&self) -> bool {
+        matches!(self, CachedDataItemKey::CellData { .. })
     }
 
     pub fn category(&self) -> TaskDataCategory {
