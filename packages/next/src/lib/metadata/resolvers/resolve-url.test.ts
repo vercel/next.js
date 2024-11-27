@@ -1,7 +1,7 @@
 import {
   resolveUrl,
   resolveAbsoluteUrlWithPathname,
-  getSocialImageFallbackMetadataBase,
+  getSocialImageMetadataBaseFallback,
 } from './resolve-url'
 
 // required to be resolved as URL with resolveUrl()
@@ -53,7 +53,7 @@ describe('resolveAbsoluteUrlWithPathname', () => {
     const opts = {
       trailingSlash: false,
       pathname: '/',
-      isStandaloneMode: false,
+      isStaticMetadataRouteFile: false,
     }
     const resolver = (url: string | URL) =>
       resolveAbsoluteUrlWithPathname(url, metadataBase, opts)
@@ -69,7 +69,7 @@ describe('resolveAbsoluteUrlWithPathname', () => {
     const opts = {
       trailingSlash: true,
       pathname: '/',
-      isStandaloneMode: false,
+      isStaticMetadataRouteFile: false,
     }
     const resolver = (url: string | URL) =>
       resolveAbsoluteUrlWithPathname(url, metadataBase, opts)
@@ -128,7 +128,7 @@ describe('getSocialImageFallbackMetadataBase', () => {
   describe('fallbackMetadataBase when metadataBase is not present', () => {
     let originalEnv: NodeJS.ProcessEnv
     function getSocialImageFallbackMetadataBaseHelper(): string {
-      return getSocialImageFallbackMetadataBase(null).fallbackMetadataBase.href
+      return getSocialImageMetadataBaseFallback(null).href
     }
 
     beforeEach(() => {

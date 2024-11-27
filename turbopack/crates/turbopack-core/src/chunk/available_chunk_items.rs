@@ -27,13 +27,13 @@ pub struct AvailableChunkItemInfoMap(
 #[turbo_tasks::value]
 pub struct AvailableChunkItems {
     parent: Option<ResolvedVc<AvailableChunkItems>>,
-    chunk_items: Vc<AvailableChunkItemInfoMap>,
+    chunk_items: ResolvedVc<AvailableChunkItemInfoMap>,
 }
 
 #[turbo_tasks::value_impl]
 impl AvailableChunkItems {
     #[turbo_tasks::function]
-    pub fn new(chunk_items: Vc<AvailableChunkItemInfoMap>) -> Vc<Self> {
+    pub fn new(chunk_items: ResolvedVc<AvailableChunkItemInfoMap>) -> Vc<Self> {
         AvailableChunkItems {
             parent: None,
             chunk_items,
@@ -44,7 +44,7 @@ impl AvailableChunkItems {
     #[turbo_tasks::function]
     pub async fn with_chunk_items(
         self: ResolvedVc<Self>,
-        chunk_items: Vc<AvailableChunkItemInfoMap>,
+        chunk_items: ResolvedVc<AvailableChunkItemInfoMap>,
     ) -> Result<Vc<Self>> {
         let chunk_items = chunk_items
             .await?
@@ -60,7 +60,7 @@ impl AvailableChunkItems {
             .await?;
         Ok(AvailableChunkItems {
             parent: Some(self),
-            chunk_items: Vc::cell(chunk_items.into_iter().collect()),
+            chunk_items: ResolvedVc::cell(chunk_items.into_iter().collect()),
         }
         .cell())
     }
