@@ -67,7 +67,6 @@ use crate::{
     global_module_id_strategy::GlobalModuleIdStrategyBuilder,
     instrumentation::InstrumentationEndpoint,
     middleware::MiddlewareEndpoint,
-    module_graph::SingleModuleGraph,
     pages::PagesProject,
     route::{Endpoint, Route},
     versioned_content_map::{OutputAssetsOperation, VersionedContentMap},
@@ -1367,20 +1366,9 @@ impl Project {
         Ok(Vc::cell(modules))
     }
 
-    #[turbo_tasks::function]
-    pub async fn get_module_graph(self: Vc<Self>) -> Result<Vc<()>> {
-        let mut _single_module_graph =
-            SingleModuleGraph::new_with_entries(self.client_main_modules()).await?;
-
-        // dbg!(_single_module_graph);
-
-        Ok(Vc::cell(()))
-    }
-
     /// Gets the module id strategy for the project.
     #[turbo_tasks::function]
     pub async fn module_id_strategy(self: Vc<Self>) -> Result<Vc<Box<dyn ModuleIdStrategy>>> {
-        self.get_module_graph().await?;
         let module_id_strategy = self.next_config().module_id_strategy_config();
         match *module_id_strategy.await? {
             Some(ModuleIdStrategyConfig::Named) => Ok(Vc::upcast(DevModuleIdStrategy::new())),
