@@ -17,6 +17,7 @@ impl TurboKeyValueDatabase {
         Ok(Self {
             db: TurboPersistence::open(path.to_path_buf())?,
         })
+        // TODO start compaction in background if the database is not empty
     }
 }
 
@@ -93,11 +94,7 @@ impl<'a> BaseWriteBatch<'a> for TurboWriteBatch<'a> {
     }
 
     fn commit(self) -> Result<()> {
-        let fresh = self.db.is_empty();
         self.db.commit_write_batch(self.batch)?;
-        if !fresh {
-            self.db.compact(0.5, 8)?;
-        }
         Ok(())
     }
 }
