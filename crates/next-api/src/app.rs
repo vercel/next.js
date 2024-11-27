@@ -93,7 +93,7 @@ pub struct AppProject {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct OptionAppProject(Option<Vc<AppProject>>);
+pub struct OptionAppProject(Option<ResolvedVc<AppProject>>);
 
 impl AppProject {}
 
@@ -740,7 +740,7 @@ fn server_utils_modifier() -> Vc<RcStr> {
 }
 
 #[turbo_tasks::value(transparent)]
-struct OutputAssetsWithAvailability((Vc<OutputAssets>, AvailabilityInfo));
+struct OutputAssetsWithAvailability((ResolvedVc<OutputAssets>, AvailabilityInfo));
 
 #[derive(Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Debug, TraceRawVcs)]
 enum AppPageEndpointType {
