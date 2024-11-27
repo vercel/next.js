@@ -18,17 +18,12 @@ import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import type { Project, TurbopackStackFrame } from '../../../../build/swc/types'
 import { getSourceMapFromFile } from '../internal/helpers/get-source-map-from-file'
 import { findSourceMap } from 'node:module'
-import { NEXT_PROJECT_ROOT } from '../../../../build/next-dir-paths'
-
-const nextRelativePath = NEXT_PROJECT_ROOT.replace(process.cwd() + '/', '')
 
 function shouldIgnorePath(modulePath: string): boolean {
   return (
     modulePath.includes('node_modules') ||
     // Only relevant for when Next.js is symlinked e.g. in the Next.js monorepo
-    modulePath.includes('next/dist') ||
-    // TODO: turbopack recovers the original source path of the next package
-    (!!process.env.TURBOPACK && modulePath.startsWith(nextRelativePath))
+    modulePath.includes('next/dist')
   )
 }
 
