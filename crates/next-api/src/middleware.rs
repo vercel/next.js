@@ -47,9 +47,9 @@ pub struct MiddlewareEndpoint {
 impl MiddlewareEndpoint {
     #[turbo_tasks::function]
     pub fn new(
-        project: Vc<Project>,
-        asset_context: Vc<Box<dyn AssetContext>>,
-        source: Vc<Box<dyn Source>>,
+        project: ResolvedVc<Project>,
+        asset_context: ResolvedVc<Box<dyn AssetContext>>,
+        source: ResolvedVc<Box<dyn Source>>,
         app_dir: Option<ResolvedVc<FileSystemPath>>,
         ecmascript_client_reference_transition_name: Option<ResolvedVc<RcStr>>,
     ) -> Vc<Self> {
@@ -68,19 +68,19 @@ impl MiddlewareEndpoint {
         let userland_module = self
             .asset_context
             .process(
-                self.source,
+                *self.source,
                 Value::new(ReferenceType::Entry(EntryReferenceSubType::Middleware)),
             )
             .module();
 
         let module = get_middleware_module(
-            self.asset_context,
+            *self.asset_context,
             self.project.project_path(),
             userland_module,
         );
 
         let module = wrap_edge_entry(
-            self.asset_context,
+            *self.asset_context,
             self.project.project_path(),
             module,
             "middleware".into(),

@@ -1337,7 +1337,7 @@ impl AppEndpoint {
                 }
 
                 AppEndpointOutput::Edge {
-                    files: app_entry_chunks,
+                    files: app_entry_chunks.to_resolved().await?,
                     server_assets: ResolvedVc::cell(
                         server_assets.iter().cloned().collect::<Vec<_>>(),
                     ),
@@ -1743,7 +1743,7 @@ impl AppEndpointOutput {
     pub fn server_assets(&self) -> Vc<OutputAssets> {
         match *self {
             AppEndpointOutput::NodeJs { server_assets, .. }
-            | AppEndpointOutput::Edge { server_assets, .. } => server_assets,
+            | AppEndpointOutput::Edge { server_assets, .. } => *server_assets,
         }
     }
 
@@ -1751,7 +1751,7 @@ impl AppEndpointOutput {
     pub fn client_assets(&self) -> Vc<OutputAssets> {
         match *self {
             AppEndpointOutput::NodeJs { client_assets, .. }
-            | AppEndpointOutput::Edge { client_assets, .. } => client_assets,
+            | AppEndpointOutput::Edge { client_assets, .. } => *client_assets,
         }
     }
 }
