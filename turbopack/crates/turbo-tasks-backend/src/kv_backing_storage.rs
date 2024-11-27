@@ -365,6 +365,11 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
             let id = TaskId::from(u32::from_le_bytes(bytes));
             Ok(Some(id))
         }
+        if self.database.is_empty() {
+            // Checking if the database is empty is a performance optimization
+            // to avoid serializing the task type.
+            return None;
+        }
         let id = self
             .with_tx(tx, |tx| lookup(&self.database, tx, task_type))
             .inspect_err(|err| println!("Looking up task id for {task_type:?} failed: {err:?}"))
