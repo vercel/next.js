@@ -203,15 +203,19 @@ pub struct ProjectContainer {
 #[turbo_tasks::value_impl]
 impl ProjectContainer {
     #[turbo_tasks::function]
-    pub fn new(name: RcStr, dev: bool) -> Vc<Self> {
-        ProjectContainer {
+    pub async fn new(name: RcStr, dev: bool) -> Result<Vc<Self>> {
+        Ok(ProjectContainer {
             name,
             // we only need to enable versioning in dev mode, since build
             // is assumed to be operating over a static snapshot
-            versioned_content_map: dev.then(VersionedContentMap::new),
+            versioned_content_map: if dev {
+                Some(VersionedContentMap::new().to_resolved().await?)
+            } else {
+                None
+            },
             options_state: State::new(None),
         }
-        .cell()
+        .cell())
     }
 }
 
@@ -384,7 +388,7 @@ impl ProjectContainer {
             } else {
                 NextMode::Build.cell()
             },
-            versioned_content_map: self.versioned_content_map,
+            versioned_content_map: self.versioned_content_map.map(|v| *v),
             build_id,
             encryption_key,
             preview_props,
