@@ -141,9 +141,9 @@ impl ContentSourceContent {
     ) -> Vc<ContentSourceContent> {
         ContentSourceContent::Static(
             StaticContent {
-                content: *content,
+                content,
                 status_code,
-                headers: *headers,
+                headers,
             }
             .resolved_cell(),
         )
