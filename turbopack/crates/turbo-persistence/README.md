@@ -153,7 +153,7 @@ After that optimization might take place.
   * Iterate items and push them into new SST files once the threshold is reached. (We can use the fact that pairs are already ordered by key)
   * Enqueue the old SST files for deletion.
 * Store the enqueued deletions into a `<seqnr>.del` file.
-  * This is needed for cleanup, in the case the process crashes after the next step.
+  * This is needed for cleanup, in the case the process exits unexpectedly after the next step.
 * fsync! Update the `CURRENT` file.
 * Remove enqueued deletions from the list of active SST files.
 * Before deleting the old files we need to fsync, but we don't want to do that right now for performance reasons. Instead we delete the files after the next fsync.
