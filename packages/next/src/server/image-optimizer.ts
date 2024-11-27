@@ -551,7 +551,7 @@ export async function optimizeImage({
       effort: 3,
     })
   } else if (contentType === WEBP) {
-    transformer.webp({ quality })
+    transformer.webp({ quality, smartSubsample: true })
   } else if (contentType === PNG) {
     transformer.png({ quality })
   } else if (contentType === JPEG) {
