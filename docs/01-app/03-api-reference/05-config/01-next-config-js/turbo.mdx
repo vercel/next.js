@@ -72,6 +72,36 @@ The following loaders have been tested to work with Turbopack's webpack loader i
 
 ## Examples
 
+### EnablingPersistent Caching
+
+Persistent caching allows compilation work to persist across restarts of the development server or builds, reducing cold start times for large applications by caching previously compiled work, and only re-compiling what has changed.
+
+To enable persistent caching, set the `unstablePersistentCache` option to `true` in `next.config.js`:
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  experimental: {
+    turbo: {
+      unstablePersistentCache: true,
+    },
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+module.exports = {
+  experimental: {
+    turbo: {
+      unstablePersistentCache: true,
+    },
+  },
+}
+```
+
 ### Configuring webpack loaders
 
 If you need loader support beyond what's built in, many webpack loaders already work with Turbopack. There are currently some limitations:
