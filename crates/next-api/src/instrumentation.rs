@@ -41,7 +41,7 @@ pub struct InstrumentationEndpoint {
     is_edge: bool,
 
     app_dir: Option<ResolvedVc<FileSystemPath>>,
-    ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
+    ecmascript_client_reference_transition_name: Option<ResolvedVc<RcStr>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -53,7 +53,7 @@ impl InstrumentationEndpoint {
         source: ResolvedVc<Box<dyn Source>>,
         is_edge: bool,
         app_dir: Option<ResolvedVc<FileSystemPath>>,
-        ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
+        ecmascript_client_reference_transition_name: Option<ResolvedVc<RcStr>>,
     ) -> Vc<Self> {
         Self {
             project,
@@ -113,7 +113,8 @@ impl InstrumentationEndpoint {
             Value::new(ServerContextType::Instrumentation {
                 app_dir: this.app_dir,
                 ecmascript_client_reference_transition_name: this
-                    .ecmascript_client_reference_transition_name,
+                    .ecmascript_client_reference_transition_name
+                    .map(|v| *v),
             }),
             this.project.next_mode(),
         )
@@ -165,7 +166,8 @@ impl InstrumentationEndpoint {
                     Value::new(ServerContextType::Instrumentation {
                         app_dir: this.app_dir,
                         ecmascript_client_reference_transition_name: this
-                            .ecmascript_client_reference_transition_name,
+                            .ecmascript_client_reference_transition_name
+                            .map(|v| *v),
                     }),
                     this.project.next_mode(),
                 )
