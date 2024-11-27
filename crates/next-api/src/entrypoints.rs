@@ -1,5 +1,5 @@
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ResolvedVc, Vc};
+use turbo_tasks::{FxIndexMap, ResolvedVc};
 
 use crate::{
     project::{Instrumentation, Middleware},

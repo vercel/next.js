@@ -533,9 +533,9 @@ impl Project {
     pub async fn app_project(self: Vc<Self>) -> Result<Vc<OptionAppProject>> {
         let app_dir = find_app_dir(self.project_path()).await?;
 
-        Ok(Vc::cell(
-            app_dir.map(|app_dir| AppProject::new(self, *app_dir)),
-        ))
+        Ok(Vc::cell(app_dir.map(
+            |app_dir: ResolvedVc<FileSystemPath>| AppProject::new(self, *app_dir),
+        )))
     }
 
     #[turbo_tasks::function]

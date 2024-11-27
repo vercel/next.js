@@ -975,7 +975,7 @@ impl AppEndpoint {
                                 .iter()
                                 .map(|(k, v)| (*k, v.clone())),
                         );
-                        visited_modules = result.visited_modules;
+                        visited_modules = *result.visited_modules;
                     }
 
                     client_dynamic_imports
@@ -1182,7 +1182,7 @@ impl AppEndpoint {
                     app_entry.original_name.clone(),
                     client_references,
                     client_references_chunks,
-                    *app_entry_chunks,
+                    **app_entry_chunks,
                     Value::new(*app_entry_chunks_availability),
                     client_chunking_context,
                     ssr_chunking_context,
