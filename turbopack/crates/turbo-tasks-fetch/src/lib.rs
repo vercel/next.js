@@ -80,14 +80,14 @@ pub async fn fetch(
 
             Ok(Vc::cell(Ok(HttpResponse {
                 status,
-                body: HttpResponseBody::cell(HttpResponseBody(body)),
+                body: HttpResponseBody::resolved_cell(HttpResponseBody(body)),
             }
-            .cell())))
+            .resolved_cell())))
         }
         Err(err) => {
             mark_session_dependent();
             Ok(Vc::cell(Err(
-                FetchError::from_reqwest_error(&err, url).cell()
+                FetchError::from_reqwest_error(&err, url).resolved_cell()
             )))
         }
     }
@@ -122,9 +122,9 @@ impl FetchError {
         };
 
         FetchError {
-            detail: StyledString::Text(error.to_string().into()).cell(),
+            detail: StyledString::Text(error.to_string().into()).resolved_cell(),
             url: ResolvedVc::cell(url.into()),
-            kind: kind.into(),
+            kind: kind.resolved_cell(),
         }
     }
 }
@@ -208,6 +208,6 @@ impl Issue for FetchIssue {
 
     #[turbo_tasks::function]
     fn detail(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(self.detail))
+        Vc::cell(Some(*self.detail))
     }
 }
