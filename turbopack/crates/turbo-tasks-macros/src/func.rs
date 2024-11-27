@@ -1,18 +1,17 @@
 use std::{borrow::Cow, collections::HashSet};
 
 use proc_macro2::{Ident, Span, TokenStream};
-use quote::{quote, quote_spanned, ToTokens};
+use quote::{ToTokens, quote, quote_spanned};
 use syn::{
-    parenthesized,
+    AngleBracketedGenericArguments, Block, Expr, ExprBlock, ExprPath, FnArg, GenericArgument,
+    Local, Meta, Pat, PatIdent, PatType, Path, PathArguments, PathSegment, Receiver, ReturnType,
+    Signature, Stmt, Token, Type, TypeGroup, TypePath, TypeTuple, parenthesized,
     parse::{Parse, ParseStream},
     parse_quote, parse_quote_spanned,
     punctuated::{Pair, Punctuated},
     spanned::Spanned,
     token::Paren,
     visit_mut::VisitMut,
-    AngleBracketedGenericArguments, Block, Expr, ExprBlock, ExprPath, FnArg, GenericArgument,
-    Local, Meta, Pat, PatIdent, PatType, Path, PathArguments, PathSegment, Receiver, ReturnType,
-    Signature, Stmt, Token, Type, TypeGroup, TypePath, TypeTuple,
 };
 
 #[derive(Debug)]
@@ -696,7 +695,7 @@ impl Parse for FunctionArguments {
                         meta,
                         "unexpected token, expected one of: \"fs\", \"network\", \"resolved\", \
                          \"local_cells\"",
-                    ))
+                    ));
                 }
             }
         }
@@ -707,7 +706,7 @@ impl Parse for FunctionArguments {
 fn return_type_to_type(return_type: &ReturnType) -> Type {
     match return_type {
         ReturnType::Default => parse_quote! { () },
-        ReturnType::Type(_, ref return_type) => (**return_type).clone(),
+        &ReturnType::Type(_, ref return_type) => (**return_type).clone(),
     }
 }
 

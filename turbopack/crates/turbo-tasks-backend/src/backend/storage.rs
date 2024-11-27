@@ -6,7 +6,7 @@ use std::{
     thread::available_parallelism,
 };
 
-use auto_hash_map::{map::Entry, AutoMap};
+use auto_hash_map::{AutoMap, map::Entry};
 use dashmap::DashMap;
 use either::Either;
 use rustc_hash::FxHasher;
@@ -14,7 +14,7 @@ use turbo_tasks::KeyValuePair;
 
 use crate::{
     backend::indexed::Indexed,
-    utils::dash_map_multi::{get_multiple_mut, RefMut},
+    utils::dash_map_multi::{RefMut, get_multiple_mut},
 };
 
 const META_UNRESTORED: u32 = 1 << 31;
@@ -295,7 +295,7 @@ where
         &'l mut self,
         index: <T::Key as Indexed>::Index,
         mut f: F,
-    ) -> impl Iterator<Item = T> + use<'l, T, F>
+    ) -> impl Iterator<Item = T>
     where
         F: for<'a, 'b> FnMut(&'a T::Key, &'b T::Value) -> bool + 'l,
     {
@@ -306,7 +306,7 @@ where
             .map(|(key, value)| T::from_key_and_value(key, value))
     }
 
-    pub fn extract_if_all<'l, F>(&'l mut self, mut f: F) -> impl Iterator<Item = T> + use<'l, T, F>
+    pub fn extract_if_all<'l, F>(&'l mut self, mut f: F) -> impl Iterator<Item = T>
     where
         F: for<'a, 'b> FnMut(&'a T::Key, &'b T::Value) -> bool + 'l,
     {
@@ -387,10 +387,9 @@ where
         key2: K,
     ) -> (StorageWriteGuard<'_, K, T>, StorageWriteGuard<'_, K, T>) {
         let (a, b) = get_multiple_mut(&self.map, key1, key2, || InnerStorage::new());
-        (
-            StorageWriteGuard { inner: a },
-            StorageWriteGuard { inner: b },
-        )
+        (StorageWriteGuard { inner: a }, StorageWriteGuard {
+            inner: b,
+        })
     }
 }
 
@@ -444,20 +443,19 @@ macro_rules! get {
 }
 
 macro_rules! get_mut {
-    ($task:ident, $key:ident $input:tt) => {{
+    ($task:ident, $key:ident $input:tt, $closure:tt) => {{
         #[allow(unused_imports)]
         use $crate::backend::operation::TaskGuard;
-        if let Some($crate::data::CachedDataItemValue::$key {
+        let mut task_get = $task.get_mut(&$crate::data::CachedDataItemKey::$key $input);
+        if let Some(&mut $crate::data::CachedDataItemValue::$key {
             value,
-        }) = $task.get_mut(&$crate::data::CachedDataItemKey::$key $input).as_mut() {
+        }) = task_get.as_mut() {
             let () = $crate::data::allow_mut_access::$key;
-            Some(value)
-        } else {
-            None
+            $closure(value);
         }
     }};
-    ($task:ident, $key:ident) => {
-        $crate::backend::storage::get_mut!($task, $key {})
+    ($task:ident, $key:ident, $closure:tt) => {
+        $crate::backend::storage::get_mut!($task, $key {}, $closure)
     };
 }
 

@@ -6,7 +6,7 @@ use std::{
     mem::{replace, take},
     num::NonZeroU32,
     pin::Pin,
-    sync::{atomic::AtomicU32, Arc},
+    sync::{Arc, atomic::AtomicU32},
     time::Duration,
 };
 
@@ -19,22 +19,23 @@ use smallvec::SmallVec;
 use tracing::Span;
 use turbo_prehash::PreHashed;
 use turbo_tasks::{
+    CellId, Invalidator, RawVc, ReadConsistency, TaskId, TaskIdSet, TraitTypeId,
+    TurboTasksBackendApi, TurboTasksBackendApiExt, ValueTypeId,
     backend::{CachedTaskType, CellContent, TaskCollectiblesMap, TaskExecutionSpec},
     event::{Event, EventListener},
-    get_invalidator, registry, CellId, Invalidator, RawVc, ReadConsistency, TaskId, TaskIdSet,
-    TraitTypeId, TurboTasksBackendApi, TurboTasksBackendApiExt, ValueTypeId,
+    get_invalidator, registry,
 };
 
 use crate::{
+    MemoryBackend,
     aggregation::{
-        aggregation_data, handle_new_edge, query_root_info, AggregationDataGuard, PreparedOperation,
+        AggregationDataGuard, PreparedOperation, aggregation_data, handle_new_edge, query_root_info,
     },
     cell::{Cell, ReadContentError},
     edges_set::{TaskEdge, TaskEdgesList, TaskEdgesSet},
     gc::{GcQueue, GcTaskState},
     output::Output,
     task::aggregation::{TaskAggregationContext, TaskChange},
-    MemoryBackend,
 };
 
 pub type NativeTaskFuture = Pin<Box<dyn Future<Output = Result<RawVc>> + Send>>;
@@ -625,12 +626,12 @@ impl Task {
     fn get_event_description_static(
         id: TaskId,
         ty: &TaskType,
-    ) -> impl Fn() -> String + Send + Sync + Clone {
+    ) -> impl Fn() -> String + Send + Sync + Clone + use<> {
         let ty = TaskTypeForDescription::from(ty);
         move || Self::format_description(&ty, id)
     }
 
-    fn get_event_description(&self) -> impl Fn() -> String + Send + Sync + Clone {
+    fn get_event_description(&self) -> impl Fn() -> String + Send + Sync + Clone + use<> {
         Self::get_event_description_static(self.id, &self.ty)
     }
 
@@ -1120,15 +1121,15 @@ impl Task {
                     let outdated_edges = take(edges).into_set();
                     // add to dirty lists and potentially schedule
                     if should_schedule {
-                        let change_job = state.aggregation_node.apply_change(
-                            &aggregation_context,
-                            TaskChange {
-                                unfinished: 1,
-                                #[cfg(feature = "track_unfinished")]
-                                unfinished_tasks_update: vec![(self.id, 1)],
-                                ..Default::default()
-                            },
-                        );
+                        let change_job =
+                            state
+                                .aggregation_node
+                                .apply_change(&aggregation_context, TaskChange {
+                                    unfinished: 1,
+                                    #[cfg(feature = "track_unfinished")]
+                                    unfinished_tasks_update: vec![(self.id, 1)],
+                                    ..Default::default()
+                                });
                         let description = self.get_event_description();
                         let description2 = description.clone();
                         state.state_type = Scheduled(Box::new(ScheduledState {
@@ -1149,16 +1150,16 @@ impl Task {
                         }
                         turbo_tasks.schedule(self.id);
                     } else {
-                        let change_job = state.aggregation_node.apply_change(
-                            &aggregation_context,
-                            TaskChange {
-                                unfinished: 1,
-                                #[cfg(feature = "track_unfinished")]
-                                unfinished_tasks_update: vec![(self.id, 1)],
-                                dirty_tasks_update: vec![(self.id, 1)],
-                                ..Default::default()
-                            },
-                        );
+                        let change_job =
+                            state
+                                .aggregation_node
+                                .apply_change(&aggregation_context, TaskChange {
+                                    unfinished: 1,
+                                    #[cfg(feature = "track_unfinished")]
+                                    unfinished_tasks_update: vec![(self.id, 1)],
+                                    dirty_tasks_update: vec![(self.id, 1)],
+                                    ..Default::default()
+                                });
                         state.state_type = Dirty {
                             outdated_edges: Box::new(outdated_edges),
                         };
@@ -1238,13 +1239,13 @@ impl Task {
                     outdated_edges: take(outdated_edges),
                     clean: false,
                 }));
-                let change_job = state.aggregation_node.apply_change(
-                    &aggregation_context,
-                    TaskChange {
-                        dirty_tasks_update: vec![(self.id, -1)],
-                        ..Default::default()
-                    },
-                );
+                let change_job =
+                    state
+                        .aggregation_node
+                        .apply_change(&aggregation_context, TaskChange {
+                            dirty_tasks_update: vec![(self.id, -1)],
+                            ..Default::default()
+                        });
                 drop(state);
                 change_job.apply(&aggregation_context);
                 turbo_tasks.schedule(self.id);
@@ -1252,15 +1253,15 @@ impl Task {
             Done { ref mut edges, .. } => {
                 let outdated_edges = take(edges).into_set();
                 // add to dirty lists and potentially schedule
-                let change_job = state.aggregation_node.apply_change(
-                    &aggregation_context,
-                    TaskChange {
-                        unfinished: 1,
-                        #[cfg(feature = "track_unfinished")]
-                        unfinished_tasks_update: vec![(self.id, 1)],
-                        ..Default::default()
-                    },
-                );
+                let change_job =
+                    state
+                        .aggregation_node
+                        .apply_change(&aggregation_context, TaskChange {
+                            unfinished: 1,
+                            #[cfg(feature = "track_unfinished")]
+                            unfinished_tasks_update: vec![(self.id, 1)],
+                            ..Default::default()
+                        });
                 let description = self.get_event_description();
                 let description2 = description.clone();
                 state.state_type = Scheduled(Box::new(ScheduledState {
@@ -1305,13 +1306,12 @@ impl Task {
                 outdated_edges: take(outdated_edges),
                 clean: false,
             }));
-            let job = state.aggregation_node.apply_change(
-                &aggregation_context,
-                TaskChange {
+            let job = state
+                .aggregation_node
+                .apply_change(&aggregation_context, TaskChange {
                     dirty_tasks_update: vec![(self.id, -1)],
                     ..Default::default()
-                },
-            );
+                });
             drop(state);
             turbo_tasks.schedule(self.id);
             job.apply(&aggregation_context);
@@ -1418,13 +1418,13 @@ impl Task {
                     outdated_edges: take(outdated_edges),
                     clean: false,
                 }));
-                let change_job = state.aggregation_node.apply_change(
-                    &aggregation_context,
-                    TaskChange {
-                        dirty_tasks_update: vec![(self.id, -1)],
-                        ..Default::default()
-                    },
-                );
+                let change_job =
+                    state
+                        .aggregation_node
+                        .apply_change(&aggregation_context, TaskChange {
+                            dirty_tasks_update: vec![(self.id, -1)],
+                            ..Default::default()
+                        });
                 drop(state);
                 turbo_tasks.schedule(self.id);
                 change_job.apply(&aggregation_context);
@@ -1655,13 +1655,13 @@ impl Task {
                     outdated_edges: take(outdated_edges),
                     clean: false,
                 }));
-                let change_job = state.aggregation_node.apply_change(
-                    &aggregation_context,
-                    TaskChange {
-                        dirty_tasks_update: vec![(self.id, -1)],
-                        ..Default::default()
-                    },
-                );
+                let change_job =
+                    state
+                        .aggregation_node
+                        .apply_change(&aggregation_context, TaskChange {
+                            dirty_tasks_update: vec![(self.id, -1)],
+                            ..Default::default()
+                        });
                 drop(state);
                 change_job.apply(&aggregation_context);
                 Ok(Err(listener))
@@ -1708,13 +1708,12 @@ impl Task {
             }
         }
         let mut aggregation_context = TaskAggregationContext::new(turbo_tasks, backend);
-        let change_job = state.aggregation_node.apply_change(
-            &aggregation_context,
-            TaskChange {
+        let change_job = state
+            .aggregation_node
+            .apply_change(&aggregation_context, TaskChange {
                 collectibles: vec![(trait_type, collectible, 1)],
                 ..Default::default()
-            },
-        );
+            });
         drop(state);
         change_job.apply(&aggregation_context);
         aggregation_context.apply_queued_updates();
@@ -1731,13 +1730,12 @@ impl Task {
         let mut aggregation_context = TaskAggregationContext::new(turbo_tasks, backend);
         let mut state = self.full_state_mut();
         state.collectibles.unemit(trait_type, collectible, count);
-        let change_job = state.aggregation_node.apply_change(
-            &aggregation_context,
-            TaskChange {
+        let change_job = state
+            .aggregation_node
+            .apply_change(&aggregation_context, TaskChange {
                 collectibles: vec![(trait_type, collectible, -(count as i32))],
                 ..Default::default()
-            },
-        );
+            });
         drop(state);
         change_job.apply(&aggregation_context);
         aggregation_context.apply_queued_updates();
@@ -1846,14 +1844,11 @@ impl Task {
                 if *stateful {
                     return false;
                 }
-                change_job = aggregation_node.apply_change(
-                    &aggregation_context,
-                    TaskChange {
-                        unfinished: 1,
-                        dirty_tasks_update: vec![(self.id, 1)],
-                        ..Default::default()
-                    },
-                );
+                change_job = aggregation_node.apply_change(&aggregation_context, TaskChange {
+                    unfinished: 1,
+                    dirty_tasks_update: vec![(self.id, 1)],
+                    ..Default::default()
+                });
             }
             Dirty { outdated_edges: _ } => {}
             _ => {
@@ -1890,16 +1885,13 @@ impl Task {
         // Remove all collectibles, as they will be added again when this task is
         // executed again.
         let collectibles_job = if let Some(collectibles) = collectibles.into_inner() {
-            aggregation_node.apply_change(
-                &aggregation_context,
-                TaskChange {
-                    collectibles: collectibles
-                        .into_iter()
-                        .map(|((t, r), c)| (t, r, -c))
-                        .collect(),
-                    ..Default::default()
-                },
-            )
+            aggregation_node.apply_change(&aggregation_context, TaskChange {
+                collectibles: collectibles
+                    .into_iter()
+                    .map(|((t, r), c)| (t, r, -c))
+                    .collect(),
+                ..Default::default()
+            })
         } else {
             None
         };

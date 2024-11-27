@@ -11,11 +11,11 @@ use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, ResolvedVc, Value, ValueToString, Vc,
+    ResolvedVc, Value, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{
-    util::normalize_path, DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath,
-    LinkContent, LinkType,
+    DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath, LinkContent, LinkType,
+    util::normalize_path,
 };
 
 #[turbo_tasks::value(shared, serialization = "auto_for_input")]
@@ -30,7 +30,7 @@ pub enum Pattern {
 
 fn concatenation_push_or_merge_item(list: &mut Vec<Pattern>, pat: Pattern) {
     if let Pattern::Constant(ref s) = pat {
-        if let Some(Pattern::Constant(ref mut last)) = list.last_mut() {
+        if let Some(Pattern::Constant(last)) = list.last_mut() {
             let mut buf = last.to_string();
             buf.push_str(s);
             *last = buf.into();
@@ -42,7 +42,7 @@ fn concatenation_push_or_merge_item(list: &mut Vec<Pattern>, pat: Pattern) {
 
 fn concatenation_push_front_or_merge_item(list: &mut Vec<Pattern>, pat: Pattern) {
     if let Pattern::Constant(s) = pat {
-        if let Some(Pattern::Constant(ref mut first)) = list.iter_mut().next() {
+        if let Some(Pattern::Constant(first)) = list.iter_mut().next() {
             let mut buf = s.into_owned();
             buf.push_str(first);
 
@@ -394,7 +394,7 @@ impl Pattern {
                 concatenation_extend_or_merge_items(&mut more, take(list).into_iter());
                 *list = more;
             }
-            (Pattern::Concatenation(ref mut list), pat) => {
+            (Pattern::Concatenation(list), pat) => {
                 concatenation_push_front_or_merge_item(list, pat);
             }
             (this, Pattern::Concatenation(mut list)) => {
@@ -1054,16 +1054,16 @@ impl Pattern {
                 while let Some(part) = iter.next() {
                     match part.next_constants_internal(value, any_offset) {
                         NextConstantUntilResult::NoMatch => {
-                            return NextConstantUntilResult::NoMatch
+                            return NextConstantUntilResult::NoMatch;
                         }
                         NextConstantUntilResult::PartialDynamic => {
-                            return NextConstantUntilResult::PartialDynamic
+                            return NextConstantUntilResult::PartialDynamic;
                         }
                         NextConstantUntilResult::Partial(r, end) => {
                             return NextConstantUntilResult::Partial(
                                 r,
                                 end && iter.next().is_none(),
-                            )
+                            );
                         }
                         NextConstantUntilResult::Consumed(new_value, new_any_offset) => {
                             value = new_value;
@@ -1652,7 +1652,7 @@ mod tests {
     use rstest::*;
     use turbo_rcstr::RcStr;
 
-    use super::{longest_common_prefix, longest_common_suffix, Pattern};
+    use super::{Pattern, longest_common_prefix, longest_common_suffix};
 
     #[test]
     fn longest_common_prefix_test() {
@@ -1743,9 +1743,11 @@ mod tests {
 
     #[test]
     fn with_normalized_path() {
-        assert!(Pattern::Constant("a/../..".into())
-            .with_normalized_path()
-            .is_none());
+        assert!(
+            Pattern::Constant("a/../..".into())
+                .with_normalized_path()
+                .is_none()
+        );
         assert_eq!(
             Pattern::Constant("a/b/../c".into())
                 .with_normalized_path()

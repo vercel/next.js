@@ -2,18 +2,18 @@ use std::fmt::Display;
 
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
-use turbo_tasks::{registry, TaskId, TraitTypeId, ValueTypeId};
+use turbo_tasks::{TaskId, TraitTypeId, ValueTypeId, registry};
 
 use crate::{
     backend::{
+        TaskDataCategory,
         operation::{
+            ExecuteContext, Operation, TaskGuard,
             aggregation_update::{
                 AggregatedDataUpdate, AggregationUpdateJob, AggregationUpdateQueue,
             },
-            ExecuteContext, Operation, TaskGuard,
         },
         storage::{get, get_mut},
-        TaskDataCategory,
     },
     data::{CachedDataItem, CachedDataItemKey, CachedDataItemValue, DirtyState, InProgressState},
 };
@@ -140,9 +140,14 @@ pub fn make_task_dirty_internal(
     ctx: &impl ExecuteContext,
 ) {
     if make_stale {
-        if let Some(InProgressState::InProgress { stale, .. }) = get_mut!(task, InProgress) {
-            *stale = true;
-        }
+        get_mut!(
+            task,
+            InProgress,
+            (|state| match state {
+                &mut InProgressState::InProgress { ref mut stale, .. } => *stale = true,
+                _ => {}
+            })
+        );
     }
     let old = task.insert(CachedDataItem::Dirty {
         value: DirtyState {

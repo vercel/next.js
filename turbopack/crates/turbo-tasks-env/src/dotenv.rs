@@ -1,11 +1,11 @@
 use std::{env, sync::MutexGuard};
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 
-use crate::{sorted_env_vars, EnvMap, ProcessEnv, GLOBAL_ENV_LOCK};
+use crate::{EnvMap, GLOBAL_ENV_LOCK, ProcessEnv, sorted_env_vars};
 
 /// Load the environment variables defined via a dotenv file, with an
 /// optional prior state that we can lookup already defined variables
@@ -43,7 +43,11 @@ impl DotenvProcessEnv {
         if let FileContent::Content(f) = &*file {
             let res;
             let vars;
-            {
+            unsafe {
+                // SAFETY: restore_env is unsafe to run in multi-threaded contexts, since the
+                //         underlying APIs are inherently unsafe. This lock helps us get part-way
+                //         there, though there are other 'safe' APIs that technically could cause
+                //         soundness problems (such as DNS lookups from [`std::net::ToSocketAddrs`])
                 let lock = GLOBAL_ENV_LOCK.lock().unwrap();
 
                 // Unfortunately, dotenvy only looks up variable references from the global env.
@@ -86,20 +90,24 @@ impl ProcessEnv for DotenvProcessEnv {
 }
 
 /// Restores the global env variables to mirror `to`.
-fn restore_env(
+///
+/// SAFETY: This is unsafe because it's possible that other threads are reading / writing to the env
+/// at the same time. It is up to the caller to ensure that this is only called from a single
+/// thread.
+unsafe fn restore_env(
     from: &FxIndexMap<RcStr, RcStr>,
     to: &FxIndexMap<RcStr, RcStr>,
     _lock: &MutexGuard<()>,
 ) {
     for key in from.keys() {
         if !to.contains_key(key) {
-            env::remove_var(key);
+            unsafe { env::remove_var(key) };
         }
     }
     for (key, value) in to {
         match from.get(key) {
             Some(v) if v == value => {}
-            _ => env::set_var(key, value),
+            _ => unsafe { env::set_var(key, value) },
         }
     }
 }

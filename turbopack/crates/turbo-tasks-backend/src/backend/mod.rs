@@ -10,13 +10,13 @@ use std::{
     mem::take,
     pin::Pin,
     sync::{
-        atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
         Arc,
+        atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
     },
     thread::available_parallelism,
 };
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use auto_hash_map::{AutoMap, AutoSet};
 use dashmap::DashMap;
 use parking_lot::{Condvar, Mutex};
@@ -24,6 +24,8 @@ use rustc_hash::FxHasher;
 use smallvec::smallvec;
 use tokio::time::{Duration, Instant};
 use turbo_tasks::{
+    CellId, FunctionId, RawVc, ReadConsistency, SessionId, TRANSIENT_TASK_BIT, TaskId, TraitTypeId,
+    TurboTasksBackendApi, ValueTypeId,
     backend::{
         Backend, BackendJobId, CachedTaskType, CellContent, TaskExecutionSpec, TransientTaskRoot,
         TransientTaskType, TypedCellContent,
@@ -31,19 +33,18 @@ use turbo_tasks::{
     event::{Event, EventListener},
     registry,
     util::IdFactoryWithReuse,
-    CellId, FunctionId, RawVc, ReadConsistency, SessionId, TaskId, TraitTypeId,
-    TurboTasksBackendApi, ValueTypeId, TRANSIENT_TASK_BIT,
 };
 
 pub use self::{operation::AnyOperation, storage::TaskDataCategory};
 use crate::{
     backend::{
         operation::{
-            get_aggregation_number, is_root_node, AggregatedDataUpdate, AggregationUpdateJob,
-            AggregationUpdateQueue, CleanupOldEdgesOperation, ConnectChildOperation,
-            ExecuteContext, ExecuteContextImpl, Operation, OutdatedEdge, TaskDirtyCause, TaskGuard,
+            AggregatedDataUpdate, AggregationUpdateJob, AggregationUpdateQueue,
+            CleanupOldEdgesOperation, ConnectChildOperation, ExecuteContext, ExecuteContextImpl,
+            Operation, OutdatedEdge, TaskDirtyCause, TaskGuard, get_aggregation_number,
+            is_root_node,
         },
-        storage::{get, get_many, get_mut, iter_many, remove, Storage},
+        storage::{Storage, get, get_many, get_mut, iter_many, remove},
     },
     backing_storage::BackingStorage,
     data::{
@@ -241,7 +242,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         &'e self,
         tx: Option<&'e B::ReadTransaction<'tx>>,
         turbo_tasks: &'e dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
-    ) -> impl ExecuteContext<'e> + use<'e, 'tx, B>
+    ) -> impl ExecuteContext<'e>
     where
         'tx: 'e,
     {
@@ -592,12 +593,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
 
         // Check cell index range (cell might not exist at all)
-        let Some(max_id) = get!(
-            task,
-            CellTypeMaxIndex {
-                cell_type: cell.type_id
-            }
-        ) else {
+        let Some(max_id) = get!(task, CellTypeMaxIndex {
+            cell_type: cell.type_id
+        }) else {
             add_cell_dependency(self, task, reader, cell, task_id, &mut ctx);
             bail!(
                 "Cell {cell:?} no longer exists in task {} (no cell of this type exists)",
@@ -1726,12 +1724,19 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     ) {
         let mut ctx = self.execute_context(turbo_tasks);
         let mut task = ctx.task(task, TaskDataCategory::Data);
-        if let Some(InProgressState::InProgress {
-            session_dependent, ..
-        }) = get_mut!(task, InProgress)
-        {
-            *session_dependent = true;
-        }
+        get_mut!(
+            task,
+            InProgress,
+            (|state| match state {
+                &mut InProgressState::InProgress {
+                    ref mut session_dependent,
+                    ..
+                } => {
+                    *session_dependent = true
+                }
+                _ => {}
+            })
+        );
     }
 
     fn connect_task(
@@ -1790,10 +1795,12 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 dirty_containers.get(self.session_id) > 0
             });
         if is_dirty || has_dirty_containers {
-            if let Some(root_state) = get_mut!(task, AggregateRoot) {
-                // We will finish the task, but it would be removed after the task is done
-                root_state.ty = ActiveType::CachedActiveUntilClean;
-            };
+            // We will finish the task, but it would be removed after the task is done
+            get_mut!(
+                task,
+                AggregateRoot,
+                (|state: &mut RootState| state.ty = ActiveType::CachedActiveUntilClean)
+            );
         } else if let Some(root_state) = remove!(task, AggregateRoot) {
             // Technically nobody should be listening to this event, but just in case
             // we notify it anyway

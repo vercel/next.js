@@ -11,7 +11,7 @@ use crate::analyzer::JsValueUrlKind;
 pub fn early_replace_builtin(value: &mut JsValue) -> bool {
     match value {
         // matching calls like `callee(arg1, arg2, ...)`
-        JsValue::Call(_, box ref mut callee, args) => {
+        &mut JsValue::Call(_, box ref mut callee, ref mut args) => {
             let args_have_side_effects = || args.iter().any(|arg| arg.has_side_effects());
             match callee {
                 // We don't know what the callee is, so we can early return
@@ -43,7 +43,7 @@ pub fn early_replace_builtin(value: &mut JsValue) -> bool {
             }
         }
         // matching calls with this context like `obj.prop(arg1, arg2, ...)`
-        JsValue::MemberCall(_, box ref mut obj, box ref mut prop, args) => {
+        &mut JsValue::MemberCall(_, box ref mut obj, box ref mut prop, ref mut args) => {
             let args_have_side_effects = || args.iter().any(|arg| arg.has_side_effects());
             match obj {
                 // We don't know what the callee is, so we can early return
@@ -112,7 +112,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
 
         // matching property access like `obj.prop`
         // Accessing a property on something can be handled in some cases
-        JsValue::Member(_, box ref mut obj, ref mut prop) => match obj {
+        &mut JsValue::Member(_, box ref mut obj, ref mut prop) => match obj {
             // matching property access when obj is a bunch of alternatives
             // like `(obj1 | obj2 | obj3).prop`
             // We expand these to `obj1.prop | obj2.prop | obj3.prop`
@@ -341,7 +341,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
             _ => false,
         },
         // matching calls with this context like `obj.prop(arg1, arg2, ...)`
-        JsValue::MemberCall(_, box ref mut obj, box ref mut prop, ref mut args) => {
+        &mut JsValue::MemberCall(_, box ref mut obj, box ref mut prop, ref mut args) => {
             match obj {
                 // matching calls on an array like `[1,2,3].concat([4,5,6])`
                 JsValue::Array { items, mutable, .. } => {
@@ -400,15 +400,12 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                             .into_iter()
                                             .enumerate()
                                             .map(|(i, item)| {
-                                                JsValue::call(
-                                                    Box::new(func.clone()),
-                                                    vec![
-                                                        item,
-                                                        JsValue::Constant(ConstantValue::Num(
-                                                            ConstantNumber(i as f64),
-                                                        )),
-                                                    ],
-                                                )
+                                                JsValue::call(Box::new(func.clone()), vec![
+                                                    item,
+                                                    JsValue::Constant(ConstantValue::Num(
+                                                        ConstantNumber(i as f64),
+                                                    )),
+                                                ])
                                             })
                                             .collect(),
                                     );
@@ -467,11 +464,11 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
         }
         // match calls when the callee are multiple alternative functions like `(func1 |
         // func2)(arg1, arg2, ...)`
-        JsValue::Call(
+        &mut JsValue::Call(
             _,
             box JsValue::Alternatives {
                 total_nodes: _,
-                values,
+                ref mut values,
                 logical_property: _,
             },
             ref mut args,
@@ -513,7 +510,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
         }
         // match logical expressions like `a && b` or `a || b || c` or `a ?? b`
         // Reduce logical expressions to their final value(s)
-        JsValue::Logical(_, op, ref mut parts) => {
+        &mut JsValue::Logical(_, op, ref mut parts) => {
             let len = parts.len();
             let input_parts: Vec<JsValue> = take(parts);
             *parts = Vec::with_capacity(len);
@@ -637,7 +634,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
         }
         // match the not operator like `!a`
         // Evaluate not when the inner value is truthy or falsy
-        JsValue::Not(_, ref inner) => match inner.is_truthy() {
+        &mut JsValue::Not(_, ref inner) => match inner.is_truthy() {
             Some(true) => {
                 *value = JsValue::Constant(ConstantValue::False);
                 true

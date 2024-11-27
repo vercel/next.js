@@ -27,11 +27,11 @@ pub use self::{
     traits::{Dynamic, TypedForInput, Upcast, VcValueTrait, VcValueType},
 };
 use crate::{
+    CellId, CollectiblesSource, RawVc, ResolveTypeError, SharedReference, ShrinkToFit,
     debug::{ValueDebug, ValueDebugFormat, ValueDebugFormatString},
     manager::{create_local_cell, try_get_function_meta},
     registry,
     trace::{TraceRawVcs, TraceRawVcsContext},
-    CellId, CollectiblesSource, RawVc, ResolveTypeError, SharedReference, ShrinkToFit,
 };
 
 /// A Value Cell (`Vc` for short) is a reference to a memoized computation
@@ -166,7 +166,7 @@ where
     type Target = *const *mut *const T;
 
     fn deref(&self) -> &Self::Target {
-        extern "C" {
+        unsafe extern "C" {
             #[link_name = "\n\nERROR: you tried to dereference a `Vc<T>`\n"]
             fn trigger() -> !;
         }
@@ -192,7 +192,7 @@ where
     type Target = VcDeref<T>;
 
     fn deref(&self) -> &Self::Target {
-        extern "C" {
+        unsafe extern "C" {
             #[link_name = "\n\nERROR: you tried to dereference a `Vc<T>`\n"]
             fn trigger() -> !;
         }

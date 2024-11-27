@@ -1,14 +1,14 @@
 use super::{
+    AggregationContext, AggregationNode, PreparedInternalOperation, PreparedOperation, StackVec,
     balance_queue::BalanceQueue,
     in_progress::start_in_progress_all,
     increase::{
-        increase_aggregation_number_immediately, IncreaseReason,
-        PreparedInternalIncreaseAggregationNumber, LEAF_NUMBER,
+        IncreaseReason, LEAF_NUMBER, PreparedInternalIncreaseAggregationNumber,
+        increase_aggregation_number_immediately,
     },
     increase_aggregation_number_internal, notify_new_follower,
     notify_new_follower::PreparedNotifyNewFollower,
     optimize::optimize_aggregation_number_for_uppers,
-    AggregationContext, AggregationNode, PreparedInternalOperation, PreparedOperation, StackVec,
 };
 
 const BUFFER_SPACE: u32 = 2;
@@ -25,7 +25,7 @@ pub fn handle_new_edge<C: AggregationContext>(
     origin_id: &C::NodeRef,
     target_id: &C::NodeRef,
     number_of_children: usize,
-) -> impl PreparedOperation<C> {
+) -> impl PreparedOperation<C> + use<C> {
     match **origin {
         AggregationNode::Leaf {
             ref mut aggregation_number,

@@ -1,5 +1,5 @@
 [package]
-edition = "2021"
+edition = "2024"
 name = "next-swc-napi"
 version = "0.0.0"
 publish = false

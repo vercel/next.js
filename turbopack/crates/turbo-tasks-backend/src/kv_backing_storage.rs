@@ -5,11 +5,11 @@ use std::{
     sync::Arc,
 };
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use rustc_hash::FxHashMap;
 use tracing::Span;
-use turbo_tasks::{backend::CachedTaskType, turbo_tasks_scope, KeyValuePair, SessionId, TaskId};
+use turbo_tasks::{KeyValuePair, SessionId, TaskId, backend::CachedTaskType, turbo_tasks_scope};
 
 use crate::{
     backend::{AnyOperation, TaskDataCategory},
@@ -143,7 +143,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
 
         // Start organizing the updates in parallel
         match &mut batch {
-            WriteBatch::Concurrent(ref batch, _) => {
+            &mut WriteBatch::Concurrent(ref batch, _) => {
                 turbo_tasks::scope(|s| {
                     s.spawn(|_| {
                         let _span = tracing::trace_span!("update task meta").entered();
@@ -238,7 +238,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
                 task_meta_items_result?;
                 task_data_items_result?;
             }
-            WriteBatch::Serial(batch) => {
+            &mut WriteBatch::Serial(ref mut batch) => {
                 turbo_tasks::scope(|s| {
                     s.spawn(|_| {
                         task_meta_items_result = process_task_data(
