@@ -38,7 +38,7 @@ impl PersistedStorageLog {
         old_value: Option<CachedDataItemValue>,
         new_value: Option<CachedDataItemValue>,
     ) {
-        let mut guard = self.data.lock(&task);
+        let mut guard = self.data.lock(task);
         guard.set_task(task);
         match (old_value, new_value) {
             (None, None) => {}
@@ -67,7 +67,7 @@ impl PersistedStorageLog {
         let updates = updates
             .into_iter()
             .map(|item| CachedDataUpdate::New { item });
-        let mut guard = self.data.lock(&task);
+        let mut guard = self.data.lock(task);
         guard.set_task(task);
         guard.data.extend(updates);
     }

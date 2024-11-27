@@ -524,6 +524,8 @@ fn serialize_task_type(
 }
 
 type SerializedTasks = Vec<Vec<(TaskId, Vec<u8>)>>;
+type TaskUpdates =
+    FxHashMap<CachedDataItemKey, (Option<CachedDataItemValue>, Option<CachedDataItemValue>)>;
 
 fn process_task_data<'a, B: ConcurrentWriteBatch<'a> + Send + Sync>(
     database: &(impl KeyValueDatabase + Sync),
@@ -541,15 +543,7 @@ fn process_task_data<'a, B: ConcurrentWriteBatch<'a> + Send + Sync>(
             let _span = span.clone().entered();
             let _guard = handle.clone().enter();
             turbo_tasks_scope(turbo_tasks.clone(), || {
-                type TaskUpdates = FxHashMap<
-                    TaskId,
-                    FxHashMap<
-                        CachedDataItemKey,
-                        (Option<CachedDataItemValue>, Option<CachedDataItemValue>),
-                    >,
-                >;
-
-                let mut task_updates: TaskUpdates =
+                let mut task_updates: FxHashMap<TaskId, TaskUpdates> =
                     FxHashMap::with_capacity_and_hasher(updates.len(), Default::default());
 
                 {
@@ -563,12 +557,7 @@ fn process_task_data<'a, B: ConcurrentWriteBatch<'a> + Send + Sync>(
                     // The store the last task data and the last value as pointers to avoid looking
                     // them up in the map again. Everytime we modify the map the pointers are
                     // updated, so we never have a dangling pointer.
-                    let mut current_task_data: Option<
-                        *mut FxHashMap<
-                            CachedDataItemKey,
-                            (Option<CachedDataItemValue>, Option<CachedDataItemValue>),
-                        >,
-                    > = None;
+                    let mut current_task_data: Option<*mut TaskUpdates> = None;
                     let mut last_value: Option<*mut (
                         Option<CachedDataItemValue>,
                         Option<CachedDataItemValue>,
@@ -735,13 +724,7 @@ fn process_task_data<'a, B: ConcurrentWriteBatch<'a> + Send + Sync>(
         .collect::<Result<Vec<_>>>()
 }
 
-fn serialize(
-    task: TaskId,
-    data: &mut FxHashMap<
-        CachedDataItemKey,
-        (Option<CachedDataItemValue>, Option<CachedDataItemValue>),
-    >,
-) -> Result<Vec<u8>> {
+fn serialize(task: TaskId, data: &mut TaskUpdates) -> Result<Vec<u8>> {
     Ok(
         match POT_CONFIG.serialize(&SerializeLikeVecOfCachedDataItem(data)) {
             #[cfg(not(feature = "verify_serialization"))]
@@ -805,9 +788,7 @@ fn serialize(
     )
 }
 
-struct SerializeLikeVecOfCachedDataItem<'l>(
-    &'l FxHashMap<CachedDataItemKey, (Option<CachedDataItemValue>, Option<CachedDataItemValue>)>,
-);
+struct SerializeLikeVecOfCachedDataItem<'l>(&'l TaskUpdates);
 
 impl Serialize for SerializeLikeVecOfCachedDataItem<'_> {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
