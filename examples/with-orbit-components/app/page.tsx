@@ -1,3 +1,6 @@
+// app/page.tsx
+"use client";
+
 import React from "react";
 import { Alert, Illustration } from "@kiwicom/orbit-components";
 
