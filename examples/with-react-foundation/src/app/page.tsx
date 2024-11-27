@@ -1,6 +1,7 @@
+"use client";
 import Link from "next/link";
-import { Article } from "../components/Article";
-import { Header } from "../components/Header";
+import { Article } from "./_components/Article";
+import { Header } from "./_components/Header";
 import { Callout } from "react-foundation";
 
 export default function Home() {
