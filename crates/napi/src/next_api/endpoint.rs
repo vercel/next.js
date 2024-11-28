@@ -160,6 +160,7 @@ pub async fn endpoint_write_to_disk(
                 diagnostics,
                 effects,
             } = &*operation.strongly_consistent().await?;
+            println!("effects: {:#?}", effects.names());
             effects.apply().await?;
 
             Ok((written.clone(), issues.clone(), diagnostics.clone()))

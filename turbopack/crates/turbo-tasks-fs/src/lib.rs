@@ -686,7 +686,7 @@ impl FileSystem for DiskFileSystem {
         let inner = self.inner.clone();
         let invalidator = turbo_tasks::get_invalidator();
 
-        effect(async move {
+        effect(full_path.display().to_string().into(), async move {
             let full_path = validate_path_length(&full_path)?;
 
             let _lock = inner.lock_path(&full_path).await;
@@ -809,7 +809,7 @@ impl FileSystem for DiskFileSystem {
         let inner = self.inner.clone();
         let invalidator = turbo_tasks::get_invalidator();
 
-        effect(async move {
+        effect(full_path.display().to_string().into(), async move {
             let full_path = validate_path_length(&full_path)?;
 
             let _lock = inner.lock_path(&full_path).await;
