@@ -331,12 +331,12 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
     let chunking_context: Vc<Box<dyn ChunkingContext>> = match options.runtime {
         Runtime::Browser => Vc::upcast(
             BrowserChunkingContext::builder(
-                *project_root,
-                *path,
-                *path,
-                *chunk_root_path,
-                *static_root_path,
-                *env,
+                project_root,
+                path,
+                path,
+                chunk_root_path,
+                static_root_path,
+                env,
                 options.runtime_type,
             )
             .build(),
