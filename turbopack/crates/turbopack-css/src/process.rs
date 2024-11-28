@@ -414,8 +414,8 @@ async fn process_content(
                             });
 
                             ParsingIssue {
-                                file: fs_path_vc,
-                                msg: Vc::cell(err.to_string().into()),
+                                file: fs_path_vc.to_resolved().await?,
+                                msg: ResolvedVc::cell(err.to_string().into()),
                                 source,
                             }
                             .cell()
