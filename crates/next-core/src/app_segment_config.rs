@@ -166,9 +166,9 @@ impl NextSegmentConfig {
 /// An issue that occurred while parsing the app segment config.
 #[turbo_tasks::value(shared)]
 pub struct NextSegmentConfigParsingIssue {
-    ident: Vc<AssetIdent>,
+    ident: ResolvedVc<AssetIdent>,
     detail: ResolvedVc<StyledString>,
-    source: Vc<IssueSource>,
+    source: ResolvedVc<IssueSource>,
 }
 
 #[turbo_tasks::value_impl]
@@ -315,49 +315,54 @@ fn issue_source(source: Vc<Box<dyn Source>>, span: Span) -> Vc<IssueSource> {
     IssueSource::from_swc_offsets(source, span.lo.to_usize(), span.hi.to_usize())
 }
 
-fn parse_config_value(
+async fn parse_config_value(
     source: Vc<Box<dyn Source>>,
     config: &mut NextSegmentConfig,
     ident: &Ident,
     init: &Expr,
     eval_context: &EvalContext,
-) {
+) -> Result<()> {
     let span = init.span();
     let invalid_config = |detail: &str, value: &JsValue| {
         let (explainer, hints) = value.explain(2, 0);
         let detail =
             StyledString::Text(format!("{detail} Got {explainer}.{hints}").into()).resolved_cell();
 
-        NextSegmentConfigParsingIssue {
-            ident: source.ident(),
-            detail,
-            source: issue_source(source, span),
+        async move {
+            NextSegmentConfigParsingIssue {
+                ident: source.ident().to_resolved().await?,
+                detail,
+                source: issue_source(source, span).to_resolved().await?,
+            }
+            .cell()
+            .emit();
+
+            anyhow::Ok(())
         }
-        .cell()
-        .emit();
     };
 
     match &*ident.sym {
         "dynamic" => {
             let value = eval_context.eval(init);
             let Some(val) = value.as_str() else {
-                invalid_config("`dynamic` needs to be a static string", &value);
-                return;
+                invalid_config("`dynamic` needs to be a static string", &value).await?;
+                return Ok(());
             };
 
             config.dynamic = match serde_json::from_value(Value::String(val.to_string())) {
                 Ok(dynamic) => Some(dynamic),
                 Err(err) => {
-                    invalid_config(&format!("`dynamic` has an invalid value: {}", err), &value);
-                    return;
+                    invalid_config(&format!("`dynamic` has an invalid value: {}", err), &value)
+                        .await?;
+                    return Ok(());
                 }
             };
         }
         "dynamicParams" => {
             let value = eval_context.eval(init);
             let Some(val) = value.as_bool() else {
-                invalid_config("`dynamicParams` needs to be a static boolean", &value);
-                return;
+                invalid_config("`dynamicParams` needs to be a static boolean", &value).await?;
+                return Ok(());
             };
 
             config.dynamic_params = Some(val);
@@ -385,8 +390,8 @@ fn parse_config_value(
         "fetchCache" => {
             let value = eval_context.eval(init);
             let Some(val) = value.as_str() else {
-                invalid_config("`fetchCache` needs to be a static string", &value);
-                return;
+                invalid_config("`fetchCache` needs to be a static string", &value).await?;
+                return Ok(());
             };
 
             config.fetch_cache = match serde_json::from_value(Value::String(val.to_string())) {
@@ -395,23 +400,25 @@ fn parse_config_value(
                     invalid_config(
                         &format!("`fetchCache` has an invalid value: {}", err),
                         &value,
-                    );
-                    return;
+                    )
+                    .await?;
+                    return Ok(());
                 }
             };
         }
         "runtime" => {
             let value = eval_context.eval(init);
             let Some(val) = value.as_str() else {
-                invalid_config("`runtime` needs to be a static string", &value);
-                return;
+                invalid_config("`runtime` needs to be a static string", &value).await?;
+                return Ok(());
             };
 
             config.runtime = match serde_json::from_value(Value::String(val.to_string())) {
                 Ok(runtime) => Some(runtime),
                 Err(err) => {
-                    invalid_config(&format!("`runtime` has an invalid value: {}", err), &value);
-                    return;
+                    invalid_config(&format!("`runtime` has an invalid value: {}", err), &value)
+                        .await?;
+                    return Ok(());
                 }
             };
         }
@@ -432,7 +439,9 @@ fn parse_config_value(
                             invalid_config(
                                 "Values of the `preferredRegion` array need to static strings",
                                 &item,
-                            );
+                            )
+                            .await?;
+                            return Ok(());
                         }
                     }
                     regions
@@ -441,8 +450,9 @@ fn parse_config_value(
                     invalid_config(
                         "`preferredRegion` needs to be a static string or array of static strings",
                         &value,
-                    );
-                    return;
+                    )
+                    .await?;
+                    return Ok(());
                 }
             };
 
@@ -459,14 +469,16 @@ fn parse_config_value(
         "experimental_ppr" => {
             let value = eval_context.eval(init);
             let Some(val) = value.as_bool() else {
-                invalid_config("`experimental_ppr` needs to be a static boolean", &value);
-                return;
+                invalid_config("`experimental_ppr` needs to be a static boolean", &value).await?;
+                return Ok(());
             };
 
             config.experimental_ppr = Some(val);
         }
         _ => {}
     }
+
+    Ok(())
 }
 
 #[turbo_tasks::function]

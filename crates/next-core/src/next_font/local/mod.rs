@@ -109,6 +109,7 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
                 let font_fallbacks = get_font_fallbacks(lookup_path, options_vc);
                 let properties = get_font_css_properties(options_vc, font_fallbacks).await;
 
+                let lookup_path = lookup_path.to_resolved().await?;
                 if let Err(e) = &properties {
                     for source_error in e.chain() {
                         if let Some(FontError::FontFileNotFound(font_path)) =
@@ -319,7 +320,7 @@ async fn font_file_options_from_query_map(
 #[turbo_tasks::value(shared)]
 struct FontResolvingIssue {
     font_path: ResolvedVc<RcStr>,
-    origin_path: Vc<FileSystemPath>,
+    origin_path: ResolvedVc<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
@@ -331,7 +332,7 @@ impl Issue for FontResolvingIssue {
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        self.origin_path
+        *self.origin_path
     }
 
     #[turbo_tasks::function]
