@@ -37,7 +37,7 @@ where
     F: FnMut(Vc<Box<dyn ChunkableModule>>) -> Fu,
     Fu: Future<Output = Result<Vc<OutputAssets>>> + Send,
 {
-    let mut chunks_hash: HashMap<RcStr, Vc<OutputAssets>> = HashMap::new();
+    let mut chunks_hash: HashMap<RcStr, ResolvedVc<OutputAssets>> = HashMap::new();
     let mut dynamic_import_chunks = FxIndexMap::default();
 
     // Iterate over the collected import mappings, and create a chunk for each
@@ -59,7 +59,7 @@ where
                 // naive hash to have additional
                 // chunks in case if there are same modules being imported in different
                 // origins.
-                let chunk_group = build_chunk(*module).await?;
+                let chunk_group = build_chunk(*module).await?.to_resolved().await?;
                 chunks_hash.insert(imported_raw_str.clone(), chunk_group);
                 chunk_group
             };
@@ -106,7 +106,7 @@ pub(crate) async fn collect_evaluated_chunk_group(
 #[turbo_tasks::value(shared)]
 pub struct NextDynamicImportsResult {
     pub client_dynamic_imports: FxIndexMap<ResolvedVc<Box<dyn Module>>, DynamicImportedModules>,
-    pub visited_modules: Vc<VisitedDynamicImportModules>,
+    pub visited_modules: ResolvedVc<VisitedDynamicImportModules>,
 }
 
 #[turbo_tasks::value(shared)]
@@ -201,7 +201,7 @@ pub(crate) async fn collect_next_dynamic_imports(
 
         Ok(NextDynamicImportsResult {
             client_dynamic_imports: import_mappings,
-            visited_modules: VisitedDynamicImportModules(visited_modules.0).cell(),
+            visited_modules: VisitedDynamicImportModules(visited_modules.0).resolved_cell(),
         }
         .cell())
     }
@@ -338,7 +338,10 @@ async fn build_dynamic_imports_map_for_module(
         }
     }
 
-    Ok(Vc::cell(Some(Vc::cell((server_module, import_sources)))))
+    Ok(Vc::cell(Some(ResolvedVc::cell((
+        server_module,
+        import_sources,
+    )))))
 }
 
 /// A visitor to check if there's import to `next/dynamic`, then collecting the
@@ -421,7 +424,7 @@ impl Visit for CollectImportSourceVisitor {
 }
 
 pub type DynamicImportedModules = Vec<(RcStr, ResolvedVc<Box<dyn Module>>)>;
-pub type DynamicImportedOutputAssets = Vec<(RcStr, Vc<OutputAssets>)>;
+pub type DynamicImportedOutputAssets = Vec<(RcStr, ResolvedVc<OutputAssets>)>;
 
 /// A struct contains mapping for the dynamic imports to construct chunk per
 /// each individual module (Origin Module, Vec<(ImportSourceString, Module)>)
@@ -430,7 +433,7 @@ pub struct DynamicImportsMap(pub (ResolvedVc<Box<dyn Module>>, DynamicImportedMo
 
 /// An Option wrapper around [DynamicImportsMap].
 #[turbo_tasks::value(transparent)]
-pub struct OptionDynamicImportsMap(Option<Vc<DynamicImportsMap>>);
+pub struct OptionDynamicImportsMap(Option<ResolvedVc<DynamicImportsMap>>);
 
 #[turbo_tasks::value(transparent)]
 pub struct DynamicImportedChunks(
