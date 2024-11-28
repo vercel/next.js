@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use serde::Serialize;
-use turbo_tasks::{FxIndexMap, IntoTraitRef, TraitRef, Vc};
+use turbo_tasks::{FxIndexMap, IntoTraitRef, ResolvedVc, TraitRef, Vc};
 use turbopack_core::version::{
     MergeableVersionedContent, PartialUpdate, TotalUpdate, Update, Version, VersionedContent,
     VersionedContentMerger,
@@ -92,9 +92,9 @@ pub(super) async fn update_chunk_list(
 
     for (chunk_path, chunk_content) in &content.chunks_contents {
         if let Some(mergeable) =
-            Vc::try_resolve_sidecast::<Box<dyn MergeableVersionedContent>>(*chunk_content).await?
+            ResolvedVc::try_sidecast::<Box<dyn MergeableVersionedContent>>(*chunk_content).await?
         {
-            let merger = mergeable.get_merger().resolve().await?;
+            let merger = mergeable.get_merger().to_resolved().await?;
             by_merger.entry(merger).or_default().push(*chunk_content);
         } else {
             by_path.insert(chunk_path, chunk_content);

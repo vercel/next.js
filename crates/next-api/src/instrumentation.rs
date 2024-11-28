@@ -113,8 +113,7 @@ impl InstrumentationEndpoint {
             Value::new(ServerContextType::Instrumentation {
                 app_dir: this.app_dir,
                 ecmascript_client_reference_transition_name: this
-                    .ecmascript_client_reference_transition_name
-                    .map(|v| *v),
+                    .ecmascript_client_reference_transition_name,
             }),
             this.project.next_mode(),
         )
@@ -166,8 +165,7 @@ impl InstrumentationEndpoint {
                     Value::new(ServerContextType::Instrumentation {
                         app_dir: this.app_dir,
                         ecmascript_client_reference_transition_name: this
-                            .ecmascript_client_reference_transition_name
-                            .map(|v| *v),
+                            .ecmascript_client_reference_transition_name,
                     }),
                     this.project.next_mode(),
                 )
@@ -252,7 +250,9 @@ impl Endpoint for InstrumentationEndpoint {
             let this = self.await?;
             let output_assets = self.output_assets();
             let _ = output_assets.resolve().await?;
-            let _ = this.project.emit_all_output_assets(Vc::cell(output_assets));
+            this.project
+                .emit_all_output_assets(Vc::cell(output_assets))
+                .await?;
 
             let server_paths = if this.project.next_mode().await?.is_development() {
                 let node_root = this.project.node_root();

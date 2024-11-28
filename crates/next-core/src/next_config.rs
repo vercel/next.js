@@ -31,13 +31,13 @@ use crate::{
 
 #[turbo_tasks::value]
 struct NextConfigAndCustomRoutes {
-    config: Vc<NextConfig>,
-    custom_routes: Vc<CustomRoutes>,
+    config: ResolvedVc<NextConfig>,
+    custom_routes: ResolvedVc<CustomRoutes>,
 }
 
 #[turbo_tasks::value]
 struct CustomRoutes {
-    rewrites: Vc<Rewrites>,
+    rewrites: ResolvedVc<Rewrites>,
 }
 
 #[turbo_tasks::value(transparent)]
@@ -1341,7 +1341,7 @@ impl JsConfig {
 
 #[turbo_tasks::value]
 struct OutdatedConfigIssue {
-    path: Vc<FileSystemPath>,
+    path: ResolvedVc<FileSystemPath>,
     old_name: RcStr,
     new_name: RcStr,
     description: RcStr,
@@ -1361,7 +1361,7 @@ impl Issue for OutdatedConfigIssue {
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        self.path
+        *self.path
     }
 
     #[turbo_tasks::function]
