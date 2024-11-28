@@ -575,19 +575,14 @@ impl ServerActionsGraph {
             Cow::Borrowed(data)
         } else {
             // The graph contains the whole app, traverse and collect all reachable imports.
-            let SingleModuleGraph { graph, entries } = &*self.graph.await?;
+            let graph = &*self.graph.await?;
 
             let mut result = HashMap::new();
-
-            let entry_node = *entries.get(&entry).unwrap();
-            let mut dfs = Dfs::new(&graph, entry_node);
-            while let Some(nx) = dfs.next(&graph) {
-                let weight = *graph.node_weight(nx).unwrap();
-                if let Some(node_data) = data.get(&weight) {
-                    result.insert(weight, *node_data);
+            graph.traverse_from_entry(entry, |module| {
+                if let Some(node_data) = data.get(&module) {
+                    result.insert(module, *node_data);
                 }
-            }
-
+            })?;
             Cow::Owned(result)
         };
 
