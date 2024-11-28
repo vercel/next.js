@@ -14,7 +14,6 @@ import {
   noContent,
   type OriginalStackFrameResponse,
 } from './shared'
-import { NEXT_PROJECT_ROOT } from '../../../../build/next-dir-paths'
 export { getServerError } from '../internal/helpers/node-stack-frames'
 export { parseStack } from '../internal/helpers/parse-stack'
 export { getSourceMapFromFile }
@@ -313,7 +312,6 @@ async function getSource(
   const modulePath = moduleId.replace(/^(\(.*\)\/?)/, '')
 
   for (const compilation of getCompilations()) {
-    // TODO: `ignoreList`
     const sourceMap = await getSourceMapFromCompilation(moduleId, compilation)
     const ignoreList = []
     const moduleFilenames = sourceMap?.sources ?? []
@@ -364,18 +362,8 @@ export function getOverlayMiddleware(options: {
       const isEdgeServer = searchParams.get('isEdgeServer') === 'true'
       const isAppDirectory = searchParams.get('isAppDirectory') === 'true'
       const frame = createStackFrame(searchParams)
-      const formattedFilePath = formatFrameSourceFile(frame.file)
-      const filePath = path.join(rootDirectory, formattedFilePath)
-      const isNextjsSource = filePath.startsWith(NEXT_PROJECT_ROOT)
 
-      let sourcePackage = findSourcePackage(frame)
       let source: Source | undefined
-
-      if (isNextjsSource) {
-        sourcePackage = 'next'
-        return json(res, { sourcePackage })
-      }
-
       try {
         source = await getSource(frame.file, {
           getCompilations: () => {
@@ -426,7 +414,6 @@ export function getOverlayMiddleware(options: {
       }
 
       if (!source) {
-        if (sourcePackage) return json(res, { sourcePackage })
         return noContent(res)
       }
 
@@ -438,7 +425,6 @@ export function getOverlayMiddleware(options: {
         })
 
         if (!originalStackFrameResponse) {
-          if (sourcePackage) return json(res, { sourcePackage })
           return noContent(res)
         }
 

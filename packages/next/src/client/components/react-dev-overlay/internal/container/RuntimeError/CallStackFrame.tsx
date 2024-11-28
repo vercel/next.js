@@ -42,6 +42,7 @@ export const CallStackFrame: React.FC<{
       </h3>
       <div
         data-has-source={hasSource ? 'true' : undefined}
+        data-no-source={hasSource ? undefined : 'true'}
         tabIndex={hasSource ? 10 : undefined}
         role={hasSource ? 'link' : undefined}
         onClick={open}
