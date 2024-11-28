@@ -11,13 +11,12 @@ pub use node_entry::{NodeEntry, NodeRenderingEntries, NodeRenderingEntry};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
-    FxIndexSet, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
+    Completion, Completions, FxIndexSet, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
 };
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::{to_sys_path, File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    changed::content_changed,
     chunk::{ChunkingContext, ChunkingContextExt, EvaluatableAssets},
     module::Module,
     output::{OutputAsset, OutputAssets, OutputAssetsSet},
@@ -42,11 +41,16 @@ pub mod transforms;
 async fn emit(
     intermediate_asset: Vc<Box<dyn OutputAsset>>,
     intermediate_output_path: Vc<FileSystemPath>,
-) -> Result<()> {
-    for asset in internal_assets(intermediate_asset, intermediate_output_path).await? {
-        let _ = asset.content().write(asset.ident().path());
-    }
-    Ok(())
+) -> Result<Vc<Completion>> {
+    Ok(Vc::<Completions>::cell(
+        internal_assets(intermediate_asset, intermediate_output_path)
+            .strongly_consistent()
+            .await?
+            .iter()
+            .map(|a| a.content().write(a.ident().path()))
+            .collect(),
+    )
+    .completed())
 }
 
 /// List of the all assets of the "internal" subgraph and a list of boundary
@@ -192,7 +196,7 @@ async fn separate_assets(
 /// Emit a basic package.json that sets the type of the package to commonjs.
 /// Currently code generated for Node is CommonJS, while authored code may be
 /// ESM, for example.
-fn emit_package_json(dir: Vc<FileSystemPath>) -> Vc<()> {
+fn emit_package_json(dir: Vc<FileSystemPath>) -> Vc<Completion> {
     emit(
         Vc::upcast(VirtualOutputAsset::new(
             dir.join("package.json".into()),
@@ -215,7 +219,7 @@ pub async fn get_renderer_pool(
 ) -> Result<Vc<NodeJsPool>> {
     emit_package_json(intermediate_output_path).await?;
 
-    let _ = emit(intermediate_asset, *output_root);
+    let emit = emit(intermediate_asset, *output_root);
     let assets_for_source_mapping =
         internal_assets_for_source_mapping(intermediate_asset, *output_root);
 
@@ -233,9 +237,8 @@ pub async fn get_renderer_pool(
             entrypoint.to_string().await?
         );
     };
-    // Invalidate pool when code content changes
-    content_changed(Vc::upcast(intermediate_asset)).await?;
 
+    emit.await?;
     Ok(NodeJsPool::new(
         cwd,
         entrypoint,
