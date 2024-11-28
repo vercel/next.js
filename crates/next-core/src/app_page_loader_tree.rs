@@ -27,7 +27,7 @@ use crate::{
 pub struct AppPageLoaderTreeBuilder {
     base: BaseLoaderTreeBuilder,
     loader_tree_code: String,
-    pages: Vec<Vc<FileSystemPath>>,
+    pages: Vec<ResolvedVc<FileSystemPath>>,
     /// next.config.js' basePath option to construct og metadata.
     base_path: Option<RcStr>,
 }
@@ -49,7 +49,7 @@ impl AppPageLoaderTreeBuilder {
     async fn write_modules_entry(
         &mut self,
         module_type: AppDirModuleType,
-        path: Option<Vc<FileSystemPath>>,
+        path: Option<ResolvedVc<FileSystemPath>>,
     ) -> Result<()> {
         if let Some(path) = path {
             if matches!(module_type, AppDirModuleType::Page) {
@@ -353,7 +353,7 @@ impl AppPageLoaderTreeBuilder {
             .await?;
         self.write_modules_entry(AppDirModuleType::DefaultPage, *default)
             .await?;
-        self.write_modules_entry(AppDirModuleType::GlobalError, global_error.map(|err| *err))
+        self.write_modules_entry(AppDirModuleType::GlobalError, *global_error)
             .await?;
 
         let modules_code = replace(&mut self.loader_tree_code, temp_loader_tree_code);
@@ -402,7 +402,7 @@ pub struct AppPageLoaderTreeModule {
     pub imports: Vec<RcStr>,
     pub loader_tree_code: RcStr,
     pub inner_assets: FxIndexMap<RcStr, ResolvedVc<Box<dyn Module>>>,
-    pub pages: Vec<Vc<FileSystemPath>>,
+    pub pages: Vec<ResolvedVc<FileSystemPath>>,
 }
 
 impl AppPageLoaderTreeModule {

@@ -134,10 +134,10 @@ impl PagesProject {
                     project_path: _,
                 } = *dir.await?;
                 for &item in items.iter() {
-                    add_page_to_routes(routes, item, &make_route).await?;
+                    add_page_to_routes(routes, *item, &make_route).await?;
                 }
                 for &child in children.iter() {
-                    queue.push(child);
+                    queue.push(*child);
                 }
             }
             Ok(())
@@ -217,19 +217,19 @@ impl PagesProject {
     #[turbo_tasks::function]
     pub async fn document_endpoint(self: Vc<Self>) -> Result<Vc<Box<dyn Endpoint>>> {
         Ok(self.to_endpoint(
-            self.pages_structure().await?.document,
+            *self.pages_structure().await?.document,
             PageEndpointType::SsrOnly,
         ))
     }
 
     #[turbo_tasks::function]
     pub async fn app_endpoint(self: Vc<Self>) -> Result<Vc<Box<dyn Endpoint>>> {
-        Ok(self.to_endpoint(self.pages_structure().await?.app, PageEndpointType::Html))
+        Ok(self.to_endpoint(*self.pages_structure().await?.app, PageEndpointType::Html))
     }
 
     #[turbo_tasks::function]
     pub async fn error_endpoint(self: Vc<Self>) -> Result<Vc<Box<dyn Endpoint>>> {
-        Ok(self.to_endpoint(self.pages_structure().await?.error, PageEndpointType::Html))
+        Ok(self.to_endpoint(*self.pages_structure().await?.error, PageEndpointType::Html))
     }
 
     #[turbo_tasks::function]
@@ -665,7 +665,7 @@ impl PageEndpoint {
         ) {
             if let Some(chunkable) = Vc::try_resolve_downcast(page_loader).await? {
                 return Ok(Vc::upcast(HmrEntryModule::new(
-                    AssetIdent::from_path(this.page.await?.base_path),
+                    AssetIdent::from_path(*this.page.await?.base_path),
                     chunkable,
                 )));
             }
@@ -696,7 +696,7 @@ impl PageEndpoint {
             let client_chunking_context = this.pages_project.project().client_chunking_context();
 
             let client_chunks = client_chunking_context.evaluated_chunk_group_assets(
-                AssetIdent::from_path(this.page.await?.base_path),
+                AssetIdent::from_path(*this.page.await?.base_path),
                 this.pages_project
                     .client_runtime_entries()
                     .with_entry(client_main_module)
