@@ -172,7 +172,7 @@ pub(crate) async fn collect_next_dynamic_imports(
                     .await?
                     .into_iter(),
                 NextDynamicVisit {
-                    client_asset_context: client_asset_context.resolve().await?,
+                    client_asset_context: client_asset_context.to_resolved().await?,
                 },
             )
             .await
@@ -275,7 +275,7 @@ impl turbo_tasks::graph::Visit<NextDynamicVisitEntry> for NextDynamicVisit {
         };
         let client_asset_context = self.client_asset_context;
         async move {
-            Ok(get_next_dynamic_edges(client_asset_context, *module)
+            Ok(get_next_dynamic_edges(*client_asset_context, *module)
                 .await?
                 .into_iter()
                 .cloned())
