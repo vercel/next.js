@@ -1120,12 +1120,12 @@ impl AppEndpoint {
             };
 
         let server_action_manifest_loader = if process_client_components {
-            let reduced_graphs = get_reduced_graphs_for_page(
+            let reduced_graphs = get_reduced_graphs_for_endpoint(
                 this.app_project.project(),
                 *rsc_entry,
                 Vc::upcast(this.app_project.client_module_context()),
             );
-            let actions = reduced_graphs.get_server_actions_for_page(
+            let actions = reduced_graphs.get_server_actions_for_endpoint(
                 *rsc_entry,
                 match runtime {
                     NextRuntime::Edge => Vc::upcast(this.app_project.edge_rsc_module_context()),

@@ -564,54 +564,59 @@ impl ServerActionsGraph {
     }
 
     #[turbo_tasks::function]
-    pub async fn get_server_actions_for_page(
+    pub async fn get_server_actions_for_endpoint(
         &self,
         entry: ResolvedVc<Box<dyn Module>>,
         rsc_asset_context: Vc<Box<dyn AssetContext>>,
     ) -> Result<Vc<AllActions>> {
-        let data = &*self.data.await?;
-        let data = if self.is_single_page {
-            // The graph contains the page (= `entry`) only, no need to filter.
-            Cow::Borrowed(data)
-        } else {
-            // The graph contains the whole app, traverse and collect all reachable imports.
-            let graph = &*self.graph.await?;
+        let span = tracing::info_span!("collect server actions for endpoint");
+        async move {
+            let data = &*self.data.await?;
+            let data = if self.is_single_page {
+                // The graph contains the page (= `entry`) only, no need to filter.
+                Cow::Borrowed(data)
+            } else {
+                // The graph contains the whole app, traverse and collect all reachable imports.
+                let graph = &*self.graph.await?;
 
-            let mut result = HashMap::new();
-            graph.traverse_from_entry(entry, |module| {
-                if let Some(node_data) = data.get(&module) {
-                    result.insert(module, *node_data);
-                }
-            })?;
-            Cow::Owned(result)
-        };
+                let mut result = HashMap::new();
+                graph.traverse_from_entry(entry, |module| {
+                    if let Some(node_data) = data.get(&module) {
+                        result.insert(module, *node_data);
+                    }
+                })?;
+                Cow::Owned(result)
+            };
 
-        let actions = data
-            .iter()
-            .map(|(module, (layer, actions))| async move {
-                actions
-                    .await?
-                    .iter()
-                    .map(|(hash, name)| async move {
-                        Ok((
-                            hash.to_string(),
-                            (
-                                *layer,
-                                name.to_string(),
-                                if *layer == ActionLayer::Rsc {
-                                    *module
-                                } else {
-                                    to_rsc_context(**module, rsc_asset_context).await?
-                                },
-                            ),
-                        ))
-                    })
-                    .try_join()
-                    .await
-            })
-            .try_flat_join()
-            .await?;
-        Ok(Vc::cell(actions.into_iter().collect()))
+            let actions = data
+                .iter()
+                .map(|(module, (layer, actions))| async move {
+                    actions
+                        .await?
+                        .iter()
+                        .map(|(hash, name)| async move {
+                            Ok((
+                                hash.to_string(),
+                                (
+                                    *layer,
+                                    name.to_string(),
+                                    if *layer == ActionLayer::Rsc {
+                                        *module
+                                    } else {
+                                        to_rsc_context(**module, rsc_asset_context).await?
+                                    },
+                                ),
+                            ))
+                        })
+                        .try_join()
+                        .await
+                })
+                .try_flat_join()
+                .await?;
+            Ok(Vc::cell(actions.into_iter().collect()))
+        }
+        .instrument(span)
+        .await
     }
 }
 
@@ -664,29 +669,34 @@ impl ReducedGraphs {
 
     /// Returns the server actions for the given page.
     #[turbo_tasks::function]
-    pub async fn get_server_actions_for_page(
+    pub async fn get_server_actions_for_endpoint(
         &self,
         entry: Vc<Box<dyn Module>>,
         rsc_asset_context: Vc<Box<dyn AssetContext>>,
     ) -> Result<Vc<AllActions>> {
-        if let [graph] = &self.server_actions[..] {
-            // Just a single graph, no need to merge results
-            Ok(graph.get_server_actions_for_page(entry, rsc_asset_context))
-        } else {
-            let result = self
-                .server_actions
-                .iter()
-                .map(|graph| async move {
-                    Ok(graph
-                        .get_server_actions_for_page(entry, rsc_asset_context)
-                        .await?
-                        .clone_value())
-                })
-                .try_flat_join()
-                .await?;
+        let span = tracing::info_span!("collect all server actions for endpoint");
+        async move {
+            if let [graph] = &self.server_actions[..] {
+                // Just a single graph, no need to merge results
+                Ok(graph.get_server_actions_for_endpoint(entry, rsc_asset_context))
+            } else {
+                let result = self
+                    .server_actions
+                    .iter()
+                    .map(|graph| async move {
+                        Ok(graph
+                            .get_server_actions_for_endpoint(entry, rsc_asset_context)
+                            .await?
+                            .clone_value())
+                    })
+                    .try_flat_join()
+                    .await?;
 
-            Ok(Vc::cell(result.into_iter().collect()))
+                Ok(Vc::cell(result.into_iter().collect()))
+            }
         }
+        .instrument(span)
+        .await
     }
 }
 
@@ -719,7 +729,7 @@ async fn get_reduced_graphs_for_endpoint_inner(
         ),
     };
 
-    let next_dynamic = async move {
+    let next_dynamic = async {
         graphs
             .iter()
             .map(|graph| {
@@ -732,11 +742,17 @@ async fn get_reduced_graphs_for_endpoint_inner(
     .instrument(tracing::info_span!("generating next/dynamic graphs"))
     .await?;
 
-    let server_actions = graphs
-        .iter()
-        .map(|graph| ServerActionsGraph::new_with_entries(**graph, is_single_page).to_resolved())
-        .try_join()
-        .await?;
+    let server_actions = async {
+        graphs
+            .iter()
+            .map(|graph| {
+                ServerActionsGraph::new_with_entries(**graph, is_single_page).to_resolved()
+            })
+            .try_join()
+            .await
+    }
+    .instrument(tracing::info_span!("generating server actions graphs"))
+    .await?;
 
     Ok(ReducedGraphs {
         next_dynamic,
