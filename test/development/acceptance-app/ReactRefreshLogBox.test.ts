@@ -873,8 +873,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
       stackFrameElements.map((f) => f.innerText())
     )
     expect(stackFrames).toEqual(
-      // TODO: the column number is off by 1 between turbo and webpack
-      // align them later or improve the stack frame snapshot to reduce the difference
+      // TODO: investigate the column number is off by 1 between turbo and webpack
       process.env.TURBOPACK
         ? [
             outdent`
