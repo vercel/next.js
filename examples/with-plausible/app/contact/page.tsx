@@ -1,6 +1,6 @@
-"use client"
+"use client";
+
 import { useState } from "react";
-import Page from "../_components/Page";
 import { usePlausible } from "next-plausible";
 
 export default function Contact() {
@@ -22,7 +22,7 @@ export default function Contact() {
   };
 
   return (
-    <Page>
+    <div>
       <h1>This is the Contact page</h1>
       <form onSubmit={handleSubmit}>
         <label>
@@ -34,6 +34,6 @@ export default function Contact() {
         </label>
         <button type="submit">submit</button>
       </form>
-    </Page>
+    </div>
   );
 }
