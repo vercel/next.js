@@ -15,10 +15,13 @@ use anyhow::{bail, Context, Result};
 use byteorder::{ReadBytesExt, WriteBytesExt, BE};
 use lzzzz::lz4::decompress;
 use parking_lot::{Mutex, RwLock};
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
 use crate::{
     arc_slice::ArcSlice,
+    compaction::selector::{
+        get_compaction_jobs, total_coverage, CompactConfig, Compactable, CompactionJobs,
+    },
     constants::{
         AQMF_AVG_SIZE, AQMF_CACHE_SIZE, DATA_THRESHOLD_PER_COMPACTED_FILE, INDEX_BLOCK_AVG_SIZE,
         INDEX_BLOCK_CACHE_SIZE, KEY_BLOCK_AVG_SIZE, KEY_BLOCK_CACHE_SIZE,
@@ -27,7 +30,9 @@ use crate::{
     key::{hash_key, StoreKey},
     lookup_entry::LookupEntry,
     merge_iter::MergeIter,
-    static_sorted_file::{AqmfCache, BlockCache, LookupResult, StaticSortedFile},
+    static_sorted_file::{
+        AqmfCache, BlockCache, LookupResult, StaticSortedFile, StaticSortedFileRange,
+    },
     static_sorted_file_builder::StaticSortedFileBuilder,
     write_batch::WriteBatch,
     QueryKey,
@@ -446,14 +451,9 @@ impl TurboPersistence {
 
         {
             let inner = self.inner.read();
-            let mut uncompacted_files = inner
-                .static_sorted_files
-                .iter()
-                .map(Some)
-                .collect::<Vec<_>>();
             sequence_number = AtomicU32::new(inner.current_sequence_number);
             self.compact_internal(
-                &mut uncompacted_files,
+                &inner.static_sorted_files,
                 &sequence_number,
                 &mut new_sst_files,
                 &mut indicies_to_delete,
@@ -475,231 +475,202 @@ impl TurboPersistence {
 
     fn compact_internal(
         &self,
-        static_sorted_files: &mut Vec<Option<&StaticSortedFile>>,
+        static_sorted_files: &[StaticSortedFile],
         sequence_number: &AtomicU32,
         new_sst_files: &mut Vec<(u32, File)>,
         indicies_to_delete: &mut Vec<usize>,
-        sharding_factor: f32,
-        max_chain: usize,
+        max_coverage: f32,
+        max_merge: usize,
     ) -> Result<bool> {
-        let mut compaction_jobs = Vec::new();
+        if static_sorted_files.is_empty() {
+            return Ok(false);
+        }
 
-        loop {
-            // Find all ranges
-            let ranges = static_sorted_files
-                .iter()
-                .flat_map(|slot| {
-                    if let Some(sst) = slot {
-                        sst.range().ok()
-                    } else {
-                        None
-                    }
-                })
-                .collect::<Vec<_>>();
+        struct SstWithRange {
+            index: usize,
+            range: StaticSortedFileRange,
+        }
 
-            // Find the biggest spread
-            let Some(mut selected_range) =
-                ranges.iter().max_by_key(|range| range.spread()).copied()
-            else {
-                // No SST files to compact
-                break;
-            };
-
-            // Extend range to include overlapping ranges
-            'outer: loop {
-                for range in ranges.iter() {
-                    if selected_range.is_overlapping(range)
-                        && (selected_range.min_hash > range.min_hash
-                            || selected_range.max_hash < range.max_hash)
-                    {
-                        selected_range.min_hash = selected_range.min_hash.min(range.min_hash);
-                        selected_range.max_hash = selected_range.max_hash.max(range.max_hash);
-                        continue 'outer;
-                    }
-                }
-                break;
+        impl Compactable for SstWithRange {
+            fn range(&self) -> (u64, u64) {
+                (self.range.min_hash, self.range.max_hash)
             }
+        }
 
-            // Find all SST files that overlap with the selected range
-            let mut selected_files = static_sorted_files
-                .iter_mut()
-                .enumerate()
-                .flat_map(|(i, slot)| {
-                    if let Some(sst) = &slot {
-                        if let Ok(range) = sst.range() {
-                            // Ranges have overlap
-                            if selected_range.is_overlapping(&range) {
-                                return slot.take().map(|sst| (i, sst, false));
-                            }
-                        }
-                    }
-                    None
-                })
-                .collect::<Vec<_>>();
+        let ssts_with_ranges = static_sorted_files
+            .iter()
+            .enumerate()
+            .flat_map(|(index, sst)| sst.range().ok().map(|range| SstWithRange { index, range }))
+            .collect::<Vec<_>>();
 
-            if selected_files.len() > 1 {
-                // Target spread is
-                let target_spread =
-                    (((selected_range.spread() / selected_files.len().min(max_chain) as u64) as f32
-                        / sharding_factor)
-                        .min(u64::MAX as f32) as u64)
-                        .saturating_add(1);
+        let families = ssts_with_ranges
+            .iter()
+            .map(|s| s.range.family)
+            .max()
+            .unwrap() as usize;
 
-                // Check if we need to compact
-                let ssts_with_target_spread = selected_files
-                    .iter_mut()
-                    .map(|(_, sst, in_target_range)| {
-                        *in_target_range = sst
-                            .range()
-                            .ok()
-                            .map_or(false, |range| range.spread() <= target_spread);
-                        *in_target_range
-                    })
-                    .filter(|in_target_range| *in_target_range)
-                    .count();
-                let target_number = (selected_files.len() as f32 * sharding_factor) as usize;
-                if ssts_with_target_spread < target_number {
-                    compaction_jobs.push(selected_files);
-                }
-            }
+        let mut sst_by_family = Vec::with_capacity(families);
+        sst_by_family.resize_with(families, Vec::new);
+
+        for sst in ssts_with_ranges {
+            sst_by_family[sst.range.family as usize].push(sst);
         }
 
         let key_block_cache = &self.key_block_cache;
         let value_block_cache = &self.value_block_cache;
         let path = &self.path;
-        let result = compaction_jobs
+
+        let result = sst_by_family
             .into_par_iter()
-            .map(|selected_files| {
-                let in_range_at_start = selected_files
-                    .iter()
-                    .take_while(|(_, _, in_target_range)| *in_target_range)
-                    .count();
-                let mut in_range_at_end = selected_files
-                    .iter()
-                    .rev()
-                    .take_while(|(_, _, in_target_range)| *in_target_range)
-                    .count();
-                if selected_files.len() - in_range_at_start - in_range_at_end > max_chain {
-                    in_range_at_end = selected_files.len() - max_chain - in_range_at_start;
+            .with_min_len(1)
+            .enumerate()
+            .map(|(family, ssts_with_ranges)| {
+                let coverage = total_coverage(&ssts_with_ranges, (0, u64::MAX));
+                if coverage <= max_coverage {
+                    return Ok((Vec::new(), Vec::new()));
                 }
 
-                let mut new_sst_files = Vec::new();
+                let CompactionJobs {
+                    merge_jobs,
+                    move_jobs,
+                } = get_compaction_jobs(
+                    &ssts_with_ranges,
+                    &CompactConfig {
+                        max_merge,
+                        min_merge: 2,
+                    },
+                );
 
-                // Split the selected files into the start, middle and end files
-
-                // The selected_files_start can be kept on disk as they are
-                let (_selected_files_start, selected_files) =
-                    selected_files.split_at(in_range_at_start);
-
-                // Later we will remove the mid and end files as they are updated
-                let indicies_to_delete = selected_files
+                // Later we will remove the merged and moved files
+                let indicies_to_delete = merge_jobs
                     .iter()
-                    .map(|(i, _, _)| *i)
+                    .flat_map(|l| l.iter().copied())
+                    .chain(move_jobs.iter().copied())
+                    .map(|index| ssts_with_ranges[index].index)
                     .collect::<Vec<_>>();
 
-                let (selected_files_mid, selected_files_end) =
-                    selected_files.split_at(selected_files.len() - in_range_at_end);
+                // Merge SST files
+                let merge_result = merge_jobs
+                    .into_par_iter()
+                    .with_min_len(1)
+                    .map(|indicies| {
+                        fn create_sst_file(
+                            family: u32,
+                            entries: &[LookupEntry],
+                            total_key_size: usize,
+                            total_value_size: usize,
+                            path: &Path,
+                            seq: u32,
+                        ) -> Result<(u32, File)> {
+                            let builder = StaticSortedFileBuilder::new(
+                                family,
+                                entries,
+                                total_key_size,
+                                total_value_size,
+                            );
+                            Ok((seq, builder.write(&path.join(format!("{:08}.sst", seq)))?))
+                        }
 
-                fn create_sst_file(
-                    family: u32,
-                    entries: &[LookupEntry],
-                    total_key_size: usize,
-                    total_value_size: usize,
-                    path: &Path,
-                    seq: u32,
-                ) -> Result<(u32, File)> {
-                    let builder = StaticSortedFileBuilder::new(
-                        family,
-                        entries,
-                        total_key_size,
-                        total_value_size,
-                    );
-                    Ok((seq, builder.write(&path.join(format!("{:08}.sst", seq)))?))
-                }
+                        let mut new_sst_files = Vec::new();
 
-                let family = selected_files_mid[0].1.family()?;
+                        // Iterate all SST files
+                        let iters = indicies
+                            .iter()
+                            .map(|&index| {
+                                let index = ssts_with_ranges[index].index;
+                                let sst = &static_sorted_files[index];
+                                sst.iter(key_block_cache, value_block_cache)
+                            })
+                            .collect::<Result<Vec<_>>>()?;
 
-                // Iterate all middle files
-                let iters = selected_files_mid
-                    .iter()
-                    .map(|(_, sst, _)| sst.iter(key_block_cache, value_block_cache))
+                        let iter = MergeIter::new(iters.into_iter())?;
+
+                        let mut total_key_size = 0;
+                        let mut total_value_size = 0;
+                        let mut current: Option<LookupEntry> = None;
+                        let mut entries = Vec::new();
+                        for entry in iter {
+                            let entry = entry?;
+
+                            // Remove duplicates
+                            if let Some(current) = current.take() {
+                                if current.key != entry.key {
+                                    let key_size = current.key.len();
+                                    let value_size = current.value.len();
+                                    total_key_size += key_size;
+                                    total_value_size += value_size;
+
+                                    if total_key_size + total_value_size
+                                        > DATA_THRESHOLD_PER_COMPACTED_FILE
+                                        || entries.len() >= MAX_ENTRIES_PER_COMPACTED_FILE
+                                    {
+                                        let seq =
+                                            sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
+
+                                        new_sst_files.push(create_sst_file(
+                                            family as u32,
+                                            &entries,
+                                            total_key_size - key_size,
+                                            total_value_size - value_size,
+                                            path,
+                                            seq,
+                                        )?);
+
+                                        entries.clear();
+                                        total_key_size = key_size;
+                                        total_value_size = value_size;
+                                    }
+
+                                    entries.push(current);
+                                } else {
+                                    // Override value
+                                }
+                            }
+                            current = Some(entry);
+                        }
+                        if let Some(entry) = current {
+                            total_key_size += entry.key.len();
+                            total_value_size += entry.value.len();
+                            entries.push(entry);
+                        }
+                        if !entries.is_empty() {
+                            let seq = sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
+
+                            new_sst_files.push(create_sst_file(
+                                family as u32,
+                                &entries,
+                                total_key_size,
+                                total_value_size,
+                                path,
+                                seq,
+                            )?);
+                        }
+                        Ok(new_sst_files)
+                    })
                     .collect::<Result<Vec<_>>>()?;
 
-                let iter = MergeIter::new(iters.into_iter())?;
-
-                let mut total_key_size = 0;
-                let mut total_value_size = 0;
-                let mut current: Option<LookupEntry> = None;
-                let mut entries = Vec::new();
-                for entry in iter {
-                    let entry = entry?;
-
-                    // Remove duplicates
-                    if let Some(current) = current.take() {
-                        if current.key != entry.key {
-                            let key_size = current.key.len();
-                            let value_size = current.value.len();
-                            total_key_size += key_size;
-                            total_value_size += value_size;
-
-                            if total_key_size + total_value_size > DATA_THRESHOLD_PER_COMPACTED_FILE
-                                || entries.len() >= MAX_ENTRIES_PER_COMPACTED_FILE
-                            {
-                                let seq = sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
-
-                                new_sst_files.push(create_sst_file(
-                                    family,
-                                    &entries,
-                                    total_key_size - key_size,
-                                    total_value_size - value_size,
-                                    path,
-                                    seq,
-                                )?);
-
-                                entries.clear();
-                                total_key_size = key_size;
-                                total_value_size = value_size;
-                            }
-
-                            entries.push(current);
-                        } else {
-                            // Override value
+                // Move SST files
+                let mut new_sst_files = move_jobs
+                    .into_par_iter()
+                    .with_min_len(1)
+                    .map(|index| {
+                        let index = ssts_with_ranges[index].index;
+                        let sst = &static_sorted_files[index];
+                        let seq = sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
+                        let src_path = self.path.join(format!("{:08}.sst", sst.sequence_number()));
+                        let dst_path = self.path.join(format!("{:08}.sst", seq));
+                        if fs::hard_link(&src_path, &dst_path).is_err() {
+                            fs::copy(src_path, &dst_path)?;
                         }
-                    }
-                    current = Some(entry);
-                }
-                if let Some(entry) = current {
-                    total_key_size += entry.key.len();
-                    total_value_size += entry.value.len();
-                    entries.push(entry);
-                }
-                if !entries.is_empty() {
-                    let seq = sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
+                        Ok((seq, File::open(dst_path)?))
+                    })
+                    .collect::<Result<Vec<_>>>()?;
 
-                    new_sst_files.push(create_sst_file(
-                        family,
-                        &entries,
-                        total_key_size,
-                        total_value_size,
-                        path,
-                        seq,
-                    )?);
-                }
-
-                // Move files at the end of the range
-                for (_, sst, _) in selected_files_end.iter() {
-                    let seq = sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
-                    let src_path = self.path.join(format!("{:08}.sst", sst.sequence_number()));
-                    let dst_path = self.path.join(format!("{:08}.sst", seq));
-                    if fs::hard_link(&src_path, &dst_path).is_err() {
-                        fs::copy(src_path, &dst_path)?;
-                    }
-                    new_sst_files.push((seq, File::open(dst_path)?));
-                }
-
-                anyhow::Ok((new_sst_files, indicies_to_delete))
+                new_sst_files.extend(merge_result.into_iter().flatten());
+                Ok((new_sst_files, indicies_to_delete))
             })
             .collect::<Result<Vec<_>>>()?;
+
         for (mut inner_new_sst_files, mut inner_indicies_to_delete) in result {
             new_sst_files.append(&mut inner_new_sst_files);
             indicies_to_delete.append(&mut inner_indicies_to_delete);

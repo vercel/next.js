@@ -71,17 +71,6 @@ pub struct StaticSortedFileRange {
     pub max_hash: u64,
 }
 
-impl StaticSortedFileRange {
-    pub fn spread(&self) -> u64 {
-        self.max_hash - self.min_hash
-    }
-
-    pub fn is_overlapping(&self, b: &StaticSortedFileRange) -> bool {
-        let a = self;
-        a.family == b.family && a.min_hash <= b.max_hash && a.max_hash >= b.min_hash
-    }
-}
-
 #[derive(Clone, Default)]
 pub struct AqmfWeighter;
 
@@ -183,10 +172,6 @@ impl StaticSortedFile {
             min_hash: header.min_hash,
             max_hash: header.max_hash,
         })
-    }
-
-    pub fn family(&self) -> Result<u32> {
-        Ok(self.header()?.family)
     }
 
     pub fn iter<'l>(
