@@ -684,9 +684,9 @@ impl Project {
         let entrypoints = self.entrypoints().await?;
 
         modules.extend(self.client_main_modules().await?.iter().copied());
-        add_endpoint(entrypoints.pages_error_endpoint, &mut modules).await?;
-        add_endpoint(entrypoints.pages_app_endpoint, &mut modules).await?;
-        add_endpoint(entrypoints.pages_document_endpoint, &mut modules).await?;
+        add_endpoint(*entrypoints.pages_error_endpoint, &mut modules).await?;
+        add_endpoint(*entrypoints.pages_app_endpoint, &mut modules).await?;
+        add_endpoint(*entrypoints.pages_document_endpoint, &mut modules).await?;
 
         if let Some(middleware) = &entrypoints.middleware {
             add_endpoint(middleware.endpoint, &mut modules).await?;

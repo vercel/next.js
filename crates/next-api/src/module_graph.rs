@@ -108,15 +108,15 @@ impl SingleModuleGraph {
 
 /// Implements layout segment optimization to compute a graph "chain" for each layout segment
 async fn get_module_graph_for_page(
-    entry: Vc<Box<dyn Module>>,
+    entry: ResolvedVc<Box<dyn Module>>,
 ) -> Result<Vec<ResolvedVc<SingleModuleGraph>>> {
     let ServerEntries {
         server_utils,
         server_component_entries,
-    } = &*find_server_entries(entry).await?;
+    } = &*find_server_entries(*entry).await?;
 
     let graph = SingleModuleGraph::new_with_entries_visited(
-        server_utils.clone(),
+        server_utils.iter().map(|m| **m).collect(),
         Vc::cell(Default::default()),
     )
     .to_resolved()
@@ -126,11 +126,11 @@ async fn get_module_graph_for_page(
     let mut graphs = vec![graph];
     for module in server_component_entries
         .iter()
-        .map(|m| Vc::upcast::<Box<dyn Module>>(*m))
+        .map(|m| ResolvedVc::upcast::<Box<dyn Module>>(*m))
         .chain(std::iter::once(entry))
     {
         let graph = SingleModuleGraph::new_with_entries_visited(
-            vec![module],
+            vec![*module],
             Vc::cell(visited_modules.clone()),
         )
         .to_resolved()
@@ -269,7 +269,7 @@ impl ReducedGraphs {
 #[turbo_tasks::function]
 pub async fn get_reduced_graphs_for_page(
     project: Vc<Project>,
-    entry: Vc<Box<dyn Module>>,
+    entry: ResolvedVc<Box<dyn Module>>,
     // TODO should this happen globally or per page? Do they all have the same context?
     client_asset_context: Vc<Box<dyn AssetContext>>,
 ) -> Result<Vc<ReducedGraphs>> {
