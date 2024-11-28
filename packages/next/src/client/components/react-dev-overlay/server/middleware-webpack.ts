@@ -7,7 +7,6 @@ import { getSourceMapFromFile } from '../internal/helpers/get-source-map-from-fi
 import { launchEditor } from '../internal/helpers/launchEditor'
 import {
   badRequest,
-  findSourcePackage,
   getOriginalCodeFrame,
   internalServerError,
   json,
@@ -246,7 +245,6 @@ export async function createOriginalStackFrame({
   return {
     originalStackFrame: traced,
     originalCodeFrame: getOriginalCodeFrame(traced, sourceContent),
-    sourcePackage: findSourcePackage(traced),
   }
 }
 
@@ -413,8 +411,21 @@ export function getOverlayMiddleware(options: {
         return internalServerError(res)
       }
 
+      // This stack frame is used for the one that couldn't locate the source or source mapped frame
+      const defaultStackFrame: IgnorableStackFrame = {
+        file: frame.file,
+        lineNumber: frame.lineNumber,
+        column: frame.column ?? 1,
+        methodName: frame.methodName,
+        ignored: shouldIgnorePath(frame.file),
+        arguments: [],
+      }
       if (!source) {
-        return noContent(res)
+        // return original stack frame with no source map
+        return json(res, {
+          originalStackFrame: defaultStackFrame,
+          originalCodeFrame: null,
+        })
       }
 
       try {
@@ -425,7 +436,10 @@ export function getOverlayMiddleware(options: {
         })
 
         if (!originalStackFrameResponse) {
-          return noContent(res)
+          return json(res, {
+            originalStackFrame: defaultStackFrame,
+            originalCodeFrame: null,
+          })
         }
 
         return json(res, originalStackFrameResponse)
