@@ -37,6 +37,16 @@ describe('nextjs APIs in unstable_after()', () => {
   })
 
   describe('request APIs cannot be called inside unstable_after()', () => {
+    // TODO(after): test unawaited calls, like this
+    //
+    // export default function Page() {
+    //   const promise = headers()
+    //   after(async () => {
+    //     const headerStore = await promise
+    //   })
+    //   return null
+    // }
+
     it('in a dynamic page', async () => {
       const path = '/request-apis/page-dynamic'
       await next.render(path)
