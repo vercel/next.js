@@ -30,16 +30,16 @@ impl AppPageRoute {
 #[derive(Clone, Debug)]
 pub enum Route {
     Page {
-        html_endpoint: Vc<Box<dyn Endpoint>>,
-        data_endpoint: Vc<Box<dyn Endpoint>>,
+        html_endpoint: ResolvedVc<Box<dyn Endpoint>>,
+        data_endpoint: ResolvedVc<Box<dyn Endpoint>>,
     },
     PageApi {
-        endpoint: Vc<Box<dyn Endpoint>>,
+        endpoint: ResolvedVc<Box<dyn Endpoint>>,
     },
     AppPage(Vec<AppPageRoute>),
     AppRoute {
         original_name: String,
-        endpoint: Vc<Box<dyn Endpoint>>,
+        endpoint: ResolvedVc<Box<dyn Endpoint>>,
     },
     Conflict,
 }
