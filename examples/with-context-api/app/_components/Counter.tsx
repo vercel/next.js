@@ -1,3 +1,4 @@
+"use client"
 import {
   useReducer,
   useContext,
@@ -9,12 +10,12 @@ import {
 type CounterState = number;
 type CounterAction =
   | {
-      type: "INCREASE" | "DECREASE";
-    }
+    type: "INCREASE" | "DECREASE";
+  }
   | {
-      type: "INCREASE_BY";
-      payload: number;
-    };
+    type: "INCREASE_BY";
+    payload: number;
+  };
 
 const CounterStateContext = createContext<CounterState>(0);
 const CounterDispatchContext = createContext<Dispatch<CounterAction>>(
