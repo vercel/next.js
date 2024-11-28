@@ -654,8 +654,8 @@ struct ParsingIssue {
 #[turbo_tasks::value_impl]
 impl Issue for ParsingIssue {
     #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.file
+    fn file_path(&self) -> ResolvedVc<FileSystemPath> {
+        *self.file
     }
 
     #[turbo_tasks::function]
@@ -670,7 +670,7 @@ impl Issue for ParsingIssue {
 
     #[turbo_tasks::function]
     fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(self.source.map(|s| s.resolve_source_map(self.file)))
+        Vc::cell(self.source.map(|s| s.resolve_source_map(*self.file)))
     }
 
     #[turbo_tasks::function]
