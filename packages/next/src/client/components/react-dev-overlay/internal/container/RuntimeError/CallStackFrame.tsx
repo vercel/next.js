@@ -48,7 +48,7 @@ export const CallStackFrame: React.FC<{
         onClick={open}
         title={hasSource ? 'Click to open in your editor' : undefined}
       >
-        <span>{fileSource}</span>
+        <span data-file-path>{fileSource}</span>
         <svg
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 24 24"

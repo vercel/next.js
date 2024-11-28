@@ -17,6 +17,7 @@ import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import type { Project, TurbopackStackFrame } from '../../../../build/swc/types'
 import { getSourceMapFromFile } from '../internal/helpers/get-source-map-from-file'
 import { findSourceMap } from 'node:module'
+import { normalizeNodeModuleFilePath } from '../internal/helpers/normalize-node-modules-filepath'
 
 function shouldIgnorePath(modulePath: string): boolean {
   return (
@@ -40,7 +41,7 @@ export async function batchedTraceSource(
   if (!sourceFrame) {
     return {
       frame: {
-        file,
+        file: normalizeNodeModuleFilePath(file),
         lineNumber: frame.line ?? 0,
         column: frame.column ?? 0,
         methodName: frame.methodName ?? '<unknown>',
@@ -73,7 +74,7 @@ export async function batchedTraceSource(
 
   // TODO: get ignoredList from turbopack source map
   const ignorableFrame = {
-    file: sourceFrame.file,
+    file: normalizeNodeModuleFilePath(sourceFrame.file),
     lineNumber: sourceFrame.line ?? 0,
     column: sourceFrame.column ?? 0,
     methodName: sourceFrame.methodName ?? frame.methodName ?? '<unknown>',

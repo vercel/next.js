@@ -25,6 +25,7 @@ import type {
 } from 'next/dist/compiled/source-map08'
 import { formatFrameSourceFile } from '../internal/helpers/webpack-module-path'
 import type { MappedPosition } from 'source-map'
+import { normalizeNodeModuleFilePath } from '../internal/helpers/normalize-node-modules-filepath'
 
 function shouldIgnorePath(modulePath: string): boolean {
   return (
@@ -226,9 +227,10 @@ export async function createOriginalStackFrame({
   const resolvedFilePath = sourceContent
     ? path.relative(rootDirectory, filePath)
     : sourcePosition.source
+  const normalizedFilePath = normalizeNodeModuleFilePath(resolvedFilePath)
 
   const traced: IgnorableStackFrame = {
-    file: resolvedFilePath,
+    file: normalizedFilePath,
     lineNumber: sourcePosition.line,
     column: (sourcePosition.column ?? 0) + 1,
     methodName:
@@ -413,7 +415,7 @@ export function getOverlayMiddleware(options: {
 
       // This stack frame is used for the one that couldn't locate the source or source mapped frame
       const defaultStackFrame: IgnorableStackFrame = {
-        file: frame.file,
+        file: normalizeNodeModuleFilePath(frame.file),
         lineNumber: frame.lineNumber,
         column: frame.column ?? 1,
         methodName: frame.methodName,
