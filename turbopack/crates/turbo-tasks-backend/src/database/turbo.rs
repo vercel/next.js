@@ -1,6 +1,12 @@
-use std::{borrow::Cow, path::PathBuf};
+use std::{
+    borrow::Cow,
+    path::PathBuf,
+    sync::Arc,
+    thread::{spawn, JoinHandle},
+};
 
 use anyhow::Result;
+use parking_lot::Mutex;
 use turbo_persistence::{ArcSlice, TurboPersistence};
 
 use crate::database::{
@@ -9,15 +15,23 @@ use crate::database::{
 };
 
 pub struct TurboKeyValueDatabase {
-    db: TurboPersistence,
+    db: Arc<TurboPersistence>,
+    compact_join_handle: Mutex<Option<JoinHandle<Result<()>>>>,
 }
 
 impl TurboKeyValueDatabase {
     pub fn new(path: PathBuf) -> Result<Self> {
-        Ok(Self {
-            db: TurboPersistence::open(path.to_path_buf())?,
-        })
-        // TODO start compaction in background if the database is not empty
+        let db = Arc::new(TurboPersistence::open(path.to_path_buf())?);
+        let mut this = Self {
+            db: db.clone(),
+            compact_join_handle: Mutex::new(None),
+        };
+        // start compaction in background if the database is not empty
+        if !db.is_empty() {
+            let handle = spawn(move || db.compact(20.0, 4));
+            this.compact_join_handle.get_mut().replace(handle);
+        }
+        Ok(this)
     }
 }
 
@@ -63,9 +77,15 @@ impl KeyValueDatabase for TurboKeyValueDatabase {
     fn write_batch(
         &self,
     ) -> Result<WriteBatch<'_, Self::SerialWriteBatch<'_>, Self::ConcurrentWriteBatch<'_>>> {
+        // Wait for the compaction to finish
+        if let Some(join_handle) = self.compact_join_handle.lock().take() {
+            join_handle.join().unwrap()?;
+        }
+        // Start a new write batch
         Ok(WriteBatch::concurrent(TurboWriteBatch {
             batch: self.db.write_batch()?,
             db: &self.db,
+            compact_join_handle: &self.compact_join_handle,
         }))
     }
 
@@ -76,7 +96,8 @@ impl KeyValueDatabase for TurboKeyValueDatabase {
 
 pub struct TurboWriteBatch<'a> {
     batch: turbo_persistence::WriteBatch<Vec<u8>, 5>,
-    db: &'a TurboPersistence,
+    db: &'a Arc<TurboPersistence>,
+    compact_join_handle: &'a Mutex<Option<JoinHandle<Result<()>>>>,
 }
 
 impl<'a> BaseWriteBatch<'a> for TurboWriteBatch<'a> {
@@ -94,7 +115,14 @@ impl<'a> BaseWriteBatch<'a> for TurboWriteBatch<'a> {
     }
 
     fn commit(self) -> Result<()> {
+        // Commit the write batch
         self.db.commit_write_batch(self.batch)?;
+
+        // Start a new compaction in the background
+        let db = self.db.clone();
+        let handle = spawn(move || db.compact(20.0, 4));
+        self.compact_join_handle.lock().replace(handle);
+
         Ok(())
     }
 }
