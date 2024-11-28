@@ -18,6 +18,13 @@ async function getIgnoredFrameFilepaths(browser: BrowserInterface) {
 }
 
 describe('format-ignored-frame-filepath', () => {
+  // TODO: remove this when reactOwnerStack is enabled by default
+  if (process.env.__NEXT_EXPERIMENTAL_PPR === 'true') {
+    // Since PPR mode is just going to add owner stack, skip this test for now
+    it('skip ppr test', () => {})
+    return
+  }
+
   const { next } = nextTestSetup({
     files: __dirname,
     dependencies: {
