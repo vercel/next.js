@@ -24,7 +24,7 @@ use turbopack_ecmascript::{parse::ParseResult, resolve::esm_resolve, EcmascriptP
 use crate::module_graph::SingleModuleGraph;
 
 async fn collect_chunk_group_inner<F, Fu>(
-    dynamic_import_entries: FxIndexMap<ResolvedVc<Box<dyn Module>>, DynamicImportedModules>,
+    dynamic_import_entries: &FxIndexMap<ResolvedVc<Box<dyn Module>>, DynamicImportedModules>,
     mut build_chunk: F,
 ) -> Result<Vc<DynamicImportedChunks>>
 where
@@ -38,11 +38,11 @@ where
     // dynamic import.
     for (origin_module, dynamic_imports) in dynamic_import_entries {
         for (imported_raw_str, imported_module) in dynamic_imports {
-            let chunk = if let Some(chunk) = chunks_hash.get(&imported_raw_str) {
+            let chunk = if let Some(chunk) = chunks_hash.get(imported_raw_str) {
                 *chunk
             } else {
                 let Some(module) =
-                    ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(imported_module).await?
+                    ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(*imported_module).await?
                 else {
                     bail!("module must be evaluatable");
                 };
@@ -59,7 +59,7 @@ where
             };
 
             dynamic_import_chunks
-                .entry(origin_module)
+                .entry(*origin_module)
                 .or_insert_with(Vec::new)
                 .push((imported_raw_str.clone(), chunk));
         }
@@ -70,7 +70,7 @@ where
 
 pub(crate) async fn collect_chunk_group(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-    dynamic_import_entries: FxIndexMap<ResolvedVc<Box<dyn Module>>, DynamicImportedModules>,
+    dynamic_import_entries: &FxIndexMap<ResolvedVc<Box<dyn Module>>, DynamicImportedModules>,
     availability_info: Value<AvailabilityInfo>,
 ) -> Result<Vc<DynamicImportedChunks>> {
     collect_chunk_group_inner(dynamic_import_entries, |module| async move {
@@ -81,7 +81,7 @@ pub(crate) async fn collect_chunk_group(
 
 pub(crate) async fn collect_evaluated_chunk_group(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-    dynamic_import_entries: FxIndexMap<ResolvedVc<Box<dyn Module>>, DynamicImportedModules>,
+    dynamic_import_entries: &FxIndexMap<ResolvedVc<Box<dyn Module>>, DynamicImportedModules>,
 ) -> Result<Vc<DynamicImportedChunks>> {
     collect_chunk_group_inner(dynamic_import_entries, |module| async move {
         if let Some(module) = Vc::try_resolve_downcast::<Box<dyn EvaluatableAsset>>(module).await? {
@@ -272,13 +272,13 @@ pub struct DynamicImportedChunks(
 /// "app/client.js [app-ssr] (ecmascript)" ->
 ///      [("./dynamic", "app/dynamic.js [app-client] (ecmascript)")])]
 #[turbo_tasks::value(transparent)]
-pub struct DynamicImportsHashMap(pub HashMap<ResolvedVc<Box<dyn Module>>, DynamicImportedModules>);
+pub struct DynamicImports(pub FxIndexMap<ResolvedVc<Box<dyn Module>>, DynamicImportedModules>);
 
 #[turbo_tasks::function]
 pub async fn map_next_dynamic(
     graph: Vc<SingleModuleGraph>,
     client_asset_context: Vc<Box<dyn AssetContext>>,
-) -> Result<Vc<DynamicImportsHashMap>> {
+) -> Result<Vc<DynamicImports>> {
     let data = graph
         .await?
         .enumerate_nodes()

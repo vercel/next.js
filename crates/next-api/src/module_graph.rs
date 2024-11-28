@@ -9,7 +9,7 @@ use petgraph::{
     graph::{DiGraph, NodeIndex},
     visit::Dfs,
 };
-use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
+use turbo_tasks::{FxIndexMap, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 use turbopack_core::{
     context::AssetContext,
     module::{Module, Modules},
@@ -17,7 +17,7 @@ use turbopack_core::{
 };
 
 use crate::{
-    dynamic_imports::{map_next_dynamic, DynamicImportsHashMap},
+    dynamic_imports::{map_next_dynamic, DynamicImports},
     project::Project,
 };
 
@@ -147,7 +147,7 @@ pub struct NextDynamicGraph {
     is_single_page: bool,
     graph: ResolvedVc<SingleModuleGraph>,
     /// RSC/SSR importer -> dynamic imports (specifier and client module)
-    data: ResolvedVc<DynamicImportsHashMap>,
+    data: ResolvedVc<DynamicImports>,
 }
 
 #[turbo_tasks::value_impl]
@@ -196,7 +196,7 @@ impl NextDynamicGraph {
     pub async fn get_next_dynamic_imports_for_page(
         &self,
         entry: ResolvedVc<Box<dyn Module>>,
-    ) -> Result<Vc<DynamicImportsHashMap>> {
+    ) -> Result<Vc<DynamicImports>> {
         if self.is_single_page {
             // The graph contains the page (= `entry`) only, no need to filter.
             Ok(*self.data)
@@ -205,7 +205,7 @@ impl NextDynamicGraph {
             let SingleModuleGraph { graph, entries } = &*self.graph.await?;
             let data = &self.data.await?;
 
-            let mut result = HashMap::new();
+            let mut result = FxIndexMap::default();
 
             let entry_node = *entries.get(&entry).unwrap();
             let mut dfs = Dfs::new(&graph, entry_node);
@@ -238,7 +238,7 @@ impl ReducedGraphs {
     pub async fn get_next_dynamic_imports_for_page(
         &self,
         entry: Vc<Box<dyn Module>>,
-    ) -> Result<Vc<DynamicImportsHashMap>> {
+    ) -> Result<Vc<DynamicImports>> {
         if let [graph] = &self.next_dynamic[..] {
             // Just a single graph, no need to merge results
             Ok(graph.get_next_dynamic_imports_for_page(entry))
@@ -258,7 +258,7 @@ impl ReducedGraphs {
                 .try_flat_join()
                 .await?;
 
-            Ok(DynamicImportsHashMap(result.into_iter().collect()).cell())
+            Ok(Vc::cell(result.into_iter().collect()))
         }
     }
 }

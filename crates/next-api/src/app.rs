@@ -40,8 +40,8 @@ use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    fxindexmap, fxindexset, trace::TraceRawVcs, Completion, FxIndexMap, FxIndexSet, ResolvedVc,
-    TryJoinIterExt, Value, ValueToString, Vc,
+    fxindexmap, fxindexset, trace::TraceRawVcs, Completion, FxIndexSet, ResolvedVc, TryJoinIterExt,
+    Value, ValueToString, Vc,
 };
 use turbo_tasks_env::{CustomProcessEnv, ProcessEnv};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
@@ -936,13 +936,9 @@ impl AppEndpoint {
                     *rsc_entry,
                     Vc::upcast(this.app_project.client_module_context()),
                 );
-                let next_dynamic_imports: FxIndexMap<_, _> = reduced_graphs
+                let next_dynamic_imports = reduced_graphs
                     .get_next_dynamic_imports_for_page(*rsc_entry)
-                    .await?
-                    .clone_value()
-                    // TODO remove this duplicate collect
-                    .into_iter()
-                    .collect();
+                    .await?;
 
                 let client_references = {
                     let ServerEntries {
@@ -1297,7 +1293,9 @@ impl AppEndpoint {
 
                     let dynamic_import_entries = collect_evaluated_chunk_group(
                         Vc::upcast(client_chunking_context),
-                        next_dynamic_imports.unwrap_or_default(),
+                        next_dynamic_imports
+                            .as_deref()
+                            .unwrap_or(&Default::default()),
                     )
                     .await?;
                     let loadable_manifest_output = create_react_loadable_manifest(
@@ -1346,7 +1344,9 @@ impl AppEndpoint {
                     let availability_info = Value::new(AvailabilityInfo::Root);
                     let dynamic_import_entries = collect_chunk_group(
                         Vc::upcast(client_chunking_context),
-                        next_dynamic_imports.unwrap_or_default(),
+                        next_dynamic_imports
+                            .as_deref()
+                            .unwrap_or(&Default::default()),
                         availability_info,
                     )
                     .await?;

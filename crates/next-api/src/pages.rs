@@ -849,13 +849,9 @@ impl PageEndpoint {
                 *ssr_module,
                 Vc::upcast(this.pages_project.client_module_context()),
             );
-            let next_dynamic_imports: FxIndexMap<_, _> = reduced_graphs
+            let next_dynamic_imports = reduced_graphs
                 .get_next_dynamic_imports_for_page(*ssr_module)
-                .await?
-                .clone_value()
-                // TODO remove this duplicate collect
-                .into_iter()
-                .collect();
+                .await?;
 
             let is_edge = matches!(runtime, NextRuntime::Edge);
             if is_edge {
@@ -878,7 +874,7 @@ impl PageEndpoint {
                     this.pages_project.project().client_chunking_context();
                 let dynamic_import_entries = collect_evaluated_chunk_group(
                     Vc::upcast(client_chunking_context),
-                    next_dynamic_imports,
+                    &next_dynamic_imports,
                 )
                 .await?
                 .to_resolved()
@@ -913,7 +909,7 @@ impl PageEndpoint {
                     this.pages_project.project().client_chunking_context();
                 let dynamic_import_entries = collect_chunk_group(
                     Vc::upcast(client_chunking_context),
-                    next_dynamic_imports,
+                    &next_dynamic_imports,
                     Value::new(AvailabilityInfo::Root),
                 )
                 .await?
