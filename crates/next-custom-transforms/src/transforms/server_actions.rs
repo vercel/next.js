@@ -67,7 +67,13 @@ enum ServerActionsErrorKind {
         span: Span,
         directive: Directive,
     },
+    InlineUseCacheInClassInstanceMethod {
+        span: Span,
+    },
     InlineUseCacheInClientComponent {
+        span: Span,
+    },
+    InlineUseServerInClassInstanceMethod {
         span: Span,
     },
     InlineUseServerInClientComponent {
@@ -903,10 +909,9 @@ impl<C: Comments> ServerActions<C> {
 
 impl<C: Comments> VisitMut for ServerActions<C> {
     fn visit_mut_export_decl(&mut self, decl: &mut ExportDecl) {
-        let old = self.in_exported_expr;
-        self.in_exported_expr = true;
+        let old_in_exported_expr = replace(&mut self.in_exported_expr, true);
         decl.decl.visit_mut_with(self);
-        self.in_exported_expr = old;
+        self.in_exported_expr = old_in_exported_expr;
     }
 
     fn visit_mut_export_default_decl(&mut self, decl: &mut ExportDefaultDecl) {
@@ -938,7 +943,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     fn visit_mut_function(&mut self, f: &mut Function) {
         let directive = self.get_directive_for_function(f.body.as_mut());
         let declared_idents_until = self.declared_idents.len();
-        let current_names = take(&mut self.names);
+        let old_names = take(&mut self.names);
 
         if let Some(directive) = &directive {
             self.this_status = ThisStatus::Forbidden {
@@ -962,19 +967,6 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             self.fn_decl_ident = old_fn_decl_ident;
         }
 
-        if !self.config.is_react_server_layer {
-            return;
-        }
-
-        let mut child_names = if self.should_track_names {
-            let names = take(&mut self.names);
-            self.names = current_names;
-            self.names.extend(names.iter().cloned());
-            names
-        } else {
-            take(&mut self.names)
-        };
-
         if let Some(directive) = directive {
             if !f.is_async {
                 emit_error(ServerActionsErrorKind::InlineSyncFunction {
@@ -983,6 +975,19 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 });
 
                 return;
+            }
+
+            let has_errors = HANDLER.with(|handler| handler.has_errors());
+
+            // Don't hoist a function if 1) an error was emitted, or 2) we're in the client layer.
+            if has_errors || !self.config.is_react_server_layer {
+                return;
+            }
+
+            let mut child_names = take(&mut self.names);
+
+            if self.should_track_names {
+                self.names = [old_names, child_names.clone()].concat();
             }
 
             if let Directive::UseCache { cache_kind } = directive {
@@ -1111,7 +1116,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         }
 
         let declared_idents_until = self.declared_idents.len();
-        let current_names = take(&mut self.names);
+        let old_names = take(&mut self.names);
 
         {
             // Visit children
@@ -1132,19 +1137,6 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             self.in_default_export_decl = old_in_default_export_decl;
         }
 
-        if !self.config.is_react_server_layer {
-            return;
-        }
-
-        let mut child_names = if self.should_track_names {
-            let names = take(&mut self.names);
-            self.names = current_names;
-            self.names.extend(names.iter().cloned());
-            names
-        } else {
-            take(&mut self.names)
-        };
-
         if let Some(directive) = directive {
             if !a.is_async {
                 emit_error(ServerActionsErrorKind::InlineSyncFunction {
@@ -1153,6 +1145,20 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 });
 
                 return;
+            }
+
+            let has_errors = HANDLER.with(|handler| handler.has_errors());
+
+            // Don't hoist an arrow expression if 1) an error was emitted, or 2) we're in the client
+            // layer.
+            if has_errors || !self.config.is_react_server_layer {
+                return;
+            }
+
+            let mut child_names = take(&mut self.names);
+
+            if self.should_track_names {
+                self.names = [old_names, child_names.clone()].concat();
             }
 
             // Collect all the identifiers defined inside the closure and used
@@ -1231,12 +1237,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 self.in_exported_expr = old_in_exported_expr;
                 self.this_status = old_this_status;
 
-                if let Some(expr) = &self.rewrite_expr_to_proxy_expr {
+                if let Some(expr) = self.rewrite_expr_to_proxy_expr.take() {
                     *n = PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
                         key,
-                        value: expr.clone(),
+                        value: expr,
                     })));
-                    self.rewrite_expr_to_proxy_expr = None;
                 }
 
                 return;
@@ -1257,6 +1262,66 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         n.visit_mut_children_with(self);
         self.arrow_or_fn_expr_ident = old_arrow_or_fn_expr_ident;
         self.in_exported_expr = old_in_exported_expr;
+    }
+
+    fn visit_mut_class_member(&mut self, n: &mut ClassMember) {
+        if let ClassMember::Method(ClassMethod {
+            is_abstract: false,
+            is_static: true,
+            kind: MethodKind::Method,
+            key,
+            span,
+            accessibility: None | Some(Accessibility::Public),
+            ..
+        }) = n
+        {
+            let key = key.clone();
+            let span = *span;
+            let old_arrow_or_fn_expr_ident = self.arrow_or_fn_expr_ident.clone();
+
+            if let PropName::Ident(ident_name) = &key {
+                self.arrow_or_fn_expr_ident = Some(ident_name.clone().into());
+            }
+
+            let old_this_status = replace(&mut self.this_status, ThisStatus::Allowed);
+            self.rewrite_expr_to_proxy_expr = None;
+            self.in_exported_expr = false;
+            n.visit_mut_children_with(self);
+            self.this_status = old_this_status;
+            self.arrow_or_fn_expr_ident = old_arrow_or_fn_expr_ident;
+
+            if let Some(expr) = self.rewrite_expr_to_proxy_expr.take() {
+                *n = ClassMember::ClassProp(ClassProp {
+                    span,
+                    key,
+                    value: Some(expr),
+                    is_static: true,
+                    ..Default::default()
+                });
+            }
+        } else {
+            n.visit_mut_children_with(self);
+        }
+    }
+
+    fn visit_mut_class_method(&mut self, n: &mut ClassMethod) {
+        if n.is_static {
+            n.visit_mut_children_with(self);
+        } else {
+            let (is_action_fn, is_cache_fn) = has_body_directive(&n.function.body);
+
+            if is_action_fn {
+                emit_error(
+                    ServerActionsErrorKind::InlineUseServerInClassInstanceMethod { span: n.span },
+                );
+            } else if is_cache_fn {
+                emit_error(
+                    ServerActionsErrorKind::InlineUseCacheInClassInstanceMethod { span: n.span },
+                );
+            } else {
+                n.visit_mut_children_with(self);
+            }
+        }
     }
 
     fn visit_mut_call_expr(&mut self, n: &mut CallExpr) {
@@ -1304,9 +1369,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
         self.rewrite_expr_to_proxy_expr = None;
         n.visit_mut_children_with(self);
-        if let Some(expr) = &self.rewrite_expr_to_proxy_expr {
-            *n = (**expr).clone();
-            self.rewrite_expr_to_proxy_expr = None;
+        if let Some(expr) = self.rewrite_expr_to_proxy_expr.take() {
+            *n = *expr;
         }
     }
 
@@ -1315,9 +1379,6 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
         let in_cache_file = matches!(self.file_directive, Some(Directive::UseCache { .. }));
         let in_action_file = matches!(self.file_directive, Some(Directive::UseServer));
-
-        self.has_action = in_action_file;
-        self.has_cache = in_cache_file;
 
         if in_cache_file {
             // If we're in a "use cache" file, collect all original IDs from
@@ -1697,13 +1758,34 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             }
         }
 
+        let mut actions = self.export_actions.take();
+
+        if in_action_file || in_cache_file && !self.config.is_react_server_layer {
+            actions.extend(
+                self.exported_idents
+                    .iter()
+                    .map(|e| (e.1.clone(), e.2.clone())),
+            );
+
+            if !actions.is_empty() {
+                self.has_action |= in_action_file;
+                self.has_cache |= in_cache_file;
+            }
+        };
+
+        // Make it a hashmap of id -> name.
+        let actions = actions
+            .into_iter()
+            .map(|a| (a.1, a.0))
+            .collect::<ActionsMap>();
+
         // If it's compiled in the client layer, each export field needs to be
         // wrapped by a reference creation call.
         let create_ref_ident = private_ident!("createServerReference");
         let call_server_ident = private_ident!("callServer");
         let find_source_map_url_ident = private_ident!("findSourceMapURL");
 
-        if should_track_exports && !self.config.is_react_server_layer {
+        if (self.has_action || self.has_cache) && !self.config.is_react_server_layer {
             // import {
             //   createServerReference,
             //   callServer,
@@ -1828,7 +1910,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             //
             // But it's only needed for the server layer, because on the client
             // layer they're transformed into references already.
-            if self.config.is_react_server_layer {
+            if (self.has_action || self.has_cache) && self.config.is_react_server_layer {
                 new.append(&mut self.extra_items);
 
                 // For "use cache" files, there's no need to do extra annotations.
@@ -1883,23 +1965,6 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         }
 
         if self.has_action || self.has_cache {
-            let mut actions = self.export_actions.clone();
-
-            // All exported values are considered as actions if the file is an action file.
-            if in_action_file || in_cache_file && !self.config.is_react_server_layer {
-                actions.extend(
-                    self.exported_idents
-                        .iter()
-                        .map(|e| (e.1.clone(), e.2.clone())),
-                );
-            };
-
-            // Make it a hashmap of id -> name.
-            let actions = actions
-                .into_iter()
-                .map(|a| (a.1, a.0))
-                .collect::<ActionsMap>();
-
             // Prepend a special comment to the top of the file.
             self.comments.add_leading(
                 self.start_pos,
@@ -1911,7 +1976,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             );
         }
 
-        // import { cache as $cache } from "private-next-rsc-cache-wrapper";
+        // import { cache as $$cache__ } from "private-next-rsc-cache-wrapper";
         if self.has_cache && self.config.is_react_server_layer {
             new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                 span: DUMMY_SP,
@@ -2071,6 +2136,16 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             emit_error(ServerActionsErrorKind::ForbiddenExpression {
                 span: n.span,
                 expr: "this".into(),
+                directive: directive.clone(),
+            });
+        }
+    }
+
+    fn visit_mut_super(&mut self, n: &mut Super) {
+        if let ThisStatus::Forbidden { directive } = &self.this_status {
+            emit_error(ServerActionsErrorKind::ForbiddenExpression {
+                span: n.span,
+                expr: "super".into(),
                 directive: directive.clone(),
             });
         }
@@ -2849,12 +2924,30 @@ fn emit_error(error_kind: ServerActionsErrorKind) {
                 }
             },
         ),
+        ServerActionsErrorKind::InlineUseCacheInClassInstanceMethod { span } => (
+            span,
+            formatdoc! {
+                r#"
+                    It is not allowed to define inline "use cache" annotated class instance methods.
+                    To define cached functions, use functions, object method properties, or static class methods instead.
+                "#
+            },
+        ),
         ServerActionsErrorKind::InlineUseCacheInClientComponent { span } => (
             span,
             formatdoc! {
                 r#"
                     It is not allowed to define inline "use cache" annotated functions in Client Components.
                     To use "use cache" functions in a Client Component, you can either export them from a separate file with "use cache" or "use server" at the top, or pass them down through props from a Server Component.
+                "#
+            },
+        ),
+        ServerActionsErrorKind::InlineUseServerInClassInstanceMethod { span } => (
+            span,
+            formatdoc! {
+                r#"
+                    It is not allowed to define inline "use server" annotated class instance methods.
+                    To define Server Actions, use functions, object method properties, or static class methods instead.
                 "#
             },
         ),

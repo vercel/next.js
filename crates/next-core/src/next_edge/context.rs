@@ -76,16 +76,25 @@ async fn next_edge_free_vars(
 }
 
 #[turbo_tasks::function]
-pub fn get_edge_compile_time_info(
+pub async fn get_edge_compile_time_info(
     project_path: Vc<FileSystemPath>,
     define_env: Vc<EnvMap>,
-) -> Vc<CompileTimeInfo> {
-    CompileTimeInfo::builder(Environment::new(Value::new(
-        ExecutionEnvironment::EdgeWorker(EdgeWorkerEnvironment {}.into()),
-    )))
-    .defines(next_edge_defines(define_env))
-    .free_var_references(next_edge_free_vars(project_path, define_env))
+) -> Result<Vc<CompileTimeInfo>> {
+    CompileTimeInfo::builder(
+        Environment::new(Value::new(ExecutionEnvironment::EdgeWorker(
+            EdgeWorkerEnvironment {}.resolved_cell(),
+        )))
+        .to_resolved()
+        .await?,
+    )
+    .defines(next_edge_defines(define_env).to_resolved().await?)
+    .free_var_references(
+        next_edge_free_vars(project_path, define_env)
+            .to_resolved()
+            .await?,
+    )
     .cell()
+    .await
 }
 
 #[turbo_tasks::function]
@@ -191,23 +200,26 @@ pub async fn get_edge_resolve_options_context(
 #[turbo_tasks::function]
 pub async fn get_edge_chunking_context_with_client_assets(
     mode: Vc<NextMode>,
-    project_path: Vc<FileSystemPath>,
-    node_root: Vc<FileSystemPath>,
-    client_root: Vc<FileSystemPath>,
-    asset_prefix: Vc<Option<RcStr>>,
-    environment: Vc<Environment>,
-    module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
+    project_path: ResolvedVc<FileSystemPath>,
+    node_root: ResolvedVc<FileSystemPath>,
+    client_root: ResolvedVc<FileSystemPath>,
+    asset_prefix: ResolvedVc<Option<RcStr>>,
+    environment: ResolvedVc<Environment>,
+    module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
     turbo_minify: Vc<bool>,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
-    let output_root = node_root.join("server/edge".into());
+    let output_root = node_root.join("server/edge".into()).to_resolved().await?;
     let next_mode = mode.await?;
     Ok(Vc::upcast(
         BrowserChunkingContext::builder(
             project_path,
             output_root,
             client_root,
-            output_root.join("chunks/ssr".into()),
-            client_root.join("static/media".into()),
+            output_root.join("chunks/ssr".into()).to_resolved().await?,
+            client_root
+                .join("static/media".into())
+                .to_resolved()
+                .await?,
             environment,
             next_mode.runtime_type(),
         )
@@ -225,21 +237,21 @@ pub async fn get_edge_chunking_context_with_client_assets(
 #[turbo_tasks::function]
 pub async fn get_edge_chunking_context(
     mode: Vc<NextMode>,
-    project_path: Vc<FileSystemPath>,
-    node_root: Vc<FileSystemPath>,
-    environment: Vc<Environment>,
-    module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
+    project_path: ResolvedVc<FileSystemPath>,
+    node_root: ResolvedVc<FileSystemPath>,
+    environment: ResolvedVc<Environment>,
+    module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
     turbo_minify: Vc<bool>,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
-    let output_root = node_root.join("server/edge".into());
+    let output_root = node_root.join("server/edge".into()).to_resolved().await?;
     let next_mode = mode.await?;
     Ok(Vc::upcast(
         BrowserChunkingContext::builder(
             project_path,
             output_root,
             output_root,
-            output_root.join("chunks".into()),
-            output_root.join("assets".into()),
+            output_root.join("chunks".into()).to_resolved().await?,
+            output_root.join("assets".into()).to_resolved().await?,
             environment,
             next_mode.runtime_type(),
         )
@@ -247,7 +259,7 @@ pub async fn get_edge_chunking_context(
         // instead. This special blob url is handled by the custom fetch
         // implementation in the edge sandbox. It will respond with the
         // asset from the output directory.
-        .asset_base_path(Vc::cell(Some("blob:server/edge/".into())))
+        .asset_base_path(ResolvedVc::cell(Some("blob:server/edge/".into())))
         .minify_type(if *turbo_minify.await? {
             MinifyType::Minify
         } else {

@@ -17,7 +17,7 @@ export function unstable_after<T>(task: AfterTask<T>): void {
   }
 
   const { afterContext } = workStore
-  if (!afterContext) {
+  if (!afterContext.isEnabled) {
     throw new Error(
       '`unstable_after` must be explicitly enabled by setting `experimental.after: true` in your next.config.js.'
     )

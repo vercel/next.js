@@ -9,7 +9,7 @@ const WAIT_BEFORE_REVALIDATING = 1000
 // If we want to verify that `unstable_after()` ran its callback,
 // we need it to perform some kind of side effect (because it can't affect the response).
 // In other tests, we often use logs for this, but we don't have access to those in deploy tests.
-// So instead this test relies on calling `expirePath` inside `unstable_after`
+// So instead this test relies on calling `unstable_expirePath` inside `unstable_after`
 // to revalidate an ISR page '/timestamp/key/[key]', and then checking if the timestamp changed --
 // if it did, we successfully ran the callback (and performed a side effect).
 

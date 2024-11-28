@@ -116,10 +116,4 @@ export const TRANSFORMER_INQUIRER_CHOICES = [
     value: 'app-dir-runtime-config-experimental-edge',
     version: '15.0.0-canary.179',
   },
-  {
-    title:
-      'Transform `revalidateTag` and `revalidatePath` to `expireTag` and `expirePath`',
-    value: 'revalidate-to-expire',
-    version: '15.0.4-canary.12',
-  },
 ]

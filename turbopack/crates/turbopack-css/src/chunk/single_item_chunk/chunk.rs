@@ -22,8 +22,8 @@ use crate::chunk::{write_import_context, CssChunkItem};
 /// avoiding rule duplication.
 #[turbo_tasks::value]
 pub struct SingleItemCssChunk {
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
-    item: Vc<Box<dyn CssChunkItem>>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    item: ResolvedVc<Box<dyn CssChunkItem>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -31,8 +31,8 @@ impl SingleItemCssChunk {
     /// Creates a new [`Vc<SingleItemCssChunk>`].
     #[turbo_tasks::function]
     pub fn new(
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-        item: Vc<Box<dyn CssChunkItem>>,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+        item: ResolvedVc<Box<dyn CssChunkItem>>,
     ) -> Vc<Self> {
         SingleItemCssChunk {
             chunking_context,
@@ -57,7 +57,10 @@ impl SingleItemCssChunk {
         let content = this.item.content().await?;
         let close = write_import_context(&mut code, content.import_context).await?;
 
-        code.push_source(&content.inner_code, content.source_map.map(Vc::upcast));
+        code.push_source(
+            &content.inner_code,
+            content.source_map.map(ResolvedVc::upcast).map(|v| *v),
+        );
         write!(code, "{close}")?;
 
         if *this
@@ -89,7 +92,7 @@ impl Chunk for SingleItemCssChunk {
 
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        self.chunking_context
+        *self.chunking_context
     }
 }
 

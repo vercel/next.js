@@ -24,7 +24,7 @@ use tokio::{io::AsyncWriteExt, time::Instant};
 use tracing::Instrument;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{get_effects, Completion, Effects, ReadRef, TransientInstance, UpdateInfo, Vc};
+use turbo_tasks::{Completion, ReadRef, TransientInstance, UpdateInfo, Vc};
 use turbo_tasks_fs::{
     util::uri_from_file, DiskFileSystem, FileContent, FileSystem, FileSystemPath,
 };
@@ -623,7 +623,6 @@ struct EntrypointsWithIssues {
     entrypoints: ReadRef<Entrypoints>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
     diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
-    effects: Arc<Effects>,
 }
 
 #[turbo_tasks::function]
@@ -634,12 +633,10 @@ async fn get_entrypoints_with_issues(
     let entrypoints = entrypoints_operation.strongly_consistent().await?;
     let issues = get_issues(entrypoints_operation).await?;
     let diagnostics = get_diagnostics(entrypoints_operation).await?;
-    let effects = Arc::new(get_effects(entrypoints_operation).await?);
     Ok(EntrypointsWithIssues {
         entrypoints,
         issues,
         diagnostics,
-        effects,
     }
     .cell())
 }
@@ -656,14 +653,13 @@ pub fn project_entrypoints_subscribe(
         func,
         move || {
             async move {
-                let operation = get_entrypoints_with_issues(container);
                 let EntrypointsWithIssues {
                     entrypoints,
                     issues,
                     diagnostics,
-                    effects,
-                } = &*operation.strongly_consistent().await?;
-                effects.apply().await?;
+                } = &*get_entrypoints_with_issues(container)
+                    .strongly_consistent()
+                    .await?;
                 Ok((entrypoints.clone(), issues.clone(), diagnostics.clone()))
             }
             .instrument(tracing::info_span!("entrypoints subscription"))
@@ -696,15 +692,15 @@ pub fn project_entrypoints_subscribe(
                         .transpose()?,
                     pages_document_endpoint: External::new(ExternalEndpoint(VcArc::new(
                         turbo_tasks.clone(),
-                        entrypoints.pages_document_endpoint,
+                        *entrypoints.pages_document_endpoint,
                     ))),
                     pages_app_endpoint: External::new(ExternalEndpoint(VcArc::new(
                         turbo_tasks.clone(),
-                        entrypoints.pages_app_endpoint,
+                        *entrypoints.pages_app_endpoint,
                     ))),
                     pages_error_endpoint: External::new(ExternalEndpoint(VcArc::new(
                         turbo_tasks.clone(),
-                        entrypoints.pages_error_endpoint,
+                        *entrypoints.pages_error_endpoint,
                     ))),
                 },
                 issues: issues
@@ -722,7 +718,6 @@ struct HmrUpdateWithIssues {
     update: ReadRef<Update>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
     diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
-    effects: Arc<Effects>,
 }
 
 #[turbo_tasks::function]
@@ -735,12 +730,10 @@ async fn hmr_update(
     let update = update_operation.strongly_consistent().await?;
     let issues = get_issues(update_operation).await?;
     let diagnostics = get_diagnostics(update_operation).await?;
-    let effects = Arc::new(get_effects(update_operation).await?);
     Ok(HmrUpdateWithIssues {
         update,
         issues,
         diagnostics,
-        effects,
     }
     .cell())
 }
@@ -767,15 +760,14 @@ pub fn project_hmr_events(
                     let project = project.project().resolve().await?;
                     let state = project.hmr_version_state(identifier.clone(), session);
 
-                    let operation = hmr_update(project, identifier.clone(), state);
-                    let update = operation.strongly_consistent().await?;
+                    let update = hmr_update(project, identifier.clone(), state)
+                        .strongly_consistent()
+                        .await?;
                     let HmrUpdateWithIssues {
                         update,
                         issues,
                         diagnostics,
-                        effects,
                     } = &*update;
-                    effects.apply().await?;
                     match &**update {
                         Update::Missing | Update::None => {}
                         Update::Total(TotalUpdate { to }) => {
@@ -840,7 +832,6 @@ struct HmrIdentifiersWithIssues {
     identifiers: ReadRef<Vec<RcStr>>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
     diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
-    effects: Arc<Effects>,
 }
 
 #[turbo_tasks::function]
@@ -851,12 +842,10 @@ async fn get_hmr_identifiers_with_issues(
     let hmr_identifiers = hmr_identifiers_operation.strongly_consistent().await?;
     let issues = get_issues(hmr_identifiers_operation).await?;
     let diagnostics = get_diagnostics(hmr_identifiers_operation).await?;
-    let effects = Arc::new(get_effects(hmr_identifiers_operation).await?);
     Ok(HmrIdentifiersWithIssues {
         identifiers: hmr_identifiers,
         issues,
         diagnostics,
-        effects,
     }
     .cell())
 }
@@ -872,14 +861,13 @@ pub fn project_hmr_identifiers_subscribe(
         turbo_tasks.clone(),
         func,
         move || async move {
-            let operation = get_hmr_identifiers_with_issues(container);
             let HmrIdentifiersWithIssues {
                 identifiers,
                 issues,
                 diagnostics,
-                effects,
-            } = &*operation.strongly_consistent().await?;
-            effects.apply().await?;
+            } = &*get_hmr_identifiers_with_issues(container)
+                .strongly_consistent()
+                .await?;
 
             Ok((identifiers.clone(), issues.clone(), diagnostics.clone()))
         },
