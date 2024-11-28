@@ -746,6 +746,7 @@ impl FileSystem for DiskFileSystem {
                             f.set_permissions(file.meta.permissions.into()).await?;
                             f.flush().await?;
                             f.sync_all().await?;
+                            eprintln!("wrote file {}", full_path.display());
                             #[cfg(feature = "write_version")]
                             {
                                 let mut full_path = full_path.into_owned();
