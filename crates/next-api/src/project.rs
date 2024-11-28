@@ -197,21 +197,25 @@ pub struct Instrumentation {
 pub struct ProjectContainer {
     name: RcStr,
     options_state: State<Option<ProjectOptions>>,
-    versioned_content_map: Option<Vc<VersionedContentMap>>,
+    versioned_content_map: Option<ResolvedVc<VersionedContentMap>>,
 }
 
 #[turbo_tasks::value_impl]
 impl ProjectContainer {
     #[turbo_tasks::function]
-    pub fn new(name: RcStr, dev: bool) -> Vc<Self> {
-        ProjectContainer {
+    pub async fn new(name: RcStr, dev: bool) -> Result<Vc<Self>> {
+        Ok(ProjectContainer {
             name,
             // we only need to enable versioning in dev mode, since build
             // is assumed to be operating over a static snapshot
-            versioned_content_map: dev.then(VersionedContentMap::new),
+            versioned_content_map: if dev {
+                Some(VersionedContentMap::new().to_resolved().await?)
+            } else {
+                None
+            },
             options_state: State::new(None),
         }
-        .cell()
+        .cell())
     }
 }
 
@@ -384,7 +388,7 @@ impl ProjectContainer {
             } else {
                 NextMode::Build.cell()
             },
-            versioned_content_map: self.versioned_content_map,
+            versioned_content_map: self.versioned_content_map.map(|v| *v),
             build_id,
             encryption_key,
             preview_props,
@@ -1166,7 +1170,7 @@ impl Project {
     pub async fn emit_all_output_assets(
         self: Vc<Self>,
         output_assets: Vc<OutputAssetsOperation>,
-    ) -> Result<()> {
+    ) -> Result<Vc<()>> {
         let span = tracing::info_span!("emitting");
         async move {
             let all_output_assets = all_assets_from_entries_operation(output_assets);
@@ -1175,23 +1179,27 @@ impl Project {
             let node_root = self.node_root();
 
             if let Some(map) = self.await?.versioned_content_map {
-                let _ = map.insert_output_assets(
-                    all_output_assets,
-                    node_root,
-                    client_relative_path,
-                    node_root,
-                );
+                let _ = map
+                    .insert_output_assets(
+                        all_output_assets,
+                        node_root,
+                        client_relative_path,
+                        node_root,
+                    )
+                    .resolve()
+                    .await?;
 
-                Ok(())
+                Ok(Vc::cell(()))
             } else {
                 let _ = emit_assets(
                     *all_output_assets.await?,
                     node_root,
                     client_relative_path,
                     node_root,
-                );
-
-                Ok(())
+                )
+                .resolve()
+                .await?;
+                Ok(Vc::cell(()))
             }
         }
         .instrument(span)
