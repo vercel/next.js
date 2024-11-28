@@ -98,8 +98,5 @@
     "${workspaceRoot}/.git-blame-ignore-revs"
   ],
   "astGrep.serverPath": "node_modules/@ast-grep/cli/ast-grep",
-  "rust-analyzer.imports.prefix": "crate",
-  "[typescriptreact]": {
-    "editor.defaultFormatter": "vscode.typescript-language-features"
-  }
+  "rust-analyzer.imports.prefix": "crate"
 }
