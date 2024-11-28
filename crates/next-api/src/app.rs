@@ -72,7 +72,7 @@ use crate::{
     dynamic_imports::{collect_chunk_group, collect_evaluated_chunk_group},
     font::create_font_manifest,
     loadable_manifest::create_react_loadable_manifest,
-    module_graph::get_reduced_graphs_for_page,
+    module_graph::get_reduced_graphs_for_endpoint,
     nft_json::NftJsonAsset,
     paths::{
         all_paths_in_root, all_server_paths, get_asset_paths_from_root, get_js_paths_from_root,
@@ -931,13 +931,13 @@ impl AppEndpoint {
                 }
                 let client_shared_availability_info = client_shared_chunk_group.availability_info;
 
-                let reduced_graphs = get_reduced_graphs_for_page(
+                let reduced_graphs = get_reduced_graphs_for_endpoint(
                     this.app_project.project(),
                     *rsc_entry,
                     Vc::upcast(this.app_project.client_module_context()),
                 );
                 let next_dynamic_imports = reduced_graphs
-                    .get_next_dynamic_imports_for_page(*rsc_entry)
+                    .get_next_dynamic_imports_for_endpoint(*rsc_entry)
                     .await?;
 
                 let client_references = {

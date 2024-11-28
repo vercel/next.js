@@ -9,6 +9,7 @@ use petgraph::{
     graph::{DiGraph, NodeIndex},
     visit::Dfs,
 };
+use tracing::Instrument;
 use turbo_tasks::{FxIndexMap, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 use turbopack_core::{
     context::AssetContext,
@@ -20,6 +21,10 @@ use crate::{
     dynamic_imports::{map_next_dynamic, DynamicImports},
     project::Project,
 };
+
+#[turbo_tasks::value(transparent)]
+#[derive(Clone, Debug)]
+struct SingleModuleGraphs(pub Vec<ResolvedVc<SingleModuleGraph>>);
 
 #[turbo_tasks::value(cell = "new", eq = "manual", into = "new")]
 #[derive(Clone, Debug, Default)]
@@ -129,9 +134,10 @@ impl SingleModuleGraph {
 }
 
 /// Implements layout segment optimization to compute a graph "chain" for each layout segment
-async fn get_module_graph_for_page(
+#[turbo_tasks::function]
+async fn get_module_graph_for_endpoint(
     entry: ResolvedVc<Box<dyn Module>>,
-) -> Result<Vec<ResolvedVc<SingleModuleGraph>>> {
+) -> Result<Vc<SingleModuleGraphs>> {
     let ServerEntries {
         server_utils,
         server_component_entries,
@@ -161,7 +167,7 @@ async fn get_module_graph_for_page(
         graphs.push(graph);
     }
 
-    Ok(graphs)
+    Ok(Vc::cell(graphs))
 }
 
 #[turbo_tasks::value]
@@ -215,32 +221,37 @@ impl NextDynamicGraph {
     }
 
     #[turbo_tasks::function]
-    pub async fn get_next_dynamic_imports_for_page(
+    pub async fn get_next_dynamic_imports_for_endpoint(
         &self,
         entry: ResolvedVc<Box<dyn Module>>,
     ) -> Result<Vc<DynamicImports>> {
-        if self.is_single_page {
-            // The graph contains the page (= `entry`) only, no need to filter.
-            Ok(*self.data)
-        } else {
-            // The graph contains the whole app, traverse and collect all reachable imports.
-            let graph = &*self.graph.await?;
-            let data = &self.data.await?;
+        let span = tracing::info_span!("collect next/dynamic imports for endpoint");
+        async move {
+            if self.is_single_page {
+                // The graph contains the endpoint (= `entry`) only, no need to filter.
+                Ok(*self.data)
+            } else {
+                // The graph contains the whole app, traverse and collect all reachable imports.
+                let graph = &*self.graph.await?;
+                let data = &self.data.await?;
 
-            let mut result = FxIndexMap::default();
-            graph.traverse_from_entry(entry, |module| {
-                if let Some(node_data) = data.get(&module) {
-                    result.insert(module, node_data.clone());
-                }
-            })?;
-            Ok(Vc::cell(result))
+                let mut result = FxIndexMap::default();
+                graph.traverse_from_entry(entry, |module| {
+                    if let Some(node_data) = data.get(&module) {
+                        result.insert(module, node_data.clone());
+                    }
+                })?;
+                Ok(Vc::cell(result))
+            }
         }
+        .instrument(span)
+        .await
     }
 }
 
 /// The consumers of this shoudln't need to care about the exact contents since it's abstracted away
 /// by the accessor functions, but
-/// - In dev, contains information about the modules of the current page only
+/// - In dev, contains information about the modules of the current endpoint only
 /// - In prod, there is a single `ReducedGraphs` for the whole app, containing all pages
 #[turbo_tasks::value]
 pub struct ReducedGraphs {
@@ -250,66 +261,85 @@ pub struct ReducedGraphs {
 
 #[turbo_tasks::value_impl]
 impl ReducedGraphs {
-    /// Returns the dynamic imports in RSC and SSR modules for the given page.
+    /// Returns the dynamic imports in RSC and SSR modules for the given endpoint.
     #[turbo_tasks::function]
-    pub async fn get_next_dynamic_imports_for_page(
+    pub async fn get_next_dynamic_imports_for_endpoint(
         &self,
         entry: Vc<Box<dyn Module>>,
     ) -> Result<Vc<DynamicImports>> {
-        if let [graph] = &self.next_dynamic[..] {
-            // Just a single graph, no need to merge results
-            Ok(graph.get_next_dynamic_imports_for_page(entry))
-        } else {
-            let result = self
-                .next_dynamic
-                .iter()
-                .map(|graph| async move {
-                    Ok(graph
-                        .get_next_dynamic_imports_for_page(entry)
-                        .await?
-                        .iter()
-                        .map(|(k, v)| (*k, v.clone()))
-                        // TODO remove this collect and return an iterator instead
-                        .collect::<Vec<_>>())
-                })
-                .try_flat_join()
-                .await?;
+        let span = tracing::info_span!("collect all next/dynamic imports for endpoint");
+        async move {
+            if let [graph] = &self.next_dynamic[..] {
+                // Just a single graph, no need to merge results
+                Ok(graph.get_next_dynamic_imports_for_endpoint(entry))
+            } else {
+                let result = self
+                    .next_dynamic
+                    .iter()
+                    .map(|graph| async move {
+                        Ok(graph
+                            .get_next_dynamic_imports_for_endpoint(entry)
+                            .await?
+                            .iter()
+                            .map(|(k, v)| (*k, v.clone()))
+                            // TODO remove this collect and return an iterator instead
+                            .collect::<Vec<_>>())
+                    })
+                    .try_flat_join()
+                    .await?;
 
-            Ok(Vc::cell(result.into_iter().collect()))
+                Ok(Vc::cell(result.into_iter().collect()))
+            }
         }
+        .instrument(span)
+        .await
     }
 }
 
-/// Generates a [ReducedGraph] for the given project and page containing information that is either
-/// global (module ids, chunking) or computed globally as a performance optimization (client
+/// Generates a [ReducedGraph] for the given project and endpoint containing information that is
+/// either global (module ids, chunking) or computed globally as a performance optimization (client
 /// references, etc).
 #[turbo_tasks::function]
-pub async fn get_reduced_graphs_for_page(
+pub async fn get_reduced_graphs_for_endpoint(
     project: Vc<Project>,
     entry: ResolvedVc<Box<dyn Module>>,
-    // TODO should this happen globally or per page? Do they all have the same context?
+    // TODO should this happen globally or per endpoint? Do they all have the same context?
     client_asset_context: Vc<Box<dyn AssetContext>>,
 ) -> Result<Vc<ReducedGraphs>> {
     let (is_single_page, graphs) = match &*project.next_mode().await? {
-        NextMode::Development => (true, get_module_graph_for_page(entry).await?),
+        NextMode::Development => (
+            true,
+            async move { get_module_graph_for_endpoint(*entry).await }
+                .instrument(tracing::info_span!("module graph for endpoint"))
+                .await?
+                .clone_value(),
+        ),
         NextMode::Build => (
             false,
             vec![
-                SingleModuleGraph::new_with_entries(project.get_all_entries())
-                    .to_resolved()
-                    .await?,
+                async move {
+                    SingleModuleGraph::new_with_entries(project.get_all_entries())
+                        .to_resolved()
+                        .await
+                }
+                .instrument(tracing::info_span!("module graph for app"))
+                .await?,
             ],
         ),
     };
 
-    let next_dynamic = graphs
-        .iter()
-        .map(|graph| {
-            NextDynamicGraph::new_with_entries(**graph, is_single_page, client_asset_context)
-                .to_resolved()
-        })
-        .try_join()
-        .await?;
+    let next_dynamic = async move {
+        graphs
+            .iter()
+            .map(|graph| {
+                NextDynamicGraph::new_with_entries(**graph, is_single_page, client_asset_context)
+                    .to_resolved()
+            })
+            .try_join()
+            .await
+    }
+    .instrument(tracing::info_span!("generating next/dynamic graphs"))
+    .await?;
 
     Ok(ReducedGraphs { next_dynamic }.cell())
 }

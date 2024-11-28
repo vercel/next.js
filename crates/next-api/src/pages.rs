@@ -66,7 +66,7 @@ use crate::{
     dynamic_imports::{collect_chunk_group, collect_evaluated_chunk_group, DynamicImportedChunks},
     font::create_font_manifest,
     loadable_manifest::create_react_loadable_manifest,
-    module_graph::get_reduced_graphs_for_page,
+    module_graph::get_reduced_graphs_for_endpoint,
     nft_json::NftJsonAsset,
     paths::{
         all_paths_in_root, all_server_paths, get_asset_paths_from_root, get_js_paths_from_root,
@@ -844,13 +844,13 @@ impl PageEndpoint {
                 runtime,
             } = *self.internal_ssr_chunk_module().await?;
 
-            let reduced_graphs = get_reduced_graphs_for_page(
+            let reduced_graphs = get_reduced_graphs_for_endpoint(
                 this.pages_project.project(),
                 *ssr_module,
                 Vc::upcast(this.pages_project.client_module_context()),
             );
             let next_dynamic_imports = reduced_graphs
-                .get_next_dynamic_imports_for_page(*ssr_module)
+                .get_next_dynamic_imports_for_endpoint(*ssr_module)
                 .await?;
 
             let is_edge = matches!(runtime, NextRuntime::Edge);
