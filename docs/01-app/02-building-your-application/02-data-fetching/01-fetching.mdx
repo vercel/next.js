@@ -591,7 +591,7 @@ async function getAlbums(username) {
   return data
 }
 
-export default async function Albums({ username}: { username: string }) {
+export default async function Albums({ username }) {
   const albums = await getAlbums(username)
   return (
     <ul>
@@ -625,11 +625,9 @@ async function getArtist(username) {
   return data
 }
 
-export default async function Artist({ username }: { username: string }) {
+export default async function Artist({ username }) {
   const artist = await getArtist(username)
-  return (
-    <h1>{artist.name}</h1>
-  )
+  return <h1>{artist.name}</h1>
 }
 ```
 
