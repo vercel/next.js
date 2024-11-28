@@ -44,7 +44,7 @@ export const onCaughtError: HydrationOptions['onCaughtError'] = (
     const stitchedError = getReactStitchedError(err)
     // TODO: change to passing down errorInfo later
     // In development mode, pass along the component stack to the error
-    if (errorInfo.componentStack) {
+    if (stitchedError && errorInfo.componentStack) {
       ;(stitchedError as any)._componentStack = errorInfo.componentStack
     }
 
@@ -80,7 +80,7 @@ export const onUncaughtError: HydrationOptions['onUncaughtError'] = (
     const stitchedError = getReactStitchedError(err)
     // TODO: change to passing down errorInfo later
     // In development mode, pass along the component stack to the error
-    if (errorInfo.componentStack) {
+    if (stitchedError && errorInfo.componentStack) {
       ;(stitchedError as any)._componentStack = errorInfo.componentStack
     }
 

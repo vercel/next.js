@@ -24,8 +24,8 @@ export default class ReactDevOverlay extends React.PureComponent<
 > {
   state = { isReactError: false }
 
-  static getDerivedStateFromError(error: Error): ReactDevOverlayState {
-    if (!error.stack) return { isReactError: false }
+  static getDerivedStateFromError(error: unknown): ReactDevOverlayState {
+    if (error && !(error as Error).stack) return { isReactError: false }
 
     RuntimeErrorHandler.hadRuntimeError = true
     return {
