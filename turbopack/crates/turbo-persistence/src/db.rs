@@ -433,7 +433,7 @@ impl TurboPersistence {
         Ok(())
     }
 
-    pub fn compact(&self, sharding_factor: f32, max_chain: usize) -> Result<()> {
+    pub fn compact(&self, max_coverage: f32, max_merge_sequence: usize) -> Result<()> {
         if self
             .active_write_operation
             .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
@@ -457,8 +457,8 @@ impl TurboPersistence {
                 &sequence_number,
                 &mut new_sst_files,
                 &mut indicies_to_delete,
-                sharding_factor,
-                max_chain,
+                max_coverage,
+                max_merge_sequence,
             )?;
         }
 
@@ -480,7 +480,7 @@ impl TurboPersistence {
         new_sst_files: &mut Vec<(u32, File)>,
         indicies_to_delete: &mut Vec<usize>,
         max_coverage: f32,
-        max_merge: usize,
+        max_merge_sequence: usize,
     ) -> Result<bool> {
         if static_sorted_files.is_empty() {
             return Ok(false);
@@ -507,7 +507,8 @@ impl TurboPersistence {
             .iter()
             .map(|s| s.range.family)
             .max()
-            .unwrap() as usize;
+            .unwrap() as usize
+            + 1;
 
         let mut sst_by_family = Vec::with_capacity(families);
         sst_by_family.resize_with(families, Vec::new);
@@ -536,7 +537,7 @@ impl TurboPersistence {
                 } = get_compaction_jobs(
                     &ssts_with_ranges,
                     &CompactConfig {
-                        max_merge,
+                        max_merge: max_merge_sequence,
                         min_merge: 2,
                     },
                 );
