@@ -561,7 +561,123 @@ export default async function Page({ params }) {
 }
 ```
 
-In addition, you can add a [Suspense Boundary](/docs/app/building-your-application/routing/loading-ui-and-streaming) to break up the rendering work and show part of the result as soon as possible.
+As below, you can add a [Suspense Boundary](/docs/app/building-your-application/routing/loading-ui-and-streaming) to break up the rendering work and show part of the result as soon as possible.
+
+```tsx filename="app/ui/albums.tsx" switcher
+async function getAlbums(username: string) {
+  const res = await fetch(`https://api.example.com/artist/${username}/albums`)
+  if (!res.ok) throw new Error('Failed to fetch albums')
+  const data = await res.json()
+  return data
+}
+
+export default async function Albums({ username }: { username: string }) {
+  const albums = await getAlbums(username)
+  return (
+    <ul>
+      {albums.map((album) => (
+        <li key={album.id}>{album.name}</li>
+      ))}
+    </ul>
+  )
+}
+```
+
+```jsx filename="app/ui/albums.js" switcher
+async function getAlbums(username) {
+  const res = await fetch(`https://api.example.com/artist/${username}/albums`)
+  if (!res.ok) throw new Error('Failed to fetch albums')
+  const data = await res.json()
+  return data
+}
+
+export default async function Albums({ username}: { username: string }) {
+  const albums = await getAlbums(username)
+  return (
+    <ul>
+      {albums.map((album) => (
+        <li key={album.id}>{album.name}</li>
+      ))}
+    </ul>
+  )
+}
+```
+
+```tsx filename="app/ui/artist.tsx" switcher
+async function getArtist(username: string) {
+  const res = await fetch(`https://api.example.com/artist/${username}/artist`)
+  if (!res.ok) throw new Error('Failed to fetch artist')
+  const data = await res.json()
+  return data
+}
+
+export default async function Artist({ username }: { username: string }) {
+  const artist = await getArtist(username)
+  return <h1>{artist.name}</h1>
+}
+```
+
+```jsx filename="app/ui/artist.js" switcher
+async function getArtist(username) {
+  const res = await fetch(`https://api.example.com/artist/${username}/artist`)
+  if (!res.ok) throw new Error('Failed to fetch artist')
+  const data = await res.json()
+  return data
+}
+
+export default async function Artist({ username }: { username: string }) {
+  const artist = await getArtist(username)
+  return (
+    <h1>{artist.name}</h1>
+  )
+}
+```
+
+```tsx filename="app/artist/[username]/page.tsx" switcher
+import Albums from '@/ui/albums'
+import Artist from '@/ui/artist'
+
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ username: string }>
+}) {
+  const { username } = await params
+
+  return (
+    <>
+      <Suspense fallback={<div>Artist Loading...</div>}>
+        <Artist username={username} />
+      </Suspense>
+      <Suspense fallback={<div>Albums Loading...</div>}>
+        <Albums username={username} />
+      </Suspense>
+    </>
+  )
+}
+```
+
+```jsx filename="app/artist/[username]/page.js" switcher
+import Albums from '@/ui/albums'
+import Artist from '@/ui/artist'
+
+export default async function Page({ params }) {
+  const { username } = await params
+
+  return (
+    <>
+      <Suspense fallback={<div>Artist Loading...</div>}>
+        <Artist username={username} />
+      </Suspense>
+      <Suspense fallback={<div>Albums Loading...</div>}>
+        <Albums username={username} />
+      </Suspense>
+    </>
+  )
+}
+```
+
+Separate the `getArtist` and `getAlbums` functions, and initiate both requests in parallel. Wrap each function's result in its own Suspense boundary, which provides the user with the fastest possible display of results and a distinct loading state.
 
 ### Preloading Data
 
