@@ -54,9 +54,9 @@ pub fn analyze_references(
 }
 
 struct ModuleReferencesVisitor<'a> {
-    source: ResolvedVc<Box<dyn Source>>,
-    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
-    import_context: ResolvedVc<ImportContext>,
+    source: Vc<Box<dyn Source>>,
+    origin: Vc<Box<dyn ResolveOrigin>>,
+    import_context: Vc<ImportContext>,
     references: &'a mut Vec<Vc<Box<dyn ModuleReference>>>,
     urls: &'a mut Vec<(String, Vc<UrlAssetReference>)>,
 }
