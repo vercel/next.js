@@ -12,7 +12,6 @@ rule:
     selector: generic_type
   inside:
     stopBy: end
-    kind: field_declaration
     not:
       follows:
         kind: line_comment
