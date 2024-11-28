@@ -440,8 +440,8 @@ async fn process_content(
                     IssueSource::from_line_col(source, pos, pos)
                 });
                 ParsingIssue {
-                    file: fs_path_vc,
-                    msg: Vc::cell(e.to_string().into()),
+                    file: fs_path_vc.to_resolved().await?,
+                    msg: ResolvedVc::cell(e.to_string().into()),
                     source,
                 }
                 .cell()
