@@ -745,6 +745,7 @@ impl FileSystem for DiskFileSystem {
                             #[cfg(target_family = "unix")]
                             f.set_permissions(file.meta.permissions.into()).await?;
                             f.flush().await?;
+                            f.sync_all().await?;
                             #[cfg(feature = "write_version")]
                             {
                                 let mut full_path = full_path.into_owned();
@@ -761,6 +762,7 @@ impl FileSystem for DiskFileSystem {
                                 #[cfg(target_family = "unix")]
                                 f.set_permissions(file.meta.permissions.into()).await?;
                                 f.flush().await?;
+                                f.sync_all().await?;
                             }
                             Ok::<(), io::Error>(())
                         }
