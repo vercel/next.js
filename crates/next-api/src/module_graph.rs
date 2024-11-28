@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use next_core::{
     mode::NextMode,
     next_client_reference::{find_server_entries, ServerEntries},
@@ -80,12 +80,34 @@ impl SingleModuleGraph {
         .cell())
     }
 
+    fn get_entry(&self, module: ResolvedVc<Box<dyn Module>>) -> Result<NodeIndex> {
+        self.entries
+            .get(&module)
+            .copied()
+            .context("Couldn't find entry module in graph")
+    }
+
     pub fn enumerate_nodes(
         &self,
     ) -> impl Iterator<Item = (NodeIndex, ResolvedVc<Box<dyn Module>>)> + '_ {
         self.graph
             .node_indices()
             .map(move |idx| (idx, *self.graph.node_weight(idx).unwrap()))
+    }
+
+    pub fn traverse_from_entry(
+        &self,
+        entry: ResolvedVc<Box<dyn Module>>,
+        mut visitor: impl FnMut(ResolvedVc<Box<dyn Module>>),
+    ) -> Result<()> {
+        let entry_node = self.get_entry(entry)?;
+
+        let mut dfs = Dfs::new(&self.graph, entry_node);
+        while let Some(nx) = dfs.next(&self.graph) {
+            let weight = *self.graph.node_weight(nx).unwrap();
+            visitor(weight);
+        }
+        Ok(())
     }
 }
 
@@ -202,20 +224,15 @@ impl NextDynamicGraph {
             Ok(*self.data)
         } else {
             // The graph contains the whole app, traverse and collect all reachable imports.
-            let SingleModuleGraph { graph, entries } = &*self.graph.await?;
+            let graph = &*self.graph.await?;
             let data = &self.data.await?;
 
             let mut result = FxIndexMap::default();
-
-            let entry_node = *entries.get(&entry).unwrap();
-            let mut dfs = Dfs::new(&graph, entry_node);
-            while let Some(nx) = dfs.next(&graph) {
-                let weight = *graph.node_weight(nx).unwrap();
-                if let Some(node_data) = data.get(&weight) {
-                    result.insert(weight, node_data.clone());
+            graph.traverse_from_entry(entry, |module| {
+                if let Some(node_data) = data.get(&module) {
+                    result.insert(module, node_data.clone());
                 }
-            }
-
+            })?;
             Ok(Vc::cell(result))
         }
     }
