@@ -141,6 +141,7 @@ impl Effect for EffectInstance {}
 /// Order of execution of multiple effects is not defined. You must not use mutliple conflicting
 /// effects to avoid non-deterministic behavior.
 pub fn effect(name: RcStr, future: impl Future<Output = Result<()>> + Send + Sync + 'static) {
+    eprintln!("emit effect {}", name);
     emit::<Box<dyn Effect>>(Vc::upcast(EffectInstance::new(name, future).cell()));
 }
 
