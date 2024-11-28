@@ -1518,7 +1518,6 @@ export async function toggleCollapseCallStackFrames(browser: BrowserInterface) {
   await button.click()
 
   await retry(async () => {
-    const button = await browser.elementByCss('[data-expand-ignore-button]')
     const currExpanded = await button.getAttribute('data-expand-ignore-button')
     expect(currExpanded).not.toBe(lastExpanded)
   })
