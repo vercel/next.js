@@ -13,11 +13,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <PlausibleProvider
+          domain={process.env.NEXT_PUBLIC_DOMAIN}
+          trackLocalhost
+        />
+      </head>
       <body>
-        <PlausibleProvider domain={process.env.NEXT_PUBLIC_DOMAIN}>
-          <Header />
-          {children}
-        </PlausibleProvider>
+        <Header />
+        {children}
       </body>
     </html>
   );

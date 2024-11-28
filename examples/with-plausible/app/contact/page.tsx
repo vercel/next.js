@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { FormEvent, useState } from "react";
 import { usePlausible } from "next-plausible";
 
 export default function Contact() {
   const [message, setMessage] = useState("");
   const plausible = usePlausible();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     plausible("customEventName", {
@@ -17,7 +17,6 @@ export default function Contact() {
     });
 
     // your own submit logic
-
     setMessage("");
   };
 
@@ -27,10 +26,7 @@ export default function Contact() {
       <form onSubmit={handleSubmit}>
         <label>
           <span>Message:</span>
-          <textarea
-            onChange={(e) => setMessage(e.target.value)}
-            value={message}
-          />
+          <textarea name="message" />
         </label>
         <button type="submit">submit</button>
       </form>
