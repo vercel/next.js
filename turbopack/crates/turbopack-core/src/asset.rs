@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::{Completion, ResolvedVc, Vc};
 use turbo_tasks_fs::{
     FileContent, FileJsonContent, FileLinesContent, FileSystemPath, LinkContent, LinkType,
 };
@@ -86,22 +86,17 @@ impl AssetContent {
     }
 
     #[turbo_tasks::function]
-    pub async fn write(self: Vc<Self>, path: Vc<FileSystemPath>) -> Result<()> {
+    pub async fn write(self: Vc<Self>, path: Vc<FileSystemPath>) -> Result<Vc<Completion>> {
         let this = self.await?;
-        match &*this {
-            AssetContent::File(file) => {
-                let _ = path.write(**file);
-            }
-            AssetContent::Redirect { target, link_type } => {
-                let _ = path.write_link(
-                    LinkContent::Link {
-                        target: target.clone(),
-                        link_type: *link_type,
-                    }
-                    .cell(),
-                );
-            }
-        }
-        Ok(())
+        Ok(match &*this {
+            AssetContent::File(file) => path.write(**file),
+            AssetContent::Redirect { target, link_type } => path.write_link(
+                LinkContent::Link {
+                    target: target.clone(),
+                    link_type: *link_type,
+                }
+                .cell(),
+            ),
+        })
     }
 }

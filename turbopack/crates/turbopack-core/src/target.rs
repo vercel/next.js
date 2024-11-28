@@ -15,16 +15,22 @@ pub struct CompileTarget {
     pub libc: Libc,
 }
 
+impl Default for CompileTarget {
+    fn default() -> Self {
+        CompileTarget {
+            arch: Arch::Unknown,
+            platform: Platform::Unknown,
+            endianness: Endianness::Big,
+            libc: Libc::Unknown,
+        }
+    }
+}
+
 #[turbo_tasks::value_impl]
 impl CompileTarget {
     #[turbo_tasks::function]
     pub fn current() -> Vc<Self> {
-        Self::cell(CompileTarget {
-            arch: CompileTarget::current_arch(),
-            platform: CompileTarget::current_platform(),
-            endianness: CompileTarget::current_endianness(),
-            libc: CompileTarget::current_libc(),
-        })
+        Self::cell(Self::current_raw())
     }
 
     #[turbo_tasks::function]
@@ -45,6 +51,15 @@ impl Display for CompileTarget {
 }
 
 impl CompileTarget {
+    pub fn current_raw() -> Self {
+        CompileTarget {
+            arch: CompileTarget::current_arch(),
+            platform: CompileTarget::current_platform(),
+            endianness: CompileTarget::current_endianness(),
+            libc: CompileTarget::current_libc(),
+        }
+    }
+
     pub fn dylib_ext(&self) -> &'static str {
         let platform = self.platform;
         match platform {

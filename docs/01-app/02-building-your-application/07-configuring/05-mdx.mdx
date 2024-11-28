@@ -649,7 +649,7 @@ export default withMDX(nextConfig)
 
 ### Using Plugins with Turbopack
 
-To use plugins with [Turbopack](/docs/architecture/turbopack), upgrade to the latest `@next/mdx` and specify plugin names using a string:
+To use plugins with [Turbopack](/docs/app/api-reference/turbopack), upgrade to the latest `@next/mdx` and specify plugin names using a string:
 
 ```js filename="next.config.mjs"
 import createMDX from '@next/mdx'
@@ -671,7 +671,7 @@ export default withMDX(nextConfig)
 
 > **Good to know**:
 >
-> remark and rehype plugins without serializable options cannot be used yet with [Turbopack](/docs/architecture/turbopack), due to [inability to pass JavaScript functions to Rust](https://github.com/vercel/next.js/issues/71819#issuecomment-2461802968)
+> remark and rehype plugins without serializable options cannot be used yet with [Turbopack](/docs/app/api-reference/turbopack), due to [inability to pass JavaScript functions to Rust](https://github.com/vercel/next.js/issues/71819#issuecomment-2461802968)
 
 ## Remote MDX
 
