@@ -254,7 +254,7 @@ async fn get_next_dynamic_edges(
 }
 
 struct NextDynamicVisit {
-    client_asset_context: Vc<Box<dyn AssetContext>>,
+    client_asset_context: ResolvedVc<Box<dyn AssetContext>>,
 }
 
 impl turbo_tasks::graph::Visit<NextDynamicVisitEntry> for NextDynamicVisit {
