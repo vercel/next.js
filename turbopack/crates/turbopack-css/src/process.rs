@@ -646,9 +646,9 @@ impl GenerateSourceMap for ParseCssResultSourceMap {
 
 #[turbo_tasks::value]
 struct ParsingIssue {
-    msg: Vc<RcStr>,
-    file: Vc<FileSystemPath>,
-    source: Option<Vc<IssueSource>>,
+    msg: ResolvedVc<RcStr>,
+    file: ResolvedVc<FileSystemPath>,
+    source: Option<ResolvedVc<IssueSource>>,
 }
 
 #[turbo_tasks::value_impl]
