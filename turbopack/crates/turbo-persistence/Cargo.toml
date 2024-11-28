@@ -25,6 +25,7 @@ thread_local = { workspace = true }
 twox-hash = { version = "2.0.1", features = ["xxhash64"] }
 
 [dev-dependencies]
+rand = { workspace = true, features = ["small_rng"] }
 tempfile = "3.14.0"
 
 [lints]

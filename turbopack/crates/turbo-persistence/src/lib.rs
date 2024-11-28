@@ -5,6 +5,7 @@
 mod arc_slice;
 mod collector;
 mod collector_entry;
+mod compaction;
 mod constants;
 mod db;
 mod key;
