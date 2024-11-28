@@ -140,4 +140,58 @@ describe('nextjs APIs in unstable_after()', () => {
       })
     })
   })
+
+  describe('draftMode status is readable, but cannot be changed', () => {
+    it.each([
+      {
+        title: 'dynamic page',
+        path: '/draft-mode/page-dynamic',
+        isDynamic: true,
+      },
+      {
+        title: 'static page',
+        path: '/draft-mode/page-static',
+        isDynamic: false,
+      },
+      {
+        title: 'dynamic route handler',
+        path: '/draft-mode/route-handler-dynamic',
+        isDynamic: true,
+      },
+      {
+        title: 'static route handler',
+        path: '/draft-mode/route-handler-static',
+        isDynamic: false,
+      },
+    ])('$title', async ({ path, isDynamic }) => {
+      await next.render(path)
+      await retry(() => {
+        // in `next start`, static routes log the error at build time
+        const logs = isDynamic || isNextDev ? getLogs() : buildLogs
+        expect(logs).toContain(`[${path}] draft.isEnabled: false`)
+        expect(logs).toContain(
+          `Route ${path} used "draftMode().enable()" inside \`unstable_after\``
+        )
+        expect(logs).toContain(
+          `Route ${path} used "draftMode().disable()" inside \`unstable_after\``
+        )
+      })
+    })
+
+    it('server action', async () => {
+      const path = '/draft-mode/server-action'
+      const browser = await next.browser(path)
+      await browser.elementByCss('button[type="submit"]').click()
+      await retry(() => {
+        const logs = getLogs()
+        expect(logs).toContain(`[${path}] draft.isEnabled: false`)
+        expect(logs).toContain(
+          `Route ${path} used "draftMode().enable()" inside \`unstable_after\``
+        )
+        expect(logs).toContain(
+          `Route ${path} used "draftMode().disable()" inside \`unstable_after\``
+        )
+      })
+    })
+  })
 })
