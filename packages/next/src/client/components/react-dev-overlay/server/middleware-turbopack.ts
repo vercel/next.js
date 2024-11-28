@@ -19,6 +19,14 @@ import type { Project, TurbopackStackFrame } from '../../../../build/swc/types'
 import { getSourceMapFromFile } from '../internal/helpers/get-source-map-from-file'
 import { findSourceMap } from 'node:module'
 
+function shouldIgnorePath(modulePath: string): boolean {
+  return (
+    modulePath.includes('node_modules') ||
+    // Only relevant for when Next.js is symlinked e.g. in the Next.js monorepo
+    modulePath.includes('next/dist')
+  )
+}
+
 type IgnorableStackFrame = StackFrame & { ignored: boolean }
 
 const currentSourcesByFile: Map<string, Promise<string | null>> = new Map()
@@ -33,16 +41,12 @@ export async function batchedTraceSource(
   if (!sourceFrame) return
 
   let source = null
-  let ignored = true
   // Don't look up source for node_modules or internals. These can often be large bundled files.
-  if (
-    sourceFrame.file &&
-    !(
-      sourceFrame.file.includes('node_modules') ||
-      // isInternal means resource starts with turbopack://[turbopack]
-      sourceFrame.isInternal
-    )
-  ) {
+  const ignored =
+    shouldIgnorePath(sourceFrame.file) ||
+    // isInternal means resource starts with turbopack://[turbopack]
+    !!sourceFrame.isInternal
+  if (sourceFrame.file && !ignored) {
     let sourcePromise = currentSourcesByFile.get(sourceFrame.file)
     if (!sourcePromise) {
       sourcePromise = project.getSourceForAsset(sourceFrame.file)
@@ -53,7 +57,6 @@ export async function batchedTraceSource(
         currentSourcesByFile.delete(sourceFrame.file!)
       }, 100)
     }
-    ignored = false
     source = await sourcePromise
   }
 
