@@ -1,6 +1,4 @@
-use std::{
-    borrow::Cow, collections::HashSet, future::Future, mem::replace, panic, pin::Pin, usize,
-};
+use std::{borrow::Cow, collections::HashSet, future::Future, mem::replace, panic, pin::Pin};
 
 use anyhow::{anyhow, Result};
 use auto_hash_map::AutoSet;
