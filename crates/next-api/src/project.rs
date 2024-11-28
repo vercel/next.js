@@ -1178,7 +1178,7 @@ impl Project {
     pub async fn emit_all_output_assets(
         self: Vc<Self>,
         output_assets: Vc<OutputAssetsOperation>,
-    ) -> Result<Vc<()>> {
+    ) -> Result<()> {
         let span = tracing::info_span!("emitting");
         async move {
             let all_output_assets = all_assets_from_entries_operation(output_assets);
@@ -1187,27 +1187,23 @@ impl Project {
             let node_root = self.node_root();
 
             if let Some(map) = self.await?.versioned_content_map {
-                let _ = map
-                    .insert_output_assets(
-                        all_output_assets,
-                        node_root,
-                        client_relative_path,
-                        node_root,
-                    )
-                    .resolve()
-                    .await?;
+                let _ = map.insert_output_assets(
+                    all_output_assets,
+                    node_root,
+                    client_relative_path,
+                    node_root,
+                );
 
-                Ok(Vc::cell(()))
+                Ok(())
             } else {
                 let _ = emit_assets(
                     *all_output_assets.await?,
                     node_root,
                     client_relative_path,
                     node_root,
-                )
-                .resolve()
-                .await?;
-                Ok(Vc::cell(()))
+                );
+
+                Ok(())
             }
         }
         .instrument(span)

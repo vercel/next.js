@@ -164,16 +164,12 @@ impl FileSystem for AttachedFileSystem {
     }
 
     #[turbo_tasks::function(fs)]
-    fn write(self: Vc<Self>, path: Vc<FileSystemPath>, content: Vc<FileContent>) -> Vc<Completion> {
+    fn write(self: Vc<Self>, path: Vc<FileSystemPath>, content: Vc<FileContent>) -> Vc<()> {
         self.get_inner_fs_path(path).write(content)
     }
 
     #[turbo_tasks::function(fs)]
-    fn write_link(
-        self: Vc<Self>,
-        path: Vc<FileSystemPath>,
-        target: Vc<LinkContent>,
-    ) -> Vc<Completion> {
+    fn write_link(self: Vc<Self>, path: Vc<FileSystemPath>, target: Vc<LinkContent>) -> Vc<()> {
         self.get_inner_fs_path(path).write_link(target)
     }
 
