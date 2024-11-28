@@ -581,7 +581,7 @@ impl NapiMiddleware {
         Ok(NapiMiddleware {
             endpoint: External::new(ExternalEndpoint(VcArc::new(
                 turbo_tasks.clone(),
-                value.endpoint,
+                *value.endpoint,
             ))),
         })
     }
@@ -598,11 +598,11 @@ impl NapiInstrumentation {
         Ok(NapiInstrumentation {
             node_js: External::new(ExternalEndpoint(VcArc::new(
                 turbo_tasks.clone(),
-                value.node_js,
+                *value.node_js,
             ))),
             edge: External::new(ExternalEndpoint(VcArc::new(
                 turbo_tasks.clone(),
-                value.edge,
+                *value.edge,
             ))),
         })
     }
