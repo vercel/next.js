@@ -8,7 +8,7 @@ import {
   assertHasRedbox,
   assertNoRedbox,
   waitFor,
-  waitForAndOpenRuntimeError,
+  openRedbox,
   getRedboxDescriptionWarning,
   toggleCollapseComponentStack,
   getRedboxErrorLink,
@@ -124,8 +124,8 @@ export async function createSandbox(
         async assertNoRedbox() {
           return assertNoRedbox(browser)
         },
-        async waitForAndOpenRuntimeError() {
-          return waitForAndOpenRuntimeError(browser)
+        async openRedbox() {
+          return openRedbox(browser)
         },
         async hasErrorToast() {
           return Boolean(await hasErrorToast(browser))

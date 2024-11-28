@@ -11,7 +11,9 @@ use super::{
     chunk_content, chunking::make_chunks, AsyncModuleInfo, Chunk, ChunkContentResult, ChunkItem,
     ChunkingContext,
 };
-use crate::{module::Module, output::OutputAssets, reference::ModuleReference};
+use crate::{
+    module::Module, output::OutputAssets, rebase::RebasedAsset, reference::ModuleReference,
+};
 
 pub struct MakeChunkGroupResult {
     pub chunks: Vec<ResolvedVc<Box<dyn Chunk>>>,
@@ -27,6 +29,7 @@ pub async fn make_chunk_group(
     let ChunkContentResult {
         chunk_items,
         async_modules,
+        traced_modules,
         external_module_references,
         forward_edges_inherit_async,
         local_back_edges_inherit_async,
@@ -143,12 +146,32 @@ pub async fn make_chunk_group(
         .flat_map(|references| references.iter().copied())
         .collect();
 
+    let mut referenced_output_assets = references_to_output_assets(external_module_references)
+        .await?
+        .await?
+        .clone_value();
+
+    let rebased_modules = traced_modules
+        .into_iter()
+        .map(|module| {
+            RebasedAsset::new(
+                *module,
+                module.ident().path().root(),
+                module.ident().path().root(),
+            )
+            .to_resolved()
+        })
+        .try_join()
+        .await?;
+
+    referenced_output_assets.extend(rebased_modules.into_iter().map(ResolvedVc::upcast));
+
     // Pass chunk items to chunking algorithm
     let mut chunks = make_chunks(
         chunking_context,
         Vc::cell(chunk_items.into_iter().collect()),
         "".into(),
-        references_to_output_assets(external_module_references).await?,
+        Vc::cell(referenced_output_assets),
     )
     .await?
     .clone_value();

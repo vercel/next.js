@@ -26,6 +26,7 @@ type RuntimeConfig = {
   publicRuntimeConfig: { [key: string]: any }
   serverRuntimeConfig: { [key: string]: any }
   dynamicIO: boolean
+  after: boolean
 }
 
 // we call getStaticPaths in a separate process to ensure
@@ -49,6 +50,7 @@ export async function loadStaticPaths({
   cacheLifeProfiles,
   nextConfigOutput,
   buildId,
+  authInterrupts,
 }: {
   dir: string
   distDir: string
@@ -69,6 +71,7 @@ export async function loadStaticPaths({
   }
   nextConfigOutput: 'standalone' | 'export' | undefined
   buildId: string
+  authInterrupts: boolean
 }): Promise<PartialStaticPathsResult> {
   // update work memory runtime-config
   require('../../shared/lib/runtime-config.external').setConfig(config)
@@ -94,6 +97,7 @@ export async function loadStaticPaths({
       dir,
       page: pathname,
       dynamicIO: config.dynamicIO,
+      after: config.after,
       segments,
       configFileName: config.configFileName,
       distDir,
@@ -107,6 +111,7 @@ export async function loadStaticPaths({
       nextConfigOutput,
       isRoutePPREnabled,
       buildId,
+      authInterrupts,
     })
   } else if (!components.getStaticPaths) {
     // We shouldn't get to this point since the worker should only be called for

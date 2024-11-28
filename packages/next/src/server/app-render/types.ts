@@ -96,7 +96,7 @@ export type CacheNodeSeedData = [
   parallelRoutes: {
     [parallelRouterKey: string]: CacheNodeSeedData | null
   },
-  loading: LoadingModuleData,
+  loading: LoadingModuleData | Promise<LoadingModuleData>,
 ]
 
 export type FlightDataSegment = [
@@ -182,6 +182,8 @@ export interface RenderOptsPartial {
     clientTraceMetadata: string[] | undefined
     after: boolean
     dynamicIO: boolean
+    inlineCss: boolean
+    authInterrupts: boolean
   }
   postponed?: string
 

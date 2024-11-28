@@ -29,7 +29,7 @@ The examples on this page walk through basic username and password auth for educ
 
 ### Sign-up and login functionality
 
-You can use the [`<form>`](https://react.dev/reference/react-dom/components/form) element with React's [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) and `useFormState` to capture user credentials, validate form fields, and call your Authentication Provider's API or database.
+You can use the [`<form>`](https://react.dev/reference/react-dom/components/form) element with React's [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) and `useActionState` to capture user credentials, validate form fields, and call your Authentication Provider's API or database.
 
 Since Server Actions always execute on the server, they provide a secure environment for handling authentication logic.
 
@@ -200,16 +200,16 @@ export async function signup(state, formData) {
 }
 ```
 
-Back in your `<SignupForm />`, you can use React's `useFormState` hook to display validation errors while the form is submitting:
+Back in your `<SignupForm />`, you can use React's `useActionState` hook to display validation errors while the form is submitting:
 
-```tsx filename="app/ui/signup-form.tsx" switcher highlight={7,15,21,27-39}
+```tsx filename="app/ui/signup-form.tsx" switcher highlight={7,15,21,27-36}
 'use client'
 
-import { useFormState, useFormStatus } from 'react-dom'
 import { signup } from '@/app/actions/auth'
+import { useActionState } from 'react'
 
-export function SignupForm() {
-  const [state, action] = useFormState(signup, undefined)
+export default function SignupForm() {
+  const [state, action, pending] = useActionState(signup, undefined)
 
   return (
     <form action={action}>
@@ -239,42 +239,34 @@ export function SignupForm() {
           </ul>
         </div>
       )}
-      <SubmitButton />
+      <button disabled={pending} type="submit">
+        Sign Up
+      </button>
     </form>
-  )
-}
-
-function SubmitButton() {
-  const { pending } = useFormStatus()
-
-  return (
-    <button disabled={pending} type="submit">
-      Sign Up
-    </button>
   )
 }
 ```
 
-```jsx filename="app/ui/signup-form.js" switcher highlight={7,15,21,27-39}
+```jsx filename="app/ui/signup-form.js" switcher highlight={7,15,21,27-36}
 'use client'
 
-import { useFormState, useFormStatus } from 'react-dom'
 import { signup } from '@/app/actions/auth'
+import { useActionState } from 'react'
 
-export function SignupForm() {
-  const [state, action] = useFormState(signup, undefined)
+export default function SignupForm() {
+  const [state, action, pending] = useActionState(signup, undefined)
 
   return (
     <form action={action}>
       <div>
         <label htmlFor="name">Name</label>
-        <input id="name" name="name" placeholder="John Doe" />
+        <input id="name" name="name" placeholder="Name" />
       </div>
       {state?.errors?.name && <p>{state.errors.name}</p>}
 
       <div>
         <label htmlFor="email">Email</label>
-        <input id="email" name="email" placeholder="john@example.com" />
+        <input id="email" name="email" placeholder="Email" />
       </div>
       {state?.errors?.email && <p>{state.errors.email}</p>}
 
@@ -292,25 +284,16 @@ export function SignupForm() {
           </ul>
         </div>
       )}
-      <SubmitButton />
+      <button disabled={pending} type="submit">
+        Sign Up
+      </button>
     </form>
-  )
-}
-
-function SubmitButton() {
-  const { pending } = useFormStatus()
-
-  return (
-    <button disabled={pending} type="submit">
-      Sign Up
-    </button>
   )
 }
 ```
 
 > **Good to know:**
 >
-> - These examples use React's `useFormState` hook, which is bundled with the Next.js App Router. If you are using React 19, use `useActionState` instead. See the [React docs](https://react.dev/reference/react/useActionState) for more information.
 > - In React 19, `useFormStatus` includes additional keys on the returned object, like data, method, and action. If you are not using React 19, only the `pending` key is available.
 > - In React 19, `useActionState` also includes a `pending` key on the returned state.
 > - Before mutating data, you should always ensure a user is also authorized to perform the action. See [Authentication and Authorization](#authorization).
@@ -657,17 +640,16 @@ import { cookies } from 'next/headers'
 
 export async function createSession(userId: string) {
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-  const session = await encrypt({ userId, expiresAt })(await cookies()).set(
-    'session',
-    session,
-    {
-      httpOnly: true,
-      secure: true,
-      expires: expiresAt,
-      sameSite: 'lax',
-      path: '/',
-    }
-  )
+  const session = await encrypt({ userId, expiresAt })
+  const cookieStore = await cookies()
+
+  cookieStore.set('session', session, {
+    httpOnly: true,
+    secure: true,
+    expires: expiresAt,
+    sameSite: 'lax',
+    path: '/',
+  })
 }
 ```
 

@@ -39,6 +39,11 @@ fn passthrough_reference_ty() -> Vc<RcStr> {
 }
 
 #[turbo_tasks::function]
+fn traced_reference_ty() -> Vc<RcStr> {
+    Vc::cell("traced reference".into())
+}
+
+#[turbo_tasks::function]
 pub async fn content_to_details(content: Vc<AssetContent>) -> Result<Vc<RcStr>> {
     Ok(match &*content.await? {
         AssetContent::File(file_content) => match &*file_content.await? {
@@ -77,6 +82,7 @@ pub async fn children_from_module_references(
                 }
                 Some(ChunkingType::Async) => key = async_reference_ty(),
                 Some(ChunkingType::Passthrough) => key = passthrough_reference_ty(),
+                Some(ChunkingType::Traced) => key = traced_reference_ty(),
             }
         }
 

@@ -14,13 +14,13 @@ export function StreamingText({
   dynamic: string
 }) {
   return (
-    <div data-streaming-text>
-      <div>{staticText}</div>
-      <div>
-        <Suspense fallback={`Loading... [${dynamic}]`}>
+    <div>
+      <div data-streaming-text-static={staticText}>{staticText}</div>
+      <Suspense fallback={<div>Loading... [{dynamic}]</div>}>
+        <div data-streaming-text-dynamic={dynamic}>
           <DynamicText text={dynamic} />
-        </Suspense>
-      </div>
+        </div>
+      </Suspense>
     </div>
   )
 }

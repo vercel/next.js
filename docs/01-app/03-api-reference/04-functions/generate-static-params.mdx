@@ -65,7 +65,11 @@ export function generateStaticParams() {
 // - /product/1
 // - /product/2
 // - /product/3
-export default async function Page({ params }: { params: { id: string } }) {
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
   const { id } = await params
   // ...
 }
@@ -106,7 +110,7 @@ export function generateStaticParams() {
 export default async function Page({
   params,
 }: {
-  params: { category: string; product: string }
+  params: Promise<{ category: string; product: string }>
 }) {
   const { category, product } = await params
   // ...
@@ -145,7 +149,11 @@ export function generateStaticParams() {
 // - /product/a/1
 // - /product/b/2
 // - /product/c/3
-export default async function Page({ params }: { params: { slug: string[] } }) {
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ slug: string[] }>
+}) {
   const { slug } = await params
   // ...
 }
@@ -263,7 +271,7 @@ export async function generateStaticParams() {
 export default function Page({
   params,
 }: {
-  params: { category: string; product: string }
+  params: Promise<{ category: string; product: string }>
 }) {
   // ...
 }
@@ -299,7 +307,11 @@ export async function generateStaticParams() {
   }))
 }
 
-export default function Layout({ params }: { params: { category: string } }) {
+export default function Layout({
+  params,
+}: {
+  params: Promise<{ category: string }>
+}) {
   // ...
 }
 ```
@@ -343,7 +355,7 @@ export async function generateStaticParams({
 export default function Page({
   params,
 }: {
-  params: { category: string; product: string }
+  params: Promise<{ category: string; product: string }>
 }) {
   // ...
 }

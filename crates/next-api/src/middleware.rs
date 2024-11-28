@@ -1,3 +1,5 @@
+use std::future::IntoFuture;
+
 use anyhow::{bail, Context, Result};
 use next_core::{
     all_assets_from_entries,
@@ -25,7 +27,7 @@ use turbopack_ecmascript::chunk::EcmascriptChunkPlaceable;
 
 use crate::{
     paths::{
-        all_paths_in_root, all_server_paths, get_js_paths_from_root, get_paths_from_root,
+        all_paths_in_root, all_server_paths, get_asset_paths_from_root, get_js_paths_from_root,
         get_wasm_paths_from_root, paths_to_bindings, wasm_paths_to_bindings,
     },
     project::Project,
@@ -34,9 +36,9 @@ use crate::{
 
 #[turbo_tasks::value]
 pub struct MiddlewareEndpoint {
-    project: Vc<Project>,
-    asset_context: Vc<Box<dyn AssetContext>>,
-    source: Vc<Box<dyn Source>>,
+    project: ResolvedVc<Project>,
+    asset_context: ResolvedVc<Box<dyn AssetContext>>,
+    source: ResolvedVc<Box<dyn Source>>,
     app_dir: Option<ResolvedVc<FileSystemPath>>,
     ecmascript_client_reference_transition_name: Option<ResolvedVc<RcStr>>,
 }
@@ -45,9 +47,9 @@ pub struct MiddlewareEndpoint {
 impl MiddlewareEndpoint {
     #[turbo_tasks::function]
     pub fn new(
-        project: Vc<Project>,
-        asset_context: Vc<Box<dyn AssetContext>>,
-        source: Vc<Box<dyn Source>>,
+        project: ResolvedVc<Project>,
+        asset_context: ResolvedVc<Box<dyn AssetContext>>,
+        source: ResolvedVc<Box<dyn Source>>,
         app_dir: Option<ResolvedVc<FileSystemPath>>,
         ecmascript_client_reference_transition_name: Option<ResolvedVc<RcStr>>,
     ) -> Vc<Self> {
@@ -66,19 +68,19 @@ impl MiddlewareEndpoint {
         let userland_module = self
             .asset_context
             .process(
-                self.source,
+                *self.source,
                 Value::new(ReferenceType::Entry(EntryReferenceSubType::Middleware)),
             )
             .module();
 
         let module = get_middleware_module(
-            self.asset_context,
+            *self.asset_context,
             self.project.project_path(),
             userland_module,
         );
 
         let module = wrap_edge_entry(
-            self.asset_context,
+            *self.asset_context,
             self.project.project_path(),
             module,
             "middleware".into(),
@@ -88,13 +90,11 @@ impl MiddlewareEndpoint {
             Value::new(ServerContextType::Middleware {
                 app_dir: self.app_dir,
                 ecmascript_client_reference_transition_name: self
-                    .ecmascript_client_reference_transition_name
-                    .as_deref()
-                    .copied(),
+                    .ecmascript_client_reference_transition_name,
             }),
             self.project.next_mode(),
         )
-        .resolve_entries(self.asset_context)
+        .resolve_entries(*self.asset_context)
         .await?
         .clone_value();
 
@@ -141,8 +141,7 @@ impl MiddlewareEndpoint {
         let wasm_paths_from_root =
             get_wasm_paths_from_root(&node_root_value, &all_output_assets).await?;
 
-        let all_assets =
-            get_paths_from_root(&node_root_value, &all_output_assets, |_asset| true).await?;
+        let all_assets = get_asset_paths_from_root(&node_root_value, &all_output_assets).await?;
 
         // Awaited later for parallelism
         let config = config.await?;
@@ -260,7 +259,7 @@ impl MiddlewareEndpoint {
     fn userland_module(&self) -> Vc<Box<dyn Module>> {
         self.asset_context
             .process(
-                self.source,
+                *self.source,
                 Value::new(ReferenceType::Entry(EntryReferenceSubType::Middleware)),
             )
             .module()
@@ -276,18 +275,27 @@ impl Endpoint for MiddlewareEndpoint {
             let this = self.await?;
             let output_assets = self.output_assets();
             let _ = output_assets.resolve().await?;
-            let _ = this.project.emit_all_output_assets(Vc::cell(output_assets));
+            this.project
+                .emit_all_output_assets(Vc::cell(output_assets))
+                .await?;
 
-            let node_root = this.project.node_root();
-            let server_paths = all_server_paths(output_assets, node_root)
-                .await?
-                .clone_value();
+            let (server_paths, client_paths) = if this.project.next_mode().await?.is_development() {
+                let node_root = this.project.node_root();
+                let server_paths = all_server_paths(output_assets, node_root)
+                    .await?
+                    .clone_value();
 
-            // Middleware could in theory have a client path (e.g. `new URL`).
-            let client_relative_root = this.project.client_relative_path();
-            let client_paths = all_paths_in_root(output_assets, client_relative_root)
-                .await?
-                .clone_value();
+                // Middleware could in theory have a client path (e.g. `new URL`).
+                let client_relative_root = this.project.client_relative_path();
+                let client_paths = all_paths_in_root(output_assets, client_relative_root)
+                    .into_future()
+                    .instrument(tracing::info_span!("client_paths"))
+                    .await?
+                    .clone_value();
+                (server_paths, client_paths)
+            } else {
+                (vec![], vec![])
+            };
 
             Ok(WrittenEndpoint::Edge {
                 server_paths,

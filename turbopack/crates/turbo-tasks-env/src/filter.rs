@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, Vc};
+use turbo_tasks::{FxIndexMap, ResolvedVc, Vc};
 
 use crate::{EnvMap, ProcessEnv};
 
@@ -8,14 +8,14 @@ use crate::{EnvMap, ProcessEnv};
 /// filtering.
 #[turbo_tasks::value]
 pub struct FilterProcessEnv {
-    prior: Vc<Box<dyn ProcessEnv>>,
+    prior: ResolvedVc<Box<dyn ProcessEnv>>,
     filters: Vec<RcStr>,
 }
 
 #[turbo_tasks::value_impl]
 impl FilterProcessEnv {
     #[turbo_tasks::function]
-    pub fn new(prior: Vc<Box<dyn ProcessEnv>>, filters: Vec<RcStr>) -> Vc<Self> {
+    pub fn new(prior: ResolvedVc<Box<dyn ProcessEnv>>, filters: Vec<RcStr>) -> Vc<Self> {
         FilterProcessEnv {
             prior,
             filters: filters

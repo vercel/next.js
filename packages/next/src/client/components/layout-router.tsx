@@ -3,6 +3,7 @@
 import type {
   ChildSegmentMap,
   LazyCacheNode,
+  LoadingModuleData,
 } from '../../shared/lib/app-router-context.shared-runtime'
 import type {
   FlightRouterState,
@@ -450,28 +451,43 @@ function InnerLayoutRouter({
  * If no loading property is provided it renders the children without a suspense boundary.
  */
 function LoadingBoundary({
-  children,
-  hasLoading,
   loading,
-  loadingStyles,
-  loadingScripts,
+  children,
 }: {
+  loading: LoadingModuleData | Promise<LoadingModuleData>
   children: React.ReactNode
-  hasLoading: boolean
-  loading?: React.ReactNode
-  loadingStyles?: React.ReactNode
-  loadingScripts?: React.ReactNode
 }): JSX.Element {
-  // We have an explicit prop for checking if `loading` is provided, to disambiguate between a loading
-  // component that returns `null` / `undefined`, vs not having a loading component at all.
-  if (hasLoading) {
+  // If loading is a promise, unwrap it. This happens in cases where we haven't
+  // yet received the loading data from the server — which includes whether or
+  // not this layout has a loading component at all.
+  //
+  // It's OK to suspend here instead of inside the fallback because this
+  // promise will resolve simultaneously with the data for the segment itself.
+  // So it will never suspend for longer than it would have if we didn't use
+  // a Suspense fallback at all.
+  let loadingModuleData
+  if (
+    typeof loading === 'object' &&
+    loading !== null &&
+    typeof (loading as any).then === 'function'
+  ) {
+    const promiseForLoading = loading as Promise<LoadingModuleData>
+    loadingModuleData = use(promiseForLoading)
+  } else {
+    loadingModuleData = loading as LoadingModuleData
+  }
+
+  if (loadingModuleData) {
+    const loadingRsc = loadingModuleData[0]
+    const loadingStyles = loadingModuleData[1]
+    const loadingScripts = loadingModuleData[2]
     return (
       <Suspense
         fallback={
           <>
             {loadingStyles}
             {loadingScripts}
-            {loading}
+            {loadingRsc}
           </>
         }
       >
@@ -497,6 +513,8 @@ export default function OuterLayoutRouter({
   templateScripts,
   template,
   notFound,
+  forbidden,
+  unauthorized,
 }: {
   parallelRouterKey: string
   segmentPath: FlightSegmentPath
@@ -507,6 +525,8 @@ export default function OuterLayoutRouter({
   templateScripts: React.ReactNode | undefined
   template: React.ReactNode
   notFound: React.ReactNode | undefined
+  forbidden: React.ReactNode | undefined
+  unauthorized: React.ReactNode | undefined
 }) {
   const context = useContext(LayoutRouterContext)
   if (!context) {
@@ -562,13 +582,12 @@ export default function OuterLayoutRouter({
                   errorStyles={errorStyles}
                   errorScripts={errorScripts}
                 >
-                  <LoadingBoundary
-                    hasLoading={Boolean(loading)}
-                    loading={loading?.[0]}
-                    loadingStyles={loading?.[1]}
-                    loadingScripts={loading?.[2]}
-                  >
-                    <HTTPAccessFallbackBoundary notFound={notFound}>
+                  <LoadingBoundary loading={loading}>
+                    <HTTPAccessFallbackBoundary
+                      notFound={notFound}
+                      forbidden={forbidden}
+                      unauthorized={unauthorized}
+                    >
                       <RedirectBoundary>
                         <InnerLayoutRouter
                           parallelRouterKey={parallelRouterKey}

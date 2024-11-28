@@ -18,9 +18,11 @@ import {
 import {
   getRedirectTypeFromError,
   getURLFromRedirectError,
+} from '../../client/components/redirect'
+import {
   isRedirectError,
   type RedirectType,
-} from '../../client/components/redirect'
+} from '../../client/components/redirect-error'
 import RenderResult from '../render-result'
 import type { WorkStore } from '../app-render/work-async-storage.external'
 import { FlightRenderResult } from './flight-render-result'

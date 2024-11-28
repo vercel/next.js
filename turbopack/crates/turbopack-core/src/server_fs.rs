@@ -39,12 +39,20 @@ impl FileSystem for ServerFileSystem {
     }
 
     #[turbo_tasks::function]
-    fn write(&self, _fs_path: Vc<FileSystemPath>, _content: Vc<FileContent>) -> Result<Vc<()>> {
+    fn write(
+        &self,
+        _fs_path: Vc<FileSystemPath>,
+        _content: Vc<FileContent>,
+    ) -> Result<Vc<Completion>> {
         bail!("Writing is not possible to the marker filesystem for the server")
     }
 
     #[turbo_tasks::function]
-    fn write_link(&self, _fs_path: Vc<FileSystemPath>, _target: Vc<LinkContent>) -> Result<Vc<()>> {
+    fn write_link(
+        &self,
+        _fs_path: Vc<FileSystemPath>,
+        _target: Vc<LinkContent>,
+    ) -> Result<Vc<Completion>> {
         bail!("Writing is not possible to the marker filesystem for the server")
     }
 

@@ -1,14 +1,18 @@
+use std::collections::BTreeSet;
+
 use anyhow::{bail, Result};
 use serde_json::json;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
-use turbo_tasks_fs::{DiskFileSystem, File, FileSystem, FileSystemPath, VirtualFileSystem};
+use turbo_tasks_fs::{File, FileSystem, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     ident::AssetIdent,
     output::OutputAsset,
     reference::all_assets_from_entries,
 };
+
+use crate::project::Project;
 
 /// A json file that produces references to all files that are needed by the given module
 /// at runtime. This will include, for example, node native modules, unanalyzable packages,
@@ -18,11 +22,9 @@ use turbopack_core::{
 /// their bundle.
 #[turbo_tasks::value(shared)]
 pub struct NftJsonAsset {
+    project: ResolvedVc<Project>,
     /// The chunk for which the asset is being generated
-    chunk: Vc<Box<dyn OutputAsset>>,
-    output_fs: Vc<DiskFileSystem>,
-    project_fs: Vc<DiskFileSystem>,
-    client_fs: Vc<Box<dyn FileSystem>>,
+    chunk: ResolvedVc<Box<dyn OutputAsset>>,
     /// Additional assets to include in the nft json. This can be used to manually collect assets
     /// that are known to be required but are not in the graph yet, for whatever reason.
     ///
@@ -35,20 +37,43 @@ pub struct NftJsonAsset {
 impl NftJsonAsset {
     #[turbo_tasks::function]
     pub fn new(
-        chunk: Vc<Box<dyn OutputAsset>>,
-        output_fs: Vc<DiskFileSystem>,
-        project_fs: Vc<DiskFileSystem>,
-        client_fs: Vc<Box<dyn FileSystem>>,
+        project: ResolvedVc<Project>,
+        chunk: ResolvedVc<Box<dyn OutputAsset>>,
         additional_assets: Vec<ResolvedVc<Box<dyn OutputAsset>>>,
     ) -> Vc<Self> {
         NftJsonAsset {
             chunk,
-            output_fs,
-            project_fs,
-            client_fs,
+            project,
             additional_assets,
         }
         .cell()
+    }
+
+    #[turbo_tasks::function]
+    fn output_root(&self) -> Vc<FileSystemPath> {
+        self.project.output_fs().root()
+    }
+
+    #[turbo_tasks::function]
+    fn project_root(&self) -> Vc<FileSystemPath> {
+        self.project.project_fs().root()
+    }
+
+    #[turbo_tasks::function]
+    fn client_root(&self) -> Vc<FileSystemPath> {
+        self.project.client_fs().root()
+    }
+
+    #[turbo_tasks::function]
+    fn project_path(&self) -> Vc<FileSystemPath> {
+        self.project.project_path()
+    }
+
+    #[turbo_tasks::function]
+    async fn dist_dir(&self) -> Result<Vc<RcStr>> {
+        Ok(Vc::cell(
+            format!("/{}/", self.project.dist_dir().await?).into(),
+        ))
     }
 }
 
@@ -58,31 +83,22 @@ pub struct OutputSpecifier(Option<RcStr>);
 #[turbo_tasks::value_impl]
 impl NftJsonAsset {
     #[turbo_tasks::function]
-    async fn ident_in_project_fs(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
-        let this = self.await?;
-        let project_fs = this.project_fs.await?;
-        let output_fs = this.output_fs.await?;
-        let nft_folder = self.ident().path().parent().await?;
-
-        if let Some(subdir) = output_fs.root().strip_prefix(&**project_fs.root()) {
-            Ok(this
-                .project_fs
-                .root()
-                .join(subdir.into())
-                .join(nft_folder.path.clone()))
-        } else {
-            // TODO: what are the implications of this?
-            bail!("output fs not inside project fs");
-        }
+    async fn ident_folder(self: Vc<Self>) -> Vc<FileSystemPath> {
+        self.ident().path().parent()
     }
 
     #[turbo_tasks::function]
-    async fn ident_in_client_fs(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
+    async fn ident_folder_in_project_fs(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         Ok(self
-            .await?
-            .client_fs
-            .root()
-            .join(self.ident().path().parent().await?.path.clone()))
+            .project_path()
+            .join(self.ident_folder().await?.path.clone()))
+    }
+
+    #[turbo_tasks::function]
+    async fn ident_folder_in_client_fs(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
+        Ok(self
+            .client_root()
+            .join(self.ident_folder().await?.path.clone()))
     }
 
     #[turbo_tasks::function]
@@ -90,49 +106,45 @@ impl NftJsonAsset {
         self: Vc<Self>,
         path: Vc<FileSystemPath>,
     ) -> Result<Vc<OutputSpecifier>> {
-        let this = self.await?;
-        let path_fs = path.fs().resolve().await?;
         let path_ref = path.await?;
-        let nft_folder = self.ident().path().parent().await?;
 
-        if path_fs == Vc::upcast(this.output_fs.resolve().await?) {
-            // e.g. a referenced chunk
+        // include assets in the outputs such as referenced chunks
+        if path_ref.is_inside_ref(&*(self.output_root().await?)) {
             return Ok(Vc::cell(Some(
-                nft_folder.get_relative_path_to(&path_ref).unwrap(),
-            )));
-        } else if path_fs == Vc::upcast(this.project_fs.resolve().await?) {
-            return Ok(Vc::cell(Some(
-                self.ident_in_project_fs()
+                self.ident_folder()
                     .await?
                     .get_relative_path_to(&path_ref)
                     .unwrap(),
             )));
-        } else if path_fs == Vc::upcast(this.client_fs.resolve().await?) {
+        }
+
+        // include assets in the project root such as images and traced references (externals)
+        if path_ref.is_inside_ref(&*(self.project_root().await?)) {
             return Ok(Vc::cell(Some(
-                self.ident_in_client_fs()
+                self.ident_folder_in_project_fs()
+                    .await?
+                    .get_relative_path_to(&path_ref)
+                    .unwrap(),
+            )));
+        }
+
+        // assets that are needed on the client side such as fonts and icons
+        if path_ref.is_inside_ref(&*(self.client_root().await?)) {
+            return Ok(Vc::cell(Some(
+                self.ident_folder_in_client_fs()
                     .await?
                     .get_relative_path_to(&path_ref)
                     .unwrap()
-                    .replace("/_next/", "/.next/")
+                    .replace("/_next/", &self.dist_dir().await?)
                     .into(),
             )));
         }
 
-        if let Some(path_fs) = Vc::try_resolve_downcast_type::<VirtualFileSystem>(path_fs).await? {
-            if path_fs.await?.name == "externals" || path_fs.await?.name == "traced" {
-                return Ok(Vc::cell(Some(
-                    self.ident_in_project_fs()
-                        .await?
-                        .get_relative_path_to(
-                            &*this.project_fs.root().join(path_ref.path.clone()).await?,
-                        )
-                        .unwrap(),
-                )));
-            }
-        }
-
-        println!("Unknown filesystem for {}", path.to_string().await?);
-        Ok(Vc::cell(None))
+        // Make this an error for now, this should effectively be unreachable
+        bail!(
+            "NftJsonAsset: cannot handle filepath {}",
+            path.to_string().await?
+        );
     }
 }
 
@@ -154,7 +166,7 @@ impl Asset for NftJsonAsset {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
         let this = &*self.await?;
-        let mut result = Vec::new();
+        let mut result = BTreeSet::new();
 
         let chunk = this.chunk.to_resolved().await?;
         let entries = this
@@ -176,12 +188,10 @@ impl Asset for NftJsonAsset {
                 .get_output_specifier(referenced_chunk.ident().path())
                 .await?;
             if let Some(specifier) = &*specifier {
-                result.push(specifier.clone());
+                result.insert(specifier.clone());
             }
         }
 
-        result.sort();
-        result.dedup();
         let json = json!({
           "version": 1,
           "files": result

@@ -77,7 +77,9 @@ export function createMetadataComponents({
         <ViewportBoundary>
           <Viewport />
         </ViewportBoundary>
-        {appUsingSizeAdjustment ? <meta name="next-size-adjust" /> : null}
+        {appUsingSizeAdjustment ? (
+          <meta name="next-size-adjust" content="" />
+        ) : null}
       </>
     )
   }

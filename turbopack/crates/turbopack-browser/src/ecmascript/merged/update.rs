@@ -198,7 +198,7 @@ pub(super) async fn update_ecmascript_merged_chunk(
             from_versions_by_chunk_path.swap_remove(chunk_path)
         {
             // The chunk was present in the previous version, so we must update it.
-            let update = update_ecmascript_chunk(*content, from_version).await?;
+            let update = update_ecmascript_chunk(**content, from_version).await?;
 
             match update {
                 EcmascriptChunkUpdate::None => {
@@ -245,7 +245,7 @@ pub(super) async fn update_ecmascript_merged_chunk(
 
                 if merged_module_map.get(id) != Some(hash) {
                     let entry =
-                        EcmascriptModuleEntry::from_code(id, entry.code, chunk_path).await?;
+                        EcmascriptModuleEntry::from_code(id, *entry.code, chunk_path).await?;
                     merged_update.entries.insert(id.clone(), entry);
                 }
             }

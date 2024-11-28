@@ -4,28 +4,13 @@ const METADATA_BASE_WARN_STRING =
   'metadataBase property in metadata export is not set for resolving social open graph or twitter images,'
 
 describe('app dir - metadata missing metadataBase', () => {
-  const { next, isNextDev, isNextDeploy, skipped } = nextTestSetup({
+  const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
   })
 
   if (skipped) {
     return
-  }
-
-  if (process.env.TEST_STANDALONE === '1') {
-    beforeAll(async () => {
-      await next.stop()
-      await next.patchFile(
-        'next.config.js',
-        `
-        module.exports = {
-          output: 'standalone',
-        }
-      `
-      )
-      await next.start()
-    })
   }
 
   // If it's start mode, we get the whole logs since they're from build process.
@@ -43,33 +28,25 @@ describe('app dir - metadata missing metadataBase', () => {
     })
   }
 
-  if (process.env.TEST_STANDALONE === '1') {
-    // Standalone mode should always show the warning
-    it('should fallback to localhost if metadataBase is missing for absolute urls resolving', async () => {
-      const logStartPosition = next.cliOutput.length
-      await next.fetch('/og-image-convention')
-      const output = getCliOutput(logStartPosition)
+  it('should show warning in vercel deployment output in default build output mode', async () => {
+    const logStartPosition = next.cliOutput.length
+    await next.fetch('/og-image-convention')
+    const output = getCliOutput(logStartPosition)
 
+    if (isNextDev) {
+      expect(output).not.toInclude(METADATA_BASE_WARN_STRING)
+    } else {
       expect(output).toInclude(METADATA_BASE_WARN_STRING)
-      expect(output).toMatch(/using "http:\/\/localhost:\d+/)
-      expect(output).toInclude(
-        '. See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase'
-      )
-    })
-  } else {
-    // Default output mode
-    it('should show warning in vercel deployment output in default build output mode', async () => {
-      const logStartPosition = next.cliOutput.length
-      await next.fetch('/og-image-convention')
-      const output = getCliOutput(logStartPosition)
+    }
+  })
 
-      if (isNextDeploy || isNextDev) {
-        expect(output).not.toInclude(METADATA_BASE_WARN_STRING)
-      } else {
-        expect(output).toInclude(METADATA_BASE_WARN_STRING)
-      }
-    })
-  }
+  it('should warn metadataBase is missing and a relative URL is used', async () => {
+    const logStartPosition = next.cliOutput.length
+    await next.fetch('/relative-url-og')
+    const output = getCliOutput(logStartPosition)
+
+    expect(output).toInclude(METADATA_BASE_WARN_STRING)
+  })
 
   it('should warn for unsupported metadata properties', async () => {
     const logStartPosition = next.cliOutput.length

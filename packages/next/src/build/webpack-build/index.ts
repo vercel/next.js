@@ -6,6 +6,10 @@ import { Worker } from '../../lib/worker'
 import origDebug from 'next/dist/compiled/debug'
 import path from 'path'
 import { exportTraceState, recordTraceEvents } from '../../trace'
+import {
+  formatNodeOptions,
+  getParsedNodeOptionsWithoutInspect,
+} from '../../server/lib/utils'
 
 const debug = origDebug('next:build:webpack-build')
 
@@ -37,24 +41,27 @@ async function webpackBuildWithWorker(
 
   prunedBuildContext.pluginState = pluginState
 
-  const worker = new Worker(path.join(__dirname, 'impl.js'), {
-    exposedMethods: ['workerMain'],
-    numWorkers: 1,
-    maxRetries: 0,
-    forkOptions: {
-      env: {
-        ...process.env,
-        NEXT_PRIVATE_BUILD_WORKER: '1',
-      },
-    },
-  }) as Worker & typeof import('./impl')
-
   const combinedResult = {
     duration: 0,
     buildTraceContext: {} as BuildTraceContext,
   }
 
+  const nodeOptions = getParsedNodeOptionsWithoutInspect()
+
   for (const compilerName of compilerNames) {
+    const worker = new Worker(path.join(__dirname, 'impl.js'), {
+      exposedMethods: ['workerMain'],
+      numWorkers: 1,
+      maxRetries: 0,
+      forkOptions: {
+        env: {
+          ...process.env,
+          NEXT_PRIVATE_BUILD_WORKER: '1',
+          NODE_OPTIONS: formatNodeOptions(nodeOptions),
+        },
+      },
+    }) as Worker & typeof import('./impl')
+
     const curResult = await worker.workerMain({
       buildContext: prunedBuildContext,
       compilerName,
@@ -67,6 +74,8 @@ async function webpackBuildWithWorker(
     if (nextBuildSpan && curResult.debugTraceEvents) {
       recordTraceEvents(curResult.debugTraceEvents)
     }
+    // destroy worker so it's not sticking around using memory
+    await worker.end()
 
     // Update plugin state
     pluginState = deepMerge(pluginState, curResult.pluginState)
@@ -101,9 +110,6 @@ async function webpackBuildWithWorker(
       }
     }
   }
-
-  // destroy worker so it's not sticking around using memory
-  worker.end()
 
   if (compilerNames.length === 3) {
     Log.event('Compiled successfully')

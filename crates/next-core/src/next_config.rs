@@ -5,7 +5,9 @@ use rustc_hash::FxHashSet;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value as JsonValue;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{trace::TraceRawVcs, FxIndexMap, ResolvedVc, TaskInput, Vc};
+use turbo_tasks::{
+    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, ResolvedVc, TaskInput, Vc,
+};
 use turbo_tasks_env::EnvMap;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{
@@ -29,13 +31,13 @@ use crate::{
 
 #[turbo_tasks::value]
 struct NextConfigAndCustomRoutes {
-    config: Vc<NextConfig>,
-    custom_routes: Vc<CustomRoutes>,
+    config: ResolvedVc<NextConfig>,
+    custom_routes: ResolvedVc<CustomRoutes>,
 }
 
 #[turbo_tasks::value]
 struct CustomRoutes {
-    rewrites: Vc<Rewrites>,
+    rewrites: ResolvedVc<Rewrites>,
 }
 
 #[turbo_tasks::value(transparent)]
@@ -48,6 +50,8 @@ pub struct CacheKinds(FxHashSet<RcStr>);
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NextConfig {
+    // TODO all fields should be private and access should be wrapped within a turbo-tasks function
+    // Otherwise changing NextConfig will lead to invalidating all tasks accessing it.
     pub config_file: Option<RcStr>,
     pub config_file_name: RcStr,
 
@@ -489,39 +493,42 @@ pub enum ReactCompilerOptionsOrBoolean {
 #[turbo_tasks::value(transparent)]
 pub struct OptionalReactCompilerOptions(Option<ResolvedVc<ReactCompilerOptions>>);
 
-#[turbo_tasks::value(eq = "manual")]
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(
+    Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat,
+)]
 #[serde(rename_all = "camelCase")]
 pub struct ExperimentalConfig {
-    pub allowed_revalidate_header_keys: Option<Vec<RcStr>>,
-    pub client_router_filter: Option<bool>,
+    // all fields should be private and access should be wrapped within a turbo-tasks function
+    // Otherwise changing ExperimentalConfig will lead to invalidating all tasks accessing it.
+    allowed_revalidate_header_keys: Option<Vec<RcStr>>,
+    client_router_filter: Option<bool>,
     /// decimal for percent for possible false positives e.g. 0.01 for 10%
     /// potential false matches lower percent increases size of the filter
-    pub client_router_filter_allowed_rate: Option<f64>,
-    pub client_router_filter_redirects: Option<bool>,
-    pub fetch_cache_key_prefix: Option<RcStr>,
-    pub isr_flush_to_disk: Option<bool>,
+    client_router_filter_allowed_rate: Option<f64>,
+    client_router_filter_redirects: Option<bool>,
+    fetch_cache_key_prefix: Option<RcStr>,
+    isr_flush_to_disk: Option<bool>,
     /// For use with `@next/mdx`. Compile MDX files using the new Rust compiler.
     /// @see [api reference](https://nextjs.org/docs/app/api-reference/next-config-js/mdxRs)
     mdx_rs: Option<MdxRsOptions>,
-    pub strict_next_head: Option<bool>,
-    pub swc_plugins: Option<Vec<(RcStr, serde_json::Value)>>,
-    pub turbo: Option<ExperimentalTurboConfig>,
-    pub external_middleware_rewrites_resolve: Option<bool>,
-    pub scroll_restoration: Option<bool>,
-    pub use_deployment_id: Option<bool>,
-    pub use_deployment_id_server_actions: Option<bool>,
-    pub deployment_id: Option<RcStr>,
-    pub manual_client_base_path: Option<bool>,
-    pub optimistic_client_cache: Option<bool>,
-    pub middleware_prefetch: Option<MiddlewarePrefetchType>,
+    strict_next_head: Option<bool>,
+    swc_plugins: Option<Vec<(RcStr, serde_json::Value)>>,
+    turbo: Option<ExperimentalTurboConfig>,
+    external_middleware_rewrites_resolve: Option<bool>,
+    scroll_restoration: Option<bool>,
+    use_deployment_id: Option<bool>,
+    use_deployment_id_server_actions: Option<bool>,
+    deployment_id: Option<RcStr>,
+    manual_client_base_path: Option<bool>,
+    optimistic_client_cache: Option<bool>,
+    middleware_prefetch: Option<MiddlewarePrefetchType>,
     /// optimizeCss can be boolean or critters' option object
     /// Use Record<string, unknown> as critters doesn't export its Option type ([link](https://github.com/GoogleChromeLabs/critters/blob/a590c05f9197b656d2aeaae9369df2483c26b072/packages/critters/src/index.d.ts))
-    pub optimize_css: Option<serde_json::Value>,
-    pub next_script_workers: Option<bool>,
-    pub web_vitals_attribution: Option<Vec<RcStr>>,
-    pub server_actions: Option<ServerActionsOrLegacyBool>,
-    pub sri: Option<SubResourceIntegrity>,
+    optimize_css: Option<serde_json::Value>,
+    next_script_workers: Option<bool>,
+    web_vitals_attribution: Option<Vec<RcStr>>,
+    server_actions: Option<ServerActionsOrLegacyBool>,
+    sri: Option<SubResourceIntegrity>,
     react_compiler: Option<ReactCompilerOptionsOrBoolean>,
     #[serde(rename = "dynamicIO")]
     dynamic_io: Option<bool>,
@@ -551,6 +558,7 @@ pub struct ExperimentalConfig {
     fully_specified: Option<bool>,
     gzip_size: Option<bool>,
 
+    pub inline_css: Option<bool>,
     instrumentation_hook: Option<bool>,
     client_trace_metadata: Option<Vec<String>>,
     large_page_data_bytes: Option<f64>,
@@ -652,8 +660,8 @@ pub enum ExperimentalPartialPrerenderingIncrementalValue {
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize, TraceRawVcs)]
 #[serde(untagged)]
 pub enum ExperimentalPartialPrerendering {
-    Incremental(ExperimentalPartialPrerenderingIncrementalValue),
     Boolean(bool),
+    Incremental(ExperimentalPartialPrerenderingIncrementalValue),
 }
 
 #[test]
@@ -686,10 +694,10 @@ fn test_parse_experimental_partial_prerendering() {
     assert!(config.is_err());
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub struct SubResourceIntegrity {
-    pub algorithm: Option<String>,
+    pub algorithm: Option<RcStr>,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize, TraceRawVcs)]
@@ -735,19 +743,33 @@ fn test_esm_externals_deserialization() {
     );
 }
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize, TraceRawVcs)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub struct ServerActions {
     /// Allows adjusting body parser size limit for server actions.
     pub body_size_limit: Option<SizeLimit>,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(Clone, Debug, Serialize, Deserialize, TraceRawVcs)]
 #[serde(untagged)]
 pub enum SizeLimit {
     Number(f64),
     WithUnit(String),
 }
+
+// Manual implementation of PartialEq and Eq for SizeLimit because f64 doesn't
+// implement Eq.
+impl PartialEq for SizeLimit {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (SizeLimit::Number(a), SizeLimit::Number(b)) => a.to_bits() == b.to_bits(),
+            (SizeLimit::WithUnit(a), SizeLimit::WithUnit(b)) => a == b,
+            _ => false,
+        }
+    }
+}
+
+impl Eq for SizeLimit {}
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "kebab-case")]
@@ -835,7 +857,17 @@ impl RemoveConsoleConfig {
 pub struct ResolveExtensions(Option<Vec<RcStr>>);
 
 #[turbo_tasks::value(transparent)]
+pub struct SwcPlugins(Vec<(RcStr, serde_json::Value)>);
+
+#[turbo_tasks::value(transparent)]
 pub struct OptionalMdxTransformOptions(Option<ResolvedVc<MdxTransformOptions>>);
+
+#[turbo_tasks::value(transparent)]
+
+pub struct OptionSubResourceIntegrity(Option<SubResourceIntegrity>);
+
+#[turbo_tasks::value(transparent)]
+pub struct OptionServerActions(Option<ServerActions>);
 
 #[turbo_tasks::value_impl]
 impl NextConfig {
@@ -865,6 +897,16 @@ impl NextConfig {
                 .cloned()
                 .unwrap_or_default(),
         )
+    }
+
+    #[turbo_tasks::function]
+    pub fn is_standalone(&self) -> Vc<bool> {
+        Vc::cell(self.output == Some(OutputType::Standalone))
+    }
+
+    #[turbo_tasks::function]
+    pub fn cache_handler(&self) -> Vc<Option<RcStr>> {
+        Vc::cell(self.cache_handler.clone())
     }
 
     #[turbo_tasks::function]
@@ -1071,8 +1113,24 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn experimental(&self) -> Vc<ExperimentalConfig> {
-        self.experimental.clone().cell()
+    pub fn experimental_swc_plugins(&self) -> Vc<SwcPlugins> {
+        Vc::cell(self.experimental.swc_plugins.clone().unwrap_or_default())
+    }
+
+    #[turbo_tasks::function]
+    pub fn experimental_sri(&self) -> Vc<OptionSubResourceIntegrity> {
+        Vc::cell(self.experimental.sri.clone())
+    }
+
+    #[turbo_tasks::function]
+    pub fn experimental_server_actions(&self) -> Vc<OptionServerActions> {
+        Vc::cell(match self.experimental.server_actions.as_ref() {
+            Some(ServerActionsOrLegacyBool::ServerActionsConfig(server_actions)) => {
+                Some(server_actions.clone())
+            }
+            Some(ServerActionsOrLegacyBool::LegacyBool(true)) => Some(ServerActions::default()),
+            _ => None,
+        })
     }
 
     #[turbo_tasks::function]
@@ -1283,7 +1341,7 @@ impl JsConfig {
 
 #[turbo_tasks::value]
 struct OutdatedConfigIssue {
-    path: Vc<FileSystemPath>,
+    path: ResolvedVc<FileSystemPath>,
     old_name: RcStr,
     new_name: RcStr,
     description: RcStr,
@@ -1303,7 +1361,7 @@ impl Issue for OutdatedConfigIssue {
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        self.path
+        *self.path
     }
 
     #[turbo_tasks::function]

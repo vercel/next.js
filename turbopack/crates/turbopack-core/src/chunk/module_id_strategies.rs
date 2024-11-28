@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ValueToString, Vc};
+use turbo_tasks::{FxIndexMap, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_hash::hash_xxh3_hash64;
 
 use super::ModuleId;
@@ -17,6 +17,10 @@ pub struct DevModuleIdStrategy;
 impl DevModuleIdStrategy {
     pub fn new() -> Vc<Self> {
         DevModuleIdStrategy {}.cell()
+    }
+
+    pub fn new_resolved() -> ResolvedVc<Self> {
+        DevModuleIdStrategy {}.resolved_cell()
     }
 }
 
