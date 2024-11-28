@@ -10,9 +10,12 @@ use petgraph::{
     visit::Dfs,
 };
 use tracing::Instrument;
-use turbo_tasks::{FxIndexMap, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
+use turbo_tasks::{
+    CollectiblesSource, FxIndexMap, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
+};
 use turbopack_core::{
     context::AssetContext,
+    issue::Issue,
     module::{Module, Modules},
     reference::primary_referenced_modules,
 };
@@ -318,9 +321,10 @@ pub async fn get_reduced_graphs_for_endpoint(
             false,
             vec![
                 async move {
-                    SingleModuleGraph::new_with_entries(project.get_all_entries())
-                        .to_resolved()
-                        .await
+                    let vc = SingleModuleGraph::new_with_entries(project.get_all_entries());
+                    let vc = vc.resolve_strongly_consistent().await?;
+                    let _ = vc.take_collectibles::<Box<dyn Issue>>();
+                    vc.to_resolved().await
                 }
                 .instrument(tracing::info_span!("module graph for app"))
                 .await?,
