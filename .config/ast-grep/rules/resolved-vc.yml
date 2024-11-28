@@ -12,9 +12,16 @@ rule:
     selector: generic_type
   inside:
     stopBy: end
-    follows:
-      kind: attribute_item
-      has:
-        kind: attribute
-        regex: '^turbo_tasks::value$'
+    kind: field_declaration
+    not:
+      follows:
+        kind: line_comment
+        regex: \s*//\s*no-resolved-vc\((.+)\):.+
+    inside:
+      stopBy: end
+      follows:
+        kind: attribute_item
+        has:
+          kind: attribute
+          regex: '^turbo_tasks::value$'
 fix: ResolvedVc<$A>
