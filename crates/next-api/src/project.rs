@@ -350,9 +350,9 @@ impl ProjectContainer {
                 .context("ProjectContainer need to be initialized with initialize()")?;
             env_map = Vc::cell(options.env.iter().cloned().collect());
             define_env = ProjectDefineEnv {
-                client: Vc::cell(options.define_env.client.iter().cloned().collect()),
-                edge: Vc::cell(options.define_env.edge.iter().cloned().collect()),
-                nodejs: Vc::cell(options.define_env.nodejs.iter().cloned().collect()),
+                client: ResolvedVc::cell(options.define_env.client.iter().cloned().collect()),
+                edge: ResolvedVc::cell(options.define_env.edge.iter().cloned().collect()),
+                nodejs: ResolvedVc::cell(options.define_env.nodejs.iter().cloned().collect()),
             }
             .cell();
             next_config = NextConfig::from_string(Vc::cell(options.next_config.clone()));
@@ -377,18 +377,18 @@ impl ProjectContainer {
             root_path,
             project_path,
             watch,
-            next_config,
-            js_config,
+            next_config: next_config.to_resolved().await?,
+            js_config: js_config.to_resolved().await?,
             dist_dir,
-            env: Vc::upcast(env_map),
-            define_env,
+            env: ResolvedVc::upcast(env_map.to_resolved().await?),
+            define_env: define_env.to_resolved().await?,
             browserslist_query,
             mode: if dev {
-                NextMode::Development.cell()
+                NextMode::Development.resolved_cell()
             } else {
-                NextMode::Build.cell()
+                NextMode::Build.resolved_cell()
             },
-            versioned_content_map: self.versioned_content_map.map(|v| *v),
+            versioned_content_map: self.versioned_content_map,
             build_id,
             encryption_key,
             preview_props,
@@ -440,24 +440,24 @@ pub struct Project {
     watch: WatchOptions,
 
     /// Next config.
-    next_config: Vc<NextConfig>,
+    next_config: ResolvedVc<NextConfig>,
 
     /// Js/Tsconfig read by load-jsconfig
-    js_config: Vc<JsConfig>,
+    js_config: ResolvedVc<JsConfig>,
 
     /// A map of environment variables to use when compiling code.
-    env: Vc<Box<dyn ProcessEnv>>,
+    env: ResolvedVc<Box<dyn ProcessEnv>>,
 
     /// A map of environment variables which should get injected at compile
     /// time.
-    define_env: Vc<ProjectDefineEnv>,
+    define_env: ResolvedVc<ProjectDefineEnv>,
 
     /// The browserslist query to use for targeting browsers.
     browserslist_query: RcStr,
 
-    mode: Vc<NextMode>,
+    mode: ResolvedVc<NextMode>,
 
-    versioned_content_map: Option<Vc<VersionedContentMap>>,
+    versioned_content_map: Option<ResolvedVc<VersionedContentMap>>,
 
     build_id: RcStr,
 
@@ -468,26 +468,26 @@ pub struct Project {
 
 #[turbo_tasks::value]
 pub struct ProjectDefineEnv {
-    client: Vc<EnvMap>,
-    edge: Vc<EnvMap>,
-    nodejs: Vc<EnvMap>,
+    client: ResolvedVc<EnvMap>,
+    edge: ResolvedVc<EnvMap>,
+    nodejs: ResolvedVc<EnvMap>,
 }
 
 #[turbo_tasks::value_impl]
 impl ProjectDefineEnv {
     #[turbo_tasks::function]
     pub fn client(&self) -> Vc<EnvMap> {
-        self.client
+        *self.client
     }
 
     #[turbo_tasks::function]
     pub fn edge(&self) -> Vc<EnvMap> {
-        self.edge
+        *self.edge
     }
 
     #[turbo_tasks::function]
     pub fn nodejs(&self) -> Vc<EnvMap> {
-        self.nodejs
+        *self.nodejs
     }
 }
 
@@ -610,22 +610,22 @@ impl Project {
 
     #[turbo_tasks::function]
     pub(super) fn env(&self) -> Vc<Box<dyn ProcessEnv>> {
-        self.env
+        *self.env
     }
 
     #[turbo_tasks::function]
     pub(super) fn next_config(&self) -> Vc<NextConfig> {
-        self.next_config
+        *self.next_config
     }
 
     #[turbo_tasks::function]
     pub(super) fn next_mode(&self) -> Vc<NextMode> {
-        self.mode
+        *self.mode
     }
 
     #[turbo_tasks::function]
     pub(super) fn js_config(&self) -> Vc<JsConfig> {
-        self.js_config
+        *self.js_config
     }
 
     #[turbo_tasks::function]
