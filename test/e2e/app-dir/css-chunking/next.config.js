@@ -3,7 +3,7 @@
  */
 const nextConfig = {
   experimental: {
-    cssChunking: 'disabled',
+    cssChunking: false,
   },
 }
 
