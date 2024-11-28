@@ -533,9 +533,10 @@ impl Project {
     pub async fn app_project(self: Vc<Self>) -> Result<Vc<OptionAppProject>> {
         let app_dir = find_app_dir(self.project_path()).await?;
 
-        Ok(Vc::cell(
-            app_dir.map(|app_dir| AppProject::new(self, *app_dir)),
-        ))
+        Ok(match *app_dir {
+            Some(app_dir) => Vc::cell(Some(AppProject::new(self, *app_dir).to_resolved().await?)),
+            None => Vc::cell(None),
+        })
     }
 
     #[turbo_tasks::function]
@@ -903,9 +904,13 @@ impl Project {
             }
         }
 
-        let pages_document_endpoint = self.pages_project().document_endpoint();
-        let pages_app_endpoint = self.pages_project().app_endpoint();
-        let pages_error_endpoint = self.pages_project().error_endpoint();
+        let pages_document_endpoint = self
+            .pages_project()
+            .document_endpoint()
+            .to_resolved()
+            .await?;
+        let pages_app_endpoint = self.pages_project().app_endpoint().to_resolved().await?;
+        let pages_error_endpoint = self.pages_project().error_endpoint().to_resolved().await?;
 
         let middleware = self.find_middleware();
         let middleware = if let FindContextFileResult::Found(..) = *middleware.await? {

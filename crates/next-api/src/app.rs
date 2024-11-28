@@ -93,7 +93,7 @@ pub struct AppProject {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct OptionAppProject(Option<Vc<AppProject>>);
+pub struct OptionAppProject(Option<ResolvedVc<AppProject>>);
 
 impl AppProject {}
 
@@ -746,7 +746,7 @@ fn server_utils_modifier() -> Vc<RcStr> {
 }
 
 #[turbo_tasks::value(transparent)]
-struct OutputAssetsWithAvailability((Vc<OutputAssets>, AvailabilityInfo));
+struct OutputAssetsWithAvailability((ResolvedVc<OutputAssets>, AvailabilityInfo));
 
 #[derive(Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Debug, TraceRawVcs)]
 enum AppPageEndpointType {
@@ -981,7 +981,7 @@ impl AppEndpoint {
                                 .iter()
                                 .map(|(k, v)| (*k, v.clone())),
                         );
-                        visited_modules = result.visited_modules;
+                        visited_modules = *result.visited_modules;
                     }
 
                     client_dynamic_imports
@@ -1188,7 +1188,7 @@ impl AppEndpoint {
                     app_entry.original_name.clone(),
                     client_references,
                     client_references_chunks,
-                    *app_entry_chunks,
+                    **app_entry_chunks,
                     Value::new(*app_entry_chunks_availability),
                     client_chunking_context,
                     ssr_chunking_context,
@@ -1241,7 +1241,7 @@ impl AppEndpoint {
                 file_paths_from_root
                     .extend(get_js_paths_from_root(&node_root_value, &app_entry_chunks_ref).await?);
 
-                let all_output_assets = all_assets_from_entries(*app_entry_chunks).await?;
+                let all_output_assets = all_assets_from_entries(**app_entry_chunks).await?;
 
                 wasm_paths_from_root
                     .extend(get_wasm_paths_from_root(&node_root_value, &middleware_assets).await?);
@@ -1466,11 +1466,14 @@ impl AppEndpoint {
                 {
                     let _span = tracing::info_span!("Server Components");
                     Vc::cell((
-                        chunking_context.evaluated_chunk_group_assets(
-                            app_entry.rsc_entry.ident(),
-                            Vc::cell(evaluatable_assets.clone()),
-                            Value::new(AvailabilityInfo::Root),
-                        ),
+                        chunking_context
+                            .evaluated_chunk_group_assets(
+                                app_entry.rsc_entry.ident(),
+                                Vc::cell(evaluatable_assets.clone()),
+                                Value::new(AvailabilityInfo::Root),
+                            )
+                            .to_resolved()
+                            .await?,
                         AvailabilityInfo::Untracked,
                     ))
                 }
@@ -1571,7 +1574,7 @@ impl AppEndpoint {
                 }
                 .instrument(tracing::trace_span!("server node entrypoint"))
                 .await?);
-                Vc::cell((Vc::cell(vec![rsc_chunk]), availability_info))
+                Vc::cell((ResolvedVc::cell(vec![rsc_chunk]), availability_info))
             }
         })
     }
