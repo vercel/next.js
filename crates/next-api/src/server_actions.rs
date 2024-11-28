@@ -47,7 +47,7 @@ use turbopack_ecmascript::{
 
 #[turbo_tasks::value]
 pub(crate) struct ServerActionsManifest {
-    pub loader: Vc<Box<dyn EvaluatableAsset>>,
+    pub loader: ResolvedVc<Box<dyn EvaluatableAsset>>,
     pub manifest: ResolvedVc<Box<dyn OutputAsset>>,
 }
 
@@ -74,7 +74,9 @@ pub(crate) async fn create_server_actions_manifest(
         build_server_actions_loader(project_path, page_name.clone(), actions, asset_context);
     let evaluable = Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(loader)
         .await?
-        .context("loader module must be evaluatable")?;
+        .context("loader module must be evaluatable")?
+        .to_resolved()
+        .await?;
 
     let chunk_item = loader.as_chunk_item(Vc::upcast(chunking_context));
     let manifest = build_manifest(node_root, page_name, runtime, actions, chunk_item).await?;
