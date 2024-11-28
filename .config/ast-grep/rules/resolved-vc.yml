@@ -23,5 +23,5 @@ rule:
         kind: attribute_item
         has:
           kind: attribute
-          regex: '^turbo_tasks::value$'
+          regex: '^turbo_tasks::value(\(.*\))?$'
 fix: ResolvedVc<$A>
