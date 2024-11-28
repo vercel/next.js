@@ -429,7 +429,7 @@ impl TurboPersistence {
     }
 
     pub fn full_compact(&self) -> Result<()> {
-        self.compact(1.0, usize::MAX)?;
+        self.compact(0.0, usize::MAX)?;
         Ok(())
     }
 
