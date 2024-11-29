@@ -17,9 +17,9 @@ Example:
 ```diff filename="app/page.js"
 import { cookies } from 'next/headers'
 
-- const cookieStore = cookies()
-export default function Page() {
-+ const cookieStore = cookies()
+- const cookieStore = await cookies()
+export default async function Page() {
++ const cookieStore = await cookies()
   return ...
 }
 ```
@@ -27,9 +27,9 @@ export default function Page() {
 ```diff filename="app/foo/route.js"
 import { headers } from 'next/headers'
 
-- const headersList = headers()
+- const headersList = await headers()
 export async function GET() {
-+ const headersList = headers()
++ const headersList = await headers()
   return ...
 }
 ```

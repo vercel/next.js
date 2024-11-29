@@ -121,14 +121,13 @@ impl Debug for NativeFunction {
 }
 
 impl NativeFunction {
-    pub fn new_function<Mode, Inputs, I>(
+    pub fn new_function<Mode, Inputs>(
         name: String,
         function_meta: FunctionMeta,
-        implementation: I,
+        implementation: impl IntoTaskFn<Mode, Inputs>,
     ) -> Self
     where
         Inputs: TaskInput + Serialize + for<'de> Deserialize<'de> + 'static,
-        I: IntoTaskFn<Mode, Inputs>,
     {
         Self {
             name,
