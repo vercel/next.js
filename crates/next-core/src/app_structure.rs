@@ -538,14 +538,14 @@ fn match_parallel_route(name: &str) -> Option<&str> {
     name.strip_prefix('@')
 }
 
-async fn conflict_issue(
+fn conflict_issue(
     app_dir: Vc<FileSystemPath>,
     e: &'_ OccupiedEntry<'_, AppPath, Entrypoint>,
     a: &str,
     b: &str,
     value_a: &AppPage,
     value_b: &AppPage,
-) -> Result<()> {
+) {
     let item_names = if a == b {
         format!("{}s", a)
     } else {
@@ -553,7 +553,7 @@ async fn conflict_issue(
     };
 
     DirectoryTreeIssue {
-        app_dir: app_dir.to_resolved().await?,
+        app_dir,
         message: StyledString::Text(
             format!(
                 "Conflicting {} at {}: {a} at {value_a} and {b} at {value_b}",
@@ -567,8 +567,6 @@ async fn conflict_issue(
     }
     .cell()
     .emit();
-
-    Ok(())
 }
 
 fn add_app_page(
@@ -1421,7 +1419,8 @@ pub async fn get_global_metadata(
 #[turbo_tasks::value(shared)]
 struct DirectoryTreeIssue {
     pub severity: ResolvedVc<IssueSeverity>,
-    pub app_dir: ResolvedVc<FileSystemPath>,
+    // no-resolved-vc(kdy1): I'll resolve this later because it's a complex case.
+    pub app_dir: Vc<FileSystemPath>,
     pub message: ResolvedVc<StyledString>,
 }
 
@@ -1444,7 +1443,7 @@ impl Issue for DirectoryTreeIssue {
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        *self.app_dir
+        self.app_dir
     }
 
     #[turbo_tasks::function]
