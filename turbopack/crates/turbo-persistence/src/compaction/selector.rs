@@ -343,7 +343,7 @@ mod tests {
         for merge_job in jobs.merge_jobs {
             let mut keys = Vec::new();
             for i in merge_job {
-                keys.extend(containers[i].keys.drain(..));
+                keys.append(&mut containers[i].keys);
             }
             keys.sort_unstable();
             keys.dedup();
