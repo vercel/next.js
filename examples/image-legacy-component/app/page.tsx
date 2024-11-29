@@ -1,8 +1,8 @@
 import styles from "../styles.module.css";
 import Image from "next/legacy/image";
 import Link from "next/link";
-import ViewSource from "../components/view-source";
-import vercel from "../public/vercel.png";
+import ViewSource from "../app/components/view-source";
+import vercel from "./public/vercel.png";
 import type { PropsWithChildren } from "react";
 
 const Code = (props: PropsWithChildren<{}>) => (
