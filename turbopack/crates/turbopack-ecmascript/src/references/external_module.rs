@@ -164,7 +164,7 @@ impl EcmascriptChunkPlaceable for CachedExternalModule {
                         has_top_level_await: true,
                         import_externals: true,
                     }
-                    .cell(),
+                    .resolved_cell(),
                 )
             } else {
                 None
