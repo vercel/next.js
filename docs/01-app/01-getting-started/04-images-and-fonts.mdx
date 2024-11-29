@@ -47,3 +47,45 @@ export default function Page() {
 ```
 
 The `src` property can be a [local](#local-images) or [remote](#remote-images) image.
+
+### Local images
+
+To use a local image, `import` your `.jpg`, `.png`, or `.webp` image files from your [`public` folder](#handling-static-assets).
+
+Next.js will automatically determine the intrinsic [`width`](/docs/app/api-reference/components/image#width) and [`height`](/docs/app/api-reference/components/image#height) of your image based on the imported file. These values are used to determine the image ratio and prevent [Cumulative Layout Shift](https://nextjs.org/learn/seo/web-performance/cls) while your image is loading.
+
+```tsx filename="app/page.ts" switcher
+import Image from 'next/image'
+import profilePic from './me.png'
+
+export default function Page() {
+  return (
+    <Image
+      src={profilePic}
+      alt="Picture of the author"
+      // width={500} automatically provided
+      // height={500} automatically provided
+      // blurDataURL="data:..." automatically provided
+      // placeholder="blur" // Optional blur-up while loading
+    />
+  )
+}
+```
+
+```jsx filename="app/page.js" switcher
+import Image from 'next/image'
+import profilePic from './me.png'
+
+export default function Page() {
+  return (
+    <Image
+      src={profilePic}
+      alt="Picture of the author"
+      // width={500} automatically provided
+      // height={500} automatically provided
+      // blurDataURL="data:..." automatically provided
+      // placeholder="blur" // Optional blur-up while loading
+    />
+  )
+}
+```
