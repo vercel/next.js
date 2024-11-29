@@ -23,6 +23,8 @@ const MAX_SMALL_VALUE_BLOCK_SIZE: usize = 16 * 1024;
 const AQMF_FALSE_POSITIVE_RATE: f64 = 0.01;
 const VALUE_COMPRESSION_DICTIONARY_SIZE: usize = 64 * 1024 - 1;
 const KEY_COMPRESSION_DICTIONARY_SIZE: usize = 64 * 1024 - 1;
+const MIN_VALUE_COMPRESSION_SAMPLES_SIZE: usize = 1024;
+const MIN_KEY_COMPRESSION_SAMPLES_SIZE: usize = 1024;
 const COMPRESSION_DICTIONARY_SAMPLE_PER_ENTRY: usize = 100;
 
 pub trait Entry {
@@ -91,7 +93,11 @@ impl StaticSortedFileBuilder {
         total_key_size: usize,
         total_value_size: usize,
     ) -> Result<()> {
-        // TODO actually train the dictionary
+        if total_key_size < MIN_KEY_COMPRESSION_SAMPLES_SIZE
+            && total_value_size < MIN_VALUE_COMPRESSION_SAMPLES_SIZE
+        {
+            return Ok(());
+        }
         let key_compression_dictionary_size =
             min(KEY_COMPRESSION_DICTIONARY_SIZE, total_key_size / 10);
         let value_compression_dictionary_size =
@@ -146,18 +152,23 @@ impl StaticSortedFileBuilder {
         }
         assert!(key_samples.len() == key_sample_sizes.iter().sum::<usize>());
         assert!(value_samples.len() == value_sample_sizes.iter().sum::<usize>());
-        self.key_compression_dictionary = zstd::dict::from_continuous(
-            &key_samples,
-            &key_sample_sizes,
-            KEY_COMPRESSION_DICTIONARY_SIZE,
-        )
-        .context("Key dictionary creation failed")?;
-        self.value_compression_dictionary = zstd::dict::from_continuous(
-            &value_samples,
-            &value_sample_sizes,
-            VALUE_COMPRESSION_DICTIONARY_SIZE,
-        )
-        .context("Value dictionary creation failed")?;
+        if key_samples.len() > MIN_KEY_COMPRESSION_SAMPLES_SIZE && key_sample_sizes.len() > 5 {
+            self.key_compression_dictionary = zstd::dict::from_continuous(
+                &key_samples,
+                &key_sample_sizes,
+                KEY_COMPRESSION_DICTIONARY_SIZE,
+            )
+            .context("Key dictionary creation failed")?;
+        }
+        if value_samples.len() > MIN_VALUE_COMPRESSION_SAMPLES_SIZE && value_sample_sizes.len() > 5
+        {
+            self.value_compression_dictionary = zstd::dict::from_continuous(
+                &value_samples,
+                &value_sample_sizes,
+                VALUE_COMPRESSION_DICTIONARY_SIZE,
+            )
+            .context("Value dictionary creation failed")?;
+        }
         Ok(())
     }
 
