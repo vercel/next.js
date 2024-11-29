@@ -315,7 +315,7 @@ pub async fn parse_css(
                         process_content(
                             **file_content,
                             string.into_owned(),
-                            fs_path,
+                            fs_path.to_resolved().await?,
                             ident_str,
                             source,
                             origin,
@@ -405,13 +405,20 @@ async fn process_content(
                         | lightningcss::error::ParserError::UnexpectedImportRule
                         | lightningcss::error::ParserError::SelectorError(..)
                         | lightningcss::error::ParserError::EndOfInput => {
-                            let source = err.loc.as_ref().map(|loc| {
-                                let pos = SourcePos {
-                                    line: loc.line as _,
-                                    column: loc.column as _,
-                                };
-                                IssueSource::from_line_col(source, pos, pos)
-                            });
+                            let source = match err.loc {
+                                Some(loc) => {
+                                    let pos = SourcePos {
+                                        line: loc.line as _,
+                                        column: loc.column as _,
+                                    };
+                                    Some(
+                                        IssueSource::from_line_col(source, pos, pos)
+                                            .to_resolved()
+                                            .await?,
+                                    )
+                                }
+                                None => None,
+                            };
 
                             ParsingIssue {
                                 file: fs_path_vc.to_resolved().await?,
@@ -432,13 +439,20 @@ async fn process_content(
                 stylesheet_into_static(&ss, without_warnings(config.clone()))
             }
             Err(e) => {
-                let source = e.loc.as_ref().map(|loc| {
-                    let pos = SourcePos {
-                        line: loc.line as _,
-                        column: loc.column as _,
-                    };
-                    IssueSource::from_line_col(source, pos, pos)
-                });
+                let source = match &e.loc {
+                    Some(loc) => {
+                        let pos = SourcePos {
+                            line: loc.line as _,
+                            column: loc.column as _,
+                        };
+                        Some(
+                            IssueSource::from_line_col(source, pos, pos)
+                                .to_resolved()
+                                .await?,
+                        )
+                    }
+                    None => None,
+                };
                 ParsingIssue {
                     file: fs_path_vc.to_resolved().await?,
                     msg: ResolvedVc::cell(e.to_string().into()),
