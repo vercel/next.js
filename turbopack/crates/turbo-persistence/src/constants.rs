@@ -12,10 +12,10 @@ pub const MAX_ENTRIES_PER_INITIAL_FILE: usize = 1024 * 1024;
 pub const MAX_ENTRIES_PER_COMPACTED_FILE: usize = 1024 * 1024;
 
 /// Finish file when total amount of data exceeds this
-pub const DATA_THRESHOLD_PER_INITIAL_FILE: usize = 1024 * 1024 * 1024;
+pub const DATA_THRESHOLD_PER_INITIAL_FILE: usize = 256 * 1024 * 1024;
 
 /// Finish file when total amount of data exceeds this
-pub const DATA_THRESHOLD_PER_COMPACTED_FILE: usize = 1024 * 1024 * 1024;
+pub const DATA_THRESHOLD_PER_COMPACTED_FILE: usize = 256 * 1024 * 1024;
 
 /// Maximum RAM bytes for AQMF cache
 pub const AQMF_CACHE_SIZE: u64 = 300 * 1024 * 1024;
