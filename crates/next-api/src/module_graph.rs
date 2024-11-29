@@ -173,6 +173,20 @@ async fn get_module_graph_for_endpoint(
     Ok(Vc::cell(graphs))
 }
 
+#[turbo_tasks::function]
+async fn get_module_graph_for_app_without_issues(
+    entries: Vc<Modules>,
+) -> Result<Vc<SingleModuleGraph>> {
+    let vc = SingleModuleGraph::new_with_entries(entries);
+    let graph = vc.resolve_strongly_consistent().await?;
+    let _issues = vc.take_collectibles::<Box<dyn Issue>>();
+    // println!(
+    //     "taking {:?}",
+    //     _issues.iter().map(|i| i.dbg()).try_join().await?
+    // );
+    Ok(graph)
+}
+
 #[turbo_tasks::value]
 pub struct NextDynamicGraph {
     is_single_page: bool,
@@ -321,10 +335,9 @@ pub async fn get_reduced_graphs_for_endpoint(
             false,
             vec![
                 async move {
-                    let vc = SingleModuleGraph::new_with_entries(project.get_all_entries());
-                    let vc = vc.resolve_strongly_consistent().await?;
-                    let _ = vc.take_collectibles::<Box<dyn Issue>>();
-                    vc.to_resolved().await
+                    get_module_graph_for_app_without_issues(project.get_all_entries())
+                        .to_resolved()
+                        .await
                 }
                 .instrument(tracing::info_span!("module graph for app"))
                 .await?,
