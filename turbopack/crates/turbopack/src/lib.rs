@@ -71,7 +71,7 @@ use crate::module_options::CustomModuleType;
 
 #[turbo_tasks::function]
 async fn apply_module_type(
-    source: Vc<Box<dyn Source>>,
+    source: ResolvedVc<Box<dyn Source>>,
     module_asset_context: Vc<ModuleAssetContext>,
     module_type: Vc<ModuleType>,
     reference_type: Value<ReferenceType>,
@@ -103,13 +103,18 @@ async fn apply_module_type(
                     module_asset_context.with_types_resolving_enabled()
                 }
                 _ => module_asset_context,
-            };
+            }
+            .to_resolved()
+            .await?;
             let mut builder = EcmascriptModuleAsset::builder(
                 source,
-                Vc::upcast(context_for_module),
-                **transforms,
-                **options,
-                module_asset_context.compile_time_info(),
+                ResolvedVc::upcast(context_for_module),
+                *transforms,
+                *options,
+                module_asset_context
+                    .compile_time_info()
+                    .to_resolved()
+                    .await?,
             );
             match module_type {
                 ModuleType::Ecmascript { .. } => {
@@ -220,22 +225,22 @@ async fn apply_module_type(
                 .await?
             }
         }
-        ModuleType::Json => ResolvedVc::upcast(JsonModuleAsset::new(source).to_resolved().await?),
-        ModuleType::Raw => ResolvedVc::upcast(RawModule::new(source).to_resolved().await?),
+        ModuleType::Json => ResolvedVc::upcast(JsonModuleAsset::new(*source).to_resolved().await?),
+        ModuleType::Raw => ResolvedVc::upcast(RawModule::new(*source).to_resolved().await?),
         ModuleType::CssGlobal => {
             return Ok(module_asset_context.process(
-                source,
+                *source,
                 Value::new(ReferenceType::Css(CssReferenceSubType::Internal)),
             ))
         }
         ModuleType::CssModule => ResolvedVc::upcast(
-            ModuleCssAsset::new(source, Vc::upcast(module_asset_context))
+            ModuleCssAsset::new(*source, Vc::upcast(module_asset_context))
                 .to_resolved()
                 .await?,
         ),
         ModuleType::Css { ty } => ResolvedVc::upcast(
             CssModuleAsset::new(
-                source,
+                *source,
                 Vc::upcast(module_asset_context),
                 *ty,
                 module_asset_context
@@ -255,13 +260,13 @@ async fn apply_module_type(
             .await?,
         ),
         ModuleType::Static => ResolvedVc::upcast(
-            StaticModuleAsset::new(source, Vc::upcast(module_asset_context))
+            StaticModuleAsset::new(*source, Vc::upcast(module_asset_context))
                 .to_resolved()
                 .await?,
         ),
         ModuleType::WebAssembly { source_ty } => ResolvedVc::upcast(
             WebAssemblyModuleAsset::new(
-                WebAssemblySource::new(source, *source_ty),
+                WebAssemblySource::new(*source, *source_ty),
                 Vc::upcast(module_asset_context),
             )
             .to_resolved()
@@ -269,7 +274,7 @@ async fn apply_module_type(
         ),
         ModuleType::Custom(custom) => {
             custom
-                .create_module(source, module_asset_context, part)
+                .create_module(*source, module_asset_context, part)
                 .to_resolved()
                 .await?
         }
@@ -298,16 +303,16 @@ async fn apply_reexport_tree_shaking(
         .await?;
         let module = if let Some(new_export) = new_export {
             if *new_export == *export {
-                Vc::upcast(*final_module)
+                Vc::upcast(**final_module)
             } else {
                 Vc::upcast(EcmascriptModuleFacadeModule::new(
-                    *final_module,
+                    **final_module,
                     ModulePart::renamed_export(new_export.clone(), export.clone_value()),
                 ))
             }
         } else {
             Vc::upcast(EcmascriptModuleFacadeModule::new(
-                *final_module,
+                **final_module,
                 ModulePart::renamed_namespace(export.clone_value()),
             ))
         };
