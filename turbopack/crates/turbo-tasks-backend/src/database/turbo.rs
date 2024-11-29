@@ -14,6 +14,9 @@ use crate::database::{
     write_batch::{BaseWriteBatch, ConcurrentWriteBatch, WriteBatch},
 };
 
+const COMPACT_MAX_COVERAGE: f32 = 20.0;
+const COMPACT_MAX_MERGE_SEQUENCE: usize = 4;
+
 pub struct TurboKeyValueDatabase {
     db: Arc<TurboPersistence>,
     compact_join_handle: Mutex<Option<JoinHandle<Result<()>>>>,
@@ -28,7 +31,8 @@ impl TurboKeyValueDatabase {
         };
         // start compaction in background if the database is not empty
         if !db.is_empty() {
-            let handle = spawn(move || db.compact(20.0, 4));
+            let handle =
+                spawn(move || db.compact(COMPACT_MAX_COVERAGE, COMPACT_MAX_MERGE_SEQUENCE));
             this.compact_join_handle.get_mut().replace(handle);
         }
         Ok(this)
@@ -125,7 +129,7 @@ impl<'a> BaseWriteBatch<'a> for TurboWriteBatch<'a> {
 
         // Start a new compaction in the background
         let db = self.db.clone();
-        let handle = spawn(move || db.compact(20.0, 4));
+        let handle = spawn(move || db.compact(COMPACT_MAX_COVERAGE, COMPACT_MAX_MERGE_SEQUENCE));
         self.compact_join_handle.lock().replace(handle);
 
         Ok(())
