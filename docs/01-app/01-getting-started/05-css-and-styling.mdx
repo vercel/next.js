@@ -2,6 +2,8 @@
 title: How to use CSS in your application
 nav_title: CSS and Styling
 description: Learn how to add CSS and styling to your Next.js application.
+related:
+  links: app/api-reference/next-config-js/sassOptions
 ---
 
 Next.js supports different ways to use CSS to your application, including:
@@ -217,3 +219,45 @@ export default function Page() {
   return <h1 className="text-3xl font-bold underline">Hello, Next.js!</h1>
 }
 ```
+
+## Sass
+
+Next.js integrates with [Sass](https://sass-lang.com/) using both the [`.scss`](https://sass-lang.com/documentation/syntax/#scss) and [`.sass`](https://sass-lang.com/documentation/syntax#the-indented-syntax) extensions and syntaxes. You can also use component-level Sass via [CSS Modules](#css-modules) and the `.module.scss`or `.module.sass` extension.
+
+### Installing Sass
+
+To start using Sass, install the `sass` package:
+
+```bash filename="Terminal"
+npm install --save-dev sass
+```
+
+### Customizing Sass Options
+
+If you want to configure your Sass options, use `sassOptions` in `next.config.js`.
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  sassOptions: {
+    additionalData: `$var: red;`,
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+/** @type {import('next').NextConfig} */
+
+const nextConfig = {
+  sassOptions: {
+    additionalData: `$var: red;`,
+  },
+}
+
+module.exports = nextConfig
+```
+
+Learn more about the `sassOptions` configuration in the [API Reference](/docs/app/api-reference/next-config-js/sassOptions).
