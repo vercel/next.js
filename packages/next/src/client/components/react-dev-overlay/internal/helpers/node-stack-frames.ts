@@ -44,27 +44,34 @@ export function getServerError(error: Error, type: ErrorSourceType): Error {
 
   n.name = error.name
   try {
-    n.stack = `${n.toString()}\n${parse(error.stack!)
-      .map(getFilesystemFrame)
-      .map((f) => {
-        let str = `    at ${f.methodName}`
-        if (f.file) {
-          let loc = f.file
-          if (f.lineNumber) {
-            loc += `:${f.lineNumber}`
-            if (f.column) {
-              loc += `:${f.column}`
-            }
-          }
-          str += ` (${loc})`
-        }
-        return str
-      })
-      .join('\n')}`
+    replaceErrorStack(n, parse(error.stack!).map(getFilesystemFrame))
   } catch {
     n.stack = error.stack
   }
 
   decorateServerError(n, type)
   return n
+}
+
+export function replaceErrorStack(error: Error, frames: StackFrame[]) {
+  error.stack = `${error.toString()}\n${stringifyFrames(frames)}`
+}
+
+function stringifyFrames(frames: StackFrame[]) {
+  return frames
+    .map((f) => {
+      let str = `    at ${f.methodName}`
+      if (f.file) {
+        let loc = f.file
+        if (f.lineNumber) {
+          loc += `:${f.lineNumber}`
+          if (f.column) {
+            loc += `:${f.column}`
+          }
+        }
+        str += ` (${loc})`
+      }
+      return str
+    })
+    .join('\n')
 }

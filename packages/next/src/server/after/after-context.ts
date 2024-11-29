@@ -17,6 +17,11 @@ import {
 } from '../dev/hot-reloader-types'
 import { stringifyError } from '../../shared/lib/utils'
 import isError from '../../lib/is-error'
+import {
+  parseStack,
+  type StackFrame,
+} from '../../client/components/react-dev-overlay/server/middleware-webpack'
+import { replaceErrorStack } from '../../client/components/react-dev-overlay/internal/helpers/node-stack-frames'
 
 export type AfterContextOpts = {
   isEnabled: boolean
@@ -50,7 +55,7 @@ export class AfterContext {
     this.callbackQueue.pause()
   }
 
-  public after(task: AfterTask): void {
+  public after(task: AfterTask, originalStack: string | undefined): void {
     if (isThenable(task)) {
       if (!this.waitUntil) {
         errorWaitUntilNotAvailable()
@@ -60,7 +65,7 @@ export class AfterContext {
       )
     } else if (typeof task === 'function') {
       // TODO(after): implement tracing
-      this.addCallback(task)
+      this.addCallback(task, originalStack)
     } else {
       throw new Error(
         '`unstable_after()`: Argument must be a promise or a function'
@@ -68,7 +73,10 @@ export class AfterContext {
     }
   }
 
-  private addCallback(callback: AfterCallback) {
+  private addCallback(
+    callback: AfterCallback,
+    originalStack: string | undefined
+  ) {
     // if something is wrong, throw synchronously, bubbling up to the `unstable_after` callsite.
     if (!this.waitUntil) {
       errorWaitUntilNotAvailable()
@@ -100,15 +108,20 @@ export class AfterContext {
     //   after(() => x())
     //   after(x())
     //   await x()
-    const wrappedCallback = bindSnapshot(async () => {
-      try {
-        await afterTaskAsyncStorage.run({ rootTaskSpawnPhase }, () =>
-          callback()
-        )
-      } catch (error) {
-        this.reportTaskError('function', error)
-      }
-    })
+
+    const unwrappedCallback = {
+      [AFTER_CALLBACK_TOP_FRAME]: async () => {
+        try {
+          await afterTaskAsyncStorage.run({ rootTaskSpawnPhase }, () =>
+            callback()
+          )
+        } catch (error) {
+          this.reportTaskError('function', error, originalStack)
+        }
+      },
+    }[AFTER_CALLBACK_TOP_FRAME]
+
+    const wrappedCallback = bindSnapshot(unwrappedCallback)
 
     this.callbackQueue.add(wrappedCallback)
   }
@@ -136,7 +149,11 @@ export class AfterContext {
     })
   }
 
-  private reportTaskError(taskKind: 'promise' | 'function', error: unknown) {
+  private reportTaskError(
+    taskKind: 'promise' | 'function',
+    error: unknown,
+    originalStack?: string
+  ) {
     // TODO(after): this is fine for now, but will need better intergration with our error reporting.
     // TODO(after): should we log this if we have a onTaskError callback?
     console.error(
@@ -147,25 +164,7 @@ export class AfterContext {
     )
 
     if (process.env.NODE_ENV === 'development') {
-      // TODO: we probably want to inject this as `onAfterTaskError` from NextDevServer,
-      // where we have access to `bundlerService` (which has the hotReloader)
-      const hotReloader: NextJsHotReloaderInterface | undefined =
-        // @ts-expect-error
-        globalThis[Symbol.for('@next/dev/hot-reloader')]
-
-      hotReloader?.send({
-        action: HMR_ACTIONS_SENT_TO_BROWSER.AFTER_ERROR,
-        source: process.env.NEXT_RUNTIME === 'edge' ? 'edge-server' : 'server',
-        errorJSON: isError(error)
-          ? stringifyError(error)
-          : (() => {
-              try {
-                return JSON.stringify(error)
-              } catch (_) {
-                return '<unknown>'
-              }
-            })(),
-      })
+      sendErrorToBrowser(error, originalStack)
     }
 
     if (this.onTaskError) {
@@ -185,6 +184,86 @@ export class AfterContext {
     }
   }
 }
+
+function sendErrorToBrowser(error: unknown, originalStack: string | undefined) {
+  // TODO: we probably want to inject this as `onAfterTaskError` from NextDevServer,
+  // where we have access to `bundlerService` (which has the hotReloader)
+  const hotReloader: NextJsHotReloaderInterface | undefined =
+    // @ts-expect-error
+    globalThis[Symbol.for('@next/dev/hot-reloader')]
+
+  // TODO: if the callback is unnamed, replace <unknown> with <after callback>?
+
+  // TODO: how do we add the stack for the original `after` call without making things confusing?
+  // is [...originalStack, "unstable_after", ...stackInsideCallback] enough? maybe?
+
+  // TODO: make sure it also works for nested after (because then the originalStackFrame is already polluted with after)
+
+  const tryPrettifyStack = (err: unknown): StackFrame[] | undefined => {
+    if (!isError(err)) {
+      return
+    }
+    const fullErrorFrames = parseStack(err.stack)
+
+    const wrapperCallbackFrame = fullErrorFrames.findIndex(
+      (frame) => frame.methodName.endsWith(AFTER_CALLBACK_TOP_FRAME) // it might be "async [name]"
+    )
+    if (wrapperCallbackFrame === -1) {
+      return
+    }
+    // last index is not included, so this omits the wrapper we add in addCallback
+    const userFramesFromCallback = fullErrorFrames.slice(
+      0,
+      wrapperCallbackFrame
+    )
+
+    const originalFrames = parseStack(originalStack)
+    const afterFrame = originalFrames[0] // we capture the stack in `unstable_after`, so we only need to omit that
+    const originalCaller = originalFrames.slice(1)
+
+    const userFramesFromOriginalCaller = originalCaller.slice(
+      0,
+      originalCaller.findIndex(
+        (frame) => frame.methodName === 'react-stack-bottom-frame'
+      )
+    )
+
+    return userFramesFromCallback.concat(
+      [afterFrame], // TODO: error overlay hides this by default
+      userFramesFromOriginalCaller
+    )
+  }
+
+  if (isError(error)) {
+    const prettyStack = tryPrettifyStack(error)
+    const origErrorStack = error.stack
+    if (prettyStack) {
+      replaceErrorStack(error, prettyStack)
+    }
+
+    console.log('AfterContext :: reportTaskError', {
+      originalStack: originalStack,
+      errorStack: origErrorStack,
+      finalStack: error.stack,
+    })
+  }
+
+  hotReloader?.send({
+    action: HMR_ACTIONS_SENT_TO_BROWSER.AFTER_ERROR,
+    source: process.env.NEXT_RUNTIME === 'edge' ? 'edge-server' : 'server',
+    errorJSON: isError(error)
+      ? stringifyError(error)
+      : (() => {
+          try {
+            return JSON.stringify(error)
+          } catch (_) {
+            return '<unknown>'
+          }
+        })(),
+  })
+}
+
+const AFTER_CALLBACK_TOP_FRAME = 'next-after-callback-top-frame'
 
 function errorWaitUntilNotAvailable(): never {
   throw new Error(

@@ -8,10 +8,14 @@ export default function Page() {
 
 function helper() {
   unstable_after(async () => {
-    // TODO(after): this delay is load-bearing, otherwise
-    // the client-side won't have booted yet and our `HMR_ACTIONS_SENT_TO_BROWSER.AFTER_ERROR`
-    // will be dropped on the floor, so we won't display anything
-    await setTimeout(1000)
+    await setTimeout(500)
+    nestedHelper()
+  })
+}
+
+function nestedHelper() {
+  unstable_after(async () => {
+    await setTimeout(500)
     throws()
   })
 }
