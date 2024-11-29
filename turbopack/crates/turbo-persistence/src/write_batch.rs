@@ -208,7 +208,7 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
         let seq = self.current_sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
 
         let builder =
-            StaticSortedFileBuilder::new(family as u32, entries, total_key_size, total_value_size);
+            StaticSortedFileBuilder::new(family as u32, entries, total_key_size, total_value_size)?;
 
         let path = self.path.join(format!("{:08}.sst", seq));
         let file = builder
