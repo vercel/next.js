@@ -90,6 +90,11 @@ impl KeyValueDatabase for TurboKeyValueDatabase {
     }
 
     fn shutdown(&self) -> Result<()> {
+        // Wait for the compaction to finish
+        if let Some(join_handle) = self.compact_join_handle.lock().take() {
+            join_handle.join().unwrap()?;
+        }
+        // Shutdown the database
         self.db.shutdown()
     }
 }
