@@ -1187,12 +1187,15 @@ impl Project {
             let node_root = self.node_root();
 
             if let Some(map) = self.await?.versioned_content_map {
-                let _ = map.insert_output_assets(
-                    all_output_assets,
-                    node_root,
-                    client_relative_path,
-                    node_root,
-                );
+                let _ = map
+                    .insert_output_assets(
+                        all_output_assets,
+                        node_root,
+                        client_relative_path,
+                        node_root,
+                    )
+                    .resolve()
+                    .await?;
 
                 Ok(())
             } else {
@@ -1201,7 +1204,9 @@ impl Project {
                     node_root,
                     client_relative_path,
                     node_root,
-                );
+                )
+                .resolve()
+                .await?;
 
                 Ok(())
             }

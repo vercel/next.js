@@ -161,8 +161,8 @@ async fn emit_evaluate_pool_assets(
     );
 
     let output_root = chunking_context.output_root().to_resolved().await?;
-    let _ = emit_package_json(*output_root);
-    let _ = emit(bootstrap, *output_root);
+    let _ = emit_package_json(*output_root).resolve().await?;
+    let _ = emit(bootstrap, *output_root).resolve().await?;
 
     Ok(EmittedEvaluatePoolAssets {
         bootstrap: bootstrap.to_resolved().await?,

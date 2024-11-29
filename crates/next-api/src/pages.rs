@@ -1280,7 +1280,9 @@ impl Endpoint for PageEndpoint {
             let _ = this
                 .pages_project
                 .project()
-                .emit_all_output_assets(Vc::cell(output_assets));
+                .emit_all_output_assets(Vc::cell(output_assets))
+                .resolve()
+                .await?;
 
             let node_root = this.pages_project.project().node_root();
 
