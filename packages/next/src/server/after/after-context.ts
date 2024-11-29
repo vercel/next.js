@@ -11,6 +11,12 @@ import {
   type WorkUnitStore,
 } from '../app-render/work-unit-async-storage.external'
 import { afterTaskAsyncStorage } from '../app-render/after-task-async-storage.external'
+import isError from '../../lib/is-error'
+import {
+  AFTER_CALLBACK_TOP_FRAME,
+  patchAfterCallstackInDev,
+  type OriginalStacks,
+} from './after-dev-callstacks'
 
 export type AfterContextOpts = {
   isEnabled: boolean
@@ -44,17 +50,17 @@ export class AfterContext {
     this.callbackQueue.pause()
   }
 
-  public after(task: AfterTask): void {
+  public after(task: AfterTask, originalStack: string | undefined): void {
     if (isThenable(task)) {
       if (!this.waitUntil) {
         errorWaitUntilNotAvailable()
       }
       this.waitUntil(
-        task.catch((error) => this.reportTaskError('promise', error))
+        task.catch((error) => this.reportTaskError('promise', error, undefined))
       )
     } else if (typeof task === 'function') {
       // TODO(after): implement tracing
-      this.addCallback(task)
+      this.addCallback(task, originalStack)
     } else {
       throw new Error(
         '`unstable_after()`: Argument must be a promise or a function'
@@ -62,7 +68,10 @@ export class AfterContext {
     }
   }
 
-  private addCallback(callback: AfterCallback) {
+  private addCallback(
+    callback: AfterCallback,
+    originalStack: string | undefined
+  ) {
     // if something is wrong, throw synchronously, bubbling up to the `unstable_after` callsite.
     if (!this.waitUntil) {
       errorWaitUntilNotAvailable()
@@ -94,15 +103,32 @@ export class AfterContext {
     //   after(() => x())
     //   after(x())
     //   await x()
-    const wrappedCallback = bindSnapshot(async () => {
-      try {
-        await afterTaskAsyncStorage.run({ rootTaskSpawnPhase }, () =>
-          callback()
-        )
-      } catch (error) {
-        this.reportTaskError('function', error)
-      }
-    })
+
+    let originalStacks: OriginalStacks | undefined
+    if (process.env.NODE_ENV === 'development') {
+      originalStacks = [
+        originalStack,
+        ...(afterTaskStore?.originalStacks ?? []),
+      ]
+    }
+
+    const unwrappedCallback = {
+      [AFTER_CALLBACK_TOP_FRAME]: async () => {
+        try {
+          await afterTaskAsyncStorage.run(
+            {
+              rootTaskSpawnPhase,
+              originalStacks,
+            },
+            () => callback()
+          )
+        } catch (error) {
+          this.reportTaskError('function', error, originalStacks)
+        }
+      },
+    }[AFTER_CALLBACK_TOP_FRAME]
+
+    const wrappedCallback = bindSnapshot(unwrappedCallback)
 
     this.callbackQueue.add(wrappedCallback)
   }
@@ -130,7 +156,11 @@ export class AfterContext {
     })
   }
 
-  private reportTaskError(taskKind: 'promise' | 'function', error: unknown) {
+  private reportTaskError(
+    taskKind: 'promise' | 'function',
+    error: unknown,
+    originalStacks: OriginalStacks | undefined
+  ) {
     // TODO(after): this is fine for now, but will need better intergration with our error reporting.
     // TODO(after): should we log this if we have a onTaskError callback?
     console.error(
@@ -139,6 +169,22 @@ export class AfterContext {
         : `An error occurred in a function passed to \`unstable_after()\`:`,
       error
     )
+
+    if (process.env.NODE_ENV === 'development') {
+      if (isError(error) && originalStacks) {
+        try {
+          error = patchAfterCallstackInDev(error, originalStacks)
+        } catch (patchError) {
+          // if something goes wrong here, we just want to log it
+          console.error(
+            new InvariantError('Could not patch callstack for after callback', {
+              cause: patchError,
+            })
+          )
+        }
+      }
+    }
+
     if (this.onTaskError) {
       // this is very defensive, but we really don't want anything to blow up in an error handler
       try {
