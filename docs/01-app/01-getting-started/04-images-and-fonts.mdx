@@ -16,3 +16,34 @@ Next.js comes with automatic image and font optimizations for better performance
 You can store static files, like images and fonts, under a folder called `public` in the root directory. Files inside `public` can then be referenced by your code starting from the base URL (`/`).
 
 TODO: Add diagram for `public` folder
+
+## Optmizing images
+
+The Next.js [`<Image>`](/docs/app/building-your-application/optimizing/images) component extends the HTML `<img>` to provide:
+
+- **Size Optimization:** Automatically serving correctly sized images for each device, using modern image formats like WebP and AVIF.
+- **Visual Stability:** Preventing [layout shift](/learn/seo/web-performance/cls) automatically when images are loading.
+- **Faster Page Loads:** Only loading images when they enter the viewport using native browser lazy loading, with optional blur-up placeholders.
+- **Asset Flexibility:** Resizing images on-demand, even images stored on remote servers.
+
+> **🎥 Watch:** Learn more about how to use `next/image` → [YouTube (9 minutes)](https://youtu.be/IU_qq_c_lKA).
+
+To start using `<Image>`, first import it from `next/image` and render it within your component.
+
+```tsx filename="app/page.tsx" switcher
+import Image from 'next/image'
+
+export default function Page() {
+  return <Image src="" alt="" />
+}
+```
+
+```jsx filename="app/page.js" switcher
+import Image from 'next/image'
+
+export default function Page() {
+  return <Image src="" alt="" />
+}
+```
+
+The `src` property can be a [local](#local-images) or [remote](#remote-images) image.
