@@ -429,6 +429,7 @@ export class Head extends React.Component<HeadProps> {
       assetPrefix,
       assetQueryString,
       dynamicImports,
+      dynamicCssManifest,
       crossOrigin,
       optimizeCss,
     } = this.context
@@ -438,21 +439,23 @@ export class Head extends React.Component<HeadProps> {
     // Unmanaged files are CSS files that will be handled directly by the
     // webpack runtime (`mini-css-extract-plugin`).
     let unmanagedFiles: Set<string> = new Set([])
-    let dynamicCssFiles = Array.from(
+    let localDynamicCssFiles = Array.from(
       new Set(dynamicImports.filter((file) => file.endsWith('.css')))
     )
-    if (dynamicCssFiles.length) {
+    if (localDynamicCssFiles.length) {
       const existing = new Set(cssFiles)
-      dynamicCssFiles = dynamicCssFiles.filter(
+      localDynamicCssFiles = localDynamicCssFiles.filter(
         (f) => !(existing.has(f) || sharedFiles.has(f))
       )
-      unmanagedFiles = new Set(dynamicCssFiles)
-      cssFiles.push(...dynamicCssFiles)
+      unmanagedFiles = new Set(localDynamicCssFiles)
+      cssFiles.push(...localDynamicCssFiles)
     }
 
     let cssLinkElements: JSX.Element[] = []
     cssFiles.forEach((file) => {
       const isSharedFile = sharedFiles.has(file)
+      const isUnmanagedFile = unmanagedFiles.has(file)
+      const isFileInDynamicCssManifest = dynamicCssManifest.has(file)
 
       if (!optimizeCss) {
         cssLinkElements.push(
@@ -469,7 +472,6 @@ export class Head extends React.Component<HeadProps> {
         )
       }
 
-      const isUnmanagedFile = unmanagedFiles.has(file)
       cssLinkElements.push(
         <link
           key={file}
@@ -480,7 +482,11 @@ export class Head extends React.Component<HeadProps> {
           )}${assetQueryString}`}
           crossOrigin={this.props.crossOrigin || crossOrigin}
           data-n-g={isUnmanagedFile ? undefined : isSharedFile ? '' : undefined}
-          data-n-p={isUnmanagedFile ? undefined : isSharedFile ? undefined : ''}
+          data-n-p={
+            isSharedFile || isUnmanagedFile || isFileInDynamicCssManifest
+              ? undefined
+              : ''
+          }
         />
       )
     })
