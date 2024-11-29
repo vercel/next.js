@@ -405,7 +405,7 @@ async fn process_content(
                         | lightningcss::error::ParserError::UnexpectedImportRule
                         | lightningcss::error::ParserError::SelectorError(..)
                         | lightningcss::error::ParserError::EndOfInput => {
-                            let source = match err.loc {
+                            let source = match &err.loc {
                                 Some(loc) => {
                                     let pos = SourcePos {
                                         line: loc.line as _,
