@@ -399,7 +399,10 @@ async fn process_content(
                     }
                 }
 
-                for err in warnings.read().unwrap().iter() {
+                // We need to collect here because we need to avoid holding the lock while calling
+                // `.await` in the loop.
+                let warngins = warnings.read().unwrap().iter().cloned().collect::<Vec<_>>();
+                for err in warngins.iter() {
                     match err.kind {
                         lightningcss::error::ParserError::UnexpectedToken(_)
                         | lightningcss::error::ParserError::UnexpectedImportRule
