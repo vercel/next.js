@@ -10,6 +10,7 @@ import {
   workUnitAsyncStorage,
   type WorkUnitStore,
 } from '../app-render/work-unit-async-storage.external'
+import { workUnitSnapshotAsyncStorage } from '../app-render/work-unit-snapshot-async-storage.external'
 
 export type AfterContextOpts = {
   isEnabled: boolean
@@ -70,6 +71,8 @@ export class AfterContext {
       this.workUnitStores.add(workUnitStore)
     }
 
+    const originalPhase = workUnitStore?.phase
+
     // this should only happen once.
     if (!this.runCallbacksOnClosePromise) {
       this.runCallbacksOnClosePromise = this.runCallbacksOnClose()
@@ -83,7 +86,13 @@ export class AfterContext {
     //   await x()
     const wrappedCallback = bindSnapshot(async () => {
       try {
-        await callback()
+        if (!originalPhase) {
+          await callback()
+        } else {
+          await workUnitSnapshotAsyncStorage.run({ phase: originalPhase }, () =>
+            callback()
+          )
+        }
       } catch (error) {
         this.reportTaskError(error)
       }

@@ -1,11 +1,11 @@
 import { cookies, headers } from 'next/headers'
 import { unstable_after as after, connection } from 'next/server'
 
-export function testRequestAPIs() {
+export function testRequestAPIs(/** @type {string} */ route) {
   after(async () => {
     try {
       await headers()
-      console.log('headers(): ok')
+      console.log(`[${route}] headers(): ok`)
     } catch (err) {
       console.error(err)
     }
@@ -14,7 +14,7 @@ export function testRequestAPIs() {
   after(async () => {
     try {
       await cookies()
-      console.log('cookies(): ok')
+      console.log(`[${route}] cookies(): ok`)
     } catch (err) {
       console.error(err)
     }
@@ -23,7 +23,7 @@ export function testRequestAPIs() {
   after(async () => {
     try {
       await connection()
-      console.log('connection(): ok')
+      console.log(`[${route}] connection(): ok`)
     } catch (err) {
       console.error(err)
     }

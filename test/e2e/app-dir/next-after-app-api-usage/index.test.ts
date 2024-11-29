@@ -36,7 +36,7 @@ describe('nextjs APIs in unstable_after()', () => {
     await next.start()
   })
 
-  describe('request APIs cannot be called inside unstable_after()', () => {
+  describe('request APIs inside unstable_after()', () => {
     // TODO(after): test unawaited calls, like this
     //
     // export default function Page() {
@@ -47,7 +47,7 @@ describe('nextjs APIs in unstable_after()', () => {
     //   return null
     // }
 
-    it('in a dynamic page', async () => {
+    it('cannot be called in a dynamic page', async () => {
       const path = '/request-apis/page-dynamic'
       await next.render(path)
       await retry(() => {
@@ -63,7 +63,7 @@ describe('nextjs APIs in unstable_after()', () => {
       })
     })
 
-    describe('in a prerendered page', () => {
+    describe('cannot be called in a prerendered page', () => {
       it.each([
         {
           title: 'with `dynamic = "error"`',
@@ -90,63 +90,53 @@ describe('nextjs APIs in unstable_after()', () => {
       })
     })
 
-    it('in server actions', async () => {
+    it('can be called in a server action', async () => {
       const path = '/request-apis/server-action'
       const browser = await next.browser(path)
       await browser.elementByCss('button[type="submit"]').click()
       await retry(() => {
-        expect(getLogs()).toContain(
-          `Error: Route ${path} used "headers" inside "unstable_after(...)". This is not supported.`
-        )
-        expect(getLogs()).toContain(
-          `Error: Route ${path} used "cookies" inside "unstable_after(...)". This is not supported.`
-        )
-        expect(getLogs()).toContain(
-          `Error: Route ${path} used "connection" inside "unstable_after(...)".`
-        )
+        expect(getLogs()).toContain(`[${path}] headers(): ok`)
+        expect(getLogs()).toContain(`[${path}] cookies(): ok`)
+        expect(getLogs()).toContain(`[${path}] connection(): ok`)
       })
     })
 
-    it('in a dynamic route handler', async () => {
+    it('can be called in a dynamic route handler', async () => {
       const path = '/request-apis/route-handler-dynamic'
       await next.render(path)
       await retry(() => {
-        expect(getLogs()).toContain(
-          `Error: Route ${path} used "headers" inside "unstable_after(...)". This is not supported.`
-        )
-        expect(getLogs()).toContain(
-          `Error: Route ${path} used "cookies" inside "unstable_after(...)". This is not supported.`
-        )
-        expect(getLogs()).toContain(
-          `Error: Route ${path} used "connection" inside "unstable_after(...)".`
-        )
+        const logs = getLogs()
+        expect(logs).toContain(`[${path}] headers(): ok`)
+        expect(logs).toContain(`[${path}] cookies(): ok`)
+        expect(logs).toContain(`[${path}] connection(): ok`)
       })
     })
 
-    describe('in a prerendered route handler', () => {
-      it.each([
-        {
-          title: 'with `dynamic = "error"`',
-          path: '/request-apis/route-handler-dynamic-error',
-        },
-        {
-          title: 'with `dynamic = "force-static"`',
-          path: '/request-apis/route-handler-force-static',
-        },
-      ])('$title', async ({ path }) => {
-        await next.render(path)
-        await retry(() => {
-          const logs = isNextDev ? getLogs() : buildLogs // in `next start` the error was logged at build time
-          expect(logs).toContain(
-            `Error: Route ${path} used "headers" inside "unstable_after(...)". This is not supported.`
-          )
-          expect(logs).toContain(
-            `Error: Route ${path} used "cookies" inside "unstable_after(...)". This is not supported.`
-          )
-          expect(logs).toContain(
-            `Error: Route ${path} used "connection" inside "unstable_after(...)".`
-          )
-        })
+    it('can be called in a prerendered route handler with `dynamic = "force-static"`', async () => {
+      const path = '/request-apis/route-handler-force-static'
+      await next.render(path)
+      await retry(() => {
+        const logs = isNextDev ? getLogs() : buildLogs // in `next start` the error was logged at build time
+        expect(logs).toContain(`[${path}] headers(): ok`)
+        expect(logs).toContain(`[${path}] cookies(): ok`)
+        expect(logs).toContain(`[${path}] connection(): ok`)
+      })
+    })
+
+    it('can be called in a prerendered route handler with `dynamic = "error" (but throw, because dynamic should error)`', async () => {
+      const path = '/request-apis/route-handler-dynamic-error'
+      await next.render(path)
+      await retry(() => {
+        const logs = isNextDev ? getLogs() : buildLogs // in `next start` the error was logged at build time
+        expect(logs).toContain(
+          `Error: Route ${path} with \`dynamic = "error"\` couldn't be rendered statically because it used \`headers\`.`
+        )
+        expect(logs).toContain(
+          `Error: Route ${path} with \`dynamic = "error"\` couldn't be rendered statically because it used \`cookies\`.`
+        )
+        expect(logs).toContain(
+          `Error: Route ${path} with \`dynamic = "error"\` couldn't be rendered statically because it used \`connection\`.`
+        )
       })
     })
   })
