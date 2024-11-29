@@ -6,7 +6,7 @@ related:
   links: app/api-reference/next-config-js/sassOptions
 ---
 
-Next.js supports different ways to use CSS to your application, including:
+Next.js supports different ways to use CSS in your application, including:
 
 - [CSS Modules](#css-modules)
 - [Global CSS](#global-css)
@@ -19,9 +19,9 @@ This page will guide you through how to start using each of these approaches.
 
 ## CSS Modules
 
-CSS Modules locally scope CSS by automatically creating a unique class name. This allows you to use the same class name in different files without worrying about collisions. This behavior makes CSS Modules the ideal way to include component-level CSS.
+CSS Modules locally scope CSS by automatically creating a unique class name. This allows you to use the same class in different files without worrying about collisions. This behavior makes CSS Modules the ideal way to include component-level CSS.
 
-Next.js has built-in support for CSS Modules using the `.module.css` extension. To start using it, create a new file with the extension and import it into any file inside the `app` directory:
+To start using CSS Modules, create a new file with the extension `.module.css` and import it into any file inside the `app` directory:
 
 ```css filename="app/blog/styles.module.css"
 .blog {
