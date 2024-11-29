@@ -540,7 +540,7 @@ fn match_parallel_route(name: &str) -> Option<&str> {
 
 fn conflict_issue(
     app_dir: Vc<FileSystemPath>,
-    e: &OccupiedEntry<AppPath, Entrypoint>,
+    e: &'_ OccupiedEntry<'_, AppPath, Entrypoint>,
     a: &str,
     b: &str,
     value_a: &AppPage,
@@ -1419,6 +1419,7 @@ pub async fn get_global_metadata(
 #[turbo_tasks::value(shared)]
 struct DirectoryTreeIssue {
     pub severity: ResolvedVc<IssueSeverity>,
+    // no-resolved-vc(kdy1): I'll resolve this later because it's a complex case.
     pub app_dir: Vc<FileSystemPath>,
     pub message: ResolvedVc<StyledString>,
 }
