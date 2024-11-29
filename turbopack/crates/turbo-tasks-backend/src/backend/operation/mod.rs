@@ -21,10 +21,7 @@ use crate::{
         TurboTasksBackend, TurboTasksBackendInner,
     },
     backing_storage::BackingStorage,
-    data::{
-        CachedDataItem, CachedDataItemIndex, CachedDataItemKey, CachedDataItemValue,
-        CachedDataUpdate,
-    },
+    data::{CachedDataItem, CachedDataItemIndex, CachedDataItemKey, CachedDataItemValue},
 };
 
 pub trait Operation:
@@ -419,13 +416,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
             self.backend
                 .persisted_storage_log(key.category())
                 .unwrap()
-                .lock(self.task_id)
-                .push(CachedDataUpdate {
-                    key,
-                    task: self.task_id,
-                    value: Some(value),
-                    old_value: None,
-                });
+                .push(self.task_id, key, None, Some(value));
             true
         } else {
             false
@@ -451,15 +442,13 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
             self.backend
                 .persisted_storage_log(key.category())
                 .unwrap()
-                .lock(self.task_id)
-                .push(CachedDataUpdate {
+                .push(
+                    self.task_id,
                     key,
-                    task: self.task_id,
-                    value: Some(value),
-                    old_value: old
-                        .as_ref()
+                    old.as_ref()
                         .and_then(|old| old.is_persistent().then(|| old.clone())),
-                });
+                    Some(value),
+                );
             old
         } else {
             let item = CachedDataItem::from_key_and_value(key.clone(), value);
@@ -469,13 +458,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
                     self.backend
                         .persisted_storage_log(key.category())
                         .unwrap()
-                        .lock(self.task_id)
-                        .push(CachedDataUpdate {
-                            key,
-                            task: self.task_id,
-                            value: None,
-                            old_value: Some(old.clone()),
-                        });
+                        .push(self.task_id, key, Some(old.clone()), None);
                 }
                 Some(old)
             } else {
@@ -510,29 +493,21 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
                 (None, false) => {}
                 (Some(old_value), false) => {
                     add_persisting_item = true;
-                    backend
-                        .persisted_storage_log(key.category())
-                        .unwrap()
-                        .lock(*task_id)
-                        .push(CachedDataUpdate {
-                            key: key.clone(),
-                            task: *task_id,
-                            value: None,
-                            old_value: Some(old_value),
-                        });
+                    backend.persisted_storage_log(key.category()).unwrap().push(
+                        *task_id,
+                        key.clone(),
+                        Some(old_value),
+                        None,
+                    );
                 }
                 (old_value, true) => {
                     add_persisting_item = true;
-                    backend
-                        .persisted_storage_log(key.category())
-                        .unwrap()
-                        .lock(*task_id)
-                        .push(CachedDataUpdate {
-                            key: key.clone(),
-                            task: *task_id,
-                            value: new.clone(),
-                            old_value,
-                        });
+                    backend.persisted_storage_log(key.category()).unwrap().push(
+                        *task_id,
+                        key.clone(),
+                        old_value,
+                        new.clone(),
+                    );
                 }
             }
 
@@ -556,13 +531,12 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
                 self.backend
                     .persisted_storage_log(key.category())
                     .unwrap()
-                    .lock(self.task_id)
-                    .push(CachedDataUpdate {
+                    .push(
+                        self.task_id,
                         key,
-                        task: self.task_id,
-                        value: None,
-                        old_value: value.is_persistent().then(|| value.clone()),
-                    });
+                        value.is_persistent().then(|| value.clone()),
+                        None,
+                    );
             }
             Some(value)
         } else {
@@ -615,13 +589,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
                 self.backend
                     .persisted_storage_log(key.category())
                     .unwrap()
-                    .lock(self.task_id)
-                    .push(CachedDataUpdate {
-                        key,
-                        task: self.task_id,
-                        value: None,
-                        old_value: Some(value),
-                    });
+                    .push(self.task_id, key, Some(value), None);
             }
         }))
     }
@@ -640,13 +608,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
                 self.backend
                     .persisted_storage_log(key.category())
                     .unwrap()
-                    .lock(self.task_id)
-                    .push(CachedDataUpdate {
-                        key,
-                        task: self.task_id,
-                        value: None,
-                        old_value: Some(value),
-                    });
+                    .push(self.task_id, key, Some(value), None);
             }
         }))
     }
@@ -661,24 +623,18 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
             .filter_map(|(key, value)| match (key, value) {
                 (CachedDataItemKey::CellData { cell }, CachedDataItemValue::CellData { value }) => {
                     count += 1;
-                    Some(CachedDataUpdate {
-                        task: self.task_id,
-                        key: CachedDataItemKey::CellData { cell: *cell },
-                        value: Some(CachedDataItemValue::CellData {
-                            value: value.clone(),
-                        }),
-                        old_value: None,
+                    Some(CachedDataItem::CellData {
+                        cell: *cell,
+                        value: value.clone(),
                     })
                 }
                 _ => None,
             });
         {
-            let mut guard = self
-                .backend
+            self.backend
                 .persisted_storage_log(TaskDataCategory::Data)
                 .unwrap()
-                .lock(self.task_id);
-            guard.extend(cell_data);
+                .push_batch_insert(self.task_id, cell_data);
             self.task
                 .persistance_state_mut()
                 .add_persisting_items(count);

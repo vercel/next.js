@@ -89,6 +89,7 @@ const maybeJSONParse = (str?: string) => (str ? JSON.parse(str) : undefined)
 
 const buildManifest: BuildManifest = self.__BUILD_MANIFEST as any
 const reactLoadableManifest = maybeJSONParse(self.__REACT_LOADABLE_MANIFEST)
+const dynamicCssManifest = maybeJSONParse(self.__DYNAMIC_CSS_MANIFEST)
 const subresourceIntegrityManifest = sriEnabled
   ? maybeJSONParse(self.__SUBRESOURCE_INTEGRITY_MANIFEST)
   : undefined
@@ -106,6 +107,7 @@ const render = getRender({
   buildManifest,
   renderToHTML,
   reactLoadableManifest,
+  dynamicCssManifest,
   subresourceIntegrityManifest,
   config: nextConfig,
   buildId: process.env.__NEXT_BUILD_ID!,

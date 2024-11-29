@@ -75,6 +75,8 @@ export const MIDDLEWARE_REACT_LOADABLE_MANIFEST =
 // server/interception-route-rewrite-manifest.js
 export const INTERCEPTION_ROUTE_REWRITE_MANIFEST =
   'interception-route-rewrite-manifest'
+// server/dynamic-css-manifest.js
+export const DYNAMIC_CSS_MANIFEST = 'dynamic-css-manifest'
 
 // static/runtime/main.js
 export const CLIENT_STATIC_FILES_RUNTIME_MAIN = `main`
