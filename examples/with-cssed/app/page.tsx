@@ -1,8 +1,9 @@
+'use client'
 import { css } from "cssed/macro";
 import Head from "next/head";
 import { useState } from "react";
 
-import { dark, light } from "../lib/theme";
+import { dark, light } from "./lib/theme";
 
 const styles = css`
   .box {
