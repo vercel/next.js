@@ -1,6 +1,6 @@
 ---
 title: How to fetch and stream data in your application
-nav_title: Fetching and Streaming Data
+nav_title: Fetching Data and Streaming
 description: Learn how to fetch and stream data in your Next.js application.
 related:
   links:
@@ -8,18 +8,20 @@ related:
     - app/api-reference/file-conventions/loading
 ---
 
-There are a few ways to fetch and stream data in your Next.js application. This page will walk you through how you can fetch data in [Server Components](#server-components) and [Client Components](#client-components). As well as how to to [stream](#streaming) content that depends on data.
+There are a few ways to fetch data in your Next.js application. This page will walk you through how you can fetch data in [Server Components](#server-components) and [Client Components](#client-components). As well as how to to [stream](#streaming) content that depends on data.
 
 ## Fetching Data
 
 ### Server Components
 
-There are two ways you can fetch data in a Server Component:
+You can fetch data in Server Components using:
 
-1. Using the `fetch` API
-2. Using an ORM or Database
+1. The [`fetch` API](#with-fetch-api)
+2. An [ORM or database](#with-orm-or-database)
 
-To fetch data using the `fetch` API, turn your component into an async function, and await the `fetch` call. For example:
+#### With the `fetch` API
+
+To fetch data with the `fetch` API, turn your component into an async function, and await the `fetch` call. For example:
 
 ```tsx filename="app/blog/page.tsx" switcher
 export default async function Page() {
@@ -49,7 +51,9 @@ export default async function Page() {
 }
 ```
 
-Similarly, you can fetch data with an ORM or database by turning your component into an async function, and awaiting the call:
+#### With an ORM or database
+
+You can fetch data with an ORM or database by turning your component into an `async` function, and awaiting the call:
 
 ```tsx filename="app/blog/page.tsx" switcher
 import { db, posts } from '@/lib/db'
@@ -83,7 +87,7 @@ export default async function Page() {
 
 ### Client Components
 
-To fetch data in a Client Component, we recommend using a React library like [SWR](https://swr.vercel.app/) or [React Query](https://tanstack.com/query/latest). For example:
+To fetch data in Client Components, we recommend using a React library like [SWR](https://swr.vercel.app/) or [React Query](https://tanstack.com/query/latest). For example:
 
 ```tsx filename="app/blog/page.tsx" switcher
 'use client'
