@@ -38,6 +38,7 @@ import type { CacheHandler, CacheEntry } from '../lib/cache-handlers/types'
 import type { CacheSignal } from '../app-render/cache-signal'
 import { decryptActionBoundArgs } from '../app-render/encryption'
 import { InvariantError } from '../../shared/lib/invariant-error'
+import { createFlightReactServerErrorHandler } from '../app-render/create-error-handler'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -330,11 +331,17 @@ async function generateCacheEntryImpl(
       environmentName: 'Cache',
       signal: controller.signal,
       temporaryReferences,
-      onError(error: unknown) {
-        // Report the error.
+      // In the "Cache" environment, we only need to make sure that the error
+      // digests are handled correctly. Error formatting and reporting is not
+      // necessary here; the errors are encoded in the stream, and will be
+      // reported in the "Server" environment.
+      onError: createFlightReactServerErrorHandler(false, (error: unknown) => {
+        // TODO: For now we're also reporting the error here, because in
+        // production, the "Server" environment will only get the obfuscated
+        // error (created by the Flight Client in the cache wrapper).
         console.error(error)
         errors.push(error)
-      },
+      }),
     }
   )
 
