@@ -1596,7 +1596,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   }): Promise<void> {
     return this.hotReloaderSpan
       .traceChild('ensure-page', {
-        page,
+        inputPage: page,
       })
       .traceAsyncFn(async () => {
         // Make sure we don't re-build or dispose prebuilt pages
