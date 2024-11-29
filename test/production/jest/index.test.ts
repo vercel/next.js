@@ -137,6 +137,10 @@ describe('next/jest', () => {
         '@testing-library/jest-dom': '5.16.1',
         '@testing-library/react': '15.0.2',
         '@testing-library/user-event': '14.5.2',
+        // TODO: nwsapi is a transitive dependency of jest-environment-jsdom >
+        // jsdom. We're temporarily pinning the version here because later
+        // versions cause `ReferenceError: document is not defined`
+        nwsapi: '2.2.13',
       },
       packageJson: {
         scripts: {
