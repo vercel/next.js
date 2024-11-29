@@ -15,7 +15,7 @@ use turbo_tasks::{Completion, ResolvedVc, Value, Vc};
 use turbo_tasks_fs::{self, File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
-    chunk::{availability_info::AvailabilityInfo, ChunkingContextExt},
+    chunk::{availability_info::AvailabilityInfo, ChunkingContextExt, EvaluatableAsset},
     context::AssetContext,
     module::{Module, Modules},
     output::OutputAssets,
@@ -104,7 +104,7 @@ impl MiddlewareEndpoint {
             bail!("Entry module must be evaluatable");
         };
 
-        let evaluatable = Vc::try_resolve_sidecast(module)
+        let evaluatable = Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(module)
             .await?
             .context("Entry module must be evaluatable")?;
         evaluatable_assets.push(evaluatable.to_resolved().await?);
