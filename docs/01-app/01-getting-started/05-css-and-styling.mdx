@@ -6,7 +6,7 @@ related:
   links: app/api-reference/next-config-js/sassOptions
 ---
 
-Next.js supports different ways to use CSS in your application, including:
+Next.js provides several ways to use CSS in your application, including:
 
 - [CSS Modules](#css-modules)
 - [Global CSS](#global-css)
@@ -15,13 +15,13 @@ Next.js supports different ways to use CSS in your application, including:
 - [CSS-in-JS](#css-in-js)
 - [External Stylesheets](#external-stylesheets)
 
-This page will guide you through how to start using each of these approaches.
+This page will guide you through how to use each of these approaches.
 
 ## CSS Modules
 
-CSS Modules locally scope CSS by automatically creating a unique class name. This allows you to use the same class in different files without worrying about collisions. This behavior makes CSS Modules the ideal way to include component-level CSS.
+CSS Modules locally scope CSS by generating unique class names. This allows you to use the same class in different files without worrying about collisions.
 
-To start using CSS Modules, create a new file with the extension `.module.css` and import it into any file inside the `app` directory:
+To start using CSS Modules, create a new file with the extension `.module.css` and import it into any component inside the `app` directory:
 
 ```css filename="app/blog/styles.module.css"
 .blog {
@@ -47,15 +47,15 @@ export default function Page({ children }) {
 
 > **Good to know:**
 >
-> - CSS Modules are **only enabled for files with the `.module.css` and `.module.sass` extensions**.
-> - In production, all CSS Module files will be automatically concatenated into **many minified and code-split** `.css` files.
+> - CSS Modules are only enabled for files with the `.module.css` and `.module.sass` extensions.
+> - In production, all CSS Module files will be automatically concatenated into minified and code-split `.css` files.
 > - These `.css` files represent hot execution paths in your application, ensuring the minimal amount of CSS is loaded for your application to paint.
 
 ## Global CSS
 
-Global styles can be imported into any layout, page, or component inside the `app` directory. However, since Next.js uses React's built-in support for stylesheets to integrate with Suspense. This built-in support currently does not remove stylesheets as you navigate between routes. Therefore, we recommend using global styles for _truly_ global CSS, and CSS modules for scoped CSS.
+You can use global CSS to apply styles across your application.
 
-For example, consider a stylesheet named `app/global.css`:
+To use global styles, create a new CSS file, for example `app/global.css`:
 
 ```css filename="app/global.css"
 body {
@@ -65,7 +65,7 @@ body {
 }
 ```
 
-Inside the root layout (`app/layout.js`), you can import the `global.css` stylesheet to apply the styles to **every route** in your application:
+Import the file in the root layout (`app/layout.js`) to apply the styles to **every route** in your application:
 
 ```tsx filename="app/layout.tsx" switcher
 // These styles apply to every route in the application
@@ -97,9 +97,11 @@ export default function RootLayout({ children }) {
 }
 ```
 
+> **Good to know:** Global styles can be imported into any layout, page, or component inside the `app` directory. However, since Next.js uses React's built-in support for stylesheets to integrate with Suspense. This built-in support currently does not remove stylesheets as you navigate between routes. Therefore, we recommend using global styles for _truly_ global CSS, and C[SS Modules](#css-modules) for scoped CSS.
+
 ## Tailwind CSS
 
-[Tailwind CSS](https://tailwindcss.com/) is a utility-first CSS framework that works exceptionally well with Next.js.
+[Tailwind CSS](https://tailwindcss.com/) is a utility-first CSS framework that integrates seamlessly with Next.js.
 
 ### Installing Tailwind
 
@@ -112,7 +114,7 @@ npx tailwindcss init -p
 
 ### Configuring Tailwind
 
-Inside your Tailwind configuration file, add paths to the files that will use Tailwind class names:
+Inside your Tailwind configuration file, add paths to the files that will use the Tailwind class names:
 
 ```ts filename="tailwind.config.ts" switcher
 import type { Config } from 'tailwindcss'
@@ -150,7 +152,7 @@ module.exports = {
 
 You do not need to modify `postcss.config.js`.
 
-### Importing Styles
+### Using Tailwind
 
 Add the [Tailwind directives](https://tailwindcss.com/docs/functions-and-directives#directives) to your [Global Stylesheet](#global-styles), for example:
 
@@ -160,7 +162,7 @@ Add the [Tailwind directives](https://tailwindcss.com/docs/functions-and-directi
 @tailwind utilities;
 ```
 
-Then, inside the [root layout](/docs/app/api-reference/file-conventions/layout#root-layouts), import the `globals.css` stylesheet to apply the styles to every route in your application.
+Then, import the styles in the root layout:
 
 ```tsx filename="app/layout.tsx" switcher
 import type { Metadata } from 'next'
@@ -204,8 +206,6 @@ export default function RootLayout({ children }) {
 }
 ```
 
-### Writing Classes
-
 Lastly, you can write Tailwind's utility classes in your application.
 
 ```tsx filename="app/page.tsx" switcher
@@ -222,7 +222,9 @@ export default function Page() {
 
 ## Sass
 
-Next.js integrates with [Sass](https://sass-lang.com/) using both the [`.scss`](https://sass-lang.com/documentation/syntax/#scss) and [`.sass`](https://sass-lang.com/documentation/syntax#the-indented-syntax) extensions and syntaxes. You can also use component-level Sass via [CSS Modules](#css-modules) and the `.module.scss`or `.module.sass` extension.
+Next.js integrates with [Sass](https://sass-lang.com/) using both the [`.scss`](https://sass-lang.com/documentation/syntax/#scss) and [`.sass`](https://sass-lang.com/documentation/syntax#the-indented-syntax) extensions and syntax.
+
+You can also use component-level Sass via [CSS Modules](#css-modules) and the `.module.scss`or `.module.sass` extension.
 
 ### Installing Sass
 
@@ -503,15 +505,6 @@ export default function RootLayout({ children }) {
 }
 ```
 
-[View an example here](https://github.com/vercel/app-playground/tree/main/app/styling/styled-components).
-
-> **Good to know**:
->
-> - During server rendering, styles will be extracted to a global registry and flushed to the `<head>` of your HTML. This ensures the style rules are placed before any content that might use them.
-> - During streaming, styles from each chunk will be collected and appended to existing styles. After client-side hydration is complete, `styled-components` will take over as usual and inject any further dynamic styles.
-> - We specifically use a Client Component at the top level of the tree for the style registry because it's more efficient to extract CSS rules this way. It avoids re-generating styles on subsequent server renders, and prevents them from being sent in the Server Component payload.
-> - For advanced use cases where you need to configure individual properties of styled-components compilation, you can read the [Next.js styled-components API reference](/docs/architecture/nextjs-compiler#styled-components) to learn more.
-
 ## External stylesheets
 
 Stylesheets published by external packages can be imported anywhere in the `app` directory, including colocated components:
@@ -544,4 +537,4 @@ export default function RootLayout({ children }) {
 }
 ```
 
-> **Good to know**: External stylesheets must be directly imported from an npm package or downloaded and colocated with your codebase. You cannot use `<link rel="stylesheet" />`.
+External stylesheets must be directly imported from an npm package or downloaded and colocated with your codebase. You cannot use `<link rel="stylesheet" />`.
