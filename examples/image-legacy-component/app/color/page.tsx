@@ -1,5 +1,5 @@
 import Image from "next/legacy/image";
-import ViewSource from "../components/view-source";
+import ViewSource from "@/components/view-source";
 
 // Pixel GIF code adapted from https://stackoverflow.com/a/33919020/266535
 const keyStr =
@@ -16,27 +16,27 @@ const rgbDataURL = (r: number, g: number, b: number) =>
     triplet(0, r, g) + triplet(b, 255, 255)
   }/yH5BAAAAAAALAAAAAABAAEAAAICRAEAOw==`;
 
-const Color = () => (
-  <div>
-    <ViewSource pathname="pages/color.tsx" />
-    <h1>Image Component With Color Data URL</h1>
-    <Image
-      alt="Dog"
-      src="/dog.jpg"
-      placeholder="blur"
-      blurDataURL={rgbDataURL(237, 181, 6)}
-      width={750}
-      height={1000}
-    />
-    <Image
-      alt="Cat"
-      src="/cat.jpg"
-      placeholder="blur"
-      blurDataURL={rgbDataURL(2, 129, 210)}
-      width={750}
-      height={1000}
-    />
-  </div>
-);
-
-export default Color;
+export default function Color() {
+  return (
+    <div>
+      <ViewSource pathname="pages/color.tsx" />
+      <h1>Image Component With Color Data URL</h1>
+      <Image
+        alt="Dog"
+        src="/dog.jpg"
+        placeholder="blur"
+        blurDataURL={rgbDataURL(237, 181, 6)}
+        width={750}
+        height={1000}
+      />
+      <Image
+        alt="Cat"
+        src="/cat.jpg"
+        placeholder="blur"
+        blurDataURL={rgbDataURL(2, 129, 210)}
+        width={750}
+        height={1000}
+      />
+    </div>
+  );
+}
