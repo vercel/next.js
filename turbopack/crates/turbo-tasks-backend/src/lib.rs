@@ -18,18 +18,27 @@ pub use self::{
     kv_backing_storage::KeyValueDatabaseBackingStorage,
 };
 use crate::database::{
-    handle_db_versioning, is_fresh, lmdb::LmbdKeyValueDatabase, FreshDbOptimization, NoopKvDb,
-    ReadTransactionCache, StartupCacheLayer, TurboKeyValueDatabase,
+    db_versioning::handle_db_versioning, noop_kv::NoopKvDb, turbo::TurboKeyValueDatabase,
 };
 
+#[cfg(feature = "lmdb")]
 pub type LmdbBackingStorage = KeyValueDatabaseBackingStorage<
-    ReadTransactionCache<StartupCacheLayer<FreshDbOptimization<LmbdKeyValueDatabase>>>,
+    ReadTransactionCache<
+        StartupCacheLayer<FreshDbOptimization<crate::database::lmdb::LmbdKeyValueDatabase>>,
+    >,
 >;
 
+#[cfg(feature = "lmdb")]
 pub fn lmdb_backing_storage(path: &Path) -> Result<LmdbBackingStorage> {
+    use crate::database::{
+        fresh_db_optimization::{is_fresh, FreshDbOptimization},
+        read_transaction_cache::ReadTransactionCache,
+        startup_cache::StartupCacheLayer,
+    };
+
     let path = handle_db_versioning(path)?;
     let fresh_db = is_fresh(&path);
-    let database = LmbdKeyValueDatabase::new(&path)?;
+    let database = crate::database::lmdb::LmbdKeyValueDatabase::new(&path)?;
     let database = FreshDbOptimization::new(database, fresh_db);
     let database = StartupCacheLayer::new(database, path.join("startup.cache"), fresh_db)?;
     let database = ReadTransactionCache::new(database);
@@ -50,8 +59,18 @@ pub fn noop_backing_storage() -> NoopBackingStorage {
     KeyValueDatabaseBackingStorage::new(NoopKvDb)
 }
 
+#[cfg(feature = "lmdb")]
+pub type DefaultBackingStorage = LmdbBackingStorage;
+
+#[cfg(feature = "lmdb")]
+pub fn default_backing_storage(path: &Path) -> Result<DefaultBackingStorage> {
+    lmdb_backing_storage(path)
+}
+
+#[cfg(not(feature = "lmdb"))]
 pub type DefaultBackingStorage = TurboBackingStorage;
 
+#[cfg(not(feature = "lmdb"))]
 pub fn default_backing_storage(path: &Path) -> Result<DefaultBackingStorage> {
     turbo_backing_storage(path)
 }
