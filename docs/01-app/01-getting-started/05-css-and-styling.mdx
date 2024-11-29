@@ -261,3 +261,29 @@ module.exports = nextConfig
 ```
 
 Learn more about the `sassOptions` configuration in the [API Reference](/docs/app/api-reference/next-config-js/sassOptions).
+
+## CSS-in-JS
+
+> **Warning:** CSS-in-JS libraries which require runtime JavaScript are not currently supported in React Server Components. Using CSS-in-JS with newer React features like Server Components and Streaming requires library authors to support the latest version of React.
+
+The following libraries are supported in **Client Components** in the `app` directory (alphabetical):
+
+- [`ant-design`](https://ant.design/docs/react/use-with-next#using-app-router)
+- [`chakra-ui`](https://chakra-ui.com/getting-started/nextjs-app-guide)
+- [`@fluentui/react-components`](https://react.fluentui.dev/?path=/docs/concepts-developer-server-side-rendering-next-js-appdir-setup--page)
+- [`kuma-ui`](https://kuma-ui.com)
+- [`@mui/material`](https://mui.com/material-ui/guides/next-js-app-router/)
+- [`@mui/joy`](https://mui.com/joy-ui/integrations/next-js-app-router/)
+- [`pandacss`](https://panda-css.com)
+- [`styled-jsx`](#styled-jsx)
+- [`styled-components`](#styled-components)
+- [`stylex`](https://stylexjs.com)
+- [`tamagui`](https://tamagui.dev/docs/guides/next-js#server-components)
+- [`tss-react`](https://tss-react.dev/)
+- [`vanilla-extract`](https://vanilla-extract.style)
+
+The following are currently working on support:
+
+- [`emotion`](https://github.com/emotion-js/emotion/issues/2928)
+
+If you want to style Server Components, we recommend using [CSS Modules](#css-modules) or other solutions that output CSS files, like [Tailwind CSS](#tailwind-css).
