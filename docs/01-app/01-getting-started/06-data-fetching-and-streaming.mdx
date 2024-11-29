@@ -7,3 +7,128 @@ related:
 ---
 
 There are a few ways to fetch and stream data in your Next.js application. This page will walk you through how you can fetch data in [Server Components](#server-components) and[Client Components](#client-components). As well as how to use `<Suspense>` to stream content that depends on data.
+
+## Fetching Data
+
+### Server Components
+
+There are two ways you can fetch data in a Server Component:
+
+1. Using the `fetch` API
+2. Using an ORM or Database
+
+To fetch data using the `fetch` API, turn your component into an async function, and await the `fetch` call. For example:
+
+```tsx filename="app/blog/page.tsx" switcher
+export default async function Page() {
+  const data = await fetch('https://api.vercel.app/blog')
+  const posts = await data.json()
+  return (
+    <ul>
+      {posts.map((post) => (
+        <li key={post.id}>{post.title}</li>
+      ))}
+    </ul>
+  )
+}
+```
+
+```jsx filename="app/blog/page.js" switcher
+export default async function Page() {
+  const data = await fetch('https://api.vercel.app/blog')
+  const posts = await data.json()
+  return (
+    <ul>
+      {posts.map((post) => (
+        <li key={post.id}>{post.title}</li>
+      ))}
+    </ul>
+  )
+}
+```
+
+Similarly, you can fetch data with an ORM or database by turning your component into an async function, and awaiting the call:
+
+```tsx filename="app/blog/page.tsx" switcher
+import { db, posts } from '@/lib/db'
+
+export default async function Page() {
+  const allPosts = await db.select().from(posts)
+  return (
+    <ul>
+      {allPosts.map((post) => (
+        <li key={post.id}>{post.title}</li>
+      ))}
+    </ul>
+  )
+}
+```
+
+```jsx filename="app/blog/page.js" switcher
+import { db, posts } from '@/lib/db'
+
+export default async function Page() {
+  const allPosts = await db.select().from(posts)
+  return (
+    <ul>
+      {allPosts.map((post) => (
+        <li key={post.id}>{post.title}</li>
+      ))}
+    </ul>
+  )
+}
+```
+
+### Client Components
+
+To fetch data in a Client Component, we recommend using a React library like [SWR](https://swr.vercel.app/) or [React Query](https://tanstack.com/query/latest). For example:
+
+```tsx filename="app/blog/page.tsx" switcher
+'use client'
+
+import useSWR from 'swr'
+import { fetcher } from '@/lib/fetcher'
+
+export default function BlogPage() {
+  const { data, error, isLoading } = useSWR(
+    'https://api.vercel.app/blog',
+    fetcher
+  )
+
+  if (isLoading) return <div>Loading...</div>
+  if (error) return <div>Error: {error.message}</div>
+
+  return (
+    <ul>
+      {data.map((post: { id: string; title: string }) => (
+        <li key={post.id}>{post.title}</li>
+      ))}
+    </ul>
+  )
+}
+```
+
+```jsx filename="app/blog/page.js" switcher
+'use client'
+
+import useSWR from 'swr'
+import { fetcher } from '@/lib/fetcher'
+
+export default function BlogPage() {
+  const { data, error, isLoading } = useSWR(
+    'https://api.vercel.app/blog',
+    fetcher
+  )
+
+  if (isLoading) return <div>Loading...</div>
+  if (error) return <div>Error: {error.message}</div>
+
+  return (
+    <ul>
+      {data.map((post) => (
+        <li key={post.id}>{post.title}</li>
+      ))}
+    </ul>
+  )
+}
+```
