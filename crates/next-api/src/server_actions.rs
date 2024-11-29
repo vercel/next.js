@@ -485,7 +485,7 @@ fn is_turbopack_internal_var(with: &Option<Box<ObjectLit>>) -> bool {
 /// collecting into a flat-mapped [FxIndexMap].
 async fn parse_actions_filter_map(
     (layer, module, name): FindActionsNode,
-) -> Result<Option<(FindActionsNode, Vc<ActionMap>)>> {
+) -> Result<Option<(FindActionsNode, ResolvedVc<ActionMap>)>> {
     parse_actions(*module).await.map(|option_action_map| {
         option_action_map
             .clone_value()
