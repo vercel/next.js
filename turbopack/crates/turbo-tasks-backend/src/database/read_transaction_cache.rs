@@ -59,6 +59,10 @@ impl<T: KeyValueDatabase + 'static> KeyValueDatabase for ReadTransactionCache<T>
         unsafe { transmute::<&'r Self::ReadTransaction<'l>, &'r Self::ReadTransaction<'i>>(tx) }
     }
 
+    fn is_empty(&self) -> bool {
+        self.database.is_empty()
+    }
+
     fn begin_read_transaction(&self) -> Result<Self::ReadTransaction<'_>> {
         let guard = self.read_transactions_cache.load();
         let container = guard

@@ -38,13 +38,7 @@ const nextBuildWorkflow =
         NODE: process.env.NODE,
         HOSTNAME: process.env.HOSTNAME,
         PWD: process.env.PWD,
-        // Disable otel initialization to prevent pending / hanging request to otel collector
-        OTEL_SDK_DISABLED: 'true',
-        NEXT_PUBLIC_OTEL_SENTRY: 'true',
-        NEXT_PUBLIC_OTEL_DEV_DISABLED: 'true',
         NEXT_TRACE_UPLOAD_DISABLED: 'true',
-        // Enable next.js test mode to get HMR events
-        __NEXT_TEST_MODE: '1',
       }
 
       const serverEnv = {
@@ -156,34 +150,14 @@ const nextBuildWorkflow =
         'lines'
       )
 
-      if (turbopack) {
-        // close dev server and browser
-        await killShell()
-        await closeSession()
-      } else {
-        // wait for persistent cache to be written
-        const waitPromise = new Promise((resolve) => {
-          setTimeout(resolve, 5000)
-        })
-        const cacheLocation = join(
-          benchmarkDir,
-          '.next',
-          'cache',
-          'webpack',
-          'client-production'
-        )
-        await Promise.race([
-          waitForFile(join(cacheLocation, 'index.pack')),
-          waitForFile(join(cacheLocation, 'index.pack.gz')),
-        ])
-        await measureTime('cache created')
-        await waitPromise
-        await measureTime('waiting')
+      // close browser
+      await killShell()
+      await closeSession()
 
-        // close dev server and browser
-        await killShell()
-        await closeSession()
-      }
+      await measureTime('before build with cache', {
+        scenario: benchmarkName,
+        props: { turbopack, page },
+      })
 
       buildShell = command('pnpm', buildArgs, {
         cwd: benchmarkDir,
