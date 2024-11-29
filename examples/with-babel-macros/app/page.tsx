@@ -5,7 +5,7 @@ const whoami = preval`
   module.exports = userInfo.username
 `;
 
-export default function WhoAmI() {
+export default function Home() {
   return (
     <div style={{ display: "flex", justifyContent: "center" }}>
       <h1>
