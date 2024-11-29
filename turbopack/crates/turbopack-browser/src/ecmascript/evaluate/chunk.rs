@@ -96,7 +96,7 @@ impl EcmascriptDevEvaluateChunk {
                 let chunking_context = this.chunking_context;
                 move |entry| async move {
                     if let Some(placeable) =
-                        Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(*entry)
+                        ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(*entry)
                             .await?
                     {
                         Ok(Some(
@@ -207,17 +207,19 @@ impl OutputAsset for EcmascriptDevEvaluateChunk {
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         let mut ident = self.ident.await?.clone_value();
 
-        ident.add_modifier(modifier());
+        ident.add_modifier(modifier().to_resolved().await?);
 
         let evaluatable_assets = self.evaluatable_assets.await?;
         ident.modifiers.extend(
             evaluatable_assets
                 .iter()
-                .map(|entry| entry.ident().to_string()),
+                .map(|entry| entry.ident().to_string().to_resolved())
+                .try_join()
+                .await?,
         );
 
         for chunk in &*self.other_chunks.await? {
-            ident.add_modifier(chunk.ident().to_string());
+            ident.add_modifier(chunk.ident().to_string().to_resolved().await?);
         }
 
         let ident = AssetIdent::new(Value::new(ident));

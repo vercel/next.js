@@ -109,7 +109,7 @@ impl Issue for ReactRefreshResolvingIssue {
                 StyledString::Code("@next/react-refresh-utils".into()),
                 StyledString::Text(" modules.".into()),
             ])
-            .cell(),
+            .resolved_cell(),
         ))
     }
 }

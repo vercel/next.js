@@ -60,10 +60,12 @@ impl Module for NextServerComponentModule {
     }
 
     #[turbo_tasks::function]
-    fn references(&self) -> Vc<ModuleReferences> {
-        Vc::cell(vec![Vc::upcast(NextServerComponentModuleReference::new(
-            Vc::upcast(*self.module),
-        ))])
+    async fn references(&self) -> Result<Vc<ModuleReferences>> {
+        Ok(Vc::cell(vec![ResolvedVc::upcast(
+            NextServerComponentModuleReference::new(Vc::upcast(*self.module))
+                .to_resolved()
+                .await?,
+        )]))
     }
 
     #[turbo_tasks::function]
@@ -112,11 +114,9 @@ impl ChunkableModule for NextServerComponentModule {
 impl EcmascriptChunkPlaceable for NextServerComponentModule {
     #[turbo_tasks::function]
     async fn get_exports(&self) -> Result<Vc<EcmascriptExports>> {
-        let module_reference = ResolvedVc::upcast(
-            NextServerComponentModuleReference::new(Vc::upcast(*self.module))
-                .to_resolved()
-                .await?,
-        );
+        let module_reference = Vc::upcast(NextServerComponentModuleReference::new(Vc::upcast(
+            *self.module,
+        )));
 
         let mut exports = BTreeMap::new();
         exports.insert(

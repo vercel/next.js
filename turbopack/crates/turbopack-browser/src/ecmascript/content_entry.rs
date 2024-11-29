@@ -100,11 +100,11 @@ async fn item_code(
                 let error_message = format!("{}", PrettyPrintError(&error));
                 let js_error_message = serde_json::to_string(&error_message)?;
                 CodeGenerationIssue {
-                    severity: IssueSeverity::Error.cell(),
-                    path: item.asset_ident().path(),
+                    severity: IssueSeverity::Error.resolved_cell(),
+                    path: item.asset_ident().path().to_resolved().await?,
                     title: StyledString::Text("Code generation for chunk item errored".into())
-                        .cell(),
-                    message: StyledString::Text(error_message.into()).cell(),
+                        .resolved_cell(),
+                    message: StyledString::Text(error_message.into()).resolved_cell(),
                 }
                 .cell()
                 .emit();

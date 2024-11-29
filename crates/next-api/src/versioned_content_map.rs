@@ -155,9 +155,10 @@ impl VersionedContentMap {
         self: Vc<Self>,
         path: Vc<FileSystemPath>,
     ) -> Result<Vc<OptionVersionedContent>> {
-        Ok(Vc::cell(
-            (*self.get_asset(path).await?).map(|a| a.versioned_content()),
-        ))
+        Ok(Vc::cell(match (*self.get_asset(path).await?) {
+            Some(asset) => Some(asset.versioned_content().to_resolved().await?),
+            None => None,
+        }))
     }
 
     #[turbo_tasks::function]
