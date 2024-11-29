@@ -7,14 +7,14 @@
   },
   "dependencies": {
     "next": "latest",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "preval.macro": "^5.0.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "babel-plugin-macros": "^3.1.0",
     "@types/node": "^22.10.1",
     "@types/react": "^18.3.12",
-    "babel-plugin-macros": "^3.1.0",
-    "preval.macro": "^5.0.0",
     "typescript": "^5.7.2"
   }
 }
