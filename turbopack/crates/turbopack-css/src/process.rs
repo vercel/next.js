@@ -113,7 +113,7 @@ impl StyleSheetLike<'_, '_> {
 
 /// Multiple [ModuleReference]s
 #[turbo_tasks::value(transparent)]
-pub struct UnresolvedUrlReferences(pub Vec<(String, Vc<UrlAssetReference>)>);
+pub struct UnresolvedUrlReferences(pub Vec<(String, ResolvedVc<UrlAssetReference>)>);
 
 #[turbo_tasks::value(shared, serialization = "none", eq = "manual", cell = "new")]
 pub enum ParseCssResult {
