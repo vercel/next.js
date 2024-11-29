@@ -19,7 +19,7 @@ use swc_core::{
 };
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ResolvedVc, ValueToString, Vc};
+use turbo_tasks::{FxIndexMap, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -247,7 +247,7 @@ pub async fn finalize_css(
             let mut url_map = HashMap::new();
 
             for (src, reference) in (*url_references.await?).iter() {
-                let resolved = resolve_url_reference(*reference, chunking_context).await?;
+                let resolved = resolve_url_reference(**reference, chunking_context).await?;
                 if let Some(v) = resolved.as_ref().cloned() {
                     url_map.insert(RcStr::from(src.as_str()), v);
                 }
@@ -473,6 +473,12 @@ async fn process_content(
 
     let (references, url_references) =
         analyze_references(&mut stylesheet, source, origin, import_context)?;
+
+    let url_references = url_references
+        .into_iter()
+        .map(|(k, v)| async move { Ok((k, v.to_resolved().await?)) })
+        .try_join()
+        .await?;
 
     Ok(ParseCssResult::Ok {
         code: content_vc.to_resolved().await?,
