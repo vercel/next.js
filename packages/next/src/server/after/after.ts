@@ -17,5 +17,11 @@ export function after<T>(task: AfterTask<T>): void {
   }
 
   const { afterContext } = workStore
-  return afterContext.after(task)
+
+  const originalStack =
+    process.env.NODE_ENV === 'development' && typeof task === 'function'
+      ? new Error().stack
+      : undefined
+
+  return afterContext.after(task, originalStack)
 }

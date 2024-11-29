@@ -11,6 +11,7 @@ export interface AfterTaskStore {
    * where we only have a `workStore`, no `workUnitStore`.
    */
   readonly rootTaskSpawnPhase: WorkUnitStore['phase'] | undefined
+  readonly originalStacks: (string | undefined)[] | undefined
 }
 
 export type AfterTaskAsyncStorage = AsyncLocalStorage<AfterTaskStore>
