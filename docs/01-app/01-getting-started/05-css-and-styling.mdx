@@ -11,6 +11,7 @@ Next.js supports different ways to use CSS to your application, including:
 - [Tailwind CSS](#tailwind-css)
 - [Sass](#sass)
 - [CSS-in-JS](#css-in-js)
+- [External Stylesheets](#external-stylesheets)
 
 This page will guide you through how to start using each of these approaches.
 
@@ -50,9 +51,7 @@ export default function Page({ children }) {
 
 ## Global CSS
 
-Global styles can be imported into any layout, page, or component inside the `app` directory.
-
-However, since Next.js uses React's built-in support for stylesheets to integrate with Suspense. This built-in support currently does not remove stylesheets as you navigate between routes. Therefore, we recommend using global styles for _truly_ global CSS, and CSS modules for scoped CSS.
+Global styles can be imported into any layout, page, or component inside the `app` directory. However, since Next.js uses React's built-in support for stylesheets to integrate with Suspense. This built-in support currently does not remove stylesheets as you navigate between routes. Therefore, we recommend using global styles for _truly_ global CSS, and CSS modules for scoped CSS.
 
 For example, consider a stylesheet named `app/global.css`:
 
