@@ -245,12 +245,12 @@ mod tests {
                 (41, 42),
                 (41, 47),
                 (90, 100),
-                (0, 100),
+                (30, 40),
             ],
             3,
         );
         assert_eq!(merge_jobs, vec![vec![0, 1, 2], vec![4, 5, 6]]);
-        assert_eq!(move_jobs, vec![3, 7, 8, 10]);
+        assert_eq!(move_jobs, vec![3, 8]);
     }
 
     #[test]
