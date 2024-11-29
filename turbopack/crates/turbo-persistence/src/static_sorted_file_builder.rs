@@ -23,6 +23,8 @@ const MAX_SMALL_VALUE_BLOCK_SIZE: usize = 16 * 1024;
 const AQMF_FALSE_POSITIVE_RATE: f64 = 0.01;
 const VALUE_COMPRESSION_DICTIONARY_SIZE: usize = 64 * 1024 - 1;
 const KEY_COMPRESSION_DICTIONARY_SIZE: usize = 64 * 1024 - 1;
+const VALUE_COMPRESSION_SAMPLES_SIZE: usize = 256 * 1024;
+const KEY_COMPRESSION_SAMPLES_SIZE: usize = 256 * 1024;
 const MIN_VALUE_COMPRESSION_SAMPLES_SIZE: usize = 1024;
 const MIN_KEY_COMPRESSION_SAMPLES_SIZE: usize = 1024;
 const COMPRESSION_DICTIONARY_SAMPLE_PER_ENTRY: usize = 100;
@@ -98,20 +100,19 @@ impl StaticSortedFileBuilder {
         {
             return Ok(());
         }
-        let key_compression_dictionary_size =
-            min(KEY_COMPRESSION_DICTIONARY_SIZE, total_key_size / 10);
-        let value_compression_dictionary_size =
-            min(VALUE_COMPRESSION_DICTIONARY_SIZE, total_value_size / 10);
-        let mut value_samples = Vec::with_capacity(value_compression_dictionary_size);
+        let key_compression_samples_size = min(KEY_COMPRESSION_SAMPLES_SIZE, total_key_size / 10);
+        let value_compression_samples_size =
+            min(VALUE_COMPRESSION_SAMPLES_SIZE, total_value_size / 10);
+        let mut value_samples = Vec::with_capacity(value_compression_samples_size);
         let mut value_sample_sizes = Vec::new();
-        let mut key_samples = Vec::with_capacity(key_compression_dictionary_size);
+        let mut key_samples = Vec::with_capacity(key_compression_samples_size);
         let mut key_sample_sizes = Vec::new();
         let mut i = 12345678 % entries.len();
         let mut j = 0;
         loop {
             let entry = &entries[i];
-            let value_remaining = value_compression_dictionary_size - value_samples.len();
-            let key_remaining = key_compression_dictionary_size - key_samples.len();
+            let value_remaining = value_compression_samples_size - value_samples.len();
+            let key_remaining = key_compression_samples_size - key_samples.len();
             if value_remaining > 0 {
                 if let EntryValue::Small { value } | EntryValue::Medium { value } = entry.value() {
                     let value = if value.len() <= COMPRESSION_DICTIONARY_SAMPLE_PER_ENTRY {
