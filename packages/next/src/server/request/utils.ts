@@ -1,5 +1,5 @@
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
-import { workUnitSnapshotAsyncStorage } from '../app-render/work-unit-snapshot-async-storage.external'
+import { afterTaskAsyncStorage } from '../app-render/after-task-async-storage.external'
 
 // This regex will have fast negatives meaning valid identifiers may not pass
 // this test. However this is only used during static generation to provide hints
@@ -44,10 +44,10 @@ export function throwWithStaticGenerationBailoutErrorWithDynamicError(
 export function isRequestAPICallableInsideAfter() {
   // const workStore = workAsyncStorage.getStore()
   // const workUnitStore = workUnitAsyncStorage.getStore()
-  const workUnitSnapshotStore = workUnitSnapshotAsyncStorage.getStore()
+  const afterTaskStore = afterTaskAsyncStorage.getStore()
   return (
     // workUnitStore?.type === 'request' &&
-    workUnitSnapshotStore?.phase === 'action'
+    afterTaskStore?.phase === 'action'
   )
 }
 

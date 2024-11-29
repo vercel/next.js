@@ -10,7 +10,7 @@ import {
   workUnitAsyncStorage,
   type WorkUnitStore,
 } from '../app-render/work-unit-async-storage.external'
-import { workUnitSnapshotAsyncStorage } from '../app-render/work-unit-snapshot-async-storage.external'
+import { afterTaskAsyncStorage } from '../app-render/after-task-async-storage.external'
 
 export type AfterContextOpts = {
   isEnabled: boolean
@@ -89,7 +89,7 @@ export class AfterContext {
         if (!originalPhase) {
           await callback()
         } else {
-          await workUnitSnapshotAsyncStorage.run({ phase: originalPhase }, () =>
+          await afterTaskAsyncStorage.run({ phase: originalPhase }, () =>
             callback()
           )
         }
