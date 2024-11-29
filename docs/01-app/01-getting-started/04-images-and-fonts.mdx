@@ -162,4 +162,45 @@ module.exports = {
 }
 ```
 
+## Optimizing Fonts
+
+The [`next/font`](/docs/app/api-reference/components/font) module automatically optimizes your fonts and removes external network requests for improved privacy and performance.
+
+It includes **built-in automatic self-hosting** for _any_ font file. This means you can optimally load web fonts with no layout shift.
+
+To start using `next/font`, import it from `next/font/local` or `next/font/google` (depending on whether you're using a [local](#local-fonts) or [Google](#google-fonts) font), call it as a function with the appropriate options, and set the `className` of the element you want to apply the font to.
+
+```tsx filename="app/layout.tsx" switcher
+import { Geist } from 'next/font/google'
+
+const geist = Geist({
+  subsets: ['latin'],
+  display: 'swap',
+})
+
+export default function Layout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en" className={geist.className}>
+      <body>{children}</body>
+    </html>
+  )
+}
+```
+
+```jsx filename="app/layout.js" switcher
+import { Geist } from 'next/font/google'
+
+const geist = Geist({
+  subsets: ['latin'],
+})
+
+export default function Layout({ children }) {
+  return (
+    <html className={geist.className}>
+      <body>{children}</body>
+    </html>
+  )
+}
+```
+
 Learn more about Image Optimization in the [API Reference](/docs/app/api-reference/components/image).
