@@ -47,3 +47,51 @@ export default function Page({ children }) {
 > - CSS Modules are **only enabled for files with the `.module.css` and `.module.sass` extensions**.
 > - In production, all CSS Module files will be automatically concatenated into **many minified and code-split** `.css` files.
 > - These `.css` files represent hot execution paths in your application, ensuring the minimal amount of CSS is loaded for your application to paint.
+
+## Global CSS
+
+Global styles can be imported into any layout, page, or component inside the `app` directory.
+
+However, since Next.js uses React's built-in support for stylesheets to integrate with Suspense. This built-in support currently does not remove stylesheets as you navigate between routes. Therefore, we recommend using global styles for _truly_ global CSS, and CSS modules for scoped CSS.
+
+For example, consider a stylesheet named `app/global.css`:
+
+```css filename="app/global.css"
+body {
+  padding: 20px 20px 60px;
+  max-width: 680px;
+  margin: 0 auto;
+}
+```
+
+Inside the root layout (`app/layout.js`), you can import the `global.css` stylesheet to apply the styles to **every route** in your application:
+
+```tsx filename="app/layout.tsx" switcher
+// These styles apply to every route in the application
+import './global.css'
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html lang="en">
+      <body>{children}</body>
+    </html>
+  )
+}
+```
+
+```jsx filename="app/layout.js" switcher
+// These styles apply to every route in the application
+import './global.css'
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en">
+      <body>{children}</body>
+    </html>
+  )
+}
+```
