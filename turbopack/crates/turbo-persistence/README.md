@@ -143,20 +143,96 @@ After that optimization might take place.
 
 ## Compaction
 
-* During reading we track cases where too many blocks have been read to find a key. In these cases we found multiple SST files that have overlapping key ranges. We can optimize these.
-* We track that by storing an atomic index for every SST file that points to a previous SST file that has overlapping key range.
-* During optimization we find chains of SST files that are connected that way and run optimization for them.
-* For each chain of SST files
-  * Create iterators for every SST file in the chain. The iterator iterates ordered by key.
-  * Create a merging iterator (heap).
-  * Note: A key might be in multiple SST files, in which case the lastest SST file wins. When one of the other pairs reference a different blob file this is enqueued for deletion.
-  * Iterate items and push them into new SST files once the threshold is reached. (We can use the fact that pairs are already ordered by key)
-  * Enqueue the old SST files for deletion.
-* Store the enqueued deletions into a `<seqnr>.del` file.
-  * This is needed for cleanup, in the case the process exits unexpectedly after the next step.
-* fsync! Update the `CURRENT` file.
-* Remove enqueued deletions from the list of active SST files.
-* Before deleting the old files we need to fsync, but we don't want to do that right now for performance reasons. Instead we delete the files after the next fsync.
+For compaction we compute the "coverage" of the SST files. The coverage is the average number of SST files that need to be touched to figure out that a key is missing. The coverage can be computed by looking at the min_hash and max_hash of the SST files only.
+
+For a single SST file we can compute `(max_hash - min_hash) / u64::MAX` as the coverage of the SST file. We sum up all these coverages to get the total coverage.
+
+Compaction chooses a few SST files and runs the merge step of merge sort on tham to create a few new SST files with sorted ranges.
+
+Example:
+
+```
+key hash range: | 0    ...    u64::MAX |
+SST 1:             |----------------|
+SST 2:                |----------------|
+SST 3:            |-----|
+```
+
+can be compacted into:
+
+```
+key hash range: | 0    ...    u64::MAX |
+SST 1':           |-------|
+SST 2':                   |------|
+SST 3':                          |-----|
+```
+
+The merge operation decreases the total coverage since the new SST files will have a coverage of < 1.
+
+But we need to be careful to insert the SST files in the correct location again, since items in these SST files might be overriden in later SST file and we don't want to change that.
+
+Since SST files that are smaller than the current sequence number are immutable we can't change the files and we can't insert new files at this sequence numbers.
+Instead we need to insert the new SST after the current sequence number and copy all SST files after the original SST files after them. (Actually we only need to copy SST files with overlapping key hash ranges. And we can hardlink them instead). Later we will write the current sequence number and delete them original and all copied SST files.
+
+We can run multiple merge operations concurrently when the key hash ranges are not overlapping or they are from different key families. The copy operation need to be strictly after all merge operations.
+
+There must not be another SST file with overlapping key hash range between files of a merge operation.
+
+During the merge operation we eliminate duplicate keys. When blob references are eliminated we delete the blob file after the current sequence number was updated.
+
+Since the process might exit unexpectedly, to avoid "forgetting" to delete the SST files we keep track of that in a `*.del` file. This file contains the sequence number of SST and blob files that should be deleted. We write that file before the current sequence number is updated. On restart we execute the deletes again.
+
+We limit the number of SST files that are merged at once to avoid long compactions.
+
+Full example:
+
+Example:
+
+```
+key hash range: | 0    ...    u64::MAX | Family
+SST 1:             |-|                   1
+SST 2:             |----------------|    1
+SST 3:                |----------------| 1
+SST 4:            |-----|                2
+SST 5:                |-----|            2
+SST 6:                 |-------|         1
+SST 7:                    |-------|      1
+SST 8:                 |--------|        2
+SST 9:                     |--------|    2
+CURRENT: 9
+```
+
+Compactions could selects SST 2, 3, 6 and SST 4, 5, 8 for merging (we limited to 3 SST files per merge operation). This also selects SST 7, 9 for copying. The current sequence number is 9.
+
+We merge SST 2, 3, 6 into new SST files 10, 12, 14 and SST 4, 5, 8 into new SST files 11, 13. Both operations are done concurrently so they might choose free sequence numbers in random order. The operation might result in less SST files due to duplicate keys.
+
+After that we copy SST files 7, 9 to new SST files 15, 16.
+
+We write a "del" file at sequence number 17.
+
+After that we write the new current sequence number 17.
+
+Then we delete SST files 2, 3, 6 and 4, 5, 8 and 7, 9. The
+
+SST files 1 stays unchanged.
+
+```
+key hash range: | 0    ...    u64::MAX | Family
+SST 1:             |-|                   1
+SST 10:            |-----|               1
+SST 12:                  |-----|         1
+SST 11:            |------|              2
+SST 14:                        |-------| 1
+SST 13:                   |-----|        2
+SST 15:                   |-------|      1
+SST 16:                    |--------|    2
+DEL 17:  (2, 3, 4, 5, 6, 7, 8, 9)
+CURRENT: 17
+```
+
+Configuration options for compations are:
+* max number of SST files that are merged at once
+* coverage when compaction is triggered (otherwise calling compact is a noop)
 
 ## Opening
 
