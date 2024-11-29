@@ -121,13 +121,13 @@ impl EcmascriptChunkPlaceable for NextServerComponentModule {
         let mut exports = BTreeMap::new();
         exports.insert(
             "default".into(),
-            EsmExport::ImportedBinding(*module_reference, "default".into(), false),
+            EsmExport::ImportedBinding(module_reference, "default".into(), false),
         );
 
         Ok(EcmascriptExports::EsmExports(
             EsmExports {
                 exports,
-                star_exports: vec![*module_reference],
+                star_exports: vec![module_reference],
             }
             .resolved_cell(),
         )
