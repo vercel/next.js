@@ -396,7 +396,7 @@ async fn parse_actions(module: Vc<Box<dyn Module>>) -> Result<Vc<OptionActionMap
 
     let mut actions = FxIndexMap::from_iter(actions.into_iter());
     actions.sort_keys();
-    Ok(Vc::cell(Some(Vc::cell(actions))))
+    Ok(Vc::cell(Some(ResolvedVc::cell(actions))))
 }
 
 fn all_export_names(program: &Program) -> Vec<Atom> {
