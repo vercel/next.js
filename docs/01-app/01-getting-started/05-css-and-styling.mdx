@@ -13,3 +13,37 @@ Next.js supports different ways to use CSS to your application, including:
 - [CSS-in-JS](#css-in-js)
 
 This page will guide you through how to start using each of these approaches.
+
+## CSS Modules
+
+CSS Modules locally scope CSS by automatically creating a unique class name. This allows you to use the same class name in different files without worrying about collisions. This behavior makes CSS Modules the ideal way to include component-level CSS.
+
+Next.js has built-in support for CSS Modules using the `.module.css` extension. To start using it, create a new file with the extension and import it into any file inside the `app` directory:
+
+```css filename="app/blog/styles.module.css"
+.blog {
+  padding: 24px;
+}
+```
+
+```tsx filename="app/blog/page.tsx" switcher
+import styles from './styles.module.css'
+
+export default function Page({ children }: { children: React.ReactNode }) {
+  return <main className={styles.blog}>{children}</main>
+}
+```
+
+```jsx filename="app/blog/page.js" switcher
+import styles from './styles.module.css'
+
+export default function Page({ children }) {
+  return <main className={styles.blog}>{children}</main>
+}
+```
+
+> **Good to know:**
+>
+> - CSS Modules are **only enabled for files with the `.module.css` and `.module.sass` extensions**.
+> - In production, all CSS Module files will be automatically concatenated into **many minified and code-split** `.css` files.
+> - These `.css` files represent hot execution paths in your application, ensuring the minimal amount of CSS is loaded for your application to paint.
