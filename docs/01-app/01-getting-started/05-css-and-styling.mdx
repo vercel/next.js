@@ -3,7 +3,9 @@ title: How to use CSS in your application
 nav_title: CSS and Styling
 description: Learn how to add CSS and styling to your Next.js application.
 related:
-  links: app/api-reference/next-config-js/sassOptions
+  links:
+    - app/api-reference/next-config-js/sassOptions
+    - architecture/nextjs-compiler
 ---
 
 Next.js provides several ways to use CSS in your application, including:
@@ -154,7 +156,7 @@ You do not need to modify `postcss.config.js`.
 
 ### Using Tailwind
 
-Add the [Tailwind directives](https://tailwindcss.com/docs/functions-and-directives#directives) to your [Global Stylesheet](#global-styles), for example:
+Add the [Tailwind directives](https://tailwindcss.com/docs/functions-and-directives#directives) to your [Global Stylesheet](#global-css), for example:
 
 ```css filename="app/globals.css"
 @tailwind base;
@@ -262,7 +264,7 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
-Learn more about the `sassOptions` configuration in the [API Reference](/docs/app/api-reference/next-config-js/sassOptions).
+Learn more about the `sassOptions` configuration in the [API Reference](/docs/app/api-reference/configuration/next-config-js/sassOptions).
 
 ## CSS-in-JS
 
