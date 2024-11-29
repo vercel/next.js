@@ -335,7 +335,7 @@ pub async fn parse_css(
 async fn process_content(
     content_vc: Vc<FileContent>,
     code: String,
-    fs_path_vc: Vc<FileSystemPath>,
+    fs_path_vc: ResolvedVc<FileSystemPath>,
     filename: &str,
     source: Vc<Box<dyn Source>>,
     origin: Vc<Box<dyn ResolveOrigin>>,
@@ -485,12 +485,14 @@ enum CssError {
 }
 
 impl CssError {
-    fn report(self, file: Vc<FileSystemPath>) {
+    fn report(self, file: ResolvedVc<FileSystemPath>) {
         match self {
             CssError::LightningCssSelectorInModuleNotPure { selector } => {
                 ParsingIssue {
                     file,
-                    msg: Vc::cell(format!("{CSS_MODULE_ERROR}, (lightningcss, {selector})").into()),
+                    msg: ResolvedVc::cell(
+                        format!("{CSS_MODULE_ERROR}, (lightningcss, {selector})").into(),
+                    ),
                     source: None,
                 }
                 .cell()
@@ -654,7 +656,7 @@ struct ParsingIssue {
 #[turbo_tasks::value_impl]
 impl Issue for ParsingIssue {
     #[turbo_tasks::function]
-    fn file_path(&self) -> ResolvedVc<FileSystemPath> {
+    fn file_path(&self) -> Vc<FileSystemPath> {
         *self.file
     }
 
