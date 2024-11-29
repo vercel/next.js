@@ -676,7 +676,7 @@ impl TurboPersistence {
 
                             new_sst_files.push(create_sst_file(
                                 family as u32,
-                                &part1,
+                                part1,
                                 // We don't know the exact sizes so we estimate them
                                 last_entries_total_sizes.0 / 2,
                                 last_entries_total_sizes.1 / 2,
@@ -686,7 +686,7 @@ impl TurboPersistence {
 
                             new_sst_files.push(create_sst_file(
                                 family as u32,
-                                &part2,
+                                part2,
                                 last_entries_total_sizes.0 / 2,
                                 last_entries_total_sizes.1 / 2,
                                 path,
