@@ -3,7 +3,7 @@ use std::{
     collections::HashSet,
     fs::{self, File, OpenOptions, ReadDir},
     io::Write,
-    mem::{transmute, MaybeUninit},
+    mem::{swap, transmute, MaybeUninit},
     path::{Path, PathBuf},
     sync::{
         atomic::{AtomicBool, AtomicU32, Ordering},
@@ -590,6 +590,8 @@ impl TurboPersistence {
                         let mut total_value_size = 0;
                         let mut current: Option<LookupEntry> = None;
                         let mut entries = Vec::new();
+                        let mut last_entries = Vec::new();
+                        let mut last_entries_total_sizes = (0, 0);
                         for entry in iter {
                             let entry = entry?;
 
@@ -605,21 +607,31 @@ impl TurboPersistence {
                                         > DATA_THRESHOLD_PER_COMPACTED_FILE
                                         || entries.len() >= MAX_ENTRIES_PER_COMPACTED_FILE
                                     {
-                                        let seq =
-                                            sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
-
-                                        new_sst_files.push(create_sst_file(
-                                            family as u32,
-                                            &entries,
+                                        let (selected_total_key_size, selected_total_value_size) =
+                                            last_entries_total_sizes;
+                                        swap(&mut entries, &mut last_entries);
+                                        last_entries_total_sizes = (
                                             total_key_size - key_size,
                                             total_value_size - value_size,
-                                            path,
-                                            seq,
-                                        )?);
-
-                                        entries.clear();
+                                        );
                                         total_key_size = key_size;
                                         total_value_size = value_size;
+
+                                        if !entries.is_empty() {
+                                            let seq =
+                                                sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
+
+                                            new_sst_files.push(create_sst_file(
+                                                family as u32,
+                                                &entries,
+                                                selected_total_key_size,
+                                                selected_total_value_size,
+                                                path,
+                                                seq,
+                                            )?);
+
+                                            entries.clear();
+                                        }
                                     }
 
                                     entries.push(current);
@@ -634,7 +646,9 @@ impl TurboPersistence {
                             total_value_size += entry.value.len();
                             entries.push(entry);
                         }
-                        if !entries.is_empty() {
+
+                        // If we have one set of entries left, write them to a new SST file
+                        if last_entries.is_empty() && !entries.is_empty() {
                             let seq = sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
 
                             new_sst_files.push(create_sst_file(
@@ -644,6 +658,39 @@ impl TurboPersistence {
                                 total_value_size,
                                 path,
                                 seq,
+                            )?);
+                        } else
+                        // If we have two sets of entries left, merge them and
+                        // split it into two SST files, to avoid having a
+                        // single SST file that is very small.
+                        if !last_entries.is_empty() {
+                            last_entries.append(&mut entries);
+
+                            last_entries_total_sizes.0 += total_key_size;
+                            last_entries_total_sizes.1 += total_value_size;
+
+                            let (part1, part2) = last_entries.split_at(last_entries.len() / 2);
+
+                            let seq1 = sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
+                            let seq2 = sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
+
+                            new_sst_files.push(create_sst_file(
+                                family as u32,
+                                &part1,
+                                // We don't know the exact sizes so we estimate them
+                                last_entries_total_sizes.0 / 2,
+                                last_entries_total_sizes.1 / 2,
+                                path,
+                                seq1,
+                            )?);
+
+                            new_sst_files.push(create_sst_file(
+                                family as u32,
+                                &part2,
+                                last_entries_total_sizes.0 / 2,
+                                last_entries_total_sizes.1 / 2,
+                                path,
+                                seq2,
                             )?);
                         }
                         Ok(new_sst_files)
