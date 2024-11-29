@@ -72,9 +72,10 @@ impl SingleModuleGraph {
                 graph.add_edge(parent_idx, idx, ());
             }
 
-            // TODO this includes
-            // [project]/packages/next/dist/shared/lib/lazy-dynamic/loadable.js.map
             for reference in primary_referenced_modules(*module).await?.iter() {
+                if reference.ident().path().await?.extension_ref() == Some("map") {
+                    continue;
+                }
                 stack.push((Some(idx), *reference));
             }
         }
