@@ -1546,6 +1546,7 @@ export default async function build(
           currentEntrypoints.page.size + currentEntrypoints.app.size + 1,
           'Building'
         )
+        const unhandledErrors: { page: string; error: unknown }[] = []
         const promises: Promise<any>[] = []
 
         // Concurrency will start at INITIAL_CONCURRENCY and
@@ -1556,12 +1557,17 @@ export default async function build(
 
         const sema = new Sema(INITIAL_CONCURRENCY)
         let remainingRampup = CONCURRENCY - INITIAL_CONCURRENCY
-        const enqueue = (fn: () => Promise<void>) => {
+        const enqueue = (page: string, fn: () => Promise<void>) => {
           promises.push(
             (async () => {
               await sema.acquire()
               try {
                 await fn()
+              } catch (error) {
+                unhandledErrors.push({
+                  page,
+                  error,
+                })
               } finally {
                 sema.release()
                 if (remainingRampup > 0) {
@@ -1576,7 +1582,7 @@ export default async function build(
 
         if (!appDirOnly) {
           for (const [page, route] of currentEntrypoints.page) {
-            enqueue(() =>
+            enqueue(page, () =>
               handleRouteType({
                 dev,
                 page,
@@ -1595,7 +1601,7 @@ export default async function build(
         }
 
         for (const [page, route] of currentEntrypoints.app) {
-          enqueue(() =>
+          enqueue(page, () =>
             handleRouteType({
               page,
               dev: false,
@@ -1611,7 +1617,7 @@ export default async function build(
           )
         }
 
-        enqueue(() =>
+        enqueue('_error', () =>
           handlePagesErrorRoute({
             dev: false,
             currentEntryIssues,
@@ -1654,6 +1660,15 @@ export default async function build(
               }
             }
           }
+        }
+        for (const { page, error } of unhandledErrors) {
+          errors.push({
+            page,
+            message:
+              error instanceof Error
+                ? error.stack || String(error)
+                : String(error),
+          })
         }
 
         const shutdownPromise = project.shutdown()

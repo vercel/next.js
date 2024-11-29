@@ -4,6 +4,7 @@ use anyhow::{anyhow, Result};
 use auto_hash_map::AutoSet;
 use parking_lot::Mutex;
 use tracing::{Instrument, Span};
+use turbo_rcstr::RcStr;
 use turbo_tasks_macros::{TraceRawVcs, ValueDebugFormat};
 
 use crate::{
@@ -40,13 +41,15 @@ enum EffectState {
 /// The Effect instance collectible that is emitted for effects.
 #[turbo_tasks::value(serialization = "none", cell = "new", eq = "manual")]
 struct EffectInstance {
+    name: RcStr,
     #[turbo_tasks(trace_ignore, debug_ignore)]
     inner: Mutex<EffectState>,
 }
 
 impl EffectInstance {
-    fn new(future: impl Future<Output = Result<()>> + Send + Sync + 'static) -> Self {
+    fn new(name: RcStr, future: impl Future<Output = Result<()>> + Send + Sync + 'static) -> Self {
         Self {
+            name,
             inner: Mutex::new(EffectState::NotStarted(EffectInner {
                 future: Box::pin(future),
                 span: Span::current(),
@@ -137,8 +140,9 @@ impl Effect for EffectInstance {}
 /// Effects are executed in parallel, so they might need to use async locking to avoid problems.
 /// Order of execution of multiple effects is not defined. You must not use mutliple conflicting
 /// effects to avoid non-deterministic behavior.
-pub fn effect(future: impl Future<Output = Result<()>> + Send + Sync + 'static) {
-    emit::<Box<dyn Effect>>(Vc::upcast(EffectInstance::new(future).cell()));
+pub fn effect(name: RcStr, future: impl Future<Output = Result<()>> + Send + Sync + 'static) {
+    eprintln!("emit effect {}", name);
+    emit::<Box<dyn Effect>>(Vc::upcast(EffectInstance::new(name, future).cell()));
 }
 
 /// Applies all effects that have been emitted by an operations.
@@ -254,6 +258,10 @@ impl Effects {
         }
         .instrument(span)
         .await
+    }
+
+    pub fn names(&self) -> Vec<RcStr> {
+        self.effects.iter().map(|e| e.name.clone()).collect()
     }
 }
 

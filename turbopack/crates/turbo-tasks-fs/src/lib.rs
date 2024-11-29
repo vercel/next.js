@@ -686,7 +686,7 @@ impl FileSystem for DiskFileSystem {
         let inner = self.inner.clone();
         let invalidator = turbo_tasks::get_invalidator();
 
-        effect(async move {
+        effect(full_path.display().to_string().into(), async move {
             let full_path = validate_path_length(&full_path)?;
 
             let _lock = inner.lock_path(&full_path).await;
@@ -745,6 +745,8 @@ impl FileSystem for DiskFileSystem {
                             #[cfg(target_family = "unix")]
                             f.set_permissions(file.meta.permissions.into()).await?;
                             f.flush().await?;
+                            f.sync_all().await?;
+                            eprintln!("wrote file {}", full_path.display());
                             #[cfg(feature = "write_version")]
                             {
                                 let mut full_path = full_path.into_owned();
@@ -761,6 +763,7 @@ impl FileSystem for DiskFileSystem {
                                 #[cfg(target_family = "unix")]
                                 f.set_permissions(file.meta.permissions.into()).await?;
                                 f.flush().await?;
+                                f.sync_all().await?;
                             }
                             Ok::<(), io::Error>(())
                         }
@@ -806,7 +809,7 @@ impl FileSystem for DiskFileSystem {
         let inner = self.inner.clone();
         let invalidator = turbo_tasks::get_invalidator();
 
-        effect(async move {
+        effect(full_path.display().to_string().into(), async move {
             let full_path = validate_path_length(&full_path)?;
 
             let _lock = inner.lock_path(&full_path).await;
