@@ -32,6 +32,7 @@ export const ACTION_REFRESH = 'fast-refresh'
 export const ACTION_VERSION_INFO = 'version-info'
 export const ACTION_UNHANDLED_ERROR = 'unhandled-error'
 export const ACTION_UNHANDLED_REJECTION = 'unhandled-rejection'
+export const ACTION_AFTER_ERROR = 'after-error'
 export const ACTION_DEBUG_INFO = 'debug-info'
 
 interface StaticIndicatorAction {
@@ -66,6 +67,12 @@ export interface UnhandledRejectionAction {
   frames: StackFrame[]
 }
 
+export interface AfterErrorAction {
+  type: typeof ACTION_AFTER_ERROR
+  reason: Error
+  frames: StackFrame[]
+}
+
 export interface DebugInfoAction {
   type: typeof ACTION_DEBUG_INFO
   debugInfo: any
@@ -83,6 +90,7 @@ export type BusEvent =
   | FastRefreshAction
   | UnhandledErrorAction
   | UnhandledRejectionAction
+  | AfterErrorAction
   | VersionInfoAction
   | StaticIndicatorAction
   | DebugInfoAction
@@ -147,8 +155,10 @@ export function useErrorOverlayReducer() {
           refreshState: { type: 'idle' },
         }
       }
+      case ACTION_AFTER_ERROR:
       case ACTION_UNHANDLED_ERROR:
       case ACTION_UNHANDLED_REJECTION: {
+        console.log('useErrorOverlayReducer', action)
         switch (_state.refreshState.type) {
           case 'idle': {
             return {

@@ -207,6 +207,9 @@ async function startWatcher(opts: SetupOpts) {
 
   await hotReloader.start()
 
+  // @ts-expect-error
+  globalThis[Symbol.for('@next/dev/hot-reloader')] = hotReloader
+
   if (opts.nextConfig.experimental.nextScriptWorkers) {
     await verifyPartytownSetup(
       opts.dir,

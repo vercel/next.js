@@ -7,6 +7,7 @@ import type { RouteDefinition } from '../route-definitions/route-definition'
 import type { Project, Update as TurbopackUpdate } from '../../build/swc/types'
 import type { VersionInfo } from './parse-version-info'
 import type { DebugInfo } from '../../client/components/react-dev-overlay/types'
+import type { ErrorSourceType } from '../../shared/lib/error-source'
 
 export const enum HMR_ACTIONS_SENT_TO_BROWSER {
   ADDED_PAGE = 'addedPage',
@@ -22,12 +23,19 @@ export const enum HMR_ACTIONS_SENT_TO_BROWSER {
   DEV_PAGES_MANIFEST_UPDATE = 'devPagesManifestUpdate',
   TURBOPACK_MESSAGE = 'turbopack-message',
   SERVER_ERROR = 'serverError',
+  AFTER_ERROR = 'afterError',
   TURBOPACK_CONNECTED = 'turbopack-connected',
   APP_ISR_MANIFEST = 'appIsrManifest',
 }
 
 interface ServerErrorAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ERROR
+  errorJSON: string
+}
+
+export interface AfterErrorAction {
+  action: HMR_ACTIONS_SENT_TO_BROWSER.AFTER_ERROR
+  source: ErrorSourceType
   errorJSON: string
 }
 
@@ -130,6 +138,7 @@ export type HMR_ACTION_TYPES =
   | ServerOnlyChangesAction
   | DevPagesManifestUpdateAction
   | ServerErrorAction
+  | AfterErrorAction
   | AppIsrManifestAction
 
 export type TurbopackMsgToBrowser =

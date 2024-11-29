@@ -11,6 +11,12 @@ import {
   type WorkUnitStore,
 } from '../app-render/work-unit-async-storage.external'
 import { afterTaskAsyncStorage } from '../app-render/after-task-async-storage.external'
+import {
+  HMR_ACTIONS_SENT_TO_BROWSER,
+  type NextJsHotReloaderInterface,
+} from '../dev/hot-reloader-types'
+import { stringifyError } from '../../shared/lib/utils'
+import isError from '../../lib/is-error'
 
 export type AfterContextOpts = {
   isEnabled: boolean
@@ -139,6 +145,29 @@ export class AfterContext {
         : `An error occurred in a function passed to \`unstable_after()\`:`,
       error
     )
+
+    if (process.env.NODE_ENV === 'development') {
+      // TODO: we probably want to inject this as `onAfterTaskError` from NextDevServer,
+      // where we have access to `bundlerService` (which has the hotReloader)
+      const hotReloader: NextJsHotReloaderInterface | undefined =
+        // @ts-expect-error
+        globalThis[Symbol.for('@next/dev/hot-reloader')]
+
+      hotReloader?.send({
+        action: HMR_ACTIONS_SENT_TO_BROWSER.AFTER_ERROR,
+        source: process.env.NEXT_RUNTIME === 'edge' ? 'edge-server' : 'server',
+        errorJSON: isError(error)
+          ? stringifyError(error)
+          : (() => {
+              try {
+                return JSON.stringify(error)
+              } catch (_) {
+                return '<unknown>'
+              }
+            })(),
+      })
+    }
+
     if (this.onTaskError) {
       // this is very defensive, but we really don't want anything to blow up in an error handler
       try {
