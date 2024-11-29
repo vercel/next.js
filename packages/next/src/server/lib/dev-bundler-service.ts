@@ -36,6 +36,11 @@ export class DevBundlerService {
   public logErrorWithOriginalStack =
     this.bundler.logErrorWithOriginalStack.bind(this.bundler)
 
+  public reportAfterTaskError: typeof this.bundler.reportAfterTaskError =
+    async (...args) => {
+      return await this.bundler.reportAfterTaskError(...args)
+    }
+
   public async getFallbackErrorComponents(url?: string) {
     await this.bundler.hotReloader.buildFallbackError()
     // Build the error page to ensure the fallback is built too.

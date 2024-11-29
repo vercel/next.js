@@ -4,6 +4,7 @@ import stripAnsi from 'next/dist/compiled/strip-ansi'
 import formatWebpackMessages from '../internal/helpers/format-webpack-messages'
 import { useRouter } from '../../navigation'
 import {
+  ACTION_AFTER_ERROR,
   ACTION_BEFORE_REFRESH,
   ACTION_BUILD_ERROR,
   ACTION_BUILD_OK,
@@ -38,10 +39,12 @@ import type { HydrationErrorState } from '../internal/helpers/hydration-error-in
 import type { DebugInfo } from '../types'
 import { useUntrackedPathname } from '../../navigation-untracked'
 import { getReactStitchedError } from '../internal/helpers/stitched-error'
+import { decorateServerError } from '../../../../shared/lib/error-source'
 
 export interface Dispatcher {
   onBuildOk(): void
   onBuildError(message: string): void
+  onAfterError(error: Error): void
   onVersionInfo(versionInfo: VersionInfo): void
   onDebugInfo(debugInfo: DebugInfo): void
   onBeforeRefresh(): void
@@ -276,7 +279,19 @@ function processMessage(
     return
   }
 
-  function handleErrors(errors: ReadonlyArray<unknown>) {
+  function handleAfterErrors(errors: ReadonlyArray<Error>) {
+    console.log('handleAfterErrors', errors)
+    for (const error of errors) {
+      dispatcher.onAfterError(error)
+    }
+
+    // // Also log them to the console.
+    // for (let i = 0; i < errors.length; i++) {
+    //   console.error(errors[i])
+    // }
+  }
+
+  function handleBuildErrors(errors: ReadonlyArray<unknown>) {
     // "Massage" webpack messages.
     const formatted = formatWebpackMessages({
       errors: errors,
@@ -387,7 +402,7 @@ function processMessage(
           })
         )
 
-        handleErrors(errors)
+        handleBuildErrors(errors)
         return
       }
 
@@ -501,13 +516,24 @@ function processMessage(
       // TODO-APP: potentially only refresh if the currently viewed page was added/removed.
       return router.hmrRefresh()
     }
+    case HMR_ACTIONS_SENT_TO_BROWSER.AFTER_ERROR: {
+      const { errorJSON, source } = obj
+      if (errorJSON) {
+        const { message, stack } = JSON.parse(errorJSON)
+        const error = new Error(message)
+        error.stack = stack
+        decorateServerError(error, source ?? 'server')
+        handleAfterErrors([error])
+      }
+      return
+    }
     case HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ERROR: {
       const { errorJSON } = obj
       if (errorJSON) {
         const { message, stack } = JSON.parse(errorJSON)
         const error = new Error(message)
         error.stack = stack
-        handleErrors([error])
+        handleBuildErrors([error])
       }
       return
     }
@@ -535,6 +561,13 @@ export default function HotReload({
       },
       onBuildError(message) {
         dispatch({ type: ACTION_BUILD_ERROR, message })
+      },
+      onAfterError(reason) {
+        dispatch({
+          type: ACTION_AFTER_ERROR,
+          reason,
+          frames: parseStack(reason.stack!),
+        })
       },
       onBeforeRefresh() {
         dispatch({ type: ACTION_BEFORE_REFRESH })

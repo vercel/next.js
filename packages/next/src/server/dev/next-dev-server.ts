@@ -200,6 +200,15 @@ export default class DevServer extends Server {
     this.pagesDir = pagesDir
     this.appDir = appDir
 
+    if (this.nextConfig.experimental.after) {
+      this.afterTaskErrorHandler = (error: unknown) => {
+        return this.bundlerService.reportAfterTaskError(
+          error,
+          process.env.NEXT_RUNTIME === 'edge' ? 'edge-server' : 'server'
+        )
+      }
+    }
+
     if (this.nextConfig.experimental.serverComponentsHmrCache) {
       this.serverComponentsHmrCache = new LRUCache(
         this.nextConfig.cacheMaxMemorySize,

@@ -1,4 +1,5 @@
 import {
+  ACTION_AFTER_ERROR,
   ACTION_UNHANDLED_ERROR,
   ACTION_UNHANDLED_REJECTION,
 } from '../../shared'
@@ -22,6 +23,7 @@ export async function getErrorByType(
 ): Promise<ReadyRuntimeError> {
   const { id, event } = ev
   switch (event.type) {
+    case ACTION_AFTER_ERROR:
     case ACTION_UNHANDLED_ERROR:
     case ACTION_UNHANDLED_REJECTION: {
       const readyRuntimeError: ReadyRuntimeError = {
