@@ -873,7 +873,9 @@ export async function createHotReloaderTurbopack(
       url: requestUrl,
     }) {
       return hotReloaderSpan
-        .traceChild('ensure-page')
+        .traceChild('ensure-page', {
+          page: inputPage,
+        })
         .traceAsyncFn(async () => {
           if (BLOCKED_PAGES.includes(inputPage) && inputPage !== '/_error') {
             return
