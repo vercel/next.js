@@ -1,6 +1,6 @@
 import Image from "next/legacy/image";
 import ViewSource from "../components/view-source";
-import styles from "../styles.module.css";
+import styles from "../../styles.module.css";
 
 const BackgroundPage = () => (
   <div>
