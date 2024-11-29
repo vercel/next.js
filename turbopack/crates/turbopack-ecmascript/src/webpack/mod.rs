@@ -77,7 +77,7 @@ impl Asset for WebpackModuleAsset {
 pub struct WebpackChunkAssetReference {
     #[turbo_tasks(trace_ignore)]
     pub chunk_id: Lit,
-    pub runtime: Vc<WebpackRuntime>,
+    pub runtime: ResolvedVc<WebpackRuntime>,
     pub transforms: ResolvedVc<EcmascriptInputTransforms>,
 }
 
@@ -101,7 +101,7 @@ impl ModuleReference for WebpackChunkAssetReference {
                 let source = Vc::upcast(FileSource::new(context_path.join(filename)));
 
                 ModuleResolveResult::module(ResolvedVc::upcast(
-                    WebpackModuleAsset::new(source, self.runtime, *self.transforms)
+                    WebpackModuleAsset::new(source, *self.runtime, *self.transforms)
                         .to_resolved()
                         .await?,
                 ))
@@ -128,7 +128,7 @@ impl ValueToString for WebpackChunkAssetReference {
 #[turbo_tasks::value(shared)]
 pub struct WebpackEntryAssetReference {
     pub source: ResolvedVc<Box<dyn Source>>,
-    pub runtime: Vc<WebpackRuntime>,
+    pub runtime: ResolvedVc<WebpackRuntime>,
     pub transforms: ResolvedVc<EcmascriptInputTransforms>,
 }
 
@@ -137,7 +137,7 @@ impl ModuleReference for WebpackEntryAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         Ok(ModuleResolveResult::module(ResolvedVc::upcast(
-            WebpackModuleAsset::new(*self.source, self.runtime, *self.transforms)
+            WebpackModuleAsset::new(*self.source, *self.runtime, *self.transforms)
                 .to_resolved()
                 .await?,
         ))
@@ -156,8 +156,8 @@ impl ValueToString for WebpackEntryAssetReference {
 #[turbo_tasks::value(shared)]
 pub struct WebpackRuntimeAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
-    pub request: Vc<Request>,
-    pub runtime: Vc<WebpackRuntime>,
+    pub request: ResolvedVc<Request>,
+    pub runtime: ResolvedVc<WebpackRuntime>,
     pub transforms: ResolvedVc<EcmascriptInputTransforms>,
 }
 
@@ -173,7 +173,7 @@ impl ModuleReference for WebpackRuntimeAssetReference {
         let resolved = resolve(
             self.origin.origin_path().parent().resolve().await?,
             Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined)),
-            self.request,
+            *self.request,
             options,
         );
 
@@ -181,7 +181,7 @@ impl ModuleReference for WebpackRuntimeAssetReference {
             .await?
             .map_module(|source| async move {
                 Ok(ModuleResolveResultItem::Module(ResolvedVc::upcast(
-                    WebpackModuleAsset::new(*source, self.runtime, *self.transforms)
+                    WebpackModuleAsset::new(*source, *self.runtime, *self.transforms)
                         .to_resolved()
                         .await?,
                 )))

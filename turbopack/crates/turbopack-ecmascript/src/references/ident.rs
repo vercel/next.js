@@ -1,7 +1,7 @@
 use anyhow::Result;
 use swc_core::{ecma::ast::Expr, quote};
 use turbo_rcstr::RcStr;
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::chunk::ChunkingContext;
 
 use super::AstPath;
@@ -13,14 +13,17 @@ use crate::{
 #[turbo_tasks::value]
 pub struct IdentReplacement {
     value: RcStr,
-    path: Vc<AstPath>,
+    path: ResolvedVc<AstPath>,
 }
 
 #[turbo_tasks::value_impl]
 impl IdentReplacement {
     #[turbo_tasks::function]
-    pub fn new(value: RcStr, path: Vc<AstPath>) -> Vc<Self> {
-        Self::cell(IdentReplacement { value, path })
+    pub async fn new(value: RcStr, path: Vc<AstPath>) -> Result<Vc<Self>> {
+        Ok(Self::cell(IdentReplacement {
+            value,
+            path: path.to_resolved().await?,
+        }))
     }
 }
 
