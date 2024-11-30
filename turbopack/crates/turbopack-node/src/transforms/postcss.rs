@@ -183,8 +183,12 @@ async fn config_changed(
         .module();
 
     Ok(Vc::<Completions>::cell(vec![
-        any_content_changed_of_module(config_asset),
-        extra_configs_changed(asset_context, postcss_config_path),
+        any_content_changed_of_module(config_asset)
+            .to_resolved()
+            .await?,
+        extra_configs_changed(asset_context, postcss_config_path)
+            .to_resolved()
+            .await?,
     ])
     .completed())
 }
@@ -207,7 +211,7 @@ async fn extra_configs_changed(
         .map(|path| async move {
             Ok(
                 if matches!(&*path.get_type().await?, FileSystemEntryType::File) {
-                    asset_context
+                    match asset_context
                         .process(
                             Vc::upcast(FileSource::new(path)),
                             Value::new(ReferenceType::Internal(
@@ -216,7 +220,12 @@ async fn extra_configs_changed(
                         )
                         .try_into_module()
                         .await?
-                        .map(|rvc| any_content_changed_of_module(*rvc))
+                    {
+                        Some(module) => {
+                            Some(any_content_changed_of_module(module).to_resolved().await?)
+                        }
+                        None => None,
+                    }
                 } else {
                     None
                 },
