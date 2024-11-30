@@ -141,7 +141,7 @@ async fn taking_collectibles_parallel() {
 }
 
 #[turbo_tasks::value(transparent)]
-struct Collectibles(AutoSet<Vc<Box<dyn ValueToString>>>);
+struct Collectibles(AutoSet<ResolvedVc<Box<dyn ValueToString>>>);
 
 #[turbo_tasks::function]
 async fn my_collecting_function() -> Result<Vc<Thing>> {
