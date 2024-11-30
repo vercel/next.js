@@ -782,7 +782,11 @@ pub(crate) async fn analyse_ecmascript_module_internal(
 
         let esm_exports = EsmExports {
             exports: esm_exports,
-            star_exports: esm_star_exports,
+            star_exports: esm_star_exports
+                .into_iter()
+                .map(|v| v.to_resolved())
+                .try_join()
+                .await?,
         }
         .cell();
 
