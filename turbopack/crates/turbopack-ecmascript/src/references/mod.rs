@@ -265,7 +265,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     }
 
     /// Sets the analysis result ES export.
-    pub fn set_async_module(&mut self, async_module: Vc<AsyncModule>) {
+    pub fn set_async_module(&mut self, async_module: ResolvedVc<AsyncModule>) {
         self.async_module = ResolvedVc::cell(Some(async_module));
     }
 
@@ -857,7 +857,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             has_top_level_await,
             import_externals,
         }
-        .cell();
+        .resolved_cell();
         analysis.set_async_module(async_module);
     } else if let Some(span) = top_level_await_span {
         AnalyzeIssue {
