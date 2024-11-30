@@ -155,7 +155,7 @@ impl VersionedContentMap {
         self: Vc<Self>,
         path: Vc<FileSystemPath>,
     ) -> Result<Vc<OptionVersionedContent>> {
-        Ok(Vc::cell(match (*self.get_asset(path).await?) {
+        Ok(Vc::cell(match *self.get_asset(path).await? {
             Some(asset) => Some(asset.versioned_content().to_resolved().await?),
             None => None,
         }))
