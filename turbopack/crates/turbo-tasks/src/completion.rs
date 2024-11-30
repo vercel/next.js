@@ -79,7 +79,7 @@ impl Completions {
                 .map(|&c| async move {
                     // Wraps the completion in a new completion. This makes it cheaper to restore
                     // since it doesn't need to restore the original task resp task chain.
-                    wrap(c).await?;
+                    wrap(*c).await?;
                     Ok(())
                 })
                 .try_join()
