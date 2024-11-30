@@ -669,6 +669,7 @@ export async function imageOptimizer(
   maxAge: number
   etag: string
   upstreamEtag: string
+  error?: unknown
 }> {
   const { href, quality, width, mimeType } = paramsResult
   const { buffer: upstreamBuffer, etag: upstreamEtag } = imageUpstream
@@ -802,6 +803,7 @@ export async function imageOptimizer(
         maxAge: nextConfig.images.minimumCacheTTL,
         etag: upstreamEtag,
         upstreamEtag,
+        error,
       }
     } else {
       throw new ImageError(
