@@ -211,7 +211,7 @@ async fn extra_configs_changed(
         .map(|path| async move {
             Ok(
                 if matches!(&*path.get_type().await?, FileSystemEntryType::File) {
-                    match asset_context
+                    match *asset_context
                         .process(
                             Vc::upcast(FileSource::new(path)),
                             Value::new(ReferenceType::Internal(
@@ -222,7 +222,7 @@ async fn extra_configs_changed(
                         .await?
                     {
                         Some(module) => {
-                            Some(any_content_changed_of_module(module).to_resolved().await?)
+                            Some(any_content_changed_of_module(*module).to_resolved().await?)
                         }
                         None => None,
                     }
