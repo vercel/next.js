@@ -84,9 +84,13 @@ async function findOriginalSourcePositionAndContent(
 ): Promise<SourceAttributes | null> {
   const consumer = await new SourceMapConsumer(sourceMap)
   try {
+    // TODO: are these columns 1 or 0 based? node seems to use 1-based in errors...
+    // https://github.com/vercel/next.js/pull/61735/
+
     const sourcePosition = consumer.originalPositionFor({
       line: position.line,
       column: position.column ?? 0,
+      // column: (position.column !== null ? position.column - 1 : null) ?? 0,
     })
 
     if (!sourcePosition.source) {
@@ -209,6 +213,15 @@ export async function createOriginalStackFrame({
     return null
   }
 
+  if (frame.methodName === 'Page') {
+    console.log('createOriginalStackFrame', {
+      frame,
+      sourcePosition,
+      sourceContent,
+      sourceMap: source.sourceMap,
+    })
+  }
+
   const ignored =
     isIgnoredSource(source, sourcePosition) ||
     // If the source file is externals, should be excluded even it's not ignored source.
@@ -232,7 +245,7 @@ export async function createOriginalStackFrame({
     lineNumber: sourcePosition.line,
     column: (sourcePosition.column ?? 0) + 1,
     methodName:
-      sourcePosition.name ||
+      sourcePosition.name || // TODO: i'm not sure if this `name` actually means what we think it means?? like i think if you look at an identifier, that'll be the `name`....
       // default is not a valid identifier in JS so webpack uses a custom variable when it's an unnamed default export
       // Resolve it back to `default` for the method name if the source position didn't have the method.
       frame.methodName
@@ -264,6 +277,11 @@ export async function getSourceMapFromCompilation(
     // without it.
     const codeGenerationResult = compilation.codeGenerationResults.get(module)
     const source = codeGenerationResult?.sources.get('javascript')
+
+    // @ts-ignore
+    if (globalThis.__log_result) {
+      console.log('getSourceMapFromCompilation', id, source)
+    }
 
     return source?.map() ?? undefined
   } catch (err) {
@@ -363,6 +381,10 @@ export function getOverlayMiddleware(options: {
 
       let source: Source | undefined
       try {
+        if (frame.methodName === 'Page') {
+          // @ts-ignore
+          globalThis.__log_result = true
+        }
         source = await getSource(frame.file, {
           getCompilations: () => {
             const compilations: webpack.Compilation[] = []
@@ -406,6 +428,8 @@ export function getOverlayMiddleware(options: {
             return compilations
           },
         })
+        // @ts-ignore
+        globalThis.__log_result = false
       } catch (err) {
         console.error('Failed to get source map:', err)
         return internalServerError(res)

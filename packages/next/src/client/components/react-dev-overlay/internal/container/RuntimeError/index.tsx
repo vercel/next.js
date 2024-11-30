@@ -37,6 +37,12 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
       ),
     }
   }, [error.frames, isIgnoredExpanded])
+  // console.log('RuntimeError', {
+  //   firstFrame,
+  //   allLeadingFrames,
+  //   trailingCallStackFrames,
+  //   displayedFramesCount,
+  // })
 
   return (
     <React.Fragment>

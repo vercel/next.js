@@ -37,6 +37,12 @@ export async function getErrorByType(
           event.reason.toString()
         ),
       }
+      console.log(
+        'getErrorByType',
+        event.frames,
+        '=>',
+        readyRuntimeError.frames
+      )
       if (event.type === ACTION_UNHANDLED_ERROR) {
         readyRuntimeError.componentStackFrames = event.componentStackFrames
       }
