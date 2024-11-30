@@ -26,7 +26,7 @@ pub(super) struct SideEffectsModule {
     /// The module that is the binding
     pub resolved_as: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     /// Side effects from the original module to the binding.
-    pub side_effects: Vec<Vc<Box<dyn EcmascriptChunkPlaceable>>>,
+    pub side_effects: Vec<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
 }
 
 #[turbo_tasks::value_impl]

@@ -208,7 +208,7 @@ impl EcmascriptModulePartAsset {
 
 #[turbo_tasks::value]
 struct FollowExportsWithSideEffectsResult {
-    side_effects: Vec<Vc<Box<dyn EcmascriptChunkPlaceable>>>,
+    side_effects: Vec<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
     result: ResolvedVc<FollowExportsResult>,
 }
 
