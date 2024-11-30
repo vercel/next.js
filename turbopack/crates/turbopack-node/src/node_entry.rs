@@ -1,3 +1,4 @@
+use anyhow::Result;
 use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -19,13 +20,17 @@ pub struct NodeRenderingEntry {
 // TODO(ResolvedVc): this struct seems to be trivially used in this trait which returns a Vc
 //                   so perhaps it should remain a Vc?
 #[turbo_tasks::value(transparent)]
-pub struct NodeRenderingEntries(Vec<Vc<NodeRenderingEntry>>);
+pub struct NodeRenderingEntries(Vec<ResolvedVc<NodeRenderingEntry>>);
 
 /// Trait that allows to get the entry module for rendering something in Node.js
 #[turbo_tasks::value_trait]
 pub trait NodeEntry {
     fn entry(self: Vc<Self>, data: Value<ContentSourceData>) -> Vc<NodeRenderingEntry>;
-    fn entries(self: Vc<Self>) -> Vc<NodeRenderingEntries> {
-        Vc::cell(vec![self.entry(Value::new(Default::default()))])
+    async fn entries(self: Vc<Self>) -> Result<Vc<NodeRenderingEntries>> {
+        Ok(Vc::cell(vec![
+            self.entry(Value::new(Default::default()))
+                .to_resolved()
+                .await?,
+        ]))
     }
 }
