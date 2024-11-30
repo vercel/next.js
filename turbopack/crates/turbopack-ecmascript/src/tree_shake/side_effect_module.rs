@@ -36,7 +36,7 @@ impl SideEffectsModule {
         module: ResolvedVc<EcmascriptModuleAsset>,
         part: ResolvedVc<ModulePart>,
         resolved_as: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
-        side_effects: Vec<Vc<Box<dyn EcmascriptChunkPlaceable>>>,
+        side_effects: Vec<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
     ) -> Vc<Self> {
         SideEffectsModule {
             module,
