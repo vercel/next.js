@@ -452,4 +452,10 @@ describe('use-cache', () => {
       expect(await browser.elementByCss('p').text()).toBe(value)
     })
   })
+
+  it('renders the not-found page when `notFound()` is used', async () => {
+    const browser = await next.browser('/not-found')
+    const text = await browser.elementByCss('h2').text()
+    expect(text).toBe('This page could not be found.')
+  })
 })
