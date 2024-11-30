@@ -4,7 +4,8 @@
 
 use anyhow::Result;
 use turbo_tasks::{
-    debug::ValueDebug, test_helpers::current_task_for_testing, ResolvedValue, ValueDefault, Vc,
+    debug::ValueDebug, test_helpers::current_task_for_testing, ResolvedValue, ResolvedVc,
+    ValueDefault, Vc,
 };
 use turbo_tasks_testing::{register, run, Registration};
 
