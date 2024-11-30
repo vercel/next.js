@@ -79,7 +79,7 @@ impl Module for SideEffectsModule {
         for &side_effect in self.side_effects.iter() {
             references.push(ResolvedVc::upcast(
                 SingleChunkableModuleReference::new(
-                    Vc::upcast(side_effect),
+                    *ResolvedVc::upcast(side_effect),
                     Vc::cell(RcStr::from("side effect")),
                 )
                 .to_resolved()
