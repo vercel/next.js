@@ -8,7 +8,7 @@ use anyhow::Result;
 use auto_hash_map::AutoSet;
 use tokio::time::sleep;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{emit, CollectiblesSource, ResolvedVc, ValueToString, Vc};
+use turbo_tasks::{emit, CollectiblesSource, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_testing::{register, run, Registration};
 
 static REGISTRATION: Registration = register!();
@@ -176,9 +176,21 @@ async fn my_transitive_emitting_function(key: RcStr, _key2: RcStr) -> Result<Vc<
 }
 
 #[turbo_tasks::function]
-async fn my_transitive_emitting_function_collectibles(key: RcStr, key2: RcStr) -> Vc<Collectibles> {
+async fn my_transitive_emitting_function_collectibles(
+    key: RcStr,
+    key2: RcStr,
+) -> Result<Vc<Collectibles>> {
     let result = my_transitive_emitting_function(key, key2);
-    Vc::cell(result.peek_collectibles::<Box<dyn ValueToString>>())
+    Ok(Vc::cell(
+        result
+            .peek_collectibles::<Box<dyn ValueToString>>()
+            .into_iter()
+            .map(|v| v.to_resolved())
+            .try_join()
+            .await?
+            .into_iter()
+            .collect(),
+    ))
 }
 
 #[turbo_tasks::function]
