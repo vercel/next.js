@@ -10,7 +10,7 @@ import { webpack, StringXor } from 'next/dist/compiled/webpack/webpack'
 import {
   getOverlayMiddleware,
   getSourceMapMiddleware,
-} from '../../client/components/react-dev-overlay/server/middleware'
+} from '../../client/components/react-dev-overlay/server/middleware-webpack'
 import { WebpackHotMiddleware } from './hot-middleware'
 import { join, relative, isAbsolute, posix } from 'path'
 import {
@@ -1131,7 +1131,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     }
 
     this.multiCompiler.hooks.done.tap('NextjsHotReloader', () => {
-      inputFileSystem.purge!()
+      inputFileSystem?.purge?.()
     })
     watchCompilers(
       this.multiCompiler.compilers[0],
@@ -1509,14 +1509,12 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
 
     this.middlewares = [
       getOverlayMiddleware({
-        distDirectory: this.distDir,
         rootDirectory: this.dir,
         clientStats: () => this.clientStats,
         serverStats: () => this.serverStats,
         edgeServerStats: () => this.edgeServerStats,
       }),
       getSourceMapMiddleware({
-        distDirectory: this.distDir,
         clientStats: () => this.clientStats,
         serverStats: () => this.serverStats,
         edgeServerStats: () => this.edgeServerStats,

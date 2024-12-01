@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Result};
-use turbo_tasks::{RcStr, ResolvedVc, TryJoinIterExt, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, Vc};
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_browser::{react_refresh::assert_can_resolve_react_refresh, BrowserChunkingContext};
@@ -30,25 +31,25 @@ use crate::{
 };
 
 #[turbo_tasks::function]
-pub fn get_client_chunking_context(
-    project_path: Vc<FileSystemPath>,
-    server_root: Vc<FileSystemPath>,
-    environment: Vc<Environment>,
-) -> Vc<Box<dyn ChunkingContext>> {
-    Vc::upcast(
+pub async fn get_client_chunking_context(
+    project_path: ResolvedVc<FileSystemPath>,
+    server_root: ResolvedVc<FileSystemPath>,
+    environment: ResolvedVc<Environment>,
+) -> Result<Vc<Box<dyn ChunkingContext>>> {
+    Ok(Vc::upcast(
         BrowserChunkingContext::builder(
             project_path,
             server_root,
             server_root,
-            server_root.join("/_chunks".into()),
-            server_root.join("/_assets".into()),
+            server_root.join("/_chunks".into()).to_resolved().await?,
+            server_root.join("/_assets".into()).to_resolved().await?,
             environment,
             RuntimeType::Development,
         )
         .hot_module_replacement()
         .use_file_source_map_uris()
         .build(),
-    )
+    ))
 }
 
 #[turbo_tasks::function]
@@ -156,7 +157,7 @@ pub async fn create_web_entry_source(
         .await?;
 
     let entry_asset = Vc::upcast(DevHtmlAsset::new(
-        server_root.join("index.html".into()),
+        server_root.join("index.html".into()).to_resolved().await?,
         entries,
     ));
 

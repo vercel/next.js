@@ -4,8 +4,10 @@ use swc_core::{
     common::GLOBALS,
     ecma::ast::{Expr, Lit, Program},
 };
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, FxIndexMap, FxIndexSet, RcStr, TaskInput, ValueDefault, ValueToString, Vc,
+    trace::TraceRawVcs, FxIndexMap, FxIndexSet, ResolvedVc, TaskInput, ValueDefault, ValueToString,
+    Vc,
 };
 use turbo_tasks_fs::{
     self, json::parse_json_rope_with_source_context, rope::Rope, util::join_path, File,
@@ -91,7 +93,7 @@ pub fn get_asset_path_from_pathname(pathname: &str, ext: &str) -> String {
 #[turbo_tasks::function]
 pub async fn get_transpiled_packages(
     next_config: Vc<NextConfig>,
-    project_path: Vc<FileSystemPath>,
+    project_path: ResolvedVc<FileSystemPath>,
 ) -> Result<Vc<Vec<RcStr>>> {
     let mut transpile_packages: Vec<RcStr> = next_config.transpile_packages().await?.clone_value();
 
@@ -108,16 +110,16 @@ pub async fn get_transpiled_packages(
 
 pub async fn foreign_code_context_condition(
     next_config: Vc<NextConfig>,
-    project_path: Vc<FileSystemPath>,
+    project_path: ResolvedVc<FileSystemPath>,
 ) -> Result<ContextCondition> {
-    let transpiled_packages = get_transpiled_packages(next_config, project_path).await?;
+    let transpiled_packages = get_transpiled_packages(next_config, *project_path).await?;
 
     // The next template files are allowed to import the user's code via import
     // mapping, and imports must use the project-level [ResolveOptions] instead
     // of the `node_modules` specific resolve options (the template files are
     // technically node module files).
     let not_next_template_dir = ContextCondition::not(ContextCondition::InPath(
-        get_next_package(project_path).join(NEXT_TEMPLATE_PATH.into()),
+        get_next_package(*project_path).join(NEXT_TEMPLATE_PATH.into()),
     ));
 
     let result = ContextCondition::all(vec![
@@ -195,7 +197,7 @@ impl ValueDefault for NextSourceConfig {
 #[turbo_tasks::value(shared)]
 pub struct NextSourceConfigParsingIssue {
     ident: Vc<AssetIdent>,
-    detail: Vc<StyledString>,
+    detail: ResolvedVc<StyledString>,
 }
 
 #[turbo_tasks::value_impl]
@@ -234,7 +236,7 @@ impl Issue for NextSourceConfigParsingIssue {
 
     #[turbo_tasks::function]
     fn detail(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(self.detail))
+        Vc::cell(Some(*self.detail))
     }
 }
 
@@ -242,9 +244,10 @@ fn emit_invalid_config_warning(ident: Vc<AssetIdent>, detail: &str, value: &JsVa
     let (explainer, hints) = value.explain(2, 0);
     NextSourceConfigParsingIssue {
         ident,
-        detail: StyledString::Text(format!("{detail} Got {explainer}.{hints}").into()).cell(),
+        detail: StyledString::Text(format!("{detail} Got {explainer}.{hints}").into())
+            .resolved_cell(),
     }
-    .cell()
+    .resolved_cell()
     .emit()
 }
 
@@ -372,9 +375,11 @@ fn parse_route_matcher_from_js_value(
 }
 
 #[turbo_tasks::function]
-pub async fn parse_config_from_source(module: Vc<Box<dyn Module>>) -> Result<Vc<NextSourceConfig>> {
+pub async fn parse_config_from_source(
+    module: ResolvedVc<Box<dyn Module>>,
+) -> Result<Vc<NextSourceConfig>> {
     if let Some(ecmascript_asset) =
-        Vc::try_resolve_sidecast::<Box<dyn EcmascriptParsable>>(module).await?
+        ResolvedVc::try_sidecast::<Box<dyn EcmascriptParsable>>(module).await?
     {
         if let ParseResult::Ok {
             program: Program::Module(module_ast),
@@ -401,7 +406,7 @@ pub async fn parse_config_from_source(module: Vc<Box<dyn Module>>) -> Result<Vc<
                             if let Some(init) = decl.init.as_ref() {
                                 return GLOBALS.set(globals, || {
                                     let value = eval_context.eval(init);
-                                    Ok(parse_config_from_js_value(module, &value).cell())
+                                    Ok(parse_config_from_js_value(*module, &value).cell())
                                 });
                             } else {
                                 NextSourceConfigParsingIssue {
@@ -411,9 +416,9 @@ pub async fn parse_config_from_source(module: Vc<Box<dyn Module>>) -> Result<Vc<
                                          initializer."
                                             .into(),
                                     )
-                                    .cell(),
+                                    .resolved_cell(),
                                 }
-                                .cell()
+                                .resolved_cell()
                                 .emit()
                             }
                         }
@@ -429,9 +434,9 @@ pub async fn parse_config_from_source(module: Vc<Box<dyn Module>>) -> Result<Vc<
                                     "The runtime property must be either \"nodejs\" or \"edge\"."
                                         .into(),
                                 )
-                                .cell(),
+                                .resolved_cell(),
                             }
-                            .cell();
+                            .resolved_cell();
                             if let Some(init) = decl.init.as_ref() {
                                 // skipping eval and directly read the expr's value, as we know it
                                 // should be a const string
@@ -463,9 +468,9 @@ pub async fn parse_config_from_source(module: Vc<Box<dyn Module>>) -> Result<Vc<
                                          variable initializer."
                                             .into(),
                                     )
-                                    .cell(),
+                                    .resolved_cell(),
                                 }
-                                .cell()
+                                .resolved_cell()
                                 .emit()
                             }
                         }
@@ -860,10 +865,10 @@ pub fn virtual_next_js_template_path(
 }
 
 pub async fn load_next_js_templateon<T: DeserializeOwned>(
-    project_path: Vc<FileSystemPath>,
+    project_path: ResolvedVc<FileSystemPath>,
     path: RcStr,
 ) -> Result<T> {
-    let file_path = get_next_package(project_path).join(path.clone());
+    let file_path = get_next_package(*project_path).join(path.clone());
 
     let content = &*file_path.read().await?;
 

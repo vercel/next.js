@@ -4,7 +4,8 @@ use anyhow::{bail, Context, Result};
 use futures::FutureExt;
 use indoc::formatdoc;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{Completion, FxIndexMap, RcStr, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{Completion, FxIndexMap, ResolvedVc, Value, Vc};
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::{CommandLineProcessEnv, ProcessEnv};
 use turbo_tasks_fetch::{fetch, HttpResponseBody};
@@ -71,13 +72,13 @@ struct FontData(FxIndexMap<RcStr, FontDataEntry>);
 
 #[turbo_tasks::value(shared)]
 pub(crate) struct NextFontGoogleReplacer {
-    project_path: Vc<FileSystemPath>,
+    project_path: ResolvedVc<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
 impl NextFontGoogleReplacer {
     #[turbo_tasks::function]
-    pub fn new(project_path: Vc<FileSystemPath>) -> Vc<Self> {
+    pub fn new(project_path: ResolvedVc<FileSystemPath>) -> Vc<Self> {
         Self::cell(NextFontGoogleReplacer { project_path })
     }
 
@@ -88,10 +89,10 @@ impl NextFontGoogleReplacer {
 
         let query_vc = Vc::cell(query);
 
-        let font_data = load_font_data(self.project_path);
+        let font_data = load_font_data(*self.project_path);
         let options = font_options_from_query_map(query_vc, font_data);
 
-        let fallback = get_font_fallback(self.project_path, options);
+        let fallback = get_font_fallback(*self.project_path, options);
         let properties = get_font_css_properties(options, fallback).await?;
         let js_asset = VirtualSource::new(
             next_js_file_path("internal/font/google".into())
@@ -132,9 +133,12 @@ impl NextFontGoogleReplacer {
                 )
                 .into(),
             )
-            .into()),
-        );
-        Ok(ImportMapResult::Result(ResolveResult::source(Vc::upcast(js_asset)).into()).into())
+            .cell()),
+        ).to_resolved().await?;
+        Ok(ImportMapResult::Result(
+            ResolveResult::source(ResolvedVc::upcast(js_asset)).resolved_cell(),
+        )
+        .cell())
     }
 }
 
@@ -166,7 +170,7 @@ impl ImportMappingReplacement for NextFontGoogleReplacer {
         };
 
         let this = &*self.await?;
-        if can_use_next_font(this.project_path, *query).await? {
+        if can_use_next_font(*this.project_path, **query).await? {
             Ok(self.import_map_result(query.await?.as_str().into()))
         } else {
             Ok(ImportMapResult::NoEntry.into())
@@ -176,16 +180,16 @@ impl ImportMappingReplacement for NextFontGoogleReplacer {
 
 #[turbo_tasks::value(shared)]
 pub struct NextFontGoogleCssModuleReplacer {
-    project_path: Vc<FileSystemPath>,
-    execution_context: Vc<ExecutionContext>,
+    project_path: ResolvedVc<FileSystemPath>,
+    execution_context: ResolvedVc<ExecutionContext>,
 }
 
 #[turbo_tasks::value_impl]
 impl NextFontGoogleCssModuleReplacer {
     #[turbo_tasks::function]
     pub fn new(
-        project_path: Vc<FileSystemPath>,
-        execution_context: Vc<ExecutionContext>,
+        project_path: ResolvedVc<FileSystemPath>,
+        execution_context: ResolvedVc<ExecutionContext>,
     ) -> Vc<Self> {
         Self::cell(NextFontGoogleCssModuleReplacer {
             project_path,
@@ -197,7 +201,7 @@ impl NextFontGoogleCssModuleReplacer {
     async fn import_map_result(&self, query: RcStr) -> Result<Vc<ImportMapResult>> {
         let request_hash = get_request_hash(&query).await?;
         let query_vc = Vc::cell(query);
-        let font_data = load_font_data(self.project_path);
+        let font_data = load_font_data(*self.project_path);
         let options = font_options_from_query_map(query_vc, font_data);
         let stylesheet_url = get_stylesheet_url_from_options(options, font_data);
         let scoped_font_family =
@@ -219,11 +223,11 @@ impl NextFontGoogleCssModuleReplacer {
             .as_ref()
             .map_or_else(
                 || fetch_real_stylesheet(stylesheet_url, css_virtual_path).boxed(),
-                |p| get_mock_stylesheet(stylesheet_url, p, self.execution_context).boxed(),
+                |p| get_mock_stylesheet(stylesheet_url, p, *self.execution_context).boxed(),
             )
             .await?;
 
-        let font_fallback = get_font_fallback(self.project_path, options);
+        let font_fallback = get_font_fallback(*self.project_path, options);
 
         let stylesheet = match stylesheet_str {
             Some(s) => Some(
@@ -257,13 +261,16 @@ impl NextFontGoogleCssModuleReplacer {
                     .await?
                     .into(),
                 )
-                .into(),
+                .cell(),
             ),
         )
-        .resolve()
+        .to_resolved()
         .await?;
 
-        Ok(ImportMapResult::Result(ResolveResult::source(Vc::upcast(css_asset)).into()).into())
+        Ok(ImportMapResult::Result(
+            ResolveResult::source(ResolvedVc::upcast(css_asset)).resolved_cell(),
+        )
+        .cell())
     }
 }
 
@@ -292,10 +299,10 @@ impl ImportMappingReplacement for NextFontGoogleCssModuleReplacer {
             fragment: _,
         } = request
         else {
-            return Ok(ImportMapResult::NoEntry.into());
+            return Ok(ImportMapResult::NoEntry.cell());
         };
 
-        Ok(self.import_map_result(query_vc.await?.to_string().into()))
+        Ok(self.import_map_result(query_vc.await?.clone_value()))
     }
 }
 
@@ -308,13 +315,13 @@ struct NextFontGoogleFontFileOptions {
 
 #[turbo_tasks::value(shared)]
 pub struct NextFontGoogleFontFileReplacer {
-    project_path: Vc<FileSystemPath>,
+    project_path: ResolvedVc<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
 impl NextFontGoogleFontFileReplacer {
     #[turbo_tasks::function]
-    pub fn new(project_path: Vc<FileSystemPath>) -> Vc<Self> {
+    pub fn new(project_path: ResolvedVc<FileSystemPath>) -> Vc<Self> {
         Self::cell(NextFontGoogleFontFileReplacer { project_path })
     }
 }
@@ -323,7 +330,7 @@ impl NextFontGoogleFontFileReplacer {
 impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
     #[turbo_tasks::function]
     fn replace(&self, _capture: Vc<Pattern>) -> Vc<ReplacedImportMapping> {
-        ReplacedImportMapping::Ignore.into()
+        ReplacedImportMapping::Ignore.cell()
     }
 
     /// Intercepts requests for the font made by the CSS
@@ -343,14 +350,14 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
             fragment: _,
         } = request
         else {
-            return Ok(ImportMapResult::NoEntry.into());
+            return Ok(ImportMapResult::NoEntry.cell());
         };
 
         let NextFontGoogleFontFileOptions {
             url,
             preload,
             has_size_adjust: size_adjust,
-        } = font_file_options_from_query_map(*query_vc).await?;
+        } = font_file_options_from_query_map(**query_vc).await?;
 
         let (filename, ext) = split_extension(&url);
         let ext = ext.with_context(|| format!("font url {} is missing an extension", &url))?;
@@ -372,20 +379,27 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
         // really matter either.
         let Some(font) = fetch_from_google_fonts(Vc::cell(url.into()), font_virtual_path).await?
         else {
-            return Ok(ImportMapResult::Result(ResolveResult::unresolvable().into()).into());
+            return Ok(
+                ImportMapResult::Result(ResolveResult::unresolvable().resolved_cell()).cell(),
+            );
         };
 
         let font_source = VirtualSource::new(
             font_virtual_path,
-            AssetContent::file(FileContent::Content(font.await?.0.as_slice().into()).into()),
-        );
+            AssetContent::file(FileContent::Content(font.await?.0.as_slice().into()).cell()),
+        )
+        .to_resolved()
+        .await?;
 
-        Ok(ImportMapResult::Result(ResolveResult::source(Vc::upcast(font_source)).into()).into())
+        Ok(ImportMapResult::Result(
+            ResolveResult::source(ResolvedVc::upcast(font_source)).resolved_cell(),
+        )
+        .cell())
     }
 }
 
 #[turbo_tasks::function]
-async fn load_font_data(project_root: Vc<FileSystemPath>) -> Result<Vc<FontData>> {
+async fn load_font_data(project_root: ResolvedVc<FileSystemPath>) -> Result<Vc<FontData>> {
     let data: FontData = load_next_js_templateon(
         project_root,
         "dist/compiled/@next/font/dist/google/font-data.json".into(),
@@ -534,8 +548,8 @@ async fn get_font_css_properties(
     }
 
     Ok(FontCssProperties::cell(FontCssProperties {
-        font_family: Vc::cell(font_families.join(", ").into()),
-        weight: Vc::cell(match &options.weights {
+        font_family: ResolvedVc::cell(font_families.join(", ").into()),
+        weight: ResolvedVc::cell(match &options.weights {
             FontWeights::Variable => None,
             FontWeights::Fixed(weights) => {
                 if weights.len() > 1 {
@@ -546,13 +560,13 @@ async fn get_font_css_properties(
                 }
             }
         }),
-        style: Vc::cell(if options.styles.len() > 1 {
+        style: ResolvedVc::cell(if options.styles.len() > 1 {
             // Don't set a rule for style if multiple are requested
             None
         } else {
             options.styles.first().cloned()
         }),
-        variable: Vc::cell(options.variable.clone()),
+        variable: ResolvedVc::cell(options.variable.clone()),
     }))
 }
 
@@ -613,7 +627,7 @@ async fn fetch_from_google_fonts(
     .await?;
 
     Ok(match &*result {
-        Ok(r) => Some(r.await?.body),
+        Ok(r) => Some(*r.await?.body),
         Err(err) => {
             // Inform the user of the failure to retreive the stylesheet / font, but don't
             // propagate this error. We don't want e.g. offline connections to prevent page
@@ -671,7 +685,9 @@ async fn get_mock_stylesheet(
                     .into(),
                 ),
             )),
-            Value::new(ReferenceType::Internal(InnerAssets::empty())),
+            Value::new(ReferenceType::Internal(
+                InnerAssets::empty().to_resolved().await?,
+            )),
         )
         .module();
 
@@ -679,10 +695,10 @@ async fn get_mock_stylesheet(
     let val = evaluate(
         mocked_response_asset,
         root,
-        env,
+        *env,
         AssetIdent::from_path(loader_path),
         asset_context,
-        chunking_context,
+        *chunking_context,
         None,
         vec![],
         Completion::immutable(),

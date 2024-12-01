@@ -783,6 +783,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/index.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -795,6 +796,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/index.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -807,6 +809,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/404.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -819,6 +822,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/frank.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -831,6 +835,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/gsp.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -843,6 +848,7 @@ export function runTests(ctx) {
             "srcRoute": "/gsp/fallback/[slug]",
             "dataRoute": "/_next/data/BUILD_ID/do-BE/gsp/fallback/always.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -855,6 +861,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/not-found.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -867,6 +874,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/404.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -879,6 +887,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/frank.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -891,6 +900,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/gsp.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -903,6 +913,7 @@ export function runTests(ctx) {
             "srcRoute": "/gsp/fallback/[slug]",
             "dataRoute": "/_next/data/BUILD_ID/do/gsp/fallback/always.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -915,6 +926,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/not-found.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -927,6 +939,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/index.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -939,6 +952,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/index.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -951,6 +965,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/404.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -963,6 +978,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/frank.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -975,6 +991,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/gsp.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -987,6 +1004,7 @@ export function runTests(ctx) {
             "srcRoute": "/gsp/fallback/[slug]",
             "dataRoute": "/_next/data/BUILD_ID/en-US/gsp/fallback/always.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -999,6 +1017,7 @@ export function runTests(ctx) {
             "srcRoute": "/gsp/fallback/[slug]",
             "dataRoute": "/_next/data/BUILD_ID/en-US/gsp/fallback/first.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1011,6 +1030,7 @@ export function runTests(ctx) {
             "srcRoute": "/gsp/fallback/[slug]",
             "dataRoute": "/_next/data/BUILD_ID/en-US/gsp/fallback/second.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1023,6 +1043,7 @@ export function runTests(ctx) {
             "srcRoute": "/gsp/no-fallback/[slug]",
             "dataRoute": "/_next/data/BUILD_ID/en-US/gsp/no-fallback/first.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1035,6 +1056,7 @@ export function runTests(ctx) {
             "srcRoute": "/gsp/no-fallback/[slug]",
             "dataRoute": "/_next/data/BUILD_ID/en-US/gsp/no-fallback/second.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1047,6 +1069,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/not-found.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1059,6 +1082,7 @@ export function runTests(ctx) {
             "srcRoute": "/not-found/blocking-fallback/[slug]",
             "dataRoute": "/_next/data/BUILD_ID/en-US/not-found/blocking-fallback/first.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1071,6 +1095,7 @@ export function runTests(ctx) {
             "srcRoute": "/not-found/blocking-fallback/[slug]",
             "dataRoute": "/_next/data/BUILD_ID/en-US/not-found/blocking-fallback/second.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1083,6 +1108,7 @@ export function runTests(ctx) {
             "srcRoute": "/not-found/fallback/[slug]",
             "dataRoute": "/_next/data/BUILD_ID/en-US/not-found/fallback/first.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1095,6 +1121,7 @@ export function runTests(ctx) {
             "srcRoute": "/not-found/fallback/[slug]",
             "dataRoute": "/_next/data/BUILD_ID/en-US/not-found/fallback/second.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1107,6 +1134,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/404.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1119,6 +1147,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/frank.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1131,6 +1160,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/gsp.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1143,6 +1173,7 @@ export function runTests(ctx) {
             "srcRoute": "/gsp/fallback/[slug]",
             "dataRoute": "/_next/data/BUILD_ID/en/gsp/fallback/always.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1155,6 +1186,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/not-found.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1167,6 +1199,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/index.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1179,6 +1212,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/index.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1191,6 +1225,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/404.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1203,6 +1238,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/frank.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1215,6 +1251,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/gsp.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1227,6 +1264,7 @@ export function runTests(ctx) {
             "srcRoute": "/gsp/fallback/[slug]",
             "dataRoute": "/_next/data/BUILD_ID/fr-BE/gsp/fallback/always.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1239,6 +1277,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/not-found.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1251,6 +1290,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/404.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1263,6 +1303,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/frank.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1275,6 +1316,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/gsp.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1287,6 +1329,7 @@ export function runTests(ctx) {
             "srcRoute": "/gsp/fallback/[slug]",
             "dataRoute": "/_next/data/BUILD_ID/fr/gsp/fallback/always.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1299,6 +1342,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/not-found.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1311,6 +1355,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/index.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1323,6 +1368,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/index.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1335,6 +1381,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/404.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1347,6 +1394,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/frank.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1359,6 +1407,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/gsp.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1371,6 +1420,7 @@ export function runTests(ctx) {
             "srcRoute": "/gsp/fallback/[slug]",
             "dataRoute": "/_next/data/BUILD_ID/go-BE/gsp/fallback/always.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1383,6 +1433,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/not-found.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1395,6 +1446,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/404.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1407,6 +1459,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/frank.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1419,6 +1472,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/gsp.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1431,6 +1485,7 @@ export function runTests(ctx) {
             "srcRoute": "/gsp/fallback/[slug]",
             "dataRoute": "/_next/data/BUILD_ID/go/gsp/fallback/always.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1443,6 +1498,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/not-found.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1455,6 +1511,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/index.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1467,6 +1524,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/index.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1479,6 +1537,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/404.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1491,6 +1550,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/frank.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1503,6 +1563,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/gsp.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1515,6 +1576,7 @@ export function runTests(ctx) {
             "srcRoute": "/gsp/fallback/[slug]",
             "dataRoute": "/_next/data/BUILD_ID/nl-BE/gsp/fallback/always.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1527,6 +1589,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/not-found.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1539,6 +1602,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/index.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1551,6 +1615,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/404.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1563,6 +1628,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/frank.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1575,6 +1641,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/gsp.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1587,6 +1654,7 @@ export function runTests(ctx) {
             "srcRoute": "/gsp/fallback/[slug]",
             "dataRoute": "/_next/data/BUILD_ID/nl-NL/gsp/fallback/always.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1599,6 +1667,7 @@ export function runTests(ctx) {
             "srcRoute": "/gsp/no-fallback/[slug]",
             "dataRoute": "/_next/data/BUILD_ID/nl-NL/gsp/no-fallback/second.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1611,6 +1680,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/not-found.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1623,6 +1693,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/404.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1635,6 +1706,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/frank.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1647,6 +1719,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/gsp.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1659,6 +1732,7 @@ export function runTests(ctx) {
             "srcRoute": "/gsp/fallback/[slug]",
             "dataRoute": "/_next/data/BUILD_ID/nl/gsp/fallback/always.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1671,6 +1745,7 @@ export function runTests(ctx) {
             "srcRoute": null,
             "dataRoute": "/_next/data/BUILD_ID/not-found.json",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1697,6 +1772,7 @@ export function runTests(ctx) {
             "fallback": "/gsp/fallback/[slug].html",
             "dataRouteRegex": "^\\/_next\\/data\\/BUILD_ID\\/gsp\\/fallback\\/([^\\/]+?)\\.json$",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1710,6 +1786,7 @@ export function runTests(ctx) {
             "fallback": false,
             "dataRouteRegex": "^\\/_next\\/data\\/BUILD_ID\\/gsp\\/no\\-fallback\\/([^\\/]+?)\\.json$",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1723,6 +1800,7 @@ export function runTests(ctx) {
             "fallback": null,
             "dataRouteRegex": "^\\/_next\\/data\\/BUILD_ID\\/not\\-found\\/blocking\\-fallback\\/([^\\/]+?)\\.json$",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1736,6 +1814,7 @@ export function runTests(ctx) {
             "fallback": "/not-found/fallback/[slug].html",
             "dataRouteRegex": "^\\/_next\\/data\\/BUILD_ID\\/not\\-found\\/fallback\\/([^\\/]+?)\\.json$",
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",

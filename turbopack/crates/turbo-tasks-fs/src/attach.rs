@@ -1,6 +1,7 @@
 use anyhow::{bail, Result};
 use auto_hash_map::AutoMap;
-use turbo_tasks::{Completion, RcStr, ResolvedVc, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{Completion, ResolvedVc, ValueToString, Vc};
 
 use crate::{
     DirectoryContent, DirectoryEntry, FileContent, FileMeta, FileSystem, FileSystemPath,
@@ -163,16 +164,12 @@ impl FileSystem for AttachedFileSystem {
     }
 
     #[turbo_tasks::function(fs)]
-    fn write(self: Vc<Self>, path: Vc<FileSystemPath>, content: Vc<FileContent>) -> Vc<Completion> {
+    fn write(self: Vc<Self>, path: Vc<FileSystemPath>, content: Vc<FileContent>) -> Vc<()> {
         self.get_inner_fs_path(path).write(content)
     }
 
     #[turbo_tasks::function(fs)]
-    fn write_link(
-        self: Vc<Self>,
-        path: Vc<FileSystemPath>,
-        target: Vc<LinkContent>,
-    ) -> Vc<Completion> {
+    fn write_link(self: Vc<Self>, path: Vc<FileSystemPath>, target: Vc<LinkContent>) -> Vc<()> {
         self.get_inner_fs_path(path).write_link(target)
     }
 

@@ -71,10 +71,15 @@ import type { AppSegment } from '../../../build/segment-config/app/app-segments'
 import {
   getRedirectStatusCodeFromError,
   getURLFromRedirectError,
+} from '../../../client/components/redirect'
+import {
   isRedirectError,
   type RedirectError,
-} from '../../../client/components/redirect'
-import { isNotFoundError } from '../../../client/components/not-found'
+} from '../../../client/components/redirect-error'
+import {
+  getAccessFallbackHTTPStatus,
+  isHTTPAccessFallbackError,
+} from '../../../client/components/http-access-fallback/http-access-fallback'
 import { RedirectStatusCode } from '../../../client/components/redirect-status-code'
 import { INFINITE_CACHE } from '../../../lib/constants'
 
@@ -97,8 +102,16 @@ export type AppRouteModule = typeof import('../../../build/templates/app-route')
  */
 export interface AppRouteRouteHandlerContext extends RouteModuleHandleContext {
   renderOpts: WorkStoreContext['renderOpts'] &
-    Pick<RenderOptsPartial, 'onInstrumentationRequestError'>
+    Pick<RenderOptsPartial, 'onInstrumentationRequestError'> &
+    CollectedCacheInfo
   prerenderManifest: DeepReadonly<PrerenderManifest>
+}
+
+type CollectedCacheInfo = {
+  collectedTags?: string
+  collectedRevalidate?: number
+  collectedExpire?: number
+  collectedStale?: number
 }
 
 /**
@@ -357,6 +370,7 @@ export class AppRouteRouteModule extends RouteModule<
               expire: INFINITE_CACHE,
               stale: INFINITE_CACHE,
               tags: [...implicitTags],
+              prerenderResumeDataCache: null,
             })
 
           let prospectiveResult
@@ -440,6 +454,7 @@ export class AppRouteRouteModule extends RouteModule<
             expire: INFINITE_CACHE,
             stale: INFINITE_CACHE,
             tags: [...implicitTags],
+            prerenderResumeDataCache: null,
           })
 
           let responseHandled = false
@@ -560,8 +575,9 @@ export class AppRouteRouteModule extends RouteModule<
             : getRedirectStatusCodeFromError(err),
           headers,
         })
-      } else if (isNotFoundError(err)) {
-        return new Response(null, { status: 404 })
+      } else if (isHTTPAccessFallbackError(err)) {
+        const httpStatus = getAccessFallbackHTTPStatus(err)
+        return new Response(null, { status: httpStatus })
       }
 
       throw err
@@ -584,12 +600,10 @@ export class AppRouteRouteModule extends RouteModule<
     ])
 
     if (prerenderStore) {
-      ;(context.renderOpts as any).collectedTags =
-        prerenderStore.tags?.join(',')
-      ;(context.renderOpts as any).collectedRevalidate =
-        prerenderStore.revalidate
-      ;(context.renderOpts as any).collectedExpire = prerenderStore.expire
-      ;(context.renderOpts as any).collectedStale = prerenderStore.stale
+      context.renderOpts.collectedTags = prerenderStore.tags?.join(',')
+      context.renderOpts.collectedRevalidate = prerenderStore.revalidate
+      context.renderOpts.collectedExpire = prerenderStore.expire
+      context.renderOpts.collectedStale = prerenderStore.stale
     }
 
     // It's possible cookies were set in the handler, so we need

@@ -3,6 +3,7 @@ import { MockedRequest } from '../../../server/lib/mock-request'
 import { NodeNextRequest } from '../../../server/base-http/node'
 import type { BaseNextRequest } from '../../../server/base-http'
 import type { NextResponse } from '../../../server/web/exports'
+import { parseUrl } from '../../../lib/url'
 
 export function constructRequest({
   url,
@@ -15,6 +16,9 @@ export function constructRequest({
 }): BaseNextRequest {
   if (!headers) {
     headers = {}
+  }
+  if (!headers.host) {
+    headers.host = parseUrl(url)?.host
   }
   if (cookies) {
     headers = {

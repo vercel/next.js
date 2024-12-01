@@ -1,5 +1,6 @@
 use anyhow::Result;
-use turbo_tasks::{RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::introspect::{Introspectable, IntrospectableChildren};
 
 use super::{route_tree::RouteTree, ContentSource};
@@ -16,7 +17,7 @@ pub trait GetContentSource {
 /// actually used.
 #[turbo_tasks::value(shared)]
 pub struct LazyInstantiatedContentSource {
-    pub get_source: Vc<Box<dyn GetContentSource>>,
+    pub get_source: ResolvedVc<Box<dyn GetContentSource>>,
 }
 
 #[turbo_tasks::value_impl]

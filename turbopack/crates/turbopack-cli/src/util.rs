@@ -2,7 +2,8 @@ use std::{env::current_dir, path::PathBuf};
 
 use anyhow::{Context, Result};
 use dunce::canonicalize;
-use turbo_tasks::{RcStr, ResolvedVc, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem};
 
 #[turbo_tasks::value(transparent)]

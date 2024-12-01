@@ -594,6 +594,9 @@ exports[`Next Build production mode first time setup with TypeScript - ESLint v8
     "no-array-constructor": [
       "off",
     ],
+    "no-class-assign": [
+      "off",
+    ],
     "no-const-assign": [
       "off",
     ],
@@ -925,6 +928,9 @@ exports[`Next Build production mode first time setup with TypeScript - ESLint v9
       "warn",
     ],
     "no-array-constructor": [
+      "off",
+    ],
+    "no-class-assign": [
       "off",
     ],
     "no-const-assign": [

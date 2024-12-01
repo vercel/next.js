@@ -37,13 +37,13 @@ use crate::{
 #[turbo_tasks::value]
 pub enum StaticResult {
     Content {
-        content: Vc<AssetContent>,
+        content: ResolvedVc<AssetContent>,
         status_code: u16,
-        headers: Vc<HeaderList>,
+        headers: ResolvedVc<HeaderList>,
     },
     StreamedContent {
         status: u16,
-        headers: Vc<HeaderList>,
+        headers: ResolvedVc<HeaderList>,
         body: Body,
     },
     Rewrite(ResolvedVc<Rewrite>),
@@ -53,9 +53,9 @@ pub enum StaticResult {
 impl StaticResult {
     #[turbo_tasks::function]
     pub fn content(
-        content: Vc<AssetContent>,
+        content: ResolvedVc<AssetContent>,
         status_code: u16,
-        headers: Vc<HeaderList>,
+        headers: ResolvedVc<HeaderList>,
     ) -> Vc<Self> {
         StaticResult::Content {
             content,
@@ -74,17 +74,17 @@ impl StaticResult {
 /// Renders a module as static HTML in a node.js process.
 #[turbo_tasks::function]
 pub async fn render_static(
-    cwd: Vc<FileSystemPath>,
-    env: Vc<Box<dyn ProcessEnv>>,
-    path: Vc<FileSystemPath>,
-    module: Vc<Box<dyn Module>>,
-    runtime_entries: Vc<EvaluatableAssets>,
-    fallback_page: Vc<DevHtmlAsset>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
-    intermediate_output_path: Vc<FileSystemPath>,
-    output_root: Vc<FileSystemPath>,
-    project_dir: Vc<FileSystemPath>,
-    data: Vc<RenderData>,
+    cwd: ResolvedVc<FileSystemPath>,
+    env: ResolvedVc<Box<dyn ProcessEnv>>,
+    path: ResolvedVc<FileSystemPath>,
+    module: ResolvedVc<Box<dyn Module>>,
+    runtime_entries: ResolvedVc<EvaluatableAssets>,
+    fallback_page: ResolvedVc<DevHtmlAsset>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    intermediate_output_path: ResolvedVc<FileSystemPath>,
+    output_root: ResolvedVc<FileSystemPath>,
+    project_dir: ResolvedVc<FileSystemPath>,
+    data: ResolvedVc<RenderData>,
     debug: bool,
 ) -> Result<Vc<StaticResult>> {
     let render = render_stream(RenderStreamOptions {
@@ -126,7 +126,7 @@ pub async fn render_static(
             });
             StaticResult::StreamedContent {
                 status: data.status,
-                headers: Vc::cell(data.headers),
+                headers: ResolvedVc::cell(data.headers),
                 body: Body::from_stream(body),
             }
             .cell()
@@ -136,7 +136,7 @@ pub async fn render_static(
 }
 
 async fn static_error(
-    path: Vc<FileSystemPath>,
+    path: ResolvedVc<FileSystemPath>,
     error: anyhow::Error,
     operation: Option<NodeJsOperation>,
     fallback_page: Vc<DevHtmlAsset>,
@@ -169,7 +169,7 @@ async fn static_error(
 
     let issue = RenderingIssue {
         file_path: path,
-        message: StyledString::Text(error.into()).cell(),
+        message: StyledString::Text(error.into()).resolved_cell(),
         status: status.and_then(|status| status.code()),
     };
 
@@ -201,17 +201,17 @@ struct RenderStream(#[turbo_tasks(trace_ignore)] Stream<RenderItemResult>);
 
 #[derive(Clone, Debug, TaskInput, PartialEq, Eq, Hash, Deserialize, Serialize)]
 struct RenderStreamOptions {
-    cwd: Vc<FileSystemPath>,
-    env: Vc<Box<dyn ProcessEnv>>,
-    path: Vc<FileSystemPath>,
-    module: Vc<Box<dyn Module>>,
-    runtime_entries: Vc<EvaluatableAssets>,
-    fallback_page: Vc<DevHtmlAsset>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
-    intermediate_output_path: Vc<FileSystemPath>,
-    output_root: Vc<FileSystemPath>,
-    project_dir: Vc<FileSystemPath>,
-    data: Vc<RenderData>,
+    cwd: ResolvedVc<FileSystemPath>,
+    env: ResolvedVc<Box<dyn ProcessEnv>>,
+    path: ResolvedVc<FileSystemPath>,
+    module: ResolvedVc<Box<dyn Module>>,
+    runtime_entries: ResolvedVc<EvaluatableAssets>,
+    fallback_page: ResolvedVc<DevHtmlAsset>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    intermediate_output_path: ResolvedVc<FileSystemPath>,
+    output_root: ResolvedVc<FileSystemPath>,
+    project_dir: ResolvedVc<FileSystemPath>,
+    data: ResolvedVc<RenderData>,
     debug: bool,
 }
 
@@ -285,17 +285,17 @@ async fn render_stream_internal(
 
     let stream = generator! {
         let intermediate_asset = get_intermediate_asset(
-            chunking_context,
-            module,
-            runtime_entries,
+            *chunking_context,
+            *module,
+            *runtime_entries,
         );
         let renderer_pool = get_renderer_pool(
-            cwd,
-            env,
+            *cwd,
+            *env,
             intermediate_asset,
-            intermediate_output_path,
-            output_root,
-            project_dir,
+            *intermediate_output_path,
+            *output_root,
+            *project_dir,
             debug,
         );
 
@@ -344,13 +344,13 @@ async fn render_stream_internal(
                 let trace = trace_stack(
                     error,
                     intermediate_asset,
-                    intermediate_output_path,
-                    project_dir,
+                    *intermediate_output_path,
+                    *project_dir,
                 )
                 .await?;
                 yield RenderItem::Response(
                     StaticResult::content(
-                        static_error(path, anyhow!(trace), Some(operation), fallback_page).await?,
+                        static_error(path, anyhow!(trace), Some(operation), *fallback_page).await?,
                         500,
                         HeaderList::empty(),
                     ).to_resolved().await?
@@ -377,7 +377,7 @@ async fn render_stream_internal(
                     // headers/body to a proxy error.
                     operation.disallow_reuse();
                     let trace =
-                        trace_stack(error, intermediate_asset, intermediate_output_path, project_dir).await?;
+                        trace_stack(error, intermediate_asset, *intermediate_output_path, *project_dir).await?;
                         drop(guard);
                     Err(anyhow!("error during streaming render: {}", trace))?;
                     return;

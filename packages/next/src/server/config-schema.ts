@@ -218,6 +218,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
             useLightningcss: z.boolean().optional(),
           }),
         ]),
+        define: z.record(z.string(), z.string()).optional(),
       })
       .optional(),
     compress: z.boolean().optional(),
@@ -288,9 +289,11 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         memoryBasedWorkersCount: z.boolean().optional(),
         craCompat: z.boolean().optional(),
         caseSensitiveRoutes: z.boolean().optional(),
+        clientSegmentCache: z.boolean().optional(),
         disableOptimizedLoading: z.boolean().optional(),
         disablePostcssPresetEnv: z.boolean().optional(),
         dynamicIO: z.boolean().optional(),
+        inlineCss: z.boolean().optional(),
         esmExternals: z.union([z.boolean(), z.literal('loose')]).optional(),
         serverActions: z
           .object({
@@ -317,6 +320,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         imgOptConcurrency: z.number().int().optional().nullable(),
         imgOptTimeoutInSeconds: z.number().int().optional(),
         imgOptMaxInputPixels: z.number().int().optional(),
+        imgOptSequentialRead: z.boolean().optional().nullable(),
         internal_disableSyncDynamicAPIWarnings: z.boolean().optional(),
         isrFlushToDisk: z.boolean().optional(),
         largePageDataBytes: z.number().optional(),
@@ -324,7 +328,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         manualClientBasePath: z.boolean().optional(),
         middlewarePrefetch: z.enum(['strict', 'flexible']).optional(),
         multiZoneDraftMode: z.boolean().optional(),
-        cssChunking: z.enum(['strict', 'loose']).optional(),
+        cssChunking: z.union([z.boolean(), z.literal('strict')]).optional(),
         nextScriptWorkers: z.boolean().optional(),
         // The critter option is unknown, use z.any() here
         optimizeCss: z.union([z.boolean(), z.any()]).optional(),
@@ -403,13 +407,13 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
               )
               .optional(),
             resolveExtensions: z.array(z.string()).optional(),
-            useSwcCss: z.boolean().optional(),
             treeShaking: z.boolean().optional(),
             persistentCaching: z
               .union([z.number(), z.literal(false)])
               .optional(),
             memoryLimit: z.number().optional(),
             moduleIdStrategy: z.enum(['named', 'deterministic']).optional(),
+            minify: z.boolean().optional(),
           })
           .optional(),
         optimizePackageImports: z.array(z.string()).optional(),
@@ -441,6 +445,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         staticGenerationMinPagesPerWorker: z.number().int().optional(),
         typedEnv: z.boolean().optional(),
         serverComponentsHmrCache: z.boolean().optional(),
+        authInterrupts: z.boolean().optional(),
       })
       .optional(),
     exportPathMap: z

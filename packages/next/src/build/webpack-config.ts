@@ -172,14 +172,12 @@ export function attachReactRefresh(
   webpackConfig: webpack.Configuration,
   targetLoader: webpack.RuleSetUseItem
 ) {
-  let injections = 0
   const reactRefreshLoader = require.resolve(reactRefreshLoaderName)
   webpackConfig.module?.rules?.forEach((rule) => {
     if (rule && typeof rule === 'object' && 'use' in rule) {
       const curr = rule.use
       // When the user has configured `defaultLoaders.babel` for a input file:
       if (curr === targetLoader) {
-        ++injections
         rule.use = [reactRefreshLoader, curr as webpack.RuleSetUseItem]
       } else if (
         Array.isArray(curr) &&
@@ -189,7 +187,6 @@ export function attachReactRefresh(
           (r) => r === reactRefreshLoader || r === reactRefreshLoaderName
         )
       ) {
-        ++injections
         const idx = curr.findIndex((r) => r === targetLoader)
         // Clone to not mutate user input
         rule.use = [...curr]
@@ -199,14 +196,6 @@ export function attachReactRefresh(
       }
     }
   })
-
-  if (injections) {
-    Log.info(
-      `automatically enabled Fast Refresh for ${injections} custom loader${
-        injections > 1 ? 's' : ''
-      }`
-    )
-  }
 }
 
 export const NODE_RESOLVE_OPTIONS = {
@@ -1906,6 +1895,7 @@ export default async function getBaseWebpackConfig(
           ? new ClientReferenceManifestPlugin({
               dev,
               appDir,
+              experimentalInlineCss: !!config.experimental.inlineCss,
             })
           : new FlightClientEntryPlugin({
               appDir,
@@ -1937,6 +1927,7 @@ export default async function getBaseWebpackConfig(
         }),
       !dev &&
         isClient &&
+        config.experimental.cssChunking &&
         new CssChunkingPlugin(config.experimental.cssChunking === 'strict'),
       !dev &&
         isClient &&

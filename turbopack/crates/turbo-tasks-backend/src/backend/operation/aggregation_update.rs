@@ -146,7 +146,7 @@ impl AggregatedDataUpdate {
         let aggregation = get_aggregation_number(task);
         let mut dirty_container_count = Default::default();
         let mut collectibles_update: Vec<_> =
-            get_many!(task, Collectible { collectible } => (*collectible, 1));
+            get_many!(task, Collectible { collectible } count => (*collectible, *count));
         if is_aggregating_node(aggregation) {
             dirty_container_count = get!(task, AggregatedDirtyContainerCount)
                 .cloned()
@@ -552,6 +552,7 @@ impl AggregationUpdateQueue {
     }
 
     pub fn run(job: AggregationUpdateJob, ctx: &mut impl ExecuteContext) {
+        debug_assert!(ctx.should_track_children());
         let mut queue = Self::new();
         queue.push(job);
         queue.execute(ctx);
@@ -1021,10 +1022,12 @@ impl AggregationUpdateQueue {
                 -1
             ) {
                 let upper_ids = get_uppers(&upper);
-                self.push(AggregationUpdateJob::InnerOfUppersLostFollower {
-                    upper_ids,
-                    lost_follower_id,
-                })
+                if !upper_ids.is_empty() {
+                    self.push(AggregationUpdateJob::InnerOfUppersLostFollower {
+                        upper_ids,
+                        lost_follower_id,
+                    });
+                }
             }
         }
     }
@@ -1103,10 +1106,12 @@ impl AggregationUpdateQueue {
                 -1
             ) {
                 let upper_ids = get_uppers(&upper);
-                self.push(AggregationUpdateJob::InnerOfUppersLostFollower {
-                    upper_ids,
-                    lost_follower_id,
-                })
+                if !upper_ids.is_empty() {
+                    self.push(AggregationUpdateJob::InnerOfUppersLostFollower {
+                        upper_ids,
+                        lost_follower_id,
+                    });
+                }
             }
         }
     }
@@ -1125,7 +1130,7 @@ impl AggregationUpdateQueue {
             let follower = ctx.task(new_follower_id, TaskDataCategory::Meta);
             get_aggregation_number(&follower)
         };
-        let mut upper_ids_as_follower = Vec::new();
+        let mut upper_upper_ids_with_new_follower = Vec::new();
         let mut is_aggregate_root = false;
         upper_ids.retain(|&upper_id| {
             let mut upper = ctx.task(upper_id, TaskDataCategory::Meta);
@@ -1143,7 +1148,7 @@ impl AggregationUpdateQueue {
                     },
                     1
                 ) {
-                    upper_ids_as_follower.push(upper_id);
+                    upper_upper_ids_with_new_follower.extend(iter_uppers(&upper));
                 }
                 false
             } else {
@@ -1217,11 +1222,11 @@ impl AggregationUpdateQueue {
         if is_aggregate_root {
             self.push_find_and_schedule_dirty(new_follower_id);
         }
-        if !upper_ids_as_follower.is_empty() {
+        if !upper_upper_ids_with_new_follower.is_empty() {
             #[cfg(feature = "trace_aggregation_update")]
             let _span = trace_span!("new follower").entered();
             self.push(AggregationUpdateJob::InnerOfUppersHasNewFollower {
-                upper_ids: upper_ids_as_follower,
+                upper_ids: upper_upper_ids_with_new_follower,
                 new_follower_id,
             });
         }
@@ -1248,8 +1253,9 @@ impl AggregationUpdateQueue {
             })
             .collect::<Vec<_>>();
 
-        let mut followers_of_upper = Vec::new();
+        let mut new_followers_of_upper_uppers = Vec::new();
         let is_aggregate_root;
+        let mut upper_upper_ids_for_new_followers = Vec::new();
         {
             let mut upper = ctx.task(upper_id, TaskDataCategory::Meta);
             is_aggregate_root = upper.has_key(&CachedDataItemKey::AggregateRoot {});
@@ -1262,7 +1268,7 @@ impl AggregationUpdateQueue {
                         if upper_aggregation_number <= *follower_aggregation_number {
                             // It's a follower of the upper node
                             if update_count!(upper, Follower { task: *follower_id }, 1) {
-                                followers_of_upper.push(*follower_id);
+                                new_followers_of_upper_uppers.push(*follower_id);
                             }
                             false
                         } else {
@@ -1271,6 +1277,10 @@ impl AggregationUpdateQueue {
                         }
                     },
                 );
+            }
+
+            if !new_followers_of_upper_uppers.is_empty() {
+                upper_upper_ids_for_new_followers = get_uppers(&upper);
             }
         }
 
@@ -1342,10 +1352,12 @@ impl AggregationUpdateQueue {
                     .map(|(id, _)| id),
             );
         }
-        if !followers_of_upper.is_empty() {
-            self.push(AggregationUpdateJob::InnerOfUpperHasNewFollowers {
-                upper_id,
-                new_follower_ids: followers_of_upper,
+        if !new_followers_of_upper_uppers.is_empty()
+            && !upper_upper_ids_for_new_followers.is_empty()
+        {
+            self.push(AggregationUpdateJob::InnerOfUppersHasNewFollowers {
+                upper_ids: upper_upper_ids_for_new_followers,
+                new_follower_ids: new_followers_of_upper_uppers,
             });
         }
     }
@@ -1385,11 +1397,14 @@ impl AggregationUpdateQueue {
                 },
                 1
             ) {
+                let upper_ids = get_uppers(&upper);
                 drop(upper);
-                self.push(AggregationUpdateJob::InnerOfUpperHasNewFollower {
-                    upper_id,
-                    new_follower_id,
-                });
+                if !upper_ids.is_empty() {
+                    self.push(AggregationUpdateJob::InnerOfUppersHasNewFollower {
+                        upper_ids,
+                        new_follower_id,
+                    });
+                }
             }
         } else {
             #[cfg(feature = "trace_aggregation_update")]
@@ -1421,10 +1436,12 @@ impl AggregationUpdateQueue {
                         });
                     }
                 }
-                self.push(AggregationUpdateJob::InnerOfUpperHasNewFollowers {
-                    upper_id,
-                    new_follower_ids: children,
-                });
+                if !children.is_empty() {
+                    self.push(AggregationUpdateJob::InnerOfUpperHasNewFollowers {
+                        upper_id,
+                        new_follower_ids: children,
+                    });
+                }
             }
         }
     }

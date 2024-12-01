@@ -2,7 +2,8 @@ use std::iter::once;
 
 use anyhow::{bail, Context, Result};
 use tracing::Instrument;
-use turbo_tasks::{RcStr, ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::{
@@ -34,13 +35,18 @@ pub struct NodeJsChunkingContextBuilder {
 }
 
 impl NodeJsChunkingContextBuilder {
-    pub fn asset_prefix(mut self, asset_prefix: Vc<Option<RcStr>>) -> Self {
+    pub fn asset_prefix(mut self, asset_prefix: ResolvedVc<Option<RcStr>>) -> Self {
         self.chunking_context.asset_prefix = asset_prefix;
         self
     }
 
     pub fn minify_type(mut self, minify_type: MinifyType) -> Self {
         self.chunking_context.minify_type = minify_type;
+        self
+    }
+
+    pub fn file_tracing(mut self, enable_tracing: bool) -> Self {
+        self.chunking_context.enable_file_tracing = enable_tracing;
         self
     }
 
@@ -54,7 +60,15 @@ impl NodeJsChunkingContextBuilder {
         self
     }
 
-    pub fn module_id_strategy(mut self, module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>) -> Self {
+    pub fn use_file_source_map_uris(mut self) -> Self {
+        self.chunking_context.should_use_file_source_map_uris = true;
+        self
+    }
+
+    pub fn module_id_strategy(
+        mut self,
+        module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
+    ) -> Self {
         self.chunking_context.module_id_strategy = module_id_strategy;
         self
     }
@@ -71,38 +85,42 @@ impl NodeJsChunkingContextBuilder {
 pub struct NodeJsChunkingContext {
     /// This path get stripped off of chunk paths before generating output asset
     /// paths.
-    context_path: Vc<FileSystemPath>,
+    context_path: ResolvedVc<FileSystemPath>,
     /// This path is used to compute the url to request chunks or assets from
-    output_root: Vc<FileSystemPath>,
+    output_root: ResolvedVc<FileSystemPath>,
     /// This path is used to compute the url to request chunks or assets from
-    client_root: Vc<FileSystemPath>,
+    client_root: ResolvedVc<FileSystemPath>,
     /// Chunks are placed at this path
-    chunk_root_path: Vc<FileSystemPath>,
+    chunk_root_path: ResolvedVc<FileSystemPath>,
     /// Static assets are placed at this path
-    asset_root_path: Vc<FileSystemPath>,
+    asset_root_path: ResolvedVc<FileSystemPath>,
     /// Static assets requested from this url base
-    asset_prefix: Vc<Option<RcStr>>,
+    asset_prefix: ResolvedVc<Option<RcStr>>,
     /// The environment chunks will be evaluated in.
-    environment: Vc<Environment>,
+    environment: ResolvedVc<Environment>,
     /// The kind of runtime to include in the output.
     runtime_type: RuntimeType,
+    /// Enable tracing for this chunking
+    enable_file_tracing: bool,
     /// Whether to minify resulting chunks
     minify_type: MinifyType,
     /// Whether to use manifest chunks for lazy compilation
     manifest_chunks: bool,
     /// The strategy to use for generating module ids
-    module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
+    module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
+    /// Whether to use file:// uris for source map sources
+    should_use_file_source_map_uris: bool,
 }
 
 impl NodeJsChunkingContext {
     /// Creates a new chunking context builder.
     pub fn builder(
-        context_path: Vc<FileSystemPath>,
-        output_root: Vc<FileSystemPath>,
-        client_root: Vc<FileSystemPath>,
-        chunk_root_path: Vc<FileSystemPath>,
-        asset_root_path: Vc<FileSystemPath>,
-        environment: Vc<Environment>,
+        context_path: ResolvedVc<FileSystemPath>,
+        output_root: ResolvedVc<FileSystemPath>,
+        client_root: ResolvedVc<FileSystemPath>,
+        chunk_root_path: ResolvedVc<FileSystemPath>,
+        asset_root_path: ResolvedVc<FileSystemPath>,
+        environment: ResolvedVc<Environment>,
         runtime_type: RuntimeType,
     ) -> NodeJsChunkingContextBuilder {
         NodeJsChunkingContextBuilder {
@@ -112,12 +130,14 @@ impl NodeJsChunkingContext {
                 client_root,
                 chunk_root_path,
                 asset_root_path,
-                asset_prefix: Default::default(),
+                asset_prefix: ResolvedVc::cell(None),
+                enable_file_tracing: false,
                 environment,
                 runtime_type,
                 minify_type: MinifyType::NoMinify,
                 manifest_chunks: false,
-                module_id_strategy: Vc::upcast(DevModuleIdStrategy::new()),
+                should_use_file_source_map_uris: false,
+                module_id_strategy: ResolvedVc::upcast(DevModuleIdStrategy::new_resolved()),
             },
         }
     }
@@ -147,7 +167,7 @@ impl NodeJsChunkingContext {
 
     #[turbo_tasks::function]
     pub fn asset_prefix(&self) -> Vc<Option<RcStr>> {
-        self.asset_prefix
+        *self.asset_prefix
     }
 
     #[turbo_tasks::function]
@@ -180,17 +200,22 @@ impl ChunkingContext for NodeJsChunkingContext {
 
     #[turbo_tasks::function]
     fn context_path(&self) -> Vc<FileSystemPath> {
-        self.context_path
+        *self.context_path
     }
 
     #[turbo_tasks::function]
     fn output_root(&self) -> Vc<FileSystemPath> {
-        self.output_root
+        *self.output_root
     }
 
     #[turbo_tasks::function]
     fn environment(&self) -> Vc<Environment> {
-        self.environment
+        *self.environment
+    }
+
+    #[turbo_tasks::function]
+    fn is_tracing_enabled(&self) -> Vc<bool> {
+        Vc::cell(self.enable_file_tracing)
     }
 
     #[turbo_tasks::function]
@@ -221,8 +246,8 @@ impl ChunkingContext for NodeJsChunkingContext {
         ident: Vc<AssetIdent>,
         extension: RcStr,
     ) -> Result<Vc<FileSystemPath>> {
-        let root_path = self.chunk_root_path;
-        let name = ident.output_name(self.context_path, extension).await?;
+        let root_path = *self.chunk_root_path;
+        let name = ident.output_name(*self.context_path, extension).await?;
         Ok(root_path.join(name.clone_value()))
     }
 
@@ -233,7 +258,7 @@ impl ChunkingContext for NodeJsChunkingContext {
 
     #[turbo_tasks::function]
     fn should_use_file_source_map_uris(&self) -> Vc<bool> {
-        Vc::cell(false)
+        Vc::cell(self.should_use_file_source_map_uris)
     }
 
     #[turbo_tasks::function]

@@ -7,7 +7,8 @@ pub(crate) mod placeable;
 use std::fmt::Write;
 
 use anyhow::{bail, Result};
-use turbo_tasks::{RcStr, Value, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystem;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -35,16 +36,16 @@ pub use self::{
 
 #[turbo_tasks::value]
 pub struct EcmascriptChunk {
-    pub chunking_context: Vc<Box<dyn ChunkingContext>>,
-    pub content: Vc<EcmascriptChunkContent>,
+    pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    pub content: ResolvedVc<EcmascriptChunkContent>,
 }
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunk {
     #[turbo_tasks::function]
     pub fn new(
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-        content: Vc<EcmascriptChunkContent>,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+        content: ResolvedVc<EcmascriptChunkContent>,
     ) -> Vc<Self> {
         EcmascriptChunk {
             chunking_context,
@@ -117,7 +118,7 @@ impl Chunk for EcmascriptChunk {
             fragment: None,
             assets,
             modifiers: Vec::new(),
-            part: None,
+            parts: Vec::new(),
             layer: None,
         };
 
@@ -126,7 +127,7 @@ impl Chunk for EcmascriptChunk {
 
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        Vc::upcast(self.chunking_context)
+        *ResolvedVc::upcast(self.chunking_context)
     }
 
     #[turbo_tasks::function]
@@ -162,7 +163,7 @@ impl ValueToString for EcmascriptChunk {
 impl EcmascriptChunk {
     #[turbo_tasks::function]
     pub fn chunk_content(&self) -> Vc<EcmascriptChunkContent> {
-        self.content
+        *self.content
     }
 
     #[turbo_tasks::function]

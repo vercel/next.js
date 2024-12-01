@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkingContext},
     ident::AssetIdent,
@@ -19,8 +19,8 @@ use crate::{
 /// The chunk item for [EcmascriptModuleLocalsModule].
 #[turbo_tasks::value(shared)]
 pub struct EcmascriptModuleLocalsChunkItem {
-    pub(super) module: Vc<EcmascriptModuleLocalsModule>,
-    pub(super) chunking_context: Vc<Box<dyn ChunkingContext>>,
+    pub(super) module: ResolvedVc<EcmascriptModuleLocalsModule>,
+    pub(super) chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -52,26 +52,26 @@ impl EcmascriptChunkItem for EcmascriptModuleLocalsChunkItem {
             parsed,
             self.module.ident(),
             module_type_result.module_type,
-            chunking_context,
-            analyze_result.local_references,
-            analyze_result.code_generation,
-            analyze_result.async_module,
-            analyze_result.source_map,
+            *chunking_context,
+            *analyze_result.local_references,
+            *analyze_result.code_generation,
+            *analyze_result.async_module,
+            *analyze_result.source_map,
             exports,
             async_module_info,
         );
 
         Ok(EcmascriptChunkItemContent::new(
             content,
-            self.chunking_context,
-            original_module.await?.options,
+            *chunking_context,
+            *original_module.await?.options,
             async_module_options,
         ))
     }
 
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        self.chunking_context
+        *self.chunking_context
     }
 }
 
@@ -89,7 +89,7 @@ impl ChunkItem for EcmascriptModuleLocalsChunkItem {
 
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        Vc::upcast(self.chunking_context)
+        *ResolvedVc::upcast(self.chunking_context)
     }
 
     #[turbo_tasks::function]
@@ -101,7 +101,7 @@ impl ChunkItem for EcmascriptModuleLocalsChunkItem {
 
     #[turbo_tasks::function]
     fn module(&self) -> Vc<Box<dyn Module>> {
-        Vc::upcast(self.module)
+        *ResolvedVc::upcast(self.module)
     }
 
     #[turbo_tasks::function]
@@ -109,7 +109,7 @@ impl ChunkItem for EcmascriptModuleLocalsChunkItem {
         let module = self.module.await?;
         let analyze = module.module.analyze().await?;
         if let Some(async_module) = *analyze.async_module.await? {
-            let is_self_async = async_module.is_self_async(analyze.local_references);
+            let is_self_async = async_module.is_self_async(*analyze.local_references);
             Ok(is_self_async)
         } else {
             Ok(Vc::cell(false))

@@ -475,10 +475,6 @@ impl CachedDataItem {
         }
     }
 
-    pub fn is_optional(&self) -> bool {
-        matches!(self, CachedDataItem::CellData { .. })
-    }
-
     pub fn new_scheduled(description: impl Fn() -> String + Sync + Send + 'static) -> Self {
         CachedDataItem::InProgress {
             value: InProgressState::Scheduled {
@@ -541,6 +537,10 @@ impl CachedDataItemKey {
         }
     }
 
+    pub fn is_optional(&self) -> bool {
+        matches!(self, CachedDataItemKey::CellData { .. })
+    }
+
     pub fn category(&self) -> TaskDataCategory {
         match self {
             CachedDataItemKey::Collectible { .. }
@@ -583,6 +583,7 @@ impl CachedDataItemKey {
 #[allow(non_upper_case_globals, dead_code)]
 pub mod allow_mut_access {
     pub const InProgress: () = ();
+    pub const AggregateRoot: () = ();
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -599,6 +600,7 @@ pub enum CachedDataItemIndex {
     OutputDependent,
     CollectiblesDependent,
     Dependencies,
+    InProgressCell,
 }
 
 #[allow(non_upper_case_globals, dead_code)]
@@ -630,6 +632,7 @@ pub mod indicies {
         CachedDataItemIndex::Dependencies;
     pub const OutdatedCollectibleDependency: CachedDataItemIndex =
         CachedDataItemIndex::Dependencies;
+    pub const InProgressCell: CachedDataItemIndex = CachedDataItemIndex::InProgressCell;
 }
 
 impl Indexed for CachedDataItemKey {
@@ -671,6 +674,7 @@ impl Indexed for CachedDataItemKey {
             CachedDataItemKey::OutdatedCollectiblesDependency { .. } => {
                 Some(CachedDataItemIndex::Dependencies)
             }
+            CachedDataItemKey::InProgressCell { .. } => Some(CachedDataItemIndex::InProgressCell),
             _ => None,
         }
     }
@@ -689,10 +693,15 @@ impl CachedDataItemValue {
 }
 
 #[derive(Debug)]
-pub struct CachedDataUpdate {
-    pub task: TaskId,
-    // TODO generate CachedDataItemUpdate to avoid repeating the variant field 3 times
-    pub key: CachedDataItemKey,
-    pub value: Option<CachedDataItemValue>,
-    pub old_value: Option<CachedDataItemValue>,
+pub enum CachedDataUpdate {
+    /// Sets the current task id.
+    Task { task: TaskId },
+    /// An item was added. There was no old value.
+    New { item: CachedDataItem },
+    /// An item was removed.
+    Removed { old_item: CachedDataItem },
+    /// An item was replaced. This is step 1 and tells about the key and the old value
+    Replace1 { old_item: CachedDataItem },
+    /// An item was replaced. This is step 2 and tells about the new value.
+    Replace2 { value: CachedDataItemValue },
 }

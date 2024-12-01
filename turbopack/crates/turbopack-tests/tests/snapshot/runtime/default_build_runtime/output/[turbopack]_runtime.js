@@ -204,7 +204,7 @@ function createPromise() {
 const turbopackQueues = Symbol("turbopack queues");
 const turbopackExports = Symbol("turbopack exports");
 const turbopackError = Symbol("turbopack error");
-var QueueStatus;
+;
 function resolveQueue(queue) {
     if (queue && queue.status !== 1) {
         queue.status = 1;
@@ -351,15 +351,15 @@ async function externalImport(id) {
         // compilation error.
         throw new Error(`Failed to load external module ${id}: ${err}`);
     }
-    if (raw && raw.__esModule && raw.default && "default" in raw.default) {
+    if (raw && raw.__esModule && raw.default && 'default' in raw.default) {
         return interopEsm(raw.default, createNS(raw), true);
     }
     return raw;
 }
-function externalRequire(id, esm = false) {
+function externalRequire(id, thunk, esm = false) {
     let raw;
     try {
-        raw = require(id);
+        raw = thunk();
     } catch (err) {
         // TODO(alexkirsz) This can happen when a client-side module tries to load
         // an external module we don't provide a shim for (e.g. querystring, url).
@@ -420,8 +420,7 @@ async function instantiateWebAssemblyFromPath(path, importsObj) {
 /// <reference path="../shared-node/base-externals-utils.ts" />
 /// <reference path="../shared-node/node-externals-utils.ts" />
 /// <reference path="../shared-node/node-wasm-utils.ts" />
-var SourceType;
-(function(SourceType) {
+var SourceType = /*#__PURE__*/ function(SourceType) {
     /**
    * The module was instantiated because it was included in an evaluated chunk's
    * runtime.
@@ -429,7 +428,8 @@ var SourceType;
     /**
    * The module was instantiated because a parent module imported it.
    */ SourceType[SourceType["Parent"] = 1] = "Parent";
-})(SourceType || (SourceType = {}));
+    return SourceType;
+}(SourceType || {});
 function stringifySourceInfo(source) {
     switch(source.type){
         case 0:
@@ -442,7 +442,6 @@ function stringifySourceInfo(source) {
 }
 const url = require("url");
 const fs = require("fs/promises");
-const vm = require("vm");
 const moduleFactories = Object.create(null);
 const moduleCache = Object.create(null);
 /**
@@ -511,7 +510,9 @@ async function loadChunkAsync(source, chunkData) {
         const module1 = {
             exports: {}
         };
-        vm.runInThisContext("(function(module, exports, require, __dirname, __filename) {" + contents + "\n})", resolved)(module1, module1.exports, localRequire, path.dirname(resolved), resolved);
+        // TODO: Use vm.runInThisContext once our minimal supported Node.js version includes https://github.com/nodejs/node/pull/52153
+        // eslint-disable-next-line no-eval -- Can't use vm.runInThisContext due to https://github.com/nodejs/node/issues/52102
+        (0, eval)("(function(module, exports, require, __dirname, __filename) {" + contents + "\n})" + "\n//# sourceURL=" + url.pathToFileURL(resolved))(module1, module1.exports, localRequire, path.dirname(resolved), resolved);
         const chunkModules = module1.exports;
         for (const [moduleId, moduleFactory] of Object.entries(chunkModules)){
             if (!moduleFactories[moduleId]) {

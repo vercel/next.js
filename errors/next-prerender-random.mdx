@@ -2,11 +2,11 @@
 title: Cannot access `Math.random()` while prerendering
 ---
 
-#### Why This Error Occurred
+## Why This Error Occurred
 
 A function is calling `Math.random()`. Random values are not prerenderable and must be excluded. The correct solution depends on your use case. You can find more information below about possible ways to resolves this issue.
 
-#### Possible Ways to Fix It
+## Possible Ways to Fix It
 
 If your random value is intended to be unique per Request add `await connection()` before you call `Math.random()` and ensure there is a Suspense boundary somewhere above this component. This will inform Next.js that this component should be excluded from prerendering and communicate the necessary fallback UI that should be rendered while the component renders on each Request.
 
@@ -45,7 +45,7 @@ async function DynamicProductsView() {
 }
 ```
 
-### Useful Links
+## Useful Links
 
-- [`connection` function](https://nextjs.org/docs/app/api-reference/functions/connection)
+- [`connection` function](/docs/app/api-reference/functions/connection)
 - [`Suspense` React API](https://react.dev/reference/react/Suspense)

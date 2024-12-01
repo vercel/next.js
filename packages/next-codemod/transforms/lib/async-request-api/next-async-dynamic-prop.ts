@@ -25,11 +25,15 @@ import {
   containsReactHooksCallExpressions,
   isParentUseCallExpression,
   isParentPromiseAllCallExpression,
+  findClosetParentFunctionScope,
 } from './utils'
 import { createParserFromPath } from '../../../lib/parser'
 
 const PAGE_PROPS = 'props'
 
+// Find all the member access of the prop, and await them
+// e.g. If there's argument `props`, find all the member access of props.<name>.
+// If the member access can be awaited, await them.
 function awaitMemberAccessOfProp(
   propIdName: string,
   path: ASTPath<FunctionScope>,
@@ -66,6 +70,25 @@ function awaitMemberAccessOfProp(
     if (memberAccessPath.parentPath?.value.type === 'AwaitExpression') {
       return
     }
+
+    const parentScopeOfMemberAccess = findClosetParentFunctionScope(
+      memberAccessPath,
+      j
+    )
+
+    // When the parent scope is sync, and it's also not the function itself, which means it's not able to convert to async.
+    if (
+      parentScopeOfMemberAccess &&
+      !parentScopeOfMemberAccess.value?.async &&
+      parentScopeOfMemberAccess.node !== path.node
+    ) {
+      // If it's not able to convert, add a comment to the prop access to warn the user
+      // e.g. the parent scope is sync, await keyword can't be applied
+      const comment = ` ${NEXT_CODEMOD_ERROR_PREFIX} '${propIdName}.${memberProperty.name}' is accessed without awaiting.`
+      insertCommentOnce(member, j, comment)
+      return
+    }
+
     const awaitedExpr = j.awaitExpression(member)
 
     const awaitMemberAccess = wrapParentheseIfNeeded(true, j, awaitedExpr)
@@ -351,6 +374,56 @@ function modifyTypes(
             }
           }
         }
+
+        if (foundTypes.imports.length > 0) {
+          // console.log('typeReference.typeName.name', typeReference.typeName.name, foundTypes)
+          // If it's React PropsWithChildren
+          if (typeReference.typeName.name === 'PropsWithChildren') {
+            const propType = typeReference.typeParameters?.params[0]
+            if (
+              propType &&
+              j.TSTypeLiteral.check(propType) &&
+              propType.members.length > 0
+            ) {
+              const typeLiteral = propType
+              typeLiteral.members.forEach((member) => {
+                if (
+                  j.TSPropertySignature.check(member) &&
+                  j.Identifier.check(member.key) &&
+                  TARGET_PROP_NAMES.has(member.key.name)
+                ) {
+                  // if it's already a Promise, don't wrap it again, return
+                  if (
+                    member.typeAnnotation &&
+                    member.typeAnnotation.typeAnnotation &&
+                    member.typeAnnotation.typeAnnotation.type ===
+                      'TSTypeReference' &&
+                    member.typeAnnotation.typeAnnotation.typeName.type ===
+                      'Identifier' &&
+                    member.typeAnnotation.typeAnnotation.typeName.name ===
+                      'Promise'
+                  ) {
+                    return
+                  }
+
+                  // Wrap the prop type in Promise<>
+                  if (
+                    member.typeAnnotation &&
+                    j.TSTypeLiteral.check(member.typeAnnotation.typeAnnotation)
+                  ) {
+                    member.typeAnnotation.typeAnnotation = j.tsTypeReference(
+                      j.identifier('Promise'),
+                      j.tsTypeParameterInstantiation([
+                        member.typeAnnotation.typeAnnotation,
+                      ])
+                    )
+                    modified = true
+                  }
+                }
+              })
+            }
+          }
+        }
       }
     }
 
@@ -458,6 +531,9 @@ export function transformDynamicProps(
             modified = true
           }
         } else {
+          // If it's (props.params).<name>, await the member access
+          // const pathOfCurrentParam = path.get('params', propsArgumentIndex)
+          // const paramScope = findClosetParentFunctionScope(pathOfCurrentParam, j)
           const awaited = awaitMemberAccessOfProp(argName, path, j)
           modified ||= awaited
         }

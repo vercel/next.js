@@ -1,6 +1,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, RcStr, ResolvedVc, TaskInput, Upcast, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{trace::TraceRawVcs, ResolvedVc, TaskInput, Upcast, Value, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::DeterministicHash;
 
@@ -81,6 +82,10 @@ pub trait ChunkingContext {
     ) -> Vc<FileSystemPath>;
 
     fn is_hot_module_replacement_enabled(self: Vc<Self>) -> Vc<bool> {
+        Vc::cell(false)
+    }
+
+    fn is_tracing_enabled(self: Vc<Self>) -> Vc<bool> {
         Vc::cell(false)
     }
 

@@ -2,7 +2,7 @@
 title: Opt-out of Automatic Static Optimization
 ---
 
-#### Why This Warning Occurred
+## Why This Warning Occurred
 
 You are using `getInitialProps` in your [Custom `<App>`](/docs/pages/building-your-application/routing/custom-app).
 
@@ -17,7 +17,7 @@ If you previously copied the [Custom `<App>`](/docs/pages/building-your-applicat
 
 The following `getInitialProps` does nothing and may be removed:
 
-```js filename="pages/_app.js"
+```jsx filename="pages/_app.js"
 class MyApp extends App {
   // Remove me, I do nothing!
   static async getInitialProps({ Component, ctx }) {

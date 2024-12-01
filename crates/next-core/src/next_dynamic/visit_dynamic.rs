@@ -2,9 +2,10 @@ use std::future::Future;
 
 use anyhow::Result;
 use tracing::Instrument;
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
-    RcStr, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
+    ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
 };
 use turbopack_core::{
     module::{Module, Modules},
@@ -14,7 +15,7 @@ use turbopack_core::{
 use super::NextDynamicEntryModule;
 
 #[turbo_tasks::value(transparent)]
-pub struct NextDynamicEntries(Vec<Vc<NextDynamicEntryModule>>);
+pub struct NextDynamicEntries(Vec<ResolvedVc<NextDynamicEntryModule>>);
 
 #[turbo_tasks::value_impl]
 impl NextDynamicEntries {
@@ -53,7 +54,7 @@ impl NextDynamicEntries {
                         // traversal.
                     }
                     VisitDynamicNode::Dynamic(dynamic_asset, _) => {
-                        next_dynamics.push(*dynamic_asset);
+                        next_dynamics.push(dynamic_asset);
                     }
                 }
             }

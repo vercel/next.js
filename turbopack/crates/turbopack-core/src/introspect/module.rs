@@ -1,5 +1,6 @@
 use anyhow::Result;
-use turbo_tasks::{RcStr, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ValueToString, Vc};
 
 use super::{
     utils::{children_from_module_references, content_to_details},

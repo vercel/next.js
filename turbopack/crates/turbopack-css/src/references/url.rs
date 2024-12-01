@@ -6,11 +6,8 @@ use lightningcss::{
     visit_types,
     visitor::{Visit, Visitor},
 };
-use swc_core::css::{
-    ast::UrlValue,
-    visit::{VisitMut, VisitMutWith},
-};
-use turbo_tasks::{debug::ValueDebug, RcStr, ResolvedVc, Value, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{debug::ValueDebug, ResolvedVc, Value, ValueToString, Vc};
 use turbopack_core::{
     chunk::{
         ChunkableModule, ChunkableModuleReference, ChunkingContext, ChunkingType,
@@ -35,18 +32,18 @@ pub enum ReferencedAsset {
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct UrlAssetReference {
-    pub origin: Vc<Box<dyn ResolveOrigin>>,
-    pub request: Vc<Request>,
-    pub issue_source: Vc<IssueSource>,
+    pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    pub request: ResolvedVc<Request>,
+    pub issue_source: ResolvedVc<IssueSource>,
 }
 
 #[turbo_tasks::value_impl]
 impl UrlAssetReference {
     #[turbo_tasks::function]
     pub fn new(
-        origin: Vc<Box<dyn ResolveOrigin>>,
-        request: Vc<Request>,
-        issue_source: Vc<IssueSource>,
+        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+        request: ResolvedVc<Request>,
+        issue_source: ResolvedVc<IssueSource>,
     ) -> Vc<Self> {
         Self::cell(UrlAssetReference {
             origin,
@@ -89,10 +86,10 @@ impl ModuleReference for UrlAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
         url_resolve(
-            self.origin,
-            self.request,
+            *self.origin,
+            *self.request,
             Value::new(ReferenceType::Url(UrlReferenceSubType::CssUrl)),
-            Some(self.issue_source),
+            Some(*self.issue_source),
             false,
         )
     }
@@ -150,39 +147,11 @@ pub fn replace_url_references(
     urls: &HashMap<RcStr, RcStr>,
 ) {
     let mut replacer = AssetReferenceReplacer { urls };
-    match ss {
-        StyleSheetLike::LightningCss(ss) => {
-            ss.visit(&mut replacer).unwrap();
-        }
-        StyleSheetLike::Swc { stylesheet, .. } => {
-            stylesheet.visit_mut_with(&mut replacer);
-        }
-    }
+    ss.0.visit(&mut replacer).unwrap();
 }
 
 struct AssetReferenceReplacer<'a> {
     urls: &'a HashMap<RcStr, RcStr>,
-}
-
-impl VisitMut for AssetReferenceReplacer<'_> {
-    fn visit_mut_url_value(&mut self, u: &mut UrlValue) {
-        u.visit_mut_children_with(self);
-
-        match u {
-            UrlValue::Str(v) => {
-                if let Some(new) = self.urls.get(&*v.value) {
-                    v.value = (&**new).into();
-                    v.raw = None;
-                }
-            }
-            UrlValue::Raw(v) => {
-                if let Some(new) = self.urls.get(&*v.value) {
-                    v.value = (&**new).into();
-                    v.raw = None;
-                }
-            }
-        }
-    }
 }
 
 impl Visitor<'_> for AssetReferenceReplacer<'_> {

@@ -67,6 +67,8 @@ type ViewportResolver = (
   parent: ResolvingViewport
 ) => Viewport | Promise<Viewport>
 
+export type MetadataErrorType = 'not-found' | 'forbidden' | 'unauthorized'
+
 export type MetadataItems = [
   Metadata | MetadataResolver | null,
   StaticMetadata,
@@ -129,7 +131,7 @@ function mergeStaticMetadata(
     const resolvedTwitter = resolveTwitter(
       { ...target.twitter, images: twitter } as Twitter,
       target.metadataBase,
-      metadataContext,
+      { ...metadataContext, isStaticMetadataRouteFile: true },
       titleTemplates.twitter
     )
     target.twitter = resolvedTwitter
@@ -140,7 +142,7 @@ function mergeStaticMetadata(
     const resolvedOpenGraph = resolveOpenGraph(
       { ...target.openGraph, images: openGraph } as OpenGraph,
       target.metadataBase,
-      metadataContext,
+      { ...metadataContext, isStaticMetadataRouteFile: true },
       titleTemplates.openGraph
     )
     target.openGraph = resolvedOpenGraph
@@ -425,7 +427,7 @@ async function collectMetadata({
   errorMetadataItem: MetadataItems[number]
   props: any
   route: string
-  errorConvention?: 'not-found'
+  errorConvention?: MetadataErrorType
 }) {
   let mod
   let modType
@@ -477,7 +479,7 @@ export { cachedResolveMetadataItems as resolveMetadataItems }
 async function resolveMetadataItems(
   tree: LoaderTree,
   searchParams: Promise<ParsedUrlQuery>,
-  errorConvention: 'not-found' | undefined,
+  errorConvention: MetadataErrorType | undefined,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
   createServerParamsForMetadata: CreateServerParamsForMetadata,
   workStore: WorkStore
@@ -507,7 +509,7 @@ async function resolveMetadataItemsImpl(
   treePrefix: undefined | string[],
   parentParams: Params,
   searchParams: Promise<ParsedUrlQuery>,
-  errorConvention: 'not-found' | undefined,
+  errorConvention: MetadataErrorType | undefined,
   errorMetadataItem: MetadataItems[number],
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
   createServerParamsForMetadata: CreateServerParamsForMetadata,

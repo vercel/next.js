@@ -48,6 +48,7 @@ import {
 import { onRecoverableError } from './react-client-callbacks/shared'
 import tracer from './tracing/tracer'
 import reportToSocket from './tracing/report-to-socket'
+import { isNextRouterError } from './components/is-next-router-error'
 
 /// <reference types="react-dom/experimental" />
 
@@ -927,7 +928,16 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
 
           error.name = initialErr!.name
           error.stack = initialErr!.stack
-          throw getServerError(error, initialErr!.source!)
+          const errSource = initialErr.source!
+
+          // In development, error the navigation API usage in runtime,
+          // since it's not allowed to be used in pages router as it doesn't contain error boundary like app router.
+          if (isNextRouterError(initialErr)) {
+            error.message =
+              'Next.js navigation API is not allowed to be used in Pages Router.'
+          }
+
+          throw getServerError(error, errSource)
         })
       }
       // We replaced the server-side error with a client-side error, and should

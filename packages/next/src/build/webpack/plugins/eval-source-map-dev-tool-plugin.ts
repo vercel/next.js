@@ -1,6 +1,9 @@
 /*
 	MIT License http://www.opensource.org/licenses/mit-license.php
 	Author Tobias Koppers @sokra
+
+  Forked to add support for `ignoreList`.
+  Keep in sync with packages/next/webpack-plugins/eval-source-map-dev-tool-plugin.js
 */
 import {
   type webpack,
@@ -173,8 +176,7 @@ export default class EvalSourceMapDevToolPlugin {
                 {
                   requestShortener: runtimeTemplate.requestShortener,
                   chunkGraph,
-                  // @ts-expect-error -- Original code
-                  hashFunction: compilation.outputOptions.hashFunction,
+                  hashFunction: compilation.outputOptions.hashFunction!,
                 }
               )
             )
@@ -199,8 +201,10 @@ export default class EvalSourceMapDevToolPlugin {
             const moduleId =
               /** @type {ModuleId} */
               chunkGraph.getModuleId(m)
-            sourceMap.file =
-              typeof moduleId === 'number' ? `${moduleId}.js` : moduleId
+            if (moduleId) {
+              sourceMap.file =
+                typeof moduleId === 'number' ? `${moduleId}.js` : moduleId
+            }
 
             const footer = `${this.sourceMapComment.replace(
               /\[url\]/g,

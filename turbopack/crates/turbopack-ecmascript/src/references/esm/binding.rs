@@ -13,7 +13,8 @@ use swc_core::{
         },
     },
 };
-use turbo_tasks::{trace::TraceRawVcs, RcStr, TaskInput, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{trace::TraceRawVcs, ResolvedVc, TaskInput, Vc};
 use turbopack_core::chunk::ChunkingContext;
 
 use super::EsmAssetReference;
@@ -39,16 +40,16 @@ impl EsmBindings {
 
 #[derive(Hash, Clone, Debug, TaskInput, Serialize, Deserialize, PartialEq, Eq, TraceRawVcs)]
 pub struct EsmBinding {
-    pub reference: Vc<EsmAssetReference>,
+    pub reference: ResolvedVc<EsmAssetReference>,
     pub export: Option<RcStr>,
-    pub ast_path: Vc<AstPath>,
+    pub ast_path: ResolvedVc<AstPath>,
 }
 
 impl EsmBinding {
     pub fn new(
-        reference: Vc<EsmAssetReference>,
+        reference: ResolvedVc<EsmAssetReference>,
         export: Option<RcStr>,
-        ast_path: Vc<AstPath>,
+        ast_path: ResolvedVc<AstPath>,
     ) -> Self {
         EsmBinding {
             reference,

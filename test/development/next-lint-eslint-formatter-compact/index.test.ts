@@ -29,7 +29,7 @@ describe('next-lint-eslint-formatter-compact', () => {
       'img elements must have an alt prop, either with meaningful text, or an empty string for decorative images.'
     )
     expect(fileOutput).toContain(
-      'Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element'
+      'Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element'
     )
 
     expect(fileOutput).toContain(`${next.testDir}/pages/index.js`)

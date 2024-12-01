@@ -1,6 +1,7 @@
 use anyhow::{bail, Context, Result};
 use swc_core::{common::DUMMY_SP, ecma::ast::Ident, quote};
-use turbo_tasks::{RcStr, ResolvedVc, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
     chunk::{
         ChunkItemExt, ChunkableModule, ChunkableModuleReference, ChunkingContext, ChunkingType,
@@ -80,7 +81,9 @@ impl ModuleReference for EcmascriptModulePartReference {
                 | ModulePart::RenamedNamespace { .. } => {
                     Vc::upcast(EcmascriptModuleFacadeModule::new(*self.module, *part))
                 }
-                ModulePart::Export(..) | ModulePart::Internal(..) => {
+                ModulePart::Export(..)
+                | ModulePart::Internal(..)
+                | ModulePart::InternalEvaluation(..) => {
                     bail!(
                         "Unexpected ModulePart {} for EcmascriptModulePartReference",
                         part.to_string().await?

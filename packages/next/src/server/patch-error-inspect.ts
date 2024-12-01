@@ -4,13 +4,34 @@ import * as url from 'url'
 import type * as util from 'util'
 import { SourceMapConsumer as SyncSourceMapConsumer } from 'next/dist/compiled/source-map'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
-import { parseStack } from '../client/components/react-dev-overlay/server/middleware'
+import { parseStack } from '../client/components/react-dev-overlay/server/middleware-webpack'
 import { getOriginalCodeFrame } from '../client/components/react-dev-overlay/server/shared'
 import { workUnitAsyncStorage } from './app-render/work-unit-async-storage.external'
+import { dim } from '../lib/picocolors'
+
+/**
+ * https://tc39.es/source-map/#index-map
+ */
+interface IndexSourceMapSection {
+  offset: {
+    line: number
+    column: number
+  }
+  map: ModernRawSourceMap
+}
+
+// TODO(veil): Upstream types
+interface IndexSourceMap {
+  version: number
+  file: string
+  sections: IndexSourceMapSection[]
+}
 
 interface ModernRawSourceMap extends SourceMapPayload {
   ignoreList?: number[]
 }
+
+type ModernSourceMapPayload = ModernRawSourceMap | IndexSourceMap
 
 interface IgnoreableStackFrame extends StackFrame {
   ignored: boolean
@@ -18,7 +39,7 @@ interface IgnoreableStackFrame extends StackFrame {
 
 type SourceMapCache = Map<
   string,
-  { map: SyncSourceMapConsumer; raw: ModernRawSourceMap }
+  { map: SyncSourceMapConsumer; payload: ModernSourceMapPayload }
 >
 
 // TODO: Implement for Edge runtime
@@ -30,20 +51,26 @@ function frameToString(frame: StackFrame): string {
     sourceLocation += `:${frame.column}`
   }
 
-  const filePath =
+  let fileLocation: string | null
+  if (
     frame.file !== null &&
     frame.file.startsWith('file://') &&
     URL.canParse(frame.file)
-      ? // If not relative to CWD, the path is ambiguous to IDEs and clicking will prompt to select the file first.
-        // In a multi-app repo, this leads to potentially larger file names but will make clicking snappy.
-        // There's no tradeoff for the cases where `dir` in `next dev [dir]` is omitted
-        // since relative to cwd is both the shortest and snappiest.
-        path.relative(process.cwd(), url.fileURLToPath(frame.file))
-      : frame.file
+  ) {
+    // If not relative to CWD, the path is ambiguous to IDEs and clicking will prompt to select the file first.
+    // In a multi-app repo, this leads to potentially larger file names but will make clicking snappy.
+    // There's no tradeoff for the cases where `dir` in `next dev [dir]` is omitted
+    // since relative to cwd is both the shortest and snappiest.
+    fileLocation = path.relative(process.cwd(), url.fileURLToPath(frame.file))
+  } else if (frame.file !== null && frame.file.startsWith('/')) {
+    fileLocation = path.relative(process.cwd(), frame.file)
+  } else {
+    fileLocation = frame.file
+  }
 
   return frame.methodName
-    ? `    at ${frame.methodName} (${filePath}${sourceLocation})`
-    : `    at ${filePath}${frame.lineNumber}:${frame.column}`
+    ? `    at ${frame.methodName} (${fileLocation}${sourceLocation})`
+    : `    at ${fileLocation}${sourceLocation}`
 }
 
 function computeErrorName(error: Error): string {
@@ -70,6 +97,37 @@ function shouldIgnoreListByDefault(file: string): boolean {
   return file.startsWith('node:')
 }
 
+/**
+ * Finds the sourcemap payload applicable to a given frame.
+ * Equal to the input unless an Index Source Map is used.
+ */
+function findApplicableSourceMapPayload(
+  frame: StackFrame,
+  payload: ModernSourceMapPayload
+): ModernRawSourceMap | undefined {
+  if ('sections' in payload) {
+    const frameLine = frame.lineNumber ?? 0
+    const frameColumn = frame.column ?? 0
+    // Sections must not overlap and must be sorted: https://tc39.es/source-map/#section-object
+    // Therefore the last section that has an offset less than or equal to the frame is the applicable one.
+    // TODO(veil): Binary search
+    let section: IndexSourceMapSection | undefined = payload.sections[0]
+    for (
+      let i = 0;
+      i < payload.sections.length &&
+      payload.sections[i].offset.line <= frameLine &&
+      payload.sections[i].offset.column <= frameColumn;
+      i++
+    ) {
+      section = payload.sections[i]
+    }
+
+    return section === undefined ? undefined : section.map
+  } else {
+    return payload
+  }
+}
+
 function getSourcemappedFrameIfPossible(
   frame: StackFrame,
   sourceMapCache: SourceMapCache
@@ -84,24 +142,24 @@ function getSourcemappedFrameIfPossible(
 
   const sourceMapCacheEntry = sourceMapCache.get(frame.file)
   let sourceMap: SyncSourceMapConsumer
-  let rawSourceMap: ModernRawSourceMap
+  let sourceMapPayload: ModernSourceMapPayload
   if (sourceMapCacheEntry === undefined) {
     const moduleSourceMap = findSourceMap(frame.file)
     if (moduleSourceMap === undefined) {
       return null
     }
-    rawSourceMap = moduleSourceMap.payload
+    sourceMapPayload = moduleSourceMap.payload
     sourceMap = new SyncSourceMapConsumer(
       // @ts-expect-error -- Module.SourceMap['version'] is number but SyncSourceMapConsumer wants a string
-      rawSourceMap
+      sourceMapPayload
     )
     sourceMapCache.set(frame.file, {
       map: sourceMap,
-      raw: rawSourceMap,
+      payload: sourceMapPayload,
     })
   } else {
     sourceMap = sourceMapCacheEntry.map
-    rawSourceMap = sourceMapCacheEntry.raw
+    sourceMapPayload = sourceMapCacheEntry.payload
   }
 
   const sourcePosition = sourceMap.originalPositionFor({
@@ -119,9 +177,21 @@ function getSourcemappedFrameIfPossible(
       /* returnNullOnMissing */ true
     ) ?? null
 
-  // TODO: O(n^2). Consider moving `ignoreList` into a Set
-  const sourceIndex = rawSourceMap.sources.indexOf(sourcePosition.source)
-  const ignored = rawSourceMap.ignoreList?.includes(sourceIndex) ?? false
+  const applicableSourceMap = findApplicableSourceMapPayload(
+    frame,
+    sourceMapPayload
+  )
+  // TODO(veil): Upstream a method to sourcemap consumer that immediately says if a frame is ignored or not.
+  let ignored = false
+  if (applicableSourceMap === undefined) {
+    console.error('No applicable source map found in sections for frame', frame)
+  } else {
+    // TODO: O(n^2). Consider moving `ignoreList` into a Set
+    const sourceIndex = applicableSourceMap.sources.indexOf(
+      sourcePosition.source
+    )
+    ignored = applicableSourceMap.ignoreList?.includes(sourceIndex) ?? false
+  }
 
   const originalFrame: IgnoreableStackFrame = {
     methodName:
@@ -151,6 +221,8 @@ function getSourcemappedFrameIfPossible(
 }
 
 function parseAndSourceMap(error: Error): string {
+  // TODO(veil): Expose as CLI arg or config option. Useful for local debugging.
+  const showIgnoreListed = false
   // We overwrote Error.prepareStackTrace earlier so error.stack is not sourcemapped.
   let unparsedStack = String(error.stack)
   // We could just read it from `error.stack`.
@@ -162,7 +234,7 @@ function parseAndSourceMap(error: Error): string {
   if (idx !== -1) {
     idx = unparsedStack.lastIndexOf('\n', idx)
   }
-  if (idx !== -1) {
+  if (idx !== -1 && !showIgnoreListed) {
     // Cut off everything after the bottom frame since it'll be React internals.
     unparsedStack = unparsedStack.slice(0, idx)
   }
@@ -196,8 +268,13 @@ function parseAndSourceMap(error: Error): string {
         if (!sourcemappedFrame.stack.ignored) {
           // TODO: Consider what happens if every frame is ignore listed.
           sourceMappedStack += '\n' + frameToString(sourcemappedFrame.stack)
+        } else if (showIgnoreListed) {
+          sourceMappedStack +=
+            '\n' + dim(frameToString(sourcemappedFrame.stack))
         }
       }
+    } else if (showIgnoreListed) {
+      sourceMappedStack += '\n' + dim(frameToString(frame))
     }
   }
 

@@ -2,7 +2,7 @@
 title: Cannot access data, headers, params, searchParams, or a short-lived cache a Suspense boundary nor a `"use cache"` above it.
 ---
 
-#### Why This Error Occurred
+## Why This Error Occurred
 
 When the experimental flag `dynamicIO` is enabled, Next.js expects a parent `Suspense` boundary around any component that awaits data that should be accessed on every user request. The purpose of this requirement is so that Next.js can provide a useful fallback while this data is accessed and rendered.
 
@@ -10,9 +10,9 @@ While some data is inherently only available when a user request is being handle
 
 The proper fix for this specific error depends on what data you are accessing and how you want your Next.js app to behave.
 
-#### Possible Ways to Fix It
+## Possible Ways to Fix It
 
-##### Accessing Data
+### Accessing Data
 
 When you access data using `fetch`, a database client, or any other module which does asynchronous IO, Next.js interprets your intent as expecting the data to load on every user request.
 
@@ -71,25 +71,25 @@ After:
 ```jsx filename="app/page.js"
 import { Suspense } from 'react'
 
-async function getLatestTransactions() {
-  return db.query(...)
+async function TransactionList() {
+  const transactions = await db.query(...)
+  return ...
 }
 
 function TransactionSkeleton() {
-  return <div>...</div>
+  return <ul>...</ul>
 }
 
 export default async function Page() {
-  const transactions = await getLatestTransactions(token);
   return (
     <Suspense fallback={<TransactionSkeleton />}>
-      <TransactionList transactions={transactions}>
+      <TransactionList/>
     </Suspense>
   )
 }
 ```
 
-##### Headers
+### Headers
 
 If you are accessing request headers using `headers()`, `cookies()`, or `draftMode()`. Consider whether you can move the use of these APIs deeper into your existing component tree.
 
@@ -155,7 +155,7 @@ export default async function Page() {
 
 Alternatively you can add a Suspense boundary above the component that is accessing Request headers.
 
-##### Params and SearchParams
+### Params and SearchParams
 
 Layout `params`, and Page `params` and `searchParams` props are promises. If you await them in the Layout or Page component you might be accessing these props higher than is actually required. Try passing these props to deeper components as a promise and awaiting them closer to where the actual param or searchParam is required
 
@@ -199,7 +199,7 @@ import { cookies } from 'next/headers'
 import { Map } from './map'
 
 export default async function Page({ searchParams }) {
-  const coords = searchParams.then(sp => { lat: sp.lat, lng: sp.lng })
+  const coords = searchParams.then(sp => ({ lat: sp.lat, lng: sp.lng }))
   return (
     <Suspense fallback="loading your inbox...">
       <Map coord={coords}>
@@ -210,7 +210,7 @@ export default async function Page({ searchParams }) {
 
 Alternatively you can add a Suspense boundary above the component that is accessing `params` or `searchParams` so Next.js understands what UI should be used when while waiting for this request data to be accessed.
 
-##### Short-lived Caches
+### Short-lived Caches
 
 `"use cache"` allows you to describe a `cacheLife()` that might be too short to be practical to prerender. The utility of doing this is that it can still describe a non-zero caching time for the client router cache to reuse the cache entry in the browser and it can also be useful for protecting upstream APIs while experiencing high request traffic.
 
@@ -253,10 +253,10 @@ export default async function Page() {
 
 Alternatively you can add a Suspense boundary above the component that is accessing this short-lived cached data so Next.js understands what UI should be used while accessing this data on a user request.
 
-### Useful Links
+## Useful Links
 
 - [`Suspense` React API](https://react.dev/reference/react/Suspense)
-- [`headers` function](https://nextjs.org/docs/app/api-reference/functions/headers)
-- [`cookies` function](https://nextjs.org/docs/app/api-reference/functions/cookies)
-- [`draftMode` function](https://nextjs.org/docs/app/api-reference/functions/draft-mode)
-- [`connection` function](https://nextjs.org/docs/app/api-reference/functions/connection)
+- [`headers` function](/docs/app/api-reference/functions/headers)
+- [`cookies` function](/docs/app/api-reference/functions/cookies)
+- [`draftMode` function](/docs/app/api-reference/functions/draft-mode)
+- [`connection` function](/docs/app/api-reference/functions/connection)

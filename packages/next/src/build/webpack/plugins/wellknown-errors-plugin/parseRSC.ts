@@ -30,11 +30,11 @@ function formatRSCErrorMessage(
   if (NEXT_RSC_ERR_REACT_API.test(message)) {
     const matches = message.match(NEXT_RSC_ERR_REACT_API)
     if (matches && matches[1] === 'Component') {
-      formattedMessage = `\n\nYou’re importing a class component. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.\nLearn more: https://nextjs.org/docs/getting-started/react-essentials#client-components\n\n`
+      formattedMessage = `\n\nYou’re importing a class component. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.\nLearn more: https://nextjs.org/docs/app/building-your-application/rendering/client-components\n\n`
     } else {
       formattedMessage = message.replace(
         NEXT_RSC_ERR_REACT_API,
-        `\n\nYou're importing a component that needs $1. This React hook only works in a client component. To fix, mark the file (or its parent) with the \`"use client"\` directive. \n\nLearn more: https://nextjs.org/docs/app/building-your-application/rendering/client-components\n\n`
+        `\n\nYou're importing a component that needs $1. This React hook only works in a client component. To fix, mark the file (or its parent) with the \`"use client"\` directive. \n\nLearn more: https://nextjs.org/docs/app/api-reference/directives/use-client\n\n`
       )
     }
     formattedVerboseMessage =
@@ -45,7 +45,7 @@ function formatRSCErrorMessage(
     switch (matches && matches[1]) {
       case 'react-dom/server':
         // If importing "react-dom/server", we should show a different error.
-        formattedMessage = `\n\nYou're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.\nLearn more: https://nextjs.org/docs/getting-started/react-essentials`
+        formattedMessage = `\n\nYou're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.\nLearn more: https://nextjs.org/docs/app/building-your-application/rendering`
         break
       case 'next/router':
         // If importing "next/router", we should tell them to use "next/navigation".
@@ -55,7 +55,7 @@ function formatRSCErrorMessage(
       default:
         formattedMessage = message.replace(
           NEXT_RSC_ERR_SERVER_IMPORT,
-          `\n\nYou're importing a component that imports $1. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.\nLearn more: https://nextjs.org/docs/getting-started/react-essentials\n\n`
+          `\n\nYou're importing a component that imports $1. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.\nLearn more: https://nextjs.org/docs/app/building-your-application/rendering\n\n`
         )
     }
     formattedVerboseMessage = shouldAddUseClient
@@ -65,13 +65,13 @@ function formatRSCErrorMessage(
     if (isPagesDir) {
       formattedMessage = message.replace(
         NEXT_RSC_ERR_CLIENT_IMPORT,
-        `\n\nYou're importing a component that needs $1. That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/getting-started/react-essentials#server-components\n\n`
+        `\n\nYou're importing a component that needs $1. That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components\n\n`
       )
       formattedVerboseMessage = '\n\nImport trace for requested module:\n'
     } else {
       formattedMessage = message.replace(
         NEXT_RSC_ERR_CLIENT_IMPORT,
-        `\n\nYou're importing a component that needs $1. That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component.\nLearn more: https://nextjs.org/docs/getting-started/react-essentials\n\n`
+        `\n\nYou're importing a component that needs $1. That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component.\nLearn more: https://nextjs.org/docs/app/building-your-application/rendering\n\n`
       )
       formattedVerboseMessage =
         '\n\nOne of these is marked as a client entry with "use client":\n'
@@ -85,7 +85,7 @@ function formatRSCErrorMessage(
   } else if (NEXT_RSC_ERR_CLIENT_DIRECTIVE_PAREN.test(message)) {
     formattedMessage = message.replace(
       NEXT_RSC_ERR_CLIENT_DIRECTIVE_PAREN,
-      `\n\n"use client" must be a directive, and placed before other expressions. Remove the parentheses and move it to the top of the file to resolve this issue.\nLearn more: https://nextjs.org/docs/getting-started/react-essentials#the-use-client-directive\n\n`
+      `\n\n"use client" must be a directive, and placed before other expressions. Remove the parentheses and move it to the top of the file to resolve this issue.\nLearn more: https://nextjs.org/docs/app/api-reference/directives/use-client\n\n`
     )
     formattedVerboseMessage = '\n\nImport path:\n'
   } else if (NEXT_RSC_ERR_INVALID_API.test(message)) {
@@ -97,13 +97,13 @@ function formatRSCErrorMessage(
   } else if (NEXT_RSC_ERR_ERROR_FILE_SERVER_COMPONENT.test(message)) {
     formattedMessage = message.replace(
       NEXT_RSC_ERR_ERROR_FILE_SERVER_COMPONENT,
-      `\n\n${fileName} must be a Client Component. Add the "use client" directive the top of the file to resolve this issue.\nLearn more: https://nextjs.org/docs/getting-started/react-essentials#client-components\n\n`
+      `\n\n${fileName} must be a Client Component. Add the "use client" directive the top of the file to resolve this issue.\nLearn more: https://nextjs.org/docs/app/api-reference/directives/use-client\n\n`
     )
     formattedVerboseMessage = '\n\nImport path:\n'
   } else if (NEXT_RSC_ERR_CLIENT_METADATA_EXPORT.test(message)) {
     formattedMessage = message.replace(
       NEXT_RSC_ERR_CLIENT_METADATA_EXPORT,
-      `\n\nYou are attempting to export "$1" from a component marked with "use client", which is disallowed. Either remove the export, or the "use client" directive. Read more: https://nextjs.org/docs/getting-started/react-essentials#the-use-client-directive\n\n`
+      `\n\nYou are attempting to export "$1" from a component marked with "use client", which is disallowed. Either remove the export, or the "use client" directive. Read more: https://nextjs.org/docs/app/api-reference/directives/use-client\n\n`
     )
 
     formattedVerboseMessage = '\n\nFile path:\n'

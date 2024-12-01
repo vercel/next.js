@@ -43,8 +43,8 @@ function matchRoute(
       )
     }
     if (route.has || route.missing) {
-      if (matchHas(request, parsedUrl.query, route.has, route.missing)) {
-        return pathMatch.params
+      if (!matchHas(request, parsedUrl.query, route.has, route.missing)) {
+        return
       }
     }
     return pathMatch.params

@@ -51,6 +51,7 @@ describe('Prerender', () => {
           ]
         },
       },
+      patchFileDelay: 500,
     })
   })
   afterAll(() => next.destroy())
@@ -93,6 +94,7 @@ describe('Prerender', () => {
   }
 
   const allowHeader = [
+    'host',
     'x-matched-path',
     'x-prerender-revalidate',
     'x-prerender-revalidate-if-generated',
@@ -1133,13 +1135,8 @@ describe('Prerender', () => {
 
         await next.patchFile(
           'pages/index.js',
-          (content) =>
-            content
-              .replace('// throw new', 'throw new')
-              .replace('{/* <div', '<div')
-              .replace('</div> */}', '</div>'),
+          (content) => content.replace('// throw new', 'throw new'),
           async () => {
-            await browser.waitForElementByCss('#after-change')
             // we need to reload the page to trigger getStaticProps
             await browser.refresh()
 
@@ -2122,7 +2119,7 @@ describe('Prerender', () => {
           {
             page: '/_app',
             tests: [
-              /webpack-runtime\.js/,
+              /(webpack-runtime\.js|\[turbopack\]_runtime\.js)/,
               /node_modules\/react\/index\.js/,
               /node_modules\/react\/package\.json/,
               isReact18
@@ -2134,7 +2131,7 @@ describe('Prerender', () => {
           {
             page: '/another',
             tests: [
-              /webpack-runtime\.js/,
+              /(webpack-runtime\.js|\[turbopack\]_runtime\.js)/,
               /chunks\/.*?\.js/,
               /node_modules\/react\/index\.js/,
               /node_modules\/react\/package\.json/,
@@ -2151,7 +2148,7 @@ describe('Prerender', () => {
           {
             page: '/blog/[post]',
             tests: [
-              /webpack-runtime\.js/,
+              /(webpack-runtime\.js|\[turbopack\]_runtime\.js)/,
               /chunks\/.*?\.js/,
               /node_modules\/react\/index\.js/,
               /node_modules\/react\/package\.json/,

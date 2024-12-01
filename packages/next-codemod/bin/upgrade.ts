@@ -1,7 +1,10 @@
 import * as os from 'os'
 import prompts from 'prompts'
 import fs from 'fs'
-import compareVersions from 'semver/functions/compare'
+import {
+  satisfies as satisfiesVersionRange,
+  compare as compareVersions,
+} from 'semver'
 import { execSync } from 'child_process'
 import path from 'path'
 import pc from 'picocolors'
@@ -306,7 +309,7 @@ export async function runUpgrade(
   }
 
   console.log(
-    `Upgrading your project to ${pc.blue('Next.js ' + targetNextVersion)}...\n`
+    `Upgrading your project to ${pc.blue('Next.js ' + targetNextVersion)}...`
   )
 
   for (const [dep, version] of dependenciesToInstall) {
@@ -323,7 +326,7 @@ export async function runUpgrade(
       os.EOL
   )
 
-  runInstallation(packageManager)
+  runInstallation(packageManager, { cwd })
 
   for (const codemod of codemods) {
     await runTransform(codemod, cwd, { force: true, verbose })
@@ -353,6 +356,9 @@ export async function runUpgrade(
   if (codemods.length > 0) {
     console.log(`${pc.green('✔')} Codemods have been applied successfully.`)
   }
+
+  warnDependenciesOutOfRange(appPackageJson, versionMapping)
+
   endMessage()
 }
 
@@ -631,5 +637,98 @@ function writeOverridesField(
         packageJson.overrides[key] = value
       }
     }
+  }
+}
+
+function warnDependenciesOutOfRange(
+  appPackageJson: any,
+  versionMapping: Record<string, { version: string; required: boolean }>
+) {
+  const allDirectDependencies = {
+    ...appPackageJson.dependencies,
+    ...appPackageJson.devDependencies,
+  }
+
+  const dependenciesOutOfRange = new Map<
+    string,
+    {
+      [dependency: string]: {
+        currentVersion: string
+        expectedVersionRange: string
+      }
+    }
+  >()
+
+  const resolvedDependencyVersions = new Map<string, string>()
+  for (const dependency of Object.keys(allDirectDependencies)) {
+    let pkgJson
+
+    // TODO: Asking package manager for the installed version is most robust e.g. `pnpm why ${dependency}`
+    // require.resolve(`${dependency}/package.json`, { paths: [cwd] }) results in previously installed version being used in PNPM
+    let pkgJsonFromNodeModules
+    try {
+      pkgJsonFromNodeModules = path.join(
+        cwd,
+        'node_modules',
+        dependency,
+        'package.json'
+      )
+
+      pkgJson = JSON.parse(fs.readFileSync(pkgJsonFromNodeModules, 'utf8'))
+    } catch {
+      console.warn(
+        `${pc.yellow('⚠')} Could not find package.json for dependency "${dependency}" at "${pkgJsonFromNodeModules}". This may affect peer dependency checks.`
+      )
+      continue
+    }
+
+    resolvedDependencyVersions.set(dependency, pkgJson.version)
+
+    if ('peerDependencies' in pkgJson) {
+      const peerDeps = pkgJson.peerDependencies
+      const peerDepsNames = Object.keys(peerDeps)
+      const depsToCheck = Object.keys(versionMapping).filter(
+        (versionMappingKey) => peerDepsNames.includes(versionMappingKey)
+      )
+
+      for (const depName of depsToCheck) {
+        const expectedVersionRange = peerDeps[depName]
+        const { version: currentVersion } = versionMapping[depName]
+        if (
+          !satisfiesVersionRange(currentVersion, expectedVersionRange, {
+            includePrerelease: true,
+          })
+        ) {
+          dependenciesOutOfRange.set(dependency, {
+            ...dependenciesOutOfRange.get(dependency),
+            [depName]: {
+              currentVersion,
+              expectedVersionRange,
+            },
+          })
+        }
+      }
+    }
+  }
+
+  const size = dependenciesOutOfRange.size
+  if (size > 0) {
+    console.log(
+      `${pc.yellow('⚠')} Found ${size} ${
+        size === 1 ? 'dependency' : 'dependencies'
+      } that seem incompatible with the upgraded package versions.\n` +
+        'You may have to update these packages to their latest version or file an issue to ask for support of the upgraded libraries.'
+    )
+    dependenciesOutOfRange.forEach((deps, packageName) => {
+      console.log(
+        `${packageName} ${pc.gray(resolvedDependencyVersions.get(packageName))}`
+      )
+      Object.entries(deps).forEach(([depName, value], index, depsArray) => {
+        const prefix = index === depsArray.length - 1 ? '  └── ' : '  ├── '
+        console.log(
+          `${prefix}${pc.yellow('✕ unmet peer')} ${depName}@"${value.expectedVersionRange}": found ${value.currentVersion}`
+        )
+      })
+    })
   }
 }

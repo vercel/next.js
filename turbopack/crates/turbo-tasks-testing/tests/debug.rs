@@ -91,7 +91,7 @@ async fn struct_unit_debug() {
 async fn struct_transparent_debug() {
     run(&REGISTRATION, || async {
         let a: Vc<StructWithTransparent> = StructWithTransparent {
-            transparent: Transparent(42).cell(),
+            transparent: Transparent(42).resolved_cell(),
         }
         .cell();
         assert_eq!(
@@ -172,7 +172,7 @@ struct StructUnit;
 
 #[turbo_tasks::value(shared)]
 struct StructWithTransparent {
-    transparent: Vc<Transparent>,
+    transparent: ResolvedVc<Transparent>,
 }
 
 #[turbo_tasks::value(shared)]

@@ -1,5 +1,4 @@
 use turbo_tasks::TaskInput;
-use turbopack_core::chunk::MinifyType;
 use turbopack_ecmascript_runtime::RuntimeType;
 
 /// The mode in which Next.js is running.
@@ -48,13 +47,6 @@ impl NextMode {
         match self {
             NextMode::Development => false,
             NextMode::Build => true,
-        }
-    }
-
-    pub fn minify_type(&self) -> MinifyType {
-        match self {
-            NextMode::Development => MinifyType::NoMinify,
-            NextMode::Build => MinifyType::Minify,
         }
     }
 

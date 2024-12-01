@@ -15,7 +15,7 @@ use swc_core::{
         atoms::{js_word, JsWord},
         utils::{prepend_stmts, quote_ident, quote_str, ExprFactory},
         visit::{
-            as_folder, noop_visit_mut_type, noop_visit_type, Fold, Visit, VisitMut, VisitMutWith,
+            noop_visit_mut_type, noop_visit_type, visit_mut_pass, Visit, VisitMut, VisitMutWith,
             VisitWith,
         },
     },
@@ -249,10 +249,10 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
         RSCErrorKind::NextRscErrServerImport((source, span)) => {
             let msg = match source.as_str() {
                 // If importing "react-dom/server", we should show a different error.
-                "react-dom/server" => "You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.\nLearn more: https://nextjs.org/docs/getting-started/react-essentials".to_string(),
+                "react-dom/server" => "You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.\nLearn more: https://nextjs.org/docs/app/building-your-application/rendering".to_string(),
                 // If importing "next/router", we should tell them to use "next/navigation".
                 "next/router" => r#"You have a Server Component that imports next/router. Use next/navigation instead.\nLearn more: https://nextjs.org/docs/app/api-reference/functions/use-router"#.to_string(),
-                _ => format!(r#"You're importing a component that imports {source}. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.\nLearn more: https://nextjs.org/docs/getting-started/react-essentials\n\n"#)
+                _ => format!(r#"You're importing a component that imports {source}. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.\nLearn more: https://nextjs.org/docs/app/building-your-application/rendering\n\n"#)
             };
 
             (msg, span)
@@ -270,29 +270,29 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
                 .unwrap_or_default();
 
             let msg = if !is_app_dir {
-                format!("You're importing a component that needs \"{source}\". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/getting-started/react-essentials#server-components\n\n")
+                format!("You're importing a component that needs \"{source}\". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components\n\n")
             } else {
-                format!("You're importing a component that needs \"{source}\". That only works in a Server Component but one of its parents is marked with \"use client\", so it's a Client Component.\nLearn more: https://nextjs.org/docs/getting-started/react-essentials\n\n")
+                format!("You're importing a component that needs \"{source}\". That only works in a Server Component but one of its parents is marked with \"use client\", so it's a Client Component.\nLearn more: https://nextjs.org/docs/app/building-your-application/rendering\n\n")
             };
             (msg, span)
         }
         RSCErrorKind::NextRscErrReactApi((source, span)) => {
             let msg = if source == "Component" {
-                "You’re importing a class component. It only works in a Client Component but none of its parents are marked with \"use client\", so they're Server Components by default.\nLearn more: https://nextjs.org/docs/getting-started/react-essentials#client-components\n\n".to_string()
+                "You’re importing a class component. It only works in a Client Component but none of its parents are marked with \"use client\", so they're Server Components by default.\nLearn more: https://nextjs.org/docs/app/building-your-application/rendering/client-components\n\n".to_string()
             } else {
-                format!("You're importing a component that needs `{source}`. This React hook only works in a client component. To fix, mark the file (or its parent) with the `\"use client\"` directive.\n\n Learn more: https://nextjs.org/docs/app/building-your-application/rendering/client-components\n\n")
+                format!("You're importing a component that needs `{source}`. This React hook only works in a client component. To fix, mark the file (or its parent) with the `\"use client\"` directive.\n\n Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client\n\n")
             };
 
             (msg,span)
         },
         RSCErrorKind::NextRscErrErrorFileServerComponent(span) => {
             (
-                format!("{filepath} must be a Client Component. Add the \"use client\" directive the top of the file to resolve this issue.\nLearn more: https://nextjs.org/docs/getting-started/react-essentials#client-components\n\n"),
+                format!("{filepath} must be a Client Component. Add the \"use client\" directive the top of the file to resolve this issue.\nLearn more: https://nextjs.org/docs/app/api-reference/directives/use-client\n\n"),
                 span
             )
         },
         RSCErrorKind::NextRscErrClientMetadataExport((source, span)) => {
-            (format!("You are attempting to export \"{source}\" from a component marked with \"use client\", which is disallowed. Either remove the export, or the \"use client\" directive. Read more: https://nextjs.org/docs/getting-started/react-essentials#the-use-client-directive\n\n"), span)
+            (format!("You are attempting to export \"{source}\" from a component marked with \"use client\", which is disallowed. Either remove the export, or the \"use client\" directive. Read more: https://nextjs.org/docs/app/api-reference/directives/use-client\n\n"), span)
         },
         RSCErrorKind::NextRscErrConflictMetadataExport(span) => (
             "\"metadata\" and \"generateMetadata\" cannot be exported at the same time, please keep one of them. Read more: https://nextjs.org/docs/app/api-reference/file-conventions/metadata\n\n".to_string(),
@@ -1011,7 +1011,7 @@ pub fn server_components<C: Comments>(
     config: Config,
     comments: C,
     app_dir: Option<PathBuf>,
-) -> impl Fold + VisitMut {
+) -> impl Pass + VisitMut {
     let is_react_server_layer: bool = match &config {
         Config::WithOptions(x) => x.is_react_server_layer,
         _ => false,
@@ -1020,7 +1020,7 @@ pub fn server_components<C: Comments>(
         Config::WithOptions(x) => x.dynamic_io_enabled,
         _ => false,
     };
-    as_folder(ReactServerComponents {
+    visit_mut_pass(ReactServerComponents {
         is_react_server_layer,
         dynamic_io_enabled,
         comments,

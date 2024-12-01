@@ -12,6 +12,7 @@ describe('middleware - development errors', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
     env: { __NEXT_TEST_WITH_DEVTOOL: '1' },
+    patchFileDelay: 500,
   })
   beforeEach(async () => {
     await next.stop()
@@ -55,7 +56,7 @@ describe('middleware - development errors', () => {
       const browser = await next.browser('/')
       await assertHasRedbox(browser)
       await next.patchFile('middleware.js', `export default function () {}`)
-      await assertHasRedbox(browser)
+      await assertNoRedbox(browser)
     })
   })
 
@@ -158,9 +159,17 @@ describe('middleware - development errors', () => {
     it('renders the error correctly and recovers', async () => {
       const browser = await next.browser('/')
       await assertHasRedbox(browser)
+
+      const lengthOfLogs = next.cliOutput.length
+
       expect(await getRedboxSource(browser)).toContain(`eval('test')`)
       await next.patchFile('middleware.js', `export default function () {}`)
-      await assertHasRedbox(browser)
+
+      retry(() => {
+        expect(next.cliOutput.slice(lengthOfLogs)).toContain('✓ Compiled')
+      }, 10000) // middleware rebuild takes a while in CI
+
+      await assertNoRedbox(browser)
     })
   })
 
@@ -207,7 +216,7 @@ describe('middleware - development errors', () => {
       expect(source).toContain('middleware.js')
       expect(source).not.toContain('//middleware.js')
       await next.patchFile('middleware.js', `export default function () {}`)
-      await assertHasRedbox(browser)
+      await assertNoRedbox(browser)
     })
   })
 
@@ -311,7 +320,7 @@ describe('middleware - development errors', () => {
         await browser.elementByCss('#nextjs__container_errors_desc').text()
       ).toEqual('Failed to compile')
       await next.patchFile('middleware.js', `export default function () {}`)
-      await assertHasRedbox(browser)
+      await assertNoRedbox(browser)
       expect(await browser.elementByCss('#page-title')).toBeTruthy()
     })
   })

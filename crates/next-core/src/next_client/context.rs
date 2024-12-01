@@ -1,7 +1,8 @@
 use std::iter::once;
 
 use anyhow::Result;
-use turbo_tasks::{FxIndexMap, RcStr, ResolvedVc, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexMap, ResolvedVc, Value, Vc};
 use turbo_tasks_env::EnvMap;
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack::{
@@ -13,7 +14,7 @@ use turbopack::{
 };
 use turbopack_browser::{react_refresh::assert_can_resolve_react_refresh, BrowserChunkingContext};
 use turbopack_core::{
-    chunk::{module_id_strategies::ModuleIdStrategy, ChunkingContext},
+    chunk::{module_id_strategies::ModuleIdStrategy, ChunkingContext, MinifyType},
     compile_time_info::{
         CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefineableNameSegment,
         FreeVarReference, FreeVarReferences,
@@ -109,50 +110,59 @@ async fn next_client_free_vars(define_env: Vc<EnvMap>) -> Result<Vc<FreeVarRefer
 }
 
 #[turbo_tasks::function]
-pub fn get_client_compile_time_info(
+pub async fn get_client_compile_time_info(
     browserslist_query: RcStr,
     define_env: Vc<EnvMap>,
-) -> Vc<CompileTimeInfo> {
-    CompileTimeInfo::builder(Environment::new(Value::new(ExecutionEnvironment::Browser(
-        BrowserEnvironment {
-            dom: true,
-            web_worker: false,
-            service_worker: false,
-            browserslist_query: browserslist_query.to_owned(),
-        }
-        .into(),
-    ))))
-    .defines(next_client_defines(define_env))
-    .free_var_references(next_client_free_vars(define_env))
+) -> Result<Vc<CompileTimeInfo>> {
+    CompileTimeInfo::builder(
+        Environment::new(Value::new(ExecutionEnvironment::Browser(
+            BrowserEnvironment {
+                dom: true,
+                web_worker: false,
+                service_worker: false,
+                browserslist_query: browserslist_query.to_owned(),
+            }
+            .resolved_cell(),
+        )))
+        .to_resolved()
+        .await?,
+    )
+    .defines(next_client_defines(define_env).to_resolved().await?)
+    .free_var_references(next_client_free_vars(define_env).to_resolved().await?)
     .cell()
+    .await
 }
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
+#[turbo_tasks::value(shared, serialization = "auto_for_input")]
 #[derive(Debug, Copy, Clone, Hash)]
 pub enum ClientContextType {
-    Pages { pages_dir: Vc<FileSystemPath> },
-    App { app_dir: Vc<FileSystemPath> },
+    Pages {
+        pages_dir: ResolvedVc<FileSystemPath>,
+    },
+    App {
+        app_dir: ResolvedVc<FileSystemPath>,
+    },
     Fallback,
     Other,
 }
 
 #[turbo_tasks::function]
 pub async fn get_client_resolve_options_context(
-    project_path: Vc<FileSystemPath>,
+    project_path: ResolvedVc<FileSystemPath>,
     ty: Value<ClientContextType>,
     mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<ResolveOptionsContext>> {
     let next_client_import_map =
-        get_next_client_import_map(project_path, ty, next_config, execution_context)
+        get_next_client_import_map(*project_path, ty, next_config, execution_context)
             .to_resolved()
             .await?;
     let next_client_fallback_import_map = get_next_client_fallback_import_map(ty)
         .to_resolved()
         .await?;
     let next_client_resolved_map =
-        get_next_client_resolved_map(project_path, project_path, *mode.await?)
+        get_next_client_resolved_map(*project_path, project_path, *mode.await?)
             .to_resolved()
             .await?;
     let custom_conditions = vec![mode.await?.condition().into()];
@@ -171,18 +181,18 @@ pub async fn get_client_resolve_options_context(
                     .await?,
             ),
             ResolvedVc::upcast(
-                ModuleFeatureReportResolvePlugin::new(project_path)
+                ModuleFeatureReportResolvePlugin::new(*project_path)
                     .to_resolved()
                     .await?,
             ),
             ResolvedVc::upcast(
-                NextFontLocalResolvePlugin::new(project_path)
+                NextFontLocalResolvePlugin::new(*project_path)
                     .to_resolved()
                     .await?,
             ),
         ],
         after_resolve_plugins: vec![ResolvedVc::upcast(
-            NextSharedRuntimeResolvePlugin::new(project_path)
+            NextSharedRuntimeResolvePlugin::new(*project_path)
                 .to_resolved()
                 .await?,
         )],
@@ -212,7 +222,7 @@ fn internal_assets_conditions() -> ContextCondition {
 
 #[turbo_tasks::function]
 pub async fn get_client_module_options_context(
-    project_path: Vc<FileSystemPath>,
+    project_path: ResolvedVc<FileSystemPath>,
     execution_context: ResolvedVc<ExecutionContext>,
     env: ResolvedVc<Environment>,
     ty: Value<ClientContextType>,
@@ -220,20 +230,28 @@ pub async fn get_client_module_options_context(
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let next_mode = mode.await?;
+    let resolve_options_context = get_client_resolve_options_context(
+        *project_path,
+        ty,
+        mode,
+        next_config,
+        *execution_context,
+    );
 
-    let resolve_options_context =
-        get_client_resolve_options_context(project_path, ty, mode, next_config, *execution_context);
-
-    let tsconfig = get_typescript_transform_options(project_path);
-    let decorators_options = get_decorators_transform_options(project_path);
+    let tsconfig = get_typescript_transform_options(*project_path)
+        .to_resolved()
+        .await?;
+    let decorators_options = get_decorators_transform_options(*project_path);
     let enable_mdx_rs = *next_config.mdx_rs().await?;
     let jsx_runtime_options = get_jsx_transform_options(
-        project_path,
+        *project_path,
         mode,
         Some(resolve_options_context),
         false,
         next_config,
-    );
+    )
+    .to_resolved()
+    .await?;
 
     // A separate webpack rules will be applied to codes matching
     // foreign_code_context_condition. This allows to import codes from
@@ -262,7 +280,6 @@ pub async fn get_client_module_options_context(
     let tree_shaking_mode_for_foreign_code = *next_config
         .tree_shaking_mode_for_foreign_code(next_mode.is_development())
         .await?;
-    let use_swc_css = *next_config.use_swc_css().await?;
     let target_browsers = env.runtime_versions();
 
     let mut next_client_rules =
@@ -285,7 +302,11 @@ pub async fn get_client_module_options_context(
     next_client_rules.extend(additional_rules);
 
     let postcss_transform_options = PostCssTransformOptions {
-        postcss_package: Some(get_postcss_package_mapping(project_path)),
+        postcss_package: Some(
+            get_postcss_package_mapping(*project_path)
+                .to_resolved()
+                .await?,
+        ),
         config_location: PostCssConfigLocation::ProjectPathOrLocalPath,
         ..Default::default()
     };
@@ -295,8 +316,8 @@ pub async fn get_client_module_options_context(
         config_location: PostCssConfigLocation::ProjectPath,
         ..postcss_transform_options.clone()
     };
-    let enable_postcss_transform = Some(postcss_transform_options.cell());
-    let enable_foreign_postcss_transform = Some(postcss_foreign_transform_options.cell());
+    let enable_postcss_transform = Some(postcss_transform_options.resolved_cell());
+    let enable_foreign_postcss_transform = Some(postcss_foreign_transform_options.resolved_cell());
 
     let module_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
@@ -325,6 +346,18 @@ pub async fn get_client_module_options_context(
         ..module_options_context.clone()
     };
 
+    let internal_context = ModuleOptionsContext {
+        ecmascript: EcmascriptOptionsContext {
+            enable_typescript_transform: Some(
+                TypescriptTransformOptions::default().resolved_cell(),
+            ),
+            enable_jsx: Some(JsxTransformOptions::default().resolved_cell()),
+            ..module_options_context.ecmascript.clone()
+        },
+        enable_postcss_transform: None,
+        ..module_options_context.clone()
+    };
+
     let module_options_context = ModuleOptionsContext {
         // We don't need to resolve React Refresh for each module. Instead,
         // we try resolve it once at the root and pass down a context to all
@@ -338,28 +371,21 @@ pub async fn get_client_module_options_context(
         enable_webpack_loaders,
         enable_mdx_rs,
         css: CssOptionsContext {
-            use_swc_css,
-            minify_type: next_mode.minify_type(),
+            minify_type: if *next_config.turbo_minify(mode).await? {
+                MinifyType::Minify
+            } else {
+                MinifyType::NoMinify
+            },
             ..module_options_context.css
         },
         rules: vec![
             (
                 foreign_code_context_condition(next_config, project_path).await?,
-                foreign_codes_options_context.cell(),
+                foreign_codes_options_context.resolved_cell(),
             ),
             (
                 internal_assets_conditions(),
-                ModuleOptionsContext {
-                    ecmascript: EcmascriptOptionsContext {
-                        enable_typescript_transform: Some(
-                            TypescriptTransformOptions::default().cell(),
-                        ),
-                        enable_jsx: Some(JsxTransformOptions::default().cell()),
-                        ..module_options_context.ecmascript.clone()
-                    },
-                    ..module_options_context.clone()
-                }
-                .cell(),
+                internal_context.resolved_cell(),
             ),
         ],
         module_rules: next_client_rules,
@@ -372,25 +398,33 @@ pub async fn get_client_module_options_context(
 
 #[turbo_tasks::function]
 pub async fn get_client_chunking_context(
-    project_path: Vc<FileSystemPath>,
-    client_root: Vc<FileSystemPath>,
-    asset_prefix: Vc<Option<RcStr>>,
-    environment: Vc<Environment>,
+    project_path: ResolvedVc<FileSystemPath>,
+    client_root: ResolvedVc<FileSystemPath>,
+    asset_prefix: ResolvedVc<Option<RcStr>>,
+    environment: ResolvedVc<Environment>,
     mode: Vc<NextMode>,
-    module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
+    module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
+    turbo_minify: Vc<bool>,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
     let next_mode = mode.await?;
     let mut builder = BrowserChunkingContext::builder(
         project_path,
         client_root,
         client_root,
-        client_root.join("static/chunks".into()),
-        get_client_assets_path(client_root),
+        client_root
+            .join("static/chunks".into())
+            .to_resolved()
+            .await?,
+        get_client_assets_path(*client_root).to_resolved().await?,
         environment,
         next_mode.runtime_type(),
     )
     .chunk_base_path(asset_prefix)
-    .minify_type(next_mode.minify_type())
+    .minify_type(if *turbo_minify.await? {
+        MinifyType::Minify
+    } else {
+        MinifyType::NoMinify
+    })
     .asset_base_path(asset_prefix)
     .module_id_strategy(module_id_strategy);
 
@@ -429,8 +463,11 @@ pub async fn get_client_runtime_entries(
         // functions to be available.
         if let Some(request) = enable_react_refresh {
             runtime_entries.push(
-                RuntimeEntry::Request(request.to_resolved().await?, project_root.join("_".into()))
-                    .cell(),
+                RuntimeEntry::Request(
+                    request.to_resolved().await?,
+                    project_root.join("_".into()).to_resolved().await?,
+                )
+                .resolved_cell(),
             )
         };
     }
@@ -443,9 +480,9 @@ pub async fn get_client_runtime_entries(
                 )))
                 .to_resolved()
                 .await?,
-                project_root.join("_".into()),
+                project_root.join("_".into()).to_resolved().await?,
             )
-            .cell(),
+            .resolved_cell(),
         );
     }
 

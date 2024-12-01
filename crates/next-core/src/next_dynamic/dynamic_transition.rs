@@ -1,5 +1,6 @@
 use anyhow::Result;
-use turbo_tasks::{RcStr, ResolvedVc, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbopack::{transition::Transition, ModuleAssetContext};
 use turbopack_core::{context::ProcessResult, reference_type::ReferenceType, source::Source};
 
@@ -12,13 +13,13 @@ use super::NextDynamicEntryModule;
 /// create the dynamic entry, and the dynamic manifest entry.
 #[turbo_tasks::value]
 pub struct NextDynamicTransition {
-    client_transition: Vc<Box<dyn Transition>>,
+    client_transition: ResolvedVc<Box<dyn Transition>>,
 }
 
 #[turbo_tasks::value_impl]
 impl NextDynamicTransition {
     #[turbo_tasks::function]
-    pub fn new(client_transition: Vc<Box<dyn Transition>>) -> Vc<Self> {
+    pub fn new(client_transition: ResolvedVc<Box<dyn Transition>>) -> Vc<Self> {
         NextDynamicTransition { client_transition }.cell()
     }
 }
@@ -48,14 +49,15 @@ impl Transition for NextDynamicTransition {
                 module_asset_context,
                 Value::new(ReferenceType::Undefined),
             )
+            .try_into_module()
             .await?
         {
-            ProcessResult::Module(client_module) => ProcessResult::Module(ResolvedVc::upcast(
+            Some(client_module) => ProcessResult::Module(ResolvedVc::upcast(
                 NextDynamicEntryModule::new(*client_module)
                     .to_resolved()
                     .await?,
             )),
-            ProcessResult::Ignore => ProcessResult::Ignore,
+            None => ProcessResult::Ignore,
         }
         .cell())
     }

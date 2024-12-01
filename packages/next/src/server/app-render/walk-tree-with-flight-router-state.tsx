@@ -62,7 +62,6 @@ export async function walkTreeWithFlightRouterState({
     query,
     isPrefetch,
     getDynamicParamFromSegment,
-    componentMod: { tree: loaderTree },
   } = ctx
 
   const [segment, parallelRoutes, modules] = loaderTreeToFilter
@@ -118,7 +117,7 @@ export async function walkTreeWithFlightRouterState({
     !experimental.isRoutePPREnabled &&
     isPrefetch &&
     !Boolean(modules.loading) &&
-    !hasLoadingComponentInTree(loaderTree)
+    !hasLoadingComponentInTree(loaderTreeToFilter)
 
   if (!parentRendered && renderComponentsOnThisLevel) {
     const overriddenSegment =
@@ -161,6 +160,7 @@ export async function walkTreeWithFlightRouterState({
           rootLayoutIncluded,
           getMetadataReady,
           preloadCallbacks,
+          authInterrupts: experimental.authInterrupts,
         }
       )
 

@@ -29,15 +29,15 @@ use rstest_reuse::{
 };
 use serde::{Deserialize, Serialize};
 use tokio::{process::Command, time::timeout};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    backend::Backend, RcStr, ReadRef, ResolvedVc, TurboTasks, Value, ValueToString, Vc,
+    apply_effects, backend::Backend, ReadRef, ResolvedVc, TurboTasks, Value, ValueToString, Vc,
 };
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath};
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
     emit_with_completion,
     module_options::{CssOptionsContext, EcmascriptOptionsContext, ModuleOptionsContext},
-    rebase::RebasedAsset,
     register, ModuleAssetContext,
 };
 use turbopack_core::{
@@ -46,6 +46,7 @@ use turbopack_core::{
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
     output::OutputAsset,
+    rebase::RebasedAsset,
     reference_type::ReferenceType,
 };
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
@@ -428,7 +429,9 @@ fn node_file_trace<B: Backend + 'static>(
                     // binary. TODO These test cases should move into the
                     // `node-file-trace` crate and use the same config.
                     CompileTimeInfo::new(Environment::new(Value::new(
-                        ExecutionEnvironment::NodeJsLambda(NodeJsEnvironment::default().into()),
+                        ExecutionEnvironment::NodeJsLambda(
+                            NodeJsEnvironment::default().resolved_cell(),
+                        ),
                     ))),
                     ModuleOptionsContext {
                         ecmascript: EcmascriptOptionsContext {
@@ -463,7 +466,9 @@ fn node_file_trace<B: Backend + 'static>(
 
                 print_graph(ResolvedVc::upcast(rebased)).await?;
 
-                emit_with_completion(*ResolvedVc::upcast(rebased), output_dir).await?;
+                let emit = emit_with_completion(*ResolvedVc::upcast(rebased), output_dir);
+                emit.strongly_consistent().await?;
+                apply_effects(emit).await?;
 
                 #[cfg(not(feature = "bench_against_node_nft"))]
                 {
@@ -658,10 +663,12 @@ fn clean_stderr(str: &str) -> String {
     lazy_static! {
         static ref EXPERIMENTAL_WARNING: Regex =
             Regex::new(r"\(node:\d+\) ExperimentalWarning:").unwrap();
+        static ref DEPRECATION_WARNING: Regex =
+            Regex::new(r"\(node:\d+\) \[DEP\d+] DeprecationWarning:").unwrap();
     }
-    EXPERIMENTAL_WARNING
-        .replace_all(str, "(node:XXXX) ExperimentalWarning:")
-        .to_string()
+    let str = EXPERIMENTAL_WARNING.replace_all(str, "(node:XXXX) ExperimentalWarning:");
+    let str = DEPRECATION_WARNING.replace_all(&str, "(node:XXXX) [DEPXXXX] DeprecationWarning:");
+    str.to_string()
 }
 
 fn diff(expected: &str, actual: &str) -> String {

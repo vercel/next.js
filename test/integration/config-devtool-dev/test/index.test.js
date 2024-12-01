@@ -38,7 +38,7 @@ const appDir = join(__dirname, '../')
         // TODO: add win32 snapshot
       } else {
         expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
-          "pages/index.js (5:11) @ eval
+          "pages/index.js (5:11) @ Index.useEffect
 
             3 | export default function Index(props) {
             4 |   useEffect(() => {

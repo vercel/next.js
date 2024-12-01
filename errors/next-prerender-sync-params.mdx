@@ -2,17 +2,17 @@
 title: Cannot access Request information synchronously with Page or Layout or Route `params` or Page `searchParams`
 ---
 
-#### Why This Error Occurred
+## Why This Error Occurred
 
 In Next.js 15 `params` passed into Page and Layout components and `searchParams` passed into Page components are now Promises.
 
 To support migrating to the async `params` and `searchParams` Next.js 15 still supports accessing param and searchParam values directly on the Promise object. However when `dynamicIO` is enabled it is an error to do so.
 
-#### Possible Ways to Fix It
+## Possible Ways to Fix It
 
 If you haven't already followed the Next.js 15 upgrade guide which includes running a codemod to auto-convert to the necessary async form of `params` and `searchParams` start there.
 
-[Next 15 Upgrade Guide](https://nextjs.org/docs/app/building-your-application/upgrading/version-15#async-request-apis-breaking-change)
+[Next 15 Upgrade Guide](/docs/app/building-your-application/upgrading/version-15#async-request-apis-breaking-change)
 
 If you have already run the codemod on your project look for instances of the string `@next-codemod-error` to see where the codemod was unable to convert to the async form. You will have to refactor your code manually here to make it compatible with the new result type.
 
@@ -54,6 +54,8 @@ export * from '.../some-file'
 
 It is unexpected that you would run the codemod and not successfully convert all instances of `params` and `searchParams` to async or have a marker string to help you locate unconverted cases. If you do find yourself in this situation please report this to [Next.js on Github](https://github.com/vercel/next.js/issues).
 
-- [`page.js` file convention](https://nextjs.org/docs/app/api-reference/file-conventions/page)
-- [`layout.js` file convention](https://nextjs.org/docs/app/api-reference/file-conventions/layout)
-- [`route.js` file convention](https://nextjs.org/docs/app/api-reference/file-conventions/route)
+## Useful Links
+
+- [`page.js` file convention](/docs/app/api-reference/file-conventions/page)
+- [`layout.js` file convention](/docs/app/api-reference/file-conventions/layout)
+- [`route.js` file convention](/docs/app/api-reference/file-conventions/route)

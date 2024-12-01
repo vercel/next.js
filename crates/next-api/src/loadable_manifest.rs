@@ -2,7 +2,8 @@ use std::collections::HashMap;
 
 use anyhow::Result;
 use next_core::next_manifests::LoadableManifest;
-use turbo_tasks::{RcStr, ResolvedVc, TryFlatJoinIterExt, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,

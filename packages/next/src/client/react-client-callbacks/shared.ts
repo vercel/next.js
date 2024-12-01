@@ -4,18 +4,21 @@ import type { HydrationOptions } from 'react-dom/client'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import { reportGlobalError } from './report-global-error'
 import { getReactStitchedError } from '../components/react-dev-overlay/internal/helpers/stitched-error'
+import isError from '../../lib/is-error'
 
 export const onRecoverableError: HydrationOptions['onRecoverableError'] = (
-  err,
+  error,
   errorInfo
 ) => {
-  const stitchedError = getReactStitchedError(err)
+  // x-ref: https://github.com/facebook/react/pull/28736
+  const cause = isError(error) && 'cause' in error ? error.cause : error
+  const stitchedError = getReactStitchedError(cause)
   // In development mode, pass along the component stack to the error
   if (process.env.NODE_ENV === 'development' && errorInfo.componentStack) {
     ;(stitchedError as any)._componentStack = errorInfo.componentStack
   }
   // Skip certain custom errors which are not expected to be reported on client
-  if (isBailoutToCSRError(err)) return
+  if (isBailoutToCSRError(cause)) return
 
   reportGlobalError(stitchedError)
 }

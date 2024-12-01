@@ -19,6 +19,7 @@ import {
   REACT_LOADABLE_MANIFEST,
   CLIENT_REFERENCE_MANIFEST,
   SERVER_REFERENCE_MANIFEST,
+  DYNAMIC_CSS_MANIFEST,
 } from '../shared/lib/constants'
 import { join } from 'path'
 import { requirePage } from './require'
@@ -38,6 +39,12 @@ export type ManifestItem = {
 }
 
 export type ReactLoadableManifest = { [moduleId: string]: ManifestItem }
+/**
+ * This manifest prevents removing server rendered <link> tags after client
+ * navigation. This is only needed under `Pages dir && Production && Webpack`.
+ * @see https://github.com/vercel/next.js/pull/72959
+ */
+export type DynamicCssManifest = string[]
 
 /**
  * A manifest entry type for the react-loadable-manifest.json.
@@ -56,6 +63,7 @@ export type LoadComponentsReturnType<NextModule = any> = {
   buildManifest: DeepReadonly<BuildManifest>
   subresourceIntegrityManifest?: DeepReadonly<Record<string, string>>
   reactLoadableManifest: DeepReadonly<ReactLoadableManifest>
+  dynamicCssManifest?: DeepReadonly<DynamicCssManifest>
   clientReferenceManifest?: DeepReadonly<ClientReferenceManifest>
   serverActionsManifest?: any
   Document: DocumentType
@@ -147,6 +155,7 @@ async function loadComponentsImpl<N = any>({
   const [
     buildManifest,
     reactLoadableManifest,
+    dynamicCssManifest,
     clientReferenceManifest,
     serverActionsManifest,
   ] = await Promise.all([
@@ -154,6 +163,12 @@ async function loadComponentsImpl<N = any>({
     loadManifestWithRetries<ReactLoadableManifest>(
       join(distDir, REACT_LOADABLE_MANIFEST)
     ),
+    // This manifest will only exist in Pages dir && Production && Webpack.
+    isAppPath || process.env.TURBOPACK
+      ? undefined
+      : loadManifestWithRetries<DynamicCssManifest>(
+          join(distDir, `${DYNAMIC_CSS_MANIFEST}.json`)
+        ).catch(() => undefined),
     hasClientManifest
       ? loadClientReferenceManifest(
           join(
@@ -201,6 +216,7 @@ async function loadComponentsImpl<N = any>({
     Component,
     buildManifest,
     reactLoadableManifest,
+    dynamicCssManifest,
     pageConfig: ComponentMod.config || {},
     ComponentMod,
     getServerSideProps,

@@ -618,17 +618,32 @@ export default function HotReload({
 
       if (appIsrManifest) {
         if (pathname && pathname in appIsrManifest) {
-          const indicatorHiddenAt = Number(
-            localStorage?.getItem('__NEXT_DISMISS_PRERENDER_INDICATOR')
-          )
+          try {
+            const indicatorHiddenAt = Number(
+              localStorage?.getItem('__NEXT_DISMISS_PRERENDER_INDICATOR')
+            )
 
-          const isHidden =
-            indicatorHiddenAt &&
-            !isNaN(indicatorHiddenAt) &&
-            Date.now() < indicatorHiddenAt
+            const isHidden =
+              indicatorHiddenAt &&
+              !isNaN(indicatorHiddenAt) &&
+              Date.now() < indicatorHiddenAt
 
-          if (!isHidden) {
-            dispatcher.onStaticIndicator(true)
+            if (!isHidden) {
+              dispatcher.onStaticIndicator(true)
+            }
+          } catch (reason) {
+            let message = ''
+
+            if (reason instanceof DOMException) {
+              // Most likely a SecurityError, because of an unavailable localStorage
+              message = reason.stack ?? reason.message
+            } else if (reason instanceof Error) {
+              message = 'Error: ' + reason.message + '\n' + (reason.stack ?? '')
+            } else {
+              message = 'Unexpected Exception: ' + reason
+            }
+
+            console.warn('[HMR] ' + message)
           }
         } else {
           dispatcher.onStaticIndicator(false)

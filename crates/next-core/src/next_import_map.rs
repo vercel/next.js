@@ -1,7 +1,8 @@
 use std::collections::{BTreeMap, HashMap};
 
 use anyhow::{Context, Result};
-use turbo_tasks::{fxindexmap, FxIndexMap, RcStr, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{fxindexmap, FxIndexMap, ResolvedVc, Value, Vc};
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack_core::{
     reference_type::{CommonJsReferenceSubType, ReferenceType},
@@ -10,7 +11,7 @@ use turbopack_core::{
         options::{ConditionValue, ImportMap, ImportMapping, ResolvedMap},
         parse::Request,
         pattern::Pattern,
-        resolve, AliasPattern, ExternalType, ResolveAliasMap, SubpathValue,
+        resolve, AliasPattern, ExternalTraced, ExternalType, ResolveAliasMap, SubpathValue,
     },
     source::Source,
 };
@@ -87,7 +88,7 @@ const EDGE_UNSUPPORTED_NODE_INTERNALS: [&str; 44] = [
 /// Computes the Next-specific client import map.
 #[turbo_tasks::function]
 pub async fn get_next_client_import_map(
-    project_path: Vc<FileSystemPath>,
+    project_path: ResolvedVc<FileSystemPath>,
     ty: Value<ClientContextType>,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
@@ -167,7 +168,7 @@ pub async fn get_next_client_import_map(
                     "next/dist/compiled/react-dom-experimental/static.browser",
                 ),
             );
-            let react_client_package = get_react_client_package(&next_config).await?;
+            let react_client_package = get_react_client_package(next_config).await?;
             import_map.insert_exact_alias(
                 "react-dom/client",
                 request_to_import_mapping(
@@ -201,6 +202,10 @@ pub async fn get_next_client_import_map(
                 "next/dynamic",
                 request_to_import_mapping(project_path, "next/dist/shared/lib/app-dynamic"),
             );
+            import_map.insert_exact_alias(
+                "next/link",
+                request_to_import_mapping(project_path, "next/dist/client/app-dir/link"),
+            );
         }
         ClientContextType::Fallback => {}
         ClientContextType::Other => {}
@@ -232,40 +237,48 @@ pub async fn get_next_client_import_map(
         ClientContextType::Other => {}
     }
 
-    insert_turbopack_dev_alias(&mut import_map);
+    insert_turbopack_dev_alias(&mut import_map).await?;
 
     Ok(import_map.cell())
 }
 
 /// Computes the Next-specific client import map.
 #[turbo_tasks::function]
-pub fn get_next_build_import_map() -> Vc<ImportMap> {
+pub async fn get_next_build_import_map() -> Result<Vc<ImportMap>> {
     let mut import_map = ImportMap::empty();
 
     insert_package_alias(
         &mut import_map,
         &format!("{VIRTUAL_PACKAGE_NAME}/"),
-        next_js_fs().root(),
+        next_js_fs().root().to_resolved().await?,
     );
 
-    let external = ImportMapping::External(None, ExternalType::CommonJs).cell();
+    let external = ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Traced)
+        .resolved_cell();
 
     import_map.insert_exact_alias("next", external);
     import_map.insert_wildcard_alias("next/", external);
     import_map.insert_exact_alias("styled-jsx", external);
     import_map.insert_exact_alias(
         "styled-jsx/style",
-        ImportMapping::External(Some("styled-jsx/style.js".into()), ExternalType::CommonJs).cell(),
+        ImportMapping::External(
+            Some("styled-jsx/style.js".into()),
+            ExternalType::CommonJs,
+            ExternalTraced::Traced,
+        )
+        .resolved_cell(),
     );
     import_map.insert_wildcard_alias("styled-jsx/", external);
 
-    import_map.cell()
+    Ok(import_map.cell())
 }
 
 /// Computes the Next-specific client fallback import map, which provides
 /// polyfills to Node.js externals.
 #[turbo_tasks::function]
-pub fn get_next_client_fallback_import_map(ty: Value<ClientContextType>) -> Vc<ImportMap> {
+pub async fn get_next_client_fallback_import_map(
+    ty: Value<ClientContextType>,
+) -> Result<Vc<ImportMap>> {
     let mut import_map = ImportMap::empty();
 
     match ty.into_value() {
@@ -284,15 +297,15 @@ pub fn get_next_client_fallback_import_map(ty: Value<ClientContextType>) -> Vc<I
         ClientContextType::Other => {}
     }
 
-    insert_turbopack_dev_alias(&mut import_map);
+    insert_turbopack_dev_alias(&mut import_map).await?;
 
-    import_map.cell()
+    Ok(import_map.cell())
 }
 
 /// Computes the Next-specific server-side import map.
 #[turbo_tasks::function]
 pub async fn get_next_server_import_map(
-    project_path: Vc<FileSystemPath>,
+    project_path: ResolvedVc<FileSystemPath>,
     ty: Value<ServerContextType>,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
@@ -318,7 +331,8 @@ pub async fn get_next_server_import_map(
 
     let ty = ty.into_value();
 
-    let external: Vc<ImportMapping> = ImportMapping::External(None, ExternalType::CommonJs).cell();
+    let external = ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Traced)
+        .resolved_cell();
 
     import_map.insert_exact_alias("next/dist/server/require-hook", external);
     match ty {
@@ -333,8 +347,12 @@ pub async fn get_next_server_import_map(
             import_map.insert_exact_alias("styled-jsx", external);
             import_map.insert_exact_alias(
                 "styled-jsx/style",
-                ImportMapping::External(Some("styled-jsx/style.js".into()), ExternalType::CommonJs)
-                    .cell(),
+                ImportMapping::External(
+                    Some("styled-jsx/style.js".into()),
+                    ExternalType::CommonJs,
+                    ExternalTraced::Traced,
+                )
+                .resolved_cell(),
             );
             import_map.insert_wildcard_alias("styled-jsx/", external);
             // TODO: we should not bundle next/dist/build/utils in the pages renderer at all
@@ -351,6 +369,10 @@ pub async fn get_next_server_import_map(
                 "next/dynamic",
                 request_to_import_mapping(project_path, "next/dist/shared/lib/app-dynamic"),
             );
+            import_map.insert_exact_alias(
+                "next/link",
+                request_to_import_mapping(project_path, "next/dist/client/app-dir/link"),
+            )
         }
         ServerContextType::Middleware { .. } | ServerContextType::Instrumentation { .. } => {}
     }
@@ -370,7 +392,7 @@ pub async fn get_next_server_import_map(
 /// Computes the Next-specific edge-side import map.
 #[turbo_tasks::function]
 pub async fn get_next_edge_import_map(
-    project_path: Vc<FileSystemPath>,
+    project_path: ResolvedVc<FileSystemPath>,
     ty: Value<ServerContextType>,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
@@ -455,6 +477,10 @@ pub async fn get_next_edge_import_map(
                 "next/dynamic",
                 request_to_import_mapping(project_path, "next/dist/shared/lib/app-dynamic"),
             );
+            import_map.insert_exact_alias(
+                "next/link",
+                request_to_import_mapping(project_path, "next/dist/client/app-dir/link"),
+            )
         }
     }
 
@@ -480,9 +506,10 @@ pub async fn get_next_edge_import_map(
         | ServerContextType::PagesApi { .. } => {
             insert_unsupported_node_internal_aliases(
                 &mut import_map,
-                project_path,
+                *project_path,
                 execution_context,
-            );
+            )
+            .await?;
         }
     }
 
@@ -492,24 +519,27 @@ pub async fn get_next_edge_import_map(
 /// Insert default aliases for the node.js's internal to raise unsupported
 /// runtime errors. User may provide polyfills for their own by setting user
 /// config's alias.
-fn insert_unsupported_node_internal_aliases(
+async fn insert_unsupported_node_internal_aliases(
     import_map: &mut ImportMap,
     project_path: Vc<FileSystemPath>,
     execution_context: Vc<ExecutionContext>,
-) {
-    let unsupported_replacer = ImportMapping::Dynamic(Vc::upcast(
-        NextEdgeUnsupportedModuleReplacer::new(project_path, execution_context),
+) -> Result<()> {
+    let unsupported_replacer = ImportMapping::Dynamic(ResolvedVc::upcast(
+        NextEdgeUnsupportedModuleReplacer::new(project_path, execution_context)
+            .to_resolved()
+            .await?,
     ))
-    .into();
+    .resolved_cell();
 
     EDGE_UNSUPPORTED_NODE_INTERNALS.iter().for_each(|module| {
         import_map.insert_alias(AliasPattern::exact(*module), unsupported_replacer);
     });
+    Ok(())
 }
 
 pub fn get_next_client_resolved_map(
     _context: Vc<FileSystemPath>,
-    _root: Vc<FileSystemPath>,
+    _root: ResolvedVc<FileSystemPath>,
     _mode: NextMode,
 ) -> Vc<ResolvedMap> {
     let glob_mappings = vec![];
@@ -547,19 +577,21 @@ static NEXT_ALIASES: [(&str, &str); 23] = [
 
 async fn insert_next_server_special_aliases(
     import_map: &mut ImportMap,
-    project_path: Vc<FileSystemPath>,
+    project_path: ResolvedVc<FileSystemPath>,
     ty: ServerContextType,
     runtime: NextRuntime,
     next_config: Vc<NextConfig>,
 ) -> Result<()> {
-    let external_cjs_if_node = move |context_dir: Vc<FileSystemPath>, request: &str| match runtime {
-        NextRuntime::Edge => request_to_import_mapping(context_dir, request),
-        NextRuntime::NodeJs => external_request_to_cjs_import_mapping(request),
-    };
-    let external_esm_if_node = move |context_dir: Vc<FileSystemPath>, request: &str| match runtime {
-        NextRuntime::Edge => request_to_import_mapping(context_dir, request),
-        NextRuntime::NodeJs => external_request_to_esm_import_mapping(request),
-    };
+    let external_cjs_if_node =
+        move |context_dir: ResolvedVc<FileSystemPath>, request: &str| match runtime {
+            NextRuntime::Edge => request_to_import_mapping(context_dir, request),
+            NextRuntime::NodeJs => external_request_to_cjs_import_mapping(context_dir, request),
+        };
+    let external_esm_if_node =
+        move |context_dir: ResolvedVc<FileSystemPath>, request: &str| match runtime {
+            NextRuntime::Edge => request_to_import_mapping(context_dir, request),
+            NextRuntime::NodeJs => external_request_to_esm_import_mapping(context_dir, request),
+        };
 
     import_map.insert_exact_alias(
         "next/dist/compiled/@vercel/og/index.node.js",
@@ -572,7 +604,7 @@ async fn insert_next_server_special_aliases(
             request_to_import_mapping(project_path, "react-dom/server.edge"),
             request_to_import_mapping(project_path, "react-dom/server.browser"),
         ])
-        .cell(),
+        .resolved_cell(),
     );
 
     import_map.insert_exact_alias(
@@ -582,7 +614,7 @@ async fn insert_next_server_special_aliases(
             external_cjs_if_node(project_path, "@opentelemetry/api"),
             external_cjs_if_node(project_path, "next/dist/compiled/@opentelemetry/api"),
         ])
-        .cell(),
+        .resolved_cell(),
     );
 
     match ty {
@@ -592,13 +624,14 @@ async fn insert_next_server_special_aliases(
         ServerContextType::AppSSR { app_dir }
         | ServerContextType::AppRSC { app_dir, .. }
         | ServerContextType::AppRoute { app_dir, .. } => {
+            let next_package = get_next_package(*app_dir).to_resolved().await?;
             import_map.insert_exact_alias(
                 "styled-jsx",
-                request_to_import_mapping(get_next_package(app_dir), "styled-jsx"),
+                request_to_import_mapping(next_package, "styled-jsx"),
             );
             import_map.insert_wildcard_alias(
                 "styled-jsx/",
-                request_to_import_mapping(get_next_package(app_dir), "styled-jsx/*"),
+                request_to_import_mapping(next_package, "styled-jsx/*"),
             );
 
             rsc_aliases(import_map, project_path, ty, runtime, next_config).await?;
@@ -665,7 +698,7 @@ async fn insert_next_server_special_aliases(
     Ok(())
 }
 
-async fn get_react_client_package(&next_config: &Vc<NextConfig>) -> Result<&'static str> {
+async fn get_react_client_package(next_config: Vc<NextConfig>) -> Result<&'static str> {
     let react_production_profiling = *next_config.enable_react_production_profiling().await?;
     let react_client_package = if react_production_profiling {
         "profiling"
@@ -678,7 +711,7 @@ async fn get_react_client_package(&next_config: &Vc<NextConfig>) -> Result<&'sta
 
 async fn rsc_aliases(
     import_map: &mut ImportMap,
-    project_path: Vc<FileSystemPath>,
+    project_path: ResolvedVc<FileSystemPath>,
     ty: ServerContextType,
     runtime: NextRuntime,
     next_config: Vc<NextConfig>,
@@ -691,7 +724,7 @@ async fn rsc_aliases(
     } else {
         ""
     };
-    let react_client_package = get_react_client_package(&next_config).await?;
+    let react_client_package = get_react_client_package(next_config).await?;
 
     let mut alias = FxIndexMap::default();
     if matches!(
@@ -800,7 +833,7 @@ pub fn mdx_import_source_file() -> RcStr {
 // Keep in sync with getOptimizedModuleAliases in webpack-config.ts
 async fn insert_optimized_module_aliases(
     import_map: &mut ImportMap,
-    project_path: Vc<FileSystemPath>,
+    project_path: ResolvedVc<FileSystemPath>,
 ) -> Result<()> {
     insert_exact_alias_map(
         import_map,
@@ -824,12 +857,12 @@ async fn insert_optimized_module_aliases(
 // Make sure to not add any external requests here.
 async fn insert_next_shared_aliases(
     import_map: &mut ImportMap,
-    project_path: Vc<FileSystemPath>,
+    project_path: ResolvedVc<FileSystemPath>,
     execution_context: Vc<ExecutionContext>,
     next_config: Vc<NextConfig>,
     is_runtime_edge: bool,
 ) -> Result<()> {
-    let package_root = next_js_fs().root();
+    let package_root = next_js_fs().root().to_resolved().await?;
 
     insert_alias_to_alternatives(
         import_map,
@@ -852,41 +885,52 @@ async fn insert_next_shared_aliases(
     //
     // TODO: Add BeforeResolve plugins for `@next/font/google`
 
+    let next_font_google_replacer_mapping = ImportMapping::Dynamic(ResolvedVc::upcast(
+        NextFontGoogleReplacer::new(*project_path)
+            .to_resolved()
+            .await?,
+    ))
+    .resolved_cell();
+
     import_map.insert_alias(
         // Request path from js via next-font swc transform
         AliasPattern::exact("next/font/google/target.css"),
-        ImportMapping::Dynamic(Vc::upcast(NextFontGoogleReplacer::new(project_path))).into(),
+        next_font_google_replacer_mapping,
     );
 
     import_map.insert_alias(
         // Request path from js via next-font swc transform
         AliasPattern::exact("@next/font/google/target.css"),
-        ImportMapping::Dynamic(Vc::upcast(NextFontGoogleReplacer::new(project_path))).into(),
+        next_font_google_replacer_mapping,
     );
 
     import_map.insert_alias(
         AliasPattern::exact("@vercel/turbopack-next/internal/font/google/cssmodule.module.css"),
-        ImportMapping::Dynamic(Vc::upcast(NextFontGoogleCssModuleReplacer::new(
-            project_path,
-            execution_context,
-        )))
-        .into(),
+        ImportMapping::Dynamic(ResolvedVc::upcast(
+            NextFontGoogleCssModuleReplacer::new(*project_path, execution_context)
+                .to_resolved()
+                .await?,
+        ))
+        .resolved_cell(),
     );
 
     import_map.insert_alias(
         AliasPattern::exact(GOOGLE_FONTS_INTERNAL_PREFIX),
-        ImportMapping::Dynamic(Vc::upcast(NextFontGoogleFontFileReplacer::new(
-            project_path,
-        )))
-        .into(),
+        ImportMapping::Dynamic(ResolvedVc::upcast(
+            NextFontGoogleFontFileReplacer::new(*project_path)
+                .to_resolved()
+                .await?,
+        ))
+        .resolved_cell(),
     );
 
-    import_map.insert_singleton_alias("@swc/helpers", get_next_package(project_path));
-    import_map.insert_singleton_alias("styled-jsx", get_next_package(project_path));
+    let next_package = get_next_package(*project_path).to_resolved().await?;
+    import_map.insert_singleton_alias("@swc/helpers", next_package);
+    import_map.insert_singleton_alias("styled-jsx", next_package);
     import_map.insert_singleton_alias("next", project_path);
     import_map.insert_singleton_alias("react", project_path);
     import_map.insert_singleton_alias("react-dom", project_path);
-    let react_client_package = get_react_client_package(&next_config).await?;
+    let react_client_package = get_react_client_package(next_config).await?;
     import_map.insert_exact_alias(
         "react-dom/client",
         request_to_import_mapping(project_path, &format!("react-dom/{react_client_package}")),
@@ -896,7 +940,7 @@ async fn insert_next_shared_aliases(
         // Make sure you can't import custom server as it'll cause all Next.js internals to be
         // bundled which doesn't work.
         AliasPattern::exact("next"),
-        ImportMapping::Empty.into(),
+        ImportMapping::Empty.resolved_cell(),
     );
 
     //https://github.com/vercel/next.js/blob/f94d4f93e4802f951063cfa3351dd5a2325724b3/packages/next/src/build/webpack-config.ts#L1196
@@ -938,11 +982,14 @@ async fn insert_next_shared_aliases(
         ),
     );
 
-    insert_turbopack_dev_alias(import_map);
+    insert_turbopack_dev_alias(import_map).await?;
     insert_package_alias(
         import_map,
         "@vercel/turbopack-node/",
-        turbopack_node::embed_js::embed_fs().root(),
+        turbopack_node::embed_js::embed_fs()
+            .root()
+            .to_resolved()
+            .await?,
     );
 
     let image_config = next_config.image_config().await?;
@@ -980,7 +1027,7 @@ pub async fn get_next_package(context_directory: Vc<FileSystemPath>) -> Result<V
 
 pub async fn insert_alias_option<const N: usize>(
     import_map: &mut ImportMap,
-    project_path: Vc<FileSystemPath>,
+    project_path: ResolvedVc<FileSystemPath>,
     alias_options: Vc<ResolveAliasMap>,
     conditions: [&'static str; N],
 ) -> Result<()> {
@@ -996,8 +1043,8 @@ pub async fn insert_alias_option<const N: usize>(
 fn export_value_to_import_mapping(
     value: &SubpathValue,
     conditions: &BTreeMap<RcStr, ConditionValue>,
-    project_path: Vc<FileSystemPath>,
-) -> Option<Vc<ImportMapping>> {
+    project_path: ResolvedVc<FileSystemPath>,
+) -> Option<ResolvedVc<ImportMapping>> {
     let mut result = Vec::new();
     value.add_results(
         conditions,
@@ -1009,24 +1056,26 @@ fn export_value_to_import_mapping(
         None
     } else {
         Some(if result.len() == 1 {
-            ImportMapping::PrimaryAlternative(result[0].0.into(), Some(project_path)).cell()
+            ImportMapping::PrimaryAlternative(result[0].0.into(), Some(project_path))
+                .resolved_cell()
         } else {
             ImportMapping::Alternatives(
                 result
                     .iter()
                     .map(|(m, _)| {
-                        ImportMapping::PrimaryAlternative((*m).into(), Some(project_path)).cell()
+                        ImportMapping::PrimaryAlternative((*m).into(), Some(project_path))
+                            .resolved_cell()
                     })
                     .collect(),
             )
-            .cell()
+            .resolved_cell()
         })
     }
 }
 
 fn insert_exact_alias_map(
     import_map: &mut ImportMap,
-    project_path: Vc<FileSystemPath>,
+    project_path: ResolvedVc<FileSystemPath>,
     map: FxIndexMap<&'static str, String>,
 ) {
     for (pattern, request) in map {
@@ -1036,7 +1085,7 @@ fn insert_exact_alias_map(
 
 fn insert_wildcard_alias_map(
     import_map: &mut ImportMap,
-    project_path: Vc<FileSystemPath>,
+    project_path: ResolvedVc<FileSystemPath>,
     map: FxIndexMap<&'static str, String>,
 ) {
     for (pattern, request) in map {
@@ -1049,11 +1098,11 @@ fn insert_wildcard_alias_map(
 fn insert_alias_to_alternatives<'a>(
     import_map: &mut ImportMap,
     alias: impl Into<String> + 'a,
-    alternatives: Vec<Vc<ImportMapping>>,
+    alternatives: Vec<ResolvedVc<ImportMapping>>,
 ) {
     import_map.insert_exact_alias(
         alias.into(),
-        ImportMapping::Alternatives(alternatives).into(),
+        ImportMapping::Alternatives(alternatives).resolved_cell(),
     );
 }
 
@@ -1061,37 +1110,62 @@ fn insert_alias_to_alternatives<'a>(
 fn insert_package_alias(
     import_map: &mut ImportMap,
     prefix: &str,
-    package_root: Vc<FileSystemPath>,
+    package_root: ResolvedVc<FileSystemPath>,
 ) {
     import_map.insert_wildcard_alias(
         prefix,
-        ImportMapping::PrimaryAlternative("./*".into(), Some(package_root)).cell(),
+        ImportMapping::PrimaryAlternative("./*".into(), Some(package_root)).resolved_cell(),
     );
 }
 
 /// Inserts an alias to @vercel/turbopack-dev into an import map.
-fn insert_turbopack_dev_alias(import_map: &mut ImportMap) {
+async fn insert_turbopack_dev_alias(import_map: &mut ImportMap) -> Result<()> {
     insert_package_alias(
         import_map,
         "@vercel/turbopack-ecmascript-runtime/",
-        turbopack_ecmascript_runtime::embed_fs().root(),
+        turbopack_ecmascript_runtime::embed_fs()
+            .root()
+            .to_resolved()
+            .await?,
     );
+    Ok(())
 }
 
 /// Creates a direct import mapping to the result of resolving a request
 /// in a context.
-fn request_to_import_mapping(context_path: Vc<FileSystemPath>, request: &str) -> Vc<ImportMapping> {
-    ImportMapping::PrimaryAlternative(request.into(), Some(context_path)).cell()
+fn request_to_import_mapping(
+    context_path: ResolvedVc<FileSystemPath>,
+    request: &str,
+) -> ResolvedVc<ImportMapping> {
+    ImportMapping::PrimaryAlternative(request.into(), Some(context_path)).resolved_cell()
 }
 
 /// Creates a direct import mapping to the result of resolving an external
 /// request.
-fn external_request_to_cjs_import_mapping(request: &str) -> Vc<ImportMapping> {
-    ImportMapping::External(Some(request.into()), ExternalType::CommonJs).into()
+fn external_request_to_cjs_import_mapping(
+    context_dir: ResolvedVc<FileSystemPath>,
+    request: &str,
+) -> ResolvedVc<ImportMapping> {
+    ImportMapping::PrimaryAlternativeExternal {
+        name: Some(request.into()),
+        ty: ExternalType::CommonJs,
+        traced: ExternalTraced::Traced,
+        lookup_dir: context_dir,
+    }
+    .resolved_cell()
 }
 
 /// Creates a direct import mapping to the result of resolving an external
 /// request.
-fn external_request_to_esm_import_mapping(request: &str) -> Vc<ImportMapping> {
-    ImportMapping::External(Some(request.into()), ExternalType::EcmaScriptModule).into()
+fn external_request_to_esm_import_mapping(
+    context_dir: ResolvedVc<FileSystemPath>,
+    request: &str,
+) -> ResolvedVc<ImportMapping> {
+    ImportMapping::PrimaryAlternativeExternal {
+        name: Some(request.into()),
+        ty: ExternalType::EcmaScriptModule,
+        traced: ExternalTraced::Traced,
+        lookup_dir: context_dir,
+    }
+    .resolved_cell()
 }

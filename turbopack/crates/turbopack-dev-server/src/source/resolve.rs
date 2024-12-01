@@ -8,7 +8,8 @@ use hyper::{
     header::{HeaderName as HyperHeaderName, HeaderValue as HyperHeaderValue},
     Uri,
 };
-use turbo_tasks::{RcStr, ResolvedVc, TransientInstance, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, TransientInstance, Value, Vc};
 
 use super::{
     headers::{HeaderValue, Headers},
@@ -145,7 +146,7 @@ async fn request_to_data(
         data.original_url = Some(original_request.uri.to_string().into());
     }
     if vary.body {
-        data.body = Some(request.body.clone().into());
+        data.body = Some(request.body.clone().resolved_cell());
     }
     if vary.raw_query {
         data.raw_query = Some(request.uri.query().unwrap_or("").into());

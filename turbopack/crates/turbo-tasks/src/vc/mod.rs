@@ -7,6 +7,7 @@ mod traits;
 
 use std::{
     any::Any,
+    fmt::Debug,
     future::{Future, IntoFuture},
     hash::{Hash, Hasher},
     marker::PhantomData,
@@ -50,7 +51,7 @@ use crate::{
 #[serde(transparent, bound = "")]
 pub struct Vc<T>
 where
-    T: ?Sized + Send,
+    T: ?Sized,
 {
     pub(crate) node: RawVc,
     #[doc(hidden)]
@@ -186,7 +187,7 @@ where
 #[doc(hidden)]
 impl<T> Deref for Vc<T>
 where
-    T: ?Sized + Send,
+    T: ?Sized,
 {
     type Target = VcDeref<T>;
 
@@ -200,14 +201,11 @@ where
     }
 }
 
-impl<T> Copy for Vc<T> where T: ?Sized + Send {}
-
-unsafe impl<T> Send for Vc<T> where T: ?Sized + Send {}
-unsafe impl<T> Sync for Vc<T> where T: ?Sized + Send {}
+impl<T> Copy for Vc<T> where T: ?Sized {}
 
 impl<T> Clone for Vc<T>
 where
-    T: ?Sized + Send,
+    T: ?Sized,
 {
     fn clone(&self) -> Self {
         *self
@@ -216,7 +214,7 @@ where
 
 impl<T> Hash for Vc<T>
 where
-    T: ?Sized + Send,
+    T: ?Sized,
 {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.node.hash(state);
@@ -225,20 +223,23 @@ where
 
 impl<T> PartialEq<Vc<T>> for Vc<T>
 where
-    T: ?Sized + Send,
+    T: ?Sized,
 {
     fn eq(&self, other: &Self) -> bool {
         self.node == other.node
     }
 }
 
-impl<T> Eq for Vc<T> where T: ?Sized + Send {}
+impl<T> Eq for Vc<T> where T: ?Sized {}
 
-// TODO(alexkirsz) This should not be implemented for Vc. Instead, users should
-// use the `ValueDebug` implementation to get a `D: Debug`.
-impl<T> std::fmt::Debug for Vc<T>
+/// Generates an opaque debug representation of the [`Vc`] itself, but not the data inside of it.
+///
+/// This is implemented to allow types containing [`Vc`] to implement the synchronous [`Debug`]
+/// trait, but in most cases users should use the [`ValueDebug`] implementation to get a string
+/// representation of the contents of the cell.
+impl<T> Debug for Vc<T>
 where
-    T: Send,
+    T: ?Sized,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Vc").field("node", &self.node).finish()
@@ -309,7 +310,7 @@ where
 
 impl<T> Vc<T>
 where
-    T: ?Sized + Send,
+    T: ?Sized,
 {
     /// Connects the operation pointed to by this `Vc` to the current task.
     pub fn connect(vc: Self) {
@@ -340,19 +341,14 @@ where
     pub fn upcast<K>(vc: Self) -> Vc<K>
     where
         T: Upcast<K>,
-        K: VcValueTrait + ?Sized + Send,
+        K: VcValueTrait + ?Sized,
     {
         Vc {
             node: vc.node,
             _t: PhantomData,
         }
     }
-}
 
-impl<T> Vc<T>
-where
-    T: ?Sized + Send,
-{
     /// Resolve the reference until it points to a cell directly.
     ///
     /// Resolving will wait for task execution to be finished, so that the
@@ -415,7 +411,7 @@ where
 
 impl<T> Vc<T>
 where
-    T: VcValueTrait + ?Sized + Send,
+    T: VcValueTrait + ?Sized,
 {
     /// Attempts to sidecast the given `Vc<Box<dyn T>>` to a `Vc<Box<dyn K>>`.
     /// This operation also resolves the `Vc`.
@@ -427,7 +423,7 @@ where
     /// removing the need for a `Result` return type.
     pub async fn try_resolve_sidecast<K>(vc: Self) -> Result<Option<Vc<K>>, ResolveTypeError>
     where
-        K: VcValueTrait + ?Sized + Send,
+        K: VcValueTrait + ?Sized,
     {
         let raw_vc: RawVc = vc.node;
         let raw_vc = raw_vc
@@ -446,8 +442,7 @@ where
     /// Returns `None` if the underlying value type is not a `K`.
     pub async fn try_resolve_downcast<K>(vc: Self) -> Result<Option<Vc<K>>, ResolveTypeError>
     where
-        K: Upcast<T>,
-        K: VcValueTrait + ?Sized + Send,
+        K: Upcast<T> + VcValueTrait + ?Sized,
     {
         let raw_vc: RawVc = vc.node;
         let raw_vc = raw_vc
@@ -466,8 +461,7 @@ where
     /// Returns `None` if the underlying value type is not a `K`.
     pub async fn try_resolve_downcast_type<K>(vc: Self) -> Result<Option<Vc<K>>, ResolveTypeError>
     where
-        K: Upcast<T>,
-        K: VcValueType,
+        K: Upcast<T> + VcValueType,
     {
         let raw_vc: RawVc = vc.node;
         let raw_vc = raw_vc
@@ -482,20 +476,20 @@ where
 
 impl<T> CollectiblesSource for Vc<T>
 where
-    T: ?Sized + Send,
+    T: ?Sized,
 {
-    fn take_collectibles<Vt: VcValueTrait + Send>(self) -> AutoSet<Vc<Vt>> {
+    fn take_collectibles<Vt: VcValueTrait>(self) -> AutoSet<Vc<Vt>> {
         self.node.take_collectibles()
     }
 
-    fn peek_collectibles<Vt: VcValueTrait + Send>(self) -> AutoSet<Vc<Vt>> {
+    fn peek_collectibles<Vt: VcValueTrait>(self) -> AutoSet<Vc<Vt>> {
         self.node.peek_collectibles()
     }
 }
 
 impl<T> From<RawVc> for Vc<T>
 where
-    T: ?Sized + Send,
+    T: ?Sized,
 {
     fn from(node: RawVc) -> Self {
         Self {
@@ -507,7 +501,7 @@ where
 
 impl<T> TraceRawVcs for Vc<T>
 where
-    T: ?Sized + Send,
+    T: ?Sized,
 {
     fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
         TraceRawVcs::trace_raw_vcs(&self.node, trace_context);
@@ -516,8 +510,7 @@ where
 
 impl<T> ValueDebugFormat for Vc<T>
 where
-    T: ?Sized + Send,
-    T: Upcast<Box<dyn ValueDebug>>,
+    T: Upcast<Box<dyn ValueDebug>> + Send + Sync + ?Sized,
 {
     fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString {
         ValueDebugFormatString::Async(Box::pin(async move {
@@ -558,13 +551,20 @@ where
     pub fn strongly_consistent(self) -> ReadVcFuture<T> {
         self.node.into_strongly_consistent_read().into()
     }
+
+    /// Returns a untracked read of the value. This will not invalidate the current function when
+    /// the read value changed.
+    #[must_use]
+    pub fn untracked(self) -> ReadVcFuture<T> {
+        self.node.into_read_untracked().into()
+    }
 }
 
-impl<T> Unpin for Vc<T> where T: ?Sized + Send {}
+impl<T> Unpin for Vc<T> where T: ?Sized {}
 
 impl<T> Default for Vc<T>
 where
-    T: ValueDefault + Send,
+    T: ValueDefault,
 {
     fn default() -> Self {
         T::value_default()
