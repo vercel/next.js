@@ -23,8 +23,10 @@ To manually set up Vitest, install `vitest` and the following packages as dev de
 ```bash filename="Terminal" switcher
 # Using TypeScript
 npm install -D vitest @vitejs/plugin-react jsdom @testing-library/react @testing-library/dom vite-tsconfig-paths
+deno install -D vitest @vitejs/plugin-react jsdom @testing-library/react @testing-library/dom vite-tsconfig-paths
 # Using JavaScript
 npm install -D vitest @vitejs/plugin-react jsdom @testing-library/react @testing-library/dom
+deno add -D vitest @vitejs/plugin-react jsdom @testing-library/react @testing-library/dom
 ```
 
 Create a `vitest.config.mts|js` file in the root of your project, and add the following options:
