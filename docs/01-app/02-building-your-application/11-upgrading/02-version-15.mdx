@@ -514,7 +514,7 @@ export async function GET() {}
 
 When navigating between pages via `<Link>` or `useRouter`, [page](/docs/app/api-reference/file-conventions/page) segments are no longer reused from the client-side router cache. However, they are still reused during browser backward and forward navigation and for shared layouts.
 
-To opt page segments into caching, you can use the [`staleTimes`](/docs/app/api-reference/config/next-config-js/staleTimes) config option:
+To opt page segments into caching, you can use the [`staleTimes`](/docs/app/api-reference/next-config-js/staleTimes) config option:
 
 ```js filename="next.config.js"
 /** @type {import('next').NextConfig} */

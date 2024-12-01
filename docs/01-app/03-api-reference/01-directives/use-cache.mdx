@@ -6,8 +6,8 @@ related:
   title: Related
   description: View related API references.
   links:
-    - app/api-reference/config/next-config-js/dynamicIO
-    - app/api-reference/config/next-config-js/cacheLife
+    - app/api-reference/next-config-js/dynamicIO
+    - app/api-reference/next-config-js/cacheLife
     - app/api-reference/functions/cacheTag
     - app/api-reference/functions/cacheLife
     - app/api-reference/functions/revalidateTag
@@ -17,7 +17,7 @@ The `use cache` directive designates a component and/or a function to be cached.
 
 ## Usage
 
-Enable support for the `use cache` directive with the [`dynamicIO`](/docs/app/api-reference/config/next-config-js/dynamicIO) flag in your `next.config.ts` file:
+Enable support for the `use cache` directive with the [`dynamicIO`](/docs/app/api-reference/next-config-js/dynamicIO) flag in your `next.config.ts` file:
 
 ```ts filename="next.config.ts"
 import type { NextConfig } from 'next'
@@ -64,7 +64,7 @@ export async function getData() {
 - The return value of the cacheable function must also be serializable. This ensures that the cached data can be stored and retrieved correctly.
 - Functions that use the `use cache` directive must not have any side-effects, such as modifying state, directly manipulating the DOM, or setting timers to execute code at intervals.
 - If used alongside [Partial Prerendering](/docs/app/building-your-application/rendering/partial-prerendering), segments that have `use cache` will be prerendered as part of the static HTML shell.
-- The `use cache` directive will be available separately from the [`dynamicIO`](/docs/app/api-reference/config/next-config-js/dynamicIO) flag in the future.
+- The `use cache` directive will be available separately from the [`dynamicIO`](/docs/app/api-reference/next-config-js/dynamicIO) flag in the future.
 - Unlike [`unstable_cache`](/docs/app/api-reference/functions/unstable_cache) which only supports JSON data, `use cache` can cache any serializable data React can render, including the render output of components.
 
 ## Examples

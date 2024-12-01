@@ -9,13 +9,13 @@ Rewrites allow you to map an incoming request path to a different destination pa
 
 <AppOnly>
 
-Rewrites act as a URL proxy and mask the destination path, making it appear the user hasn't changed their location on the site. In contrast, [redirects](/docs/app/api-reference/config/next-config-js/redirects) will reroute to a new page and show the URL changes.
+Rewrites act as a URL proxy and mask the destination path, making it appear the user hasn't changed their location on the site. In contrast, [redirects](/docs/app/api-reference/next-config-js/redirects) will reroute to a new page and show the URL changes.
 
 </AppOnly>
 
 <PagesOnly>
 
-Rewrites act as a URL proxy and mask the destination path, making it appear the user hasn't changed their location on the site. In contrast, [redirects](/docs/pages/api-reference/config/next-config-js/redirects) will reroute to a new page and show the URL changes.
+Rewrites act as a URL proxy and mask the destination path, making it appear the user hasn't changed their location on the site. In contrast, [redirects](/docs/pages/api-reference/next-config-js/redirects) will reroute to a new page and show the URL changes.
 
 </PagesOnly>
 
@@ -88,8 +88,8 @@ The order Next.js routes are checked is:
 
 <AppOnly>
 
-1. [headers](/docs/app/api-reference/config/next-config-js/headers) are checked/applied
-2. [redirects](/docs/app/api-reference/config/next-config-js/redirects) are checked/applied
+1. [headers](/docs/app/api-reference/next-config-js/headers) are checked/applied
+2. [redirects](/docs/app/api-reference/next-config-js/redirects) are checked/applied
 3. `beforeFiles` rewrites are checked/applied
 4. static files from the [public directory](/docs/app/building-your-application/optimizing/static-assets), `_next/static` files, and non-dynamic pages are checked/served
 5. `afterFiles` rewrites are checked/applied, if one of these rewrites is matched we check dynamic routes/static files after each match
@@ -99,8 +99,8 @@ The order Next.js routes are checked is:
 
 <PagesOnly>
 
-1. [headers](/docs/pages/api-reference/config/next-config-js/headers) are checked/applied
-2. [redirects](/docs/pages/api-reference/config/next-config-js/redirects) are checked/applied
+1. [headers](/docs/pages/api-reference/next-config-js/headers) are checked/applied
+2. [redirects](/docs/pages/api-reference/next-config-js/redirects) are checked/applied
 3. `beforeFiles` rewrites are checked/applied
 4. static files from the [public directory](/docs/pages/building-your-application/optimizing/static-assets), `_next/static` files, and non-dynamic pages are checked/served
 5. `afterFiles` rewrites are checked/applied, if one of these rewrites is matched we check dynamic routes/static files after each match
@@ -388,7 +388,7 @@ module.exports = {
 
 ### Rewrites with basePath support
 
-When leveraging [`basePath` support](/docs/app/api-reference/config/next-config-js/basePath) with rewrites each `source` and `destination` is automatically prefixed with the `basePath` unless you add `basePath: false` to the rewrite:
+When leveraging [`basePath` support](/docs/app/api-reference/next-config-js/basePath) with rewrites each `source` and `destination` is automatically prefixed with the `basePath` unless you add `basePath: false` to the rewrite:
 
 ```js filename="next.config.js"
 module.exports = {

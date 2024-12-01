@@ -69,7 +69,7 @@ If you are using an older version of Next.js or you have a custom Webpack config
 The [Webpack cache](https://webpack.js.org/configuration/cache/) saves generated Webpack modules in memory and/or to disk to improve the speed of builds. This can
 help with performance, but it will also increase the memory usage of your application to store the cached data.
 
-You can disable this behavior by adding a [custom Webpack configuration](/docs/app/api-reference/config/next-config-js/webpack) to your application:
+You can disable this behavior by adding a [custom Webpack configuration](/docs/app/api-reference/next-config-js/webpack) to your application:
 
 ```js filename="next.config.mjs"
 /** @type {import('next').NextConfig} */
@@ -118,7 +118,7 @@ export default nextConfig
 ```
 
 - [Ignoring TypeScript Errors](/docs/app/api-reference/config/typescript#disabling-typescript-errors-in-production)
-- [ESLint in Next.js config](/docs/pages/api-reference/config/next-config-js/eslint)
+- [ESLint in Next.js config](/docs/pages/api-reference/next-config-js/eslint)
 
 Keep in mind that this may produce faulty deploys due to type errors or linting issues.
 We strongly recommend only promoting builds to production after static analysis has completed.

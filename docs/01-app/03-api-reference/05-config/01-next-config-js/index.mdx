@@ -123,7 +123,7 @@ This page documents all the available configuration options:
 
 Starting in Next.js 15.1, the `next/experimental/testing/server` package contains utilities to help unit test `next.config.js` files.
 
-The `unstable_getResponseFromNextConfig` function runs the [`headers`](/docs/app/api-reference/config/next-config-js/headers), [`redirects`](/docs/app/api-reference/config/next-config-js/redirects), and [`rewrites`](/docs/app/api-reference/config/next-config-js/rewrites) functions from `next.config.js` with the provided request information and returns `NextResponse` with the results of the routing.
+The `unstable_getResponseFromNextConfig` function runs the [`headers`](/docs/app/api-reference/next-config-js/headers), [`redirects`](/docs/app/api-reference/next-config-js/redirects), and [`rewrites`](/docs/app/api-reference/next-config-js/rewrites) functions from `next.config.js` with the provided request information and returns `NextResponse` with the results of the routing.
 
 > The response from `unstable_getResponseFromNextConfig` only considers `next.config.js` fields and does not consider middleware or filesystem routes, so the result in production may be different than the unit test.
 

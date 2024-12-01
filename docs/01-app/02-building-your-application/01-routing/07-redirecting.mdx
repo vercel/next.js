@@ -6,7 +6,7 @@ related:
     - app/api-reference/functions/redirect
     - app/api-reference/functions/permanentRedirect
     - app/building-your-application/routing/middleware
-    - app/api-reference/config/next-config-js/redirects
+    - app/api-reference/next-config-js/redirects
 ---
 
 There are a few ways you can handle redirects in Next.js. This page will go through each available option, use cases, and how to manage large numbers of redirects.
@@ -233,7 +233,7 @@ See the [`useRouter` API reference](/docs/pages/api-reference/functions/use-rout
 
 The `redirects` option in the `next.config.js` file allows you to redirect an incoming request path to a different destination path. This is useful when you change the URL structure of pages or have a list of redirects that are known ahead of time.
 
-`redirects` supports [path](/docs/app/api-reference/config/next-config-js/redirects#path-matching), [header, cookie, and query matching](/docs/app/api-reference/config/next-config-js/redirects#header-cookie-and-query-matching), giving you the flexibility to redirect users based on an incoming request.
+`redirects` supports [path](/docs/app/api-reference/next-config-js/redirects#path-matching), [header, cookie, and query matching](/docs/app/api-reference/next-config-js/redirects#header-cookie-and-query-matching), giving you the flexibility to redirect users based on an incoming request.
 
 To use `redirects`, add the option to your `next.config.js` file:
 
@@ -258,7 +258,7 @@ module.exports = {
 }
 ```
 
-See the [`redirects` API reference](/docs/app/api-reference/config/next-config-js/redirects) for more information.
+See the [`redirects` API reference](/docs/app/api-reference/next-config-js/redirects) for more information.
 
 > **Good to know**:
 >

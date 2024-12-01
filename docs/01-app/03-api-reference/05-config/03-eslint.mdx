@@ -98,7 +98,7 @@ export default eslintConfig
 
 ### Disabling the cache
 
-To improve performance, information of files processed by ESLint are cached by default. This is stored in `.next/cache` or in your defined [build directory](/docs/app/api-reference/config/next-config-js/distDir). If you include any ESLint rules that depend on more than the contents of a single source file and need to disable the cache, use the `--no-cache` flag with `next lint`.
+To improve performance, information of files processed by ESLint are cached by default. This is stored in `.next/cache` or in your defined [build directory](/docs/app/api-reference/next-config-js/distDir). If you include any ESLint rules that depend on more than the contents of a single source file and need to disable the cache, use the `--no-cache` flag with `next lint`.
 
 ```bash filename="Terminal"
 next lint --no-cache

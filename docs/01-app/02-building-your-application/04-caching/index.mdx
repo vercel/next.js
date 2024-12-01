@@ -320,7 +320,7 @@ With the Router Cache:
 
 - **Layouts** are cached and reused on navigation ([partial rendering](/docs/app/building-your-application/routing/linking-and-navigating#4-partial-rendering)).
 - **Loading states** are cached and reused on navigation for [instant navigation](/docs/app/building-your-application/routing/loading-ui-and-streaming#instant-loading-states).
-- **Pages** are not cached by default, but are reused during browser backward and forward navigation. You can enable caching for page segments by using the experimental [`staleTimes`](/docs/app/api-reference/config/next-config-js/staleTimes) config option.
+- **Pages** are not cached by default, but are reused during browser backward and forward navigation. You can enable caching for page segments by using the experimental [`staleTimes`](/docs/app/api-reference/next-config-js/staleTimes) config option.
 
 {/* TODO: Update diagram to match v15 behavior */}
 
@@ -337,7 +337,7 @@ The cache is stored in the browser's temporary memory. Two factors determine how
 
 While a page refresh will clear **all** cached segments, the automatic invalidation period only affects the individual segment from the time it was prefetched.
 
-> **Good to know**: The experimental [`staleTimes`](/docs/app/api-reference/config/next-config-js/staleTimes) config option can be used to adjust the automatic invalidation times mentioned above.
+> **Good to know**: The experimental [`staleTimes`](/docs/app/api-reference/next-config-js/staleTimes) config option can be used to adjust the automatic invalidation times mentioned above.
 
 ### Invalidation
 
