@@ -1,4 +1,6 @@
 #![feature(anonymous_lifetime_in_impl_trait)]
+#![feature(associated_type_defaults)]
+#![feature(iter_collect_into)]
 
 mod backend;
 mod backing_storage;

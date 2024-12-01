@@ -5,7 +5,7 @@ use swc_core::{
     common::SyntaxContext,
     ecma::{ast::*, utils::ExprCtx, visit::VisitWith},
 };
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::ResolvedVc;
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
 use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext};
 
@@ -16,10 +16,11 @@ pub fn next_edge_node_api_assert(
     should_error_for_node_apis: bool,
     is_production: bool,
 ) -> ModuleRule {
-    let transformer = EcmascriptInputTransform::Plugin(Vc::cell(Box::new(NextEdgeNodeApiAssert {
-        should_error_for_node_apis,
-        is_production,
-    }) as _));
+    let transformer =
+        EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(NextEdgeNodeApiAssert {
+            should_error_for_node_apis,
+            is_production,
+        }) as _));
     ModuleRule::new(
         module_rule_match_js_no_url(enable_mdx_rs),
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {

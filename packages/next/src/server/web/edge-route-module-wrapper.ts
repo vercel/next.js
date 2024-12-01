@@ -13,7 +13,6 @@ import type { NextFetchEvent } from './spec-extension/fetch-event'
 import { internal_getCurrentFunctionWaitUntil } from './internal-edge-wait-until'
 import { getUtils } from '../server-utils'
 import { searchParamsToUrlQuery } from '../../shared/lib/router/utils/querystring'
-import type { RequestLifecycleOpts } from '../base-server'
 import { CloseController, trackStreamConsumed } from './web-on-close'
 import { getEdgePreviewProps } from './get-edge-preview-props'
 import type { NextConfigComplete } from '../config-shared'
@@ -88,13 +87,8 @@ export class EdgeRouteModuleWrapper {
 
     const isAfterEnabled = !!process.env.__NEXT_AFTER
 
-    let waitUntil: RequestLifecycleOpts['waitUntil'] = undefined
-    let closeController: CloseController | undefined
-
-    if (isAfterEnabled) {
-      waitUntil = evt.waitUntil.bind(evt)
-      closeController = new CloseController()
-    }
+    const waitUntil = evt.waitUntil.bind(evt)
+    const closeController = new CloseController()
 
     const previewProps = getEdgePreviewProps()
 
@@ -112,12 +106,12 @@ export class EdgeRouteModuleWrapper {
       renderOpts: {
         supportsDynamicResponse: true,
         waitUntil,
-        onClose: closeController
-          ? closeController.onClose.bind(closeController)
-          : undefined,
+        onClose: closeController.onClose.bind(closeController),
+        onAfterTaskError: undefined,
         experimental: {
           after: isAfterEnabled,
           dynamicIO: !!process.env.__NEXT_DYNAMIC_IO,
+          authInterrupts: !!process.env.__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS,
         },
         buildId: '', // TODO: Populate this properly.
         cacheLifeProfiles: this.nextConfig.experimental.cacheLife,

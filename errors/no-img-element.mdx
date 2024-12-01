@@ -12,7 +12,7 @@ An `<img>` element was used to display an image instead of `<Image />` from `nex
 
 1. Use [`next/image`](/docs/pages/api-reference/components/image) to improve performance with automatic [Image Optimization](/docs/pages/building-your-application/optimizing/images).
 
-> Note: If deploying to a [managed hosting provider](/docs/pages/building-your-application/deploying), remember to check provider pricing since optimized images might be charged differently than the original images.
+> **Note**: If deploying to a [managed hosting provider](/docs/pages/building-your-application/deploying), remember to check provider pricing since optimized images might be charged differently than the original images.
 >
 > Common image optimization platform pricing:
 >
@@ -20,7 +20,7 @@ An `<img>` element was used to display an image instead of `<Image />` from `nex
 > - [Cloudinary pricing](https://cloudinary.com/pricing)
 > - [imgix pricing](https://imgix.com/pricing)
 
-> Note: If self-hosting, remember to install [`sharp`](https://www.npmjs.com/package/sharp) and check if your server has enough storage to cache the optimized images.
+> **Note**: If self-hosting, remember to install [`sharp`](https://www.npmjs.com/package/sharp) and check if your server has enough storage to cache the optimized images.
 
 ```jsx filename="pages/index.js"
 import Image from 'next/image'

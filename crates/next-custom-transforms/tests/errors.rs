@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{iter::FromIterator, path::PathBuf};
 
 use next_custom_transforms::transforms::{
     disallow_re_export_all_in_page::disallow_re_export_all_in_page,
@@ -11,6 +11,7 @@ use next_custom_transforms::transforms::{
     },
     strip_page_exports::{next_transform_strip_page_exports, ExportFilter},
 };
+use rustc_hash::FxHashSet;
 use swc_core::{
     common::{FileName, Mark},
     ecma::{
@@ -187,6 +188,7 @@ fn react_server_actions_server_errors(input: PathBuf) {
                         is_react_server_layer: true,
                         dynamic_io_enabled: true,
                         hash_salt: "".into(),
+                        cache_kinds: FxHashSet::default(),
                     },
                     tr.comments.as_ref().clone(),
                 ),
@@ -226,6 +228,7 @@ fn react_server_actions_client_errors(input: PathBuf) {
                         is_react_server_layer: false,
                         dynamic_io_enabled: true,
                         hash_salt: "".into(),
+                        cache_kinds: FxHashSet::default(),
                     },
                     tr.comments.as_ref().clone(),
                 ),
@@ -283,6 +286,7 @@ fn use_cache_not_allowed(input: PathBuf) {
                         is_react_server_layer: true,
                         dynamic_io_enabled: false,
                         hash_salt: "".into(),
+                        cache_kinds: FxHashSet::from_iter(["x".into()]),
                     },
                     tr.comments.as_ref().clone(),
                 ),

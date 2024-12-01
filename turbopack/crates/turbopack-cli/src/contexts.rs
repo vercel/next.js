@@ -1,7 +1,8 @@
 use std::fmt;
 
 use anyhow::Result;
-use turbo_tasks::{RcStr, ResolvedVc, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack::{
     ecmascript::{EcmascriptInputTransform, TreeShakingMode},
@@ -144,16 +145,16 @@ async fn get_client_module_options_context(
         conditions,
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
             prepend: ResolvedVc::cell(vec![
-                EcmascriptInputTransform::Plugin(Vc::cell(Box::new(
+                EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(
                     EmotionTransformer::new(&EmotionTransformConfig::default())
                         .expect("Should be able to create emotion transformer"),
                 ) as _)),
-                EcmascriptInputTransform::Plugin(Vc::cell(Box::new(
+                EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(
                     StyledComponentsTransformer::new(&StyledComponentsTransformConfig::default()),
                 ) as _)),
-                EcmascriptInputTransform::Plugin(Vc::cell(Box::new(StyledJsxTransformer::new(
-                    versions,
-                )) as _)),
+                EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(
+                    StyledJsxTransformer::new(versions),
+                ) as _)),
             ]),
             append: ResolvedVc::cell(vec![]),
         }],
@@ -220,17 +221,20 @@ pub async fn get_client_compile_time_info(
     browserslist_query: RcStr,
     node_env: Vc<NodeEnv>,
 ) -> Result<Vc<CompileTimeInfo>> {
-    Ok(
-        CompileTimeInfo::builder(Environment::new(Value::new(ExecutionEnvironment::Browser(
+    CompileTimeInfo::builder(
+        Environment::new(Value::new(ExecutionEnvironment::Browser(
             BrowserEnvironment {
                 dom: true,
                 web_worker: false,
                 service_worker: false,
                 browserslist_query,
             }
-            .into(),
-        ))))
-        .defines(client_defines(&*node_env.await?))
-        .cell(),
+            .resolved_cell(),
+        )))
+        .to_resolved()
+        .await?,
     )
+    .defines(client_defines(&*node_env.await?).to_resolved().await?)
+    .cell()
+    .await
 }

@@ -12,7 +12,8 @@ use swc_core::{
         codegen::to_code,
     },
 };
-use turbo_tasks::{FxIndexSet, RcStr, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexSet, ResolvedVc, ValueToString, Vc};
 use turbopack_core::{ident::AssetIdent, resolve::ModulePart, source::Source};
 
 pub(crate) use self::graph::{
@@ -26,6 +27,7 @@ pub mod chunk_item;
 mod graph;
 pub mod merge;
 mod optimizations;
+pub mod side_effect_module;
 #[cfg(test)]
 mod tests;
 mod util;
@@ -441,14 +443,14 @@ async fn get_part_id(result: &SplitResult, part: Vc<ModulePart>) -> Result<u32> 
 #[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
 pub(crate) enum SplitResult {
     Ok {
-        asset_ident: Vc<AssetIdent>,
+        asset_ident: ResolvedVc<AssetIdent>,
 
         /// `u32` is a index to `modules`.
         #[turbo_tasks(trace_ignore)]
         entrypoints: FxHashMap<Key, u32>,
 
         #[turbo_tasks(debug_ignore, trace_ignore)]
-        modules: Vec<Vc<ParseResult>>,
+        modules: Vec<ResolvedVc<ParseResult>>,
 
         #[turbo_tasks(trace_ignore)]
         deps: FxHashMap<u32, Vec<PartId>>,
@@ -457,7 +459,7 @@ pub(crate) enum SplitResult {
         star_reexports: Vec<ExportAll>,
     },
     Failed {
-        parse_result: Vc<ParseResult>,
+        parse_result: ResolvedVc<ParseResult>,
     },
 }
 
@@ -477,9 +479,9 @@ pub(super) async fn split_module(asset: Vc<EcmascriptModuleAsset>) -> Result<Vc<
 
 #[turbo_tasks::function]
 pub(super) async fn split(
-    ident: Vc<AssetIdent>,
+    ident: ResolvedVc<AssetIdent>,
     source: Vc<Box<dyn Source>>,
-    parsed: Vc<ParseResult>,
+    parsed: ResolvedVc<ParseResult>,
 ) -> Result<Vc<SplitResult>> {
     // Do not split already split module
     if !ident.await?.parts.is_empty() {
@@ -579,7 +581,7 @@ pub(super) async fn split(
                         Some(source),
                     );
 
-                    ParseResult::cell(ParseResult::Ok {
+                    ParseResult::resolved_cell(ParseResult::Ok {
                         program,
                         globals: globals.clone(),
                         comments: comments.clone(),
@@ -727,8 +729,8 @@ pub(crate) async fn part_of_module(
                 );
             }
 
-            Ok(modules[part_id as usize])
+            Ok(*modules[part_id as usize])
         }
-        SplitResult::Failed { parse_result } => Ok(*parse_result),
+        SplitResult::Failed { parse_result } => Ok(**parse_result),
     }
 }

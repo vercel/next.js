@@ -7,7 +7,7 @@ use next_api::{
     route::{Endpoint, WrittenEndpoint},
 };
 use tracing::Instrument;
-use turbo_tasks::{Completion, ReadRef, Vc, VcValueType};
+use turbo_tasks::{get_effects, Completion, Effects, ReadRef, Vc, VcValueType};
 use turbopack_core::{
     diagnostics::PlainDiagnostic,
     error::PrettyPrintError,
@@ -104,10 +104,12 @@ async fn strongly_consistent_catch_collectables<R: VcValueType + Send>(
     Option<ReadRef<R>>,
     Arc<Vec<ReadRef<PlainIssue>>>,
     Arc<Vec<ReadRef<PlainDiagnostic>>>,
+    Arc<Effects>,
 )> {
     let result = source.strongly_consistent().await;
     let issues = get_issues(source).await?;
     let diagnostics = get_diagnostics(source).await?;
+    let effects = Arc::new(get_effects(source).await?);
 
     let result = if result.is_err() && issues.iter().any(|i| i.severity <= IssueSeverity::Error) {
         None
@@ -115,7 +117,7 @@ async fn strongly_consistent_catch_collectables<R: VcValueType + Send>(
         Some(result?)
     };
 
-    Ok((result, issues, diagnostics))
+    Ok((result, issues, diagnostics, effects))
 }
 
 #[turbo_tasks::value(serialization = "none")]
@@ -123,6 +125,7 @@ struct WrittenEndpointWithIssues {
     written: Option<ReadRef<WrittenEndpoint>>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
     diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
+    effects: Arc<Effects>,
 }
 
 #[turbo_tasks::function]
@@ -130,12 +133,13 @@ async fn get_written_endpoint_with_issues(
     endpoint: Vc<Box<dyn Endpoint>>,
 ) -> Result<Vc<WrittenEndpointWithIssues>> {
     let write_to_disk = endpoint.write_to_disk();
-    let (written, issues, diagnostics) =
+    let (written, issues, diagnostics, effects) =
         strongly_consistent_catch_collectables(write_to_disk).await?;
     Ok(WrittenEndpointWithIssues {
         written,
         issues,
         diagnostics,
+        effects,
     }
     .cell())
 }
@@ -149,13 +153,15 @@ pub async fn endpoint_write_to_disk(
     let endpoint = ***endpoint;
     let (written, issues, diags) = turbo_tasks
         .run_once(async move {
+            let operation = get_written_endpoint_with_issues(endpoint);
             let WrittenEndpointWithIssues {
                 written,
                 issues,
                 diagnostics,
-            } = &*get_written_endpoint_with_issues(endpoint)
-                .strongly_consistent()
-                .await?;
+                effects,
+            } = &*operation.strongly_consistent().await?;
+            effects.apply().await?;
+
             Ok((written.clone(), issues.clone(), diagnostics.clone()))
         })
         .await
@@ -180,9 +186,10 @@ pub fn endpoint_server_changed_subscribe(
         func,
         move || {
             async move {
-                subscribe_issues_and_diags(endpoint, issues)
-                    .strongly_consistent()
-                    .await
+                let operation = subscribe_issues_and_diags(endpoint, issues);
+                let result = operation.strongly_consistent().await?;
+                result.effects.apply().await?;
+                Ok(result)
             }
             .instrument(tracing::info_span!("server changes subscription"))
         },
@@ -191,6 +198,7 @@ pub fn endpoint_server_changed_subscribe(
                 changed: _,
                 issues,
                 diagnostics,
+                effects: _,
             } = &*ctx.value;
 
             Ok(vec![TurbopackResult {
@@ -210,6 +218,7 @@ struct EndpointIssuesAndDiags {
     changed: Option<ReadRef<Completion>>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
     diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
+    effects: Arc<Effects>,
 }
 
 impl PartialEq for EndpointIssuesAndDiags {
@@ -233,12 +242,13 @@ async fn subscribe_issues_and_diags(
     let changed = endpoint.server_changed();
 
     if should_include_issues {
-        let (changed_value, issues, diagnostics) =
+        let (changed_value, issues, diagnostics, effects) =
             strongly_consistent_catch_collectables(changed).await?;
         Ok(EndpointIssuesAndDiags {
             changed: changed_value,
             issues,
             diagnostics,
+            effects,
         }
         .cell())
     } else {
@@ -247,6 +257,7 @@ async fn subscribe_issues_and_diags(
             changed: Some(changed_value),
             issues: Arc::new(vec![]),
             diagnostics: Arc::new(vec![]),
+            effects: Arc::new(Effects::default()),
         }
         .cell())
     }

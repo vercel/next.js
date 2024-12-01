@@ -7,7 +7,8 @@ use lightningcss::{
     values::url::Url,
     visitor::{Visit, Visitor},
 };
-use turbo_tasks::{RcStr, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{Value, Vc};
 use turbopack_core::{
     issue::IssueSource,
     reference::ModuleReference,

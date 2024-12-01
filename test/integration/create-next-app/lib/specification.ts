@@ -26,12 +26,13 @@ export const projectSpecification: ProjectSpecification = {
   global: {
     files: [
       'package.json',
-      '.eslintrc.json',
+      'eslint.config.mjs',
       'node_modules/next',
       '.gitignore',
     ],
     deps: ['next', 'react', 'react-dom'],
-    devDeps: ['eslint', 'eslint-config-next'],
+    // TODO: Remove @eslint/eslintrc once eslint-config-next is pure Flat config
+    devDeps: ['eslint', 'eslint-config-next', '@eslint/eslintrc'],
   },
   default: {
     js: {

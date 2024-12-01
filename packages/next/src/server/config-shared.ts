@@ -152,10 +152,8 @@ export interface ExperimentalTurboOptions {
 
   /**
    * Enable persistent caching for the turbopack dev server and build.
-   * Need to provide the expected level of stability, otherwise it will fail.
-   * Currently stability level: 1
    */
-  unstablePersistentCaching?: number | false
+  unstablePersistentCaching?: boolean
 
   /**
    * Enable tree shaking for the turbopack dev server and build.
@@ -299,12 +297,12 @@ export interface ExperimentalConfig {
   middlewarePrefetch?: 'strict' | 'flexible'
   manualClientBasePath?: boolean
   /**
-   * CSS Chunking strategy. Defaults to 'loose', which guesses dependencies
+   * CSS Chunking strategy. Defaults to `true` ("loose" mode), which guesses dependencies
    * between CSS files to keep ordering of them.
    * An alternative is 'strict', which will try to keep correct ordering as
    * much as possible, even when this leads to many requests.
    */
-  cssChunking?: 'strict' | 'loose'
+  cssChunking?: boolean | 'strict'
   disablePostcssPresetEnv?: boolean
   cpus?: number
   memoryBasedWorkersCount?: boolean
@@ -558,6 +556,18 @@ export interface ExperimentalConfig {
    * unless explicitly cached.
    */
   dynamicIO?: boolean
+
+  /**
+   * Render <style> tags inline in the HTML for imported CSS assets.
+   * Supports app-router in production mode only.
+   */
+  inlineCss?: boolean
+
+  // TODO: Remove this config when the API is stable.
+  /**
+   * This config allows you to enable the experimental navigation API `forbidden` and `unauthorized`.
+   */
+  authInterrupts?: boolean
 }
 
 export type ExportPathMap = {
@@ -1080,6 +1090,7 @@ export const defaultConfig: NextConfig = {
       remote: process.env.NEXT_REMOTE_CACHE_HANDLER_PATH,
       static: process.env.NEXT_STATIC_CACHE_HANDLER_PATH,
     },
+    cssChunking: true,
     multiZoneDraftMode: false,
     appNavFailHandling: Boolean(process.env.NEXT_PRIVATE_FLYING_SHUTTLE),
     flyingShuttle: Boolean(process.env.NEXT_PRIVATE_FLYING_SHUTTLE)
@@ -1145,6 +1156,7 @@ export const defaultConfig: NextConfig = {
         process.env.__NEXT_TEST_MODE &&
         process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
       ),
+    authInterrupts: false,
     reactOwnerStack: false,
     webpackBuildWorker: undefined,
     webpackMemoryOptimizations: false,
@@ -1162,6 +1174,7 @@ export const defaultConfig: NextConfig = {
     staticGenerationMaxConcurrency: 8,
     staticGenerationMinPagesPerWorker: 25,
     dynamicIO: false,
+    inlineCss: false,
   },
   bundlePagesRouterDependencies: false,
 }

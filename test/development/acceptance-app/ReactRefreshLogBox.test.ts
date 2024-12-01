@@ -4,7 +4,7 @@ import { FileRef, nextTestSetup } from 'e2e-utils'
 import {
   check,
   describeVariants as describe,
-  getRedboxCallStackCollapsed,
+  getStackFramesContent,
   retry,
 } from 'next-test-utils'
 import path from 'path'
@@ -41,7 +41,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     )
     await session.evaluate(() => document.querySelector('a').click())
 
-    await session.waitForAndOpenRuntimeError()
+    await session.openRedbox()
     expect(await session.getRedboxSource()).toMatchSnapshot()
   })
 
@@ -149,7 +149,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
       `export default function FunctionDefault() { throw new Error('no'); }`
     )
 
-    await session.waitForAndOpenRuntimeError()
+    await session.openRedbox()
     expect(await session.getRedboxSource()).toMatchSnapshot()
     expect(
       await session.evaluate(() => document.querySelector('h2').textContent)
@@ -390,7 +390,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     )
 
     await session.evaluate(() => document.querySelector('button').click())
-    await session.waitForAndOpenRuntimeError()
+    await session.openRedbox()
 
     const header = await session.getRedboxDescription()
     expect(header).toMatchSnapshot()
@@ -435,7 +435,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     )
 
     await session.evaluate(() => document.querySelector('button').click())
-    await session.waitForAndOpenRuntimeError()
+    await session.openRedbox()
 
     const header2 = await session.getRedboxDescription()
     expect(header2).toMatchSnapshot()
@@ -480,7 +480,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     )
 
     await session.evaluate(() => document.querySelector('button').click())
-    await session.waitForAndOpenRuntimeError()
+    await session.openRedbox()
 
     const header3 = await session.getRedboxDescription()
     expect(header3).toMatchSnapshot()
@@ -525,7 +525,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     )
 
     await session.evaluate(() => document.querySelector('button').click())
-    await session.waitForAndOpenRuntimeError()
+    await session.openRedbox()
 
     const header4 = await session.getRedboxDescription()
     expect(header4).toEqual(
@@ -860,10 +860,11 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
 
     // Should still show the errored line in source code
     const source = await session.getRedboxSource()
-    expect(source).toContain('app/page.js')
-    expect(source).toContain(
-      `throw new Error("This is an error from an anonymous function")`
-    )
+    if (isTurbopack) {
+      expect(source).toMatchSnapshot()
+    } else {
+      expect(source).toMatchSnapshot()
+    }
 
     const stackFrameElements = await browser.elementsByCss(
       '[data-nextjs-call-stack-frame]'
@@ -872,33 +873,19 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
       stackFrameElements.map((f) => f.innerText())
     )
     expect(stackFrames).toEqual(
+      // TODO: investigate the column number is off by 1 between turbo and webpack
       process.env.TURBOPACK
         ? [
-            // TODO: Why is Turbopack off by one in the column?
             outdent`
                 Page
                 app/page.js (5:6)
               `,
-            // TODO: Show useful stack
-            // Internal frames of React.
-            // Feel free to adjust until we show useful stacks.
-            '',
-            '',
-            '',
-            '',
           ]
         : [
             outdent`
                 Page
                 app/page.js (5:5)
               `,
-            // TODO: Show useful stack
-            // Internal frames of React.
-            // Feel free to adjust until we show useful stacks.
-            '',
-            '',
-            '',
-            '',
           ]
     )
   })
@@ -923,8 +910,11 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
 
     // Should still show the errored line in source code
     const source = await session.getRedboxSource()
-    expect(source).toContain('app/page.js')
-    expect(source).toContain(`new URL("/", "invalid")`)
+    if (isTurbopack) {
+      expect(source).toMatchSnapshot()
+    } else {
+      expect(source).toMatchSnapshot()
+    }
 
     const stackFrameElements = await browser.elementsByCss(
       '[data-nextjs-call-stack-frame]'
@@ -932,17 +922,9 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     const stackFrames = await Promise.all(
       stackFrameElements.map((f) => f.innerText())
     )
-    expect(stackFrames).toEqual(
-      // TODO: Show useful stack
-      [
-        // Internal frames of React.
-        // Feel free to adjust until we show useful stacks.
-        '',
-        '',
-        '',
-        '',
-      ]
-    )
+
+    // No following rest of displayed stack frames by default
+    expect(stackFrames.length).toBe(0)
   })
 
   test('Server component errors should open up in fullscreen', async () => {
@@ -1049,8 +1031,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     // Wait for patch to apply and new error to show.
     await session.assertHasRedbox()
     if (isTurbopack) {
-      await retry(async () => {
-        expect(await session.getRedboxSource()).toEqual(outdent`
+      expect(await session.getRedboxSource()).toEqual(outdent`
           ./app/styles2.css:1:2
           Module not found: Can't resolve './boom.css'
           > 1 | @import "./boom.css"
@@ -1058,10 +1039,8 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
           
           https://nextjs.org/docs/messages/module-not-found
         `)
-      })
     } else {
-      await retry(async () => {
-        expect(await session.getRedboxSource()).toEqual(outdent`
+      expect(await session.getRedboxSource()).toEqual(outdent`
           ./app/styles2.css
           Module not found: Can't resolve './boom.css'
           
@@ -1070,7 +1049,6 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
           Import trace for requested module:
           ./app/styles1.css
         `)
-      })
     }
   })
 
@@ -1124,8 +1102,7 @@ export default function Home() {
 
     // Wait for patch to apply and new error to show.
     await session.assertHasRedbox()
-    await retry(async () => {
-      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+    expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
         "app/actions.ts (4:9) @ serverAction
 
           2 |
@@ -1134,7 +1111,6 @@ export default function Home() {
             |         ^
           5 | }"
       `)
-    })
   })
 
   test('Should show error location for server actions in server component', async () => {
@@ -1183,7 +1159,7 @@ export default function Home() {
     })
   })
 
-  test('Should collapse bundler internal stack frames', async () => {
+  test('should collapse bundler internal stack frames', async () => {
     await using sandbox = await createSandbox(
       next,
       new Map([
@@ -1205,42 +1181,51 @@ export default function Home() {
         ],
       ])
     )
+
     const { session, browser } = sandbox
 
     await session.assertHasRedbox()
 
-    let stack = next.normalizeTestDirContent(
-      await getRedboxCallStackCollapsed(browser)
-    )
+    const source = await session.getRedboxSource()
+    const stackFrames = await getStackFramesContent(browser)
+
     if (isTurbopack) {
-      expect(stack).toMatchInlineSnapshot(`
+      expect(source).toMatchInlineSnapshot(`
         "app/utils.ts (1:7) @ [project]/app/utils.ts [app-client] (ecmascript)
-        ---
-        Next.js
-        ---
-        [project]/app/page.js [app-client] (ecmascript)
-        app/page.js (2:1)
-        ---
-        Next.js
-        ---
-        React"
+
+        > 1 | throw new Error('utils error')
+            |       ^
+          2 | export function foo(){}
+          3 |           "
       `)
     } else {
-      expect(stack).toMatchInlineSnapshot(`
+      expect(source).toMatchInlineSnapshot(`
         "app/utils.ts (1:7) @ eval
-        ---
-        ./app/utils.ts
-        file://TEST_DIR/.next/static/chunks/app/page.js (39:1)
-        ---
-        Next.js
-        ---
-        eval
-        ./app/page.js
-        ---
-        ./app/page.js
-        file://TEST_DIR/.next/static/chunks/app/page.js (28:1)
-        ---
-        Next.js"
+
+        > 1 | throw new Error('utils error')
+            |       ^
+          2 | export function foo(){}
+          3 |           "
+      `)
+    }
+
+    if (isTurbopack) {
+      // FIXME: display the sourcemapped stack frames
+      expect(stackFrames).toMatchInlineSnapshot(
+        `"at [project]/app/page.js [app-client] (ecmascript) (app/page.js (2:1))"`
+      )
+    } else {
+      // FIXME: Webpack stack frames are not source mapped
+      expect(stackFrames).toMatchInlineSnapshot(`
+        "at ./app/utils.ts ()
+        at options.factory ()
+        at __webpack_require__ ()
+        at fn ()
+        at eval ()
+        at ./app/page.js ()
+        at options.factory ()
+        at __webpack_require__ ()
+        at fn ()"
       `)
     }
   })

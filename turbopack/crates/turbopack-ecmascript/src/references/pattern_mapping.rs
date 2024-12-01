@@ -10,9 +10,9 @@ use swc_core::{
     },
     quote, quote_expr,
 };
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, RcStr, ResolvedVc, TryJoinIterExt,
-    Value, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, ResolvedVc, TryJoinIterExt, Value, Vc,
 };
 use turbopack_core::{
     chunk::{ChunkItemExt, ChunkableModule, ChunkingContext, ModuleId},
@@ -107,27 +107,15 @@ impl SinglePatternMapping {
         match self {
             Self::Invalid => self.create_id(key_expr),
             Self::Unresolvable(request) => throw_module_not_found_expr(request),
-            Self::Ignored => {
-                quote!("{}" as Expr)
-            }
-            Self::Module(_) | Self::ModuleLoader(_) => Expr::Call(CallExpr {
-                callee: Callee::Expr(quote_expr!("__turbopack_require__")),
-                args: vec![ExprOrSpread {
-                    spread: None,
-                    expr: Box::new(self.create_id(key_expr)),
-                }],
-                span: DUMMY_SP,
-                ..Default::default()
-            }),
-            Self::External(request, ExternalType::CommonJs) => Expr::Call(CallExpr {
-                callee: Callee::Expr(quote_expr!("__turbopack_external_require__")),
-                args: vec![ExprOrSpread {
-                    spread: None,
-                    expr: request.as_str().into(),
-                }],
-                span: DUMMY_SP,
-                ..Default::default()
-            }),
+            Self::Ignored => quote!("{}" as Expr),
+            Self::Module(_) | Self::ModuleLoader(_) => quote!(
+                "__turbopack_require__($arg)" as Expr,
+                arg: Expr = self.create_id(key_expr)
+            ),
+            Self::External(request, ExternalType::CommonJs) => quote!(
+                "__turbopack_external_require__($arg, () => require($arg))" as Expr,
+                arg: Expr = request.as_str().into()
+            ),
             Self::External(request, ty) => throw_module_not_found_error_expr(
                 request,
                 &format!("Unsupported external type {:?} for commonjs reference", ty),
@@ -170,7 +158,7 @@ impl SinglePatternMapping {
                         args: vec![ExprOrSpread {
                             spread: None,
                             expr: quote_expr!(
-                                "() => __turbopack_external_require__($arg, true)",
+                                "() => __turbopack_external_require__($arg, () => require($arg), true)",
                                 arg: Expr = key_expr.into_owned()
                             ),
                         }],
@@ -184,7 +172,7 @@ impl SinglePatternMapping {
                 args: vec![ExprOrSpread {
                     spread: None,
                     expr: quote_expr!(
-                        "() => __turbopack_external_require__($arg, true)",
+                        "() => __turbopack_external_require__($arg, () => require($arg), true)",
                         arg: Expr = key_expr.into_owned()
                     ),
                 }],
@@ -316,7 +304,7 @@ async fn to_single_pattern_mapping(
 ) -> Result<SinglePatternMapping> {
     let module = match resolve_item {
         ModuleResolveResultItem::Module(module) => *module,
-        ModuleResolveResultItem::External(s, ty) => {
+        ModuleResolveResultItem::External { name: s, ty, .. } => {
             return Ok(SinglePatternMapping::External(s.clone(), *ty));
         }
         ModuleResolveResultItem::Ignore => return Ok(SinglePatternMapping::Ignored),

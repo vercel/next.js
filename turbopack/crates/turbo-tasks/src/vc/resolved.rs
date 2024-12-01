@@ -21,12 +21,13 @@ use std::{
 use auto_hash_map::{AutoMap, AutoSet};
 use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
+use turbo_rcstr::RcStr;
 
 use crate::{
     debug::{ValueDebug, ValueDebugFormat, ValueDebugFormatString},
     trace::{TraceRawVcs, TraceRawVcsContext},
     vc::Vc,
-    RcStr, ResolveTypeError, Upcast, VcRead, VcTransparentRead, VcValueTrait, VcValueType,
+    ResolveTypeError, Upcast, VcRead, VcTransparentRead, VcValueTrait, VcValueType,
 };
 
 #[derive(Serialize, Deserialize)]
@@ -35,6 +36,7 @@ pub struct ResolvedVc<T>
 where
     T: ?Sized,
 {
+    // no-resolved-vc(kdy1): This is a resolved Vc, so we don't need to resolve it again
     pub(crate) node: Vc<T>,
 }
 

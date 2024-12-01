@@ -1,6 +1,7 @@
 use anyhow::Result;
 use serde::Serialize;
-use turbo_tasks::{FxIndexMap, FxIndexSet, RcStr, ResolvedVc, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, Vc};
 use turbopack_browser::ecmascript::EcmascriptDevChunk;
 use turbopack_core::{
     chunk::{Chunk, ChunkItem},

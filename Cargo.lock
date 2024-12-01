@@ -3402,9 +3402,9 @@ dependencies = [
 
 [[package]]
 name = "lightningcss"
-version = "1.0.0-alpha.60"
+version = "1.0.0-alpha.61"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f3aad0f3d9105ab72b02caf1b2a998a6d549f3fff8cca0c558e590c3245edfd"
+checksum = "20c9e1f991b3861d25bf872ecca2eb6a73f7a9fe671da047cd1f9b49c65cbc40"
 dependencies = [
  "ahash 0.8.11",
  "bitflags 2.5.0",
@@ -3414,6 +3414,7 @@ dependencies = [
  "dashmap 5.5.3",
  "data-encoding",
  "getrandom",
+ "indexmap 2.5.0",
  "itertools 0.10.5",
  "lazy_static",
  "lightningcss-derive",
@@ -3944,6 +3945,7 @@ dependencies = [
  "shadow-rs",
  "swc_core",
  "tracing",
+ "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-build",
  "turbo-tasks-env",
@@ -3984,6 +3986,7 @@ dependencies = [
  "tokio-stream",
  "tracing",
  "tracing-subscriber",
+ "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-build",
  "turbo-tasks-env",
@@ -4031,6 +4034,7 @@ dependencies = [
  "swc_relay",
  "thiserror",
  "tracing",
+ "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-build",
  "turbo-tasks-bytes",
@@ -4083,6 +4087,7 @@ dependencies = [
  "swc_relay",
  "testing",
  "tracing",
+ "turbo-rcstr",
  "turbopack-ecmascript-plugins",
  "walkdir",
 ]
@@ -4118,6 +4123,7 @@ dependencies = [
  "tracing",
  "tracing-chrome",
  "tracing-subscriber",
+ "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-backend",
  "turbo-tasks-build",
@@ -8312,6 +8318,15 @@ name = "turbo-prehash"
 version = "0.1.0"
 
 [[package]]
+name = "turbo-rcstr"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "triomphe 0.1.12",
+ "turbo-tasks-hash",
+]
+
+[[package]]
 name = "turbo-static"
 version = "0.1.0"
 dependencies = [
@@ -8360,6 +8375,7 @@ dependencies = [
  "tokio-util",
  "tracing",
  "triomphe 0.1.12",
+ "turbo-rcstr",
  "turbo-tasks-build",
  "turbo-tasks-hash",
  "turbo-tasks-macros",
@@ -8396,6 +8412,7 @@ dependencies = [
  "tokio-scoped",
  "tracing",
  "turbo-prehash",
+ "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-build",
  "turbo-tasks-hash",
@@ -8438,6 +8455,7 @@ dependencies = [
  "dotenvs",
  "indexmap 2.5.0",
  "serde",
+ "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-build",
  "turbo-tasks-fs",
@@ -8452,6 +8470,7 @@ dependencies = [
  "reqwest",
  "serde",
  "tokio",
+ "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-build",
  "turbo-tasks-fs",
@@ -8490,6 +8509,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "tracing",
+ "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-build",
  "turbo-tasks-hash",
@@ -8576,6 +8596,7 @@ dependencies = [
  "tokio",
  "tracing",
  "turbo-prehash",
+ "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-build",
  "turbo-tasks-hash",
@@ -8592,6 +8613,7 @@ dependencies = [
  "futures",
  "rustc-hash 1.1.0",
  "tokio",
+ "turbo-rcstr",
  "turbo-tasks",
 ]
 
@@ -8612,6 +8634,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "tracing",
+ "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-build",
  "turbo-tasks-env",
@@ -8666,6 +8689,7 @@ dependencies = [
  "serde_json",
  "serde_qs",
  "tracing",
+ "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-build",
  "turbo-tasks-fs",
@@ -8693,6 +8717,7 @@ dependencies = [
  "serde",
  "tokio",
  "tracing-subscriber",
+ "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-build",
  "turbo-tasks-env",
@@ -8755,6 +8780,7 @@ dependencies = [
  "swc_core",
  "tokio",
  "tracing",
+ "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-build",
  "turbo-tasks-env",
@@ -8790,6 +8816,7 @@ dependencies = [
  "smallvec",
  "swc_core",
  "tracing",
+ "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-build",
  "turbo-tasks-fs",
@@ -8823,6 +8850,7 @@ dependencies = [
  "tokio-stream",
  "tokio-util",
  "tracing",
+ "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-build",
  "turbo-tasks-bytes",
@@ -8860,6 +8888,7 @@ dependencies = [
  "swc_core",
  "tokio",
  "tracing",
+ "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-build",
  "turbo-tasks-fs",
@@ -8900,6 +8929,7 @@ dependencies = [
  "swc_emotion",
  "swc_relay",
  "tracing",
+ "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-build",
  "turbo-tasks-fs",
@@ -8914,6 +8944,7 @@ dependencies = [
  "anyhow",
  "indoc",
  "serde",
+ "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-build",
  "turbo-tasks-fs",
@@ -8929,6 +8960,7 @@ dependencies = [
  "anyhow",
  "indexmap 2.5.0",
  "serde",
+ "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-build",
  "turbo-tasks-env",
@@ -8962,6 +8994,7 @@ dependencies = [
  "anyhow",
  "serde",
  "serde_json",
+ "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-build",
  "turbo-tasks-fs",
@@ -8977,6 +9010,7 @@ dependencies = [
  "markdown",
  "mdxjs",
  "serde",
+ "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-build",
  "turbo-tasks-fs",
@@ -9007,6 +9041,7 @@ dependencies = [
  "serde_with",
  "tokio",
  "tracing",
+ "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-build",
  "turbo-tasks-bytes",
@@ -9028,6 +9063,7 @@ dependencies = [
  "indoc",
  "serde",
  "tracing",
+ "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-build",
  "turbo-tasks-fs",
@@ -9049,6 +9085,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tracing",
+ "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-build",
  "turbo-tasks-fs",
@@ -9061,6 +9098,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "serde",
+ "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-build",
  "turbo-tasks-fs",
@@ -9075,6 +9113,7 @@ name = "turbopack-swc-utils"
 version = "0.1.0"
 dependencies = [
  "swc_core",
+ "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-build",
  "turbopack-core",
@@ -9089,6 +9128,7 @@ dependencies = [
  "regex",
  "serde",
  "similar",
+ "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-build",
  "turbo-tasks-fs",
@@ -9110,6 +9150,7 @@ dependencies = [
  "serde_json",
  "testing",
  "tokio",
+ "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-build",
  "turbo-tasks-bytes",
@@ -9172,6 +9213,7 @@ dependencies = [
  "indexmap 2.5.0",
  "indoc",
  "serde",
+ "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-build",
  "turbo-tasks-fs",

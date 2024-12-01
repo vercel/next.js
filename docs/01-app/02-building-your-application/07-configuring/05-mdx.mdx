@@ -647,9 +647,31 @@ const withMDX = createMDX({
 export default withMDX(nextConfig)
 ```
 
+### Using Plugins with Turbopack
+
+To use plugins with [Turbopack](/docs/app/api-reference/turbopack), upgrade to the latest `@next/mdx` and specify plugin names using a string:
+
+```js filename="next.config.mjs"
+import createMDX from '@next/mdx'
+
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  pageExtensions: ['js', 'jsx', 'md', 'mdx', 'ts', 'tsx'],
+}
+
+const withMDX = createMDX({
+  options: {
+    remarkPlugins: [],
+    rehypePlugins: [['rehype-katex', { strict: true, throwOnError: true }]],
+  },
+})
+
+export default withMDX(nextConfig)
+```
+
 > **Good to know**:
 >
-> remark and rehype plugins cannot be used with [Turbopack](/docs/architecture/turbopack) yet, due to [inability to pass JavaScript functions to Rust](https://github.com/vercel/next.js/issues/71819#issuecomment-2461802968)
+> remark and rehype plugins without serializable options cannot be used yet with [Turbopack](/docs/app/api-reference/turbopack), due to [inability to pass JavaScript functions to Rust](https://github.com/vercel/next.js/issues/71819#issuecomment-2461802968)
 
 ## Remote MDX
 

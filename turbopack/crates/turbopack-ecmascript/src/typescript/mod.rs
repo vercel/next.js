@@ -1,6 +1,7 @@
 use anyhow::Result;
 use serde_json::Value as JsonValue;
-use turbo_tasks::{RcStr, ResolvedVc, Value, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::DirectoryContent;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -168,14 +169,17 @@ impl Asset for TsConfigModuleAsset {
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct CompilerReference {
-    pub origin: Vc<Box<dyn ResolveOrigin>>,
-    pub request: Vc<Request>,
+    pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    pub request: ResolvedVc<Request>,
 }
 
 #[turbo_tasks::value_impl]
 impl CompilerReference {
     #[turbo_tasks::function]
-    pub fn new(origin: Vc<Box<dyn ResolveOrigin>>, request: Vc<Request>) -> Vc<Self> {
+    pub fn new(
+        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+        request: ResolvedVc<Request>,
+    ) -> Vc<Self> {
         Self::cell(CompilerReference { origin, request })
     }
 }
@@ -184,7 +188,7 @@ impl CompilerReference {
 impl ModuleReference for CompilerReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        cjs_resolve(self.origin, self.request, None, false)
+        cjs_resolve(*self.origin, *self.request, None, false)
     }
 }
 
@@ -201,13 +205,13 @@ impl ValueToString for CompilerReference {
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct TsExtendsReference {
-    pub config: Vc<Box<dyn Source>>,
+    pub config: ResolvedVc<Box<dyn Source>>,
 }
 
 #[turbo_tasks::value_impl]
 impl TsExtendsReference {
     #[turbo_tasks::function]
-    pub fn new(config: Vc<Box<dyn Source>>) -> Vc<Self> {
+    pub fn new(config: ResolvedVc<Box<dyn Source>>) -> Vc<Self> {
         Self::cell(TsExtendsReference { config })
     }
 }
@@ -217,7 +221,7 @@ impl ModuleReference for TsExtendsReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         Ok(ModuleResolveResult::module(ResolvedVc::upcast(
-            RawModule::new(Vc::upcast(self.config))
+            RawModule::new(*ResolvedVc::upcast(self.config))
                 .to_resolved()
                 .await?,
         ))
@@ -242,14 +246,17 @@ impl ValueToString for TsExtendsReference {
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct TsNodeRequireReference {
-    pub origin: Vc<Box<dyn ResolveOrigin>>,
-    pub request: Vc<Request>,
+    pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    pub request: ResolvedVc<Request>,
 }
 
 #[turbo_tasks::value_impl]
 impl TsNodeRequireReference {
     #[turbo_tasks::function]
-    pub fn new(origin: Vc<Box<dyn ResolveOrigin>>, request: Vc<Request>) -> Vc<Self> {
+    pub fn new(
+        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+        request: ResolvedVc<Request>,
+    ) -> Vc<Self> {
         Self::cell(TsNodeRequireReference { origin, request })
     }
 }
@@ -258,7 +265,7 @@ impl TsNodeRequireReference {
 impl ModuleReference for TsNodeRequireReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        cjs_resolve(self.origin, self.request, None, false)
+        cjs_resolve(*self.origin, *self.request, None, false)
     }
 }
 
@@ -279,14 +286,17 @@ impl ValueToString for TsNodeRequireReference {
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct TsConfigTypesReference {
-    pub origin: Vc<Box<dyn ResolveOrigin>>,
-    pub request: Vc<Request>,
+    pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    pub request: ResolvedVc<Request>,
 }
 
 #[turbo_tasks::value_impl]
 impl TsConfigTypesReference {
     #[turbo_tasks::function]
-    pub fn new(origin: Vc<Box<dyn ResolveOrigin>>, request: Vc<Request>) -> Vc<Self> {
+    pub fn new(
+        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+        request: ResolvedVc<Request>,
+    ) -> Vc<Self> {
         Self::cell(TsConfigTypesReference { origin, request })
     }
 }
@@ -295,7 +305,7 @@ impl TsConfigTypesReference {
 impl ModuleReference for TsConfigTypesReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        type_resolve(self.origin, self.request)
+        type_resolve(*self.origin, *self.request)
     }
 }
 

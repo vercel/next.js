@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{fxindexset, trace::TraceRawVcs, FxIndexMap, FxIndexSet, RcStr, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{fxindexset, trace::TraceRawVcs, FxIndexMap, FxIndexSet, Value, Vc};
 
 use super::request::{NextFontRequest, OneOrManyStrings};
 
@@ -200,7 +201,8 @@ pub(super) fn options_from_request(
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use turbo_tasks::{FxIndexMap, RcStr};
+    use turbo_rcstr::RcStr;
+    use turbo_tasks::FxIndexMap;
     use turbo_tasks_fs::json::parse_json_with_source_context;
 
     use super::{options_from_request, FontDataEntry, NextFontGoogleOptions};

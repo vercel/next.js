@@ -8,7 +8,7 @@ Object.defineProperty($$RSC_SERVER_CACHE_0, "name", {
     "value": "fn1",
     "writable": false
 });
-export var $$RSC_SERVER_CACHE_2 = $$cache__("default", "c069348c79fce073bae2f70f139565a2fda1c74c74", 2, async function // Should be 1 100000 0, which is "c0" in hex (counts as one param,
+export var $$RSC_SERVER_CACHE_2 = $$cache__("default", "c069348c79fce073bae2f70f139565a2fda1c74c74", 2, /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ async function // Should be 1 100000 0, which is "c0" in hex (counts as one param,
 // because of the encrypted bound args param)
 fn2([$$ACTION_ARG_0, $$ACTION_ARG_1]) {
     return $$ACTION_ARG_0 + $$ACTION_ARG_1;
@@ -17,13 +17,13 @@ Object.defineProperty($$RSC_SERVER_CACHE_2, "name", {
     "value": "fn2",
     "writable": false
 });
-export const $$RSC_SERVER_ACTION_4 = async function // Should be 0 110000 0, which is "60" in hex (counts as two params,
+export const /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_4 = async function // Should be 0 110000 0, which is "60" in hex (counts as two params,
 // because of the encrypted bound args param)
 fn3($$ACTION_CLOSURE_BOUND, c) {
     var [$$ACTION_ARG_0, $$ACTION_ARG_1] = await decryptActionBoundArgs("60a9b2939c1f39073a6bed227fd20233064c8b7869", $$ACTION_CLOSURE_BOUND);
     return $$ACTION_ARG_0 + $$ACTION_ARG_1 + c;
 };
-export const $$RSC_SERVER_ACTION_5 = async function // Should be 0 100000 0, which is "40" in hex (counts as one param,
+export const /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_5 = async function // Should be 0 100000 0, which is "40" in hex (counts as one param,
 // because of the encrypted bound args param)
 fn4($$ACTION_CLOSURE_BOUND) {
     var [$$ACTION_ARG_0, $$ACTION_ARG_1] = await decryptActionBoundArgs("409651a98a9dccd7ffbe72ff5cf0f38546ca1252ab", $$ACTION_CLOSURE_BOUND);
@@ -47,5 +47,5 @@ export async function Component(a) {
         b
     ]))}/>;
 }
-var $$RSC_SERVER_REF_1 = registerServerReference($$RSC_SERVER_CACHE_0, "e03128060c414d59f8552e4788b846c0d2b7f74743", null);
+var $$RSC_SERVER_REF_1 = /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ registerServerReference($$RSC_SERVER_CACHE_0, "e03128060c414d59f8552e4788b846c0d2b7f74743", null);
 var $$RSC_SERVER_REF_3 = registerServerReference($$RSC_SERVER_CACHE_2, "c069348c79fce073bae2f70f139565a2fda1c74c74", null);

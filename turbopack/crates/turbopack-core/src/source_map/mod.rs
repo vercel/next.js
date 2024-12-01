@@ -7,7 +7,8 @@ use ref_cast::RefCast;
 use regex::Regex;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use sourcemap::{DecodedMap, SourceMap as RegularMap, SourceMapBuilder, SourceMapIndex};
-use turbo_tasks::{RcStr, TryJoinIterExt, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::{
     rope::{Rope, RopeBuilder},
     File, FileContent, FileSystem, FileSystemPath, VirtualFileSystem,
@@ -67,6 +68,11 @@ impl OptionSourceMap {
     }
 }
 
+impl OptionSourceMap {
+    pub fn none_resolved() -> ResolvedVc<Self> {
+        ResolvedVc::cell(None)
+    }
+}
 #[turbo_tasks::value(transparent)]
 #[derive(Clone, Debug)]
 pub struct Tokens(Vec<Token>);

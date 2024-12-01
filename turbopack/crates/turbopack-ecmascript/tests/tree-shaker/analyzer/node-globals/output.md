@@ -43,7 +43,7 @@ graph TD
 # Final
 ```mermaid
 graph TD
-    N0["Items: [ItemId(ModuleEvaluation), ItemId(0, Normal)]"];
+    N0["Items: [ItemId(0, Normal), ItemId(ModuleEvaluation)]"];
 ```
 # Entrypoints
 
@@ -58,8 +58,8 @@ graph TD
 # Modules (dev)
 ## Part 0
 ```js
-"module evaluation";
 process.turbopack = {};
+"module evaluation";
 
 ```
 ## Part 1
@@ -68,8 +68,8 @@ process.turbopack = {};
 ```
 ## Merged (module eval)
 ```js
-"module evaluation";
 process.turbopack = {};
+"module evaluation";
 
 ```
 # Entrypoints
@@ -85,8 +85,8 @@ process.turbopack = {};
 # Modules (prod)
 ## Part 0
 ```js
-"module evaluation";
 process.turbopack = {};
+"module evaluation";
 
 ```
 ## Part 1
@@ -95,7 +95,7 @@ process.turbopack = {};
 ```
 ## Merged (module eval)
 ```js
-"module evaluation";
 process.turbopack = {};
+"module evaluation";
 
 ```

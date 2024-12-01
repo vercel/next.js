@@ -10,8 +10,9 @@ use std::path::PathBuf;
 use anyhow::{Context, Result};
 use dunce::canonicalize;
 use serde::{Deserialize, Serialize};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs, Completion, RcStr, ResolvedVc,
+    apply_effects, debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs, Completion, ResolvedVc,
     TryJoinIterExt, TurboTasks, Value, Vc,
 };
 use turbo_tasks_bytes::stream::SingleValue;
@@ -37,7 +38,7 @@ use turbopack_core::{
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
         options::{ImportMap, ImportMapping},
-        ExternalType,
+        ExternalTraced, ExternalType,
     },
     source::Source,
 };
@@ -51,8 +52,8 @@ use crate::util::REPO_ROOT;
 
 #[turbo_tasks::value]
 struct RunTestResult {
-    js_result: Vc<JsResult>,
-    path: Vc<FileSystemPath>,
+    js_result: ResolvedVc<JsResult>,
+    path: ResolvedVc<FileSystemPath>,
 }
 
 #[turbo_tasks::value]
@@ -65,6 +66,8 @@ struct JsResult {
     jest_result: JestRunResult,
 }
 
+#[turbo_tasks::value]
+#[derive(Copy, Clone, Debug, Hash)]
 enum IssueSnapshotMode {
     Snapshots,
     NoSnapshots,
@@ -167,16 +170,27 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
 
     let tt = TurboTasks::new(MemoryBackend::default());
     tt.run_once(async move {
-        let resource_str = resource.to_str().unwrap();
-        let prepared_test = prepare_test(resource_str.into());
-        let run_result = run_test(prepared_test);
-        if matches!(snapshot_mode, IssueSnapshotMode::Snapshots) {
-            snapshot_issues(prepared_test, run_result).await?;
-        }
+        let emit = run_inner(resource.to_str().unwrap().into(), Value::new(snapshot_mode));
+        let result = emit.strongly_consistent().await?;
+        apply_effects(emit).await?;
 
-        Ok((*run_result.await.unwrap().js_result.await.unwrap()).clone())
+        Ok(result.clone_value())
     })
     .await
+}
+
+#[turbo_tasks::function]
+async fn run_inner(
+    resource: RcStr,
+    snapshot_mode: Value<IssueSnapshotMode>,
+) -> Result<Vc<JsResult>> {
+    let prepared_test = prepare_test(resource);
+    let run_result = run_test(prepared_test);
+    if *snapshot_mode == IssueSnapshotMode::Snapshots {
+        snapshot_issues(prepared_test, run_result).await?;
+    }
+
+    Ok(*run_result.await?.js_result)
 }
 
 #[derive(PartialEq, Eq, Debug, Default, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat)]
@@ -187,9 +201,9 @@ struct TestOptions {
 
 #[turbo_tasks::value]
 struct PreparedTest {
-    path: Vc<FileSystemPath>,
-    project_path: Vc<FileSystemPath>,
-    tests_path: Vc<FileSystemPath>,
+    path: ResolvedVc<FileSystemPath>,
+    project_path: ResolvedVc<FileSystemPath>,
+    tests_path: ResolvedVc<FileSystemPath>,
     project_root: ResolvedVc<FileSystemPath>,
     options: TestOptions,
 }
@@ -231,10 +245,10 @@ async fn prepare_test(resource: RcStr) -> Result<Vc<PreparedTest>> {
     }
 
     Ok(PreparedTest {
-        path,
-        project_path,
-        tests_path,
-        project_root,
+        path: path.to_resolved().await?,
+        project_path: project_path.to_resolved().await?,
+        tests_path: tests_path.to_resolved().await?,
+        project_root: project_root.to_resolved().await?,
         options,
     }
     .cell())
@@ -253,12 +267,14 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
     let jest_entry_path = tests_path.join("js/jest-entry.ts".into());
     let test_path = project_path.join("input/index.js".into());
 
-    let chunk_root_path = path.join("output".into());
-    let static_root_path = path.join("static".into());
+    let chunk_root_path = path.join("output".into()).to_resolved().await?;
+    let static_root_path = path.join("static".into()).to_resolved().await?;
 
     let env = Environment::new(Value::new(ExecutionEnvironment::NodeJsBuildTime(
-        NodeJsEnvironment::default().into(),
-    )));
+        NodeJsEnvironment::default().resolved_cell(),
+    )))
+    .to_resolved()
+    .await?;
 
     let compile_time_info = CompileTimeInfo::builder(env)
         .defines(
@@ -267,14 +283,30 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
                 process.env.TURBOPACK = true,
                 process.env.NODE_ENV = "development",
             )
-            .cell(),
+            .resolved_cell(),
         )
-        .cell();
+        .cell()
+        .await?;
 
     let mut import_map = ImportMap::empty();
     import_map.insert_wildcard_alias(
         "esm-external/",
-        ImportMapping::External(Some("*".into()), ExternalType::EcmaScriptModule).resolved_cell(),
+        ImportMapping::External(
+            Some("*".into()),
+            ExternalType::EcmaScriptModule,
+            ExternalTraced::Untraced,
+        )
+        .resolved_cell(),
+    );
+    import_map.insert_exact_alias(
+        "jest-circus",
+        ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Untraced)
+            .resolved_cell(),
+    );
+    import_map.insert_exact_alias(
+        "expect",
+        ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Untraced)
+            .resolved_cell(),
     );
 
     let asset_context: Vc<Box<dyn AssetContext>> = Vc::upcast(ModuleAssetContext::new(
@@ -325,7 +357,7 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
     ));
 
     let chunking_context = NodeJsChunkingContext::builder(
-        *project_root,
+        project_root,
         chunk_root_path,
         static_root_path,
         chunk_root_path,
@@ -341,7 +373,9 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
     let test_asset = asset_context
         .process(
             Vc::upcast(test_source),
-            Value::new(ReferenceType::Internal(InnerAssets::empty())),
+            Value::new(ReferenceType::Internal(
+                InnerAssets::empty().to_resolved().await?,
+            )),
         )
         .module()
         .to_resolved()
@@ -350,7 +384,7 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
     let jest_entry_asset = asset_context
         .process(
             Vc::upcast(jest_entry_source),
-            Value::new(ReferenceType::Internal(Vc::cell(fxindexmap! {
+            Value::new(ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
                 "TESTS".into() => test_asset,
             }))),
         )
@@ -358,7 +392,7 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
 
     let res = evaluate(
         jest_entry_asset,
-        path,
+        *path,
         Vc::upcast(CommandLineProcessEnv::new()),
         test_source.ident(),
         asset_context,
@@ -384,14 +418,14 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
                     test_results: vec![],
                 },
             }
-            .cell(),
+            .resolved_cell(),
             path,
         }
         .cell());
     };
 
     Ok(RunTestResult {
-        js_result: JsResult::cell(parse_json_with_source_context(bytes.to_str()?)?),
+        js_result: JsResult::resolved_cell(parse_json_with_source_context(bytes.to_str()?)?),
         path,
     }
     .cell())

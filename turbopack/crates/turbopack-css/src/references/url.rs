@@ -6,7 +6,8 @@ use lightningcss::{
     visit_types,
     visitor::{Visit, Visitor},
 };
-use turbo_tasks::{debug::ValueDebug, RcStr, ResolvedVc, Value, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{debug::ValueDebug, ResolvedVc, Value, ValueToString, Vc};
 use turbopack_core::{
     chunk::{
         ChunkableModule, ChunkableModuleReference, ChunkingContext, ChunkingType,
@@ -31,18 +32,18 @@ pub enum ReferencedAsset {
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct UrlAssetReference {
-    pub origin: Vc<Box<dyn ResolveOrigin>>,
-    pub request: Vc<Request>,
-    pub issue_source: Vc<IssueSource>,
+    pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    pub request: ResolvedVc<Request>,
+    pub issue_source: ResolvedVc<IssueSource>,
 }
 
 #[turbo_tasks::value_impl]
 impl UrlAssetReference {
     #[turbo_tasks::function]
     pub fn new(
-        origin: Vc<Box<dyn ResolveOrigin>>,
-        request: Vc<Request>,
-        issue_source: Vc<IssueSource>,
+        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+        request: ResolvedVc<Request>,
+        issue_source: ResolvedVc<IssueSource>,
     ) -> Vc<Self> {
         Self::cell(UrlAssetReference {
             origin,
@@ -85,10 +86,10 @@ impl ModuleReference for UrlAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
         url_resolve(
-            self.origin,
-            self.request,
+            *self.origin,
+            *self.request,
             Value::new(ReferenceType::Url(UrlReferenceSubType::CssUrl)),
-            Some(self.issue_source),
+            Some(*self.issue_source),
             false,
         )
     }

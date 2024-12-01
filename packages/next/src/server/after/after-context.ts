@@ -12,24 +12,32 @@ import {
 } from '../app-render/work-unit-async-storage.external'
 
 export type AfterContextOpts = {
+  isEnabled: boolean
   waitUntil: RequestLifecycleOpts['waitUntil'] | undefined
-  onClose: RequestLifecycleOpts['onClose'] | undefined
+  onClose: RequestLifecycleOpts['onClose']
   onTaskError: RequestLifecycleOpts['onAfterTaskError'] | undefined
 }
 
 export class AfterContext {
   private waitUntil: RequestLifecycleOpts['waitUntil'] | undefined
-  private onClose: RequestLifecycleOpts['onClose'] | undefined
+  private onClose: RequestLifecycleOpts['onClose']
   private onTaskError: RequestLifecycleOpts['onAfterTaskError'] | undefined
+  public readonly isEnabled: boolean
 
   private runCallbacksOnClosePromise: Promise<void> | undefined
   private callbackQueue: PromiseQueue
   private workUnitStores = new Set<WorkUnitStore>()
 
-  constructor({ waitUntil, onClose, onTaskError }: AfterContextOpts) {
+  constructor({
+    waitUntil,
+    onClose,
+    onTaskError,
+    isEnabled,
+  }: AfterContextOpts) {
     this.waitUntil = waitUntil
     this.onClose = onClose
     this.onTaskError = onTaskError
+    this.isEnabled = isEnabled
 
     this.callbackQueue = new PromiseQueue()
     this.callbackQueue.pause()
@@ -56,19 +64,11 @@ export class AfterContext {
     if (!this.waitUntil) {
       errorWaitUntilNotAvailable()
     }
-    if (!this.onClose) {
-      throw new InvariantError(
-        'unstable_after: Missing `onClose` implementation'
-      )
-    }
 
     const workUnitStore = workUnitAsyncStorage.getStore()
-    if (!workUnitStore) {
-      throw new InvariantError(
-        'Missing workUnitStore in AfterContext.addCallback'
-      )
+    if (workUnitStore) {
+      this.workUnitStores.add(workUnitStore)
     }
-    this.workUnitStores.add(workUnitStore)
 
     // this should only happen once.
     if (!this.runCallbacksOnClosePromise) {

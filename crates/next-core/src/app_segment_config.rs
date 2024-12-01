@@ -7,7 +7,8 @@ use swc_core::{
     common::{source_map::SmallPos, Span, Spanned, GLOBALS},
     ecma::ast::{Decl, Expr, FnExpr, Ident, Program},
 };
-use turbo_tasks::{trace::TraceRawVcs, RcStr, TryJoinIterExt, ValueDefault, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{trace::TraceRawVcs, ResolvedVc, TryJoinIterExt, ValueDefault, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     file_source::FileSource,
@@ -165,8 +166,10 @@ impl NextSegmentConfig {
 /// An issue that occurred while parsing the app segment config.
 #[turbo_tasks::value(shared)]
 pub struct NextSegmentConfigParsingIssue {
+    // no-resolved-vc(kdy1): I'll resolve this later because it's a complex case.
     ident: Vc<AssetIdent>,
-    detail: Vc<StyledString>,
+    detail: ResolvedVc<StyledString>,
+    // no-resolved-vc(kdy1): I'll resolve this later because it's a complex case.
     source: Vc<IssueSource>,
 }
 
@@ -206,7 +209,7 @@ impl Issue for NextSegmentConfigParsingIssue {
 
     #[turbo_tasks::function]
     fn detail(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(self.detail))
+        Vc::cell(Some(*self.detail))
     }
 
     #[turbo_tasks::function]
@@ -324,9 +327,12 @@ fn parse_config_value(
     let span = init.span();
     let invalid_config = |detail: &str, value: &JsValue| {
         let (explainer, hints) = value.explain(2, 0);
+        let detail =
+            StyledString::Text(format!("{detail} Got {explainer}.{hints}").into()).resolved_cell();
+
         NextSegmentConfigParsingIssue {
             ident: source.ident(),
-            detail: StyledString::Text(format!("{detail} Got {explainer}.{hints}").into()).cell(),
+            detail,
             source: issue_source(source, span),
         }
         .cell()
@@ -500,7 +506,7 @@ pub async fn parse_segment_config_from_loader_tree_internal(
         .into_iter()
         .flatten()
     {
-        let source = Vc::upcast(FileSource::new(path));
+        let source = Vc::upcast(FileSource::new(*path));
         config.apply_parent_config(&*parse_segment_config_from_source(source).await?);
     }
 

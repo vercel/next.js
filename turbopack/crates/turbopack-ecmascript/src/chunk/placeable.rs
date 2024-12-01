@@ -38,7 +38,7 @@ enum SideEffectsValue {
 
 #[turbo_tasks::function]
 async fn side_effects_from_package_json(
-    package_json: Vc<FileSystemPath>,
+    package_json: ResolvedVc<FileSystemPath>,
 ) -> Result<Vc<SideEffectsValue>> {
     if let FileJsonContent::Content(content) = &*package_json.read_json().await? {
         if let Some(side_effects) = content.get("sideEffects") {
@@ -66,7 +66,7 @@ async fn side_effects_from_package_json(
                                         )
                                         .into(),
                                     )
-                                    .cell(),
+                                    .resolved_cell(),
                                 ),
                             }
                             .cell()
@@ -88,7 +88,7 @@ async fn side_effects_from_package_json(
                                             )
                                             .into(),
                                         )
-                                        .cell(),
+                                        .resolved_cell(),
                                     ),
                                 }
                                 .cell()
@@ -113,7 +113,7 @@ async fn side_effects_from_package_json(
                             )
                             .into(),
                         )
-                        .cell(),
+                        .resolved_cell(),
                     ),
                 }
                 .cell()
@@ -126,8 +126,8 @@ async fn side_effects_from_package_json(
 
 #[turbo_tasks::value]
 struct SideEffectsInPackageJsonIssue {
-    path: Vc<FileSystemPath>,
-    description: Option<Vc<StyledString>>,
+    path: ResolvedVc<FileSystemPath>,
+    description: Option<ResolvedVc<StyledString>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -144,7 +144,7 @@ impl Issue for SideEffectsInPackageJsonIssue {
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        self.path
+        *self.path
     }
 
     #[turbo_tasks::function]
@@ -154,7 +154,7 @@ impl Issue for SideEffectsInPackageJsonIssue {
 
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(self.description)
+        Vc::cell(self.description.map(|v| *v))
     }
 }
 

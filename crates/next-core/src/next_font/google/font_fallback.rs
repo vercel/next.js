@@ -4,7 +4,8 @@ use anyhow::{Context, Result};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, RcStr, ResolvedVc, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{trace::TraceRawVcs, ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::issue::{IssueExt, IssueSeverity, StyledString};
 
@@ -67,14 +68,16 @@ pub(super) async fn get_font_fallback(
                     scoped_font_family: get_scoped_font_family(
                         FontFamilyType::Fallback.cell(),
                         options_vc.font_family(),
-                    ),
-                    local_font_family: Vc::cell(fallback.font_family),
+                    )
+                    .to_resolved()
+                    .await?,
+                    local_font_family: ResolvedVc::cell(fallback.font_family),
                     adjustment: fallback.adjustment,
                 })
                 .cell(),
                 Err(_) => {
                     NextFontIssue {
-                        path: *lookup_path,
+                        path: lookup_path,
                         title: StyledString::Text(
                             format!(
                                 "Failed to find font override values for font `{}`",
@@ -82,12 +85,12 @@ pub(super) async fn get_font_fallback(
                             )
                             .into(),
                         )
-                        .cell(),
+                        .resolved_cell(),
                         description: StyledString::Text(
                             "Skipping generating a fallback font.".into(),
                         )
-                        .cell(),
-                        severity: IssueSeverity::Warning.cell(),
+                        .resolved_cell(),
+                        severity: IssueSeverity::Warning.resolved_cell(),
                     }
                     .cell()
                     .emit();

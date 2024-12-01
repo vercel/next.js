@@ -1,7 +1,8 @@
 use std::iter::once;
 
 use anyhow::Result;
-use turbo_tasks::{FxIndexMap, RcStr, ResolvedVc, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexMap, ResolvedVc, Value, Vc};
 use turbo_tasks_env::EnvMap;
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack::{
@@ -109,22 +110,27 @@ async fn next_client_free_vars(define_env: Vc<EnvMap>) -> Result<Vc<FreeVarRefer
 }
 
 #[turbo_tasks::function]
-pub fn get_client_compile_time_info(
+pub async fn get_client_compile_time_info(
     browserslist_query: RcStr,
     define_env: Vc<EnvMap>,
-) -> Vc<CompileTimeInfo> {
-    CompileTimeInfo::builder(Environment::new(Value::new(ExecutionEnvironment::Browser(
-        BrowserEnvironment {
-            dom: true,
-            web_worker: false,
-            service_worker: false,
-            browserslist_query: browserslist_query.to_owned(),
-        }
-        .into(),
-    ))))
-    .defines(next_client_defines(define_env))
-    .free_var_references(next_client_free_vars(define_env))
+) -> Result<Vc<CompileTimeInfo>> {
+    CompileTimeInfo::builder(
+        Environment::new(Value::new(ExecutionEnvironment::Browser(
+            BrowserEnvironment {
+                dom: true,
+                web_worker: false,
+                service_worker: false,
+                browserslist_query: browserslist_query.to_owned(),
+            }
+            .resolved_cell(),
+        )))
+        .to_resolved()
+        .await?,
+    )
+    .defines(next_client_defines(define_env).to_resolved().await?)
+    .free_var_references(next_client_free_vars(define_env).to_resolved().await?)
     .cell()
+    .await
 }
 
 #[turbo_tasks::value(shared, serialization = "auto_for_input")]
@@ -392,12 +398,12 @@ pub async fn get_client_module_options_context(
 
 #[turbo_tasks::function]
 pub async fn get_client_chunking_context(
-    project_path: Vc<FileSystemPath>,
-    client_root: Vc<FileSystemPath>,
-    asset_prefix: Vc<Option<RcStr>>,
-    environment: Vc<Environment>,
+    project_path: ResolvedVc<FileSystemPath>,
+    client_root: ResolvedVc<FileSystemPath>,
+    asset_prefix: ResolvedVc<Option<RcStr>>,
+    environment: ResolvedVc<Environment>,
     mode: Vc<NextMode>,
-    module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
+    module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
     turbo_minify: Vc<bool>,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
     let next_mode = mode.await?;
@@ -405,8 +411,11 @@ pub async fn get_client_chunking_context(
         project_path,
         client_root,
         client_root,
-        client_root.join("static/chunks".into()),
-        get_client_assets_path(client_root),
+        client_root
+            .join("static/chunks".into())
+            .to_resolved()
+            .await?,
+        get_client_assets_path(*client_root).to_resolved().await?,
         environment,
         next_mode.runtime_type(),
     )
@@ -454,8 +463,11 @@ pub async fn get_client_runtime_entries(
         // functions to be available.
         if let Some(request) = enable_react_refresh {
             runtime_entries.push(
-                RuntimeEntry::Request(request.to_resolved().await?, project_root.join("_".into()))
-                    .cell(),
+                RuntimeEntry::Request(
+                    request.to_resolved().await?,
+                    project_root.join("_".into()).to_resolved().await?,
+                )
+                .resolved_cell(),
             )
         };
     }
@@ -468,9 +480,9 @@ pub async fn get_client_runtime_entries(
                 )))
                 .to_resolved()
                 .await?,
-                project_root.join("_".into()),
+                project_root.join("_".into()).to_resolved().await?,
             )
-            .cell(),
+            .resolved_cell(),
         );
     }
 

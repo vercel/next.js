@@ -1,6 +1,7 @@
 use anyhow::Result;
 use serde_json::Value as JsonValue;
-use turbo_tasks::{FxIndexSet, RcStr, ResolvedVc, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexSet, ResolvedVc, Value, Vc};
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -67,12 +68,12 @@ pub fn create_node_rendered_source(
         render_data,
         debug,
     }
-    .cell();
+    .resolved_cell();
     Vc::upcast(ConditionalContentSource::new(
-        Vc::upcast(source),
+        Vc::upcast(*source),
         Vc::upcast(
             LazyInstantiatedContentSource {
-                get_source: Vc::upcast(source),
+                get_source: ResolvedVc::upcast(source),
             }
             .cell(),
         ),

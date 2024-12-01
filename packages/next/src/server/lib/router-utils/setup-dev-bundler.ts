@@ -69,7 +69,8 @@ import {
   getSourceMapFromCompilation,
   getSourceMapFromFile,
   parseStack,
-} from '../../../client/components/react-dev-overlay/server/middleware'
+  getIgnoredSources,
+} from '../../../client/components/react-dev-overlay/server/middleware-webpack'
 import {
   batchedTraceSource,
   createOriginalStackFrame as createOriginalTurboStackFrame,
@@ -106,7 +107,7 @@ export type SetupOpts = {
   >
   nextConfig: NextConfigComplete
   port: number
-  onCleanup: (listener: () => Promise<void>) => void
+  onDevServerCleanup: ((listener: () => Promise<void>) => void) | undefined
   resetFetch: () => void
 }
 
@@ -583,9 +584,9 @@ async function startWatcher(opts: SetupOpts) {
 
       if (envChange || tsconfigChange) {
         if (envChange) {
-          const { parsedEnv } = loadEnvConfig(
+          const { loadedEnvFiles } = loadEnvConfig(
             dir,
-            true,
+            process.env.NODE_ENV === 'development',
             Log,
             true,
             (envFilePath) => {
@@ -597,7 +598,14 @@ async function startWatcher(opts: SetupOpts) {
             // do not await, this is not essential for further process
             createEnvDefinitions({
               distDir,
-              env: { ...parsedEnv, ...nextConfig.env },
+              loadedEnvFiles: [
+                ...loadedEnvFiles,
+                {
+                  path: nextConfig.configFileName,
+                  env: nextConfig.env,
+                  contents: '',
+                },
+              ],
             })
           }
 
@@ -1005,6 +1013,7 @@ async function startWatcher(opts: SetupOpts) {
                     type: 'bundle',
                     sourceMap,
                     compilation,
+                    ignoredSources: getIgnoredSources(sourceMap),
                     moduleId,
                     modulePath,
                   },

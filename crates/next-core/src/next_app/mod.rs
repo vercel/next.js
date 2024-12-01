@@ -14,7 +14,8 @@ use std::{
 
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, RcStr, TaskInput};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{trace::TraceRawVcs, TaskInput};
 
 pub use crate::next_app::{
     app_client_references_chunks::{get_app_client_references_chunks, ClientReferencesChunks},

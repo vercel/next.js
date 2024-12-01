@@ -54,12 +54,9 @@ import type { FlightRouterState } from '../../server/app-render/types'
 import { useNavFailureHandler } from './nav-failure-handler'
 import { useServerActionDispatcher } from '../app-call-server'
 import type { AppRouterActionQueue } from '../../shared/lib/router/action-queue'
-import {
-  getRedirectTypeFromError,
-  getURLFromRedirectError,
-  isRedirectError,
-  RedirectType,
-} from './redirect'
+import { prefetch as prefetchWithSegmentCache } from '../components/segment-cache/prefetch'
+import { getRedirectTypeFromError, getURLFromRedirectError } from './redirect'
+import { isRedirectError, RedirectType } from './redirect-error'
 
 const globalMutable: {
   pendingMpaPath?: string
@@ -67,6 +64,43 @@ const globalMutable: {
 
 function isExternalURL(url: URL) {
   return url.origin !== window.location.origin
+}
+
+/**
+ * Given a link href, constructs the URL that should be prefetched. Returns null
+ * in cases where prefetching should be disabled, like external URLs, or
+ * during development.
+ * @param href The href passed to <Link>, router.prefetch(), or similar
+ * @returns A URL object to prefetch, or null if prefetching should be disabled
+ */
+export function createPrefetchURL(href: string): URL | null {
+  // Don't prefetch for bots as they don't navigate.
+  if (isBot(window.navigator.userAgent)) {
+    return null
+  }
+
+  let url: URL
+  try {
+    url = new URL(addBasePath(href), window.location.href)
+  } catch (_) {
+    // TODO: Does this need to throw or can we just console.error instead? Does
+    // anyone rely on this throwing? (Seems unlikely.)
+    throw new Error(
+      `Cannot prefetch '${href}' because it cannot be converted to a URL.`
+    )
+  }
+
+  // Don't prefetch during development (improves compilation performance)
+  if (process.env.NODE_ENV === 'development') {
+    return null
+  }
+
+  // External urls can't be prefetched in the same way.
+  if (isExternalURL(url)) {
+    return null
+  }
+
+  return url
 }
 
 function HistoryUpdater({
@@ -241,38 +275,25 @@ function Router({
     const routerInstance: AppRouterInstance = {
       back: () => window.history.back(),
       forward: () => window.history.forward(),
-      prefetch: (href, options) => {
-        // Don't prefetch for bots as they don't navigate.
-        if (isBot(window.navigator.userAgent)) {
-          return
-        }
-
-        let url: URL
-        try {
-          url = new URL(addBasePath(href), window.location.href)
-        } catch (_) {
-          throw new Error(
-            `Cannot prefetch '${href}' because it cannot be converted to a URL.`
-          )
-        }
-
-        // Don't prefetch during development (improves compilation performance)
-        if (process.env.NODE_ENV === 'development') {
-          return
-        }
-
-        // External urls can't be prefetched in the same way.
-        if (isExternalURL(url)) {
-          return
-        }
-        startTransition(() => {
-          dispatch({
-            type: ACTION_PREFETCH,
-            url,
-            kind: options?.kind ?? PrefetchKind.FULL,
-          })
-        })
-      },
+      prefetch:
+        process.env.__NEXT_PPR && process.env.__NEXT_CLIENT_SEGMENT_CACHE
+          ? // Unlike the old implementation, the Segment Cache doesn't store its
+            // data in the router reducer state; it writes into a global mutable
+            // cache. So we don't need to dispatch an action.
+            prefetchWithSegmentCache
+          : (href, options) => {
+              // Use the old prefetch implementation.
+              const url = createPrefetchURL(href)
+              if (url !== null) {
+                startTransition(() => {
+                  dispatch({
+                    type: ACTION_PREFETCH,
+                    url,
+                    kind: options?.kind ?? PrefetchKind.FULL,
+                  })
+                })
+              }
+            },
       replace: (href, options = {}) => {
         startTransition(() => {
           navigate(href, 'replace', options.scroll ?? true)

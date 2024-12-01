@@ -21,7 +21,8 @@ use swc_core::{
     },
 };
 use tracing::Instrument;
-use turbo_tasks::{util::WrapFuture, RcStr, Value, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{util::WrapFuture, ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
@@ -86,7 +87,7 @@ pub struct ParseResultSourceMap {
 
     /// An input's original source map, if one exists. This will be used to
     /// trace locations back to the input's pre-transformed sources.
-    original_source_map: Vc<OptionSourceMap>,
+    original_source_map: ResolvedVc<OptionSourceMap>,
 }
 
 impl PartialEq for ParseResultSourceMap {
@@ -99,7 +100,7 @@ impl ParseResultSourceMap {
     pub fn new(
         files_map: Arc<swc_core::common::SourceMap>,
         mappings: Vec<(BytePos, LineCol)>,
-        original_source_map: Vc<OptionSourceMap>,
+        original_source_map: ResolvedVc<OptionSourceMap>,
     ) -> Self {
         ParseResultSourceMap {
             files_map,
@@ -154,7 +155,7 @@ impl SourceMapGenConfig for InlineSourcesContentConfig {
 
 #[turbo_tasks::function]
 pub async fn parse(
-    source: Vc<Box<dyn Source>>,
+    source: ResolvedVc<Box<dyn Source>>,
     ty: Value<EcmascriptModuleAssetType>,
     transforms: Vc<EcmascriptInputTransforms>,
 ) -> Result<Vc<ParseResult>> {
@@ -173,7 +174,7 @@ pub async fn parse(
 }
 
 async fn parse_internal(
-    source: Vc<Box<dyn Source>>,
+    source: ResolvedVc<Box<dyn Source>>,
     ty: Value<EcmascriptModuleAssetType>,
     transforms: Vc<EcmascriptInputTransforms>,
 ) -> Result<Vc<ParseResult>> {
@@ -252,7 +253,7 @@ async fn parse_file_content(
     fs_path: &FileSystemPath,
     ident: &str,
     file_path_hash: u128,
-    source: Vc<Box<dyn Source>>,
+    source: ResolvedVc<Box<dyn Source>>,
     ty: EcmascriptModuleAssetType,
     transforms: &[EcmascriptInputTransform],
 ) -> Result<Vc<ParseResult>> {
@@ -395,7 +396,7 @@ async fn parse_file_content(
                 file_path_str: &fs_path.path,
                 file_name_str: fs_path.file_name(),
                 file_name_hash: file_path_hash,
-                file_path: fs_path_vc,
+                file_path: fs_path_vc.to_resolved().await?,
             };
             let span = tracing::trace_span!("transforms");
             async {
@@ -434,7 +435,7 @@ async fn parse_file_content(
                 unresolved_mark,
                 top_level_mark,
                 Some(&comments),
-                Some(source),
+                Some(*source),
             );
 
             Ok::<ParseResult, anyhow::Error>(ParseResult::Ok {
@@ -466,7 +467,7 @@ async fn parse_file_content(
 
 #[turbo_tasks::value]
 struct ReadSourceIssue {
-    source: Vc<Box<dyn Source>>,
+    source: ResolvedVc<Box<dyn Source>>,
     error: RcStr,
 }
 
