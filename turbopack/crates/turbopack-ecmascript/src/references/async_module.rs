@@ -6,7 +6,7 @@ use swc_core::{
     quote,
 };
 use turbo_tasks::{
-    trace::TraceRawVcs, FxIndexSet, ReadRef, TryFlatJoinIterExt, TryJoinIterExt, Vc,
+    trace::TraceRawVcs, FxIndexSet, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
 };
 use turbopack_core::{
     chunk::{
@@ -51,7 +51,7 @@ pub struct AsyncModule {
 
 /// Option<[AsyncModule]>.
 #[turbo_tasks::value(transparent)]
-pub struct OptionAsyncModule(Option<Vc<AsyncModule>>);
+pub struct OptionAsyncModule(Option<ResolvedVc<AsyncModule>>);
 
 #[turbo_tasks::value_impl]
 impl OptionAsyncModule {

@@ -56,7 +56,7 @@ impl EcmascriptChunkItem for EcmascriptModuleLocalsChunkItem {
             *analyze_result.local_references,
             *analyze_result.code_generation,
             *analyze_result.async_module,
-            analyze_result.source_map,
+            *analyze_result.source_map,
             exports,
             async_module_info,
         );
