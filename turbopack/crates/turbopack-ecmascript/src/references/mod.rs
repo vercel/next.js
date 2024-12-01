@@ -321,8 +321,6 @@ impl AnalyzeEcmascriptModuleResultBuilder {
         };
         Ok(AnalyzeEcmascriptModuleResult::cell(
             AnalyzeEcmascriptModuleResult {
-                // TODO(ResolvedVc): this is messy because I don't want to
-                //                   touch core while KDY is working on it
                 references: ResolvedVc::cell(references),
                 local_references: ResolvedVc::cell(local_references),
                 reexport_references: ResolvedVc::cell(reexport_references),
