@@ -17,11 +17,6 @@ import {
   patchAfterCallstackInDev,
   type OriginalStacks,
 } from './after-dev-callstacks'
-import {
-  HMR_ACTIONS_SENT_TO_BROWSER,
-  type NextJsHotReloaderInterface,
-} from '../dev/hot-reloader-types'
-import { stringifyError } from '../../shared/lib/utils'
 
 export type AfterContextOpts = {
   isEnabled: boolean
@@ -188,8 +183,6 @@ export class AfterContext {
           )
         }
       }
-
-      reportAfterErrorInDev(error)
     }
 
     if (this.onTaskError) {
@@ -208,28 +201,6 @@ export class AfterContext {
       }
     }
   }
-}
-
-function reportAfterErrorInDev(error: unknown) {
-  // TODO: we probably want to inject this as `onAfterTaskError` from NextDevServer,
-  // where we have access to `bundlerService` (which has the hotReloader)
-  const hotReloader: NextJsHotReloaderInterface | undefined =
-    // @ts-expect-error
-    globalThis[Symbol.for('@next/dev/hot-reloader')]
-
-  hotReloader?.send({
-    action: HMR_ACTIONS_SENT_TO_BROWSER.AFTER_ERROR,
-    source: process.env.NEXT_RUNTIME === 'edge' ? 'edge-server' : 'server',
-    errorJSON: isError(error)
-      ? stringifyError(error)
-      : (() => {
-          try {
-            return JSON.stringify(error)
-          } catch (_) {
-            return '<unknown>'
-          }
-        })(),
-  })
 }
 
 function errorWaitUntilNotAvailable(): never {

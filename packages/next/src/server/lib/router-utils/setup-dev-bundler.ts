@@ -81,7 +81,10 @@ import type { LazyRenderServerInstance } from '../router-server'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../dev/hot-reloader-types'
 import { PAGE_TYPES } from '../../../lib/page-types'
 import { createHotReloaderTurbopack } from '../../dev/hot-reloader-turbopack'
-import { getErrorSource } from '../../../shared/lib/error-source'
+import {
+  getErrorSource,
+  type ErrorSourceType,
+} from '../../../shared/lib/error-source'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import { generateEncryptionKeyBase64 } from '../../app-render/encryption-utils-server'
 import {
@@ -93,6 +96,7 @@ import { normalizeMetadataPageToRoute } from '../../../lib/metadata/get-metadata
 import { createEnvDefinitions } from '../experimental/create-env-definitions'
 import { JsConfigPathsPlugin } from '../../../build/webpack/plugins/jsconfig-paths-plugin'
 import { store as consoleStore } from '../../../build/output/store'
+import { stringifyError } from '../../../shared/lib/utils'
 
 export type SetupOpts = {
   renderServer: LazyRenderServerInstance
@@ -1074,11 +1078,32 @@ async function startWatcher(opts: SetupOpts) {
     }
   }
 
+  async function reportAfterTaskError(error: unknown, source: ErrorSourceType) {
+    const serializeErrorToJSON = (err: unknown) => {
+      if (isError(err)) {
+        return stringifyError(err)
+      }
+
+      try {
+        return JSON.stringify(err)
+      } catch (_) {
+        return '<unknown>'
+      }
+    }
+
+    hotReloader.send({
+      action: HMR_ACTIONS_SENT_TO_BROWSER.AFTER_ERROR,
+      source: source,
+      errorJSON: serializeErrorToJSON(error),
+    })
+  }
+
   return {
     serverFields,
     hotReloader,
     requestHandler,
     logErrorWithOriginalStack,
+    reportAfterTaskError,
 
     async ensureMiddleware(requestUrl?: string) {
       if (!serverFields.actualMiddlewareFile) return

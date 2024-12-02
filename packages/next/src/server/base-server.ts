@@ -366,6 +366,8 @@ export default abstract class Server<
   protected readonly enabledDirectories: NextEnabledDirectories
   protected abstract getEnabledDirectories(dev: boolean): NextEnabledDirectories
 
+  protected afterTaskErrorHandler: ((error: unknown) => void) | undefined
+
   protected readonly experimentalTestProxy?: boolean
 
   protected abstract findPageComponents(params: {
@@ -2438,7 +2440,7 @@ export default abstract class Server<
         postponed,
         waitUntil: this.getWaitUntil(),
         onClose: res.onClose.bind(res),
-        onAfterTaskError: undefined,
+        onAfterTaskError: this.afterTaskErrorHandler,
         // only available in dev
         setAppIsrStatus: (this as any).setAppIsrStatus,
       }
@@ -2486,7 +2488,7 @@ export default abstract class Server<
               isRevalidate: isSSG,
               waitUntil: this.getWaitUntil(),
               onClose: res.onClose.bind(res),
-              onAfterTaskError: undefined,
+              onAfterTaskError: this.afterTaskErrorHandler,
               onInstrumentationRequestError:
                 this.renderOpts.onInstrumentationRequestError,
               buildId: this.renderOpts.buildId,
