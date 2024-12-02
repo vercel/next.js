@@ -8,6 +8,8 @@ When pushing data into the WriteBatch it is already persisted to disk, but only 
 
 The architecture is optimized for pushing a lot data to disk in a single transaction, while still allowing for fast random reads.
 
+It supports having multiple key families, which are stored in separate files, but a write batch can contain keys from multiple families. Each key family defines a separate key space. Entries in different key families doesn't influence each other (also not performance-wise).
+
 ## On disk format
 
 There is a single `CURRENT` file which stores the latest committed sequence number.
