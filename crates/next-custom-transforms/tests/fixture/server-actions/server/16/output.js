@@ -13,7 +13,9 @@ export function Item({ id1, id2 }) {
     const deleteItem = registerServerReference($$RSC_SERVER_ACTION_0, "406a88810ecce4a4e8b59d53b8327d7e98bbf251d7", null).bind(null, encryptActionBoundArgs("406a88810ecce4a4e8b59d53b8327d7e98bbf251d7", [
         id1,
         v2
-    ]));
+    ]).catch((err)=>{
+        console.error(new Error(err.message));
+    }));
     return <Button action={deleteItem}>Delete</Button>;
 }
 export const /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_1 = async function g($$ACTION_CLOSURE_BOUND, y, ...z) {
@@ -23,7 +25,9 @@ export const /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_1 = a
 const f = (x)=>{
     var g = registerServerReference($$RSC_SERVER_ACTION_1, "7f90b5db271335765a4b0eab01f044b381b5ebd5cd", null).bind(null, encryptActionBoundArgs("7f90b5db271335765a4b0eab01f044b381b5ebd5cd", [
         x
-    ]));
+    ]).catch((err)=>{
+        console.error(new Error(err.message));
+    }));
 };
 export const /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_2 = async function f($$ACTION_CLOSURE_BOUND, y, ...z) {
     var [$$ACTION_ARG_0] = await decryptActionBoundArgs("7f1c36b06e398c97abe5d5d7ae8c672bfddf4e1b91", $$ACTION_CLOSURE_BOUND);
@@ -32,5 +36,7 @@ export const /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_2 = a
 const g = (x)=>{
     f = registerServerReference($$RSC_SERVER_ACTION_2, "7f1c36b06e398c97abe5d5d7ae8c672bfddf4e1b91", null).bind(null, encryptActionBoundArgs("7f1c36b06e398c97abe5d5d7ae8c672bfddf4e1b91", [
         x
-    ]));
+    ]).catch((err)=>{
+        console.error(new Error(err.message));
+    }));
 };

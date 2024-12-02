@@ -22,14 +22,18 @@ export const /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_2 = a
         d,
         f,
         $$ACTION_ARG_2
-    ]));
+    ]).catch((err)=>{
+        console.error(new Error(err.message));
+    }));
     return [
         action2,
         registerServerReference($$RSC_SERVER_ACTION_1, "6090b5db271335765a4b0eab01f044b381b5ebd5cd", null).bind(null, encryptActionBoundArgs("6090b5db271335765a4b0eab01f044b381b5ebd5cd", [
             action2,
             $$ACTION_ARG_1,
             d
-        ]))
+        ]).catch((err)=>{
+            console.error(new Error(err.message));
+        }))
     ];
 };
 function Comp(b, c, ...g) {
@@ -37,5 +41,7 @@ function Comp(b, c, ...g) {
         b,
         c,
         g
-    ]));
+    ]).catch((err)=>{
+        console.error(new Error(err.message));
+    }));
 }

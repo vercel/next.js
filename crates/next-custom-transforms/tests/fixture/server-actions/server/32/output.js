@@ -25,6 +25,8 @@ export function Component() {
         data,
         baz.value,
         foo
-    ]));
+    ]).catch((err)=>{
+        console.error(new Error(err.message));
+    }));
     return <form action={action}/>;
 }

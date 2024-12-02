@@ -16,7 +16,9 @@ async function Component({ foo }) {
     var fn = $$RSC_SERVER_REF_1.bind(null, encryptActionBoundArgs("c03128060c414d59f8552e4788b846c0d2b7f74743", [
         a,
         foo
-    ]));
+    ]).catch((err)=>{
+        console.error(new Error(err.message));
+    }));
     const data = await fn();
     return <div>{data}</div>;
 }

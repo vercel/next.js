@@ -10,7 +10,9 @@ export function Item1(product, foo, bar) {
         product,
         foo,
         bar
-    ]));
+    ]).catch((err)=>{
+        console.error(new Error(err.message));
+    }));
     return <Button action={a}>Delete</Button>;
 }
 export const /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_1 = async function deleteItem2($$ACTION_CLOSURE_BOUND) {
@@ -22,7 +24,9 @@ export function Item2(product, foo, bar) {
         product,
         foo,
         bar
-    ]));
+    ]).catch((err)=>{
+        console.error(new Error(err.message));
+    }));
     return <Button action={deleteItem2}>Delete</Button>;
 }
 export const /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_2 = async function deleteItem3($$ACTION_CLOSURE_BOUND) {
@@ -34,7 +38,9 @@ export function Item3(product, foo, bar) {
         product,
         foo,
         bar
-    ]));
+    ]).catch((err)=>{
+        console.error(new Error(err.message));
+    }));
     return <Button action={deleteItem3}>Delete</Button>;
 }
 export const /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_3 = async function deleteItem4($$ACTION_CLOSURE_BOUND) {
@@ -46,6 +52,8 @@ export function Item4(product, foo, bar) {
         product,
         foo,
         bar
-    ]));
+    ]).catch((err)=>{
+        console.error(new Error(err.message));
+    }));
     return <Button action={deleteItem4}>Delete</Button>;
 }

@@ -20,7 +20,9 @@ export const /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_2 = a
     var cache = $$RSC_SERVER_REF_1.bind(null, encryptActionBoundArgs("e03128060c414d59f8552e4788b846c0d2b7f74743", [
         d,
         $$ACTION_ARG_0
-    ]));
+    ]).catch((err)=>{
+        console.error(new Error(err.message));
+    }));
     return cache(d);
 };
 async function Component({ a }) {
@@ -28,7 +30,9 @@ async function Component({ a }) {
     var action = registerServerReference($$RSC_SERVER_ACTION_2, "601c36b06e398c97abe5d5d7ae8c672bfddf4e1b91", null).bind(null, encryptActionBoundArgs("601c36b06e398c97abe5d5d7ae8c672bfddf4e1b91", [
         a,
         b
-    ]));
+    ]).catch((err)=>{
+        console.error(new Error(err.message));
+    }));
     return <form action={action}>
       <button>Submit</button>
     </form>;

@@ -36,16 +36,24 @@ export async function Component(a) {
     fn1={$$RSC_SERVER_REF_1.bind(null, encryptActionBoundArgs("e03128060c414d59f8552e4788b846c0d2b7f74743", [
         a,
         b
-    ]))} fn2={$$RSC_SERVER_REF_3.bind(null, encryptActionBoundArgs("c069348c79fce073bae2f70f139565a2fda1c74c74", [
+    ]).catch((err)=>{
+        console.error(new Error(err.message));
+    }))} fn2={$$RSC_SERVER_REF_3.bind(null, encryptActionBoundArgs("c069348c79fce073bae2f70f139565a2fda1c74c74", [
         a,
         b
-    ]))} fn3={registerServerReference($$RSC_SERVER_ACTION_4, "60a9b2939c1f39073a6bed227fd20233064c8b7869", null).bind(null, encryptActionBoundArgs("60a9b2939c1f39073a6bed227fd20233064c8b7869", [
+    ]).catch((err)=>{
+        console.error(new Error(err.message));
+    }))} fn3={registerServerReference($$RSC_SERVER_ACTION_4, "60a9b2939c1f39073a6bed227fd20233064c8b7869", null).bind(null, encryptActionBoundArgs("60a9b2939c1f39073a6bed227fd20233064c8b7869", [
         a,
         b
-    ]))} fn4={registerServerReference($$RSC_SERVER_ACTION_5, "409651a98a9dccd7ffbe72ff5cf0f38546ca1252ab", null).bind(null, encryptActionBoundArgs("409651a98a9dccd7ffbe72ff5cf0f38546ca1252ab", [
+    ]).catch((err)=>{
+        console.error(new Error(err.message));
+    }))} fn4={registerServerReference($$RSC_SERVER_ACTION_5, "409651a98a9dccd7ffbe72ff5cf0f38546ca1252ab", null).bind(null, encryptActionBoundArgs("409651a98a9dccd7ffbe72ff5cf0f38546ca1252ab", [
         a,
         b
-    ]))}/>;
+    ]).catch((err)=>{
+        console.error(new Error(err.message));
+    }))}/>;
 }
 var $$RSC_SERVER_REF_1 = /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ registerServerReference($$RSC_SERVER_CACHE_0, "e03128060c414d59f8552e4788b846c0d2b7f74743", null);
 var $$RSC_SERVER_REF_3 = registerServerReference($$RSC_SERVER_CACHE_2, "c069348c79fce073bae2f70f139565a2fda1c74c74", null);

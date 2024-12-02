@@ -10,7 +10,9 @@ export function Item({ id1, id2 }) {
     var deleteItem = registerServerReference($$RSC_SERVER_ACTION_0, "406a88810ecce4a4e8b59d53b8327d7e98bbf251d7", null).bind(null, encryptActionBoundArgs("406a88810ecce4a4e8b59d53b8327d7e98bbf251d7", [
         id1,
         id2
-    ]));
+    ]).catch((err)=>{
+        console.error(new Error(err.message));
+    }));
     return <Button action={deleteItem}>Delete</Button>;
 }
 export const /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_1 = async function action($$ACTION_CLOSURE_BOUND) {
@@ -26,6 +28,8 @@ export default function Home() {
     const action = registerServerReference($$RSC_SERVER_ACTION_1, "4090b5db271335765a4b0eab01f044b381b5ebd5cd", null).bind(null, encryptActionBoundArgs("4090b5db271335765a4b0eab01f044b381b5ebd5cd", [
         info.name,
         info.test
-    ]));
+    ]).catch((err)=>{
+        console.error(new Error(err.message));
+    }));
     return null;
 }

@@ -11,7 +11,9 @@ export default function Page() {
     return <Foo // TODO: should use `action` as function name?
     action={validator(registerServerReference($$RSC_SERVER_ACTION_0, "606a88810ecce4a4e8b59d53b8327d7e98bbf251d7", null).bind(null, encryptActionBoundArgs("606a88810ecce4a4e8b59d53b8327d7e98bbf251d7", [
         y
-    ])))}/>;
+    ]).catch((err)=>{
+        console.error(new Error(err.message));
+    })))}/>;
 }
 export const /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_1 = async function() {};
 validator(registerServerReference($$RSC_SERVER_ACTION_1, "0090b5db271335765a4b0eab01f044b381b5ebd5cd", null));

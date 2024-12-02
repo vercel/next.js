@@ -2356,7 +2356,7 @@ fn bind_args_to_ref_expr(expr: Expr, bound: Vec<Option<ExprOrSpread>>, action_id
     if bound.is_empty() {
         expr
     } else {
-        // expr.bind(null, [encryptActionBoundArgs("id", [arg1, ...])])
+        // expr.bind(null, encryptActionBoundArgs("id", [arg1, ...]).catch(...)))
         Expr::Call(CallExpr {
             span: DUMMY_SP,
             callee: Expr::Member(MemberExpr {
@@ -2374,20 +2374,67 @@ fn bind_args_to_ref_expr(expr: Expr, bound: Vec<Option<ExprOrSpread>>, action_id
                     spread: None,
                     expr: Box::new(Expr::Call(CallExpr {
                         span: DUMMY_SP,
-                        callee: quote_ident!("encryptActionBoundArgs").as_callee(),
-                        args: vec![
-                            ExprOrSpread {
-                                spread: None,
-                                expr: Box::new(action_id.into()),
-                            },
-                            ExprOrSpread {
-                                spread: None,
-                                expr: Box::new(Expr::Array(ArrayLit {
-                                    span: DUMMY_SP,
-                                    elems: bound,
+                        callee: Expr::Member(MemberExpr {
+                            span: DUMMY_SP,
+                            obj: Box::new(Expr::Call(CallExpr {
+                                span: DUMMY_SP,
+                                callee: quote_ident!("encryptActionBoundArgs").as_callee(),
+                                args: vec![
+                                    ExprOrSpread {
+                                        spread: None,
+                                        expr: Box::new(action_id.into()),
+                                    },
+                                    ExprOrSpread {
+                                        spread: None,
+                                        expr: Box::new(Expr::Array(ArrayLit {
+                                            span: DUMMY_SP,
+                                            elems: bound,
+                                        })),
+                                    },
+                                ],
+                                ..Default::default()
+                            })),
+                            prop: quote_ident!("catch").into(),
+                        })
+                        .as_callee(),
+                        args: vec![ExprOrSpread {
+                            spread: None,
+                            expr: Box::new(Expr::Arrow(ArrowExpr {
+                                params: vec![quote_ident!("err").into()],
+                                body: Box::new(BlockStmtOrExpr::BlockStmt(BlockStmt {
+                                    stmts: vec![Stmt::Expr(ExprStmt {
+                                        expr: Box::new(Expr::Call(CallExpr {
+                                            span: DUMMY_SP,
+                                            callee: Box::new(Expr::Member(MemberExpr {
+                                                span: DUMMY_SP,
+                                                obj: quote_ident!("console").into(),
+                                                prop: quote_ident!("error").into(),
+                                            }))
+                                            .as_callee(),
+                                            args: vec![ExprOrSpread {
+                                                spread: None,
+                                                expr: Box::new(Expr::New(NewExpr {
+                                                    callee: quote_ident!("Error").into(),
+                                                    args: Some(vec![ExprOrSpread {
+                                                        spread: None,
+                                                        expr: Box::new(Expr::Member(MemberExpr {
+                                                            span: DUMMY_SP,
+                                                            obj: quote_ident!("err").into(),
+                                                            prop: quote_ident!("message").into(),
+                                                        })),
+                                                    }]),
+                                                    ..Default::default()
+                                                })),
+                                            }],
+                                            ..Default::default()
+                                        })),
+                                        ..Default::default()
+                                    })],
+                                    ..Default::default()
                                 })),
-                            },
-                        ],
+                                ..Default::default()
+                            })),
+                        }],
                         ..Default::default()
                     })),
                 },
