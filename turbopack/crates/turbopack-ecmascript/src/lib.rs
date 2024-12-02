@@ -763,14 +763,8 @@ impl EcmascriptModuleContent {
         let code_gens = code_gens.into_iter().try_join().await?;
         let code_gens = code_gens.iter().map(|cg| &**cg).collect::<Vec<_>>();
 
-        gen_content_with_code_gens(
-            parsed,
-            ident,
-            specified_module_type,
-            &code_gens,
-            source_map.to_resolved().await?,
-        )
-        .await
+        gen_content_with_code_gens(parsed, ident, specified_module_type, &code_gens, source_map)
+            .await
     }
 
     /// Creates a new [`Vc<EcmascriptModuleContent>`] without an analysis pass.

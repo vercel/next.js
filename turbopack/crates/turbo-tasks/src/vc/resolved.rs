@@ -42,8 +42,8 @@ where
 }
 
 impl<T> ResolvedVc<T> {
-    /// This function exists to intercept calls to Vc::resolved through dereferencing
-    /// a ResolvedVc. Converting to Vc and re-resolving it puts unnecessary stresss on
+    /// This function exists to intercept calls to Vc::to_resolved through dereferencing
+    /// a ResolvedVc. Converting to Vc and re-resolving it puts unnecessary stress on
     /// the turbo tasks engine.
     #[deprecated(note = "No point in resolving a vc that is already resolved")]
     pub async fn to_resolved(self) -> Result<Self> {
