@@ -2,10 +2,14 @@ import { nextBuild } from 'next-test-utils'
 
 describe('worker-restart', () => {
   it('should properly exhaust all restart attempts and not fail with any worker errors', async () => {
-    const { stdout, stderr } = await nextBuild(__dirname, [], {
-      stdout: true,
-      stderr: true,
-    })
+    const { stdout, stderr } = await nextBuild(
+      __dirname + '/fixtures/timeout',
+      [],
+      {
+        stdout: true,
+        stderr: true,
+      }
+    )
 
     const output = stdout + stderr
     expect(output).toContain(
