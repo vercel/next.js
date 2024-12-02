@@ -172,6 +172,7 @@ jobs:
       - name: ast-grep lint step
         uses: ast-grep/action@v1.5.0
         with:
+          # Keep in sync with the next.js repo's root package.json
           version: 0.31.0
 
   devlow-bench:
