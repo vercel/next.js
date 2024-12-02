@@ -7844,10 +7844,10 @@
       "runtimeError": false
     },
     "test/integration/css-minify/test/index.test.js": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "css-minify production mode should minify correctly by removing whitespace"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false

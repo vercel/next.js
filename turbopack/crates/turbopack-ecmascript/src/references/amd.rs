@@ -86,7 +86,7 @@ impl ChunkableModuleReference for AmdDefineAssetReference {}
 #[derive(ValueDebugFormat, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, Clone)]
 pub enum AmdDefineDependencyElement {
     Request {
-        request: Vc<Request>,
+        request: ResolvedVc<Request>,
         request_str: String,
     },
     Exports,
@@ -107,20 +107,20 @@ pub enum AmdDefineFactoryType {
 #[derive(Debug)]
 pub struct AmdDefineWithDependenciesCodeGen {
     dependencies_requests: Vec<AmdDefineDependencyElement>,
-    origin: Vc<Box<dyn ResolveOrigin>>,
+    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     path: ResolvedVc<AstPath>,
     factory_type: AmdDefineFactoryType,
-    issue_source: Vc<IssueSource>,
+    issue_source: ResolvedVc<IssueSource>,
     in_try: bool,
 }
 
 impl AmdDefineWithDependenciesCodeGen {
     pub fn new(
         dependencies_requests: Vec<AmdDefineDependencyElement>,
-        origin: Vc<Box<dyn ResolveOrigin>>,
+        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         path: ResolvedVc<AstPath>,
         factory_type: AmdDefineFactoryType,
-        issue_source: Vc<IssueSource>,
+        issue_source: ResolvedVc<IssueSource>,
         in_try: bool,
     ) -> Vc<Self> {
         Self::cell(AmdDefineWithDependenciesCodeGen {
@@ -153,13 +153,13 @@ impl CodeGenerateable for AmdDefineWithDependenciesCodeGen {
                         request_str,
                     } => ResolvedElement::PatternMapping {
                         pattern_mapping: PatternMapping::resolve_request(
-                            *request,
-                            self.origin,
+                            **request,
+                            *self.origin,
                             Vc::upcast(chunking_context),
                             cjs_resolve(
-                                self.origin,
-                                *request,
-                                Some(self.issue_source),
+                                *self.origin,
+                                **request,
+                                Some(*self.issue_source),
                                 self.in_try,
                             ),
                             Value::new(ChunkItem),

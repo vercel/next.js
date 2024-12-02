@@ -87,7 +87,7 @@ pub struct ParseResultSourceMap {
 
     /// An input's original source map, if one exists. This will be used to
     /// trace locations back to the input's pre-transformed sources.
-    original_source_map: Vc<OptionSourceMap>,
+    original_source_map: ResolvedVc<OptionSourceMap>,
 }
 
 impl PartialEq for ParseResultSourceMap {
@@ -100,7 +100,7 @@ impl ParseResultSourceMap {
     pub fn new(
         files_map: Arc<swc_core::common::SourceMap>,
         mappings: Vec<(BytePos, LineCol)>,
-        original_source_map: Vc<OptionSourceMap>,
+        original_source_map: ResolvedVc<OptionSourceMap>,
     ) -> Self {
         ParseResultSourceMap {
             files_map,

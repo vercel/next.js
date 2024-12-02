@@ -22,7 +22,7 @@ type SSRErrorHandler = (
 export type DigestedError = Error & { digest: string }
 
 export function createFlightReactServerErrorHandler(
-  dev: boolean,
+  shouldFormatError: boolean,
   onReactServerRenderError: (err: DigestedError) => void
 ): RSCErrorHandler {
   return (thrownValue: unknown) => {
@@ -56,7 +56,7 @@ export function createFlightReactServerErrorHandler(
     }
 
     // Format server errors in development to add more helpful error messages
-    if (dev) {
+    if (shouldFormatError) {
       formatServerError(err)
     }
 
@@ -77,7 +77,7 @@ export function createFlightReactServerErrorHandler(
 }
 
 export function createHTMLReactServerErrorHandler(
-  dev: boolean,
+  shouldFormatError: boolean,
   isNextExport: boolean,
   reactServerErrors: Map<string, DigestedError>,
   silenceLogger: boolean,
@@ -120,7 +120,7 @@ export function createHTMLReactServerErrorHandler(
     }
 
     // Format server errors in development to add more helpful error messages
-    if (dev) {
+    if (shouldFormatError) {
       formatServerError(err)
     }
 
@@ -153,7 +153,7 @@ export function createHTMLReactServerErrorHandler(
 }
 
 export function createHTMLErrorHandler(
-  dev: boolean,
+  shouldFormatError: boolean,
   isNextExport: boolean,
   reactServerErrors: Map<string, DigestedError>,
   allCapturedErrors: Array<unknown>,
@@ -200,7 +200,7 @@ export function createHTMLErrorHandler(
     }
 
     // Format server errors in development to add more helpful error messages
-    if (dev) {
+    if (shouldFormatError) {
       formatServerError(err)
     }
 
