@@ -42,13 +42,8 @@ export function throwWithStaticGenerationBailoutErrorWithDynamicError(
 }
 
 export function isRequestAPICallableInsideAfter() {
-  // const workStore = workAsyncStorage.getStore()
-  // const workUnitStore = workUnitAsyncStorage.getStore()
   const afterTaskStore = afterTaskAsyncStorage.getStore()
-  return (
-    // workUnitStore?.type === 'request' &&
-    afterTaskStore?.rootTaskSpawnPhase === 'action'
-  )
+  return afterTaskStore?.rootTaskSpawnPhase === 'action'
 }
 
 export const wellKnownProperties = new Set([
