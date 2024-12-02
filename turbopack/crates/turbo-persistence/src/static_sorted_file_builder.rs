@@ -14,34 +14,60 @@ use crate::static_sorted_file::{
     KEY_BLOCK_ENTRY_TYPE_MEDIUM, KEY_BLOCK_ENTRY_TYPE_SMALL,
 };
 
+/// The maximum number of entries that should go into a single key block
 const MAX_KEY_BLOCK_ENTRIES: usize = 100 * 1024;
+/// The maximum bytes that should go into a single key block
 // Note this must fit into 3 bytes length
 const MAX_KEY_BLOCK_SIZE: usize = 16 * 1024;
+/// Overhead of bytes that should be counted for entries in a key block in addition to the key size
 const KEY_BLOCK_ENTRY_META_OVERHEAD: usize = 8;
+/// The maximum number of entries that should go into a single small value block
 const MAX_SMALL_VALUE_BLOCK_ENTRIES: usize = 100 * 1024;
+/// The maximum bytes that should go into a single small value block
 const MAX_SMALL_VALUE_BLOCK_SIZE: usize = 16 * 1024;
+/// The aimed false positive rate for the AQMF
 const AQMF_FALSE_POSITIVE_RATE: f64 = 0.01;
+
+/// The maximum compression dictionay size for value blocks
 const VALUE_COMPRESSION_DICTIONARY_SIZE: usize = 64 * 1024 - 1;
+/// The maximum compression dictionay size for key and index blocks
 const KEY_COMPRESSION_DICTIONARY_SIZE: usize = 64 * 1024 - 1;
+/// The maximum bytes that should be selected as value samples to create a compression dictionary
 const VALUE_COMPRESSION_SAMPLES_SIZE: usize = 256 * 1024;
+/// The maximum bytes that should be selected as key samples to create a compression dictionary
 const KEY_COMPRESSION_SAMPLES_SIZE: usize = 256 * 1024;
+/// The minimum bytes that should be selected as value samples. Below that no compression dictionary
+/// is used.
 const MIN_VALUE_COMPRESSION_SAMPLES_SIZE: usize = 1024;
+/// The minimum bytes that should be selected as key samples. Below that no compression dictionary
+/// is used.
 const MIN_KEY_COMPRESSION_SAMPLES_SIZE: usize = 1024;
+/// The bytes that are used per key/value entry for a sample.
 const COMPRESSION_DICTIONARY_SAMPLE_PER_ENTRY: usize = 100;
 
+/// Trait for entries from that SST files can be created
 pub trait Entry {
+    /// Returns the hash of the key
     fn key_hash(&self) -> u64;
+    /// Returns the length of the key
     fn key_len(&self) -> usize;
+    /// Writes the key to a buffer
     fn write_key_to(&self, buf: &mut Vec<u8>);
 
+    /// Returns the value
     fn value(&self) -> EntryValue<'_>;
 }
 
+/// Reference to a value
 #[derive(Copy, Clone)]
 pub enum EntryValue<'l> {
+    /// Small-sized value. They are stored in shared value blocks.
     Small { value: &'l [u8] },
+    /// Medium-sized value. They are stored in their own value block.
     Medium { value: &'l [u8] },
+    /// Large-sized value. They are stored in a blob file.
     Large { blob: u32 },
+    /// Thumbstone. The value was removed.
     Deleted,
 }
 
@@ -76,6 +102,7 @@ impl StaticSortedFileBuilder {
         Ok(builder)
     }
 
+    /// Computes a AQMF from the keys of all entries.
     fn compute_aqmf<E: Entry>(&mut self, entries: &[E]) {
         let mut filter = qfilter::Filter::new(entries.len() as u64, AQMF_FALSE_POSITIVE_RATE)
             // This won't fail as we limit the number of entries per SST file
@@ -89,6 +116,7 @@ impl StaticSortedFileBuilder {
         self.aqmf = pot::to_vec(&filter).expect("AQMF serialization failed");
     }
 
+    /// Computes compression dictionaries from keys and values of all entries
     fn compute_compression_dictionary<E: Entry>(
         &mut self,
         entries: &[E],
@@ -173,6 +201,7 @@ impl StaticSortedFileBuilder {
         Ok(())
     }
 
+    /// Compute index, key and value blocks.
     fn compute_blocks<E: Entry>(&mut self, entries: &[E]) {
         // TODO implement multi level index
         // TODO place key and value block near to each other
@@ -308,6 +337,7 @@ impl StaticSortedFileBuilder {
             .push(self.compress_key_block(&index_block.finish()));
     }
 
+    /// Compresses a block with a compression dictionary.
     fn compress_block(&self, block: &[u8], dict: &[u8]) -> (u32, Vec<u8>) {
         let mut compressor =
             lzzzz::lz4::Compressor::with_dict(dict).expect("LZ4 compressor creation failed");
@@ -321,14 +351,17 @@ impl StaticSortedFileBuilder {
         (block.len().try_into().unwrap(), compressed)
     }
 
+    /// Compresses an index or key block.
     fn compress_key_block(&self, block: &[u8]) -> (u32, Vec<u8>) {
         self.compress_block(block, &self.key_compression_dictionary)
     }
 
+    /// Compresses a value block.
     fn compress_value_block(&self, block: &[u8]) -> (u32, Vec<u8>) {
         self.compress_block(block, &self.value_compression_dictionary)
     }
 
+    /// Writes the SST file.
     pub fn write(&self, file: &Path) -> io::Result<File> {
         let mut file = BufWriter::new(File::create(file)?);
         // magic number and version
@@ -373,15 +406,18 @@ impl StaticSortedFileBuilder {
     }
 }
 
+/// Builder for a single key block
 pub struct KeyBlockBuilder {
     current_entry: usize,
     header_size: usize,
     data: Vec<u8>,
 }
 
+/// The size of the key block header.
 const KEY_BLOCK_HEADER_SIZE: usize = 4;
 
 impl KeyBlockBuilder {
+    /// Creates a new key block builder for the number of entries.
     pub fn new(entry_count: u32) -> Self {
         debug_assert!(entry_count < (1 << 24));
 
@@ -399,6 +435,7 @@ impl KeyBlockBuilder {
         }
     }
 
+    /// Writes a small-sized value to the buffer.
     pub fn put_small<E: Entry>(
         &mut self,
         entry: &E,
@@ -420,6 +457,7 @@ impl KeyBlockBuilder {
         self.current_entry += 1;
     }
 
+    /// Writes a medium-sized value to the buffer.
     pub fn put_medium<E: Entry>(&mut self, entry: &E, value_block: u16) {
         let pos = self.data.len() - self.header_size;
         let header_offset = KEY_BLOCK_HEADER_SIZE + self.current_entry * 4;
@@ -433,6 +471,7 @@ impl KeyBlockBuilder {
         self.current_entry += 1;
     }
 
+    /// Writes a thumbstone to the buffer.
     pub fn delete<E: Entry>(&mut self, entry: &E) {
         let pos = self.data.len() - self.header_size;
         let header_offset = KEY_BLOCK_HEADER_SIZE + self.current_entry * 4;
@@ -445,6 +484,7 @@ impl KeyBlockBuilder {
         self.current_entry += 1;
     }
 
+    /// Writes a blob value to the buffer.
     pub fn put_blob<E: Entry>(&mut self, entry: &E, blob: u32) {
         let pos = self.data.len() - self.header_size;
         let header_offset = KEY_BLOCK_HEADER_SIZE + self.current_entry * 4;
@@ -458,16 +498,20 @@ impl KeyBlockBuilder {
         self.current_entry += 1;
     }
 
+    /// Returns the key block buffer
     pub fn finish(self) -> Vec<u8> {
         self.data
     }
 }
 
+/// Builder for a single index block.
 pub struct IndexBlockBuilder {
     data: Vec<u8>,
 }
 
 impl IndexBlockBuilder {
+    /// Creates a new builder for an index block with the specified number of entries and a pointer
+    /// to the first block.
     pub fn new(entry_count: u16, first_block: u16) -> Self {
         let mut data = Vec::with_capacity(entry_count as usize * 10 + 3);
         data.write_u8(BLOCK_TYPE_INDEX).unwrap();
@@ -475,11 +519,13 @@ impl IndexBlockBuilder {
         Self { data }
     }
 
+    /// Adds a hash boundary to the index block.
     pub fn put(&mut self, hash: u64, block: u16) {
         self.data.write_u64::<BE>(hash).unwrap();
         self.data.write_u16::<BE>(block).unwrap();
     }
 
+    /// Returns the index block buffer
     fn finish(self) -> Vec<u8> {
         self.data
     }

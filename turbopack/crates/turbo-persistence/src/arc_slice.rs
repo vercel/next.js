@@ -6,6 +6,7 @@ use std::{
     sync::Arc,
 };
 
+/// A owned slice that is backed by an `Arc`.
 #[derive(Clone)]
 pub struct ArcSlice<T> {
     data: *const [T],

@@ -4,6 +4,8 @@ use anyhow::Result;
 
 use crate::lookup_entry::LookupEntry;
 
+/// An active iterator that is being merged. It has peeked the next element and can be compared
+/// according to that element. The `order` is used when multiple iterators have the same key.
 struct ActiveIterator<T: Iterator<Item = Result<LookupEntry>>> {
     iter: T,
     order: usize,
@@ -35,6 +37,8 @@ impl<T: Iterator<Item = Result<LookupEntry>>> Ord for ActiveIterator<T> {
     }
 }
 
+/// An iterator that merges multiple sorted iterators into a single sorted iterator. Internal it
+/// uses an heap of iterators to iterate them in order.
 pub struct MergeIter<T: Iterator<Item = Result<LookupEntry>>> {
     heap: BinaryHeap<ActiveIterator<T>>,
 }

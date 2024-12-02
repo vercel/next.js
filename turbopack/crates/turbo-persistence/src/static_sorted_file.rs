@@ -20,20 +20,33 @@ use crate::{
     QueryKey,
 };
 
+/// The block header for an index block.
 pub const BLOCK_TYPE_INDEX: u8 = 0;
+/// The block header for a key block.
 pub const BLOCK_TYPE_KEY: u8 = 1;
 
+/// The tag for a small-sized value.
 pub const KEY_BLOCK_ENTRY_TYPE_SMALL: u8 = 0;
+/// The tag for the blob value.
 pub const KEY_BLOCK_ENTRY_TYPE_BLOB: u8 = 1;
+/// The tag for the deleted value.
 pub const KEY_BLOCK_ENTRY_TYPE_DELETED: u8 = 2;
+/// The tag for a medium-sized value.
 pub const KEY_BLOCK_ENTRY_TYPE_MEDIUM: u8 = 3;
 
+/// The result of a lookup operation.
 pub enum LookupResult {
+    /// The key was deleted.
     Deleted,
-    Small { value: ArcSlice<u8> },
+    /// The key was found and the value is a slice.
+    Slice { value: ArcSlice<u8> },
+    /// The key was found and the value is a blob.
     Blob { sequence_number: u32 },
+    /// The key was not found because it is out of the range of this SST file.
     RangeMiss,
+    /// The key was not found because it was not in the AQMF filter. But it was in the range.
     QuickFilterMiss,
+    /// The key was not found. But it was in the range and the AQMF filter.
     KeyMiss,
 }
 
@@ -41,29 +54,41 @@ impl From<LookupValue> for LookupResult {
     fn from(value: LookupValue) -> Self {
         match value {
             LookupValue::Deleted => LookupResult::Deleted,
-            LookupValue::Small { value } => LookupResult::Small { value },
+            LookupValue::Slice { value } => LookupResult::Slice { value },
             LookupValue::Blob { sequence_number } => LookupResult::Blob { sequence_number },
         }
     }
 }
 
+/// A byte range in the SST file.
 struct LocationInFile {
     start: usize,
     end: usize,
 }
 
+/// The read and parsed header of an SST file.
 struct Header {
+    /// The key family stored in this file.
     family: u32,
+    /// The minimum hash value in this file.
     min_hash: u64,
+    /// The maximum hash value in this file.
     max_hash: u64,
+    /// The location of the AQMF filter in the file.
     aqmf: LocationInFile,
+    /// The location of the key compression dictionary in the file.
     key_compression_dictionary: LocationInFile,
+    /// The location of the value compression dictionary in the file.
     value_compression_dictionary: LocationInFile,
+    /// The byte offset where the block offsets start.
     block_offsets_start: usize,
+    /// The byte offset where the blocks start.
     blocks_start: usize,
+    /// The number of blocks in this file.
     block_count: u16,
 }
 
+/// The key family and hash range of an SST file.
 #[derive(Clone, Copy)]
 pub struct StaticSortedFileRange {
     pub family: u32,
@@ -94,18 +119,27 @@ pub type AqmfCache =
 pub type BlockCache =
     quick_cache::sync::Cache<(u32, u16), ArcSlice<u8>, BlockWeighter, BuildHasherDefault<FxHasher>>;
 
+/// A memory mapped SST file.
 pub struct StaticSortedFile {
+    /// The sequence number of this file.
     sequence_number: u32,
+    /// The memory mapped file.
     mmap: Mmap,
+    /// The parsed header of this file.
     header: OnceLock<Header>,
+    /// The AQMF filter of this file. This is only used if the range is very large. Smaller ranges
+    /// use the AQMF cache instead.
     aqmf: OnceLock<qfilter::Filter>,
 }
 
 impl StaticSortedFile {
+    /// The sequence number of this file.
     pub fn sequence_number(&self) -> u32 {
         self.sequence_number
     }
 
+    /// Opens an SST file at the given path. This memory maps the file, but does not read it yet.
+    /// It's lazy read on demand.
     pub fn open(sequence_number: u32, path: PathBuf) -> Result<Self> {
         let mmap = unsafe { Mmap::map(&File::open(&path)?)? };
         let file = Self {
@@ -117,6 +151,7 @@ impl StaticSortedFile {
         Ok(file)
     }
 
+    /// Reads and parses the header of this file if it hasn't been read yet.
     fn header(&self) -> Result<&Header> {
         self.header.get_or_try_init(|| {
             let mut file = &*self.mmap;
@@ -165,6 +200,7 @@ impl StaticSortedFile {
         })
     }
 
+    /// Returns the key family and hash range of this file.
     pub fn range(&self) -> Result<StaticSortedFileRange> {
         let header = self.header()?;
         Ok(StaticSortedFileRange {
@@ -174,6 +210,7 @@ impl StaticSortedFile {
         })
     }
 
+    /// Iterate over all entries in this file in sorted order.
     pub fn iter<'l>(
         &'l self,
         key_block_cache: &'l BlockCache,
@@ -192,6 +229,7 @@ impl StaticSortedFile {
         Ok(iter)
     }
 
+    /// Looks up a key in this file.
     pub fn lookup<K: QueryKey>(
         &self,
         key_family: u32,
@@ -252,6 +290,7 @@ impl StaticSortedFile {
         }
     }
 
+    /// Looks up a hash in a index block.
     fn lookup_index_block(&self, mut block: &[u8], hash: u64) -> Result<u16> {
         let first_block = block.read_u16::<BE>()?;
         let entry_count = block.len() / 10;
@@ -297,6 +336,7 @@ impl StaticSortedFile {
         get_block(entries, l - 1)
     }
 
+    /// Looks up a key in a key block and the value in a value block.
     fn lookup_key_block<K: QueryKey>(
         &self,
         mut block: &[u8],
@@ -337,6 +377,7 @@ impl StaticSortedFile {
         Ok(LookupResult::KeyMiss)
     }
 
+    /// Handles a key match by looking up the value.
     fn handle_key_match(
         &self,
         ty: u8,
@@ -352,12 +393,12 @@ impl StaticSortedFile {
                 let value = self
                     .get_value_block(header, block, value_block_cache)?
                     .slice(position..position + size);
-                LookupValue::Small { value }
+                LookupValue::Slice { value }
             }
             KEY_BLOCK_ENTRY_TYPE_MEDIUM => {
                 let block = val.read_u16::<BE>()?;
                 let value = self.read_value_block(header, block)?;
-                LookupValue::Small { value }
+                LookupValue::Slice { value }
             }
             KEY_BLOCK_ENTRY_TYPE_BLOB => {
                 let sequence_number = val.read_u32::<BE>()?;
@@ -370,6 +411,7 @@ impl StaticSortedFile {
         })
     }
 
+    /// Gets a key block from the cache or reads it from the file.
     fn get_key_block(
         &self,
         header: &Header,
@@ -389,6 +431,7 @@ impl StaticSortedFile {
         )
     }
 
+    /// Gets a value block from the cache or reads it from the file.
     fn get_value_block(
         &self,
         header: &Header,
@@ -408,6 +451,7 @@ impl StaticSortedFile {
         Ok(block)
     }
 
+    /// Reads a key block from the file.
     fn read_key_block(&self, header: &Header, block_index: u16) -> Result<ArcSlice<u8>> {
         self.read_block(
             header,
@@ -417,6 +461,7 @@ impl StaticSortedFile {
         )
     }
 
+    /// Reads a value block from the file.
     fn read_value_block(&self, header: &Header, block_index: u16) -> Result<ArcSlice<u8>> {
         self.read_block(
             header,
@@ -426,6 +471,7 @@ impl StaticSortedFile {
         )
     }
 
+    /// Reads a block from the file.
     fn read_block(
         &self,
         header: &Header,
@@ -493,6 +539,7 @@ impl StaticSortedFile {
     }
 }
 
+/// An iterator over all entries in a SST file in sorted order.
 pub struct StaticSortedFileIter<'l> {
     this: &'l StaticSortedFile,
     key_block_cache: &'l BlockCache,
@@ -525,6 +572,7 @@ impl Iterator for StaticSortedFileIter<'_> {
 }
 
 impl StaticSortedFileIter<'_> {
+    /// Enters a block at the given index.
     fn enter_block(&mut self, block_index: u16) -> Result<()> {
         let block_arc = self
             .this
@@ -561,6 +609,7 @@ impl StaticSortedFileIter<'_> {
         Ok(())
     }
 
+    /// Gets the next entry in the file and moves the cursor.
     fn next_internal(&mut self) -> Result<Option<LookupEntry>> {
         loop {
             if let Some(CurrentKeyBlock {
@@ -620,6 +669,7 @@ struct GetKeyEntryResult<'l> {
     val: &'l [u8],
 }
 
+/// Reads a key entry from a key block.
 fn get_key_entry<'l>(
     offsets: &[u8],
     entries: &'l [u8],

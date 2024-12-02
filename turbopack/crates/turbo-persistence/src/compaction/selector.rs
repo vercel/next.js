@@ -1,3 +1,5 @@
+/// The merge and move jobs that the compaction algorithm has computed. It's expected that all move
+/// jobs are executed in parallel and when that has finished the move jobs are executed in parallel.
 #[derive(Debug)]
 pub struct CompactionJobs {
     pub merge_jobs: Vec<Vec<usize>>,
@@ -6,14 +8,16 @@ pub struct CompactionJobs {
 
 impl CompactionJobs {
     #[cfg(test)]
-    pub fn is_empty(&self) -> bool {
+    pub(self) fn is_empty(&self) -> bool {
         self.merge_jobs.is_empty() && self.move_jobs.is_empty()
     }
 }
 
 type Range = (u64, u64);
 
+/// The trait for the input of the compaction algorithm.
 pub trait Compactable {
+    /// Returns the range of the compactable.
     fn range(&self) -> Range;
 }
 
@@ -39,6 +43,7 @@ fn extend_range(a: &mut Range, b: &Range) -> bool {
     extended
 }
 
+/// Computes the total coverage of the compactables.
 pub fn total_coverage<T: Compactable>(compactables: &[T], full_range: Range) -> f32 {
     let mut coverage = 0.0f32;
     for c in compactables {
@@ -48,6 +53,7 @@ pub fn total_coverage<T: Compactable>(compactables: &[T], full_range: Range) -> 
     coverage / spread(&full_range) as f32
 }
 
+/// Configuration for the compaction algorithm.
 pub struct CompactConfig {
     /// The maximum number of files to merge at once.
     pub max_merge: usize,
@@ -56,6 +62,7 @@ pub struct CompactConfig {
     pub min_merge: usize,
 }
 
+/// For a list of compactables, computes merge and move jobs that are expected to perform best.
 pub fn get_compaction_jobs<T: Compactable>(
     compactables: &[T],
     config: &CompactConfig,

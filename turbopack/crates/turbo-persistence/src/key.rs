@@ -1,7 +1,11 @@
 use std::{cmp::min, hash::Hasher};
 
+/// A trait for keys that can be used for hashing.
 pub trait KeyBase {
+    /// Returns the length of the key in bytes.
     fn len(&self) -> usize;
+    /// Hashes the key. It should not include the structure of the key, only the data. E.g. `([1,
+    /// 2], [3, 4])` should hash the same as `[1, 2, 3, 4]`.
     fn hash<H: Hasher>(&self, state: &mut H);
 }
 
@@ -74,6 +78,8 @@ impl<T: KeyBase> KeyBase for &'_ T {
     }
 }
 
+/// A trait for keys that can be used to query the database. They need to allow hashing and
+/// comparison with a byte slice (total order).
 pub trait QueryKey: KeyBase {
     fn cmp(&self, key: &[u8]) -> std::cmp::Ordering;
 }
@@ -124,6 +130,7 @@ impl<T: QueryKey> QueryKey for &'_ T {
     }
 }
 
+/// A trait for keys that can be stored in the database. They need to allow hashing and comparison.
 pub trait StoreKey: KeyBase + Ord {
     fn write_to(&self, buf: &mut Vec<u8>);
 }
@@ -159,6 +166,7 @@ impl<T: StoreKey> StoreKey for &'_ T {
     }
 }
 
+/// Hashes a key with a fast, deterministic hash function.
 pub fn hash_key(key: &impl KeyBase) -> u64 {
     let mut hasher = twox_hash::XxHash64::with_seed(0);
     key.hash(&mut hasher);

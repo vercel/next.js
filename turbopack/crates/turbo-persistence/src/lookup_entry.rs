@@ -4,25 +4,34 @@ use crate::{
     ArcSlice,
 };
 
+/// A value from a SST file lookup.
 pub enum LookupValue {
+    /// The value was deleted.
     Deleted,
-    Small { value: ArcSlice<u8> },
+    /// The value is stored in the SST file.
+    Slice { value: ArcSlice<u8> },
+    /// The value is stored in a blob file.
     Blob { sequence_number: u32 },
 }
 
 impl LookupValue {
-    pub fn len(&self) -> usize {
+    /// Returns the size of the value in the SST file.
+    pub fn size_in_sst(&self) -> usize {
         match self {
-            LookupValue::Small { value } => value.len(),
+            LookupValue::Slice { value } => value.len(),
             LookupValue::Deleted => 0,
             LookupValue::Blob { .. } => 0,
         }
     }
 }
 
+/// An entry from a SST file lookup.
 pub struct LookupEntry {
+    /// The hash of the key.
     pub hash: u64,
+    /// The key.
     pub key: ArcSlice<u8>,
+    /// The value.
     pub value: LookupValue,
 }
 
@@ -42,7 +51,7 @@ impl Entry for LookupEntry {
     fn value(&self) -> EntryValue<'_> {
         match &self.value {
             LookupValue::Deleted => EntryValue::Deleted,
-            LookupValue::Small { value } => {
+            LookupValue::Slice { value } => {
                 if value.len() > MAX_SMALL_VALUE_SIZE {
                     EntryValue::Medium { value }
                 } else {

@@ -22,20 +22,29 @@ use crate::{
     key::StoreKey, static_sorted_file_builder::StaticSortedFileBuilder,
 };
 
+/// The thread local state of a `WriteBatch`.
 struct ThreadLocalState<K: StoreKey + Send, const FAMILIES: usize> {
+    /// The collectors for each family.
     collectors: [Option<Collector<K>>; FAMILIES],
+    /// The list of new SST files that have been created.
     new_sst_files: Vec<(u32, File)>,
 }
 
+/// A write batch.
 pub struct WriteBatch<K: StoreKey + Send, const FAMILIES: usize> {
+    /// The database path
     path: PathBuf,
+    /// The current sequence number counter. Increased for every new SST file or blob file.
     current_sequence_number: AtomicU32,
+    /// The thread local state.
     thread_locals: ThreadLocal<UnsafeCell<ThreadLocalState<K, FAMILIES>>>,
+    /// Collectors are are current unused, but have memory preallocated.
     idle_collectors: Mutex<Vec<Collector<K>>>,
 }
 
 impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
-    pub fn new(path: PathBuf, current: u32) -> Self {
+    /// Creates a new write batch for a database.
+    pub(crate) fn new(path: PathBuf, current: u32) -> Self {
         assert!(FAMILIES <= u32::MAX as usize);
         Self {
             path,
@@ -45,11 +54,14 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
         }
     }
 
-    pub fn reset(&mut self, current: u32) {
+    /// Resets the write batch to a new sequence number. This is called when the WriteBatch is
+    /// reused.
+    pub(crate) fn reset(&mut self, current: u32) {
         self.current_sequence_number
             .store(current, Ordering::SeqCst);
     }
 
+    /// Returns the collector for a family for the current thread.
     fn collector_mut(&self, family: usize) -> Result<&mut Collector<K>> {
         debug_assert!(family < FAMILIES);
         let cell = self.thread_locals.get_or(|| {
@@ -74,6 +86,7 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
         Ok(collector)
     }
 
+    /// Puts a key-value pair into the write batch.
     pub fn put(&self, family: usize, key: K, value: Cow<'_, [u8]>) -> Result<()> {
         let collector = self.collector_mut(family)?;
         if value.len() <= MAX_MEDIUM_VALUE_SIZE {
@@ -85,13 +98,16 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
         Ok(())
     }
 
+    /// Puts a delete operation into the write batch.
     pub fn delete(&self, family: usize, key: K) -> Result<()> {
         let collector = self.collector_mut(family)?;
         collector.delete(key);
         Ok(())
     }
 
-    pub fn finish(&mut self) -> Result<(u32, Vec<(u32, File)>)> {
+    /// Finishes the write batch by returning the new sequence number and the new SST files. This
+    /// writes all outstanding thread local data to disk.
+    pub(crate) fn finish(&mut self) -> Result<(u32, Vec<(u32, File)>)> {
         let mut new_sst_files = Vec::new();
         let mut all_collectors = [(); FAMILIES].map(|_| Vec::new());
         for cell in self.thread_locals.iter_mut() {
@@ -187,6 +203,7 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
         Ok((seq, new_sst_files))
     }
 
+    /// Creates a new blob file with the given value.
     fn create_blob(&self, value: &[u8]) -> Result<u32> {
         let seq = self.current_sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
         let mut buffer = Vec::new();
@@ -199,6 +216,7 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
         Ok(seq)
     }
 
+    /// Creates a new SST file with the given collector data.
     fn create_sst_file(
         &self,
         family: usize,

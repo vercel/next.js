@@ -100,25 +100,45 @@ struct TrackedStats {
     miss_global: std::sync::atomic::AtomicU64,
 }
 
+/// TurboPersistence is a persistent key-value store. It is limited to a single writer at a time
+/// using a single write batch. It allows for concurrent reads.
 pub struct TurboPersistence {
+    /// The path to the directory where the database is stored
     path: PathBuf,
+    /// The inner state of the database. Writing will update that.
     inner: RwLock<Inner>,
+    /// A cache for the last WriteBatch. It is used to avoid reallocation of buffers for the
+    /// WriteBatch.
     idle_write_batch: Mutex<Option<(TypeId, Box<dyn Any + Send + Sync>)>>,
+    /// A flag to indicate if a write operation is currently active. Prevents multiple concurrent
+    /// write operations.
     active_write_operation: AtomicBool,
+    /// A cache for deserialized AQMF filters.
     aqmf_cache: AqmfCache,
+    /// A cache for decompressed index blocks.
     index_block_cache: BlockCache,
+    /// A cache for decompressed key blocks.
     key_block_cache: BlockCache,
+    /// A cache for decompressed value blocks.
     value_block_cache: BlockCache,
+    /// Statistics for the database.
     #[cfg(feature = "stats")]
     stats: TrackedStats,
 }
 
+/// The inner state of the database.
 struct Inner {
+    /// The list of SST files in the database in order.
     static_sorted_files: Vec<StaticSortedFile>,
+    /// The current sequence number for the database.
     current_sequence_number: u32,
 }
 
 impl TurboPersistence {
+    /// Open a TurboPersistence database at the given path.
+    /// This will read the directory and might performance cleanup when the database was not closed
+    /// properly. Cleanup only requires to read a few bytes from a few files and to delete
+    /// files, so it's fast.
     pub fn open(path: PathBuf) -> Result<Self> {
         let mut db = Self {
             path,
@@ -163,6 +183,7 @@ impl TurboPersistence {
         Ok(db)
     }
 
+    /// Performas the initial check on the database directory.
     fn open_directory(&mut self) -> Result<()> {
         match fs::read_dir(&self.path) {
             Ok(entries) => {
@@ -187,11 +208,13 @@ impl TurboPersistence {
         }
     }
 
+    /// Creates the directory and initializes it.
     fn create_and_init_directory(&mut self) -> Result<()> {
         fs::create_dir_all(&self.path)?;
         self.init_directory()
     }
 
+    /// Initializes the directory by creating the CURRENT file.
     fn init_directory(&mut self) -> Result<()> {
         let mut current = File::create(self.path.join("CURRENT"))?;
         current.write_u32::<BE>(0)?;
@@ -199,6 +222,7 @@ impl TurboPersistence {
         Ok(())
     }
 
+    /// Loads an existing database directory and performs cleanup if necessary.
     fn load_directory(&mut self, entries: ReadDir) -> Result<bool> {
         let mut sst_files = Vec::new();
         let mut current_file = match File::open(self.path.join("CURRENT")) {
@@ -304,12 +328,14 @@ impl TurboPersistence {
         Ok(true)
     }
 
+    /// Opens a single SST file. This memory maps the file, but doesn't read it yet.
     fn open_sst(&self, seq: u32) -> Result<StaticSortedFile> {
         let path = self.path.join(format!("{:08}.sst", seq));
         StaticSortedFile::open(seq, path)
             .with_context(|| format!("Unable to open sst file {:08}.sst", seq))
     }
 
+    /// Reads and decompresses a blob file. This is not backed by any cache.
     fn read_blob(&self, seq: u32) -> Result<ArcSlice<u8>> {
         let path = self.path.join(format!("{:08}.blob", seq));
         let compressed =
@@ -326,10 +352,15 @@ impl TurboPersistence {
         Ok(ArcSlice::from(buffer))
     }
 
+    /// Returns true if the database is empty.
     pub fn is_empty(&self) -> bool {
         self.inner.read().static_sorted_files.is_empty()
     }
 
+    /// Starts a new WriteBatch for the database. Only a single write operation is allowed at a
+    /// time. The WriteBatch need to be committed with [`TurboPersistence::commit_write_batch`].
+    /// Note that the WriteBatch might start writing data to disk while it's filled up with data.
+    /// This data will only become visible after the WriteBatch is committed.
     pub fn write_batch<K: StoreKey + Send + Sync + 'static, const FAMILIES: usize>(
         &self,
     ) -> Result<WriteBatch<K, FAMILIES>> {
@@ -354,6 +385,8 @@ impl TurboPersistence {
         Ok(WriteBatch::new(self.path.clone(), current))
     }
 
+    /// Commits a WriteBatch to the database. This will finish writing the data to disk and make it
+    /// visible to readers.
     pub fn commit_write_batch<K: StoreKey + Send + Sync + 'static, const FAMILIES: usize>(
         &self,
         mut write_batch: WriteBatch<K, FAMILIES>,
@@ -368,6 +401,8 @@ impl TurboPersistence {
         Ok(())
     }
 
+    /// fsyncs the new files and updates the CURRENT file. Updates the database state to include the
+    /// new files.
     fn commit(
         &self,
         new_sst_files: Vec<(u32, File)>,
@@ -428,11 +463,17 @@ impl TurboPersistence {
         Ok(())
     }
 
+    /// Runs a full compaction on the database. This will rewrite all SST files, removing all
+    /// duplicate keys and separating all key ranges into unique files.
     pub fn full_compact(&self) -> Result<()> {
         self.compact(0.0, usize::MAX)?;
         Ok(())
     }
 
+    /// Runs a (partial) compaction. Compaction will only be performed if the coverage of the SST
+    /// files is above the given threshold. The coverage is the average number of SST files that
+    /// need to be read to find a key. It also limits the maximum number of SST files that are
+    /// merged at once, which is the main factor for the runtime of the compaction.
     pub fn compact(&self, max_coverage: f32, max_merge_sequence: usize) -> Result<()> {
         if self
             .active_write_operation
@@ -473,6 +514,7 @@ impl TurboPersistence {
         Ok(())
     }
 
+    /// Internal function to perform a compaction.
     fn compact_internal(
         &self,
         static_sorted_files: &[StaticSortedFile],
@@ -599,7 +641,7 @@ impl TurboPersistence {
                             if let Some(current) = current.take() {
                                 if current.key != entry.key {
                                     let key_size = current.key.len();
-                                    let value_size = current.value.len();
+                                    let value_size = current.value.size_in_sst();
                                     total_key_size += key_size;
                                     total_value_size += value_size;
 
@@ -643,7 +685,7 @@ impl TurboPersistence {
                         }
                         if let Some(entry) = current {
                             total_key_size += entry.key.len();
-                            total_value_size += entry.value.len();
+                            total_value_size += entry.value.size_in_sst();
                             entries.push(entry);
                         }
 
@@ -727,6 +769,8 @@ impl TurboPersistence {
         Ok(true)
     }
 
+    /// Get a value from the database. Returns None if the key is not found. The returned value
+    /// might hold onto a block of the database and it should not be hold long-term.
     pub fn get<K: QueryKey>(&self, family: usize, key: &K) -> Result<Option<ArcSlice<u8>>> {
         let hash = hash_key(key);
         let inner = self.inner.read();
@@ -745,7 +789,7 @@ impl TurboPersistence {
                     self.stats.hits_deleted.fetch_add(1, Ordering::Relaxed);
                     return Ok(None);
                 }
-                LookupResult::Small { value } => {
+                LookupResult::Slice { value } => {
                     #[cfg(feature = "stats")]
                     self.stats.hits_small.fetch_add(1, Ordering::Relaxed);
                     return Ok(Some(value));
@@ -775,6 +819,7 @@ impl TurboPersistence {
         Ok(None)
     }
 
+    /// Returns database statistics.
     #[cfg(feature = "stats")]
     pub fn statistics(&self) -> Statistics {
         let inner = self.inner.read();
@@ -794,6 +839,7 @@ impl TurboPersistence {
         }
     }
 
+    /// Shuts down the database. This will print statistics if the `stats` feature is enabled.
     pub fn shutdown(&self) -> Result<()> {
         #[cfg(feature = "stats")]
         println!("{:#?}", self.statistics());
@@ -801,6 +847,11 @@ impl TurboPersistence {
     }
 }
 
+/// Helper method to remove certain indicies from a list while keeping the order.
+/// This is similar to the `remove` method on Vec, but it allows to remove multiple indicies at
+/// once. It returns the removed elements in unspecified order.
+///
+/// Note: The `sorted_indicies` list needs to be sorted.
 fn remove_indicies<T>(list: &mut Vec<T>, sorted_indicies: &[usize]) -> Vec<T> {
     let mut r = 0;
     let mut w = 0;
@@ -840,5 +891,20 @@ mod tests {
         assert!(removed.contains(&6));
         assert!(removed.contains(&8));
         assert_eq!(removed.len(), 4);
+    }
+
+    #[test]
+    fn test_remove_indicies2() {
+        let mut list = vec![1, 2, 3, 4, 5, 6, 7, 8, 9];
+        let sorted_indicies = vec![0, 1, 2, 6, 7, 8];
+        let removed = remove_indicies(&mut list, &sorted_indicies);
+        assert_eq!(list, vec![4, 5, 6]);
+        assert!(removed.contains(&1));
+        assert!(removed.contains(&2));
+        assert!(removed.contains(&3));
+        assert!(removed.contains(&7));
+        assert!(removed.contains(&8));
+        assert!(removed.contains(&9));
+        assert_eq!(removed.len(), 6);
     }
 }
