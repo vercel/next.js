@@ -20,7 +20,8 @@ use next_core::{
     },
     next_client_reference::{
         client_reference_graph, find_server_entries, ClientReferenceGraphResult,
-        NextEcmascriptClientReferenceTransition, ServerEntries, VisitedClientReferenceGraphNodes,
+        ClientReferenceType, NextEcmascriptClientReferenceTransition, ServerEntries,
+        VisitedClientReferenceGraphNodes,
     },
     next_config::NextConfig,
     next_dynamic::NextDynamicTransition,
@@ -959,6 +960,48 @@ impl AppEndpoint {
                     }
                     client_references
                 };
+                println!(
+                    "client_references {:?} {:#?} {:#?} {:#?}",
+                    rsc_entry.ident().to_string().await?,
+                    client_references
+                        .client_references
+                        .iter()
+                        .map(|r| async move {
+                            Ok(match r.ty() {
+                                ClientReferenceType::EcmascriptClientReference {
+                                    module, ..
+                                } => module.ident().to_string().await?,
+                                ClientReferenceType::CssClientReference(module) => {
+                                    module.ident().to_string().await?
+                                }
+                            })
+                        })
+                        .try_join()
+                        .await?,
+                    client_references
+                        .client_references_by_server_component
+                        .iter()
+                        .map(|(server, r)| async move {
+                            Ok((
+                                match server {
+                                    Some(server) => server.ident().to_string().await?.to_string(),
+                                    None => "None".to_owned(),
+                                },
+                                r.iter()
+                                    .map(|m| async move { m.ident().to_string().await })
+                                    .try_join()
+                                    .await?,
+                            ))
+                        })
+                        .try_join()
+                        .await?,
+                    client_references
+                        .server_component_entries
+                        .iter()
+                        .map(|m| m.ident().to_string())
+                        .try_join()
+                        .await?,
+                );
                 let client_references_cell = client_references.clone().cell();
 
                 let client_dynamic_imports = {
