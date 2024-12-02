@@ -164,7 +164,13 @@ There are two ways you can implement streaming in your application:
 
 You can create a `loading.js` file in the same folder as your page to stream the **entire page** while the data is being fetched. For example, to stream `app/blog/page.js`, add the file inside the `app/blog` folder.
 
-TODO: Add diagram
+<Image
+  alt="Blog folder structure with loading.js file"
+  srcLight="/docs/light/loading-file.png"
+  srcDark="/docs/dark/loading-file.png"
+  width="1600"
+  height="525"
+/>
 
 ```tsx filename="app/blog/loading.tsx" switcher
 export default function Loading() {
