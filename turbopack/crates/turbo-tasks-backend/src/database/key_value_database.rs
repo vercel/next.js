@@ -51,4 +51,8 @@ pub trait KeyValueDatabase {
     fn write_batch(
         &self,
     ) -> Result<WriteBatch<'_, Self::SerialWriteBatch<'_>, Self::ConcurrentWriteBatch<'_>>>;
+
+    fn shutdown(&self) -> Result<()> {
+        Ok(())
+    }
 }
