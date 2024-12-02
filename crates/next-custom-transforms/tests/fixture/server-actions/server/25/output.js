@@ -16,8 +16,9 @@ export function Item({ id1, id2 }) {
         id1,
         id2
     ]).catch((e)=>{
-        console.error(new Error(e instanceof Error ? e.message : e));
-        throw e;
+        const error = new Error(e instanceof Error ? e.message : e);
+        console.error(error);
+        throw error;
     }));
 }
 export const /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_1 = async function deleteItem($$ACTION_CLOSURE_BOUND) {
@@ -38,7 +39,8 @@ export function Item2({ id1, id2 }) {
         id1,
         id2
     ]).catch((e)=>{
-        console.error(new Error(e instanceof Error ? e.message : e));
-        throw e;
+        const error = new Error(e instanceof Error ? e.message : e);
+        console.error(error);
+        throw error;
     }));
 }

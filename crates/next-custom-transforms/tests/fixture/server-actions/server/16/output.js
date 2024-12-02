@@ -14,8 +14,9 @@ export function Item({ id1, id2 }) {
         id1,
         v2
     ]).catch((e)=>{
-        console.error(new Error(e instanceof Error ? e.message : e));
-        throw e;
+        const error = new Error(e instanceof Error ? e.message : e);
+        console.error(error);
+        throw error;
     }));
     return <Button action={deleteItem}>Delete</Button>;
 }
@@ -27,8 +28,9 @@ const f = (x)=>{
     var g = registerServerReference($$RSC_SERVER_ACTION_1, "7f90b5db271335765a4b0eab01f044b381b5ebd5cd", null).bind(null, encryptActionBoundArgs("7f90b5db271335765a4b0eab01f044b381b5ebd5cd", [
         x
     ]).catch((e)=>{
-        console.error(new Error(e instanceof Error ? e.message : e));
-        throw e;
+        const error = new Error(e instanceof Error ? e.message : e);
+        console.error(error);
+        throw error;
     }));
 };
 export const /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_2 = async function f($$ACTION_CLOSURE_BOUND, y, ...z) {
@@ -39,7 +41,8 @@ const g = (x)=>{
     f = registerServerReference($$RSC_SERVER_ACTION_2, "7f1c36b06e398c97abe5d5d7ae8c672bfddf4e1b91", null).bind(null, encryptActionBoundArgs("7f1c36b06e398c97abe5d5d7ae8c672bfddf4e1b91", [
         x
     ]).catch((e)=>{
-        console.error(new Error(e instanceof Error ? e.message : e));
-        throw e;
+        const error = new Error(e instanceof Error ? e.message : e);
+        console.error(error);
+        throw error;
     }));
 };

@@ -20,8 +20,9 @@ export function Item({ id1, id2, id3, id4 }) {
         id3,
         id4.x
     ]).catch((e)=>{
-        console.error(new Error(e instanceof Error ? e.message : e));
-        throw e;
+        const error = new Error(e instanceof Error ? e.message : e);
+        console.error(error);
+        throw error;
     }));
     return <Button action={deleteItem}>Delete</Button>;
 }

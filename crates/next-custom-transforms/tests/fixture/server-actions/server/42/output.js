@@ -17,8 +17,9 @@ async function Component({ foo }) {
         a,
         foo
     ]).catch((e)=>{
-        console.error(new Error(e instanceof Error ? e.message : e));
-        throw e;
+        const error = new Error(e instanceof Error ? e.message : e);
+        console.error(error);
+        throw error;
     }));
     const data = await fn();
     return <div>{data}</div>;

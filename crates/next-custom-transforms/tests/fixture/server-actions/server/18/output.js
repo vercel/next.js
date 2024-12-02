@@ -21,8 +21,9 @@ export function Item({ id1, id2 }) {
         id1,
         v2
     ]).catch((e)=>{
-        console.error(new Error(e instanceof Error ? e.message : e));
-        throw e;
+        const error = new Error(e instanceof Error ? e.message : e);
+        console.error(error);
+        throw error;
     }))}>
         Delete
       </Button>
@@ -30,8 +31,9 @@ export function Item({ id1, id2 }) {
         id1,
         v2
     ]).catch((e)=>{
-        console.error(new Error(e instanceof Error ? e.message : e));
-        throw e;
+        const error = new Error(e instanceof Error ? e.message : e);
+        console.error(error);
+        throw error;
     }))}>
         Delete
       </Button>

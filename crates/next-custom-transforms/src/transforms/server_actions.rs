@@ -2380,34 +2380,36 @@ fn bind_args_to_ref_expr(expr: Expr, bound: Vec<Option<ExprOrSpread>>, action_id
                             params: vec![quote_ident!("e").into()],
                             body: Box::new(BlockStmtOrExpr::BlockStmt(BlockStmt {
                                 stmts: vec![
+                                    quote_ident!("Error")
+                                        .into_new_expr(
+                                            DUMMY_SP,
+                                            Some(vec![Expr::Cond(CondExpr {
+                                                span: DUMMY_SP,
+                                                test: quote_ident!("e")
+                                                    .make_bin(
+                                                        BinaryOp::InstanceOf,
+                                                        quote_ident!("Error"),
+                                                    )
+                                                    .into(),
+                                                cons: quote_ident!("e")
+                                                    .make_member("message".into())
+                                                    .into(),
+                                                alt: quote_ident!("e").into(),
+                                            })
+                                            .as_arg()]),
+                                        )
+                                        .into_var_decl(
+                                            VarDeclKind::Const,
+                                            Pat::Ident("error".into()),
+                                        )
+                                        .into(),
                                     quote_ident!("console")
                                         .make_member("error".into())
-                                        .as_call(
-                                            DUMMY_SP,
-                                            vec![quote_ident!("Error")
-                                                .into_new_expr(
-                                                    DUMMY_SP,
-                                                    Some(vec![Expr::Cond(CondExpr {
-                                                        span: DUMMY_SP,
-                                                        test: quote_ident!("e")
-                                                            .make_bin(
-                                                                BinaryOp::InstanceOf,
-                                                                quote_ident!("Error"),
-                                                            )
-                                                            .into(),
-                                                        cons: quote_ident!("e")
-                                                            .make_member("message".into())
-                                                            .into(),
-                                                        alt: quote_ident!("e").into(),
-                                                    })
-                                                    .as_arg()]),
-                                                )
-                                                .as_arg()],
-                                        )
+                                        .as_call(DUMMY_SP, vec![quote_ident!("error").as_arg()])
                                         .into_stmt(),
                                     ThrowStmt {
                                         span: DUMMY_SP,
-                                        arg: quote_ident!("e").into(),
+                                        arg: quote_ident!("error").into(),
                                     }
                                     .into(),
                                 ],

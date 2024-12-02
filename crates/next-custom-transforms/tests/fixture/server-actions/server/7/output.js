@@ -11,8 +11,9 @@ export function Item1(product, foo, bar) {
         foo,
         bar
     ]).catch((e)=>{
-        console.error(new Error(e instanceof Error ? e.message : e));
-        throw e;
+        const error = new Error(e instanceof Error ? e.message : e);
+        console.error(error);
+        throw error;
     }));
     return <Button action={a}>Delete</Button>;
 }
@@ -26,8 +27,9 @@ export function Item2(product, foo, bar) {
         foo,
         bar
     ]).catch((e)=>{
-        console.error(new Error(e instanceof Error ? e.message : e));
-        throw e;
+        const error = new Error(e instanceof Error ? e.message : e);
+        console.error(error);
+        throw error;
     }));
     return <Button action={deleteItem2}>Delete</Button>;
 }
@@ -41,8 +43,9 @@ export function Item3(product, foo, bar) {
         foo,
         bar
     ]).catch((e)=>{
-        console.error(new Error(e instanceof Error ? e.message : e));
-        throw e;
+        const error = new Error(e instanceof Error ? e.message : e);
+        console.error(error);
+        throw error;
     }));
     return <Button action={deleteItem3}>Delete</Button>;
 }
@@ -56,8 +59,9 @@ export function Item4(product, foo, bar) {
         foo,
         bar
     ]).catch((e)=>{
-        console.error(new Error(e instanceof Error ? e.message : e));
-        throw e;
+        const error = new Error(e instanceof Error ? e.message : e);
+        console.error(error);
+        throw error;
     }));
     return <Button action={deleteItem4}>Delete</Button>;
 }

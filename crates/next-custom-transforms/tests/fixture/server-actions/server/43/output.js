@@ -14,8 +14,9 @@ export var $$RSC_SERVER_CACHE_1 = $$cache__("default", "e0951c375b4a6a6e89d67b74
         z: <Foo action={registerServerReference($$RSC_SERVER_ACTION_0, "406a88810ecce4a4e8b59d53b8327d7e98bbf251d7", null).bind(null, encryptActionBoundArgs("406a88810ecce4a4e8b59d53b8327d7e98bbf251d7", [
             x
         ]).catch((e)=>{
-            console.error(new Error(e instanceof Error ? e.message : e));
-            throw e;
+            const error = new Error(e instanceof Error ? e.message : e);
+            console.error(error);
+            throw error;
         }))}/>,
         r: children
     };
