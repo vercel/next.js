@@ -40,8 +40,7 @@ pub(super) async fn update_ecmascript_chunk(
     for (id, from_hash) in &from.entries_hashes {
         if let Some(entry) = entries.get(id) {
             if *entry.hash.await? != *from_hash {
-                let resolved_code = entry.code.to_resolved().await?;
-                modified.insert(id.clone(), resolved_code);
+                modified.insert(id.clone(), entry.code);
             }
         } else {
             deleted.insert(id.clone(), *from_hash);
@@ -51,10 +50,7 @@ pub(super) async fn update_ecmascript_chunk(
     // Remaining entries are added
     for (id, entry) in entries.iter() {
         if !from.entries_hashes.contains_key(id) {
-            added.insert(
-                id.clone(),
-                (*entry.hash.await?, entry.code.to_resolved().await?),
-            );
+            added.insert(id.clone(), (*entry.hash.await?, entry.code));
         }
     }
 

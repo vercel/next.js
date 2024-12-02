@@ -156,9 +156,9 @@ async fn separate_assets(
                     .await?
                     .is_inside_ref(intermediate_output_path)
                 {
-                    Ok(Type::Internal(asset.to_resolved().await?))
+                    Ok(Type::Internal(*asset))
                 } else {
-                    Ok(Type::External(asset.to_resolved().await?))
+                    Ok(Type::External(*asset))
                 }
             })
             .try_join()

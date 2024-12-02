@@ -236,7 +236,7 @@ async fn get_next_dynamic_edges(
             .iter()
             .map(|&referenced_module| async move {
                 Ok(NextDynamicVisitEntry::Module(
-                    referenced_module.to_resolved().await?,
+                    referenced_module,
                     referenced_module.ident().to_string().await?,
                 ))
             })
@@ -247,7 +247,7 @@ async fn get_next_dynamic_edges(
     if let Some(dynamic_imports_map) = *dynamic_imports_map.await? {
         edges.reserve_exact(1);
         edges.push(NextDynamicVisitEntry::DynamicImportsMap(
-            dynamic_imports_map.to_resolved().await?,
+            dynamic_imports_map,
         ));
     }
     Ok(Vc::cell(edges))
