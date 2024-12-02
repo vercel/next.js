@@ -396,7 +396,7 @@ async fn parse_actions(module: Vc<Box<dyn Module>>) -> Result<Vc<OptionActionMap
 
     let mut actions = FxIndexMap::from_iter(actions.into_iter());
     actions.sort_keys();
-    Ok(Vc::cell(Some(Vc::cell(actions))))
+    Ok(Vc::cell(Some(ResolvedVc::cell(actions))))
 }
 
 fn all_export_names(program: &Program) -> Vec<Atom> {
@@ -485,7 +485,7 @@ fn is_turbopack_internal_var(with: &Option<Box<ObjectLit>>) -> bool {
 /// collecting into a flat-mapped [FxIndexMap].
 async fn parse_actions_filter_map(
     (layer, module, name): FindActionsNode,
-) -> Result<Option<(FindActionsNode, Vc<ActionMap>)>> {
+) -> Result<Option<(FindActionsNode, ResolvedVc<ActionMap>)>> {
     parse_actions(*module).await.map(|option_action_map| {
         option_action_map
             .clone_value()
@@ -514,7 +514,7 @@ struct ActionMap(FxIndexMap<String, String>);
 
 /// An Option wrapper around [ActionMap].
 #[turbo_tasks::value(transparent)]
-struct OptionActionMap(Option<Vc<ActionMap>>);
+struct OptionActionMap(Option<ResolvedVc<ActionMap>>);
 
 #[turbo_tasks::value_impl]
 impl OptionActionMap {

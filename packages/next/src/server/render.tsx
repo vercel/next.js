@@ -1472,6 +1472,7 @@ export async function renderToHTMLImpl(
     isDevelopment: !!dev,
     hybridAmp,
     dynamicImports: Array.from(dynamicImports),
+    dynamicCssManifest: new Set(renderOpts.dynamicCssManifest || []),
     assetPrefix,
     // Only enabled in production as development mode has features relying on HMR (style injection for example)
     unstable_runtimeJS:
