@@ -1079,9 +1079,6 @@ importers:
       '@types/lodash.curry':
         specifier: 4.1.6
         version: 4.1.6
-      '@types/path-to-regexp':
-        specifier: 1.7.0
-        version: 1.7.0
       '@types/picomatch':
         specifier: 2.3.3
         version: 2.3.3
@@ -1329,8 +1326,8 @@ importers:
         specifier: 1.0.1
         version: 1.0.1
       path-to-regexp:
-        specifier: 6.1.0
-        version: 6.1.0
+        specifier: 6.3.0
+        version: 6.3.0
       picomatch:
         specifier: 4.0.1
         version: 4.0.1
@@ -5438,10 +5435,6 @@ packages:
 
   '@types/parse5@5.0.3':
     resolution: {integrity: sha512-kUNnecmtkunAoQ3CnjmMkzNU/gtxG8guhi+Fk2U/kOpIKjIMKnXGp4IJCgQJrXSgMsWYimYG4TGjz/UzbGEBTw==}
-
-  '@types/path-to-regexp@1.7.0':
-    resolution: {integrity: sha512-ruXmJ/6LwB5L3mxUG2z3Ovi85vH9IVubXq+S9RArvMbjhbCnSLpXs0LrHQg3f0y2tKvXhWUNv7iQDySDfHSTDw==}
-    deprecated: This is a stub types definition for path-to-regexp (https://github.com/pillarjs/path-to-regexp). path-to-regexp provides its own type definitions, so you don't need @types/path-to-regexp installed!
 
   '@types/picomatch@2.3.3':
     resolution: {integrity: sha512-Yll76ZHikRFCyz/pffKGjrCwe/le2CDwOP5F210KQo27kpRE46U2rDnzikNlVn6/ezH3Mhn46bJMTfeVTtcYMg==}
@@ -11821,11 +11814,8 @@ packages:
   path-to-regexp@0.1.7:
     resolution: {integrity: sha512-5DFkuoqlv1uYQKxy8omFBeJPQcdoE07Kv2sferDCrAq1ohOU+MSDswDIbnx3YAM60qIOnYa53wBhXW0EbMonrQ==}
 
-  path-to-regexp@6.1.0:
-    resolution: {integrity: sha512-h9DqehX3zZZDCEm+xbfU0ZmwCGFCAAraPJWMXJ4+v32NjZJilVg3k1TcKsRgIb8IQ/izZSaydDc1OhJCZvs2Dw==}
-
-  path-to-regexp@6.2.1:
-    resolution: {integrity: sha512-JLyh7xT1kizaEvcaXOQwOc2/Yhw6KZOvPf1S8401UyLk86CU79LN3vl7ztXGm/pZ+YjoyAJ4rxmHwbkBXJX+yw==}
+  path-to-regexp@6.3.0:
+    resolution: {integrity: sha512-Yhpw4T9C6hPpgPeA28us07OJeqZ5EzQTkbfwuhsUg0c237RomFoETJgmp2sa3F/41gfLE6G5cqcYwznmeEeOlQ==}
 
   path-type@1.1.0:
     resolution: {integrity: sha512-S4eENJz1pkiQn9Znv33Q+deTOKmbl+jj1Fl+qiP/vYezj+S8x+J3Uo0ISrx/QoEvIlOaDWJhPaRd1flJ9HXZqg==}
@@ -20226,10 +20216,6 @@ snapshots:
 
   '@types/parse5@5.0.3': {}
 
-  '@types/path-to-regexp@1.7.0':
-    dependencies:
-      path-to-regexp: 6.1.0
-
   '@types/picomatch@2.3.3': {}
 
   '@types/platform@1.3.4': {}
@@ -27773,7 +27759,7 @@ snapshots:
       headers-polyfill: 4.0.3
       is-node-process: 1.2.0
       outvariant: 1.4.2
-      path-to-regexp: 6.2.1
+      path-to-regexp: 6.3.0
       strict-event-emitter: 0.5.1
       type-fest: 4.18.3
       yargs: 17.7.2
@@ -28521,9 +28507,7 @@ snapshots:
 
   path-to-regexp@0.1.7: {}
 
-  path-to-regexp@6.1.0: {}
-
-  path-to-regexp@6.2.1: {}
+  path-to-regexp@6.3.0: {}
 
   path-type@1.1.0:
     dependencies:
