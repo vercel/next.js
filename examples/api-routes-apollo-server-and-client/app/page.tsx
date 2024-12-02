@@ -1,6 +1,6 @@
 // app/page.tsx
 import { gql } from '@apollo/client';
-import { initializeApollo } from '../lib/apollo/client';
+import { initializeApollo } from './apollo/client';
 import Link from 'next/link';
 
 // Define the GraphQL query

@@ -1,7 +1,7 @@
 // app/layout.tsx
 'use client';  // This directive makes this file a Client Component
 import { ApolloProvider } from '@apollo/client';
-import { useApollo } from '../lib/apollo/client';  // Import your Apollo client initialization
+import { useApollo } from './apollo/client';  // Import your Apollo client initialization
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   // Apollo Client initialization here
