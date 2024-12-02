@@ -849,9 +849,9 @@ impl TurboPersistence {
         }
     }
 
-    /// Shuts down the database. This will print statistics if the `stats` feature is enabled.
+    /// Shuts down the database. This will print statistics if the `print_stats` feature is enabled.
     pub fn shutdown(&self) -> Result<()> {
-        #[cfg(feature = "stats")]
+        #[cfg(feature = "print_stats")]
         println!("{:#?}", self.statistics());
         Ok(())
     }
