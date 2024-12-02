@@ -11,17 +11,17 @@ import {
   type WorkUnitStore,
 } from '../app-render/work-unit-async-storage.external'
 import { afterTaskAsyncStorage } from '../app-render/after-task-async-storage.external'
+import isError from '../../lib/is-error'
+import {
+  AFTER_CALLBACK_TOP_FRAME,
+  patchAfterCallstackInDev,
+  type OriginalStacks,
+} from './after-dev-callstacks'
 import {
   HMR_ACTIONS_SENT_TO_BROWSER,
   type NextJsHotReloaderInterface,
 } from '../dev/hot-reloader-types'
 import { stringifyError } from '../../shared/lib/utils'
-import isError from '../../lib/is-error'
-import {
-  parseStack,
-  type StackFrame,
-} from '../../client/components/react-dev-overlay/server/middleware-webpack'
-import { replaceErrorStack } from '../../client/components/react-dev-overlay/internal/helpers/node-stack-frames'
 
 export type AfterContextOpts = {
   isEnabled: boolean
@@ -29,8 +29,6 @@ export type AfterContextOpts = {
   onClose: RequestLifecycleOpts['onClose']
   onTaskError: RequestLifecycleOpts['onAfterTaskError'] | undefined
 }
-
-type OriginalStacks = (string | undefined)[]
 
 export class AfterContext {
   private waitUntil: RequestLifecycleOpts['waitUntil'] | undefined
@@ -178,7 +176,20 @@ export class AfterContext {
     )
 
     if (process.env.NODE_ENV === 'development') {
-      sendErrorToBrowser(error, originalStacks)
+      if (isError(error) && originalStacks) {
+        try {
+          error = patchAfterCallstackInDev(error, originalStacks)
+        } catch (patchError) {
+          // if something goes wrong here, we just want to log it
+          console.error(
+            new InvariantError('Could not patch callstack for after callback', {
+              cause: patchError,
+            })
+          )
+        }
+      }
+
+      reportAfterErrorInDev(error)
     }
 
     if (this.onTaskError) {
@@ -199,84 +210,12 @@ export class AfterContext {
   }
 }
 
-function sendErrorToBrowser(
-  error: unknown,
-  originalStacks: OriginalStacks | undefined
-) {
+function reportAfterErrorInDev(error: unknown) {
   // TODO: we probably want to inject this as `onAfterTaskError` from NextDevServer,
   // where we have access to `bundlerService` (which has the hotReloader)
   const hotReloader: NextJsHotReloaderInterface | undefined =
     // @ts-expect-error
     globalThis[Symbol.for('@next/dev/hot-reloader')]
-
-  // TODO: if the callback is unnamed, replace <unknown> with <after callback>?
-
-  // TODO: source mapping seems a bit broken in webpack -- the bottom frame is incorrectly called "helper" Page instead of "frame".
-  // kinda looks like it's misusing the source location and it just falls into `helper`, see test/nested/page.js w/o turbo
-
-  const tryPrettifyStack = (err: unknown): StackFrame[] | undefined => {
-    if (!isError(err)) {
-      return
-    }
-
-    const stripFramesAboveCallback = (stack: string | undefined) => {
-      const frames = parseStack(stack)
-
-      // slice off everything above the user callback -- that's next.js internals
-      const topFrameIx = frames.findIndex(
-        (frame) => frame.methodName.endsWith(AFTER_CALLBACK_TOP_FRAME) // it might be "async [name]"
-      )
-      if (topFrameIx === -1) {
-        return
-      }
-      // last index is not included, so this also omits the wrapper we add in addCallback
-      return frames.slice(0, topFrameIx)
-    }
-
-    const maybeUserFramesFromCallback = stripFramesAboveCallback(err.stack)
-    if (!maybeUserFramesFromCallback) {
-      // didn't find the top frame, something is wrong, bail out
-      return
-    }
-
-    let userFramesFromCallback = maybeUserFramesFromCallback
-
-    if (originalStacks) {
-      for (let i = 0; i < originalStacks.length - 1; i++) {
-        const frames = stripFramesAboveCallback(originalStacks[i])
-        if (frames) {
-          userFramesFromCallback = userFramesFromCallback.concat(frames)
-        }
-      }
-    }
-
-    const originalStack = originalStacks?.at(-1)
-    const originalFrames = parseStack(originalStack)
-
-    const userFramesFromOriginalCaller = originalFrames.slice(
-      0,
-      originalFrames.findIndex(
-        (frame) => frame.methodName === 'react-stack-bottom-frame'
-      )
-    )
-
-    return userFramesFromCallback.concat(userFramesFromOriginalCaller)
-  }
-
-  if (isError(error)) {
-    const prettyStack = tryPrettifyStack(error)
-    const origErrorStack = error.stack
-    if (prettyStack) {
-      replaceErrorStack(error, prettyStack)
-    }
-
-    console.log('AfterContext :: reportTaskError', {
-      errorStack: origErrorStack,
-      originalStacks: originalStacks,
-      finalStack: error.stack,
-      finalStack_parsed: parseStack(error.stack),
-    })
-  }
 
   hotReloader?.send({
     action: HMR_ACTIONS_SENT_TO_BROWSER.AFTER_ERROR,
@@ -292,8 +231,6 @@ function sendErrorToBrowser(
         })(),
   })
 }
-
-const AFTER_CALLBACK_TOP_FRAME = 'next-after-callback-top-frame'
 
 function errorWaitUntilNotAvailable(): never {
   throw new Error(
