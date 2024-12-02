@@ -229,8 +229,13 @@ async function nativeTraceSource(
             ?.replace('__WEBPACK_DEFAULT_EXPORT__', 'default')
             ?.replace('__webpack_exports__.', '') ||
           '<unknown>',
-        column: originalPosition.column ?? 0,
-        file: originalPosition.source,
+        column: (originalPosition.column ?? 0) + 1,
+        file: originalPosition.source?.startsWith('file://')
+          ? path.relative(
+              process.cwd(),
+              url.fileURLToPath(originalPosition.source)
+            )
+          : originalPosition.source,
         lineNumber: originalPosition.line ?? 0,
         // TODO: c&p from async createOriginalStackFrame but why not frame.arguments?
         arguments: [],
