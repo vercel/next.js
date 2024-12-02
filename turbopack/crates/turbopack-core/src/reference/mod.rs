@@ -170,31 +170,34 @@ impl SingleOutputAssetReference {
 pub async fn referenced_modules_and_affecting_sources(
     module: Vc<Box<dyn Module>>,
 ) -> Result<Vc<Modules>> {
-    let references_set = module.references().await?;
-    let mut modules = FxIndexSet::default();
-    let resolve_results = references_set
+    let references = module.references().await?;
+
+    let resolved_references = references
         .iter()
         .map(|r| r.resolve_reference())
         .try_join()
         .await?;
-    for resolve_result in resolve_results {
-        modules.extend(resolve_result.primary_modules_raw_iter());
-        modules.extend(
-            resolve_result
-                .affecting_sources_iter()
-                .map(|source| async move {
-                    Ok(ResolvedVc::upcast(
-                        RawModule::new(*source).to_resolved().await?,
-                    ))
-                })
-                .try_join()
-                .await?,
-        );
-    }
 
-    let resolved_modules: FxIndexSet<_> = modules.into_iter().collect();
+    let mut unique_modules: FxIndexSet<_> = resolved_references
+        .iter()
+        .flat_map(|r| r.primary_modules_raw_iter())
+        .collect();
 
-    Ok(Vc::cell(resolved_modules.into_iter().collect()))
+    unique_modules.extend(
+        resolved_references
+            .iter()
+            .flat_map(|r| r.affecting_sources_iter())
+            .map(|source| async move {
+                RawModule::new(*source)
+                    .to_resolved()
+                    .await
+                    .map(ResolvedVc::upcast)
+            })
+            .try_join()
+            .await?,
+    );
+
+    Ok(Vc::cell(unique_modules.into_iter().collect()))
 }
 
 #[turbo_tasks::value]
