@@ -34,7 +34,7 @@ use crate::{
         AqmfCache, BlockCache, LookupResult, StaticSortedFile, StaticSortedFileRange,
     },
     static_sorted_file_builder::StaticSortedFileBuilder,
-    write_batch::WriteBatch,
+    write_batch::{FinishResult, WriteBatch},
     QueryKey,
 };
 
@@ -391,8 +391,12 @@ impl TurboPersistence {
         &self,
         mut write_batch: WriteBatch<K, FAMILIES>,
     ) -> Result<()> {
-        let (seq, new_sst_files) = write_batch.finish()?;
-        self.commit(new_sst_files, vec![], seq)?;
+        let FinishResult {
+            sequence_number,
+            new_sst_files,
+            new_blob_files,
+        } = write_batch.finish()?;
+        self.commit(new_sst_files, new_blob_files, vec![], sequence_number)?;
         self.active_write_operation.store(false, Ordering::Release);
         self.idle_write_batch.lock().replace((
             TypeId::of::<WriteBatch<K, FAMILIES>>(),
@@ -406,6 +410,7 @@ impl TurboPersistence {
     fn commit(
         &self,
         new_sst_files: Vec<(u32, File)>,
+        new_blob_files: Vec<File>,
         mut indicies_to_delete: Vec<usize>,
         mut seq: u32,
     ) -> Result<(), anyhow::Error> {
@@ -416,6 +421,10 @@ impl TurboPersistence {
                 self.open_sst(seq)
             })
             .collect::<Result<Vec<_>>>()?;
+
+        for file in new_blob_files {
+            file.sync_all()?;
+        }
 
         if !indicies_to_delete.is_empty() {
             seq += 1;
@@ -505,6 +514,7 @@ impl TurboPersistence {
 
         self.commit(
             new_sst_files,
+            Vec::new(),
             indicies_to_delete,
             *sequence_number.get_mut(),
         )?;
