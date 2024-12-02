@@ -1,8 +1,10 @@
+"use client";
+
 import type { MouseEvent } from "react";
 import Link from "next/link";
-import { useCount, useDispatchCount } from "../components/Counter";
+import { useCount, useDispatchCount } from "@/_components/Counter";
 
-const IndexPage = () => {
+export default function Home() {
   const count = useCount();
   const dispatch = useDispatchCount();
 
@@ -26,6 +28,4 @@ const IndexPage = () => {
       </p>
     </>
   );
-};
-
-export default IndexPage;
+}
