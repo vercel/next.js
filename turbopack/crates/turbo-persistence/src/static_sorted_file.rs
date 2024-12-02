@@ -236,7 +236,6 @@ impl StaticSortedFile {
         key_hash: u64,
         key: &K,
         aqmf_cache: &AqmfCache,
-        index_block_cache: &BlockCache,
         key_block_cache: &BlockCache,
         value_block_cache: &BlockCache,
     ) -> Result<LookupResult> {
@@ -270,10 +269,8 @@ impl StaticSortedFile {
             }
         }
         let mut current_block = header.block_count - 1;
-        let mut cache = index_block_cache;
         loop {
-            let block = self.get_key_block(header, current_block, cache)?;
-            cache = key_block_cache;
+            let block = self.get_key_block(header, current_block, key_block_cache)?;
             let mut block = &block[..];
             let block_type = block.read_u8()?;
             match block_type {
