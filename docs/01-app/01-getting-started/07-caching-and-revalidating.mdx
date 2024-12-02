@@ -11,3 +11,59 @@ related:
 ---
 
 > **Warning:** The content below assumes the [`dynamicIO` config option](/docs/app/api-reference/config/next-config-js/dynamicIO) is enabled in your application. This option was introduced in Next.js 15 canary.
+
+## Caching
+
+In Next.js, you can cache the output of a dynamic [component](#caching-the-render-output-of-a-component) or [function](#caching-the-return-value-of-a-function) to improve performance and reduce the need to re-execute work for every user request.
+
+Caching is useful for content that doesn't change often or is shared across multiple users, as you can **prerender** at build time, and reuse the static result for all requests.
+
+To mark a function or component as cacheable, you can use the [`'use cache'`](/docs/app/api-reference/directives/use-cache) directive.
+
+## Caching the return value of a function
+
+You can cache the return value of an **asynchronous** function, including data requests, by adding the `'use cache'` directive inside the function body:
+
+```ts filename="app/lib/data.ts" switcher
+export async function getPosts(slug: string) {
+  'use cache'
+  const data = await fetch(`/api/posts/${slug}`)
+  return data.json()
+}
+```
+
+```js filename="app/lib/data.js" switcher
+export async function getPosts(slug) {
+  'use cache'
+  const data = await fetch(`/api/posts/${slug}`)
+  return data.json()
+}
+```
+
+By adding `'use cache'` to the function body, you can reuse the function throughout your code and the same cache entry will be reused as long as the arguments are the same.
+
+You can also cache all functions within a file by adding the `'use cache'` directive at the top of the file:
+
+```ts filename="app/lib/data.ts" switcher
+'use cache'
+
+export async function getPosts(slug: string) {
+  const data = await fetch(`/api/posts/${slug}`)
+  return data.json()
+}
+
+// Other functions in this file will also be cached
+// ...
+```
+
+```js filename="app/lib/data.js" switcher
+'use cache'
+
+export async function getPosts(slug) {
+  const data = await fetch(`/api/posts/${slug}`)
+  return data.json()
+}
+
+// Other functions in this file will also be cached
+// ...
+```
