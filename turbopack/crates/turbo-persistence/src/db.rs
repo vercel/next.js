@@ -24,9 +24,9 @@ use crate::{
         get_compaction_jobs, total_coverage, CompactConfig, Compactable, CompactionJobs,
     },
     constants::{
-        AQMF_AVG_SIZE, AQMF_CACHE_SIZE, DATA_THRESHOLD_PER_COMPACTED_FILE, INDEX_BLOCK_AVG_SIZE,
-        INDEX_BLOCK_CACHE_SIZE, KEY_BLOCK_AVG_SIZE, KEY_BLOCK_CACHE_SIZE,
-        MAX_ENTRIES_PER_COMPACTED_FILE, VALUE_BLOCK_AVG_SIZE, VALUE_BLOCK_CACHE_SIZE,
+        AQMF_AVG_SIZE, AQMF_CACHE_SIZE, DATA_THRESHOLD_PER_COMPACTED_FILE, KEY_BLOCK_AVG_SIZE,
+        KEY_BLOCK_CACHE_SIZE, MAX_ENTRIES_PER_COMPACTED_FILE, VALUE_BLOCK_AVG_SIZE,
+        VALUE_BLOCK_CACHE_SIZE,
     },
     key::{hash_key, StoreKey},
     lookup_entry::LookupEntry,
@@ -78,7 +78,6 @@ impl CacheStatistics {
 #[derive(Debug)]
 pub struct Statistics {
     pub sst_files: usize,
-    pub index_block_cache: CacheStatistics,
     pub key_block_cache: CacheStatistics,
     pub value_block_cache: CacheStatistics,
     pub aqmf_cache: CacheStatistics,
@@ -116,8 +115,6 @@ pub struct TurboPersistence {
     active_write_operation: AtomicBool,
     /// A cache for deserialized AQMF filters.
     aqmf_cache: AqmfCache,
-    /// A cache for decompressed index blocks.
-    index_block_cache: BlockCache,
     /// A cache for decompressed key blocks.
     key_block_cache: BlockCache,
     /// A cache for decompressed value blocks.
@@ -152,13 +149,6 @@ impl TurboPersistence {
             aqmf_cache: AqmfCache::with(
                 AQMF_CACHE_SIZE as usize / AQMF_AVG_SIZE,
                 AQMF_CACHE_SIZE,
-                Default::default(),
-                Default::default(),
-                Default::default(),
-            ),
-            index_block_cache: BlockCache::with(
-                INDEX_BLOCK_CACHE_SIZE as usize / INDEX_BLOCK_AVG_SIZE,
-                INDEX_BLOCK_CACHE_SIZE,
                 Default::default(),
                 Default::default(),
                 Default::default(),
@@ -798,7 +788,6 @@ impl TurboPersistence {
                 hash,
                 key,
                 &self.aqmf_cache,
-                &self.index_block_cache,
                 &self.key_block_cache,
                 &self.value_block_cache,
             )? {
@@ -843,7 +832,6 @@ impl TurboPersistence {
         let inner = self.inner.read();
         Statistics {
             sst_files: inner.static_sorted_files.len(),
-            index_block_cache: CacheStatistics::new(&self.index_block_cache),
             key_block_cache: CacheStatistics::new(&self.key_block_cache),
             value_block_cache: CacheStatistics::new(&self.value_block_cache),
             aqmf_cache: CacheStatistics::new(&self.aqmf_cache),
