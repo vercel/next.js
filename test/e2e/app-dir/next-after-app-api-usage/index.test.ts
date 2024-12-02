@@ -51,14 +51,36 @@ describe('nextjs APIs in unstable_after()', () => {
       const path = '/request-apis/page-dynamic'
       await next.render(path)
       await retry(() => {
-        expect(getLogs()).toContain(
-          `Error: Route ${path} used "headers" inside "unstable_after(...)". This is not supported.`
+        const logs = getLogs()
+
+        expect(logs).not.toContain(`[${path}] headers(): ok`)
+        expect(logs).toContain(
+          `[${path}] headers(): error: Error: Route ${path} used "headers" inside "unstable_after(...)". This is not supported.`
         )
-        expect(getLogs()).toContain(
-          `Error: Route ${path} used "cookies" inside "unstable_after(...)". This is not supported.`
+
+        expect(logs).not.toContain(`[${path}] nested headers(): ok`)
+        expect(logs).toContain(
+          `[${path}] nested headers(): error: Error: Route ${path} used "headers" inside "unstable_after(...)". This is not supported.`
         )
-        expect(getLogs()).toContain(
-          `Error: Route ${path} used "connection" inside "unstable_after(...)".`
+
+        expect(logs).not.toContain(`[${path}] cookies(): ok`)
+        expect(logs).toContain(
+          `[${path}] cookies(): error: Error: Route ${path} used "cookies" inside "unstable_after(...)". This is not supported.`
+        )
+
+        expect(logs).not.toContain(`[${path}] nested cookies(): ok`)
+        expect(logs).toContain(
+          `[${path}] nested cookies(): error: Error: Route ${path} used "cookies" inside "unstable_after(...)". This is not supported.`
+        )
+
+        expect(logs).not.toContain(`[${path}] connection(): ok`)
+        expect(logs).toContain(
+          `[${path}] connection(): error: Error: Route ${path} used "connection" inside "unstable_after(...)".`
+        )
+
+        expect(logs).not.toContain(`[${path}] nested connection(): ok`)
+        expect(logs).toContain(
+          `[${path}] nested connection(): error: Error: Route ${path} used "connection" inside "unstable_after(...)".`
         )
       })
     })
@@ -77,14 +99,35 @@ describe('nextjs APIs in unstable_after()', () => {
         await next.render(path)
         await retry(() => {
           const logs = isNextDev ? getLogs() : buildLogs // in `next start` the error was logged at build time
+
+          expect(logs).not.toContain(`[${path}] headers(): ok`)
           expect(logs).toContain(
-            `Error: Route ${path} used "headers" inside "unstable_after(...)". This is not supported.`
+            `[${path}] headers(): error: Error: Route ${path} used "headers" inside "unstable_after(...)". This is not supported.`
           )
+
+          expect(logs).not.toContain(`[${path}] nested headers(): ok`)
           expect(logs).toContain(
-            `Error: Route ${path} used "cookies" inside "unstable_after(...)". This is not supported.`
+            `[${path}] nested headers(): error: Error: Route ${path} used "headers" inside "unstable_after(...)". This is not supported.`
           )
+
+          expect(logs).not.toContain(`[${path}] cookies(): ok`)
           expect(logs).toContain(
-            `Error: Route ${path} used "connection" inside "unstable_after(...)".`
+            `[${path}] cookies(): error: Error: Route ${path} used "cookies" inside "unstable_after(...)". This is not supported.`
+          )
+
+          expect(logs).not.toContain(`[${path}] nested cookies(): ok`)
+          expect(logs).toContain(
+            `[${path}] nested cookies(): error: Error: Route ${path} used "cookies" inside "unstable_after(...)". This is not supported.`
+          )
+
+          expect(logs).not.toContain(`[${path}] connection(): ok`)
+          expect(logs).toContain(
+            `[${path}] connection(): error: Error: Route ${path} used "connection" inside "unstable_after(...)".`
+          )
+
+          expect(logs).not.toContain(`[${path}] nested connection(): ok`)
+          expect(logs).toContain(
+            `[${path}] nested connection(): error: Error: Route ${path} used "connection" inside "unstable_after(...)".`
           )
         })
       })
@@ -95,9 +138,15 @@ describe('nextjs APIs in unstable_after()', () => {
       const browser = await next.browser(path)
       await browser.elementByCss('button[type="submit"]').click()
       await retry(() => {
-        expect(getLogs()).toContain(`[${path}] headers(): ok`)
-        expect(getLogs()).toContain(`[${path}] cookies(): ok`)
-        expect(getLogs()).toContain(`[${path}] connection(): ok`)
+        const logs = getLogs()
+        expect(logs).toContain(`[${path}] headers(): ok`)
+        expect(logs).toContain(`[${path}] nested headers(): ok`)
+
+        expect(logs).toContain(`[${path}] cookies(): ok`)
+        expect(logs).toContain(`[${path}] nested cookies(): ok`)
+
+        expect(logs).toContain(`[${path}] connection(): ok`)
+        expect(logs).toContain(`[${path}] nested connection(): ok`)
       })
     })
 
@@ -107,8 +156,13 @@ describe('nextjs APIs in unstable_after()', () => {
       await retry(() => {
         const logs = getLogs()
         expect(logs).toContain(`[${path}] headers(): ok`)
+        expect(logs).toContain(`[${path}] nested headers(): ok`)
+
         expect(logs).toContain(`[${path}] cookies(): ok`)
+        expect(logs).toContain(`[${path}] nested cookies(): ok`)
+
         expect(logs).toContain(`[${path}] connection(): ok`)
+        expect(logs).toContain(`[${path}] nested connection(): ok`)
       })
     })
 
@@ -118,8 +172,13 @@ describe('nextjs APIs in unstable_after()', () => {
       await retry(() => {
         const logs = isNextDev ? getLogs() : buildLogs // in `next start` the error was logged at build time
         expect(logs).toContain(`[${path}] headers(): ok`)
+        expect(logs).toContain(`[${path}] nested headers(): ok`)
+
         expect(logs).toContain(`[${path}] cookies(): ok`)
+        expect(logs).toContain(`[${path}] nested cookies(): ok`)
+
         expect(logs).toContain(`[${path}] connection(): ok`)
+        expect(logs).toContain(`[${path}] nested connection(): ok`)
       })
     })
 
@@ -128,14 +187,35 @@ describe('nextjs APIs in unstable_after()', () => {
       await next.render(path)
       await retry(() => {
         const logs = isNextDev ? getLogs() : buildLogs // in `next start` the error was logged at build time
+
+        expect(logs).not.toContain(`[${path}] headers(): ok`)
         expect(logs).toContain(
-          `Error: Route ${path} with \`dynamic = "error"\` couldn't be rendered statically because it used \`headers\`.`
+          `[${path}] headers(): error: Error: Route ${path} with \`dynamic = "error"\` couldn't be rendered statically because it used \`headers\`.`
         )
+
+        expect(logs).not.toContain(`[${path}] nested headers(): ok`)
         expect(logs).toContain(
-          `Error: Route ${path} with \`dynamic = "error"\` couldn't be rendered statically because it used \`cookies\`.`
+          `[${path}] nested headers(): error: Error: Route ${path} with \`dynamic = "error"\` couldn't be rendered statically because it used \`headers\`.`
         )
+
+        expect(logs).not.toContain(`[${path}] cookies(): ok`)
         expect(logs).toContain(
-          `Error: Route ${path} with \`dynamic = "error"\` couldn't be rendered statically because it used \`connection\`.`
+          `[${path}] cookies(): error: Error: Route ${path} with \`dynamic = "error"\` couldn't be rendered statically because it used \`cookies\`.`
+        )
+
+        expect(logs).not.toContain(`[${path}] nested cookies(): ok`)
+        expect(logs).toContain(
+          `[${path}] nested cookies(): error: Error: Route ${path} with \`dynamic = "error"\` couldn't be rendered statically because it used \`cookies\`.`
+        )
+
+        expect(logs).not.toContain(`[${path}] connection(): ok`)
+        expect(logs).toContain(
+          `[${path}] connection(): error: Error: Route ${path} with \`dynamic = "error"\` couldn't be rendered statically because it used \`connection\`.`
+        )
+
+        expect(logs).not.toContain(`[${path}] nested connection(): ok`)
+        expect(logs).toContain(
+          `[${path}] nested connection(): error: Error: Route ${path} with \`dynamic = "error"\` couldn't be rendered statically because it used \`connection\`.`
         )
       })
     })

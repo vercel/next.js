@@ -47,7 +47,7 @@ export function isRequestAPICallableInsideAfter() {
   const afterTaskStore = afterTaskAsyncStorage.getStore()
   return (
     // workUnitStore?.type === 'request' &&
-    afterTaskStore?.phase === 'action'
+    afterTaskStore?.rootTaskSpawnPhase === 'action'
   )
 }
 
