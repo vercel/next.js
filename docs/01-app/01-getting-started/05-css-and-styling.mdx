@@ -99,7 +99,7 @@ export default function RootLayout({ children }) {
 }
 ```
 
-> **Good to know:** Global styles can be imported into any layout, page, or component inside the `app` directory. However, since Next.js uses React's built-in support for stylesheets to integrate with Suspense. This built-in support currently does not remove stylesheets as you navigate between routes. Therefore, we recommend using global styles for _truly_ global CSS, and C[SS Modules](#css-modules) for scoped CSS.
+> **Good to know:** Global styles can be imported into any layout, page, or component inside the `app` directory. However, since Next.js uses React's built-in support for stylesheets to integrate with Suspense. This built-in support currently does not remove stylesheets as you navigate between routes. Therefore, we recommend using global styles for _truly_ global CSS, and [CSS Modules](#css-modules) for scoped CSS.
 
 ## Tailwind CSS
 
@@ -236,7 +236,7 @@ To start using Sass, install the `sass` package:
 npm install --save-dev sass
 ```
 
-### Customizing Sass Options
+### Customizing Sass options
 
 If you want to configure your Sass options, use `sassOptions` in `next.config.js`.
 
