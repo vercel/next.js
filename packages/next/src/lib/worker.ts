@@ -1,6 +1,6 @@
 import type { ChildProcess } from 'child_process'
 import { Worker as JestWorker } from 'next/dist/compiled/jest-worker'
-import { getNodeOptionsWithoutInspect } from '../server/lib/utils'
+
 type FarmOptions = ConstructorParameters<typeof JestWorker>[1]
 
 const RESTARTED = Symbol('restarted')
@@ -15,6 +15,7 @@ const cleanupWorkers = (worker: JestWorker) => {
 
 export class Worker {
   private _worker: JestWorker | undefined
+  private _restarting: boolean = false
 
   constructor(
     workerPath: string,
@@ -42,14 +43,10 @@ export class Worker {
           env: {
             ...((farmOptions.forkOptions?.env || {}) as any),
             ...process.env,
-            // we don't pass down NODE_OPTIONS as it can
-            // extra memory usage
-            NODE_OPTIONS: getNodeOptionsWithoutInspect()
-              .replace(/--max-old-space-size=[\d]{1,}/, '')
-              .trim(),
           } as any,
         },
       }) as JestWorker
+      this._restarting = false
       restartPromise = new Promise(
         (resolve) => (resolveRestartPromise = resolve)
       )
@@ -73,6 +70,12 @@ export class Worker {
               logger.error(
                 `Static worker exited with code: ${code} and signal: ${signal}`
               )
+
+              // We're restarting the worker, so we don't want to exit the parent process
+              if (!this._restarting) {
+                // if a child process doesn't exit gracefully, we want to bubble up the exit code to the parent process
+                process.exit(code ?? 1)
+              }
             }
           })
         }
@@ -87,14 +90,17 @@ export class Worker {
       const worker = this._worker
       if (!worker) return
       const resolve = resolveRestartPromise
-      createWorker()
       logger.warn(
         `Sending SIGTERM signal to static worker due to timeout${
           timeout ? ` of ${timeout / 1000} seconds` : ''
         }. Subsequent errors may be a result of the worker exiting.`
       )
+
+      this._restarting = true
+
       worker.end().then(() => {
         resolve(RESTARTED)
+        createWorker()
       })
     }
 
@@ -119,6 +125,7 @@ export class Worker {
                   (this._worker as any)[method](...args),
                   restartPromise,
                 ])
+
                 if (result !== RESTARTED) return result
                 if (onRestart) onRestart(method, args, ++attempts)
               }

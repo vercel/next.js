@@ -2,10 +2,14 @@ import { nextBuild } from 'next-test-utils'
 
 describe('worker-restart', () => {
   it('should properly exhaust all restart attempts and not fail with any worker errors', async () => {
-    const { stdout, stderr } = await nextBuild(__dirname, [], {
-      stdout: true,
-      stderr: true,
-    })
+    const { stdout, stderr } = await nextBuild(
+      __dirname + '/fixtures/timeout',
+      [],
+      {
+        stdout: true,
+        stderr: true,
+      }
+    )
 
     const output = stdout + stderr
     expect(output).toContain(
@@ -22,6 +26,22 @@ describe('worker-restart', () => {
     )
     expect(output).not.toContain(
       'Error: Farm is ended, no more calls can be done to it'
+    )
+  })
+
+  it('should fail the build if a worker process is killed', async () => {
+    const { stdout, stderr } = await nextBuild(
+      __dirname + '/fixtures/worker-kill',
+      [],
+      {
+        stdout: true,
+        stderr: true,
+      }
+    )
+
+    const output = stdout + stderr
+    expect(output).toContain(
+      'Static worker exited with code: null and signal: SIGKILL'
     )
   })
 })
