@@ -7,7 +7,7 @@ export const /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_0 = a
 export default function Page({ foo, x, y }) {
     var action = registerServerReference($$RSC_SERVER_ACTION_0, "7c6a88810ecce4a4e8b59d53b8327d7e98bbf251d7", null).bind(null, encryptActionBoundArgs("7c6a88810ecce4a4e8b59d53b8327d7e98bbf251d7", [
         foo
-    ]).catch((err)=>{
-        console.error(new Error(err.message));
+    ]).catch((e)=>{
+        console.error(new Error(e instanceof Error ? e.message : e));
     }));
 }

@@ -18,13 +18,13 @@ function createObj(n) {
         foo: $$RSC_SERVER_REF_1.bind(null, encryptActionBoundArgs("c03128060c414d59f8552e4788b846c0d2b7f74743", [
             n,
             m
-        ]).catch((err)=>{
-            console.error(new Error(err.message));
+        ]).catch((e)=>{
+            console.error(new Error(e instanceof Error ? e.message : e));
         })),
         bar: registerServerReference($$RSC_SERVER_ACTION_2, "401c36b06e398c97abe5d5d7ae8c672bfddf4e1b91", null).bind(null, encryptActionBoundArgs("401c36b06e398c97abe5d5d7ae8c672bfddf4e1b91", [
             m
-        ]).catch((err)=>{
-            console.error(new Error(err.message));
+        ]).catch((e)=>{
+            console.error(new Error(e instanceof Error ? e.message : e));
         }))
     };
 }

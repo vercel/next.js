@@ -22,8 +22,8 @@ export const /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_2 = a
         d,
         f,
         $$ACTION_ARG_2
-    ]).catch((err)=>{
-        console.error(new Error(err.message));
+    ]).catch((e)=>{
+        console.error(new Error(e instanceof Error ? e.message : e));
     }));
     return [
         action2,
@@ -31,8 +31,8 @@ export const /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_2 = a
             action2,
             $$ACTION_ARG_1,
             d
-        ]).catch((err)=>{
-            console.error(new Error(err.message));
+        ]).catch((e)=>{
+            console.error(new Error(e instanceof Error ? e.message : e));
         }))
     ];
 };
@@ -41,8 +41,8 @@ export async function /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ action0(b, c, ..
         b,
         c,
         g
-    ]).catch((err)=>{
-        console.error(new Error(err.message));
+    ]).catch((e)=>{
+        console.error(new Error(e instanceof Error ? e.message : e));
     }));
 }
 import { ensureServerEntryExports } from "private-next-rsc-action-validate";
