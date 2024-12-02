@@ -69,13 +69,12 @@ export async function getData() {
 
 ## Examples
 
-### Caching entire routes with `use cache`
+### Caching an entire route with `use cache`
 
 To prerender an entire route, add `use cache` to the top **both** the `layout` and `page` files. Each of these segments are treated as separate entry points in your application, and will be cached independently.
 
 ```tsx filename="app/layout.tsx" switcher
 'use cache'
-import { unstable_cacheLife as cacheLife } from 'next/cache'
 
 export default function Layout({ children }: { children: ReactNode }) {
   return <div>{children}</div>
@@ -84,7 +83,6 @@ export default function Layout({ children }: { children: ReactNode }) {
 
 ```jsx filename="app/page.tsx" switcher
 'use cache'
-import { unstable_cacheLife as cacheLife } from 'next/cache'
 
 export default function Layout({ children }) {
   return <div>{children}</div>
