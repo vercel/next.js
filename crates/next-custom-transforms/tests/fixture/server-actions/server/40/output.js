@@ -22,6 +22,7 @@ export const /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_2 = a
         $$ACTION_ARG_0
     ]).catch((e)=>{
         console.error(new Error(e instanceof Error ? e.message : e));
+        throw e;
     }));
     return cache(d);
 };
@@ -32,6 +33,7 @@ async function Component({ a }) {
         b
     ]).catch((e)=>{
         console.error(new Error(e instanceof Error ? e.message : e));
+        throw e;
     }));
     return <form action={action}>
       <button>Submit</button>

@@ -9,5 +9,6 @@ export default function Page({ foo, x, y }) {
         foo
     ]).catch((e)=>{
         console.error(new Error(e instanceof Error ? e.message : e));
+        throw e;
     }));
 }

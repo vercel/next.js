@@ -27,6 +27,7 @@ export function Component() {
         foo
     ]).catch((e)=>{
         console.error(new Error(e instanceof Error ? e.message : e));
+        throw e;
     }));
     return <form action={action}/>;
 }

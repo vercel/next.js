@@ -13,12 +13,14 @@ export default function Page({ foo, x, y }) {
         x
     ]).catch((e)=>{
         console.error(new Error(e instanceof Error ? e.message : e));
+        throw e;
     }));
     action.bind(null, foo[0], foo[1], foo.x, foo[y]);
     const action2 = registerServerReference($$RSC_SERVER_ACTION_1, "7c90b5db271335765a4b0eab01f044b381b5ebd5cd", null).bind(null, encryptActionBoundArgs("7c90b5db271335765a4b0eab01f044b381b5ebd5cd", [
         x
     ]).catch((e)=>{
         console.error(new Error(e instanceof Error ? e.message : e));
+        throw e;
     }));
     action2.bind(null, foo[0], foo[1], foo.x, foo[y]);
 }

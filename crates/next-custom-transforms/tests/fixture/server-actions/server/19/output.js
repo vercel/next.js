@@ -10,6 +10,7 @@ export function Item({ value }) {
         value
     ]).catch((e)=>{
         console.error(new Error(e instanceof Error ? e.message : e));
+        throw e;
     }))}>
         Multiple
       </Button>

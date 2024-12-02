@@ -38,21 +38,25 @@ export async function Component(a) {
         b
     ]).catch((e)=>{
         console.error(new Error(e instanceof Error ? e.message : e));
+        throw e;
     }))} fn2={$$RSC_SERVER_REF_3.bind(null, encryptActionBoundArgs("c069348c79fce073bae2f70f139565a2fda1c74c74", [
         a,
         b
     ]).catch((e)=>{
         console.error(new Error(e instanceof Error ? e.message : e));
+        throw e;
     }))} fn3={registerServerReference($$RSC_SERVER_ACTION_4, "60a9b2939c1f39073a6bed227fd20233064c8b7869", null).bind(null, encryptActionBoundArgs("60a9b2939c1f39073a6bed227fd20233064c8b7869", [
         a,
         b
     ]).catch((e)=>{
         console.error(new Error(e instanceof Error ? e.message : e));
+        throw e;
     }))} fn4={registerServerReference($$RSC_SERVER_ACTION_5, "409651a98a9dccd7ffbe72ff5cf0f38546ca1252ab", null).bind(null, encryptActionBoundArgs("409651a98a9dccd7ffbe72ff5cf0f38546ca1252ab", [
         a,
         b
     ]).catch((e)=>{
         console.error(new Error(e instanceof Error ? e.message : e));
+        throw e;
     }))}/>;
 }
 var $$RSC_SERVER_REF_1 = /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ registerServerReference($$RSC_SERVER_CACHE_0, "e03128060c414d59f8552e4788b846c0d2b7f74743", null);

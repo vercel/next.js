@@ -12,6 +12,7 @@ export function Item({ id1, id2 }) {
         id2
     ]).catch((e)=>{
         console.error(new Error(e instanceof Error ? e.message : e));
+        throw e;
     }));
     return <Button action={deleteItem}>Delete</Button>;
 }
@@ -30,6 +31,7 @@ export default function Home() {
         info.test
     ]).catch((e)=>{
         console.error(new Error(e instanceof Error ? e.message : e));
+        throw e;
     }));
     return null;
 }

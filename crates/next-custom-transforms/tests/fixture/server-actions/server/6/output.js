@@ -37,6 +37,7 @@ export function y(p, [p1, { p2 }], ...p3) {
         p3
     ]).catch((e)=>{
         console.error(new Error(e instanceof Error ? e.message : e));
+        throw e;
     }));
     return <Button action={action}>Delete</Button>;
 }

@@ -15,6 +15,7 @@ export var $$RSC_SERVER_CACHE_1 = $$cache__("default", "c0951c375b4a6a6e89d67b74
         foo
     ]).catch((e)=>{
         console.error(new Error(e instanceof Error ? e.message : e));
+        throw e;
     }));
     const data = await fn();
     return <div>{data}</div>;

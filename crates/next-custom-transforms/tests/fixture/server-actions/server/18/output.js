@@ -22,6 +22,7 @@ export function Item({ id1, id2 }) {
         v2
     ]).catch((e)=>{
         console.error(new Error(e instanceof Error ? e.message : e));
+        throw e;
     }))}>
         Delete
       </Button>
@@ -30,6 +31,7 @@ export function Item({ id1, id2 }) {
         v2
     ]).catch((e)=>{
         console.error(new Error(e instanceof Error ? e.message : e));
+        throw e;
     }))}>
         Delete
       </Button>

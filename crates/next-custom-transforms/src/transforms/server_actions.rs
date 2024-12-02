@@ -2379,31 +2379,38 @@ fn bind_args_to_ref_expr(expr: Expr, bound: Vec<Option<ExprOrSpread>>, action_id
                         vec![ArrowExpr {
                             params: vec![quote_ident!("e").into()],
                             body: Box::new(BlockStmtOrExpr::BlockStmt(BlockStmt {
-                                stmts: vec![quote_ident!("console")
-                                    .make_member("error".into())
-                                    .as_call(
-                                        DUMMY_SP,
-                                        vec![quote_ident!("Error")
-                                            .into_new_expr(
-                                                DUMMY_SP,
-                                                Some(vec![Expr::Cond(CondExpr {
-                                                    span: DUMMY_SP,
-                                                    test: quote_ident!("e")
-                                                        .make_bin(
-                                                            BinaryOp::InstanceOf,
-                                                            quote_ident!("Error"),
-                                                        )
-                                                        .into(),
-                                                    cons: quote_ident!("e")
-                                                        .make_member("message".into())
-                                                        .into(),
-                                                    alt: quote_ident!("e").into(),
-                                                })
-                                                .as_arg()]),
-                                            )
-                                            .as_arg()],
-                                    )
-                                    .into_stmt()],
+                                stmts: vec![
+                                    quote_ident!("console")
+                                        .make_member("error".into())
+                                        .as_call(
+                                            DUMMY_SP,
+                                            vec![quote_ident!("Error")
+                                                .into_new_expr(
+                                                    DUMMY_SP,
+                                                    Some(vec![Expr::Cond(CondExpr {
+                                                        span: DUMMY_SP,
+                                                        test: quote_ident!("e")
+                                                            .make_bin(
+                                                                BinaryOp::InstanceOf,
+                                                                quote_ident!("Error"),
+                                                            )
+                                                            .into(),
+                                                        cons: quote_ident!("e")
+                                                            .make_member("message".into())
+                                                            .into(),
+                                                        alt: quote_ident!("e").into(),
+                                                    })
+                                                    .as_arg()]),
+                                                )
+                                                .as_arg()],
+                                        )
+                                        .into_stmt(),
+                                    ThrowStmt {
+                                        span: DUMMY_SP,
+                                        arg: quote_ident!("e").into(),
+                                    }
+                                    .into(),
+                                ],
                                 ..Default::default()
                             })),
                             ..Default::default()

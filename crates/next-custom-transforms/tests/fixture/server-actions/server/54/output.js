@@ -20,11 +20,13 @@ function createObj(n) {
             m
         ]).catch((e)=>{
             console.error(new Error(e instanceof Error ? e.message : e));
+            throw e;
         })),
         bar: registerServerReference($$RSC_SERVER_ACTION_2, "401c36b06e398c97abe5d5d7ae8c672bfddf4e1b91", null).bind(null, encryptActionBoundArgs("401c36b06e398c97abe5d5d7ae8c672bfddf4e1b91", [
             m
         ]).catch((e)=>{
             console.error(new Error(e instanceof Error ? e.message : e));
+            throw e;
         }))
     };
 }

@@ -15,6 +15,7 @@ export var $$RSC_SERVER_CACHE_1 = $$cache__("default", "e0951c375b4a6a6e89d67b74
             x
         ]).catch((e)=>{
             console.error(new Error(e instanceof Error ? e.message : e));
+            throw e;
         }))}/>,
         r: children
     };

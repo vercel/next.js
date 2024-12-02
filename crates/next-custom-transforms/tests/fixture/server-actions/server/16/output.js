@@ -15,6 +15,7 @@ export function Item({ id1, id2 }) {
         v2
     ]).catch((e)=>{
         console.error(new Error(e instanceof Error ? e.message : e));
+        throw e;
     }));
     return <Button action={deleteItem}>Delete</Button>;
 }
@@ -27,6 +28,7 @@ const f = (x)=>{
         x
     ]).catch((e)=>{
         console.error(new Error(e instanceof Error ? e.message : e));
+        throw e;
     }));
 };
 export const /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_2 = async function f($$ACTION_CLOSURE_BOUND, y, ...z) {
@@ -38,5 +40,6 @@ const g = (x)=>{
         x
     ]).catch((e)=>{
         console.error(new Error(e instanceof Error ? e.message : e));
+        throw e;
     }));
 };

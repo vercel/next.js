@@ -21,6 +21,7 @@ export function Item({ id1, id2, id3, id4 }) {
         id4.x
     ]).catch((e)=>{
         console.error(new Error(e instanceof Error ? e.message : e));
+        throw e;
     }));
     return <Button action={deleteItem}>Delete</Button>;
 }

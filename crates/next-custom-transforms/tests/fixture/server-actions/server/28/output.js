@@ -24,6 +24,7 @@ export const /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_2 = a
         $$ACTION_ARG_2
     ]).catch((e)=>{
         console.error(new Error(e instanceof Error ? e.message : e));
+        throw e;
     }));
     return [
         action2,
@@ -33,6 +34,7 @@ export const /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_2 = a
             d
         ]).catch((e)=>{
             console.error(new Error(e instanceof Error ? e.message : e));
+            throw e;
         }))
     ];
 };
@@ -43,5 +45,6 @@ function Comp(b, c, ...g) {
         g
     ]).catch((e)=>{
         console.error(new Error(e instanceof Error ? e.message : e));
+        throw e;
     }));
 }
