@@ -123,6 +123,13 @@ describe('app-dir with middleware', () => {
     })
   })
 
+  it('merges link headers from the middleware and the page', async () => {
+    const res = await next.fetch('/preloads')
+    expect(res.headers.get('link')).toBe(
+      '<https://example.com/page>; rel="alternate"; hreflang="en", </_next/static/media/a34f9d1faa5f3315-s.p.woff2>; rel=preload; as="font"; crossorigin=""; type="font/woff2", </_next/image?url=%2Ffavicon.ico&w=32&q=75>; rel=preload; as="image"; imagesrcset="/_next/image?url=%2Ffavicon.ico&w=16&q=75 1x%2C /_next/image?url=%2Ffavicon.ico&w=32&q=75 2x"'
+    )
+  })
+
   it('should be possible to modify cookies & read them in an RSC in a single request', async () => {
     const browser = await next.browser('/rsc-cookies')
 
