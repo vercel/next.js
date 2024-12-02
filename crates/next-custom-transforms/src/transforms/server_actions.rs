@@ -2357,90 +2357,51 @@ fn bind_args_to_ref_expr(expr: Expr, bound: Vec<Option<ExprOrSpread>>, action_id
         expr
     } else {
         // expr.bind(null, encryptActionBoundArgs("id", [arg1, ...]).catch(...)))
-        Expr::Call(CallExpr {
-            span: DUMMY_SP,
-            callee: Expr::Member(MemberExpr {
-                span: DUMMY_SP,
-                obj: Box::new(expr),
-                prop: MemberProp::Ident(quote_ident!("bind")),
-            })
-            .as_callee(),
-            args: vec![
-                ExprOrSpread {
-                    spread: None,
-                    expr: Box::new(Expr::Lit(Lit::Null(Null { span: DUMMY_SP }))),
-                },
-                ExprOrSpread {
-                    spread: None,
-                    expr: Box::new(Expr::Call(CallExpr {
-                        span: DUMMY_SP,
-                        callee: Expr::Member(MemberExpr {
-                            span: DUMMY_SP,
-                            obj: Box::new(Expr::Call(CallExpr {
+        expr.make_member(quote_ident!("bind")).as_call(
+            DUMMY_SP,
+            vec![
+                Expr::Lit(Lit::Null(Null { span: DUMMY_SP })).into(),
+                quote_ident!("encryptActionBoundArgs")
+                    .as_call(
+                        DUMMY_SP,
+                        vec![
+                            Expr::Lit(Lit::Str(action_id.into())).into(),
+                            Expr::Array(ArrayLit {
                                 span: DUMMY_SP,
-                                callee: quote_ident!("encryptActionBoundArgs").as_callee(),
-                                args: vec![
-                                    ExprOrSpread {
-                                        spread: None,
-                                        expr: Box::new(action_id.into()),
-                                    },
-                                    ExprOrSpread {
-                                        spread: None,
-                                        expr: Box::new(Expr::Array(ArrayLit {
-                                            span: DUMMY_SP,
-                                            elems: bound,
-                                        })),
-                                    },
-                                ],
+                                elems: bound,
+                            })
+                            .into(),
+                        ],
+                    )
+                    .make_member(quote_ident!("catch"))
+                    .as_call(
+                        DUMMY_SP,
+                        vec![ArrowExpr {
+                            params: vec![quote_ident!("err").into()],
+                            body: Box::new(BlockStmtOrExpr::BlockStmt(BlockStmt {
+                                stmts: vec![quote_ident!("console")
+                                    .make_member("error".into())
+                                    .as_call(
+                                        DUMMY_SP,
+                                        vec![quote_ident!("Error")
+                                            .into_new_expr(
+                                                DUMMY_SP,
+                                                Some(vec![quote_ident!("err")
+                                                    .make_member("message".into())
+                                                    .as_arg()]),
+                                            )
+                                            .as_arg()],
+                                    )
+                                    .into_stmt()],
                                 ..Default::default()
                             })),
-                            prop: quote_ident!("catch").into(),
-                        })
-                        .as_callee(),
-                        args: vec![ExprOrSpread {
-                            spread: None,
-                            expr: Box::new(Expr::Arrow(ArrowExpr {
-                                params: vec![quote_ident!("err").into()],
-                                body: Box::new(BlockStmtOrExpr::BlockStmt(BlockStmt {
-                                    stmts: vec![Stmt::Expr(ExprStmt {
-                                        expr: Box::new(Expr::Call(CallExpr {
-                                            span: DUMMY_SP,
-                                            callee: Box::new(Expr::Member(MemberExpr {
-                                                span: DUMMY_SP,
-                                                obj: quote_ident!("console").into(),
-                                                prop: quote_ident!("error").into(),
-                                            }))
-                                            .as_callee(),
-                                            args: vec![ExprOrSpread {
-                                                spread: None,
-                                                expr: Box::new(Expr::New(NewExpr {
-                                                    callee: quote_ident!("Error").into(),
-                                                    args: Some(vec![ExprOrSpread {
-                                                        spread: None,
-                                                        expr: Box::new(Expr::Member(MemberExpr {
-                                                            span: DUMMY_SP,
-                                                            obj: quote_ident!("err").into(),
-                                                            prop: quote_ident!("message").into(),
-                                                        })),
-                                                    }]),
-                                                    ..Default::default()
-                                                })),
-                                            }],
-                                            ..Default::default()
-                                        })),
-                                        ..Default::default()
-                                    })],
-                                    ..Default::default()
-                                })),
-                                ..Default::default()
-                            })),
-                        }],
-                        ..Default::default()
-                    })),
-                },
+                            ..Default::default()
+                        }
+                        .as_arg()],
+                    )
+                    .into(),
             ],
-            ..Default::default()
-        })
+        )
     }
 }
 
