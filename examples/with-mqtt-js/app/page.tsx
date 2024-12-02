@@ -1,6 +1,8 @@
+"use client";
+
 import { useState, useRef } from "react";
 import type { MqttClient } from "mqtt";
-import useMqtt from "../lib/useMqtt";
+import useMqtt from "@/lib/useMqtt";
 
 export default function Home() {
   const [incommingMessages, setIncommingMessages] = useState<any[]>([]);
