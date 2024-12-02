@@ -20,11 +20,11 @@ use crate::{
 #[turbo_tasks::value]
 pub(super) struct SideEffectsModule {
     /// Original module
-    pub module: Vc<EcmascriptModuleAsset>,
+    pub module: ResolvedVc<EcmascriptModuleAsset>,
     /// The part of the original module that is the binding
     pub part: ResolvedVc<ModulePart>,
     /// The module that is the binding
-    pub resolved_as: Vc<Box<dyn EcmascriptChunkPlaceable>>,
+    pub resolved_as: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     /// Side effects from the original module to the binding.
     pub side_effects: Vec<Vc<Box<dyn EcmascriptChunkPlaceable>>>,
 }
@@ -33,9 +33,9 @@ pub(super) struct SideEffectsModule {
 impl SideEffectsModule {
     #[turbo_tasks::function]
     pub fn new(
-        module: Vc<EcmascriptModuleAsset>,
+        module: ResolvedVc<EcmascriptModuleAsset>,
         part: ResolvedVc<ModulePart>,
-        resolved_as: Vc<Box<dyn EcmascriptChunkPlaceable>>,
+        resolved_as: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
         side_effects: Vec<Vc<Box<dyn EcmascriptChunkPlaceable>>>,
     ) -> Vc<Self> {
         SideEffectsModule {
@@ -84,7 +84,7 @@ impl Module for SideEffectsModule {
         }
 
         references.push(Vc::upcast(SingleChunkableModuleReference::new(
-            Vc::upcast(self.resolved_as),
+            *ResolvedVc::upcast(self.resolved_as),
             Vc::cell(RcStr::from("resolved as")),
         )));
 
@@ -122,8 +122,8 @@ impl ChunkableModule for SideEffectsModule {
     ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
         Ok(Vc::upcast(
             SideEffectsModuleChunkItem {
-                module: self,
-                chunking_context,
+                module: self.to_resolved().await?,
+                chunking_context: chunking_context.to_resolved().await?,
             }
             .cell(),
         ))

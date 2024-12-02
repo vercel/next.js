@@ -52,6 +52,13 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
   const workUnitStore = workUnitAsyncStorage.getStore()
 
   if (workStore) {
+    if (workUnitStore && workUnitStore.phase === 'after') {
+      throw new Error(
+        // TODO(after): clarify that this only applies to pages?
+        `Route ${workStore.route} used "cookies" inside "unstable_after(...)". This is not supported. If you need this data inside an "unstable_after" callback, use "cookies" outside of the callback. See more info here: https://nextjs.org/docs/canary/app/api-reference/functions/unstable_after`
+      )
+    }
+
     if (workStore.forceStatic) {
       // When using forceStatic we override all other logic and always just return an empty
       // cookies object without tracking
@@ -67,10 +74,6 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
       } else if (workUnitStore.type === 'unstable-cache') {
         throw new Error(
           `Route ${workStore.route} used "cookies" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "cookies" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
-        )
-      } else if (workUnitStore.phase === 'after') {
-        throw new Error(
-          `Route ${workStore.route} used "cookies" inside "unstable_after(...)". This is not supported. If you need this data inside an "unstable_after" callback, use "cookies" outside of the callback. See more info here: https://nextjs.org/docs/canary/app/api-reference/functions/unstable_after`
         )
       }
     }

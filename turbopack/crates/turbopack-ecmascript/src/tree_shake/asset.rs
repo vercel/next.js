@@ -160,24 +160,32 @@ impl EcmascriptModulePartAsset {
                 if *new_export == export_name {
                     *final_module
                 } else {
-                    Vc::upcast(EcmascriptModuleFacadeModule::new(
-                        *final_module,
-                        ModulePart::renamed_export(new_export.clone(), export_name.clone()),
-                    ))
+                    ResolvedVc::upcast(
+                        EcmascriptModuleFacadeModule::new(
+                            **final_module,
+                            ModulePart::renamed_export(new_export.clone(), export_name.clone()),
+                        )
+                        .to_resolved()
+                        .await?,
+                    )
                 }
             } else {
-                Vc::upcast(EcmascriptModuleFacadeModule::new(
-                    *final_module,
-                    ModulePart::renamed_namespace(export_name.clone()),
-                ))
+                ResolvedVc::upcast(
+                    EcmascriptModuleFacadeModule::new(
+                        **final_module,
+                        ModulePart::renamed_namespace(export_name.clone()),
+                    )
+                    .to_resolved()
+                    .await?,
+                )
             };
 
             if side_effects.is_empty() {
-                return Ok(Vc::upcast(final_module));
+                return Ok(*ResolvedVc::upcast(final_module));
             }
 
             let side_effects_module =
-                SideEffectsModule::new(module, *part, final_module, side_effects.to_vec());
+                SideEffectsModule::new(module, *part, *final_module, side_effects.to_vec());
 
             return Ok(Vc::upcast(side_effects_module));
         }
@@ -201,12 +209,12 @@ impl EcmascriptModulePartAsset {
 #[turbo_tasks::value]
 struct FollowExportsWithSideEffectsResult {
     side_effects: Vec<Vc<Box<dyn EcmascriptChunkPlaceable>>>,
-    result: Vc<FollowExportsResult>,
+    result: ResolvedVc<FollowExportsResult>,
 }
 
 #[turbo_tasks::function]
 async fn follow_reexports_with_side_effects(
-    module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
+    module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     export_name: RcStr,
     side_effect_free_packages: Vc<Glob>,
 ) -> Result<Vc<FollowExportsWithSideEffectsResult>> {
@@ -220,16 +228,18 @@ async fn follow_reexports_with_side_effects(
             .await?;
 
         if !is_side_effect_free {
-            side_effects.push(only_effects(current_module));
+            side_effects.push(only_effects(*current_module));
         }
 
         // We ignore the side effect of the entry module here, because we need to proceed.
         let result = follow_reexports(
-            current_module,
+            *current_module,
             current_export_name.clone(),
             side_effect_free_packages,
             true,
-        );
+        )
+        .to_resolved()
+        .await?;
 
         let FollowExportsResult {
             module,
