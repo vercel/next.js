@@ -14,6 +14,7 @@ use std::{
 use anyhow::{bail, Context, Result};
 use byteorder::{ReadBytesExt, WriteBytesExt, BE};
 use lzzzz::lz4::decompress;
+use memmap2::{Advice, Mmap};
 use parking_lot::{Mutex, RwLock};
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
@@ -338,9 +339,16 @@ impl TurboPersistence {
     /// Reads and decompresses a blob file. This is not backed by any cache.
     fn read_blob(&self, seq: u32) -> Result<ArcSlice<u8>> {
         let path = self.path.join(format!("{:08}.blob", seq));
-        let compressed =
-            fs::read(path).with_context(|| format!("Unable to read blob file {:08}.blob", seq))?;
-        let mut compressed = &compressed[..];
+        let mmap = unsafe { Mmap::map(&File::open(&path)?)? };
+        #[cfg(unix)]
+        mmap.advise(Advice::Sequential)?;
+        #[cfg(unix)]
+        mmap.advise(Advice::WillNeed)?;
+        #[cfg(target_os = "linux")]
+        mmap.advise(Advice::DontFork)?;
+        #[cfg(target_os = "linux")]
+        mmap.advise(Advice::Unmergeable)?;
+        let mut compressed = &mmap[..];
         let uncompressed_length = compressed.read_u32::<BE>()? as usize;
 
         let buffer = Arc::new_zeroed_slice(uncompressed_length);
