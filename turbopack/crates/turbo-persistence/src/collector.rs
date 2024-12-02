@@ -64,7 +64,7 @@ impl<K: StoreKey> Collector<K> {
         });
     }
 
-    /// Adds a thumbstone pair to the collector.
+    /// Adds a tombstone pair to the collector.
     pub fn delete(&mut self, key: K) {
         let key = EntryKey {
             hash: hash_key(&key),

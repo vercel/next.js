@@ -23,7 +23,7 @@ Therefore there are there value types:
 
 * INLINE: Small values that are stored directly in the `*.sst` files.
 * BLOB: Large values that are stored in `*.blob` files.
-* DELETED: Values that are deleted. (Thumbstone)
+* DELETED: Values that are deleted. (Tombstone)
 * Future:
   * MERGE: An application specific update operation that is applied on the old value.
 
@@ -83,7 +83,7 @@ Depending on the `type` field entry has a different format:
   * 8 bytes key hash
   * key data
   * 4 bytes sequence number
-* 2: deleted key / thumbstone (no data)
+* 2: deleted key / tombstone (no data)
   * 8 bytes key hash
   * key data
 * 3: normal key (medium sized value)

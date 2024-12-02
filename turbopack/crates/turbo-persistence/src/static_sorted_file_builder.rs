@@ -67,7 +67,7 @@ pub enum EntryValue<'l> {
     Medium { value: &'l [u8] },
     /// Large-sized value. They are stored in a blob file.
     Large { blob: u32 },
-    /// Thumbstone. The value was removed.
+    /// Tombstone. The value was removed.
     Deleted,
 }
 
@@ -471,7 +471,7 @@ impl KeyBlockBuilder {
         self.current_entry += 1;
     }
 
-    /// Writes a thumbstone to the buffer.
+    /// Writes a tombstone to the buffer.
     pub fn delete<E: Entry>(&mut self, entry: &E) {
         let pos = self.data.len() - self.header_size;
         let header_offset = KEY_BLOCK_HEADER_SIZE + self.current_entry * 4;
