@@ -93,7 +93,8 @@ To fetch data in Client Components, we recommend using a React library like [SWR
 'use client'
 
 import useSWR from 'swr'
-import { fetcher } from '@/lib/fetcher'
+
+const fetcher = (url) => fetch(url).then((r) => r.json())
 
 export default function BlogPage() {
   const { data, error, isLoading } = useSWR(
@@ -118,7 +119,8 @@ export default function BlogPage() {
 'use client'
 
 import useSWR from 'swr'
-import { fetcher } from '@/lib/fetcher'
+
+const fetcher = (url) => fetch(url).then((r) => r.json())
 
 export default function BlogPage() {
   const { data, error, isLoading } = useSWR(
