@@ -6,8 +6,9 @@ use std::{
 };
 
 use anyhow::{anyhow, Context, Result};
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use rustc_hash::FxHashMap;
+use serde::{ser::SerializeSeq, Serialize};
 use tracing::Span;
 use turbo_tasks::{backend::CachedTaskType, turbo_tasks_scope, KeyValuePair, SessionId, TaskId};
 
@@ -178,6 +179,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
                         .entered();
                         let result = task_cache_updates
                             .into_par_iter()
+                            .with_max_len(1)
                             .map(|updates| {
                                 let mut max_task_id = 0;
 
@@ -363,6 +365,11 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
             let id = TaskId::from(u32::from_le_bytes(bytes));
             Ok(Some(id))
         }
+        if self.database.is_empty() {
+            // Checking if the database is empty is a performance optimization
+            // to avoid serializing the task type.
+            return None;
+        }
         let id = self
             .with_tx(tx, |tx| lookup(&self.database, tx, task_type))
             .inspect_err(|err| println!("Looking up task id for {task_type:?} failed: {err:?}"))
@@ -517,6 +524,8 @@ fn serialize_task_type(
 }
 
 type SerializedTasks = Vec<Vec<(TaskId, Vec<u8>)>>;
+type TaskUpdates =
+    FxHashMap<CachedDataItemKey, (Option<CachedDataItemValue>, Option<CachedDataItemValue>)>;
 
 fn process_task_data<'a, B: ConcurrentWriteBatch<'a> + Send + Sync>(
     database: &(impl KeyValueDatabase + Sync),
@@ -529,19 +538,12 @@ fn process_task_data<'a, B: ConcurrentWriteBatch<'a> + Send + Sync>(
     let handle = tokio::runtime::Handle::current();
     updates
         .into_par_iter()
+        .with_max_len(1)
         .map(|updates| {
             let _span = span.clone().entered();
             let _guard = handle.clone().enter();
             turbo_tasks_scope(turbo_tasks.clone(), || {
-                type TaskUpdates = FxHashMap<
-                    TaskId,
-                    FxHashMap<
-                        CachedDataItemKey,
-                        (Option<CachedDataItemValue>, Option<CachedDataItemValue>),
-                    >,
-                >;
-
-                let mut task_updates: TaskUpdates =
+                let mut task_updates: FxHashMap<TaskId, TaskUpdates> =
                     FxHashMap::with_capacity_and_hasher(updates.len(), Default::default());
 
                 {
@@ -552,21 +554,81 @@ fn process_task_data<'a, B: ConcurrentWriteBatch<'a> + Send + Sync>(
                     )
                     .entered();
 
+                    // The store the last task data and the last value as pointers to avoid looking
+                    // them up in the map again. Everytime we modify the map the pointers are
+                    // updated, so we never have a dangling pointer.
+                    let mut current_task_data: Option<*mut TaskUpdates> = None;
+                    let mut last_value: Option<*mut (
+                        Option<CachedDataItemValue>,
+                        Option<CachedDataItemValue>,
+                    )> = None;
+
                     // Organize the updates by task
-                    for CachedDataUpdate {
-                        task,
-                        key,
-                        value,
-                        old_value,
-                    } in updates.into_iter()
-                    {
-                        let data = task_updates.entry(task).or_default();
-                        match data.entry(key) {
-                            Entry::Occupied(mut entry) => {
-                                entry.get_mut().1 = value;
+                    for update in updates.into_iter() {
+                        match update {
+                            CachedDataUpdate::Task { task } => {
+                                current_task_data = Some(task_updates.entry(task).or_default())
                             }
-                            Entry::Vacant(entry) => {
-                                entry.insert((old_value, value));
+                            CachedDataUpdate::New { item } => {
+                                let data = current_task_data
+                                    .expect("Task update must be before data updates");
+                                // Safety: task_updates are not modified while we hold this pointer.
+                                // We update the pointer every time we update the map.
+                                let data = unsafe { &mut *data };
+                                let (key, new_value) = item.into_key_and_value();
+                                match data.entry(key) {
+                                    Entry::Occupied(mut entry) => {
+                                        let entry = entry.get_mut();
+                                        entry.1 = Some(new_value);
+                                        last_value = Some(entry);
+                                    }
+                                    Entry::Vacant(entry) => {
+                                        last_value = Some(entry.insert((None, Some(new_value))));
+                                    }
+                                }
+                            }
+                            CachedDataUpdate::Removed { old_item } => {
+                                let data = current_task_data
+                                    .expect("Task update must be before data updates");
+                                // Safety: task_updates are not modified while we hold this pointer.
+                                // We update the pointer every time we update the map.
+                                let data = unsafe { &mut *data };
+                                let (key, old_value) = old_item.into_key_and_value();
+                                match data.entry(key) {
+                                    Entry::Occupied(mut entry) => {
+                                        let entry = entry.get_mut();
+                                        entry.1 = None;
+                                        last_value = Some(entry);
+                                    }
+                                    Entry::Vacant(entry) => {
+                                        last_value = Some(entry.insert((Some(old_value), None)));
+                                    }
+                                }
+                            }
+                            CachedDataUpdate::Replace1 { old_item } => {
+                                let data = current_task_data
+                                    .expect("Task update must be before data updates");
+                                // Safety: task_updates are not modified while we hold this pointer.
+                                // We update the pointer every time we update the map.
+                                let data = unsafe { &mut *data };
+                                let (key, old_value) = old_item.into_key_and_value();
+                                match data.entry(key) {
+                                    Entry::Occupied(mut entry) => {
+                                        last_value = Some(entry.get_mut());
+                                    }
+                                    Entry::Vacant(entry) => {
+                                        last_value = Some(entry.insert((Some(old_value), None)));
+                                    }
+                                }
+                            }
+                            CachedDataUpdate::Replace2 { value: new_value } => {
+                                let last_value =
+                                    last_value.expect("Task update must be before data updates");
+                                // Safety: the inner map of task_updates is not modified while we
+                                // hold this pointer. We update the
+                                // pointer every time we update the map.
+                                let last_value = unsafe { &mut *last_value };
+                                last_value.1 = Some(new_value);
                             }
                         }
                     }
@@ -602,9 +664,12 @@ fn process_task_data<'a, B: ConcurrentWriteBatch<'a> + Send + Sync>(
                 let mut restored_tasks = 0;
 
                 // Restore the old task data, apply the updates and serialize the new data
-                let mut tasks = Vec::with_capacity(task_updates.len());
-                let mut map = FxHashMap::with_capacity_and_hasher(128, Default::default());
-                for (task, updates) in task_updates {
+                let mut tasks = if batch.is_some() {
+                    Vec::new()
+                } else {
+                    Vec::with_capacity(task_updates.len())
+                };
+                for (task, mut updates) in task_updates {
                     // Restore the old task data
                     if let Some(old_data) =
                         database.get(&tx, key_space, IntKey::new(*task).as_ref())?
@@ -622,27 +687,23 @@ fn process_task_data<'a, B: ConcurrentWriteBatch<'a> + Send + Sync>(
                                 anyhow!("Unable to deserialize old value of {task}: {old_data:?}")
                             })?,
                         };
-                        map.extend(old_data.into_iter().map(|item| item.into_key_and_value()));
+
+                        // Reserve capacity to avoid rehashing later
+                        updates.reserve(old_data.len());
+
+                        // Apply the old data to the updates, so updates includes the whole data
+                        for item in old_data.into_iter() {
+                            let (key, value) = item.into_key_and_value();
+                            updates.entry(key).or_insert((None, Some(value)));
+                        }
                         restored_tasks += 1;
                     }
 
-                    // Apply update
-                    for (key, (_, value)) in updates {
-                        if let Some(value) = value {
-                            map.insert(key, value);
-                        } else {
-                            map.remove(&key);
-                        }
-                    }
-
-                    // Get new data
-                    let data = map
-                        .drain()
-                        .map(|(key, value)| CachedDataItem::from_key_and_value(key, value))
-                        .collect::<Vec<_>>();
+                    // Remove all deletions
+                    updates.retain(|_, (_, value)| value.is_some());
 
                     // Serialize new data
-                    let value = serialize(task, data)?;
+                    let value = serialize(task, &mut updates)?;
 
                     if let Some(batch) = batch {
                         batch.put(
@@ -663,48 +724,91 @@ fn process_task_data<'a, B: ConcurrentWriteBatch<'a> + Send + Sync>(
         .collect::<Result<Vec<_>>>()
 }
 
-fn serialize(task: TaskId, mut data: Vec<CachedDataItem>) -> Result<Vec<u8>> {
-    Ok(match POT_CONFIG.serialize(&data) {
-        #[cfg(not(feature = "verify_serialization"))]
-        Ok(value) => value,
-        _ => {
-            let mut error = Ok(());
-            data.retain(|item| {
-                let mut buf = Vec::<u8>::new();
-                let mut symbol_map = pot_ser_symbol_map();
-                let mut serializer = symbol_map.serializer_for(&mut buf).unwrap();
-                if let Err(err) = serde_path_to_error::serialize(item, &mut serializer) {
-                    if item.is_optional() {
-                        #[cfg(feature = "verify_serialization")]
-                        println!("Skipping non-serializable optional item: {item:?}");
-                    } else {
-                        error = Err(err).context({
-                            anyhow!("Unable to serialize data item for {task}: {item:#?}")
-                        });
-                    }
-                    false
-                } else {
-                    #[cfg(feature = "verify_serialization")]
-                    {
-                        let deserialize: Result<CachedDataItem, _> =
-                            serde_path_to_error::deserialize(
-                                &mut pot_de_symbol_list().deserializer_for_slice(&buf).unwrap(),
-                            );
-                        if let Err(err) = deserialize {
+fn serialize(task: TaskId, data: &mut TaskUpdates) -> Result<Vec<u8>> {
+    Ok(
+        match POT_CONFIG.serialize(&SerializeLikeVecOfCachedDataItem(data)) {
+            #[cfg(not(feature = "verify_serialization"))]
+            Ok(value) => value,
+            _ => {
+                let mut error = Ok(());
+                data.retain(|key, (_, value)| {
+                    let mut buf = Vec::<u8>::new();
+                    let mut symbol_map = pot_ser_symbol_map();
+                    let mut serializer = symbol_map.serializer_for(&mut buf).unwrap();
+                    if let Err(err) = serde_path_to_error::serialize(
+                        &SerializeLikeCachedDataItem(
+                            key,
+                            value
+                                .as_ref()
+                                .expect("serialize data must not contain None values"),
+                        ),
+                        &mut serializer,
+                    ) {
+                        if key.is_optional() {
+                            #[cfg(feature = "verify_serialization")]
                             println!(
-                                "Data item would not be deserializable {task}: {err:?}\n{item:#?}"
+                                "Skipping non-serializable optional item: {key:?} = {value:?}"
                             );
-                            return false;
+                        } else {
+                            error = Err(err).context({
+                                anyhow!(
+                                    "Unable to serialize data item for {task}: {key:?} = \
+                                     {value:#?}"
+                                )
+                            });
                         }
+                        false
+                    } else {
+                        #[cfg(feature = "verify_serialization")]
+                        {
+                            let deserialize: Result<CachedDataItem, _> =
+                                serde_path_to_error::deserialize(
+                                    &mut pot_de_symbol_list().deserializer_for_slice(&buf).unwrap(),
+                                );
+                            if let Err(err) = deserialize {
+                                println!(
+                                    "Data item would not be deserializable {task}: \
+                                     {err:?}\n{key:?} = {value:#?}"
+                                );
+                                return false;
+                            }
+                        }
+                        true
                     }
-                    true
-                }
-            });
-            error?;
+                });
+                error?;
 
-            POT_CONFIG
-                .serialize(&data)
-                .with_context(|| anyhow!("Unable to serialize data items for {task}: {data:#?}"))?
+                POT_CONFIG
+                    .serialize(&SerializeLikeVecOfCachedDataItem(data))
+                    .with_context(|| {
+                        anyhow!("Unable to serialize data items for {task}: {data:#?}")
+                    })?
+            }
+        },
+    )
+}
+
+struct SerializeLikeVecOfCachedDataItem<'l>(&'l TaskUpdates);
+
+impl Serialize for SerializeLikeVecOfCachedDataItem<'_> {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let map = &self.0;
+        let mut seq = serializer.serialize_seq(Some(map.len()))?;
+        for (key, (_, value)) in map.iter() {
+            let value = value
+                .as_ref()
+                .expect("SerializeLikeVecOfCachedDataItem must not contain None values");
+            seq.serialize_element(&SerializeLikeCachedDataItem(key, value))?;
         }
-    })
+        seq.end()
+    }
+}
+
+struct SerializeLikeCachedDataItem<'l>(&'l CachedDataItemKey, &'l CachedDataItemValue);
+
+impl Serialize for SerializeLikeCachedDataItem<'_> {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let item = CachedDataItem::from_key_and_value(self.0.clone(), self.1.clone());
+        item.serialize(serializer)
+    }
 }
