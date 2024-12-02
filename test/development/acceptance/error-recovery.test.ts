@@ -301,10 +301,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     )
     await session.assertHasRedbox()
 
-    await check(async () => {
-      const source = await session.getRedboxSource()
-      return source?.includes('render() {') ? 'success' : source
-    }, 'success')
+    await expect(session.getRedboxSource()).resolves.toInclude('render() {')
 
     expect(await session.getRedboxSource()).toInclude(
       "throw new Error('nooo');"

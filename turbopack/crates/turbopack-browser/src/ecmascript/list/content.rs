@@ -3,7 +3,7 @@ use std::io::Write;
 use anyhow::{Context, Result};
 use indoc::writedoc;
 use serde::Serialize;
-use turbo_tasks::{FxIndexMap, IntoTraitRef, TryJoinIterExt, Vc};
+use turbo_tasks::{FxIndexMap, IntoTraitRef, ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::File;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -26,7 +26,7 @@ use super::{
 #[turbo_tasks::value]
 pub(super) struct EcmascriptDevChunkListContent {
     chunk_list_path: String,
-    pub(super) chunks_contents: FxIndexMap<String, Vc<Box<dyn VersionedContent>>>,
+    pub(super) chunks_contents: FxIndexMap<String, ResolvedVc<Box<dyn VersionedContent>>>,
     source: EcmascriptDevChunkListSource,
 }
 
@@ -53,7 +53,7 @@ impl EcmascriptDevChunkListContent {
                             output_root
                                 .get_path_to(&*chunk.ident().path().await?)
                                 .map(|path| path.to_string()),
-                            chunk.versioned_content(),
+                            chunk.versioned_content().to_resolved().await?,
                         ))
                     }
                 })
@@ -75,7 +75,7 @@ impl EcmascriptDevChunkListContent {
 
         for (chunk_path, chunk_content) in &self.chunks_contents {
             if let Some(mergeable) =
-                Vc::try_resolve_sidecast::<Box<dyn MergeableVersionedContent>>(*chunk_content)
+                ResolvedVc::try_sidecast::<Box<dyn MergeableVersionedContent>>(*chunk_content)
                     .await?
             {
                 let merger = mergeable.get_merger().resolve().await?;
@@ -92,7 +92,7 @@ impl EcmascriptDevChunkListContent {
             .into_iter()
             .map(|(merger, contents)| async move {
                 Ok((
-                    merger,
+                    merger.to_resolved().await?,
                     merger
                         .merge(Vc::cell(contents))
                         .version()

@@ -38,7 +38,6 @@ use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
     emit_with_completion,
     module_options::{CssOptionsContext, EcmascriptOptionsContext, ModuleOptionsContext},
-    rebase::RebasedAsset,
     register, ModuleAssetContext,
 };
 use turbopack_core::{
@@ -47,6 +46,7 @@ use turbopack_core::{
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
     output::OutputAsset,
+    rebase::RebasedAsset,
     reference_type::ReferenceType,
 };
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
@@ -429,7 +429,9 @@ fn node_file_trace<B: Backend + 'static>(
                     // binary. TODO These test cases should move into the
                     // `node-file-trace` crate and use the same config.
                     CompileTimeInfo::new(Environment::new(Value::new(
-                        ExecutionEnvironment::NodeJsLambda(NodeJsEnvironment::default().into()),
+                        ExecutionEnvironment::NodeJsLambda(
+                            NodeJsEnvironment::default().resolved_cell(),
+                        ),
                     ))),
                     ModuleOptionsContext {
                         ecmascript: EcmascriptOptionsContext {

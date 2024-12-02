@@ -52,13 +52,13 @@ struct NextFontLocalFontFileOptions {
 
 #[turbo_tasks::value]
 pub(crate) struct NextFontLocalResolvePlugin {
-    root: Vc<FileSystemPath>,
+    root: ResolvedVc<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
 impl NextFontLocalResolvePlugin {
     #[turbo_tasks::function]
-    pub fn new(root: Vc<FileSystemPath>) -> Vc<Self> {
+    pub fn new(root: ResolvedVc<FileSystemPath>) -> Vc<Self> {
         NextFontLocalResolvePlugin { root }.cell()
     }
 }
@@ -98,17 +98,18 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
 
         match request_key.as_str() {
             "next/font/local/target.css" => {
-                if !can_use_next_font(this.root, *query_vc).await? {
+                if !can_use_next_font(*this.root, **query_vc).await? {
                     return Ok(ResolveResultOption::none());
                 }
 
                 let query = query_vc.await?.to_string();
                 let request_hash = get_request_hash(&query).await?;
                 let qstr = qstring::QString::from(query.as_str());
-                let options_vc = font_options_from_query_map(*query_vc);
+                let options_vc = font_options_from_query_map(**query_vc);
                 let font_fallbacks = get_font_fallbacks(lookup_path, options_vc);
                 let properties = get_font_css_properties(options_vc, font_fallbacks).await;
 
+                let lookup_path = lookup_path.to_resolved().await?;
                 if let Err(e) = &properties {
                     for source_error in e.chain() {
                         if let Some(FontError::FontFileNotFound(font_path)) =
@@ -116,7 +117,7 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
                         {
                             FontResolvingIssue {
                                 origin_path: lookup_path,
-                                font_path: Vc::cell(font_path.clone()),
+                                font_path: ResolvedVc::cell(font_path.clone()),
                             }
                             .cell()
                             .emit();
@@ -186,7 +187,7 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
             "@vercel/turbopack-next/internal/font/local/cssmodule.module.css" => {
                 let query = query_vc.await?.to_string();
                 let request_hash = get_request_hash(&query).await?;
-                let options = font_options_from_query_map(*query_vc);
+                let options = font_options_from_query_map(**query_vc);
                 let css_virtual_path = lookup_path.join(
                     format!(
                         "/{}.module.css",
@@ -197,7 +198,7 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
                 let fallback = get_font_fallbacks(lookup_path, options);
 
                 let stylesheet = build_stylesheet(
-                    font_options_from_query_map(*query_vc),
+                    font_options_from_query_map(**query_vc),
                     fallback,
                     get_font_css_properties(options, fallback),
                 )
@@ -219,7 +220,7 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
                     path,
                     preload,
                     has_size_adjust: size_adjust,
-                } = font_file_options_from_query_map(*query_vc).await?;
+                } = font_file_options_from_query_map(**query_vc).await?;
 
                 let (filename, ext) = split_extension(&path);
                 let ext = ext.with_context(|| format!("font {} needs an extension", &path))?;
@@ -259,8 +260,10 @@ async fn get_font_css_properties(
     let options = &*options_vc.await?;
 
     Ok(FontCssProperties::cell(FontCssProperties {
-        font_family: build_font_family_string(options_vc, font_fallbacks),
-        weight: Vc::cell(match &options.fonts {
+        font_family: build_font_family_string(options_vc, font_fallbacks)
+            .to_resolved()
+            .await?,
+        weight: ResolvedVc::cell(match &options.fonts {
             FontDescriptors::Many(_) => None,
             // When the user only provided a top-level font file, include the font weight in the
             // className selector rules
@@ -272,13 +275,13 @@ async fn get_font_css_properties(
                 .filter(|w| !matches!(w, FontWeight::Variable(_, _)))
                 .map(|w| w.to_string().into()),
         }),
-        style: Vc::cell(match &options.fonts {
+        style: ResolvedVc::cell(match &options.fonts {
             FontDescriptors::Many(_) => None,
             // When the user only provided a top-level font file, include the font style in the
             // className selector rules
             FontDescriptors::One(descriptor) => descriptor.style.clone(),
         }),
-        variable: Vc::cell(options.variable.clone()),
+        variable: ResolvedVc::cell(options.variable.clone()),
     }))
 }
 
@@ -316,8 +319,8 @@ async fn font_file_options_from_query_map(
 
 #[turbo_tasks::value(shared)]
 struct FontResolvingIssue {
-    font_path: Vc<RcStr>,
-    origin_path: Vc<FileSystemPath>,
+    font_path: ResolvedVc<RcStr>,
+    origin_path: ResolvedVc<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
@@ -329,7 +332,7 @@ impl Issue for FontResolvingIssue {
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        self.origin_path
+        *self.origin_path
     }
 
     #[turbo_tasks::function]

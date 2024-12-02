@@ -41,7 +41,7 @@ The `redirect` function allows you to redirect the user to another URL. You can 
 
 `redirect` is often used after a mutation or event. For example, creating a post:
 
-```tsx filename="app/actions.tsx" switcher
+```ts filename="app/actions.ts" switcher
 'use server'
 
 import { redirect } from 'next/navigation'
@@ -59,7 +59,7 @@ export async function createPost(id: string) {
 }
 ```
 
-```jsx filename="app/actions.js" switcher
+```js filename="app/actions.js" switcher
 'use server'
 
 import { redirect } from 'next/navigation'
@@ -93,7 +93,7 @@ The `permanentRedirect` function allows you to **permanently** redirect the user
 
 `permanentRedirect` is often used after a mutation or event that changes an entity's canonical URL, such as updating a user's profile URL after they change their username:
 
-```tsx filename="app/actions.ts" switcher
+```ts filename="app/actions.ts" switcher
 'use server'
 
 import { permanentRedirect } from 'next/navigation'
@@ -111,7 +111,7 @@ export async function updateUsername(username: string, formData: FormData) {
 }
 ```
 
-```jsx filename="app/actions.js" switcher
+```js filename="app/actions.js" switcher
 'use server'
 
 import { permanentRedirect } from 'next/navigation'
@@ -272,7 +272,7 @@ Middleware allows you to run code before a request is completed. Then, based on 
 
 For example, to redirect the user to a `/login` page if they are not authenticated:
 
-```tsx filename="middleware.ts" switcher
+```ts filename="middleware.ts" switcher
 import { NextResponse, NextRequest } from 'next/server'
 import { authenticate } from 'auth-provider'
 
@@ -352,7 +352,7 @@ Consider the following data structure:
 
 In [Middleware](/docs/app/building-your-application/routing/middleware), you can read from a database such as Vercel's [Edge Config](https://vercel.com/docs/storage/edge-config/get-started?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) or [Redis](https://vercel.com/docs/storage/vercel-kv?utm_source=next-site&utm_medium=docs&utm_campaign=next-website), and redirect the user based on the incoming request:
 
-```tsx filename="middleware.ts" switcher
+```ts filename="middleware.ts" switcher
 import { NextResponse, NextRequest } from 'next/server'
 import { get } from '@vercel/edge-config'
 
@@ -406,7 +406,7 @@ Considering the previous example, you can import a generated bloom filter file i
 
 If it does, forward the request to a <AppOnly>[Route Handler](/docs/app/building-your-application/routing/route-handlers)</AppOnly> <PagesOnly>[API Routes](/docs/pages/building-your-application/routing/api-routes)</PagesOnly> which will check the actual file and redirect the user to the appropriate URL. This avoids importing a large redirects file into Middleware, which can slow down every incoming request.
 
-```tsx filename="middleware.ts" switcher
+```ts filename="middleware.ts" switcher
 import { NextResponse, NextRequest } from 'next/server'
 import { ScalableBloomFilter } from 'bloom-filters'
 import GeneratedBloomFilter from './redirects/bloom-filter.json'
@@ -506,7 +506,7 @@ export async function middleware(request) {
 
 Then, in the Route Handler:
 
-```tsx filename="app/redirects/route.ts" switcher
+```ts filename="app/api/redirects/route.ts" switcher
 import { NextRequest, NextResponse } from 'next/server'
 import redirects from '@/app/redirects/redirects.json'
 
@@ -534,7 +534,7 @@ export function GET(request: NextRequest) {
 }
 ```
 
-```js filename="app/redirects/route.js" switcher
+```js filename="app/api/redirects/route.js" switcher
 import { NextResponse } from 'next/server'
 import redirects from '@/app/redirects/redirects.json'
 
@@ -563,7 +563,7 @@ export function GET(request) {
 
 Then, in the API Route:
 
-```tsx filename="pages/api/redirects.ts" switcher
+```ts filename="pages/api/redirects.ts" switcher
 import type { NextApiRequest, NextApiResponse } from 'next'
 import redirects from '@/app/redirects/redirects.json'
 

@@ -140,7 +140,9 @@ impl VersionedContentMap {
         });
 
         // Make sure all written client assets are up-to-date
-        let _ = emit_assets(assets, node_root, client_relative_path, client_output_path);
+        let _ = emit_assets(assets, node_root, client_relative_path, client_output_path)
+            .resolve()
+            .await?;
         let map_entry = Vc::cell(Some(MapEntry {
             assets_operation: assets,
             path_to_asset: entries.into_iter().collect(),
@@ -227,7 +229,7 @@ impl VersionedContentMap {
     fn raw_get(&self, path: ResolvedVc<FileSystemPath>) -> Vc<OptionMapEntry> {
         let assets = {
             let map = self.map_path_to_op.get();
-            map.get(&path).and_then(|m| m.iter().last().copied())
+            map.get(&path).and_then(|m| m.iter().next().copied())
         };
         let Some(assets) = assets else {
             return Vc::cell(None);

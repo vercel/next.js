@@ -397,7 +397,11 @@ export function getImgProps(
   if (config.unoptimized) {
     unoptimized = true
   }
-  if (isDefaultLoader && src.endsWith('.svg') && !config.dangerouslyAllowSVG) {
+  if (
+    isDefaultLoader &&
+    !config.dangerouslyAllowSVG &&
+    src.split('?', 1)[0].endsWith('.svg')
+  ) {
     // Special case to make svg serve as-is to avoid proxying
     // through the built-in Image Optimization API.
     unoptimized = true

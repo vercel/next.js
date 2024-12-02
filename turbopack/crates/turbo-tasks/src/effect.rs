@@ -1,15 +1,17 @@
-use std::{borrow::Cow, collections::HashSet, future::Future, panic, pin::Pin};
+use std::{borrow::Cow, collections::HashSet, future::Future, mem::replace, panic, pin::Pin};
 
 use anyhow::{anyhow, Result};
 use auto_hash_map::AutoSet;
 use parking_lot::Mutex;
-use tokio::task::JoinHandle;
 use tracing::{Instrument, Span};
 use turbo_tasks_macros::{TraceRawVcs, ValueDebugFormat};
 
 use crate::{
-    self as turbo_tasks, emit, manager::turbo_tasks_future_scope, CollectiblesSource, ReadRef,
-    TryJoinIterExt, Vc,
+    self as turbo_tasks, emit,
+    event::{Event, EventListener},
+    manager::turbo_tasks_future_scope,
+    util::SharedError,
+    CollectiblesSource, ReadRef, TryJoinIterExt, Vc,
 };
 
 /// A trait to emit a task effect as collectible. This trait only has one
@@ -29,30 +31,98 @@ struct EffectInner {
     span: Span,
 }
 
+enum EffectState {
+    NotStarted(EffectInner),
+    Started(Event),
+    Finished(Result<(), SharedError>),
+}
+
 /// The Effect instance collectible that is emitted for effects.
 #[turbo_tasks::value(serialization = "none", cell = "new", eq = "manual")]
 struct EffectInstance {
     #[turbo_tasks(trace_ignore, debug_ignore)]
-    inner: Mutex<Option<EffectInner>>,
+    inner: Mutex<EffectState>,
 }
 
 impl EffectInstance {
     fn new(future: impl Future<Output = Result<()>> + Send + Sync + 'static) -> Self {
         Self {
-            inner: Mutex::new(Some(EffectInner {
+            inner: Mutex::new(EffectState::NotStarted(EffectInner {
                 future: Box::pin(future),
                 span: Span::current(),
             })),
         }
     }
 
-    fn apply(&self) -> Option<JoinHandle<Result<()>>> {
-        let future = self.inner.lock().take();
-        future.map(|EffectInner { future, span }| {
-            tokio::spawn(
-                turbo_tasks_future_scope(turbo_tasks::turbo_tasks(), future).instrument(span),
-            )
-        })
+    async fn apply(&self) -> Result<()> {
+        loop {
+            enum State {
+                Started(EventListener),
+                NotStarted(EffectInner),
+            }
+            let state = {
+                let mut guard = self.inner.lock();
+                match &*guard {
+                    EffectState::Started(event) => {
+                        let listener = event.listen();
+                        State::Started(listener)
+                    }
+                    EffectState::Finished(result) => {
+                        return result.clone().map_err(Into::into);
+                    }
+                    EffectState::NotStarted(_) => {
+                        let EffectState::NotStarted(inner) = std::mem::replace(
+                            &mut *guard,
+                            EffectState::Started(Event::new(|| "Effect".to_string())),
+                        ) else {
+                            unreachable!();
+                        };
+                        State::NotStarted(inner)
+                    }
+                }
+            };
+            match state {
+                State::Started(listener) => {
+                    listener.await;
+                }
+                State::NotStarted(EffectInner { future, span }) => {
+                    let join_handle = tokio::spawn(
+                        turbo_tasks_future_scope(turbo_tasks::turbo_tasks(), future)
+                            .instrument(span),
+                    );
+                    let result = match join_handle.await {
+                        Ok(Err(err)) => Err(SharedError::new(err)),
+                        Err(err) => {
+                            let any = err.into_panic();
+                            let panic = match any.downcast::<String>() {
+                                Ok(owned) => Some(Cow::Owned(*owned)),
+                                Err(any) => match any.downcast::<&'static str>() {
+                                    Ok(str) => Some(Cow::Borrowed(*str)),
+                                    Err(_) => None,
+                                },
+                            };
+                            Err(SharedError::new(if let Some(panic) = panic {
+                                anyhow!("Task effect panicked: {panic}")
+                            } else {
+                                anyhow!("Task effect panicked")
+                            }))
+                        }
+                        Ok(Ok(())) => Ok(()),
+                    };
+                    let event = {
+                        let mut guard = self.inner.lock();
+                        let EffectState::Started(event) =
+                            replace(&mut *guard, EffectState::Finished(result.clone()))
+                        else {
+                            unreachable!();
+                        };
+                        event
+                    };
+                    event.notify(usize::MAX);
+                    return result.map_err(Into::into);
+                }
+            }
+        }
     }
 }
 
@@ -174,12 +244,16 @@ impl Eq for Effects {}
 impl Effects {
     /// Applies all effects that have been captured by this struct.
     pub async fn apply(&self) -> Result<()> {
-        let _span = tracing::info_span!("apply effects", count = self.effects.len());
-        let mut first_error = anyhow::Ok(());
-        for effect in self.effects.iter() {
-            apply_effect(effect, &mut first_error).await;
+        let span = tracing::info_span!("apply effects", count = self.effects.len());
+        async move {
+            let mut first_error = anyhow::Ok(());
+            for effect in self.effects.iter() {
+                apply_effect(effect, &mut first_error).await;
+            }
+            first_error
         }
-        first_error
+        .instrument(span)
+        .await
     }
 }
 
@@ -187,28 +261,11 @@ async fn apply_effect(
     effect: &ReadRef<EffectInstance>,
     first_error: &mut std::result::Result<(), anyhow::Error>,
 ) {
-    if let Some(join_handle) = effect.apply() {
-        match join_handle.await {
-            Ok(Err(err)) if first_error.is_ok() => {
-                *first_error = Err(err);
-            }
-            Err(err) if first_error.is_ok() => {
-                let any = err.into_panic();
-                let panic = match any.downcast::<String>() {
-                    Ok(owned) => Some(Cow::Owned(*owned)),
-                    Err(any) => match any.downcast::<&'static str>() {
-                        Ok(str) => Some(Cow::Borrowed(*str)),
-                        Err(_) => None,
-                    },
-                };
-                *first_error = Err(if let Some(panic) = panic {
-                    anyhow!("Task effect panicked: {panic}")
-                } else {
-                    anyhow!("Task effect panicked")
-                });
-            }
-            _ => {}
+    match effect.apply().await {
+        Err(err) if first_error.is_ok() => {
+            *first_error = Err(err);
         }
+        _ => {}
     }
 }
 

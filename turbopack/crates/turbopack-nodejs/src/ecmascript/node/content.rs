@@ -2,7 +2,7 @@ use std::io::Write;
 
 use anyhow::Result;
 use indoc::writedoc;
-use turbo_tasks::{ReadRef, TryJoinIterExt, Vc};
+use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::File;
 use turbopack_core::{
     asset::AssetContent,
@@ -23,18 +23,18 @@ use crate::NodeJsChunkingContext;
 
 #[turbo_tasks::value]
 pub(super) struct EcmascriptBuildNodeChunkContent {
-    pub(super) content: Vc<EcmascriptChunkContent>,
-    pub(super) chunking_context: Vc<NodeJsChunkingContext>,
-    pub(super) chunk: Vc<EcmascriptBuildNodeChunk>,
+    pub(super) content: ResolvedVc<EcmascriptChunkContent>,
+    pub(super) chunking_context: ResolvedVc<NodeJsChunkingContext>,
+    pub(super) chunk: ResolvedVc<EcmascriptBuildNodeChunk>,
 }
 
 #[turbo_tasks::value_impl]
 impl EcmascriptBuildNodeChunkContent {
     #[turbo_tasks::function]
     pub(crate) fn new(
-        chunking_context: Vc<NodeJsChunkingContext>,
-        chunk: Vc<EcmascriptBuildNodeChunk>,
-        content: Vc<EcmascriptChunkContent>,
+        chunking_context: ResolvedVc<NodeJsChunkingContext>,
+        chunk: ResolvedVc<EcmascriptBuildNodeChunk>,
+        content: ResolvedVc<EcmascriptChunkContent>,
     ) -> Vc<Self> {
         EcmascriptBuildNodeChunkContent {
             content,
@@ -76,11 +76,11 @@ impl EcmascriptBuildNodeChunkContent {
             code,
             r#"
                 module.exports = {{
-    
+
             "#,
         )?;
 
-        for (id, item_code) in chunk_items(this.content).await? {
+        for (id, item_code) in chunk_items(*this.content).await? {
             write!(code, "{}: ", StringifyJs(&id))?;
             code.push_code(&item_code);
             writeln!(code, ",")?;
@@ -113,7 +113,7 @@ impl EcmascriptBuildNodeChunkContent {
         Ok(EcmascriptBuildNodeChunkVersion::new(
             self.chunking_context.output_root(),
             self.chunk.ident().path(),
-            self.content,
+            *self.content,
             self.chunking_context.await?.minify_type(),
         ))
     }

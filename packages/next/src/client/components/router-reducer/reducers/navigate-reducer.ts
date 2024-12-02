@@ -34,6 +34,7 @@ import { handleAliasedPrefetchEntry } from '../aliased-prefetch-navigations'
 import {
   navigate as navigateUsingSegmentCache,
   NavigationResultTag,
+  type NavigationResult,
 } from '../../segment-cache/navigation'
 
 export function handleExternalUrl(
@@ -102,6 +103,50 @@ function triggerLazyFetchForLeafSegments(
   return appliedPatch
 }
 
+function handleNavigationResult(
+  state: ReadonlyReducerState,
+  mutable: Mutable,
+  pendingPush: boolean,
+  result: NavigationResult
+): ReducerState {
+  switch (result.tag) {
+    case NavigationResultTag.MPA: {
+      // Perform an MPA navigation.
+      const newUrl = result.data
+      return handleExternalUrl(state, mutable, newUrl, pendingPush)
+    }
+    case NavigationResultTag.NoOp:
+      // The server responded with no change to the current page.
+      return handleMutable(state, mutable)
+    case NavigationResultTag.Success: {
+      // Received a new result.
+      mutable.cache = result.data.cacheNode
+      mutable.patchedTree = result.data.flightRouterState
+      mutable.canonicalUrl = result.data.canonicalUrl
+      // TODO: Not yet implemented
+      // mutable.scrollableSegments = scrollableSegments
+      // mutable.hashFragment = hash
+      // mutable.shouldScroll = shouldScroll
+      return handleMutable(state, mutable)
+    }
+    case NavigationResultTag.Async: {
+      return result.data.then(
+        (asyncResult) =>
+          handleNavigationResult(state, mutable, pendingPush, asyncResult),
+        // If the navigation failed, return the current state.
+        // TODO: This matches the current behavior but we need to do something
+        // better here if the network fails.
+        () => {
+          return state
+        }
+      )
+    }
+    default:
+      const _exhaustiveCheck: never = result
+      return state
+  }
+}
+
 export function navigateReducer(
   state: ReadonlyReducerState,
   action: NavigateAction
@@ -140,47 +185,13 @@ export function navigateReducer(
     // TODO: Currently this always returns an async result, but in the future
     // it will return a sync result if the navigation was prefetched. Hence
     // a result type that's more complicated than you might expect.
-    const asyncResult = navigateUsingSegmentCache(
+    const result = navigateUsingSegmentCache(
       url,
       state.cache,
       state.tree,
       state.nextUrl
     )
-    return asyncResult.data.then(
-      (result) => {
-        switch (result.tag) {
-          case NavigationResultTag.MPA: {
-            // Perform an MPA navigation.
-            const newUrl = result.data
-            return handleExternalUrl(state, mutable, newUrl, pendingPush)
-          }
-          case NavigationResultTag.NoOp:
-            // The server responded with no change to the current page.
-            return handleMutable(state, mutable)
-          case NavigationResultTag.Success: {
-            // Received a new result.
-            mutable.cache = result.data.cacheNode
-            mutable.patchedTree = result.data.flightRouterState
-            mutable.canonicalUrl = result.data.canonicalUrl
-
-            // TODO: Not yet implemented
-            // mutable.scrollableSegments = scrollableSegments
-            // mutable.hashFragment = hash
-            // mutable.shouldScroll = shouldScroll
-            return handleMutable(state, mutable)
-          }
-          default:
-            const _exhaustiveCheck: never = result
-            return state
-        }
-      },
-      // If the navigation failed, return the current state.
-      // TODO: This matches the current behavior but we need to do something
-      // better here if the network fails.
-      () => {
-        return state
-      }
-    )
+    return handleNavigationResult(state, mutable, pendingPush, result)
   }
 
   const prefetchValues = getOrCreatePrefetchCacheEntry({

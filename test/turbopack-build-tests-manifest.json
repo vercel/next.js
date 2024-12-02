@@ -153,8 +153,8 @@
         "app-dir action handling fetch actions should handle calls to redirect() with a relative URL in a single pass",
         "app-dir action handling fetch actions should handle calls to redirect() with external URLs",
         "app-dir action handling fetch actions should handle redirects to routes that provide an invalid RSC response",
-        "app-dir action handling fetch actions should handle expirePath",
-        "app-dir action handling fetch actions should handle expireTag",
+        "app-dir action handling fetch actions should handle unstable_expirePath",
+        "app-dir action handling fetch actions should handle unstable_expireTag",
         "app-dir action handling fetch actions should invalidate client cache on other routes when cookies.set is called",
         "app-dir action handling fetch actions should invalidate client cache when path is revalidated",
         "app-dir action handling fetch actions should invalidate client cache when tag is revalidated",
@@ -210,7 +210,7 @@
         "app-dir action handling should not expose action content in sourcemaps"
       ],
       "pending": [
-        "app-dir action handling fetch actions should handle expireTag + redirect",
+        "app-dir action handling fetch actions should handle unstable_expireTag + redirect",
         "app-dir action handling server actions render client components client component imported action should support importing client components from actions"
       ],
       "flakey": [],
@@ -1269,20 +1269,20 @@
       "runtimeError": false
     },
     "test/e2e/app-dir/app/standalone-gsp.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "output: standalone with getStaticProps should work correctly with output standalone"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/e2e/app-dir/app/standalone.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "output: standalone with app dir should handle trace files correctly for route groups (nodejs only)",
         "output: standalone with app dir should work correctly with output standalone"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -2665,11 +2665,10 @@
         "app dir - not-found - basic with default runtime should use the not-found page for non-matching routes",
         "app dir - not-found - basic with runtime = edge should escalate notFound to parent layout if no not-found boundary present in current layer",
         "app dir - not-found - basic with runtime = edge should match dynamic route not-found boundary correctly",
-        "app dir - not-found - basic with runtime = edge should use the not-found page for non-matching routes"
-      ],
-      "failed": [
+        "app dir - not-found - basic with runtime = edge should use the not-found page for non-matching routes",
         "app dir - not-found - basic should include not found client reference manifest in the file trace"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -3448,7 +3447,7 @@
     },
     "test/e2e/app-dir/revalidate-dynamic/revalidate-dynamic.test.ts": {
       "passed": [
-        "app-dir revalidate-dynamic should correctly mark a route handler that uses expireTag as dynamic",
+        "app-dir revalidate-dynamic should correctly mark a route handler that uses unstable_expireTag as dynamic",
         "app-dir revalidate-dynamic should revalidate the data with /api/revalidate-path",
         "app-dir revalidate-dynamic should revalidate the data with /api/revalidate-tag"
       ],
@@ -4683,11 +4682,10 @@
         "edge-render-getserversideprops should have correct query/params on rewrite",
         "edge-render-getserversideprops should have data routes in routes-manifest",
         "edge-render-getserversideprops should respond to _next/data for [id] correctly",
-        "edge-render-getserversideprops should respond to _next/data for index correctly"
-      ],
-      "failed": [
+        "edge-render-getserversideprops should respond to _next/data for index correctly",
         "edge-render-getserversideprops should not output trace files for edge routes"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -6052,9 +6050,10 @@
       "passed": [
         "prerender native module should render /blog/first correctly",
         "prerender native module should render /blog/second correctly",
-        "prerender native module should render index correctly"
+        "prerender native module should render index correctly",
+        "prerender native module should output traces"
       ],
-      "failed": ["prerender native module should output traces"],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -6136,12 +6135,10 @@
         "Prerender should support prerendered catchall-explicit route (nested)",
         "Prerender should support prerendered catchall-explicit route (single)",
         "Prerender should use correct caching headers for a no-revalidate page",
-        "Prerender should use correct caching headers for a revalidate page"
-      ],
-      "failed": [
-        "Prerender should handle fallback only page correctly HTML",
+        "Prerender should use correct caching headers for a revalidate page",
         "Prerender should output traces"
       ],
+      "failed": ["Prerender should handle fallback only page correctly HTML"],
       "pending": [
         "Prerender should reload page on failed data request, and retry"
       ],
@@ -6299,10 +6296,10 @@
         "streaming SSR with custom next configs should render styled-jsx styles in streaming",
         "streaming SSR with custom server should render page correctly under custom server"
       ],
-      "failed": [
+      "failed": [],
+      "pending": [
         "react 18 streaming SSR in minimal mode with node runtime should pass correct nextRuntime values"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -7847,10 +7844,10 @@
       "runtimeError": false
     },
     "test/integration/css-minify/test/index.test.js": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "css-minify production mode should minify correctly by removing whitespace"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -12675,11 +12672,10 @@
     "test/integration/jsconfig-baseurl/test/index.test.js": {
       "passed": [
         "jsconfig.json baseurl default behavior should have correct module not found error",
-        "jsconfig.json baseurl default behavior should render the page"
-      ],
-      "failed": [
+        "jsconfig.json baseurl default behavior should render the page",
         "jsconfig.json baseurl should build production mode should trace correctly"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -12714,12 +12710,11 @@
         "jsconfig paths without baseurl default behavior should have correct module not found error",
         "jsconfig paths without baseurl default behavior should resolve a single matching alias",
         "jsconfig paths without baseurl default behavior should resolve the first item in the array first",
-        "jsconfig paths without baseurl default behavior should resolve the second item as fallback"
-      ],
-      "failed": [
+        "jsconfig paths without baseurl default behavior should resolve the second item as fallback",
         "jsconfig paths should build production mode should trace correctly",
         "jsconfig paths without baseurl should build production mode should trace correctly"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -16481,11 +16476,10 @@
     },
     "test/production/pnpm-support/index.test.ts": {
       "passed": [
-        "pnpm support should build with dependencies installed via pnpm"
-      ],
-      "failed": [
+        "pnpm support should build with dependencies installed via pnpm",
         "pnpm support should execute client-side JS on each page in output: \"standalone\""
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -16551,10 +16545,10 @@
       "runtimeError": false
     },
     "test/production/standalone-mode/ipv6/index.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "standalone mode: ipv6 hostname should load the page without any errors"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -16576,8 +16570,7 @@
       "runtimeError": false
     },
     "test/production/standalone-mode/required-server-files/required-server-files-app.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "required server files app router should send the right cache headers for an app route",
         "required server files app router should send the right cache headers for an app page",
         "required server files app router should not fail caching",
@@ -16587,13 +16580,13 @@
         "required server files app router should properly handle prerender for bot request",
         "required server files app router should send cache tags in minimal mode for ISR"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/production/standalone-mode/required-server-files/required-server-files-i18n.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "required server files i18n should bubble error correctly for API page",
         "required server files i18n should bubble error correctly for gip page",
         "required server files i18n should bubble error correctly for gsp page",
@@ -16624,13 +16617,13 @@
         "required server files i18n should set correct SWR headers with notFound gsp",
         "required server files i18n should set correct SWR headers with notFound gssp"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/production/standalone-mode/required-server-files/required-server-files-ppr.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "required server files app router middleware rewrite should work with a dynamic path",
         "required server files app router middleware rewrite should work with a dynamic path with Next-Resume",
         "required server files app router should handle RSC requests",
@@ -16649,13 +16642,13 @@
         "required server files app router should still render when postponed is corrupted without Next-Resume",
         "required server files app router should handle revalidating the fallback page"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/production/standalone-mode/required-server-files/required-server-files.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "required server files `cacheHandler` should have correct path",
         "required server files `cacheMaxMemorySize` should be disabled by setting to 0",
         "required server files `compress` should be `false` in nextEnv",
@@ -16709,18 +16702,19 @@
         "required server files should warn when \"next\" is imported directly",
         "required server files without minimalMode, with wasm should run middleware correctly"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/production/standalone-mode/response-cache/index.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "minimal-mode-response-cache app router revalidate should work with previous response cache",
         "minimal-mode-response-cache app router revalidate should work with previous response cache dynamic",
         "minimal-mode-response-cache should have correct \"Started server on\" log",
         "minimal-mode-response-cache should have correct responses"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false

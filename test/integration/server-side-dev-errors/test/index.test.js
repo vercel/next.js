@@ -10,6 +10,7 @@ import {
   launchApp,
   retry,
   getRedboxSource,
+  assertNoRedbox,
 } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
@@ -93,7 +94,7 @@ describe('server-side dev errors', () => {
 
       expect(await getRedboxSource(browser)).toContain('missingVar')
       await fs.writeFile(gspPage, content, { flush: true })
-      await assertHasRedbox(browser)
+      await assertNoRedbox(browser)
     } finally {
       await fs.writeFile(gspPage, content)
     }
@@ -146,7 +147,7 @@ describe('server-side dev errors', () => {
 
       expect(await getRedboxSource(browser)).toContain('missingVar')
       await fs.writeFile(gsspPage, content)
-      await assertHasRedbox(browser)
+      await assertNoRedbox(browser)
     } finally {
       await fs.writeFile(gsspPage, content)
     }

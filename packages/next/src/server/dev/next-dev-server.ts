@@ -325,8 +325,6 @@ export default class DevServer extends Server {
     })
   }
 
-  protected async close(): Promise<void> {}
-
   protected async hasPage(pathname: string): Promise<boolean> {
     let normalizedPath: string
     try {
@@ -765,6 +763,7 @@ export default class DevServer extends Server {
             publicRuntimeConfig,
             serverRuntimeConfig,
             dynamicIO: Boolean(this.nextConfig.experimental.dynamicIO),
+            after: Boolean(this.nextConfig.experimental.after),
           },
           httpAgentOptions,
           locales,
@@ -779,6 +778,7 @@ export default class DevServer extends Server {
           maxMemoryCacheSize: this.nextConfig.cacheMaxMemorySize,
           nextConfigOutput: this.nextConfig.output,
           buildId: this.renderOpts.buildId,
+          authInterrupts: !!this.nextConfig.experimental.authInterrupts,
         })
         return pathsResult
       } finally {

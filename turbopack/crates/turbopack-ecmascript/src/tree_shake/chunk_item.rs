@@ -1,5 +1,6 @@
 use anyhow::Result;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::{ResolvedVc, ValueDefault, ValueToString, Vc};
+use turbo_tasks_fs::rope::RopeBuilder;
 use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkingContext},
     ident::AssetIdent,
@@ -9,7 +10,13 @@ use turbopack_core::{
 
 use super::{asset::EcmascriptModulePartAsset, part_of_module, split_module};
 use crate::{
-    chunk::{EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkType},
+    chunk::{
+        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemOptions,
+        EcmascriptChunkPlaceable, EcmascriptChunkType,
+    },
+    references::async_module::AsyncModuleOptions,
+    tree_shake::side_effect_module::SideEffectsModule,
+    utils::StringifyJs,
     EcmascriptModuleContent,
 };
 
@@ -53,7 +60,7 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
             *analyze.references,
             *analyze.code_generation,
             *analyze.async_module,
-            analyze.source_map,
+            *analyze.source_map,
             *analyze.exports,
             async_module_info,
         );
@@ -104,5 +111,110 @@ impl ChunkItem for EcmascriptModulePartChunkItem {
     #[turbo_tasks::function]
     fn is_self_async(&self) -> Vc<bool> {
         self.module.is_async_module()
+    }
+}
+
+#[turbo_tasks::value(shared)]
+pub(super) struct SideEffectsModuleChunkItem {
+    pub module: ResolvedVc<SideEffectsModule>,
+    pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+}
+
+#[turbo_tasks::value_impl]
+impl ChunkItem for SideEffectsModuleChunkItem {
+    #[turbo_tasks::function]
+    fn references(&self) -> Vc<ModuleReferences> {
+        self.module.references()
+    }
+
+    #[turbo_tasks::function]
+    fn asset_ident(&self) -> Vc<AssetIdent> {
+        self.module.ident()
+    }
+
+    #[turbo_tasks::function]
+    fn ty(&self) -> Vc<Box<dyn ChunkType>> {
+        Vc::upcast(EcmascriptChunkType::value_default())
+    }
+
+    #[turbo_tasks::function]
+    fn module(&self) -> Vc<Box<dyn Module>> {
+        *ResolvedVc::upcast(self.module)
+    }
+
+    #[turbo_tasks::function]
+    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
+        *self.chunking_context
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl EcmascriptChunkItem for SideEffectsModuleChunkItem {
+    #[turbo_tasks::function]
+    async fn content(&self) -> Result<Vc<EcmascriptChunkItemContent>> {
+        let mut code = RopeBuilder::default();
+        let mut has_top_level_await = false;
+
+        let module = self.module.await?;
+
+        for &side_effect in self.module.await?.side_effects.iter() {
+            let need_await = 'need_await: {
+                let async_module = *side_effect.get_async_module().await?;
+                if let Some(async_module) = async_module {
+                    if async_module.await?.has_top_level_await {
+                        break 'need_await true;
+                    }
+                }
+                false
+            };
+
+            if !has_top_level_await && need_await {
+                has_top_level_await = true;
+            }
+
+            code.push_bytes(
+                format!(
+                    "{}__turbopack_import__({});\n",
+                    if need_await { "await " } else { "" },
+                    StringifyJs(&*side_effect.ident().to_string().await?)
+                )
+                .as_bytes(),
+            );
+        }
+
+        code.push_bytes(
+            format!(
+                "__turbopack_export_namespace__(__turbopack_import__({}));\n",
+                StringifyJs(&*module.resolved_as.ident().to_string().await?)
+            )
+            .as_bytes(),
+        );
+
+        let code = code.build();
+
+        Ok(EcmascriptChunkItemContent {
+            inner_code: code,
+            source_map: None,
+            rewrite_source_path: None,
+            options: EcmascriptChunkItemOptions {
+                strict: true,
+                exports: true,
+                async_module: if has_top_level_await {
+                    Some(AsyncModuleOptions {
+                        has_top_level_await: true,
+                    })
+                } else {
+                    None
+                },
+                ..Default::default()
+            },
+            placeholder_for_future_extensions: (),
+        }
+        .cell())
+    }
+
+    #[turbo_tasks::function]
+    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
+        *self.chunking_context
     }
 }

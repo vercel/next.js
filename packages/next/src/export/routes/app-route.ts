@@ -47,7 +47,9 @@ export async function exportAppRoute(
       },
   htmlFilepath: string,
   fileWriter: FileWriter,
-  experimental: Required<Pick<ExperimentalConfig, 'after' | 'dynamicIO'>>,
+  experimental: Required<
+    Pick<ExperimentalConfig, 'after' | 'dynamicIO' | 'authInterrupts'>
+  >,
   buildId: string
 ): Promise<ExportRouteResult> {
   // Ensure that the URL is absolute.

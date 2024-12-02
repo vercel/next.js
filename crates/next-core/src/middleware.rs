@@ -49,7 +49,7 @@ pub async fn get_middleware_module(
     let module = asset_context
         .process(
             source,
-            Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
+            Value::new(ReferenceType::Internal(ResolvedVc::cell(inner_assets))),
         )
         .module();
 

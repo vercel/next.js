@@ -67,7 +67,7 @@ type ViewportResolver = (
   parent: ResolvingViewport
 ) => Viewport | Promise<Viewport>
 
-export type MetadataErrorType = 'not-found'
+export type MetadataErrorType = 'not-found' | 'forbidden' | 'unauthorized'
 
 export type MetadataItems = [
   Metadata | MetadataResolver | null,
@@ -131,7 +131,7 @@ function mergeStaticMetadata(
     const resolvedTwitter = resolveTwitter(
       { ...target.twitter, images: twitter } as Twitter,
       target.metadataBase,
-      metadataContext,
+      { ...metadataContext, isStaticMetadataRouteFile: true },
       titleTemplates.twitter
     )
     target.twitter = resolvedTwitter
@@ -142,7 +142,7 @@ function mergeStaticMetadata(
     const resolvedOpenGraph = resolveOpenGraph(
       { ...target.openGraph, images: openGraph } as OpenGraph,
       target.metadataBase,
-      metadataContext,
+      { ...metadataContext, isStaticMetadataRouteFile: true },
       titleTemplates.openGraph
     )
     target.openGraph = resolvedOpenGraph

@@ -37,11 +37,12 @@ export const CallStackFrame: React.FC<{
 
   return (
     <div data-nextjs-call-stack-frame>
-      <h3 data-nextjs-frame-expanded={Boolean(frame.expanded)}>
+      <h3 data-nextjs-frame-expanded={!frame.ignored}>
         <HotlinkedText text={formattedMethod} />
       </h3>
       <div
         data-has-source={hasSource ? 'true' : undefined}
+        data-no-source={hasSource ? undefined : 'true'}
         tabIndex={hasSource ? 10 : undefined}
         role={hasSource ? 'link' : undefined}
         onClick={open}

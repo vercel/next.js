@@ -25,6 +25,7 @@ use turbopack_core::{
 use turbopack_ecmascript::chunk::EcmascriptChunkPlaceable;
 
 use crate::{
+    nft_json::NftJsonAsset,
     paths::{
         all_server_paths, get_js_paths_from_root, get_wasm_paths_from_root, wasm_paths_to_bindings,
     },
@@ -34,25 +35,25 @@ use crate::{
 
 #[turbo_tasks::value]
 pub struct InstrumentationEndpoint {
-    project: Vc<Project>,
-    asset_context: Vc<Box<dyn AssetContext>>,
-    source: Vc<Box<dyn Source>>,
+    project: ResolvedVc<Project>,
+    asset_context: ResolvedVc<Box<dyn AssetContext>>,
+    source: ResolvedVc<Box<dyn Source>>,
     is_edge: bool,
 
     app_dir: Option<ResolvedVc<FileSystemPath>>,
-    ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
+    ecmascript_client_reference_transition_name: Option<ResolvedVc<RcStr>>,
 }
 
 #[turbo_tasks::value_impl]
 impl InstrumentationEndpoint {
     #[turbo_tasks::function]
     pub fn new(
-        project: Vc<Project>,
-        asset_context: Vc<Box<dyn AssetContext>>,
-        source: Vc<Box<dyn Source>>,
+        project: ResolvedVc<Project>,
+        asset_context: ResolvedVc<Box<dyn AssetContext>>,
+        source: ResolvedVc<Box<dyn Source>>,
         is_edge: bool,
         app_dir: Option<ResolvedVc<FileSystemPath>>,
-        ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
+        ecmascript_client_reference_transition_name: Option<ResolvedVc<RcStr>>,
     ) -> Vc<Self> {
         Self {
             project,
@@ -70,7 +71,7 @@ impl InstrumentationEndpoint {
         let userland_module = self
             .asset_context
             .process(
-                self.source,
+                *self.source,
                 Value::new(ReferenceType::Entry(EntryReferenceSubType::Instrumentation)),
             )
             .module()
@@ -78,7 +79,7 @@ impl InstrumentationEndpoint {
             .await?;
 
         let edge_entry_module = wrap_edge_entry(
-            self.asset_context,
+            *self.asset_context,
             self.project.project_path(),
             *userland_module,
             "instrumentation".into(),
@@ -91,6 +92,15 @@ impl InstrumentationEndpoint {
             edge_entry_module,
         }
         .cell())
+    }
+
+    #[turbo_tasks::function]
+    async fn entry_module(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
+        if self.await?.is_edge {
+            Ok(*self.core_modules().await?.edge_entry_module)
+        } else {
+            Ok(*self.core_modules().await?.userland_module)
+        }
     }
 
     #[turbo_tasks::function]
@@ -107,7 +117,7 @@ impl InstrumentationEndpoint {
             }),
             this.project.next_mode(),
         )
-        .resolve_entries(this.asset_context)
+        .resolve_entries(*this.asset_context)
         .await?
         .clone_value();
 
@@ -159,7 +169,7 @@ impl InstrumentationEndpoint {
                     }),
                     this.project.next_mode(),
                 )
-                .resolve_entries(this.asset_context),
+                .resolve_entries(*this.asset_context),
                 OutputAssets::empty(),
                 Value::new(AvailabilityInfo::Root),
             )
@@ -211,7 +221,16 @@ impl InstrumentationEndpoint {
 
             Ok(Vc::cell(output_assets))
         } else {
-            Ok(Vc::cell(vec![self.node_chunk().to_resolved().await?]))
+            let chunk = self.node_chunk().to_resolved().await?;
+            let mut output_assets = vec![chunk];
+            if this.project.next_mode().await?.is_production() {
+                output_assets.push(ResolvedVc::upcast(
+                    NftJsonAsset::new(*this.project, *chunk, vec![])
+                        .to_resolved()
+                        .await?,
+                ));
+            }
+            Ok(Vc::cell(output_assets))
         }
     }
 }
@@ -231,12 +250,20 @@ impl Endpoint for InstrumentationEndpoint {
             let this = self.await?;
             let output_assets = self.output_assets();
             let _ = output_assets.resolve().await?;
-            let _ = this.project.emit_all_output_assets(Vc::cell(output_assets));
+            let _ = this
+                .project
+                .emit_all_output_assets(Vc::cell(output_assets))
+                .resolve()
+                .await?;
 
-            let node_root = this.project.node_root();
-            let server_paths = all_server_paths(output_assets, node_root)
-                .await?
-                .clone_value();
+            let server_paths = if this.project.next_mode().await?.is_development() {
+                let node_root = this.project.node_root();
+                all_server_paths(output_assets, node_root)
+                    .await?
+                    .clone_value()
+            } else {
+                vec![]
+            };
 
             Ok(WrittenEndpoint::Edge {
                 server_paths,

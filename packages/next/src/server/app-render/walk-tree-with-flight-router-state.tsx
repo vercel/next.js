@@ -160,6 +160,7 @@ export async function walkTreeWithFlightRouterState({
           rootLayoutIncluded,
           getMetadataReady,
           preloadCallbacks,
+          authInterrupts: experimental.authInterrupts,
         }
       )
 

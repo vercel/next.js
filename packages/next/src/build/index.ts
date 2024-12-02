@@ -79,6 +79,7 @@ import {
   FUNCTIONS_CONFIG_MANIFEST,
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
   UNDERSCORE_NOT_FOUND_ROUTE,
+  DYNAMIC_CSS_MANIFEST,
 } from '../shared/lib/constants'
 import {
   getSortedRoutes,
@@ -216,6 +217,10 @@ import { inlineStaticEnv } from './flying-shuttle/inline-static-env'
 import { FallbackMode, fallbackModeToFallbackField } from '../lib/fallback'
 import { RenderingMode } from './rendering-mode'
 import { getParamKeys } from '../server/request/fallback-params'
+import {
+  formatNodeOptions,
+  getParsedNodeOptionsWithoutInspect,
+} from '../server/lib/utils'
 
 type Fallback = null | boolean | string
 
@@ -684,6 +689,12 @@ export function createStaticWorker(
     clear: () => void
   }
 ): StaticWorker {
+  // Get the node options without inspect and also remove the
+  // --max-old-space-size flag as it can cause memory issues.
+  const nodeOptions = getParsedNodeOptionsWithoutInspect()
+  delete nodeOptions['max-old-space-size']
+  delete nodeOptions['max_old_space_size']
+
   return new Worker(staticWorkerPath, {
     logger: Log,
     numWorkers: getNumberOfWorkers(config),
@@ -694,7 +705,7 @@ export function createStaticWorker(
       progress?.clear()
     },
     forkOptions: {
-      env: process.env,
+      env: { ...process.env, NODE_OPTIONS: formatNodeOptions(nodeOptions) },
     },
     enableWorkerThreads: config.experimental.workerThreads,
     exposedMethods: staticWorkerExposedMethods,
@@ -1260,6 +1271,10 @@ export default async function build(
       )
 
       const isAppDynamicIOEnabled = Boolean(config.experimental.dynamicIO)
+      const isAfterEnabled = Boolean(config.experimental.after)
+      const isAuthInterruptsEnabled = Boolean(
+        config.experimental.authInterrupts
+      )
       const isAppPPREnabled = checkIsAppPPREnabled(config.experimental.ppr)
 
       const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
@@ -1989,6 +2004,8 @@ export default async function build(
               configFileName,
               runtimeEnvConfig,
               dynamicIO: isAppDynamicIOEnabled,
+              after: isAfterEnabled,
+              authInterrupts: isAuthInterruptsEnabled,
               httpAgentOptions: config.httpAgentOptions,
               locales: config.i18n?.locales,
               defaultLocale: config.i18n?.defaultLocale,
@@ -2212,6 +2229,8 @@ export default async function build(
                             edgeInfo,
                             pageType,
                             dynamicIO: isAppDynamicIOEnabled,
+                            after: isAfterEnabled,
+                            authInterrupts: isAuthInterruptsEnabled,
                             cacheHandler: config.cacheHandler,
                             cacheHandlers: config.experimental.cacheHandlers,
                             isrFlushToDisk: ciEnvironment.hasNextSupport
@@ -2593,6 +2612,12 @@ export default async function build(
                       SERVER_DIRECTORY,
                       SERVER_REFERENCE_MANIFEST + '.json'
                     ),
+                  ]
+                : []),
+              ...(pagesDir && !turboNextBuild
+                ? [
+                    DYNAMIC_CSS_MANIFEST + '.json',
+                    path.join(SERVER_DIRECTORY, DYNAMIC_CSS_MANIFEST + '.js'),
                   ]
                 : []),
               REACT_LOADABLE_MANIFEST,

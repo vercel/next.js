@@ -66,9 +66,9 @@ import {
 } from '../../client/components/http-access-fallback/http-access-fallback'
 import {
   getURLFromRedirectError,
-  isRedirectError,
   getRedirectStatusCodeFromError,
 } from '../../client/components/redirect'
+import { isRedirectError } from '../../client/components/redirect-error'
 import { getImplicitTags } from '../lib/implicit-tags'
 import { AppRenderSpan, NextNodeServerSpan } from '../lib/trace/constants'
 import { getTracer } from '../lib/trace/tracer'
@@ -760,6 +760,7 @@ async function getRSCPayload(
     getMetadataReady,
     missingSlots,
     preloadCallbacks,
+    authInterrupts: ctx.renderOpts.experimental.authInterrupts,
   })
 
   // When the `vary` response header is present with `Next-URL`, that means there's a chance

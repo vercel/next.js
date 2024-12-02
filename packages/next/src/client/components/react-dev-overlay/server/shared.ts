@@ -10,7 +10,7 @@ import isInternal, {
 export type SourcePackage = 'react' | 'next'
 
 export interface OriginalStackFrameResponse {
-  originalStackFrame?: StackFrame | null
+  originalStackFrame?: (StackFrame & { ignored: boolean }) | null
   originalCodeFrame?: string | null
   /** We use this to group frames in the error overlay */
   sourcePackage?: SourcePackage | null

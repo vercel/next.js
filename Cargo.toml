@@ -43,6 +43,7 @@ auto-hash-map = { path = "turbopack/crates/turbo-tasks-auto-hash-map" }
 swc-ast-explorer = { path = "turbopack/crates/turbopack-swc-ast-explorer" }
 turbo-prehash = { path = "turbopack/crates/turbo-prehash" }
 turbo-rcstr = { path = "turbopack/crates/turbo-rcstr" }
+turbo-persistence = { path = "turbopack/crates/turbo-persistence" }
 turbo-tasks-malloc = { path = "turbopack/crates/turbo-tasks-malloc", default-features = false }
 turbo-tasks = { path = "turbopack/crates/turbo-tasks" }
 turbo-tasks-backend = { path = "turbopack/crates/turbo-tasks-backend" }
@@ -146,7 +147,7 @@ indoc = "2.0.0"
 itertools = "0.10.5"
 lazy_static = "1.4.0"
 log = "0.4.17"
-lightningcss = { version = "1.0.0-alpha.60", features = [
+lightningcss = { version = "1.0.0-alpha.61", features = [
   "serde",
   "visitor",
   "into_owned",

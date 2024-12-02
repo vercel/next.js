@@ -265,7 +265,7 @@ export type LoadedRenderOpts = RenderOpts &
 
 export type RequestLifecycleOpts = {
   waitUntil: ((promise: Promise<any>) => void) | undefined
-  onClose: ((callback: () => void) => void) | undefined
+  onClose: (callback: () => void) => void
   onAfterTaskError: ((error: unknown) => void) | undefined
 }
 
@@ -593,6 +593,8 @@ export default abstract class Server<
         clientTraceMetadata: this.nextConfig.experimental.clientTraceMetadata,
         after: this.nextConfig.experimental.after ?? false,
         dynamicIO: this.nextConfig.experimental.dynamicIO ?? false,
+        inlineCss: this.nextConfig.experimental.inlineCss ?? false,
+        authInterrupts: !!this.nextConfig.experimental.authInterrupts,
       },
       onInstrumentationRequestError:
         this.instrumentationOnRequestError.bind(this),
@@ -1628,8 +1630,7 @@ export default abstract class Server<
   protected async prepareImpl(): Promise<void> {}
   protected async loadInstrumentationModule(): Promise<any> {}
 
-  // Backwards compatibility
-  protected async close(): Promise<void> {}
+  public async close(): Promise<void> {}
 
   protected getAppPathRoutes(): Record<string, string[]> {
     const appPathRoutes: Record<string, string[]> = {}
@@ -1783,14 +1784,11 @@ export default abstract class Server<
       return undefined
     }
 
-    // we're in `next start` or `next dev`. noop is fine for both.
-    return Server.noopWaitUntil
+    return this.getInternalWaitUntil()
   }
 
-  private static noopWaitUntil(promise: Promise<any>) {
-    promise.catch((err: unknown) => {
-      console.error(err)
-    })
+  protected getInternalWaitUntil(): WaitUntil | undefined {
+    return undefined
   }
 
   private async renderImpl(
@@ -2480,6 +2478,7 @@ export default abstract class Server<
               experimental: {
                 after: renderOpts.experimental.after,
                 dynamicIO: renderOpts.experimental.dynamicIO,
+                authInterrupts: renderOpts.experimental.authInterrupts,
               },
               supportsDynamicResponse,
               incrementalCache,

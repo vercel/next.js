@@ -24,7 +24,7 @@ use crate::{
 #[turbo_tasks::function]
 pub fn node_build_environment() -> Vc<Environment> {
     Environment::new(Value::new(ExecutionEnvironment::NodeJsBuildTime(
-        NodeJsEnvironment::default().cell(),
+        NodeJsEnvironment::default().resolved_cell(),
     )))
 }
 
@@ -91,16 +91,17 @@ pub async fn node_evaluate_asset_context(
 
     Ok(Vc::upcast(ModuleAssetContext::new(
         transitions.unwrap_or_default(),
-        CompileTimeInfo::builder(node_build_environment())
+        CompileTimeInfo::builder(node_build_environment().to_resolved().await?)
             .defines(
                 compile_time_defines!(
                     process.turbopack = true,
                     process.env.NODE_ENV = node_env.into_owned(),
                     process.env.TURBOPACK = true
                 )
-                .cell(),
+                .resolved_cell(),
             )
-            .cell(),
+            .cell()
+            .await?,
         ModuleOptionsContext {
             tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
             ecmascript: EcmascriptOptionsContext {

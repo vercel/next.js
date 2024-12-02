@@ -1895,6 +1895,7 @@ export default async function getBaseWebpackConfig(
           ? new ClientReferenceManifestPlugin({
               dev,
               appDir,
+              experimentalInlineCss: !!config.experimental.inlineCss,
             })
           : new FlightClientEntryPlugin({
               appDir,
@@ -1926,6 +1927,7 @@ export default async function getBaseWebpackConfig(
         }),
       !dev &&
         isClient &&
+        config.experimental.cssChunking &&
         new CssChunkingPlugin(config.experimental.cssChunking === 'strict'),
       !dev &&
         isClient &&

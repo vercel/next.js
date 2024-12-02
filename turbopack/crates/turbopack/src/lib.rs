@@ -10,7 +10,6 @@
 pub mod evaluate_context;
 mod graph;
 pub mod module_options;
-pub mod rebase;
 pub mod transition;
 pub(crate) mod unsupported_sass;
 
@@ -38,17 +37,20 @@ use turbopack_core::{
     asset::Asset,
     compile_time_info::CompileTimeInfo,
     context::{AssetContext, ProcessResult},
+    environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     issue::{module::ModuleIssue, IssueExt, StyledString},
     module::Module,
     output::OutputAsset,
     raw_module::RawModule,
+    reference::{ModuleReference, TracedModuleReference},
     reference_type::{
         CssReferenceSubType, EcmaScriptModulesReferenceSubType, ImportWithType, InnerAssets,
         ReferenceType,
     },
     resolve::{
-        options::ResolveOptions, origin::PlainResolveOrigin, parse::Request, resolve, ExternalType,
-        ModulePart, ModuleResolveResult, ModuleResolveResultItem, ResolveResult,
+        options::ResolveOptions, origin::PlainResolveOrigin, parse::Request, resolve,
+        ExternalTraced, ExternalType, ModulePart, ModuleResolveResult, ModuleResolveResultItem,
+        ResolveResult, ResolveResultItem,
     },
     source::Source,
 };
@@ -69,7 +71,7 @@ use crate::module_options::CustomModuleType;
 
 #[turbo_tasks::function]
 async fn apply_module_type(
-    source: Vc<Box<dyn Source>>,
+    source: ResolvedVc<Box<dyn Source>>,
     module_asset_context: Vc<ModuleAssetContext>,
     module_type: Vc<ModuleType>,
     reference_type: Value<ReferenceType>,
@@ -101,13 +103,18 @@ async fn apply_module_type(
                     module_asset_context.with_types_resolving_enabled()
                 }
                 _ => module_asset_context,
-            };
+            }
+            .to_resolved()
+            .await?;
             let mut builder = EcmascriptModuleAsset::builder(
                 source,
-                Vc::upcast(context_for_module),
+                ResolvedVc::upcast(context_for_module),
                 *transforms,
-                **options,
-                module_asset_context.compile_time_info(),
+                *options,
+                module_asset_context
+                    .compile_time_info()
+                    .to_resolved()
+                    .await?,
             );
             match module_type {
                 ModuleType::Ecmascript { .. } => {
@@ -218,22 +225,22 @@ async fn apply_module_type(
                 .await?
             }
         }
-        ModuleType::Json => ResolvedVc::upcast(JsonModuleAsset::new(source).to_resolved().await?),
-        ModuleType::Raw => ResolvedVc::upcast(RawModule::new(source).to_resolved().await?),
+        ModuleType::Json => ResolvedVc::upcast(JsonModuleAsset::new(*source).to_resolved().await?),
+        ModuleType::Raw => ResolvedVc::upcast(RawModule::new(*source).to_resolved().await?),
         ModuleType::CssGlobal => {
             return Ok(module_asset_context.process(
-                source,
+                *source,
                 Value::new(ReferenceType::Css(CssReferenceSubType::Internal)),
             ))
         }
         ModuleType::CssModule => ResolvedVc::upcast(
-            ModuleCssAsset::new(source, Vc::upcast(module_asset_context))
+            ModuleCssAsset::new(*source, Vc::upcast(module_asset_context))
                 .to_resolved()
                 .await?,
         ),
         ModuleType::Css { ty } => ResolvedVc::upcast(
             CssModuleAsset::new(
-                source,
+                *source,
                 Vc::upcast(module_asset_context),
                 *ty,
                 module_asset_context
@@ -244,7 +251,7 @@ async fn apply_module_type(
                 if let ReferenceType::Css(CssReferenceSubType::AtImport(import)) =
                     reference_type.into_value()
                 {
-                    import
+                    import.map(|v| *v)
                 } else {
                     None
                 },
@@ -253,13 +260,13 @@ async fn apply_module_type(
             .await?,
         ),
         ModuleType::Static => ResolvedVc::upcast(
-            StaticModuleAsset::new(source, Vc::upcast(module_asset_context))
+            StaticModuleAsset::new(*source, Vc::upcast(module_asset_context))
                 .to_resolved()
                 .await?,
         ),
         ModuleType::WebAssembly { source_ty } => ResolvedVc::upcast(
             WebAssemblyModuleAsset::new(
-                WebAssemblySource::new(source, *source_ty),
+                WebAssemblySource::new(*source, *source_ty),
                 Vc::upcast(module_asset_context),
             )
             .to_resolved()
@@ -267,7 +274,7 @@ async fn apply_module_type(
         ),
         ModuleType::Custom(custom) => {
             custom
-                .create_module(source, module_asset_context, part)
+                .create_module(*source, module_asset_context, part)
                 .to_resolved()
                 .await?
         }
@@ -287,19 +294,25 @@ async fn apply_reexport_tree_shaking(
             module: final_module,
             export_name: new_export,
             ..
-        } = &*follow_reexports(module, export.clone_value(), side_effect_free_packages).await?;
+        } = &*follow_reexports(
+            module,
+            export.clone_value(),
+            side_effect_free_packages,
+            false,
+        )
+        .await?;
         let module = if let Some(new_export) = new_export {
             if *new_export == *export {
-                Vc::upcast(*final_module)
+                Vc::upcast(**final_module)
             } else {
                 Vc::upcast(EcmascriptModuleFacadeModule::new(
-                    *final_module,
+                    **final_module,
                     ModulePart::renamed_export(new_export.clone(), export.clone_value()),
                 ))
             }
         } else {
             Vc::upcast(EcmascriptModuleFacadeModule::new(
-                *final_module,
+                **final_module,
                 ModulePart::renamed_namespace(export.clone_value()),
             ))
         };
@@ -562,7 +575,11 @@ async fn process_default_internal(
                                 transforms,
                                 options,
                             }) => Some(ModuleType::Ecmascript {
-                                transforms: prepend.extend(transforms).extend(**append),
+                                transforms: prepend
+                                    .extend(*transforms)
+                                    .extend(**append)
+                                    .to_resolved()
+                                    .await?,
                                 options,
                             }),
                             Some(ModuleType::Typescript {
@@ -571,7 +588,11 @@ async fn process_default_internal(
                                 analyze_types,
                                 options,
                             }) => Some(ModuleType::Typescript {
-                                transforms: prepend.extend(transforms).extend(**append),
+                                transforms: prepend
+                                    .extend(*transforms)
+                                    .extend(**append)
+                                    .to_resolved()
+                                    .await?,
                                 tsx,
                                 analyze_types,
                                 options,
@@ -623,8 +644,36 @@ async fn process_default_internal(
         module_type.cell(),
         Value::new(reference_type.clone()),
         part,
-        inner_assets,
+        inner_assets.map(|v| *v),
         matches!(reference_type, ReferenceType::Runtime),
+    ))
+}
+
+#[turbo_tasks::function]
+async fn externals_tracing_module_context(ty: ExternalType) -> Result<Vc<ModuleAssetContext>> {
+    let env = Environment::new(Value::new(ExecutionEnvironment::NodeJsLambda(
+        NodeJsEnvironment::default().resolved_cell(),
+    )))
+    .to_resolved()
+    .await?;
+
+    let resolve_options = ResolveOptionsContext {
+        emulate_environment: Some(env),
+        loose_errors: true,
+        custom_conditions: match ty {
+            ExternalType::CommonJs => vec!["require".into()],
+            ExternalType::EcmaScriptModule => vec!["import".into()],
+            ExternalType::Url => vec![],
+        },
+        ..Default::default()
+    };
+
+    Ok(ModuleAssetContext::new_without_replace_externals(
+        Default::default(),
+        CompileTimeInfo::builder(env).cell().await?,
+        ModuleOptionsContext::default().cell(),
+        resolve_options.cell(),
+        Vc::cell("externals-tracing".into()),
     ))
 }
 
@@ -698,31 +747,105 @@ impl AssetContext for ModuleAssetContext {
     ) -> Result<Vc<ModuleResolveResult>> {
         let this = self.await?;
 
-        let result = result
+        let replace_externals = this.replace_externals;
+        let import_externals = this
+            .module_options_context
             .await?
-            .map_module(|source| {
+            .ecmascript
+            .import_externals;
+
+        let result = result.await?;
+
+        let affecting_sources = &result.affecting_sources;
+
+        let result = result
+            .map_primary_items(|item| {
                 let reference_type = reference_type.clone();
                 async move {
-                    let process_result = self.process(*source, reference_type);
-                    Ok(match *process_result.await? {
-                        ProcessResult::Module(m) => {
-                            ModuleResolveResultItem::Module(ResolvedVc::upcast(m))
+                    Ok(match item {
+                        ResolveResultItem::Source(source) => {
+                            match &*self.process(*source, reference_type).await? {
+                                ProcessResult::Module(module) => {
+                                    ModuleResolveResultItem::Module(*module)
+                                }
+                                ProcessResult::Unknown(source) => {
+                                    ModuleResolveResultItem::Unknown(*source)
+                                }
+                                ProcessResult::Ignore => ModuleResolveResultItem::Ignore,
+                            }
                         }
-                        ProcessResult::Unknown(source) => ModuleResolveResultItem::Unknown(source),
-                        ProcessResult::Ignore => ModuleResolveResultItem::Ignore,
+                        ResolveResultItem::External { name, ty, traced } => {
+                            let replacement = if replace_externals {
+                                let additional_refs: Vec<Vc<Box<dyn ModuleReference>>> = if let (
+                                    ExternalTraced::Traced,
+                                    Some(tracing_root),
+                                ) = (
+                                    traced,
+                                    self.module_options_context()
+                                        .await?
+                                        .enable_externals_tracing,
+                                ) {
+                                    let externals_context = externals_tracing_module_context(ty);
+                                    let root_origin = tracing_root.join("_".into());
+
+                                    let external_result = externals_context
+                                        .resolve_asset(
+                                            root_origin,
+                                            Request::parse_string(name.clone()),
+                                            externals_context.resolve_options(
+                                                root_origin,
+                                                reference_type.clone(),
+                                            ),
+                                            reference_type,
+                                        )
+                                        .await?;
+
+                                    let modules = affecting_sources
+                                        .iter()
+                                        .chain(external_result.affecting_sources.iter())
+                                        .map(|s| Vc::upcast::<Box<dyn Module>>(RawModule::new(**s)))
+                                        .chain(
+                                            external_result
+                                                .primary_modules_raw_iter()
+                                                .map(|rvc| *rvc),
+                                        );
+
+                                    modules
+                                        .map(|s| {
+                                            Vc::upcast::<Box<dyn ModuleReference>>(
+                                                TracedModuleReference::new(s),
+                                            )
+                                        })
+                                        .collect()
+                                } else {
+                                    vec![]
+                                };
+
+                                replace_external(&name, ty, additional_refs, import_externals)
+                                    .await?
+                            } else {
+                                None
+                            };
+
+                            replacement.unwrap_or_else(|| {
+                                ModuleResolveResultItem::External {
+                                    name,
+                                    ty,
+                                    // TODO(micshnic) remove that field entirely ?
+                                    traced: None,
+                                }
+                            })
+                        }
+                        ResolveResultItem::Ignore => ModuleResolveResultItem::Ignore,
+                        ResolveResultItem::Empty => ModuleResolveResultItem::Empty,
+                        ResolveResultItem::Error(e) => {
+                            ModuleResolveResultItem::Error(e.to_resolved().await?)
+                        }
+                        ResolveResultItem::Custom(u8) => ModuleResolveResultItem::Custom(u8),
                     })
                 }
             })
             .await?;
-
-        let result = replace_externals(
-            result,
-            this.module_options_context
-                .await?
-                .ecmascript
-                .import_externals,
-        )
-        .await?;
 
         Ok(result.cell())
     }
@@ -897,38 +1020,34 @@ async fn top_references(list: Vc<ReferencesList>) -> Result<Vc<ReferencesList>> 
 }
 
 /// Replaces the externals in the result with `ExternalModuleAsset` instances.
-pub async fn replace_externals(
-    mut result: ModuleResolveResult,
+pub async fn replace_external(
+    name: &RcStr,
+    ty: ExternalType,
+    additional_refs: Vec<Vc<Box<dyn ModuleReference>>>,
     import_externals: bool,
-) -> Result<ModuleResolveResult> {
-    for item in result.primary.values_mut() {
-        let ModuleResolveResultItem::External(request, ty) = item else {
-            continue;
-        };
-
-        let external_type = match ty {
-            ExternalType::CommonJs => CachedExternalType::CommonJs,
-            ExternalType::EcmaScriptModule => {
-                if import_externals {
-                    CachedExternalType::EcmaScriptViaImport
-                } else {
-                    CachedExternalType::EcmaScriptViaRequire
-                }
+) -> Result<Option<ModuleResolveResultItem>> {
+    let external_type = match ty {
+        ExternalType::CommonJs => CachedExternalType::CommonJs,
+        ExternalType::EcmaScriptModule => {
+            if import_externals {
+                CachedExternalType::EcmaScriptViaImport
+            } else {
+                CachedExternalType::EcmaScriptViaRequire
             }
-            ExternalType::Url => {
-                // we don't want to wrap url externals.
-                continue;
-            }
-        };
+        }
+        ExternalType::Url => {
+            // we don't want to wrap url externals.
+            return Ok(None);
+        }
+    };
 
-        let module = CachedExternalModule::new(request.clone(), external_type)
-            .to_resolved()
-            .await?;
+    let module = CachedExternalModule::new(name.clone(), external_type, additional_refs)
+        .to_resolved()
+        .await?;
 
-        *item = ModuleResolveResultItem::Module(ResolvedVc::upcast(module));
-    }
-
-    Ok(result)
+    Ok(Some(ModuleResolveResultItem::Module(ResolvedVc::upcast(
+        module,
+    ))))
 }
 
 pub fn register() {

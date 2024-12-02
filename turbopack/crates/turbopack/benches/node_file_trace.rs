@@ -9,7 +9,6 @@ use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
     emit_with_completion,
     module_options::{EcmascriptOptionsContext, ModuleOptionsContext},
-    rebase::RebasedAsset,
     register, ModuleAssetContext,
 };
 use turbopack_core::{
@@ -17,6 +16,7 @@ use turbopack_core::{
     context::AssetContext,
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
+    rebase::RebasedAsset,
     reference_type::ReferenceType,
 };
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
@@ -83,10 +83,15 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
                 let output_dir = output_fs.root();
 
                 let source = FileSource::new(input);
-                let compile_time_info = CompileTimeInfo::builder(Environment::new(Value::new(
-                    ExecutionEnvironment::NodeJsLambda(NodeJsEnvironment::default().into()),
-                )))
-                .cell();
+                let compile_time_info = CompileTimeInfo::builder(
+                    Environment::new(Value::new(ExecutionEnvironment::NodeJsLambda(
+                        NodeJsEnvironment::default().resolved_cell(),
+                    )))
+                    .to_resolved()
+                    .await?,
+                )
+                .cell()
+                .await?;
                 let module_asset_context = ModuleAssetContext::new(
                     Default::default(),
                     compile_time_info,
