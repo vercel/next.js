@@ -31,10 +31,11 @@ pub fn client_modules_ssr_modifier() -> Vc<RcStr> {
 #[turbo_tasks::value]
 pub struct ClientReferencesChunks {
     pub client_component_client_chunks:
-        FxIndexMap<ClientReferenceType, (Vc<OutputAssets>, AvailabilityInfo)>,
+        FxIndexMap<ClientReferenceType, (ResolvedVc<OutputAssets>, AvailabilityInfo)>,
     pub client_component_ssr_chunks:
-        FxIndexMap<ClientReferenceType, (Vc<OutputAssets>, AvailabilityInfo)>,
-    pub layout_segment_client_chunks: FxIndexMap<Vc<NextServerComponentModule>, Vc<OutputAssets>>,
+        FxIndexMap<ClientReferenceType, (ResolvedVc<OutputAssets>, AvailabilityInfo)>,
+    pub layout_segment_client_chunks:
+        FxIndexMap<ResolvedVc<NextServerComponentModule>, ResolvedVc<OutputAssets>>,
 }
 
 /// Computes all client references chunks.
@@ -76,7 +77,7 @@ pub async fn get_app_client_references_chunks(
 
                                 (
                                     (
-                                        client_chunk_group.assets,
+                                        client_chunk_group.assets.to_resolved().await?,
                                         client_chunk_group.availability_info,
                                     ),
                                     if let Some(ssr_chunking_context) = ssr_chunking_context {
@@ -87,7 +88,7 @@ pub async fn get_app_client_references_chunks(
                                             .await?;
 
                                         Some((
-                                            ssr_chunk_group.assets,
+                                            ssr_chunk_group.assets.to_resolved().await?,
                                             ssr_chunk_group.availability_info,
                                         ))
                                     } else {
@@ -97,12 +98,12 @@ pub async fn get_app_client_references_chunks(
                             }
                             ClientReferenceType::CssClientReference(css_module) => {
                                 let client_chunk_group = client_chunking_context
-                                    .root_chunk_group(Vc::upcast(css_module))
+                                    .root_chunk_group(*ResolvedVc::upcast(css_module))
                                     .await?;
 
                                 (
                                     (
-                                        client_chunk_group.assets,
+                                        client_chunk_group.assets.to_resolved().await?,
                                         client_chunk_group.availability_info,
                                     ),
                                     None,
@@ -141,6 +142,7 @@ pub async fn get_app_client_references_chunks(
             }
             for client_reference in app_client_references.client_references.iter() {
                 if let Some(server_component) = client_reference.server_component() {
+                    let server_component = server_component.to_resolved().await?;
                     client_references_by_server_component
                         .entry(server_component)
                         .or_default()
@@ -155,9 +157,9 @@ pub async fn get_app_client_references_chunks(
             }
 
             let mut current_client_availability_info = client_availability_info.into_value();
-            let mut current_client_chunks = OutputAssets::empty();
+            let mut current_client_chunks = OutputAssets::empty().to_resolved().await?;
             let mut current_ssr_availability_info = AvailabilityInfo::Root;
-            let mut current_ssr_chunks = OutputAssets::empty();
+            let mut current_ssr_chunks = OutputAssets::empty().to_resolved().await?;
 
             let mut layout_segment_client_chunks = FxIndexMap::default();
             let mut client_component_ssr_chunks = FxIndexMap::default();
@@ -228,7 +230,7 @@ pub async fn get_app_client_references_chunks(
                                 *ResolvedVc::upcast(ecmascript_client_reference_ref.client_module)
                             }
                             ClientReferenceType::CssClientReference(css_module) => {
-                                Vc::upcast(*css_module)
+                                *ResolvedVc::upcast(*css_module)
                             }
                         })
                     })
@@ -259,14 +261,15 @@ pub async fn get_app_client_references_chunks(
 
                     let client_chunks =
                         current_client_chunks.concatenate(client_chunk_group.assets);
-                    let client_chunks = client_chunks.resolve().await?;
+                    let client_chunks = client_chunks.to_resolved().await?;
 
                     if is_layout {
                         current_client_availability_info = client_chunk_group.availability_info;
                         current_client_chunks = client_chunks;
                     }
 
-                    layout_segment_client_chunks.insert(server_component, client_chunks);
+                    layout_segment_client_chunks
+                        .insert(server_component.to_resolved().await?, client_chunks);
 
                     for &client_reference_ty in client_reference_types.iter() {
                         if let ClientReferenceType::EcmascriptClientReference { .. } =
@@ -284,7 +287,7 @@ pub async fn get_app_client_references_chunks(
                     let ssr_chunk_group = ssr_chunk_group.await?;
 
                     let ssr_chunks = current_ssr_chunks.concatenate(ssr_chunk_group.assets);
-                    let ssr_chunks = ssr_chunks.resolve().await?;
+                    let ssr_chunks = ssr_chunks.to_resolved().await?;
 
                     if is_layout {
                         current_ssr_availability_info = ssr_chunk_group.availability_info;

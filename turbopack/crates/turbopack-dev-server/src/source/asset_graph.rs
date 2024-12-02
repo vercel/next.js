@@ -29,8 +29,8 @@ type ExpandedState = State<HashSet<RcStr>>;
 
 #[turbo_tasks::value(serialization = "none", eq = "manual", cell = "new")]
 pub struct AssetGraphContentSource {
-    root_path: Vc<FileSystemPath>,
-    root_assets: Vc<OutputAssetsSet>,
+    root_path: ResolvedVc<FileSystemPath>,
+    root_assets: ResolvedVc<OutputAssetsSet>,
     expanded: Option<ExpandedState>,
 }
 
@@ -39,12 +39,12 @@ impl AssetGraphContentSource {
     /// Serves all assets references by root_asset.
     #[turbo_tasks::function]
     pub fn new_eager(
-        root_path: Vc<FileSystemPath>,
+        root_path: ResolvedVc<FileSystemPath>,
         root_asset: ResolvedVc<Box<dyn OutputAsset>>,
     ) -> Vc<Self> {
         Self::cell(AssetGraphContentSource {
             root_path,
-            root_assets: Vc::cell(fxindexset! { root_asset }),
+            root_assets: ResolvedVc::cell(fxindexset! { root_asset }),
             expanded: None,
         })
     }
@@ -53,12 +53,12 @@ impl AssetGraphContentSource {
     /// asset when it has served its content before.
     #[turbo_tasks::function]
     pub fn new_lazy(
-        root_path: Vc<FileSystemPath>,
+        root_path: ResolvedVc<FileSystemPath>,
         root_asset: ResolvedVc<Box<dyn OutputAsset>>,
     ) -> Vc<Self> {
         Self::cell(AssetGraphContentSource {
             root_path,
-            root_assets: Vc::cell(fxindexset! { root_asset }),
+            root_assets: ResolvedVc::cell(fxindexset! { root_asset }),
             expanded: Some(State::new(HashSet::new())),
         })
     }
@@ -66,8 +66,8 @@ impl AssetGraphContentSource {
     /// Serves all assets references by all root_assets.
     #[turbo_tasks::function]
     pub fn new_eager_multiple(
-        root_path: Vc<FileSystemPath>,
-        root_assets: Vc<OutputAssetsSet>,
+        root_path: ResolvedVc<FileSystemPath>,
+        root_assets: ResolvedVc<OutputAssetsSet>,
     ) -> Vc<Self> {
         Self::cell(AssetGraphContentSource {
             root_path,
@@ -80,8 +80,8 @@ impl AssetGraphContentSource {
     /// of an asset when it has served its content before.
     #[turbo_tasks::function]
     pub fn new_lazy_multiple(
-        root_path: Vc<FileSystemPath>,
-        root_assets: Vc<OutputAssetsSet>,
+        root_path: ResolvedVc<FileSystemPath>,
+        root_assets: ResolvedVc<OutputAssetsSet>,
     ) -> Vc<Self> {
         Self::cell(AssetGraphContentSource {
             root_path,
@@ -230,25 +230,27 @@ impl ContentSource for AssetGraphContentSource {
                     )),
                 )
             })
-            .collect();
+            .map(|v| async move { v.to_resolved().await })
+            .try_join()
+            .await?;
         Ok(Vc::<RouteTrees>::cell(routes).merge())
     }
 }
 
 #[turbo_tasks::value]
 struct AssetGraphGetContentSourceContent {
-    source: Vc<AssetGraphContentSource>,
+    source: ResolvedVc<AssetGraphContentSource>,
     path: RcStr,
-    asset: Vc<Box<dyn OutputAsset>>,
+    asset: ResolvedVc<Box<dyn OutputAsset>>,
 }
 
 #[turbo_tasks::value_impl]
 impl AssetGraphGetContentSourceContent {
     #[turbo_tasks::function]
     pub fn new(
-        source: Vc<AssetGraphContentSource>,
+        source: ResolvedVc<AssetGraphContentSource>,
         path: RcStr,
-        asset: Vc<Box<dyn OutputAsset>>,
+        asset: ResolvedVc<Box<dyn OutputAsset>>,
     ) -> Vc<Self> {
         Self::cell(AssetGraphGetContentSourceContent {
             source,

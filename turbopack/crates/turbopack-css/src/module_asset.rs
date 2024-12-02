@@ -396,17 +396,23 @@ impl EcmascriptChunkItem for ModuleChunkItem {
             inner_code: code.clone().into(),
             // We generate a minimal map for runtime code so that the filename is
             // displayed in dev tools.
-            source_map: Some(Vc::upcast(generate_minimal_source_map(
-                self.module.ident().to_string().await?.to_string(),
-                code,
-            ))),
+            source_map: Some(Vc::upcast(
+                generate_minimal_source_map(
+                    self.module.ident().to_string().await?.to_string(),
+                    code,
+                )
+                .await?,
+            )),
             ..Default::default()
         }
         .cell())
     }
 }
 
-fn generate_minimal_source_map(filename: String, source: String) -> Vc<ParseResultSourceMap> {
+async fn generate_minimal_source_map(
+    filename: String,
+    source: String,
+) -> Result<Vc<ParseResultSourceMap>> {
     let mut mappings = vec![];
     // Start from 1 because 0 is reserved for dummy spans in SWC.
     let mut pos = 1;
@@ -422,8 +428,8 @@ fn generate_minimal_source_map(filename: String, source: String) -> Vc<ParseResu
     }
     let sm: Arc<SourceMap> = Default::default();
     sm.new_source_file(FileName::Custom(filename).into(), source);
-    let map = ParseResultSourceMap::new(sm, mappings, OptionSourceMap::none());
-    map.cell()
+    let map = ParseResultSourceMap::new(sm, mappings, OptionSourceMap::none().to_resolved().await?);
+    Ok(map.cell())
 }
 
 #[turbo_tasks::value(shared)]

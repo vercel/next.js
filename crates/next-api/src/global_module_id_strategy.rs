@@ -26,9 +26,9 @@ impl GlobalModuleIdStrategyBuilder {
 
         let entrypoints = project.entrypoints().await?;
 
-        preprocessed_module_ids.push(preprocess_module_ids(entrypoints.pages_error_endpoint));
-        preprocessed_module_ids.push(preprocess_module_ids(entrypoints.pages_app_endpoint));
-        preprocessed_module_ids.push(preprocess_module_ids(entrypoints.pages_document_endpoint));
+        preprocessed_module_ids.push(preprocess_module_ids(*entrypoints.pages_error_endpoint));
+        preprocessed_module_ids.push(preprocess_module_ids(*entrypoints.pages_app_endpoint));
+        preprocessed_module_ids.push(preprocess_module_ids(*entrypoints.pages_document_endpoint));
 
         if let Some(middleware) = &entrypoints.middleware {
             preprocessed_module_ids.push(preprocess_module_ids(middleware.endpoint));

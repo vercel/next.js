@@ -140,7 +140,9 @@ impl VersionedContentMap {
         });
 
         // Make sure all written client assets are up-to-date
-        let _ = emit_assets(assets, node_root, client_relative_path, client_output_path);
+        let _ = emit_assets(assets, node_root, client_relative_path, client_output_path)
+            .resolve()
+            .await?;
         let map_entry = Vc::cell(Some(MapEntry {
             assets_operation: assets,
             path_to_asset: entries.into_iter().collect(),

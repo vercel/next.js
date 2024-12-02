@@ -13,13 +13,13 @@ use super::NextDynamicEntryModule;
 /// create the dynamic entry, and the dynamic manifest entry.
 #[turbo_tasks::value]
 pub struct NextDynamicTransition {
-    client_transition: Vc<Box<dyn Transition>>,
+    client_transition: ResolvedVc<Box<dyn Transition>>,
 }
 
 #[turbo_tasks::value_impl]
 impl NextDynamicTransition {
     #[turbo_tasks::function]
-    pub fn new(client_transition: Vc<Box<dyn Transition>>) -> Vc<Self> {
+    pub fn new(client_transition: ResolvedVc<Box<dyn Transition>>) -> Vc<Self> {
         NextDynamicTransition { client_transition }.cell()
     }
 }

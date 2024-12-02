@@ -14,7 +14,7 @@ use owo_colors::OwoColorize;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     util::{FormatBytes, FormatDuration},
-    TransientInstance, TurboTasks, UpdateInfo, Value, Vc,
+    ResolvedVc, TransientInstance, TurboTasks, UpdateInfo, Value, Vc,
 };
 use turbo_tasks_fs::FileSystem;
 use turbo_tasks_malloc::TurboMalloc;
@@ -301,23 +301,28 @@ async fn source(
         eager_compile,
         NodeEnv::Development.cell(),
         browserslist_query,
+    )
+    .to_resolved()
+    .await?;
+    let static_source = ResolvedVc::upcast(
+        StaticAssetsContentSource::new(Default::default(), project_path.join("public".into()))
+            .to_resolved()
+            .await?,
     );
-    let static_source = Vc::upcast(StaticAssetsContentSource::new(
-        Default::default(),
-        project_path.join("public".into()),
-    ));
-    let main_source = CombinedContentSource::new(vec![static_source, web_source]);
-    let introspect = Vc::upcast(
+    let main_source = CombinedContentSource::new(vec![static_source, web_source])
+        .to_resolved()
+        .await?;
+    let introspect = ResolvedVc::upcast(
         IntrospectionSource {
-            roots: HashSet::from([Vc::upcast(main_source)]),
+            roots: HashSet::from([ResolvedVc::upcast(main_source)]),
         }
-        .cell(),
+        .resolved_cell(),
     );
-    let main_source = Vc::upcast(main_source);
+    let main_source = ResolvedVc::upcast(main_source);
     Ok(Vc::upcast(PrefixedRouterContentSource::new(
         Default::default(),
         vec![("__turbopack__".into(), introspect)],
-        main_source,
+        *main_source,
     )))
 }
 
