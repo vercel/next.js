@@ -15,6 +15,7 @@ const cleanupWorkers = (worker: JestWorker) => {
 
 export class Worker {
   private _worker: JestWorker | undefined
+  private _restarting: boolean = false
 
   constructor(
     workerPath: string,
@@ -45,6 +46,7 @@ export class Worker {
           } as any,
         },
       }) as JestWorker
+      this._restarting = false
       restartPromise = new Promise(
         (resolve) => (resolveRestartPromise = resolve)
       )
@@ -69,8 +71,11 @@ export class Worker {
                 `Static worker exited with code: ${code} and signal: ${signal}`
               )
 
-              // if a child process doesn't exit gracefully, we want to bubble up the exit code to the parent process
-              process.exit(code ?? 1)
+              // We're restarting the worker, so we don't want to exit the parent process
+              if (!this._restarting) {
+                // if a child process doesn't exit gracefully, we want to bubble up the exit code to the parent process
+                process.exit(code ?? 1)
+              }
             }
           })
         }
@@ -85,14 +90,17 @@ export class Worker {
       const worker = this._worker
       if (!worker) return
       const resolve = resolveRestartPromise
-      createWorker()
       logger.warn(
         `Sending SIGTERM signal to static worker due to timeout${
           timeout ? ` of ${timeout / 1000} seconds` : ''
         }. Subsequent errors may be a result of the worker exiting.`
       )
+
+      this._restarting = true
+
       worker.end().then(() => {
         resolve(RESTARTED)
+        createWorker()
       })
     }
 
@@ -117,6 +125,7 @@ export class Worker {
                   (this._worker as any)[method](...args),
                   restartPromise,
                 ])
+
                 if (result !== RESTARTED) return result
                 if (onRestart) onRestart(method, args, ++attempts)
               }
