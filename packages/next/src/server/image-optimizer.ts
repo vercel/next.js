@@ -47,7 +47,7 @@ const BLUR_QUALITY = 70 // should match `next-image-loader`
 
 let _sharp: typeof import('sharp')
 
-function getSharp(concurrency: number | null | undefined) {
+export function getSharp(concurrency: number | null | undefined) {
   if (_sharp) {
     return _sharp
   }
