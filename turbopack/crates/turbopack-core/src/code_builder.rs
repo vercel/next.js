@@ -251,7 +251,7 @@ pub async fn fileify_source_map(
         .await?
         .context("Expected the chunking context to have a DiskFileSystem")?
         .await?;
-    let prefix = format!("{}[{}]/", SOURCE_MAP_PREFIX, context_fs.name);
+    let prefix = format!("{}[{}]/", SOURCE_MAP_PREFIX, context_fs.name());
 
     let mut transformed = flattened.into_owned();
     let mut updates = IndexMap::new();

@@ -278,8 +278,8 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
     }
 
     #[turbo_tasks::function]
-    fn get_async_module(self: Vc<Self>) -> Vc<OptionAsyncModule> {
-        Vc::cell(Some(self.async_module()))
+    async fn get_async_module(self: Vc<Self>) -> Result<Vc<OptionAsyncModule>> {
+        Ok(Vc::cell(Some(self.async_module().to_resolved().await?)))
     }
 }
 
