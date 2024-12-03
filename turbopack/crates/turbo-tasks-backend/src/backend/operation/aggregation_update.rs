@@ -970,11 +970,14 @@ impl AggregationUpdateQueue {
             // if it has an `AggregateRoot` we can skip visiting the nested nodes since
             // this would already be scheduled by the `AggregateRoot`
             if !task.has_key(&CachedDataItemKey::AggregateRoot {}) {
-                task.insert(CachedDataItem::AggregateRoot {
-                    value: RootState::new(ActiveType::CachedActiveUntilClean, task_id),
-                });
-                let dirty_containers = iter_many!(task, AggregatedDirtyContainer { task } count if count.get(session_id) > 0 => *task);
-                self.extend_find_and_schedule_dirty(dirty_containers);
+                let dirty_containers: Vec<_> = get_many!(task, AggregatedDirtyContainer { task } count if count.get(session_id) > 0 => *task);
+                if !dirty_containers.is_empty() || dirty {
+                    task.insert(CachedDataItem::AggregateRoot {
+                        value: RootState::new(ActiveType::CachedActiveUntilClean, task_id),
+                    });
+
+                    self.extend_find_and_schedule_dirty(dirty_containers);
+                }
             }
         }
     }
