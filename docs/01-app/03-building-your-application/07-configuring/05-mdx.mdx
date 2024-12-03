@@ -307,6 +307,8 @@ export const dynamicParams = false
 
 Navigating to `/blog/welcome` or `/blog/about` should display your prerendered MDX page.
 
+> **Good to know**: Make sure to include the relative path `@/content` and `.mdx` file extension in your `import()` so Webpack does not attempt to index every file.
+
 </AppOnly>
 
 ## Using custom styles and components
