@@ -10,7 +10,6 @@ related:
 
 Next.js comes with automatic image and font optimizations for better performance and user experience. This page will guide you through how to start using them.
 
-
 ## Handling static assets
 
 You can store static files, like images and fonts, under a folder called `public` in the root directory. Files inside `public` can then be referenced by your code starting from the base URL (`/`).
@@ -93,7 +92,6 @@ export default function Page() {
 ```
 
 Next.js will automatically determine the intrinsic [`width`](/docs/app/api-reference/components/image#width) and [`height`](/docs/app/api-reference/components/image#height) of your image based on the imported file. These values are used to determine the image ratio and prevent [Cumulative Layout Shift](https://nextjs.org/learn/seo/web-performance/cls) while your image is loading.
-
 
 ### Remote images
 
