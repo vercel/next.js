@@ -1,15 +1,11 @@
 function createCachedFn(start: number) {
-  function fn1() {
+  function fn() {
     return start
-  }
-
-  function fn2() {
-    return Math.random()
   }
 
   return async () => {
     'use cache'
-    return fn1() + fn2()
+    return Math.random() + fn()
   }
 }
 

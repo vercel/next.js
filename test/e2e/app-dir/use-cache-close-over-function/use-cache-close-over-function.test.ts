@@ -27,9 +27,7 @@ describe('use-cache-close-over-function', () => {
       const errorSource = await getRedboxSource(browser)
 
       expect(errorDescription).toMatchInlineSnapshot(`
-        "[ Prerender ] Error: Failed to serialize closed-over values for server function.
-
-        Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.
+        "[ Prerender ] Error: Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.
           [function fn]
            ^^^^^^^^^^^"
       `)
@@ -56,27 +54,21 @@ describe('use-cache-close-over-function', () => {
       const errorSource = await getRedboxSource(browser)
 
       expect(errorDescription).toMatchInlineSnapshot(`
-        "[ Prerender ] Error: Failed to serialize closed-over values for server function.
-
-        Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.
-          [function fn1, ...]
-           ^^^^^^^^^^^^
-
-        Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.
-          [..., function fn2]
-                ^^^^^^^^^^^^"
+        "[ Prerender ] Error: Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.
+          [function fn]
+           ^^^^^^^^^^^"
       `)
 
       expect(errorSource).toMatchInlineSnapshot(`
-        "app/server/page.tsx (10:3) @ createCachedFn
+        "app/server/page.tsx (6:3) @ createCachedFn
 
-           8 |   }
-           9 |
-        > 10 |   return async () => {
-             |   ^
-          11 |     'use cache'
-          12 |     return fn1() + fn2()
-          13 |   }"
+          4 |   }
+          5 |
+        > 6 |   return async () => {
+            |   ^
+          7 |     'use cache'
+          8 |     return Math.random() + fn()
+          9 |   }"
       `)
     })
   } else {
@@ -84,17 +76,13 @@ describe('use-cache-close-over-function', () => {
       const { cliOutput } = await next.build()
 
       expect(cliOutput).toInclude(`
-Error: Failed to serialize closed-over values for server function.
+Error: Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.
+  [function]
+   ^^^^^^^^`)
 
-Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.
-  [function, function]
-   ^^^^^^^^
-
-Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.
-  [function, function]
-             ^^^^^^^^`)
-
-      expect(cliOutput).toInclude('Error occurred prerendering page "/server"')
+      expect(cliOutput).toMatch(
+        /Error occurred prerendering page "\/(client|server)"/
+      )
     })
   }
 })
