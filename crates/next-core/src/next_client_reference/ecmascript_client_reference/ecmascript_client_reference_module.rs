@@ -1,12 +1,14 @@
 #![allow(rustdoc::private_intra_doc_links)]
 use anyhow::{bail, Result};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
+    chunk::{ChunkGroupType, ChunkableModuleReference, ChunkingType, ChunkingTypeOption},
     ident::AssetIdent,
     module::Module,
-    reference::{ModuleReferences, SingleModuleReference},
+    reference::{ModuleReference, ModuleReferences},
+    resolve::ModuleResolveResult,
 };
 use turbopack_ecmascript::chunk::EcmascriptChunkPlaceable;
 
@@ -70,20 +72,20 @@ impl Module for EcmascriptClientReferenceModule {
 
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
-        let client_module = ResolvedVc::upcast(self.client_module);
-        let ssr_module = ResolvedVc::upcast(self.ssr_module);
         Ok(Vc::cell(vec![
             ResolvedVc::upcast(
-                SingleModuleReference::new(
-                    *client_module,
+                EcmascriptClientReference::new(
+                    *ResolvedVc::upcast(self.client_module),
+                    ChunkGroupType::Evaluated,
                     ecmascript_client_reference_client_ref_modifier(),
                 )
                 .to_resolved()
                 .await?,
             ),
             ResolvedVc::upcast(
-                SingleModuleReference::new(
-                    *ssr_module,
+                EcmascriptClientReference::new(
+                    *ResolvedVc::upcast(self.ssr_module),
+                    ChunkGroupType::Entry,
                     ecmascript_client_reference_ssr_ref_modifier(),
                 )
                 .to_resolved()
@@ -99,5 +101,57 @@ impl Asset for EcmascriptClientReferenceModule {
     fn content(&self) -> Result<Vc<AssetContent>> {
         // The ES client reference asset only serves as a marker asset.
         bail!("EcmascriptClientReferenceModule has no content")
+    }
+}
+
+#[turbo_tasks::value]
+struct EcmascriptClientReference {
+    module: ResolvedVc<Box<dyn Module>>,
+    ty: ChunkGroupType,
+    description: ResolvedVc<RcStr>,
+}
+
+#[turbo_tasks::value_impl]
+impl EcmascriptClientReference {
+    #[turbo_tasks::function]
+    pub fn new(
+        module: ResolvedVc<Box<dyn Module>>,
+        ty: ChunkGroupType,
+        description: ResolvedVc<RcStr>,
+    ) -> Vc<Self> {
+        Self::cell(EcmascriptClientReference {
+            module,
+            ty,
+            description,
+        })
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ChunkableModuleReference for EcmascriptClientReference {
+    #[turbo_tasks::function]
+    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
+        Vc::cell(Some(ChunkingType::Isolated {
+            _ty: self.ty,
+            // TODO use proper values here
+            _merge_tag: None,
+            _chunking_context: None,
+        }))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ModuleReference for EcmascriptClientReference {
+    #[turbo_tasks::function]
+    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
+        ModuleResolveResult::module(self.module).cell()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ValueToString for EcmascriptClientReference {
+    #[turbo_tasks::function]
+    fn to_string(&self) -> Vc<RcStr> {
+        *self.description
     }
 }
