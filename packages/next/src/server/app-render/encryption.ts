@@ -72,14 +72,23 @@ async function encodeActionBoundArg(actionId: string, arg: string) {
 // Encrypts the action's bound args into a string.
 export async function encryptActionBoundArgs(actionId: string, args: any[]) {
   const { clientModules } = getClientReferenceManifestForRsc()
+
+  // An error stack that's created here looks like this:
+  // Error:
+  //     at encryptActionBoundArg
+  //     at <actual userland call site>
   const stack = new Error().stack!.split('\n').slice(2).join('\n')
+
   let error: Error | undefined
 
   // Using Flight to serialize the args into a string.
   const serialized = await streamToString(
     renderToReadableStream(args, clientModules, {
       onError(err) {
+        // Use the original error message...
         error = err instanceof Error ? err : new Error(String(err))
+        // ...and attach the previously created stack, because err.stack is a
+        // useless Flight Server call stack.
         error.stack = stack
       },
     })
