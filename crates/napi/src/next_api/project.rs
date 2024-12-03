@@ -529,14 +529,14 @@ impl NapiRoute {
             } => NapiRoute {
                 pathname,
                 r#type: "page",
-                html_endpoint: convert_endpoint(html_endpoint),
-                data_endpoint: convert_endpoint(data_endpoint),
+                html_endpoint: convert_endpoint(*html_endpoint),
+                data_endpoint: convert_endpoint(*data_endpoint),
                 ..Default::default()
             },
             Route::PageApi { endpoint } => NapiRoute {
                 pathname,
                 r#type: "page-api",
-                endpoint: convert_endpoint(endpoint),
+                endpoint: convert_endpoint(*endpoint),
                 ..Default::default()
             },
             Route::AppPage(pages) => NapiRoute {
@@ -561,7 +561,7 @@ impl NapiRoute {
                 pathname,
                 original_name: Some(original_name),
                 r#type: "app-route",
-                endpoint: convert_endpoint(endpoint),
+                endpoint: convert_endpoint(*endpoint),
                 ..Default::default()
             },
             Route::Conflict => NapiRoute {

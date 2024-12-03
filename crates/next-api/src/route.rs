@@ -40,7 +40,7 @@ pub enum Route {
     },
     AppPage(Vec<AppPageRoute>),
     AppRoute {
-        original_name: RcStr,
+        original_name: String,
         endpoint: ResolvedVc<Box<dyn Endpoint>>,
     },
     Conflict,
