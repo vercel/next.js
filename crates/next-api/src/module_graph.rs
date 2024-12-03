@@ -9,8 +9,12 @@ use std::{
 use anyhow::{Context, Result};
 use next_core::{
     mode::NextMode,
-    next_client_reference::{find_server_entries, ServerEntries},
+    next_client_reference::{
+        find_server_entries, ClientReference, ClientReferenceGraphResult, ClientReferenceType,
+        ServerEntries, VisitedClientReferenceGraphNodes,
+    },
     next_manifests::ActionLayer,
+    next_server_component::server_component_module::NextServerComponentModule,
 };
 use petgraph::{
     graph::{DiGraph, NodeIndex},
@@ -23,8 +27,8 @@ use turbo_tasks::{
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow, VisitedNodes},
     trace::{TraceRawVcs, TraceRawVcsContext},
-    CollectiblesSource, FxIndexMap, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt,
-    ValueToString, Vc,
+    CollectiblesSource, FxIndexMap, FxIndexSet, ReadRef, ResolvedVc, TryFlatJoinIterExt,
+    TryJoinIterExt, ValueToString, Vc,
 };
 use turbopack_core::{
     chunk::ChunkingType,
@@ -35,6 +39,7 @@ use turbopack_core::{
 };
 
 use crate::{
+    client_references::{map_client_references, ClientReferenceMapType, ClientReferencesSet},
     dynamic_imports::{map_next_dynamic, DynamicImports},
     project::Project,
     server_actions::{map_server_actions, to_rsc_context, AllActions, AllModuleActions},
@@ -626,6 +631,135 @@ impl ServerActionsGraph {
     }
 }
 
+#[turbo_tasks::value]
+pub struct ClientReferencesGraph {
+    is_single_page: bool,
+    graph: ResolvedVc<SingleModuleGraph>,
+    /// List of client references (modules that entries into the client graph)
+    data: ResolvedVc<ClientReferencesSet>,
+}
+
+#[turbo_tasks::value_impl]
+impl ClientReferencesGraph {
+    #[turbo_tasks::function]
+    pub async fn new_with_entries(
+        graph: ResolvedVc<SingleModuleGraph>,
+        is_single_page: bool,
+    ) -> Result<Vc<Self>> {
+        // TODO if is_single_page, then perform the graph traversal below in map_client_references
+        // already, which saves us a traversal.
+        let mapped = map_client_references(*graph);
+
+        // TODO shrink graph here
+
+        Ok(Self {
+            is_single_page,
+            graph,
+            data: mapped.to_resolved().await?,
+        }
+        .cell())
+    }
+
+    #[turbo_tasks::function]
+    pub async fn get_client_references_for_endpoint(
+        &self,
+        entry: ResolvedVc<Box<dyn Module>>,
+    ) -> Result<Vc<ClientReferenceGraphResult>> {
+        let span = tracing::info_span!("collect client references for endpoint");
+        async move {
+            let data = &*self.data.await?;
+            let graph = &*self.graph.await?;
+
+            let mut client_references = FxIndexSet::default();
+            // Make sure None (for the various internal next/dist/esm/client/components/*) is
+            // listed first
+            let mut client_references_by_server_component =
+                FxIndexMap::from_iter([(None, Vec::new())]);
+
+            #[derive(Clone, PartialEq, Eq)]
+            enum VisitState {
+                Entry,
+                InServerComponent(ResolvedVc<NextServerComponentModule>),
+            }
+
+            // module -> the parent server component (if any)
+            let mut state_map = HashMap::new();
+            graph.traverse_edges_from_entry(entry, |(parent_module, module)| {
+                let Some(parent_module) = parent_module else {
+                    state_map.insert(module, VisitState::Entry);
+                    return GraphTraversalAction::Continue;
+                };
+
+                let module_type = data.get(&module);
+                let parent_state = state_map.get(&parent_module).unwrap().clone();
+                let parent_server_component =
+                    if let Some(ClientReferenceMapType::ServerComponent(module)) = module_type {
+                        Some(*module)
+                    } else if let VisitState::InServerComponent(module) = parent_state {
+                        Some(module)
+                    } else {
+                        None
+                    };
+
+                match module_type {
+                    Some(ClientReferenceMapType::EcmascriptClientReference {
+                        module: module_ref,
+                        ssr_module,
+                    }) => {
+                        let client_reference: ClientReference = ClientReference {
+                            server_component: parent_server_component,
+                            ty: ClientReferenceType::EcmascriptClientReference {
+                                parent_module,
+                                module: *module_ref,
+                            },
+                        };
+                        client_references.insert(client_reference);
+                        client_references_by_server_component
+                            .entry(parent_server_component)
+                            .or_insert_with(Vec::new)
+                            .push(*ssr_module);
+
+                        state_map.insert(module, parent_state);
+                        GraphTraversalAction::Skip
+                    }
+                    Some(ClientReferenceMapType::CssClientReference(module_ref)) => {
+                        let client_reference = ClientReference {
+                            server_component: parent_server_component,
+                            ty: ClientReferenceType::CssClientReference(*module_ref),
+                        };
+                        client_references.insert(client_reference);
+
+                        state_map.insert(module, parent_state);
+                        GraphTraversalAction::Skip
+                    }
+                    Some(ClientReferenceMapType::ServerComponent(server_component)) => {
+                        state_map.insert(module, VisitState::InServerComponent(*server_component));
+                        GraphTraversalAction::Continue
+                    }
+                    None => {
+                        state_map.insert(module, parent_state);
+                        GraphTraversalAction::Continue
+                    }
+                }
+            })?;
+
+            Ok(ClientReferenceGraphResult {
+                client_references: client_references.into_iter().collect(),
+                client_references_by_server_component,
+                server_utils: vec![],
+                server_component_entries: vec![],
+                // TODO remove
+                visited_nodes: VisitedClientReferenceGraphNodes::empty()
+                    .to_resolved()
+                    .await?,
+            }
+            .cell())
+        }
+        .instrument(span)
+        .await
+    }
+}
+
 /// The consumers of this shouldn't need to care about the exact contents since it's abstracted away
 /// by the accessor functions, but
 /// - In dev, contains information about the modules of the current endpoint only
@@ -634,6 +768,7 @@ impl ServerActionsGraph {
 pub struct ReducedGraphs {
     next_dynamic: Vec<ResolvedVc<NextDynamicGraph>>,
     server_actions: Vec<ResolvedVc<ServerActionsGraph>>,
+    client_references: Vec<ResolvedVc<ClientReferencesGraph>>,
     // TODO add other graphs
 }
 
@@ -704,6 +839,54 @@ impl ReducedGraphs {
         .instrument(span)
         .await
     }
+
+    /// Returns the client references for the given page.
+    #[turbo_tasks::function]
+    pub async fn get_client_references_for_endpoint(
+        &self,
+        entry: Vc<Box<dyn Module>>,
+    ) -> Result<Vc<ClientReferenceGraphResult>> {
+        let span = tracing::info_span!("collect all client references for endpoint");
+        async move {
+            let mut result = if let [graph] = &self.client_references[..] {
+                // Just a single graph, no need to merge results
+                graph
+                    .get_client_references_for_endpoint(entry)
+                    .await?
+                    .clone_value()
+            } else {
+                let results = self
+                    .client_references
+                    .iter()
+                    .map(|graph| async move {
+                        let get_client_references_for_endpoint =
+                            graph.get_client_references_for_endpoint(entry).await?;
+                        Ok(get_client_references_for_endpoint)
+                    })
+                    .try_join()
+                    .await?;
+
+                let mut result = results[0].clone_value();
+                for r in results.into_iter().skip(1) {
+                    result.extend(&r);
+                }
+                result
+            };
+
+            // Do this separately for now, because the graph traversal order messes up the order of
+            // the server_component_entries.
+            let ServerEntries {
+                server_utils,
+                server_component_entries,
+            } = &*find_server_entries(entry).await?;
+            result.server_utils = server_utils.clone();
+            result.server_component_entries = server_component_entries.clone();
+
+            Ok(result.cell())
+        }
+        .instrument(span)
+        .await
+    }
 }
 
 #[turbo_tasks::function]
@@ -760,9 +943,22 @@ async fn get_reduced_graphs_for_endpoint_inner(
     .instrument(tracing::info_span!("generating server actions graphs"))
     .await?;
 
+    let client_references = async {
+        graphs
+            .iter()
+            .map(|graph| {
+                ClientReferencesGraph::new_with_entries(**graph, is_single_page).to_resolved()
+            })
+            .try_join()
+            .await
+    }
+    .instrument(tracing::info_span!("generating client references graphs"))
+    .await?;
+
     Ok(ReducedGraphs {
         next_dynamic,
         server_actions,
+        client_references,
     }
     .cell())
 }

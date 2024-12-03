@@ -30,7 +30,7 @@ pub mod next_manifests;
 pub mod next_pages;
 mod next_route_matcher;
 pub mod next_server;
-mod next_server_component;
+pub mod next_server_component;
 mod next_shared;
 pub mod next_telemetry;
 mod page_loader;

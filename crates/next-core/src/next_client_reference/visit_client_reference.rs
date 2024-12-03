@@ -15,17 +15,14 @@ use turbopack::css::CssModuleAsset;
 use turbopack_core::{module::Module, reference::primary_referenced_modules};
 
 use super::ecmascript_client_reference::ecmascript_client_reference_module::EcmascriptClientReferenceModule;
-use crate::{
-    next_client_reference::ecmascript_client_reference::ecmascript_client_reference_proxy_module::EcmascriptClientReferenceProxyModule,
-    next_server_component::server_component_module::NextServerComponentModule,
-};
+use crate::next_server_component::server_component_module::NextServerComponentModule;
 
 #[derive(
     Copy, Clone, Eq, PartialEq, Hash, Serialize, Deserialize, Debug, ValueDebugFormat, TraceRawVcs,
 )]
 pub struct ClientReference {
-    server_component: Option<ResolvedVc<NextServerComponentModule>>,
-    ty: ClientReferenceType,
+    pub server_component: Option<ResolvedVc<NextServerComponentModule>>,
+    pub ty: ClientReferenceType,
 }
 
 impl ClientReference {
@@ -43,7 +40,8 @@ impl ClientReference {
 )]
 pub enum ClientReferenceType {
     EcmascriptClientReference {
-        parent_module: ResolvedVc<EcmascriptClientReferenceProxyModule>,
+        /// should be the EcmascriptClientReferenceProxyModule
+        parent_module: ResolvedVc<Box<dyn Module>>,
         module: ResolvedVc<EcmascriptClientReferenceModule>,
     },
     CssClientReference(ResolvedVc<CssModuleAsset>),
@@ -369,13 +367,7 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
                                     None => None,
                                 },
                                 ty: ClientReferenceType::EcmascriptClientReference {
-                                    parent_module: ResolvedVc::try_downcast_type::<
-                                        EcmascriptClientReferenceProxyModule,
-                                    >(
-                                        parent_module
-                                    )
-                                    .await?
-                                    .unwrap(),
+                                    parent_module,
                                     module: client_reference_module,
                                 },
                             },
