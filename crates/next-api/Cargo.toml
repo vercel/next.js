@@ -14,6 +14,7 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true, features = ["backtrace"] }
+auto-hash-map = { workspace = true }
 futures = { workspace = true }
 indexmap = { workspace = true }
 next-core = { workspace = true }

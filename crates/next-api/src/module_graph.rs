@@ -9,14 +9,17 @@ use petgraph::{
     graph::{DiGraph, NodeIndex},
     visit::{Dfs, VisitMap, Visitable},
 };
+use serde::{Deserialize, Serialize};
 use tracing::Instrument;
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    CollectiblesSource, FxIndexMap, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
+    trace::TraceRawVcs, CollectiblesSource, FxIndexMap, ResolvedVc, TryFlatJoinIterExt,
+    TryJoinIterExt, Vc,
 };
 use turbopack_core::{
     chunk::ChunkingType,
     context::AssetContext,
-    issue::Issue,
+    issue::{Issue, IssueExt},
     module::{Module, Modules},
     reference::primary_chunkable_referenced_modules,
 };
@@ -38,11 +41,25 @@ pub enum GraphTraversalAction {
     Skip,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, TraceRawVcs)]
+pub struct SingleModuleGraphNode {
+    pub module: ResolvedVc<Box<dyn Module>>,
+    pub issues: Vec<ResolvedVc<Box<dyn Issue>>>,
+    pub layer: Option<RcStr>,
+}
+impl SingleModuleGraphNode {
+    fn emit_issues(&self) {
+        for issue in &self.issues {
+            issue.emit();
+        }
+    }
+}
+
 #[turbo_tasks::value(cell = "new", eq = "manual", into = "new")]
 #[derive(Clone, Debug, Default)]
 pub struct SingleModuleGraph {
     #[turbo_tasks(trace_ignore)]
-    graph: DiGraph<ResolvedVc<Box<dyn Module>>, ()>,
+    graph: DiGraph<SingleModuleGraphNode, ()>,
     // NodeIndex isn't necessarily stable, but these are first nodes in the graph, so shouldn't
     // ever be involved in a swap_remove operation
     #[turbo_tasks(trace_ignore)]
@@ -78,13 +95,29 @@ impl SingleModuleGraph {
                 continue;
             }
 
-            let idx = graph.add_node(module);
+            let refs_cell = primary_chunkable_referenced_modules(*module);
+            let refs = refs_cell.strongly_consistent().await?;
+            let refs_issues = refs_cell
+                .take_collectibles::<Box<dyn Issue>>()
+                .iter()
+                .map(|issue| issue.to_resolved())
+                .try_join()
+                .await?;
+
+            let idx = graph.add_node(SingleModuleGraphNode {
+                module,
+                issues: refs_issues,
+                layer: match module.ident().await?.layer {
+                    Some(layer) => Some(layer.await?.clone_value()),
+                    None => None,
+                },
+            });
             modules.insert(module, idx);
             if let Some(parent_idx) = parent_idx {
                 graph.add_edge(parent_idx, idx, ());
             }
 
-            for (ty, references) in primary_chunkable_referenced_modules(*module).await?.iter() {
+            for (ty, references) in refs.iter() {
                 if !matches!(ty, ChunkingType::Traced) {
                     for reference in references {
                         stack.push((Some(idx), *reference));
@@ -95,7 +128,11 @@ impl SingleModuleGraph {
 
         let root_idx = root.and_then(|root| {
             if !modules.contains_key(&root) {
-                let root_idx = graph.add_node(root);
+                let root_idx = graph.add_node(SingleModuleGraphNode {
+                    module: root,
+                    issues: Default::default(),
+                    layer: None,
+                });
                 for entry in entries {
                     graph.add_edge(root_idx, *modules.get(entry).unwrap(), ());
                 }
@@ -125,23 +162,24 @@ impl SingleModuleGraph {
 
     pub fn enumerate_nodes(
         &self,
-    ) -> impl Iterator<Item = (NodeIndex, ResolvedVc<Box<dyn Module>>)> + '_ {
+    ) -> impl Iterator<Item = (NodeIndex, &'_ SingleModuleGraphNode)> + '_ {
         self.graph
             .node_indices()
-            .map(move |idx| (idx, *self.graph.node_weight(idx).unwrap()))
+            .map(move |idx| (idx, self.graph.node_weight(idx).unwrap()))
     }
 
     /// Traverses all reachable nodes (once)
-    pub fn traverse_from_entry(
-        &self,
+    pub fn traverse_from_entry<'a>(
+        &'a self,
         entry: ResolvedVc<Box<dyn Module>>,
-        mut visitor: impl FnMut(ResolvedVc<Box<dyn Module>>),
+        mut visitor: impl FnMut(&'a SingleModuleGraphNode),
     ) -> Result<()> {
         let entry_node = self.get_entry(entry)?;
 
         let mut dfs = Dfs::new(&self.graph, entry_node);
         while let Some(nx) = dfs.next(&self.graph) {
-            let weight = *self.graph.node_weight(nx).unwrap();
+            let weight = self.graph.node_weight(nx).unwrap();
+            weight.emit_issues();
             visitor(weight);
         }
         Ok(())
@@ -153,14 +191,11 @@ impl SingleModuleGraph {
     /// This means that target nodes can be revisited (but not recursively).
     ///
     /// Edges are traversed in reverse order, so recently added edges are added last.
-    pub fn traverse_edges_from_entry(
-        &self,
+    pub fn traverse_edges_from_entry<'a>(
+        &'a self,
         entry: ResolvedVc<Box<dyn Module>>,
         mut visitor: impl FnMut(
-            (
-                Option<ResolvedVc<Box<dyn Module>>>,
-                ResolvedVc<Box<dyn Module>>,
-            ),
+            (Option<&'a SingleModuleGraphNode>, &'a SingleModuleGraphNode),
         ) -> GraphTraversalAction,
     ) -> Result<()> {
         let graph = &self.graph;
@@ -168,13 +203,15 @@ impl SingleModuleGraph {
 
         let mut stack = vec![entry_node];
         let mut discovered = graph.visit_map();
-        visitor((None, entry));
+        let entry_weight = graph.node_weight(entry_node).unwrap();
+        entry_weight.emit_issues();
+        visitor((None, entry_weight));
 
         while let Some(node) = stack.pop() {
-            let node_weight = *graph.node_weight(node).unwrap();
+            let node_weight = graph.node_weight(node).unwrap();
             if discovered.visit(node) {
                 for succ in graph.neighbors(node).collect::<Vec<_>>().into_iter().rev() {
-                    let succ_weight = *graph.node_weight(succ).unwrap();
+                    let succ_weight = graph.node_weight(succ).unwrap();
                     let action = visitor((Some(node_weight), succ_weight));
                     if !discovered.is_visited(&succ) && action == GraphTraversalAction::Continue {
                         stack.push(succ);
@@ -223,7 +260,12 @@ async fn get_module_graph_for_endpoint(
     )
     .to_resolved()
     .await?;
-    let mut visited_modules: HashSet<_> = graph.await?.graph.node_weights().copied().collect();
+    let mut visited_modules: HashSet<_> = graph
+        .await?
+        .graph
+        .node_weights()
+        .map(|n| n.module)
+        .collect();
 
     let mut graphs = vec![graph];
     for module in server_component_entries
@@ -237,7 +279,7 @@ async fn get_module_graph_for_endpoint(
         )
         .to_resolved()
         .await?;
-        visited_modules.extend(graph.await?.graph.node_weights().copied());
+        visited_modules.extend(graph.await?.graph.node_weights().map(|n| n.module));
         graphs.push(graph);
     }
     let graph = SingleModuleGraph::new_with_entries_visited(
@@ -283,6 +325,10 @@ impl NextDynamicGraph {
         client_asset_context: Vc<Box<dyn AssetContext>>,
     ) -> Result<Vc<Self>> {
         let mapped = map_next_dynamic(*graph, client_asset_context);
+        mapped.strongly_consistent().await?;
+        // TODO this can be removed once next/dynamic collection is moved to the transition instead
+        // of AST traversal
+        let _ = mapped.take_collectibles::<Box<dyn Issue>>();
 
         // TODO shrink graph here, using the information from
         //  - `mapped` (which lists the relevant nodes)
@@ -332,9 +378,9 @@ impl NextDynamicGraph {
                 let data = &self.data.await?;
 
                 let mut result = FxIndexMap::default();
-                graph.traverse_from_entry(entry, |module| {
-                    if let Some(node_data) = data.get(&module) {
-                        result.insert(module, node_data.clone());
+                graph.traverse_from_entry(entry, |node| {
+                    if let Some(node_data) = data.get(&node.module) {
+                        result.insert(node.module, node_data.clone());
                     }
                 })?;
                 Ok(Vc::cell(result))
@@ -392,11 +438,8 @@ impl ReducedGraphs {
     }
 }
 
-/// Generates a [ReducedGraph] for the given project and endpoint containing information that is
-/// either global (module ids, chunking) or computed globally as a performance optimization (client
-/// references, etc).
 #[turbo_tasks::function]
-pub async fn get_reduced_graphs_for_endpoint(
+async fn get_reduced_graphs_for_endpoint_inner(
     project: Vc<Project>,
     entry: ResolvedVc<Box<dyn Module>>,
     // TODO should this happen globally or per endpoint? Do they all have the same context?
@@ -438,4 +481,24 @@ pub async fn get_reduced_graphs_for_endpoint(
     .await?;
 
     Ok(ReducedGraphs { next_dynamic }.cell())
+}
+
+/// Generates a [ReducedGraph] for the given project and endpoint containing information that is
+/// either global (module ids, chunking) or computed globally as a performance optimization (client
+/// references, etc).
+#[turbo_tasks::function]
+pub async fn get_reduced_graphs_for_endpoint(
+    project: Vc<Project>,
+    entry: Vc<Box<dyn Module>>,
+    // TODO should this happen globally or per endpoint? Do they all have the same context?
+    client_asset_context: Vc<Box<dyn AssetContext>>,
+) -> Result<Vc<ReducedGraphs>> {
+    // TODO get rid of this function once everything inside of
+    // `get_reduced_graphs_for_endpoint_inner` calls `take_collectibles()` when needed
+    let result = get_reduced_graphs_for_endpoint_inner(project, entry, client_asset_context);
+    if project.next_mode().await?.is_production() {
+        result.strongly_consistent().await?;
+        let _issues = result.take_collectibles::<Box<dyn Issue>>();
+    }
+    Ok(result)
 }

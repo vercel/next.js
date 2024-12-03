@@ -282,20 +282,17 @@ pub async fn map_next_dynamic(
     let data = graph
         .await?
         .enumerate_nodes()
-        .map(|(_, module)| {
+        .map(|(_, node)| {
             async move {
-                let is_browser = match module.ident().await?.layer {
-                    Some(layer) => {
-                        // TODO: compare module contexts instead?
-                        let layer = &*layer.await?;
-                        layer == "app-client" || layer == "client"
-                    }
-                    None => false,
-                };
-                // Only collect in RSC and SSR
+                // TODO: compare module contexts instead?
+                let is_browser = node
+                    .layer
+                    .as_ref()
+                    .is_some_and(|layer| layer == "app-client" || layer == "client");
                 if !is_browser {
+                    // Only collect in RSC and SSR
                     if let Some(v) =
-                        &*build_dynamic_imports_map_for_module(client_asset_context, *module)
+                        &*build_dynamic_imports_map_for_module(client_asset_context, *node.module)
                             .await?
                     {
                         return Ok(Some(v.await?.clone_value()));

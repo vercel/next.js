@@ -3951,6 +3951,7 @@ name = "next-api"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "auto-hash-map",
  "futures",
  "indexmap 2.5.0",
  "next-core",
