@@ -4,7 +4,7 @@ valid:
     #[turbo_tasks::value_trait]
     pub trait Example {
         fn write_to_disk(self: Vc<Self>);
-        fn write_to_disk(self: Resolvedvc<Self>) {}
+        fn write_to_disk(self: ResolvedVc<Self>) {}
     }
 invalid:
   - |
